@@ -1,3 +1,0 @@
-# TileDB-Py
-
-test
