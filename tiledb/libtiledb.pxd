@@ -96,7 +96,7 @@ cdef extern from "tiledb.h":
 
     # Error
     int tiledb_error_last(tiledb_ctx_t* ctx, tiledb_error_t** err)
-    int tiledb_error_message(tiledb_ctx_t* ctx, tiledb_error_t* err, const char** msg)
+    int tiledb_error_message(tiledb_ctx_t* ctx, tiledb_error_t* err, char** msg)
     int tiledb_error_free(tiledb_ctx_t* ctx, tiledb_error_t* err)
 
     # Group

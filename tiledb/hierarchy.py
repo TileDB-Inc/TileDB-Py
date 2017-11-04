@@ -26,7 +26,14 @@ class Group(object):
         return "<tiledb.Group '%s'>" % self.name
 
 
-def group(path=None):
+def open(path=None, mode=None):
+    pass
+
+
+def group():
+    pass
+
+
+def create_group(path=None):
     if path is None:
-        return False
-    return True
+        raise AttributeError("invalid path, path is None")
