@@ -1,3 +1,6 @@
-from .libtiledb import version as libtiledb_version
+from __future__ import absolute_import
 
-__all__ = [libtiledb_version]
+from .libtiledb import version as libtiledb_version
+from .hierarchy import Group, group
+
+__all__ = [libtiledb_version, Group, group]
