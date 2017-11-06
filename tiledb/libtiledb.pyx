@@ -1,7 +1,14 @@
 from os.path import abspath
 from cpython.version cimport PY_MAJOR_VERSION
 
-ctypedef unsigned char char_type
+
+def version():
+    cdef:
+        int major = 0
+        int minor = 0
+        int rev = 0
+    tiledb_version(&major, &minor, &rev)
+    return major, minor, rev
 
 
 cdef unicode ustring(s):
@@ -16,57 +23,33 @@ cdef unicode ustring(s):
         ", not {}".format(s))
 
 
-class Group(object):
-
-    def __init__(self, path=None):
-        self._path = path
-
-    @property
-    def path(self):
-        self._path
-
-    @property
-    def name(self):
-        if self._path:
-            name = self._path
-            if name[0] != '/':
-                name = '/' + name
-            return name
-        return '/'
-
-    def __eq__(self, other):
-        return isinstance(other, Group) and self._path == other.path
-
-    def __repr__(self):
-        return "<tiledb.Group '%s'>" % self.name
-
-
 class TileDBError(Exception):
     pass
 
 
-cdef check_error(tiledb_ctx_t* ctx, int rc):
+cdef check_error(Ctx ctx, int rc):
+    ctx_ptr = ctx.ptr
     if rc == TILEDB_OK:
         return
     if rc == TILEDB_OOM:
         raise MemoryError()
     cdef int ret = TILEDB_OK
     cdef tiledb_error_t* err = NULL
-    ret = tiledb_error_last(ctx, &err)
+    ret = tiledb_error_last(ctx_ptr, &err)
     if ret != TILEDB_OK:
-        tiledb_error_free(ctx, err)
+        tiledb_error_free(ctx_ptr, err)
         if ret == TILEDB_OOM:
             raise MemoryError()
         raise TileDBError("error retrieving error from ctx")
     cdef const char* err_msg = NULL
-    ret = tiledb_error_message(ctx, err, &err_msg)
+    ret = tiledb_error_message(ctx_ptr, err, &err_msg)
     if ret != TILEDB_OK:
-        tiledb_error_free(ctx, err)
+        tiledb_error_free(ctx_ptr, err)
         if ret == TILEDB_OOM:
             return MemoryError()
         raise TileDBError("error retrieving error message from ctx")
     message_string = err_msg.decode('UTF-8', 'strict')
-    tiledb_error_free(ctx, err)
+    tiledb_error_free(ctx_ptr, err)
     raise TileDBError(message_string)
 
 
@@ -79,57 +62,116 @@ cdef class Ctx(object):
         if rc == TILEDB_OOM:
             raise MemoryError()
         if rc == TILEDB_ERR:
-            raise Exception("better error here")
+            raise TileDBError("Unknown error creating tiledb.Ctx")
 
     def __dealloc__(self):
         if self.ptr is not NULL:
             tiledb_ctx_free(self.ptr)
 
-    def __repr__(self):
-        return "<tiledb.Ctx>"
-
-    def group_create(self, path=None, force=False):
-        if path is None:
-            raise AttributeError("invalid path, path is None")
-        upath = ustring(abspath(path)).encode('UTF-8')
-        cdef const char* c_path = upath
-        check_error(self.ptr,
-                    tiledb_group_create(self.ptr, c_path))
-        return Group(upath.decode('UTF-8'))
 
 def ctx():
     return Ctx()
 
+cdef dtype_to_tiledb(dtype):
+    if dtype == "i4":
+        return TILEDB_INT32
+    elif dtype == "u4":
+        return TILEDB_UINT32
+    elif dtype == "i8":
+        return TILEDB_INT64
+    elif dtype == "u8":
+        return TILEDB_UINT64
+    elif dtype == "f4":
+        return TILEDB_FLOAT32
+    elif dtype == "f8":
+        return TILEDB_FLOAT64
+    elif dtype == "i1":
+        return TILEDB_INT8
+    elif dtype == "u1":
+        return TILEDB_UINT8
+    elif dtype == "i2":
+        return TILEDB_INT16
+    elif dtype == "u2":
+        return TILEDB_UINT16
+    raise AttributeError("unknown dtype %r" % dtype)
 
-def version():
-    cdef:
-        int major = 0
-        int minor = 0
-        int rev = 0
-    tiledb_version(&major, &minor, &rev)
-    return major, minor, rev
+cdef class Attribute(object):
+
+    cdef Ctx ctx
+    cdef tiledb_attribute_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_attribute_free(self.ctx.ptr, self.ptr)
+
+    def __init__(self, Ctx ctx,  name=None, dtype=None, compressor=None, level=-1):
+        self.name = ustring(name).encode('UTF-8')
+        self.dtype = dtype
+        self.compressor = compressor
+        self.level = level
 
 
-def object_type():
-    cdef:
-        int rc = 0
-        tiledb_ctx_t* ctx = NULL
-        tiledb_object_t obj = TILEDB_INVALID
-    rc = tiledb_ctx_create(&ctx)
-    if rc != TILEDB_OK:
-        tiledb_ctx_free(ctx)
-        return Exception("could not create context")
-    rc = tiledb_object_type(ctx, "/", &obj)
-    if rc != TILEDB_OK:
-        tiledb_ctx_free(ctx)
-        return Exception("error retrieving object type")
+cdef unicode_path(path):
+    return ustring(abspath(path)).encode('UTF-8')
+
+def group_create(Ctx ctx, path):
+    upath = unicode_path(path)
+    cdef const char* c_path = upath
+    check_error(ctx,
+       tiledb_group_create(ctx.ptr, c_path))
+    return upath.decode('UTF-8')
+
+
+def object_type(Ctx ctx, path):
+    upath = unicode_path(path)
+    cdef const char* c_path = upath
+    cdef tiledb_object_t obj = TILEDB_INVALID
+    check_error(ctx,
+       tiledb_object_type(ctx.ptr, c_path, &obj))
+    return obj
+
+def delete(Ctx ctx, path):
+    upath = unicode_path(path)
+    cdef const char* c_path = upath
+    check_error(ctx,
+       tiledb_delete(ctx.ptr, c_path))
+    return
+
+def move(Ctx ctx, oldpath, newpath, force=False):
+    uoldpath = unicode_path(oldpath)
+    unewpath = unicode_path(newpath)
+    cdef const char* c_oldpath = uoldpath
+    cdef const char* c_newpath = unewpath
+    cdef int c_force = 0
+    if force:
+       c_force = True
+    check_error(ctx,
+        tiledb_move(ctx.ptr, c_oldpath, c_newpath, c_force))
+    return
+
+cdef int walk_callback(const char* c_path,
+                       tiledb_object_t obj,
+                       void* pyfunc):
     objtype = None
-    if obj == TILEDB_GROUP:
-        objtype =  "group"
-    elif obj == TILEDB_ARRAY:
+    if obj == TILEDB_ARRAY:
         objtype = "array"
-    tiledb_ctx_free(ctx)
-    if obj != TILEDB_INVALID:
-        raise Exception("error retrieving object type")
-    return objtype
+    elif obj == TILEDB_GROUP:
+        objtype = "group"
+    (<object> pyfunc)(c_path.decode('UTF-8'), objtype)
 
+def walk(Ctx ctx, func, path, order="postorder"):
+    upath = ustring(abspath(path)).encode('UTF-8')
+    cdef const char* c_path = upath
+    cdef tiledb_walk_order_t c_order
+    if order == "postorder":
+        c_order = TILEDB_POSTORDER
+    elif order == "preorder":
+        c_order = TILEDB_PREORDER
+    else:
+        raise AttributeError("unknown walk order {}".format(order))
+    check_error(ctx,
+        tiledb_walk(ctx.ptr, c_path, c_order, walk_callback, <void*> func))
+    return
