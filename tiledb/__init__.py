@@ -1,8 +1,5 @@
 from __future__ import absolute_import
-
+from .libtiledb import Ctx, TileDBError, group_create, walk, delete, move
 from .libtiledb import version as libtiledb_version
-from .libtiledb import ctx
-from .hierarchy import Group, group, open
 
-
-__all__ = [libtiledb_version, Group, group, open, ctx]
+__all__ = [Ctx, TileDBError, delete, group_create, walk, libtiledb_version]

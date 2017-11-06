@@ -14,13 +14,13 @@ def version():
 cdef unicode ustring(s):
     if type(s) is unicode:
         return <unicode>s
-    elif PY_MAJOR_VERSION < 2 and isinstance(s, bytes):
+    elif PY_MAJOR_VERSION < 3 and isinstance(s, bytes):
         return (<bytes> s).decode('ascii')
     elif isinstance(s, unicode):
         return unicode(s)
     raise TypeError(
         "ustring() must be a string or a bytes-like object"
-        ", not {}".format(s))
+        ", not {}".format(type(s)))
 
 
 class TileDBError(Exception):
@@ -69,9 +69,6 @@ cdef class Ctx(object):
             tiledb_ctx_free(self.ptr)
 
 
-def ctx():
-    return Ctx()
-
 cdef dtype_to_tiledb(dtype):
     if dtype == "i4":
         return TILEDB_INT32
@@ -95,7 +92,7 @@ cdef dtype_to_tiledb(dtype):
         return TILEDB_UINT16
     raise AttributeError("unknown dtype %r" % dtype)
 
-cdef class Attribute(object):
+cdef class Attr(object):
 
     cdef Ctx ctx
     cdef tiledb_attribute_t* ptr
@@ -114,6 +111,23 @@ cdef class Attribute(object):
         self.level = level
 
 
+
+cdef class Domain(object):
+
+    cdef Ctx ctx
+    cdef tiledb_domain_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_domain_free(self.ctx.ptr, self.ptr)
+
+    def __init__(self, Ctx ctx, dtype=None):
+        pass
+
+
 cdef unicode_path(path):
     return ustring(abspath(path)).encode('UTF-8')
 
@@ -123,7 +137,6 @@ def group_create(Ctx ctx, path):
     check_error(ctx,
        tiledb_group_create(ctx.ptr, c_path))
     return upath.decode('UTF-8')
-
 
 def object_type(Ctx ctx, path):
     upath = unicode_path(path)
@@ -160,10 +173,14 @@ cdef int walk_callback(const char* c_path,
         objtype = "array"
     elif obj == TILEDB_GROUP:
         objtype = "group"
-    (<object> pyfunc)(c_path.decode('UTF-8'), objtype)
+    try:
+        (<object> pyfunc)(c_path.decode('UTF-8'), objtype)
+    except StopIteration:
+        return 0
+    return 1
 
-def walk(Ctx ctx, func, path, order="postorder"):
-    upath = ustring(abspath(path)).encode('UTF-8')
+def walk(Ctx ctx, path, func, order="preorder"):
+    upath = unicode_path(path)
     cdef const char* c_path = upath
     cdef tiledb_walk_order_t c_order
     if order == "postorder":
