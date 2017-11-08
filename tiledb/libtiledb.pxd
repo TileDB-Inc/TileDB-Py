@@ -139,6 +139,11 @@ cdef extern from "tiledb.h":
         const tiledb_attribute_t* attr,
         unsigned int* cell_val_num)
 
+    int tiledb_attribute_dump(
+        tiledb_ctx_t* ctx,
+        const tiledb_attribute_t* attr,
+        FILE* out)
+
     # Domain
     int tiledb_domain_create(
         tiledb_ctx_t* ctx,

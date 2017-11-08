@@ -105,11 +105,25 @@ cdef class Attr(object):
         if self.ptr is not NULL:
             tiledb_attribute_free(self.ctx.ptr, self.ptr)
 
-    def __init__(self, Ctx ctx,  name=None, dtype=None, compressor=None, level=-1):
-        self.name = ustring(name).encode('UTF-8')
-        self.dtype = dtype
-        self.compressor = compressor
-        self.level = level
+    # TODO: use numpy compund dtypes to choose number of cells
+    def __init__(self, Ctx ctx,  name=None, dtype='f8', compressor=None, level=-1):
+        uname = ustring(name).encode('UTF-8')
+        cdef tiledb_attribute_t* attr_ptr
+        cdef tiledb_datatype_t tiledb_dtype = dtype_to_tiledb(dtype)
+        check_error(ctx,
+            tiledb_attribute_create(ctx.ptr, &attr_ptr, uname, tiledb_dtype))
+        if compressor is not None:
+            pass
+        if level > -1:
+            check_error(ctx,
+                tiledb_attribute())
+        self.ctx = ctx
+        self.ptr = attr_ptr
+
+
+    def dump(self):
+        check_error(self.ctx,
+            tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
 
 
 cdef class Domain(object):
@@ -151,7 +165,6 @@ cdef class Domain(object):
     def dump(self):
         check_error(self.ctx,
                     tiledb_domain_dump(self.ctx.ptr, self.ptr, stdout))
-        return
 
 
 
