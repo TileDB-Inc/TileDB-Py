@@ -69,7 +69,7 @@ cdef class Ctx(object):
             tiledb_ctx_free(self.ptr)
 
 
-cdef tiledb_datatype_t dtype_to_tiledb(dtype):
+cdef tiledb_datatype_t _tiledb_dtype(dtype) except TILEDB_CHAR:
     if dtype == "i4":
         return TILEDB_INT32
     elif dtype == "u4":
@@ -90,8 +90,60 @@ cdef tiledb_datatype_t dtype_to_tiledb(dtype):
         return TILEDB_INT16
     elif dtype == "u2":
         return TILEDB_UINT16
-    raise TypeError("data type '{0!r}' not understood".format(dtype))
+    raise TypeError("data type {0!r} not understood".format(dtype))
 
+cdef tiledb_compressor_t _tiledb_compressor(c) except TILEDB_NO_COMPRESSION:
+    if c is None:
+        return TILEDB_NO_COMPRESSION
+    elif c == "gzip":
+        return TILEDB_GZIP
+    elif c == "zstd":
+        return TILEDB_ZSTD
+    elif c == "lz4":
+        return TILEDB_LZ4
+    elif c == "blosc-lz":
+        return TILEDB_BLOSC
+    elif c == "blosc-lz4":
+        return TILEDB_BLOSC_LZ4
+    elif c == "blosc-lz4hc":
+        return TILEDB_BLOSC_LZ4HC
+    elif c == "blosc-snappy":
+        return TILEDB_BLOSC_SNAPPY
+    elif c == "blosc-zstd":
+        return TILEDB_BLOSC_ZSTD
+    elif c == "rle":
+        return TILEDB_RLE
+    elif c == "bzip2":
+        return TILEDB_BZIP2
+    elif c == "double-delta":
+        return TILEDB_DOUBLE_DELTA
+    raise AttributeError("unknown compressor: {0!r}".format(c))
+
+cdef unicode _tiledb_compressor_string(tiledb_compressor_t c):
+    if c == TILEDB_NO_COMPRESSION:
+        return u"none"
+    elif c == TILEDB_GZIP:
+        return u"gzip"
+    elif c == TILEDB_ZSTD:
+        return u"zstd"
+    elif c == TILEDB_LZ4:
+        return u"lz4"
+    elif c == TILEDB_BLOSC:
+        return u"blosc-lz"
+    elif c == TILEDB_BLOSC_LZ4:
+        return u"blosc-lz4"
+    elif c == TILEDB_BLOSC_LZ4HC:
+       return u"blosc-lz4hc"
+    elif c == TILEDB_BLOSC_SNAPPY:
+        return u"blosc-snappy"
+    elif c == TILEDB_BLOSC_ZSTD:
+        return u"blosc-zstd"
+    elif c == TILEDB_RLE:
+        return u"rle"
+    elif c == TILEDB_BZIP2:
+        return u"bzip2"
+    elif c == TILEDB_DOUBLE_DELTA:
+        return u"double-delta"
 
 cdef class Attr(object):
 
@@ -108,15 +160,15 @@ cdef class Attr(object):
     # TODO: use numpy compund dtypes to choose number of cells
     def __init__(self, Ctx ctx,  name=None, dtype='f8', compressor=None, level=-1):
         uname = ustring(name).encode('UTF-8')
-        cdef tiledb_attribute_t* attr_ptr
-        cdef tiledb_datatype_t tiledb_dtype = dtype_to_tiledb(dtype)
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
+        cdef tiledb_datatype_t tiledb_dtype = _tiledb_dtype(dtype)
         check_error(ctx,
             tiledb_attribute_create(ctx.ptr, &attr_ptr, uname, tiledb_dtype))
         if compressor is not None:
-            pass
-        if level > -1:
+            compr = _tiledb_compressor(compressor)
             check_error(ctx,
-                tiledb_attribute())
+                tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, compr, level))
         self.ctx = ctx
         self.ptr = attr_ptr
 
@@ -125,6 +177,20 @@ cdef class Attr(object):
         check_error(self.ctx,
             tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
 
+    @property
+    def name(self):
+        cdef const char* c_name = NULL
+        check_error(self.ctx,
+            tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
+        return c_name.decode('UTF-8')
+
+    @property
+    def compressor(self):
+        cdef int c_level = -1
+        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
+        check_error(self.ctx,
+            tiledb_attribute_get_compressor(self.ctx.ptr, self.ptr, &compr, &c_level))
+        return (_tiledb_compressor_string(compr), int(c_level))
 
 cdef class Domain(object):
 
@@ -142,7 +208,7 @@ cdef class Domain(object):
         for d in dims:
             if not isinstance(d, Dim):
                 raise TypeError("unknown dimension type {0!r}".format(d))
-        cdef tiledb_datatype_t domain_type = dtype_to_tiledb(dtype)
+        cdef tiledb_datatype_t domain_type = _tiledb_dtype(dtype)
         cdef tiledb_domain_t* domain_ptr = NULL
         check_error(ctx,
                     tiledb_domain_create(ctx.ptr, &domain_ptr, domain_type))

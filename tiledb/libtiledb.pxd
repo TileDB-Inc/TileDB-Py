@@ -113,6 +113,12 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_attribute_t* attr)
 
+    int tiledb_attribute_set_compressor(
+        tiledb_ctx_t* ctx,
+        tiledb_attribute_t* attr,
+        tiledb_compressor_t compressor,
+        int compression_level)
+
     int tiledb_attribute_set_cell_val_num(
         tiledb_ctx_t* ctx,
         tiledb_attribute_t* attr,
