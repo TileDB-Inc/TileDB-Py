@@ -204,6 +204,13 @@ cdef class Domain(object):
         if self.ptr is not NULL:
             tiledb_domain_free(self.ctx.ptr, self.ptr)
 
+    @staticmethod
+    cdef from_ptr(Ctx ctx, tiledb_domain_t* ptr):
+        cdef Domain dom = Domain.__new__(Domain)
+        dom.ctx = ctx
+        dom.ptr = ptr
+        return dom
+
     def __init__(self, Ctx ctx, *dims, dtype='i8'):
         for d in dims:
             if not isinstance(d, Dim):
@@ -304,7 +311,7 @@ cdef class Array(object):
         tiledb_array_metadata_set_tile_order(
             ctx.ptr, metadata_ptr, tile_layout)
         cdef uint64_t c_capacity = 0
-        if capacity > 0:
+        if sparse and capacity > 0:
             c_capacity = <uint64_t>capacity
             tiledb_array_metadata_set_capacity(ctx.ptr, metadata_ptr, c_capacity)
         cdef tiledb_domain_t* domain_ptr = (<Domain>domain).ptr
@@ -326,9 +333,51 @@ cdef class Array(object):
         self.name = uname
         self.ptr = metadata_ptr
 
+    @property
+    def name(self):
+        return self.uname
+
+    @property
+    def sparse(self):
+        cdef tiledb_array_type_t typ = TILEDB_DENSE
+        check_error(self.ctx,
+            tiledb_array_metadata_get_array_type(self.ctx.ptr, self.ptr, &typ))
+        return typ == TILEDB_SPARSE
+
+    @property
+    def capacity(self):
+        cdef uint64_t cap = 0
+        check_error(self.ctx,
+            tiledb_array_metadata_get_capacity(self.ctx.ptr, self.ptr, &cap))
+        return int(cap)
+
+    @property
+    def cell_order(self):
+        pass
+
+    @property
+    def tile_order(self):
+        pass
+
+    @property
+    def domain(self):
+        cdef tiledb_domain_t* dom = NULL
+        check_error(self.ctx,
+            tiledb_array_metadata_get_domain(self.ctx.ptr, self.ptr, &dom))
+        return Domain.from_ptr(self.ctx, dom)
+
+    def dump(self):
+        pass
 
 cdef unicode unicode_path(path):
     return ustring(abspath(path)).encode('UTF-8')
+
+def array_consolidate(Ctx ctx, path):
+    upath = unicode_path(path)
+    cdef const char* c_path = upath
+    check_error(ctx,
+        tiledb_array_consolidate(ctx.ptr, c_path))
+    return upath
 
 def group_create(Ctx ctx, path):
     upath = unicode_path(path)

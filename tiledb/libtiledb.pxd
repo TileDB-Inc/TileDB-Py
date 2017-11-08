@@ -375,7 +375,7 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx, const tiledb_array_metadata_t* array_metadata)
 
     int tiledb_array_consolidate(
-        tiledb_ctx_t* ctx, const char* array_name);
+        tiledb_ctx_t* ctx, const char* array_path);
 
     # Resource management
     int tiledb_object_type(
