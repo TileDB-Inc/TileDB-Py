@@ -161,6 +161,11 @@ cdef extern from "tiledb.h":
         const void* dim_domain,
         const void* tile_extent)
 
+    int tiledb_domain_dump(
+        tiledb_ctx_t* ctx,
+        const tiledb_domain_t* domain,
+        FILE* out)
+
     # Dimension
     int tiledb_dimension_get_name(
         tiledb_ctx_t* ctx,

@@ -88,8 +88,27 @@ class GroupTest(GroupTestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.move(ctx, self.path("group1/group4"), self.path("group1/group3"))
 
-        tiledb.move(ctx, self.path("group1/group4"), self.path("group1/group3"), force=True)
+        tiledb.move(ctx, self.path("group1/group4"),
+                    self.path("group1/group3"),
+                    force=True)
 
         self.assertTrue(is_group(ctx, self.path("group1/group3")))
         self.assertFalse(is_group(ctx, self.path("group1/group4")))
+
+
+class DimensionTest(TestCase):
+
+    def test_domain(self):
+        dom = tiledb.Domain(
+            tiledb.Dim("d1", range(1, 4), 2),
+            tiledb.Dim("d2", range(1, 4), 2),
+            dtype='u8')
+
+
+class AttributeTest(TestCase):
+    pass
+
+
+
+
 

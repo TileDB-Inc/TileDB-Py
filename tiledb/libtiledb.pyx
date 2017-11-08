@@ -1,6 +1,7 @@
-from os.path import abspath
 from cpython.version cimport PY_MAJOR_VERSION
+from libc.stdio cimport stdout
 
+from os.path import abspath
 
 def version():
     cdef:
@@ -9,7 +10,6 @@ def version():
         int rev = 0
     tiledb_version(&major, &minor, &rev)
     return major, minor, rev
-
 
 cdef unicode ustring(s):
     if type(s) is unicode:
@@ -20,7 +20,7 @@ cdef unicode ustring(s):
         return unicode(s)
     raise TypeError(
         "ustring() must be a string or a bytes-like object"
-        ", not {}".format(type(s)))
+        ", not {0!r}".format(type(s)))
 
 
 class TileDBError(Exception):
@@ -40,7 +40,7 @@ cdef check_error(Ctx ctx, int rc):
         tiledb_error_free(ctx_ptr, err)
         if ret == TILEDB_OOM:
             raise MemoryError()
-        raise TileDBError("error retrieving error from ctx")
+        raise TileDBError("error retrieving error object from ctx")
     cdef const char* err_msg = NULL
     ret = tiledb_error_message(ctx_ptr, err, &err_msg)
     if ret != TILEDB_OK:
@@ -62,14 +62,14 @@ cdef class Ctx(object):
         if rc == TILEDB_OOM:
             raise MemoryError()
         if rc == TILEDB_ERR:
-            raise TileDBError("Unknown error creating tiledb.Ctx")
+            raise TileDBError("unknown error creating tiledb.Ctx")
 
     def __dealloc__(self):
         if self.ptr is not NULL:
             tiledb_ctx_free(self.ptr)
 
 
-cdef dtype_to_tiledb(dtype):
+cdef tiledb_datatype_t dtype_to_tiledb(dtype):
     if dtype == "i4":
         return TILEDB_INT32
     elif dtype == "u4":
@@ -90,7 +90,8 @@ cdef dtype_to_tiledb(dtype):
         return TILEDB_INT16
     elif dtype == "u2":
         return TILEDB_UINT16
-    raise AttributeError("unknown dtype %r" % dtype)
+    raise TypeError("data type '{0!r}' not understood".format(dtype))
+
 
 cdef class Attr(object):
 
@@ -111,7 +112,6 @@ cdef class Attr(object):
         self.level = level
 
 
-
 cdef class Domain(object):
 
     cdef Ctx ctx
@@ -124,11 +124,62 @@ cdef class Domain(object):
         if self.ptr is not NULL:
             tiledb_domain_free(self.ctx.ptr, self.ptr)
 
-    def __init__(self, Ctx ctx, dtype=None):
-        pass
+    def __init__(self, Ctx ctx, *dims, dtype='i8'):
+        for d in dims:
+            if not isinstance(d, Dim):
+                raise TypeError("unknown dimension type {0!r}".format(d))
+        cdef tiledb_datatype_t domain_type = dtype_to_tiledb(dtype)
+        cdef tiledb_domain_t* domain_ptr = NULL
+        check_error(ctx,
+                    tiledb_domain_create(ctx.ptr, &domain_ptr, domain_type))
+        cdef int rc
+        cdef uint64_t tile_extent
+        cdef uint64_t[2] dim_range
+        for d in dims:
+            ulabel = ustring(d.label).encode('UTF-8')
+            dim_range[0] = d.dim[0]
+            dim_range[1] = d.dim[1]
+            tile_extent = d.tile
+            rc = tiledb_domain_add_dimension(
+                ctx.ptr, domain_ptr, ulabel, &dim_range, &tile_extent)
+            if rc != TILEDB_OK:
+                tiledb_domain_free(ctx.ptr, domain_ptr)
+                check_error(ctx, rc)
+        self.ctx = ctx
+        self.ptr = domain_ptr
+
+    def dump(self):
+        check_error(self.ctx,
+                    tiledb_domain_dump(self.ctx.ptr, self.ptr, stdout))
+        return
 
 
-cdef unicode_path(path):
+
+cdef class Dim(object):
+
+    cdef unicode label
+    cdef tuple dim
+    cdef object tile
+
+    def __init__(self, label=None, dim=None, tile=None):
+        self.label = label
+        self.dim = (dim[0], dim[1])
+        self.tile = tile
+
+    @property
+    def label(self):
+        return self.label
+
+    @property
+    def dim(self):
+        return self.dim
+
+    @property
+    def tile(self):
+        return self.tile
+
+
+cdef unicode unicode_path(path):
     return ustring(abspath(path)).encode('UTF-8')
 
 def group_create(Ctx ctx, path):
