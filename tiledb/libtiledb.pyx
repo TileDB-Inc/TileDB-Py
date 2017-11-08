@@ -15,7 +15,7 @@ cdef unicode ustring(s):
     if type(s) is unicode:
         return <unicode>s
     elif PY_MAJOR_VERSION < 3 and isinstance(s, bytes):
-        return (<bytes> s).decode('ascii')
+        return (<bytes>s).decode('ascii')
     elif isinstance(s, unicode):
         return unicode(s)
     raise TypeError(
@@ -158,7 +158,7 @@ cdef class Attr(object):
             tiledb_attribute_free(self.ctx.ptr, self.ptr)
 
     # TODO: use numpy compund dtypes to choose number of cells
-    def __init__(self, Ctx ctx,  name=None, dtype='f8', compressor=None, level=-1):
+    def __init__(self, Ctx ctx,  name="", dtype='f8', compressor=None, level=-1):
         uname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
         cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
@@ -330,7 +330,8 @@ cdef class Array(object):
         rc = tiledb_array_create(ctx.ptr, metadata_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
-        self.name = uname
+        self.ctx = ctx
+        self.name = name
         self.ptr = metadata_ptr
 
     @property
@@ -367,9 +368,10 @@ cdef class Array(object):
         return Domain.from_ptr(self.ctx, dom)
 
     def dump(self):
-        pass
+        check_error(self.ctx,
+            tiledb_array_metadata_dump(self.ctx.ptr, self.ptr, stdout))
 
-cdef unicode unicode_path(path):
+cdef bytes unicode_path(path):
     return ustring(abspath(path)).encode('UTF-8')
 
 def array_consolidate(Ctx ctx, path):
@@ -384,7 +386,7 @@ def group_create(Ctx ctx, path):
     cdef const char* c_path = upath
     check_error(ctx,
        tiledb_group_create(ctx.ptr, c_path))
-    return upath.decode('UTF-8')
+    return upath
 
 def object_type(Ctx ctx, path):
     upath = unicode_path(path)

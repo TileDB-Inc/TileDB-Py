@@ -3,7 +3,7 @@ from tiledb.tests.common import DiskTestCase
 from unittest import TestCase
 
 import tiledb
-
+from tiledb import libtiledb as t
 
 def is_group(ctx, path):
    obj = tiledb.libtiledb.object_type(ctx, path)
@@ -99,14 +99,35 @@ class GroupTest(GroupTestCase):
 class DimensionTest(TestCase):
 
     def test_domain(self):
-        dom = tiledb.Domain(
-            tiledb.Dim("d1", range(1, 4), 2),
-            tiledb.Dim("d2", range(1, 4), 2),
+        ctx = t.Ctx()
+        dom = t.Domain(
+            ctx,
+            t.Dim("d1", (1, 4), 2),
+            t.Dim("d2", (1, 4), 2),
             dtype='u8')
+        dom.dump()
 
 
 class AttributeTest(TestCase):
-    pass
+
+    def test_attribute(self):
+       ctx = t.Ctx()
+       attr = t.Attr(ctx, "foo")
+       attr.dump()
+
+
+class ArrayTest(DiskTestCase):
+
+    def test_array(self):
+        ctx = t.Ctx()
+        dom = t.Domain(
+            ctx,
+            t.Dim("d1", (1, 8), 2),
+            t.Dim("d2", (1, 8), 2),
+            dtype='u8')
+        att = t.Attr(ctx, "val", dtype='f8')
+        arr = t.Array(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr.dump()
 
 
 

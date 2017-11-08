@@ -306,6 +306,11 @@ cdef extern from "tiledb.h":
         const tiledb_array_metadata_t* array_metadata,
         tiledb_layout_t* tile_order)
 
+    int tiledb_array_metadata_dump(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_metadata_t* array_metadata,
+        FILE* out)
+
     # Attribute iterator
     int tiledb_attribute_iter_create(
         tiledb_ctx_t* ctx,
