@@ -233,7 +233,6 @@ cdef class Domain(object):
                     tiledb_domain_dump(self.ctx.ptr, self.ptr, stdout))
 
 
-
 cdef class Dim(object):
 
     cdef unicode label
@@ -256,6 +255,76 @@ cdef class Dim(object):
     @property
     def tile(self):
         return self.tile
+
+
+cdef tiledb_layout_t _tiledb_layout(order) except TILEDB_UNORDERED:
+    if order == "row-major":
+        return TILEDB_ROW_MAJOR
+    elif order == "col-major":
+        return TILEDB_COL_MAJOR
+    elif order == "global":
+        return TILEDB_GLOBAL_ORDER
+    elif order == None or order == "unordered":
+        return TILEDB_UNORDERED
+    raise AttributeError("unknown tiledb layout: {0!r}".format(order))
+
+
+cdef class Array(object):
+
+    cdef Ctx ctx
+    cdef unicode name
+    cdef tiledb_array_metadata_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_array_metadata_free(self.ctx.ptr, self.ptr)
+
+    def __init__(self, Ctx ctx,
+                 unicode name,
+                 domain=None,
+                 attrs=[],
+                 cell_order='row-major',
+                 tile_order='row-major',
+                 capacity=0,
+                 sparse=False):
+        uname = ustring(name).encode('UTF-8')
+        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        check_error(ctx,
+            tiledb_array_metadata_create(ctx.ptr, &metadata_ptr, uname))
+        cdef tiledb_layout_t cell_layout = _tiledb_layout(cell_order)
+        cdef tiledb_layout_t tile_layout = _tiledb_layout(tile_order)
+        cdef tiledb_array_type_t array_type = TILEDB_SPARSE if sparse else TILEDB_DENSE
+        tiledb_array_metadata_set_array_type(
+            ctx.ptr, metadata_ptr, array_type)
+        tiledb_array_metadata_set_cell_order(
+            ctx.ptr, metadata_ptr, cell_layout)
+        tiledb_array_metadata_set_tile_order(
+            ctx.ptr, metadata_ptr, tile_layout)
+        cdef uint64_t c_capacity = 0
+        if capacity > 0:
+            c_capacity = <uint64_t>capacity
+            tiledb_array_metadata_set_capacity(ctx.ptr, metadata_ptr, c_capacity)
+        cdef tiledb_domain_t* domain_ptr = (<Domain>domain).ptr
+        tiledb_array_metadata_set_domain(
+            ctx.ptr, metadata_ptr, domain_ptr)
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        for attr in attrs:
+            attr_ptr = (<Attr>attr).ptr
+            tiledb_array_metadata_add_attribute(
+                ctx.ptr, metadata_ptr, attr_ptr)
+        cdef int rc = TILEDB_OK
+        rc = tiledb_array_metadata_check(ctx.ptr, metadata_ptr)
+        if rc != TILEDB_OK:
+            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            check_error(ctx, rc)
+        rc = tiledb_array_create(ctx.ptr, metadata_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        self.name = uname
+        self.ptr = metadata_ptr
 
 
 cdef unicode unicode_path(path):

@@ -219,13 +219,17 @@ cdef extern from "tiledb.h":
 
     int tiledb_dimension_iter_first(
         tiledb_ctx_t* ctx,
-        tiledb_dimension_iter_t* dim_it);
+        tiledb_dimension_iter_t* dim_it)
 
     # Array Metadata
     int tiledb_array_metadata_create(
         tiledb_ctx_t* ctx,
         tiledb_array_metadata_t** array_metadata,
-        const char* array_name);
+        const char* array_name)
+
+    int tiledb_array_metadata_free(
+        tiledb_ctx_t* ctx,
+            tiledb_array_metadata_t* array_metadata)
 
     int tiledb_array_metadata_add_attribute(
         tiledb_ctx_t* ctx,
@@ -246,6 +250,11 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_array_metadata_t* array_metadata,
         tiledb_layout_t cell_order);
+
+    int tiledb_array_metadata_set_tile_order(
+        tiledb_ctx_t* ctx,
+        tiledb_array_metadata_t* array_metadata,
+        tiledb_layout_t tile_order)
 
     int tiledb_array_metadata_set_array_type(
         tiledb_ctx_t* ctx,
