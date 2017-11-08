@@ -157,6 +157,13 @@ cdef class Attr(object):
         if self.ptr is not NULL:
             tiledb_attribute_free(self.ctx.ptr, self.ptr)
 
+    @staticmethod
+    cdef from_ptr(Ctx ctx, tiledb_attribute_t* ptr):
+        cdef Attr attr = Attr.__new__(Attr)
+        attr.ctx = ctx
+        attr.ptr = ptr
+        return attr
+
     # TODO: use numpy compund dtypes to choose number of cells
     def __init__(self, Ctx ctx,  name="", dtype='f8', compressor=None, level=-1):
         uname = ustring(name).encode('UTF-8')
@@ -171,7 +178,6 @@ cdef class Attr(object):
                 tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, compr, level))
         self.ctx = ctx
         self.ptr = attr_ptr
-
 
     def dump(self):
         check_error(self.ctx,
@@ -248,6 +254,8 @@ cdef class Dim(object):
 
     def __init__(self, label=None, dim=None, tile=None):
         self.label = label
+        if len(dim) != 2:
+            raise AttributeError("invalid extent")
         self.dim = (dim[0], dim[1])
         self.tile = tile
 
@@ -275,6 +283,15 @@ cdef tiledb_layout_t _tiledb_layout(order) except TILEDB_UNORDERED:
         return TILEDB_UNORDERED
     raise AttributeError("unknown tiledb layout: {0!r}".format(order))
 
+cdef unicode _tiledb_layout_string(tiledb_layout_t order):
+    if order == TILEDB_ROW_MAJOR:
+        return u"row-major"
+    elif order == TILEDB_COL_MAJOR:
+        return u"col-major"
+    elif order == TILEDB_GLOBAL_ORDER:
+        return u"global"
+    elif order == TILEDB_UNORDERED:
+        return u"unordered"
 
 cdef class Array(object):
 
@@ -354,18 +371,37 @@ cdef class Array(object):
 
     @property
     def cell_order(self):
-        pass
+        cdef tiledb_layout_t order = TILEDB_UNORDERED
+        check_error(self.ctx,
+            tiledb_array_metadata_get_cell_order(self.ctx.ptr, self.ptr, &order))
+        return _tiledb_layout_string(order)
 
     @property
     def tile_order(self):
-        pass
+        cdef tiledb_layout_t order = TILEDB_UNORDERED
+        check_error(self.ctx,
+            tiledb_array_metadata_get_tile_order(self.ctx.ptr, self.ptr, &order))
+        return _tiledb_layout_string(order)
 
     @property
+    def coord_compressor(self):
+        cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
+        cdef int level = -1
+        check_error(self.ctx,
+            tiledb_array_metadata_get_coords_compressor(self.ctx.ptr, self.ptr, &comp, &level))
+        return (_tiledb_compressor_string(comp), int(level))
+
     def domain(self):
         cdef tiledb_domain_t* dom = NULL
         check_error(self.ctx,
             tiledb_array_metadata_get_domain(self.ctx.ptr, self.ptr, &dom))
         return Domain.from_ptr(self.ctx, dom)
+
+    def dim(self, idx):
+        pass
+
+    def attr(self, idx):
+        pass
 
     def dump(self):
         check_error(self.ctx,

@@ -126,8 +126,12 @@ class ArrayTest(DiskTestCase):
             t.Dim("d2", (1, 8), 2),
             dtype='u8')
         att = t.Attr(ctx, "val", dtype='f8')
-        arr = t.Array(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr = t.Array(ctx, self.path("foo"),
+                      domain=dom,
+                      attrs=[att])
         arr.dump()
+        self.assertTrue(arr.name == self.path("foo")
+        self.assertFalse(arr.sparse)
 
 
 
