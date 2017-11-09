@@ -388,17 +388,16 @@ cdef class Array(object):
         cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
         cdef int level = -1
         check_error(self.ctx,
-            tiledb_array_metadata_get_coords_compressor(self.ctx.ptr, self.ptr, &comp, &level))
+            tiledb_array_metadata_get_coords_compressor(
+                self.ctx.ptr, self.ptr, &comp, &level))
         return (_tiledb_compressor_string(comp), int(level))
 
+    @property
     def domain(self):
         cdef tiledb_domain_t* dom = NULL
         check_error(self.ctx,
             tiledb_array_metadata_get_domain(self.ctx.ptr, self.ptr, &dom))
         return Domain.from_ptr(self.ctx, dom)
-
-    def dim(self, int idx):
-        pass
 
     def attr(self, unicode idx):
         cdef:
@@ -407,11 +406,13 @@ cdef class Array(object):
             tiledb_attribute_iter_t* it_ptr = NULL
             const tiledb_attribute_t* attr_ptr = NULL
             const char* attr_name = NULL
+
         check_error(self.ctx,
             tiledb_attribute_iter_create(ctx_ptr, self.ptr, &it_ptr))
 
         cdef int rc = TILEDB_OK
         cdef int done = 1
+
         while True:
             rc = tiledb_attribute_iter_done(ctx_ptr, it_ptr, &done)
             if rc != TILEDB_OK:
