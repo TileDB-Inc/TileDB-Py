@@ -1,6 +1,11 @@
 from cpython.version cimport PY_MAJOR_VERSION
 from libc.stdio cimport stdout
+from libc.stdint cimport uintptr_t, int64_t
+from libc.stdlib cimport malloc, free
 
+cimport numpy as np
+
+import numpy as np
 from os.path import abspath
 
 def version():
@@ -198,10 +203,36 @@ cdef class Attr(object):
             tiledb_attribute_get_compressor(self.ctx.ptr, self.ptr, &compr, &c_level))
         return (_tiledb_compressor_string(compr), int(c_level))
 
+cdef class Dim(object):
+
+    cdef unicode label
+    cdef tuple dim
+    cdef object tile
+
+    def __init__(self, label=None, dim=None, tile=None):
+        self.label = label
+        if len(dim) != 2:
+            raise AttributeError("invalid extent")
+        self.dim = (dim[0], dim[1])
+        self.tile = tile
+
+    @property
+    def label(self):
+        return self.label
+
+    @property
+    def dim(self):
+        return self.dim
+
+    @property
+    def tile(self):
+        return self.tile
+
 cdef class Domain(object):
 
     cdef Ctx ctx
     cdef tiledb_domain_t* ptr
+    cdef object dims
 
     def __cinit__(self):
         self.ptr = NULL
@@ -238,38 +269,32 @@ cdef class Domain(object):
             if rc != TILEDB_OK:
                 tiledb_domain_free(ctx.ptr, domain_ptr)
                 check_error(ctx, rc)
+        self.dims = dims
         self.ctx = ctx
         self.ptr = domain_ptr
+
+    @property
+    def dims(self):
+        return self.dims
+
+    @property
+    def ndim(self):
+        return len(self.dims)
+
+    @property
+    def dtype(self):
+        cdef tiledb_datatype_t typ
+        pass
+
+    def dim(self, unicode idx):
+        for dim in self.dims:
+            if dim.label == idx:
+                return dim
+        raise TileDBError("unknown dimension: {0!r}".format(idx))
 
     def dump(self):
         check_error(self.ctx,
                     tiledb_domain_dump(self.ctx.ptr, self.ptr, stdout))
-
-
-cdef class Dim(object):
-
-    cdef unicode label
-    cdef tuple dim
-    cdef object tile
-
-    def __init__(self, label=None, dim=None, tile=None):
-        self.label = label
-        if len(dim) != 2:
-            raise AttributeError("invalid extent")
-        self.dim = (dim[0], dim[1])
-        self.tile = tile
-
-    @property
-    def label(self):
-        return self.label
-
-    @property
-    def dim(self):
-        return self.dim
-
-    @property
-    def tile(self):
-        return self.tile
 
 
 cdef tiledb_layout_t _tiledb_layout(order) except TILEDB_UNORDERED:
@@ -293,6 +318,23 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
     elif order == TILEDB_UNORDERED:
         return u"unordered"
 
+cdef class Query(object):
+
+    cdef Ctx ctx
+    cdef tiledb_query_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_query_free(self.ctx.ptr, self.ptr)
+
+    def __init__(self, Ctx ctx):
+        self.ctx = ctx
+
+
+
 cdef class Array(object):
 
     cdef Ctx ctx
@@ -306,14 +348,23 @@ cdef class Array(object):
         if self.ptr is not NULL:
             tiledb_array_metadata_free(self.ctx.ptr, self.ptr)
 
-    def __init__(self, Ctx ctx,
-                 unicode name,
-                 domain=None,
-                 attrs=[],
-                 cell_order='row-major',
-                 tile_order='row-major',
-                 capacity=0,
-                 sparse=False):
+    @staticmethod
+    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_metadata_t* ptr):
+        cdef Array arr = Array.__new__(Array)
+        arr.ctx = ctx
+        arr.name = name
+        arr.ptr = <tiledb_array_metadata_t*> ptr
+        return arr
+
+    @staticmethod
+    def create(Ctx ctx,
+               unicode name,
+               domain=None,
+               attrs=[],
+               cell_order='row-major',
+               tile_order='row-major',
+               capacity=0,
+               sparse=False):
         uname = ustring(name).encode('UTF-8')
         cdef tiledb_array_metadata_t* metadata_ptr = NULL
         check_error(ctx,
@@ -347,13 +398,17 @@ cdef class Array(object):
         rc = tiledb_array_create(ctx.ptr, metadata_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
+        return Array.from_ptr(ctx, name, metadata_ptr)
+
+    def __init__(self, Ctx ctx, unicode name):
+        cdef bytes uname = ustring(name).encode('UTF-8')
+        cdef const char* c_name = uname
+        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        check_error(ctx,
+            tiledb_array_metadata_load(ctx.ptr, &metadata_ptr, c_name))
         self.ctx = ctx
         self.name = name
         self.ptr = metadata_ptr
-
-    @property
-    def name(self):
-        return self.uname
 
     @property
     def sparse(self):
@@ -446,6 +501,57 @@ cdef class Array(object):
     def dump(self):
         check_error(self.ctx,
             tiledb_array_metadata_dump(self.ctx.ptr, self.ptr, stdout))
+
+    def write_direct(self, unicode attr, np.ndarray array):
+        # array name
+        cdef bytes array_name = self.name.encode('UTF-8')
+        cdef const char* c_aname = array_name
+        # attr name
+        cdef bytes attr_name = attr.encode('UTF-8')
+        cdef const char* c_attr = attr_name
+
+        cdef void* buff = <void*>(np.PyArray_DATA(array))
+        cdef uint64_t buffsize = <uint64_t>(array.nbytes)
+
+        cdef tiledb_query_t* query
+        cdef int rc
+        rc = tiledb_query_create(self.ctx.ptr, &query,
+                c_aname, TILEDB_WRITE, TILEDB_ROW_MAJOR,
+                NULL, &c_attr, 1, &buff, &buffsize)
+        if rc != TILEDB_OK:
+            tiledb_query_free(self.ctx.ptr, query)
+            check_error(self.ctx, rc)
+        rc = tiledb_query_submit(self.ctx.ptr, query)
+        tiledb_query_free(self.ctx.ptr, query)
+        if rc != TILEDB_OK:
+            check_error(self.ctx, rc)
+        return
+
+    def read_direct(self, unicode attr):
+        # array name
+        cdef bytes b_aname = self.name.encode('UTF-8')
+        cdef const char* c_aname = b_aname
+        # attr name
+        cdef bytes b_attr = attr.encode('UTF-8')
+        cdef const char* c_attr = b_attr
+
+        out = np.empty((3,), dtype='int64')
+        cdef void* buff = <void*>(np.PyArray_DATA(out))
+        cdef uint64_t buff_size = <uint64_t>(out.nbytes)
+
+        cdef tiledb_query_t* query
+        rc = tiledb_query_create(self.ctx.ptr, &query,
+                c_aname, TILEDB_READ, TILEDB_ROW_MAJOR,
+                NULL, &c_attr, 1, &buff, &buff_size)
+        if rc != TILEDB_OK:
+            tiledb_query_free(self.ctx.ptr, query)
+            check_error(self.ctx, rc)
+        rc = tiledb_query_submit(self.ctx.ptr, query)
+        tiledb_query_free(self.ctx.ptr, query)
+        if rc != TILEDB_OK:
+            check_error(self.ctx, rc)
+        return out
+
 
 cdef bytes unicode_path(path):
     return ustring(abspath(path)).encode('UTF-8')

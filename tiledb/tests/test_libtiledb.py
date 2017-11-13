@@ -5,6 +5,9 @@ from unittest import TestCase
 import tiledb
 from tiledb import libtiledb as t
 
+import numpy as np
+
+
 def is_group(ctx, path):
    obj = tiledb.libtiledb.object_type(ctx, path)
    return obj == 1
@@ -106,7 +109,7 @@ class DimensionTest(TestCase):
             t.Dim("d2", (1, 4), 2),
             dtype='u8')
         dom.dump()
-
+        self.assertTrue(self.ndim == 2)
 
 class AttributeTest(TestCase):
 
@@ -114,7 +117,6 @@ class AttributeTest(TestCase):
        ctx = t.Ctx()
        attr = t.Attr(ctx, "foo")
        attr.dump()
-
 
 class ArrayTest(DiskTestCase):
 
@@ -130,10 +132,16 @@ class ArrayTest(DiskTestCase):
                       domain=dom,
                       attrs=[att])
         arr.dump()
-        self.assertTrue(arr.name == self.path("foo")
+        self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
 
+class RWTest(TestCase):
 
+    def test_read_write(self):
+        ctx = t.Ctx()
 
+        dom = t.Domain(ctx, t.Dim("d1", (0, 3), 3))
+        att = t.Attr(ctx, "val", dtype='i8')
+        arr = t.Array(ctx, self.path("foo"), domain=dom, attrs=[att])
 
-
+        arr.write("val", np.array([1, 2, 3]))
