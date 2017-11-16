@@ -4,9 +4,11 @@ from libc.stdint cimport uintptr_t, int64_t
 from libc.stdlib cimport malloc, free
 
 cimport numpy as np
+np.import_array()
 
 import numpy as np
 from os.path import abspath
+
 
 def version():
     cdef:
@@ -96,6 +98,29 @@ cdef tiledb_datatype_t _tiledb_dtype(dtype) except TILEDB_CHAR:
     elif dtype == "u2":
         return TILEDB_UINT16
     raise TypeError("data type {0!r} not understood".format(dtype))
+
+cdef object _numpy_dtype(tiledb_datatype_t dtype):
+    if dtype == TILEDB_INT32:
+        return np.dtype("int32")
+    elif dtype == TILEDB_UINT32:
+        return np.dtype("uint32")
+    elif dtype == TILEDB_INT64:
+        return np.dtype("int64")
+    elif dtype == TILEDB_UINT64:
+        return np.dtype("uint64")
+    elif dtype == TILEDB_FLOAT32:
+        return np.dtype("float32")
+    elif dtype == TILEDB_FLOAT64:
+        return np.dtype("float64")
+    elif dtype == TILEDB_INT8:
+        return np.dtype("int8")
+    elif dtype == TILEDB_UINT8:
+        return np.dtype("uint8")
+    elif dtype == TILEDB_INT16:
+        return np.dtype("int16")
+    elif dtype == TILEDB_UINT16:
+        return np.dtype("uint16")
+    raise TypeError("tiledb datatype not understood")
 
 cdef tiledb_compressor_t _tiledb_compressor(c) except TILEDB_NO_COMPRESSION:
     if c is None:
@@ -189,6 +214,13 @@ cdef class Attr(object):
             tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
 
     @property
+    def dtype(self):
+        cdef tiledb_datatype_t typ
+        check_error(self.ctx,
+            tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
+        return _numpy_dtype(typ)
+
+    @property
     def name(self):
         cdef const char* c_name = NULL
         check_error(self.ctx,
@@ -209,10 +241,36 @@ cdef class Dim(object):
     cdef tuple dim
     cdef object tile
 
+    @staticmethod
+    cdef from_ptr(Ctx ctx, tiledb_datatype_t typ, const tiledb_dimension_t* ptr):
+        cdef Dim dim = Dim.__new__(Dim)
+        cdef int rc = TILEDB_OK
+
+        cdef const char* c_label = NULL
+        rc = tiledb_dimension_get_name(ctx.ptr, ptr, &c_label)
+        if rc != TILEDB_OK:
+            dim.label = u""
+        dim.label = c_label.decode('UTF-8')
+
+        dom = np.empty((2,), dtype=_numpy_dtype(typ))
+        cdef const void* buff_ptr = <const void*>(np.PyArray_DATA(dom))
+        rc = tiledb_dimension_get_domain(ctx.ptr, ptr, &buff_ptr)
+        if rc != TILEDB_OK:
+            dim.dim = ()
+        dim.dim = (dom[0], dom[1])
+
+        tile = np.zeros((1,), dtype=_numpy_dtype(typ))
+        buff_ptr = <const void*>(np.PyArray_DATA(tile))
+        rc = tiledb_dimension_get_tile_extent(ctx.ptr, ptr, &buff_ptr)
+        if rc != TILEDB_OK:
+            dim.tile = tile[0]
+        dim.tile = tile[0]
+        return dim
+
     def __init__(self, label=None, dim=None, tile=None):
         self.label = label
         if len(dim) != 2:
-            raise AttributeError("invalid extent")
+            raise AttributeError("invalid domain extent")
         self.dim = (dim[0], dim[1])
         self.tile = tile
 
@@ -246,6 +304,33 @@ cdef class Domain(object):
         cdef Domain dom = Domain.__new__(Domain)
         dom.ctx = ctx
         dom.ptr = <tiledb_domain_t*> ptr
+        cdef int rc = TILEDB_OK
+        cdef tiledb_datatype_t typ
+        rc = tiledb_domain_get_type(ctx.ptr, ptr, &typ)
+        if rc != TILEDB_OK:
+            return dom
+        cdef tiledb_dimension_iter_t* it_ptr = NULL
+        cdef const tiledb_dimension_t* dim_ptr = NULL
+        rc = tiledb_dimension_iter_create(ctx.ptr, ptr, &it_ptr)
+        if rc != TILEDB_OK:
+            return dom
+        dims = []
+        cdef int done = 1
+        while True:
+            rc = tiledb_dimension_iter_done(ctx.ptr, it_ptr, &done)
+            if rc != TILEDB_OK:
+                break
+            if done:
+                dom.dims = tuple(dims)
+                break
+            rc = tiledb_dimension_iter_here(ctx.ptr, it_ptr, &dim_ptr)
+            if rc != TILEDB_OK:
+                break
+            dims.append(Dim.from_ptr(ctx, typ, dim_ptr))
+            rc = tiledb_dimension_iter_next(ctx.ptr, it_ptr)
+            if rc != TILEDB_OK:
+                break
+        tiledb_dimension_iter_free(ctx.ptr, it_ptr)
         return dom
 
     def __init__(self, Ctx ctx, *dims, dtype='i8'):
@@ -284,7 +369,12 @@ cdef class Domain(object):
     @property
     def dtype(self):
         cdef tiledb_datatype_t typ
-        pass
+        check_error(self.ctx, tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
+        return _numpy_dtype(typ)
+
+    @property
+    def shape(self):
+        return tuple((d.dim[1] - d.dim[0]) for d in self.dims)
 
     def dim(self, unicode idx):
         for dim in self.dims:
@@ -332,7 +422,6 @@ cdef class Query(object):
 
     def __init__(self, Ctx ctx):
         self.ctx = ctx
-
 
 
 cdef class Array(object):
@@ -411,6 +500,10 @@ cdef class Array(object):
         self.ptr = metadata_ptr
 
     @property
+    def name(self):
+        return self.name
+
+    @property
     def sparse(self):
         cdef tiledb_array_type_t typ = TILEDB_DENSE
         check_error(self.ctx,
@@ -486,6 +579,7 @@ cdef class Array(object):
                 tiledb_attribute_iter_free(ctx_ptr, it_ptr)
                 check_error(self.ctx, rc)
 
+            # Return the Attr object
             if attr_name.decode('UTF-8') == idx:
                 tiledb_attribute_iter_free(ctx_ptr, it_ptr)
                 return Attr.from_ptr(self.ctx, attr_ptr)
@@ -502,7 +596,16 @@ cdef class Array(object):
         check_error(self.ctx,
             tiledb_array_metadata_dump(self.ctx.ptr, self.ptr, stdout))
 
-    def write_direct(self, unicode attr, np.ndarray array):
+    def consolidate(self):
+        return array_consolidate(self.ctx, self.name)
+
+    def __getindex__(self):
+        pass
+
+    def __setindex__(self):
+        pass
+
+    def write_direct(self, unicode attr, np.ndarray array not None):
         # array name
         cdef bytes array_name = self.name.encode('UTF-8')
         cdef const char* c_aname = array_name
@@ -527,7 +630,7 @@ cdef class Array(object):
             check_error(self.ctx, rc)
         return
 
-    def read_direct(self, unicode attr):
+    def read_direct(self, unicode attr not None):
         # array name
         cdef bytes b_aname = self.name.encode('UTF-8')
         cdef const char* c_aname = b_aname
@@ -535,7 +638,9 @@ cdef class Array(object):
         cdef bytes b_attr = attr.encode('UTF-8')
         cdef const char* c_attr = b_attr
 
-        out = np.empty((3,), dtype='int64')
+        out = np.empty(self.domain.shape,
+                       dtype=self.attr(attr).dtype)
+
         cdef void* buff = <void*>(np.PyArray_DATA(out))
         cdef uint64_t buff_size = <uint64_t>(out.nbytes)
 

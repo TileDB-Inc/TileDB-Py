@@ -6,7 +6,7 @@ import tiledb
 from tiledb import libtiledb as t
 
 import numpy as np
-
+from numpy.testing import assert_array_equal
 
 def is_group(ctx, path):
    obj = tiledb.libtiledb.object_type(ctx, path)
@@ -109,7 +109,7 @@ class DimensionTest(TestCase):
             t.Dim("d2", (1, 4), 2),
             dtype='u8')
         dom.dump()
-        self.assertTrue(self.ndim == 2)
+        self.assertTrue(dom.ndim == 2)
 
 class AttributeTest(TestCase):
 
@@ -128,20 +128,22 @@ class ArrayTest(DiskTestCase):
             t.Dim("d2", (1, 8), 2),
             dtype='u8')
         att = t.Attr(ctx, "val", dtype='f8')
-        arr = t.Array(ctx, self.path("foo"),
-                      domain=dom,
-                      attrs=[att])
+        arr = t.Array.create(ctx, self.path("foo"),
+                             domain=dom,
+                             attrs=[att])
         arr.dump()
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
 
-class RWTest(TestCase):
+class RWTest(DiskTestCase):
 
     def test_read_write(self):
         ctx = t.Ctx()
 
-        dom = t.Domain(ctx, t.Dim("d1", (0, 3), 3))
+        dom = t.Domain(ctx, t.Dim("d1", (0, 2), 3))
         att = t.Attr(ctx, "val", dtype='i8')
-        arr = t.Array(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
 
-        arr.write("val", np.array([1, 2, 3]))
+        A = np.array([1,2,3])
+        arr.write_direct("val", A)
+        assert_array_equal(arr.read_direct("val"), A)
