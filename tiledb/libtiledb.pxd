@@ -168,9 +168,7 @@ cdef extern from "tiledb.h":
     int tiledb_domain_add_dimension(
         tiledb_ctx_t* ctx,
         tiledb_domain_t* domain,
-        const char* name,
-        const void* dim_domain,
-        const void* tile_extent)
+        tiledb_dimension_t* dim)
 
     int tiledb_domain_dump(
         tiledb_ctx_t* ctx,
@@ -178,20 +176,37 @@ cdef extern from "tiledb.h":
         FILE* out)
 
     # Dimension
+    int tiledb_dimension_create(
+        tiledb_ctx_t* ctx,
+        tiledb_dimension_t** dim,
+        const char* name,
+        tiledb_datatype_t type,
+        const void* dim_domain,
+        const void* tile_extent)
+
+    int tiledb_dimension_free(
+        tiledb_ctx_t* ctx,
+        tiledb_dimension_t* dim)
+
     int tiledb_dimension_get_name(
         tiledb_ctx_t* ctx,
         const tiledb_dimension_t* dim,
         const char** name)
 
+    int tiledb_dimension_get_type(
+        tiledb_ctx_t* ctx,
+        const tiledb_dimension_t* dim,
+        tiledb_datatype_t* type)
+
     int tiledb_dimension_get_domain(
         tiledb_ctx_t* ctx,
         const tiledb_dimension_t* dim,
-        const void** domain)
+        void** domain)
 
     int tiledb_dimension_get_tile_extent(
         tiledb_ctx_t* ctx,
         const tiledb_dimension_t* dim,
-        const void** tile_extent)
+        void** tile_extent)
 
     # Dimension Iterator
     int tiledb_dimension_iter_create(
@@ -344,13 +359,24 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_query_t** query,
         const char* array_name,
-        tiledb_query_type_t type,
-        tiledb_layout_t layout,
+        tiledb_query_type_t qtype)
+
+    int tiledb_query_by_subarray(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
         const void* subarray,
+        tiledb_datatype_t dtype)
+
+    int tiledb_query_set_buffers(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
         const char** attributes,
         unsigned int attribute_num,
         void** buffers,
         uint64_t* buffer_sizes)
+
+    int tiledb_query_set_layout(
+        tiledb_ctx_t* ctx, tiledb_query_t* query, tiledb_layout_t layout)
 
     int tiledb_query_free(
         tiledb_ctx_t* ctx, tiledb_query_t* query)

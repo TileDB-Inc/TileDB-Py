@@ -8,6 +8,7 @@ from tiledb import libtiledb as t
 import numpy as np
 from numpy.testing import assert_array_equal
 
+
 def is_group(ctx, path):
    obj = tiledb.libtiledb.object_type(ctx, path)
    return obj == 1
@@ -52,12 +53,13 @@ class GroupTest(GroupTestCase):
         ctx = tiledb.Ctx()
 
         groups = []
-
         def append_to_groups(path, obj):
             groups.append((path, obj))
 
         tiledb.walk(ctx, self.path(""), append_to_groups, order="preorder")
 
+        groups.sort()
+        print(groups)
         self.assertTrue(groups[0][0].endswith(self.group1) and groups[0][1] == "group")
         self.assertTrue(groups[1][0].endswith(self.group2) and groups[1][1] == "group")
         self.assertTrue(groups[2][0].endswith(self.group3) and groups[2][1] == "group")
@@ -67,6 +69,7 @@ class GroupTest(GroupTestCase):
 
         tiledb.walk(ctx, self.path(""), append_to_groups, order="postorder")
 
+        print(groups)
         self.assertTrue(groups[0][0].endswith(self.group2) and groups[0][1] == "group")
         self.assertTrue(groups[1][0].endswith(self.group4) and groups[1][1] == "group")
         self.assertTrue(groups[2][0].endswith(self.group3) and groups[2][1] == "group")
@@ -105,11 +108,12 @@ class DimensionTest(TestCase):
         ctx = t.Ctx()
         dom = t.Domain(
             ctx,
-            t.Dim("d1", (1, 4), 2),
-            t.Dim("d2", (1, 4), 2),
+            t.Dim(ctx, "d1", (1, 4), 2),
+            t.Dim(ctx, "d2", (1, 4), 2),
             dtype='u8')
         dom.dump()
         self.assertTrue(dom.ndim == 2)
+
 
 class AttributeTest(TestCase):
 
@@ -118,14 +122,15 @@ class AttributeTest(TestCase):
        attr = t.Attr(ctx, "foo")
        attr.dump()
 
+
 class ArrayTest(DiskTestCase):
 
     def test_array(self):
         ctx = t.Ctx()
         dom = t.Domain(
             ctx,
-            t.Dim("d1", (1, 8), 2),
-            t.Dim("d2", (1, 8), 2),
+            t.Dim(ctx, "d1", (1, 8), 2),
+            t.Dim(ctx, "d2", (1, 8), 2),
             dtype='u8')
         att = t.Attr(ctx, "val", dtype='f8')
         arr = t.Array.create(ctx, self.path("foo"),
@@ -140,10 +145,53 @@ class RWTest(DiskTestCase):
     def test_read_write(self):
         ctx = t.Ctx()
 
-        dom = t.Domain(ctx, t.Dim("d1", (0, 2), 3))
+        dom = t.Domain(ctx, t.Dim(ctx, "d1", (0, 2), 3))
         att = t.Attr(ctx, "val", dtype='i8')
         arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
 
         A = np.array([1,2,3])
         arr.write_direct("val", A)
+        arr.dump()
         assert_array_equal(arr.read_direct("val"), A)
+"""
+
+class NumpyToArray(DiskTestCase):
+
+    def test_to_array0d(self):
+        #TODO
+        pass
+
+    def test_to_array1d(self):
+        ctx = t.Ctx()
+        A = np.array([1.0, 2.0, 3.0])
+        arr = t.Array.from_numpy(ctx, self.path("foo"), A)
+        assert_array_equal(arr.read_direct("val"), A)
+
+    def test_to_array2d(self):
+        ctx = t.Ctx()
+        A = np.ones((100,100), dtype='i8')
+        arr = t.Array.from_numpy(ctx, self.path("foo"), A)
+        assert_array_equal(arr.read_direct("val"), A)
+
+    def test_to_array3d(self):
+        ctx = t.Ctx()
+        A = np.ones((1,1,1), dtype='i1')
+        arr = t.Array.from_numpy(ctx, self.path("foo"), A)
+        assert_array_equal(arr.read_direct("val"), A)
+
+    def test_array_interface(self):
+        # This tests that __array__ interface works
+        ctx = t.Ctx()
+        A1 = np.arange(1, 10)
+        arr = t.Array.from_numpy(ctx, self.path("foo"), A1)
+        A2 = np.array(arr)
+        assert_array_equal(A1, A2)
+
+    def test_array_getindex(self):
+        # This tests that __getindex__ interface works
+        ctx = t.Ctx()
+        A1 = np.arange(1, 10)
+        arr = t.Array.from_numpy(ctx, self.path("foo"), A1)
+        A2  = arr[1:3]
+        assert_array_equal(A1[1:3], A2)
+"""
