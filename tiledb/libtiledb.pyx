@@ -307,6 +307,7 @@ cdef class Dim(object):
             name = u""
         cdef bytes uname = ustring(name).encode('UTF-8')
         cdef const char* c_name = uname
+        # TODO: specialized for uinst64 datatype
         cdef uint64_t* c_domain = <uint64_t*> calloc(2, sizeof(uint64_t))
         c_domain[0] = <uint64_t>(domain[0])
         c_domain[1] = <uint64_t>(domain[1])
@@ -327,23 +328,19 @@ cdef class Dim(object):
         return c_name.decode('UTF-8')
 
     @property
-    def dim(self):
-        cdef tiledb_datatype_t type
-        check_error(self.ctx, tiledb_dimension_get_type(self.ctx.ptr, self.ptr, &type))
-        return type
-
-    @property
-    def tile(self):
-        cdef tiledb_datatype_t type
-        check_error(self.ctx, tiledb_dimension_get_type(self.ctx.ptr, self.ptr, &type))
-        return type
+    def shape(self):
+        # TODO: specialized for uint64_t datatype
+        cdef uint64_t* domain = <uint64_t*> calloc(2, sizeof(uint64_t))
+        cdef void* domain_ptr = <void*>domain
+        check_error(self.ctx,
+                    tiledb_dimension_get_domain(self.ctx.ptr, self.ptr, &domain_ptr))
+        return tuple((domain[1] - domain[0]) + 1,)
 
 
 cdef class Domain(object):
 
     cdef Ctx ctx
     cdef tiledb_domain_t* ptr
-    cdef object dims
 
     def __cinit__(self):
         self.ptr = NULL
@@ -357,33 +354,6 @@ cdef class Domain(object):
         cdef Domain dom = Domain.__new__(Domain)
         dom.ctx = ctx
         dom.ptr = <tiledb_domain_t*> ptr
-        cdef int rc = TILEDB_OK
-        cdef tiledb_datatype_t typ
-        rc = tiledb_domain_get_type(ctx.ptr, ptr, &typ)
-        if rc != TILEDB_OK:
-            return dom
-        cdef tiledb_dimension_iter_t* it_ptr = NULL
-        cdef const tiledb_dimension_t* dim_ptr = NULL
-        rc = tiledb_dimension_iter_create(ctx.ptr, ptr, &it_ptr)
-        if rc != TILEDB_OK:
-            return dom
-        dims = []
-        cdef int done = 1
-        while True:
-            rc = tiledb_dimension_iter_done(ctx.ptr, it_ptr, &done)
-            if rc != TILEDB_OK:
-                break
-            if done:
-                dom.dims = tuple(dims)
-                break
-            rc = tiledb_dimension_iter_here(ctx.ptr, it_ptr, &dim_ptr)
-            if rc != TILEDB_OK:
-                break
-            dims.append(Dim.from_ptr(ctx, dim_ptr))
-            rc = tiledb_dimension_iter_next(ctx.ptr, it_ptr)
-            if rc != TILEDB_OK:
-                break
-        tiledb_dimension_iter_free(ctx.ptr, it_ptr)
         return dom
 
     def __init__(self, Ctx ctx, *dims, dtype='u8'):
@@ -410,12 +380,15 @@ cdef class Domain(object):
         self.ptr = domain_ptr
 
     @property
-    def dims(self):
-        return self.dims
+    def rank(self):
+        cdef unsigned int rank = 0
+        check_error(self.ctx,
+                    tiledb_domain_get_rank(self.ctx.ptr, self.ptr, &rank))
+        return rank
 
     @property
     def ndim(self):
-        return len(self.dims)
+        return self.rank
 
     @property
     def dtype(self):
@@ -425,15 +398,22 @@ cdef class Domain(object):
 
     @property
     def shape(self):
-        # TODO: empty array shape
-        # dimension range is inclusive
-        return tuple((d.dim[1] - d.dim[0]) + 1 for d in self.dims)
+        return tuple(self.dim(i).shape[0] for i in range(self.rank))
 
-    def dim(self, unicode idx):
-        for dim in self.dims:
-            if dim.label == idx:
-                return dim
-        raise TileDBError("unknown dimension: {0!r}".format(idx))
+    def dim(self, int idx):
+        cdef tiledb_dimension_t* dim_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_dimension_from_index(self.ctx.ptr, self.ptr, idx, &dim_ptr))
+        assert(dim_ptr != NULL)
+        return Dim.from_ptr(self.ctx, dim_ptr)
+
+    def dim(self, unicode name):
+        cdef bytes uname = ustring(name).encode('UTF-8')
+        cdef const char* c_name = uname
+        cdef tiledb_dimension_t* dim_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_dimension_from_name(self.ctx.ptr, self.ptr, c_name, &dim_ptr))
+        return Dim.from_ptr(self.ctx, dim_ptr)
 
     def dump(self):
         check_error(self.ctx,

@@ -79,6 +79,7 @@ setup(
         Extension(
           "tiledb.libtiledb",
           sources=["tiledb/libtiledb.pyx"],
+          extra_compile_args=["-std=c++11"],
           libraries=["tiledb"],
           language="c++"
         )

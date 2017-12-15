@@ -145,6 +145,18 @@ cdef extern from "tiledb.h":
         const tiledb_attribute_t* attr,
         unsigned int* cell_val_num)
 
+    int tiledb_attribute_from_index(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_metadata_t* array_metadata,
+        unsigned int index,
+        tiledb_attribute_t** attr)
+
+    int tiledb_attribute_from_name(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_metadata_t* array_metadata,
+        const char* name,
+        tiledb_attribute_t** attr)
+
     int tiledb_attribute_dump(
         tiledb_ctx_t* ctx,
         const tiledb_attribute_t* attr,
@@ -165,10 +177,27 @@ cdef extern from "tiledb.h":
         const tiledb_domain_t* domain,
         tiledb_datatype_t* dtype)
 
+    int tiledb_domain_get_rank(
+        tiledb_ctx_t* ctx,
+        const tiledb_domain_t* domain,
+        unsigned int* rank)
+
     int tiledb_domain_add_dimension(
         tiledb_ctx_t* ctx,
         tiledb_domain_t* domain,
         tiledb_dimension_t* dim)
+
+    int tiledb_dimension_from_index(
+        tiledb_ctx_t* ctx,
+        const tiledb_domain_t* domain,
+        unsigned int index,
+        tiledb_dimension_t** dim)
+
+    int tiledb_dimension_from_name(
+        tiledb_ctx_t* ctx,
+        const tiledb_domain_t* domain,
+        const char* name,
+        tiledb_dimension_t** dim)
 
     int tiledb_domain_dump(
         tiledb_ctx_t* ctx,
@@ -320,6 +349,11 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_metadata_t* array_metadata,
         tiledb_layout_t* tile_order)
+
+    int tiledb_array_metadata_get_num_attributes(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_metadata_t* array_metadata,
+        unsigned int** num_attributes)
 
     int tiledb_array_metadata_dump(
         tiledb_ctx_t* ctx,
