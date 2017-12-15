@@ -59,7 +59,6 @@ class GroupTest(GroupTestCase):
         tiledb.walk(ctx, self.path(""), append_to_groups, order="preorder")
 
         groups.sort()
-        print(groups)
         self.assertTrue(groups[0][0].endswith(self.group1) and groups[0][1] == "group")
         self.assertTrue(groups[1][0].endswith(self.group2) and groups[1][1] == "group")
         self.assertTrue(groups[2][0].endswith(self.group3) and groups[2][1] == "group")
@@ -69,7 +68,6 @@ class GroupTest(GroupTestCase):
 
         tiledb.walk(ctx, self.path(""), append_to_groups, order="postorder")
 
-        print(groups)
         self.assertTrue(groups[0][0].endswith(self.group2) and groups[0][1] == "group")
         self.assertTrue(groups[1][0].endswith(self.group4) and groups[1][1] == "group")
         self.assertTrue(groups[2][0].endswith(self.group3) and groups[2][1] == "group")

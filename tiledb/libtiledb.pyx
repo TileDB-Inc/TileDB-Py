@@ -598,49 +598,18 @@ cdef class Array(object):
             tiledb_array_metadata_get_domain(self.ctx.ptr, self.ptr, &dom))
         return Domain.from_ptr(self.ctx, dom)
 
-    def attr(self, unicode idx):
-        cdef Attr attr
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-        cdef tiledb_attribute_iter_t* it_ptr = NULL
-        cdef const tiledb_attribute_t* attr_ptr = NULL
-        cdef const char* attr_name = NULL
-
+    def attr(self, unicode name):
+        cdef bytes bname = ustring(name).encode('UTF-8')
+        cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
-            tiledb_attribute_iter_create(ctx_ptr, self.ptr, &it_ptr))
+                    tiledb_attribute_from_name(self.ctx.ptr, self.ptr, bname, &attr_ptr))
+        return Attr.from_ptr(self.ctx, attr_ptr)
 
-        cdef int rc = TILEDB_OK
-        cdef int done = 1
-
-        while True:
-            rc = tiledb_attribute_iter_done(ctx_ptr, it_ptr, &done)
-            if rc != TILEDB_OK:
-                tiledb_attribute_iter_free(ctx_ptr, it_ptr)
-                check_error(self.ctx, rc)
-            if done:
-                break
-
-            rc = tiledb_attribute_iter_here(ctx_ptr, it_ptr, &attr_ptr)
-            if rc != TILEDB_OK:
-                tiledb_attribute_iter_free(ctx_ptr, it_ptr)
-                check_error(self.ctx, rc)
-
-            rc = tiledb_attribute_get_name(ctx_ptr, attr_ptr, &attr_name)
-            if rc != TILEDB_OK:
-                tiledb_attribute_iter_free(ctx_ptr, it_ptr)
-                check_error(self.ctx, rc)
-
-            # Return the Attr object
-            if attr_name.decode('UTF-8') == idx:
-                tiledb_attribute_iter_free(ctx_ptr, it_ptr)
-                return Attr.from_ptr(self.ctx, attr_ptr)
-
-            rc = tiledb_attribute_iter_next(ctx_ptr, it_ptr)
-            if rc != TILEDB_OK:
-                tiledb_attribute_iter_free(ctx_ptr, it_ptr)
-                check_error(self.ctx, rc)
-
-        tiledb_attribute_iter_free(ctx_ptr, it_ptr)
-        raise TileDBError("unknown array attribute: {0!r}".format(idx))
+    def attr(self, int idx):
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_attribute_from_index(self.ctx.ptr, self.ptr, idx, &attr_ptr))
+        return Attr.from_ptr(self.ctx, attr_ptr)
 
     def dump(self):
         check_error(self.ctx,
