@@ -7,12 +7,6 @@ from libc.stdlib cimport calloc, malloc, free
 # Numpy imports
 import numpy as np
 cimport numpy as np
-from numpy cimport (dtype,
-                    ndarray,
-                    npy_intp,
-                    import_array,
-                    PyArray_GETITEM,
-                    PyArray_SETITEM)
 
 import sys
 from os.path import abspath
@@ -34,7 +28,7 @@ _MB = 1024 * _KB
 IntType = np.dtype(np.int_)
 
 # Numpy initialization code
-import_array()
+np.import_array()
 
 def version():
     cdef:
@@ -62,14 +56,13 @@ class TileDBError(Exception):
 
 
 cdef check_error(Ctx ctx, int rc):
-    ctx_ptr = ctx.ptr
     if rc == TILEDB_OK:
         return
     if rc == TILEDB_OOM:
         raise MemoryError()
-    cdef int ret = TILEDB_OK
+    ctx_ptr = ctx.ptr
     cdef tiledb_error_t* err = NULL
-    ret = tiledb_error_last(ctx_ptr, &err)
+    cdef int ret = tiledb_error_last(ctx_ptr, &err)
     if ret != TILEDB_OK:
         tiledb_error_free(ctx_ptr, err)
         if ret == TILEDB_OOM:
@@ -103,51 +96,53 @@ cdef class Ctx(object):
             tiledb_ctx_free(self.ptr)
 
 
-cdef tiledb_datatype_t _tiledb_dtype(dtype) except TILEDB_CHAR:
-    if dtype == "i4":
+
+cdef tiledb_datatype_t _tiledb_dtype(typ) except TILEDB_CHAR:
+    dtype = np.dtype(typ)
+    if dtype == np.int32:
         return TILEDB_INT32
-    elif dtype == "u4":
+    elif dtype == np.uint32:
         return TILEDB_UINT32
-    elif dtype == "i8":
+    elif dtype == np.int64:
         return TILEDB_INT64
-    elif dtype == "u8":
+    elif dtype == np.uint64:
         return TILEDB_UINT64
-    elif dtype == "f4":
+    elif dtype == np.float32:
         return TILEDB_FLOAT32
-    elif dtype == "f8":
+    elif dtype == np.float64:
         return TILEDB_FLOAT64
-    elif dtype == "i1":
+    elif dtype == np.int8:
         return TILEDB_INT8
-    elif dtype == "u1":
+    elif dtype == np.uint8:
         return TILEDB_UINT8
-    elif dtype == "i2":
+    elif dtype == np.int16:
         return TILEDB_INT16
-    elif dtype == "u2":
+    elif dtype == np.uint16:
         return TILEDB_UINT16
     raise TypeError("data type {0!r} not understood".format(dtype))
 
 
-cdef np.dtype _numpy_dtype(tiledb_datatype_t dtype):
+cdef _numpy_dtype(tiledb_datatype_t dtype):
     if dtype == TILEDB_INT32:
-        return np.dtype("int32")
+        return np.int32
     elif dtype == TILEDB_UINT32:
-        return np.dtype("uint32")
+        return np.uint32
     elif dtype == TILEDB_INT64:
-        return np.dtype("int64")
+        return np.int64
     elif dtype == TILEDB_UINT64:
-        return np.dtype("uint64")
+        return np.uint64
     elif dtype == TILEDB_FLOAT32:
-        return np.dtype("float32")
+        return np.float32
     elif dtype == TILEDB_FLOAT64:
-        return np.dtype("float64")
+        return np.float64
     elif dtype == TILEDB_INT8:
-        return np.dtype("int8")
+        return np.int8
     elif dtype == TILEDB_UINT8:
-        return np.dtype("uint8")
+        return np.uint8
     elif dtype == TILEDB_INT16:
-        return np.dtype("int16")
+        return np.int16
     elif dtype == TILEDB_UINT16:
-        return np.dtype("uint16")
+        return np.uint16
     raise TypeError("tiledb datatype not understood")
 
 
@@ -243,6 +238,8 @@ cdef class Attr(object):
     def dump(self):
         check_error(self.ctx,
             tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
+        print('\n')
+        return
 
     @property
     def dtype(self):
@@ -256,7 +253,7 @@ cdef class Attr(object):
         cdef const char* c_name = NULL
         check_error(self.ctx,
             tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
-        return c_name.decode('UTF-8')
+        return c_name.decode('UTF-8', 'strict')
 
     @property
     def compressor(self):
@@ -264,7 +261,9 @@ cdef class Attr(object):
         cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
         check_error(self.ctx,
             tiledb_attribute_get_compressor(self.ctx.ptr, self.ptr, &compr, &c_level))
-        return tuple(_tiledb_compressor_string(compr), int(c_level))
+        if compr == TILEDB_NO_COMPRESSION:
+            return (None, int(c_level))
+        return (_tiledb_compressor_string(compr), int(c_level))
 
 
 cdef _tiledb_tagged_val(tiledb_datatype_t dtype, const void* val):
@@ -300,41 +299,65 @@ cdef class Dim(object):
         dim.ptr = <tiledb_dimension_t*> ptr
         return dim
 
-    def __init__(self, Ctx ctx, name=None, domain=None, tile=None):
+    def __init__(self, Ctx ctx, name=None, domain=None, tile=0):
         if len(domain) != 2:
             raise AttributeError("invalid domain extent")
         if name is None:
             name = u""
-        cdef bytes uname = ustring(name).encode('UTF-8')
-        cdef const char* c_name = uname
-        # TODO: specialized for uinst64 datatype
-        cdef uint64_t* c_domain = <uint64_t*> calloc(2, sizeof(uint64_t))
-        c_domain[0] = <uint64_t>(domain[0])
-        c_domain[1] = <uint64_t>(domain[1])
-        cdef uint64_t c_tile_extent = <uint64_t>tile
-        cdef tiledb_dimension_t* dimension_ptr = NULL
+        cdef bytes bname = ustring(name).encode('UTF-8')
+        # TODO: specialized for uint64 datatype
+        cdef uint64_t* domain_ptr = <uint64_t*> calloc(2, sizeof(uint64_t))
+        domain_ptr[0] = <uint64_t>(domain[0])
+        domain_ptr[1] = <uint64_t>(domain[1])
+        cdef uint64_t tile_extent = <uint64_t>(tile)
+        cdef tiledb_dimension_t* dim_ptr = NULL
         check_error(ctx,
-            tiledb_dimension_create(ctx.ptr, &dimension_ptr,
-                                    c_name,
+            tiledb_dimension_create(ctx.ptr,
+                                    &dim_ptr,
+                                    bname,
                                     TILEDB_UINT64,
-                                    c_domain,
-                                    &c_tile_extent))
-        self.ptr = dimension_ptr
+                                    domain_ptr,
+                                    &tile_extent))
+        self.ctx = ctx
+        self.ptr = dim_ptr
 
     @property
     def name(self):
         cdef const char* c_name = NULL
-        check_error(self.ctx, tiledb_dimension_get_name(self.ctx.ptr, self.ptr, &c_name))
-        return c_name.decode('UTF-8')
+        check_error(self.ctx,
+                    tiledb_dimension_get_name(self.ctx.ptr, self.ptr, &c_name))
+        return c_name.decode('UTF-8', 'strict')
 
     @property
     def shape(self):
-        # TODO: specialized for uint64_t datatype
-        cdef uint64_t* domain = <uint64_t*> calloc(2, sizeof(uint64_t))
-        cdef void* domain_ptr = <void*>domain
+        # TODO: specialized for uint64 datatype
+        cdef tuple domain = self.domain
+        diff = domain[1] - domain[0]
+        inclusive_range = diff + 1 if diff > 0 else 0
+        return (inclusive_range,)
+
+    @property
+    def tile(self):
+        #TODO: specialized for uint64 datatype
+        cdef uint64_t* tile_ptr = NULL
         check_error(self.ctx,
-                    tiledb_dimension_get_domain(self.ctx.ptr, self.ptr, &domain_ptr))
-        return tuple((domain[1] - domain[0]) + 1,)
+            tiledb_dimension_get_tile_extent(self.ctx.ptr, self.ptr, <void**>(&tile_ptr)))
+        if tile_ptr[0] == 0:
+            # undefined tiles should span the whole dimension domain
+            return self.shape[0]
+        return tile_ptr[0]
+
+
+    @property
+    def domain(self):
+        # TODO: specialized for uint64 datatype
+        cdef uint64_t* domain_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_dimension_get_domain(self.ctx.ptr,
+                                                self.ptr,
+                                                <void**>(&domain_ptr)))
+        assert(domain_ptr != NULL)
+        return (domain_ptr[0], domain_ptr[1])
 
 
 cdef class Domain(object):
@@ -365,17 +388,16 @@ cdef class Domain(object):
         cdef int rc = TILEDB_OK
         cdef Dim dimension
         cdef tiledb_dimension_t* dimension_ptr = NULL
-        for d in dims:
-            if not isinstance(d, Dim):
+        for dim in dims:
+            if not isinstance(dim, Dim):
                 tiledb_domain_free(ctx.ptr, domain_ptr)
-                raise TypeError("unknown dimension type {0!r}".format(d))
-            dimension = d
+                raise TypeError("unknown dimension type {0!r}".format(dim))
+            dimension = dim
             rc = tiledb_domain_add_dimension(
                 ctx.ptr, domain_ptr, dimension.ptr)
             if rc != TILEDB_OK:
                 tiledb_domain_free(ctx.ptr, domain_ptr)
                 check_error(ctx, rc)
-        self.dims = dims
         self.ctx = ctx
         self.ptr = domain_ptr
 
@@ -418,6 +440,9 @@ cdef class Domain(object):
     def dump(self):
         check_error(self.ctx,
                     tiledb_domain_dump(self.ctx.ptr, self.ptr, stdout))
+        print("\n")
+        return
+
 
 
 cdef tiledb_layout_t _tiledb_layout(order) except TILEDB_UNORDERED:
@@ -614,6 +639,8 @@ cdef class Array(object):
     def dump(self):
         check_error(self.ctx,
             tiledb_array_metadata_dump(self.ctx.ptr, self.ptr, stdout))
+        print("\n")
+        return
 
     def consolidate(self):
         return array_consolidate(self.ctx, self.name)
@@ -635,8 +662,8 @@ cdef class Array(object):
         return
 
     def __getitem__(self, object key):
-        cdef dtype _dtype
-        cdef ndarray array
+        cdef np.dtype _dtype
+        cdef np.ndarray array
         cdef object start, stop, step
         if isinstance(key, _inttypes):
             raise IndexError("key not suitable:", key)

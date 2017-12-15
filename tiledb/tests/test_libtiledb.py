@@ -102,6 +102,23 @@ class GroupTest(GroupTestCase):
 
 class DimensionTest(TestCase):
 
+    def test_minimal_dimension(self):
+        ctx = t.Ctx()
+        dim = t.Dim(ctx, domain=(0, 4))
+        self.assertEqual(dim.name, "", "dimension name is empty")
+        self.assertEqual(dim.shape, (5,))
+        self.assertEqual(dim.tile, 5, "tile extent should span the whole domain")
+
+    def test_dimension(self):
+        ctx = t.Ctx()
+        dim = t.Dim(ctx, "d1", domain=(0, 3), tile=2)
+        self.assertEqual(dim.name, "d1")
+        self.assertEqual(dim.shape, (4,))
+        self.assertEqual(dim.tile, 2)
+
+
+class DomainTest(TestCase):
+
     def test_domain(self):
         ctx = t.Ctx()
         dom = t.Domain(
@@ -110,17 +127,36 @@ class DimensionTest(TestCase):
             t.Dim(ctx, "d2", (1, 4), 2),
             dtype='u8')
         dom.dump()
-        self.assertTrue(dom.ndim == 2)
+        self.assertEqual(dom.ndim, 2)
+        self.assertEqual(dom.rank, dom.ndim)
+        self.assertEqual(dom.dtype, np.dtype("uint64"))
+        self.assertEqual(dom.shape, (4, 4))
 
 
 class AttributeTest(TestCase):
 
+    def test_minimal_attribute(self):
+        ctx = t.Ctx()
+        attr = t.Attr(ctx, "foo")
+        attr.dump()
+        self.assertEqual(attr.name, "foo")
+        self.assertEqual(attr.dtype, np.float64,
+                         "default attribute type is float64")
+        compressor, level = attr.compressor
+        self.assertEqual(compressor, None, "default to no compression")
+        self.assertEqual(level, -1, "default compression level when none is specified")
+
     def test_attribute(self):
-       ctx = t.Ctx()
-       attr = t.Attr(ctx, "foo")
-       attr.dump()
+        ctx = t.Ctx()
+        attr = t.Attr(ctx, "foo", dtype=np.int64, compressor="zstd", level=10)
+        attr.dump()
+        self.assertEqual(attr.name, "foo")
+        self.assertEqual(attr.dtype, np.int64)
+        compressor, level = attr.compressor
+        self.assertEqual(compressor, "zstd")
+        self.assertEqual(level, 10)
 
-
+"""
 class ArrayTest(DiskTestCase):
 
     def test_array(self):
@@ -151,7 +187,6 @@ class RWTest(DiskTestCase):
         arr.write_direct("val", A)
         arr.dump()
         assert_array_equal(arr.read_direct("val"), A)
-"""
 
 class NumpyToArray(DiskTestCase):
 
