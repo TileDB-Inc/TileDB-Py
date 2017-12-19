@@ -1,11 +1,14 @@
 from __future__ import absolute_import, print_function
+
+import os
 from setuptools import setup, Extension, find_packages
 from pkg_resources import resource_filename
 
-from sys import version_info as v
+import sys
+from sys import version_info as ver
 
 # Check if Python version is supported
-if any([v < (2, 7), (3,) < v < (3, 4)]):
+if any([ver < (2, 7), (3,) < ver < (3, 4)]):
     raise Exception("Unsupported Python version %d.%d.  Requires Python >= 2.7 or >= 3.4")
 
 
@@ -57,8 +60,41 @@ class LazyCommandClass(dict):
 
 
 tests_require = []
-if v < (3,):
+if ver < (3,):
     tests_require.extend(["unittest2", "mock"])
+
+# Globals variables
+CXXFLAGS = os.environ.get("CXXFLAGS", "-std=c++11").split()
+LFLAGS = os.environ.get("LFLAGS", "").split()
+
+# Allow setting (lib) TileDB directory if it is installed on the system
+TILEDB_DIR = os.environ.get("TILEDB_DIR", "")
+
+# Sources & libraries
+inc_dirs = []
+lib_dirs = []
+libs = []
+def_macros = []
+sources = ["tiledb/libtiledb.pyx"]
+optional_libs = []
+
+# Handle --tiledb=[PATH] --lflags=[FLAGS] --cxxflags=[FLAGS]
+args = sys.argv[:]
+for arg in args:
+    if arg.find('--tiledb=') == 0:
+        TILEDB_DIR = os.path.expanduser(arg.split('=')[1])
+        sys.argv.remove(arg)
+    if arg.find('--lflags=') == 0:
+        LFLAGS = arg.split('=')[1].split()
+        sys.argv.remove(arg)
+    if arg.find('--cxxflags=') == 0:
+        CXXFLAGS = arg.split('=')[1].split()
+        sys.argv.remove(arg)
+
+if TILEDB_DIR != '':
+    lib_dirs += [os.path.join(TILEDB_DIR, 'lib')]
+    inc_dirs += [os.path.join(TILEDB_DIR, 'include')]
+    libs += ["tiledb"]
 
 setup(
     name='tiledb',
@@ -78,9 +114,13 @@ setup(
     ext_modules=[
         Extension(
           "tiledb.libtiledb",
-          sources=["tiledb/libtiledb.pyx"],
-          extra_compile_args=["-std=c++11"],
-          libraries=["tiledb"],
+          include_dirs=inc_dirs,
+          define_macros=def_macros,
+          sources=sources,
+          library_dirs=lib_dirs,
+          libraries=libs,
+          extra_link_args=LFLAGS,
+          extra_compile_args=CXXFLAGS,
           language="c++"
         )
     ],
