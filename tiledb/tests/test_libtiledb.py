@@ -11,7 +11,7 @@ from numpy.testing import assert_array_equal
 
 def is_group(ctx, path):
    obj = tiledb.libtiledb.object_type(ctx, path)
-   return obj == 1
+   return obj == 2
 
 
 class VersionTest(TestCase):
@@ -167,9 +167,7 @@ class ArrayTest(DiskTestCase):
             t.Dim(ctx, domain=(1, 8), tile=2),
             dtype='u8')
         att = t.Attr(ctx, "val", dtype='f8')
-        arr = t.Array.create(ctx, self.path("foo"),
-                             domain=dom,
-                             attrs=[att])
+        arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
         arr.dump()
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
@@ -200,19 +198,19 @@ class NumpyToArray(DiskTestCase):
         ctx = t.Ctx()
         A = np.array([1.0, 2.0, 3.0])
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct("val"), A)
+        assert_array_equal(arr.read_direct(""), A)
 
     def test_to_array2d(self):
         ctx = t.Ctx()
         A = np.ones((100, 100), dtype='i8')
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct("val"), A)
+        assert_array_equal(arr.read_direct(""), A)
 
     def test_to_array3d(self):
         ctx = t.Ctx()
         A = np.ones((1, 1, 1), dtype='i1')
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct("val"), A)
+        assert_array_equal(arr.read_direct(""), A)
 
     def test_array_interface(self):
         # This tests that __array__ interface works
