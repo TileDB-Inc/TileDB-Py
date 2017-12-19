@@ -156,15 +156,15 @@ class AttributeTest(TestCase):
         self.assertEqual(compressor, "zstd")
         self.assertEqual(level, 10)
 
-"""
+
 class ArrayTest(DiskTestCase):
 
-    def test_array(self):
+    def test_array_not_sparse(self):
         ctx = t.Ctx()
         dom = t.Domain(
             ctx,
-            t.Dim(ctx, "d1", (1, 8), 2),
-            t.Dim(ctx, "d2", (1, 8), 2),
+            t.Dim(ctx, domain=(1, 8), tile=2),
+            t.Dim(ctx, domain=(1, 8), tile=2),
             dtype='u8')
         att = t.Attr(ctx, "val", dtype='f8')
         arr = t.Array.create(ctx, self.path("foo"),
@@ -174,12 +174,13 @@ class ArrayTest(DiskTestCase):
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
 
+
 class RWTest(DiskTestCase):
 
     def test_read_write(self):
         ctx = t.Ctx()
 
-        dom = t.Domain(ctx, t.Dim(ctx, "d1", (0, 2), 3))
+        dom = t.Domain(ctx, t.Dim(ctx, None, (0, 2), 3))
         att = t.Attr(ctx, "val", dtype='i8')
         arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
 
@@ -187,6 +188,7 @@ class RWTest(DiskTestCase):
         arr.write_direct("val", A)
         arr.dump()
         assert_array_equal(arr.read_direct("val"), A)
+
 
 class NumpyToArray(DiskTestCase):
 
@@ -202,13 +204,13 @@ class NumpyToArray(DiskTestCase):
 
     def test_to_array2d(self):
         ctx = t.Ctx()
-        A = np.ones((100,100), dtype='i8')
+        A = np.ones((100, 100), dtype='i8')
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
         assert_array_equal(arr.read_direct("val"), A)
 
     def test_to_array3d(self):
         ctx = t.Ctx()
-        A = np.ones((1,1,1), dtype='i1')
+        A = np.ones((1, 1, 1), dtype='i1')
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
         assert_array_equal(arr.read_direct("val"), A)
 
@@ -225,6 +227,5 @@ class NumpyToArray(DiskTestCase):
         ctx = t.Ctx()
         A1 = np.arange(1, 10)
         arr = t.Array.from_numpy(ctx, self.path("foo"), A1)
-        A2  = arr[1:3]
+        A2 = arr[1:3]
         assert_array_equal(A1[1:3], A2)
-"""
