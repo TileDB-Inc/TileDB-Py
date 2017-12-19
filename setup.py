@@ -73,12 +73,13 @@ TILEDB_DIR = os.environ.get("TILEDB_DIR", "")
 # Sources & libraries
 inc_dirs = []
 lib_dirs = []
-libs = []
+libs = ["tiledb"]
 def_macros = []
 sources = ["tiledb/libtiledb.pyx"]
 optional_libs = []
 
-# Handle --tiledb=[PATH] --lflags=[FLAGS] --cxxflags=[FLAGS]
+# Pass command line flags to setup.py script
+# handle --tiledb=[PATH] --lflags=[FLAGS] --cxxflags=[FLAGS]
 args = sys.argv[:]
 for arg in args:
     if arg.find('--tiledb=') == 0:
@@ -94,7 +95,6 @@ for arg in args:
 if TILEDB_DIR != '':
     lib_dirs += [os.path.join(TILEDB_DIR, 'lib')]
     inc_dirs += [os.path.join(TILEDB_DIR, 'include')]
-    libs += ["tiledb"]
 
 setup(
     name='tiledb',

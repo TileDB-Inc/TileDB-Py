@@ -332,9 +332,7 @@ cdef class Dim(object):
     def shape(self):
         # TODO: specialized for uint64 datatype
         cdef tuple domain = self.domain
-        diff = domain[1] - domain[0]
-        inclusive_range = diff + 1 if diff > 0 else 0
-        return (inclusive_range,)
+        return ((domain[1] - domain[0] + 1),)
 
     @property
     def tile(self):
@@ -557,8 +555,7 @@ cdef class Array(object):
         dims  = []
         for d in range(ndims):
             extent = shape[d]
-            domain = (0, extent - 1 if extent > 1 else 1)
-            print((extent, domain))
+            domain = (0, extent - 1)
             dims.append(Dim(ctx, "", domain, extent))
         dom = Domain(ctx, *dims)
         att = Attr(ctx, "", dtype=dtype)
@@ -653,31 +650,62 @@ cdef class Array(object):
         cdef const char* c_aname = array_name
 
         # attr name
-        cdef bytes attr_name = u"val".encode('UTF-8')
+        cdef bytes attr_name = u"".encode('UTF-8')
         cdef const char* c_attr = attr_name
 
+        cdef int rc = TILEDB_OK
         cdef tiledb_query_t* query = NULL
-        check_error(self.ctx,
-                    tiledb_query_create(self.ctx.ptr, &query, c_aname, TILEDB_READ))
-        tiledb_query_free(self.ctx.ptr, query)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
+        rc = tiledb_query_create(ctx_ptr, &query, c_aname, TILEDB_READ)
+        if rc != TILEDB_OK:
+            check_error(self.ctx, rc)
+        cdef uint64_t[2] subarray
+        subarray[0] = start
+        subarray[1] = stop - 1
+        rc = tiledb_query_set_subarray(ctx_ptr, query, <void*>(subarray), TILEDB_UINT64)
+        if rc != TILEDB_OK:
+            tiledb_query_free(ctx_ptr, query)
+            check_error(self.ctx, rc)
+        rc = tiledb_query_set_buffers(ctx_ptr, query, &c_attr, 1, &buff_ptr, &buff_size)
+        if rc != TILEDB_OK:
+            tiledb_query_free(ctx_ptr, query)
+            check_error(self.ctx, rc)
+        rc = tiledb_query_set_layout(ctx_ptr, query, TILEDB_ROW_MAJOR)
+        if rc != TILEDB_OK:
+            tiledb_query_free(ctx_ptr, query)
+            check_error(self.ctx, rc)
+
+        rc = tiledb_query_submit(ctx_ptr, query)
+        tiledb_query_free(ctx_ptr, query)
+        if rc != TILEDB_OK:
+            check_error(self.ctx, rc)
         return
 
     def __getitem__(self, object key):
         cdef np.dtype _dtype
         cdef np.ndarray array
         cdef object start, stop, step
+
         if isinstance(key, _inttypes):
             raise IndexError("key not suitable:", key)
         elif isinstance(key, slice):
             (start, stop, step) = key.start, key.stop, key.step
+            print(start, stop, step)
         else:
             raise IndexError("key not suitable:", key)
-        array = np.empty(shape=(stop - start,),
-                         dtype=self.attr("val").dtype)
+
+        cdef tuple domain_shape = self.domain.shape
+        cdef Attr attr = self.attr("")
+        cdef np.dtype attr_dtype = attr.dtype
+
+        # clamp to domain
+        stop = domain_shape[0] if stop > domain_shape[0] else stop
+        array = np.zeros(shape=((stop - start),), dtype=attr_dtype)
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = <uint64_t>(array.nbytes)
         self._getrange(start, stop, buff_ptr, buff_size)
-        if step > 1:
+        if step:
             return array[::step]
         return array
 
@@ -693,8 +721,8 @@ cdef class Array(object):
         cdef const char* c_array_name = barray_name
 
         # attr name
-        cdef bytes attr_name = attr.encode('UTF-8')
-        cdef const char* c_attr_name = attr_name
+        cdef bytes battr_name = attr.encode('UTF-8')
+        cdef const char* c_attr_name = battr_name
 
         cdef void* buff = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes

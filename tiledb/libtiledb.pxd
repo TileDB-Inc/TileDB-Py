@@ -395,7 +395,7 @@ cdef extern from "tiledb.h":
         const char* array_name,
         tiledb_query_type_t qtype)
 
-    int tiledb_query_by_subarray(
+    int tiledb_query_set_subarray(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
         const void* subarray,

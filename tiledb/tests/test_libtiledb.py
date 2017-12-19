@@ -225,5 +225,5 @@ class NumpyToArray(DiskTestCase):
         ctx = t.Ctx()
         A1 = np.arange(1, 10)
         arr = t.Array.from_numpy(ctx, self.path("foo"), A1)
-        A2 = arr[1:3]
-        assert_array_equal(A1[1:3], A2)
+        A2 = arr[5:10]
+        assert_array_equal(A1[5:10], A2)
