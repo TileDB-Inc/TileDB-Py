@@ -231,18 +231,26 @@ class NumpyToArray(DiskTestCase):
 
 class AssocArray(DiskTestCase):
 
-    def test_kv_create(self):
+    def test_kv_write_read(self):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=int)
         kv = t.Assoc(ctx, self.path("foo"), a1)
 
-        # try to laod it
-        kvl = t.Assoc.load(ctx, self.path("foo"))
-
         kv["foo"] = 1
-
         self.assertEqual(kv["foo"], 1)
+
+    def test_k_write_load_read(self):
+        # create a kv database
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", dtype=int)
+        kv = t.Assoc(ctx, self.path("foo"), a1)
+
+        kv["foo"] = {"foo": 1, "bar": 2}
+
+        # try to load it
+        kvl = t.Assoc.load(ctx, self.path("foo"))
+        self.assertEqual(kvl["foo"], 2)
 
 
 

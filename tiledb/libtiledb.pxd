@@ -536,12 +536,14 @@ cdef extern from "tiledb.h":
     int tiledb_kv_get_value(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
+        uint64_t obj_index,
         unsigned int attr_idx,
         void** value)
 
     int tiledb_kv_get_value_var(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
+        uint64_t obj_index,
         unsigned int attr_idx,
         void** value,
         uint64_t value_size);
