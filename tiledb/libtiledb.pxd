@@ -365,7 +365,7 @@ cdef extern from "tiledb.h":
         const tiledb_array_metadata_t* array_metadata,
         tiledb_domain_t** domain)
 
-    int tiledb_attribute_get_as_kv(
+    int tiledb_array_metadata_get_as_kv(
         tiledb_ctx_t* ctx,
         const tiledb_array_metadata_t* array_metadata,
         int* is_kv)
@@ -378,7 +378,7 @@ cdef extern from "tiledb.h":
     int tiledb_array_metadata_get_num_attributes(
         tiledb_ctx_t* ctx,
         const tiledb_array_metadata_t* array_metadata,
-        unsigned int** num_attributes)
+        unsigned int* num_attributes)
 
     int tiledb_array_metadata_dump(
         tiledb_ctx_t* ctx,

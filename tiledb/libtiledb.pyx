@@ -503,7 +503,24 @@ cdef class Assoc(object):
         return arr
 
     @staticmethod
-    def create(Ctx ctx, unicode name, object attrs=[], int capacity=0):
+    def load(Ctx ctx, unicode uri):
+        cdef bytes buri = ustring(uri).encode('UTF-8')
+        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        cdef int rc = tiledb_array_metadata_load(ctx.ptr, &metadata_ptr, buri)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        cdef int is_kv = 0;
+        rc = tiledb_array_metadata_get_as_kv(ctx.ptr, metadata_ptr, &is_kv)
+        if rc != TILEDB_OK:
+            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            check_error(ctx, rc)
+        if not is_kv:
+            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            raise TileDBError("TileDB Array {0!r} is not an Assoc array".format(uri))
+        return Assoc.from_ptr(ctx, uri, metadata_ptr)
+
+    def __init__(self, Ctx ctx, unicode name, *attrs, int capacity=0):
+
         #TODO: key types other than strings
         uname = ustring(name).encode('UTF-8')
 
@@ -542,8 +559,48 @@ cdef class Assoc(object):
             tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
             check_error(ctx, rc)
 
-        return Assoc.from_ptr(ctx, name, metadata_ptr)
+        self.ctx = ctx
+        self.name = name
+        self.ptr = metadata_ptr
 
+    @property
+    def nattr(self):
+        cdef unsigned int nattr = 0
+        check_error(self.ctx,
+            tiledb_array_metadata_get_num_attributes(self.ctx.ptr, self.ptr, &nattr))
+        return int(nattr)
+
+    def attr(self, int idx):
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_attribute_from_index(self.ctx.ptr, self.ptr, idx, &attr_ptr))
+        return Attr.from_ptr(self.ctx, attr_ptr)
+
+    def __setitem__(self, str key, int value):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_metadata_t* metadata_ptr = self.ptr
+        cdef tiledb_kv_t* kv_ptr = NULL
+
+        cdef unsigned int nattr = 0
+        check_error(self.ctx,
+            tiledb_array_metadata_get_num_attributes(ctx_ptr, metadata_ptr, &nattr))
+
+        cdef int rc;
+        cdef size_t nbytes = 0
+        cdef const char* attr_name = NULL
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        cdef const char* names = malloc(nattr * sizeof(char*))
+        for idx in range(nattr):
+            rc = tiledb_attribute_from_index(ctx_ptr, metadata_ptr, idx, &attr_ptr)
+            if rc != TILEDB_OK:
+                for i in range(idx-1):
+                    free(names[i])
+                check_error(self.ctx, rc)
+
+            names[i] = malloc
+
+    def __getitem__(self, str key):
+        pass
 
 cdef class Array(object):
 
@@ -683,6 +740,13 @@ cdef class Array(object):
         check_error(self.ctx,
             tiledb_array_metadata_get_domain(self.ctx.ptr, self.ptr, &dom))
         return Domain.from_ptr(self.ctx, dom)
+
+    @property
+    def nattr(self):
+        cdef unsigned int nattr = 0
+        check_error(self.ctx,
+            tiledb_array_metadata_get_num_attributes(self.ctx.ptr, self.ptr, &nattr))
+        return int(nattr)
 
     def attr(self, unicode name):
         cdef bytes bname = ustring(name).encode('UTF-8')

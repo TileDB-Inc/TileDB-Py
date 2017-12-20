@@ -227,3 +227,22 @@ class NumpyToArray(DiskTestCase):
         arr = t.Array.from_numpy(ctx, self.path("foo"), A1)
         A2 = arr[5:10]
         assert_array_equal(A1[5:10], A2)
+
+
+class AssocArray(DiskTestCase):
+
+    def test_kv_create(self):
+        # create a kv database
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", dtype=int)
+        kv = t.Assoc(ctx, self.path("foo"), a1)
+
+        # try to laod it
+        kvl = t.Assoc.load(ctx, self.path("foo"))
+
+        kv["foo"] = 1
+
+        self.assertEqual(kv["foo"], 1)
+
+
+
