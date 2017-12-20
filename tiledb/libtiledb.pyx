@@ -481,6 +481,69 @@ cdef class Query(object):
     def __init__(self, Ctx ctx):
         self.ctx = ctx
 
+cdef class Assoc(object):
+
+    cdef Ctx ctx
+    cdef unicode name
+    cdef tiledb_array_metadata_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_array_metadata_free(self.ctx.ptr, self.ptr)
+
+    @staticmethod
+    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_metadata_t* ptr):
+        cdef Assoc arr = Assoc.__new__(Assoc)
+        arr.ctx = ctx
+        arr.name = name
+        arr.ptr = <tiledb_array_metadata_t*> ptr
+        return arr
+
+    @staticmethod
+    def create(Ctx ctx, unicode name, object attrs=[], int capacity=0):
+        #TODO: key types other than strings
+        uname = ustring(name).encode('UTF-8')
+
+        cdef int rc = TILEDB_OK
+        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        check_error(ctx,
+            tiledb_array_metadata_create(ctx.ptr, &metadata_ptr, uname))
+
+        rc = tiledb_array_metadata_set_as_kv(ctx.ptr, metadata_ptr)
+        if rc != TILEDB_OK:
+            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            check_error(ctx, rc)
+
+        cdef uint64_t c_capacity = capacity
+        if capacity > 0:
+            rc = tiledb_array_metadata_set_capacity(ctx.ptr, metadata_ptr, c_capacity)
+            if rc != TILEDB_OK:
+                tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+                check_error(ctx, rc)
+
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        for attr in attrs:
+            attr_ptr = (<Attr> attr).ptr
+            rc = tiledb_array_metadata_add_attribute(ctx.ptr, metadata_ptr, attr_ptr)
+            if rc != TILEDB_OK:
+                tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+                check_error(ctx, rc)
+
+        rc = tiledb_array_metadata_check(ctx.ptr, metadata_ptr)
+        if rc != TILEDB_OK:
+            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            check_error(ctx, rc)
+
+        rc = tiledb_array_create(ctx.ptr, metadata_ptr)
+        if rc != TILEDB_OK:
+            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            check_error(ctx, rc)
+
+        return Assoc.from_ptr(ctx, name, metadata_ptr)
+
 
 cdef class Array(object):
 

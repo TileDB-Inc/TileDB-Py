@@ -18,6 +18,7 @@ cdef extern from "tiledb.h":
         TILEDB_INVALID
         TILEDB_GROUP
         TILEDB_ARRAY
+        TILEDB_KEY_VALUE
 
     ctypedef enum tiledb_query_type_t:
         TILEDB_READ
@@ -89,18 +90,34 @@ cdef extern from "tiledb.h":
         pass
     ctypedef struct tiledb_query_t:
         pass
+    ctypedef struct tiledb_kv_t:
+        pass
 
     # Context
-    int tiledb_ctx_create(tiledb_ctx_t** ctx)
-    int tiledb_ctx_free(tiledb_ctx_t* ctx)
+    int tiledb_ctx_create(
+        tiledb_ctx_t** ctx)
+
+    int tiledb_ctx_free(
+        tiledb_ctx_t* ctx)
 
     # Error
-    int tiledb_error_last(tiledb_ctx_t* ctx, tiledb_error_t** err)
-    int tiledb_error_message(tiledb_ctx_t* ctx, tiledb_error_t* err, char** msg)
-    int tiledb_error_free(tiledb_ctx_t* ctx, tiledb_error_t* err)
+    int tiledb_error_last(
+        tiledb_ctx_t* ctx,
+        tiledb_error_t** err)
+
+    int tiledb_error_message(
+        tiledb_ctx_t* ctx,
+        tiledb_error_t* err,
+        char** msg)
+
+    int tiledb_error_free(
+        tiledb_ctx_t* ctx,
+        tiledb_error_t* err)
 
     # Group
-    int tiledb_group_create(tiledb_ctx_t* ctx, const char* group)
+    int tiledb_group_create(
+        tiledb_ctx_t* ctx,
+        const char* group)
 
     # Attribute
     int tiledb_attribute_create(
@@ -285,6 +302,9 @@ cdef extern from "tiledb.h":
         tiledb_array_metadata_t* array_metadata,
         tiledb_domain_t* domain);
 
+    int tiledb_array_metadata_set_as_kv(
+        tiledb_ctx_t* ctx, tiledb_array_metadata_t* array_metadata);
+
     int tiledb_array_metadata_set_capacity(
         tiledb_ctx_t* ctx,
         tiledb_array_metadata_t* array_metadata,
@@ -344,6 +364,11 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_metadata_t* array_metadata,
         tiledb_domain_t** domain)
+
+    int tiledb_attribute_get_as_kv(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_metadata_t* array_metadata,
+        int* is_kv)
 
     int tiledb_array_metadata_get_tile_order(
         tiledb_ctx_t* ctx,
@@ -435,12 +460,96 @@ cdef extern from "tiledb.h":
         const char* attribute_name,
         tiledb_query_status_t* status)
 
+    int tiledb_query_set_kv(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        tiledb_kv_t* kv);
+
+    int tiledb_query_set_kv_key(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        const void* key,
+        tiledb_datatype_t type,
+        uint64_t key_size)
+
     # Array
     int tiledb_array_create(
-        tiledb_ctx_t* ctx, const tiledb_array_metadata_t* array_metadata)
+        tiledb_ctx_t* ctx,
+        const tiledb_array_metadata_t* array_metadata)
 
     int tiledb_array_consolidate(
-        tiledb_ctx_t* ctx, const char* array_path);
+        tiledb_ctx_t* ctx,
+        const char* array_path);
+
+    # Key / Value store
+    int tiledb_kv_create(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t** kv,
+        unsigned int attribute_num,
+        const char** attributes,
+        tiledb_datatype_t* types,
+        unsigned int* nitems)
+
+    int tiledb_kv_free(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv)
+
+    int tiledb_kv_add_key(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        const void* key,
+        tiledb_datatype_t key_type,
+        uint64_t key_size);
+
+    int tiledb_kv_add_value(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        unsigned int attribute_idx,
+        const void* value)
+
+    int tiledb_add_value_var(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        unsigned int attribute_idx,
+        const void* value,
+        uint64_t value_size)
+
+    int tiledb_kv_get_key_num(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        uint64_t* num)
+
+    int tiledb_kv_get_value_num(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        unsigned int attribute_idx,
+        uint64_t* num)
+
+    int tiledb_kv_get_key(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        uint64_t key_idx,
+        void** key,
+        tiledb_datatype_t* key_type,
+        uint64_t* key_size);
+
+    int tiledb_kv_get_value(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        unsigned int attr_idx,
+        void** value)
+
+    int tiledb_kv_get_value_var(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        unsigned int attr_idx,
+        void** value,
+        uint64_t value_size);
+
+    int tiledb_kv_set_buffer_size(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        uint64_t nbytes);
 
     # Resource management
     int tiledb_object_type(
