@@ -231,6 +231,7 @@ class NumpyToArray(DiskTestCase):
 
 class AssocArray(DiskTestCase):
 
+
     def test_kv_write_read(self):
         # create a kv database
         ctx = t.Ctx()
@@ -240,17 +241,107 @@ class AssocArray(DiskTestCase):
         kv["foo"] = 1
         self.assertEqual(kv["foo"], 1)
 
-    def test_k_write_load_read(self):
+    def test_kv_write_load_read(self):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=int)
         kv = t.Assoc(ctx, self.path("foo"), a1)
 
-        kv["foo"] = {"foo": 1, "bar": 2}
+        kv["foo"] = 2
+        del kv
 
         # try to load it
-        kvl = t.Assoc.load(ctx, self.path("foo"))
-        self.assertEqual(kvl["foo"], 2)
+        kv = t.Assoc.load(ctx, self.path("foo"))
+        self.assertEqual(kv["foo"], 2)
 
+    def test_kv_update(self):
+        # create a kv database
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", dtype=int)
+        kv = t.Assoc(ctx, self.path("foo"), a1)
+
+        kv["foo"] = 1
+        del kv
+
+        kv = t.Assoc.load(ctx, self.path("foo"))
+        kv["foo"] = 2
+        del kv
+
+        kv = t.Assoc.load(ctx, self.path("foo"))
+        self.assertEqual(kv["foo"], 2)
+
+    def test_key_not_found(self):
+        # create a kv database
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", dtype=int)
+        kv = t.Assoc(ctx, self.path("foo"), a1)
+
+        self.assertRaises(KeyError, kv.__getitem__, "not here")
+
+    def test_kv_contains(self):
+        # create a kv database
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", dtype=int)
+        kv = t.Assoc(ctx, self.path("foo"), a1)
+        self.assertFalse("foo" in kv)
+        kv["foo"] = 1
+        self.assertTrue("foo" in kv)
+
+
+    def test_kv_performance(self):
+        import random
+        import time
+        import dbm
+
+        # create a kv database
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", dtype=int)
+        kv = t.Assoc(ctx, self.path("foo"), a1)
+        print("tiledb starting")
+        NRECORDS = 10000
+        values = [random.randint(0, 10000000) for _ in range(NRECORDS)]
+        keys = list(map(str, values))
+        start = time.time()
+        for i in range(NRECORDS):
+            kv[keys[i]] = values[i]
+        end = time.time()
+        print("inserting {} keys took {} seconds".format(NRECORDS,  end - start))
+
+        print("consolidating")
+        start = time.time()
+
+        print(t.object_type(ctx, self.path("foo")))
+        t.array_consolidate(ctx, self.path("foo"))
+        end = time.time()
+        print("consolidating took {} seconds".format(end - start))
+
+        print("tiledb read starting")
+        start = time.time()
+        for i in range(NRECORDS):
+            key = keys[i]
+            val = values[i]
+            if kv[key] != val:
+                print("key: {}; value: {}".format(key, val))
+        end = time.time()
+        print("reading {} keys took {} seconds".format(NRECORDS,  end - start))
+
+        print("dbm write starting")
+        start = time.time()
+        with dbm.open(self.path("bar"), 'c') as db:
+            for i in range(NRECORDS):
+                db[keys[i]] = str(values[i])
+        end = time.time()
+        print("inserting {} keys took {} seconds".format(NRECORDS,  end - start))
+
+        print("dbm read starting")
+        start = time.time()
+        with dbm.open(self.path("bar"), 'r') as db:
+            for i in range(NRECORDS):
+                key = keys[i]
+                val = values[i]
+                if db[key] != val:
+                    pass
+        end = time.time()
+        print("reading {} keys took {} seconds".format(NRECORDS,  end - start))
 
 

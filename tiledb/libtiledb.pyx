@@ -351,7 +351,6 @@ cdef class Dim(object):
             return self.shape[0]
         return tile_ptr[0]
 
-
     @property
     def domain(self):
         # TODO: specialized for uint64 datatype
@@ -548,12 +547,16 @@ cdef class Assoc(object):
                 check_error(ctx, rc)
 
         cdef tiledb_attribute_t* attr_ptr = NULL
+
+        # TODO: specialized for strings
+        """
         for attr in attrs:
             attr_ptr = (<Attr> attr).ptr
             rc = tiledb_array_metadata_add_attribute(ctx.ptr, metadata_ptr, attr_ptr)
             if rc != TILEDB_OK:
                 tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
                 check_error(ctx, rc)
+        """
 
         rc = tiledb_array_metadata_check(ctx.ptr, metadata_ptr)
         if rc != TILEDB_OK:
@@ -582,7 +585,7 @@ cdef class Assoc(object):
                     tiledb_attribute_from_index(self.ctx.ptr, self.ptr, idx, &attr_ptr))
         return Attr.from_ptr(self.ctx, attr_ptr)
 
-    def __setitem__(self, unicode key, int value):
+    def __setitem__(self, str key, str value):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         cdef bytes bkey = ustring(key).encode('UTF-8')
@@ -641,7 +644,7 @@ cdef class Assoc(object):
     def __getitem__(self, unicode key):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
-        cdef bytes bkey = ustring(key).encode('UTF-8')
+        cdef bytes bkey = key.encode('UTF-8')
         cdef const void* bkey_ptr = PyBytes_AS_STRING(bkey)
         cdef uint64_t bkey_size = PyBytes_GET_SIZE(bkey)
 
@@ -666,6 +669,7 @@ cdef class Assoc(object):
             tiledb_kv_free(ctx_ptr, kv_ptr)
             check_error(self.ctx, rc)
 
+        #TODO: specialized for strings
         rc = tiledb_query_set_kv_key(ctx_ptr, query_ptr, bkey_ptr, TILEDB_CHAR, bkey_size)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query_ptr)
@@ -685,15 +689,51 @@ cdef class Assoc(object):
             tiledb_kv_free(ctx_ptr, kv_ptr)
             check_error(self.ctx, rc)
 
+        cdef tiledb_query_status_t status
+        rc = tiledb_query_get_status(ctx_ptr, query_ptr, &status)
+        if rc != TILEDB_OK or status != TILEDB_COMPLETED:
+            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_kv_free(ctx_ptr, kv_ptr)
+            check_error(self.ctx, rc)
+            if status != TILEDB_COMPLETED:
+                raise TileDBError("KV query did not complete")
+
+        # TODO: specialized for integers
+
+        # check that the key exists
+        cdef uint64_t nvals = 0
+        rc = tiledb_kv_get_value_num(ctx_ptr, kv_ptr, 0, &nvals)
+        if rc != TILEDB_OK:
+            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_kv_free(ctx_ptr, kv_ptr)
+            check_error(self.ctx, rc)
+
+        if nvals == 0:
+            raise KeyError(key)
+
+        # get key value
         cdef int64_t* value_ptr = NULL;
         rc = tiledb_kv_get_value(ctx_ptr, kv_ptr, 0, 0, <void**>(&value_ptr))
-        if value_ptr == NULL:
-            if value_ptr == NULL:
-                raise TileDBError("KV get value is NULL")
+        if rc != TILEDB_OK:
+            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_kv_free(ctx_ptr, kv_ptr)
+            check_error(self.ctx, rc)
+
+        assert(value_ptr != NULL)
         cdef int64_t val = value_ptr[0]
+
         tiledb_query_free(ctx_ptr, query_ptr)
         tiledb_kv_free(ctx_ptr, kv_ptr)
         return val
+
+    def __contains__(self, unicode key):
+        try:
+            self[key]
+            return True
+        except KeyError:
+            return False
+        except Exception as ex:
+            raise ex
 
 
 cdef class Array(object):
