@@ -507,7 +507,7 @@ cdef extern from "tiledb.h":
         unsigned int attribute_idx,
         const void* value)
 
-    int tiledb_add_value_var(
+    int tiledb_kv_add_value_var(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
         unsigned int attribute_idx,
@@ -546,7 +546,7 @@ cdef extern from "tiledb.h":
         uint64_t obj_index,
         unsigned int attr_idx,
         void** value,
-        uint64_t value_size);
+        uint64_t* value_size);
 
     int tiledb_kv_set_buffer_size(
         tiledb_ctx_t* ctx,
