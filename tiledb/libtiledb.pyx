@@ -3,11 +3,9 @@ from cpython.bytes cimport (PyBytes_GET_SIZE,
                             PyBytes_AS_STRING,
                             PyBytes_FromStringAndSize)
 
-from cython.operator cimport dereference as deref
-
-from libc.stdint cimport (uint64_t, int64_t)
 from libc.stdio cimport stdout
-from libc.stdlib cimport calloc
+from libc.stdlib cimport malloc, calloc
+from libc.stdint cimport (uint64_t, int64_t, uintptr_t)
 
 """
 cdef extern from "numpyFlags.h":
@@ -41,6 +39,7 @@ IntType = np.dtype(np.int_)
 
 # Numpy initialization code
 np.import_array()
+
 
 def version():
     cdef:
@@ -286,12 +285,6 @@ cdef class Attr(object):
             return (None, int(c_level))
         return (_tiledb_compressor_string(compr), int(c_level))
 
-
-cdef _tiledb_tagged_val(tiledb_datatype_t dtype, const void* val):
-    if dtype == TILEDB_UINT64:
-        return deref(<uint64_t*> val)
-    else:
-        return 2
 
 cdef tuple _dimension_domain():
     return ()
@@ -651,9 +644,13 @@ cdef class Assoc(object):
             check_error(self.ctx, rc)
 
         # Submit query
-        rc = tiledb_query_submit(ctx_ptr, query_ptr);
+        # release the GIL as this is an (expensive) blocking operation
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr);
+
         tiledb_query_free(ctx_ptr, query_ptr)
         tiledb_kv_free(ctx_ptr, kv_ptr)
+
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
         return
@@ -668,7 +665,6 @@ cdef class Assoc(object):
         # create kv object
         cdef bytes battr = b"value"
         cdef const char* battr_ptr = PyBytes_AS_STRING(battr)
-
         cdef tiledb_datatype_t typ = TILEDB_CHAR
         cdef unsigned int nitems = TILEDB_VAR_NUM
 
@@ -687,7 +683,8 @@ cdef class Assoc(object):
             check_error(self.ctx, rc)
 
         #TODO: specialized for strings
-        rc = tiledb_query_set_kv_key(ctx_ptr, query_ptr, bkey_ptr, TILEDB_CHAR, bkey_size)
+        rc = tiledb_query_set_kv_key(
+            ctx_ptr, query_ptr, bkey_ptr, TILEDB_CHAR, bkey_size)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query_ptr)
             tiledb_kv_free(ctx_ptr, kv_ptr)
@@ -700,7 +697,10 @@ cdef class Assoc(object):
             check_error(self.ctx, rc)
 
         # Submit query
-        rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        # Release the GIL as this is an (expensive) blocking operation
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query_ptr)
             tiledb_kv_free(ctx_ptr, kv_ptr)
@@ -715,8 +715,6 @@ cdef class Assoc(object):
             if status != TILEDB_COMPLETED:
                 raise TileDBError("KV query did not complete")
 
-        # TODO: specialized for integers
-
         # check that the key exists
         cdef uint64_t nvals = 0
         rc = tiledb_kv_get_value_num(ctx_ptr, kv_ptr, 0, &nvals)
@@ -729,37 +727,43 @@ cdef class Assoc(object):
         if nvals == 0:
             raise KeyError(key)
 
+        # We only expect one value / key
         if nvals != 1:
             raise TileDBError("KV read query returned more than one result")
 
         # get key value
         cdef void* value_ptr = NULL;
         cdef uint64_t value_size = 0
-        rc = tiledb_kv_get_value_var(ctx_ptr, kv_ptr,
-                                     0, 0, <void**>(&value_ptr), &value_size)
+        rc = tiledb_kv_get_value_var(
+            ctx_ptr, kv_ptr, 0, 0, <void**>(&value_ptr), &value_size)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query_ptr)
             tiledb_kv_free(ctx_ptr, kv_ptr)
             check_error(self.ctx, rc)
 
         assert(value_ptr != NULL)
-        #assert(value_size <= typemax(Py_ssize_t))
 
         cdef object val = \
             PyBytes_FromStringAndSize(<char*> value_ptr, value_size)
-
         tiledb_query_free(ctx_ptr, query_ptr)
         tiledb_kv_free(ctx_ptr, kv_ptr)
         return val
 
     def __contains__(self, unicode key):
         try:
+            # TODO: refactor so that that we can get at the number of
+            # values without having to read them
             self[key]
             return True
         except KeyError:
             return False
         except Exception as ex:
             raise ex
+
+#    def update(self, object val):
+#        cdef dict update = {}.update(val)
+#        cdef np.ndarray key_array = np.array(update.keys())
+#        cdef np.ndarray value_array = np.array(update.values())
 
 
 cdef class Array(object):
@@ -1060,6 +1064,7 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
         return out
+
 
 cdef bytes unicode_path(path):
     return ustring(abspath(path)).encode('UTF-8')

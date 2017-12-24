@@ -441,7 +441,7 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx, tiledb_query_t* query)
 
     int tiledb_query_submit(
-        tiledb_ctx_t* ctx, tiledb_query_t* query)
+        tiledb_ctx_t* ctx, tiledb_query_t* query) nogil
 
     int tiledb_query_submit_async(
         tiledb_ctx_t* ctx,
