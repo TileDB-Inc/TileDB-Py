@@ -108,8 +108,8 @@ cdef class Ctx(object):
 
 
 
-cdef _tiledb_dtype(typ):
-    dtype = np.dtype(typ)
+cdef tiledb_datatype_t _tiledb_dtype(object typ) except TILEDB_CHAR:
+    cdef np.dtype dtype = np.dtype(typ)
     if dtype == np.int32:
         return TILEDB_INT32
     elif dtype == np.uint32:
@@ -134,6 +134,13 @@ cdef _tiledb_dtype(typ):
         return TILEDB_CHAR
     raise TypeError("data type {0!r} not understood".format(dtype))
 
+
+cdef uint64_t _tiledb_dtype_nitems(object typ) except 0:
+    cdef np.dtype dtype = np.dtype(typ)
+    if isinstance(dtype, np.flexbile):
+        return TILEDB_VAR_NUM
+    # TODO: parse dtype object check if the object contains 1 N type
+    return 1
 
 cdef _numpy_type(tiledb_datatype_t dtype):
     if dtype == TILEDB_INT32:
@@ -285,13 +292,13 @@ cdef class Attr(object):
             return (None, int(c_level))
         return (_tiledb_compressor_string(compr), int(c_level))
 
-
-cdef tuple _dimension_domain():
-    return ()
-
-
-cdef tuple _dimension_tile_extent():
-    return ()
+    @property
+    def ncells(self):
+        cdef unsigned int ncells = 0
+        check_error(self.ctx,
+            tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
+        assert(ncells != 0)
+        return int(ncells)
 
 
 cdef class Dim(object):
@@ -516,28 +523,33 @@ cdef class Assoc(object):
 
     @staticmethod
     def load(Ctx ctx, unicode uri):
-        cdef bytes buri = ustring(uri).encode('UTF-8')
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
 
+        cdef bytes buri = ustring(uri).encode('UTF-8')
+        cdef const char* buri_ptr = PyBytes_AS_STRING(buri)
+
+        cdef int rc = TILEDB_OK
         cdef tiledb_array_metadata_t* metadata_ptr = NULL
-        cdef int rc = tiledb_array_metadata_load(ctx.ptr, &metadata_ptr, buri)
+
+        with nogil:
+            rc = tiledb_array_metadata_load(ctx_ptr, &metadata_ptr, buri_ptr)
+
         if rc != TILEDB_OK:
             check_error(ctx, rc)
 
         cdef int is_kv = 0;
-        rc = tiledb_array_metadata_get_as_kv(ctx.ptr, metadata_ptr, &is_kv)
+        rc = tiledb_array_metadata_get_as_kv(ctx_ptr, metadata_ptr, &is_kv)
         if rc != TILEDB_OK:
-            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            tiledb_array_metadata_free(ctx_ptr, metadata_ptr)
             check_error(ctx, rc)
 
         if not is_kv:
-            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            tiledb_array_metadata_free(ctx_ptr, metadata_ptr)
             raise TileDBError("TileDB Array {0!r} is not an Assoc array".format(uri))
 
         return Assoc.from_ptr(ctx, uri, metadata_ptr)
 
     def __init__(self, Ctx ctx, unicode name, *attrs, int capacity=0):
-
-        #TODO: key types other than strings
         cdef bytes uname = ustring(name).encode('UTF-8')
 
         cdef int rc = TILEDB_OK
@@ -596,11 +608,13 @@ cdef class Assoc(object):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # create kv object
-        cdef bytes battr = b"value"
+        cdef Attr attr = self.attr(2)
+
+        cdef bytes battr = attr.name.encode('UTF-8')
         cdef const char* battr_ptr = PyBytes_AS_STRING(battr)
 
-        cdef tiledb_datatype_t typ = TILEDB_CHAR
-        cdef unsigned int nitems = TILEDB_VAR_NUM
+        cdef tiledb_datatype_t typ = _tiledb_dtype(attr.dtype)
+        cdef unsigned int nitems = attr.ncells
 
         cdef tiledb_kv_t* kv_ptr = NULL
         check_error(self.ctx,
@@ -611,7 +625,7 @@ cdef class Assoc(object):
         cdef const void* bkey_ptr = PyBytes_AS_STRING(bkey)
         cdef uint64_t bkey_size = PyBytes_GET_SIZE(bkey)
 
-        cdef int rc
+        cdef int rc = TILEDB_OK
         rc = tiledb_kv_add_key(ctx_ptr, kv_ptr, bkey_ptr, TILEDB_CHAR, bkey_size)
         if rc != TILEDB_OK:
             tiledb_kv_free(ctx_ptr, kv_ptr)
@@ -663,11 +677,12 @@ cdef class Assoc(object):
         cdef uint64_t bkey_size = PyBytes_GET_SIZE(bkey)
 
         # create kv object
-        cdef bytes battr = b"value"
+        cdef Attr attr = self.attr(2)
+        cdef bytes battr = attr.name.encode('UTF-8')
         cdef const char* battr_ptr = PyBytes_AS_STRING(battr)
-        cdef tiledb_datatype_t typ = TILEDB_CHAR
-        cdef unsigned int nitems = TILEDB_VAR_NUM
 
+        cdef tiledb_datatype_t typ = _tiledb_dtype(attr.dtype)
+        cdef unsigned int nitems = attr.ncells
         cdef tiledb_kv_t* kv_ptr = NULL
         check_error(self.ctx,
                 tiledb_kv_create(ctx_ptr, &kv_ptr, 1, &battr_ptr, &typ, &nitems))
@@ -734,8 +749,11 @@ cdef class Assoc(object):
         # get key value
         cdef void* value_ptr = NULL;
         cdef uint64_t value_size = 0
-        rc = tiledb_kv_get_value_var(
-            ctx_ptr, kv_ptr, 0, 0, <void**>(&value_ptr), &value_size)
+        if attr.isvar:
+            rc = tiledb_kv_get_value_var(
+                ctx_ptr, kv_ptr, 0, 0, <void**>(&value_ptr), &value_size)
+        else:
+            rc = tiledb_kv_get_value()
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query_ptr)
             tiledb_kv_free(ctx_ptr, kv_ptr)
@@ -743,8 +761,13 @@ cdef class Assoc(object):
 
         assert(value_ptr != NULL)
 
-        cdef object val = \
-            PyBytes_FromStringAndSize(<char*> value_ptr, value_size)
+        cdef object val
+        if attr.isvar:
+            #TODO: make sure we are cleaning up correctly in the error case
+            val = PyBytes_FromStringAndSize(<char*> value_ptr, value_size)
+        else:
+            scalar = np.empty(1, dtype=attr.dtype)
+
         tiledb_query_free(ctx_ptr, query_ptr)
         tiledb_kv_free(ctx_ptr, kv_ptr)
         return val

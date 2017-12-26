@@ -332,7 +332,7 @@ cdef extern from "tiledb.h":
     int tiledb_array_metadata_load(
         tiledb_ctx_t* ctx,
         tiledb_array_metadata_t** array_metadata,
-        const char* array_name)
+        const char* array_name) nogil
 
     int tiledb_array_metadata_get_array_name(
         tiledb_ctx_t* ctx,

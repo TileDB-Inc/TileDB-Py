@@ -257,7 +257,7 @@ class AssocArray(DiskTestCase):
     def test_kv_update(self):
         # create a kv database
         ctx = t.Ctx()
-        a1 = t.Attr(ctx, "value", dtype=bytes)
+        a1 = t.Attr(ctx, "val", dtype=bytes)
         kv = t.Assoc(ctx, self.path("foo"), a1)
 
         kv["foo"] = b'bar'
