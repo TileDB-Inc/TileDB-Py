@@ -137,6 +137,14 @@ class AttributeTest(TestCase):
 
     def test_minimal_attribute(self):
         ctx = t.Ctx()
+        attr = t.Attr(ctx)
+        self.assertTrue(attr.isanon)
+        self.assertEqual(attr.name, u"")
+        self.assertEqual(attr.dtype, np.float_)
+        self.assertEqual(attr.compressor, (None, -1))
+
+    def test_attribute(self):
+        ctx = t.Ctx()
         attr = t.Attr(ctx, "foo")
         attr.dump()
         self.assertEqual(attr.name, "foo")
@@ -146,7 +154,7 @@ class AttributeTest(TestCase):
         self.assertEqual(compressor, None, "default to no compression")
         self.assertEqual(level, -1, "default compression level when none is specified")
 
-    def test_attribute(self):
+    def test_full_attribute(self):
         ctx = t.Ctx()
         attr = t.Attr(ctx, "foo", dtype=np.int64, compressor="zstd", level=10)
         attr.dump()
@@ -230,6 +238,11 @@ class NumpyToArray(DiskTestCase):
 
 
 class AssocArray(DiskTestCase):
+
+    def test_attr(self):
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "", dtype=bytes)
+        self.assertTrue(a1.isanon)
 
     def test_kv_write_read(self):
         # create a kv database

@@ -108,8 +108,8 @@ cdef class Ctx(object):
 
 
 
-cdef tiledb_datatype_t _tiledb_dtype(object typ) except TILEDB_CHAR:
-    cdef np.dtype dtype = np.dtype(typ)
+cdef tiledb_datatype_t _tiledb_dtype(object typ) except? TILEDB_CHAR:
+    dtype = np.dtype(typ)
     if dtype == np.int32:
         return TILEDB_INT32
     elif dtype == np.uint32:
@@ -243,7 +243,8 @@ cdef class Attr(object):
         return attr
 
     # TODO: use numpy compund dtypes to choose number of cells
-    def __init__(self, Ctx ctx,  name="", dtype='f8', compressor=None, level=-1):
+    def __init__(self, Ctx ctx,  name=u"", dtype=np.float64,
+                 compressor=None, level=-1):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
         cdef tiledb_datatype_t tiledb_dtype = _tiledb_dtype(dtype)
@@ -252,7 +253,6 @@ cdef class Attr(object):
             tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
         # TODO: hack for now until we get richer datatypes
         if tiledb_dtype == TILEDB_CHAR:
-            print("setting var size")
             check_error(ctx,
                  tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, TILEDB_VAR_NUM))
         if compressor is not None:
@@ -275,28 +275,45 @@ cdef class Attr(object):
             tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
         return np.dtype(_numpy_type(typ))
 
-    @property
-    def name(self):
+    cdef unicode _get_name(Attr self):
         cdef const char* c_name = NULL
         check_error(self.ctx,
             tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
         return c_name.decode('UTF-8', 'strict')
 
     @property
-    def compressor(self):
-        cdef int c_level = -1
-        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
-        check_error(self.ctx,
-            tiledb_attribute_get_compressor(self.ctx.ptr, self.ptr, &compr, &c_level))
-        if compr == TILEDB_NO_COMPRESSION:
-            return (None, int(c_level))
-        return (_tiledb_compressor_string(compr), int(c_level))
+    def name(self):
+        return self._get_name()
 
     @property
-    def ncells(self):
+    def isanon(self):
+        cdef unicode name = self._get_name()
+        return name == "" or name.startswith("__attr")
+
+    @property
+    def compressor(self):
+        cdef int level = -1
+        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
+        check_error(self.ctx,
+            tiledb_attribute_get_compressor(self.ctx.ptr, self.ptr, &compr, &level))
+        if compr == TILEDB_NO_COMPRESSION:
+            return (None, -1)
+        return (_tiledb_compressor_string(compr), level)
+
+    cdef unsigned int _cell_var_num(Attr self) except? 0:
         cdef unsigned int ncells = 0
         check_error(self.ctx,
             tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
+        return ncells
+
+    @property
+    def isvar(self):
+        cdef unsigned int ncells = self._cell_var_num()
+        return ncells == TILEDB_VAR_NUM
+
+    @property
+    def ncells(self):
+        cdef unsigned int ncells = self._cell_var_num()
         assert(ncells != 0)
         return int(ncells)
 
@@ -397,7 +414,7 @@ cdef class Domain(object):
         dom.ptr = <tiledb_domain_t*> ptr
         return dom
 
-    def __init__(self, Ctx ctx, *dims, dtype='u8'):
+    def __init__(self, Ctx ctx, *dims, dtype=np.uint64):
         cdef tiledb_datatype_t domain_type = _tiledb_dtype(dtype)
         cdef tiledb_domain_t* domain_ptr = NULL
         check_error(ctx,
@@ -621,6 +638,7 @@ cdef class Assoc(object):
                 tiledb_kv_create(ctx_ptr, &kv_ptr, 1, &battr_ptr, &typ, &nitems))
 
         # add key
+        # TODO: specialized for strings
         cdef bytes bkey = ustring(key).encode('UTF-8')
         cdef const void* bkey_ptr = PyBytes_AS_STRING(bkey)
         cdef uint64_t bkey_size = PyBytes_GET_SIZE(bkey)
@@ -749,11 +767,8 @@ cdef class Assoc(object):
         # get key value
         cdef void* value_ptr = NULL;
         cdef uint64_t value_size = 0
-        if attr.isvar:
-            rc = tiledb_kv_get_value_var(
+        rc = tiledb_kv_get_value_var(
                 ctx_ptr, kv_ptr, 0, 0, <void**>(&value_ptr), &value_size)
-        else:
-            rc = tiledb_kv_get_value()
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query_ptr)
             tiledb_kv_free(ctx_ptr, kv_ptr)
@@ -761,15 +776,13 @@ cdef class Assoc(object):
 
         assert(value_ptr != NULL)
 
+        #TODO: make sure we are cleaning up correctly in the error case
         cdef object val
-        if attr.isvar:
-            #TODO: make sure we are cleaning up correctly in the error case
+        try:
             val = PyBytes_FromStringAndSize(<char*> value_ptr, value_size)
-        else:
-            scalar = np.empty(1, dtype=attr.dtype)
-
-        tiledb_query_free(ctx_ptr, query_ptr)
-        tiledb_kv_free(ctx_ptr, kv_ptr)
+        finally:
+            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_kv_free(ctx_ptr, kv_ptr)
         return val
 
     def __contains__(self, unicode key):
