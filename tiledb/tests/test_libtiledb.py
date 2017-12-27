@@ -186,11 +186,11 @@ class RWTest(DiskTestCase):
     def test_read_write(self):
         ctx = t.Ctx()
 
-        dom = t.Domain(ctx, t.Dim(ctx, None, (0, 2), 3))
+        dom = t.Domain(ctx, t.Dim(ctx, "", (0, 2), 3))
         att = t.Attr(ctx, "val", dtype='i8')
         arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
 
-        A = np.array([1,2,3])
+        A = np.array([1, 2, 3])
         arr.write_direct("val", A)
         arr.dump()
         assert_array_equal(arr.read_direct("val"), A)
@@ -251,8 +251,8 @@ class AssocArray(DiskTestCase):
         kv = t.Assoc(ctx, self.path("foo"), a1)
         a1.dump()
         kv["foo"] = b'bar'
+        kv.dump()
         self.assertEqual(kv["foo"], b'bar')
-
 
     def test_kv_write_load_read(self):
         # create a kv database
@@ -297,5 +297,8 @@ class AssocArray(DiskTestCase):
         a1 = t.Attr(ctx, "value", dtype=bytes)
         kv = t.Assoc(ctx, self.path("foo"), a1)
         self.assertFalse("foo" in kv)
-        kv["foo"] = b'barbar'
+        kv["foo"] = b'bar'
         self.assertTrue("foo" in kv)
+
+    def test_ky_update(self):
+        pass

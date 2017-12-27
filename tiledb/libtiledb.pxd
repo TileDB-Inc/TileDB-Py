@@ -74,6 +74,8 @@ cdef extern from "tiledb.h":
     # Types
     ctypedef struct tiledb_ctx_t:
         pass
+    ctypedef struct tiledb_config_t:
+        pass
     ctypedef struct tiledb_error_t:
         pass
     ctypedef struct tiledb_attribute_t:
@@ -95,7 +97,7 @@ cdef extern from "tiledb.h":
 
     # Context
     int tiledb_ctx_create(
-        tiledb_ctx_t** ctx)
+        tiledb_ctx_t** ctx, tiledb_config_t* config)
 
     int tiledb_ctx_free(
         tiledb_ctx_t* ctx)
