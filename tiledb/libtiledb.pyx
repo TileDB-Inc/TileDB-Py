@@ -399,6 +399,10 @@ cdef class Dim(object):
         self.ctx = ctx
         self.ptr = dim_ptr
 
+    def __repr__(self):
+        return 'Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype={3!s})'\
+                    .format(self.name, self.domain, self.tile, self.dtype)
+
     cdef tiledb_datatype_t _get_type(Dim self):
         cdef tiledb_datatype_t typ
         check_error(self.ctx,
@@ -473,18 +477,22 @@ cdef class Domain(object):
         return dom
 
     def __init__(self, Ctx ctx, *dims, dtype=np.uint64):
-        cdef tiledb_datatype_t domain_type = _tiledb_dtype(dtype)
+        cdef unsigned int rank = len(dims)
+        if rank == 0:
+            raise AttributeError("Domain must have rank >= 1")
+        cdef Dim dimension = dims[0]
+        cdef tiledb_datatype_t domain_type = dimension._get_type()
+        for i in range(2, rank):
+            dimension = dims[i]
+            if dimension._get_type() != domain_type:
+                raise AttributeError("all dimensions must have the same dtype")
         cdef tiledb_domain_t* domain_ptr = NULL
-        check_error(ctx,
-                    tiledb_domain_create(ctx.ptr, &domain_ptr, domain_type))
-        cdef int rc = TILEDB_OK
-        cdef Dim dimension
-        cdef tiledb_dimension_t* dimension_ptr = NULL
-        for dim in dims:
-            if not isinstance(dim, Dim):
-                tiledb_domain_free(ctx.ptr, domain_ptr)
-                raise TypeError("unknown dimension type {0!r}".format(dim))
-            dimension = dim
+        cdef int rc = tiledb_domain_create(ctx.ptr, &domain_ptr, domain_type)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        assert(domain_ptr != NULL)
+        for i in range(rank):
+            dimension = dims[i]
             rc = tiledb_domain_add_dimension(
                 ctx.ptr, domain_ptr, dimension.ptr)
             if rc != TILEDB_OK:
@@ -492,6 +500,11 @@ cdef class Domain(object):
                 check_error(ctx, rc)
         self.ctx = ctx
         self.ptr = domain_ptr
+
+    def __repr__(self):
+        dims = ",\n       ".join(
+            [repr(self.dim(i)) for i in range(self.rank)])
+        return "Domain({0!s})".format(dims)
 
     @property
     def rank(self):
@@ -507,7 +520,8 @@ cdef class Domain(object):
     @property
     def dtype(self):
         cdef tiledb_datatype_t typ
-        check_error(self.ctx, tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
+        check_error(self.ctx,
+                    tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
         return np.dtype(_numpy_type(typ))
 
     @property
@@ -1078,7 +1092,7 @@ cdef class Array(object):
         cdef uint64_t[2] subarray
         subarray[0] = start
         subarray[1] = stop - 1
-        rc = tiledb_query_set_subarray(ctx_ptr, query, <void*>(subarray), TILEDB_UINT64)
+        rc = tiledb_query_set_subarray(ctx_ptr, query, <void*> subarray, TILEDB_UINT64)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query)
             check_error(self.ctx, rc)

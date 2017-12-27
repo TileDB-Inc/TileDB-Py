@@ -123,15 +123,17 @@ class DomainTest(TestCase):
         ctx = t.Ctx()
         dom = t.Domain(
             ctx,
-            t.Dim(ctx, "d1", (1, 4), 2),
-            t.Dim(ctx, "d2", (1, 4), 2),
-            dtype='u8')
+            t.Dim(ctx, "d1", (1, 4), 2, dtype='u8'),
+            t.Dim(ctx, "d2", (1, 4), 2, dtype='u8'))
         dom.dump()
         self.assertEqual(dom.ndim, 2)
         self.assertEqual(dom.rank, dom.ndim)
         self.assertEqual(dom.dtype, np.dtype("uint64"))
         self.assertEqual(dom.shape, (4, 4))
 
+
+    def test_raise_dims_not_same_type(self):
+        pass
 
 class AttributeTest(TestCase):
 
