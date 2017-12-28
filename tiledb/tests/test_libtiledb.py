@@ -194,7 +194,74 @@ class ArrayTest(DiskTestCase):
         att = t.Attr(ctx, dtype=A.dtype)
         arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
 
-        self.assertEqual(len(arr), len(A))
+        self.assertEqual(len(A), len(arr))
+        self.assertEqual(A.ndim, arr.ndim)
+        self.assertEqual(A.shape, arr.shape)
+
+        self.assertEqual(1, arr.nattr)
+        self.assertEqual(A.dtype, arr.attr(0).dtype)
+
+        # check empty array
+        B = arr[:]
+
+        self.assertEqual(A.shape, B.shape)
+        self.assertEqual(A.dtype, B.dtype)
+
+        # check set array
+        arr[:] = A
+
+        # check slicing
+        assert_array_equal(A, np.array(arr))
+        assert_array_equal(A, arr[:])
+        assert_array_equal(A, arr[...])
+        assert_array_equal(A, arr[slice(None)])
+        assert_array_equal(A[:10], arr[:10])
+        assert_array_equal(A[10:20], arr[10:20])
+        assert_array_equal(A[-10:], arr[-10:])
+
+        # ellipsis
+        assert_array_equal(A[:10, ...], arr[:10, ...])
+        assert_array_equal(A[10:50, ...], arr[10:50, ...])
+        assert_array_equal(A[-50:, ...], arr[-50:, ...])
+        assert_array_equal(A[..., :10], arr[..., :10])
+        assert_array_equal(A[..., 10:20], arr[..., 10:20])
+        assert_array_equal(A[..., -50:], arr[..., -50:])
+
+        # across tiles
+        assert_array_equal(A[:150], arr[:150])
+        assert_array_equal(A[-250:], arr[-250:])
+
+        # point index
+        self.assertEqual(A[0], arr[0])
+        self.assertEqual(A[-1], arr[-1])
+
+        # point index with all index types
+        self.assertEqual(A[123], arr[np.int8(123)])
+        self.assertEqual(A[123], arr[np.uint8(123)])
+        self.assertEqual(A[123], arr[np.int16(123)])
+        self.assertEqual(A[123], arr[np.uint16(123)])
+        self.assertEqual(A[123], arr[np.int64(123)])
+        self.assertEqual(A[123], arr[np.uint64(123)])
+        self.assertEqual(A[123], arr[np.int32(123)])
+        self.assertEqual(A[123], arr[np.uint32(123)])
+
+        # basic step
+        assert_array_equal(A[:50:2], arr[:50:2])
+        assert_array_equal(A[10:-1:50], arr[10:-1:50])
+
+        # indexing errors
+        with self.assertRaises(IndexError):
+            arr[:, :]
+        with self.assertRaises(IndexError):
+            arr[:, 50]
+        with self.assertRaises(IndexError):
+            arr[50, :]
+        with self.assertRaises(IndexError):
+            arr[0, 0]
+
+        # check single ellipsis
+        with self.assertRaises(IndexError):
+            arr[..., 1:5, ...]
 
 
 class RWTest(DiskTestCase):

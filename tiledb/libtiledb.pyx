@@ -902,6 +902,34 @@ cdef class Assoc(object):
         raise NotImplementedError()
 
 
+def replace_ellipsis(tuple idx, tuple shape):
+    # count number of ellipsis
+    rank = len(shape)
+    n_ellip = sum(1 for i in idx if i is Ellipsis)
+    if n_ellip > 1:
+        raise IndexError("an index can only have a single ellipsis ('...')")
+    elif n_ellip == 1:
+        n = len(idx)
+        if n > rank:
+            # does nothing, strip it out
+            idx =  tuple(i for i in idx if i is not Ellipsis)
+        else:
+            # locate where the ellipse is, count the number of items to left and right
+            # fill in whole dim slices up to th rank of the array
+            left = idx.index(Ellipsis)
+            right = n - (left + 1)
+            new_idx = idx[:left] + ((slice(None),) * (rank - n - 1))
+            if right:
+                new_idx += idx[-right:]
+            idx = new_idx
+    idx_rank = len(idx)
+    if idx_rank < rank:
+        idx += (slice(None),)  * (rank - idx_rank)
+    if len(idx) > rank:
+        raise IndexError("too many indices for array")
+    return idx
+
+
 cdef class Array(object):
 
     cdef Ctx ctx
@@ -1035,6 +1063,10 @@ cdef class Array(object):
         return (_tiledb_compressor_string(comp), int(level))
 
     @property
+    def rank(self):
+        return self.domain.rank
+
+    @property
     def domain(self):
         cdef tiledb_domain_t* dom = NULL
         check_error(self.ctx,
@@ -1048,22 +1080,34 @@ cdef class Array(object):
             tiledb_array_metadata_get_num_attributes(self.ctx.ptr, self.ptr, &nattr))
         return int(nattr)
 
-    def attr(self, unicode name):
+    cdef Attr _attr_name(self, unicode name):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
                     tiledb_attribute_from_name(self.ctx.ptr, self.ptr, bname, &attr_ptr))
         return Attr.from_ptr(self.ctx, attr_ptr)
 
-    def attr(self, int idx):
+    cdef Attr _attr_idx(self, int idx):
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
                     tiledb_attribute_from_index(self.ctx.ptr, self.ptr, idx, &attr_ptr))
         return Attr.from_ptr(self.ctx, attr_ptr)
 
+    def attr(self, object key not None):
+        if isinstance(key, str):
+            return self._attr_name(key)
+        elif isinstance(key, _inttypes):
+            return self._attr_idx(int(key))
+        raise AttributeError("attr indices must be a string name, "
+                             "or an integer index, not {0!r}".format(type(key)))
+
     @property
     def ndim(self):
         return self.domain.ndim
+
+    @property
+    def shape(self):
+        return self.domain.shape
 
     def dump(self):
         check_error(self.ctx,
@@ -1116,29 +1160,62 @@ cdef class Array(object):
         return
 
     def __getitem__(self, object key):
-        cdef np.dtype _dtype
         cdef np.ndarray array
+        cdef tuple domain_shape = self.domain.shape
+        cdef int domain0 = domain_shape[0]
         cdef object start, stop, step
-
+        if isinstance(key, tuple):
+            key = replace_ellipsis(key, domain_shape)[0]
         if isinstance(key, _inttypes):
-            raise IndexError("key not suitable:", key)
+            start = int(key)
+            if start < 0:
+                start += domain0
+            stop  = start + 1
+            step  = None
+        elif key is Ellipsis:
+            start = None
+            stop = None
+            step = None
         elif isinstance(key, slice):
-            (start, stop, step) = key.start, key.stop, key.step
+            start = key.start
+            stop = key.stop
+            step = key.step
         else:
             raise IndexError("key not suitable:", key)
-
-        cdef tuple domain_shape = self.domain.shape
         cdef Attr attr = self.attr("")
-        cdef np.dtype attr_dtype = attr.dtype
+        # TODO: nonzero domain indexing
+        if start is None:
+            start = 0
+        elif start < 0:
+            start = domain0 + start
+        if stop is None:
+            stop = domain0
+        elif stop < 0:
+            stop = domain0 + stop
         # clamp to domain
-        stop = domain_shape[0] if stop > domain_shape[0] else stop
-        array = np.zeros(shape=((stop - start),), dtype=attr_dtype)
+        stop = domain0 if stop > domain0 else stop
+        array = np.zeros(shape=((stop - start),), dtype=attr.dtype)
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes
         self._getrange(start, stop, buff_ptr, buff_size)
         if step:
             return array[::step]
         return array
+
+    def __setitem__(self, object key, object val):
+        if isinstance(key, slice):
+            start, stop, step = key.start, key.stop, key.step
+            if (key.start is not None and
+                key.stop  is not None and
+                key.step  is not None):
+                raise IndexError("key not suitable: {0!r}".format(key))
+        elif key is Ellipsis:
+            pass
+        else:
+            raise IndexError("key not suitable: {0!r}".format(key))
+        if self.nattr > 1:
+            raise TileDBError("ambiguous attribute assignment, more than one attribute")
+        self.write_direct(val)
 
     def __array__(self, dtype=None, **kw):
         array = self.read_direct("")
@@ -1194,7 +1271,7 @@ cdef class Array(object):
 
         cdef Attr attr = self.attr(attribute_name)
 
-        out = np.empty(self.domain.shape, dtype=attr.dtype)
+        out = np.zeros(self.domain.shape, dtype=attr.dtype)
 
         cdef void* buff = np.PyArray_DATA(out)
         cdef uint64_t buff_size = out.nbytes
