@@ -205,8 +205,11 @@ class RWTest(DiskTestCase):
 class NumpyToArray(DiskTestCase):
 
     def test_to_array0d(self):
-        #TODO
-        pass
+        # Cannot create 0-dim arrays in TileDB
+        ctx = t.Ctx()
+        A = np.array(1)
+        with self.assertRaises(t.TileDBError):
+            t.Array.from_numpy(ctx, self.path("foo"), A)
 
     def test_to_array1d(self):
         ctx = t.Ctx()
@@ -227,7 +230,7 @@ class NumpyToArray(DiskTestCase):
         assert_array_equal(arr.read_direct(""), A)
 
     def test_array_interface(self):
-        # This tests that __array__ interface works
+        # Tests that __array__ interface works
         ctx = t.Ctx()
         A1 = np.arange(1, 10)
         arr = t.Array.from_numpy(ctx, self.path("foo"), A1)
@@ -235,7 +238,7 @@ class NumpyToArray(DiskTestCase):
         assert_array_equal(A1, A2)
 
     def test_array_getindex(self):
-        # This tests that __getindex__ interface works
+        # Tests that __getindex__ interface works
         ctx = t.Ctx()
         A1 = np.arange(1, 10)
         arr = t.Array.from_numpy(ctx, self.path("foo"), A1)

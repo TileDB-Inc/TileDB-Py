@@ -481,7 +481,7 @@ cdef class Domain(object):
     def __init__(self, Ctx ctx, *dims):
         cdef unsigned int rank = len(dims)
         if rank == 0:
-            raise AttributeError("Domain must have rank >= 1")
+            raise TileDBError("Domain must have rank >= 1")
         cdef Dim dimension = dims[0]
         cdef tiledb_datatype_t domain_type = dimension._get_type()
         for i in range(1, rank):
@@ -969,26 +969,22 @@ cdef class Array(object):
 
     @staticmethod
     def from_numpy(Ctx ctx, unicode path, np.ndarray array, **kw):
-        shape = array.shape
-        ndims = array.ndim
-        dtype = array.dtype
-        dims  = []
-        for d in range(ndims):
-            extent = shape[d]
+        dims = []
+        for d in range(array.ndim):
+            extent = array.shape[d]
             domain = (0, extent - 1)
             dims.append(Dim(ctx, "", domain, extent, np.uint64))
         dom = Domain(ctx, *dims)
-        att = Attr(ctx, "", dtype=dtype)
+        att = Attr(ctx, "", dtype=array.dtype)
         arr = Array.create(ctx, path, domain=dom, attrs=[att], **kw)
         arr.write_direct("", array)
         return arr
 
     def __init__(self, Ctx ctx, unicode name):
-        cdef bytes uname = ustring(name).encode('UTF-8')
-        cdef const char* c_name = uname
+        cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_array_metadata_t* metadata_ptr = NULL
         check_error(ctx,
-            tiledb_array_metadata_load(ctx.ptr, &metadata_ptr, c_name))
+            tiledb_array_metadata_load(ctx.ptr, &metadata_ptr, bname))
         self.ctx = ctx
         self.name = name
         self.ptr = metadata_ptr
@@ -1143,6 +1139,9 @@ cdef class Array(object):
         return array
 
     def write_direct(self, unicode attr, np.ndarray array not None):
+        cdef Ctx ctx = self.ctx
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
         # array name
         cdef bytes barray_name = self.name.encode('UTF-8')
         cdef const char* c_array_name = barray_name
@@ -1158,53 +1157,58 @@ cdef class Array(object):
         if np.isfortran(array):
             layout = TILEDB_COL_MAJOR
 
-        cdef tiledb_query_t* query = NULL
-        check_error(self.ctx,
-            tiledb_query_create(self.ctx.ptr, &query, c_array_name, TILEDB_WRITE))
-        check_error(self.ctx,
-            tiledb_query_set_layout(self.ctx.ptr, query, layout))
-        check_error(self.ctx,
-            tiledb_query_set_buffers(self.ctx.ptr, query, &c_attr_name, 1, &buff, &buff_size))
+        cdef tiledb_query_t* query_ptr = NULL
+        check_error(ctx,
+            tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_WRITE))
+        check_error(ctx,
+            tiledb_query_set_layout(ctx_ptr, query_ptr, layout))
+        check_error(ctx,
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, &c_attr_name, 1, &buff, &buff_size))
 
-        cdef int rc
+        cdef int rc = TILEDB_OK
         with nogil:
-            rc = tiledb_query_submit(self.ctx.ptr, query)
-        tiledb_query_free(self.ctx.ptr, query)
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, query_ptr)
         if rc != TILEDB_OK:
-            check_error(self.ctx, rc)
+            check_error(ctx, rc)
         return
 
     def read_direct(self, unicode attribute_name not None):
+        cdef Ctx ctx = self.ctx
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
         # array name
         cdef bytes barray_name = self.name.encode('UTF-8')
 
         # attr name
         cdef bytes battribute_name = attribute_name.encode('UTF-8')
         cdef const char* c_attribute_name = battribute_name
+
         cdef tuple domain_shape = self.domain.shape
+
         cdef Attr attr = self.attr(attribute_name)
         cdef np.dtype attr_dtype = attr.dtype
 
-        out = np.zeros(domain_shape, dtype=attr_dtype)
+        out = np.empty(domain_shape, dtype=attr_dtype)
 
         cdef void* buff = np.PyArray_DATA(out)
         cdef uint64_t buff_size = out.nbytes
 
-        cdef tiledb_query_t* query = NULL
-        check_error(self.ctx,
-            tiledb_query_create(self.ctx.ptr, &query, barray_name, TILEDB_READ))
+        cdef tiledb_query_t* query_ptr = NULL
+        check_error(ctx,
+            tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ))
 
-        check_error(self.ctx,
-            tiledb_query_set_layout(self.ctx.ptr, query, TILEDB_ROW_MAJOR))
-        check_error(self.ctx,
-            tiledb_query_set_buffers(self.ctx.ptr, query, &c_attribute_name, 1, &buff, &buff_size))
+        check_error(ctx,
+            tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
+        check_error(ctx,
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, &c_attribute_name, 1, &buff, &buff_size))
 
-        cdef int rc
+        cdef int rc = TILEDB_OK
         with nogil:
-            rc = tiledb_query_submit(self.ctx.ptr, query)
-        tiledb_query_free(self.ctx.ptr, query)
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, query_ptr)
         if rc != TILEDB_OK:
-            check_error(self.ctx, rc)
+            check_error(ctx, rc)
         return out
 
 
