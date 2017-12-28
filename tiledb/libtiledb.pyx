@@ -478,7 +478,7 @@ cdef class Domain(object):
         dom.ptr = <tiledb_domain_t*> ptr
         return dom
 
-    def __init__(self, Ctx ctx, *dims, dtype=np.uint64):
+    def __init__(self, Ctx ctx, *dims):
         cdef unsigned int rank = len(dims)
         if rank == 0:
             raise AttributeError("Domain must have rank >= 1")

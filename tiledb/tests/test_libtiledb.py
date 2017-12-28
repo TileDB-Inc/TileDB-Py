@@ -173,9 +173,8 @@ class ArrayTest(DiskTestCase):
         ctx = t.Ctx()
         dom = t.Domain(
             ctx,
-            t.Dim(ctx, domain=(1, 8), tile=2),
-            t.Dim(ctx, domain=(1, 8), tile=2),
-            dtype='u8')
+            t.Dim(ctx, domain=(1, 8), tile=2, dtype='u8'),
+            t.Dim(ctx, domain=(1, 8), tile=2, dtype='u8'))
         att = t.Attr(ctx, "val", dtype='f8')
         arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
         arr.dump()
