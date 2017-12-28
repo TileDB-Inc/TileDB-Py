@@ -133,11 +133,11 @@ class DomainTest(TestCase):
 
     def test_domain_dims_not_same_type(self):
         ctx = t.Ctx()
-        with(self.assertRaises(AttributeError)):
+        with self.assertRaises(AttributeError):
             t.Domain(
-                ctx,
-                t.Dim(ctx, "d1", (1, 4), 2, dtype=int),
-                t.Dim(ctx, "d2", (1, 4), 2, dtype=float))
+                    ctx,
+                    t.Dim(ctx, "d1", (1, 4), 2, dtype=int),
+                    t.Dim(ctx, "d2", (1, 4), 2, dtype=float))
 
 
 class AttributeTest(TestCase):
@@ -178,8 +178,8 @@ class ArrayTest(DiskTestCase):
         ctx = t.Ctx()
         dom = t.Domain(
             ctx,
-            t.Dim(ctx, domain=(1, 8), tile=2, dtype='u8'),
-            t.Dim(ctx, domain=(1, 8), tile=2, dtype='u8'))
+            t.Dim(ctx, domain=(1, 8), tile=2, dtype='f8'),
+            t.Dim(ctx, domain=(1, 8), tile=2, dtype='f8'))
         att = t.Attr(ctx, "val", dtype='f8')
         arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
         arr.dump()

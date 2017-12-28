@@ -370,7 +370,7 @@ cdef class Dim(object):
             dtype = np.dtype(dtype)
             if np.issubdtype(dtype, np.integer):
                 info = np.iinfo(dtype)
-            elif np.issubtype(dtype, np.floating):
+            elif np.issubdtype(dtype, np.floating):
                 info = np.finfo(dtype)
             else:
                 raise TypeError("invalid Dim dtype {0!r}".format(dtype))
@@ -484,7 +484,7 @@ cdef class Domain(object):
             raise AttributeError("Domain must have rank >= 1")
         cdef Dim dimension = dims[0]
         cdef tiledb_datatype_t domain_type = dimension._get_type()
-        for i in range(2, rank):
+        for i in range(1, rank):
             dimension = dims[i]
             if dimension._get_type() != domain_type:
                 raise AttributeError("all dimensions must have the same dtype")
