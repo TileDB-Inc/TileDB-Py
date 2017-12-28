@@ -854,11 +854,8 @@ cdef class Assoc(object):
             tiledb_query_free(ctx_ptr, query_ptr)
             tiledb_kv_free(ctx_ptr, kv_ptr)
             check_error(self.ctx, rc)
-
         assert(value_ptr != NULL)
 
-        #TODO: make sure we are cleaning up correctly in the error case
-        cdef object val
         try:
             val = PyBytes_FromStringAndSize(<char*> value_ptr, value_size)
         finally:
@@ -868,8 +865,7 @@ cdef class Assoc(object):
 
     def __contains__(self, unicode key):
         try:
-            # TODO: refactor so that that we can get at the number of
-            # values without having to read them
+            # TODO: refactor so we do not have to read values
             self[key]
             return True
         except KeyError:
@@ -879,7 +875,7 @@ cdef class Assoc(object):
 
 
     def fromkeys(self, type, iterable, value):
-        pass
+        raise NotImplementedError()
 
     def get(self, key):
         raise NotImplementedError()
@@ -1091,23 +1087,25 @@ cdef class Array(object):
         rc = tiledb_query_create(ctx_ptr, &query, c_aname, TILEDB_READ)
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
-        cdef uint64_t[2] subarray
-        subarray[0] = start
-        subarray[1] = stop - 1
+
+        cdef uint64_t[2] subarray = (start, stop - 1)
         rc = tiledb_query_set_subarray(ctx_ptr, query, <void*> subarray, TILEDB_UINT64)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query)
             check_error(self.ctx, rc)
+
         rc = tiledb_query_set_buffers(ctx_ptr, query, &c_attr, 1, &buff_ptr, &buff_size)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query)
             check_error(self.ctx, rc)
+
         rc = tiledb_query_set_layout(ctx_ptr, query, TILEDB_ROW_MAJOR)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query)
             check_error(self.ctx, rc)
 
-        rc = tiledb_query_submit(ctx_ptr, query)
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query)
         tiledb_query_free(ctx_ptr, query)
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
@@ -1122,23 +1120,17 @@ cdef class Array(object):
             raise IndexError("key not suitable:", key)
         elif isinstance(key, slice):
             (start, stop, step) = key.start, key.stop, key.step
-            print(start, stop, step)
         else:
             raise IndexError("key not suitable:", key)
 
         cdef tuple domain_shape = self.domain.shape
         cdef Attr attr = self.attr("")
-        print("FIDIFJFKDFJDLFJDFJLDJF")
-        print(domain_shape)
-        attr.dump()
         cdef np.dtype attr_dtype = attr.dtype
-        print(attr.dtype)
         # clamp to domain
         stop = domain_shape[0] if stop > domain_shape[0] else stop
-        print(stop)
         array = np.zeros(shape=((stop - start),), dtype=attr_dtype)
         cdef void* buff_ptr = np.PyArray_DATA(array)
-        cdef uint64_t buff_size = <uint64_t>(array.nbytes)
+        cdef uint64_t buff_size = array.nbytes
         self._getrange(start, stop, buff_ptr, buff_size)
         if step:
             return array[::step]
@@ -1162,17 +1154,22 @@ cdef class Array(object):
         cdef void* buff = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes
 
+        cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
+        if np.isfortran(array):
+            layout = TILEDB_COL_MAJOR
+
         cdef tiledb_query_t* query = NULL
         check_error(self.ctx,
             tiledb_query_create(self.ctx.ptr, &query, c_array_name, TILEDB_WRITE))
         check_error(self.ctx,
-            tiledb_query_set_layout(self.ctx.ptr, query, TILEDB_ROW_MAJOR))
+            tiledb_query_set_layout(self.ctx.ptr, query, layout))
         check_error(self.ctx,
             tiledb_query_set_buffers(self.ctx.ptr, query, &c_attr_name, 1, &buff, &buff_size))
 
-        cdef int rc = tiledb_query_submit(self.ctx.ptr, query)
+        cdef int rc
+        with nogil:
+            rc = tiledb_query_submit(self.ctx.ptr, query)
         tiledb_query_free(self.ctx.ptr, query)
-
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
         return
@@ -1184,13 +1181,10 @@ cdef class Array(object):
         # attr name
         cdef bytes battribute_name = attribute_name.encode('UTF-8')
         cdef const char* c_attribute_name = battribute_name
-        self.domain.dump()
         cdef tuple domain_shape = self.domain.shape
-        print(domain_shape)
         cdef Attr attr = self.attr(attribute_name)
         cdef np.dtype attr_dtype = attr.dtype
 
-        print((domain_shape,))
         out = np.zeros(domain_shape, dtype=attr_dtype)
 
         cdef void* buff = np.PyArray_DATA(out)
@@ -1205,7 +1199,9 @@ cdef class Array(object):
         check_error(self.ctx,
             tiledb_query_set_buffers(self.ctx.ptr, query, &c_attribute_name, 1, &buff, &buff_size))
 
-        cdef int rc = tiledb_query_submit(self.ctx.ptr, query)
+        cdef int rc
+        with nogil:
+            rc = tiledb_query_submit(self.ctx.ptr, query)
         tiledb_query_free(self.ctx.ptr, query)
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
