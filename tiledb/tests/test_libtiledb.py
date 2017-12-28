@@ -192,14 +192,14 @@ class RWTest(DiskTestCase):
     def test_read_write(self):
         ctx = t.Ctx()
 
-        dom = t.Domain(ctx, t.Dim(ctx, "", (0, 2), 3))
-        att = t.Attr(ctx, "val", dtype='i8')
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 2), tile=3))
+        att = t.Attr(ctx, dtype='i8')
         arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
 
         A = np.array([1, 2, 3])
-        arr.write_direct("val", A)
+        arr.write_direct(A)
         arr.dump()
-        assert_array_equal(arr.read_direct("val"), A)
+        assert_array_equal(arr.read_direct(), A)
         self.assertEqual(arr.ndim, A.ndim)
 
 
@@ -216,19 +216,19 @@ class NumpyToArray(DiskTestCase):
         ctx = t.Ctx()
         A = np.array([1.0, 2.0, 3.0])
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct(""), A)
+        assert_array_equal(arr.read_direct(), A)
 
     def test_to_array2d(self):
         ctx = t.Ctx()
         A = np.ones((100, 100), dtype='i8')
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct(""), A)
+        assert_array_equal(arr.read_direct(), A)
 
     def test_to_array3d(self):
         ctx = t.Ctx()
         A = np.ones((1, 1, 1), dtype='i1')
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct(""), A)
+        assert_array_equal(arr.read_direct(), A)
 
     def test_array_interface(self):
         # Tests that __array__ interface works

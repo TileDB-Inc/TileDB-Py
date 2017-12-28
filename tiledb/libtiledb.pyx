@@ -977,7 +977,7 @@ cdef class Array(object):
         dom = Domain(ctx, *dims)
         att = Attr(ctx, "", dtype=array.dtype)
         arr = Array.create(ctx, path, domain=dom, attrs=[att], **kw)
-        arr.write_direct("", array)
+        arr.write_direct(array)
         return arr
 
     def __init__(self, Ctx ctx, unicode name):
@@ -1142,7 +1142,7 @@ cdef class Array(object):
             return array.astype(dtype)
         return array
 
-    def write_direct(self, unicode attr, np.ndarray array not None):
+    def write_direct(self, np.ndarray array not None, unicode attr=u""):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
@@ -1177,7 +1177,7 @@ cdef class Array(object):
             check_error(ctx, rc)
         return
 
-    def read_direct(self, unicode attribute_name not None):
+    def read_direct(self, unicode attribute_name=u""):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
