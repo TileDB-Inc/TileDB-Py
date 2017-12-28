@@ -386,13 +386,12 @@ cdef class Dim(object):
         tile_array = np.array(tile, dtype=domain_dtype)
         if tile_array.size != 1:
             raise ValueError("tile extent must be a scalar")
-        cdef tiledb_datatype_t dim_dtype = _tiledb_dtype(domain_dtype)
         cdef tiledb_dimension_t* dim_ptr = NULL
         check_error(ctx,
             tiledb_dimension_create(ctx.ptr,
                                     &dim_ptr,
                                     bname,
-                                    dim_dtype,
+                                    _tiledb_dtype(domain_dtype),
                                     np.PyArray_DATA(domain_array),
                                     np.PyArray_DATA(tile_array)))
         assert(dim_ptr != NULL)
@@ -422,8 +421,11 @@ cdef class Dim(object):
 
     @property
     def shape(self):
+        #TODO: this will not work for floating point domains / dimensions
         domain = self.domain
-        return ((domain[1] - domain[0] + 1),)
+        res = ((np.asscalar(domain[1]) -
+                np.asscalar(domain[0]) + 1),)
+        return res
 
     @property
     def tile(self):
@@ -978,7 +980,7 @@ cdef class Array(object):
         for d in range(ndims):
             extent = shape[d]
             domain = (0, extent - 1)
-            dims.append(Dim(ctx, "", domain, extent))
+            dims.append(Dim(ctx, "", domain, extent, np.uint64))
         dom = Domain(ctx, *dims)
         att = Attr(ctx, "", dtype=dtype)
         arr = Array.create(ctx, path, domain=dom, attrs=[att], **kw)
@@ -1126,10 +1128,14 @@ cdef class Array(object):
 
         cdef tuple domain_shape = self.domain.shape
         cdef Attr attr = self.attr("")
+        print("FIDIFJFKDFJDLFJDFJLDJF")
+        print(domain_shape)
+        attr.dump()
         cdef np.dtype attr_dtype = attr.dtype
-
+        print(attr.dtype)
         # clamp to domain
         stop = domain_shape[0] if stop > domain_shape[0] else stop
+        print(stop)
         array = np.zeros(shape=((stop - start),), dtype=attr_dtype)
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = <uint64_t>(array.nbytes)
