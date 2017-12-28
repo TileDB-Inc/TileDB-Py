@@ -200,6 +200,7 @@ class RWTest(DiskTestCase):
         arr.write_direct("val", A)
         arr.dump()
         assert_array_equal(arr.read_direct("val"), A)
+        self.assertEqual(arr.ndim, A.ndim)
 
 
 class NumpyToArray(DiskTestCase):

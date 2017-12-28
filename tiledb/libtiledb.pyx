@@ -1057,6 +1057,10 @@ cdef class Array(object):
                     tiledb_attribute_from_index(self.ctx.ptr, self.ptr, idx, &attr_ptr))
         return Attr.from_ptr(self.ctx, attr_ptr)
 
+    @property
+    def ndim(self):
+        return self.domain.ndim
+
     def dump(self):
         check_error(self.ctx,
             tiledb_array_metadata_dump(self.ctx.ptr, self.ptr, stdout))
