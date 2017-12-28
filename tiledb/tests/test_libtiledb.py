@@ -186,6 +186,16 @@ class ArrayTest(DiskTestCase):
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
 
+    def test_array_1d(self):
+        A = np.arange(1050)
+
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 1049), tile=100))
+        att = t.Attr(ctx, dtype=A.dtype)
+        arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
+
+        self.assertEqual(len(arr), len(A))
+
 
 class RWTest(DiskTestCase):
 

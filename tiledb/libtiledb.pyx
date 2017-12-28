@@ -989,6 +989,10 @@ cdef class Array(object):
         self.name = name
         self.ptr = metadata_ptr
 
+    def __len__(self):
+        # TODO: this only works for integer domains
+        return np.prod(self.domain.shape)
+
     @property
     def name(self):
         return self.name
@@ -1188,12 +1192,9 @@ cdef class Array(object):
         cdef bytes battribute_name = attribute_name.encode('UTF-8')
         cdef const char* c_attribute_name = battribute_name
 
-        cdef tuple domain_shape = self.domain.shape
-
         cdef Attr attr = self.attr(attribute_name)
-        cdef np.dtype attr_dtype = attr.dtype
 
-        out = np.empty(domain_shape, dtype=attr_dtype)
+        out = np.empty(self.domain.shape, dtype=attr.dtype)
 
         cdef void* buff = np.PyArray_DATA(out)
         cdef uint64_t buff_size = out.nbytes
