@@ -107,7 +107,6 @@ cdef class Ctx(object):
             tiledb_ctx_free(self.ptr)
 
 
-
 cdef tiledb_datatype_t _tiledb_dtype(object typ) except? TILEDB_CHAR:
     dtype = np.dtype(typ)
     if dtype == np.int32:
@@ -1136,8 +1135,16 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
 
-        cdef uint64_t[2] subarray = (start, stop - 1)
-        rc = tiledb_query_set_subarray(ctx_ptr, query, <void*> subarray, TILEDB_UINT64)
+        cdef unsigned int rank = self.domain.rank
+        cdef np.ndarray subarray = np.zeros(shape=(rank, 2),
+                                            dtype=self.domain.dtype)
+        subarray[0, 0] = start
+        subarray[0, 1] = stop -1
+        #cdef int64_t[2] subarray = (start, stop - 1)
+
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
+        cdef tiledb_datatype_t subarray_datatype = _tiledb_dtype(subarray.dtype)
+        rc = tiledb_query_set_subarray(ctx_ptr, query, subarray_ptr, subarray_datatype)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query)
             check_error(self.ctx, rc)
@@ -1202,13 +1209,77 @@ cdef class Array(object):
             return array[::step]
         return array
 
+    cdef void _write_dense_subarray(self, np.ndarray subarray, np.ndarray array):
+        cdef Ctx ctx = self.ctx
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
+        # array name
+        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef const char* c_array_name = barray_name
+        # TODO: hardcoded attribute
+        cdef Attr attr = self.attr("")
+
+        # attr name
+        cdef bytes battr_name = attr.name.encode('UTF-8')
+        cdef const char* c_attr_name = battr_name
+
+        cdef void* subarray_buff = np.PyArray_DATA(subarray)
+        cdef tiledb_datatype_t subarray_dtype = _tiledb_dtype(subarray.dtype)
+
+        cdef void* array_buff = np.PyArray_DATA(array)
+        cdef uint64_t array_buff_size = array.nbytes
+
+        cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
+        if np.isfortran(array):
+            layout = TILEDB_COL_MAJOR
+
+        cdef tiledb_query_t* query_ptr = NULL
+        check_error(ctx,
+            tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_WRITE))
+        check_error(ctx,
+            tiledb_query_set_layout(ctx_ptr, query_ptr, layout))
+        check_error(ctx,
+            tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_buff, subarray_dtype))
+        check_error(ctx,
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, &c_attr_name, 1,
+                                     &array_buff, &array_buff_size))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, query_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        return
+
     def __setitem__(self, object key, object val):
+        cdef unsigned int rank = self.rank
+        cdef np.ndarray subarray = np.zeros(shape=(rank, 2),
+                                            dtype=self.domain.dtype)
         if isinstance(key, slice):
             start, stop, step = key.start, key.stop, key.step
-            if (key.start is not None and
-                key.stop  is not None and
-                key.step  is not None):
-                raise IndexError("key not suitable: {0!r}".format(key))
+            for (i, d) in enumerate((key,)):
+                if step is not None:
+                    raise IndexError("step ranges are not allowed when writing an array")
+                if start is None:
+                    subarray[i, 0] = self.domain.dim(i).domain[0]
+                else:
+                    subarray[i, 0] = start
+                if stop is None:
+                    subarray[i, 1] = self.domain.dim(i).domain[1]
+                else:
+                    # tiledb uses inclusive ranges
+                    subarray[i, 1] = stop - 1
+            # setting a scalar value to a subarray
+            if np.isscalar(val):
+                # need to materialize a full array of values (expensive)
+                shape = ((int(subarray[0, 1]) + 1) - int(subarray[0, 0]),)
+                val = np.full(shape, val, dtype=self.attr(0).dtype)
+            self._write_dense_subarray(subarray, val)
+            return
+            #if (key.start is not None or
+            #    key.stop  is not None or
+            #    key.step  is not None):
+            #    raise IndexError("key not suitable: {0!r}".format(key))
         elif key is Ellipsis:
             pass
         else:
@@ -1216,6 +1287,7 @@ cdef class Array(object):
         if self.nattr > 1:
             raise TileDBError("ambiguous attribute assignment, more than one attribute")
         self.write_direct(val)
+        return
 
     def __array__(self, dtype=None, **kw):
         array = self.read_direct("")

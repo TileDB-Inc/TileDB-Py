@@ -178,90 +178,125 @@ class ArrayTest(DiskTestCase):
         ctx = t.Ctx()
         dom = t.Domain(
             ctx,
-            t.Dim(ctx, domain=(1, 8), tile=2, dtype='f8'),
-            t.Dim(ctx, domain=(1, 8), tile=2, dtype='f8'))
+            t.Dim(ctx, domain=(1, 8), tile=2),
+            t.Dim(ctx, domain=(1, 8), tile=2))
         att = t.Attr(ctx, "val", dtype='f8')
         arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
         arr.dump()
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
 
+    def test_dense_array_fp_domain_error(self):
+        ctx = t.Ctx()
+        dom = t.Domain(ctx,
+            t.Dim(ctx, domain=(1, 8), tile=2, dtype=np.float64))
+        att = t.Attr(ctx, "val", dtype=np.float64)
+
+        with self.assertRaises(t.TileDBError):
+            t.Array.create(ctx, self.path("foo"), domain=dom, attrs=(att,))
+
     def test_array_1d(self):
         A = np.arange(1050)
 
         ctx = t.Ctx()
-        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 1049), tile=100))
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 1049), tile=100, dtype=np.int64))
         att = t.Attr(ctx, dtype=A.dtype)
-        arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
+        T = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=(att,))
 
-        self.assertEqual(len(A), len(arr))
-        self.assertEqual(A.ndim, arr.ndim)
-        self.assertEqual(A.shape, arr.shape)
+        self.assertEqual(len(A), len(T))
+        self.assertEqual(A.ndim, T.ndim)
+        self.assertEqual(A.shape, T.shape)
 
-        self.assertEqual(1, arr.nattr)
-        self.assertEqual(A.dtype, arr.attr(0).dtype)
+        self.assertEqual(1, T.nattr)
+        self.assertEqual(A.dtype, T.attr(0).dtype)
 
         # check empty array
-        B = arr[:]
+        B = T[:]
 
         self.assertEqual(A.shape, B.shape)
         self.assertEqual(A.dtype, B.dtype)
 
         # check set array
-        arr[:] = A
+        T[:] = A
 
         # check slicing
-        assert_array_equal(A, np.array(arr))
-        assert_array_equal(A, arr[:])
-        assert_array_equal(A, arr[...])
-        assert_array_equal(A, arr[slice(None)])
-        assert_array_equal(A[:10], arr[:10])
-        assert_array_equal(A[10:20], arr[10:20])
-        assert_array_equal(A[-10:], arr[-10:])
+        assert_array_equal(A, np.array(T))
+        assert_array_equal(A, T[:])
+        assert_array_equal(A, T[...])
+        assert_array_equal(A, T[slice(None)])
+        assert_array_equal(A[:10], T[:10])
+        assert_array_equal(A[10:20], T[10:20])
+        assert_array_equal(A[-10:], T[-10:])
 
         # ellipsis
-        assert_array_equal(A[:10, ...], arr[:10, ...])
-        assert_array_equal(A[10:50, ...], arr[10:50, ...])
-        assert_array_equal(A[-50:, ...], arr[-50:, ...])
-        assert_array_equal(A[..., :10], arr[..., :10])
-        assert_array_equal(A[..., 10:20], arr[..., 10:20])
-        assert_array_equal(A[..., -50:], arr[..., -50:])
+        assert_array_equal(A[:10, ...], T[:10, ...])
+        assert_array_equal(A[10:50, ...], T[10:50, ...])
+        assert_array_equal(A[-50:, ...], T[-50:, ...])
+        assert_array_equal(A[..., :10], T[..., :10])
+        assert_array_equal(A[..., 10:20], T[..., 10:20])
+        assert_array_equal(A[..., -50:], T[..., -50:])
 
         # across tiles
-        assert_array_equal(A[:150], arr[:150])
-        assert_array_equal(A[-250:], arr[-250:])
+        assert_array_equal(A[:150], T[:150])
+        assert_array_equal(A[-250:], T[-250:])
 
         # point index
-        self.assertEqual(A[0], arr[0])
-        self.assertEqual(A[-1], arr[-1])
+        self.assertEqual(A[0], T[0])
+        self.assertEqual(A[-1], T[-1])
 
         # point index with all index types
-        self.assertEqual(A[123], arr[np.int8(123)])
-        self.assertEqual(A[123], arr[np.uint8(123)])
-        self.assertEqual(A[123], arr[np.int16(123)])
-        self.assertEqual(A[123], arr[np.uint16(123)])
-        self.assertEqual(A[123], arr[np.int64(123)])
-        self.assertEqual(A[123], arr[np.uint64(123)])
-        self.assertEqual(A[123], arr[np.int32(123)])
-        self.assertEqual(A[123], arr[np.uint32(123)])
+        self.assertEqual(A[123], T[np.int8(123)])
+        self.assertEqual(A[123], T[np.uint8(123)])
+        self.assertEqual(A[123], T[np.int16(123)])
+        self.assertEqual(A[123], T[np.uint16(123)])
+        self.assertEqual(A[123], T[np.int64(123)])
+        self.assertEqual(A[123], T[np.uint64(123)])
+        self.assertEqual(A[123], T[np.int32(123)])
+        self.assertEqual(A[123], T[np.uint32(123)])
 
         # basic step
-        assert_array_equal(A[:50:2], arr[:50:2])
-        assert_array_equal(A[10:-1:50], arr[10:-1:50])
+        assert_array_equal(A[:50:2], T[:50:2])
+        assert_array_equal(A[:2:50], T[:2:50])
+        assert_array_equal(A[10:-1:50], T[10:-1:50])
 
         # indexing errors
         with self.assertRaises(IndexError):
-            arr[:, :]
+            T[:, :]
         with self.assertRaises(IndexError):
-            arr[:, 50]
+            T[:, 50]
         with self.assertRaises(IndexError):
-            arr[50, :]
+            T[50, :]
         with self.assertRaises(IndexError):
-            arr[0, 0]
+            T[0, 0]
 
         # check single ellipsis
         with self.assertRaises(IndexError):
-            arr[..., 1:5, ...]
+            T[..., 1:5, ...]
+        
+        # check partial assignment
+        B = np.arange(1e5, 2e5).astype(A.dtype)
+        T[190:310] = B[190:310]
+
+        assert_array_equal(A[:190], T[:190])
+        assert_array_equal(B[190:310], T[190:310])
+        assert_array_equal(A[310:], T[310:])
+
+    def test_array_1d_set_scalar(self):
+        A = np.zeros(50)
+
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 49), tile=10))
+        att = t.Attr(ctx, dtype=A.dtype)
+        T = t.Array.create(ctx, self.path("foo"), dom, (att,))
+
+        T[:] = A
+        for value in (-1, 0, 1, 10):
+            A[5:25] = value
+            T[5:25] = value
+            assert_array_equal(A, T[:])
+            A[:] = value
+            T[:] = value
+            assert_array_equal(A, T[:])
 
 
 class RWTest(DiskTestCase):
@@ -389,3 +424,41 @@ class AssocArray(DiskTestCase):
 
     def test_ky_update(self):
         pass
+
+    """
+    def test_kv_performance(self):
+        import random
+        import time
+
+        # create a kv database
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", dtype=bytes)
+        kv = t.Assoc(ctx, self.path("foo"), a1)
+        print("tiledb starting")
+        NRECORDS = 10000
+        int_values = [random.randint(0, 10000000) for _ in range(NRECORDS)]
+        keys = list(map(str, int_values))
+        values = [str(k).encode('ascii') for k in keys]
+        start = time.time()
+        for i in range(NRECORDS):
+            kv[keys[i]] = values[i]
+        end = time.time()
+        print("inserting {} keys took {} seconds".format(NRECORDS,  end - start))
+
+        print("consolidating")
+        start = time.time()
+
+        t.array_consolidate(ctx, self.path("foo"))
+        end = time.time()
+        print("consolidating took {} seconds".format(end - start))
+
+        print("tiledb read starting")
+        start = time.time()
+        for i in range(NRECORDS):
+            key = keys[i]
+            val = values[i]
+            if kv[key] != val:
+                print("key: {}; value: {}, kv[key]: {}".format(key, val, kv[key]))
+        end = time.time()
+        print("reading {} keys took {} seconds".format(NRECORDS,  end - start))
+    """
