@@ -422,9 +422,8 @@ cdef class Dim(object):
     def shape(self):
         #TODO: this will not work for floating point domains / dimensions
         domain = self.domain
-        res = ((np.asscalar(domain[1]) -
-                np.asscalar(domain[0]) + 1),)
-        return res
+        return ((np.asscalar(domain[1]) -
+                 np.asscalar(domain[0]) + 1),)
 
     @property
     def tile(self):
@@ -901,9 +900,9 @@ cdef class Assoc(object):
         raise NotImplementedError()
 
 
-def replace_ellipsis(tuple idx, tuple shape):
+def replace_ellipsis(Domain dom, tuple idx):
+    rank = dom.rank
     # count number of ellipsis
-    rank = len(shape)
     n_ellip = sum(1 for i in idx if i is Ellipsis)
     if n_ellip > 1:
         raise IndexError("an index can only have a single ellipsis ('...')")
@@ -927,6 +926,83 @@ def replace_ellipsis(tuple idx, tuple shape):
     if len(idx) > rank:
         raise IndexError("too many indices for array")
     return idx
+
+def replace_slices(tuple idx, dim_domains):
+    rank = len(idx)
+    if rank != len(dim_domains):
+        raise IndexError("number of indices does not match array dimensions")
+    new_idx = []
+    for i in range(rank):
+        sl = idx[i]
+        do = dim_domains[i]
+        start = do[0] if sl.start is None else sl.start
+        stop = do[1] if sl.stop is None else sl.stop
+        step = None if sl.step is None else sl.step
+        new_idx.append(slice(start, stop, step))
+    return tuple(new_idx)
+
+
+def index_domain_subarray(Domain dom, tuple idx):
+    rank = dom.rank
+    if len(idx) != rank:
+        raise IndexError("number of indices does not match domain raank: "
+                         "({!r} expected {!r]".format(len(idx), rank))
+    # populate a subarray array / buffer to pass to tiledb
+    subarray = np.zeros(shape=(rank, 2), dtype=dom.dtype)
+    for r in range(rank):
+        dim_idx = idx[r]
+        dim = dom.dim(r)
+        if np.isscalar(dim_idx):
+            dim_idx = slice(dim_idx, dim_idx)
+        assert(isinstance(dim_idx, slice))
+        # extranct lower and upper bounds for domain dimension extent
+        (dim_lb, dim_ub) = dim.domain
+        start, stop, step = dim_idx.start, dim_idx.stop, dim_idx.step
+        # Promote to a common type
+        if start is not None and stop is not None:
+            if type(start) != type(stop):
+                promoted_dtype = np.promote_types(type(start), type(stop))
+                start = np.array(start, dtype=promoted_dtype)[0]
+                stop = np.array(stop, dtype=promoted_dtype)[0]
+        if np.issubdtype(dim.dtype, np.integer):
+            # don't round / promote fp slice
+            if not isinstance(start, _inttypes) or not isinstance(stop, _inttypes):
+                raise IndexError("cannot index integral domain dimension with floating point slice")
+        if start is not None:
+            if np.issubdtype(dim.dtype, np.integer):
+                if not isinstance(start, _inttypes):
+                    raise IndexError("cannot index integral domain dimension with floating point slice")
+            # apply negative indexing (wrap-around semantics)
+            if start < 0:
+                start += dim_ub
+            if start < dim_lb:
+                raise IndexError("index out of bounds <todo>")
+        else:
+            start = dim_lb
+        if stop is not None:
+            if np.issubdtype(dim.dtype, np.integer):
+                if not isinstance(stop, _inttypes):
+                    raise IndexError("cannot index integral domain dimension with floating point slice")
+            if stop < 0:
+                stop += dim_ub
+            if stop > dim_ub:
+                raise IndexError("index out of bounds <todo>")
+        else:
+            if np.issubdtype(dim.dtype, np.floating):
+                stop = dim_ub
+            else:
+                stop = int(dim_ub) + 1
+        if np.issubdtype(type(start), np.floating) and np.issubdtype(type(stop), np.floating):
+            # inclusive bounds for floating point ranges
+            subarray[r, 0] = start
+            subarray[r, 1] = stop
+        elif np.issubdtype(type(stop), np.integer) and np.issubdtype(type(stop), np.integer):
+            # normal python indexing semantics
+            subarray[r, 0] = start
+            subarray[r, 1] = stop - 1
+        else:
+            raise IndexError("domain indexing is defined for integral and floating point values")
+    return subarray
 
 
 cdef class Array(object):
@@ -1135,12 +1211,12 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
 
+        # TODO: generalize reading subarray for dim N > 1
         cdef unsigned int rank = self.domain.rank
         cdef np.ndarray subarray = np.zeros(shape=(rank, 2),
                                             dtype=self.domain.dtype)
         subarray[0, 0] = start
         subarray[0, 1] = stop -1
-        #cdef int64_t[2] subarray = (start, stop - 1)
 
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
         cdef tiledb_datatype_t subarray_datatype = _tiledb_dtype(subarray.dtype)
@@ -1172,7 +1248,7 @@ cdef class Array(object):
         cdef int domain0 = domain_shape[0]
         cdef object start, stop, step
         if isinstance(key, tuple):
-            key = replace_ellipsis(key, domain_shape)[0]
+            key = replace_ellipsis(self.domain, key)[0]
         if isinstance(key, _inttypes):
             start = int(key)
             if start < 0:

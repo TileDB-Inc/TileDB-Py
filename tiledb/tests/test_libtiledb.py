@@ -298,6 +298,24 @@ class ArrayTest(DiskTestCase):
             T[:] = value
             assert_array_equal(A, T[:])
 
+    def test_array_id_point_queries(self):
+        #TODO: handle queries like T[[2, 5, 10]] = ?
+        pass
+
+
+    def test_array_2d(self):
+        A = np.arange(10000).reshape((1000, 10))
+
+        #ctx = t.Ctx()
+        #dom = t.Domain(ctx,
+        #        t.Dim(ctx, domain=(0, 999), tile=100),
+        #        t.Dim(ctx, domain=(0, 9), tile=2))
+        #att = t.Attr(ctx, dtype=A.dtype)
+        #T = t.Array.create(ctx, self.path("foo"), dom, (att,))
+
+        #T[:] = A
+        #assert_array_equal(A, T[:])
+
 
 class RWTest(DiskTestCase):
 
