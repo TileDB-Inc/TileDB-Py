@@ -323,6 +323,44 @@ class ArrayTest(DiskTestCase):
         T[:] = A
         assert_array_equal(A, T[:])
 
+        # check array-like
+        assert_array_equal(A, np.array(T))
+
+        # slicing
+        assert_array_equal(A, T[:])
+        assert_array_equal(A, T[...])
+        assert_array_equal(A, T[slice(None)])
+
+        # slice first dimension
+        assert_array_equal(A[:10], T[:10])
+        assert_array_equal(A[:10], T[:10])
+        assert_array_equal(A[10:20], T[10:20])
+        assert_array_equal(A[-10:], T[-10:])
+        assert_array_equal(A[:10, :], T[:10, :])
+        assert_array_equal(A[10:20, :], T[10:20, :])
+        assert_array_equal(A[-10:, :], T[-10:, :])
+        assert_array_equal(A[:10, ...], T[:10, ...])
+        assert_array_equal(A[10:20, ...], T[10:20, ...])
+        assert_array_equal(A[-10:, ...], T[-10:, ...])
+        assert_array_equal(A[:10, :, ...], T[:10, :, ...])
+        assert_array_equal(A[10:20, :, ...], T[10:20, :, ...])
+        assert_array_equal(A[-10:, :, ...], T[-10:, :, ...])
+
+        # slice second dimension
+        assert_array_equal(A[:, :2], T[:, :2])
+        assert_array_equal(A[:, 2:4], T[:, 2:4])
+        assert_array_equal(A[:, -2:], T[:, -2:])
+        assert_array_equal(A[..., :2], T[..., :2])
+        assert_array_equal(A[..., 2:4], T[..., 2:4])
+        assert_array_equal(A[..., -2:], T[..., -2:])
+        assert_array_equal(A[:, ..., :2], T[:, ..., :2])
+        assert_array_equal(A[:, ..., 2:4], T[:, ..., 2:4])
+        assert_array_equal(A[:, ..., -2:], T[:, ..., -2:])
+
+        # slice both dimensions
+        assert_array_equal(A[:10, :2], T[:10, :2])
+        assert_array_equal(A[10:20, 2:4], T[10:20, 2:4])
+        assert_array_equal(A[-10:, -2:], T[-10:, -2:])
 
 
 class RWTest(DiskTestCase):

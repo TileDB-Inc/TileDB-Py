@@ -914,7 +914,7 @@ def replace_ellipsis(Domain dom, tuple idx):
         raise IndexError("an index can only have a single ellipsis ('...')")
     elif n_ellip == 1:
         n = len(idx)
-        if n > rank:
+        if (n - 1) >= rank:
             # does nothing, strip it out
             idx =  tuple(i for i in idx if i is not Ellipsis)
         else:
@@ -922,7 +922,7 @@ def replace_ellipsis(Domain dom, tuple idx):
             # fill in whole dim slices up to th rank of the array
             left = idx.index(Ellipsis)
             right = n - (left + 1)
-            new_idx = idx[:left] + ((slice(None),) * (rank - n - 1))
+            new_idx = idx[:left] + ((slice(None),) * (rank - (n - 1)))
             if right:
                 new_idx += idx[-right:]
             idx = new_idx
@@ -1312,9 +1312,7 @@ cdef class Array(object):
         key = index_as_tuple(key)
         if isinstance(key, tuple):
             idx = replace_ellipsis(self.domain, key)
-            print("replace ellip key: ", key, " idx: ", idx)
             idx = replace_scalars(self.domain, idx)
-            print("replace scalars key: ", key, " idx: ", idx)
             subarray = index_domain_subarray(self.domain, idx)
             out = self._read_dense_subarray(subarray)
             if any(s.step for s in idx):
