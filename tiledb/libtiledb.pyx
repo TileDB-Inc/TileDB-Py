@@ -1268,7 +1268,7 @@ cdef class Array(object):
         out = self._read_dense_subarray(subarray)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
-            out = out.__getitem__(*steps)
+            out = out.__getitem__(steps)
         if drop_axes:
             out = out.squeeze(axis=drop_axes)
         return out

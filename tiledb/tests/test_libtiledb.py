@@ -513,7 +513,19 @@ class DenseIndexing(DiskTestCase):
     ]
 
     def test_index_2d(self):
-       pass
+        A = np.arange(10000).reshape((1000, 10))
+
+        ctx = t.Ctx()
+        dom = t.Domain(ctx,
+                       t.Dim(ctx, domain=(0, 999), tile=100),
+                       t.Dim(ctx, domain=(0, 9), tile=2))
+        att = t.Attr(ctx, dtype=A.dtype)
+        T = t.Array.create(ctx, self.path("foo"), dom, (att,))
+        T[:] = A
+
+        for idx in self.good_index_1d:
+            self._test_index(A, T, idx)
+
 
 
 class RWTest(DiskTestCase):
