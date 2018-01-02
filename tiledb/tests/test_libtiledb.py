@@ -181,7 +181,7 @@ class ArrayTest(DiskTestCase):
             t.Dim(ctx, domain=(1, 8), tile=2),
             t.Dim(ctx, domain=(1, 8), tile=2))
         att = t.Attr(ctx, "val", dtype='f8')
-        arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr = t.Array(ctx, self.path("foo"), domain=dom, attrs=[att])
         arr.dump()
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
@@ -193,7 +193,7 @@ class ArrayTest(DiskTestCase):
         att = t.Attr(ctx, "val", dtype=np.float64)
 
         with self.assertRaises(t.TileDBError):
-            t.Array.create(ctx, self.path("foo"), domain=dom, attrs=(att,))
+            t.Array(ctx, self.path("foo"), domain=dom, attrs=(att,))
 
     def test_array_1d(self):
         A = np.arange(1050)
@@ -201,7 +201,7 @@ class ArrayTest(DiskTestCase):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 1049), tile=100, dtype=np.int64))
         att = t.Attr(ctx, dtype=A.dtype)
-        T = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=(att,))
+        T = t.Array(ctx, self.path("foo"), domain=dom, attrs=(att,))
 
         self.assertEqual(len(A), len(T))
         self.assertEqual(A.ndim, T.ndim)
@@ -287,7 +287,7 @@ class ArrayTest(DiskTestCase):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 49), tile=10))
         att = t.Attr(ctx, dtype=A.dtype)
-        T = t.Array.create(ctx, self.path("foo"), dom, (att,))
+        T = t.Array(ctx, self.path("foo"), dom, (att,))
 
         T[:] = A
         for value in (-1, 0, 1, 10):
@@ -310,7 +310,7 @@ class ArrayTest(DiskTestCase):
                        t.Dim(ctx, domain=(0, 999), tile=100),
                        t.Dim(ctx, domain=(0, 9), tile=2))
         att = t.Attr(ctx, dtype=A.dtype)
-        T = t.Array.create(ctx, self.path("foo"), dom, (att,))
+        T = t.Array(ctx, self.path("foo"), dom, (att,))
 
         self.assertEqual(len(A), len(T))
         self.assertEqual(A.ndim, T.ndim)
@@ -413,7 +413,6 @@ class ArrayTest(DiskTestCase):
 class DenseIndexing(DiskTestCase):
 
     def _test_index(self, A, T, idx):
-        print(idx)
         expected = A[idx]
         actual = T[idx]
         assert_array_equal(expected, actual)
@@ -501,7 +500,7 @@ class DenseIndexing(DiskTestCase):
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 1049), tile=100))
         att = t.Attr(ctx, dtype=int)
 
-        T = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=(att,))
+        T = t.Array(ctx, self.path("foo"), domain=dom, attrs=(att,))
         T[:] = A
 
         for idx in self.good_index_1d:
@@ -569,7 +568,7 @@ class DenseIndexing(DiskTestCase):
                        t.Dim(ctx, domain=(0, 999), tile=100),
                        t.Dim(ctx, domain=(0, 9), tile=2))
         att = t.Attr(ctx, dtype=A.dtype)
-        T = t.Array.create(ctx, self.path("foo"), dom, (att,))
+        T = t.Array(ctx, self.path("foo"), dom, (att,))
         T[:] = A
 
         for idx in self.good_index_1d:
@@ -587,7 +586,7 @@ class RWTest(DiskTestCase):
 
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 2), tile=3))
         att = t.Attr(ctx, dtype='i8')
-        arr = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr = t.Array(ctx, self.path("foo"), domain=dom, attrs=[att])
 
         A = np.array([1, 2, 3])
         arr.write_direct(A)

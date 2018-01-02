@@ -972,6 +972,8 @@ def index_domain_subarray(Domain dom, tuple idx):
             raise IndexError("invalid index type: {!r}".format(dim_slice))
 
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
+        #if step and step < 0:
+        #    raise IndexError("only positive slice steps are supported")
 
         # Promote to a common type
         if start is not None and stop is not None:
@@ -995,7 +997,6 @@ def index_domain_subarray(Domain dom, tuple idx):
                 raise IndexError("index out of bounds <todo>")
         else:
             start = dim_lb
-
         if stop is not None:
             # don't round / promote fp slices
             if np.issubdtype(dim.dtype, np.integer):
@@ -1012,7 +1013,6 @@ def index_domain_subarray(Domain dom, tuple idx):
                 stop = dim_ub
             else:
                 stop = int(dim_ub) + 1
-
         if np.issubdtype(type(stop), np.floating):
             # inclusive bounds for floating point ranges
             subarray[r, 0] = start
@@ -1040,14 +1040,48 @@ cdef class Array(object):
             tiledb_array_metadata_free(self.ctx.ptr, self.ptr)
 
     @staticmethod
-    def create(Ctx ctx,
-               unicode name,
-               domain=None,
-               attrs=[],
-               cell_order='row-major',
-               tile_order='row-major',
-               capacity=0,
-               sparse=False):
+    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_metadata_t* ptr):
+        cdef Array arr = Array.__new__(Array)
+        arr.ctx = ctx
+        arr.name = name
+        arr.ptr = <tiledb_array_metadata_t*> ptr
+        return arr
+
+    @staticmethod
+    def load(Ctx ctx, unicode uri):
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+
+        cdef bytes buri = ustring(uri).encode('UTF-8')
+        cdef const char* buri_ptr = PyBytes_AS_STRING(buri)
+
+        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_metadata_load(ctx_ptr, &metadata_ptr, buri_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        return Array.from_ptr(ctx, uri, metadata_ptr)
+
+    @staticmethod
+    def from_numpy(Ctx ctx, unicode path, np.ndarray array, **kw):
+        dims = []
+        for d in range(array.ndim):
+            extent = array.shape[d]
+            domain = (0, extent - 1)
+            dims.append(Dim(ctx, "", domain, extent, np.uint64))
+        dom = Domain(ctx, *dims)
+        att = Attr(ctx, "", dtype=array.dtype)
+        arr = Array(ctx, path, domain=dom, attrs=[att], **kw)
+        arr.write_direct(array)
+        return arr
+
+    def __init__(Array self, Ctx ctx, unicode name,
+                 domain=None,
+                 attrs=[],
+                 cell_order='row-major',
+                 tile_order='row-major',
+                 capacity=0,
+                 sparse=False):
         uname = ustring(name).encode('UTF-8')
         cdef tiledb_array_metadata_t* metadata_ptr = NULL
         check_error(ctx,
@@ -1081,29 +1115,12 @@ cdef class Array(object):
         rc = tiledb_array_create(ctx.ptr, metadata_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
-        return Array.from_ptr(ctx, name, metadata_ptr)
+        self.ctx = ctx
+        self.name = name
+        self.ptr = <tiledb_array_metadata_t*> metadata_ptr
+        return
 
-    @staticmethod
-    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_metadata_t* ptr):
-        cdef Array arr = Array.__new__(Array)
-        arr.ctx = ctx
-        arr.name = name
-        arr.ptr = <tiledb_array_metadata_t*> ptr
-        return arr
-
-    @staticmethod
-    def from_numpy(Ctx ctx, unicode path, np.ndarray array, **kw):
-        dims = []
-        for d in range(array.ndim):
-            extent = array.shape[d]
-            domain = (0, extent - 1)
-            dims.append(Dim(ctx, "", domain, extent, np.uint64))
-        dom = Domain(ctx, *dims)
-        att = Attr(ctx, "", dtype=array.dtype)
-        arr = Array.create(ctx, path, domain=dom, attrs=[att], **kw)
-        arr.write_direct(array)
-        return arr
-
+    """
     def __init__(self, Ctx ctx, unicode name):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_array_metadata_t* metadata_ptr = NULL
@@ -1112,6 +1129,7 @@ cdef class Array(object):
         self.ctx = ctx
         self.name = name
         self.ptr = metadata_ptr
+    """
 
     def __len__(self):
         return self.domain.shape[0]
