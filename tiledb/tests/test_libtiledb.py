@@ -384,6 +384,31 @@ class ArrayTest(DiskTestCase):
         self.assertEqual(A[0, 0], T[0, 0])
         self.assertEqual(A[-1, -1], T[-1, -1])
 
+        # too many indices
+        with self.assertRaises(IndexError):
+            T[:, :, :]
+        with self.assertRaises(IndexError):
+            T[0, :, :]
+        with self.assertRaises(IndexError):
+            T[:, 0, :]
+        with self.assertRaises(IndexError):
+            T[:, :, 0]
+        with self.assertRaises(IndexError):
+            T[0, 0, 0]
+
+        # only single ellipsis allowed
+        with self.assertRaises(IndexError):
+            T[..., ...]
+
+        # check partial assignment
+        B = np.arange(10000, 20000).reshape((1000, 10))
+        T[190:310, 3:7] = B[190:310, 3:7]
+        assert_array_equal(A[:190], T[:190])
+        assert_array_equal(A[:, :3], T[:, :3])
+        assert_array_equal(B[190:310, 3:7], T[190:310, 3:7])
+        assert_array_equal(A[310:], T[310:])
+        assert_array_equal(A[:, 7:], T[:, 7:])
+
 
 class RWTest(DiskTestCase):
 

@@ -1288,8 +1288,9 @@ cdef class Array(object):
         cdef void* subarray_buff = np.PyArray_DATA(subarray)
         cdef tiledb_datatype_t subarray_dtype = _tiledb_dtype(subarray.dtype)
 
-        cdef void* array_buff = np.PyArray_DATA(array)
-        cdef uint64_t array_buff_size = array.nbytes
+        cdef np.ndarray contig_array = np.ascontiguousarray(array)
+        cdef void* array_buff = np.PyArray_DATA(contig_array)
+        cdef uint64_t array_buff_size = contig_array.nbytes
 
         cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
         if np.isfortran(array):
