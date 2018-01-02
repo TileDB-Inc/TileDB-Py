@@ -900,6 +900,12 @@ cdef class Assoc(object):
         raise NotImplementedError()
 
 
+def index_as_tuple(idx):
+    if isinstance(idx, tuple):
+        return idx
+    return (idx,)
+
+
 def replace_ellipsis(Domain dom, tuple idx):
     rank = dom.rank
     # count number of ellipsis
@@ -927,18 +933,24 @@ def replace_ellipsis(Domain dom, tuple idx):
         raise IndexError("too many indices for array")
     return idx
 
-def replace_slices(tuple idx, dim_domains):
-    rank = len(idx)
-    if rank != len(dim_domains):
-        raise IndexError("number of indices does not match array dimensions")
+
+def replace_scalars(Domain dom, tuple idx):
     new_idx = []
-    for i in range(rank):
-        sl = idx[i]
-        do = dim_domains[i]
-        start = do[0] if sl.start is None else sl.start
-        stop = do[1] if sl.stop is None else sl.stop
-        step = None if sl.step is None else sl.step
-        new_idx.append(slice(start, stop, step))
+    for i in range(dom.rank):
+        dim = dom.dim(i)
+        dim_idx = idx[i]
+        if np.isscalar(dim_idx):
+            if isinstance(i, _inttypes):
+                start = int(dim_idx)
+                if start < 0:
+                    start += int(dim.domain[1]) + 1
+                stop = start + 1
+            else:
+                start = dim_idx
+                stop = dim_idx
+            new_idx.append(slice(start, stop, None))
+        else:
+            new_idx.append(dim_idx)
     return tuple(new_idx)
 
 
@@ -946,57 +958,61 @@ def index_domain_subarray(Domain dom, tuple idx):
     rank = dom.rank
     if len(idx) != rank:
         raise IndexError("number of indices does not match domain raank: "
-                         "({!r} expected {!r]".format(len(idx), rank))
+                         "({:!r} expected {:!r]".format(len(idx), rank))
     # populate a subarray array / buffer to pass to tiledb
     subarray = np.zeros(shape=(rank, 2), dtype=dom.dtype)
     for r in range(rank):
-        dim_idx = idx[r]
+        # extract lower and upper bounds for domain dimension extent
         dim = dom.dim(r)
-        if np.isscalar(dim_idx):
-            dim_idx = slice(dim_idx, dim_idx)
-        assert(isinstance(dim_idx, slice))
-        # extranct lower and upper bounds for domain dimension extent
         (dim_lb, dim_ub) = dim.domain
-        start, stop, step = dim_idx.start, dim_idx.stop, dim_idx.step
+
+        dim_slice = idx[r]
+        assert(isinstance(dim_slice, slice))
+
+        start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
+
         # Promote to a common type
         if start is not None and stop is not None:
             if type(start) != type(stop):
                 promoted_dtype = np.promote_types(type(start), type(stop))
                 start = np.array(start, dtype=promoted_dtype)[0]
                 stop = np.array(stop, dtype=promoted_dtype)[0]
-        if np.issubdtype(dim.dtype, np.integer):
-            # don't round / promote fp slice
-            if not isinstance(start, _inttypes) or not isinstance(stop, _inttypes):
-                raise IndexError("cannot index integral domain dimension with floating point slice")
+
         if start is not None:
+            # don't round / promote fp slices
             if np.issubdtype(dim.dtype, np.integer):
                 if not isinstance(start, _inttypes):
                     raise IndexError("cannot index integral domain dimension with floating point slice")
             # apply negative indexing (wrap-around semantics)
             if start < 0:
-                start += dim_ub
+                start += int(dim_ub) + 1
             if start < dim_lb:
                 raise IndexError("index out of bounds <todo>")
         else:
             start = dim_lb
+
         if stop is not None:
+            # don't round / promote fp slices
             if np.issubdtype(dim.dtype, np.integer):
                 if not isinstance(stop, _inttypes):
                     raise IndexError("cannot index integral domain dimension with floating point slice")
             if stop < 0:
                 stop += dim_ub
             if stop > dim_ub:
-                raise IndexError("index out of bounds <todo>")
+                # numpy allows stop value > than the array dimension shape,
+                # clamp to upper bound of dimension domain
+                stop = int(dim_ub) + 1
         else:
             if np.issubdtype(dim.dtype, np.floating):
                 stop = dim_ub
             else:
                 stop = int(dim_ub) + 1
-        if np.issubdtype(type(start), np.floating) and np.issubdtype(type(stop), np.floating):
+
+        if np.issubdtype(type(stop), np.floating):
             # inclusive bounds for floating point ranges
             subarray[r, 0] = start
             subarray[r, 1] = stop
-        elif np.issubdtype(type(stop), np.integer) and np.issubdtype(type(stop), np.integer):
+        elif np.issubdtype(type(stop), np.integer):
             # normal python indexing semantics
             subarray[r, 0] = start
             subarray[r, 1] = stop - 1
@@ -1242,13 +1258,70 @@ cdef class Array(object):
             check_error(self.ctx, rc)
         return
 
+    cdef _read_dense_subarray(self, np.ndarray subarray):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
+        # array name
+        cdef bytes array_name = self.name.encode('UTF-8')
+        cdef const char* c_aname = array_name
+
+        # attr name
+        cdef bytes attr_name = u"".encode('UTF-8')
+        cdef const char* c_attr = attr_name
+
+        cdef int rc = TILEDB_OK
+        cdef tiledb_query_t* query = NULL
+
+        rc = tiledb_query_create(ctx_ptr, &query, c_aname, TILEDB_READ)
+        if rc != TILEDB_OK:
+            check_error(self.ctx, rc)
+
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
+        cdef tiledb_datatype_t subarray_datatype = _tiledb_dtype(subarray.dtype)
+        rc = tiledb_query_set_subarray(ctx_ptr, query, subarray_ptr, subarray_datatype)
+        if rc != TILEDB_OK:
+            tiledb_query_free(ctx_ptr, query)
+            check_error(self.ctx, rc)
+
+        cdef tuple shape = \
+            tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1 for r in range(self.rank))
+        cdef np.ndarray out = np.zeros(shape=shape, dtype=self.attr(0).dtype)
+        cdef void* buff_ptr = np.PyArray_DATA(out)
+        cdef uint64_t buff_size = out.nbytes
+        rc = tiledb_query_set_buffers(ctx_ptr, query, &c_attr, 1, &buff_ptr, &buff_size)
+        if rc != TILEDB_OK:
+            tiledb_query_free(ctx_ptr, query)
+            check_error(self.ctx, rc)
+
+        rc = tiledb_query_set_layout(ctx_ptr, query, TILEDB_ROW_MAJOR)
+        if rc != TILEDB_OK:
+            tiledb_query_free(ctx_ptr, query)
+            check_error(self.ctx, rc)
+
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query)
+        tiledb_query_free(ctx_ptr, query)
+        if rc != TILEDB_OK:
+            check_error(self.ctx, rc)
+        return out
+
     def __getitem__(self, object key):
         cdef np.ndarray array
         cdef tuple domain_shape = self.domain.shape
         cdef int domain0 = domain_shape[0]
         cdef object start, stop, step
+        key = index_as_tuple(key)
         if isinstance(key, tuple):
-            key = replace_ellipsis(self.domain, key)[0]
+            idx = replace_ellipsis(self.domain, key)
+            print("replace ellip key: ", key, " idx: ", idx)
+            idx = replace_scalars(self.domain, idx)
+            print("replace scalars key: ", key, " idx: ", idx)
+            subarray = index_domain_subarray(self.domain, idx)
+            out = self._read_dense_subarray(subarray)
+            if any(s.step for s in idx):
+                steps = tuple(slice(None, None, s.step) for s in idx)
+                return out.__getitem__(*steps)
+            return out
         if isinstance(key, _inttypes):
             start = int(key)
             if start < 0:
@@ -1292,10 +1365,10 @@ cdef class Array(object):
         # array name
         cdef bytes barray_name = self.name.encode('UTF-8')
         cdef const char* c_array_name = barray_name
-        # TODO: hardcoded attribute
-        cdef Attr attr = self.attr("")
 
         # attr name
+        # TODO: hardcoded attribute
+        cdef Attr attr = self.attr("")
         cdef bytes battr_name = attr.name.encode('UTF-8')
         cdef const char* c_attr_name = battr_name
 
@@ -1328,38 +1401,19 @@ cdef class Array(object):
         return
 
     def __setitem__(self, object key, object val):
-        cdef unsigned int rank = self.rank
-        cdef np.ndarray subarray = np.zeros(shape=(rank, 2),
-                                            dtype=self.domain.dtype)
-        if isinstance(key, slice):
-            start, stop, step = key.start, key.stop, key.step
-            for (i, d) in enumerate((key,)):
-                if step is not None:
-                    raise IndexError("step ranges are not allowed when writing an array")
-                if start is None:
-                    subarray[i, 0] = self.domain.dim(i).domain[0]
-                else:
-                    subarray[i, 0] = start
-                if stop is None:
-                    subarray[i, 1] = self.domain.dim(i).domain[1]
-                else:
-                    # tiledb uses inclusive ranges
-                    subarray[i, 1] = stop - 1
-            # setting a scalar value to a subarray
-            if np.isscalar(val):
+        cdef Domain domain = self.domain
+        cdef tuple idx = index_as_tuple(key)
+        idx = replace_ellipsis(domain, idx)
+        cdef np.ndarray subarray
+        if isinstance(idx, tuple):
+            subarray = index_domain_subarray(domain, idx)
+            if np.isscalar(val) and self.nattr == 1:
                 # need to materialize a full array of values (expensive)
-                shape = ((int(subarray[0, 1]) + 1) - int(subarray[0, 0]),)
-                val = np.full(shape, val, dtype=self.attr(0).dtype)
+                val = np.full(domain.shape, val, dtype=self.attr(0).dtype)
             self._write_dense_subarray(subarray, val)
             return
-            #if (key.start is not None or
-            #    key.stop  is not None or
-            #    key.step  is not None):
-            #    raise IndexError("key not suitable: {0!r}".format(key))
-        elif key is Ellipsis:
-            pass
         else:
-            raise IndexError("key not suitable: {0!r}".format(key))
+            raise IndexError("index not suitable: {0!r}".format(key))
         if self.nattr > 1:
             raise TileDBError("ambiguous attribute assignment, more than one attribute")
         self.write_direct(val)

@@ -306,15 +306,15 @@ class ArrayTest(DiskTestCase):
     def test_array_2d(self):
         A = np.arange(10000).reshape((1000, 10))
 
-        #ctx = t.Ctx()
-        #dom = t.Domain(ctx,
-        #        t.Dim(ctx, domain=(0, 999), tile=100),
-        #        t.Dim(ctx, domain=(0, 9), tile=2))
-        #att = t.Attr(ctx, dtype=A.dtype)
-        #T = t.Array.create(ctx, self.path("foo"), dom, (att,))
+        ctx = t.Ctx()
+        dom = t.Domain(ctx,
+                       t.Dim(ctx, domain=(0, 999), tile=100),
+                       t.Dim(ctx, domain=(0, 9), tile=2))
+        att = t.Attr(ctx, dtype=A.dtype)
+        T = t.Array.create(ctx, self.path("foo"), dom, (att,))
 
-        #T[:] = A
-        #assert_array_equal(A, T[:])
+        T[:] = A
+        assert_array_equal(A, T[:])
 
 
 class RWTest(DiskTestCase):
@@ -346,19 +346,19 @@ class NumpyToArray(DiskTestCase):
         ctx = t.Ctx()
         A = np.array([1.0, 2.0, 3.0])
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct(), A)
+        assert_array_equal(A, arr[:])
 
     def test_to_array2d(self):
         ctx = t.Ctx()
         A = np.ones((100, 100), dtype='i8')
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct(), A)
+        assert_array_equal(A, arr[:])
 
     def test_to_array3d(self):
         ctx = t.Ctx()
         A = np.ones((1, 1, 1), dtype='i1')
         arr = t.Array.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(arr.read_direct(), A)
+        assert_array_equal(A, arr[:])
 
     def test_array_interface(self):
         # Tests that __array__ interface works
@@ -371,10 +371,9 @@ class NumpyToArray(DiskTestCase):
     def test_array_getindex(self):
         # Tests that __getindex__ interface works
         ctx = t.Ctx()
-        A1 = np.arange(1, 10)
-        arr = t.Array.from_numpy(ctx, self.path("foo"), A1)
-        A2 = arr[5:10]
-        assert_array_equal(A1[5:10], A2)
+        A = np.arange(1, 10)
+        arr = t.Array.from_numpy(ctx, self.path("foo"), A)
+        assert_array_equal(A[5:10], arr[5:10])
 
 
 class AssocArray(DiskTestCase):
