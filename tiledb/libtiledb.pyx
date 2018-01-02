@@ -941,7 +941,7 @@ def replace_scalars(Domain dom, tuple idx):
         dim_idx = idx[i]
         if np.isscalar(dim_idx):
             drop_axes.append(i)
-            if isinstance(i, _inttypes):
+            if isinstance(dim_idx, _inttypes):
                 start = int(dim_idx)
                 if start < 0:
                     start += int(dim.domain[1]) + 1
@@ -968,7 +968,8 @@ def index_domain_subarray(Domain dom, tuple idx):
         (dim_lb, dim_ub) = dim.domain
 
         dim_slice = idx[r]
-        assert(isinstance(dim_slice, slice))
+        if not isinstance(dim_slice, slice):
+            raise IndexError("invalid index type: {!r}".format(dim_slice))
 
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
 

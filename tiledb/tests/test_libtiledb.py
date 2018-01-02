@@ -461,6 +461,37 @@ class DenseIndexing(DiskTestCase):
         slice(50, 150),
         slice(50, 150, 1),
         slice(50, 150, 10),
+
+        # TODO: negative steps
+        slice(None, None, -1),
+        slice(None, None, -10),
+        slice(None, None, -100),
+        slice(None, None, -1000),
+        slice(None, None, -10000),
+        #slice(1050, -1, -1),
+        #slice(1050, -1, -10),
+        #slice(1050, -1, -100),
+        #slice(1050, -1, -1000),
+        #slice(1050, -1, -10000),
+        #slice(1050, 0, -1),
+        #slice(1050, 0, -10),
+        #slice(1050, 0, -100),
+        #slice(1050, 0, -1000),
+        #slice(1050, 0, -10000),
+        #slice(150, 50, -1),
+        #slice(150, 50, -10),
+        #slice(31, 1, -3),
+        #slice(121, 81, -3),
+        #slice(-1, 0, -1),
+    ]
+
+    bad_index_1d = [
+        2.3,
+        'foo',
+        b'xxx',
+        None,
+        (0, 0),
+        (slice(None), slice(None)),
     ]
 
     def test_index_1d(self):
@@ -475,6 +506,10 @@ class DenseIndexing(DiskTestCase):
 
         for idx in self.good_index_1d:
             self._test_index(A, T, idx)
+
+        for idx in self.bad_index_1d:
+            with self.assertRaises(IndexError):
+                T[idx]
 
     good_index_2d = [
         # single row
@@ -510,6 +545,20 @@ class DenseIndexing(DiskTestCase):
         (),
         (Ellipsis, slice(None)),
         (Ellipsis, slice(None), slice(None)),
+
+        #TODO: negative steps
+        #slice(None, None, -1),
+        #(slice(None, None, -1), slice(None)),
+    ]
+
+    bad_index_2d = [
+        2.3,
+        'foo',
+        b'xxx',
+        None,
+        (2.3, slice(None)),
+        (0, 0, 0),
+        (slice(None), slice(None), slice(None)),
     ]
 
     def test_index_2d(self):
@@ -526,6 +575,9 @@ class DenseIndexing(DiskTestCase):
         for idx in self.good_index_1d:
             self._test_index(A, T, idx)
 
+        for idx in self.bad_index_2d:
+            with self.assertRaises(IndexError):
+                T[idx]
 
 
 class RWTest(DiskTestCase):
