@@ -181,7 +181,7 @@ class ArrayTest(DiskTestCase):
             t.Dim(ctx, domain=(1, 8), tile=2),
             t.Dim(ctx, domain=(1, 8), tile=2))
         att = t.Attr(ctx, "val", dtype='f8')
-        arr = t.Array(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=[att])
         arr.dump()
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
@@ -193,7 +193,7 @@ class ArrayTest(DiskTestCase):
         att = t.Attr(ctx, "val", dtype=np.float64)
 
         with self.assertRaises(t.TileDBError):
-            t.Array(ctx, self.path("foo"), domain=dom, attrs=(att,))
+            t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
 
     def test_array_1d(self):
         A = np.arange(1050)
@@ -201,7 +201,7 @@ class ArrayTest(DiskTestCase):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 1049), tile=100, dtype=np.int64))
         att = t.Attr(ctx, dtype=A.dtype)
-        T = t.Array(ctx, self.path("foo"), domain=dom, attrs=(att,))
+        T = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
 
         self.assertEqual(len(A), len(T))
         self.assertEqual(A.ndim, T.ndim)
@@ -287,7 +287,7 @@ class ArrayTest(DiskTestCase):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 49), tile=10))
         att = t.Attr(ctx, dtype=A.dtype)
-        T = t.Array(ctx, self.path("foo"), dom, (att,))
+        T = t.DenseArray(ctx, self.path("foo"), dom, (att,))
 
         T[:] = A
         for value in (-1, 0, 1, 10):
@@ -310,7 +310,7 @@ class ArrayTest(DiskTestCase):
                        t.Dim(ctx, domain=(0, 999), tile=100),
                        t.Dim(ctx, domain=(0, 9), tile=2))
         att = t.Attr(ctx, dtype=A.dtype)
-        T = t.Array(ctx, self.path("foo"), dom, (att,))
+        T = t.DenseArray(ctx, self.path("foo"), dom, (att,))
 
         self.assertEqual(len(A), len(T))
         self.assertEqual(A.ndim, T.ndim)
@@ -500,7 +500,7 @@ class DenseIndexing(DiskTestCase):
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 1049), tile=100))
         att = t.Attr(ctx, dtype=int)
 
-        T = t.Array(ctx, self.path("foo"), domain=dom, attrs=(att,))
+        T = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
         T[:] = A
 
         for idx in self.good_index_1d:
@@ -568,7 +568,7 @@ class DenseIndexing(DiskTestCase):
                        t.Dim(ctx, domain=(0, 999), tile=100),
                        t.Dim(ctx, domain=(0, 9), tile=2))
         att = t.Attr(ctx, dtype=A.dtype)
-        T = t.Array(ctx, self.path("foo"), dom, (att,))
+        T = t.DenseArray(ctx, self.path("foo"), dom, (att,))
         T[:] = A
 
         for idx in self.good_index_1d:
@@ -586,7 +586,7 @@ class RWTest(DiskTestCase):
 
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 2), tile=3))
         att = t.Attr(ctx, dtype='i8')
-        arr = t.Array(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=[att])
 
         A = np.array([1, 2, 3])
         arr.write_direct(A)
@@ -602,31 +602,31 @@ class NumpyToArray(DiskTestCase):
         ctx = t.Ctx()
         A = np.array(1)
         with self.assertRaises(t.TileDBError):
-            t.Array.from_numpy(ctx, self.path("foo"), A)
+            t.DenseArray.from_numpy(ctx, self.path("foo"), A)
 
     def test_to_array1d(self):
         ctx = t.Ctx()
         A = np.array([1.0, 2.0, 3.0])
-        arr = t.Array.from_numpy(ctx, self.path("foo"), A)
+        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
         assert_array_equal(A, arr[:])
 
     def test_to_array2d(self):
         ctx = t.Ctx()
         A = np.ones((100, 100), dtype='i8')
-        arr = t.Array.from_numpy(ctx, self.path("foo"), A)
+        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
         assert_array_equal(A, arr[:])
 
     def test_to_array3d(self):
         ctx = t.Ctx()
         A = np.ones((1, 1, 1), dtype='i1')
-        arr = t.Array.from_numpy(ctx, self.path("foo"), A)
+        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
         assert_array_equal(A, arr[:])
 
     def test_array_interface(self):
         # Tests that __array__ interface works
         ctx = t.Ctx()
         A1 = np.arange(1, 10)
-        arr = t.Array.from_numpy(ctx, self.path("foo"), A1)
+        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A1)
         A2 = np.array(arr)
         assert_array_equal(A1, A2)
 
@@ -634,7 +634,7 @@ class NumpyToArray(DiskTestCase):
         # Tests that __getindex__ interface works
         ctx = t.Ctx()
         A = np.arange(1, 10)
-        arr = t.Array.from_numpy(ctx, self.path("foo"), A)
+        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
         assert_array_equal(A[5:10], arr[5:10])
 
 

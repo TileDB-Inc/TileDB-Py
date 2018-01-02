@@ -1062,30 +1062,18 @@ cdef class Array(object):
             check_error(ctx, rc)
         return Array.from_ptr(ctx, uri, metadata_ptr)
 
-    @staticmethod
-    def from_numpy(Ctx ctx, unicode path, np.ndarray array, **kw):
-        dims = []
-        for d in range(array.ndim):
-            extent = array.shape[d]
-            domain = (0, extent - 1)
-            dims.append(Dim(ctx, "", domain, extent, np.uint64))
-        dom = Domain(ctx, *dims)
-        att = Attr(ctx, "", dtype=array.dtype)
-        arr = Array(ctx, path, domain=dom, attrs=[att], **kw)
-        arr.write_direct(array)
-        return arr
 
-    def __init__(Array self, Ctx ctx, unicode name,
+    def __init__(self, Ctx ctx, unicode uri,
                  domain=None,
                  attrs=[],
                  cell_order='row-major',
                  tile_order='row-major',
                  capacity=0,
                  sparse=False):
-        uname = ustring(name).encode('UTF-8')
+        cdef bytes buri = ustring(uri).encode('UTF-8')
         cdef tiledb_array_metadata_t* metadata_ptr = NULL
         check_error(ctx,
-            tiledb_array_metadata_create(ctx.ptr, &metadata_ptr, uname))
+            tiledb_array_metadata_create(ctx.ptr, &metadata_ptr, buri))
         cdef tiledb_layout_t cell_layout = _tiledb_layout(cell_order)
         cdef tiledb_layout_t tile_layout = _tiledb_layout(tile_order)
         cdef tiledb_array_type_t array_type = TILEDB_SPARSE if sparse else TILEDB_DENSE
@@ -1116,23 +1104,9 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         self.ctx = ctx
-        self.name = name
+        self.name = uri
         self.ptr = <tiledb_array_metadata_t*> metadata_ptr
         return
-
-    """
-    def __init__(self, Ctx ctx, unicode name):
-        cdef bytes bname = ustring(name).encode('UTF-8')
-        cdef tiledb_array_metadata_t* metadata_ptr = NULL
-        check_error(ctx,
-            tiledb_array_metadata_load(ctx.ptr, &metadata_ptr, bname))
-        self.ctx = ctx
-        self.name = name
-        self.ptr = metadata_ptr
-    """
-
-    def __len__(self):
-        return self.domain.shape[0]
 
     @property
     def name(self):
@@ -1231,6 +1205,24 @@ cdef class Array(object):
     def consolidate(self):
         return array_consolidate(self.ctx, self.name)
 
+
+cdef class DenseArray(Array):
+
+    @staticmethod
+    def from_numpy(Ctx ctx, unicode path, np.ndarray array, **kw):
+        dims = []
+        for d in range(array.ndim):
+            extent = array.shape[d]
+            domain = (0, extent - 1)
+            dims.append(Dim(ctx, "", domain, extent, np.uint64))
+        dom = Domain(ctx, *dims)
+        att = Attr(ctx, "", dtype=array.dtype)
+        arr = DenseArray(ctx, path, domain=dom, attrs=[att], **kw)
+        arr.write_direct(array)
+        return arr
+
+    def __len__(self):
+        return self.domain.shape[0]
 
     cdef _read_dense_subarray(self, np.ndarray subarray):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
