@@ -362,6 +362,28 @@ class ArrayTest(DiskTestCase):
         assert_array_equal(A[10:20, 2:4], T[10:20, 2:4])
         assert_array_equal(A[-10:, -2:], T[-10:, -2:])
 
+        # slice across tile boundries
+        assert_array_equal(A[:110], T[:110])
+        assert_array_equal(A[190:310], T[190:310])
+        assert_array_equal(A[-110:], T[-110:])
+        assert_array_equal(A[:110, :], T[:110, :])
+        assert_array_equal(A[190:310, :], T[190:310, :])
+        assert_array_equal(A[-110:, :], T[-110:, :])
+        assert_array_equal(A[:, :3], T[:, :3])
+        assert_array_equal(A[:, 3:7], T[:, 3:7])
+        assert_array_equal(A[:, -3:], T[:, -3:])
+        assert_array_equal(A[:110, :3], T[:110, :3])
+        assert_array_equal(A[190:310, 3:7], T[190:310, 3:7])
+        assert_array_equal(A[-110:, -3:], T[-110:, -3:])
+
+        # single row/col/item
+        assert_array_equal(A[0], T[0])
+        assert_array_equal(A[-1], T[-1])
+        assert_array_equal(A[:, 0], T[:, 0])
+        assert_array_equal(A[:, -1], T[:, -1])
+        self.assertEqual(A[0, 0], T[0, 0])
+        self.assertEqual(A[-1, -1], T[-1, -1])
+
 
 class RWTest(DiskTestCase):
 
