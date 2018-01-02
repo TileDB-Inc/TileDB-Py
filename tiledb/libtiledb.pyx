@@ -1221,6 +1221,10 @@ cdef class DenseArray(Array):
         arr.write_direct(array)
         return arr
 
+    def __init__(self, *args, **kw):
+        kw['sparse'] = False
+        super().__init__(*args, **kw)
+
     def __len__(self):
         return self.domain.shape[0]
 
@@ -1251,7 +1255,7 @@ cdef class DenseArray(Array):
 
         cdef tuple shape = \
             tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1 for r in range(self.rank))
-        cdef np.ndarray out = np.zeros(shape=shape, dtype=self.attr(0).dtype)
+        cdef np.ndarray out = np.empty(shape=shape, dtype=self.attr(0).dtype)
         cdef void* buff_ptr = np.PyArray_DATA(out)
         cdef uint64_t buff_size = out.nbytes
         rc = tiledb_query_set_buffers(ctx_ptr, query, &c_attr, 1, &buff_ptr, &buff_size)
@@ -1349,7 +1353,7 @@ cdef class DenseArray(Array):
 
     def write_direct(self, np.ndarray array not None, unicode attr=u""):
         cdef Ctx ctx = self.ctx
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
 
         # array name
         cdef bytes barray_name = self.name.encode('UTF-8')
@@ -1395,7 +1399,7 @@ cdef class DenseArray(Array):
 
         cdef Attr attr = self.attr(attribute_name)
 
-        out = np.zeros(self.domain.shape, dtype=attr.dtype)
+        out = np.empty(self.domain.shape, dtype=attr.dtype)
 
         cdef void* buff = np.PyArray_DATA(out)
         cdef uint64_t buff_size = out.nbytes
@@ -1403,7 +1407,6 @@ cdef class DenseArray(Array):
         cdef tiledb_query_t* query_ptr = NULL
         check_error(ctx,
             tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ))
-
         check_error(ctx,
             tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
         check_error(ctx,
@@ -1416,6 +1419,13 @@ cdef class DenseArray(Array):
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return out
+
+
+cdef class SparseArray(Array):
+
+    def __init__(self, *args, **kw):
+        kw['sparse'] = True
+        super().__init__(*args, **kw)
 
 
 cdef bytes unicode_path(path):

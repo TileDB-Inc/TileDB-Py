@@ -174,7 +174,7 @@ class AttributeTest(TestCase):
 
 class ArrayTest(DiskTestCase):
 
-    def test_array_not_sparse(self):
+    def test_dense_array_not_sparse(self):
         ctx = t.Ctx()
         dom = t.Domain(
             ctx,
@@ -185,6 +185,18 @@ class ArrayTest(DiskTestCase):
         arr.dump()
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
+
+    def test_sparse_array_not_dense(self):
+        ctx = t.Ctx()
+        dom = t.Domain(
+            ctx,
+            t.Dim(ctx, domain=(1, 8), tile=2),
+            t.Dim(ctx, domain=(1, 8), tile=2))
+        att = t.Attr(ctx, "val", dtype='f8')
+        arr = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr.dump()
+        self.assertTrue(arr.name == self.path("foo"))
+        self.assertTrue(arr.sparse)
 
     def test_dense_array_fp_domain_error(self):
         ctx = t.Ctx()
