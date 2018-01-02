@@ -1109,8 +1109,7 @@ cdef class Array(object):
         self.ptr = metadata_ptr
 
     def __len__(self):
-        # TODO: this only works for integer domains
-        return np.prod(self.domain.shape)
+        return self.domain.shape[0]
 
     @property
     def name(self):

@@ -302,7 +302,6 @@ class ArrayTest(DiskTestCase):
         #TODO: handle queries like T[[2, 5, 10]] = ?
         pass
 
-
     def test_array_2d(self):
         A = np.arange(10000).reshape((1000, 10))
 
@@ -313,8 +312,17 @@ class ArrayTest(DiskTestCase):
         att = t.Attr(ctx, dtype=A.dtype)
         T = t.Array.create(ctx, self.path("foo"), dom, (att,))
 
+        self.assertEqual(len(A), len(T))
+        self.assertEqual(A.ndim, T.ndim)
+        self.assertEqual(A.shape, T.shape)
+
+        self.assertEqual(1, T.nattr)
+        self.assertEqual(A.dtype, T.attr(0).dtype)
+
+        # Set data
         T[:] = A
         assert_array_equal(A, T[:])
+
 
 
 class RWTest(DiskTestCase):
