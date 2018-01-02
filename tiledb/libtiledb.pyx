@@ -988,6 +988,9 @@ def index_domain_subarray(Domain dom, tuple idx):
             if start < 0:
                 start += int(dim_ub) + 1
             if start < dim_lb:
+                # numpy allows start value < the array dimension shape,
+                # clamp to lower bound of dimension domain
+                #start = dim_lb
                 raise IndexError("index out of bounds <todo>")
         else:
             start = dim_lb

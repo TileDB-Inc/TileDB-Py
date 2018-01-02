@@ -410,6 +410,112 @@ class ArrayTest(DiskTestCase):
         assert_array_equal(A[:, 7:], T[:, 7:])
 
 
+class DenseIndexing(DiskTestCase):
+
+    def _test_index(self, A, T, idx):
+        print(idx)
+        expected = A[idx]
+        actual = T[idx]
+        assert_array_equal(expected, actual)
+
+    good_index_1d = [
+        # single value
+        42,
+        -1,
+        # slices
+        slice(0, 1050),
+        slice(50, 150),
+        slice(0, 2000),
+        slice(-150, -50),
+
+        # TODO: indexing failures
+        #slice(-2000, 2000),
+        #slice(0, 0),  # empty result
+        #slice(-1, 0),  # empty result
+
+        # total selections
+        slice(None),
+        Ellipsis,
+        (),
+        (Ellipsis, slice(None)),
+        # slice with step
+        slice(None),
+        slice(None, None),
+        slice(None, None, 1),
+        slice(None, None, 10),
+        slice(None, None, 100),
+        slice(None, None, 1000),
+        slice(None, None, 10000),
+        slice(0, 1050),
+        slice(0, 1050, 1),
+        slice(0, 1050, 10),
+        slice(0, 1050, 100),
+        slice(0, 1050, 1000),
+        slice(0, 1050, 10000),
+        slice(1, 31, 3),
+        slice(1, 31, 30),
+        slice(1, 31, 300),
+        slice(81, 121, 3),
+        slice(81, 121, 30),
+        slice(81, 121, 300),
+        slice(50, 150),
+        slice(50, 150, 1),
+        slice(50, 150, 10),
+    ]
+
+    def test_index_1d(self):
+        A = np.arange(1050, dtype=int)
+
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 1049), tile=100))
+        att = t.Attr(ctx, dtype=int)
+
+        T = t.Array.create(ctx, self.path("foo"), domain=dom, attrs=(att,))
+        T[:] = A
+
+        for idx in self.good_index_1d:
+            self._test_index(A, T, idx)
+
+    good_index_2d = [
+        # single row
+        42,
+        -1,
+        (42, slice(None)),
+        (-1, slice(None)),
+        # single col
+        (slice(None), 4),
+        (slice(None), -1),
+        # row slices
+        slice(None),
+        slice(0, 1000),
+        slice(250, 350),
+        slice(0, 2000),
+        slice(-350, -250),
+        slice(0, 0),  # empty result
+        slice(-1, 0),  # empty result
+        slice(-2000, 0),
+        slice(-2000, 2000),
+        # 2D slices
+        (slice(None), slice(1, 5)),
+        (slice(250, 350), slice(None)),
+        (slice(250, 350), slice(1, 5)),
+        (slice(250, 350), slice(-5, -1)),
+        (slice(250, 350), slice(-50, 50)),
+        (slice(250, 350, 10), slice(1, 5)),
+        (slice(250, 350), slice(1, 5, 2)),
+        (slice(250, 350, 33), slice(1, 5, 3)),
+        # total selections
+        (slice(None), slice(None)),
+        Ellipsis,
+        (),
+        (Ellipsis, slice(None)),
+        (Ellipsis, slice(None), slice(None)),
+    ]
+
+    def test_index_2d(self):
+       pass
+
+
 class RWTest(DiskTestCase):
 
     def test_read_write(self):
