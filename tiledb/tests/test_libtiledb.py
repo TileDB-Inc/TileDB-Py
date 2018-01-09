@@ -461,6 +461,18 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[1, 2], [1, 2]], values)
 
+    def test_simple3d_sparse_vector(self):
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, "x", domain=(0, 3), tile=4, dtype=int),
+                            t.Dim(ctx, "y", domain=(0, 3), tile=4, dtype=int),
+                            t.Dim(ctx, "z", domain=(0, 3), tile=4, dtype=int))
+        attr = t.Attr(ctx, dtype=float)
+        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(attr,))
+
+        values = np.array([3, 4], dtype=float)
+        T[[1, 2], [1, 2], [1, 2]] = values
+
+        assert_array_equal(T[[1, 2], [1, 2], [1, 2]], values)
 
 
 class DenseIndexing(DiskTestCase):
