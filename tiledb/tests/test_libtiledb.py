@@ -171,7 +171,6 @@ class AttributeTest(TestCase):
         self.assertEqual(compressor, "zstd")
         self.assertEqual(level, 10)
 
-
     def test_unique_attributes(self):
         ctx = t.Ctx()
         dom = t.Domain(
@@ -184,6 +183,7 @@ class AttributeTest(TestCase):
 
         with self.assertRaises(t.TileDBError):
             t.Array(ctx, "foobar", domain=dom, attrs=(attr1, attr2))
+
 
 class DenseArrayTest(DiskTestCase):
 
@@ -438,7 +438,7 @@ class SparseArray(DiskTestCase):
         self.assertTrue(T.name == self.path("foo"))
         self.assertTrue(T.sparse)
 
-    def test_simple_sparse_vector(self):
+    def test_simple_1d_sparse_vector(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 3), tile=4, dtype=int))
         att = t.Attr(ctx, dtype=int)
@@ -449,10 +449,19 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[1, 2]], values)
 
-        #self.assertEqual(T[0], 0)
-        #self.assertEqual(T[1], 3)
-        #self.assertEqual(T[2], 4)
-        #self.assertEqual(T[3], 0)
+    def test_simple_2d_sparse_vector(self):
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 3), tile=4, dtype=int),
+                            t.Dim(ctx, domain=(0, 3), tile=4, dtype=int))
+        attr = t.Attr(ctx, dtype=float)
+        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(attr,))
+
+        values = np.array([3, 4], dtype=float)
+        T[[1, 2], [1, 2]] = values
+
+        assert_array_equal(T[[1, 2], [1, 2]], values)
+
+
 
 class DenseIndexing(DiskTestCase):
 

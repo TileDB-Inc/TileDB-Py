@@ -1420,6 +1420,24 @@ cdef class DenseArray(Array):
         return out
 
 
+def index_domain_coords(Domain dom, tuple idx):
+    rank = len(idx)
+    if rank != dom.rank:
+        raise IndexError("sparse index rank must match "
+                         "domain rank: {0!r} != {1!r}".format(rank, dom.rank))
+    idx = tuple(np.asarray(idx[i], dtype=dom.dim(i).dtype)
+                for i in range(rank))
+    # check that all sparse coordinates are the same size and dtype
+    len0, dtype0 = len(idx[0]), idx[0].dtype
+    for i in range(2, rank):
+        if len(idx[i]) != len0:
+            raise IndexError()
+        if idx[i].dtype != dtype0:
+            raise IndexError()
+    # zip coordinates
+    return np.column_stack(idx)
+
+
 cdef class SparseArray(Array):
 
     def __init__(self, *args, **kw):
@@ -1431,9 +1449,7 @@ cdef class SparseArray(Array):
 
     def __setitem__(self, object key, object val):
         idx = index_as_tuple(key)
-        if len(idx) != self.rank:
-            raise NotImplementedError()
-        sparse_coords = np.array(idx[0], dtype=self.domain.dtype)
+        sparse_coords = index_domain_coords(self.domain, idx)
         sparse_values = np.asarray(val, dtype=self.attr(0).dtype)
         self._write_sparse(sparse_coords, sparse_values)
         return
@@ -1482,10 +1498,8 @@ cdef class SparseArray(Array):
 
     def __getitem__(self, object key):
         idx = index_as_tuple(key)
-        if len(idx) != self.rank:
-            raise IndexError()
-        sparse_coords = np.array(idx[0], dtype=self.domain.dtype)
-        sparse_values = np.zeros(shape=sparse_coords.shape, dtype=self.attr(0).dtype)
+        sparse_coords = index_domain_coords(self.domain, idx)
+        sparse_values = np.zeros(shape=sparse_coords.shape[0], dtype=self.attr(0).dtype)
         self._read_sparse(sparse_coords, sparse_values)
         return sparse_values
 
