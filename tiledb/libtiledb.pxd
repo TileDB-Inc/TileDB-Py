@@ -7,8 +7,11 @@ cdef extern from "tiledb.h":
     enum: TILEDB_ERR
     enum: TILEDB_OOM
 
-    enum: TILEDB_COORDS
     enum: TILEDB_VAR_NUM
+    unsigned int tiledb_var_num()
+
+    # TILEDB_COORDS
+    const char* tiledb_coords()
 
     # Version
     void tiledb_version(int* major, int* minor, int* rev)
@@ -82,7 +85,7 @@ cdef extern from "tiledb.h":
         pass
     ctypedef struct tiledb_attribute_iter_t:
         pass
-    ctypedef struct tiledb_array_metadata_t:
+    ctypedef struct tiledb_array_schema_t:
         pass
     ctypedef struct tiledb_dimension_t:
         pass
@@ -166,13 +169,13 @@ cdef extern from "tiledb.h":
 
     int tiledb_attribute_from_index(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         unsigned int index,
         tiledb_attribute_t** attr)
 
     int tiledb_attribute_from_name(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         const char* name,
         tiledb_attribute_t** attr)
 
@@ -184,8 +187,7 @@ cdef extern from "tiledb.h":
     # Domain
     int tiledb_domain_create(
         tiledb_ctx_t* ctx,
-        tiledb_domain_t** domain,
-        tiledb_datatype_t dtype)
+        tiledb_domain_t** domain)
 
     int tiledb_domain_free(
         tiledb_ctx_t* ctx,
@@ -284,113 +286,112 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_dimension_iter_t* dim_it)
 
-    # Array Metadata
-    int tiledb_array_metadata_create(
+    # Array schema
+    int tiledb_array_schema_create(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t** array_metadata,
-        const char* array_name)
+        tiledb_array_schema_t** array_schema)
 
-    int tiledb_array_metadata_free(
+    int tiledb_array_schema_free(
         tiledb_ctx_t* ctx,
-            tiledb_array_metadata_t* array_metadata)
+            tiledb_array_schema_t* array_schema)
 
-    int tiledb_array_metadata_add_attribute(
+    int tiledb_array_schema_add_attribute(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t* array_metadata,
+        tiledb_array_schema_t* array_schema,
         tiledb_attribute_t* attr)
 
-    int tiledb_array_metadata_set_domain(
+    int tiledb_array_schema_set_domain(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t* array_metadata,
+        tiledb_array_schema_t* array_schema,
         tiledb_domain_t* domain);
 
-    int tiledb_array_metadata_set_as_kv(
-        tiledb_ctx_t* ctx, tiledb_array_metadata_t* array_metadata);
+    int tiledb_array_schema_set_as_kv(
+        tiledb_ctx_t* ctx, tiledb_array_schema_t* array_schema);
 
-    int tiledb_array_metadata_set_capacity(
+    int tiledb_array_schema_set_capacity(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t* array_metadata,
+        tiledb_array_schema_t* array_schema,
         uint64_t capacity);
 
-    int tiledb_array_metadata_set_cell_order(
+    int tiledb_array_schema_set_cell_order(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t* array_metadata,
+        tiledb_array_schema_t* array_schema,
         tiledb_layout_t cell_order);
 
-    int tiledb_array_metadata_set_tile_order(
+    int tiledb_array_schema_set_tile_order(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t* array_metadata,
+        tiledb_array_schema_t* array_schema,
         tiledb_layout_t tile_order)
 
-    int tiledb_array_metadata_set_array_type(
+    int tiledb_array_schema_set_array_type(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t* array_metadata,
+        tiledb_array_schema_t* array_schema,
         tiledb_array_type_t array_type);
 
-    int tiledb_array_metadata_check(
+    int tiledb_array_schema_check(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t* array_metadata)
+        tiledb_array_schema_t* array_schema)
 
-    int tiledb_array_metadata_load(
+    int tiledb_array_schema_load(
         tiledb_ctx_t* ctx,
-        tiledb_array_metadata_t** array_metadata,
+        tiledb_array_schema_t** array_schema,
         const char* array_name) nogil
 
-    int tiledb_array_metadata_get_array_name(
+    int tiledb_array_schema_get_array_name(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         const char** array_name)
 
-    int tiledb_array_metadata_get_array_type(
+    int tiledb_array_schema_get_array_type(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         tiledb_array_type_t* array_type)
 
-    int tiledb_array_metadata_get_capacity(
+    int tiledb_array_schema_get_capacity(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         uint64_t* capacity)
 
-    int tiledb_array_metadata_get_cell_order(
+    int tiledb_array_schema_get_cell_order(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         tiledb_layout_t* cell_order);
 
-    int tiledb_array_metadata_get_coords_compressor(
+    int tiledb_array_schema_get_coords_compressor(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         tiledb_compressor_t* coords_compressor,
         int* coords_compression_level)
 
-    int tiledb_array_metadata_get_domain(
+    int tiledb_array_schema_get_domain(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         tiledb_domain_t** domain)
 
-    int tiledb_array_metadata_get_as_kv(
+    int tiledb_array_schema_get_as_kv(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         int* is_kv)
 
-    int tiledb_array_metadata_get_tile_order(
+    int tiledb_array_schema_get_tile_order(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         tiledb_layout_t* tile_order)
 
-    int tiledb_array_metadata_get_num_attributes(
+    int tiledb_array_schema_get_num_attributes(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         unsigned int* num_attributes)
 
-    int tiledb_array_metadata_dump(
+    int tiledb_array_schema_dump(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata,
+        const tiledb_array_schema_t* array_schema,
         FILE* out)
 
     # Attribute iterator
     int tiledb_attribute_iter_create(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* metadata,
+        const tiledb_array_schema_t* schema,
         tiledb_attribute_iter_t** attr_it)
 
     int tiledb_attribute_iter_free(
@@ -425,8 +426,7 @@ cdef extern from "tiledb.h":
     int tiledb_query_set_subarray(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
-        const void* subarray,
-        tiledb_datatype_t dtype)
+        const void* subarray)
 
     int tiledb_query_set_buffers(
         tiledb_ctx_t* ctx,
@@ -477,7 +477,8 @@ cdef extern from "tiledb.h":
     # Array
     int tiledb_array_create(
         tiledb_ctx_t* ctx,
-        const tiledb_array_metadata_t* array_metadata)
+        const char* uri,
+        const tiledb_array_schema_t* array_schema)
 
     int tiledb_array_consolidate(
         tiledb_ctx_t* ctx,

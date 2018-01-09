@@ -172,7 +172,20 @@ class AttributeTest(TestCase):
         self.assertEqual(level, 10)
 
 
-class ArrayTest(DiskTestCase):
+    def test_unique_attributes(self):
+        ctx = t.Ctx()
+        dom = t.Domain(
+            ctx,
+            t.Dim(ctx, "d1", (1, 4), 2, dtype='u8'),
+            t.Dim(ctx, "d2", (1, 4), 2, dtype='u8'))
+
+        attr1 = t.Attr(ctx, "foo", dtype=float)
+        attr2 = t.Attr(ctx, "foo", dtype=int)
+
+        with self.assertRaises(t.TileDBError):
+            t.Array(ctx, "foobar", domain=dom, attrs=(attr1, attr2))
+
+class DenseArrayTest(DiskTestCase):
 
     def test_dense_array_not_sparse(self):
         ctx = t.Ctx()
@@ -181,22 +194,11 @@ class ArrayTest(DiskTestCase):
             t.Dim(ctx, domain=(1, 8), tile=2),
             t.Dim(ctx, domain=(1, 8), tile=2))
         att = t.Attr(ctx, "val", dtype='f8')
-        arr = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=[att])
+        arr = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
         arr.dump()
         self.assertTrue(arr.name == self.path("foo"))
         self.assertFalse(arr.sparse)
 
-    def test_sparse_array_not_dense(self):
-        ctx = t.Ctx()
-        dom = t.Domain(
-            ctx,
-            t.Dim(ctx, domain=(1, 8), tile=2),
-            t.Dim(ctx, domain=(1, 8), tile=2))
-        att = t.Attr(ctx, "val", dtype='f8')
-        arr = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=[att])
-        arr.dump()
-        self.assertTrue(arr.name == self.path("foo"))
-        self.assertTrue(arr.sparse)
 
     def test_dense_array_fp_domain_error(self):
         ctx = t.Ctx()
@@ -421,6 +423,36 @@ class ArrayTest(DiskTestCase):
         assert_array_equal(A[310:], T[310:])
         assert_array_equal(A[:, 7:], T[:, 7:])
 
+
+class SparseArray(DiskTestCase):
+
+    def test_sparse_array_not_dense(self):
+        ctx = t.Ctx()
+        dom = t.Domain(
+            ctx,
+            t.Dim(ctx, domain=(1, 8), tile=2),
+            t.Dim(ctx, domain=(1, 8), tile=2))
+        att = t.Attr(ctx, "val", dtype='f8')
+        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
+        T.dump()
+        self.assertTrue(T.name == self.path("foo"))
+        self.assertTrue(T.sparse)
+
+    def test_simple_sparse_vector(self):
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 3), tile=4, dtype=int))
+        att = t.Attr(ctx, dtype=int)
+        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
+
+        values = np.array([3, 4])
+        T[[1, 2]] = values
+
+        assert_array_equal(T[[1, 2]], values)
+
+        #self.assertEqual(T[0], 0)
+        #self.assertEqual(T[1], 3)
+        #self.assertEqual(T[2], 4)
+        #self.assertEqual(T[3], 0)
 
 class DenseIndexing(DiskTestCase):
 

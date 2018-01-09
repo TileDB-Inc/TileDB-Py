@@ -4,7 +4,7 @@ from cpython.bytes cimport (PyBytes_GET_SIZE,
                             PyBytes_FromStringAndSize)
 
 from libc.stdio cimport stdout
-from libc.stdlib cimport malloc, calloc
+from libc.stdlib cimport malloc, calloc, free
 from libc.stdint cimport (uint64_t, int64_t, uintptr_t)
 
 """
@@ -487,7 +487,7 @@ cdef class Domain(object):
             if dimension._get_type() != domain_type:
                 raise AttributeError("all dimensions must have the same dtype")
         cdef tiledb_domain_t* domain_ptr = NULL
-        cdef int rc = tiledb_domain_create(ctx.ptr, &domain_ptr, domain_type)
+        cdef int rc = tiledb_domain_create(ctx.ptr, &domain_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         assert(domain_ptr != NULL)
@@ -593,21 +593,21 @@ cdef class Assoc(object):
 
     cdef Ctx ctx
     cdef unicode name
-    cdef tiledb_array_metadata_t* ptr
+    cdef tiledb_array_schema_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_array_metadata_free(self.ctx.ptr, self.ptr)
+            tiledb_array_schema_free(self.ctx.ptr, self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_metadata_t* ptr):
+    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_schema_t* ptr):
         cdef Assoc arr = Assoc.__new__(Assoc)
         arr.ctx = ctx
         arr.name = name
-        arr.ptr = <tiledb_array_metadata_t*> ptr
+        arr.ptr = <tiledb_array_schema_t*> ptr
         return arr
 
     @staticmethod
@@ -618,73 +618,73 @@ cdef class Assoc(object):
         cdef const char* buri_ptr = PyBytes_AS_STRING(buri)
 
         cdef int rc = TILEDB_OK
-        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        cdef tiledb_array_schema_t* schema_ptr = NULL
 
         with nogil:
-            rc = tiledb_array_metadata_load(ctx_ptr, &metadata_ptr, buri_ptr)
+            rc = tiledb_array_schema_load(ctx_ptr, &schema_ptr, buri_ptr)
 
         if rc != TILEDB_OK:
             check_error(ctx, rc)
 
         cdef int is_kv = 0;
-        rc = tiledb_array_metadata_get_as_kv(ctx_ptr, metadata_ptr, &is_kv)
+        rc = tiledb_array_schema_get_as_kv(ctx_ptr, schema_ptr, &is_kv)
         if rc != TILEDB_OK:
-            tiledb_array_metadata_free(ctx_ptr, metadata_ptr)
+            tiledb_array_schema_free(ctx_ptr, schema_ptr)
             check_error(ctx, rc)
 
         if not is_kv:
-            tiledb_array_metadata_free(ctx_ptr, metadata_ptr)
+            tiledb_array_schema_free(ctx_ptr, schema_ptr)
             raise TileDBError("TileDB Array {0!r} is not an Assoc array".format(uri))
 
-        return Assoc.from_ptr(ctx, uri, metadata_ptr)
+        return Assoc.from_ptr(ctx, uri, schema_ptr)
 
-    def __init__(self, Ctx ctx, unicode name, *attrs, int capacity=0):
-        cdef bytes uname = ustring(name).encode('UTF-8')
+    def __init__(self, Ctx ctx, unicode uri, *attrs, int capacity=0):
+        cdef bytes buri = ustring(uri).encode('UTF-8')
 
         cdef int rc = TILEDB_OK
-        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        cdef tiledb_array_schema_t* schema_ptr = NULL
         check_error(ctx,
-            tiledb_array_metadata_create(ctx.ptr, &metadata_ptr, uname))
+            tiledb_array_schema_create(ctx.ptr, &schema_ptr))
 
-        rc = tiledb_array_metadata_set_as_kv(ctx.ptr, metadata_ptr)
+        rc = tiledb_array_schema_set_as_kv(ctx.ptr, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            tiledb_array_schema_free(ctx.ptr, schema_ptr)
             check_error(ctx, rc)
 
         cdef uint64_t c_capacity = capacity
         if capacity > 0:
-            rc = tiledb_array_metadata_set_capacity(ctx.ptr, metadata_ptr, c_capacity)
+            rc = tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, c_capacity)
             if rc != TILEDB_OK:
-                tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+                tiledb_array_schema_free(ctx.ptr, schema_ptr)
                 check_error(ctx, rc)
 
         cdef tiledb_attribute_t* attr_ptr = NULL
         for attr in attrs:
             attr_ptr = (<Attr> attr).ptr
-            rc = tiledb_array_metadata_add_attribute(ctx.ptr, metadata_ptr, attr_ptr)
+            rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
             if rc != TILEDB_OK:
-                tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+                tiledb_array_schema_free(ctx.ptr, schema_ptr)
                 check_error(ctx, rc)
 
-        rc = tiledb_array_metadata_check(ctx.ptr, metadata_ptr)
+        rc = tiledb_array_schema_check(ctx.ptr, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            tiledb_array_schema_free(ctx.ptr, schema_ptr)
             check_error(ctx, rc)
 
-        rc = tiledb_array_create(ctx.ptr, metadata_ptr)
+        rc = tiledb_array_create(ctx.ptr, buri, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            tiledb_array_schema_free(ctx.ptr, schema_ptr)
             check_error(ctx, rc)
 
         self.ctx = ctx
-        self.name = name
-        self.ptr = metadata_ptr
+        self.name = uri
+        self.ptr = schema_ptr
 
     @property
     def nattr(self):
         cdef unsigned int nattr = 0
         check_error(self.ctx,
-            tiledb_array_metadata_get_num_attributes(self.ctx.ptr, self.ptr, &nattr))
+            tiledb_array_schema_get_num_attributes(self.ctx.ptr, self.ptr, &nattr))
         return int(nattr)
 
     def attr(self, int idx):
@@ -695,7 +695,7 @@ cdef class Assoc(object):
 
     def dump(self):
         check_error(self.ctx,
-            tiledb_array_metadata_dump(self.ctx.ptr, self.ptr, stdout))
+            tiledb_array_schema_dump(self.ctx.ptr, self.ptr, stdout))
         print("\n")
         return
 
@@ -1030,21 +1030,21 @@ cdef class Array(object):
 
     cdef Ctx ctx
     cdef unicode name
-    cdef tiledb_array_metadata_t* ptr
+    cdef tiledb_array_schema_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_array_metadata_free(self.ctx.ptr, self.ptr)
+            tiledb_array_schema_free(self.ctx.ptr, self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_metadata_t* ptr):
+    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_schema_t* ptr):
         cdef Array arr = Array.__new__(Array)
         arr.ctx = ctx
         arr.name = name
-        arr.ptr = <tiledb_array_metadata_t*> ptr
+        arr.ptr = <tiledb_array_schema_t*> ptr
         return arr
 
     @staticmethod
@@ -1054,13 +1054,13 @@ cdef class Array(object):
         cdef bytes buri = ustring(uri).encode('UTF-8')
         cdef const char* buri_ptr = PyBytes_AS_STRING(buri)
 
-        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        cdef tiledb_array_schema_t* schema_ptr = NULL
         cdef int rc = TILEDB_OK
         with nogil:
-            rc = tiledb_array_metadata_load(ctx_ptr, &metadata_ptr, buri_ptr)
+            rc = tiledb_array_schema_load(ctx_ptr, &schema_ptr, buri_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
-        return Array.from_ptr(ctx, uri, metadata_ptr)
+        return Array.from_ptr(ctx, uri, schema_ptr)
 
 
     def __init__(self, Ctx ctx, unicode uri,
@@ -1071,41 +1071,41 @@ cdef class Array(object):
                  capacity=0,
                  sparse=False):
         cdef bytes buri = ustring(uri).encode('UTF-8')
-        cdef tiledb_array_metadata_t* metadata_ptr = NULL
+        cdef tiledb_array_schema_t* schema_ptr = NULL
         check_error(ctx,
-            tiledb_array_metadata_create(ctx.ptr, &metadata_ptr, buri))
+            tiledb_array_schema_create(ctx.ptr, &schema_ptr))
         cdef tiledb_layout_t cell_layout = _tiledb_layout(cell_order)
         cdef tiledb_layout_t tile_layout = _tiledb_layout(tile_order)
         cdef tiledb_array_type_t array_type = TILEDB_SPARSE if sparse else TILEDB_DENSE
-        tiledb_array_metadata_set_array_type(
-            ctx.ptr, metadata_ptr, array_type)
-        tiledb_array_metadata_set_cell_order(
-            ctx.ptr, metadata_ptr, cell_layout)
-        tiledb_array_metadata_set_tile_order(
-            ctx.ptr, metadata_ptr, tile_layout)
+        tiledb_array_schema_set_array_type(
+            ctx.ptr, schema_ptr, array_type)
+        tiledb_array_schema_set_cell_order(
+            ctx.ptr, schema_ptr, cell_layout)
+        tiledb_array_schema_set_tile_order(
+            ctx.ptr, schema_ptr, tile_layout)
         cdef uint64_t c_capacity = 0
         if sparse and capacity > 0:
             c_capacity = <uint64_t>capacity
-            tiledb_array_metadata_set_capacity(ctx.ptr, metadata_ptr, c_capacity)
+            tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, c_capacity)
         cdef tiledb_domain_t* domain_ptr = (<Domain>domain).ptr
-        tiledb_array_metadata_set_domain(
-            ctx.ptr, metadata_ptr, domain_ptr)
+        tiledb_array_schema_set_domain(
+            ctx.ptr, schema_ptr, domain_ptr)
         cdef tiledb_attribute_t* attr_ptr = NULL
         for attr in attrs:
             attr_ptr = (<Attr> attr).ptr
-            tiledb_array_metadata_add_attribute(
-                ctx.ptr, metadata_ptr, attr_ptr)
+            tiledb_array_schema_add_attribute(
+                ctx.ptr, schema_ptr, attr_ptr)
         cdef int rc = TILEDB_OK
-        rc = tiledb_array_metadata_check(ctx.ptr, metadata_ptr)
+        rc = tiledb_array_schema_check(ctx.ptr, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_array_metadata_free(ctx.ptr, metadata_ptr)
+            tiledb_array_schema_free(ctx.ptr, schema_ptr)
             check_error(ctx, rc)
-        rc = tiledb_array_create(ctx.ptr, metadata_ptr)
+        rc = tiledb_array_create(ctx.ptr, buri, schema_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         self.ctx = ctx
         self.name = uri
-        self.ptr = <tiledb_array_metadata_t*> metadata_ptr
+        self.ptr = <tiledb_array_schema_t*> schema_ptr
         return
 
     @property
@@ -1116,28 +1116,28 @@ cdef class Array(object):
     def sparse(self):
         cdef tiledb_array_type_t typ = TILEDB_DENSE
         check_error(self.ctx,
-            tiledb_array_metadata_get_array_type(self.ctx.ptr, self.ptr, &typ))
+            tiledb_array_schema_get_array_type(self.ctx.ptr, self.ptr, &typ))
         return typ == TILEDB_SPARSE
 
     @property
     def capacity(self):
         cdef uint64_t cap = 0
         check_error(self.ctx,
-            tiledb_array_metadata_get_capacity(self.ctx.ptr, self.ptr, &cap))
+            tiledb_array_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
         return int(cap)
 
     @property
     def cell_order(self):
         cdef tiledb_layout_t order = TILEDB_UNORDERED
         check_error(self.ctx,
-            tiledb_array_metadata_get_cell_order(self.ctx.ptr, self.ptr, &order))
+            tiledb_array_schema_get_cell_order(self.ctx.ptr, self.ptr, &order))
         return _tiledb_layout_string(order)
 
     @property
     def tile_order(self):
         cdef tiledb_layout_t order = TILEDB_UNORDERED
         check_error(self.ctx,
-            tiledb_array_metadata_get_tile_order(self.ctx.ptr, self.ptr, &order))
+            tiledb_array_schema_get_tile_order(self.ctx.ptr, self.ptr, &order))
         return _tiledb_layout_string(order)
 
     @property
@@ -1145,7 +1145,7 @@ cdef class Array(object):
         cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
         cdef int level = -1
         check_error(self.ctx,
-            tiledb_array_metadata_get_coords_compressor(
+            tiledb_array_schema_get_coords_compressor(
                 self.ctx.ptr, self.ptr, &comp, &level))
         return (_tiledb_compressor_string(comp), int(level))
 
@@ -1157,14 +1157,14 @@ cdef class Array(object):
     def domain(self):
         cdef tiledb_domain_t* dom = NULL
         check_error(self.ctx,
-            tiledb_array_metadata_get_domain(self.ctx.ptr, self.ptr, &dom))
+            tiledb_array_schema_get_domain(self.ctx.ptr, self.ptr, &dom))
         return Domain.from_ptr(self.ctx, dom)
 
     @property
     def nattr(self):
         cdef unsigned int nattr = 0
         check_error(self.ctx,
-            tiledb_array_metadata_get_num_attributes(self.ctx.ptr, self.ptr, &nattr))
+            tiledb_array_schema_get_num_attributes(self.ctx.ptr, self.ptr, &nattr))
         return int(nattr)
 
     cdef Attr _attr_name(self, unicode name):
@@ -1198,7 +1198,7 @@ cdef class Array(object):
 
     def dump(self):
         check_error(self.ctx,
-            tiledb_array_metadata_dump(self.ctx.ptr, self.ptr, stdout))
+            tiledb_array_schema_dump(self.ctx.ptr, self.ptr, stdout))
         print("\n")
         return
 
@@ -1247,14 +1247,14 @@ cdef class DenseArray(Array):
             check_error(self.ctx, rc)
 
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
-        cdef tiledb_datatype_t subarray_datatype = _tiledb_dtype(subarray.dtype)
-        rc = tiledb_query_set_subarray(ctx_ptr, query, subarray_ptr, subarray_datatype)
+        rc = tiledb_query_set_subarray(ctx_ptr, query, subarray_ptr)
         if rc != TILEDB_OK:
             tiledb_query_free(ctx_ptr, query)
             check_error(self.ctx, rc)
 
         cdef tuple shape = \
             tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1 for r in range(self.rank))
+
         cdef np.ndarray out = np.empty(shape=shape, dtype=self.attr(0).dtype)
         cdef void* buff_ptr = np.PyArray_DATA(out)
         cdef uint64_t buff_size = out.nbytes
@@ -1303,8 +1303,7 @@ cdef class DenseArray(Array):
         cdef bytes battr_name = attr.name.encode('UTF-8')
         cdef const char* c_attr_name = battr_name
 
-        cdef void* subarray_buff = np.PyArray_DATA(subarray)
-        cdef tiledb_datatype_t subarray_dtype = _tiledb_dtype(subarray.dtype)
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
 
         cdef np.ndarray contig_array = np.ascontiguousarray(array)
         cdef void* array_buff = np.PyArray_DATA(contig_array)
@@ -1320,7 +1319,7 @@ cdef class DenseArray(Array):
         check_error(ctx,
             tiledb_query_set_layout(ctx_ptr, query_ptr, layout))
         check_error(ctx,
-            tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_buff, subarray_dtype))
+            tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr))
         check_error(ctx,
             tiledb_query_set_buffers(ctx_ptr, query_ptr, &c_attr_name, 1,
                                      &array_buff, &array_buff_size))
@@ -1426,6 +1425,111 @@ cdef class SparseArray(Array):
     def __init__(self, *args, **kw):
         kw['sparse'] = True
         super().__init__(*args, **kw)
+
+    def __len__(self):
+        raise TypeError("SparseArray length is ambiguous; use shape[0]")
+
+    def __setitem__(self, object key, object val):
+        idx = index_as_tuple(key)
+        if len(idx) != self.rank:
+            raise NotImplementedError()
+        sparse_coords = np.array(idx[0], dtype=self.domain.dtype)
+        sparse_values = np.asarray(val, dtype=self.attr(0).dtype)
+        self._write_sparse(sparse_coords, sparse_values)
+        return
+
+    cdef void _write_sparse(self, np.ndarray coords, np.ndarray data):
+        cdef Ctx ctx = self.ctx
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
+        # array name
+        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef const char* c_array_name = barray_name
+
+        # attr name
+        # TODO: hardcoded attribute
+        cdef Attr attr = self.attr("")
+        cdef bytes battr_name = attr.name.encode('UTF-8')
+        cdef const char* c_attr_name = battr_name
+
+        cdef const char** c_attr_names = <const char**> calloc(2, sizeof(uintptr_t))
+        c_attr_names[0] = c_attr_name
+        c_attr_names[1] = tiledb_coords()
+
+        cdef void** buffers = <void**> calloc(2, sizeof(uintptr_t))
+        buffers[0] = np.PyArray_DATA(data)
+        buffers[1] = np.PyArray_DATA(coords)
+
+        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(2, sizeof(uint64_t))
+        buffer_sizes[0] = <uint64_t> data.nbytes
+        buffer_sizes[1] = <uint64_t> coords.nbytes
+
+        cdef tiledb_query_t* query_ptr = NULL
+        check_error(ctx,
+            tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_WRITE))
+        check_error(ctx,
+            tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_UNORDERED))
+        check_error(ctx,
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, 2, buffers, buffer_sizes))
+
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, query_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        return
+
+    def __getitem__(self, object key):
+        idx = index_as_tuple(key)
+        if len(idx) != self.rank:
+            raise IndexError()
+        sparse_coords = np.array(idx[0], dtype=self.domain.dtype)
+        sparse_values = np.zeros(shape=sparse_coords.shape, dtype=self.attr(0).dtype)
+        self._read_sparse(sparse_coords, sparse_values)
+        return sparse_values
+
+    cdef void _read_sparse(self, np.ndarray coords, np.ndarray values):
+        cdef Ctx ctx = self.ctx
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
+        # array name
+        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef const char* c_array_name = barray_name
+
+        # attr name
+        # TODO: hardcoded attribute
+        cdef Attr attr = self.attr("")
+        cdef bytes battr_name = attr.name.encode('UTF-8')
+        cdef const char* c_attr_name = battr_name
+
+        cdef const char** c_attr_names = <const char**> calloc(2, sizeof(uintptr_t))
+        c_attr_names[0] = c_attr_name
+        c_attr_names[1] = tiledb_coords()
+
+        cdef void** buffers = <void**> calloc(2, sizeof(uintptr_t))
+        buffers[0] = np.PyArray_DATA(values)
+        buffers[1] = np.PyArray_DATA(coords)
+
+        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(2, sizeof(uint64_t))
+        buffer_sizes[0] = <uint64_t> values.nbytes
+        buffer_sizes[1] = <uint64_t> coords.nbytes
+
+        cdef tiledb_query_t* query_ptr = NULL
+        check_error(ctx,
+            tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_READ))
+        check_error(ctx,
+            tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_GLOBAL_ORDER))
+        check_error(ctx,
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, 2, buffers, buffer_sizes))
+
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, query_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        return
 
 
 cdef bytes unicode_path(path):
