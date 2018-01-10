@@ -449,6 +449,7 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[1, 2]], values)
 
+
     def test_simple_2d_sparse_vector(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 3), tile=4, dtype=int),
@@ -473,6 +474,29 @@ class SparseArray(DiskTestCase):
         T[[1, 2], [1, 2], [1, 2]] = values
 
         assert_array_equal(T[[1, 2], [1, 2], [1, 2]], values)
+
+    def test_sparse_ordered_fp_domain(self):
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, "x", domain=(0.0, 10.0), tile=2.0, dtype=float))
+        attr = t.Attr(ctx, dtype=float)
+        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(attr,))
+
+        values = np.array([3.3, 2.7])
+        T[[2.5, 4.2]] = values
+
+        assert_array_equal(T[[2.5, 4.2]], values)
+
+
+    def test_sparse_unordered_fp_domain(self):
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, "x", domain=(0.0, 10.0), tile=2.0, dtype=float))
+        attr = t.Attr(ctx, dtype=float)
+        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(attr,))
+
+        values = np.array([3.3, 2.7])
+        T[[4.2, 2.5]] = values
+
+        assert_array_equal(T[[2.5, 4.2]], values)
 
 
 class DenseIndexing(DiskTestCase):

@@ -91,6 +91,22 @@ cdef check_error(Ctx ctx, int rc):
     raise TileDBError(message_string)
 
 
+cdef class Config(object):
+
+    cdef tiledb_config_t* ptr
+
+    def __cinit__(self):
+        cdef int rc = tiledb_config_create(&self.ptr)
+        if rc == TILEDB_OOM:
+            raise MemoryError()
+        if rc == TILEDB_ERR:
+            raise TileDBError("unknown error creating tiledb Config")
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_config_free(self.ptr)
+
+
 cdef class Ctx(object):
 
     cdef tiledb_ctx_t* ptr
@@ -100,7 +116,7 @@ cdef class Ctx(object):
         if rc == TILEDB_OOM:
             raise MemoryError()
         if rc == TILEDB_ERR:
-            raise TileDBError("unknown error creating tiledb.Ctx")
+            raise TileDBError("unknown error creating tiledb Ctx")
 
     def __dealloc__(self):
         if self.ptr is not NULL:
@@ -934,7 +950,7 @@ def replace_ellipsis(Domain dom, tuple idx):
     return idx
 
 
-def replace_scalars(Domain dom, tuple idx):
+def replace_scalars_slice(Domain dom, tuple idx):
     new_idx, drop_axes = [], []
     for i in range(dom.rank):
         dim = dom.dim(i)
@@ -1278,7 +1294,7 @@ cdef class DenseArray(Array):
     def __getitem__(self, object key):
         key = index_as_tuple(key)
         idx = replace_ellipsis(self.domain, key)
-        idx, drop_axes = replace_scalars(self.domain, idx)
+        idx, drop_axes = replace_scalars_slice(self.domain, idx)
         subarray = index_domain_subarray(self.domain, idx)
         out = self._read_dense_subarray(subarray)
         if any(s.step for s in idx):
@@ -1533,7 +1549,7 @@ cdef class SparseArray(Array):
         check_error(ctx,
             tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_READ))
         check_error(ctx,
-            tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_GLOBAL_ORDER))
+            tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
         check_error(ctx,
             tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, 2, buffers, buffer_sizes))
 
@@ -1559,40 +1575,35 @@ def array_consolidate(Ctx ctx, path):
 
 
 def group_create(Ctx ctx, path):
-    upath = unicode_path(path)
-    cdef const char* c_path = upath
+    cdef bytes bpath = unicode_path(path)
     check_error(ctx,
-       tiledb_group_create(ctx.ptr, c_path))
-    return upath
+       tiledb_group_create(ctx.ptr, bpath))
+    return path
 
 
 def object_type(Ctx ctx, path):
-    upath = unicode_path(path)
-    cdef const char* c_path = upath
+    cdef bytes bpath = unicode_path(path)
     cdef tiledb_object_t obj = TILEDB_INVALID
     check_error(ctx,
-       tiledb_object_type(ctx.ptr, c_path, &obj))
+       tiledb_object_type(ctx.ptr, bpath, &obj))
     return obj
 
 
 def delete(Ctx ctx, path):
-    upath = unicode_path(path)
-    cdef const char* c_path = upath
+    cdef bytes bpath = unicode_path(path)
     check_error(ctx,
-       tiledb_delete(ctx.ptr, c_path))
+       tiledb_object_remove(ctx.ptr, bpath))
     return
 
 
 def move(Ctx ctx, oldpath, newpath, force=False):
-    uoldpath = unicode_path(oldpath)
-    unewpath = unicode_path(newpath)
-    cdef const char* c_oldpath = uoldpath
-    cdef const char* c_newpath = unewpath
+    cdef bytes boldpath = unicode_path(oldpath)
+    cdef bytes bnewpath = unicode_path(newpath)
     cdef int c_force = 0
-    if force:
+    if bool(force):
        c_force = True
     check_error(ctx,
-        tiledb_move(ctx.ptr, c_oldpath, c_newpath, c_force))
+        tiledb_object_move(ctx.ptr, boldpath, bnewpath, c_force))
     return
 
 
@@ -1612,8 +1623,7 @@ cdef int walk_callback(const char* c_path,
 
 
 def walk(Ctx ctx, path, func, order="preorder"):
-    upath = unicode_path(path)
-    cdef const char* c_path = upath
+    cdef bytes bpath = unicode_path(path)
     cdef tiledb_walk_order_t c_order
     if order == "postorder":
         c_order = TILEDB_POSTORDER
@@ -1622,5 +1632,5 @@ def walk(Ctx ctx, path, func, order="preorder"):
     else:
         raise AttributeError("unknown walk order {}".format(order))
     check_error(ctx,
-        tiledb_walk(ctx.ptr, c_path, c_order, walk_callback, <void*> func))
+        tiledb_object_walk(ctx.ptr, bpath, c_order, walk_callback, <void*> func))
     return

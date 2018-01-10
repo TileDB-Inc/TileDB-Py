@@ -74,6 +74,10 @@ cdef extern from "tiledb.h":
         TILEDB_PREORDER
         TILEDB_POSTORDER
 
+    ctypedef enum tiledb_filesystem_t:
+        TILEDB_HDFS
+        TILEDB_S3
+
     # Types
     ctypedef struct tiledb_ctx_t:
         pass
@@ -97,6 +101,24 @@ cdef extern from "tiledb.h":
         pass
     ctypedef struct tiledb_kv_t:
         pass
+    ctypedef struct tiledb_vfs_t:
+        pass
+
+    # Config
+    int tiledb_config_create(
+            tiledb_config_t** config)
+
+    int tiledb_config_free(
+            tiledb_config_t* config)
+
+    int tiledb_config_set(
+            tiledb_config_t* config, const char* param, const char* value)
+
+    int tiledb_config_set_from_file(
+            tiledb_config_t* config, const char* filename)
+
+    int tiledb_config_unset(
+            tiledb_config_t* config, const char* param)
 
     # Context
     int tiledb_ctx_create(
@@ -560,15 +582,70 @@ cdef extern from "tiledb.h":
     int tiledb_object_type(
         tiledb_ctx_t* ctx, const char* path, tiledb_object_t* otype)
 
-    int tiledb_delete(
+    int tiledb_object_remove(
         tiledb_ctx_t* ctx, const char* path)
 
-    int tiledb_move(
+    int tiledb_object_move(
         tiledb_ctx_t* ctx, const char* old_path, const char* new_path, int force);
 
-    int tiledb_walk(
+    int tiledb_object_walk(
         tiledb_ctx_t* ctx,
         const char* path,
         tiledb_walk_order_t order,
         int (*callback)(const char*, tiledb_object_t, void*),
         void* data)
+
+    # VFS
+    int tiledb_vfs_create(
+            tiledb_ctx_t* ctx, tiledb_vfs_t** vfs, tiledb_config_t* config)
+
+    int tiledb_vfs_free(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs)
+
+    int tiledb_vfs_create_bucket(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_remove_bucket(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_is_bucket(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_create_dir(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_is_dir(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_remove_dir(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_is_file(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_remove_file(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_file_size(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, uint64_t* size)
+
+    int tiledb_vfs_move(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs,
+            const char* old_uri, const char* new_uri)
+
+    int tiledb_vfs_read(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs,
+            const char* uri, uint64_t offset, void* buffer, uint64_t nbytes)
+
+    int tiledb_vfs_write(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs,
+            const char* uri, const void* buffer, uint64_t nbytes)
+
+    int tiledb_vfs_sync(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+
+    int tiledb_vfs_supports_fs(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, tiledb_filesystem_t fs, int* supports)
+
+    int tiledb_vfs_touch(
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
