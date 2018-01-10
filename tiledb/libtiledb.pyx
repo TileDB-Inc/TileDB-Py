@@ -111,6 +111,11 @@ cdef class Config(object):
             raise TileDBError("error creating tiledb Config")
         self.ptr = config_ptr
 
+    def update(self, object odict):
+        for (key, value) in odict.items():
+            self[key] = value
+        return
+
     @staticmethod
     def from_file(object filename):
         cdef bytes bfilename = unicode_path(filename)
@@ -135,8 +140,7 @@ cdef class Config(object):
     @staticmethod
     def from_dict(object odict):
         cdef Config config = Config()
-        for (key, value) in odict.items():
-            config[key] = value
+        config.update(odict)
         return config
 
     def __setitem__(self, object key, object value):
@@ -166,12 +170,12 @@ cdef class Ctx(object):
         if self.ptr is not NULL:
             tiledb_ctx_free(self.ptr)
 
-    def __init__(self, config=None):
-        cdef Config _config
+    def __init__(self, config=None, config_file=None):
+        cdef Config _config = Config()
+        if config_file is not None:
+            _config = Config.from_file(config_file)
         if config is not None:
-            _config = Config.from_dict(config)
-        else:
-            _config = Config()
+            _config.update(config)
         cdef int rc = tiledb_ctx_create(&self.ptr, _config.ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
