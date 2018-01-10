@@ -96,15 +96,63 @@ cdef class Config(object):
     cdef tiledb_config_t* ptr
 
     def __cinit__(self):
-        cdef int rc = tiledb_config_create(&self.ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        if rc == TILEDB_ERR:
-            raise TileDBError("unknown error creating tiledb Config")
+        self.ptr = NULL
 
     def __dealloc__(self):
         if self.ptr is not NULL:
             tiledb_config_free(self.ptr)
+
+    def __init__(self):
+        cdef tiledb_config_t* config_ptr = NULL
+        cdef int rc = tiledb_config_create(&config_ptr)
+        if rc == TILEDB_OOM:
+            raise MemoryError()
+        if rc == TILEDB_ERR:
+            raise TileDBError("error creating tiledb Config")
+        self.ptr = config_ptr
+
+    @staticmethod
+    def from_file(object filename):
+        cdef bytes bfilename = unicode_path(filename)
+        cdef Config config = Config.__new__(Config)
+        cdef tiledb_config_t* config_ptr = NULL
+        cdef int rc = tiledb_config_create(&config_ptr)
+        if rc == TILEDB_OOM:
+            raise MemoryError()
+        if rc == TILEDB_ERR:
+            raise TileDBError("error creating tiledb Config object")
+        rc = tiledb_config_set_from_file(config_ptr, bfilename)
+        if rc == TILEDB_OOM:
+            tiledb_config_free(config_ptr)
+            raise MemoryError()
+        if rc == TILEDB_ERR:
+            tiledb_config_free(config_ptr)
+            raise TileDBError(
+                "error creating tiledb Config object from file {0!r}".format(filename))
+        config.ptr = config_ptr
+        return config
+
+    @staticmethod
+    def from_dict(object odict):
+        cdef Config config = Config()
+        for (key, value) in odict.items():
+            config[key] = value
+        return config
+
+    def __setitem__(self, object key, object value):
+        cdef bytes bkey = ustring(key).encode("UTF-8")
+        cdef bytes bvalue = ustring(value).encode("UTF-8")
+        cdef int rc = tiledb_config_set(self.ptr, bkey, bvalue)
+        if rc != TILEDB_OK:
+            raise TileDBError("error setting config parameter {0!r}".format(key))
+        return
+
+    def __delitem__(self, object key):
+        cdef bytes bkey = ustring(key).encode("UTF-8")
+        cdef int rc = tiledb_config_unset(self.ptr, bkey)
+        if rc != TILEDB_OK:
+            raise TileDBError('error deleting config parameter {0!r}'.format(key))
+        return
 
 
 cdef class Ctx(object):
@@ -112,15 +160,24 @@ cdef class Ctx(object):
     cdef tiledb_ctx_t* ptr
 
     def __cinit__(self):
-        cdef int rc = tiledb_ctx_create(&self.ptr, NULL)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        if rc == TILEDB_ERR:
-            raise TileDBError("unknown error creating tiledb Ctx")
+        self.ptr = NULL
 
     def __dealloc__(self):
         if self.ptr is not NULL:
             tiledb_ctx_free(self.ptr)
+
+    def __init__(self, config=None):
+        cdef Config _config
+        if config is not None:
+            _config = Config.from_dict(config)
+        else:
+            _config = Config()
+        cdef int rc = tiledb_ctx_create(&self.ptr, _config.ptr)
+        if rc == TILEDB_OOM:
+            raise MemoryError()
+        if rc == TILEDB_ERR:
+            raise TileDBError("unknown error creating tiledb Ctx")
+        return
 
 
 cdef tiledb_datatype_t _tiledb_dtype(object typ) except? TILEDB_CHAR:
