@@ -793,40 +793,100 @@ class AssocArray(DiskTestCase):
     def test_ky_update(self):
         pass
 
-    """
-    def test_kv_performance(self):
-        import random
-        import time
 
-        # create a kv database
+class VFS(DiskTestCase):
+
+    def test_supports(self):
         ctx = t.Ctx()
-        a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), a1)
-        print("tiledb starting")
-        NRECORDS = 10000
-        int_values = [random.randint(0, 10000000) for _ in range(NRECORDS)]
-        keys = list(map(str, int_values))
-        values = [str(k).encode('ascii') for k in keys]
-        start = time.time()
-        for i in range(NRECORDS):
-            kv[keys[i]] = values[i]
-        end = time.time()
-        print("inserting {} keys took {} seconds".format(NRECORDS,  end - start))
+        vfs = t.VFS(ctx)
 
-        print("consolidating")
-        start = time.time()
+        self.assertTrue(vfs.supports("file"))
+        self.assertIsInstance(vfs.supports("s3"), bool)
+        self.assertIsInstance(vfs.supports("hdfs"), bool)
 
-        t.array_consolidate(ctx, self.path("foo"))
-        end = time.time()
-        print("consolidating took {} seconds".format(end - start))
+        with self.assertRaises(t.TileDBError):
+            vfs.supports("invalid")
 
-        print("tiledb read starting")
-        start = time.time()
-        for i in range(NRECORDS):
-            key = keys[i]
-            val = values[i]
-            if kv[key] != val:
-                print("key: {}; value: {}, kv[key]: {}".format(key, val, kv[key]))
-        end = time.time()
-        print("reading {} keys took {} seconds".format(NRECORDS,  end - start))
-    """
+    def test_dir(self):
+        ctx = t.Ctx()
+        vfs = t.VFS(ctx)
+
+        dir = self.path("foo")
+        self.assertFalse(vfs.is_dir(dir))
+
+        # create
+        vfs.create_dir(dir)
+        self.assertTrue(vfs.is_dir(dir))
+
+        # remove
+        vfs.remove_dir(dir)
+        self.assertFalse(vfs.is_dir(dir))
+
+        # create nested path
+        dir = self.path("foo/bar")
+        with self.assertRaises(t.TileDBError):
+            vfs.create_dir(dir)
+
+        vfs.create_dir(self.path("foo"))
+        vfs.create_dir(self.path("foo/bar"))
+        self.assertTrue(vfs.is_dir(dir))
+
+    def test_file(self):
+        ctx = t.Ctx()
+        vfs = t.VFS(ctx)
+
+        file = self.path("foo")
+        self.assertFalse(vfs.is_file(file))
+
+        # create
+        vfs.touch(file)
+        vfs.sync(file)
+        self.assertTrue(vfs.is_file(file))
+
+        # remove
+        vfs.remove_file(file)
+        self.assertFalse(vfs.is_file(file))
+
+        # check nested path
+        file = self.path("foo/bar")
+        with self.assertRaises(t.TileDBError):
+            vfs.touch(file)
+
+    def test_move(self):
+        ctx = t.Ctx()
+        vfs = t.VFS(ctx)
+
+        vfs.create_dir(self.path("foo"))
+        vfs.create_dir(self.path("bar"))
+        vfs.touch(self.path("bar/baz"))
+
+        self.assertTrue(vfs.is_file(self.path("bar/baz")))
+
+        vfs.move(self.path("bar/baz"), self.path("foo/baz"))
+
+        self.assertFalse(vfs.is_file(self.path("bar/baz")))
+        self.assertTrue(vfs.is_file(self.path("foo/baz")))
+
+        # moving to invalid dir should raise an error
+        with self.assertRaises(t.TileDBError):
+            vfs.move(self.path("foo/baz"), self.path("do_not_exist/baz"))
+
+    def test_write_read(self):
+        ctx = t.Ctx()
+        vfs = t.VFS(ctx)
+
+        buffer = b"bar"
+        vfs.write(self.path("foo"), 0, buffer)
+        self.assertEqual(vfs.file_size(self.path("foo")), 3)
+        self.assertEqual(vfs.read(self.path("foo"), 0, 3), buffer)
+
+        # write / read empty input
+        vfs.write(self.path("baz"), 0, b"")
+        self.assertEqual(vfs.file_size(self.path("baz")), 0)
+        self.assertEqual(vfs.read(self.path("baz"), 0, 0), b"")
+
+        # read from file that does not exist
+        with self.assertRaises(t.TileDBError):
+            vfs.read(self.path("do_not_exist"), 0, 3)
+
+

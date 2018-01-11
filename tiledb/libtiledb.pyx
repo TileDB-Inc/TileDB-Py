@@ -1710,8 +1710,18 @@ cdef class VFS(object):
         if self.ptr is not NULL:
             tiledb_vfs_free(self.ctx.ptr, self.ptr)
 
-    def __init__(self, Ctx ctx):
+    def __init__(self, Ctx ctx, config=None):
+        cdef Config _config = Config()
+        if config is not None:
+            if isinstance(config, Config):
+                _config = config
+            else:
+                _config.update(config)
+        cdef tiledb_vfs_t* vfs_ptr = NULL
+        check_error(ctx,
+            tiledb_vfs_create(ctx.ptr, &vfs_ptr, _config.ptr))
         self.ctx = ctx
+        self.ptr = vfs_ptr
 
     def create_bucket(self, uri):
         cdef bytes buri = unicode_path(uri)
@@ -1826,4 +1836,18 @@ cdef class VFS(object):
         return uri
 
     def supports(self, scheme):
-        return True
+        cdef tiledb_filesystem_t fs
+        cdef int supports = 0
+        if scheme == "file":
+            return True
+        elif scheme == "s3":
+            check_error(self.ctx,
+                tiledb_vfs_supports_fs(self.ctx.ptr, self.ptr, TILEDB_S3, &supports))
+            return bool(supports)
+        elif scheme == "hdfs":
+            check_error(self.ctx,
+                tiledb_vfs_supports_fs(self.ctx.ptr, self.ptr, TILEDB_HDFS, &supports))
+            return bool(supports)
+        else:
+            raise TileDBError("unsupported vfs scheme '{}://'".format(scheme))
+
