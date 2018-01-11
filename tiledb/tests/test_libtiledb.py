@@ -893,11 +893,20 @@ class VFS(DiskTestCase):
         ctx = t.Ctx()
         vfs = t.VFS(ctx)
 
-        buffer = b"0123456789"
-        vfs.write(self.path("foo"), 0, buffer)
-        self.assertEqual(vfs.file_size(self.path("foo")), 10)
 
-        io = t.FileIO(vfs, self.path("foo"))
+        buffer = b"0123456789"
+        io = t.FileIO(vfs, self.path("foo"), mode="w")
+        io.write(buffer)
+        io.flush()
+        self.assertEqual(io.tell(), len(buffer))
+
+        io = t.FileIO(vfs, self.path("foo"), mode="r")
+        with self.assertRaises(IOError):
+            io.write(b"foo")
+
+        self.assertEqual(vfs.file_size(self.path("foo")), len(buffer))
+
+        io = t.FileIO(vfs, self.path("foo"), mode='r')
         self.assertEqual(io.read(3), b'012')
         self.assertEqual(io.tell(), 3)
         self.assertEqual(io.read(3), b'345')

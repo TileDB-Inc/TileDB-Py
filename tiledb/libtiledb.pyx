@@ -1862,19 +1862,38 @@ cdef class VFS(object):
 
 class FileIO(object):
 
-    def __init__(self, vfs, uri):
+    def __init__(self, vfs, uri, mode="r"):
         self.vfs = vfs
         self.uri = uri
         self._offset = 0
-        self._nbytes = vfs.file_size(uri)
         self._closed = False
+        self._readonly = True
+        if mode == "r":
+            try:
+                self._nbytes = vfs.file_size(uri)
+            except:
+                raise IOError("URI {0!r} is not a valid file")
+            self._read_only = True
+        elif mode == "w":
+            self._readonly = False
+            self._nbytes = 0
+        else:
+            raise AttributeError("invalid mode {0!r".format(mode))
+        self._mode = mode
         return
+
+    @property
+    def mode(self):
+        return self._mode
 
     def close(self):
         self._closed = True
 
     def closed(self):
         return self._closed
+
+    def flush(self):
+        self.vfs.sync(self.uri)
 
     def seekable(self):
         return True
@@ -1901,13 +1920,13 @@ class FileIO(object):
         return self._offset
 
     def writeable(self):
-        return False
+        return not self._readonly
 
     def read(self, size=-1):
         if not isinstance(size, int):
             raise TypeError("offset must be an integer")
         if self.closed():
-            raise IOError("cannot read from closed IO")
+            raise IOError("cannot read from closed FielIO handle")
         nbytes_remaining = self._nbytes - self._offset
         print(nbytes_remaining)
         if size < 0:
@@ -1923,7 +1942,7 @@ class FileIO(object):
 
     def readall(self):
         if self.closed():
-            raise IOError("cannot read from closed IO")
+            raise IOError("cannot read from closed FileIO handle")
         nbytes = self._nbytes - self._offset
         if nbytes == 0:
             return bytes(0)
@@ -1934,7 +1953,7 @@ class FileIO(object):
 
     def readinto(self, buff):
         if self.closed():
-            raise IOError("cannot read from closed IO")
+            raise IOError("cannot read from closed FileIO handle")
         nbytes = self._nbytes - self._offset
         if nbytes == 0:
             return
@@ -1942,7 +1961,14 @@ class FileIO(object):
         self._offset += nbytes
         return
 
-    def write(self, b):
-        pass
+    def write(self, buff):
+        if not self.writeable():
+            raise IOError("cannot write to read-only FileIO handle")
+        nbytes = len(buff)
+        self.vfs.write(self.uri, 0, buff)
+        self._nbytes += nbytes
+        self._offset += nbytes
+        return nbytes
+
 
 
