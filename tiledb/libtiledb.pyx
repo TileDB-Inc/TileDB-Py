@@ -218,6 +218,7 @@ cdef uint64_t _tiledb_dtype_nitems(object typ) except 0:
     # TODO: parse dtype object check if the object contains 1 N type
     return 1
 
+
 cdef int _numpy_type_num(tiledb_datatype_t dtype):
     if dtype == TILEDB_INT32:
         return np.NPY_INT32
@@ -1788,15 +1789,17 @@ cdef class VFS(object):
             tiledb_vfs_move(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
         return
 
-    def read(self, uri, offset, nbytes):
+    def readinto(self, uri, bytes buffer, offset, nbytes):
         cdef bytes buri = unicode_path(uri)
         if offset < 0:
             raise AttributeError("read offset must be >= 0")
         if nbytes < 0:
             raise AttributeError("read nbytes but be >= 0")
+        if nbytes > len(buffer):
+            print("bytes: ", nbytes, " buffer ", len(buffer))
+            raise AttributeError("read buffer is smaller than nbytes")
         cdef Py_ssize_t _offset = offset
         cdef Py_ssize_t _nbytes = nbytes
-        cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
         cdef char* buffer_ptr = PyBytes_AS_STRING(buffer)
         check_error(self.ctx,
             tiledb_vfs_read(self.ctx.ptr,
@@ -1806,6 +1809,11 @@ cdef class VFS(object):
                             <void*> buffer_ptr,
                             <uint64_t> _nbytes))
         return buffer
+
+    def read(self, uri, offset, nbytes):
+        cdef Py_ssize_t _nbytes = nbytes
+        cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
+        return self.readinto(uri, buffer, offset, nbytes)
 
     def write(self, uri, offset, buff):
         cdef bytes buri = unicode_path(uri)
@@ -1850,4 +1858,91 @@ cdef class VFS(object):
             return bool(supports)
         else:
             raise TileDBError("unsupported vfs scheme '{}://'".format(scheme))
+
+
+class FileIO(object):
+
+    def __init__(self, vfs, uri):
+        self.vfs = vfs
+        self.uri = uri
+        self._offset = 0
+        self._nbytes = vfs.file_size(uri)
+        self._closed = False
+        return
+
+    def close(self):
+        self._closed = True
+
+    def closed(self):
+        return self._closed
+
+    def seekable(self):
+        return True
+
+    def seek(self, offset, whence=0):
+        if not isinstance(offset, int):
+            raise TypeError("offset must be an integer")
+        if whence == 0:
+            if offset < 0:
+                raise AttributeError("ofset must be a positive or zero value when SEEK_SET")
+            self._offset = offset
+        elif whence == 1:
+            self._offset += offset
+        elif whence == 2:
+            self._offset = self._nbytes + offset
+        else:
+            raise AttributeError('whence must be equal to SEEK_SET, SEEK_START, SEEK_END')
+        if self._offset < 0:
+            self._offset = 0
+        elif self._offset > self._nbytes:
+            self._offset = self._nbytes
+
+    def tell(self):
+        return self._offset
+
+    def writeable(self):
+        return False
+
+    def read(self, size=-1):
+        if not isinstance(size, int):
+            raise TypeError("offset must be an integer")
+        if self.closed():
+            raise IOError("cannot read from closed IO")
+        nbytes_remaining = self._nbytes - self._offset
+        print(nbytes_remaining)
+        if size < 0:
+            nbytes = nbytes_remaining
+        elif size > nbytes_remaining:
+            nbytes = nbytes_remaining
+        else:
+            nbytes = size
+        buff = bytes(nbytes)
+        self.vfs.readinto(self.uri, buff, self._offset, nbytes)
+        self._offset += nbytes
+        return buff
+
+    def readall(self):
+        if self.closed():
+            raise IOError("cannot read from closed IO")
+        nbytes = self._nbytes - self._offset
+        if nbytes == 0:
+            return bytes(0)
+        buff = bytes(nbytes)
+        self.vfs.readinto(self.uri, buff, self._offset, nbytes)
+        self._offset += nbytes
+        return buff
+
+    def readinto(self, buff):
+        if self.closed():
+            raise IOError("cannot read from closed IO")
+        nbytes = self._nbytes - self._offset
+        if nbytes == 0:
+            return
+        self.vfs.readinto(self.uri, buff, self._offset, nbytes)
+        self._offset += nbytes
+        return
+
+    def write(self, b):
+        pass
+
 
