@@ -609,19 +609,19 @@ cdef extern from "tiledb.h":
             tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
 
     int tiledb_vfs_is_bucket(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, int* is_bucket)
 
     int tiledb_vfs_create_dir(
             tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
 
     int tiledb_vfs_is_dir(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, int* is_dir)
 
     int tiledb_vfs_remove_dir(
             tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
 
     int tiledb_vfs_is_file(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, int* is_file)
 
     int tiledb_vfs_remove_file(
             tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)

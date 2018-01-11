@@ -1695,3 +1695,135 @@ def walk(Ctx ctx, path, func, order="preorder"):
     check_error(ctx,
         tiledb_object_walk(ctx.ptr, bpath, c_order, walk_callback, <void*> func))
     return
+
+
+# VFS
+cdef class VFS(object):
+
+    cdef Ctx ctx
+    cdef tiledb_vfs_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_vfs_free(self.ctx.ptr, self.ptr)
+
+    def __init__(self, Ctx ctx):
+        self.ctx = ctx
+
+    def create_bucket(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+            tiledb_vfs_create_bucket(self.ctx.ptr, self.ptr, buri))
+        return uri
+
+    def remove_bucket(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+            tiledb_vfs_remove_bucket(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def is_bucket(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        cdef int is_bucket = 0
+        check_error(self.ctx,
+            tiledb_vfs_is_bucket(self.ctx.ptr, self.ptr, buri, &is_bucket))
+        return bool(is_bucket)
+
+    def create_dir(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+            tiledb_vfs_create_dir(self.ctx.ptr, self.ptr, buri))
+        return uri
+
+    def is_dir(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        cdef int is_dir = 0
+        check_error(self.ctx,
+            tiledb_vfs_is_dir(self.ctx.ptr, self.ptr, buri, &is_dir))
+        return bool(is_dir)
+
+    def remove_dir(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+            tiledb_vfs_remove_dir(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def is_file(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        cdef int is_file = 0
+        check_error(self.ctx,
+            tiledb_vfs_is_file(self.ctx.ptr, self.ptr, buri, &is_file))
+        return bool(is_file)
+
+    def remove_file(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+            tiledb_vfs_remove_file(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def file_size(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        cdef uint64_t nbytes = 0
+        check_error(self.ctx,
+            tiledb_vfs_file_size(self.ctx.ptr, self.ptr, buri, &nbytes))
+        return int(nbytes)
+
+    def move(self, old_uri, new_uri):
+        cdef bytes bold_uri = unicode_path(old_uri)
+        cdef bytes bnew_uri = unicode_path(new_uri)
+        check_error(self.ctx,
+            tiledb_vfs_move(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
+        return
+
+    def read(self, uri, offset, nbytes):
+        cdef bytes buri = unicode_path(uri)
+        if offset < 0:
+            raise AttributeError("read offset must be >= 0")
+        if nbytes < 0:
+            raise AttributeError("read nbytes but be >= 0")
+        cdef Py_ssize_t _offset = offset
+        cdef Py_ssize_t _nbytes = nbytes
+        cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
+        cdef char* buffer_ptr = PyBytes_AS_STRING(buffer)
+        check_error(self.ctx,
+            tiledb_vfs_read(self.ctx.ptr,
+                            self.ptr,
+                            buri,
+                            <uint64_t> _offset,
+                            <void*> buffer_ptr,
+                            <uint64_t> _nbytes))
+        return buffer
+
+    def write(self, uri, offset, buff):
+        cdef bytes buri = unicode_path(uri)
+        if offset < 0:
+            raise AttributeError("read offset must be >= 0")
+        cdef bytes buffer = bytes(buff)
+        cdef const char* buffer_ptr = PyBytes_AS_STRING(buffer)
+        cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)
+        check_error(self.ctx,
+            tiledb_vfs_write(self.ctx.ptr,
+                             self.ptr,
+                             buri,
+                             <const void*> buffer_ptr,
+                             <uint64_t> _nbytes))
+        return
+
+
+    def sync(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+            tiledb_vfs_sync(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def touch(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+            tiledb_vfs_touch(self.ctx.ptr, self.ptr, buri))
+        return uri
+
+    def supports(self, scheme):
+        return True
