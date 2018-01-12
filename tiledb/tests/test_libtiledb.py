@@ -23,6 +23,39 @@ class VersionTest(TestCase):
         self.assertTrue(v[0] >= 1, "TileDB major version must be >= 1")
 
 
+class Config(DiskTestCase):
+
+    def test_config(self):
+        config = t.Config()
+        config["sm.tile_cache_size"] = 100
+        ctx = t.Ctx(config)
+
+    def test_ctx_config(self):
+        ctx = t.Ctx({"sm.tile_cache_size": 100})
+
+    def test_config_bad_param(self):
+        config = t.Config()
+        config["sm.i_see"] = "cant_touch_this"
+        ctx = t.Ctx(config)
+
+    def test_config_unset(self):
+        config = t.Config()
+        config["sm.tile_cache_size"] = 100
+        del config["sm.tile_cache_size"]
+
+    def test_config_from_file(self):
+        config_path = self.path("config")
+        with open(config_path, "w") as fh:
+            fh.write("sm.tile_cache_size 100")
+        config = t.Config.from_file(config_path)
+
+    def test_ctx_config_from_file(self):
+        config_path = self.path("config")
+        with open(config_path, "w") as fh:
+            fh.write("sm.tile_cache_size 100")
+        ctx = t.Ctx(config_file=config_path)
+
+
 class GroupTestCase(DiskTestCase):
 
     def setUp(self):
@@ -892,7 +925,6 @@ class VFS(DiskTestCase):
     def test_io(self):
         ctx = t.Ctx()
         vfs = t.VFS(ctx)
-
 
         buffer = b"0123456789"
         io = t.FileIO(vfs, self.path("foo"), mode="w")

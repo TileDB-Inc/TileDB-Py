@@ -66,12 +66,11 @@ class TileDBError(Exception):
     pass
 
 
-cdef check_error(Ctx ctx, int rc):
+cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc):
     if rc == TILEDB_OK:
         return
     if rc == TILEDB_OOM:
         raise MemoryError()
-    ctx_ptr = ctx.ptr
     cdef tiledb_error_t* err = NULL
     cdef int ret = tiledb_error_last(ctx_ptr, &err)
     if ret != TILEDB_OK:
@@ -89,6 +88,10 @@ cdef check_error(Ctx ctx, int rc):
     message_string = err_msg.decode('UTF-8', 'strict')
     tiledb_error_free(ctx_ptr, err)
     raise TileDBError(message_string)
+
+
+cpdef check_error(Ctx ctx, int rc):
+    _raise_ctx_err(ctx.ptr, rc)
 
 
 cdef class Config(object):
@@ -144,7 +147,8 @@ cdef class Config(object):
         return config
 
     def __setitem__(self, object key, object value):
-        cdef bytes bkey = ustring(key).encode("UTF-8")
+        key, value  = unicode(key), unicode(value)
+        cdef bytes bkey = ustring(str(key)).encode("UTF-8")
         cdef bytes bvalue = ustring(value).encode("UTF-8")
         cdef int rc = tiledb_config_set(self.ptr, bkey, bvalue)
         if rc != TILEDB_OK:
@@ -152,6 +156,7 @@ cdef class Config(object):
         return
 
     def __delitem__(self, object key):
+        key = unicode(key)
         cdef bytes bkey = ustring(key).encode("UTF-8")
         cdef int rc = tiledb_config_unset(self.ptr, bkey)
         if rc != TILEDB_OK:
@@ -175,12 +180,18 @@ cdef class Ctx(object):
         if config_file is not None:
             _config = Config.from_file(config_file)
         if config is not None:
-            _config.update(config)
+            if isinstance(config, Config):
+               _config = config
+            else:
+                _config.update(config)
         cdef int rc = tiledb_ctx_create(&self.ptr, _config.ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
         if rc == TILEDB_ERR:
-            raise TileDBError("unknown error creating tiledb Ctx")
+            # we assume that the ctx pointer is valid if not OOM
+            # the ctx object will be free'd when it goes out of scope
+            # after the exception is raised
+            _raise_ctx_err(self.ptr, rc)
         return
 
 
@@ -838,7 +849,6 @@ cdef class Assoc(object):
 
         tiledb_query_free(ctx_ptr, query_ptr)
         tiledb_kv_free(ctx_ptr, kv_ptr)
-
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
         return
@@ -931,7 +941,7 @@ cdef class Assoc(object):
             tiledb_kv_free(ctx_ptr, kv_ptr)
             check_error(self.ctx, rc)
         assert(value_ptr != NULL)
-
+        cdef bytes val
         try:
             val = PyBytes_FromStringAndSize(<char*> value_ptr, value_size)
         finally:
@@ -941,7 +951,6 @@ cdef class Assoc(object):
 
     def __contains__(self, unicode key):
         try:
-            # TODO: refactor so we do not have to read values
             self[key]
             return True
         except KeyError:
@@ -949,12 +958,14 @@ cdef class Assoc(object):
         except Exception as ex:
             raise ex
 
-
     def fromkeys(self, type, iterable, value):
         raise NotImplementedError()
 
-    def get(self, key):
-        raise NotImplementedError()
+    def get(self, key, default=None):
+        try:
+            self.__getitem__(key)
+        except KeyError:
+            return default
 
     def items(self):
         raise NotImplementedError()
@@ -968,8 +979,16 @@ cdef class Assoc(object):
     def setdefault(self, key):
         raise NotImplementedError()
 
-    def update(self, object val):
-        cdef dict update = {}.update(val)
+    def update(self, *args, **kwargs):
+        cdef dict update = {}
+        if len(args) == 0:
+            update.update(**kwargs)
+        elif len(args) == 1:
+            update.update(args[0])
+        else:
+            raise AttributeError(
+                "must provide a dictionary, iterable of key/value pairs "
+                "or explict keyword arguments")
         cdef np.ndarray key_array = np.array(update.keys())
         cdef np.ndarray value_array = np.array(update.values())
         cdef uint64_t nkeys = len(key_array)
