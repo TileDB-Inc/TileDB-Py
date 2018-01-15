@@ -13,6 +13,9 @@ cdef extern from "tiledb.h":
     # TILEDB_COORDS
     const char* tiledb_coords()
 
+    enum: TILEDB_MAX_PATH
+    unsigned int tiledb_max_path()
+
     # Version
     void tiledb_version(int* major, int* minor, int* rev)
 

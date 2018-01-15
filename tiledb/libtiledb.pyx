@@ -1815,7 +1815,6 @@ cdef class VFS(object):
         if nbytes < 0:
             raise AttributeError("read nbytes but be >= 0")
         if nbytes > len(buffer):
-            print("bytes: ", nbytes, " buffer ", len(buffer))
             raise AttributeError("read buffer is smaller than nbytes")
         cdef Py_ssize_t _offset = offset
         cdef Py_ssize_t _nbytes = nbytes
@@ -1944,10 +1943,11 @@ class FileIO(object):
     def read(self, size=-1):
         if not isinstance(size, int):
             raise TypeError("offset must be an integer")
+        if self._mode == "w":
+            raise IOError("cannot read from write-only FileIO handle")
         if self.closed():
-            raise IOError("cannot read from closed FielIO handle")
+            raise IOError("cannot read from closed FileIO handle")
         nbytes_remaining = self._nbytes - self._offset
-        print(nbytes_remaining)
         if size < 0:
             nbytes = nbytes_remaining
         elif size > nbytes_remaining:
@@ -1960,6 +1960,8 @@ class FileIO(object):
         return buff
 
     def readall(self):
+        if self._mode == "w":
+            raise IOError("cannot read from a write-only FileIO handle")
         if self.closed():
             raise IOError("cannot read from closed FileIO handle")
         nbytes = self._nbytes - self._offset
@@ -1971,6 +1973,8 @@ class FileIO(object):
         return buff
 
     def readinto(self, buff):
+        if self._mode == "w":
+            raise IOError("cannot read from a write-only FileIO handle")
         if self.closed():
             raise IOError("cannot read from closed FileIO handle")
         nbytes = self._nbytes - self._offset
