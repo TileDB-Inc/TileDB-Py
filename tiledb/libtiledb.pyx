@@ -662,20 +662,6 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
         return u"unordered"
 
 
-cdef class Query(object):
-
-    cdef Ctx ctx
-    cdef tiledb_query_t* ptr
-
-    def __cinit__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr is not NULL:
-            tiledb_query_free(self.ctx.ptr, self.ptr)
-
-    def __init__(self, Ctx ctx):
-        self.ctx = ctx
 
 
 cdef class Assoc(object):
@@ -1203,7 +1189,6 @@ cdef class Array(object):
         self.ctx = ctx
         self.name = uri
         self.ptr = <tiledb_array_schema_t*> schema_ptr
-        return
 
     @property
     def name(self):
@@ -1528,11 +1513,40 @@ def index_domain_coords(Domain dom, tuple idx):
     len0, dtype0 = len(idx[0]), idx[0].dtype
     for i in range(2, rank):
         if len(idx[i]) != len0:
-            raise IndexError()
+            raise IndexError("sparse index dimension length mismatch")
         if idx[i].dtype != dtype0:
-            raise IndexError()
+            raise IndexError("sparse index dimension dtype mismatch")
     # zip coordinates
     return np.column_stack(idx)
+
+
+cdef class Query(object):
+
+    cdef Ctx ctx
+    cdef tiledb_query_t* ptr
+
+    cdef const char** buffer_name_ptrs
+    cdef void** buffer_ptrs
+    cdef uint64_t* buffer_size_ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+        self.buffer_name_ptrs = NULL
+        self.buffer_ptrs = NULL
+        self.buffer_size_ptr = NULL
+
+    def __dealloc__(self):
+        if self.buffer_name_ptrs != NULL:
+            free(self.buffer_name_ptrs)
+        if self.buffer_ptrs != NULL:
+            free(self.buffer_ptrs)
+        if self.buffer_size_ptr != NULL:
+            free(self.buffer_size_ptr)
+        if self.ptr != NULL:
+            tiledb_query_free(self.ctx.ptr, self.ptr)
+
+    def __init__(self, Ctx ctx, unicode uri, ):
+        self.ctx = ctx
 
 
 cdef class SparseArray(Array):
@@ -1547,44 +1561,59 @@ cdef class SparseArray(Array):
     def __setitem__(self, object key, object val):
         idx = index_as_tuple(key)
         sparse_coords = index_domain_coords(self.domain, idx)
-        sparse_values = np.asarray(val, dtype=self.attr(0).dtype)
+        ncells = sparse_coords.shape[0]
+        if self.nattr == 1:
+            attr = self.attr(0)
+            name = attr.name
+            value = np.asarray(val, dtype=attr.dtype)
+            if len(value) != ncells:
+                raise AttributeError("value length does not match coordinate length")
+            sparse_values = dict(((name, value),))
+        else:
+            sparse_values = dict()
+            for (k, v) in dict(val).items():
+                attr = self.attr(k)
+                name = attr.name
+                value = np.asarray(v, dtype=attr.dtype)
+                if len(value) != ncells:
+                    raise AttributeError("value length does not match coordinate length")
+                sparse_values[name] = value
         self._write_sparse(sparse_coords, sparse_values)
         return
 
-    cdef void _write_sparse(self, np.ndarray coords, np.ndarray data):
+    cdef void _write_sparse(self, np.ndarray coords, dict values):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # array name
         cdef bytes barray_name = self.name.encode('UTF-8')
-        cdef const char* c_array_name = barray_name
 
-        # attr name
-        # TODO: hardcoded attribute
-        cdef Attr attr = self.attr("")
-        cdef bytes battr_name = attr.name.encode('UTF-8')
-        cdef const char* c_attr_name = battr_name
+        # attr names
+        battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
+        cdef size_t nattr = self.nattr
+        cdef const char** c_attr_names = <const char**> calloc(nattr + 1, sizeof(uintptr_t))
+        for i in range(nattr):
+            c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
+        c_attr_names[nattr] = tiledb_coords()
 
-        cdef const char** c_attr_names = <const char**> calloc(2, sizeof(uintptr_t))
-        c_attr_names[0] = c_attr_name
-        c_attr_names[1] = tiledb_coords()
-
-        cdef void** buffers = <void**> calloc(2, sizeof(uintptr_t))
-        buffers[0] = np.PyArray_DATA(data)
-        buffers[1] = np.PyArray_DATA(coords)
-
-        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(2, sizeof(uint64_t))
-        buffer_sizes[0] = <uint64_t> data.nbytes
-        buffer_sizes[1] = <uint64_t> coords.nbytes
+        attr_values = list(values.values())
+        cdef void** buffers = <void**> calloc(nattr + 1, sizeof(uintptr_t))
+        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
+        cdef np.ndarray array_value
+        for i in range(nattr):
+            array_value = attr_values[i]
+            buffers[i] = np.PyArray_DATA(array_value)
+            buffer_sizes[i] = <uint64_t> array_value.nbytes
+        buffers[nattr] = np.PyArray_DATA(coords)
+        buffer_sizes[nattr] = <uint64_t> coords.nbytes
 
         cdef tiledb_query_t* query_ptr = NULL
         check_error(ctx,
-            tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_WRITE))
+            tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_WRITE))
         check_error(ctx,
             tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_UNORDERED))
         check_error(ctx,
-            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, 2, buffers, buffer_sizes))
-
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, nattr + 1, buffers, buffer_sizes))
         cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
@@ -1596,43 +1625,51 @@ cdef class SparseArray(Array):
     def __getitem__(self, object key):
         idx = index_as_tuple(key)
         sparse_coords = index_domain_coords(self.domain, idx)
-        sparse_values = np.zeros(shape=sparse_coords.shape[0], dtype=self.attr(0).dtype)
+        ncells = sparse_coords.shape[0]
+        sparse_values = dict()
+        for i in range(self.nattr):
+            attr = self.attr(i)
+            name = attr.name
+            value = np.zeros(shape=ncells, dtype=attr.dtype)
+            sparse_values[name] = value
         self._read_sparse(sparse_coords, sparse_values)
+        if self.nattr == 1 and self.attr(0).isanon:
+            return sparse_values[self.attr(0).name]
         return sparse_values
 
-    cdef void _read_sparse(self, np.ndarray coords, np.ndarray values):
+    cdef void _read_sparse(self, np.ndarray coords, dict values):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # array name
         cdef bytes barray_name = self.name.encode('UTF-8')
-        cdef const char* c_array_name = barray_name
 
         # attr name
-        # TODO: hardcoded attribute
-        cdef Attr attr = self.attr("")
-        cdef bytes battr_name = attr.name.encode('UTF-8')
-        cdef const char* c_attr_name = battr_name
+        battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
+        cdef size_t nattr = self.nattr
+        cdef const char** c_attr_names = <const char**> calloc(nattr + 1, sizeof(uintptr_t))
+        for i in range(nattr):
+            c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
+        c_attr_names[nattr] = tiledb_coords()
 
-        cdef const char** c_attr_names = <const char**> calloc(2, sizeof(uintptr_t))
-        c_attr_names[0] = c_attr_name
-        c_attr_names[1] = tiledb_coords()
-
-        cdef void** buffers = <void**> calloc(2, sizeof(uintptr_t))
-        buffers[0] = np.PyArray_DATA(values)
-        buffers[1] = np.PyArray_DATA(coords)
-
-        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(2, sizeof(uint64_t))
-        buffer_sizes[0] = <uint64_t> values.nbytes
-        buffer_sizes[1] = <uint64_t> coords.nbytes
+        attr_values = list(values.values())
+        cdef void** buffers = <void**> calloc(nattr + 1, sizeof(uintptr_t))
+        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
+        cdef np.ndarray array_value
+        for i in range(nattr):
+            array_value = attr_values[i]
+            buffers[i] = np.PyArray_DATA(array_value)
+            buffer_sizes[i] = <uint64_t> array_value.nbytes
+        buffers[nattr] = np.PyArray_DATA(coords)
+        buffer_sizes[nattr] = <uint64_t> coords.nbytes
 
         cdef tiledb_query_t* query_ptr = NULL
         check_error(ctx,
-            tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_READ))
+            tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ))
         check_error(ctx,
             tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
         check_error(ctx,
-            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, 2, buffers, buffer_sizes))
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, nattr + 1, buffers, buffer_sizes))
 
         cdef int rc = TILEDB_OK
         with nogil:
@@ -1694,6 +1731,8 @@ cdef int walk_callback(const char* c_path,
     objtype = None
     if obj == TILEDB_ARRAY:
         objtype = "array"
+    elif obj == TILEDB_KEY_VALUE:
+        objtype = "kv "
     elif obj == TILEDB_GROUP:
         objtype = "group"
     try:
@@ -1898,6 +1937,13 @@ class FileIO(object):
         else:
             raise AttributeError("invalid mode {0!r".format(mode))
         self._mode = mode
+        return
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self):
+        self.close()
         return
 
     @property

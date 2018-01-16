@@ -531,6 +531,39 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[2.5, 4.2]], values)
 
+    def test_multiple_attributes(self):
+        ctx =  t.Ctx()
+        dom = t.Domain(ctx,
+                t.Dim(ctx, domain=(1, 10), tile=10, dtype=int),
+                t.Dim(ctx, domain=(1, 10), tile=10, dtype=int))
+        attr_int = t.Attr(ctx, "ints", dtype=int)
+        attr_float = t.Attr(ctx, "floats", dtype="float")
+        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(attr_int, attr_float,))
+
+        I = np.array([1, 1, 1, 2, 3, 3, 3, 4])
+        J = np.array([1, 2, 4, 3, 1, 6, 7, 5])
+
+        V_ints = np.array([0, 1, 2, 3, 4, 6, 7, 5])
+        V_floats = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 5.0])
+
+        V = {"ints": V_ints, "floats": V_floats}
+        T[I, J] = V
+
+        R = T[I, J]
+        assert_array_equal(V["ints"], R["ints"])
+        assert_array_equal(V["floats"], R["floats"])
+
+        # check error attribute does not exist
+        # TODO: should this be an attribute error?
+        V["foo"] = V["ints"].astype(np.int8)
+        with self.assertRaises(t.TileDBError):
+            T[I, J] = V
+
+        # check error, length
+        V["ints"] = V["ints"][1:2].copy()
+        with self.assertRaises(AttributeError):
+            T[I, J] = V
+
 
 class DenseIndexing(DiskTestCase):
 
