@@ -538,7 +538,9 @@ class SparseArray(DiskTestCase):
                 t.Dim(ctx, domain=(1, 10), tile=10, dtype=int))
         attr_int = t.Attr(ctx, "ints", dtype=int)
         attr_float = t.Attr(ctx, "floats", dtype="float")
-        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(attr_int, attr_float,))
+        T = t.SparseArray(ctx, self.path("foo"),
+                          domain=dom,
+                          attrs=(attr_int, attr_float,))
 
         I = np.array([1, 1, 1, 2, 3, 3, 3, 4])
         J = np.array([1, 2, 4, 3, 1, 6, 7, 5])
@@ -559,7 +561,7 @@ class SparseArray(DiskTestCase):
         with self.assertRaises(t.TileDBError):
             T[I, J] = V
 
-        # check error, length
+        # check error ncells length
         V["ints"] = V["ints"][1:2].copy()
         with self.assertRaises(AttributeError):
             T[I, J] = V

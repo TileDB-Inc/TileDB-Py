@@ -1480,7 +1480,17 @@ cdef class DenseArray(Array):
 
         cdef Attr attr = self.attr(attribute_name)
 
-        out = np.empty(self.domain.shape, dtype=attr.dtype)
+        order = "C"
+        cell_order = self.cell_order
+        cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
+        if cell_order == "row-major":
+            order = 'C'
+            cell_layout = TILEDB_ROW_MAJOR
+        elif cell_order == "col-major":
+            order = 'F'
+            cell_layout = TILEDB_COL_MAJOR
+
+        out = np.empty(self.domain.shape, dtype=attr.dtype, order=order)
 
         cdef void* buff = np.PyArray_DATA(out)
         cdef uint64_t buff_size = out.nbytes
@@ -1489,7 +1499,7 @@ cdef class DenseArray(Array):
         check_error(ctx,
             tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ))
         check_error(ctx,
-            tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
+            tiledb_query_set_layout(ctx_ptr, query_ptr, cell_layout))
         check_error(ctx,
             tiledb_query_set_buffers(ctx_ptr, query_ptr, &c_attribute_name, 1, &buff, &buff_size))
 
@@ -1633,6 +1643,7 @@ cdef class SparseArray(Array):
             value = np.zeros(shape=ncells, dtype=attr.dtype)
             sparse_values[name] = value
         self._read_sparse(sparse_coords, sparse_values)
+        # attribute is anonymous, just return the result
         if self.nattr == 1 and self.attr(0).isanon:
             return sparse_values[self.attr(0).name]
         return sparse_values
