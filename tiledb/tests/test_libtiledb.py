@@ -529,10 +529,11 @@ class SparseArray(DiskTestCase):
         values = np.array([3.3, 2.7])
         T[[4.2, 2.5]] = values
 
-        assert_array_equal(T[[2.5, 4.2]], values)
+        assert_array_equal(T[[2.5, 4.2]], values[::-1])
+
 
     def test_multiple_attributes(self):
-        ctx =  t.Ctx()
+        ctx = t.Ctx()
         dom = t.Domain(ctx,
                 t.Dim(ctx, domain=(1, 10), tile=10, dtype=int),
                 t.Dim(ctx, domain=(1, 10), tile=10, dtype=int))

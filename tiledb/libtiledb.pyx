@@ -1642,13 +1642,14 @@ cdef class SparseArray(Array):
             name = attr.name
             value = np.zeros(shape=ncells, dtype=attr.dtype)
             sparse_values[name] = value
-        self._read_sparse(sparse_coords, sparse_values)
+        self._read_sparse_multiple(sparse_coords, sparse_values)
         # attribute is anonymous, just return the result
         if self.nattr == 1 and self.attr(0).isanon:
             return sparse_values[self.attr(0).name]
         return sparse_values
 
     cdef void _read_sparse(self, np.ndarray coords, dict values):
+        # ctx references
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
@@ -1666,6 +1667,7 @@ cdef class SparseArray(Array):
         attr_values = list(values.values())
         cdef void** buffers = <void**> calloc(nattr + 1, sizeof(uintptr_t))
         cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
+
         cdef np.ndarray array_value
         for i in range(nattr):
             array_value = attr_values[i]
@@ -1680,12 +1682,103 @@ cdef class SparseArray(Array):
         check_error(ctx,
             tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
         check_error(ctx,
-            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, nattr + 1, buffers, buffer_sizes))
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names,
+                                     nattr + 1, buffers, buffer_sizes))
 
         cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
         tiledb_query_free(ctx_ptr, query_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        return
+
+    cdef void _read_sparse_multiple(self, np.ndarray coords, dict values):
+        # ctx references
+        cdef Ctx ctx = self.ctx
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
+        # array name
+        cdef bytes barray_name = self.name.encode('UTF-8')
+
+        # attr name
+        battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
+        cdef size_t nattr = self.nattr
+        cdef const char** c_attr_names = <const char**> calloc(nattr + 1, sizeof(uintptr_t))
+        try:
+            for i in range(nattr):
+                c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
+            c_attr_names[nattr] = tiledb_coords()
+        except Exception as ex:
+            free(c_attr_names)
+            raise ex
+        attr_values = list(values.values())
+        cdef size_t ncoords = coords.shape[0]
+        cdef char** buffers = <char**> calloc(nattr + 1, sizeof(uintptr_t))
+        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
+        cdef uint64_t* buffer_item_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
+        cdef np.ndarray array_value
+        try:
+            for i in range(nattr):
+                array_value = attr_values[i]
+                buffers[i] = <char*> np.PyArray_DATA(array_value)
+                buffer_sizes[i] = <uint64_t> array_value.nbytes
+                buffer_item_sizes[i] = <uint64_t> array_value.dtype.itemsize
+            buffers[nattr] = <char*> np.PyArray_DATA(coords)
+            buffer_sizes[nattr] = <uint64_t> coords.nbytes
+            buffer_item_sizes[nattr] = <uint64_t> (coords.dtype.itemsize * self.domain.rank)
+        except Exception as ex:
+            free(c_attr_names)
+            free(buffers)
+            free(buffer_sizes)
+            raise ex
+
+        cdef int rc = TILEDB_OK
+        cdef tiledb_query_t* query_ptr = NULL
+        rc = tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ)
+        if rc != TILEDB_OK:
+            free(c_attr_names)
+            free(buffers)
+            free(buffer_sizes)
+            check_error(ctx, rc)
+
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_GLOBAL_ORDER)
+        if rc != TILEDB_OK:
+            free(c_attr_names)
+            free(buffers)
+            free(buffer_sizes)
+            check_error(ctx, rc)
+
+        for i in range(ncoords):
+            if i == 0:
+                rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names,
+                                              nattr + 1, <void**> buffers, buffer_item_sizes)
+            else:
+                for aidx in range(nattr):
+                    buffers[aidx] += buffer_item_sizes[aidx]
+                buffers[nattr] += buffer_item_sizes[nattr]
+                rc = tiledb_query_reset_buffers(ctx_ptr, query_ptr,
+                                                <void**> buffers, buffer_item_sizes)
+            if rc != TILEDB_OK:
+                free(c_attr_names)
+                free(buffers)
+                free(buffer_sizes)
+                check_error(ctx, rc)
+
+            with nogil:
+                rc = tiledb_query_submit(ctx_ptr, query_ptr)
+
+            if rc != TILEDB_OK:
+                free(c_attr_names)
+                free(buffers)
+                free(buffer_sizes)
+                check_error(ctx, rc)
+
+        free(c_attr_names)
+        free(buffers)
+        free(buffer_sizes)
+        tiledb_query_free(ctx_ptr, query_ptr)
+
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return

@@ -461,6 +461,12 @@ cdef extern from "tiledb.h":
         void** buffers,
         uint64_t* buffer_sizes)
 
+    int tiledb_query_reset_buffers(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        void** buffers,
+        uint64_t* buffer_sizes)
+
     int tiledb_query_set_layout(
         tiledb_ctx_t* ctx, tiledb_query_t* query, tiledb_layout_t layout)
 
