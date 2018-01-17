@@ -1760,25 +1760,16 @@ cdef class SparseArray(Array):
                 rc = tiledb_query_reset_buffers(ctx_ptr, query_ptr,
                                                 <void**> buffers, buffer_item_sizes)
             if rc != TILEDB_OK:
-                free(c_attr_names)
-                free(buffers)
-                free(buffer_sizes)
-                check_error(ctx, rc)
-
+                break
             with nogil:
                 rc = tiledb_query_submit(ctx_ptr, query_ptr)
-
             if rc != TILEDB_OK:
-                free(c_attr_names)
-                free(buffers)
-                free(buffer_sizes)
-                check_error(ctx, rc)
+                break
 
         free(c_attr_names)
         free(buffers)
         free(buffer_sizes)
         tiledb_query_free(ctx_ptr, query_ptr)
-
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return
