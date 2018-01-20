@@ -241,6 +241,7 @@ class DenseArrayTest(DiskTestCase):
         with self.assertRaises(t.TileDBError):
             t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
 
+
     def test_array_1d(self):
         A = np.arange(1050)
 
@@ -461,8 +462,8 @@ class DenseArrayTest(DiskTestCase):
         attr_int = t.Attr(ctx, "ints", dtype=int)
         attr_float = t.Attr(ctx, "floats", dtype="float")
         T = t.DenseArray(ctx, self.path("foo"),
-                              domain=dom,
-                              attrs=(attr_int, attr_float,))
+                         domain=dom,
+                         attrs=(attr_int, attr_float,))
 
         V_ints = np.array([0, 1, 2, 3, 4, 6, 7, 5])
         V_floats = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 5.0])
@@ -474,18 +475,16 @@ class DenseArrayTest(DiskTestCase):
         assert_array_equal(V["ints"], R["ints"])
         assert_array_equal(V["floats"], R["floats"])
 
-        """
-        # check error attribute does not exist
-        # TODO: should this be an attribute error?
-        V["foo"] = V["ints"].astype(np.int8)
-        with self.assertRaises(t.TileDBError):
-            T[I, J] = V
-
         # check error ncells length
         V["ints"] = V["ints"][1:2].copy()
         with self.assertRaises(AttributeError):
-            T[I, J] = V
-        """
+            T[:] = V
+
+        # check error attribute does not exist
+        V["foo"] = V["ints"].astype(np.int8)
+        with self.assertRaises(t.TileDBError):
+            T[:] = V
+
 
 class SparseArray(DiskTestCase):
 
