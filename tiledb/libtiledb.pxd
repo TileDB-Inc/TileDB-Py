@@ -90,19 +90,19 @@ cdef extern from "tiledb.h":
         pass
     ctypedef struct tiledb_attribute_t:
         pass
-    ctypedef struct tiledb_attribute_iter_t:
-        pass
     ctypedef struct tiledb_array_schema_t:
         pass
     ctypedef struct tiledb_dimension_t:
-        pass
-    ctypedef struct tiledb_dimension_iter_t:
         pass
     ctypedef struct tiledb_domain_t:
         pass
     ctypedef struct tiledb_query_t:
         pass
+    ctypedef struct tiledb_kv_schema_t:
+        pass
     ctypedef struct tiledb_kv_t:
+        pass
+    ctypedef struct tiledb_kv_item_t:
         pass
     ctypedef struct tiledb_vfs_t:
         pass
@@ -192,17 +192,6 @@ cdef extern from "tiledb.h":
         const tiledb_attribute_t* attr,
         unsigned int* cell_val_num)
 
-    int tiledb_attribute_from_index(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        unsigned int index,
-        tiledb_attribute_t** attr)
-
-    int tiledb_attribute_from_name(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        const char* name,
-        tiledb_attribute_t** attr)
 
     int tiledb_attribute_dump(
         tiledb_ctx_t* ctx,
@@ -233,13 +222,13 @@ cdef extern from "tiledb.h":
         tiledb_domain_t* domain,
         tiledb_dimension_t* dim)
 
-    int tiledb_dimension_from_index(
+    int tiledb_domain_get_dimension_from_index(
         tiledb_ctx_t* ctx,
         const tiledb_domain_t* domain,
         unsigned int index,
         tiledb_dimension_t** dim)
 
-    int tiledb_dimension_from_name(
+    int tiledb_domain_get_dimension_from_name(
         tiledb_ctx_t* ctx,
         const tiledb_domain_t* domain,
         const char* name,
@@ -283,34 +272,6 @@ cdef extern from "tiledb.h":
         const tiledb_dimension_t* dim,
         void** tile_extent)
 
-    # Dimension Iterator
-    int tiledb_dimension_iter_create(
-        tiledb_ctx_t* ctx,
-        const tiledb_domain_t* domain,
-        tiledb_dimension_iter_t** dim_it)
-
-    int tiledb_dimension_iter_free(
-        tiledb_ctx_t* ctx,
-        tiledb_dimension_iter_t* dim_it);
-
-    int tiledb_dimension_iter_done(
-        tiledb_ctx_t* ctx,
-        tiledb_dimension_iter_t* dim_it,
-        int* done)
-
-    int tiledb_dimension_iter_next(
-        tiledb_ctx_t* ctx,
-        tiledb_dimension_iter_t* dim_it)
-
-    int tiledb_dimension_iter_here(
-        tiledb_ctx_t* ctx,
-        tiledb_dimension_iter_t* dim_it,
-        const tiledb_dimension_t** dim)
-
-    int tiledb_dimension_iter_first(
-        tiledb_ctx_t* ctx,
-        tiledb_dimension_iter_t* dim_it)
-
     # Array schema
     int tiledb_array_schema_create(
         tiledb_ctx_t* ctx,
@@ -347,6 +308,18 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
         tiledb_layout_t tile_order)
+
+    int tiledb_array_schema_get_attribute_from_index(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        unsigned int index,
+        tiledb_attribute_t** attr)
+
+    int tiledb_array_schema_get_attribute_from_name(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        const char* name,
+        tiledb_attribute_t** attr)
 
     int tiledb_array_schema_set_array_type(
         tiledb_ctx_t* ctx,
@@ -393,17 +366,12 @@ cdef extern from "tiledb.h":
         const tiledb_array_schema_t* array_schema,
         tiledb_domain_t** domain)
 
-    int tiledb_array_schema_get_as_kv(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        int* is_kv)
-
     int tiledb_array_schema_get_tile_order(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         tiledb_layout_t* tile_order)
 
-    int tiledb_array_schema_get_num_attributes(
+    int tiledb_array_schema_get_attribute_num(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         unsigned int* num_attributes)
@@ -412,34 +380,6 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         FILE* out)
-
-    # Attribute iterator
-    int tiledb_attribute_iter_create(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* schema,
-        tiledb_attribute_iter_t** attr_it)
-
-    int tiledb_attribute_iter_free(
-        tiledb_ctx_t* ctx,
-        tiledb_attribute_iter_t* attr_it)
-
-    int tiledb_attribute_iter_done(
-        tiledb_ctx_t* ctx,
-        tiledb_attribute_iter_t* attr_it,
-        int* done)
-
-    int tiledb_attribute_iter_next(
-        tiledb_ctx_t* ctx,
-        tiledb_attribute_iter_t* attr_it)
-
-    int tiledb_attribute_iter_here(
-        tiledb_ctx_t* ctx,
-        tiledb_attribute_iter_t* attr_it,
-        const tiledb_attribute_t** attr)
-
-    int tiledb_attribute_iter_first(
-        tiledb_ctx_t* ctx,
-        tiledb_attribute_iter_t* attr_it)
 
     # Query
     int tiledb_query_create(
@@ -493,18 +433,6 @@ cdef extern from "tiledb.h":
         const char* attribute_name,
         tiledb_query_status_t* status)
 
-    int tiledb_query_set_kv(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        tiledb_kv_t* kv);
-
-    int tiledb_query_set_kv_key(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const void* key,
-        tiledb_datatype_t type,
-        uint64_t key_size)
-
     # Array
     int tiledb_array_create(
         tiledb_ctx_t* ctx,
@@ -515,77 +443,133 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         const char* array_path);
 
+    # Key / Value Schema
+    int tiledb_kv_schema_create(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_schema_t** kv_schema)
+
+    int tiledb_kv_schema_free(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_schema_t* kv_schema)
+
+    int tiledb_kv_schema_add_attribute(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_schema_t* kv_schema,
+        tiledb_attribute_t* attr)
+
+    int tiledb_kv_schema_check(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_schema_t* kv_schema)
+
+    int tiledb_kv_schema_load(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_schema_t** kv_schema,
+        const char* uri) nogil
+
+    int tiledb_kv_schema_get_attribute_num(
+        tiledb_ctx_t* ctx,
+        const tiledb_kv_schema_t* kv_schema,
+        unsigned int* attribute_num)
+
+    int tiledb_kv_schema_get_attribute_from_index(
+        tiledb_ctx_t* ctx,
+        const tiledb_kv_schema_t* kv_schema,
+        unsigned int index,
+        tiledb_attribute_t** attr)
+
+    int tiledb_kv_schema_get_attribute_from_name(
+        tiledb_ctx_t* ctx,
+        const tiledb_kv_schema_t* kv_schema,
+        const char* name,
+        tiledb_attribute_t** attr)
+
+    int tiledb_kv_schema_dump(
+        tiledb_ctx_t* ctx,
+        const tiledb_kv_schema_t* kv_schema,
+        FILE* out)
+
+    # Key / Value Item
+    int tiledb_kv_item_create(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_item_t** kv_item)
+
+    int tiledb_kv_item_free(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_item_t* kv_item)
+
+    int tiledb_kv_item_set_key(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_item_t* kv_item,
+        const void* key,
+        tiledb_datatype_t key_type,
+        uint64_t key_size)
+
+    int tiledb_kv_item_set_value(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_item_t* kv_item,
+        const char* attribute,
+        const void* value,
+        tiledb_datatype_t value_type,
+        uint64_t value_size)
+
+    int tiledb_kv_item_get_key(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_item_t* kv_item,
+        const void** key,
+        tiledb_datatype_t* key_type,
+        uint64_t* key_size)
+
+    int tiledb_kv_item_get_value(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_item_t* kv_item,
+        const char* attribute,
+        const void** value,
+        tiledb_datatype_t* value_type,
+        uint64_t* value_size)
+
+
     # Key / Value store
     int tiledb_kv_create(
         tiledb_ctx_t* ctx,
-        tiledb_kv_t** kv,
-        unsigned int attribute_num,
-        const char** attributes,
-        tiledb_datatype_t* types,
-        unsigned int* nitems)
+        const char* kv_uri,
+        const tiledb_kv_schema_t* kv_schema)
 
-    int tiledb_kv_free(
+    int tiledb_kv_consolidate(
+        tiledb_ctx_t* ctx,
+        const char* kv_uri) nogil
+
+    int tiledb_kv_set_max_items(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        uint64_t max_items)
+
+    int tiledb_kv_open(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t** kv,
+        const char* kv_uri,
+        const char** attributes,
+        unsigned int attribute_num)
+
+    int tiledb_kv_close(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv)
 
-    int tiledb_kv_add_key(
+    int tiledb_kv_add_item(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
+        tiledb_kv_item_t* kv_item)
+
+    int tiledb_kv_flush(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv)
+
+    int tiledb_kv_get_item(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        tiledb_kv_item_t** kv_item,
         const void* key,
         tiledb_datatype_t key_type,
-        uint64_t key_size);
-
-    int tiledb_kv_add_value(
-        tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv,
-        unsigned int attribute_idx,
-        const void* value)
-
-    int tiledb_kv_add_value_var(
-        tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv,
-        unsigned int attribute_idx,
-        const void* value,
-        uint64_t value_size)
-
-    int tiledb_kv_get_key_num(
-        tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv,
-        uint64_t* num)
-
-    int tiledb_kv_get_value_num(
-        tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv,
-        unsigned int attribute_idx,
-        uint64_t* num)
-
-    int tiledb_kv_get_key(
-        tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv,
-        uint64_t key_idx,
-        void** key,
-        tiledb_datatype_t* key_type,
-        uint64_t* key_size);
-
-    int tiledb_kv_get_value(
-        tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv,
-        uint64_t obj_index,
-        unsigned int attr_idx,
-        void** value)
-
-    int tiledb_kv_get_value_var(
-        tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv,
-        uint64_t obj_index,
-        unsigned int attr_idx,
-        void** value,
-        uint64_t* value_size);
-
-    int tiledb_kv_set_buffer_size(
-        tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv,
-        uint64_t nbytes);
+        uint64_t key_size)
 
     # Resource management
     int tiledb_object_type(

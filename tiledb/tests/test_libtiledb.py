@@ -477,7 +477,7 @@ class DenseArrayTest(DiskTestCase):
 
         # check error ncells length
         V["ints"] = V["ints"][1:2].copy()
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(t.TileDBError):
             T[:] = V
 
         # check error attribute does not exist
@@ -836,46 +836,46 @@ class AssocArray(DiskTestCase):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), a1)
+        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
         a1.dump()
-        kv["foo"] = b'bar'
+        kv['foo'] = 'bar'
         kv.dump()
-        self.assertEqual(kv["foo"], b'bar')
+        self.assertEqual(kv["foo"], 'bar')
 
     def test_kv_write_load_read(self):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), a1)
+        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
 
-        kv["foo"] = b'bar'
+        kv['foo'] = 'bar'
         del kv
 
         # try to load it
         kv = t.Assoc.load(ctx, self.path("foo"))
-        self.assertEqual(kv["foo"], b'bar')
+        self.assertEqual(kv["foo"], 'bar')
 
     def test_kv_update(self):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "val", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), a1)
+        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
 
-        kv["foo"] = b'bar'
+        kv['foo'] = 'bar'
         del kv
 
         kv = t.Assoc.load(ctx, self.path("foo"))
-        kv["foo"] = b'baz'
+        kv['foo'] = 'baz'
         del kv
 
         kv = t.Assoc.load(ctx, self.path("foo"))
-        self.assertEqual(kv["foo"], b'baz')
+        self.assertEqual(kv['foo'], 'baz')
 
     def test_key_not_found(self):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), a1)
+        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
 
         self.assertRaises(KeyError, kv.__getitem__, "not here")
 
@@ -883,13 +883,22 @@ class AssocArray(DiskTestCase):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), a1)
+        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
         self.assertFalse("foo" in kv)
-        kv["foo"] = b'bar'
+        kv['foo'] = 'bar'
         self.assertTrue("foo" in kv)
 
     def test_ky_update(self):
         pass
+
+    def test_multiattribute(self):
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "ints", dtype=int)
+        a2 = t.Attr(ctx, "floats", dtype=float)
+        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1, a2))
+        #kv[b'foo'] = {"ints": 1, "floats": 2.0}
+        #kv[[b'foo', b'bar']] = {"ints": [1, 2],
+        #"floats": [2.0, 3.0]}
 
 
 class VFS(DiskTestCase):
