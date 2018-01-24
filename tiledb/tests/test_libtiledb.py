@@ -458,12 +458,14 @@ class DenseArrayTest(DiskTestCase):
 
     def test_multiple_attributes(self):
         ctx = t.Ctx()
-        dom = t.Domain(ctx,t.Dim(ctx, domain=(0, 7), tile=8, dtype=int))
+        dom = t.Domain(ctx,
+                       t.Dim(ctx, domain=(0, 7), tile=8, dtype=int))
         attr_int = t.Attr(ctx, "ints", dtype=int)
-        attr_float = t.Attr(ctx, "floats", dtype="float")
-        T = t.DenseArray(ctx, self.path("foo"),
+        attr_float = t.Attr(ctx, "floats", dtype=float)
+        T = t.DenseArray(ctx,
+                         self.path("foo"),
                          domain=dom,
-                         attrs=(attr_int, attr_float,))
+                         attrs=(attr_int, attr_float))
 
         V_ints = np.array([0, 1, 2, 3, 4, 6, 7, 5])
         V_floats = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 5.0])
@@ -888,17 +890,15 @@ class AssocArray(DiskTestCase):
         kv['foo'] = 'bar'
         self.assertTrue("foo" in kv)
 
-    def test_ky_update(self):
-        pass
-
     def test_multiattribute(self):
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "ints", dtype=int)
         a2 = t.Attr(ctx, "floats", dtype=float)
         kv = t.Assoc(ctx, self.path("foo"), attrs=(a1, a2))
-        #kv[b'foo'] = {"ints": 1, "floats": 2.0}
-        #kv[[b'foo', b'bar']] = {"ints": [1, 2],
-        #"floats": [2.0, 3.0]}
+        kv['foo'] = {"ints": 1, "floats": 2.0}
+
+        self.assertEqual(kv["foo"]["ints"], 1)
+        self.assertEqual(kv["foo"]["floats"], 2.0)
 
 
 class VFS(DiskTestCase):

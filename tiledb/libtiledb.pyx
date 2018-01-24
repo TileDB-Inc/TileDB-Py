@@ -1,6 +1,7 @@
 from cpython.version cimport PY_MAJOR_VERSION
 from cpython.bytes cimport (PyBytes_GET_SIZE,
                             PyBytes_AS_STRING,
+                            PyBytes_FromString,
                             PyBytes_FromStringAndSize)
 
 from libc.stdio cimport stdout
@@ -120,6 +121,13 @@ cdef class Config(object):
         return
 
     @staticmethod
+    cdef from_ptr(tiledb_config_t* ptr):
+        assert(ptr != NULL)
+        cdef Config config = Config.__new__(Config)
+        config.ptr = ptr
+        return config
+
+    @staticmethod
     def from_file(object filename):
         cdef bytes bfilename = unicode_path(filename)
         cdef Config config = Config.__new__(Config)
@@ -148,12 +156,22 @@ cdef class Config(object):
 
     def __setitem__(self, object key, object value):
         key, value  = unicode(key), unicode(value)
-        cdef bytes bkey = ustring(str(key)).encode("UTF-8")
-        cdef bytes bvalue = ustring(value).encode("UTF-8")
-        cdef int rc = tiledb_config_set(self.ptr, bkey, bvalue)
+        cdef bytes bparam = key.encode('UTF-8')
+        cdef bytes bvalue = value.encode('UTF-8')
+        cdef int rc = tiledb_config_set(self.ptr, bparam, bvalue)
         if rc != TILEDB_OK:
             raise TileDBError("error setting config parameter {0!r}".format(key))
         return
+
+    def __getitem__(self, object key):
+        key = unicode(key)
+        cdef bytes bparam = key.encode('UTF-8')
+        cdef const char* value_ptr = NULL
+        cdef int rc = tiledb_config_get(self.ptr, bparam, &value_ptr)
+        if rc != TILEDB_OK:
+            raise TileDBError("error getting config parameter {0!r}".format(key))
+        cdef bytes value = PyBytes_FromString(value_ptr)
+        return value.decode('UTF-8')
 
     def __delitem__(self, object key):
         key = unicode(key)
@@ -193,6 +211,13 @@ cdef class Ctx(object):
             # after the exception is raised
             _raise_ctx_err(self.ptr, rc)
         return
+
+    @property
+    def config(self):
+        cdef tiledb_config_t* config_ptr = NULL
+        check_error(self,
+            tiledb_ctx_get_config(self.ptr, &config_ptr))
+        return Config.from_ptr(config_ptr)
 
 
 cdef tiledb_datatype_t _tiledb_dtype(object typ) except? TILEDB_CHAR:
@@ -1093,13 +1118,11 @@ cdef class Array(object):
                  sparse=False):
         cdef bytes buri = ustring(uri).encode('UTF-8')
         cdef tiledb_array_schema_t* schema_ptr = NULL
+        cdef tiledb_array_type_t array_type = TILEDB_SPARSE if sparse else TILEDB_DENSE
         check_error(ctx,
-            tiledb_array_schema_create(ctx.ptr, &schema_ptr))
+            tiledb_array_schema_create(ctx.ptr, &schema_ptr, array_type))
         cdef tiledb_layout_t cell_layout = _tiledb_layout(cell_order)
         cdef tiledb_layout_t tile_layout = _tiledb_layout(tile_order)
-        cdef tiledb_array_type_t array_type = TILEDB_SPARSE if sparse else TILEDB_DENSE
-        tiledb_array_schema_set_array_type(
-            ctx.ptr, schema_ptr, array_type)
         tiledb_array_schema_set_cell_order(
             ctx.ptr, schema_ptr, cell_layout)
         tiledb_array_schema_set_tile_order(
@@ -1870,6 +1893,19 @@ cdef class VFS(object):
         check_error(self.ctx,
             tiledb_vfs_remove_bucket(self.ctx.ptr, self.ptr, buri))
         return
+
+    def empty_bucket(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+            tiledb_vfs_empty_bucket(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def is_empty_bucket(self, uri):
+        cdef bytes buri = unicode_path(uri)
+        cdef int isempty = 0
+        check_error(self.ctx,
+            tiledb_vfs_is_empty_bucket(self.ctx.ptr, self.ptr, buri, &isempty))
+        return bool(isempty)
 
     def is_bucket(self, uri):
         cdef bytes buri = unicode_path(uri)

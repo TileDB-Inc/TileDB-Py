@@ -109,26 +109,40 @@ cdef extern from "tiledb.h":
 
     # Config
     int tiledb_config_create(
-            tiledb_config_t** config)
+        tiledb_config_t** config)
 
     int tiledb_config_free(
-            tiledb_config_t* config)
+        tiledb_config_t* config)
 
     int tiledb_config_set(
-            tiledb_config_t* config, const char* param, const char* value)
+        tiledb_config_t* config,
+        const char* param,
+        const char* value)
+
+    int tiledb_config_get(
+        tiledb_config_t* config,
+        const char* param,
+        const char** value)
 
     int tiledb_config_set_from_file(
-            tiledb_config_t* config, const char* filename)
+        tiledb_config_t* config,
+        const char* filename)
 
     int tiledb_config_unset(
-            tiledb_config_t* config, const char* param)
+        tiledb_config_t* config,
+        const char* param)
 
     # Context
     int tiledb_ctx_create(
-        tiledb_ctx_t** ctx, tiledb_config_t* config)
+        tiledb_ctx_t** ctx,
+        tiledb_config_t* config)
 
     int tiledb_ctx_free(
         tiledb_ctx_t* ctx)
+
+    int tiledb_ctx_get_config(
+        tiledb_ctx_t* ctx,
+        tiledb_config_t** config)
 
     # Error
     int tiledb_error_last(
@@ -275,7 +289,8 @@ cdef extern from "tiledb.h":
     # Array schema
     int tiledb_array_schema_create(
         tiledb_ctx_t* ctx,
-        tiledb_array_schema_t** array_schema)
+        tiledb_array_schema_t** array_schema,
+        tiledb_array_type_t array_type)
 
     int tiledb_array_schema_free(
         tiledb_ctx_t* ctx,
@@ -290,9 +305,6 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
         tiledb_domain_t* domain);
-
-    int tiledb_array_schema_set_as_kv(
-        tiledb_ctx_t* ctx, tiledb_array_schema_t* array_schema);
 
     int tiledb_array_schema_set_capacity(
         tiledb_ctx_t* ctx,
@@ -320,11 +332,6 @@ cdef extern from "tiledb.h":
         const tiledb_array_schema_t* array_schema,
         const char* name,
         tiledb_attribute_t** attr)
-
-    int tiledb_array_schema_set_array_type(
-        tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema,
-        tiledb_array_type_t array_type);
 
     int tiledb_array_schema_check(
         tiledb_ctx_t* ctx,
@@ -527,7 +534,6 @@ cdef extern from "tiledb.h":
         tiledb_datatype_t* value_type,
         uint64_t* value_size)
 
-
     # Key / Value store
     int tiledb_kv_create(
         tiledb_ctx_t* ctx,
@@ -590,16 +596,34 @@ cdef extern from "tiledb.h":
 
     # VFS
     int tiledb_vfs_create(
-            tiledb_ctx_t* ctx, tiledb_vfs_t** vfs, tiledb_config_t* config)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t** vfs,
+        tiledb_config_t* config)
 
     int tiledb_vfs_free(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs)
 
     int tiledb_vfs_create_bucket(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri)
 
     int tiledb_vfs_remove_bucket(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri)
+
+    int tiledb_vfs_empty_bucket(
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri)
+
+    int tiledb_vfs_is_empty_bucket(
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri,
+        int* is_empty)
 
     int tiledb_vfs_is_bucket(
             tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, int* is_bucket)
