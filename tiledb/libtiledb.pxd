@@ -104,6 +104,8 @@ cdef extern from "tiledb.h":
         pass
     ctypedef struct tiledb_kv_item_t:
         pass
+    ctypedef struct tiledb_kv_iter_t:
+        pass
     ctypedef struct tiledb_vfs_t:
         pass
 
@@ -576,6 +578,32 @@ cdef extern from "tiledb.h":
         const void* key,
         tiledb_datatype_t key_type,
         uint64_t key_size)
+
+    # K/V Iterator
+    int tiledb_kv_iter_create(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_iter_t** kv_iter,
+        const char* kv_uri,
+        const char** attributes,
+        unsigned int attribute_num)
+
+    int tiledb_kv_iter_free(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_iter_t* kv_iter)
+
+    int tiledb_kv_iter_here(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_iter_t* kv_iter,
+        tiledb_kv_item_t** kv_item)
+
+    int tiledb_kv_iter_next(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_iter_t* kv_iter)
+
+    int tiledb_kv_iter_done(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_iter_t* kv_iter,
+        int* done)
 
     # Resource management
     int tiledb_object_type(

@@ -890,6 +890,15 @@ class AssocArray(DiskTestCase):
         kv['foo'] = 'bar'
         self.assertTrue("foo" in kv)
 
+    def test_kv_dict(self):
+        # create a kv database
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", dtype=bytes)
+        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
+        kv['foo'] = 'bar'
+        kv['baz'] = 'foo'
+        self.assertEqual(kv.dict(), {'foo': 'bar', 'baz': 'foo'})
+
     def test_multiattribute(self):
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "ints", dtype=int)

@@ -694,6 +694,58 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
         return u"unordered"
 
 
+cdef class KVIter(object):
+
+    cdef Ctx ctx
+    cdef tiledb_kv_iter_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_kv_iter_free(self.ctx.ptr, self.ptr)
+
+    def __init__(self, Ctx ctx, uri):
+        cdef bytes buri = unicode_path(uri)
+        cdef tiledb_kv_iter_t* kv_iter_ptr = NULL
+        check_error(ctx,
+            tiledb_kv_iter_create(ctx.ptr, &kv_iter_ptr, buri, NULL, 0))
+        assert(kv_iter_ptr != NULL)
+        self.ctx = ctx
+        self.ptr = kv_iter_ptr
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef int done = 0
+        check_error(self.ctx,
+            tiledb_kv_iter_done(ctx_ptr, self.ptr, &done))
+        if done > 0:
+            raise StopIteration()
+        cdef int rc
+        cdef tiledb_kv_item_t* kv_item_ptr = NULL
+        check_error(self.ctx,
+            tiledb_kv_iter_here(ctx_ptr, self.ptr, &kv_item_ptr))
+        cdef tiledb_datatype_t dtype
+        cdef const char* key_ptr = NULL
+        cdef uint64_t key_size = 0
+        check_error(self.ctx,
+            tiledb_kv_item_get_key(ctx_ptr, kv_item_ptr, <const void**>(&key_ptr), &dtype, &key_size))
+        cdef bytes bkey = PyBytes_FromStringAndSize(key_ptr, key_size)
+        cdef const char* val_ptr = NULL
+        cdef uint64_t val_size = 0
+        cdef bytes battr = b"value"
+        check_error(self.ctx,
+            tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, battr, <const void**>(&val_ptr), &dtype, &val_size))
+        cdef bytes bval = PyBytes_FromStringAndSize(val_ptr, val_size)
+        check_error(self.ctx,
+            tiledb_kv_iter_next(ctx_ptr, self.ptr))
+        return (bkey.decode('UTF-8'), bval.decode('UTF-8'))
+
+
 cdef class Assoc(object):
 
     cdef Ctx ctx
@@ -800,6 +852,10 @@ cdef class Assoc(object):
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
         return
+
+    def dict(self):
+        kv_iter = KVIter(self.ctx, self.uri)
+        return dict(kv_iter)
 
     def dump(self):
         check_error(self.ctx,
