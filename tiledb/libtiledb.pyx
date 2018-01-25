@@ -1193,28 +1193,6 @@ cdef class Array(object):
         if self.ptr is not NULL:
             tiledb_array_schema_free(self.ctx.ptr, self.ptr)
 
-    @staticmethod
-    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_schema_t* ptr):
-        cdef Array arr = Array.__new__(Array)
-        arr.ctx = ctx
-        arr.name = name
-        arr.ptr = <tiledb_array_schema_t*> ptr
-        return arr
-
-    @staticmethod
-    def load(Ctx ctx, unicode uri):
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-
-        cdef bytes buri = ustring(uri).encode('UTF-8')
-        cdef const char* buri_ptr = PyBytes_AS_STRING(buri)
-
-        cdef tiledb_array_schema_t* schema_ptr = NULL
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_array_schema_load(ctx_ptr, &schema_ptr, buri_ptr)
-        if rc != TILEDB_OK:
-            check_error(ctx, rc)
-        return Array.from_ptr(ctx, uri, schema_ptr)
 
 
     def __init__(self, Ctx ctx, unicode uri,
@@ -1360,6 +1338,29 @@ cdef class Array(object):
 
 
 cdef class DenseArray(Array):
+
+    @staticmethod
+    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_schema_t* ptr):
+        cdef DenseArray arr = DenseArray.__new__(DenseArray)
+        arr.ctx = ctx
+        arr.name = name
+        arr.ptr = <tiledb_array_schema_t*> ptr
+        return arr
+
+    @staticmethod
+    def load(Ctx ctx, unicode uri):
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+
+        cdef bytes buri = ustring(uri).encode('UTF-8')
+        cdef const char* buri_ptr = PyBytes_AS_STRING(buri)
+
+        cdef tiledb_array_schema_t* schema_ptr = NULL
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_schema_load(ctx_ptr, &schema_ptr, buri_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        return DenseArray.from_ptr(ctx, uri, schema_ptr)
 
     @staticmethod
     def from_numpy(Ctx ctx, unicode path, np.ndarray array, **kw):
@@ -1674,6 +1675,29 @@ cdef class Query(object):
 
 
 cdef class SparseArray(Array):
+
+    @staticmethod
+    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_schema_t* ptr):
+        cdef SparseArray arr = SparseArray.__new__(SparseArray)
+        arr.ctx = ctx
+        arr.name = name
+        arr.ptr = <tiledb_array_schema_t*> ptr
+        return arr
+
+    @staticmethod
+    def load(Ctx ctx, unicode uri):
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+
+        cdef bytes buri = ustring(uri).encode('UTF-8')
+        cdef const char* buri_ptr = PyBytes_AS_STRING(buri)
+
+        cdef tiledb_array_schema_t* schema_ptr = NULL
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_schema_load(ctx_ptr, &schema_ptr, buri_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        return SparseArray.from_ptr(ctx, uri, schema_ptr)
 
     def __init__(self, *args, **kw):
         kw['sparse'] = True
