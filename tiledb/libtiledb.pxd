@@ -86,6 +86,8 @@ cdef extern from "tiledb.h":
         pass
     ctypedef struct tiledb_config_t:
         pass
+    ctypedef struct tiledb_config_iter_t:
+        pass
     ctypedef struct tiledb_error_t:
         pass
     ctypedef struct tiledb_attribute_t:
@@ -133,6 +135,32 @@ cdef extern from "tiledb.h":
     int tiledb_config_unset(
         tiledb_config_t* config,
         const char* param)
+
+    # Config Iterator
+    int tiledb_config_iter_create(
+        tiledb_ctx_t* ctx,
+        tiledb_config_t* config,
+        tiledb_config_iter_t** config_iter,
+        const char* prefix)
+
+    int tiledb_config_iter_free(
+        tiledb_ctx_t* ctx,
+        tiledb_config_iter_t* config_iter)
+
+    int tiledb_config_iter_here(
+        tiledb_ctx_t* ctx,
+        tiledb_config_iter_t* config_iter,
+        const char** param,
+        const char** value)
+
+    int tiledb_config_iter_next(
+        tiledb_ctx_t* ctx,
+        tiledb_config_iter_t* config_iter)
+
+    int tiledb_config_iter_done(
+        tiledb_ctx_t* ctx,
+        tiledb_config_iter_t* config_iter,
+        int* done)
 
     # Context
     int tiledb_ctx_create(
@@ -654,16 +682,25 @@ cdef extern from "tiledb.h":
         int* is_empty)
 
     int tiledb_vfs_is_bucket(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, int* is_bucket)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri,
+        int* is_bucket)
 
     int tiledb_vfs_create_dir(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri)
 
     int tiledb_vfs_is_dir(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, int* is_dir)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri,
+        int* is_dir)
 
     int tiledb_vfs_remove_dir(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs, const char* uri)
 
     int tiledb_vfs_is_file(
             tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, int* is_file)

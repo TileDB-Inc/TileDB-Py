@@ -55,6 +55,10 @@ class Config(DiskTestCase):
             fh.write("sm.tile_cache_size 100")
         ctx = t.Ctx(config_file=config_path)
 
+    def test_ctx_config_dict(self):
+        ctx = t.Ctx(config={"sm.tile_cache_size": '100'})
+        self.assertEqual(ctx.config(), {"sm.tile_cache_size": '100'})
+
 
 class GroupTestCase(DiskTestCase):
 

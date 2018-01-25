@@ -182,6 +182,57 @@ cdef class Config(object):
         return
 
 
+cdef class ConfigIter(object):
+
+    cdef Ctx ctx
+    cdef tiledb_config_iter_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            tiledb_config_iter_free(self.ctx.ptr, self.ptr)
+
+    def __init__(self, Ctx ctx, Config config, prefix=""):
+        cdef bytes bprefix = unicode(prefix).encode("UTF-8")
+        cdef tiledb_config_t* config_ptr = config.ptr
+        cdef tiledb_config_iter_t* config_iter_ptr = NULL
+        check_error(ctx,
+            tiledb_config_iter_create(ctx.ptr, config_ptr, &config_iter_ptr, bprefix))
+        assert(config_iter_ptr != NULL)
+        self.ctx = ctx
+        self.ptr = config_iter_ptr
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef int done = 0
+        check_error(self.ctx,
+            tiledb_config_iter_done(ctx_ptr, self.ptr, &done))
+        if done > 0:
+            raise StopIteration()
+        cdef const char* param_ptr = NULL
+        cdef const char* value_ptr = NULL
+        check_error(self.ctx,
+            tiledb_config_iter_here(ctx_ptr, self.ptr, &param_ptr, &value_ptr))
+        cdef bytes bparam
+        cdef bytes bvalue
+        if param_ptr == NULL:
+            bparam = b''
+        else:
+            bparam = PyBytes_FromString(param_ptr)
+        if value_ptr == NULL:
+            bvalue = b''
+        else:
+            bvalue = PyBytes_FromString(value_ptr)
+        check_error(self.ctx,
+            tiledb_config_iter_next(ctx_ptr, self.ptr))
+        return (bparam.decode('UTF-8'), bvalue.decode('UTF-8'))
+
+
 cdef class Ctx(object):
 
     cdef tiledb_ctx_t* ptr
@@ -212,12 +263,13 @@ cdef class Ctx(object):
             _raise_ctx_err(self.ptr, rc)
         return
 
-    @property
     def config(self):
         cdef tiledb_config_t* config_ptr = NULL
         check_error(self,
             tiledb_ctx_get_config(self.ptr, &config_ptr))
-        return Config.from_ptr(config_ptr)
+        cdef Config config = Config.from_ptr(config_ptr)
+        cdef ConfigIter config_iter = ConfigIter(self, config)
+        return dict(config_iter)
 
 
 cdef tiledb_datatype_t _tiledb_dtype(object typ) except? TILEDB_CHAR:
