@@ -4,6 +4,10 @@ from cpython.bytes cimport (PyBytes_GET_SIZE,
                             PyBytes_FromString,
                             PyBytes_FromStringAndSize)
 
+from cpython.mem cimport (PyMem_Malloc,
+                          PyMem_Realloc,
+                          PyMem_Free)
+
 from libc.stdio cimport stdout
 from libc.stdlib cimport malloc, calloc, free
 from libc.stdint cimport (uint64_t, int64_t, uintptr_t)
@@ -551,9 +555,12 @@ cdef class Dim(object):
         if (not np.issubdtype(domain_dtype, np.integer) and
             not np.issubdtype(domain_dtype, np.floating)):
             raise TypeError("invalid Dim dtype {0!r}".format(domain_dtype))
-        tile_array = np.array(tile, dtype=domain_dtype)
-        if tile_array.size != 1:
-            raise ValueError("tile extent must be a scalar")
+        cdef void* tile_size_ptr = NULL
+        if tile > 0:
+            tile_size_array = np.array(tile, dtype=domain_dtype)
+            if tile_size_array.size != 1:
+                raise ValueError("tile extent must be a scalar")
+            tile_size_ptr = np.PyArray_DATA(tile_size_array)
         cdef tiledb_dimension_t* dim_ptr = NULL
         check_error(ctx,
             tiledb_dimension_create(ctx.ptr,
@@ -561,7 +568,7 @@ cdef class Dim(object):
                                     bname,
                                     _tiledb_dtype(domain_dtype),
                                     np.PyArray_DATA(domain_array),
-                                    np.PyArray_DATA(tile_array)))
+                                    tile_size_ptr))
         assert(dim_ptr != NULL)
         self.ctx = ctx
         self.ptr = dim_ptr
@@ -599,7 +606,8 @@ cdef class Dim(object):
         cdef void* tile_ptr = NULL
         check_error(self.ctx,
             tiledb_dimension_get_tile_extent(self.ctx.ptr, self.ptr, &tile_ptr))
-        assert(tile_ptr != NULL)
+        if tile_ptr == NULL:
+            return None
         cdef np.npy_intp shape[1]
         shape[0] = <np.npy_intp> 1
         cdef int type_num = _numpy_type_num(self._get_type())
@@ -1785,6 +1793,56 @@ cdef class SparseArray(Array):
             return sparse_values[self.attr(0).name]
         return sparse_values
 
+    cpdef _read_sparse_subarray(self):
+        # ctx references
+        cdef Ctx ctx = self.ctx
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
+        # array name
+        cdef bytes barray_name = self.name.encode('UTF-8')
+
+        # attr name
+        cdef const char* attr_ptr = tiledb_coords()
+        cdef int64_t[2] subarray = (40, 60)
+        cdef void* buffer_ptr = PyMem_Malloc(1024)
+        cdef uint64_t[1] buffer_sizes = (1024,)
+
+        cdef tiledb_query_t* query_ptr = NULL
+        check_error(ctx,
+            tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ))
+        check_error(ctx,
+            tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*>subarray))
+        check_error(ctx,
+            tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
+        check_error(ctx,
+            tiledb_query_set_buffers(ctx_ptr, query_ptr, &attr_ptr,
+                                     1, &buffer_ptr, buffer_sizes))
+        cdef int rc
+        while True:
+            with nogil:
+                 rc = tiledb_query_submit(ctx_ptr, query_ptr)
+            if buffer_sizes[0] <= 1024:
+                break
+            # If buffer size == buffer size constant
+            #     submit query
+            #     if size == 0:
+            #        break
+            #     else:
+            #         resize_to_final_size
+            # realloc vector buffer (double size?)
+            # reset buffer_sizes
+            # update buffer pointer to point to end of read in data
+            # continue
+        tiledb_query_free(ctx_ptr, query_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        cdef np.npy_intp dims[1]
+        dims[0] = buffer_sizes[0] / 8 # sizeof int64
+        cdef np.ndarray result = np.PyArray_New(np.ndarray, 1, dims, np.NPY_INT64, NULL,
+                                                PyMem_Realloc(buffer_ptr, buffer_sizes[0]),
+                                                -1, np.NPY_OWNDATA, <object>NULL)
+        return result
+
     cdef void _read_sparse(self, np.ndarray coords, dict values):
         # ctx references
         cdef Ctx ctx = self.ctx
@@ -1821,7 +1879,6 @@ cdef class SparseArray(Array):
         check_error(ctx,
             tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names,
                                      nattr + 1, buffers, buffer_sizes))
-
         cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)

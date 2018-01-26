@@ -144,7 +144,7 @@ class DimensionTest(TestCase):
         dim = t.Dim(ctx, domain=(0, 4))
         self.assertEqual(dim.name, "", "dimension name is empty")
         self.assertEqual(dim.shape, (5,))
-        self.assertEqual(dim.tile, 5, "tile extent should span the whole domain")
+        self.assertEqual(dim.tile, None, "tiled extent is None (void)")
 
     def test_dimension(self):
         ctx = t.Ctx()
@@ -517,7 +517,6 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[1, 2]], values)
 
-
     def test_simple_2d_sparse_vector(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 3), tile=4, dtype=int),
@@ -601,6 +600,18 @@ class SparseArray(DiskTestCase):
         V["ints"] = V["ints"][1:2].copy()
         with self.assertRaises(AttributeError):
             T[I, J] = V
+
+    def test_subarray(self):
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(1, 10000), tile=100, dtype=int))
+        att = t.Attr(ctx, dtype=float)
+
+        T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
+
+        T[[50, 60, 100]] = [1.0, 2.0, 3.0]
+
+        # retrieve just valid coordinates in subarray T[40:60]
+        self.assertEqual(T._read_sparse_subarray(), [50, 60])
 
 
 class DenseIndexing(DiskTestCase):
