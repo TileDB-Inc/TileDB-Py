@@ -57,8 +57,8 @@ class Config(DiskTestCase):
 
     def test_ctx_config_dict(self):
         ctx = t.Ctx(config={"sm.tile_cache_size": '100'})
-        self.assertEqual(ctx.config(), {"sm.tile_cache_size": '100'})
-
+        c = ctx.config()
+        self.assertEqual(c, {"sm.tile_cache_size": '100'})
 
 class GroupTestCase(DiskTestCase):
 
@@ -611,7 +611,7 @@ class SparseArray(DiskTestCase):
         T[[50, 60, 100]] = [1.0, 2.0, 3.0]
 
         # retrieve just valid coordinates in subarray T[40:60]
-        self.assertEqual(T._read_sparse_subarray(), [50, 60])
+        assert_array_equal(T._read_sparse_subarray(), [50, 60])
 
 
 class DenseIndexing(DiskTestCase):

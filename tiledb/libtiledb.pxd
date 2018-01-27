@@ -113,54 +113,65 @@ cdef extern from "tiledb.h":
 
     # Config
     int tiledb_config_create(
-        tiledb_config_t** config)
+        tiledb_config_t** config,
+        tiledb_error_t** error)
 
     int tiledb_config_free(
-        tiledb_config_t* config)
+        tiledb_config_t* config,
+        tiledb_error_t** error)
 
     int tiledb_config_set(
         tiledb_config_t* config,
         const char* param,
-        const char* value)
+        const char* value,
+        tiledb_error_t** error)
 
     int tiledb_config_get(
         tiledb_config_t* config,
         const char* param,
-        const char** value)
+        const char** value,
+        tiledb_error_t** error)
 
-    int tiledb_config_set_from_file(
+    int tiledb_config_load_from_file(
         tiledb_config_t* config,
-        const char* filename)
+        const char* filename,
+        tiledb_error_t** error)
 
     int tiledb_config_unset(
         tiledb_config_t* config,
-        const char* param)
+        const char* param,
+        tiledb_error_t** error)
+
+    int tiledb_config_save_to_file(
+        tiledb_config_t* config,
+        const char* filename,
+        tiledb_error_t** error)
 
     # Config Iterator
     int tiledb_config_iter_create(
-        tiledb_ctx_t* ctx,
         tiledb_config_t* config,
         tiledb_config_iter_t** config_iter,
-        const char* prefix)
+        const char* prefix,
+        tiledb_error_t** error)
 
     int tiledb_config_iter_free(
-        tiledb_ctx_t* ctx,
-        tiledb_config_iter_t* config_iter)
+        tiledb_config_iter_t* config_iter,
+        tiledb_error_t** error)
 
     int tiledb_config_iter_here(
-        tiledb_ctx_t* ctx,
         tiledb_config_iter_t* config_iter,
         const char** param,
-        const char** value)
+        const char** value,
+        tiledb_error_t** error)
 
     int tiledb_config_iter_next(
-        tiledb_ctx_t* ctx,
-        tiledb_config_iter_t* config_iter)
+        tiledb_config_iter_t* config_iter,
+        tiledb_error_t** error)
 
     int tiledb_config_iter_done(
-        tiledb_ctx_t* ctx,
         tiledb_config_iter_t* config_iter,
-        int* done)
+        int* done,
+        tiledb_error_t** error)
 
     # Context
     int tiledb_ctx_create(
@@ -174,18 +185,16 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_config_t** config)
 
-    # Error
-    int tiledb_error_last(
+    int tiledb_ctx_get_last_error(
         tiledb_ctx_t* ctx,
-        tiledb_error_t** err)
+        tiledb_error_t** error)
 
+    # Error
     int tiledb_error_message(
-        tiledb_ctx_t* ctx,
         tiledb_error_t* err,
         char** msg)
 
     int tiledb_error_free(
-        tiledb_ctx_t* ctx,
         tiledb_error_t* err)
 
     # Group
@@ -635,13 +644,19 @@ cdef extern from "tiledb.h":
 
     # Resource management
     int tiledb_object_type(
-        tiledb_ctx_t* ctx, const char* path, tiledb_object_t* otype)
+        tiledb_ctx_t* ctx,
+        const char* path,
+        tiledb_object_t* otype)
 
     int tiledb_object_remove(
-        tiledb_ctx_t* ctx, const char* path)
+        tiledb_ctx_t* ctx,
+        const char* path)
 
     int tiledb_object_move(
-        tiledb_ctx_t* ctx, const char* old_path, const char* new_path, int force);
+        tiledb_ctx_t* ctx,
+        const char* old_path,
+        const char* new_path,
+        int force);
 
     int tiledb_object_walk(
         tiledb_ctx_t* ctx,
@@ -700,34 +715,60 @@ cdef extern from "tiledb.h":
 
     int tiledb_vfs_remove_dir(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_t* vfs, const char* uri)
+        tiledb_vfs_t* vfs,
+        const char* uri)
 
     int tiledb_vfs_is_file(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, int* is_file)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri,
+        int* is_file)
 
     int tiledb_vfs_remove_file(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri)
 
     int tiledb_vfs_file_size(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri, uint64_t* size)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri,
+        uint64_t* size)
 
     int tiledb_vfs_move(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs,
-            const char* old_uri, const char* new_uri)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* old_uri,
+        const char* new_uri,
+        int force)
 
     int tiledb_vfs_read(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs,
-            const char* uri, uint64_t offset, void* buffer, uint64_t nbytes)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri,
+        uint64_t offset,
+        void* buffer,
+        uint64_t nbytes)
 
     int tiledb_vfs_write(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs,
-            const char* uri, const void* buffer, uint64_t nbytes)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri,
+        const void* buffer,
+        uint64_t nbytes)
 
     int tiledb_vfs_sync(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri)
 
     int tiledb_vfs_supports_fs(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, tiledb_filesystem_t fs, int* supports)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        tiledb_filesystem_t fs,
+        int* supports)
 
     int tiledb_vfs_touch(
-            tiledb_ctx_t* ctx, tiledb_vfs_t* vfs, const char* uri)
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* uri)
