@@ -117,8 +117,7 @@ cdef extern from "tiledb.h":
         tiledb_error_t** error)
 
     int tiledb_config_free(
-        tiledb_config_t* config,
-        tiledb_error_t** error)
+        tiledb_config_t* config)
 
     int tiledb_config_set(
         tiledb_config_t* config,
@@ -155,8 +154,7 @@ cdef extern from "tiledb.h":
         tiledb_error_t** error)
 
     int tiledb_config_iter_free(
-        tiledb_config_iter_t* config_iter,
-        tiledb_error_t** error)
+        tiledb_config_iter_t* config_iter)
 
     int tiledb_config_iter_here(
         tiledb_config_iter_t* config_iter,

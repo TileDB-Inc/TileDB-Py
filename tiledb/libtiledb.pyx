@@ -112,9 +112,8 @@ cdef class Config(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        cdef tiledb_error_t* err_ptr = NULL
         if self.ptr is not NULL:
-            tiledb_config_free(self.ptr, &err_ptr)
+            tiledb_config_free(self.ptr)
 
     def __init__(self):
         cdef tiledb_config_t* config_ptr = NULL
@@ -152,10 +151,10 @@ cdef class Config(object):
             _raise_tiledb_error(err_ptr)
         rc = tiledb_config_load_from_file(config_ptr, bfilename, &err_ptr)
         if rc == TILEDB_OOM:
-            tiledb_config_free(config_ptr, NULL)
+            tiledb_config_free(config_ptr)
             raise MemoryError()
         if rc == TILEDB_ERR:
-            tiledb_config_free(config_ptr, NULL)
+            tiledb_config_free(config_ptr)
             _raise_tiledb_error(err_ptr)
         config.ptr = config_ptr
         return config
@@ -213,9 +212,8 @@ cdef class ConfigIter(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        cdef tiledb_error_t* err_ptr = NULL
         if self.ptr is not NULL:
-            tiledb_config_iter_free(self.ptr, &err_ptr)
+            tiledb_config_iter_free(self.ptr)
 
     def __init__(self, Config config, prefix=""):
         cdef bytes bprefix = unicode(prefix).encode("UTF-8")
@@ -1214,7 +1212,7 @@ def index_domain_subarray(Domain dom, tuple idx):
         elif np.issubdtype(type(stop), np.integer):
             # normal python indexing semantics
             subarray[r, 0] = start
-            subarray[r, 1] = stop - 1
+            subarray[r, 1] = int(stop) - 1
         else:
             raise IndexError("domain indexing is defined for integral and floating point values")
     return subarray
@@ -1527,14 +1525,16 @@ cdef class DenseArray(Array):
         elif np.isscalar(val):
             for i in range(self.nattr):
                 attr = self.attr(i)
+                subarray_shape = tuple(int(subarray[r, 1] - subarray[r, 0]) + 1
+                                       for r in range(subarray.shape[0]))
                 dense_values[attr.name] = \
-                    np.full(domain.shape, val, dtype=attr.dtype)
+                    np.full(subarray_shape, val, dtype=attr.dtype)
         else:
             raise TypeError("cannot store value of type {0!r}".format(type(val)))
         self._write_dense_subarray(subarray, dense_values)
         return
 
-    cdef void _write_dense_subarray(self, np.ndarray subarray, dict values):
+    cdef _write_dense_subarray(self, np.ndarray subarray, dict values):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
@@ -1769,7 +1769,7 @@ cdef class SparseArray(Array):
         self._write_sparse(sparse_coords, sparse_values)
         return
 
-    cdef void _write_sparse(self, np.ndarray coords, dict values):
+    cdef _write_sparse(self, np.ndarray coords, dict values):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
@@ -1882,7 +1882,7 @@ cdef class SparseArray(Array):
                                                 -1, np.NPY_OWNDATA, <object>NULL)
         return result
 
-    cdef void _read_sparse(self, np.ndarray coords, dict values):
+    cdef _read_sparse(self, np.ndarray coords, dict values):
         # ctx references
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -1926,7 +1926,7 @@ cdef class SparseArray(Array):
             check_error(ctx, rc)
         return
 
-    cdef void _read_sparse_multiple(self, np.ndarray coords, dict values):
+    cdef _read_sparse_multiple(self, np.ndarray coords, dict values):
         # ctx references
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr

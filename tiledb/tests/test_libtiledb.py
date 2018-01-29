@@ -57,8 +57,10 @@ class Config(DiskTestCase):
 
     def test_ctx_config_dict(self):
         ctx = t.Ctx(config={"sm.tile_cache_size": '100'})
-        c = ctx.config()
-        self.assertEqual(c, {"sm.tile_cache_size": '100'})
+        config = ctx.config()
+        self.assertIsInstance(config, dict)
+        self.assertEqual(config["sm.tile_cache_size"], '100')
+
 
 class GroupTestCase(DiskTestCase):
 
