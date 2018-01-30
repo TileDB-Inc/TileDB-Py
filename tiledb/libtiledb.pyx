@@ -115,7 +115,7 @@ cdef class Config(object):
         if self.ptr is not NULL:
             tiledb_config_free(self.ptr)
 
-    def __init__(self):
+    def __init__(self, params=None, path=None):
         cdef tiledb_config_t* config_ptr = NULL
         cdef tiledb_error_t* err_ptr = NULL
         cdef int rc = tiledb_config_create(&config_ptr, &err_ptr)
@@ -125,15 +125,13 @@ cdef class Config(object):
             _raise_tiledb_error(err_ptr)
         assert(config_ptr != NULL)
         self.ptr = config_ptr
-
-    def update(self, object odict):
-        for (key, value) in odict.items():
-            self[key] = value
-        return
+        if path is not None:
+            self.load(path)
+        if params is not None:
+            self.update(params)
 
     @staticmethod
     cdef from_ptr(tiledb_config_t* ptr):
-        #assert(ptr != NULL)
         cdef Config config = Config.__new__(Config)
         config.ptr = ptr
         return config
@@ -159,12 +157,6 @@ cdef class Config(object):
         config.ptr = config_ptr
         return config
 
-    @staticmethod
-    def from_dict(object odict):
-        cdef Config config = Config()
-        config.update(odict)
-        return config
-
     def __setitem__(self, object key, object value):
         key, value  = unicode(key), unicode(value)
         cdef bytes bparam = key.encode('UTF-8')
@@ -188,6 +180,8 @@ cdef class Config(object):
             raise MemoryError()
         elif rc == TILEDB_ERR:
             _raise_tiledb_error(err_ptr)
+        if value_ptr == NULL:
+            raise KeyError(key)
         cdef bytes value = PyBytes_FromString(value_ptr)
         return value.decode('UTF-8')
 
@@ -202,8 +196,115 @@ cdef class Config(object):
             _raise_tiledb_error(err_ptr)
         return
 
+    def __iter__(self):
+        return ConfigKeys(self)
 
-cdef class ConfigIter(object):
+    def __len__(self):
+        return sum(1 for _ in self)
+
+    def __eq__(self, object config):
+        if not isinstance(config, Config):
+            return False
+        keys = set(self.keys())
+        okeys = set(config.keys())
+        if keys != okeys:
+            return False
+        for k in keys:
+            val, oval = self[k], config[k]
+            if val != oval:
+                return False
+        return True
+
+    def __repr__(self):
+        colnames = ["Parameter", "Value"]
+        params = list(self.keys())
+        values = list(map(repr, self.values()))
+        colsizes = [max(len(colnames[0]), *map(len, (p for p in params))),
+                    max(len(colnames[1]), *map(len, (v for v in values)))]
+        format_str = ' | '.join("{{:<{}}}".format(i) for i in colsizes)
+        output = []
+        output.append(format_str.format(colnames[0], colnames[1]))
+        output.append(format_str.format('-' * colsizes[0], '-' * colsizes[1]))
+        output.extend(format_str.format(p, v) for p, v in zip(params, values))
+        return "\n".join(output)
+
+    def items(self, prefix=""):
+        return ConfigItems(self, prefix=prefix)
+
+    def keys(self, prefix=""):
+        return ConfigKeys(self, prefix=prefix)
+
+    def values(self, prefix=""):
+        return ConfigValues(self, prefix=prefix)
+
+    def dict(self, prefix=""):
+        return dict(ConfigItems(self, prefix=prefix))
+
+    def clear(self):
+        for k in self.keys():
+            del self[k]
+
+    def get(self, key, *args):
+        nargs = len(args)
+        if nargs > 1:
+            raise TypeError("get expected at most 2 arguments, got {}".format(nargs))
+        try:
+            return self[key]
+        except KeyError:
+            return args[0] if nargs == 1 else None
+
+    def update(self, object odict):
+        for (key, value) in odict.items():
+            self[key] = value
+        return
+
+    def load(self, path):
+        config = Config.from_file(path)
+        self.update(config)
+
+    def save(self, path):
+        cdef bytes bpath = unicode_path(path)
+        cdef int rc
+        cdef tiledb_error_t* err_ptr = NULL
+        rc = tiledb_config_save_to_file(self.ptr, bpath, &err_ptr)
+        if rc == TILEDB_OOM:
+            raise MemoryError()
+        elif rc == TILEDB_ERR:
+            _raise_tiledb_error(err_ptr)
+        return
+
+
+cdef class ConfigKeys(object):
+
+    cdef ConfigItems config_items
+
+    def __init__(self, Config config, unicode prefix=u""):
+        self.config_items = ConfigItems(config, prefix=prefix)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        (k, _) = self.config_items.__next__()
+        return k
+
+
+cdef class ConfigValues(object):
+
+    cdef ConfigItems config_items
+
+    def __init__(self, Config config, unicode prefix=u""):
+        self.config_items = ConfigItems(config, prefix=prefix)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        (_, v) = self.config_items.__next__()
+        return v
+
+
+cdef class ConfigItems(object):
 
     cdef Config config
     cdef tiledb_config_iter_t* ptr
@@ -215,8 +316,8 @@ cdef class ConfigIter(object):
         if self.ptr is not NULL:
             tiledb_config_iter_free(self.ptr)
 
-    def __init__(self, Config config, prefix=""):
-        cdef bytes bprefix = unicode(prefix).encode("UTF-8")
+    def __init__(self, Config config, unicode prefix=u""):
+        cdef bytes bprefix = prefix.encode("UTF-8")
         cdef tiledb_config_iter_t* config_iter_ptr = NULL
         cdef tiledb_error_t* err_ptr = NULL
         cdef rc = tiledb_config_iter_create(
@@ -303,8 +404,7 @@ cdef class Ctx(object):
         check_error(self,
             tiledb_ctx_get_config(self.ptr, &config_ptr))
         cdef Config config = Config.from_ptr(config_ptr)
-        cdef ConfigIter config_iter = ConfigIter(config)
-        return dict(config_iter)
+        return dict(config.items())
 
 cdef tiledb_datatype_t _tiledb_dtype(object typ) except? TILEDB_CHAR:
     dtype = np.dtype(typ)
