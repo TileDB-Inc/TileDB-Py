@@ -81,6 +81,11 @@ cdef extern from "tiledb.h":
         TILEDB_HDFS
         TILEDB_S3
 
+    ctypedef enum tiledb_vfs_mode_t:
+        TILEDB_VFS_READ
+        TILEDB_VFS_WRITE
+        TILEDB_VFS_APPEND
+
     # Types
     ctypedef struct tiledb_ctx_t:
         pass
@@ -109,6 +114,8 @@ cdef extern from "tiledb.h":
     ctypedef struct tiledb_kv_iter_t:
         pass
     ctypedef struct tiledb_vfs_t:
+        pass
+    ctypedef struct tiledb_vfs_fh_t:
         pass
 
     # Config
@@ -186,6 +193,11 @@ cdef extern from "tiledb.h":
     int tiledb_ctx_get_last_error(
         tiledb_ctx_t* ctx,
         tiledb_error_t** error)
+
+    int tiledb_ctx_is_supported_fs(
+        tiledb_ctx_t* ctx,
+        tiledb_filesystem_t fs,
+        int* is_supported)
 
     # Error
     int tiledb_error_message(
@@ -487,6 +499,20 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         const char* array_path);
 
+    int tiledb_array_get_non_empty_domain(
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
+        void* domain,
+        int* isempty)
+
+    int tiledb_array_compute_max_read_buffer_sizes(
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
+        const void* subarray,
+        const char** attributes,
+        unsigned attribute_num,
+        uint64_t* buffer_sizes);
+
     # Key / Value Schema
     int tiledb_kv_schema_create(
         tiledb_ctx_t* ctx,
@@ -740,33 +766,50 @@ cdef extern from "tiledb.h":
         const char* new_uri,
         int force)
 
-    int tiledb_vfs_read(
+    int tiledb_vfs_open(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* uri,
+        tiledb_vfs_mode_t mode,
+        tiledb_vfs_fh_t** fh)
+
+    int tiledb_vfs_close(
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_fh_t* fh)
+
+    int tiledb_vfs_read(
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_fh_t* fh,
         uint64_t offset,
         void* buffer,
         uint64_t nbytes)
 
     int tiledb_vfs_write(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_t* vfs,
-        const char* uri,
+        tiledb_vfs_fh_t* fh,
         const void* buffer,
         uint64_t nbytes)
 
     int tiledb_vfs_sync(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_t* vfs,
-        const char* uri)
+        tiledb_vfs_fh_t* fh)
 
-    int tiledb_vfs_supports_fs(
+    int tiledb_vfs_fh_free(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_t* vfs,
-        tiledb_filesystem_t fs,
-        int* supports)
+        tiledb_vfs_fh_t* fh)
+
+    int tiledb_vfs_fh_is_closed(
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_fh_t* fh,
+        int* is_closed)
 
     int tiledb_vfs_touch(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* uri)
+
+    int tiledb_uri_to_path(
+        tiledb_ctx_t* ctx,
+        const char* uri,
+        char* path_out,
+        unsigned* path_length)

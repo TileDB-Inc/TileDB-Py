@@ -8,20 +8,38 @@ from cpython.mem cimport (PyMem_Malloc,
                           PyMem_Realloc,
                           PyMem_Free)
 
+from cpython.ref cimport (Py_INCREF,
+                          PyTypeObject)
+
 from libc.stdio cimport stdout
 from libc.stdlib cimport malloc, calloc, free
 from libc.stdint cimport (uint64_t, int64_t, uintptr_t)
 
+
+# Numpy imports
 """
 cdef extern from "numpyFlags.h":
-    # Include 'numpyFlags.h' into the generated C code to disable the
-    # deprecated NumPy API
+    # Include 'numpyFlags.h' into the generated C code to disable warning.
+    # This must be included before numpy is cimported
     pass
 """
 
-# Numpy imports
 import numpy as np
 cimport numpy as np
+
+cdef extern from "numpy/arrayobject.h":
+    # This "steals" a reference to dtype, so you need
+    # to incref the dtype object before using
+    object PyArray_NewFromDescr(PyTypeObject *subtype,
+                                np.dtype descr,
+                                int nd,
+                                np.npy_intp* dims,
+                                np.npy_intp* strides,
+                                void* data,
+                                int flags,
+                                object obj)
+
+
 
 import sys
 from os.path import abspath
@@ -405,6 +423,7 @@ cdef class Ctx(object):
             tiledb_ctx_get_config(self.ptr, &config_ptr))
         cdef Config config = Config.from_ptr(config_ptr)
         return dict(config.items())
+
 
 cdef tiledb_datatype_t _tiledb_dtype(object typ) except? TILEDB_CHAR:
     dtype = np.dtype(typ)
@@ -815,6 +834,12 @@ cdef class Domain(object):
             [repr(self.dim(i)) for i in range(self.rank)])
         return "Domain({0!s})".format(dims)
 
+    def __len__(self):
+        return self.rank
+
+    def __iter__(self):
+        return (self.dim(i) for i in range(self.rank))
+
     @property
     def rank(self):
         cdef unsigned int rank = 0
@@ -1035,8 +1060,8 @@ cdef class Assoc(object):
     def consolidate(self):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef bytes buri = self.uri.encode('UTF-8')
-        cdef const char* uri_ptr = buri
-        cdef int rc
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_kv_consolidate(ctx_ptr, uri_ptr)
         if rc != TILEDB_OK:
@@ -1321,7 +1346,7 @@ def index_domain_subarray(Domain dom, tuple idx):
 cdef class Array(object):
 
     cdef Ctx ctx
-    cdef unicode name
+    cdef unicode uri
     cdef tiledb_array_schema_t* ptr
 
     def __cinit__(self):
@@ -1330,8 +1355,6 @@ cdef class Array(object):
     def __dealloc__(self):
         if self.ptr is not NULL:
             tiledb_array_schema_free(self.ctx.ptr, self.ptr)
-
-
 
     def __init__(self, Ctx ctx, unicode uri,
                  domain=None,
@@ -1372,12 +1395,12 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         self.ctx = ctx
-        self.name = uri
+        self.uri = uri
         self.ptr = <tiledb_array_schema_t*> schema_ptr
 
     @property
     def name(self):
-        return self.name
+        return self.uri
 
     @property
     def sparse(self):
@@ -1472,16 +1495,29 @@ cdef class Array(object):
         return
 
     def consolidate(self):
-        return array_consolidate(self.ctx, self.name)
+        return array_consolidate(self.ctx, self.uri)
+
+    def nonempty_domain(self):
+        cdef Domain dom = self.domain
+        cdef bytes buri = self.uri.encode('UTF-8')
+        cdef np.ndarray extents = np.zeros(shape=(dom.rank, 2), dtype=dom.dtype)
+        cdef void* extents_ptr = np.PyArray_DATA(extents)
+        cdef int empty = 0
+        check_error(self.ctx,
+            tiledb_array_get_non_empty_domain(self.ctx.ptr, buri, extents_ptr, &empty))
+        if empty > 0:
+            return None
+        return tuple((extents[i, 0].item(), extents[i, 1].item())
+                     for i in range(dom.rank))
 
 
 cdef class DenseArray(Array):
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_schema_t* ptr):
+    cdef from_ptr(Ctx ctx, unicode uri, const tiledb_array_schema_t* ptr):
         cdef DenseArray arr = DenseArray.__new__(DenseArray)
         arr.ctx = ctx
-        arr.name = name
+        arr.uri = uri
         arr.ptr = <tiledb_array_schema_t*> ptr
         return arr
 
@@ -1545,7 +1581,7 @@ cdef class DenseArray(Array):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
 
         # array name
-        cdef bytes array_name = self.name.encode('UTF-8')
+        cdef bytes array_name = self.uri.encode('UTF-8')
         cdef const char* c_aname = array_name
 
         cdef tuple shape = \
@@ -1639,7 +1675,7 @@ cdef class DenseArray(Array):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # array name
-        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef bytes barray_name = self.uri.encode('UTF-8')
         cdef const char* c_array_name = barray_name
 
         # attribute names / values
@@ -1692,7 +1728,7 @@ cdef class DenseArray(Array):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
 
         # array name
-        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef bytes barray_name = self.uri.encode('UTF-8')
         cdef const char* c_array_name = barray_name
 
         # attr name
@@ -1727,7 +1763,7 @@ cdef class DenseArray(Array):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # array name
-        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef bytes barray_name = self.uri.encode('UTF-8')
 
         # attr name
         cdef bytes battribute_name = attribute_name.encode('UTF-8')
@@ -1817,10 +1853,10 @@ cdef class Query(object):
 cdef class SparseArray(Array):
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, unicode name, const tiledb_array_schema_t* ptr):
+    cdef from_ptr(Ctx ctx, unicode uri, const tiledb_array_schema_t* ptr):
         cdef SparseArray arr = SparseArray.__new__(SparseArray)
         arr.ctx = ctx
-        arr.name = name
+        arr.uri = uri
         arr.ptr = <tiledb_array_schema_t*> ptr
         return arr
 
@@ -1874,7 +1910,7 @@ cdef class SparseArray(Array):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # array name
-        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef bytes barray_name = self.uri.encode('UTF-8')
 
         # attr names
         battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
@@ -1925,61 +1961,72 @@ cdef class SparseArray(Array):
             return sparse_values[self.attr(0).name]
         return sparse_values
 
+    cpdef np.dtype coords_dtype(self):
+        # returns the record array dtype of the coordinate array
+        return np.dtype([(dim.name, dim.dtype) for dim in self.domain])
+
     cpdef _read_sparse_subarray(self):
         # ctx references
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # array name
-        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef bytes barray_uri = self.uri.encode('UTF-8')
 
         # attr name
-        cdef uint64_t SPARSE_READ_CONST = 1024
-
         cdef const char* attr_ptr = tiledb_coords()
         cdef int64_t[2] subarray = (40, 60)
-        cdef char* buffer_ptr = <char*> PyMem_Malloc(SPARSE_READ_CONST)
-        cdef uint64_t[1] buffer_sizes = (SPARSE_READ_CONST,)
 
         cdef tiledb_query_t* query_ptr = NULL
         check_error(ctx,
-            tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ))
+            tiledb_query_create(ctx_ptr, &query_ptr, barray_uri, TILEDB_READ))
         check_error(ctx,
             tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*>subarray))
         check_error(ctx,
             tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
+
+        # check the max read buffer size
+        cdef uint64_t[1] max_buffer_sizes = (10,)
         check_error(ctx,
-            tiledb_query_set_buffers(ctx_ptr, query_ptr, &attr_ptr,
-                                     1, <void **> &buffer_ptr, buffer_sizes))
+            tiledb_array_compute_max_read_buffer_sizes(
+                ctx_ptr, barray_uri, <void*>subarray, &attr_ptr, 1, max_buffer_sizes))
+
+        # allocate the max read buffer size
+        cdef uint64_t[1] buffer_sizes = (max_buffer_sizes[0],)
+        cdef char* buffer_ptr = <char*> PyMem_Malloc(max_buffer_sizes[0])
+
+        cdef int rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, &attr_ptr, 1,
+                                               <void **> &buffer_ptr, buffer_sizes)
+        if rc != TILEDB_OK:
+            PyMem_Free(buffer_ptr)
+            check_error(ctx, rc)
+
         cdef uint64_t bytes_read = 0
-        cdef int rc
         while True:
             with nogil:
                  rc = tiledb_query_submit(ctx_ptr, query_ptr)
-            if buffer_sizes[0] <= 1024:
+            if buffer_sizes[0] <= max_buffer_sizes[0]:
                 bytes_read += buffer_sizes[0]
                 break
-            #else:
-            #    write_pos_ptr = <char*> PyMem_Realloc(buffer_ptr, bytes_read + SPARSE_READ_CONST)
-            #    write_pos_ptr
-            # If buffer size == buffer size constant
-            #     submit query
-            #     if size == 0:
-            #        break
-            #     else:
-            #         resize_to_final_size
-            # realloc vector buffer (double size?)
-            # reset buffer_sizes
-            # update buffer pointer to point to end of read in data
-            # continue
         tiledb_query_free(ctx_ptr, query_ptr)
         if rc != TILEDB_OK:
+            PyMem_Free(buffer_ptr)
             check_error(ctx, rc)
         cdef np.npy_intp dims[1]
         dims[0] = buffer_sizes[0] / 8 # sizeof int64
-        cdef np.ndarray result = np.PyArray_New(np.ndarray, 1, dims, np.NPY_INT64, NULL,
-                                                PyMem_Realloc(buffer_ptr, buffer_sizes[0]),
-                                                -1, np.NPY_OWNDATA, <object>NULL)
+
+        # PyArray now
+        cdef np.dtype coord_dtype = self.coords_dtype()
+        Py_INCREF(coord_dtype)
+        cdef np.ndarray result = PyArray_NewFromDescr(
+                                    <PyTypeObject*> np.ndarray,
+                                    coord_dtype,
+                                    1, dims, NULL,
+                                    PyMem_Realloc(buffer_ptr, buffer_sizes[0]),
+                                    np.NPY_OWNDATA, <object> NULL)
+        #cdef np.ndarray result = np.PyArray_New(np.ndarray, 1, dims, np.NPY_INT64, NULL,
+        #                                        PyMem_Realloc(buffer_ptr, buffer_sizes[0]),
+        #                                        -1, np.NPY_OWNDATA, <object>NULL)
         return result
 
     cdef _read_sparse(self, np.ndarray coords, dict values):
@@ -1988,7 +2035,7 @@ cdef class SparseArray(Array):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # array name
-        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef bytes barray_name = self.uri.encode('UTF-8')
 
         # attr name
         battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
@@ -2032,7 +2079,7 @@ cdef class SparseArray(Array):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
         # array name
-        cdef bytes barray_name = self.name.encode('UTF-8')
+        cdef bytes barray_name = self.uri.encode('UTF-8')
 
         # attr name
         battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
@@ -2184,6 +2231,37 @@ def walk(Ctx ctx, path, func, order="preorder"):
     return
 
 
+cdef class FileHandle(object):
+
+    cdef VFS vfs
+    cdef unicode uri
+    cdef tiledb_vfs_fh_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        cdef Ctx ctx = self.vfs.ctx
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        if self.ptr != NULL:
+            tiledb_vfs_fh_free(ctx_ptr, self.ptr)
+
+    @staticmethod
+    cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr):
+        cdef FileHandle fh = FileHandle.__new__(FileHandle)
+        fh.vfs = vfs
+        fh.uri = uri
+        fh.ptr = fh_ptr
+        return fh
+
+    cpdef closed(self):
+        cdef Ctx ctx = self.vfs.ctx
+        cdef int isclosed = 0
+        check_error(ctx,
+            tiledb_vfs_fh_is_closed(ctx.ptr, self.ptr, &isclosed))
+        return bool(isclosed)
+
+
 # VFS
 cdef class VFS(object):
 
@@ -2291,8 +2369,29 @@ cdef class VFS(object):
             tiledb_vfs_move(self.ctx.ptr, self.ptr, bold_uri, bnew_uri, force_move))
         return
 
-    def readinto(self, uri, bytes buffer, offset, nbytes):
+    def open(self, uri, mode=None):
+        cdef tiledb_vfs_mode_t vfs_mode
+        if mode == "r":
+            vfs_mode = TILEDB_VFS_READ
+        elif mode == "w":
+            vfs_mode = TILEDB_VFS_WRITE
+        elif mode == "a":
+            vfs_mode = TILEDB_VFS_APPEND
+        else:
+            raise ValueError("invalid mode {0!r}".format(mode))
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_vfs_fh_t* fh_ptr = NULL
+        check_error(self.ctx,
+            tiledb_vfs_open(self.ctx.ptr, self.ptr, buri, vfs_mode, &fh_ptr))
+        cdef FileHandle fh = FileHandle.from_ptr(self, uri, fh_ptr)
+        return fh
+
+    def close(self, FileHandle fh):
+        check_error(self.ctx,
+            tiledb_vfs_close(self.ctx.ptr, fh.ptr))
+        return fh
+
+    def readinto(self, FileHandle fh, bytes buffer, offset, nbytes):
         if offset < 0:
             raise AttributeError("read offset must be >= 0")
         if nbytes < 0:
@@ -2304,20 +2403,18 @@ cdef class VFS(object):
         cdef char* buffer_ptr = PyBytes_AS_STRING(buffer)
         check_error(self.ctx,
             tiledb_vfs_read(self.ctx.ptr,
-                            self.ptr,
-                            buri,
+                            fh.ptr,
                             <uint64_t> _offset,
                             <void*> buffer_ptr,
                             <uint64_t> _nbytes))
         return buffer
 
-    def read(self, uri, offset, nbytes):
+    def read(self, FileHandle fh, offset, nbytes):
         cdef Py_ssize_t _nbytes = nbytes
         cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
-        return self.readinto(uri, buffer, offset, nbytes)
+        return self.readinto(fh, buffer, offset, nbytes)
 
-    def write(self, uri, offset, buff):
-        cdef bytes buri = unicode_path(uri)
+    def write(self, FileHandle fh, offset, buff):
         if offset < 0:
             raise AttributeError("read offset must be >= 0")
         cdef bytes buffer = bytes(buff)
@@ -2325,18 +2422,15 @@ cdef class VFS(object):
         cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)
         check_error(self.ctx,
             tiledb_vfs_write(self.ctx.ptr,
-                             self.ptr,
-                             buri,
+                             fh.ptr,
                              <const void*> buffer_ptr,
                              <uint64_t> _nbytes))
         return
 
-
-    def sync(self, uri):
-        cdef bytes buri = unicode_path(uri)
+    def sync(self, FileHandle fh):
         check_error(self.ctx,
-            tiledb_vfs_sync(self.ctx.ptr, self.ptr, buri))
-        return
+            tiledb_vfs_sync(self.ctx.ptr, fh.ptr))
+        return fh
 
     def touch(self, uri):
         cdef bytes buri = unicode_path(uri)
@@ -2351,21 +2445,21 @@ cdef class VFS(object):
             return True
         elif scheme == "s3":
             check_error(self.ctx,
-                tiledb_vfs_supports_fs(self.ctx.ptr, self.ptr, TILEDB_S3, &supports))
+                tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_S3, &supports))
             return bool(supports)
         elif scheme == "hdfs":
             check_error(self.ctx,
-                tiledb_vfs_supports_fs(self.ctx.ptr, self.ptr, TILEDB_HDFS, &supports))
+                tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_HDFS, &supports))
             return bool(supports)
         else:
-            raise TileDBError("unsupported vfs scheme '{}://'".format(scheme))
+            raise TileDBError("unsupported vfs scheme '{0!s}://'".format(scheme))
 
 
 class FileIO(object):
 
-    def __init__(self, vfs, uri, mode="r"):
+    def __init__(self, VFS vfs, uri, mode="r"):
+        self.fh = vfs.open(uri, mode=mode)
         self.vfs = vfs
-        self.uri = uri
         self._offset = 0
         self._closed = False
         self._readonly = True
@@ -2394,14 +2488,15 @@ class FileIO(object):
     def mode(self):
         return self._mode
 
-    def close(self):
-        self._closed = True
-
+    @property
     def closed(self):
-        return self._closed
+        return self.fh.closed()
+
+    def close(self):
+        self.vfs.close(self.fh)
 
     def flush(self):
-        self.vfs.sync(self.uri)
+        self.vfs.sync(self.fh)
 
     def seekable(self):
         return True
@@ -2411,7 +2506,7 @@ class FileIO(object):
             raise TypeError("offset must be an integer")
         if whence == 0:
             if offset < 0:
-                raise AttributeError("ofset must be a positive or zero value when SEEK_SET")
+                raise AttributeError("offset must be a positive or zero value when SEEK_SET")
             self._offset = offset
         elif whence == 1:
             self._offset += offset
@@ -2435,7 +2530,7 @@ class FileIO(object):
             raise TypeError("offset must be an integer")
         if self._mode == "w":
             raise IOError("cannot read from write-only FileIO handle")
-        if self.closed():
+        if self.closed:
             raise IOError("cannot read from closed FileIO handle")
         nbytes_remaining = self._nbytes - self._offset
         if size < 0:
@@ -2445,32 +2540,32 @@ class FileIO(object):
         else:
             nbytes = size
         buff = bytes(nbytes)
-        self.vfs.readinto(self.uri, buff, self._offset, nbytes)
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
         self._offset += nbytes
         return buff
 
     def readall(self):
         if self._mode == "w":
             raise IOError("cannot read from a write-only FileIO handle")
-        if self.closed():
+        if self.closed:
             raise IOError("cannot read from closed FileIO handle")
         nbytes = self._nbytes - self._offset
         if nbytes == 0:
             return bytes(0)
         buff = bytes(nbytes)
-        self.vfs.readinto(self.uri, buff, self._offset, nbytes)
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
         self._offset += nbytes
         return buff
 
     def readinto(self, buff):
         if self._mode == "w":
             raise IOError("cannot read from a write-only FileIO handle")
-        if self.closed():
+        if self.closed:
             raise IOError("cannot read from closed FileIO handle")
         nbytes = self._nbytes - self._offset
         if nbytes == 0:
             return
-        self.vfs.readinto(self.uri, buff, self._offset, nbytes)
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
         self._offset += nbytes
         return
 
@@ -2478,7 +2573,7 @@ class FileIO(object):
         if not self.writeable():
             raise IOError("cannot write to read-only FileIO handle")
         nbytes = len(buff)
-        self.vfs.write(self.uri, 0, buff)
+        self.vfs.write(self.fh, 0, buff)
         self._nbytes += nbytes
         self._offset += nbytes
         return nbytes
