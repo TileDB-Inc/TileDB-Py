@@ -1069,14 +1069,16 @@ cdef class Assoc(object):
         return
 
     def dict(self):
-        kv_iter = KVIter(self.ctx, self.uri)
-        return dict(kv_iter)
+        return dict(self)
 
     def dump(self):
         check_error(self.ctx,
             tiledb_kv_schema_dump(self.ctx.ptr, self.ptr, stdout))
         print("\n")
         return
+
+    def __iter__(self):
+        return KVIter(self.ctx, self.uri)
 
     def __setitem__(self, object key, object value):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -1561,7 +1563,6 @@ cdef class DenseArray(Array):
         idx = replace_ellipsis(self.domain, key)
         idx, drop_axes = replace_scalars_slice(self.domain, idx)
         subarray = index_domain_subarray(self.domain, idx)
-        # TODO: attribute iterator
         attr_names = [self.attr(i).name for i in range(self.nattr)]
         out = self._read_dense_subarray(subarray, attr_names)
         if any(s.step for s in idx):
@@ -1585,7 +1586,8 @@ cdef class DenseArray(Array):
         cdef const char* c_aname = array_name
 
         cdef tuple shape = \
-            tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1 for r in range(self.rank))
+            tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
+                  for r in range(self.rank))
 
         out = dict()
         for n in attr_names:
@@ -1771,13 +1773,13 @@ cdef class DenseArray(Array):
 
         cdef Attr attr = self.attr(attribute_name)
 
-        order = "C"
+        order = 'C'
         cell_order = self.cell_order
         cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
-        if cell_order == "row-major":
+        if cell_order == 'row-major':
             order = 'C'
             cell_layout = TILEDB_ROW_MAJOR
-        elif cell_order == "col-major":
+        elif cell_order == 'col-major':
             order = 'F'
             cell_layout = TILEDB_COL_MAJOR
 
@@ -1947,6 +1949,13 @@ cdef class SparseArray(Array):
 
     def __getitem__(self, object key):
         idx = index_as_tuple(key)
+        idx = replace_ellipsis(self.domain, idx)
+        idx, drop_axes = replace_scalars_slice(self.domain, idx)
+        subarray = index_domain_subarray(self.domain, idx)
+        attr_names = [self.attr(i).name for i in range(self.nattr)]
+        return self._read_sparse_subarray(subarray, attr_names)
+
+    def _sparse_read_query(self, object idx):
         sparse_coords = index_domain_coords(self.domain, idx)
         ncells = sparse_coords.shape[0]
         sparse_values = dict()
@@ -1962,10 +1971,11 @@ cdef class SparseArray(Array):
         return sparse_values
 
     cpdef np.dtype coords_dtype(self):
+        # TODO: should be a method of domain?
         # returns the record array dtype of the coordinate array
         return np.dtype([(dim.name, dim.dtype) for dim in self.domain])
 
-    cpdef _read_sparse_subarray(self):
+    cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names):
         # ctx references
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -1975,59 +1985,147 @@ cdef class SparseArray(Array):
 
         # attr name
         cdef const char* attr_ptr = tiledb_coords()
-        cdef int64_t[2] subarray = (40, 60)
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
 
         cdef tiledb_query_t* query_ptr = NULL
         check_error(ctx,
             tiledb_query_create(ctx_ptr, &query_ptr, barray_uri, TILEDB_READ))
         check_error(ctx,
-            tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*>subarray))
+            tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*>subarray_ptr))
         check_error(ctx,
             tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
 
+        # attr names
+        battr_names = list(bytes(k, 'UTF-8') for k in attr_names)
+
+        cdef size_t nattr = len(battr_names) + 1 # coordinates
+        cdef const char** attr_names_ptr = <const char**> PyMem_Malloc(nattr * sizeof(uintptr_t))
+        if attr_names_ptr == NULL:
+            raise MemoryError()
+        try:
+            attr_names_ptr[0] = tiledb_coords()
+            for i in range(1, nattr):
+                attr_names_ptr[i] = PyBytes_AS_STRING(battr_names[i - 1])
+        except:
+            PyMem_Free(attr_names_ptr)
+            raise
+
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        if buffer_sizes_ptr == NULL:
+            PyMem_Free(attr_names_ptr)
+            raise MemoryError()
+
         # check the max read buffer size
-        cdef uint64_t[1] max_buffer_sizes = (10,)
-        check_error(ctx,
-            tiledb_array_compute_max_read_buffer_sizes(
-                ctx_ptr, barray_uri, <void*>subarray, &attr_ptr, 1, max_buffer_sizes))
+        cdef int rc
+        rc = tiledb_array_compute_max_read_buffer_sizes(
+                ctx_ptr, barray_uri, subarray_ptr, attr_names_ptr, nattr, buffer_sizes_ptr)
+        if rc != TILEDB_OK:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            check_error(ctx, rc)
 
         # allocate the max read buffer size
-        cdef uint64_t[1] buffer_sizes = (max_buffer_sizes[0],)
-        cdef char* buffer_ptr = <char*> PyMem_Malloc(max_buffer_sizes[0])
+        cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
+        if buffers_ptr == NULL:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            raise MemoryError()
 
-        cdef int rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, &attr_ptr, 1,
-                                               <void **> &buffer_ptr, buffer_sizes)
+        # initalize the buffer ptrs
+        for i in range(nattr):
+            buffers_ptr[i] = <void*> PyMem_Malloc(buffer_sizes_ptr[i])
+            if buffers_ptr[i] == NULL:
+                PyMem_Free(attr_names_ptr)
+                PyMem_Free(buffer_sizes_ptr)
+                for j in range(i):
+                    PyMem_Free(buffers_ptr[j])
+                PyMem_Free(buffers_ptr)
+                raise MemoryError()
+
+        rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, &attr_ptr, nattr,
+                                      buffers_ptr, buffer_sizes_ptr)
         if rc != TILEDB_OK:
-            PyMem_Free(buffer_ptr)
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            for i in range(nattr):
+                PyMem_Free(buffers_ptr[i])
+            PyMem_Free(buffers_ptr)
             check_error(ctx, rc)
 
-        cdef uint64_t bytes_read = 0
-        while True:
-            with nogil:
-                 rc = tiledb_query_submit(ctx_ptr, query_ptr)
-            if buffer_sizes[0] <= max_buffer_sizes[0]:
-                bytes_read += buffer_sizes[0]
-                break
+        with nogil:
+             rc = tiledb_query_submit(ctx_ptr, query_ptr)
         tiledb_query_free(ctx_ptr, query_ptr)
-        if rc != TILEDB_OK:
-            PyMem_Free(buffer_ptr)
-            check_error(ctx, rc)
-        cdef np.npy_intp dims[1]
-        dims[0] = buffer_sizes[0] / 8 # sizeof int64
 
-        # PyArray now
-        cdef np.dtype coord_dtype = self.coords_dtype()
-        Py_INCREF(coord_dtype)
-        cdef np.ndarray result = PyArray_NewFromDescr(
-                                    <PyTypeObject*> np.ndarray,
-                                    coord_dtype,
-                                    1, dims, NULL,
-                                    PyMem_Realloc(buffer_ptr, buffer_sizes[0]),
-                                    np.NPY_OWNDATA, <object> NULL)
-        #cdef np.ndarray result = np.PyArray_New(np.ndarray, 1, dims, np.NPY_INT64, NULL,
-        #                                        PyMem_Realloc(buffer_ptr, buffer_sizes[0]),
-        #                                        -1, np.NPY_OWNDATA, <object>NULL)
-        return result
+        if rc != TILEDB_OK:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            for i in range(nattr):
+                PyMem_Free(buffers_ptr[i])
+            PyMem_Free(buffers_ptr)
+            check_error(ctx, rc)
+
+        # collect a list of dtypes for resulting to construct array
+        dtypes = list()
+        try:
+            dtypes.append(self.coords_dtype())
+            for i in range(1, nattr):
+                dtypes.append(self.attr(i - 1).dtype)
+            # we need to increase the reference count of
+            # all dtype objects, because PyArray_NewFromDescr
+            # steals a reference
+            for i in range(nattr):
+                Py_INCREF(dtypes[i])
+        except:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            for i in range(nattr):
+                PyMem_Free(buffers_ptr[i])
+            PyMem_Free(buffers_ptr)
+            raise
+
+        cdef dict out = dict()
+        # all results are 1-d vectors
+        cdef np.npy_intp dims[1]
+        # coordinates
+        try:
+            dtype = dtypes[0]
+            dims[0] = buffer_sizes_ptr[0] / dtype.itemsize
+            out["coords"] = PyArray_NewFromDescr(
+                <PyTypeObject*> np.ndarray,
+                dtype,
+                1, dims, NULL,
+                PyMem_Realloc(buffers_ptr[0], buffer_sizes_ptr[0]),
+                np.NPY_OWNDATA, <object> NULL)
+        except:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            for i in range(nattr):
+                PyMem_Free(buffers_ptr[i])
+            PyMem_Free(buffers_ptr)
+            raise
+
+        # attributes
+        for i in range(1, nattr):
+            try:
+                dtype = dtypes[i]
+                dims[0] = buffer_sizes_ptr[i] / dtypes[i].itemsize
+                out[attr_names[i - 1]] = \
+                    PyArray_NewFromDescr(
+                        <PyTypeObject*> np.ndarray,
+                        dtype,
+                        1, dims, NULL,
+                        PyMem_Realloc(buffers_ptr[i], buffer_sizes_ptr[i]),
+                        np.NPY_OWNDATA, <object> NULL)
+            except:
+                PyMem_Free(attr_names_ptr)
+                PyMem_Free(buffer_sizes_ptr)
+                # the previous buffers are now "owned" by
+                # the constructed numpy arrays
+                for j in range(i, nattr):
+                    PyMem_Free(buffers_ptr[i])
+                PyMem_Free(buffers_ptr)
+                raise
+        return out
 
     cdef _read_sparse(self, np.ndarray coords, dict values):
         # ctx references
@@ -2473,7 +2571,7 @@ class FileIO(object):
             self._readonly = False
             self._nbytes = 0
         else:
-            raise AttributeError("invalid mode {0!r".format(mode))
+            raise AttributeError("invalid mode {0!r}".format(mode))
         self._mode = mode
         return
 

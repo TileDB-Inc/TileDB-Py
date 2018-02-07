@@ -625,11 +625,13 @@ class SparseArray(DiskTestCase):
         self.assertIsNone(T.nonempty_domain())
 
         T[[50, 60, 100]] = [1.0, 2.0, 3.0]
-
+        print(T[40:61])
+        print(T[40:61]["coords"][0]["x"])
         self.assertEqual(((50, 100),), T.nonempty_domain())
 
         # retrieve just valid coordinates in subarray T[40:60]
-        assert_array_equal(T._read_sparse_subarray()["x"], [50, 60])
+        print(T[40:1000])
+        #assert_array_equal(T[40:61]["x"], [50, 60])
 
 
 class DenseIndexing(DiskTestCase):
@@ -931,6 +933,7 @@ class AssocArray(DiskTestCase):
         kv['foo'] = 'bar'
         kv['baz'] = 'foo'
         self.assertEqual(kv.dict(), {'foo': 'bar', 'baz': 'foo'})
+        self.assertEqual(dict(kv), {'foo': 'bar', 'baz': 'foo'})
 
     def test_multiattribute(self):
         ctx = t.Ctx()
