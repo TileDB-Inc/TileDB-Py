@@ -2070,9 +2070,8 @@ cdef class SparseArray(Array):
             dtypes.append(self.coords_dtype())
             for i in range(1, nattr):
                 dtypes.append(self.attr(i - 1).dtype)
-            # we need to increase the reference count of
-            # all dtype objects, because PyArray_NewFromDescr
-            # steals a reference
+            # we need to increase the reference count of all dtype objects
+            # because PyArray_NewFromDescr steals a reference
             for i in range(nattr):
                 Py_INCREF(dtypes[i])
         except:
@@ -2126,50 +2125,6 @@ cdef class SparseArray(Array):
                 PyMem_Free(buffers_ptr)
                 raise
         return out
-
-    cdef _read_sparse(self, np.ndarray coords, dict values):
-        # ctx references
-        cdef Ctx ctx = self.ctx
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-
-        # array name
-        cdef bytes barray_name = self.uri.encode('UTF-8')
-
-        # attr name
-        battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
-        cdef size_t nattr = self.nattr
-        cdef const char** c_attr_names = <const char**> calloc(nattr + 1, sizeof(uintptr_t))
-        for i in range(nattr):
-            c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
-        c_attr_names[nattr] = tiledb_coords()
-
-        attr_values = list(values.values())
-        cdef void** buffers = <void**> calloc(nattr + 1, sizeof(uintptr_t))
-        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
-
-        cdef np.ndarray array_value
-        for i in range(nattr):
-            array_value = attr_values[i]
-            buffers[i] = np.PyArray_DATA(array_value)
-            buffer_sizes[i] = <uint64_t> array_value.nbytes
-        buffers[nattr] = np.PyArray_DATA(coords)
-        buffer_sizes[nattr] = <uint64_t> coords.nbytes
-
-        cdef tiledb_query_t* query_ptr = NULL
-        check_error(ctx,
-            tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ))
-        check_error(ctx,
-            tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
-        check_error(ctx,
-            tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names,
-                                     nattr + 1, buffers, buffer_sizes))
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, query_ptr)
-        if rc != TILEDB_OK:
-            check_error(ctx, rc)
-        return
 
     cdef _read_sparse_multiple(self, np.ndarray coords, dict values):
         # ctx references
