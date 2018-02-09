@@ -618,7 +618,7 @@ class SparseArray(DiskTestCase):
     def test_subarray(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, "x", domain=(1, 10000), tile=100, dtype=int))
-        att = t.Attr(ctx, dtype=float)
+        att = t.Attr(ctx, "", dtype=float)
 
         T = t.SparseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
 
@@ -630,8 +630,10 @@ class SparseArray(DiskTestCase):
         self.assertEqual(((50, 100),), T.nonempty_domain())
 
         # retrieve just valid coordinates in subarray T[40:60]
-        print(T[40:1000])
-        #assert_array_equal(T[40:61]["x"], [50, 60])
+        #import pandas
+        #df = pandas.DataFrame(T[40:1000])
+        #print(df.head())
+        assert_array_equal(T[40:61]["x"], [50, 60])
 
 
 class DenseIndexing(DiskTestCase):

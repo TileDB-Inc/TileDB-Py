@@ -43,6 +43,7 @@ cdef extern from "numpy/arrayobject.h":
 
 import sys
 from os.path import abspath
+from collections import OrderedDict
 
 # Integer types supported by Python / System
 if sys.version_info >= (3, 0):
@@ -425,29 +426,31 @@ cdef class Ctx(object):
         return dict(config.items())
 
 
-cdef tiledb_datatype_t _tiledb_dtype(object typ) except? TILEDB_CHAR:
-    dtype = np.dtype(typ)
-    if dtype == np.int32:
+cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
+    # get the base dtype here to allow for simple
+    # compound dtypes of fixed size (ex. dtype((np.int32, 2)))
+    base = dtype.base
+    if base == np.int32:
         return TILEDB_INT32
-    elif dtype == np.uint32:
+    elif base == np.uint32:
         return TILEDB_UINT32
-    elif dtype == np.int64:
+    elif base == np.int64:
         return TILEDB_INT64
-    elif dtype == np.uint64:
+    elif base == np.uint64:
         return TILEDB_UINT64
-    elif dtype == np.float32:
+    elif base == np.float32:
         return TILEDB_FLOAT32
-    elif dtype == np.float64:
+    elif base == np.float64:
         return TILEDB_FLOAT64
-    elif dtype == np.int8:
+    elif base == np.int8:
         return TILEDB_INT8
-    elif dtype == np.uint8:
+    elif base == np.uint8:
         return TILEDB_UINT8
-    elif dtype == np.int16:
+    elif base == np.int16:
         return TILEDB_INT16
-    elif dtype == np.uint16:
+    elif base == np.uint16:
         return TILEDB_UINT16
-    elif dtype == np.str_ or dtype == np.bytes_: # or bytes
+    elif base == np.str_ or dtype == np.bytes_: # or bytes
         return TILEDB_CHAR
     raise TypeError("data type {0!r} not understood".format(dtype))
 
@@ -503,16 +506,17 @@ cdef _numpy_type(tiledb_datatype_t dtype):
         return np.bytes_
     raise TypeError("tiledb datatype not understood")
 
+"""
 cdef object _numpy_scalar(tiledb_datatype_t typ, void* data, uint64_t nbytes):
     cdef np.dtype descr
     cdef int type_num = _numpy_type_num(typ)
     if typ != TILEDB_CHAR:
         # numeric type
         #return np.PyArray_Scalar(data, np.PyArray_DescrFromType(type_num), NULL)
-        return
     else:
         # bytes type, ensure a full copy
         return PyBytes_FromStringAndSize(<char*> data, nbytes)
+"""
 
 cdef tiledb_compressor_t _tiledb_compressor(object c) except TILEDB_NO_COMPRESSION:
     if c is None:
@@ -588,19 +592,33 @@ cdef class Attr(object):
         attr.ptr = <tiledb_attribute_t*> ptr
         return attr
 
-    # TODO: use numpy compund dtypes to choose number of cells
-    def __init__(self, Ctx ctx,  name=u"", dtype=np.float64,
+    def __init__(self,
+                 Ctx ctx,
+                 name=u"",
+                 dtype=np.float64,
                  compressor=None, level=-1):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
-        cdef tiledb_datatype_t tiledb_dtype = _tiledb_dtype(dtype)
+        cdef np.dtype _dtype = np.dtype(dtype)
+        cdef tiledb_datatype_t tiledb_dtype = _tiledb_dtype(_dtype)
         cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
         check_error(ctx,
             tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
-        # TODO: hack for now until we get richer datatypes
-        if tiledb_dtype == TILEDB_CHAR:
-            check_error(ctx,
-                 tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, TILEDB_VAR_NUM))
+        cdef unsigned int ncells = 1
+        # flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
+        if _dtype.itemsize == 0:
+            ncells = TILEDB_VAR_NUM
+        # handles setting flexible dtypes (string / unicode / bytes) of fixed size
+        elif np.issubdtype(_dtype, np.flexible) and _dtype.itemsize > 0:
+            ncells = _dtype.itemsize
+        # handles n fixed size dtypes
+        elif _dtype.subarray != NULL:
+            sub_typ, sub_shape = _dtype.subdtype
+            if len(sub_shape) > 1:
+                raise TypeError("dtype nested sub-arrays of rank > 1 are not supported")
+            ncells = sub_shape[0]
+        check_error(ctx,
+            tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells))
         if compressor is not None:
             compr = _tiledb_compressor(compressor)
             check_error(ctx,
@@ -614,18 +632,25 @@ cdef class Attr(object):
         print('\n')
         return
 
+
     @property
     def dtype(self):
         cdef tiledb_datatype_t typ
         check_error(self.ctx,
             tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
-        return np.dtype(_numpy_type(typ))
+        cdef unsigned int ncells = 0
+        check_error(self.ctx,
+            tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
+        return np.dtype((_numpy_type(typ), ncells))
 
     cdef unicode _get_name(Attr self):
         cdef const char* c_name = NULL
         check_error(self.ctx,
             tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
-        return c_name.decode('UTF-8', 'strict')
+        cdef unicode name = c_name.decode('UTF-8', 'strict')
+        if name.startswith("__attr"):
+            return u""
+        return name
 
     @property
     def name(self):
@@ -634,7 +659,7 @@ cdef class Attr(object):
     @property
     def isanon(self):
         cdef unicode name = self._get_name()
-        return name == "" or name.startswith("__attr")
+        return name == u"" or name.startswith(u"__attr")
 
     @property
     def compressor(self):
@@ -646,7 +671,7 @@ cdef class Attr(object):
             return (None, -1)
         return (_tiledb_compressor_string(compr), level)
 
-    cdef unsigned int _cell_var_num(Attr self) except? 0:
+    cdef unsigned int _cell_val_num(Attr self) except? 0:
         cdef unsigned int ncells = 0
         check_error(self.ctx,
             tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
@@ -1481,7 +1506,6 @@ cdef class Array(object):
             return self._attr_idx(int(key))
         raise AttributeError("attr indices must be a string name, "
                              "or an integer index, not {0!r}".format(type(key)))
-
     @property
     def ndim(self):
         return self.domain.ndim
@@ -1589,7 +1613,7 @@ cdef class DenseArray(Array):
             tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
                   for r in range(self.rank))
 
-        out = dict()
+        out = OrderedDict()
         for n in attr_names:
             out[n] = np.empty(shape=shape, dtype=self.attr(n).dtype)
 
@@ -1804,7 +1828,7 @@ cdef class DenseArray(Array):
             check_error(ctx, rc)
         return out
 
-
+# point query index a tiledb array (zips) columnar index vectors
 def index_domain_coords(Domain dom, tuple idx):
     rank = len(idx)
     if rank != dom.rank:
@@ -2082,7 +2106,7 @@ cdef class SparseArray(Array):
             PyMem_Free(buffers_ptr)
             raise
 
-        cdef dict out = dict()
+        cdef object out = OrderedDict()
         # all results are 1-d vectors
         cdef np.npy_intp dims[1]
         # coordinates
@@ -2091,8 +2115,7 @@ cdef class SparseArray(Array):
             dims[0] = buffer_sizes_ptr[0] / dtype.itemsize
             out["coords"] = PyArray_NewFromDescr(
                 <PyTypeObject*> np.ndarray,
-                dtype,
-                1, dims, NULL,
+                dtype, 1, dims, NULL,
                 PyMem_Realloc(buffers_ptr[0], buffer_sizes_ptr[0]),
                 np.NPY_OWNDATA, <object> NULL)
         except:
@@ -2111,8 +2134,7 @@ cdef class SparseArray(Array):
                 out[attr_names[i - 1]] = \
                     PyArray_NewFromDescr(
                         <PyTypeObject*> np.ndarray,
-                        dtype,
-                        1, dims, NULL,
+                        dtype, 1, dims, NULL,
                         PyMem_Realloc(buffers_ptr[i], buffer_sizes_ptr[i]),
                         np.NPY_OWNDATA, <object> NULL)
             except:
