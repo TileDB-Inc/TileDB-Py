@@ -605,12 +605,12 @@ cdef class Attr(object):
         check_error(ctx,
             tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
         cdef unsigned int ncells = 1
-        # flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
-        if _dtype.itemsize == 0:
-            ncells = TILEDB_VAR_NUM
-        # handles setting flexible dtypes (string / unicode / bytes) of fixed size
-        elif np.issubdtype(_dtype, np.flexible) and _dtype.itemsize > 0:
-            ncells = _dtype.itemsize
+        if np.issubdtype(_dtype, np.bytes_):
+            # flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
+            if _dtype.itemsize == 0:
+                ncells = TILEDB_VAR_NUM
+            else:
+                ncells = _dtype.itemsize
         # handles n fixed size dtypes
         elif _dtype.subarray != NULL:
             sub_typ, sub_shape = _dtype.subdtype
@@ -632,7 +632,6 @@ cdef class Attr(object):
         print('\n')
         return
 
-
     @property
     def dtype(self):
         cdef tiledb_datatype_t typ
@@ -641,6 +640,9 @@ cdef class Attr(object):
         cdef unsigned int ncells = 0
         check_error(self.ctx,
             tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
+        # flexible types with itemsize 0 are interpreted as VARNUM cells
+        if ncells == TILEDB_VAR_NUM:
+            return np.dtype((_numpy_type(typ), 0))
         return np.dtype((_numpy_type(typ), ncells))
 
     cdef unicode _get_name(Attr self):
@@ -679,12 +681,12 @@ cdef class Attr(object):
 
     @property
     def isvar(self):
-        cdef unsigned int ncells = self._cell_var_num()
+        cdef unsigned int ncells = self._cell_val_num()
         return ncells == TILEDB_VAR_NUM
 
     @property
     def ncells(self):
-        cdef unsigned int ncells = self._cell_var_num()
+        cdef unsigned int ncells = self._cell_val_num()
         assert(ncells != 0)
         return int(ncells)
 
@@ -1397,23 +1399,34 @@ cdef class Array(object):
             tiledb_array_schema_create(ctx.ptr, &schema_ptr, array_type))
         cdef tiledb_layout_t cell_layout = _tiledb_layout(cell_order)
         cdef tiledb_layout_t tile_layout = _tiledb_layout(tile_order)
-        tiledb_array_schema_set_cell_order(
-            ctx.ptr, schema_ptr, cell_layout)
-        tiledb_array_schema_set_tile_order(
-            ctx.ptr, schema_ptr, tile_layout)
+        cdef int rc = TILEDB_OK
+        rc = tiledb_array_schema_set_cell_order(ctx.ptr, schema_ptr, cell_layout)
+        if rc != TILEDB_OK:
+            tiledb_array_schema_free(ctx.ptr, schema_ptr)
+            check_error(ctx, rc)
+        rc = tiledb_array_schema_set_tile_order(ctx.ptr, schema_ptr, tile_layout)
+        if rc != TILEDB_OK:
+            tiledb_array_schema_free(ctx.ptr, schema_ptr)
+            check_error(ctx, rc)
         cdef uint64_t c_capacity = 0
         if sparse and capacity > 0:
-            c_capacity = <uint64_t>capacity
-            tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, c_capacity)
-        cdef tiledb_domain_t* domain_ptr = (<Domain>domain).ptr
-        tiledb_array_schema_set_domain(
-            ctx.ptr, schema_ptr, domain_ptr)
+            c_capacity = <uint64_t> capacity
+            rc = tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, c_capacity)
+            if rc != TILEDB_OK:
+                tiledb_array_schema_free(ctx.ptr, schema_ptr)
+                check_error(ctx, rc)
+        cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
+        rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
+        if rc != TILEDB_OK:
+            tiledb_array_schema_free(ctx.ptr, schema_ptr)
+            check_error(ctx, rc)
         cdef tiledb_attribute_t* attr_ptr = NULL
         for attr in attrs:
             attr_ptr = (<Attr> attr).ptr
-            tiledb_array_schema_add_attribute(
-                ctx.ptr, schema_ptr, attr_ptr)
-        cdef int rc = TILEDB_OK
+            rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
+            if rc != TILEDB_OK:
+                tiledb_array_schema_free(ctx.ptr, schema_ptr)
+                check_error(ctx, rc)
         rc = tiledb_array_schema_check(ctx.ptr, schema_ptr)
         if rc != TILEDB_OK:
             tiledb_array_schema_free(ctx.ptr, schema_ptr)

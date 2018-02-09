@@ -214,6 +214,19 @@ class AttributeTest(TestCase):
         self.assertEqual(compressor, "zstd")
         self.assertEqual(level, 10)
 
+    def test_ncell_attribute(self):
+        ctx = t.Ctx()
+        attr = t.Attr(ctx, "foo", dtype=np.dtype((np.int32, 2)))
+        attr.dump()
+        self.assertEqual(attr.dtype, np.dtype((np.int32, 2)))
+        self.assertEqual(attr.ncells, 2)
+
+    def test_vararg_attribute(self):
+        ctx = t.Ctx()
+        attr = t.Attr(ctx, "foo", dtype=np.bytes_)
+        self.assertEqual(attr.dtype, np.dtype(np.bytes_))
+        self.assertTrue(attr.isvar)
+
     def test_unique_attributes(self):
         ctx = t.Ctx()
         dom = t.Domain(
@@ -473,6 +486,18 @@ class DenseArrayTest(DiskTestCase):
         assert_array_equal(B[190:310, 3:7], T[190:310, 3:7])
         assert_array_equal(A[310:], T[310:])
         assert_array_equal(A[:, 7:], T[:, 7:])
+
+    def test_ncell_attributes(self):
+        ctx = t.Ctx()
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 9), tile=10, dtype=int))
+        attr = t.Attr(ctx, dtype=np.dtype((np.int32, 2)))
+        T = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(attr,))
+
+        A = np.ones(10, dtype=np.dtype((np.int32, 2)))
+        #T[:] = A
+
+        #assert_array_equal(A, T[:])
+        #assert_array_equal(A[:5], T[:5])
 
     def test_multiple_attributes(self):
         ctx = t.Ctx()
