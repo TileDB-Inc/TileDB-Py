@@ -216,10 +216,27 @@ class AttributeTest(TestCase):
 
     def test_ncell_attribute(self):
         ctx = t.Ctx()
-        attr = t.Attr(ctx, "foo", dtype=np.dtype((np.int32, 2)))
-        attr.dump()
-        self.assertEqual(attr.dtype, np.dtype((np.int32, 2)))
+        dtype = np.dtype([("", np.int32), ("", np.int32)])
+        attr = t.Attr(ctx, "foo", dtype=dtype)
+
+        self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 2)
+
+        # dtype subarrays not supported
+        with self.assertRaises(TypeError):
+            t.Attr(ctx, "foo", dtype=np.dtype((np.int32, 2)))
+
+        # mixed type record arrays not supported
+        with self.assertRaises(TypeError):
+            t.Attr(ctx, "foo", dtype=np.dtype([("", np.float32), ("", np.int32)]))
+
+    def test_ncell_bytes_attribute(self):
+        ctx = t.Ctx()
+        dtype = np.dtype((np.bytes_, 10))
+        attr = t.Attr(ctx, "foo", dtype=dtype)
+
+        self.assertEqual(attr.dtype, dtype)
+        self.assertEqual(attr.ncells, 10)
 
     def test_vararg_attribute(self):
         ctx = t.Ctx()
@@ -490,14 +507,15 @@ class DenseArrayTest(DiskTestCase):
     def test_ncell_attributes(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 9), tile=10, dtype=int))
-        attr = t.Attr(ctx, dtype=np.dtype((np.int32, 2)))
+        attr = t.Attr(ctx, dtype=[("", np.int32), ("", np.int32)])
         T = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(attr,))
 
-        A = np.ones(10, dtype=np.dtype((np.int32, 2)))
-        #T[:] = A
+        A = np.ones((10,), dtype=[("", np.int32), ("", np.int32)])
+        self.assertEqual(A.dtype, attr.dtype)
 
-        #assert_array_equal(A, T[:])
-        #assert_array_equal(A[:5], T[:5])
+        T[:] = A
+        assert_array_equal(A, T[:])
+        assert_array_equal(A[:5], T[:5])
 
     def test_multiple_attributes(self):
         ctx = t.Ctx()

@@ -596,29 +596,41 @@ cdef class Attr(object):
                  Ctx ctx,
                  name=u"",
                  dtype=np.float64,
-                 compressor=None, level=-1):
+                 compressor=None,
+                 level=-1):
         cdef bytes bname = ustring(name).encode('UTF-8')
-        cdef tiledb_attribute_t* attr_ptr = NULL
         cdef np.dtype _dtype = np.dtype(dtype)
-        cdef tiledb_datatype_t tiledb_dtype = _tiledb_dtype(_dtype)
-        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
-        check_error(ctx,
-            tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
-        cdef unsigned int ncells = 1
+        cdef tiledb_datatype_t tiledb_dtype
+        cdef unsigned int ncells
         if np.issubdtype(_dtype, np.bytes_):
             # flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
             if _dtype.itemsize == 0:
+                tiledb_dtype = TILEDB_CHAR
                 ncells = TILEDB_VAR_NUM
             else:
+                tiledb_dtype = TILEDB_CHAR
                 ncells = _dtype.itemsize
+
         # handles n fixed size dtypes
-        elif _dtype.subarray != NULL:
-            sub_typ, sub_shape = _dtype.subdtype
-            if len(sub_shape) > 1:
-                raise TypeError("dtype nested sub-arrays of rank > 1 are not supported")
-            ncells = sub_shape[0]
+        elif _dtype.kind == 'V':
+            if _dtype.shape != ():
+                raise TypeError("nested sub-array numpy dtypes are not supported")
+            # check that types are the same
+            typs = [t for (t, _) in _dtype.fields.values()]
+            typ, ntypes = typs[0], len(typs)
+            if typs.count(typ) != ntypes:
+                raise TypeError('heterogenous record numpy dtypes are not supported')
+            tiledb_dtype = _tiledb_dtype(typ)
+            ncells = ntypes
+        else:
+            tiledb_dtype = _tiledb_dtype(_dtype)
+            ncells = 1
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        check_error(ctx,
+            tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
         check_error(ctx,
             tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells))
+        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
         if compressor is not None:
             compr = _tiledb_compressor(compressor)
             check_error(ctx,
@@ -643,7 +655,15 @@ cdef class Attr(object):
         # flexible types with itemsize 0 are interpreted as VARNUM cells
         if ncells == TILEDB_VAR_NUM:
             return np.dtype((_numpy_type(typ), 0))
-        return np.dtype((_numpy_type(typ), ncells))
+        elif ncells > 1:
+            nptyp = _numpy_type(typ)
+            # special case for fixed sized bytes arguments
+            if typ == TILEDB_CHAR:
+                return np.dtype((nptyp, ncells))
+            # create an anon record dtype
+            return np.dtype([('', nptyp)] * ncells)
+        assert(ncells == 1)
+        return np.dtype(_numpy_type(typ))
 
     cdef unicode _get_name(Attr self):
         cdef const char* c_name = NULL
@@ -1497,15 +1517,15 @@ cdef class Array(object):
             tiledb_array_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
         return int(nattr)
 
-    cdef Attr _attr_name(self, unicode name):
-        cdef bytes bname = ustring(name).encode('UTF-8')
+    cdef _attr_name(self, unicode name):
+        cdef bytes bname = name.encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_name(
                         self.ctx.ptr, self.ptr, bname, &attr_ptr))
         return Attr.from_ptr(self.ctx, attr_ptr)
 
-    cdef Attr _attr_idx(self, int idx):
+    cdef _attr_idx(self, int idx):
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_index(
@@ -1682,21 +1702,11 @@ cdef class DenseArray(Array):
         cdef np.ndarray subarray = index_domain_subarray(domain, idx)
         cdef dict dense_values = dict()
         cdef Attr attr
-        if np.iterable(val):
-            try:
-                dval = dict(val)
-                for (k, v) in dval.items():
-                    attr = self.attr(k)
-                    dense_values[attr.name] = \
-                        np.ascontiguousarray(v, dtype=attr.dtype)
-            except (ValueError, TypeError) as ex:
-                if self.nattr == 1:
-                    attr = self.attr(0)
-                    dense_values[attr.name] = \
-                        np.ascontiguousarray(val, dtype=attr.dtype)
-                else:
-                    raise AttributeError("ambiguous attribute assignment, "
-                                         "more than one array attribue")
+        if isinstance(val, dict):
+            for (k, v) in val.items():
+                attr = self.attr(k)
+                dense_values[attr.name] = \
+                    np.ascontiguousarray(v, dtype=attr.dtype)
         elif np.isscalar(val):
             for i in range(self.nattr):
                 attr = self.attr(i)
@@ -1704,8 +1714,13 @@ cdef class DenseArray(Array):
                                        for r in range(subarray.shape[0]))
                 dense_values[attr.name] = \
                     np.full(subarray_shape, val, dtype=attr.dtype)
+        elif self.nattr == 1:
+            attr = self.attr(0)
+            dense_values[attr.name] = \
+                np.ascontiguousarray(val, dtype=attr.dtype)
         else:
-            raise TypeError("cannot store value of type {0!r}".format(type(val)))
+            raise ValueError("ambiguous attribute assignment, "
+                             "more than one array attribue")
         self._write_dense_subarray(subarray, dense_values)
         return
 
