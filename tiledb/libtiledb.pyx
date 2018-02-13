@@ -121,7 +121,7 @@ cdef unicode ustring(s):
 
 
 cdef bytes unicode_path(path):
-    return ustring(abspath(path)).encode('UTF-8')
+    return ustring(path).encode('UTF-8')
 
 
 cdef class Config(object):
@@ -1236,8 +1236,8 @@ cdef class Assoc(object):
             return True
         except KeyError:
             return False
-        except Exception as ex:
-            raise ex
+        except:
+            raise
 
     def update(self, *args, **kwargs):
         cdef dict update = {}
@@ -2182,9 +2182,9 @@ cdef class SparseArray(ArraySchema):
             for i in range(nattr):
                 c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
             c_attr_names[nattr] = tiledb_coords()
-        except Exception as ex:
+        except:
             free(c_attr_names)
-            raise ex
+            raise
         attr_values = list(values.values())
         cdef size_t ncoords = coords.shape[0]
         cdef char** buffers = <char**> calloc(nattr + 1, sizeof(uintptr_t))
@@ -2200,11 +2200,11 @@ cdef class SparseArray(ArraySchema):
             buffers[nattr] = <char*> np.PyArray_DATA(coords)
             buffer_sizes[nattr] = <uint64_t> coords.nbytes
             buffer_item_sizes[nattr] = <uint64_t> (coords.dtype.itemsize * self.domain.rank)
-        except Exception as ex:
+        except:
             free(c_attr_names)
             free(buffers)
             free(buffer_sizes)
-            raise ex
+            raise
 
         cdef int rc = TILEDB_OK
         cdef tiledb_query_t* query_ptr = NULL
