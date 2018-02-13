@@ -607,7 +607,7 @@ cdef extern from "tiledb.h":
         tiledb_ctx_t* ctx,
         const char* kv_uri) nogil
 
-    int tiledb_kv_set_max_items(
+    int tiledb_kv_set_max_buffered_items(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
         uint64_t max_items)

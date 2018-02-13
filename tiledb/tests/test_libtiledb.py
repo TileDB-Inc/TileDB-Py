@@ -32,33 +32,41 @@ class Config(DiskTestCase):
 
     def test_ctx_config(self):
         ctx = t.Ctx({"sm.tile_cache_size": 100})
+        config = ctx.config()
+        self.assertEqual(config["sm.tile_cache_size"], "100")
 
     def test_config_bad_param(self):
         config = t.Config()
-        config["sm.i_see"] = "cant_touch_this"
+        config["sm.foo"] = "bar"
         ctx = t.Ctx(config)
+        self.assertEqual(ctx.config()["sm.foo"], "bar")
 
     def test_config_unset(self):
         config = t.Config()
         config["sm.tile_cache_size"] = 100
         del config["sm.tile_cache_size"]
+        with self.assertRaises(KeyError):
+            config["sm.tile_cache_size"]
 
     def test_config_from_file(self):
         config_path = self.path("config")
         with open(config_path, "w") as fh:
             fh.write("sm.tile_cache_size 100")
         config = t.Config.from_file(config_path)
+        self.assertEqual(config["sm.tile_cache_size"], "100")
 
     def test_ctx_config_from_file(self):
         config_path = self.path("config")
         with open(config_path, "w") as fh:
             fh.write("sm.tile_cache_size 100")
         ctx = t.Ctx(config_file=config_path)
+        config = ctx.config()
+        self.assertEqual(config["sm.tile_cache_size"], "100")
 
     def test_ctx_config_dict(self):
         ctx = t.Ctx(config={"sm.tile_cache_size": '100'})
         config = ctx.config()
-        self.assertIsInstance(config, dict)
+        self.assertIsInstance(config, t.Config)
         self.assertEqual(config["sm.tile_cache_size"], '100')
 
 
@@ -255,7 +263,7 @@ class AttributeTest(TestCase):
         attr2 = t.Attr(ctx, "foo", dtype=int)
 
         with self.assertRaises(t.TileDBError):
-            t.Array(ctx, "foobar", domain=dom, attrs=(attr1, attr2))
+            t.ArraySchema(ctx, "foobar", domain=dom, attrs=(attr1, attr2))
 
 
 class DenseArrayTest(DiskTestCase):
