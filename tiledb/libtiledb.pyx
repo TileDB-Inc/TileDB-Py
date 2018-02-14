@@ -64,6 +64,9 @@ np.import_array()
 
 
 class TileDBError(Exception):
+    """
+    TileDB Exception class
+    """
     pass
 
 
@@ -100,6 +103,11 @@ cpdef check_error(Ctx ctx, int rc):
 
 
 def version():
+    """
+    Return the version of the linked libtiledb library
+
+    :return: A tuple of semver numbers (major, minor, rev)
+    """
     cdef:
         int major = 0
         int minor = 0
@@ -108,7 +116,9 @@ def version():
     return major, minor, rev
 
 
-cdef unicode ustring(s):
+cdef unicode ustring(object s):
+    """Coerce a python object to a unicode string"""
+
     if type(s) is unicode:
         return <unicode> s
     elif PY_MAJOR_VERSION < 3 and isinstance(s, bytes):
@@ -120,11 +130,15 @@ cdef unicode ustring(s):
         ", not {0!r}".format(type(s)))
 
 
-cdef bytes unicode_path(path):
+cdef bytes unicode_path(object path):
+    """Returns a UTF-8 encoded byte representation of a given URI path string"""
     return ustring(path).encode('UTF-8')
 
 
 cdef class Config(object):
+    """
+    TileDB Config class
+    """
 
     cdef tiledb_config_t* ptr
 
@@ -151,13 +165,15 @@ cdef class Config(object):
             self.update(params)
 
     @staticmethod
-    cdef from_ptr(tiledb_config_t*ptr):
+    cdef from_ptr(tiledb_config_t* ptr):
+        """Constructs a Config class instance from a (non-null) tiledb_config_t pointer"""
         cdef Config config = Config.__new__(Config)
         config.ptr = ptr
         return config
 
     @staticmethod
     def from_file(object filename):
+        """Constructs a Config class instance from config paramters loaded from a local file"""
         cdef bytes bfilename = unicode_path(filename)
         cdef Config config = Config.__new__(Config)
         cdef tiledb_config_t* config_ptr = NULL
@@ -387,6 +403,9 @@ cdef class ConfigItems(object):
 
 
 cdef class Ctx(object):
+    """
+    Ctx class
+    """
 
     cdef tiledb_ctx_t*ptr
 
