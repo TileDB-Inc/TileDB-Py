@@ -2177,35 +2177,6 @@ def index_domain_coords(Domain dom, tuple idx):
     return np.column_stack(idx)
 
 
-cdef class Query(object):
-
-    cdef Ctx ctx
-    cdef tiledb_query_t*ptr
-
-    cdef const char** buffer_name_ptrs
-    cdef void** buffer_ptrs
-    cdef uint64_t* buffer_size_ptr
-
-    def __cinit__(self):
-        self.ptr = NULL
-        self.buffer_name_ptrs = NULL
-        self.buffer_ptrs = NULL
-        self.buffer_size_ptr = NULL
-
-    def __dealloc__(self):
-        if self.buffer_name_ptrs != NULL:
-            free(self.buffer_name_ptrs)
-        if self.buffer_ptrs != NULL:
-            free(self.buffer_ptrs)
-        if self.buffer_size_ptr != NULL:
-            free(self.buffer_size_ptr)
-        if self.ptr != NULL:
-            tiledb_query_free(self.ctx.ptr, self.ptr)
-
-    def __init__(self, Ctx ctx, unicode uri, ):
-        self.ctx = ctx
-
-
 cdef class SparseArray(ArraySchema):
     """
     TileDB SparseArray class
