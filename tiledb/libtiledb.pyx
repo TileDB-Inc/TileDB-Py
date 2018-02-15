@@ -1639,20 +1639,26 @@ cdef class ArraySchema(object):
                     tiledb_array_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
         return cap
 
+    cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr):
+        check_error(self.ctx,
+            tiledb_array_schema_get_cell_order(self.ctx.ptr, self.ptr, cell_order_ptr))
+
     @property
     def cell_order(self):
         """Returns the cell order layout of the array representation"""
         cdef tiledb_layout_t order = TILEDB_UNORDERED
-        check_error(self.ctx,
-                    tiledb_array_schema_get_cell_order(self.ctx.ptr, self.ptr, &order))
+        self._cell_order(&order)
         return _tiledb_layout_string(order)
+
+    cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr):
+        check_error(self.ctx,
+            tiledb_array_schema_get_tile_order(self.ctx.ptr, self.ptr, tile_order_ptr))
 
     @property
     def tile_order(self):
         """Returns the tile order layout of the array representation"""
         cdef tiledb_layout_t order = TILEDB_UNORDERED
-        check_error(self.ctx,
-                    tiledb_array_schema_get_tile_order(self.ctx.ptr, self.ptr, &order))
+        self._tile_order(&order)
         return _tiledb_layout_string(order)
 
     @property
@@ -1995,7 +2001,8 @@ cdef class DenseArray(ArraySchema):
 
         cdef np.ndarray array_value
         try:
-            for (i, array_value) in enumerate(values):
+            for i in range(nattr):
+                array_value = values[i]
                 buffers_ptr[i] = np.PyArray_DATA(array_value)
                 buffer_sizes_ptr[i] = <uint64_t> array_value.nbytes
         except:
@@ -2066,9 +2073,12 @@ cdef class DenseArray(ArraySchema):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
 
-        # array name #TODO: name
-        cdef bytes barray_name = self.uri.encode('UTF-8')
-        cdef const char* c_array_name = barray_name
+        if not array.flags.c_contiguous and not array.flags.f_contiguous:
+            raise ValueError("array is not contiguous")
+
+        # array uri
+        cdef bytes buri = unicode_path(self.uri)
+        cdef const char* c_array_name = PyBytes_AS_STRING(buri)
 
         # attr name
         cdef bytes battr_name = attr_name.encode('UTF-8')
@@ -2077,8 +2087,9 @@ cdef class DenseArray(ArraySchema):
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes
 
+
         cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
-        if np.isfortran(array):
+        if array.ndim > 1 and array.flags.f_contiguous:
             layout = TILEDB_COL_MAJOR
 
         cdef tiledb_query_t* query_ptr = NULL
@@ -2112,15 +2123,14 @@ cdef class DenseArray(ArraySchema):
         cdef bytes battr_name = attr_name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
 
-        # TODO: get around property access here with cdef helper function
-        cell_order = self.cell_order
-        cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
-        if cell_order == 'row-major':
+        cdef tiledb_layout_t cell_layout = TILEDB_UNORDERED
+        self._cell_order(&cell_layout)
+        if cell_layout == TILEDB_ROW_MAJOR:
             order = 'C'
-            cell_layout = TILEDB_ROW_MAJOR
-        elif cell_order == 'col-major':
+        elif cell_layout == TILEDB_COL_MAJOR:
             order = 'F'
-            cell_layout = TILEDB_COL_MAJOR
+        else:
+            raise ValueError("invalid dense cell order {}".format(_tiledb_layout_string(cell_layout)))
 
         out = np.empty(self.domain.shape, dtype=attr.dtype, order=order)
 
