@@ -1475,7 +1475,9 @@ def replace_scalars_slice(Domain dom, tuple idx):
 
 
 def index_domain_subarray(Domain dom, tuple idx):
-    """Return a numpy array representation of the tiledb subarray buffer for a gien monain and tuple of index slices"""
+    """
+    Return a numpy array representation of the tiledb subarray buffer
+    for a given domain and tuple of index slices"""
     rank = dom.rank
     if len(idx) != rank:
         raise IndexError("number of indices does not match domain raank: "
@@ -1568,7 +1570,9 @@ cdef class ArraySchema(object):
                  tile_order='row-major',
                  capacity=0,
                  sparse=False):
-        cdef bytes buri = ustring(uri).encode('UTF-8')
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_array_type_t array_type = TILEDB_SPARSE if sparse else TILEDB_DENSE
         cdef tiledb_array_schema_t* schema_ptr = NULL
         check_error(ctx,
@@ -1607,7 +1611,8 @@ cdef class ArraySchema(object):
         if rc != TILEDB_OK:
             tiledb_array_schema_free(ctx.ptr, schema_ptr)
             check_error(ctx, rc)
-        rc = tiledb_array_create(ctx.ptr, buri, schema_ptr)
+        with nogil:
+            rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         self.ctx = ctx
@@ -1619,7 +1624,7 @@ cdef class ArraySchema(object):
         return self.uri
 
     @property
-    def is_sparse(self):
+    def sparse(self):
         """Returns true if the array is a sparse array representation"""
         cdef tiledb_array_type_t typ = TILEDB_DENSE
         check_error(self.ctx,
@@ -1632,7 +1637,7 @@ cdef class ArraySchema(object):
         cdef uint64_t cap = 0
         check_error(self.ctx,
                     tiledb_array_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
-        return int(cap)
+        return cap
 
     @property
     def cell_order(self):
@@ -1767,7 +1772,6 @@ cdef class DenseArray(ArraySchema):
 
         cdef bytes buri = ustring(uri).encode('UTF-8')
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-
         cdef tiledb_array_schema_t* schema_ptr = NULL
         cdef int rc = TILEDB_OK
         with nogil:
@@ -1822,9 +1826,9 @@ cdef class DenseArray(ArraySchema):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
 
-        # array name TODO: fix name
-        cdef bytes array_name = self.uri.encode('UTF-8')
-        cdef const char* c_aname = array_name
+        # array uri
+        cdef bytes buri = unicode_path(self.uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
 
         cdef tuple shape = \
             tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
@@ -1837,45 +1841,81 @@ cdef class DenseArray(ArraySchema):
         # attr names
         battr_names = list(bytes(k, 'UTF-8') for k in out.keys())
         cdef size_t nattr = len(out.keys())
-        cdef const char** c_attr_names = <const char**> calloc(nattr, sizeof(uintptr_t))
-        for i in range(nattr):
-            c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
-
+        cdef const char** attr_names_ptr = <const char**> PyMem_Malloc(nattr * sizeof(uintptr_t))
+        if attr_names_ptr == NULL:
+            raise MemoryError()
+        try:
+            for i in range(nattr):
+                attr_names_ptr[i] = PyBytes_AS_STRING(battr_names[i])
+        except:
+            PyMem_Free(attr_names_ptr)
+            raise
+        
+        # attr values
         attr_values = list(out.values())
-        cdef void** buffers = <void**> calloc(nattr, sizeof(uintptr_t))
-        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr, sizeof(uint64_t))
-        cdef np.ndarray array_value
-        for (i, array_value) in enumerate(out.values()):
-            buffers[i] = np.PyArray_DATA(array_value)
-            buffer_sizes[i] = <uint64_t> array_value.nbytes
+        cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
+        if buffers_ptr == NULL:
+            PyMem_Free(attr_names_ptr)
+            raise MemoryError()
 
-        cdef int rc = TILEDB_OK
-        cdef tiledb_query_t* query = NULL
-        rc = tiledb_query_create(ctx_ptr, &query, c_aname, TILEDB_READ)
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        if buffer_sizes_ptr == NULL:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            raise MemoryError()
+
+        cdef np.ndarray array_value
+        try:
+            for (i, array_value) in enumerate(out.values()):
+                buffers_ptr[i] = np.PyArray_DATA(array_value)
+                buffer_sizes_ptr[i] = <uint64_t> array_value.nbytes
+        except:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr) 
+            PyMem_Free(buffer_sizes_ptr)
+            raise
+            
+        cdef tiledb_query_t* query_ptr = NULL
+        cdef int rc = tiledb_query_create(ctx_ptr, &query_ptr, uri_ptr, TILEDB_READ)
         if rc != TILEDB_OK:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr) 
+            PyMem_Free(buffer_sizes_ptr)
             check_error(ctx, rc)
 
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
-        rc = tiledb_query_set_subarray(ctx_ptr, query, subarray_ptr)
+        rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
         if rc != TILEDB_OK:
-            tiledb_query_free(ctx_ptr, query)
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr) 
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(ctx_ptr, query_ptr)
             check_error(ctx, rc)
 
-        rc = tiledb_query_set_buffers(ctx_ptr, query, c_attr_names, nattr,
-                                      buffers, buffer_sizes)
+        rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
+                                      buffers_ptr, buffer_sizes_ptr)
         if rc != TILEDB_OK:
-            tiledb_query_free(ctx_ptr, query)
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(ctx_ptr, query_ptr)
             check_error(ctx, rc)
 
-        rc = tiledb_query_set_layout(ctx_ptr, query, TILEDB_ROW_MAJOR)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR)
         if rc != TILEDB_OK:
-            tiledb_query_free(ctx_ptr, query)
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(ctx_ptr, query_ptr)
             check_error(ctx, rc)
 
         with nogil:
-            rc = tiledb_query_submit(ctx_ptr, query)
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
 
-        tiledb_query_free(ctx_ptr, query)
+        PyMem_Free(attr_names_ptr)
+        PyMem_Free(buffers_ptr)
+        PyMem_Free(buffer_sizes_ptr)
+        tiledb_query_free(ctx_ptr, query_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return out
@@ -1884,72 +1924,128 @@ cdef class DenseArray(ArraySchema):
         cdef Domain domain = self.domain
         cdef tuple idx = replace_ellipsis(domain, index_as_tuple(key))
         cdef np.ndarray subarray = index_domain_subarray(domain, idx)
-        cdef dict dense_values = dict()
         cdef Attr attr
+        cdef list attributes = list()
+        cdef list values = list()
         if isinstance(val, dict):
             for (k, v) in val.items():
                 attr = self.attr(k)
-                dense_values[attr.name] = \
-                    np.ascontiguousarray(v, dtype=attr.dtype)
+                attributes.append(attr.name)
+                values.append(
+                    np.ascontiguousarray(v, dtype=attr.dtype))
         elif np.isscalar(val):
             for i in range(self.nattr):
                 attr = self.attr(i)
                 subarray_shape = tuple(int(subarray[r, 1] - subarray[r, 0]) + 1
                                        for r in range(subarray.shape[0]))
-                dense_values[attr.name] = \
-                    np.full(subarray_shape, val, dtype=attr.dtype)
+                attributes.append(attr.name)
+                values.append(
+                    np.full(subarray_shape, val, dtype=attr.dtype))
         elif self.nattr == 1:
             attr = self.attr(0)
-            dense_values[attr.name] = \
-                np.ascontiguousarray(val, dtype=attr.dtype)
+            attributes.append(attr.name)
+            values.append(
+                np.ascontiguousarray(val, dtype=attr.dtype))
         else:
             raise ValueError("ambiguous attribute assignment, "
                              "more than one array attribute")
-        self._write_dense_subarray(subarray, dense_values)
+        # Check value layouts
+        nattr = len(attributes)
+        value = values[0]
+        isfortran = value.ndim > 1 and value.flags.f_contiguous
+        if nattr > 1:
+            for i in range(1, nattr):
+                value = values[i]
+                if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
+                    raise ValueError("mixed C and Fortran array layouts")
+        self._write_dense_subarray(subarray, attributes, values, isfortran)
         return
 
-    cdef _write_dense_subarray(self, np.ndarray subarray, dict values):
+    cdef _write_dense_subarray(self, np.ndarray subarray, list attributes, list values, int isfortran):
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
 
-        # array name #TODO: name
-        cdef bytes barray_name = self.uri.encode('UTF-8')
-        cdef const char* c_array_name = barray_name
+        # array uri
+        cdef bytes buri = unicode_path(self.uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
 
         # attribute names / values
-        battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
-        cdef size_t nattr = len(values.keys())
-        cdef const char** c_attr_names = <const char**> calloc(nattr, sizeof(uintptr_t))
-        for i in range(nattr):
-            c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
+        battr_names = list(bytes(a, 'UTF-8') for a in attributes)
+        cdef size_t nattr = len(attributes)
+        cdef const char** attr_names_ptr = <const char**> PyMem_Malloc(nattr * sizeof(uintptr_t))
+        if attr_names_ptr == NULL:
+            raise MemoryError()
+        try:
+            for i in range(nattr):
+                attr_names_ptr[i] = PyBytes_AS_STRING(battr_names[i])
+        except:
+            PyMem_Free(attr_names_ptr)
+            raise
 
-        attr_values = list(values.values())
-        cdef void** buffers = <void**> calloc(nattr, sizeof(uintptr_t))
-        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr, sizeof(uint64_t))
+        cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
+        if buffers_ptr == NULL:
+            PyMem_Free(attr_names_ptr)
+            raise MemoryError()
+
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        if buffer_sizes_ptr == NULL:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            raise MemoryError()
+
         cdef np.ndarray array_value
-        for (i, array_value) in enumerate(values.values()):
-            buffers[i] = np.PyArray_DATA(array_value)
-            buffer_sizes[i] = <uint64_t> array_value.nbytes
+        try:
+            for (i, array_value) in enumerate(values):
+                buffers_ptr[i] = np.PyArray_DATA(array_value)
+                buffer_sizes_ptr[i] = <uint64_t> array_value.nbytes
+        except:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            raise
 
         # subarray
-        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
-
-        # TODO: check if all the layouts are the same
-        cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
-
         cdef tiledb_query_t* query_ptr = NULL
-        check_error(ctx,
-                    tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_WRITE))
-        check_error(ctx,
-                    tiledb_query_set_layout(ctx_ptr, query_ptr, layout))
-        check_error(ctx,
-                    tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr))
-        check_error(ctx,
-                    tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, nattr,
-                                             buffers, buffer_sizes))
-        cdef int rc = TILEDB_OK
+        cdef int rc = tiledb_query_create(ctx_ptr, &query_ptr, uri_ptr, TILEDB_WRITE)
+        if rc != TILEDB_OK:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            check_error(ctx, rc)
+
+        cdef tiledb_layout_t layout = TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
+        if rc != TILEDB_OK:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(ctx_ptr, query_ptr)
+            check_error(ctx, rc)
+
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
+        rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
+        if rc != TILEDB_OK:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(ctx_ptr, query_ptr)
+            check_error(ctx, rc)
+
+        rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
+                                      buffers_ptr, buffer_sizes_ptr)
+        if rc != TILEDB_OK:
+            PyMem_Free(attr_names_ptr)
+            PyMem_Free(buffers_ptr)
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(ctx_ptr, query_ptr)
+            check_error(ctx, rc)
+
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
+
+        PyMem_Free(attr_names_ptr)
+        PyMem_Free(buffers_ptr)
+        PyMem_Free(buffer_sizes_ptr)
         tiledb_query_free(ctx_ptr, query_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
@@ -2571,7 +2667,9 @@ def walk(Ctx ctx, path, func, order="preorder"):
 
 cdef class FileHandle(object):
     """
-    Wraps a TileDB VFS filehandle object pointer
+    Wraps a TileDB VFS file handle object
+
+    Instances of this class are returned by TileDB VFS methods and are not instantiated directly
     """
 
     cdef VFS vfs
@@ -2583,9 +2681,8 @@ cdef class FileHandle(object):
 
     def __dealloc__(self):
         cdef Ctx ctx = self.vfs.ctx
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         if self.ptr != NULL:
-            tiledb_vfs_fh_free(ctx_ptr, self.ptr)
+            tiledb_vfs_fh_free(ctx.ptr, self.ptr)
 
     @staticmethod
     cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr):

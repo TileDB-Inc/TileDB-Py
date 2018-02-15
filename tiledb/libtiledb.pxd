@@ -210,7 +210,7 @@ cdef extern from "tiledb.h":
     # Group
     int tiledb_group_create(
         tiledb_ctx_t* ctx,
-        const char* group)
+        const char* group) nogil
 
     # Attribute
     int tiledb_attribute_create(
@@ -493,11 +493,11 @@ cdef extern from "tiledb.h":
     int tiledb_array_create(
         tiledb_ctx_t* ctx,
         const char* uri,
-        const tiledb_array_schema_t* array_schema)
+        const tiledb_array_schema_t* array_schema) nogil
 
     int tiledb_array_consolidate(
         tiledb_ctx_t* ctx,
-        const char* array_path);
+        const char* array_path) nogil
 
     int tiledb_array_get_non_empty_domain(
         tiledb_ctx_t* ctx,
@@ -670,17 +670,17 @@ cdef extern from "tiledb.h":
     int tiledb_object_type(
         tiledb_ctx_t* ctx,
         const char* path,
-        tiledb_object_t* otype)
+        tiledb_object_t* otype) nogil
 
     int tiledb_object_remove(
         tiledb_ctx_t* ctx,
-        const char* path)
+        const char* path) nogil
 
     int tiledb_object_move(
         tiledb_ctx_t* ctx,
         const char* old_path,
         const char* new_path,
-        int force);
+        int force) nogil
 
     int tiledb_object_walk(
         tiledb_ctx_t* ctx,
@@ -702,114 +702,115 @@ cdef extern from "tiledb.h":
     int tiledb_vfs_create_bucket(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
-        const char* uri)
+        const char* uri) nogil
 
     int tiledb_vfs_remove_bucket(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
-        const char* uri)
+        const char* uri) nogil
 
     int tiledb_vfs_empty_bucket(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
-        const char* uri)
+        const char* uri) nogil
 
     int tiledb_vfs_is_empty_bucket(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* uri,
-        int* is_empty)
+        int* is_empty) nogil
 
     int tiledb_vfs_is_bucket(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* uri,
-        int* is_bucket)
+        int* is_bucket) nogil
 
     int tiledb_vfs_create_dir(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
-        const char* uri)
+        const char* uri) nogil
 
     int tiledb_vfs_is_dir(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* uri,
-        int* is_dir)
+        int* is_dir) nogil
 
     int tiledb_vfs_remove_dir(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
-        const char* uri)
+        const char* uri) nogil
 
     int tiledb_vfs_is_file(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* uri,
-        int* is_file)
+        int* is_file) nogil
 
     int tiledb_vfs_remove_file(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
-        const char* uri)
+        const char* uri) nogil
 
     int tiledb_vfs_file_size(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* uri,
-        uint64_t* size)
+        uint64_t* size) nogil
 
     int tiledb_vfs_move(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* old_uri,
         const char* new_uri,
-        int force)
+        int force) nogil
 
     int tiledb_vfs_open(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* uri,
         tiledb_vfs_mode_t mode,
-        tiledb_vfs_fh_t** fh)
+        tiledb_vfs_fh_t** fh) nogil
 
     int tiledb_vfs_close(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_fh_t* fh)
+        tiledb_vfs_fh_t* fh) nogil
 
     int tiledb_vfs_read(
         tiledb_ctx_t* ctx,
         tiledb_vfs_fh_t* fh,
         uint64_t offset,
         void* buffer,
-        uint64_t nbytes)
+        uint64_t nbytes) nogil
 
     int tiledb_vfs_write(
         tiledb_ctx_t* ctx,
         tiledb_vfs_fh_t* fh,
         const void* buffer,
-        uint64_t nbytes)
+        uint64_t nbytes) nogil
 
     int tiledb_vfs_sync(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_fh_t* fh)
+        tiledb_vfs_fh_t* fh) nogil
 
     int tiledb_vfs_fh_free(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_fh_t* fh)
+        tiledb_vfs_fh_t* fh) nogil
 
     int tiledb_vfs_fh_is_closed(
         tiledb_ctx_t* ctx,
         tiledb_vfs_fh_t* fh,
-        int* is_closed)
+        int* is_closed) nogil
 
     int tiledb_vfs_touch(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
-        const char* uri)
+        const char* uri) nogil
 
+    # URI
     int tiledb_uri_to_path(
         tiledb_ctx_t* ctx,
         const char* uri,
         char* path_out,
-        unsigned* path_length)
+        unsigned* path_length) nogil
