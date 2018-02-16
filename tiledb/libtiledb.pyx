@@ -74,12 +74,12 @@ cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
     cdef const char* err_msg_ptr = NULL
     ret = tiledb_error_message(err_ptr, &err_msg_ptr)
     if ret != TILEDB_OK:
-        tiledb_error_free(err_ptr)
+        tiledb_error_free(&err_ptr)
         if ret == TILEDB_OOM:
             return MemoryError()
         raise TileDBError("error retrieving error message")
     cdef unicode message_string = err_msg_ptr.decode('UTF-8', 'strict')
-    tiledb_error_free(err_ptr)
+    tiledb_error_free(&err_ptr)
     raise TileDBError(message_string)
 
 
@@ -91,7 +91,7 @@ cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc):
     cdef tiledb_error_t* err_ptr = NULL
     cdef int ret = tiledb_ctx_get_last_error(ctx_ptr, &err_ptr)
     if ret != TILEDB_OK:
-        tiledb_error_free(err_ptr)
+        tiledb_error_free(&err_ptr)
         if ret == TILEDB_OOM:
             raise MemoryError()
         raise TileDBError("error retrieving error object from ctx")
@@ -147,7 +147,7 @@ cdef class Config(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_config_free(self.ptr)
+            tiledb_config_free(&self.ptr)
 
     def __init__(self, params=None, path=None):
         cdef tiledb_config_t* config_ptr = NULL
@@ -187,10 +187,10 @@ cdef class Config(object):
             _raise_tiledb_error(err_ptr)
         rc = tiledb_config_load_from_file(config_ptr, bfilename, &err_ptr)
         if rc == TILEDB_OOM:
-            tiledb_config_free(config_ptr)
+            tiledb_config_free(&config_ptr)
             raise MemoryError()
         if rc == TILEDB_ERR:
-            tiledb_config_free(config_ptr)
+            tiledb_config_free(&config_ptr)
             _raise_tiledb_error(err_ptr)
         config.ptr = config_ptr
         return config
@@ -386,7 +386,7 @@ cdef class ConfigItems(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_config_iter_free(self.ptr)
+            tiledb_config_iter_free(&self.ptr)
 
     def __init__(self, Config config, unicode prefix=u""):
         cdef bytes bprefix = prefix.encode("UTF-8")
@@ -454,7 +454,7 @@ cdef class Ctx(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_ctx_free(self.ptr)
+            tiledb_ctx_free(&self.ptr)
 
     def __init__(self, config=None, config_file=None):
         cdef Config _config = Config()
@@ -691,7 +691,7 @@ cdef class Attr(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_attribute_free(self.ctx.ptr, self.ptr)
+            tiledb_attribute_free(self.ctx.ptr, &self.ptr)
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_attribute_t* ptr):
@@ -840,7 +840,7 @@ cdef class Dim(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_dimension_free(self.ctx.ptr, self.ptr)
+            tiledb_dimension_free(self.ctx.ptr, &self.ptr)
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_dimension_t*ptr):
@@ -986,7 +986,7 @@ cdef class Domain(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_domain_free(self.ctx.ptr, self.ptr)
+            tiledb_domain_free(self.ctx.ptr, &self.ptr)
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_domain_t* ptr):
@@ -1017,7 +1017,7 @@ cdef class Domain(object):
             rc = tiledb_domain_add_dimension(
                 ctx.ptr, domain_ptr, dimension.ptr)
             if rc != TILEDB_OK:
-                tiledb_domain_free(ctx.ptr, domain_ptr)
+                tiledb_domain_free(ctx.ptr, &domain_ptr)
                 check_error(ctx, rc)
         self.ctx = ctx
         self.ptr = domain_ptr
@@ -1105,7 +1105,7 @@ cdef class Assoc(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_kv_schema_free(self.ctx.ptr, self.ptr)
+            tiledb_kv_schema_free(self.ctx.ptr, &self.ptr)
 
     @staticmethod
     cdef from_ptr(Ctx ctx, unicode uri, const tiledb_kv_schema_t* ptr):
@@ -1142,20 +1142,20 @@ cdef class Assoc(object):
         cdef tiledb_attribute_t* attr_ptr = NULL
         for attr in attrs:
             if not isinstance(attr, Attr):
-                tiledb_kv_schema_free(ctx.ptr, schema_ptr)
+                tiledb_kv_schema_free(ctx.ptr, &schema_ptr)
                 raise TypeError("invalid attribute type {0!r}".format(type(attr)))
             attr_ptr = (<Attr> attr).ptr
             rc = tiledb_kv_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
             if rc != TILEDB_OK:
-                tiledb_kv_schema_free(ctx.ptr, schema_ptr)
+                tiledb_kv_schema_free(ctx.ptr, &schema_ptr)
                 check_error(ctx, rc)
         rc = tiledb_kv_schema_check(ctx.ptr, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_kv_schema_free(ctx.ptr, schema_ptr)
+            tiledb_kv_schema_free(ctx.ptr, &schema_ptr)
             check_error(ctx, rc)
         rc = tiledb_kv_create(ctx.ptr, buri, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_kv_schema_free(ctx.ptr, schema_ptr)
+            tiledb_kv_schema_free(ctx.ptr, &schema_ptr)
             check_error(ctx, rc)
         self.ctx = ctx
         self.uri = uri
@@ -1244,7 +1244,7 @@ cdef class Assoc(object):
         rc = tiledb_kv_item_set_key(ctx_ptr, kv_item_ptr,
                                     bkey_ptr, TILEDB_CHAR, bkey_size)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, kv_item_ptr)
+            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
             check_error(self.ctx, rc)
 
         # add value
@@ -1256,28 +1256,28 @@ cdef class Assoc(object):
         rc = tiledb_kv_item_set_value(ctx_ptr, kv_item_ptr, battr_ptr,
                                       bvalue_ptr, TILEDB_CHAR, bvalue_size)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, kv_item_ptr)
+            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
             check_error(self.ctx, rc)
 
         # save items
         cdef tiledb_kv_t* kv_ptr = NULL
         rc = tiledb_kv_open(ctx_ptr, &kv_ptr, buri, NULL, 1)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, kv_item_ptr)
+            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
             check_error(self.ctx, rc)
 
         rc = tiledb_kv_add_item(ctx_ptr, kv_ptr, kv_item_ptr)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, kv_item_ptr)
+            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
             check_error(self.ctx, rc)
 
         rc = tiledb_kv_flush(ctx_ptr, kv_ptr)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, kv_item_ptr)
+            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
             check_error(self.ctx, rc)
 
-        rc = tiledb_kv_close(ctx_ptr, kv_ptr)
-        tiledb_kv_item_free(ctx_ptr, kv_item_ptr)
+        rc = tiledb_kv_close(ctx_ptr, &kv_ptr)
+        tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
         if rc != TILEDB_OK:
             check_error(self.ctx, rc)
         return
@@ -1306,11 +1306,11 @@ cdef class Assoc(object):
         rc = tiledb_kv_get_item(ctx_ptr, kv_ptr, &kv_item_ptr,
                                 bkey_ptr, TILEDB_CHAR, bkey_size)
         if rc != TILEDB_OK:
-            tiledb_kv_close(ctx_ptr, kv_ptr)
+            tiledb_kv_close(ctx_ptr, &kv_ptr)
             check_error(self.ctx, rc)
 
         if kv_item_ptr == NULL:
-            tiledb_kv_close(ctx_ptr, kv_ptr)
+            tiledb_kv_close(ctx_ptr, &kv_ptr)
             raise KeyError(key)
 
         cdef const void* value_ptr = NULL
@@ -1319,8 +1319,8 @@ cdef class Assoc(object):
         rc = tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, battr_ptr,
                                       &value_ptr, &value_type, &value_size)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, kv_item_ptr)
-            tiledb_kv_close(ctx_ptr, kv_ptr)
+            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
+            tiledb_kv_close(ctx_ptr, &kv_ptr)
             check_error(self.ctx, rc)
 
         assert(value_ptr != NULL)
@@ -1328,8 +1328,8 @@ cdef class Assoc(object):
         try:
             val = PyBytes_FromStringAndSize(<char*> value_ptr, value_size)
         finally:
-            tiledb_kv_item_free(ctx_ptr, kv_item_ptr)
-            tiledb_kv_close(ctx_ptr, kv_ptr)
+            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
+            tiledb_kv_close(ctx_ptr, &kv_ptr)
         return val.decode('UTF-8')
 
     def __contains__(self, unicode key):
@@ -1372,7 +1372,7 @@ cdef class KVIter(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_kv_iter_free(self.ctx.ptr, self.ptr)
+            tiledb_kv_iter_free(self.ctx.ptr, &self.ptr)
 
     def __init__(self, Ctx ctx, uri):
         cdef bytes buri = unicode_path(uri)
@@ -1561,7 +1561,7 @@ cdef class ArraySchema(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_array_schema_free(self.ctx.ptr, self.ptr)
+            tiledb_array_schema_free(self.ctx.ptr, &self.ptr)
 
     def __init__(self, Ctx ctx, unicode uri,
                  domain=None,
@@ -1582,34 +1582,34 @@ cdef class ArraySchema(object):
         cdef int rc = TILEDB_OK
         rc = tiledb_array_schema_set_cell_order(ctx.ptr, schema_ptr, cell_layout)
         if rc != TILEDB_OK:
-            tiledb_array_schema_free(ctx.ptr, schema_ptr)
+            tiledb_array_schema_free(ctx.ptr, &schema_ptr)
             check_error(ctx, rc)
         rc = tiledb_array_schema_set_tile_order(ctx.ptr, schema_ptr, tile_layout)
         if rc != TILEDB_OK:
-            tiledb_array_schema_free(ctx.ptr, schema_ptr)
+            tiledb_array_schema_free(ctx.ptr, &schema_ptr)
             check_error(ctx, rc)
         cdef uint64_t c_capacity = 0
         if sparse and capacity > 0:
             c_capacity = <uint64_t> capacity
             rc = tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, c_capacity)
             if rc != TILEDB_OK:
-                tiledb_array_schema_free(ctx.ptr, schema_ptr)
+                tiledb_array_schema_free(ctx.ptr, &schema_ptr)
                 check_error(ctx, rc)
         cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
         rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
         if rc != TILEDB_OK:
-            tiledb_array_schema_free(ctx.ptr, schema_ptr)
+            tiledb_array_schema_free(ctx.ptr, &schema_ptr)
             check_error(ctx, rc)
         cdef tiledb_attribute_t* attr_ptr = NULL
         for attr in attrs:
             attr_ptr = (<Attr> attr).ptr
             rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
             if rc != TILEDB_OK:
-                tiledb_array_schema_free(ctx.ptr, schema_ptr)
+                tiledb_array_schema_free(ctx.ptr, &schema_ptr)
                 check_error(ctx, rc)
         rc = tiledb_array_schema_check(ctx.ptr, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_array_schema_free(ctx.ptr, schema_ptr)
+            tiledb_array_schema_free(ctx.ptr, &schema_ptr)
             check_error(ctx, rc)
         with nogil:
             rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
@@ -1895,7 +1895,7 @@ cdef class DenseArray(ArraySchema):
             PyMem_Free(attr_names_ptr)
             PyMem_Free(buffers_ptr) 
             PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_query_free(ctx_ptr, &query_ptr)
             check_error(ctx, rc)
 
         rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
@@ -1904,7 +1904,7 @@ cdef class DenseArray(ArraySchema):
             PyMem_Free(attr_names_ptr)
             PyMem_Free(buffers_ptr)
             PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_query_free(ctx_ptr, &query_ptr)
             check_error(ctx, rc)
 
         rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR)
@@ -1912,7 +1912,7 @@ cdef class DenseArray(ArraySchema):
             PyMem_Free(attr_names_ptr)
             PyMem_Free(buffers_ptr)
             PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_query_free(ctx_ptr, &query_ptr)
             check_error(ctx, rc)
 
         with nogil:
@@ -1921,7 +1921,7 @@ cdef class DenseArray(ArraySchema):
         PyMem_Free(attr_names_ptr)
         PyMem_Free(buffers_ptr)
         PyMem_Free(buffer_sizes_ptr)
-        tiledb_query_free(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, &query_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return out
@@ -2026,7 +2026,7 @@ cdef class DenseArray(ArraySchema):
             PyMem_Free(attr_names_ptr)
             PyMem_Free(buffers_ptr)
             PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_query_free(ctx_ptr, &query_ptr)
             check_error(ctx, rc)
 
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
@@ -2035,7 +2035,7 @@ cdef class DenseArray(ArraySchema):
             PyMem_Free(attr_names_ptr)
             PyMem_Free(buffers_ptr)
             PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_query_free(ctx_ptr, &query_ptr)
             check_error(ctx, rc)
 
         rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
@@ -2044,7 +2044,7 @@ cdef class DenseArray(ArraySchema):
             PyMem_Free(attr_names_ptr)
             PyMem_Free(buffers_ptr)
             PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, query_ptr)
+            tiledb_query_free(ctx_ptr, &query_ptr)
             check_error(ctx, rc)
 
         with nogil:
@@ -2053,7 +2053,7 @@ cdef class DenseArray(ArraySchema):
         PyMem_Free(attr_names_ptr)
         PyMem_Free(buffers_ptr)
         PyMem_Free(buffer_sizes_ptr)
-        tiledb_query_free(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, &query_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return
@@ -2103,7 +2103,7 @@ cdef class DenseArray(ArraySchema):
         cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, &query_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return
@@ -2148,7 +2148,7 @@ cdef class DenseArray(ArraySchema):
         cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, &query_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return out
@@ -2275,7 +2275,7 @@ cdef class SparseArray(ArraySchema):
         cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, &query_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return
@@ -2386,7 +2386,7 @@ cdef class SparseArray(ArraySchema):
 
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, &query_ptr)
 
         if rc != TILEDB_OK:
             PyMem_Free(attr_names_ptr)
@@ -2532,7 +2532,7 @@ cdef class SparseArray(ArraySchema):
         free(c_attr_names)
         free(buffers)
         free(buffer_sizes)
-        tiledb_query_free(ctx_ptr, query_ptr)
+        tiledb_query_free(ctx_ptr, &query_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         return
@@ -2663,7 +2663,7 @@ cdef class FileHandle(object):
     def __dealloc__(self):
         cdef Ctx ctx = self.vfs.ctx
         if self.ptr != NULL:
-            tiledb_vfs_fh_free(ctx.ptr, self.ptr)
+            tiledb_vfs_fh_free(ctx.ptr, &self.ptr)
 
     @staticmethod
     cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr):
@@ -2698,7 +2698,7 @@ cdef class VFS(object):
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            tiledb_vfs_free(self.ctx.ptr, self.ptr)
+            tiledb_vfs_free(self.ctx.ptr, &self.ptr)
 
     def __init__(self, Ctx ctx, config=None):
         cdef Config _config = Config()

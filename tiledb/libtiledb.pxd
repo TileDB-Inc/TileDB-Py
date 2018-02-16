@@ -1,7 +1,7 @@
 from libc.stdio cimport FILE
 from libc.stdint cimport uint64_t
 
-cdef extern from "tiledb.h":
+cdef extern from "tiledb/tiledb.h":
     # Constants
     enum: TILEDB_OK
     enum: TILEDB_ERR
@@ -124,7 +124,7 @@ cdef extern from "tiledb.h":
         tiledb_error_t** error)
 
     int tiledb_config_free(
-        tiledb_config_t* config)
+        tiledb_config_t** config)
 
     int tiledb_config_set(
         tiledb_config_t* config,
@@ -161,7 +161,7 @@ cdef extern from "tiledb.h":
         tiledb_error_t** error)
 
     int tiledb_config_iter_free(
-        tiledb_config_iter_t* config_iter)
+        tiledb_config_iter_t** config_iter)
 
     int tiledb_config_iter_here(
         tiledb_config_iter_t* config_iter,
@@ -184,7 +184,7 @@ cdef extern from "tiledb.h":
         tiledb_config_t* config)
 
     int tiledb_ctx_free(
-        tiledb_ctx_t* ctx)
+        tiledb_ctx_t** ctx)
 
     int tiledb_ctx_get_config(
         tiledb_ctx_t* ctx,
@@ -205,7 +205,7 @@ cdef extern from "tiledb.h":
         char** msg)
 
     int tiledb_error_free(
-        tiledb_error_t* err)
+        tiledb_error_t** err)
 
     # Group
     int tiledb_group_create(
@@ -221,7 +221,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_attribute_free(
         tiledb_ctx_t* ctx,
-        tiledb_attribute_t* attr)
+        tiledb_attribute_t** attr)
 
     int tiledb_attribute_set_compressor(
         tiledb_ctx_t* ctx,
@@ -268,7 +268,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_domain_free(
         tiledb_ctx_t* ctx,
-        tiledb_domain_t* domain)
+        tiledb_domain_t** domain)
 
     int tiledb_domain_get_type(
         tiledb_ctx_t* ctx,
@@ -313,7 +313,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_dimension_free(
         tiledb_ctx_t* ctx,
-        tiledb_dimension_t* dim)
+        tiledb_dimension_t** dim)
 
     int tiledb_dimension_get_name(
         tiledb_ctx_t* ctx,
@@ -343,7 +343,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_array_schema_free(
         tiledb_ctx_t* ctx,
-            tiledb_array_schema_t* array_schema)
+        tiledb_array_schema_t** array_schema)
 
     int tiledb_array_schema_add_attribute(
         tiledb_ctx_t* ctx,
@@ -464,13 +464,17 @@ cdef extern from "tiledb.h":
         uint64_t* buffer_sizes)
 
     int tiledb_query_set_layout(
-        tiledb_ctx_t* ctx, tiledb_query_t* query, tiledb_layout_t layout)
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        tiledb_layout_t layout)
 
     int tiledb_query_free(
-        tiledb_ctx_t* ctx, tiledb_query_t* query)
+        tiledb_ctx_t* ctx,
+        tiledb_query_t** query)
 
     int tiledb_query_submit(
-        tiledb_ctx_t* ctx, tiledb_query_t* query) nogil
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query) nogil
 
     int tiledb_query_submit_async(
         tiledb_ctx_t* ctx,
@@ -520,7 +524,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_kv_schema_free(
         tiledb_ctx_t* ctx,
-        tiledb_kv_schema_t* kv_schema)
+        tiledb_kv_schema_t** kv_schema)
 
     int tiledb_kv_schema_add_attribute(
         tiledb_ctx_t* ctx,
@@ -565,7 +569,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_kv_item_free(
         tiledb_ctx_t* ctx,
-        tiledb_kv_item_t* kv_item)
+        tiledb_kv_item_t** kv_item)
 
     int tiledb_kv_item_set_key(
         tiledb_ctx_t* ctx,
@@ -621,7 +625,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_kv_close(
         tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv)
+        tiledb_kv_t** kv)
 
     int tiledb_kv_add_item(
         tiledb_ctx_t* ctx,
@@ -650,7 +654,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_kv_iter_free(
         tiledb_ctx_t* ctx,
-        tiledb_kv_iter_t* kv_iter)
+        tiledb_kv_iter_t** kv_iter)
 
     int tiledb_kv_iter_here(
         tiledb_ctx_t* ctx,
@@ -697,7 +701,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_vfs_free(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_t* vfs)
+        tiledb_vfs_t** vfs)
 
     int tiledb_vfs_create_bucket(
         tiledb_ctx_t* ctx,
@@ -796,7 +800,7 @@ cdef extern from "tiledb.h":
 
     int tiledb_vfs_fh_free(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_fh_t* fh) nogil
+        tiledb_vfs_fh_t** fh) nogil
 
     int tiledb_vfs_fh_is_closed(
         tiledb_ctx_t* ctx,
