@@ -1477,7 +1477,8 @@ def replace_scalars_slice(Domain dom, tuple idx):
 def index_domain_subarray(Domain dom, tuple idx):
     """
     Return a numpy array representation of the tiledb subarray buffer
-    for a given domain and tuple of index slices"""
+    for a given domain and tuple of index slices
+    """
     rank = dom.rank
     if len(idx) != rank:
         raise IndexError("number of indices does not match domain raank: "
@@ -2059,8 +2060,9 @@ cdef class DenseArray(ArraySchema):
         return
 
     def __array__(self, dtype=None, **kw):
-        # TODO: check for multiple attributes
-        array = self.read_direct()
+        if self.nattr > 1:
+            raise ValueError("cannot create numpy array from TileDB array with more than one attribute")
+        array = self.read_direct(self.attr(0).name)
         if dtype and array.dtype != dtype:
             return array.astype(dtype)
         return array

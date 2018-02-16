@@ -43,10 +43,10 @@ class Config(DiskTestCase):
 
     def test_config_unset(self):
         config = t.Config()
-        config["sm.tile_cache_size"] = 100
-        del config["sm.tile_cache_size"]
+        config["baz"] = 100
+        del config["baz"]
         with self.assertRaises(KeyError):
-            config["sm.tile_cache_size"]
+            config["baz"]
 
     def test_config_from_file(self):
         config_path = self.path("config")
@@ -903,9 +903,17 @@ class NumpyToArray(DiskTestCase):
         # Tests that __array__ interface works
         ctx = t.Ctx()
         A1 = np.arange(1, 10)
-        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A1)
-        A2 = np.array(arr)
+        arr1 = t.DenseArray.from_numpy(ctx, self.path("arr1"), A1)
+        A2 = np.array(arr1)
         assert_array_equal(A1, A2)
+
+        # Test that __array__ interface throws an error when number of attributes > 1
+        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 2), tile=3))
+        foo = t.Attr(ctx, "foo", dtype='i8')
+        bar = t.Attr(ctx, "bar", dtype='i8')
+        arr2 = t.DenseArray(ctx, self.path("arr2"), domain=dom, attrs=(foo, bar))
+        with self.assertRaises(ValueError):
+            np.array(arr2)
 
     def test_array_getindex(self):
         # Tests that __getindex__ interface works
