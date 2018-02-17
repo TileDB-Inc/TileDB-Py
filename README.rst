@@ -39,7 +39,7 @@ or simply
    $ pip install tiledb
 
 If TileDB is installed in a non-standard location, pass the path to `setup.py` with the ``--tiledb=`` flag.
-If you want to pass extra compiler/linker flags during the extension compilation step use ``--cxxflags=`` or ``--lflags=``.
+If you want to pass extra compiler/linker flags during the c++ extension compilation step use ``--cxxflags=`` or ``--lflags=``.
 
 ::
 
