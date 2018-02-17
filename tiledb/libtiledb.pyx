@@ -146,7 +146,7 @@ cdef class Config(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_config_free(&self.ptr)
 
     def __init__(self, params=None, path=None):
@@ -173,10 +173,11 @@ cdef class Config(object):
         return config
 
     @staticmethod
-    def from_file(object filename):
-        """Constructs a Config class instance from config paramters loaded from a local file
+    def load(object uri):
+        """Constructs a Config class instance from config parameters loaded from a local file
         """
-        cdef bytes bfilename = unicode_path(filename)
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef Config config = Config.__new__(Config)
         cdef tiledb_config_t* config_ptr = NULL
         cdef tiledb_error_t* err_ptr = NULL
@@ -185,7 +186,8 @@ cdef class Config(object):
             raise MemoryError()
         if rc == TILEDB_ERR:
             _raise_tiledb_error(err_ptr)
-        rc = tiledb_config_load_from_file(config_ptr, bfilename, &err_ptr)
+        with nogil:
+            rc = tiledb_config_load_from_file(config_ptr, uri_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             tiledb_config_free(&config_ptr)
             raise MemoryError()
@@ -326,13 +328,16 @@ cdef class Config(object):
         config = Config.from_file(path)
         self.update(config)
 
-    def save(self, path):
+    def save(self, uri):
         """
         Persist Config paramter, values to a config file
         """
-        cdef bytes bpath = unicode_path(path)
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_save_to_file(self.ptr, bpath, &err_ptr)
+        cdef int rc
+        with nogil:
+            rc = tiledb_config_save_to_file(self.ptr, uri_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
         elif rc == TILEDB_ERR:
@@ -385,7 +390,7 @@ cdef class ConfigItems(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_config_iter_free(&self.ptr)
 
     def __init__(self, Config config, unicode prefix=u""):
@@ -447,19 +452,20 @@ cdef class Ctx(object):
     TODO:
     """
 
-    cdef tiledb_ctx_t*ptr
+    cdef tiledb_ctx_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_ctx_free(&self.ptr)
 
     def __init__(self, config=None, config_file=None):
+        #TODO: get rid of config_file
         cdef Config _config = Config()
         if config_file is not None:
-            _config = Config.from_file(config_file)
+            _config = Config.load(config_file)
         if config is not None:
             if isinstance(config, Config):
                 _config = config
@@ -690,7 +696,7 @@ cdef class Attr(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_attribute_free(self.ctx.ptr, &self.ptr)
 
     @staticmethod
@@ -783,7 +789,6 @@ cdef class Attr(object):
         if name.startswith("__attr"):
             return u""
         return name
-
     @property
     def name(self):
         """Attribute string name, empty string if the attribute is anonymous"""
@@ -839,7 +844,7 @@ cdef class Dim(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_dimension_free(self.ctx.ptr, &self.ptr)
 
     @staticmethod
@@ -893,9 +898,18 @@ cdef class Dim(object):
         return 'Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype={3!s})' \
             .format(self.name, self.domain, self.tile, self.dtype)
 
-    cdef tiledb_datatype_t _get_type(Dim self):
-        """Return the TileDB """
-        cdef tiledb_datatype_t typ = TILEDB_CHAR
+    def __len__(self):
+        return self.size
+
+    def __array__(self, dtype=None, **kw):
+        if not self._integer_domain():
+            raise TypeError("conversion to numpy ndarray only valid for integer dimension domains")
+        lb, ub = self.domain
+        return np.arange(int(lb), int(ub) + 1,
+                         dtype=dtype if dtype else self.dtype)
+
+    cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR:
+        cdef tiledb_datatype_t typ
         check_error(self.ctx,
                     tiledb_dimension_get_type(self.ctx.ptr, self.ptr, &typ))
         return typ
@@ -917,16 +931,37 @@ cdef class Dim(object):
         return name_ptr.decode('UTF-8', 'strict')
 
     @property
+    def isanon(self):
+        name = self.name
+        return name == u"" or name.startswith("__dim")
+
+    cdef _integer_domain(self):
+        cdef tiledb_datatype_t typ = self._get_type()
+        if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
+            return False
+        return True
+
+    cdef _shape(self):
+        domain = self.domain
+        return ((np.asscalar(domain[1]) -
+                 np.asscalar(domain[0]) + 1),)
+
+    @property
     def shape(self):
         """
         Return the shape of the dimension given the dimension's domain.
 
         **Note** The given shape is only valid for integer dimension domains
         """
-        #TODO: this will not work for floating point domains / dimensions
-        domain = self.domain
-        return ((np.asscalar(domain[1]) -
-                 np.asscalar(domain[0]) + 1),)
+        if not self._integer_domain():
+            raise TypeError("shape only valid for integer dimension domains")
+        return self._shape()
+
+    @property
+    def size(self):
+        if not self._integer_domain():
+            raise TypeError("size only valid for integer dimension domains")
+        return int(self._shape()[0])
 
     @property
     def tile(self):
@@ -942,8 +977,7 @@ cdef class Dim(object):
         shape[0] = <np.npy_intp> 1
         cdef int type_num = _numpy_type_num(self._get_type())
         assert(type_num != np.NPY_NOTYPE)
-        cdef np.ndarray tile_array = \
-            np.PyArray_SimpleNewFromData(1, shape, type_num, tile_ptr)
+        cdef np.ndarray tile_array = np.PyArray_SimpleNewFromData(1, shape, type_num, tile_ptr)
         if tile_array[0] == 0:
             # undefined tiles should span the whole dimension domain
             return self.shape[0]
@@ -985,7 +1019,7 @@ cdef class Domain(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_domain_free(self.ctx.ptr, &self.ptr)
 
     @staticmethod
@@ -1048,18 +1082,40 @@ cdef class Domain(object):
         """Returns the number of dimensions (rank) of the domain"""
         return self.rank
 
-    @property
-    def dtype(self):
-        """Returns the numpy dtype of the domain dimension types"""
+    cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
         cdef tiledb_datatype_t typ
         check_error(self.ctx,
                     tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
+        return typ
+
+    @property
+    def dtype(self):
+        """Returns the numpy dtype of the domain dimension types"""
+        cdef tiledb_datatype_t typ = self._get_type()
         return np.dtype(_numpy_type(typ))
+
+    cdef _integer_domain(Domain self):
+        cdef tiledb_datatype_t typ = self._get_type()
+        if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
+            return False
+        return True
+
+    cdef _shape(Domain self):
+        return tuple(self.dim(i).shape[0] for i in range(self.rank))
 
     @property
     def shape(self):
         """Returns the domain's shape, valid only for integer domains"""
-        return tuple(self.dim(i).shape[0] for i in range(self.rank))
+        if not self._integer_domain():
+            raise TypeError("shape valid only for integer domains")
+        return self._shape()
+
+    @property
+    def size(self):
+        """Returns the domain's size (number of cells), valid only for integer domains"""
+        if not self._integer_domain():
+            raise TypeError("shape valid only for integer domains")
+        return np.product(self._shape())
 
     def dim(self, int idx):
         """Returns a dimension object given the dimensions rank (index)"""
@@ -1104,7 +1160,7 @@ cdef class Assoc(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_kv_schema_free(self.ctx.ptr, &self.ptr)
 
     @staticmethod
@@ -1371,7 +1427,7 @@ cdef class KVIter(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_kv_iter_free(self.ctx.ptr, &self.ptr)
 
     def __init__(self, Ctx ctx, uri):
@@ -1561,7 +1617,7 @@ cdef class ArraySchema(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_array_schema_free(self.ctx.ptr, &self.ptr)
 
     def __init__(self, Ctx ctx, unicode uri,
@@ -2699,7 +2755,7 @@ cdef class VFS(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        if self.ptr is not NULL:
+        if self.ptr != NULL:
             tiledb_vfs_free(self.ctx.ptr, &self.ptr)
 
     def __init__(self, Ctx ctx, config=None):

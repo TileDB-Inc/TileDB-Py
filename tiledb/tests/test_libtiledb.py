@@ -43,16 +43,16 @@ class Config(DiskTestCase):
 
     def test_config_unset(self):
         config = t.Config()
-        config["baz"] = 100
-        del config["baz"]
-        with self.assertRaises(KeyError):
-            config["baz"]
+        config["sm.tile_cach_size"] = 100
+        del config["sm.tile_cache_size"]
+        # check that config parameter is default
+        self.assertEqual(config["sm.tile_cache_size"], t.Config()["sm.tile_cache_size"])
 
     def test_config_from_file(self):
         config_path = self.path("config")
         with open(config_path, "w") as fh:
             fh.write("sm.tile_cache_size 100")
-        config = t.Config.from_file(config_path)
+        config = t.Config.load(config_path)
         self.assertEqual(config["sm.tile_cache_size"], "100")
 
     def test_ctx_config_from_file(self):
@@ -618,7 +618,6 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[2.5, 4.2]], values)
 
-
     def test_sparse_unordered_fp_domain(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, "x", domain=(0.0, 10.0), tile=2.0, dtype=float))
@@ -676,8 +675,6 @@ class SparseArray(DiskTestCase):
         self.assertIsNone(T.nonempty_domain())
 
         T[[50, 60, 100]] = [1.0, 2.0, 3.0]
-        print(T[40:61])
-        print(T[40:61]["coords"][0]["x"])
         self.assertEqual(((50, 100),), T.nonempty_domain())
 
         # retrieve just valid coordinates in subarray T[40:60]
@@ -922,7 +919,7 @@ class NumpyToArray(DiskTestCase):
         arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
         assert_array_equal(A[5:10], arr[5:10])
 
-
+"""
 class AssocArray(DiskTestCase):
 
     def test_attr(self):
@@ -1006,6 +1003,7 @@ class AssocArray(DiskTestCase):
         #kv['foo'] = {"ints": 1, "floats": 2.0}
         #self.assertEqual(kv["foo"]["ints"], 1)
         #self.assertEqual(kv["foo"]["floats"], 2.0)
+"""
 
 
 class VFS(DiskTestCase):
