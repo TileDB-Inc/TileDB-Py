@@ -38,8 +38,8 @@ or simply
 
    $ pip install tiledb
 
-If TileDB is installed in a non-standard location, pass the path to `setup.py` with the `--tiledb=` flag.
-If you want to pass extra compiler/linker flags during the extension compilation step use `--cxxflags=` or `--lflags=`.
+If TileDB is installed in a non-standard location, pass the path to `setup.py` with the ``--tiledb=`` flag.
+If you want to pass extra compiler/linker flags during the extension compilation step use ``--cxxflags=`` or ``--lflags=``.
 
 ::
 
@@ -51,13 +51,19 @@ Testing TileDB-Py from within the source folder
 TileDB-Py can be tested without having the package installed.
 To compile the sources inplace from the source directory:
 
+::
+
     $ python setup.py build_ext --inplace
 
 Tests can now be run using Python's unittest framework
 
+::
+
     $ python -m unittest -v
 
 Youo can also install a `symlink named site-packages/tiledb.egg-link` to the development folder of TileDB-Py with:
+
+::
 
     $ pip install --editable .
 
