@@ -22,7 +22,7 @@ Installing TileDB-Py
 ''''''''''''''''''''
 
 You will need to build / install an up-to-date version of TileDB. 
-See https://docs.tiledb.io/docs/installation for the most up-to-date instructions.
+See https://docs.tiledb.io/docs/installation for instructions.
 
 ::
 
