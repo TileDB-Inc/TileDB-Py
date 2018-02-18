@@ -693,6 +693,12 @@ cdef extern from "tiledb/tiledb.h":
         int (*callback)(const char*, tiledb_object_t, void*),
         void* data)
 
+    int tiledb_object_ls(
+        tiledb_ctx_t* ctx,
+        const char* path,
+        int (*callback)(const char*, tiledb_object_t, void*),
+        void* data)
+
     # VFS
     int tiledb_vfs_create(
         tiledb_ctx_t* ctx,

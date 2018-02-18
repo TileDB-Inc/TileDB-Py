@@ -1719,7 +1719,7 @@ cdef class ArraySchema(object):
         return _tiledb_layout_string(order)
 
     @property
-    def coord_compressor(self):
+    def coords_compressor(self):
         """Returns the compressor label, level for the array representation coordinates"""
         cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
         cdef int level = -1
@@ -2639,12 +2639,19 @@ def object_type(Ctx ctx, path):
         rc = tiledb_object_type(ctx_ptr, path_ptr, &obj)
     if rc != TILEDB_OK:
         check_error(ctx, rc)
-    return obj
+    objtype = None
+    if obj == TILEDB_ARRAY:
+        objtype = "array"
+    elif obj == TILEDB_KEY_VALUE:
+        objtype = "kv"
+    elif obj == TILEDB_GROUP:
+        objtype = "group"
+    return objtype
 
 
-def delete(Ctx ctx, path):
+def remove(Ctx ctx, path):
     """
-    Deletes the TileDB object at the specified path (URI)
+    Removes (deletes) the TileDB object at the specified path (URI)
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2677,12 +2684,12 @@ def move(Ctx ctx, oldpath, newpath, force=False):
 
 cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     objtype = None
+    if obj == TILEDB_GROUP:
+        objtype = "group"
     if obj == TILEDB_ARRAY:
         objtype = "array"
     elif obj == TILEDB_KEY_VALUE:
-        objtype = "kv "
-    elif obj == TILEDB_GROUP:
-        objtype = "group"
+        objtype = "kv"
     try:
         (<object> pyfunc)(path_ptr.decode('UTF-8'), objtype)
     except StopIteration:
@@ -2690,7 +2697,20 @@ cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     return 1
 
 
+def ls(Ctx ctx, path, func):
+    """
+    Lists TileDB resources and applies a callback that have a prefix of path (one level deep)
+    """
+    cdef bytes bpath = unicode_path(path)
+    check_error(ctx,
+                tiledb_ls(ctx.ptr, bpath, walk_callback, <void*> func))
+    return
+
+
 def walk(Ctx ctx, path, func, order="preorder"):
+    """
+    Recursively visits TileDB resources and applies a callback that have a prefix of path
+    """
     cdef bytes bpath = unicode_path(path)
     cdef tiledb_walk_order_t walk_order
     if order == "postorder":
@@ -2942,12 +2962,10 @@ cdef class VFS(object):
         cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
         return self.readinto(fh, buffer, offset, nbytes)
 
-    def write(self, FileHandle fh, offset, buff):
+    def write(self, FileHandle fh, buff):
         """
-        Writes buffer to opened VFS FileHandle at given offset
+        Writes buffer to opened VFS FileHandle
         """
-        if offset < 0:
-            raise AttributeError("read offset must be >= 0")
         cdef bytes buffer = bytes(buff)
         cdef const char* buffer_ptr = PyBytes_AS_STRING(buffer)
         cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)

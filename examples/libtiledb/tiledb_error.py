@@ -5,7 +5,7 @@ This example shows how to catch errors
 
 Simply run:
 
-$python tiledb_error.py
+    $ python tiledb_error.py
 """
 
 import tiledb

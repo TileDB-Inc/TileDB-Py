@@ -8,6 +8,10 @@ It creates a hierarchical directory structure with three groups:
 
 Make sure that no folder with name `my_group` exists in the working
 directory before running this example.
+
+Simply run:
+
+    $ python tiledb_group_create.py
 """
 
 import tiledb
@@ -15,6 +19,9 @@ import tiledb
 
 def main():
     ctx = tiledb.Ctx()
+    tiledb.group_create(ctx, "my_group")
+    tiledb.group_create(ctx, "my_group/dense_arrays")
+    tiledb.group_create(ctx, "my_group/sparse_arrays")
 
 
 if __name__ == '__main__':
