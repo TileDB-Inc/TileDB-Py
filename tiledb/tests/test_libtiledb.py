@@ -675,10 +675,7 @@ class SparseArray(DiskTestCase):
         self.assertEqual(((50, 100),), T.nonempty_domain())
 
         # retrieve just valid coordinates in subarray T[40:60]
-        #import pandas
-        #df = pandas.DataFrame(T[40:1000])
-        #print(df.head())
-        assert_array_equal(T[40:61]["x"], [50, 60])
+        assert_array_equal(T[40:61]["coords"]["x"], [50, 60])
 
 
 class DenseIndexing(DiskTestCase):
@@ -916,7 +913,7 @@ class NumpyToArray(DiskTestCase):
         arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
         assert_array_equal(A[5:10], arr[5:10])
 
-"""
+
 class AssocArray(DiskTestCase):
 
     def test_attr(self):
@@ -1000,7 +997,6 @@ class AssocArray(DiskTestCase):
         #kv['foo'] = {"ints": 1, "floats": 2.0}
         #self.assertEqual(kv["foo"]["ints"], 1)
         #self.assertEqual(kv["foo"]["floats"], 2.0)
-"""
 
 
 class VFS(DiskTestCase):
