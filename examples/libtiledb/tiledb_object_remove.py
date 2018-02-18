@@ -20,7 +20,7 @@ def main():
     tiledb.remove(ctx, "my_group")
     tiledb.remove(ctx, "my_dense_array")
     try:
-        tiledb.move(ctx, "invalid_path")
+        tiledb.remove(ctx, "invalid_path")
     except tiledb.TileDBError:
         print("Failed to delete invalid path")
 

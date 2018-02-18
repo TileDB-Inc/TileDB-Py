@@ -27,9 +27,11 @@ def main():
     f1 = vfs.read(fh, 0, nbytes)
     s1 = vfs.read(fh, nbytes, 12)
 
-    print("Binary read:\n{0!r}\n{1!r}".format(struct.unpack("f", f1)[0], s1))
+    print("Binary read:\n{0:0.1f}\n{1!r}".format(struct.unpack("f", f1)[0], s1))
 
+    # Close and remove the binary file
     vfs.close(fh)
+    vfs.remove_file("tiledb_vfs.bin")
 
 
 if __name__ == '__main__':

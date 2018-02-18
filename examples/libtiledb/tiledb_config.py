@@ -31,7 +31,7 @@ def main():
 
     # Assign a config object to Ctx and VFS
     ctx = tiledb.Ctx(config=config)
-    vfs = tiledb.VFS(config=config)
+    vfs = tiledb.VFS(ctx, config=config)
 
 
 if __name__ == '__main__':

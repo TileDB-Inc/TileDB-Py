@@ -17,7 +17,7 @@ def main():
 
     # create dimensions
     d1 = tiledb.Dim(ctx, "", domain=(1, 1000), tile=10, dtype="uint64")
-    d2 = tiledb.Dim(ctx, "d1", domain=(101, 10000), tile=100, dtype="uint64")
+    d2 = tiledb.Dim(ctx, "d2", domain=(101, 10000), tile=100, dtype="uint64")
 
     # create domain
     domain = tiledb.Domain(ctx, d1, d2)
@@ -31,7 +31,7 @@ def main():
                                 domain=domain, attrs=(a1, a2),
                                 capacity=10,
                                 tile_order='row-major',
-                                cell_order='col_major',
+                                cell_order='col-major',
                                 coords_compressor=('zstd', 4),
                                 offsets_compressor=('blosc-lz', 5))
     schema.dump()
@@ -43,13 +43,13 @@ def main():
     print("- Tile order: ", schema.tile_order)
     print("- Capacity: ", schema.capacity)
     print("- Coordinates compressor: ", schema.coords_compressor)
-    print("- Offsets compressor: ", schema.offsets_compressor)
+   # print("- Offsets compressor: ", schema.offsets_compressor)
     print()
 
     # Print the attribute names:
     print("Array schema attribute names: ")
     for i in range(schema.nattr):
-        print("* ", schema.attr(i).name)
+        print("* {!r}".format(schema.attr(i).name))
     print()
 
     # Print domain
@@ -60,7 +60,7 @@ def main():
     print("Array schema dimension names: ")
     for i in range(schema.ndim):
         dim = domain.dim(i)
-        print("* ", dim.name)
+        print("* {!r}".format(dim.name))
     print()
 
 
