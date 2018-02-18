@@ -11,7 +11,7 @@ from numpy.testing import assert_array_equal
 class VersionTest(TestCase):
 
     def test_version(self):
-        v = tiledb.libtiledb_version()
+        v = tiledb.libtiledb.version()
         self.assertIsInstance(v, tuple)
         self.assertTrue(len(v) == 3)
         self.assertTrue(v[0] >= 1, "TileDB major version must be >= 1")
