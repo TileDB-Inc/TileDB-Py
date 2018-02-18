@@ -8,12 +8,6 @@ from tiledb import libtiledb as t
 import numpy as np
 from numpy.testing import assert_array_equal
 
-
-def is_group(ctx, path):
-   obj = tiledb.libtiledb.object_type(ctx, path)
-   return obj == 2
-
-
 class VersionTest(TestCase):
 
     def test_version(self):
@@ -86,15 +80,18 @@ class GroupTestCase(DiskTestCase):
         tiledb.group_create(ctx, self.group3)
         tiledb.group_create(ctx, self.group4)
 
+    def is_group(self, ctx, uri):
+        return t.object_type(ctx, uri) == "group"
+
 
 class GroupTest(GroupTestCase):
 
     def test_is_group(self):
         ctx = tiledb.Ctx()
-        self.assertTrue(is_group(ctx, self.group1))
-        self.assertTrue(is_group(ctx, self.group2))
-        self.assertTrue(is_group(ctx, self.group3))
-        self.assertTrue(is_group(ctx, self.group4))
+        self.assertTrue((ctx, self.group1))
+        self.assertTrue(self.is_group(ctx, self.group2))
+        self.assertTrue(self.is_group(ctx, self.group3))
+        self.assertTrue(self.is_group(ctx, self.group4))
 
     def test_walk_group(self):
         ctx = tiledb.Ctx()
@@ -120,21 +117,21 @@ class GroupTest(GroupTestCase):
         self.assertTrue(groups[2][0].endswith(self.group3) and groups[2][1] == "group")
         self.assertTrue(groups[3][0].endswith(self.group1) and groups[3][1] == "group")
 
-    def test_delete_group(self):
+    def test_remove_group(self):
         ctx = tiledb.Ctx()
 
-        tiledb.delete(ctx, self.group3)
+        tiledb.remove(ctx, self.group3)
 
-        self.assertFalse(is_group(ctx, self.group3))
-        self.assertFalse(is_group(ctx, self.group4))
+        self.assertFalse(self.is_group(ctx, self.group3))
+        self.assertFalse(self.is_group(ctx, self.group4))
 
     def test_move_group(self):
         ctx = tiledb.Ctx()
 
         tiledb.move(ctx, self.group4, self.path("group1/group4"))
 
-        self.assertTrue(is_group(ctx, self.path("group1/group4")))
-        self.assertFalse(is_group(ctx, self.group4))
+        self.assertTrue(self.is_group(ctx, self.path("group1/group4")))
+        self.assertFalse(self.is_group(ctx, self.group4))
 
         with self.assertRaises(tiledb.TileDBError):
             tiledb.move(ctx, self.path("group1/group4"), self.path("group1/group3"))
@@ -143,8 +140,8 @@ class GroupTest(GroupTestCase):
                     self.path("group1/group3"),
                     force=True)
 
-        self.assertTrue(is_group(ctx, self.path("group1/group3")))
-        self.assertFalse(is_group(ctx, self.path("group1/group4")))
+        self.assertTrue(self.is_group(ctx, self.path("group1/group3")))
+        self.assertFalse(self.is_group(ctx, self.path("group1/group4")))
 
 
 class DimensionTest(TestCase):
@@ -214,7 +211,7 @@ class AttributeTest(TestCase):
 
     def test_full_attribute(self):
         ctx = t.Ctx()
-        attr = t.Attr(ctx, "foo", dtype=np.int64, compressor="zstd", level=10)
+        attr = t.Attr(ctx, "foo", dtype=np.int64, compressor=("zstd", 10))
         attr.dump()
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.int64)
@@ -1088,7 +1085,7 @@ class VFS(DiskTestCase):
 
         buffer = b"bar"
         fh = vfs.open(self.path("foo"), "w")
-        vfs.write(fh, 0, buffer)
+        vfs.write(fh, buffer)
         vfs.close(fh)
         self.assertEqual(vfs.file_size(self.path("foo")), 3)
 
@@ -1098,7 +1095,7 @@ class VFS(DiskTestCase):
 
         # write / read empty input
         fh = vfs.open(self.path("baz"), "w")
-        vfs.write(fh, 0, b"")
+        vfs.write(fh, b"")
         vfs.close(fh)
         self.assertEqual(vfs.file_size(self.path("baz")), 0)
 

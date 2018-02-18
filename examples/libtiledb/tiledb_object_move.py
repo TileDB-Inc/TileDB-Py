@@ -18,6 +18,7 @@ def main():
 
     tiledb.move(ctx, "my_group", "my_group_2")
     tiledb.move(ctx, "my_dense_array", "my_group_2/dense_arrays/my_dense_array")
+
     try:
         tiledb.move(ctx, "invalid_path", "path", force=False)
     except tiledb.TileDBError:

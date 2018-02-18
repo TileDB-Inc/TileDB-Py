@@ -713,8 +713,7 @@ cdef class Attr(object):
                  Ctx ctx,
                  name=u"",
                  dtype=np.float64,
-                 compressor=None,
-                 level=-1):
+                 compressor=None):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef np.dtype _dtype = np.dtype(dtype)
         cdef tiledb_datatype_t tiledb_dtype
@@ -743,14 +742,16 @@ cdef class Attr(object):
             ncells = 1
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(ctx,
-                    tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
+            tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
         check_error(ctx,
-                    tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells))
-        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
+            tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells))
+        cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
+        cdef int _level = -1
         if compressor is not None:
-            compr = _tiledb_compressor(compressor)
+            _compressor = _tiledb_compressor(ustring(compressor[0]))
+            _level = int(compressor[1])
             check_error(ctx,
-                        tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, compr, level))
+                tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, _compressor, _level))
         self.ctx = ctx
         self.ptr = attr_ptr
 
@@ -1626,6 +1627,8 @@ cdef class ArraySchema(object):
                  cell_order='row-major',
                  tile_order='row-major',
                  capacity=0,
+                 coords_compressor=None,
+                 offsets_compressor=None,
                  sparse=False):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
@@ -1646,12 +1649,18 @@ cdef class ArraySchema(object):
             tiledb_array_schema_free(ctx.ptr, &schema_ptr)
             check_error(ctx, rc)
         cdef uint64_t c_capacity = 0
-        if sparse and capacity > 0:
+        if capacity > 0:
             c_capacity = <uint64_t> capacity
             rc = tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, c_capacity)
             if rc != TILEDB_OK:
                 tiledb_array_schema_free(ctx.ptr, &schema_ptr)
                 check_error(ctx, rc)
+        if coords_compressor is not None:
+            #TODO:
+            compressor, level = coords_compressor
+        if offsets_compressor is not None:
+            #TODO:
+            compressor, level = offsets_compressor
         cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
         rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
         if rc != TILEDB_OK:
@@ -1726,7 +1735,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
                     tiledb_array_schema_get_coords_compressor(
                         self.ctx.ptr, self.ptr, &comp, &level))
-        return (_tiledb_compressor_string(comp), int(level))
+        return (_tiledb_compressor_string(comp), level)
 
     @property
     def rank(self):
@@ -2703,7 +2712,7 @@ def ls(Ctx ctx, path, func):
     """
     cdef bytes bpath = unicode_path(path)
     check_error(ctx,
-                tiledb_ls(ctx.ptr, bpath, walk_callback, <void*> func))
+                tiledb_object_ls(ctx.ptr, bpath, walk_callback, <void*> func))
     return
 
 
@@ -3131,7 +3140,7 @@ class FileIO(object):
         if not self.writeable():
             raise IOError("cannot write to read-only FileIO handle")
         nbytes = len(buff)
-        self.vfs.write(self.fh, 0, buff)
+        self.vfs.write(self.fh, buff)
         self._nbytes += nbytes
         self._offset += nbytes
         return nbytes
