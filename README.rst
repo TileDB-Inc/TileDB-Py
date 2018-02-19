@@ -16,8 +16,19 @@ Build Dependencies
 Installing
 ==========
 
-#TODO: conda
+Conda build instructions:
 
+- Download miniconda.
+- Open miniconda prompt.
+  > conda install virtualenv
+- Clone TileDB-py somewhere, move to its directory.
+  > virtualenv venv
+  > venv\Scripts\activate
+  > pip install -r requirements_dev.txt
+  > python setup.py build_ext --inplace --tiledb=C:\path\to\TileDB\dist
+  > set PATH=%PATH%;C:\path\to\TileDB\dist\bin
+  > python -m unittest -v
+  
 Installing TileDB-Py
 ''''''''''''''''''''
 
