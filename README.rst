@@ -19,9 +19,9 @@ Installing
 Conda build instructions:
 
 - Download miniconda.
-- Open miniconda prompt.
-  > conda install virtualenv
-- Clone TileDB-py somewhere, move to its directory.
+- Open miniconda prompt::
+  conda install virtualenv
+- Clone TileDB-py somewhere, move to its directory::
   > virtualenv venv
   > venv\Scripts\activate
   > pip install -r requirements_dev.txt
