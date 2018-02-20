@@ -28,4 +28,4 @@ install:
   - python setup.py build_ext --inplace --tiledb=./build/TileDB/dist
 
 script:
-  - python -m unittest -v
+  - env LD_LIBRARY_PATH="${TRAVIS_BUILD_DIR}/build/TileDB/dist/lib:$LD_LIBRARY_PATH" python -m unittest -v
