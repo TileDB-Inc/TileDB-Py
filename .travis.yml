@@ -1,9 +1,6 @@
 language: python
 
 python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
   - "3.6"
 
 sudo: false
@@ -17,7 +14,7 @@ install:
   - python setup.py build_ext --inplace
 
 script:
-  - tox
+  - python -m unittest -v
 
 after_success:
   - coveralls
