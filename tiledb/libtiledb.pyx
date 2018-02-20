@@ -577,18 +577,16 @@ cdef _numpy_type(tiledb_datatype_t tiledb_dtype):
         return np.bytes_
     raise TypeError("tiledb datatype not understood")
 
-
+"""
 cdef _numpy_scalar(tiledb_datatype_t typ, void* data, uint64_t nbytes):
-    """ 
-    Return a numpy scalar object from a tiledb_datatype_t enum type value and void pointer to scalar data
-    """
+    # Return a numpy scalar object from a tiledb_datatype_t enum type value and void pointer to scalar data
     if typ == TILEDB_CHAR:
         # bytes type, ensure a full copy
         return PyBytes_FromStringAndSize(<char*> data, nbytes)
     # fixed size numeric type
     cdef int type_num = _numpy_type_num(typ)
     return PyArray_Scalar(data, np.PyArray_DescrFromType(type_num), None)
-
+"""
 
 cdef tiledb_compressor_t _tiledb_compressor(object c) except TILEDB_NO_COMPRESSION:
     """
@@ -655,9 +653,9 @@ cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
     """
     Return the tiledb_layout_t enum value given a layout string label
     """
-    if order == "row-major" or 'C':
+    if order == "row-major" or order == 'C':
         return TILEDB_ROW_MAJOR
-    elif order == "col-major" or 'F':
+    elif order == "col-major" or order == 'F':
         return TILEDB_COL_MAJOR
     elif order == "global":
         return TILEDB_GLOBAL_ORDER
@@ -1138,9 +1136,9 @@ cdef class Domain(object):
         return
 
 
-cdef class Assoc(object):
+cdef class KV(object):
     """
-    TileDB Assoc class object
+    TileDB KV class object
     """
 
     cdef Ctx ctx
@@ -1156,9 +1154,9 @@ cdef class Assoc(object):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, unicode uri, const tiledb_kv_schema_t* ptr):
-        """Constructs an Assoc class instance from a URI and a tiledb_kv_schema_t pointer
+        """Constructs an KV class instance from a URI and a tiledb_kv_schema_t pointer
         """
-        cdef Assoc arr = Assoc.__new__(Assoc)
+        cdef KV arr = KV.__new__(KV)
         arr.ctx = ctx
         arr.uri = uri
         # need to cast away const
@@ -1168,7 +1166,7 @@ cdef class Assoc(object):
     @staticmethod
     def load(Ctx ctx, uri):
         """
-        Loads a persisted Assoc array at given URI, returns an Assoc class instance
+        Loads a persisted KV array at given URI, returns an KV class instance
         """
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = buri
@@ -1178,7 +1176,7 @@ cdef class Assoc(object):
             rc = tiledb_kv_schema_load(ctx.ptr, &schema_ptr, uri_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
-        return Assoc.from_ptr(ctx, uri, schema_ptr)
+        return KV.from_ptr(ctx, uri, schema_ptr)
 
     def __init__(self, Ctx ctx, uri, attrs=()):
         cdef bytes buri = unicode_path(uri)
@@ -1210,7 +1208,7 @@ cdef class Assoc(object):
 
     @property
     def nattr(self):
-        """Returns the number of Assoc array attributes"""
+        """Returns the number of KV array attributes"""
         cdef unsigned int nattr = 0
         check_error(self.ctx,
                     tiledb_kv_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
@@ -1241,7 +1239,7 @@ cdef class Assoc(object):
                              "or an integer index, not {0!r}".format(type(key)))
 
     def consolidate(self):
-        """Consolidates Assoc array updates for increased read performance"""
+        """Consolidates KV array updates for increased read performance"""
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef bytes buri = self.uri.encode('UTF-8')
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -1253,18 +1251,18 @@ cdef class Assoc(object):
         return
 
     def dict(self):
-        """Return a dict representation of the Assoc array object"""
+        """Return a dict representation of the KV array object"""
         return dict(self)
 
     def dump(self):
-        """Dump Assoc array info to STDOUT"""
+        """Dump KV array info to STDOUT"""
         check_error(self.ctx,
                     tiledb_kv_schema_dump(self.ctx.ptr, self.ptr, stdout))
         print("\n")
         return
 
     def __iter__(self):
-        """Return an interator object over Assoc key, values"""
+        """Return an interator object over KV key, values"""
         return KVIter(self.ctx, self.uri)
 
     def __setitem__(self, object key, object value):
@@ -1388,27 +1386,10 @@ cdef class Assoc(object):
         except:
             raise
 
-    def update(self, *args, **kwargs):
-        cdef dict update = {}
-        if len(args) == 0:
-            update.update(**kwargs)
-        elif len(args) == 1:
-            update.update(args[0])
-        else:
-            raise AttributeError(
-                "must provide a dictionary, iterable of key/value pairs "
-                "or explict keyword arguments")
-        cdef np.ndarray key_array = np.array(update.keys())
-        cdef np.ndarray value_array = np.array(update.values())
-        cdef uint64_t nkeys = len(key_array)
-        for i in range(nkeys):
-            pass
-        raise NotImplementedError()
-
 
 cdef class KVIter(object):
     """
-    KV iterator object for a given Assoc array
+    KV iterator object for a given KV array
     """
 
     cdef Ctx ctx

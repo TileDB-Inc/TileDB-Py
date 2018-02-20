@@ -570,6 +570,34 @@ class SparseArray(DiskTestCase):
         self.assertTrue(T.name == self.path("foo"))
         self.assertTrue(T.sparse)
 
+    def test_sparse_schema(self):
+        ctx = tiledb.Ctx()
+
+        # create dimensions
+        d1 = tiledb.Dim(ctx, "", domain=(1, 1000), tile=10, dtype="uint64")
+        d2 = tiledb.Dim(ctx, "d2", domain=(101, 10000), tile=100, dtype="uint64")
+
+        # create domain
+        domain = tiledb.Domain(ctx, d1, d2)
+
+        # create attributes
+        a1 = tiledb.Attr(ctx, "", dtype="int32,int32,int32")
+        a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="float32")
+
+        # create sparse array with schema
+        schema = tiledb.SparseArray(ctx, "sparse_array_schema",
+                                    domain=domain, attrs=(a1, a2),
+                                    capacity=10,
+                                    cell_order='col-major',
+                                    tile_order='row-major',
+                                    coords_compressor=('zstd', 4),
+                                    offsets_compressor=('blosc-lz', 5))
+        self.assertEqual(schema.capacity, 10)
+        self.assertEqual(schema.cell_order, "col-major")
+        self.assertEqual(schema.tile_order, "row-major")
+        self.assertEqual(schema.coords_compressor, ('zstd', 4))
+        self.assertEqual(schema.offsets_compressor, ('blosc-lz', 5))
+
     @unittest.expectedFailure
     def test_simple_1d_sparse_vector(self):
         ctx = t.Ctx()
@@ -921,7 +949,7 @@ class NumpyToArray(DiskTestCase):
         assert_array_equal(A[5:10], arr[5:10])
 
 
-class AssocArray(DiskTestCase):
+class KVArray(DiskTestCase):
 
     def test_attr(self):
         ctx = t.Ctx()
@@ -932,7 +960,7 @@ class AssocArray(DiskTestCase):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
+        kv = t.KV(ctx, self.path("foo"), attrs=(a1,))
         a1.dump()
         kv['foo'] = 'bar'
         kv.dump()
@@ -942,36 +970,36 @@ class AssocArray(DiskTestCase):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
+        kv = t.KV(ctx, self.path("foo"), attrs=(a1,))
 
         kv['foo'] = 'bar'
         del kv
 
         # try to load it
-        kv = t.Assoc.load(ctx, self.path("foo"))
+        kv = t.KV.load(ctx, self.path("foo"))
         self.assertEqual(kv["foo"], 'bar')
 
     def test_kv_update(self):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "val", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
+        kv = t.KV(ctx, self.path("foo"), attrs=(a1,))
 
         kv['foo'] = 'bar'
         del kv
 
-        kv = t.Assoc.load(ctx, self.path("foo"))
+        kv = t.KV.load(ctx, self.path("foo"))
         kv['foo'] = 'baz'
         del kv
 
-        kv = t.Assoc.load(ctx, self.path("foo"))
+        kv = t.KV.load(ctx, self.path("foo"))
         self.assertEqual(kv['foo'], 'baz')
 
     def test_key_not_found(self):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
+        kv = t.KV(ctx, self.path("foo"), attrs=(a1,))
 
         self.assertRaises(KeyError, kv.__getitem__, "not here")
 
@@ -979,7 +1007,7 @@ class AssocArray(DiskTestCase):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
+        kv = t.KV(ctx, self.path("foo"), attrs=(a1,))
         self.assertFalse("foo" in kv)
         kv['foo'] = 'bar'
         self.assertTrue("foo" in kv)
@@ -988,7 +1016,7 @@ class AssocArray(DiskTestCase):
         # create a kv database
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", dtype=bytes)
-        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1,))
+        kv = t.KV(ctx, self.path("foo"), attrs=(a1,))
         kv['foo'] = 'bar'
         kv['baz'] = 'foo'
         self.assertEqual(kv.dict(), {'foo': 'bar', 'baz': 'foo'})
@@ -998,7 +1026,7 @@ class AssocArray(DiskTestCase):
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "ints", dtype=int)
         a2 = t.Attr(ctx, "floats", dtype=float)
-        kv = t.Assoc(ctx, self.path("foo"), attrs=(a1, a2))
+        kv = t.KV(ctx, self.path("foo"), attrs=(a1, a2))
 
         # known failure
         #kv['foo'] = {"ints": 1, "floats": 2.0}
