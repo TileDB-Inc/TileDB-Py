@@ -43,7 +43,7 @@ def main():
     print("- Tile order: ", schema.tile_order)
     print("- Capacity: ", schema.capacity)
     print("- Coordinates compressor: ", schema.coords_compressor)
-   # print("- Offsets compressor: ", schema.offsets_compressor)
+    print("- Offsets compressor: ", schema.offsets_compressor)
     print()
 
     # Print the attribute names:

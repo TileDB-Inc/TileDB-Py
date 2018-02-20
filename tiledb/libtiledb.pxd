@@ -370,6 +370,18 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_array_schema_t* array_schema,
         tiledb_layout_t tile_order)
 
+    int tiledb_array_schema_set_coords_compressor(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        tiledb_compressor_t compressor,
+        int compression_level)
+
+    int tiledb_array_schema_set_offsets_compressor(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        tiledb_compressor_t compressor,
+        int compression_level)
+
     int tiledb_array_schema_get_attribute_from_index(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
@@ -414,8 +426,14 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_array_schema_get_coords_compressor(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
-        tiledb_compressor_t* coords_compressor,
-        int* coords_compression_level)
+        tiledb_compressor_t* compressor,
+        int* compression_level)
+
+    int tiledb_array_schema_get_offsets_compressor(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        tiledb_compressor_t* compressor,
+        int* compression_level)
 
     int tiledb_array_schema_get_domain(
         tiledb_ctx_t* ctx,

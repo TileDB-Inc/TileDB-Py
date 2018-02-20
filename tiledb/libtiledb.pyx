@@ -448,8 +448,6 @@ cdef class ConfigItems(object):
 cdef class Ctx(object):
     """
     TileDB Ctx class
-
-    TODO:
     """
 
     cdef tiledb_ctx_t* ptr
@@ -657,9 +655,9 @@ cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
     """
     Return the tiledb_layout_t enum value given a layout string label
     """
-    if order == "row-major":
+    if order == "row-major" or 'C':
         return TILEDB_ROW_MAJOR
-    elif order == "col-major":
+    elif order == "col-major" or 'F':
         return TILEDB_COL_MAJOR
     elif order == "global":
         return TILEDB_GLOBAL_ORDER
@@ -685,8 +683,6 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
 cdef class Attr(object):
     """
     TileDB Attr class object
-
-    TODO:
     """
 
     cdef Ctx ctx
@@ -835,8 +831,6 @@ cdef class Attr(object):
 cdef class Dim(object):
     """
     TileDB Dimension class
-
-    TODO:
     """
     cdef Ctx ctx
     cdef tiledb_dimension_t*ptr
@@ -1009,8 +1003,6 @@ cdef class Dim(object):
 cdef class Domain(object):
     """
     TileDB Domain class object
-
-    TODO:
     """
 
     cdef Ctx ctx
@@ -1149,8 +1141,6 @@ cdef class Domain(object):
 cdef class Assoc(object):
     """
     TileDB Assoc class object
-
-    #TODO:
     """
 
     cdef Ctx ctx
@@ -1637,30 +1627,47 @@ cdef class ArraySchema(object):
         cdef tiledb_array_schema_t* schema_ptr = NULL
         check_error(ctx,
                     tiledb_array_schema_create(ctx.ptr, &schema_ptr, array_type))
-        cdef tiledb_layout_t cell_layout = _tiledb_layout(cell_order)
-        cdef tiledb_layout_t tile_layout = _tiledb_layout(tile_order)
-        cdef int rc = TILEDB_OK
-        rc = tiledb_array_schema_set_cell_order(ctx.ptr, schema_ptr, cell_layout)
-        if rc != TILEDB_OK:
+        cdef tiledb_layout_t cell_layout
+        cdef tiledb_layout_t tile_layout
+        try:
+            cell_layout = _tiledb_layout(cell_order)
+            tile_layout = _tiledb_layout(tile_order)
+            check_error(ctx, tiledb_array_schema_set_cell_order(ctx.ptr, schema_ptr, cell_layout))
+            check_error(ctx, tiledb_array_schema_set_tile_order(ctx.ptr, schema_ptr, tile_layout))
+        except:
             tiledb_array_schema_free(ctx.ptr, &schema_ptr)
-            check_error(ctx, rc)
-        rc = tiledb_array_schema_set_tile_order(ctx.ptr, schema_ptr, tile_layout)
-        if rc != TILEDB_OK:
-            tiledb_array_schema_free(ctx.ptr, &schema_ptr)
-            check_error(ctx, rc)
-        cdef uint64_t c_capacity = 0
+            raise
+        cdef uint64_t _capacity = 0
         if capacity > 0:
-            c_capacity = <uint64_t> capacity
-            rc = tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, c_capacity)
-            if rc != TILEDB_OK:
+            try:
+                _capacity = <uint64_t> capacity
+                check_error(ctx,
+                            tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, _capacity))
+            except:
                 tiledb_array_schema_free(ctx.ptr, &schema_ptr)
-                check_error(ctx, rc)
+                raise
+        cdef int _level = -1
+        cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
         if coords_compressor is not None:
-            #TODO:
-            compressor, level = coords_compressor
+            try:
+                compressor, level = coords_compressor
+                _compressor = _tiledb_compressor(compressor)
+                _level = int(level)
+                check_error(ctx,
+                            tiledb_array_schema_set_coords_compressor(ctx.ptr, schema_ptr, _compressor, _level))
+            except:
+                tiledb_array_schema_free(ctx.ptr, &schema_ptr)
+                raise
         if offsets_compressor is not None:
-            #TODO:
-            compressor, level = offsets_compressor
+            try:
+                compressor, level = offsets_compressor
+                _compressor = _tiledb_compressor(compressor)
+                _level = int(level)
+                check_error(ctx,
+                            tiledb_array_schema_set_offsets_compressor(ctx.ptr, schema_ptr, _compressor, _level))
+            except:
+                tiledb_array_schema_free(ctx.ptr, &schema_ptr)
+                raise
         cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
         rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
         if rc != TILEDB_OK:
@@ -1734,6 +1741,16 @@ cdef class ArraySchema(object):
         cdef int level = -1
         check_error(self.ctx,
                     tiledb_array_schema_get_coords_compressor(
+                        self.ctx.ptr, self.ptr, &comp, &level))
+        return (_tiledb_compressor_string(comp), level)
+
+    @property
+    def offsets_compressor(self):
+        """Returns the compressor label, level for the array representation varcell offsets"""
+        cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
+        cdef int level = -1
+        check_error(self.ctx,
+                    tiledb_array_schema_get_offsets_compressor(
                         self.ctx.ptr, self.ptr, &comp, &level))
         return (_tiledb_compressor_string(comp), level)
 
@@ -1820,7 +1837,6 @@ cdef class DenseArray(ArraySchema):
     """
     TileDB DenseArray class
 
-    #TODO:
     """
 
     @staticmethod
@@ -2248,7 +2264,6 @@ cdef class SparseArray(ArraySchema):
     """
     TileDB SparseArray class
 
-    #TODO:
     """
 
     @staticmethod
@@ -2774,7 +2789,6 @@ cdef class VFS(object):
     """
     TileDB VFS class
 
-    #TODO:
     """
 
     cdef Ctx ctx
