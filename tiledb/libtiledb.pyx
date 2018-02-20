@@ -2398,8 +2398,7 @@ cdef class SparseArray(ArraySchema):
         # array name
         cdef bytes barray_uri = self.uri.encode('UTF-8')
 
-        # attr name
-        cdef const char* attr_ptr = tiledb_coords()
+        # set subarray / layout
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
 
         cdef tiledb_query_t* query_ptr = NULL
@@ -2456,7 +2455,7 @@ cdef class SparseArray(ArraySchema):
                 PyMem_Free(buffers_ptr)
                 raise MemoryError()
 
-        rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, &attr_ptr, nattr,
+        rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
                                       buffers_ptr, buffer_sizes_ptr)
         if rc != TILEDB_OK:
             PyMem_Free(attr_names_ptr)
