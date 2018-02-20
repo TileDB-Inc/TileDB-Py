@@ -9,9 +9,22 @@ notifications:
   email: false
 
 install:
+  # Install TileDB in the Python repo's build directory
+  - mkdir build
+  - pushd ./build # . -> ./build
+  - git clone https://github.com/TileDB-Inc/TileDB
+  - pushd TileDB # ./build -> ./build/TileDB
+  - scripts/install-deps.sh
+  - mkdir build
+  - pushd ./build  # ./build/TileDB/build
+  - ../bootstrap
+  - make install
+  - popd # ./build/TileDB/build -> ./build/TileDB
+  - popd # ./build/TileDB -> ./build
+  # Build and install extension module
   - pip install -U tox-travis coveralls pip setuptools wheel
   - pip install -r requirements_dev.txt
-  - python setup.py build_ext --inplace
+  - python setup.py build_ext --inplace --tiledb=./build/TileDB/dist
 
 script:
   - python -m unittest -v
