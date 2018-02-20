@@ -1,6 +1,10 @@
 TileDB for Python
 #################
-``TileDB-Py`` is a pythonic interface to the `TileDB array storage manager <https://tiledb.io>`_.
+.. image:: https://travis-ci.org/TileDB-Inc/TileDB-Py.svg?branch=dev
+    :target: https://travis-ci.org/TileDB-Inc/TileDB-Py
+
+
+``TileDB-Py`` is a Python interface to the `TileDB array storage manager <https://tiledb.io>`_.
 
 
 Runtime Dependencies

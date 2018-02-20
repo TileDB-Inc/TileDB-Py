@@ -605,7 +605,7 @@ cdef tiledb_compressor_t _tiledb_compressor(object c) except TILEDB_NO_COMPRESSI
     elif c == "lz4":
         return TILEDB_LZ4
     elif c == "blosc-lz":
-        return TILEDB_BLOSC
+        return TILEDB_BLOSC_LZ
     elif c == "blosc-lz4":
         return TILEDB_BLOSC_LZ4
     elif c == "blosc-lz4hc":
@@ -635,7 +635,7 @@ cdef unicode _tiledb_compressor_string(tiledb_compressor_t c):
         return u"zstd"
     elif c == TILEDB_LZ4:
         return u"lz4"
-    elif c == TILEDB_BLOSC:
+    elif c == TILEDB_BLOSC_LZ:
         return u"blosc-lz"
     elif c == TILEDB_BLOSC_LZ4:
         return u"blosc-lz4"

@@ -64,7 +64,7 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_GZIP
         TILEDB_ZSTD
         TILEDB_LZ4
-        TILEDB_BLOSC
+        TILEDB_BLOSC_LZ
         TILEDB_BLOSC_LZ4
         TILEDB_BLOSC_LZ4HC
         TILEDB_BLOSC_SNAPPY
