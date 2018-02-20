@@ -585,7 +585,7 @@ class SparseArray(DiskTestCase):
         a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="float32")
 
         # create sparse array with schema
-        schema = tiledb.SparseArray(ctx, "sparse_array_schema",
+        schema = tiledb.SparseArray(ctx, self.path("sparse_array_schema"),
                                     domain=domain, attrs=(a1, a2),
                                     capacity=10,
                                     cell_order='col-major',
