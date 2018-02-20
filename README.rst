@@ -1,6 +1,6 @@
 TileDB for Python
 #################
-``TileDB-Py`` is a pythonic interface to the `TileDB array storage manager <http://tiledb.io>`_.
+``TileDB-Py`` is a pythonic interface to the `TileDB array storage manager <https://tiledb.io>`_.
 
 
 Runtime Dependencies
@@ -16,26 +16,6 @@ Build Dependencies
 Installing
 ==========
 
-Conda build instructions:
-
-- Download miniconda.
-- Open miniconda prompt
-
-::
-
-    $ conda install virtualenv
-  
-- Clone TileDB-py somewhere, move to its directory
-
-::
-
-    $ virtualenv venv
-    $ venv\Scripts\activate
-    $ pip install -r requirements_dev.txt
-    $ python setup.py build_ext --inplace --tiledb=C:\path\to\TileDB\dist
-    $ set PATH=%PATH%;C:\path\to\TileDB\dist\bin
-    $ python -m unittest -v
-  
 Installing TileDB-Py
 ''''''''''''''''''''
 
@@ -62,6 +42,27 @@ If you want to pass extra compiler/linker flags during the c++ extension compila
 ::
 
   $ python setup.py build_ext --inplace --tiledb=/home/tiledb/dist 
+
+Installing on Windows
+'''''''''''''''''''''
+
+If you are building the extension on Windows, first install a Python distribution such as `Miniconda <https://conda.io/miniconda.html>`_. You can then either build TileDB from source, or download the pre-built binaries.
+
+Once you've installed Miniconda and TileDB, open the Miniconda command prompt and execute:
+
+::
+
+   > cd TileDB-Py
+   > conda install conda-build
+   > conda install virtualenv
+   > virtualenv venv
+   > venv\Scripts\activate
+   > pip install -r requirements_dev.txt
+   > python setup.py build_ext --inplace --tiledb=C:\path\to\TileDB\
+   > set PATH=%PATH%;C:\path\to\TileDB\bin
+   > python -m unittest -v
+
+Note that if you built TileDB from source, then replace ``C:\path\to\TileDB`` with ``C:\path\to\TileDB\dist``.
 
 Testing TileDB-Py from within the source folder
 -----------------------------------------------
