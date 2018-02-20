@@ -1,9 +1,9 @@
-language: python
+dist: trusty
+sudo: required
 
+language: python
 python:
   - "3.6"
-
-sudo: true
 
 notifications:
   email: false
@@ -23,12 +23,9 @@ install:
   - popd # ./build/TileDB -> ./build
   - popd # ./build -> .
   # Build and install extension module
-  - pip install -U tox-travis coveralls pip setuptools wheel
+  - pip install -U tox-travis pip setuptools wheel
   - pip install -r requirements_dev.txt
   - python setup.py build_ext --inplace --tiledb=./build/TileDB/dist
 
 script:
   - python -m unittest -v
-
-after_success:
-  - coveralls
