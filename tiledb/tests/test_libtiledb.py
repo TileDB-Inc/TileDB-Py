@@ -1,14 +1,16 @@
 from __future__ import absolute_import
-from tiledb.tests.common import DiskTestCase
-from unittest import TestCase
 
-import tiledb
-from tiledb import libtiledb as t
+import unittest
 
 import numpy as np
 from numpy.testing import assert_array_equal
 
-class VersionTest(TestCase):
+import tiledb
+from tiledb import libtiledb as t
+from tiledb.tests.common import DiskTestCase
+
+
+class VersionTest(unittest.TestCase):
 
     def test_version(self):
         v = tiledb.libtiledb.version()
@@ -144,7 +146,7 @@ class GroupTest(GroupTestCase):
         self.assertFalse(self.is_group(ctx, self.path("group1/group4")))
 
 
-class DimensionTest(TestCase):
+class DimensionTest(unittest.TestCase):
 
     def test_minimal_dimension(self):
         ctx = t.Ctx()
@@ -161,7 +163,7 @@ class DimensionTest(TestCase):
         self.assertEqual(dim.tile, 2)
 
 
-class DomainTest(TestCase):
+class DomainTest(unittest.TestCase):
 
     def test_domain(self):
         ctx = t.Ctx()
@@ -188,7 +190,7 @@ class DomainTest(TestCase):
                     t.Dim(ctx, "d2", (1, 4), 2, dtype=float))
 
 
-class AttributeTest(TestCase):
+class AttributeTest(unittest.TestCase):
 
     def test_minimal_attribute(self):
         ctx = t.Ctx()
@@ -568,6 +570,7 @@ class SparseArray(DiskTestCase):
         self.assertTrue(T.name == self.path("foo"))
         self.assertTrue(T.sparse)
 
+    @unittest.expectedFailure
     def test_simple_1d_sparse_vector(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 3), tile=4, dtype=int))
@@ -579,6 +582,7 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[1, 2]], values)
 
+    @unittest.expectedFailure
     def test_simple_2d_sparse_vector(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 3), tile=4, dtype=int),
@@ -591,6 +595,7 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[1, 2], [1, 2]], values)
 
+    @unittest.expectedFailure
     def test_simple3d_sparse_vector(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, "x", domain=(0, 3), tile=4, dtype=int),
@@ -604,6 +609,7 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[1, 2], [1, 2], [1, 2]], values)
 
+    @unittest.expectedFailure
     def test_sparse_ordered_fp_domain(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, "x", domain=(0.0, 10.0), tile=2.0, dtype=float))
@@ -615,6 +621,7 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[2.5, 4.2]], values)
 
+    @unittest.expectedFailure
     def test_sparse_unordered_fp_domain(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx, t.Dim(ctx, "x", domain=(0.0, 10.0), tile=2.0, dtype=float))
@@ -626,7 +633,7 @@ class SparseArray(DiskTestCase):
 
         assert_array_equal(T[[2.5, 4.2]], values[::-1])
 
-
+    @unittest.expectedFailure
     def test_multiple_attributes(self):
         ctx = t.Ctx()
         dom = t.Domain(ctx,
