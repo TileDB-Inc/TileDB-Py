@@ -3,7 +3,7 @@ language: python
 python:
   - "3.6"
 
-sudo: false
+sudo: true
 
 notifications:
   email: false
@@ -21,6 +21,7 @@ install:
   - make install
   - popd # ./build/TileDB/build -> ./build/TileDB
   - popd # ./build/TileDB -> ./build
+  - popd # ./build -> .
   # Build and install extension module
   - pip install -U tox-travis coveralls pip setuptools wheel
   - pip install -r requirements_dev.txt
