@@ -7,6 +7,7 @@ Example shows how to get the type of a TileDB object (resource).
 
     $ python tiledb_group_create.py
     $ python tiledb_dense_create.py
+    $ python tiledb_kv_create.py
     $ python tiledb_object_type.py
 """
 
@@ -17,6 +18,7 @@ def main():
     ctx = tiledb.Ctx()
     print("{!r}".format(tiledb.object_type(ctx, "my_group")))
     print("{!r}".format(tiledb.object_type(ctx, "my_dense_array")))
+    print("{!r}".format(tiledb.object_type(ctx, "my_kv")))
     print("{!r}".format(tiledb.object_type(ctx, "invalid_path")))
 
 
