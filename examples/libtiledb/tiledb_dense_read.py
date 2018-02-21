@@ -28,7 +28,7 @@ def main():
     result = dense_example[:]
     result_num = result["a1"].size
     print("\nResult num: ", result_num)
-
+    print()
     print("{:<5s}{:<10s}{:<10s}{:<10s}".format("a1", "a2", "a3[0]", "a3[1]"))
     print("------------------------------")
 
