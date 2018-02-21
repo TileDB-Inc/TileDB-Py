@@ -1,6 +1,4 @@
-import tiledb
-import numpy as np
-
+#!/usr/bin/python
 
 """
 This example shows how to do a global write (entire domain) of a TileDB
@@ -13,7 +11,12 @@ Simply run:
 
 """
 
+import tiledb
+import numpy as np
+
+
 def main():
+
     array_ints = np.array([[0, 1, 4, 5],
                            [2, 3, 6, 7],
                            [8, 9, 12, 13],
@@ -31,6 +34,7 @@ def main():
                             [(8.1, 8.2), (9.1, 9.2), (10.1, 10.2), (11.1, 11.2)],
                             [(12.1, 12.2), (13.1, 13.2), (14.1, 14.2), (15.1, 15.2)]],
                            dtype="float32,float32")
+
     ctx = tiledb.Ctx()
     dense_example = tiledb.DenseArray.load(ctx, "my_dense_array")
     dense_example[:] = {"a1": array_ints,
