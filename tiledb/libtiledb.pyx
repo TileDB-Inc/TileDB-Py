@@ -67,10 +67,25 @@ np.import_array()
 
 
 class TileDBError(Exception):
+    """TileDB Error Exception
+
+    Captures and raises error return code messages (TILEDB_ERR) when calling ``libtiledb`` C api functions.
+    The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`
+
+    The error message string can be retrieved using the :py:attr:`message` attribute
+
     """
-    TileDB Exception class
-    """
-    pass
+
+    @property
+    def message(self):
+        """The TileDB error message string
+
+        :rtype: str
+        :return: error message
+
+        """
+        return self.args[0]
+
 
 
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
@@ -106,10 +121,11 @@ cpdef check_error(Ctx ctx, int rc):
 
 
 def version():
-    """
-    Return the version of the linked libtiledb library
+    """Return the version of the linked ``libtiledb`` shared library
 
-    :return: A tuple of semver numbers (major, minor, rev)
+    :rtype: tuple
+    :return: Semver version numbers (major, minor, rev)
+
     """
     cdef:
         int major = 0
