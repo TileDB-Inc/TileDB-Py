@@ -69,7 +69,7 @@ np.import_array()
 class TileDBError(Exception):
     """TileDB Error Exception
 
-    Captures and raises error return code messages (TILEDB_ERR) when calling ``libtiledb`` C api functions.
+    Captures and raises error return code messages (``TILEDB_ERR``) when calling ``libtiledb`` C api functions.
     The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`
 
     The error message string can be retrieved using the :py:attr:`message` attribute
@@ -124,7 +124,7 @@ def version():
     """Return the version of the linked ``libtiledb`` shared library
 
     :rtype: tuple
-    :return: Semver version numbers (major, minor, rev)
+    :return: Semver version (major, minor, rev)
 
     """
     cdef:
@@ -2634,7 +2634,7 @@ def array_consolidate(Ctx ctx, path):
     :rtype: str
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
-    :raises: tiledb.TileDBError
+    :raises: :py:exc:`tiledb.TileDBError`
 
     """
     cdef int rc = TILEDB_OK
@@ -2656,7 +2656,7 @@ def group_create(Ctx ctx, path):
     :rtype: str
     :return: The path (URI) of the created TileDB Group
     :raises TypeError: cannot convert path to unicode string
-    :raises: tiledb.TileDBError
+    :raises: :py:exc:`tiledb.TileDBError`
 
     """
     cdef int rc = TILEDB_OK 
@@ -2705,7 +2705,7 @@ def remove(Ctx ctx, path):
     :param tiledb.Ctx ctx: The TileDB Context
     :param str path: path (URI) of the TileDB resource
     :raises TypeError: path cannot be converted to a unicode string
-    :raises: tiledb.TileDBError
+    :raises: :py:exc:`tiledb.TileDBError`
 
     """
     cdef int rc = TILEDB_OK
@@ -2729,7 +2729,7 @@ def move(Ctx ctx, oldpath, newpath, force=False):
     :rtype: str
     :returns: new path (URI) of the TileDB resource
     :raises TypeError: oldpath/newpath cannot be converted to a unicode string
-    :raises: tiledb.TileDBError
+    :raises: :py:exc:`tiledb.TileDBError`
  
     """
     cdef int rc = TILEDB_OK
@@ -2769,7 +2769,7 @@ def ls(Ctx ctx, path, func):
     :param function func: callback to execute on every listed TileDB resource,\
             URI resource path and object type label are passed as arguments to the callback
     :raises TypeError: cannot convert path to unicode string
-    :raises: tiledb.TileDBError
+    :raises: :py:exc:`tiledb.TileDBError`
 
     """
     cdef bytes bpath = unicode_path(path)
@@ -2788,7 +2788,7 @@ def walk(Ctx ctx, path, func, order="preorder"):
     :param str order: 'preorder' (default) or 'postorder' tree traversal
     :raises TypeError: cannot convert path to unicode string
     :raises AttributeError: unknown order
-    :raises: tiledb.TileDBError
+    :raises: :py:exc:`tiledb.TileDBError`
 
     """
     cdef bytes bpath = unicode_path(path)
