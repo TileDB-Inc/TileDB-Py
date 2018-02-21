@@ -2611,8 +2611,15 @@ cdef class SparseArray(ArraySchema):
 
 
 def array_consolidate(Ctx ctx, path):
-    """
-    Consolidate TileDB Array updates for improved read performance
+    """Consolidate TileDB Array updates for improved read performance
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str path: path (URI) to the TileDB Array
+    :rtype: str
+    :return: path (URI) to the consolidated TileDB Array
+    :raises TypeError: cannot convert path to unicode string
+    :raises: tiledb.TileDBError
+
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2625,9 +2632,16 @@ def array_consolidate(Ctx ctx, path):
     return path
 
 
-def group_create(Ctx ctx,  path):
-    """
-    Create a TileDB Group object at the specified path (URI)
+def group_create(Ctx ctx, path):
+    """Create a TileDB Group object at the specified path (URI)
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str path: path (URI) of the TileDB Group to be created
+    :rtype: str
+    :return: The path (URI) of the created TileDB Group
+    :raises TypeError: cannot convert path to unicode string
+    :raises: tiledb.TileDBError
+
     """
     cdef int rc = TILEDB_OK 
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2641,8 +2655,14 @@ def group_create(Ctx ctx,  path):
 
 
 def object_type(Ctx ctx, path):
-    """
-    Returns the TileDB object type at the specified path (URI)
+    """Returns the TileDB object type at the specified path (URI)
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str path: path (URI) of the TileDB resource
+    :rtype: str
+    :return: object type string
+    :raises TypeError: cannot convert path to unicode string
+
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2664,8 +2684,13 @@ def object_type(Ctx ctx, path):
 
 
 def remove(Ctx ctx, path):
-    """
-    Removes (deletes) the TileDB object at the specified path (URI)
+    """Removes (deletes) the TileDB object at the specified path (URI)
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str path: path (URI) of the TileDB resource
+    :raises TypeError: path cannot be converted to a unicode string
+    :raises: tiledb.TileDBError
+
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2682,11 +2707,13 @@ def move(Ctx ctx, oldpath, newpath, force=False):
     """Moves a TileDB resource from old path (URI) to new path (URI)
     
     :param tiledb.Ctx ctx: TileDB context
-    :param str oldpath: existing path (URI) of TileDB resource
-    :param str newpath: new path (URI) of TileDB resource 
+    :param str oldpath: existing path (URI) of the TileDB resource
+    :param str newpath: new path (URI) of the TileDB resource
     :param bool force: Force move the resource, if ``newpath`` is an existing resource it is deleted.
-    :raises TypeError: :param:oldpath is not a unicode string 
-    :raises tiledb.TileDBError: TileDB Error
+    :rtype: str
+    :returns: new path (URI) of the TileDB resource
+    :raises TypeError: oldpath/newpath cannot be converted to a unicode string
+    :raises: tiledb.TileDBError
  
     """
     cdef int rc = TILEDB_OK
@@ -2721,14 +2748,12 @@ cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
 def ls(Ctx ctx, path, func):
     """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
     
-    :param ctx: TileDB context
-    :type ctx: tiledb.Ctx
-    :param path: URI of TileDB group object
-    :type path: str
-    :param func: callback to execute on every listed TileDB resource,\
+    :param tiledb.Ctx ctx: TileDB context
+    :param str path: URI of TileDB group object
+    :param function func: callback to execute on every listed TileDB resource,\
             URI resource path and object type label are passed as arguments to the callback
-    :type func: function
-    :raises: TypeError, tiledb.TileDBError
+    :raises TypeError: cannot convert path to unicode string
+    :raises: tiledb.TileDBError
 
     """
     cdef bytes bpath = unicode_path(path)
@@ -2740,16 +2765,14 @@ def ls(Ctx ctx, path, func):
 def walk(Ctx ctx, path, func, order="preorder"):
     """Recursively visits TileDB resources and applies a callback that have a prefix of ``path``
 
-    :param ctx: The TileDB context
-    :type ctx: tiledb.Ctx
-    :param path: URI of TileDB group object
-    :type path: str
-    :param func: callback to execute on every listed TileDB resource,\
+    :param tiledb.Ctx ctx: The TileDB context
+    :param str path: URI of TileDB group object
+    :param function func: callback to execute on every listed TileDB resource,\
             URI resource path and object type label are passed as arguments to the callback
-    :type func: function
-    :param order: 'preorder' (default) or 'postorder' tree traversal
-    :type order: str
-    :raises: Attribute, TypeError, tiledb.TileDBError
+    :param str order: 'preorder' (default) or 'postorder' tree traversal
+    :raises TypeError: cannot convert path to unicode string
+    :raises AttributeError: unknown order
+    :raises: tiledb.TileDBError
 
     """
     cdef bytes bpath = unicode_path(path)
