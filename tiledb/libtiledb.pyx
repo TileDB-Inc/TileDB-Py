@@ -1,3 +1,6 @@
+#!python
+#cython: embedsignature=True
+
 from cpython.version cimport PY_MAJOR_VERSION
 
 from cpython.bytes cimport (PyBytes_GET_SIZE,
