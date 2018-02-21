@@ -29,9 +29,17 @@ def main():
     result_num = result["a1"].size
     print("\nResult num: ", result_num)
 
-    attributes = tuple(dense_example.attr(i).name for i in range(dense_example.nattr))
-    for attr in attributes:
-        print("{0!r}: {1!r}\n".format(attr, result[attr]))
+    print("{:<5s}{:<10s}{:<10s}{:<10s}".format("a1", "a2", "a3[0]", "a3[1]"))
+    print("------------------------------")
+
+    for i in range(4):
+        for j in range(4):
+            print("{:<5d}{:<10s}{:<10.1f}{:<10.1f}"
+                  .format(result["a1"][i, j],
+                          result["a2"][i, j],
+                          result["a3"][i, j][0],
+                          result["a3"][i, j][1]))
+    print()
 
 
 if __name__ == '__main__':
