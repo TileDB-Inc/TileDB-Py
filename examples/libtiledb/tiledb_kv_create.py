@@ -1,4 +1,16 @@
+#!/usr/bin/python
+
+"""
+This example shows how to a create a KV object, read / write / update, and convert it
+to a Python dict after update consolidation.
+
+Simply run:
+
+    $ python tiledb_kv_create.py
+"""
+
 import tiledb
+
 
 def main():
 
