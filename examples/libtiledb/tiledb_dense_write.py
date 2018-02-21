@@ -2,6 +2,17 @@ import tiledb
 import numpy as np
 
 
+"""
+This example shows how to do a global write (entire domain) of a TileDB
+multiple attribute dense array.
+
+Simply run:
+
+    $ python tiledb_dense_create.py
+    $ python tiledb_dense_write.py
+
+"""
+
 def main():
     array_ints = np.array([[0, 1, 4, 5],
                            [2, 3, 6, 7],
@@ -20,8 +31,8 @@ def main():
                             [(8.1, 8.2), (9.1, 9.2), (10.1, 10.2), (11.1, 11.2)],
                             [(12.1, 12.2), (13.1, 13.2), (14.1, 14.2), (15.1, 15.2)]],
                            dtype="float32,float32")
-
-    dense_example = tiledb.DenseArray.load("my_dense_array")
+    ctx = tiledb.Ctx()
+    dense_example = tiledb.DenseArray.load(ctx, "my_dense_array")
     dense_example[:] = {"a1": array_ints,
                         "a2": array_strs,
                         "a3": array_pairs}
