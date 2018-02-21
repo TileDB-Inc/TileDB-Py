@@ -1386,6 +1386,13 @@ cdef class KV(object):
         except:
             raise
 
+    def update(self, *args, **kw):
+        # add stub dict update implementation for now
+        items = dict()
+        items.update(*args, **kw)
+        for (k, v) in items.items():
+            self[k] = v
+
 
 cdef class KVIter(object):
     """
