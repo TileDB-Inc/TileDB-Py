@@ -28,10 +28,13 @@ def main():
     a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="S10")
     a3 = tiledb.Attr(ctx, "a3", compressor=('zstd', -1), dtype='float32,float32')
 
-    # Create dense array
+    # Create sparse array
     tiledb.SparseArray(ctx, "my_sparse_array",
-                      domain=domain, attrs=(a1, a2, a3), capacity=2,
-                      cell_order='row-major', tile_order='row-major')
+                       domain=domain,
+                       attrs=(a1, a2, a3),
+                       capacity=2,
+                       cell_order='row-major',
+                       tile_order='row-major')
 
 
 if __name__ == '__main__':
