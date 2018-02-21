@@ -19,6 +19,7 @@ def main():
 
     # Set values
     config["vfs.s3.connect_timeout_ms"] = 5000
+    config["vfs.s3.endpoint_override"] = "localhost:88880"
 
     # Get values
     tile_cache_size = config["sm.tile_cache_size"]

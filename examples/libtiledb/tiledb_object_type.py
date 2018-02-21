@@ -7,7 +7,7 @@ Example shows how to get the type of a TileDB object (resource).
 
     $ python tiledb_group_create.py
     $ python tiledb_dense_create.py
-    $ python tiledb_kv_create.py
+    $ python tiledb_kv.py
     $ python tiledb_object_type.py
 """
 

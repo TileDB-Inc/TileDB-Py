@@ -6,14 +6,14 @@ to a Python dict after update consolidation.
 
 Simply run:
 
-    $ python tiledb_kv_create.py
+    $ python tiledb_kv.py
 """
 
 import tiledb
 
 
 def main():
-
+    # Create TileDB context
     ctx = tiledb.Ctx()
 
     # KV objects are limited to storing string keys/values for the time being
@@ -23,28 +23,27 @@ def main():
     # Dump the KV schema
     kv.dump()
 
+    # Update the KV with some key-value pairs
     vals = {"key1": "a", "key2": "bb", "key3": "dddd"}
     print("Updating KV with values: {!r}\n".format(vals))
-
-    # Update the KV
     kv.update(vals)
 
-    # get kv item
+    # Get kv item
     print("KV value for 'key3': {}\n".format(kv['key3']))
-
-    # set kv item
-    kv['key3'] = "eeeee"
-    print("Updated KV value for 'key3': {}\n".format(kv['key3']))
 
     try:
         kv["don't exist"]
     except KeyError:
         print("KeyError was raised for key 'don't exist'\n")
 
-    # consolidate kv updates
+    # Set kv item
+    kv['key3'] = "eeeee"
+    print("Updated KV value for 'key3': {}\n".format(kv['key3']))
+
+    # Consolidate kv updates
     kv.consolidate()
 
-    # convert kv to Python dict
+    # Convert kv to Python dict
     kv_dict = dict(kv)
     print("Convert to Python dict: {!r}\n".format(kv_dict))
 
