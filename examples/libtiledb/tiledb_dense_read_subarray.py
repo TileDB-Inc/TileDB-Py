@@ -29,7 +29,7 @@ def main():
         print("{0!s}: {1!r}".format(dense_example.domain.dim(i).name, nonempty[i]))
 
     # Read the entire array. `result` will be a numpy array
-    result = dense_example[:]
+    result = dense_example[3:5, 3:5]
 
     # Print the results
     result_num = result["a1"].size
@@ -38,8 +38,8 @@ def main():
     print("{:<5s}{:<10s}{:<10s}{:<10s}".format("a1", "a2", "a3[0]", "a3[1]"))
     print("------------------------------")
 
-    for i in range(4):
-        for j in range(4):
+    for i in range(2):
+        for j in range(2):
             print("{:<5d}{:<10s}{:<10.1f}{:<10.1f}"
                   .format(result["a1"][i, j],
                           result["a2"][i, j],

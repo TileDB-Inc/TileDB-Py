@@ -19,7 +19,7 @@ def main():
     ctx = tiledb.Ctx()
     sparse_example = tiledb.SparseArray.load(ctx, "my_sparse_array")
 
-    result = sparse_example[3:5, 2:5]
+    result = sparse_example[3:5, 2:5][["a1", "a2"]]
 
     result_num = len(result["coords"])
     print("\nResult num: ", result_num)
