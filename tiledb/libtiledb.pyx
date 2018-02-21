@@ -2676,8 +2676,15 @@ def remove(Ctx ctx, path):
 
 
 def move(Ctx ctx, oldpath, newpath, force=False):
-    """
-    Moves a TileDB resource from old path (URI) to new path (URI)
+    """Moves a TileDB resource from old path (URI) to new path (URI)
+    
+    :param tiledb.Ctx ctx: TileDB context
+    :param str oldpath: existing path (URI) of TileDB resource
+    :param str newpath: new path (URI) of TileDB resource 
+    :param bool force: Force move the resource, if ``newpath`` is an existing resource it is deleted.
+    :raises TypeError: :param:oldpath is not a unicode string 
+    :raises tiledb.TileDBError: TileDB Error
+ 
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2709,8 +2716,17 @@ cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
 
 
 def ls(Ctx ctx, path, func):
-    """
-    Lists TileDB resources and applies a callback that have a prefix of path (one level deep)
+    """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
+    
+    :param ctx: TileDB context
+    :type ctx: tiledb.Ctx
+    :param path: URI of TileDB group object
+    :type path: str
+    :param func: callback to execute on every listed TileDB resource,\
+            URI resource path and object type label are passed as arguments to the callback
+    :type func: function
+    :raises: TypeError, tiledb.TileDBError
+
     """
     cdef bytes bpath = unicode_path(path)
     check_error(ctx,
@@ -2719,8 +2735,19 @@ def ls(Ctx ctx, path, func):
 
 
 def walk(Ctx ctx, path, func, order="preorder"):
-    """
-    Recursively visits TileDB resources and applies a callback that have a prefix of path
+    """Recursively visits TileDB resources and applies a callback that have a prefix of ``path``
+
+    :param ctx: The TileDB context
+    :type ctx: tiledb.Ctx
+    :param path: URI of TileDB group object
+    :type path: str
+    :param func: callback to execute on every listed TileDB resource,\
+            URI resource path and object type label are passed as arguments to the callback
+    :type func: function
+    :param order: 'preorder' (default) or 'postorder' tree traversal
+    :type order: str
+    :raises: Attribute, TypeError, tiledb.TileDBError
+
     """
     cdef bytes bpath = unicode_path(path)
     cdef tiledb_walk_order_t walk_order
@@ -2804,6 +2831,7 @@ cdef class VFS(object):
     def create_bucket(self, uri):
         """
         Create an object store bucket at the given URI
+
         """
         cdef bytes buri = unicode_path(uri)
         check_error(self.ctx,
