@@ -2842,8 +2842,13 @@ cdef class FileHandle(object):
 
 
 cdef class VFS(object):
-    """
-    TileDB VFS class
+    """TileDB VFS class
+
+    Encapsulates the TileDB VFS module instance with a specific configuration (config).
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param config: Override `ctx` VFS configurations with updated values in config.
+    :type config: tiledb.Config or dict
 
     """
 
