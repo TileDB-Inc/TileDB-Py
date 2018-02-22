@@ -47,6 +47,17 @@ If you want to pass extra compiler/linker flags during the c++ extension compila
 
   $ python setup.py build_ext --inplace --tiledb=/home/tiledb/dist 
 
+If TileDB is installed in a non-standard location, you need to make the dynamic linker aware of ``libtiledb``'s location.
+Otherwise when importing the `tiledb` module you will get an error that the built extension module cannot find
+``libtiledb``'s symbols.
+
+::
+
+  $env LD_LIBARY_PATH="/home/tiledb/dist:$LD_LIBRARY_PATH" python -m unittest -v
+
+
+For macOS the linker env variable is ``DYLD_LIBARAY_PATH``
+
 Installing on Windows
 '''''''''''''''''''''
 
