@@ -155,8 +155,29 @@ cdef bytes unicode_path(object path):
 
 
 cdef class Config(object):
-    """
-    TileDB Config class
+    """TileDB Config class
+
+    Valid Parameters:
+
+    - ``sm.tile_cache_size` The tile cache size in bytes. Any uint64_t value is acceptable.
+    - ``sm.array_schema_cache_size`` The array schema cache size in bytes. Any uint64_t value is acceptable.
+    - ``sm.fragment_metadata_cache_size`` The fragment metadata cache size in bytes. Any uint64_t value is acceptable.
+    - ``vfs.s3.region`` The S3 region, if S3 is enabled.
+    - ``vfs.s3.scheme`` The S3 scheme (http or https), if S3 is enabled.
+    - ``vfs.s3.endpoint_override`` The S3 endpoint, if S3 is enabled.
+    - ``vfs.s3.use_virtual_addressing`` The S3 use of virtual addressing (true or false), if S3 is enabled.
+    - ``vfs.s3.file_buffer_size`` The file buffer size (in bytes) used in S3 writes, if S3 is enables. Any uint64_t value is acceptable.
+    - ``vfs.s3.connect_timeout_ms`` The connection timeout in ms. Any long value is acceptable.
+    - ``vfs.s3.request_timeout_ms`` The request timeout in ms. Any long value is acceptable.
+    - ``vfs.hdfs.name_node`` Name node for HDFS.
+    - ``vfs.hdfs.username`` HDFS username.
+    - ``vfs.hdfs.kerb_ticket_cache_path`` HDFS kerb ticket cache path.
+
+    unknown parameters will be ignored
+        
+    :param dict params: set parameter values from dict like object
+    :param str path: set parameter values from persisted Config parameter file
+
     """
 
     cdef tiledb_config_t* ptr
@@ -185,15 +206,21 @@ cdef class Config(object):
 
     @staticmethod
     cdef from_ptr(tiledb_config_t* ptr):
-        """Constructs a Config class instance from a (non-null) tiledb_config_t pointer
-        """
+        """Constructs a Config class instance from a (non-null) tiledb_config_t pointer"""
         cdef Config config = Config.__new__(Config)
         config.ptr = ptr
         return config
 
     @staticmethod
     def load(object uri):
-        """Constructs a Config class instance from config parameters loaded from a local file
+        """Constructs a Config class instance from config parameters loaded from a local Config file
+
+        :parameter str uri: a local URI config file path
+        :rtype: tiledb.Config
+        :return: A TileDB Config instance with persisted parameter values
+        :raises TypeError: `uri` cannot be converted to a unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -255,15 +282,11 @@ cdef class Config(object):
         return
 
     def __iter__(self):
-        """
-        Returns an iterator over the Config parameters (keys)
-        """
+        """ Returns an iterator over the Config parameters (keys)"""
         return ConfigKeys(self)
 
     def __len__(self):
-        """
-        Returns the number of parameters (keys) held by the Config object
-        """
+        """Returns the number of parameters (keys) held by the Config object"""
         return sum(1 for _ in self)
 
     def __eq__(self, object config):
@@ -293,37 +316,58 @@ cdef class Config(object):
         return "\n".join(output)
 
     def items(self, prefix=""):
-        """
-        Returns an iterator object over Config (parameter, values)
+        """Returns an iterator object over Config paramters, values
+
+        :param str prefix: return only parameters with a given prefix
+        :rtype: ConfigItems
+        :returns: iterator over Config parameter, value tuples
+
         """
         return ConfigItems(self, prefix=prefix)
 
     def keys(self, prefix=""):
-        """"
-        Returns an iterator object over Config parameters (keys)
+        """Returns an iterator object over Config parameters (keys)
+
+        :param str prefix: return only parameters with a given prefix
+        :rtype: ConfigKeys
+        :returns: Iterator over Config parameter string keys
+
         """
         return ConfigKeys(self, prefix=prefix)
 
     def values(self, prefix=""):
-        """
-        Returns an iterator object over Config values
+        """Returns an iterator object over Config values
+
+        :param str prefix: return only parameters with a given prefix
+        :rtype: ConfigValues
+        :returns: Iterator over Config string values
+
         """
         return ConfigValues(self, prefix=prefix)
 
     def dict(self, prefix=""):
-        """
-        Returns a dict representation of a Config object
+        """Returns a dict representation of a Config object
+
+        :param str prefix: return only parameters with a given prefix
+        :rtype: dict
+        :return: Config parameter / values as a a Python :py:class:`dict`
+
         """
         return dict(ConfigItems(self, prefix=prefix))
 
     def clear(self):
-        """
-        Unsets all Config parameters
-        """
+        """Unsets all Config parameters (returns them to their default values)"""
         for k in self.keys():
             del self[k]
 
     def get(self, key, *args):
+        """
+
+        :param str key: Config parameter
+        :param args: return `arg` if Config does not contain paramter `key`
+        :return: Parameter value, `arg` or None.
+
+        """
         nargs = len(args)
         if nargs > 1:
             raise TypeError("get expected at most 2 arguments, got {}".format(nargs))
@@ -333,23 +377,31 @@ cdef class Config(object):
             return args[0] if nargs == 1 else None
 
     def update(self, object odict):
-        """
-        Update a config object with parameter, values from a dict like object
+        """Update a config object with parameter, values from a dict like object
+
+        :param odict: dict like object containing parameter, values to update Config
+
         """
         for (key, value) in odict.items():
             self[key] = value
         return
 
     def load(self, path):
-        """
-        Update a Config object with parameter, values from a config file
+        """Update a Config object with parameter, values from a config file
+        
+        :param path: A local Config file path
+
         """
         config = Config.from_file(path)
         self.update(config)
 
     def save(self, uri):
-        """
-        Persist Config paramter, values to a config file
+        """Persist Config parameter values to a config file
+
+        :parameter str uri: a local URI config file path
+        :raises TypeError: `uri` cannot be converted to a unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -465,8 +517,12 @@ cdef class ConfigItems(object):
 
 
 cdef class Ctx(object):
-    """
-    TileDB Ctx class
+    """TileDB Ctx class
+
+    A TileDB context wraps a TileDB storage manager.
+
+    :param config: Initialize Ctx with given config parameters
+    :type config: tiledb.Config or :py:class:`dict`
     """
 
     cdef tiledb_ctx_t* ptr
@@ -478,11 +534,8 @@ cdef class Ctx(object):
         if self.ptr != NULL:
             tiledb_ctx_free(&self.ptr)
 
-    def __init__(self, config=None, config_file=None):
-        #TODO: get rid of config_file
+    def __init__(self, config=None):
         cdef Config _config = Config()
-        if config_file is not None:
-            _config = Config.load(config_file)
         if config is not None:
             if isinstance(config, Config):
                 _config = config
@@ -2848,7 +2901,7 @@ cdef class VFS(object):
 
     :param tiledb.Ctx ctx: The TileDB Context
     :param config: Override `ctx` VFS configurations with updated values in config.
-    :type config: tiledb.Config or dict
+    :type config: tiledb.Config or :py:class:`dict`
 
     """
 
@@ -3205,7 +3258,7 @@ cdef class VFS(object):
         :param str scheme: scheme component of a VFS resource URI (ex. 'file' / 'hdfs' / 's3')
         :rtype: bool
         :return: True if the linked libtiledb version supports the storage backend, False otherwise
-        :raises tiledb.TileDBError: VFS storage backend is not supported
+        :raises ValueError: VFS storage backend is not supported
 
         """
         cdef tiledb_filesystem_t fs
@@ -3221,7 +3274,7 @@ cdef class VFS(object):
                         tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_HDFS, &supports))
             return bool(supports)
         else:
-            raise TileDBError("unsupported vfs scheme '{0!s}://'".format(scheme))
+            raise ValueError("unsupported vfs scheme '{0!s}://'".format(scheme))
 
 
 class FileIO(object):
