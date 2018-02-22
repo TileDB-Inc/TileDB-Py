@@ -55,7 +55,7 @@ class Config(DiskTestCase):
         config_path = self.path("config")
         with open(config_path, "w") as fh:
             fh.write("sm.tile_cache_size 100")
-        ctx = t.Ctx(config_file=config_path)
+        ctx = t.Ctx(config=t.Config.load(config_path))
         config = ctx.config()
         self.assertEqual(config["sm.tile_cache_size"], "100")
 
@@ -1044,7 +1044,7 @@ class VFS(DiskTestCase):
         self.assertIsInstance(vfs.supports("s3"), bool)
         self.assertIsInstance(vfs.supports("hdfs"), bool)
 
-        with self.assertRaises(t.TileDBError):
+        with self.assertRaises(ValueError):
             vfs.supports("invalid")
 
     def test_dir(self):

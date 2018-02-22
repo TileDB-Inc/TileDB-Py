@@ -159,7 +159,7 @@ cdef class Config(object):
 
     Valid Parameters:
 
-    - ``sm.tile_cache_size` The tile cache size in bytes. Any uint64_t value is acceptable.
+    - ``sm.tile_cache_size`` The tile cache size in bytes. Any uint64_t value is acceptable.
     - ``sm.array_schema_cache_size`` The array schema cache size in bytes. Any uint64_t value is acceptable.
     - ``sm.fragment_metadata_cache_size`` The fragment metadata cache size in bytes. Any uint64_t value is acceptable.
     - ``vfs.s3.region`` The S3 region, if S3 is enabled.
@@ -386,13 +386,13 @@ cdef class Config(object):
             self[key] = value
         return
 
-    def load(self, path):
+    def from_file(self, path):
         """Update a Config object with parameter, values from a config file
         
         :param path: A local Config file path
 
         """
-        config = Config.from_file(path)
+        config = Config.load(path)
         self.update(config)
 
     def save(self, uri):
