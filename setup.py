@@ -8,8 +8,8 @@ import sys
 from sys import version_info as ver
 
 # Check if Python version is supported
-if any([ver < (2, 7), (3,) < ver < (3, 4)]):
-    raise Exception("Unsupported Python version %d.%d.  Requires Python >= 2.7 or >= 3.4")
+if any([ver < (3, 4)]):
+    raise Exception("Unsupported Python version %d.%d.  Requires Python >= 3.4")
 
 
 class LazyCommandClass(dict):
@@ -145,8 +145,6 @@ setup(
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Operating System :: Unix',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
