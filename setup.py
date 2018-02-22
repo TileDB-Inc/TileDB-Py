@@ -106,11 +106,7 @@ setup(
     url='https://github.com/TileDB-Inc/TileDB-Py',
     license='MIT',
     platforms=['any'],
-    use_scm_version={
-        'version_scheme': 'guess-next-dev',
-        'local_scheme': 'dirty-tag',
-        'write_to': 'tiledb/version.py'
-    },
+    version='0.1.0',
     ext_modules=[
         Extension(
           "tiledb.libtiledb",
@@ -128,7 +124,6 @@ setup(
         'cython>=0.22',
         'numpy>=1.7',
         'setuptools>18.0',
-        'setuptools-scm>1.5.4'
     ],
     install_requires=[
         'numpy>=1.7',
