@@ -1473,7 +1473,7 @@ cdef class KV(object):
         return
 
     def __iter__(self):
-        """Return an interator object over KV key, values"""
+        """Return an iterator object over KV key, values"""
         return KVIter(self.ctx, self.uri)
 
     def __setitem__(self, object key, object value):
@@ -2194,9 +2194,23 @@ cdef class DenseArray(ArraySchema):
     def __len__(self):
         return self.domain.shape[0]
 
-    def __getitem__(self, object key):
-        key = index_as_tuple(key)
-        idx = replace_ellipsis(self.domain, key)
+    def __getitem__(self, object selection):
+        """Retrieve data for an item or region of the array.
+
+        :param tuple selection: An int index, slice or tuple of integer/slice objects,
+            specifiying the selected subarray region for each dimension of the DenseArray.
+        :rtype: ndarray or :py:class:`collections.OrderedDict`
+        :returns: If the dense array has a single attribute than a Numpy array is returned for that attribute.\
+            If the array has multiple attributes, an :py:class:`collections.OrderedDict` is returned \
+            with Numpy subarrays for each array attribute.
+
+        >>> A[1:10, ...]
+        >>> A[1:10, 100:999]
+        >>> A[1, t2]
+
+        """
+        selection = index_as_tuple(selection)
+        idx = replace_ellipsis(self.domain, selection)
         idx, drop_axes = replace_scalars_slice(self.domain, idx)
         subarray = index_domain_subarray(self.domain, idx)
         attr_names = [self.attr(i).name for i in range(self.nattr)]
