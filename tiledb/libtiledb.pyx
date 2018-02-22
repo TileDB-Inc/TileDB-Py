@@ -1801,7 +1801,25 @@ def index_domain_subarray(Domain dom, tuple idx):
 
 cdef class ArraySchema(object):
     """
-    Base class for TileDB Array representations, should not be instantiated directly
+    Base class for TileDB Array representations
+
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param attrs: one or more array attributes
+    :type attrs: tuple(tiledb.Attr, ...)
+    :param cell_order:  TileDB label for cell layout
+    :type cell_order: 'row-major' or 'C', 'col-major' or 'F'
+    :param tile_order:  TileDB label for tile layout
+    :type tile_order: 'row-major' or 'C', 'col-major' or 'F', 'unordered'
+    :param int capacity: tile cell capacity
+    :param coords_compressor: compressor label, level for (sparse) coordinates
+    :type coords_compressor: tuple(str, int)
+    :param offsets_compressor: compressor label, level for varnum attribute cells
+    :type coords_compressor: tuple(str, int)
+    :param bool sparse: True if schema is sparse, else False \
+        (set by tiledb.SparseArray / tiledb.DenseArray derived classes)
+    :raises TypeError: cannot convert uri to unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+
     """
     cdef Ctx ctx
     cdef unicode uri
@@ -1901,7 +1919,12 @@ cdef class ArraySchema(object):
 
     @property
     def sparse(self):
-        """Returns true if the array is a sparse array representation"""
+        """Returns true if the array is a sparse array representation
+
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef tiledb_array_type_t typ = TILEDB_DENSE
         check_error(self.ctx,
                     tiledb_array_schema_get_array_type(self.ctx.ptr, self.ptr, &typ))
@@ -1909,7 +1932,12 @@ cdef class ArraySchema(object):
 
     @property
     def capacity(self):
-        """Returns the array capacity"""
+        """Returns the array capacity
+        
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef uint64_t cap = 0
         check_error(self.ctx,
                     tiledb_array_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
@@ -1932,14 +1960,24 @@ cdef class ArraySchema(object):
 
     @property
     def tile_order(self):
-        """Returns the tile order layout of the array representation"""
+        """Returns the tile order layout of the array representation
+
+        :rtype: str
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef tiledb_layout_t order = TILEDB_UNORDERED
         self._tile_order(&order)
         return _tiledb_layout_string(order)
 
     @property
     def coords_compressor(self):
-        """Returns the compressor label, level for the array representation coordinates"""
+        """Returns the compressor label, level for the array representation coordinates
+
+        :rtype: tuple(str, int)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
         cdef int level = -1
         check_error(self.ctx,
@@ -1949,7 +1987,12 @@ cdef class ArraySchema(object):
 
     @property
     def offsets_compressor(self):
-        """Returns the compressor label, level for the array representation varcell offsets"""
+        """Returns the compressor label, level for the array representation varcell offsets
+        
+        :rtype: tuple(str, int)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
         cdef int level = -1
         check_error(self.ctx,
@@ -1959,12 +2002,22 @@ cdef class ArraySchema(object):
 
     @property
     def rank(self):
-        """Return the array domain's rank"""
+        """Return the array domain's rank
+
+        :rtype: tuple(str, int)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         return self.domain.rank
 
     @property
     def domain(self):
-        """Return a Domain associated with w"""
+        """Return a Domain associated with array instance
+
+        :rtype: tiledb.Domain
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef tiledb_domain_t* dom = NULL
         check_error(self.ctx,
                     tiledb_array_schema_get_domain(self.ctx.ptr, self.ptr, &dom))
@@ -1972,6 +2025,12 @@ cdef class ArraySchema(object):
 
     @property
     def nattr(self):
+        """Return the number of array attributes
+
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef unsigned int nattr = 0
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
@@ -1979,12 +2038,19 @@ cdef class ArraySchema(object):
 
     @property
     def ndim(self):
-        """Return the number of array dimensions"""
+        """Return the number of array domain dimensions
+
+        :rtype: int
+        """
         return self.domain.ndim
 
     @property
     def shape(self):
-        """Return the array's shape """
+        """Return the array's shape
+
+        :rtype: tuple(numpy scalar, numpy scalar)
+        :raises TypeError: floating point (inexact) domain
+        """
         return self.domain.shape
 
     cdef _attr_name(self, unicode name):
@@ -2003,6 +2069,15 @@ cdef class ArraySchema(object):
         return Attr.from_ptr(self.ctx, attr_ptr)
 
     def attr(self, object key not None):
+        """Returns an Attr instance given an int index or string label
+
+        :param key: attribute index (positional or associative)
+        :type key: int or str
+        :rtype: tiledb.Attr
+        :return: The ArraySchema attribute at index or with the given name (label)
+        :raises TypeError: invalid key type
+
+        """
         if isinstance(key, str):
             return self._attr_name(key)
         elif isinstance(key, _inttypes):
@@ -2018,11 +2093,20 @@ cdef class ArraySchema(object):
         return
 
     def consolidate(self):
-        """Consolidates updates of an array object for increased read performance"""
+        """Consolidates updates of an array object for increased read performance
+
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         return array_consolidate(self.ctx, self.uri)
 
     def nonempty_domain(self):
-        """Return the minimum bounding domain which encompasses nonempty values"""
+        """Return the minimum bounding domain which encompasses nonempty values
+
+        :rtype: tuple(tuple(numpy scalar, numpy scalar), ...)
+        :return: A list of (inclusive) domain extent tuples, that contain all nonempty cells
+
+        """
         cdef Domain dom = self.domain
         cdef bytes buri = self.uri.encode('UTF-8')
         cdef np.ndarray extents = np.zeros(shape=(dom.rank, 2), dtype=dom.dtype)
@@ -2037,8 +2121,7 @@ cdef class ArraySchema(object):
 
 
 cdef class DenseArray(ArraySchema):
-    """
-    TileDB DenseArray class
+    """TileDB DenseArray class
 
     """
 
@@ -2056,11 +2139,17 @@ cdef class DenseArray(ArraySchema):
 
     @staticmethod
     def load(Ctx ctx, unicode uri):
-        """
-        Loads a persisted DenseArray at given URI, returns a DenseArray class instance
+        """Loads a persisted DenseArray at given URI, returns a DenseArray class instance
+
+        :param tiledb.Ctx ctx: A TileDB Context
+        :param str uri: URI to the TileDB array resource
+        :rtype: tiledb.DenseArray
+        :return: A loaded tiledb.DenseArray object (schema)
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-
         cdef bytes buri = ustring(uri).encode('UTF-8')
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_array_schema_t* schema_ptr = NULL
@@ -2075,6 +2164,16 @@ cdef class DenseArray(ArraySchema):
     def from_numpy(Ctx ctx, unicode path, np.ndarray array, **kw):
         """
         Persists a given numpy array as a TileDB DenseArray, returns a DenseArray class instance
+
+        :param tiledb.Ctx ctx: A TileDB Context
+        :param str uri: URI for the TileDB array resource
+        :param numpy.ndarray array: dense numpy array to persist
+        :param **kw: additional arguments to pass to the DenseArray constructor
+        :rtype: tiledb.DenseArray
+        :return: A DenseArray with a single anonymous attribute
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         dims = []
         for d in range(array.ndim):
@@ -2084,7 +2183,7 @@ cdef class DenseArray(ArraySchema):
         dom = Domain(ctx, *dims)
         att = Attr(ctx, "", dtype=array.dtype)
         arr = DenseArray(ctx, path, domain=dom, attrs=[att], **kw)
-        arr.write_direct(array)
+        arr.write_direct(np.ascontiguousarray(array))
         return arr
 
     def __init__(self, *args, **kw):
@@ -2355,6 +2454,14 @@ cdef class DenseArray(ArraySchema):
         """
         Write directly to given array attribute with minimal checks,
         assumes that the numpy array is the same shape as the array's domain
+
+        :param np.ndarray array: Numpy contigous dense array of the same dtype \
+            and shape and layout of the DenseArray instance
+        :param str attr_name: write directly to an attribute name (default <anonymous>)
+        :raises TypeError: connot convert `attr_name` to unicode string
+        :raises ValueError: array is not contiguous
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2397,6 +2504,12 @@ cdef class DenseArray(ArraySchema):
     def read_direct(self, unicode attr_name=u""):
         """
         Read attribute directly with minimal overhead, returns a numpy ndarray over the entire domain
+
+        :param str attr_name: read directly to an attribute name (default <anonymous>)
+        :rtype numpy.ndarray:
+        :return: numpy.ndarray of `attr_name` values over the entire array domain
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -2482,6 +2595,14 @@ cdef class SparseArray(ArraySchema):
     def load(Ctx ctx, unicode uri):
         """
         Loads a persisted SparseArray at given URI, returns a SparseArray class instance
+
+        :param tiledb.Ctx ctx: A TileDB Context
+        :param str uri: URI to the TileDB array resource
+        :rtype: tiledb.SparseArray
+        :return: A loaded SparseArray object (schema)
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
 
@@ -2589,7 +2710,12 @@ cdef class SparseArray(ArraySchema):
         return sparse_values
 
     cpdef np.dtype coords_dtype(self):
-        # TODO: should be a method of domain?
+        """Returns the numpy record array dtype of the SparseArray coordinates 
+        
+        :rtype: numpy.dtype 
+        :returns: coord array record dtype
+        
+        """
         # returns the record array dtype of the coordinate array
         return np.dtype([(dim.name, dim.dtype) for dim in self.domain])
 

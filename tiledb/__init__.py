@@ -1,9 +1,10 @@
 from __future__ import absolute_import
 
-from .libtiledb import (Ctx, Config, Dim, Domain, Attr, KV, DenseArray, SparseArray, TileDBError, VFS,
-                        array_consolidate, group_create, object_type, ls, walk, remove, move)
+from .libtiledb import (Ctx, Config, Dim, Domain, Attr, KV, ArraySchema, DenseArray, SparseArray,
+                        TileDBError, VFS, array_consolidate, group_create, object_type,
+                        ls, walk, remove, move)
 
-__all__ = [Ctx, Config, Dim, Domain, Attr, KV, DenseArray, SparseArray, TileDBError, VFS,
+__all__ = [Ctx, Config, Dim, Domain, Attr, KV, ArraySchema, SparseArray, TileDBError, VFS,
            array_consolidate, group_create, object_type, ls, walk, remove, move]
 
 if libtiledb.version() != (1, 2, 0):
