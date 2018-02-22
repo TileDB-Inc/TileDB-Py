@@ -1816,7 +1816,7 @@ cdef class ArraySchema(object):
     :param offsets_compressor: compressor label, level for varnum attribute cells
     :type coords_compressor: tuple(str, int)
     :param bool sparse: True if schema is sparse, else False \
-        (set by tiledb.SparseArray / tiledb.DenseArray derived classes)
+        (set by SparseArray and DenseArray derived classes)
     :raises TypeError: cannot convert uri to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
@@ -2122,6 +2122,8 @@ cdef class ArraySchema(object):
 
 cdef class DenseArray(ArraySchema):
     """TileDB DenseArray class
+
+    Inherits properties / methods of `tiledb.ArraySchema`
 
     """
 
@@ -2502,11 +2504,10 @@ cdef class DenseArray(ArraySchema):
         return
 
     def read_direct(self, unicode attr_name=u""):
-        """
-        Read attribute directly with minimal overhead, returns a numpy ndarray over the entire domain
+        """Read attribute directly with minimal overhead, returns a numpy ndarray over the entire domain
 
         :param str attr_name: read directly to an attribute name (default <anonymous>)
-        :rtype numpy.ndarray:
+        :rtype: numpy.ndarray
         :return: numpy.ndarray of `attr_name` values over the entire array domain
         :raises: :py:exc:`tiledb.TileDBError`
 
@@ -2579,6 +2580,8 @@ def index_domain_coords(Domain dom, tuple idx):
 cdef class SparseArray(ArraySchema):
     """
     TileDB SparseArray class
+
+    Inherits properties / methods of `tiledb.ArraySchema`
 
     """
 
