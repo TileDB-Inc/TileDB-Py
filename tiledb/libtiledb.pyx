@@ -2199,14 +2199,16 @@ cdef class DenseArray(ArraySchema):
 
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifiying the selected subarray region for each dimension of the DenseArray.
-        :rtype: ndarray or :py:class:`collections.OrderedDict`
-        :returns: If the dense array has a single attribute than a Numpy array is returned for that attribute.\
-            If the array has multiple attributes, an :py:class:`collections.OrderedDict` is returned \
-            with Numpy subarrays for each array attribute.
+        :rtype: :py:class:`numpy.ndarray` or :py:class:`collections.OrderedDict`
+        :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
+                is returned for that attribute.  If the array has multiple attributes, a \
+                :py:class:`collections.OrderedDict` is with dense Numpy subarrays for each attribute.
+        :raises IndexError: invalid or unsupported index selection
+        :raises: :py:exc:`tiledb.TileDBError`
 
         >>> A[1:10, ...]
         >>> A[1:10, 100:999]
-        >>> A[1, t2]
+        >>> A[1, 2]
 
         """
         selection = index_as_tuple(selection)
@@ -2702,8 +2704,28 @@ cdef class SparseArray(ArraySchema):
             check_error(ctx, rc)
         return
 
-    def __getitem__(self, object key):
-        idx = index_as_tuple(key)
+    def __getitem__(self, object selection):
+        """Retrieve nonempty cell data for an item or region of the array
+
+        :param tuple selection: An int index, slice or tuple of integer/slice objects,
+            specifying the selected subarray region for each dimension of the SparseArray.
+        :rtype: :py:class:`collections.OrderedDict`
+        :returns: An OrderedDict is returned with coordinate values being the first key "coords". \
+            "coords is a record array representation of the coordinate values of non-empty attribute cells. \
+            Nonempty attribute values are returned as dense Numpy 1-d arrays.
+
+        >>> # Return nonempy cells within a floating point array domain (fp index bounds are inclusive)
+        >>> A[5.0:579.9]
+        >>> # Return an OrderedDict with cell coordinates
+        >>> A[1:10, 100:999]
+        >>> # Return the NumpyRecord array of TileDB cell coordinates
+        >>> A[1:10, 100:999]["coords"]
+        >>> # return just the "dim1" coordinates values
+        >>> A[1:10, 100:999]["coords"]["dim1"]
+
+        """
+
+        idx = index_as_tuple(selection)
         idx = replace_ellipsis(self.domain, idx)
         idx, drop_axes = replace_scalars_slice(self.domain, idx)
         subarray = index_domain_subarray(self.domain, idx)
