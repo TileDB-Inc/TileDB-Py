@@ -69,10 +69,10 @@ np.import_array()
 class TileDBError(Exception):
     """TileDB Error Exception
 
-    Captures and raises error return code messages (``TILEDB_ERR``) when calling ``libtiledb`` C api functions.
-    The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`
+    Captures and raises error return code (``TILEDB_ERR``) messages when calling ``libtiledb``
+    C api functions.  The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`
 
-    The error message string can be retrieved using the :py:attr:`message` attribute
+    A Python :py:class:`MemoryError` is raised on ``TILEDB_OOM``
 
     """
 
@@ -85,7 +85,6 @@ class TileDBError(Exception):
 
         """
         return self.args[0]
-
 
 
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
