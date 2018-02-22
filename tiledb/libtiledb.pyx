@@ -2195,7 +2195,7 @@ cdef class DenseArray(ArraySchema):
         return self.domain.shape[0]
 
     def __getitem__(self, object selection):
-        """Retrieve data for an item or region of the array.
+        """Retrieve data cells for an item or region of the array.
 
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifiying the selected subarray region for each dimension of the DenseArray.
@@ -2205,7 +2205,8 @@ cdef class DenseArray(ArraySchema):
                 :py:class:`collections.OrderedDict` is with dense Numpy subarrays for each attribute.
         :raises IndexError: invalid or unsupported index selection
         :raises: :py:exc:`tiledb.TileDBError`
-
+        
+        >>> # many aspects of Numpy's fancy indexing is supported
         >>> A[1:10, ...]
         >>> A[1:10, 100:999]
         >>> A[1, 2]
@@ -2328,7 +2329,7 @@ cdef class DenseArray(ArraySchema):
         return out
 
     def __setitem__(self, object selection, object val):
-        """Set/Modify dense subarray regions 
+        """Set / update dense data cells
         
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifiying the selected subarray region for each dimension of the DenseArray.
@@ -2660,7 +2661,7 @@ cdef class SparseArray(ArraySchema):
         raise TypeError("SparseArray length is ambiguous; use shape[0]")
 
     def __setitem__(self, object selection, object val):
-        """Modify sparse data cells
+        """Set / update sparse data cells
         
         :param tuple selection: N coordinate value arrays (dim0, dim1, ...) where N in the rank of the SparseArray,
             The format follows numpy sparse (point) indexing semantics.
