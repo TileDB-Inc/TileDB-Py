@@ -751,8 +751,17 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
 
 
 cdef class Attr(object):
-    """
-    TileDB Attr class object
+    """TileDB Attr class object
+
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param str name: Attribute name, empty if anonymous
+    :param dtype: Attribute value datatypes
+    :type dtype: numpy.dtype object or type or string
+    :param compressor: The compressor, level for attribute values
+    :type compressor: tuple(str, int)
+    :raises TypeError: invalid dtype
+    :raises: :py:exc:`tiledb.TileDBError`
+
     """
 
     cdef Ctx ctx
@@ -822,6 +831,7 @@ cdef class Attr(object):
         self.ptr = attr_ptr
 
     def dump(self):
+        """Dumps a string representation of the Attr object to standard output (STDOUT)"""
         check_error(self.ctx,
                     tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
         print('\n')
@@ -829,6 +839,11 @@ cdef class Attr(object):
 
     @property
     def dtype(self):
+        """Return numpy dtype object representing the Attr type
+
+        :rtype: numpy.dtype
+
+        """
         cdef tiledb_datatype_t typ
         check_error(self.ctx,
                     tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
@@ -858,18 +873,32 @@ cdef class Attr(object):
         return name
     @property
     def name(self):
-        """Attribute string name, empty string if the attribute is anonymous"""
+        """Attribute string name, empty string if the attribute is anonymous
+
+        :rtype: str
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         return self._get_name()
 
     @property
     def isanon(self):
-        """Returns true if attribute is an anonymous attribute"""
+        """Returns true if attribute is an anonymous attribute
+
+        :rtype: bool
+
+        """
         cdef unicode name = self._get_name()
         return name == u"" or name.startswith(u"__attr")
 
     @property
     def compressor(self):
-        """Returns string label of the attributes compressor and compressor level"""
+        """Returns string label of the attributes compressor and compressor level
+
+        :rtype: tuple(str, int)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef int level = -1
         cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
         check_error(self.ctx,
@@ -886,13 +915,23 @@ cdef class Attr(object):
 
     @property
     def isvar(self):
-        """Returns true if the attribute is variable length"""
+        """Returns true if the attribute is variable length
+
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef unsigned int ncells = self._cell_val_num()
         return ncells == TILEDB_VAR_NUM
 
     @property
     def ncells(self):
-        """Returns the number of cells (scalar values) for a given attribute value"""
+        """Returns the number of cells (scalar values) for a given attribute value
+
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef unsigned int ncells = self._cell_val_num()
         assert (ncells != 0)
         return int(ncells)
@@ -1065,7 +1104,7 @@ cdef class Dim(object):
     def tile(self):
         """Return the tile extent of the given dimension
 
-        :rtype: numpy scalar type
+        :rtype: numpy scalar
 
         """
         cdef void* tile_ptr = NULL
@@ -1111,7 +1150,7 @@ cdef class Domain(object):
     """TileDB Domain class object
 
     :param tiledb.Ctx ctx: A TileDB Context
-    :param dims: one or more tiledb.Dim objects up to the Domains rank
+    :param *dims: one or more tiledb.Dim objects up to the Domains rank
     :raises TypeError: All dimensions must have the same dtype
     :raises: :py:exc:`libtiledb.TileDBError`
 
@@ -1282,8 +1321,15 @@ cdef class Domain(object):
 
 
 cdef class KV(object):
-    """
-    TileDB KV class object
+    """TileDB KV array class object
+
+    :param Ctx ctx: A TileDB Context
+    :param str uri: URI to persistent KV resource
+    :param attrs: one or more KV value attributes
+    :type attrs: tuple(tiledb.Attr, ...)
+    :raises TypeError: invalid `uri` or `attrs` type
+    :raises: :py:exc:`tiledb.TileDBError`
+
     """
 
     cdef Ctx ctx
@@ -1352,7 +1398,12 @@ cdef class KV(object):
 
     @property
     def nattr(self):
-        """Returns the number of KV array attributes"""
+        """Returns the number of KV array attributes
+
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef unsigned int nattr = 0
         check_error(self.ctx,
                     tiledb_kv_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
@@ -1374,7 +1425,15 @@ cdef class KV(object):
         return Attr.from_ptr(self.ctx, attr_ptr)
 
     def attr(self, object key not None):
-        """Returns an Attr instance given an int index or string label"""
+        """Returns an Attr instance given an int index or string label
+
+        :param key: attribute index (positional or associative)
+        :type key: int or str
+        :rtype: tiledb.Attr
+        :return: The KV attribute at index or with the given name (label)
+        :raises TypeError: invalid key type
+
+        """
         if isinstance(key, str):
             return self._attr_name(key)
         elif isinstance(key, _inttypes):
@@ -1383,7 +1442,11 @@ cdef class KV(object):
                         "or an integer index, not {0!r}".format(type(key)))
 
     def consolidate(self):
-        """Consolidates KV array updates for increased read performance"""
+        """Consolidates KV array updates for increased read performance
+
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef bytes buri = self.uri.encode('UTF-8')
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -1395,7 +1458,12 @@ cdef class KV(object):
         return
 
     def dict(self):
-        """Return a dict representation of the KV array object"""
+        """Return a dict representation of the KV array object
+
+        :rtype: dict
+        :return: Python dict of keys and attribute value (tuples)
+
+        """
         return dict(self)
 
     def dump(self):
@@ -1531,6 +1599,10 @@ cdef class KV(object):
             raise
 
     def update(self, *args, **kw):
+        """Update a KV object from dict/iterable,
+
+        Has the same semantics as Python dicts `.update()` method
+        """
         # add stub dict update implementation for now
         items = dict()
         items.update(*args, **kw)
@@ -1539,8 +1611,7 @@ cdef class KV(object):
 
 
 cdef class KVIter(object):
-    """
-    KV iterator object for a given KV array
+    """KV iterator object iterates over KV items
     """
 
     cdef Ctx ctx
