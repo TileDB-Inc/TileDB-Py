@@ -899,8 +899,20 @@ cdef class Attr(object):
 
 
 cdef class Dim(object):
-    """
-    TileDB Dimension class
+    """TileDB Dimension class
+
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param str name: the dimension name, empty if anonymous
+    :param domain:
+    :type domain: tuple(int, int) or tuple(float, float)
+    :param tile: Tile extent
+    :type tile: int or float
+    :dtype: the Dim numpy dtype object, type object, or string \
+        that can be corerced into a numpy dtype object
+    :raises ValueError: invalid domain or tile extent
+    :raises TypeError: invalid domain, tile extent, or dtype type
+    :raises: :py:exc:`libtiledb.TileDBError`
+
     """
     cdef Ctx ctx
     cdef tiledb_dimension_t*ptr
@@ -981,14 +993,21 @@ cdef class Dim(object):
 
     @property
     def dtype(self):
-        """Return a numpy dtype representation of attribute of the dimension type"""
+        """Return a numpy dtype representation of attribute of the dimension type
+
+        :rtype: numpy.dtype
+
+        """
         return np.dtype(_numpy_type(self._get_type()))
 
     @property
     def name(self):
-        """
-        Return the string dimension label,
-        unlabeled dimensions return a default string representation based on the dimension rank
+        """Return the string dimension label
+
+        anonymous dimensions return a default string representation based on the dimension rank
+
+        :rtype: str
+
         """
         cdef const char* name_ptr = NULL
         check_error(self.ctx,
@@ -997,6 +1016,11 @@ cdef class Dim(object):
 
     @property
     def isanon(self):
+        """Return True if the dimension is anonymous
+
+        :rtype: bool
+
+        """
         name = self.name
         return name == u"" or name.startswith("__dim")
 
@@ -1013,10 +1037,13 @@ cdef class Dim(object):
 
     @property
     def shape(self):
-        """
-        Return the shape of the dimension given the dimension's domain.
+        """Return the shape of the dimension given the dimension's domain.
 
         **Note** The given shape is only valid for integer dimension domains
+
+        :rtype: tuple(numpy scalar, numpy scalar)
+        :raises TypeError: floating point (inexact) domain
+
         """
         if not self._integer_domain():
             raise TypeError("shape only valid for integer dimension domains")
@@ -1024,14 +1051,22 @@ cdef class Dim(object):
 
     @property
     def size(self):
+        """Return the size of the dimension domain (number of cells along dimension)
+
+        :rtype: int
+        :raises TypeError: floating point (inexact) domain
+
+        """
         if not self._integer_domain():
             raise TypeError("size only valid for integer dimension domains")
         return int(self._shape()[0])
 
     @property
     def tile(self):
-        """
-        Return the tile extent of the given dimension
+        """Return the tile extent of the given dimension
+
+        :rtype: numpy scalar type
+
         """
         cdef void* tile_ptr = NULL
         check_error(self.ctx,
@@ -1050,10 +1085,12 @@ cdef class Dim(object):
 
     @property
     def domain(self):
-        """
-        Return the dimension (inclusive) domain
+        """Return the dimension (inclusive) domain
 
         The dimension's domain is defined by a (lower bound, upper bound) tuple
+
+        :rtype: tuple(numpy scalar, numpy scalar)
+
         """
         cdef void* domain_ptr = NULL
         check_error(self.ctx,
