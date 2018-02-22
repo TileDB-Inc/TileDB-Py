@@ -28,7 +28,7 @@ def main():
     for i in range(dense_example.ndim):
         print("{0!s}: {1!r}".format(dense_example.domain.dim(i).name, nonempty[i]))
 
-    # Read the entire array. `result` will be a numpy array
+    # Read an array slice. `result` is a dict of numpy arrays
     result = dense_example[3:5, 3:5]
 
     # Print the results
