@@ -2327,9 +2327,26 @@ cdef class DenseArray(ArraySchema):
             check_error(ctx, rc)
         return out
 
-    def __setitem__(self, object key, object val):
+    def __setitem__(self, object selection, object val):
+        """Set/Modify dense subarray regions 
+        
+        :param tuple selection: An int index, slice or tuple of integer/slice objects,
+            specifiying the selected subarray region for each dimension of the DenseArray.
+        :param value: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
+            if the number of attributes is one, than a n-d numpy array is accepted. 
+        :type value: dict or :py:class:`numpy.ndarray` 
+        :raises IndexError: invalid or unsupported index selection
+        :raises ValueError: value / coordinate length mismatch
+        :raises: :py:exc:`tiledb.TileDBError`
+        
+        >>> # array with one attribute
+        >>> A[:] = np.array([...])
+        >>> # array with multiple attributes
+        >>> A[10:20, 35:100] = {"attr1": np.array([...]), "attr2": np.array([...])}
+
+        """
         cdef Domain domain = self.domain
-        cdef tuple idx = replace_ellipsis(domain, index_as_tuple(key))
+        cdef tuple idx = replace_ellipsis(domain, index_as_tuple(selection))
         cdef np.ndarray subarray = index_domain_subarray(domain, idx)
         cdef Attr attr
         cdef list attributes = list()
@@ -2642,11 +2659,28 @@ cdef class SparseArray(ArraySchema):
     def __len__(self):
         raise TypeError("SparseArray length is ambiguous; use shape[0]")
 
-    def __setitem__(self, object key, object val):
-        idx = index_as_tuple(key)
+    def __setitem__(self, object selection, object val):
+        """Modify sparse data cells
+        
+        :param tuple selection: N coordinate value arrays (dim0, dim1, ...) where N in the rank of the SparseArray,
+            The format follows numpy sparse (point) indexing semantics.
+        :param value: a dictionary of nonempty array attribute values, values must able to be converted to 1-d numpy arrays.\
+            if the number of attributes is one, than a 1-d numpy array is accepted. 
+        :type value: dict or :py:class:`numpy.ndarray` 
+        :raises IndexError: invalid or unsupported index selection
+        :raises ValueError: value / coordinate length mismatch
+        :raises: :py:exc:`tiledb.TileDBError`
+        
+        >>> # array with one attribute
+        >>> A[I, J] = np.array([...])
+        >>> # array with multiple attributes
+        >>> A[I, J] = {"attr1": np.array([...]), "attr2": np.array([...])}
+
+        """
+        idx = index_as_tuple(selection)
         sparse_coords = index_domain_coords(self.domain, idx)
         ncells = sparse_coords.shape[0]
-        if self.nattr == 1:
+        if self.nattr == 1 and not isinstance(val, dict):
             attr = self.attr(0)
             name = attr.name
             value = np.asarray(val, dtype=attr.dtype)
@@ -2710,9 +2744,9 @@ cdef class SparseArray(ArraySchema):
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifying the selected subarray region for each dimension of the SparseArray.
         :rtype: :py:class:`collections.OrderedDict`
-        :returns: An OrderedDict is returned with coordinate values being the first key "coords". \
-            "coords is a record array representation of the coordinate values of non-empty attribute cells. \
-            Nonempty attribute values are returned as dense Numpy 1-d arrays.
+        :returns: An OrderedDict is returned with "coords" coordinate values being the first key. \
+            "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
+            Nonempty attribute values are returned as Numpy 1-d arrays.
 
         >>> # Return nonempy cells within a floating point array domain (fp index bounds are inclusive)
         >>> A[5.0:579.9]
