@@ -1108,8 +1108,13 @@ cdef class Dim(object):
 
 
 cdef class Domain(object):
-    """
-    TileDB Domain class object
+    """TileDB Domain class object
+
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param dims: one or more tiledb.Dim objects up to the Domains rank
+    :raises TypeError: All dimensions must have the same dtype
+    :raises: :py:exc:`libtiledb.TileDBError`
+
     """
 
     cdef Ctx ctx
@@ -1124,8 +1129,7 @@ cdef class Domain(object):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_domain_t* ptr):
-        """Constructs an Domain class instance from a (non-null) tiledb_domain_t pointer
-        """
+        """Constructs an Domain class instance from a (non-null) tiledb_domain_t pointer"""
         cdef Domain dom = Domain.__new__(Domain)
         dom.ctx = ctx
         dom.ptr = <tiledb_domain_t*> ptr
@@ -1171,7 +1175,11 @@ cdef class Domain(object):
 
     @property
     def rank(self):
-        """Returns the number of dimensions (rank) of the domain"""
+        """Returns the number of dimensions (rank) of the domain
+
+        :rtype: int
+
+        """
         cdef unsigned int rank = 0
         check_error(self.ctx,
                     tiledb_domain_get_rank(self.ctx.ptr, self.ptr, &rank))
@@ -1179,7 +1187,11 @@ cdef class Domain(object):
 
     @property
     def ndim(self):
-        """Returns the number of dimensions (rank) of the domain"""
+        """Returns the number of dimensions (rank) of the domain
+
+        :rtype: int
+
+        """
         return self.rank
 
     cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
@@ -1190,7 +1202,11 @@ cdef class Domain(object):
 
     @property
     def dtype(self):
-        """Returns the numpy dtype of the domain dimension types"""
+        """Returns the numpy dtype of the domain dimension types
+
+        :rtype: numpy.dtype
+
+        """
         cdef tiledb_datatype_t typ = self._get_type()
         return np.dtype(_numpy_type(typ))
 
@@ -1205,20 +1221,35 @@ cdef class Domain(object):
 
     @property
     def shape(self):
-        """Returns the domain's shape, valid only for integer domains"""
+        """Returns the domain's shape, valid only for integer domains
+
+        :rtype: tuple
+        :raises TypeError: floating point (inexact) domain
+
+        """
         if not self._integer_domain():
             raise TypeError("shape valid only for integer domains")
         return self._shape()
 
     @property
     def size(self):
-        """Returns the domain's size (number of cells), valid only for integer domains"""
+        """Returns the domain's size (number of cells), valid only for integer domains
+        
+        :rtype: int 
+        :raises TypeError: floating point (inexact) domain
+
+        """
         if not self._integer_domain():
             raise TypeError("shape valid only for integer domains")
         return np.product(self._shape())
 
     def dim(self, int idx):
-        """Returns a dimension object given the dimensions rank (index)"""
+        """Returns a dimension object given the dimensions rank (index)
+
+        :param int idx: dimension index
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef tiledb_dimension_t* dim_ptr = NULL
         check_error(self.ctx,
                     tiledb_domain_get_dimension_from_index(
@@ -1227,7 +1258,12 @@ cdef class Domain(object):
         return Dim.from_ptr(self.ctx, dim_ptr)
 
     def dim(self, unicode name):
-        """Returns a dimension object given the dimensions label"""
+        """Returns a dimension object given the dimensions label
+
+        :param str name: dimension name (label)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef bytes uname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = uname
         cdef tiledb_dimension_t* dim_ptr = NULL
@@ -1274,8 +1310,7 @@ cdef class KV(object):
 
     @staticmethod
     def load(Ctx ctx, uri):
-        """
-        Loads a persisted KV array at given URI, returns an KV class instance
+        """Loads a persisted KV array at given URI, returns an KV class instance
         """
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = buri
