@@ -635,7 +635,7 @@ cdef tiledb_compressor_t _tiledb_compressor(object c) except TILEDB_NO_COMPRESSI
         return TILEDB_BZIP2
     elif c == "double-delta":
         return TILEDB_DOUBLE_DELTA
-    raise AttributeError("unknown compressor: {0!r}".format(c))
+    raise ValueError("unknown compressor: {0!r}".format(c))
 
 
 cdef unicode _tiledb_compressor_string(tiledb_compressor_t c):
@@ -680,7 +680,7 @@ cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
         return TILEDB_GLOBAL_ORDER
     elif order == None or order == "unordered":
         return TILEDB_UNORDERED
-    raise AttributeError("unknown tiledb layout: {0!r}".format(order))
+    raise ValueError("unknown tiledb layout: {0!r}".format(order))
 
 
 cdef unicode _tiledb_layout_string(tiledb_layout_t order):
@@ -870,7 +870,7 @@ cdef class Dim(object):
     def __init__(self, Ctx ctx, name=u"", domain=None, tile=0, dtype=np.uint64):
         cdef bytes bname = ustring(name).encode('UTF-8')
         if len(domain) != 2:
-            raise AttributeError('invalid domain extent, must be a pair')
+            raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
             dtype = np.dtype(dtype)
             if np.issubdtype(dtype, np.integer):
@@ -881,7 +881,7 @@ cdef class Dim(object):
                 raise TypeError("invalid Dim dtype {0!r}".format(dtype))
             if (domain[0] < info.min or domain[0] > info.max or
                     domain[1] < info.min or domain[1] > info.max):
-                raise AttributeError(
+                raise TypeError(
                     "invalid domain extent, domain cannot be safely cast to dtype {0!r}".format(dtype))
         domain_array = np.asarray(domain, dtype=dtype)
         domain_dtype = domain_array.dtype
@@ -1050,7 +1050,7 @@ cdef class Domain(object):
         for i in range(1, rank):
             dimension = dims[i]
             if dimension._get_type() != domain_type:
-                raise AttributeError("all dimensions must have the same dtype")
+                raise TypeError("all dimensions must have the same dtype")
         cdef tiledb_domain_t* domain_ptr = NULL
         cdef int rc = tiledb_domain_create(ctx.ptr, &domain_ptr)
         if rc != TILEDB_OK:
@@ -1254,8 +1254,8 @@ cdef class KV(object):
             return self._attr_name(key)
         elif isinstance(key, _inttypes):
             return self._attr_idx(int(key))
-        raise AttributeError("attr() key must be a string name, "
-                             "or an integer index, not {0!r}".format(type(key)))
+        raise TypeError("attr() key must be a string name, "
+                        "or an integer index, not {0!r}".format(type(key)))
 
     def consolidate(self):
         """Consolidates KV array updates for increased read performance"""
@@ -1811,8 +1811,8 @@ cdef class ArraySchema(object):
             return self._attr_name(key)
         elif isinstance(key, _inttypes):
             return self._attr_idx(int(key))
-        raise AttributeError("attr indices must be a string name, "
-                             "or an integer index, not {0!r}".format(type(key)))
+        raise TypeError("attr indices must be a string name, "
+                        "or an integer index, not {0!r}".format(type(key)))
 
     def dump(self):
         """Dumps a string representation of the array object to standard output (STDOUT)"""
@@ -2316,7 +2316,7 @@ cdef class SparseArray(ArraySchema):
             name = attr.name
             value = np.asarray(val, dtype=attr.dtype)
             if len(value) != ncells:
-                raise AttributeError("value length does not match coordinate length")
+                raise ValueError("value length does not match coordinate length")
             sparse_values = dict(((name, value),))
         else:
             sparse_values = dict()
@@ -2325,7 +2325,7 @@ cdef class SparseArray(ArraySchema):
                 name = attr.name
                 value = np.asarray(v, dtype=attr.dtype)
                 if len(value) != ncells:
-                    raise AttributeError("value length does not match coordinate length")
+                    raise ValueError("value length does not match coordinate length")
                 sparse_values[name] = value
         self._write_sparse(sparse_coords, sparse_values)
         return
@@ -2787,7 +2787,7 @@ def walk(Ctx ctx, path, func, order="preorder"):
             URI resource path and object type label are passed as arguments to the callback
     :param str order: 'preorder' (default) or 'postorder' tree traversal
     :raises TypeError: cannot convert path to unicode string
-    :raises AttributeError: unknown order
+    :raises ValueError: unknown order
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
@@ -2798,7 +2798,7 @@ def walk(Ctx ctx, path, func, order="preorder"):
     elif order == "preorder":
         walk_order = TILEDB_PREORDER
     else:
-        raise AttributeError("unknown walk order {}".format(order))
+        raise ValueError("unknown walk order {}".format(order))
     check_error(ctx,
                 tiledb_object_walk(ctx.ptr, bpath, walk_order, walk_callback, <void*> func))
     return
@@ -3063,14 +3063,14 @@ cdef class VFS(object):
         return new_uri
 
     def open(self, uri, mode=None):
-        """"Opens a VFS file resource for reading / writing / appends at URI
+        """Opens a VFS file resource for reading / writing / appends at URI
 
         If the file did not exist upon opening, a new file is created.
 
         :param str uri: URI of VFS file resource
         :param mode str: 'r' for opening the file to read, 'w' to write, 'a' to append
-        :rtype: :py:class:`tiledb.libtiledb.FileHandle`
-        :return: A VFS FileHandle
+        :rtype: FileHandle
+        :return: VFS FileHandle
         :raises TypeError: cannot convert `uri` to unicode string
         :raises ValueError: invalid mode
         :raises: :py:exc:`tiledb.TileDBError`
@@ -3096,8 +3096,8 @@ cdef class VFS(object):
         """Closes a VFS FileHandle object
 
         :param FileHandle fh: An opened VFS FileHandle
-        :rtype: :py:class:`tiledb.libtiledb.FileHandle`
-        :return: closed FileHandle object
+        :rtype: FileHandle
+        :return: closed VFS FileHandle
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
@@ -3106,12 +3106,23 @@ cdef class VFS(object):
         return fh
 
     def readinto(self, FileHandle fh, bytes buffer, offset, nbytes):
+        """Read nbytes from an opened VFS FileHandle at a given offset into a preallocated bytes buffer
+
+        :param FileHandle fh: An opened VFS FileHandle in 'r' mode
+        :param bytes buffer: A preallocated bytes buffer object
+        :param int offset: offset position in bytes to read from
+        :param int nbytes: number of bytes to read
+        :return: bytes `buffer`
+        :raises ValueError: invalid `offset` or `nbytes` values
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         if offset < 0:
-            raise AttributeError("read offset must be >= 0")
+            raise ValueError("read offset must be >= 0")
         if nbytes < 0:
-            raise AttributeError("read nbytes but be >= 0")
+            raise ValueError("read nbytes but be >= 0")
         if nbytes > len(buffer):
-            raise AttributeError("read buffer is smaller than nbytes")
+            raise ValueError("read buffer is smaller than nbytes")
         cdef Py_ssize_t _offset = offset
         cdef Py_ssize_t _nbytes = nbytes
         cdef char* buffer_ptr = PyBytes_AS_STRING(buffer)
@@ -3189,7 +3200,7 @@ cdef class VFS(object):
         :param str scheme: scheme component of a VFS resource URI (ex. 'file' / 'hdfs' / 's3')
         :rtype: bool
         :return: True if the linked libtiledb version supports the storage backend, False otherwise
-        :raises :py:exc:`tiledb.TileDBError`: VFS storage backend is not supported
+        :raises tiledb.TileDBError: VFS storage backend is not supported
 
         """
         cdef tiledb_filesystem_t fs
@@ -3226,7 +3237,7 @@ class FileIO(object):
             self._readonly = False
             self._nbytes = 0
         else:
-            raise AttributeError("invalid mode {0!r}".format(mode))
+            raise ValueError("invalid mode {0!r}".format(mode))
         self._mode = mode
         return
 
@@ -3259,14 +3270,14 @@ class FileIO(object):
             raise TypeError("offset must be an integer")
         if whence == 0:
             if offset < 0:
-                raise AttributeError("offset must be a positive or zero value when SEEK_SET")
+                raise ValueError("offset must be a positive or zero value when SEEK_SET")
             self._offset = offset
         elif whence == 1:
             self._offset += offset
         elif whence == 2:
             self._offset = self._nbytes + offset
         else:
-            raise AttributeError('whence must be equal to SEEK_SET, SEEK_START, SEEK_END')
+            raise ValueError('whence must be equal to SEEK_SET, SEEK_START, SEEK_END')
         if self._offset < 0:
             self._offset = 0
         elif self._offset > self._nbytes:

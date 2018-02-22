@@ -183,7 +183,7 @@ class DomainTest(unittest.TestCase):
 
     def test_domain_dims_not_same_type(self):
         ctx = t.Ctx()
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(TypeError):
             t.Domain(
                     ctx,
                     t.Dim(ctx, "d1", (1, 4), 2, dtype=int),
@@ -1168,7 +1168,7 @@ class VFS(DiskTestCase):
         self.assertEqual(io.read(), buffer)
 
         # seek must be positive when SEEK_SET
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(ValueError):
             io.seek(-1, 0)
 
         # seek from current position
