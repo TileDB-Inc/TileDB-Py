@@ -137,7 +137,6 @@ setup(
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
     classifiers=[
-        'Development Status :: 1 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
         'Intended Audience :: Science/Research',
