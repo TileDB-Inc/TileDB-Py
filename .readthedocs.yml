@@ -1,0 +1,10 @@
+# Don't build any extra formats
+formats:
+  - none
+
+conda:
+  file: doc/source/conda-env.yml
+
+python:
+  version: 3
+  setup_py_install: true
