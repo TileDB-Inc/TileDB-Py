@@ -17,14 +17,33 @@ Build Dependencies
 * Cython
 * C++11 compiler
 
-Installing
-==========
-
-Installing TileDB-Py
-''''''''''''''''''''
+Install
+=======
 
 You will need to build / install an up-to-date version of TileDB. 
 See https://docs.tiledb.io/docs/installation for instructions.
+
+Pip
+'''
+
+A PyPI package is available which can be installed with Pip:
+
+:: 
+
+    $ pip install tiledb
+    
+**Note** if the Numpy and Cython dependencies are not installed, pip will try to build them from source.  This can take a **long** time and make the install appear to "hang."  Pass the ``-v`` flag to pip to monitor the build process.
+
+If the install location of TileDB is not in compiler search path, use the ``--install-option`` flag to manually pass the tiledb install location to ``setup.py``.
+
+::
+    
+    $ pip install tiledb --install-option="--tiledb=C:\path\to\TileDB\bin"
+
+
+Installing TileDB-Py from source
+''''''''''''''''''''''''''''''''
+
 
 ::
 
