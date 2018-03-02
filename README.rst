@@ -44,6 +44,8 @@ If the install location of TileDB is not in compiler search path, use the ``--in
 Installing TileDB-Py from source
 ''''''''''''''''''''''''''''''''
 
+Installing on Linux / OSX
+''''''''''''''''''''''''''
 
 ::
 
@@ -52,12 +54,6 @@ Installing TileDB-Py from source
    $ pip install -r requirements_dev.txt
    $ python setup.py build_ext --inplace
    $ python setup.py install
-
-or simply
-
-::
-
-   $ pip install tiledb
 
 If TileDB is installed in a non-standard location, pass the path to `setup.py` with the ``--tiledb=`` flag.
 If you want to pass extra compiler/linker flags during the c++ extension compilation step use ``--cxxflags=`` or ``--lflags=``.
