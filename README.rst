@@ -39,7 +39,8 @@ If the install location of TileDB is not in compiler search path, use the ``--in
 ::
     
     $ pip install tiledb --install-option="--tiledb=C:\path\to\TileDB\bin"
-
+    
+Do not forget to but the built ``.so / .dylib / .dll`` on the dynamic linker path, otherwise TileDB-Py will fail to load the shared library upon import. 
 
 Installing TileDB-Py from source
 ''''''''''''''''''''''''''''''''
