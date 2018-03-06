@@ -20,13 +20,24 @@ Build Dependencies
 Install
 =======
 
-You will need to build / install an up-to-date version of TileDB. 
-See https://docs.tiledb.io/docs/installation for instructions.
+Conda
+'''''
+
+A pre-built Conda package is available that will install TileDB as well.  Currently the pre-built TileDB conda package does not include the HDFS and S3 storage backends.
+
+::
+
+    $ conda install -c conda-forge tiledb-py
+
 
 Pip
 '''
 
-A PyPI package is available which can be installed with Pip:
+A PyPI package is available which can be installed with Pip.
+
+You will need to build / install an up-to-date version of TileDB.
+See https://docs.tiledb.io/docs/installation for instructions.
+
 
 :: 
 
