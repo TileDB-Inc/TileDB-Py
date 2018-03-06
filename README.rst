@@ -45,11 +45,14 @@ See https://docs.tiledb.io/docs/installation for instructions.
     
 **Note** if the Numpy and Cython dependencies are not installed, pip will try to build them from source.  This can take a **long** time and make the install appear to "hang."  Pass the ``-v`` flag to pip to monitor the build process.
 
-If the install location of TileDB is not in compiler search path, use the ``--install-option`` flag to manually pass the tiledb install location to ``setup.py``.
+If the install location of TileDB is not in compiler search path, create a requirements.txt file that specifies the tiledb install path manually.
 
 ::
     
-    $ pip install tiledb --install-option="--tiledb=C:\path\to\TileDB\bin"
+    $ cat > tiledb_requirements.txt <<EOF
+      tiledb==<version> --install-option="--tiledb=<path/to/tiledb/install>"
+      EOF
+    $ pip install -r tiledb_requirements.txt
     
 Do not forget to put the built ``.so / .dylib / .dll`` on the dynamic linker path, otherwise TileDB-Py will fail to load the shared library upon import. 
 
