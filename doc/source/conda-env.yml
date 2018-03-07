@@ -1,0 +1,5 @@
+name: libtiledb-env
+dependencies:
+  - python=3.4
+  - tiledb
+  - gcc
