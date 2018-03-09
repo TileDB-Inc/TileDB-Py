@@ -26,12 +26,13 @@ Install
 Conda
 '''''
 
-A pre-built Conda package is available that will install TileDB as well.  Currently the pre-built TileDB conda package does not include the HDFS and S3 storage backends.
+A pre-built Conda package is available that will install TileDB as well.
 
 ::
 
     $ conda install -c conda-forge tiledb-py
 
+*Note:*  Currently the pre-built TileDB conda package does not include the HDFS and S3 storage backends.
 
 Pip
 '''
