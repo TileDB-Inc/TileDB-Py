@@ -1,5 +1,6 @@
 #!python
 #cython: embedsignature=True
+#cython: auto_pickle=False
 
 from cpython.version cimport PY_MAJOR_VERSION
 
