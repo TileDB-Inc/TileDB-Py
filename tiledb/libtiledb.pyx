@@ -2765,7 +2765,7 @@ cdef class SparseArray(ArraySchema):
         idx = replace_ellipsis(self.domain, idx)
         idx, drop_axes = replace_scalars_slice(self.domain, idx)
         subarray = index_domain_subarray(self.domain, idx)
-        attr_names = [self.attr(i).name for i in range(self.nattr)]
+        attr_names = [self.attr(i).name for i in range(self.nattr) if not self.attr(i).isvar]
         return self._read_sparse_subarray(subarray, attr_names)
 
     def _sparse_read_query(self, object idx):
