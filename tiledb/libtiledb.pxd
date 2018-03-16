@@ -19,6 +19,12 @@ cdef extern from "tiledb/tiledb.h":
     # Version
     void tiledb_version(int* major, int* minor, int* rev)
 
+    # Stats
+    void tiledb_stats_enable()
+    void tiledb_stats_disable()
+    void tiledb_stats_reset()
+    void tiledb_stats_dump(FILE* out)
+
     # Enums
     ctypedef enum tiledb_object_t:
         TILEDB_INVALID
