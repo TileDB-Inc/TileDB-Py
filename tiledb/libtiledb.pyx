@@ -2766,7 +2766,6 @@ cdef class SparseArray(ArraySchema):
         idx, drop_axes = replace_scalars_slice(self.domain, idx)
         subarray = index_domain_subarray(self.domain, idx)
         attr_names = [self.attr(i).name for i in range(self.nattr) if not self.attr(i).isvar]
-        print("READING attributes: ", attr_names)
         return self._read_sparse_subarray(subarray, attr_names)
 
     def _sparse_read_query(self, object idx):
@@ -2803,7 +2802,6 @@ cdef class SparseArray(ArraySchema):
         cdef bytes barray_uri = self.uri.encode('UTF-8')
 
         # set subarray / layout
-        print("DEBUG: reading subarray", subarray)
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
 
         cdef tiledb_query_t* query_ptr = NULL
@@ -2812,7 +2810,7 @@ cdef class SparseArray(ArraySchema):
         check_error(ctx,
                     tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*> subarray_ptr))
         check_error(ctx,
-                    tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
+                    tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_GLOBAL_ORDER))
 
         # attr names
         battr_names = list(bytes(k, 'UTF-8') for k in attr_names)
@@ -2842,11 +2840,9 @@ cdef class SparseArray(ArraySchema):
             PyMem_Free(buffer_sizes_ptr)
             check_error(ctx, rc)
 
-        print("DEBUG: max read buffer sizes", subarray)
         cdef const char* debug_ptr = NULL
         for i in range(nattr):
             debug_ptr = attr_names_ptr[i]
-            print("DEBUG: ", debug_ptr.decode('UTF-8'), ": ", buffer_sizes_ptr[i])
 
         # allocate the max read buffer size
         cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
@@ -2876,12 +2872,9 @@ cdef class SparseArray(ArraySchema):
             PyMem_Free(buffers_ptr)
             check_error(ctx, rc)
 
-        #with nogil:
-        print("DEBUG: query submi")
-        rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        print("DEBUG: query free")
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
         tiledb_query_free(ctx_ptr, &query_ptr)
-        print("DEBUG: query return")
 
         if rc != TILEDB_OK:
             PyMem_Free(attr_names_ptr)
