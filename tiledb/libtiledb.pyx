@@ -3135,33 +3135,6 @@ def remove(Ctx ctx, path):
     return
 
 
-def move(Ctx ctx, oldpath, newpath, force=False):
-    """Moves a TileDB resource from old path (URI) to new path (URI)
-    
-    :param tiledb.Ctx ctx: TileDB context
-    :param str oldpath: existing path (URI) of the TileDB resource
-    :param str newpath: new path (URI) of the TileDB resource
-    :param bool force: Force move the resource, if ``newpath`` is an existing resource it is deleted.
-    :rtype: str
-    :returns: new path (URI) of the TileDB resource
-    :raises TypeError: oldpath/newpath cannot be converted to a unicode string
-    :raises: :py:exc:`tiledb.TileDBError`
- 
-    """
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef bytes boldpath = unicode_path(oldpath)
-    cdef bytes bnewpath = unicode_path(newpath)
-    cdef const char* oldpath_ptr = PyBytes_AS_STRING(boldpath)
-    cdef const char* newpath_ptr = PyBytes_AS_STRING(bnewpath)
-    cdef int force_move = 1 if force else 0
-    with nogil:
-        rc = tiledb_object_move(ctx_ptr, oldpath_ptr, newpath_ptr, force_move)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    return
-
-
 cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     objtype = None
     if obj == TILEDB_GROUP:
@@ -3462,8 +3435,8 @@ cdef class VFS(object):
                     tiledb_vfs_file_size(self.ctx.ptr, self.ptr, buri, &nbytes))
         return int(nbytes)
 
-    def move(self, old_uri, new_uri, force=False):
-        """ Moves a VFS file or directory from old URI to new URI
+    def move_file(self, old_uri, new_uri):
+        """ Moves a VFS file from old URI to new URI
 
         :param str old_uri: Existing VFS file or directory resource URI
         :param str new_uri: URI to move existing VFS resource to
@@ -3476,11 +3449,26 @@ cdef class VFS(object):
         """
         cdef bytes bold_uri = unicode_path(old_uri)
         cdef bytes bnew_uri = unicode_path(new_uri)
-        cdef int force_move = 0
-        if force:
-            force_move = 1
         check_error(self.ctx,
-                    tiledb_vfs_move(self.ctx.ptr, self.ptr, bold_uri, bnew_uri, force_move))
+                    tiledb_vfs_move_file(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
+        return new_uri
+
+    def move_dir(self, old_uri, new_uri):
+        """ Moves a VFS dir from old URI to new URI
+
+        :param str old_uri: Existing VFS file or directory resource URI
+        :param str new_uri: URI to move existing VFS resource to
+        :param bool force: if VFS resource at `new_uri` exists, delete the resource and overwrite
+        :rtype: str
+        :return: new URI of VFS resource
+        :raises TypeError: cannot convert `old_uri`/`new_uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes bold_uri = unicode_path(old_uri)
+        cdef bytes bnew_uri = unicode_path(new_uri)
+        check_error(self.ctx,
+                    tiledb_vfs_move_dir(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
         return new_uri
 
     def open(self, uri, mode=None):

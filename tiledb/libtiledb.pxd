@@ -704,12 +704,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const char* path) nogil
 
-    int tiledb_object_move(
-        tiledb_ctx_t* ctx,
-        const char* old_path,
-        const char* new_path,
-        int force) nogil
-
     int tiledb_object_walk(
         tiledb_ctx_t* ctx,
         const char* path,
@@ -793,12 +787,18 @@ cdef extern from "tiledb/tiledb.h":
         const char* uri,
         uint64_t* size) nogil
 
-    int tiledb_vfs_move(
+    int tiledb_vfs_move_file(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
         const char* old_uri,
-        const char* new_uri,
-        int force) nogil
+        const char* new_uri) nogil
+
+    int tiledb_vfs_move_dir(
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* old_uri,
+        const char* new_uri) nogil
+
 
     int tiledb_vfs_open(
         tiledb_ctx_t* ctx,
