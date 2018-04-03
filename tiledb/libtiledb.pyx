@@ -135,6 +135,26 @@ def version():
     return major, minor, rev
 
 
+def stats_enable():
+    """Enable TileDB internal statistics."""
+    tiledb_stats_enable()
+
+
+def stats_disable():
+    """Disable TileDB internal statistics."""
+    tiledb_stats_disable()
+
+
+def stats_reset():
+    """Reset all TileDB internal statistics to 0."""
+    tiledb_stats_reset()
+
+
+def stats_dump():
+    """Prints all TileDB internal statistics values to standard output."""
+    tiledb_stats_dump(stdout)
+
+
 cdef unicode ustring(object s):
     """Coerce a python object to a unicode string"""
 
