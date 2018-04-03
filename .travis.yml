@@ -14,7 +14,7 @@ install:
   - pushd ./build # . -> ./build
   - git clone https://github.com/TileDB-Inc/TileDB
   - pushd TileDB # ./build -> ./build/TileDB
-  - git checkout master
+  - git checkout dev
   - scripts/install-deps.sh
   - mkdir build
   - pushd ./build  # ./build/TileDB/build
