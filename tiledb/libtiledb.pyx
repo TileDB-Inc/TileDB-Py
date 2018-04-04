@@ -18,7 +18,7 @@ from cpython.ref cimport (Py_INCREF, PyTypeObject)
 from libc.stdio cimport (FILE, stdout)
 from libc.stdio cimport stdout
 from libc.stdlib cimport malloc, calloc, free
-from libc.stdint cimport (uint64_t, int64_t, uintptr_t)
+from libc.stdint cimport (uint64_t, UINT64_MAX, uintptr_t)
 
 # Numpy imports
 """
@@ -1464,7 +1464,65 @@ cdef class KV(object):
         :return: Python dict of keys and attribute value (tuples)
 
         """
-        return dict(self)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef bytes buri = unicode_path(self.uri)
+
+        cdef Attr attr = self.attr(0)
+        cdef bytes battr = attr.name.encode('UTF-8')
+
+        cdef tiledb_kv_iter_t* kv_iter_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_kv_iter_create(ctx_ptr, &kv_iter_ptr, buri, NULL, 0))
+        cdef int rc
+        cdef int done = 0
+
+        cdef tiledb_kv_item_t* kv_item_ptr = NULL
+
+        cdef bytes bkey
+        cdef const char* key_ptr = NULL
+        cdef tiledb_datatype_t dtype
+        cdef uint64_t key_size = 0
+
+        cdef bytes bvalue
+        cdef const char* val_ptr = NULL
+        cdef uint64_t val_size = 0
+
+        cdef dict result = dict()
+
+        while True:
+            _raise_ctx_err(ctx_ptr, tiledb_kv_iter_done(ctx_ptr, kv_iter_ptr, &done))
+            if done > 0:
+                break
+            rc = tiledb_kv_iter_here(ctx_ptr, kv_iter_ptr, &kv_item_ptr)
+            if rc != TILEDB_OK:
+                tiledb_kv_iter_free(ctx_ptr, &kv_iter_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_kv_item_get_key(ctx_ptr, kv_item_ptr,
+                                        <const void**> (&key_ptr), &dtype, &key_size)
+            if rc != TILEDB_OK:
+                tiledb_kv_iter_free(ctx_ptr, &kv_iter_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
+
+            bkey = PyBytes_FromStringAndSize(key_ptr, key_size)
+
+            rc = tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, battr,
+                                          <const void**> (&val_ptr), &dtype, &val_size)
+            if rc != TILEDB_OK:
+                tiledb_kv_iter_free(ctx_ptr, &kv_iter_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
+
+            bval = PyBytes_FromStringAndSize(val_ptr, val_size)
+
+            result[bkey.decode('UTF-8')] = bval.decode('UTF-8')
+
+            rc = tiledb_kv_iter_next(ctx_ptr, kv_iter_ptr)
+
+            if rc != TILEDB_OK:
+                tiledb_kv_iter_free(ctx_ptr, &kv_iter_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
+
+        return result
+
 
     def dump(self):
         """Dump KV array info to STDOUT"""
@@ -1475,7 +1533,8 @@ cdef class KV(object):
 
     def __iter__(self):
         """Return an iterator object over KV key, values"""
-        return KVIter(self.ctx, self.uri)
+        cdef Attr attr = self.attr(0)
+        return KVIter(self.ctx, self.uri, attribute=attr.name)
 
     def __setitem__(self, object key, object value):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -1604,10 +1663,73 @@ cdef class KV(object):
         Has the same semantics as Python dicts `.update()` method
         """
         # add stub dict update implementation for now
-        items = dict()
+        cdef dict items = dict()
         items.update(*args, **kw)
-        for (k, v) in items.items():
-            self[k] = v
+        cdef uint64_t nitems = len(items)
+
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+
+        cdef Attr attr = self.attr(0)
+        cdef bytes battr = attr.name.encode('UTF-8')
+        cdef const char* battr_ptr = PyBytes_AS_STRING(battr)
+
+        cdef bytes buri = unicode_path(self.uri)
+
+        # open the kv store for writing
+        cdef tiledb_kv_t* kv_ptr = NULL
+        check_error(self.ctx, tiledb_kv_open(ctx_ptr, &kv_ptr, buri, NULL, 1))
+
+        # Set the number of items to be unbounded
+        check_error(self.ctx, tiledb_kv_set_max_buffered_items(ctx_ptr, kv_ptr, UINT64_MAX))
+
+        # Create a kv item object
+        cdef tiledb_kv_item_t* kv_item_ptr = NULL
+        check_error(self.ctx, tiledb_kv_item_create(ctx_ptr, &kv_item_ptr))
+
+        cdef bytes bkey
+        cdef const void* bkey_ptr = NULL
+
+        cdef bytes bvalue
+        cdef const void* bvalue_ptr = NULL
+
+        for (key, value) in items.items():
+            # add key
+            bkey = key.encode('UTF-8')
+            bkey_ptr = PyBytes_AS_STRING(bkey)
+            bkey_size = PyBytes_GET_SIZE(bkey)
+
+            rc = tiledb_kv_item_set_key(ctx_ptr, kv_item_ptr,
+                                        bkey_ptr, TILEDB_CHAR, PyBytes_GET_SIZE(bkey))
+            if rc != TILEDB_OK:
+                tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
+                check_error(self.ctx, rc)
+
+            # add value
+            bvalue = value.encode('UTF-8')
+            bvalue_ptr = PyBytes_AS_STRING(bvalue)
+
+            rc = tiledb_kv_item_set_value(ctx_ptr, kv_item_ptr, battr_ptr,
+                                          bvalue_ptr, TILEDB_CHAR, PyBytes_GET_SIZE(bvalue))
+            if rc != TILEDB_OK:
+                tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
+                check_error(self.ctx, rc)
+
+            # save items
+            rc = tiledb_kv_add_item(ctx_ptr, kv_ptr, kv_item_ptr)
+            if rc != TILEDB_OK:
+                tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
+                check_error(self.ctx, rc)
+
+        rc = tiledb_kv_flush(ctx_ptr, kv_ptr)
+        if rc != TILEDB_OK:
+            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
+            check_error(self.ctx, rc)
+
+        rc = tiledb_kv_close(ctx_ptr, &kv_ptr)
+        tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
+        if rc != TILEDB_OK:
+            check_error(self.ctx, rc)
+        return
 
 
 cdef class KVIter(object):
@@ -1615,7 +1737,8 @@ cdef class KVIter(object):
     """
 
     cdef Ctx ctx
-    cdef tiledb_kv_iter_t*ptr
+    cdef bytes battr
+    cdef tiledb_kv_iter_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -1624,13 +1747,14 @@ cdef class KVIter(object):
         if self.ptr != NULL:
             tiledb_kv_iter_free(self.ctx.ptr, &self.ptr)
 
-    def __init__(self, Ctx ctx, uri):
+    def __init__(self, Ctx ctx, uri, attribute="value"):
         cdef bytes buri = unicode_path(uri)
         cdef tiledb_kv_iter_t* kv_iter_ptr = NULL
         check_error(ctx,
                     tiledb_kv_iter_create(ctx.ptr, &kv_iter_ptr, buri, NULL, 0))
         assert(kv_iter_ptr != NULL)
         self.ctx = ctx
+        self.battr = attribute.encode("UTF-8")
         self.ptr = kv_iter_ptr
 
     def __iter__(self):
@@ -1656,9 +1780,8 @@ cdef class KVIter(object):
         cdef bytes bkey = PyBytes_FromStringAndSize(key_ptr, key_size)
         cdef const char* val_ptr = NULL
         cdef uint64_t val_size = 0
-        cdef bytes battr = b"value"
         check_error(self.ctx,
-                    tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, battr,
+                    tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, self.battr,
                                              <const void**> (&val_ptr), &dtype, &val_size))
         cdef bytes bval = PyBytes_FromStringAndSize(val_ptr, val_size)
         check_error(self.ctx,
