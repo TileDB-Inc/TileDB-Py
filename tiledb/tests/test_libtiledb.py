@@ -1022,16 +1022,27 @@ class KVArray(DiskTestCase):
         self.assertEqual(kv.dict(), {'foo': 'bar', 'baz': 'foo'})
         self.assertEqual(dict(kv), {'foo': 'bar', 'baz': 'foo'})
 
-    def test_multiattribute(self):
-        ctx = t.Ctx()
-        a1 = t.Attr(ctx, "ints", dtype=int)
-        a2 = t.Attr(ctx, "floats", dtype=float)
-        kv = t.KV(ctx, self.path("foo"), attrs=(a1, a2))
+    def test_large_update(self):
+        import random
+        import string
+        import time
 
-        # known failure
-        #kv['foo'] = {"ints": 1, "floats": 2.0}
-        #self.assertEqual(kv["foo"]["ints"], 1)
-        #self.assertEqual(kv["foo"]["floats"], 2.0)
+        ctx = t.Ctx()
+        a1 = t.Attr(ctx, "value", compressor=("gzip", -1), dtype=bytes)
+        kv1 = t.KV(ctx, self.path("foo"), attrs=(a1,))
+
+        def rand_str():
+            return ''.join(random.choices(string.ascii_uppercase + string.digits,
+                                          k=random.randint(1, 100)))
+        test = dict()
+        for i in range(1000):
+            test[rand_str()] = rand_str()
+
+        kv1.update(test)
+        del kv1
+
+        kv2 = t.KV.load(ctx, self.path("foo"))
+        self.assertDictEqual(test, kv2.dict())
 
 
 class VFS(DiskTestCase):
