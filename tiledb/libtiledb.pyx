@@ -1834,6 +1834,9 @@ def replace_scalars_slice(Domain dom, tuple idx):
         if np.isscalar(dim_idx):
             drop_axes.append(i)
             if isinstance(dim_idx, _inttypes):
+                if dim_idx >= dom.shape[i]:
+                    raise IndexError(
+                        "index {} is out of bounds for axis {} with size {}".format(dim_idx, i, dom.shape[i]))
                 start = int(dim_idx)
                 if start < 0:
                     start += int(dim.domain[1]) + 1

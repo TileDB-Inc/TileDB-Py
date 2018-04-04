@@ -1025,7 +1025,6 @@ class KVArray(DiskTestCase):
     def test_large_update(self):
         import random
         import string
-        import time
 
         ctx = t.Ctx()
         a1 = t.Attr(ctx, "value", compressor=("gzip", -1), dtype=bytes)
@@ -1034,10 +1033,8 @@ class KVArray(DiskTestCase):
         def rand_str():
             return ''.join(random.choices(string.ascii_uppercase + string.digits,
                                           k=random.randint(1, 100)))
-        test = dict()
-        for i in range(1000):
-            test[rand_str()] = rand_str()
 
+        test = dict((rand_str(), rand_str()) for _ in range(1000))
         kv1.update(test)
         del kv1
 
