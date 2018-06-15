@@ -10,7 +10,7 @@ cdef extern from "tiledb/tiledb.h":
     enum: TILEDB_VAR_NUM
     unsigned int tiledb_var_num()
 
-    # TILEDB_COORDS
+    enum: TILEDB_COORDS
     const char* tiledb_coords()
 
     enum: TILEDB_MAX_PATH
@@ -125,7 +125,7 @@ cdef extern from "tiledb/tiledb.h":
         pass
 
     # Config
-    int tiledb_config_create(
+    int tiledb_config_alloc(
         tiledb_config_t** config,
         tiledb_error_t** error)
 
@@ -147,7 +147,7 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_config_load_from_file(
         tiledb_config_t* config,
         const char* filename,
-        tiledb_error_t** error) nogil
+        tiledb_error_t** error)
 
     int tiledb_config_unset(
         tiledb_config_t* config,
@@ -157,13 +157,13 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_config_save_to_file(
         tiledb_config_t* config,
         const char* filename,
-        tiledb_error_t** error) nogil
+        tiledb_error_t** error)
 
     # Config Iterator
-    int tiledb_config_iter_create(
+    int tiledb_config_iter_alloc(
         tiledb_config_t* config,
-        tiledb_config_iter_t** config_iter,
         const char* prefix,
+        tiledb_config_iter_t** config_iter,
         tiledb_error_t** error)
 
     void tiledb_config_iter_free(
@@ -185,9 +185,9 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_error_t** error)
 
     # Context
-    int tiledb_ctx_create(
-        tiledb_ctx_t** ctx,
-        tiledb_config_t* config)
+    int tiledb_ctx_alloc(
+        tiledb_config_t* config,
+        tiledb_ctx_t** ctx)
 
     void tiledb_ctx_free(
         tiledb_ctx_t** ctx)
@@ -662,12 +662,12 @@ cdef extern from "tiledb/tiledb.h":
         uint64_t key_size)
 
     # K/V Iterator
-    int tiledb_kv_iter_create(
+    int tiledb_kv_iter_alloc(
         tiledb_ctx_t* ctx,
-        tiledb_kv_iter_t** kv_iter,
         const char* kv_uri,
         const char** attributes,
-        unsigned int attribute_num)
+        unsigned int attribute_num,
+        tiledb_kv_iter_t** kv_iter)
 
     void tiledb_kv_iter_free(
         tiledb_kv_iter_t** kv_iter)
