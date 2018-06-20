@@ -21,7 +21,7 @@ def suite_test():
     Run all the tests in the test suite
     """
 
-    ret = unittest.TextTestRunner().run(suite())
+    ret = unittest.TextTestRunner(verbosity=2).run(suite())
     sys.exit(not ret.wasSuccessful())
 
 
