@@ -307,13 +307,13 @@ cdef extern from "tiledb/tiledb.h":
         FILE* out)
 
     # Dimension
-    int tiledb_dimension_create(
+    int tiledb_dimension_alloc(
         tiledb_ctx_t* ctx,
-        tiledb_dimension_t** dim,
         const char* name,
         tiledb_datatype_t type,
         const void* dim_domain,
-        const void* tile_extent)
+        const void* tile_extent,
+        tiledb_dimension_t** dim)
 
     void tiledb_dimension_free(
         tiledb_dimension_t** dim)

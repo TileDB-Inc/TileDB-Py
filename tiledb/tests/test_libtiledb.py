@@ -72,11 +72,11 @@ class Config(DiskTestCase):
         self.assertIsInstance(config, tiledb.Config)
         self.assertEqual(config["sm.tile_cache_size"], '100')
 
-"""
+
 class GroupTestCase(DiskTestCase):
 
     def setUp(self):
-        super().setUp()
+        super(GroupTestCase, self).setUp()
 
         ctx = tiledb.Ctx()
         self.group1 = self.path("group1")
@@ -90,7 +90,7 @@ class GroupTestCase(DiskTestCase):
         tiledb.group_create(ctx, self.group4)
 
     def is_group(self, ctx, uri):
-        return t.object_type(ctx, uri) == "group"
+        return tiledb.object_type(ctx, uri) == "group"
 
 
 class GroupTest(GroupTestCase):
@@ -134,36 +134,36 @@ class GroupTest(GroupTestCase):
         self.assertFalse(self.is_group(ctx, self.group3))
         self.assertFalse(self.is_group(ctx, self.group4))
     
-    def test_move_group(self):
-        ctx = tiledb.Ctx()
-
-        tiledb.move(ctx, self.group4, self.path("group1/group4"))
-
-        self.assertTrue(self.is_group(ctx, self.path("group1/group4")))
-        self.assertFalse(self.is_group(ctx, self.group4))
-
-        with self.assertRaises(tiledb.TileDBError):
-            tiledb.move(ctx, self.path("group1/group4"), self.path("group1/group3"))
-
-        tiledb.move(ctx, self.path("group1/group4"),
-                    self.path("group1/group3"),
-                    force=True)
-
-        self.assertTrue(self.is_group(ctx, self.path("group1/group3")))
-        self.assertFalse(self.is_group(ctx, self.path("group1/group4")))
+    # def test_move_group(self):
+    #     ctx = tiledb.Ctx()
+    #
+    #     tiledb.move(ctx, self.group4, self.path("group1/group4"))
+    #
+    #     self.assertTrue(self.is_group(ctx, self.path("group1/group4")))
+    #     self.assertFalse(self.is_group(ctx, self.group4))
+    #
+    #     with self.assertRaises(tiledb.TileDBError):
+    #         tiledb.move(ctx, self.path("group1/group4"), self.path("group1/group3"))
+    #
+    #     tiledb.move(ctx, self.path("group1/group4"),
+    #                 self.path("group1/group3"),
+    #                 force=True)
+    #
+    #     self.assertTrue(self.is_group(ctx, self.path("group1/group3")))
+    #     self.assertFalse(self.is_group(ctx, self.path("group1/group4")))
 
 class DimensionTest(unittest.TestCase):
 
     def test_minimal_dimension(self):
-        ctx = t.Ctx()
-        dim = t.Dim(ctx, domain=(0, 4))
+        ctx = tiledb.Ctx()
+        dim = tiledb.Dim(ctx, domain=(0, 4))
         self.assertEqual(dim.name, "", "dimension name is empty")
         self.assertEqual(dim.shape, (5,))
         self.assertEqual(dim.tile, None, "tiled extent is None (void)")
 
     def test_dimension(self):
-        ctx = t.Ctx()
-        dim = t.Dim(ctx, "d1", domain=(0, 3), tile=2)
+        ctx = tiledb.Ctx()
+        dim = tiledb.Dim(ctx, "d1", domain=(0, 3), tile=2)
         self.assertEqual(dim.name, "d1")
         self.assertEqual(dim.shape, (4,))
         self.assertEqual(dim.tile, 2)
@@ -195,7 +195,7 @@ class DomainTest(unittest.TestCase):
                     t.Dim(ctx, "d1", (1, 4), 2, dtype=int),
                     t.Dim(ctx, "d2", (1, 4), 2, dtype=float))
 
-
+"""
 class AttributeTest(unittest.TestCase):
 
     def test_minimal_attribute(self):

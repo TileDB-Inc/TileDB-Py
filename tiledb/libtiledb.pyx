@@ -583,193 +583,193 @@ cdef class Ctx(object):
                     tiledb_ctx_get_config(self.ptr, &config_ptr))
         return Config.from_ptr(config_ptr)
 
-#
-# cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
-#     """
-#     Return tiledb_datatype_t enum value for a given numpy dtype object
-#     """
-#     if dtype == np.int32:
-#         return TILEDB_INT32
-#     elif dtype == np.uint32:
-#         return TILEDB_UINT32
-#     elif dtype == np.int64:
-#         return TILEDB_INT64
-#     elif dtype == np.uint64:
-#         return TILEDB_UINT64
-#     elif dtype == np.float32:
-#         return TILEDB_FLOAT32
-#     elif dtype == np.float64:
-#         return TILEDB_FLOAT64
-#     elif dtype == np.int8:
-#         return TILEDB_INT8
-#     elif dtype == np.uint8:
-#         return TILEDB_UINT8
-#     elif dtype == np.int16:
-#         return TILEDB_INT16
-#     elif dtype == np.uint16:
-#         return TILEDB_UINT16
-#     elif dtype == np.str_ or dtype == np.bytes_:  # or bytes
-#         return TILEDB_CHAR
-#     raise TypeError("data type {0!r} not understood".format(dtype))
-#
-#
-# cdef int _numpy_type_num(tiledb_datatype_t tiledb_dtype):
-#     """
-#     Return a numpy type num (int) given a tiledb_datatype_t enum value
-#     """
-#     if tiledb_dtype == TILEDB_INT32:
-#         return np.NPY_INT32
-#     elif tiledb_dtype == TILEDB_UINT32:
-#         return np.NPY_UINT32
-#     elif tiledb_dtype == TILEDB_INT64:
-#         return np.NPY_INT64
-#     elif tiledb_dtype == TILEDB_UINT64:
-#         return np.NPY_UINT64
-#     elif tiledb_dtype == TILEDB_FLOAT32:
-#         return np.NPY_FLOAT32
-#     elif tiledb_dtype == TILEDB_FLOAT64:
-#         return np.NPY_FLOAT64
-#     elif tiledb_dtype == TILEDB_INT8:
-#         return np.NPY_INT8
-#     elif tiledb_dtype == TILEDB_UINT8:
-#         return np.NPY_UINT8
-#     elif tiledb_dtype == TILEDB_INT16:
-#         return np.NPY_INT16
-#     elif tiledb_dtype == TILEDB_UINT16:
-#         return np.NPY_UINT16
-#     elif tiledb_dtype == TILEDB_CHAR:
-#         return np.NPY_STRING
-#     else:
-#         return np.NPY_NOTYPE
-#
-#
-# cdef _numpy_type(tiledb_datatype_t tiledb_dtype):
-#     """
-#     Return a numpy *type* (not dtype) object given a tiledb_datatype_t enum value
-#     """
-#     if tiledb_dtype == TILEDB_INT32:
-#         return np.int32
-#     elif tiledb_dtype == TILEDB_UINT32:
-#         return np.uint32
-#     elif tiledb_dtype == TILEDB_INT64:
-#         return np.int64
-#     elif tiledb_dtype == TILEDB_UINT64:
-#         return np.uint64
-#     elif tiledb_dtype == TILEDB_FLOAT32:
-#         return np.float32
-#     elif tiledb_dtype == TILEDB_FLOAT64:
-#         return np.float64
-#     elif tiledb_dtype == TILEDB_INT8:
-#         return np.int8
-#     elif tiledb_dtype == TILEDB_UINT8:
-#         return np.uint8
-#     elif tiledb_dtype == TILEDB_INT16:
-#         return np.int16
-#     elif tiledb_dtype == TILEDB_UINT16:
-#         return np.uint16
-#     elif tiledb_dtype == TILEDB_CHAR:
-#         return np.bytes_
-#     raise TypeError("tiledb datatype not understood")
-#
-# """
-# cdef _numpy_scalar(tiledb_datatype_t typ, void* data, uint64_t nbytes):
-#     # Return a numpy scalar object from a tiledb_datatype_t enum type value and void pointer to scalar data
-#     if typ == TILEDB_CHAR:
-#         # bytes type, ensure a full copy
-#         return PyBytes_FromStringAndSize(<char*> data, nbytes)
-#     # fixed size numeric type
-#     cdef int type_num = _numpy_type_num(typ)
-#     return PyArray_Scalar(data, np.PyArray_DescrFromType(type_num), None)
-# """
-#
-# cdef tiledb_compressor_t _tiledb_compressor(object c) except TILEDB_NO_COMPRESSION:
-#     """
-#     Return a tiledb_compressor_t enum value from a string label, or None for no compression
-#     """
-#     if c is None:
-#         return TILEDB_NO_COMPRESSION
-#     elif c == "gzip":
-#         return TILEDB_GZIP
-#     elif c == "zstd":
-#         return TILEDB_ZSTD
-#     elif c == "lz4":
-#         return TILEDB_LZ4
-#     elif c == "blosc-lz":
-#         return TILEDB_BLOSC_LZ
-#     elif c == "blosc-lz4":
-#         return TILEDB_BLOSC_LZ4
-#     elif c == "blosc-lz4hc":
-#         return TILEDB_BLOSC_LZ4HC
-#     elif c == "blosc-snappy":
-#         return TILEDB_BLOSC_SNAPPY
-#     elif c == "blosc-zstd":
-#         return TILEDB_BLOSC_ZSTD
-#     elif c == "rle":
-#         return TILEDB_RLE
-#     elif c == "bzip2":
-#         return TILEDB_BZIP2
-#     elif c == "double-delta":
-#         return TILEDB_DOUBLE_DELTA
-#     raise ValueError("unknown compressor: {0!r}".format(c))
-#
-#
-# cdef unicode _tiledb_compressor_string(tiledb_compressor_t c):
-#     """
-#     Return the (unicode) string representation of a tiledb_compressor_t enum value
-#     """
-#     if c == TILEDB_NO_COMPRESSION:
-#         return u"none"
-#     elif c == TILEDB_GZIP:
-#         return u"gzip"
-#     elif c == TILEDB_ZSTD:
-#         return u"zstd"
-#     elif c == TILEDB_LZ4:
-#         return u"lz4"
-#     elif c == TILEDB_BLOSC_LZ:
-#         return u"blosc-lz"
-#     elif c == TILEDB_BLOSC_LZ4:
-#         return u"blosc-lz4"
-#     elif c == TILEDB_BLOSC_LZ4HC:
-#         return u"blosc-lz4hc"
-#     elif c == TILEDB_BLOSC_SNAPPY:
-#         return u"blosc-snappy"
-#     elif c == TILEDB_BLOSC_ZSTD:
-#         return u"blosc-zstd"
-#     elif c == TILEDB_RLE:
-#         return u"rle"
-#     elif c == TILEDB_BZIP2:
-#         return u"bzip2"
-#     elif c == TILEDB_DOUBLE_DELTA:
-#         return u"double-delta"
-#
-#
-# cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
-#     """
-#     Return the tiledb_layout_t enum value given a layout string label
-#     """
-#     if order == "row-major" or order == 'C':
-#         return TILEDB_ROW_MAJOR
-#     elif order == "col-major" or order == 'F':
-#         return TILEDB_COL_MAJOR
-#     elif order == "global":
-#         return TILEDB_GLOBAL_ORDER
-#     elif order == None or order == "unordered":
-#         return TILEDB_UNORDERED
-#     raise ValueError("unknown tiledb layout: {0!r}".format(order))
-#
-#
-# cdef unicode _tiledb_layout_string(tiledb_layout_t order):
-#     """
-#     Return the unicode string label given a tiledb_layout_t enum value
-#     """
-#     if order == TILEDB_ROW_MAJOR:
-#         return u"row-major"
-#     elif order == TILEDB_COL_MAJOR:
-#         return u"col-major"
-#     elif order == TILEDB_GLOBAL_ORDER:
-#         return u"global"
-#     elif order == TILEDB_UNORDERED:
-#         return u"unordered"
+
+cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
+    """
+    Return tiledb_datatype_t enum value for a given numpy dtype object
+    """
+    if dtype == np.int32:
+        return TILEDB_INT32
+    elif dtype == np.uint32:
+        return TILEDB_UINT32
+    elif dtype == np.int64:
+        return TILEDB_INT64
+    elif dtype == np.uint64:
+        return TILEDB_UINT64
+    elif dtype == np.float32:
+        return TILEDB_FLOAT32
+    elif dtype == np.float64:
+        return TILEDB_FLOAT64
+    elif dtype == np.int8:
+        return TILEDB_INT8
+    elif dtype == np.uint8:
+        return TILEDB_UINT8
+    elif dtype == np.int16:
+        return TILEDB_INT16
+    elif dtype == np.uint16:
+        return TILEDB_UINT16
+    elif dtype == np.str_ or dtype == np.bytes_:  # or bytes
+        return TILEDB_CHAR
+    raise TypeError("data type {0!r} not understood".format(dtype))
+
+
+cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
+    """
+    Return a numpy type num (int) given a tiledb_datatype_t enum value
+    """
+    if tiledb_dtype == TILEDB_INT32:
+        return np.NPY_INT32
+    elif tiledb_dtype == TILEDB_UINT32:
+        return np.NPY_UINT32
+    elif tiledb_dtype == TILEDB_INT64:
+        return np.NPY_INT64
+    elif tiledb_dtype == TILEDB_UINT64:
+        return np.NPY_UINT64
+    elif tiledb_dtype == TILEDB_FLOAT32:
+        return np.NPY_FLOAT32
+    elif tiledb_dtype == TILEDB_FLOAT64:
+        return np.NPY_FLOAT64
+    elif tiledb_dtype == TILEDB_INT8:
+        return np.NPY_INT8
+    elif tiledb_dtype == TILEDB_UINT8:
+        return np.NPY_UINT8
+    elif tiledb_dtype == TILEDB_INT16:
+        return np.NPY_INT16
+    elif tiledb_dtype == TILEDB_UINT16:
+        return np.NPY_UINT16
+    elif tiledb_dtype == TILEDB_CHAR:
+        return np.NPY_STRING
+    else:
+        return np.NPY_NOTYPE
+
+
+cdef _numpy_type(tiledb_datatype_t tiledb_dtype):
+    """
+    Return a numpy *type* (not dtype) object given a tiledb_datatype_t enum value
+    """
+    if tiledb_dtype == TILEDB_INT32:
+        return np.int32
+    elif tiledb_dtype == TILEDB_UINT32:
+        return np.uint32
+    elif tiledb_dtype == TILEDB_INT64:
+        return np.int64
+    elif tiledb_dtype == TILEDB_UINT64:
+        return np.uint64
+    elif tiledb_dtype == TILEDB_FLOAT32:
+        return np.float32
+    elif tiledb_dtype == TILEDB_FLOAT64:
+        return np.float64
+    elif tiledb_dtype == TILEDB_INT8:
+        return np.int8
+    elif tiledb_dtype == TILEDB_UINT8:
+        return np.uint8
+    elif tiledb_dtype == TILEDB_INT16:
+        return np.int16
+    elif tiledb_dtype == TILEDB_UINT16:
+        return np.uint16
+    elif tiledb_dtype == TILEDB_CHAR:
+        return np.bytes_
+    raise TypeError("tiledb datatype not understood")
+
+"""
+cdef _numpy_scalar(tiledb_datatype_t typ, void* data, uint64_t nbytes):
+    # Return a numpy scalar object from a tiledb_datatype_t enum type value and void pointer to scalar data
+    if typ == TILEDB_CHAR:
+        # bytes type, ensure a full copy
+        return PyBytes_FromStringAndSize(<char*> data, nbytes)
+    # fixed size numeric type
+    cdef int type_num = _numpy_type_num(typ)
+    return PyArray_Scalar(data, np.PyArray_DescrFromType(type_num), None)
+"""
+
+cdef tiledb_compressor_t _tiledb_compressor(object c) except TILEDB_NO_COMPRESSION:
+    """
+    Return a tiledb_compressor_t enum value from a string label, or None for no compression
+    """
+    if c is None:
+        return TILEDB_NO_COMPRESSION
+    elif c == "gzip":
+        return TILEDB_GZIP
+    elif c == "zstd":
+        return TILEDB_ZSTD
+    elif c == "lz4":
+        return TILEDB_LZ4
+    elif c == "blosc-lz":
+        return TILEDB_BLOSC_LZ
+    elif c == "blosc-lz4":
+        return TILEDB_BLOSC_LZ4
+    elif c == "blosc-lz4hc":
+        return TILEDB_BLOSC_LZ4HC
+    elif c == "blosc-snappy":
+        return TILEDB_BLOSC_SNAPPY
+    elif c == "blosc-zstd":
+        return TILEDB_BLOSC_ZSTD
+    elif c == "rle":
+        return TILEDB_RLE
+    elif c == "bzip2":
+        return TILEDB_BZIP2
+    elif c == "double-delta":
+        return TILEDB_DOUBLE_DELTA
+    raise ValueError("unknown compressor: {0!r}".format(c))
+
+
+cdef unicode _tiledb_compressor_string(tiledb_compressor_t c):
+    """
+    Return the (unicode) string representation of a tiledb_compressor_t enum value
+    """
+    if c == TILEDB_NO_COMPRESSION:
+        return u"none"
+    elif c == TILEDB_GZIP:
+        return u"gzip"
+    elif c == TILEDB_ZSTD:
+        return u"zstd"
+    elif c == TILEDB_LZ4:
+        return u"lz4"
+    elif c == TILEDB_BLOSC_LZ:
+        return u"blosc-lz"
+    elif c == TILEDB_BLOSC_LZ4:
+        return u"blosc-lz4"
+    elif c == TILEDB_BLOSC_LZ4HC:
+        return u"blosc-lz4hc"
+    elif c == TILEDB_BLOSC_SNAPPY:
+        return u"blosc-snappy"
+    elif c == TILEDB_BLOSC_ZSTD:
+        return u"blosc-zstd"
+    elif c == TILEDB_RLE:
+        return u"rle"
+    elif c == TILEDB_BZIP2:
+        return u"bzip2"
+    elif c == TILEDB_DOUBLE_DELTA:
+        return u"double-delta"
+
+
+cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
+    """
+    Return the tiledb_layout_t enum value given a layout string label
+    """
+    if order == "row-major" or order == 'C':
+        return TILEDB_ROW_MAJOR
+    elif order == "col-major" or order == 'F':
+        return TILEDB_COL_MAJOR
+    elif order == "global":
+        return TILEDB_GLOBAL_ORDER
+    elif order == None or order == "unordered":
+        return TILEDB_UNORDERED
+    raise ValueError("unknown tiledb layout: {0!r}".format(order))
+
+
+cdef unicode _tiledb_layout_string(tiledb_layout_t order):
+    """
+    Return the unicode string label given a tiledb_layout_t enum value
+    """
+    if order == TILEDB_ROW_MAJOR:
+        return u"row-major"
+    elif order == TILEDB_COL_MAJOR:
+        return u"col-major"
+    elif order == TILEDB_GLOBAL_ORDER:
+        return u"global"
+    elif order == TILEDB_UNORDERED:
+        return u"unordered"
 #
 #
 # cdef class Attr(object):
@@ -959,215 +959,223 @@ cdef class Ctx(object):
 #         return int(ncells)
 #
 #
-# cdef class Dim(object):
-#     """TileDB Dimension class
-#
-#     :param tiledb.Ctx ctx: A TileDB Context
-#     :param str name: the dimension name, empty if anonymous
-#     :param domain:
-#     :type domain: tuple(int, int) or tuple(float, float)
-#     :param tile: Tile extent
-#     :type tile: int or float
-#     :dtype: the Dim numpy dtype object, type object, or string \
-#         that can be corerced into a numpy dtype object
-#     :raises ValueError: invalid domain or tile extent
-#     :raises TypeError: invalid domain, tile extent, or dtype type
-#     :raises: :py:exc:`libtiledb.TileDBError`
-#
-#     """
-#     cdef Ctx ctx
-#     cdef tiledb_dimension_t*ptr
-#
-#     def __cinit__(self):
-#         self.ptr = NULL
-#
-#     def __dealloc__(self):
-#         if self.ptr != NULL:
-#             tiledb_dimension_free(&self.ptr)
-#
-#     @staticmethod
-#     cdef from_ptr(Ctx ctx, const tiledb_dimension_t*ptr):
-#         cdef Dim dim = Dim.__new__(Dim)
-#         dim.ctx = ctx
-#         # need to cast away the const
-#         dim.ptr = <tiledb_dimension_t*> ptr
-#         return dim
-#
-#     def __init__(self, Ctx ctx, name=u"", domain=None, tile=0, dtype=np.uint64):
-#         cdef bytes bname = ustring(name).encode('UTF-8')
-#         if len(domain) != 2:
-#             raise ValueError('invalid domain extent, must be a pair')
-#         if dtype is not None:
-#             dtype = np.dtype(dtype)
-#             if np.issubdtype(dtype, np.integer):
-#                 info = np.iinfo(dtype)
-#             elif np.issubdtype(dtype, np.floating):
-#                 info = np.finfo(dtype)
-#             else:
-#                 raise TypeError("invalid Dim dtype {0!r}".format(dtype))
-#             if (domain[0] < info.min or domain[0] > info.max or
-#                     domain[1] < info.min or domain[1] > info.max):
-#                 raise TypeError(
-#                     "invalid domain extent, domain cannot be safely cast to dtype {0!r}".format(dtype))
-#         domain_array = np.asarray(domain, dtype=dtype)
-#         domain_dtype = domain_array.dtype
-#         if (not np.issubdtype(domain_dtype, np.integer) and
-#                 not np.issubdtype(domain_dtype, np.floating)):
-#             raise TypeError("invalid Dim dtype {0!r}".format(domain_dtype))
-#         cdef void* tile_size_ptr = NULL
-#         if tile > 0:
-#             tile_size_array = np.array(tile, dtype=domain_dtype)
-#             if tile_size_array.size != 1:
-#                 raise ValueError("tile extent must be a scalar")
-#             tile_size_ptr = np.PyArray_DATA(tile_size_array)
-#         cdef tiledb_dimension_t* dim_ptr = NULL
-#         check_error(ctx,
-#                     tiledb_dimension_create(ctx.ptr,
-#                                             &dim_ptr,
-#                                             bname,
-#                                             _tiledb_dtype(domain_dtype),
-#                                             np.PyArray_DATA(domain_array),
-#                                             tile_size_ptr))
-#         assert(dim_ptr != NULL)
-#         self.ctx = ctx
-#         self.ptr = dim_ptr
-#
-#     def __repr__(self):
-#         return 'Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype={3!s})' \
-#             .format(self.name, self.domain, self.tile, self.dtype)
-#
-#     def __len__(self):
-#         return self.size
-#
-#     def __array__(self, dtype=None, **kw):
-#         if not self._integer_domain():
-#             raise TypeError("conversion to numpy ndarray only valid for integer dimension domains")
-#         lb, ub = self.domain
-#         return np.arange(int(lb), int(ub) + 1,
-#                          dtype=dtype if dtype else self.dtype)
-#
-#     cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR:
-#         cdef tiledb_datatype_t typ
-#         check_error(self.ctx,
-#                     tiledb_dimension_get_type(self.ctx.ptr, self.ptr, &typ))
-#         return typ
-#
-#     @property
-#     def dtype(self):
-#         """Return a numpy dtype representation of attribute of the dimension type
-#
-#         :rtype: numpy.dtype
-#
-#         """
-#         return np.dtype(_numpy_type(self._get_type()))
-#
-#     @property
-#     def name(self):
-#         """Return the string dimension label
-#
-#         anonymous dimensions return a default string representation based on the dimension idx
-#
-#         :rtype: str
-#
-#         """
-#         cdef const char* name_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_dimension_get_name(self.ctx.ptr, self.ptr, &name_ptr))
-#         return name_ptr.decode('UTF-8', 'strict')
-#
-#     @property
-#     def isanon(self):
-#         """Return True if the dimension is anonymous
-#
-#         :rtype: bool
-#
-#         """
-#         name = self.name
-#         return name == u"" or name.startswith("__dim")
-#
-#     cdef _integer_domain(self):
-#         cdef tiledb_datatype_t typ = self._get_type()
-#         if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
-#             return False
-#         return True
-#
-#     cdef _shape(self):
-#         domain = self.domain
-#         return ((np.asscalar(domain[1]) -
-#                  np.asscalar(domain[0]) + 1),)
-#
-#     @property
-#     def shape(self):
-#         """Return the shape of the dimension given the dimension's domain.
-#
-#         **Note** The given shape is only valid for integer dimension domains
-#
-#         :rtype: tuple(numpy scalar, numpy scalar)
-#         :raises TypeError: floating point (inexact) domain
-#
-#         """
-#         if not self._integer_domain():
-#             raise TypeError("shape only valid for integer dimension domains")
-#         return self._shape()
-#
-#     @property
-#     def size(self):
-#         """Return the size of the dimension domain (number of cells along dimension)
-#
-#         :rtype: int
-#         :raises TypeError: floating point (inexact) domain
-#
-#         """
-#         if not self._integer_domain():
-#             raise TypeError("size only valid for integer dimension domains")
-#         return int(self._shape()[0])
-#
-#     @property
-#     def tile(self):
-#         """Return the tile extent of the given dimension
-#
-#         :rtype: numpy scalar
-#
-#         """
-#         cdef void* tile_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_dimension_get_tile_extent(self.ctx.ptr, self.ptr, &tile_ptr))
-#         if tile_ptr == NULL:
-#             return None
-#         cdef np.npy_intp shape[1]
-#         shape[0] = <np.npy_intp> 1
-#         cdef int type_num = _numpy_type_num(self._get_type())
-#         assert(type_num != np.NPY_NOTYPE)
-#         cdef np.ndarray tile_array = np.PyArray_SimpleNewFromData(1, shape, type_num, tile_ptr)
-#         if tile_array[0] == 0:
-#             # undefined tiles should span the whole dimension domain
-#             return self.shape[0]
-#         return tile_array[0]
-#
-#     @property
-#     def domain(self):
-#         """Return the dimension (inclusive) domain
-#
-#         The dimension's domain is defined by a (lower bound, upper bound) tuple
-#
-#         :rtype: tuple(numpy scalar, numpy scalar)
-#
-#         """
-#         cdef void* domain_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_dimension_get_domain(self.ctx.ptr,
-#                                                 self.ptr,
-#                                                 &domain_ptr))
-#         assert(domain_ptr != NULL)
-#         cdef np.npy_intp shape[1]
-#         shape[0] = <np.npy_intp> 2
-#         cdef int typeid = _numpy_type_num(self._get_type())
-#         assert (typeid != np.NPY_NOTYPE)
-#         cdef np.ndarray domain_array = \
-#             np.PyArray_SimpleNewFromData(1, shape, typeid, domain_ptr)
-#         return (domain_array[0], domain_array[1])
-#
-#
+cdef class Dim(object):
+    """TileDB Dimension class
+
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param str name: the dimension name, empty if anonymous
+    :param domain:
+    :type domain: tuple(int, int) or tuple(float, float)
+    :param tile: Tile extent
+    :type tile: int or float
+    :dtype: the Dim numpy dtype object, type object, or string \
+        that can be corerced into a numpy dtype object
+    :raises ValueError: invalid domain or tile extent
+    :raises TypeError: invalid domain, tile extent, or dtype type
+    :raises: :py:exc:`libtiledb.TileDBError`
+
+    """
+    cdef Ctx ctx
+    cdef tiledb_dimension_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_dimension_free(&self.ptr)
+
+    @staticmethod
+    cdef from_ptr(Ctx ctx, const tiledb_dimension_t* ptr):
+        assert(ptr != NULL)
+        cdef Dim dim = Dim.__new__(Dim)
+        dim.ctx = ctx
+        # need to cast away the const
+        dim.ptr = <tiledb_dimension_t*> ptr
+        return dim
+
+    def __init__(self, Ctx ctx, name=u"", domain=None, tile=0, dtype=np.uint64):
+        if len(domain) != 2:
+            raise ValueError('invalid domain extent, must be a pair')
+        if dtype is not None:
+            dtype = np.dtype(dtype)
+            if np.issubdtype(dtype, np.integer):
+                info = np.iinfo(dtype)
+            elif np.issubdtype(dtype, np.floating):
+                info = np.finfo(dtype)
+            else:
+                raise TypeError("invalid Dim dtype {0!r}".format(dtype))
+            if (domain[0] < info.min or domain[0] > info.max or
+                    domain[1] < info.min or domain[1] > info.max):
+                raise TypeError(
+                    "invalid domain extent, domain cannot be safely cast to dtype {0!r}".format(dtype))
+        domain_array = np.asarray(domain, dtype=dtype)
+        domain_dtype = domain_array.dtype
+        # check that the domain type is a valid dtype (intger / floating)
+        if (not np.issubdtype(domain_dtype, np.integer) and
+                not np.issubdtype(domain_dtype, np.floating)):
+            raise TypeError("invalid Dim dtype {0!r}".format(domain_dtype))
+        # if the tile extent is specified, cast
+        cdef void* tile_size_ptr = NULL
+        if tile > 0:
+            tile_size_array = np.array(tile, dtype=domain_dtype)
+            if tile_size_array.size != 1:
+                raise ValueError("tile extent must be a scalar")
+            tile_size_ptr = np.PyArray_DATA(tile_size_array)
+        # argument conversion
+        cdef bytes bname = ustring(name).encode('UTF-8')
+        cdef const char* name_ptr = PyBytes_AS_STRING(bname)
+        cdef tiledb_datatype_t dim_datatype = _tiledb_dtype(domain_dtype)
+        cdef const void* domain_ptr = np.PyArray_DATA(domain_array)
+        cdef tiledb_dimension_t* dim_ptr = NULL
+        check_error(ctx,
+                    tiledb_dimension_alloc(ctx.ptr,
+                                           name_ptr,
+                                           dim_datatype,
+                                           domain_ptr,
+                                           tile_size_ptr,
+                                           &dim_ptr))
+        assert(dim_ptr != NULL)
+        self.ctx = ctx
+        self.ptr = dim_ptr
+
+    def __repr__(self):
+        return 'Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype={3!s})' \
+            .format(self.name, self.domain, self.tile, self.dtype)
+
+    def __len__(self):
+        return self.size
+
+    def __array__(self, dtype=None, **kw):
+        if not self._integer_domain():
+            raise TypeError("conversion to numpy ndarray only valid for integer dimension domains")
+        lb, ub = self.domain
+        return np.arange(int(lb), int(ub) + 1,
+                         dtype=dtype if dtype else self.dtype)
+
+    cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR:
+        cdef tiledb_datatype_t typ
+        check_error(self.ctx,
+                    tiledb_dimension_get_type(self.ctx.ptr, self.ptr, &typ))
+        return typ
+
+    @property
+    def dtype(self):
+        """Return a numpy dtype representation of attribute of the dimension type
+
+        :rtype: numpy.dtype
+
+        """
+        return np.dtype(_numpy_type(self._get_type()))
+
+    @property
+    def name(self):
+        """Return the string dimension label
+
+        anonymous dimensions return a default string representation based on the dimension idx
+
+        :rtype: str
+
+        """
+        cdef const char* name_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_dimension_get_name(self.ctx.ptr, self.ptr, &name_ptr))
+        return name_ptr.decode('UTF-8', 'strict')
+
+    @property
+    def isanon(self):
+        """Return True if the dimension is anonymous
+
+        :rtype: bool
+
+        """
+        name = self.name
+        return name == u"" or name.startswith("__dim")
+
+    cdef _integer_domain(self):
+        cdef tiledb_datatype_t typ = self._get_type()
+        if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
+            return False
+        return True
+
+    cdef _shape(self):
+        domain = self.domain
+        return ((np.asscalar(domain[1]) -
+                 np.asscalar(domain[0]) + 1),)
+
+    @property
+    def shape(self):
+        """Return the shape of the dimension given the dimension's domain.
+
+        **Note** The given shape is only valid for integer dimension domains
+
+        :rtype: tuple(numpy scalar, numpy scalar)
+        :raises TypeError: floating point (inexact) domain
+
+        """
+        if not self._integer_domain():
+            raise TypeError("shape only valid for integer dimension domains")
+        return self._shape()
+
+    @property
+    def size(self):
+        """Return the size of the dimension domain (number of cells along dimension)
+
+        :rtype: int
+        :raises TypeError: floating point (inexact) domain
+
+        """
+        if not self._integer_domain():
+            raise TypeError("size only valid for integer dimension domains")
+        return int(self._shape()[0])
+
+    @property
+    def tile(self):
+        """Return the tile extent of the given dimension
+
+        :rtype: numpy scalar
+
+        """
+        cdef void* tile_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_dimension_get_tile_extent(self.ctx.ptr, self.ptr, &tile_ptr))
+        if tile_ptr == NULL:
+            return None
+        cdef np.npy_intp shape[1]
+        shape[0] = <np.npy_intp> 1
+        cdef int typeid = _numpy_typeid(self._get_type())
+        assert(typeid != np.NPY_NOTYPE)
+        cdef np.ndarray tile_array =\
+            np.PyArray_SimpleNewFromData(1, shape, typeid, tile_ptr)
+        if tile_array[0] == 0:
+            # undefined tiles should span the whole dimension domain
+            return self.shape[0]
+        return tile_array[0]
+
+    @property
+    def domain(self):
+        """Return the dimension (inclusive) domain
+
+        The dimension's domain is defined by a (lower bound, upper bound) tuple
+
+        :rtype: tuple(numpy scalar, numpy scalar)
+
+        """
+        cdef void* domain_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_dimension_get_domain(self.ctx.ptr,
+                                                self.ptr,
+                                                &domain_ptr))
+        assert(domain_ptr != NULL)
+        cdef np.npy_intp shape[1]
+        shape[0] = <np.npy_intp> 2
+        cdef int typeid = _numpy_typeid(self._get_type())
+        assert (typeid != np.NPY_NOTYPE)
+        cdef np.ndarray domain_array = \
+            np.PyArray_SimpleNewFromData(1, shape, typeid, domain_ptr)
+        return domain_array[0], domain_array[1]
+
+
 # cdef class Domain(object):
 #     """TileDB Domain class object
 #
@@ -3047,135 +3055,135 @@ cdef class Ctx(object):
 #     return path
 #
 #
-# def group_create(Ctx ctx, path):
-#     """Create a TileDB Group object at the specified path (URI)
-#
-#     :param tiledb.Ctx ctx: The TileDB Context
-#     :param str path: path (URI) of the TileDB Group to be created
-#     :rtype: str
-#     :return: The path (URI) of the created TileDB Group
-#     :raises TypeError: cannot convert path to unicode string
-#     :raises: :py:exc:`tiledb.TileDBError`
-#
-#     """
-#     cdef int rc = TILEDB_OK
-#     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-#     cdef bytes bpath = unicode_path(path)
-#     cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
-#     with nogil:
-#         rc = tiledb_group_create(ctx_ptr, path_ptr)
-#     if rc != TILEDB_OK:
-#         check_error(ctx, rc)
-#     return path
-#
-#
-# def object_type(Ctx ctx, path):
-#     """Returns the TileDB object type at the specified path (URI)
-#
-#     :param tiledb.Ctx ctx: The TileDB Context
-#     :param str path: path (URI) of the TileDB resource
-#     :rtype: str
-#     :return: object type string
-#     :raises TypeError: cannot convert path to unicode string
-#
-#     """
-#     cdef int rc = TILEDB_OK
-#     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-#     cdef bytes bpath = unicode_path(path)
-#     cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
-#     cdef tiledb_object_t obj = TILEDB_INVALID
-#     with nogil:
-#         rc = tiledb_object_type(ctx_ptr, path_ptr, &obj)
-#     if rc != TILEDB_OK:
-#         check_error(ctx, rc)
-#     objtype = None
-#     if obj == TILEDB_ARRAY:
-#         objtype = "array"
-#     elif obj == TILEDB_KEY_VALUE:
-#         objtype = "kv"
-#     elif obj == TILEDB_GROUP:
-#         objtype = "group"
-#     return objtype
-#
-#
-# def remove(Ctx ctx, path):
-#     """Removes (deletes) the TileDB object at the specified path (URI)
-#
-#     :param tiledb.Ctx ctx: The TileDB Context
-#     :param str path: path (URI) of the TileDB resource
-#     :raises TypeError: path cannot be converted to a unicode string
-#     :raises: :py:exc:`tiledb.TileDBError`
-#
-#     """
-#     cdef int rc = TILEDB_OK
-#     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-#     cdef bytes bpath = unicode_path(path)
-#     cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
-#     with nogil:
-#         rc = tiledb_object_remove(ctx_ptr, path_ptr)
-#     if rc != TILEDB_OK:
-#         check_error(ctx, rc)
-#     return
-#
-#
-# cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
-#     objtype = None
-#     if obj == TILEDB_GROUP:
-#         objtype = "group"
-#     if obj == TILEDB_ARRAY:
-#         objtype = "array"
-#     elif obj == TILEDB_KEY_VALUE:
-#         objtype = "kv"
-#     try:
-#         (<object> pyfunc)(path_ptr.decode('UTF-8'), objtype)
-#     except StopIteration:
-#         return 0
-#     return 1
-#
-#
-# def ls(Ctx ctx, path, func):
-#     """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
-#
-#     :param tiledb.Ctx ctx: TileDB context
-#     :param str path: URI of TileDB group object
-#     :param function func: callback to execute on every listed TileDB resource,\
-#             URI resource path and object type label are passed as arguments to the callback
-#     :raises TypeError: cannot convert path to unicode string
-#     :raises: :py:exc:`tiledb.TileDBError`
-#
-#     """
-#     cdef bytes bpath = unicode_path(path)
-#     check_error(ctx,
-#                 tiledb_object_ls(ctx.ptr, bpath, walk_callback, <void*> func))
-#     return
-#
-#
-# def walk(Ctx ctx, path, func, order="preorder"):
-#     """Recursively visits TileDB resources and applies a callback that have a prefix of ``path``
-#
-#     :param tiledb.Ctx ctx: The TileDB context
-#     :param str path: URI of TileDB group object
-#     :param function func: callback to execute on every listed TileDB resource,\
-#             URI resource path and object type label are passed as arguments to the callback
-#     :param str order: 'preorder' (default) or 'postorder' tree traversal
-#     :raises TypeError: cannot convert path to unicode string
-#     :raises ValueError: unknown order
-#     :raises: :py:exc:`tiledb.TileDBError`
-#
-#     """
-#     cdef bytes bpath = unicode_path(path)
-#     cdef tiledb_walk_order_t walk_order
-#     if order == "postorder":
-#         walk_order = TILEDB_POSTORDER
-#     elif order == "preorder":
-#         walk_order = TILEDB_PREORDER
-#     else:
-#         raise ValueError("unknown walk order {}".format(order))
-#     check_error(ctx,
-#                 tiledb_object_walk(ctx.ptr, bpath, walk_order, walk_callback, <void*> func))
-#     return
-#
-#
+def group_create(Ctx ctx, path):
+    """Create a TileDB Group object at the specified path (URI)
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str path: path (URI) of the TileDB Group to be created
+    :rtype: str
+    :return: The path (URI) of the created TileDB Group
+    :raises TypeError: cannot convert path to unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    cdef int rc = TILEDB_OK
+    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef bytes bpath = unicode_path(path)
+    cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
+    with nogil:
+        rc = tiledb_group_create(ctx_ptr, path_ptr)
+    if rc != TILEDB_OK:
+        check_error(ctx, rc)
+    return path
+
+
+def object_type(Ctx ctx, path):
+    """Returns the TileDB object type at the specified path (URI)
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str path: path (URI) of the TileDB resource
+    :rtype: str
+    :return: object type string
+    :raises TypeError: cannot convert path to unicode string
+
+    """
+    cdef int rc = TILEDB_OK
+    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef bytes bpath = unicode_path(path)
+    cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
+    cdef tiledb_object_t obj = TILEDB_INVALID
+    with nogil:
+        rc = tiledb_object_type(ctx_ptr, path_ptr, &obj)
+    if rc != TILEDB_OK:
+        check_error(ctx, rc)
+    objtype = None
+    if obj == TILEDB_ARRAY:
+        objtype = "array"
+    elif obj == TILEDB_KEY_VALUE:
+        objtype = "kv"
+    elif obj == TILEDB_GROUP:
+        objtype = "group"
+    return objtype
+
+
+def remove(Ctx ctx, path):
+    """Removes (deletes) the TileDB object at the specified path (URI)
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str path: path (URI) of the TileDB resource
+    :raises TypeError: path cannot be converted to a unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    cdef int rc = TILEDB_OK
+    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef bytes bpath = unicode_path(path)
+    cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
+    with nogil:
+        rc = tiledb_object_remove(ctx_ptr, path_ptr)
+    if rc != TILEDB_OK:
+        check_error(ctx, rc)
+    return
+
+
+cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
+    objtype = None
+    if obj == TILEDB_GROUP:
+        objtype = "group"
+    if obj == TILEDB_ARRAY:
+        objtype = "array"
+    elif obj == TILEDB_KEY_VALUE:
+        objtype = "kv"
+    try:
+        (<object> pyfunc)(path_ptr.decode('UTF-8'), objtype)
+    except StopIteration:
+        return 0
+    return 1
+
+
+def ls(Ctx ctx, path, func):
+    """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
+
+    :param tiledb.Ctx ctx: TileDB context
+    :param str path: URI of TileDB group object
+    :param function func: callback to execute on every listed TileDB resource,\
+            URI resource path and object type label are passed as arguments to the callback
+    :raises TypeError: cannot convert path to unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    cdef bytes bpath = unicode_path(path)
+    check_error(ctx,
+                tiledb_object_ls(ctx.ptr, bpath, walk_callback, <void*> func))
+    return
+
+
+def walk(Ctx ctx, path, func, order="preorder"):
+    """Recursively visits TileDB resources and applies a callback that have a prefix of ``path``
+
+    :param tiledb.Ctx ctx: The TileDB context
+    :param str path: URI of TileDB group object
+    :param function func: callback to execute on every listed TileDB resource,\
+            URI resource path and object type label are passed as arguments to the callback
+    :param str order: 'preorder' (default) or 'postorder' tree traversal
+    :raises TypeError: cannot convert path to unicode string
+    :raises ValueError: unknown order
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    cdef bytes bpath = unicode_path(path)
+    cdef tiledb_walk_order_t walk_order
+    if order == "postorder":
+        walk_order = TILEDB_POSTORDER
+    elif order == "preorder":
+        walk_order = TILEDB_PREORDER
+    else:
+        raise ValueError("unknown walk order {}".format(order))
+    check_error(ctx,
+                tiledb_object_walk(ctx.ptr, bpath, walk_order, walk_callback, <void*> func))
+    return
+
+
 # cdef class FileHandle(object):
 #     """
 #     Wraps a TileDB VFS file handle object
