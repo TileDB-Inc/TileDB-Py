@@ -710,10 +710,10 @@ cdef extern from "tiledb/tiledb.h":
         void* data)
 
     # VFS
-    int tiledb_vfs_create(
+    int tiledb_vfs_alloc(
         tiledb_ctx_t* ctx,
-        tiledb_vfs_t** vfs,
-        tiledb_config_t* config)
+        tiledb_config_t* config,
+        tiledb_vfs_t** vfs)
 
     void tiledb_vfs_free(
         tiledb_vfs_t** vfs)

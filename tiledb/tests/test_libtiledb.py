@@ -336,28 +336,6 @@ class ArraySchemaTest(unittest.TestCase):
 """
 class DenseArrayTest(DiskTestCase):
 
-    def test_dense_array_not_sparse(self):
-        ctx = t.Ctx()
-        dom = t.Domain(
-            ctx,
-            t.Dim(ctx, domain=(1, 8), tile=2),
-            t.Dim(ctx, domain=(1, 8), tile=2))
-        att = t.Attr(ctx, "val", dtype='f8')
-        arr = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
-        arr.dump()
-        self.assertTrue(arr.name == self.path("foo"))
-        self.assertFalse(arr.sparse)
-
-    def test_dense_array_fp_domain_error(self):
-        ctx = t.Ctx()
-        dom = t.Domain(ctx,
-            t.Dim(ctx, domain=(1, 8), tile=2, dtype=np.float64))
-        att = t.Attr(ctx, "val", dtype=np.float64)
-
-        with self.assertRaises(t.TileDBError):
-            t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=(att,))
-
-
     def test_array_1d(self):
         A = np.arange(1050)
 
@@ -1102,12 +1080,12 @@ class KVArray(DiskTestCase):
         #self.assertEqual(kv["foo"]["ints"], 1)
         #self.assertEqual(kv["foo"]["floats"], 2.0)
 
-
+"""
 class VFS(DiskTestCase):
 
     def test_supports(self):
-        ctx = t.Ctx()
-        vfs = t.VFS(ctx)
+        ctx = tiledb.Ctx()
+        vfs = tiledb.VFS(ctx)
 
         self.assertTrue(vfs.supports("file"))
         self.assertIsInstance(vfs.supports("s3"), bool)
@@ -1117,8 +1095,8 @@ class VFS(DiskTestCase):
             vfs.supports("invalid")
 
     def test_dir(self):
-        ctx = t.Ctx()
-        vfs = t.VFS(ctx)
+        ctx = tiledb.Ctx()
+        vfs = tiledb.VFS(ctx)
 
         dir = self.path("foo")
         self.assertFalse(vfs.is_dir(dir))
@@ -1133,7 +1111,7 @@ class VFS(DiskTestCase):
 
         # create nested path
         dir = self.path("foo/bar")
-        with self.assertRaises(t.TileDBError):
+        with self.assertRaises(tiledb.TileDBError):
             vfs.create_dir(dir)
 
         vfs.create_dir(self.path("foo"))
@@ -1141,8 +1119,8 @@ class VFS(DiskTestCase):
         self.assertTrue(vfs.is_dir(dir))
 
     def test_file(self):
-        ctx = t.Ctx()
-        vfs = t.VFS(ctx)
+        ctx = tiledb.Ctx()
+        vfs = tiledb.VFS(ctx)
 
         file = self.path("foo")
         self.assertFalse(vfs.is_file(file))
@@ -1157,12 +1135,12 @@ class VFS(DiskTestCase):
 
         # check nested path
         file = self.path("foo/bar")
-        with self.assertRaises(t.TileDBError):
+        with self.assertRaises(tiledb.TileDBError):
             vfs.touch(file)
 
     def test_move(self):
-        ctx = t.Ctx()
-        vfs = t.VFS(ctx)
+        ctx = tiledb.Ctx()
+        vfs = tiledb.VFS(ctx)
 
         vfs.create_dir(self.path("foo"))
         vfs.create_dir(self.path("bar"))
@@ -1176,12 +1154,12 @@ class VFS(DiskTestCase):
         self.assertTrue(vfs.is_file(self.path("foo/baz")))
 
         # moving to invalid dir should raise an error
-        with self.assertRaises(t.TileDBError):
+        with self.assertRaises(tiledb.TileDBError):
             vfs.move_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
 
     def test_write_read(self):
-        ctx = t.Ctx()
-        vfs = t.VFS(ctx)
+        ctx = tiledb.Ctx()
+        vfs = tiledb.VFS(ctx)
 
         buffer = b"bar"
         fh = vfs.open(self.path("foo"), "w")
@@ -1204,26 +1182,26 @@ class VFS(DiskTestCase):
         vfs.close(fh)
 
         # read from file that does not exist
-        with self.assertRaises(t.TileDBError):
+        with self.assertRaises(tiledb.TileDBError):
             vfs.open(self.path("do_not_exist"), "r")
 
     def test_io(self):
-        ctx = t.Ctx()
-        vfs = t.VFS(ctx)
+        ctx = tiledb.Ctx()
+        vfs = tiledb.VFS(ctx)
 
         buffer = b"0123456789"
-        io = t.FileIO(vfs, self.path("foo"), mode="w")
+        io = tiledb.FileIO(vfs, self.path("foo"), mode="w")
         io.write(buffer)
         io.flush()
         self.assertEqual(io.tell(), len(buffer))
 
-        io = t.FileIO(vfs, self.path("foo"), mode="r")
+        io = tiledb.FileIO(vfs, self.path("foo"), mode="r")
         with self.assertRaises(IOError):
             io.write(b"foo")
 
         self.assertEqual(vfs.file_size(self.path("foo")), len(buffer))
 
-        io = t.FileIO(vfs, self.path("foo"), mode='r')
+        io = tiledb.FileIO(vfs, self.path("foo"), mode='r')
         self.assertEqual(io.read(3), b'012')
         self.assertEqual(io.tell(), 3)
         self.assertEqual(io.read(3), b'345')
@@ -1260,4 +1238,3 @@ class VFS(DiskTestCase):
         io.seek(5)
         self.assertEqual(io.readall(), buffer[5:])
         self.assertEqual(io.readall(), b"")
-"""

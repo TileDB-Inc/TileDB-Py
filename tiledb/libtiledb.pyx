@@ -3236,560 +3236,564 @@ def walk(Ctx ctx, path, func, order="preorder"):
     return
 
 
-# cdef class FileHandle(object):
-#     """
-#     Wraps a TileDB VFS file handle object
-#
-#     Instances of this class are returned by TileDB VFS methods and are not instantiated directly
-#     """
-#
-#     cdef VFS vfs
-#     cdef unicode uri
-#     cdef tiledb_vfs_fh_t* ptr
-#
-#     def __cinit__(self):
-#         self.ptr = NULL
-#
-#     def __dealloc__(self):
-#         cdef Ctx ctx = self.vfs.ctx
-#         if self.ptr != NULL:
-#             tiledb_vfs_fh_free(&self.ptr)
-#
-#     @staticmethod
-#     cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr):
-#         """Constructs a FileHandle class instance from a URI and a tiledb_vfs_fh_t pointer"""
-#         cdef FileHandle fh = FileHandle.__new__(FileHandle)
-#         fh.vfs = vfs
-#         fh.uri = uri
-#         fh.ptr = fh_ptr
-#         return fh
-#
-#     cpdef closed(self):
-#         """Returns true if the file handle is closed"""
-#         cdef Ctx ctx = self.vfs.ctx
-#         cdef int isclosed = 0
-#         check_error(ctx,
-#                     tiledb_vfs_fh_is_closed(ctx.ptr, self.ptr, &isclosed))
-#         return bool(isclosed)
-#
-#
-# cdef class VFS(object):
-#     """TileDB VFS class
-#
-#     Encapsulates the TileDB VFS module instance with a specific configuration (config).
-#
-#     :param tiledb.Ctx ctx: The TileDB Context
-#     :param config: Override `ctx` VFS configurations with updated values in config.
-#     :type config: tiledb.Config or dict
-#
-#     """
-#
-#     cdef Ctx ctx
-#     cdef tiledb_vfs_t* ptr
-#
-#     def __cinit__(self):
-#         self.ptr = NULL
-#
-#     def __dealloc__(self):
-#         if self.ptr != NULL:
-#             tiledb_vfs_free(&self.ptr)
-#
-#     def __init__(self, Ctx ctx, config=None):
-#         cdef Config _config = Config()
-#         if config is not None:
-#             if isinstance(config, Config):
-#                 _config = config
-#             else:
-#                 _config.update(config)
-#         cdef tiledb_vfs_t* vfs_ptr = NULL
-#         check_error(ctx,
-#                     tiledb_vfs_create(ctx.ptr, &vfs_ptr, _config.ptr))
-#         self.ctx = ctx
-#         self.ptr = vfs_ptr
-#
-#     def create_bucket(self, uri):
-#         """Create an object store bucket at the given URI
-#
-#         :param str uri: full URI of bucket resource to be created.
-#         :rtype: str
-#         :returns: created bucket URI
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_create_bucket(self.ctx.ptr, self.ptr, buri))
-#         return uri
-#
-#     def remove_bucket(self, uri):
-#         """Remove an object store bucket at the given URI
-#
-#         :param str uri: URI of bucket resource to be removed.
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         ..note:
-#             Consistency is not enforced for bucket removal
-#             so although this function will return immediately on success,
-#             the actual removal of the bucket make take some (indeterminate) amount of time.
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_remove_bucket(self.ctx.ptr, self.ptr, buri))
-#         return
-#
-#     def empty_bucket(self, uri):
-#         """Empty an object store bucket of all objects at the given URI
-#
-#         This function blocks until all objects are verified to be removed from the given bucket.
-#
-#         :param str uri: URI of bucket resource to be emptied
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_empty_bucket(self.ctx.ptr, self.ptr, buri))
-#         return
-#
-#     def is_empty_bucket(self, uri):
-#         """Returns true if the object store bucket is empty (contains no objects).
-#
-#         If the bucket is versioned, this returns the status of the latest bucket version state.
-#
-#         :param str uri: URI of bucket resource
-#         :rtype: bool
-#         :return: True if bucket at given URI is empty, False otherwise
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         cdef int isempty = 0
-#         check_error(self.ctx,
-#                     tiledb_vfs_is_empty_bucket(self.ctx.ptr, self.ptr, buri, &isempty))
-#         return bool(isempty)
-#
-#     def is_bucket(self, uri):
-#         """Returns True if the URI resource is a valid object store bucket
-#
-#         :param str uri: URI of bucket resource
-#         :rtype: bool
-#         :return: True if given URI is a valid object store bucket, False otherwise
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         cdef int is_bucket = 0
-#         check_error(self.ctx,
-#                     tiledb_vfs_is_bucket(self.ctx.ptr, self.ptr, buri, &is_bucket))
-#         return bool(is_bucket)
-#
-#     def create_dir(self, uri):
-#         """Create a VFS directory at the given URI
-#
-#         :param str uri: URI of directory to be created
-#         :rtype: str
-#         :return: URI of created VFS directory
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_create_dir(self.ctx.ptr, self.ptr, buri))
-#         return uri
-#
-#     def is_dir(self, uri):
-#         """Returns True if the given URI is a VFS directory object
-#
-#         :param str uri: URI of the directory resource
-#         :rtype: bool
-#         :return: True if `uri` is a VFS directory, False otherwise
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         cdef int is_dir = 0
-#         check_error(self.ctx,
-#                     tiledb_vfs_is_dir(self.ctx.ptr, self.ptr, buri, &is_dir))
-#         return bool(is_dir)
-#
-#     def remove_dir(self, uri):
-#         """Removes a VFS directory at the given URI
-#
-#         :param str uri: URI of the directory resource to remove
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_remove_dir(self.ctx.ptr, self.ptr, buri))
-#         return
-#
-#     def is_file(self, uri):
-#         """Returns True if the given URI is a VFS file object
-#
-#         :param str uri: URI of the file resource
-#         :rtype: bool
-#         :return: True if `uri` is a VFS file, False otherwise
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         cdef int is_file = 0
-#         check_error(self.ctx,
-#                     tiledb_vfs_is_file(self.ctx.ptr, self.ptr, buri, &is_file))
-#         return bool(is_file)
-#
-#     def remove_file(self, uri):
-#         """Removes a VFS file at the given URI
-#
-#         :param str uri: URI of a VFS file resource
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_remove_file(self.ctx.ptr, self.ptr, buri))
-#         return
-#
-#     def file_size(self, uri):
-#         """Returns the size (in bytes) of a VFS file at the given URI
-#
-#         :param str uri: URI of a VFS file resource
-#         :rtype: int
-#         :return: file size in number of bytes
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         cdef uint64_t nbytes = 0
-#         check_error(self.ctx,
-#                     tiledb_vfs_file_size(self.ctx.ptr, self.ptr, buri, &nbytes))
-#         return int(nbytes)
-#
-#     def move_file(self, old_uri, new_uri):
-#         """ Moves a VFS file from old URI to new URI
-#
-#         :param str old_uri: Existing VFS file or directory resource URI
-#         :param str new_uri: URI to move existing VFS resource to
-#         :param bool force: if VFS resource at `new_uri` exists, delete the resource and overwrite
-#         :rtype: str
-#         :return: new URI of VFS resource
-#         :raises TypeError: cannot convert `old_uri`/`new_uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes bold_uri = unicode_path(old_uri)
-#         cdef bytes bnew_uri = unicode_path(new_uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_move_file(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
-#         return new_uri
-#
-#     def move_dir(self, old_uri, new_uri):
-#         """ Moves a VFS dir from old URI to new URI
-#
-#         :param str old_uri: Existing VFS file or directory resource URI
-#         :param str new_uri: URI to move existing VFS resource to
-#         :param bool force: if VFS resource at `new_uri` exists, delete the resource and overwrite
-#         :rtype: str
-#         :return: new URI of VFS resource
-#         :raises TypeError: cannot convert `old_uri`/`new_uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes bold_uri = unicode_path(old_uri)
-#         cdef bytes bnew_uri = unicode_path(new_uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_move_dir(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
-#         return new_uri
-#
-#     def open(self, uri, mode=None):
-#         """Opens a VFS file resource for reading / writing / appends at URI
-#
-#         If the file did not exist upon opening, a new file is created.
-#
-#         :param str uri: URI of VFS file resource
-#         :param mode str: 'r' for opening the file to read, 'w' to write, 'a' to append
-#         :rtype: FileHandle
-#         :return: VFS FileHandle
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises ValueError: invalid mode
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef tiledb_vfs_mode_t vfs_mode
-#         if mode == "r":
-#             vfs_mode = TILEDB_VFS_READ
-#         elif mode == "w":
-#             vfs_mode = TILEDB_VFS_WRITE
-#         elif mode == "a":
-#             vfs_mode = TILEDB_VFS_APPEND
-#         else:
-#             raise ValueError("invalid mode {0!r}".format(mode))
-#         cdef bytes buri = unicode_path(uri)
-#         cdef tiledb_vfs_fh_t* fh_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_vfs_open(self.ctx.ptr, self.ptr, buri, vfs_mode, &fh_ptr))
-#         cdef FileHandle fh = FileHandle.from_ptr(self, uri, fh_ptr)
-#         return fh
-#
-#     def close(self, FileHandle fh):
-#         """Closes a VFS FileHandle object
-#
-#         :param FileHandle fh: An opened VFS FileHandle
-#         :rtype: FileHandle
-#         :return: closed VFS FileHandle
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         check_error(self.ctx,
-#                     tiledb_vfs_close(self.ctx.ptr, fh.ptr))
-#         return fh
-#
-#     def readinto(self, FileHandle fh, bytes buffer, offset, nbytes):
-#         """Read nbytes from an opened VFS FileHandle at a given offset into a preallocated bytes buffer
-#
-#         :param FileHandle fh: An opened VFS FileHandle in 'r' mode
-#         :param bytes buffer: A preallocated bytes buffer object
-#         :param int offset: offset position in bytes to read from
-#         :param int nbytes: number of bytes to read
-#         :return: bytes `buffer`
-#         :raises ValueError: invalid `offset` or `nbytes` values
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         if offset < 0:
-#             raise ValueError("read offset must be >= 0")
-#         if nbytes < 0:
-#             raise ValueError("read nbytes but be >= 0")
-#         if nbytes > len(buffer):
-#             raise ValueError("read buffer is smaller than nbytes")
-#         cdef Py_ssize_t _offset = offset
-#         cdef Py_ssize_t _nbytes = nbytes
-#         cdef char* buffer_ptr = PyBytes_AS_STRING(buffer)
-#         check_error(self.ctx,
-#                     tiledb_vfs_read(self.ctx.ptr,
-#                                     fh.ptr,
-#                                     <uint64_t> _offset,
-#                                     <void*> buffer_ptr,
-#                                     <uint64_t> _nbytes))
-#         return buffer
-#
-#     def read(self, FileHandle fh, offset, nbytes):
-#         """Read nbytes from an opened VFS FileHandle at a given offset
-#
-#         :param FileHandle fh: An opened VFS FileHandle in 'r' mode
-#         :param int offset: offset position in bytes to read from
-#         :param int nbytes: number of bytes to read
-#         :rtype: :py:func:`bytes`
-#         :return: read bytes
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef Py_ssize_t _nbytes = nbytes
-#         cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
-#         return self.readinto(fh, buffer, offset, nbytes)
-#
-#     def write(self, FileHandle fh, buff):
-#         """Writes buffer to opened VFS FileHandle
-#
-#         :param FileHandle fh: An opened VFS FileHandle in 'w' mode
-#         :param buff: a Python object that supports the byte buffer protocol
-#         :raises TypeError: cannot convert buff to bytes
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buffer = bytes(buff)
-#         cdef const char* buffer_ptr = PyBytes_AS_STRING(buffer)
-#         cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)
-#         check_error(self.ctx,
-#                     tiledb_vfs_write(self.ctx.ptr,
-#                                      fh.ptr,
-#                                      <const void*> buffer_ptr,
-#                                      <uint64_t> _nbytes))
-#         return
-#
-#     def sync(self, FileHandle fh):
-#         """Sync / flush an opened VFS FileHandle to storage backend
-#
-#         :param FileHandle fh: An opened VFS FileHandle in 'w' or 'a' mode
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         check_error(self.ctx,
-#                     tiledb_vfs_sync(self.ctx.ptr, fh.ptr))
-#         return fh
-#
-#     def touch(self, uri):
-#         """Creates an empty VFS file at the given URI
-#
-#         :param str uri: URI of a VFS file resource
-#         :rtype: str
-#         :return: URI of touched VFS file
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes buri = unicode_path(uri)
-#         check_error(self.ctx,
-#                     tiledb_vfs_touch(self.ctx.ptr, self.ptr, buri))
-#         return uri
-#
-#     def supports(self, scheme):
-#         """Returns true if the given URI scheme (storage backend) is supported
-#
-#         :param str scheme: scheme component of a VFS resource URI (ex. 'file' / 'hdfs' / 's3')
-#         :rtype: bool
-#         :return: True if the linked libtiledb version supports the storage backend, False otherwise
-#         :raises ValueError: VFS storage backend is not supported
-#
-#         """
-#         cdef tiledb_filesystem_t fs
-#         cdef int supports = 0
-#         if scheme == "file":
-#             return True
-#         elif scheme == "s3":
-#             check_error(self.ctx,
-#                         tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_S3, &supports))
-#             return bool(supports)
-#         elif scheme == "hdfs":
-#             check_error(self.ctx,
-#                         tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_HDFS, &supports))
-#             return bool(supports)
-#         else:
-#             raise ValueError("unsupported vfs scheme '{0!s}://'".format(scheme))
-#
-#
-# class FileIO(object):
-#
-#     def __init__(self, VFS vfs, uri, mode="r"):
-#         self.fh = vfs.open(uri, mode=mode)
-#         self.vfs = vfs
-#         self._offset = 0
-#         self._closed = False
-#         self._readonly = True
-#         if mode == "r":
-#             try:
-#                 self._nbytes = vfs.file_size(uri)
-#             except:
-#                 raise IOError("URI {0!r} is not a valid file")
-#             self._read_only = True
-#         elif mode == "w":
-#             self._readonly = False
-#             self._nbytes = 0
-#         else:
-#             raise ValueError("invalid mode {0!r}".format(mode))
-#         self._mode = mode
-#         return
-#
-#     def __enter__(self):
-#         pass
-#
-#     def __exit__(self):
-#         self.close()
-#         return
-#
-#     @property
-#     def mode(self):
-#         return self._mode
-#
-#     @property
-#     def closed(self):
-#         return self.fh.closed()
-#
-#     def close(self):
-#         self.vfs.close(self.fh)
-#
-#     def flush(self):
-#         self.vfs.sync(self.fh)
-#
-#     def seekable(self):
-#         return True
-#
-#     def seek(self, offset, whence=0):
-#         if not isinstance(offset, int):
-#             raise TypeError("offset must be an integer")
-#         if whence == 0:
-#             if offset < 0:
-#                 raise ValueError("offset must be a positive or zero value when SEEK_SET")
-#             self._offset = offset
-#         elif whence == 1:
-#             self._offset += offset
-#         elif whence == 2:
-#             self._offset = self._nbytes + offset
-#         else:
-#             raise ValueError('whence must be equal to SEEK_SET, SEEK_START, SEEK_END')
-#         if self._offset < 0:
-#             self._offset = 0
-#         elif self._offset > self._nbytes:
-#             self._offset = self._nbytes
-#
-#     def tell(self):
-#         return self._offset
-#
-#     def writeable(self):
-#         return not self._readonly
-#
-#     def read(self, size=-1):
-#         if not isinstance(size, int):
-#             raise TypeError("offset must be an integer")
-#         if self._mode == "w":
-#             raise IOError("cannot read from write-only FileIO handle")
-#         if self.closed:
-#             raise IOError("cannot read from closed FileIO handle")
-#         nbytes_remaining = self._nbytes - self._offset
-#         if size < 0:
-#             nbytes = nbytes_remaining
-#         elif size > nbytes_remaining:
-#             nbytes = nbytes_remaining
-#         else:
-#             nbytes = size
-#         buff = bytes(nbytes)
-#         self.vfs.readinto(self.fh, buff, self._offset, nbytes)
-#         self._offset += nbytes
-#         return buff
-#
-#     def readall(self):
-#         if self._mode == "w":
-#             raise IOError("cannot read from a write-only FileIO handle")
-#         if self.closed:
-#             raise IOError("cannot read from closed FileIO handle")
-#         nbytes = self._nbytes - self._offset
-#         if nbytes == 0:
-#             return bytes(0)
-#         buff = bytes(nbytes)
-#         self.vfs.readinto(self.fh, buff, self._offset, nbytes)
-#         self._offset += nbytes
-#         return buff
-#
-#     def readinto(self, buff):
-#         if self._mode == "w":
-#             raise IOError("cannot read from a write-only FileIO handle")
-#         if self.closed:
-#             raise IOError("cannot read from closed FileIO handle")
-#         nbytes = self._nbytes - self._offset
-#         if nbytes == 0:
-#             return
-#         self.vfs.readinto(self.fh, buff, self._offset, nbytes)
-#         self._offset += nbytes
-#         return
-#
-#     def write(self, buff):
-#         if not self.writeable():
-#             raise IOError("cannot write to read-only FileIO handle")
-#         nbytes = len(buff)
-#         self.vfs.write(self.fh, buff)
-#         self._nbytes += nbytes
-#         self._offset += nbytes
-#         return nbytes
+cdef class FileHandle(object):
+    """
+    Wraps a TileDB VFS file handle object
+
+    Instances of this class are returned by TileDB VFS methods and are not instantiated directly
+    """
+
+    cdef VFS vfs
+    cdef unicode uri
+    cdef tiledb_vfs_fh_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        cdef Ctx ctx = self.vfs.ctx
+        if self.ptr != NULL:
+            tiledb_vfs_fh_free(&self.ptr)
+
+    @staticmethod
+    cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr):
+        """Constructs a FileHandle class instance from a URI and a tiledb_vfs_fh_t pointer"""
+        assert(fh_ptr != NULL)
+        cdef FileHandle fh = FileHandle.__new__(FileHandle)
+        fh.vfs = vfs
+        fh.uri = uri
+        fh.ptr = fh_ptr
+        return fh
+
+    cpdef closed(self):
+        """Returns true if the file handle is closed"""
+        cdef Ctx ctx = self.vfs.ctx
+        cdef int isclosed = 0
+        check_error(ctx,
+                    tiledb_vfs_fh_is_closed(ctx.ptr, self.ptr, &isclosed))
+        return bool(isclosed)
+
+
+cdef class VFS(object):
+    """TileDB VFS class
+
+    Encapsulates the TileDB VFS module instance with a specific configuration (config).
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param config: Override `ctx` VFS configurations with updated values in config.
+    :type config: tiledb.Config or dict
+
+    """
+
+    cdef Ctx ctx
+    cdef tiledb_vfs_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_vfs_free(&self.ptr)
+
+    def __init__(self, Ctx ctx, config=None):
+        cdef Config _config = Config()
+        if config is not None:
+            if isinstance(config, Config):
+                _config = config
+            else:
+                _config.update(config)
+        cdef tiledb_vfs_t* vfs_ptr = NULL
+        check_error(ctx,
+                    tiledb_vfs_alloc(ctx.ptr, _config.ptr, &vfs_ptr))
+        self.ctx = ctx
+        self.ptr = vfs_ptr
+
+    def create_bucket(self, uri):
+        """Create an object store bucket at the given URI
+
+        :param str uri: full URI of bucket resource to be created.
+        :rtype: str
+        :returns: created bucket URI
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+                    tiledb_vfs_create_bucket(self.ctx.ptr, self.ptr, buri))
+        return uri
+
+    def remove_bucket(self, uri):
+        """Remove an object store bucket at the given URI
+
+        :param str uri: URI of bucket resource to be removed.
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        ..note:
+            Consistency is not enforced for bucket removal
+            so although this function will return immediately on success,
+            the actual removal of the bucket make take some (indeterminate) amount of time.
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+                    tiledb_vfs_remove_bucket(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def empty_bucket(self, uri):
+        """Empty an object store bucket of all objects at the given URI
+
+        This function blocks until all objects are verified to be removed from the given bucket.
+
+        :param str uri: URI of bucket resource to be emptied
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+                    tiledb_vfs_empty_bucket(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def is_empty_bucket(self, uri):
+        """Returns true if the object store bucket is empty (contains no objects).
+
+        If the bucket is versioned, this returns the status of the latest bucket version state.
+
+        :param str uri: URI of bucket resource
+        :rtype: bool
+        :return: True if bucket at given URI is empty, False otherwise
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        cdef int isempty = 0
+        check_error(self.ctx,
+                    tiledb_vfs_is_empty_bucket(self.ctx.ptr, self.ptr, buri, &isempty))
+        return bool(isempty)
+
+    def is_bucket(self, uri):
+        """Returns True if the URI resource is a valid object store bucket
+
+        :param str uri: URI of bucket resource
+        :rtype: bool
+        :return: True if given URI is a valid object store bucket, False otherwise
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        cdef int is_bucket = 0
+        check_error(self.ctx,
+                    tiledb_vfs_is_bucket(self.ctx.ptr, self.ptr, buri, &is_bucket))
+        return bool(is_bucket)
+
+    def create_dir(self, uri):
+        """Create a VFS directory at the given URI
+
+        :param str uri: URI of directory to be created
+        :rtype: str
+        :return: URI of created VFS directory
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+                    tiledb_vfs_create_dir(self.ctx.ptr, self.ptr, buri))
+        return uri
+
+    def is_dir(self, uri):
+        """Returns True if the given URI is a VFS directory object
+
+        :param str uri: URI of the directory resource
+        :rtype: bool
+        :return: True if `uri` is a VFS directory, False otherwise
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        cdef int is_dir = 0
+        check_error(self.ctx,
+                    tiledb_vfs_is_dir(self.ctx.ptr, self.ptr, buri, &is_dir))
+        return bool(is_dir)
+
+    def remove_dir(self, uri):
+        """Removes a VFS directory at the given URI
+
+        :param str uri: URI of the directory resource to remove
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+                    tiledb_vfs_remove_dir(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def is_file(self, uri):
+        """Returns True if the given URI is a VFS file object
+
+        :param str uri: URI of the file resource
+        :rtype: bool
+        :return: True if `uri` is a VFS file, False otherwise
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        cdef int is_file = 0
+        check_error(self.ctx,
+                    tiledb_vfs_is_file(self.ctx.ptr, self.ptr, buri, &is_file))
+        return bool(is_file)
+
+    def remove_file(self, uri):
+        """Removes a VFS file at the given URI
+
+        :param str uri: URI of a VFS file resource
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+                    tiledb_vfs_remove_file(self.ctx.ptr, self.ptr, buri))
+        return
+
+    def file_size(self, uri):
+        """Returns the size (in bytes) of a VFS file at the given URI
+
+        :param str uri: URI of a VFS file resource
+        :rtype: int
+        :return: file size in number of bytes
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        cdef uint64_t nbytes = 0
+        check_error(self.ctx,
+                    tiledb_vfs_file_size(self.ctx.ptr, self.ptr, buri, &nbytes))
+        return int(nbytes)
+
+    def move_file(self, old_uri, new_uri):
+        """ Moves a VFS file from old URI to new URI
+
+        :param str old_uri: Existing VFS file or directory resource URI
+        :param str new_uri: URI to move existing VFS resource to
+        :param bool force: if VFS resource at `new_uri` exists, delete the resource and overwrite
+        :rtype: str
+        :return: new URI of VFS resource
+        :raises TypeError: cannot convert `old_uri`/`new_uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes bold_uri = unicode_path(old_uri)
+        cdef bytes bnew_uri = unicode_path(new_uri)
+        check_error(self.ctx,
+                    tiledb_vfs_move_file(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
+        return new_uri
+
+    def move_dir(self, old_uri, new_uri):
+        """ Moves a VFS dir from old URI to new URI
+
+        :param str old_uri: Existing VFS file or directory resource URI
+        :param str new_uri: URI to move existing VFS resource to
+        :param bool force: if VFS resource at `new_uri` exists, delete the resource and overwrite
+        :rtype: str
+        :return: new URI of VFS resource
+        :raises TypeError: cannot convert `old_uri`/`new_uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes bold_uri = unicode_path(old_uri)
+        cdef bytes bnew_uri = unicode_path(new_uri)
+        check_error(self.ctx,
+                    tiledb_vfs_move_dir(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
+        return new_uri
+
+    def open(self, uri, mode=None):
+        """Opens a VFS file resource for reading / writing / appends at URI
+
+        If the file did not exist upon opening, a new file is created.
+
+        :param str uri: URI of VFS file resource
+        :param mode str: 'r' for opening the file to read, 'w' to write, 'a' to append
+        :rtype: FileHandle
+        :return: VFS FileHandle
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises ValueError: invalid mode
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef tiledb_vfs_mode_t vfs_mode
+        if mode == "r":
+            vfs_mode = TILEDB_VFS_READ
+        elif mode == "w":
+            vfs_mode = TILEDB_VFS_WRITE
+        elif mode == "a":
+            vfs_mode = TILEDB_VFS_APPEND
+        else:
+            raise ValueError("invalid mode {0!r}".format(mode))
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_vfs_fh_t* fh_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_vfs_open(self.ctx.ptr, self.ptr, uri_ptr, vfs_mode, &fh_ptr))
+        cdef FileHandle fh = FileHandle.from_ptr(self, buri.decode('UTF-8'), fh_ptr)
+        return fh
+
+    def close(self, FileHandle fh):
+        """Closes a VFS FileHandle object
+
+        :param FileHandle fh: An opened VFS FileHandle
+        :rtype: FileHandle
+        :return: closed VFS FileHandle
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        check_error(self.ctx,
+                    tiledb_vfs_close(self.ctx.ptr, fh.ptr))
+        return fh
+
+    def readinto(self, FileHandle fh, bytes buffer, offset, nbytes):
+        """Read nbytes from an opened VFS FileHandle at a given offset into a preallocated bytes buffer
+
+        :param FileHandle fh: An opened VFS FileHandle in 'r' mode
+        :param bytes buffer: A preallocated bytes buffer object
+        :param int offset: offset position in bytes to read from
+        :param int nbytes: number of bytes to read
+        :return: bytes `buffer`
+        :raises ValueError: invalid `offset` or `nbytes` values
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        if offset < 0:
+            raise ValueError("read offset must be >= 0")
+        if nbytes < 0:
+            raise ValueError("read nbytes but be >= 0")
+        if nbytes > len(buffer):
+            print("DEBUG!!!!")
+            print(nbytes)
+            print(len(buffer))
+            raise ValueError("read buffer is smaller than nbytes")
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
+        cdef uint64_t _offset = offset
+        cdef uint64_t _nbytes = nbytes
+        cdef char* buffer_ptr = PyBytes_AS_STRING(buffer)
+        check_error(self.ctx,
+                    tiledb_vfs_read(ctx_ptr, fh_ptr, _offset, <void*> buffer_ptr, _nbytes))
+        return buffer
+
+    def read(self, FileHandle fh, offset, nbytes):
+        """Read nbytes from an opened VFS FileHandle at a given offset
+
+        :param FileHandle fh: An opened VFS FileHandle in 'r' mode
+        :param int offset: offset position in bytes to read from
+        :param int nbytes: number of bytes to read
+        :rtype: :py:func:`bytes`
+        :return: read bytes
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef Py_ssize_t _nbytes = nbytes
+        cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
+        return self.readinto(fh, buffer, offset, nbytes)
+
+    def write(self, FileHandle fh, buff):
+        """Writes buffer to opened VFS FileHandle
+
+        :param FileHandle fh: An opened VFS FileHandle in 'w' mode
+        :param buff: a Python object that supports the byte buffer protocol
+        :raises TypeError: cannot convert buff to bytes
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buffer = bytes(buff)
+        cdef const char* buffer_ptr = PyBytes_AS_STRING(buffer)
+        cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)
+        check_error(self.ctx,
+                    tiledb_vfs_write(self.ctx.ptr,
+                                     fh.ptr,
+                                     <const void*> buffer_ptr,
+                                     <uint64_t> _nbytes))
+        return
+
+    def sync(self, FileHandle fh):
+        """Sync / flush an opened VFS FileHandle to storage backend
+
+        :param FileHandle fh: An opened VFS FileHandle in 'w' or 'a' mode
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        check_error(self.ctx,
+                    tiledb_vfs_sync(self.ctx.ptr, fh.ptr))
+        return fh
+
+    def touch(self, uri):
+        """Creates an empty VFS file at the given URI
+
+        :param str uri: URI of a VFS file resource
+        :rtype: str
+        :return: URI of touched VFS file
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        check_error(self.ctx,
+                    tiledb_vfs_touch(self.ctx.ptr, self.ptr, buri))
+        return uri
+
+    def supports(self, scheme):
+        """Returns true if the given URI scheme (storage backend) is supported
+
+        :param str scheme: scheme component of a VFS resource URI (ex. 'file' / 'hdfs' / 's3')
+        :rtype: bool
+        :return: True if the linked libtiledb version supports the storage backend, False otherwise
+        :raises ValueError: VFS storage backend is not supported
+
+        """
+        cdef tiledb_filesystem_t fs
+        cdef int supports = 0
+        if scheme == "file":
+            return True
+        elif scheme == "s3":
+            check_error(self.ctx,
+                        tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_S3, &supports))
+            return bool(supports)
+        elif scheme == "hdfs":
+            check_error(self.ctx,
+                        tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_HDFS, &supports))
+            return bool(supports)
+        else:
+            raise ValueError("unsupported vfs scheme '{0!s}://'".format(scheme))
+
+
+class FileIO(object):
+
+    def __init__(self, VFS vfs, uri, mode="r"):
+        self.fh = vfs.open(uri, mode=mode)
+        self.vfs = vfs
+        self._offset = 0
+        self._closed = False
+        self._readonly = True
+        if mode == "r":
+            try:
+                self._nbytes = vfs.file_size(uri)
+            except:
+                raise IOError("URI {0!r} is not a valid file")
+            self._read_only = True
+        elif mode == "w":
+            self._readonly = False
+            self._nbytes = 0
+        else:
+            raise ValueError("invalid mode {0!r}".format(mode))
+        self._mode = mode
+        return
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self):
+        self.close()
+        return
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @property
+    def closed(self):
+        return self.fh.closed()
+
+    def close(self):
+        self.vfs.close(self.fh)
+
+    def flush(self):
+        self.vfs.sync(self.fh)
+
+    def seekable(self):
+        return True
+
+    def seek(self, offset, whence=0):
+        if not isinstance(offset, int):
+            raise TypeError("offset must be an integer")
+        if whence == 0:
+            if offset < 0:
+                raise ValueError("offset must be a positive or zero value when SEEK_SET")
+            self._offset = offset
+        elif whence == 1:
+            self._offset += offset
+        elif whence == 2:
+            self._offset = self._nbytes + offset
+        else:
+            raise ValueError('whence must be equal to SEEK_SET, SEEK_START, SEEK_END')
+        if self._offset < 0:
+            self._offset = 0
+        elif self._offset > self._nbytes:
+            self._offset = self._nbytes
+
+    def tell(self):
+        return self._offset
+
+    def writeable(self):
+        return not self._readonly
+
+    def read(self, size=-1):
+        if not isinstance(size, int):
+            raise TypeError("offset must be an integer")
+        if self._mode == "w":
+            raise IOError("cannot read from write-only FileIO handle")
+        if self.closed:
+            raise IOError("cannot read from closed FileIO handle")
+        nbytes_remaining = self._nbytes - self._offset
+        cdef Py_ssize_t nbytes
+        if size < 0:
+            nbytes = nbytes_remaining
+        elif size > nbytes_remaining:
+            nbytes = nbytes_remaining
+        else:
+            nbytes = size
+        cdef bytes buff = PyBytes_FromStringAndSize(NULL, nbytes)
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
+        self._offset += nbytes
+        return buff
+
+    def readall(self):
+        if self._mode == "w":
+            raise IOError("cannot read from a write-only FileIO handle")
+        if self.closed:
+            raise IOError("cannot read from closed FileIO handle")
+        cdef Py_ssize_t nbytes = self._nbytes - self._offset
+        if nbytes == 0:
+            return PyBytes_FromStringAndSize(NULL, 0)
+        cdef bytes buff = PyBytes_FromStringAndSize(NULL, nbytes)
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
+        self._offset += nbytes
+        return buff
+
+    def readinto(self, buff):
+        if self._mode == "w":
+            raise IOError("cannot read from a write-only FileIO handle")
+        if self.closed:
+            raise IOError("cannot read from closed FileIO handle")
+        nbytes = self._nbytes - self._offset
+        if nbytes == 0:
+            return
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
+        self._offset += nbytes
+        return
+
+    def write(self, buff):
+        if not self.writeable():
+            raise IOError("cannot write to read-only FileIO handle")
+        nbytes = len(buff)
+        self.vfs.write(self.fh, buff)
+        self._nbytes += nbytes
+        self._offset += nbytes
+        return nbytes
