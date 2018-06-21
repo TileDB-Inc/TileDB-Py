@@ -3319,8 +3319,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_create_bucket(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_create_bucket(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return uri
 
     def remove_bucket(self, uri):
@@ -3337,9 +3343,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_remove_bucket(self.ctx.ptr, self.ptr, buri))
-        return
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_remove_bucket(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return uri
 
     def empty_bucket(self, uri):
         """Empty an object store bucket of all objects at the given URI
@@ -3352,8 +3364,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_empty_bucket(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_empty_bucket(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def is_empty_bucket(self, uri):
@@ -3369,9 +3387,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int isempty = 0
-        check_error(self.ctx,
-                    tiledb_vfs_is_empty_bucket(self.ctx.ptr, self.ptr, buri, &isempty))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_is_empty_bucket(ctx_ptr, vfs_ptr, uri_ptr, &isempty)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(isempty)
 
     def is_bucket(self, uri):
@@ -3385,9 +3409,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int is_bucket = 0
-        check_error(self.ctx,
-                    tiledb_vfs_is_bucket(self.ctx.ptr, self.ptr, buri, &is_bucket))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_is_bucket(ctx_ptr, vfs_ptr, uri_ptr, &is_bucket)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(is_bucket)
 
     def create_dir(self, uri):
@@ -3401,8 +3431,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_create_dir(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_create_dir(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return uri
 
     def is_dir(self, uri):
@@ -3416,9 +3452,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int is_dir = 0
-        check_error(self.ctx,
-                    tiledb_vfs_is_dir(self.ctx.ptr, self.ptr, buri, &is_dir))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_is_dir(ctx_ptr, vfs_ptr, uri_ptr, &is_dir)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(is_dir)
 
     def remove_dir(self, uri):
@@ -3430,8 +3472,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_remove_dir(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_remove_dir(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def is_file(self, uri):
@@ -3445,9 +3493,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int is_file = 0
-        check_error(self.ctx,
-                    tiledb_vfs_is_file(self.ctx.ptr, self.ptr, buri, &is_file))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_is_file(ctx_ptr, vfs_ptr, uri_ptr, &is_file)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(is_file)
 
     def remove_file(self, uri):
@@ -3459,8 +3513,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_remove_file(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_remove_file(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def file_size(self, uri):
@@ -3474,9 +3534,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef uint64_t nbytes = 0
-        check_error(self.ctx,
-                    tiledb_vfs_file_size(self.ctx.ptr, self.ptr, buri, &nbytes))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_file_size(ctx_ptr, vfs_ptr, uri_ptr, &nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return int(nbytes)
 
     def move_file(self, old_uri, new_uri):
@@ -3493,8 +3559,15 @@ cdef class VFS(object):
         """
         cdef bytes bold_uri = unicode_path(old_uri)
         cdef bytes bnew_uri = unicode_path(new_uri)
-        check_error(self.ctx,
-                    tiledb_vfs_move_file(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* old_uri_ptr = PyBytes_AS_STRING(bold_uri)
+        cdef const char* new_uri_ptr = PyBytes_AS_STRING(bnew_uri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_move_file(ctx_ptr, vfs_ptr, old_uri_ptr, new_uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return new_uri
 
     def move_dir(self, old_uri, new_uri):
@@ -3511,8 +3584,15 @@ cdef class VFS(object):
         """
         cdef bytes bold_uri = unicode_path(old_uri)
         cdef bytes bnew_uri = unicode_path(new_uri)
-        check_error(self.ctx,
-                    tiledb_vfs_move_dir(self.ctx.ptr, self.ptr, bold_uri, bnew_uri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* old_uri_ptr = PyBytes_AS_STRING(bold_uri)
+        cdef const char* new_uri_ptr = PyBytes_AS_STRING(bnew_uri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_move_dir(ctx_ptr, vfs_ptr, old_uri_ptr, new_uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return new_uri
 
     def open(self, uri, mode=None):
@@ -3539,12 +3619,16 @@ cdef class VFS(object):
         else:
             raise ValueError("invalid mode {0!r}".format(mode))
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_vfs_fh_t* fh_ptr = NULL
-        check_error(self.ctx,
-                    tiledb_vfs_open(self.ctx.ptr, self.ptr, uri_ptr, vfs_mode, &fh_ptr))
-        cdef FileHandle fh = FileHandle.from_ptr(self, buri.decode('UTF-8'), fh_ptr)
-        return fh
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_open(ctx_ptr, vfs_ptr, uri_ptr, vfs_mode, &fh_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return FileHandle.from_ptr(self, buri.decode('UTF-8'), fh_ptr)
 
     def close(self, FileHandle fh):
         """Closes a VFS FileHandle object
@@ -3555,8 +3639,13 @@ cdef class VFS(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        check_error(self.ctx,
-                    tiledb_vfs_close(self.ctx.ptr, fh.ptr))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_close(ctx_ptr, fh_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return fh
 
     def readinto(self, FileHandle fh, bytes buffer, offset, nbytes):
@@ -3576,17 +3665,17 @@ cdef class VFS(object):
         if nbytes < 0:
             raise ValueError("read nbytes but be >= 0")
         if nbytes > len(buffer):
-            print("DEBUG!!!!")
-            print(nbytes)
-            print(len(buffer))
             raise ValueError("read buffer is smaller than nbytes")
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
         cdef uint64_t _offset = offset
         cdef uint64_t _nbytes = nbytes
         cdef char* buffer_ptr = PyBytes_AS_STRING(buffer)
-        check_error(self.ctx,
-                    tiledb_vfs_read(ctx_ptr, fh_ptr, _offset, <void*> buffer_ptr, _nbytes))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_read(ctx_ptr, fh_ptr, _offset, <void*> buffer_ptr, _nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return buffer
 
     def read(self, FileHandle fh, offset, nbytes):
@@ -3614,13 +3703,18 @@ cdef class VFS(object):
 
         """
         cdef bytes buffer = bytes(buff)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
         cdef const char* buffer_ptr = PyBytes_AS_STRING(buffer)
         cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)
-        check_error(self.ctx,
-                    tiledb_vfs_write(self.ctx.ptr,
-                                     fh.ptr,
-                                     <const void*> buffer_ptr,
-                                     <uint64_t> _nbytes))
+        assert(_nbytes >= 0)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_write(ctx_ptr, fh_ptr,
+                                  <const void*> buffer_ptr,
+                                  <uint64_t> _nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def sync(self, FileHandle fh):
@@ -3630,8 +3724,13 @@ cdef class VFS(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        check_error(self.ctx,
-                    tiledb_vfs_sync(self.ctx.ptr, fh.ptr))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_sync(ctx_ptr, fh_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return fh
 
     def touch(self, uri):
@@ -3645,8 +3744,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_touch(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_touch(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return uri
 
     def supports(self, scheme):
