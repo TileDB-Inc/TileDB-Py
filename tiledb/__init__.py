@@ -5,7 +5,7 @@ from .libtiledb import (
      Config,
      Dim,
      Domain,
-#     Attr,
+     Attr,
 #     KV,
 #     ArraySchema,
 #     DenseArray,

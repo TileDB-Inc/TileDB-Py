@@ -219,11 +219,11 @@ cdef extern from "tiledb/tiledb.h":
         const char* group) nogil
 
     # Attribute
-    int tiledb_attribute_create(
+    int tiledb_attribute_alloc(
         tiledb_ctx_t* ctx,
-        tiledb_attribute_t** attr,
         const char* name,
-        tiledb_datatype_t atype)
+        tiledb_datatype_t atype,
+        tiledb_attribute_t** attr)
 
     void tiledb_attribute_free(
         tiledb_attribute_t** attr)

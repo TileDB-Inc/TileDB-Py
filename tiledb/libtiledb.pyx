@@ -770,195 +770,205 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
         return u"global"
     elif order == TILEDB_UNORDERED:
         return u"unordered"
-#
-#
-# cdef class Attr(object):
-#     """TileDB Attr class object
-#
-#     :param tiledb.Ctx ctx: A TileDB Context
-#     :param str name: Attribute name, empty if anonymous
-#     :param dtype: Attribute value datatypes
-#     :type dtype: numpy.dtype object or type or string
-#     :param compressor: The compressor, level for attribute values
-#     :type compressor: tuple(str, int)
-#     :raises TypeError: invalid dtype
-#     :raises: :py:exc:`tiledb.TileDBError`
-#
-#     """
-#
-#     cdef Ctx ctx
-#     cdef tiledb_attribute_t* ptr
-#
-#     def __cinit__(self):
-#         self.ptr = NULL
-#
-#     def __dealloc__(self):
-#         if self.ptr != NULL:
-#             tiledb_attribute_free(&self.ptr)
-#
-#     @staticmethod
-#     cdef from_ptr(Ctx ctx, const tiledb_attribute_t* ptr):
-#         """Constructs an Attr class instance from a (non-null) tiledb_attribute_t pointer
-#         """
-#         cdef Attr attr = Attr.__new__(Attr)
-#         attr.ctx = ctx
-#         # need to cast away the const
-#         attr.ptr = <tiledb_attribute_t*> ptr
-#         return attr
-#
-#     def __init__(self,
-#                  Ctx ctx,
-#                  name=u"",
-#                  dtype=np.float64,
-#                  compressor=None):
-#         cdef bytes bname = ustring(name).encode('UTF-8')
-#         cdef np.dtype _dtype = np.dtype(dtype)
-#         cdef tiledb_datatype_t tiledb_dtype
-#         cdef unsigned int ncells
-#         if np.issubdtype(_dtype, np.bytes_):
-#             # flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
-#             if _dtype.itemsize == 0:
-#                 tiledb_dtype = TILEDB_CHAR
-#                 ncells = TILEDB_VAR_NUM
-#             else:
-#                 tiledb_dtype = TILEDB_CHAR
-#                 ncells = _dtype.itemsize
-#         # handles n fixed size dtypes
-#         elif _dtype.kind == 'V':
-#             if _dtype.shape != ():
-#                 raise TypeError("nested sub-array numpy dtypes are not supported")
-#             # check that types are the same
-#             typs = [t for (t, _) in _dtype.fields.values()]
-#             typ, ntypes = typs[0], len(typs)
-#             if typs.count(typ) != ntypes:
-#                 raise TypeError('heterogenous record numpy dtypes are not supported')
-#             tiledb_dtype = _tiledb_dtype(typ)
-#             ncells = ntypes
-#         else:
-#             tiledb_dtype = _tiledb_dtype(_dtype)
-#             ncells = 1
-#         cdef tiledb_attribute_t* attr_ptr = NULL
-#         check_error(ctx,
-#             tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
-#         check_error(ctx,
-#             tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells))
-#         cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
-#         cdef int _level = -1
-#         if compressor is not None:
-#             _compressor = _tiledb_compressor(ustring(compressor[0]))
-#             _level = int(compressor[1])
-#             check_error(ctx,
-#                 tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, _compressor, _level))
-#         self.ctx = ctx
-#         self.ptr = attr_ptr
-#
-#     def dump(self):
-#         """Dumps a string representation of the Attr object to standard output (STDOUT)"""
-#         check_error(self.ctx,
-#                     tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
-#         print('\n')
-#         return
-#
-#     @property
-#     def dtype(self):
-#         """Return numpy dtype object representing the Attr type
-#
-#         :rtype: numpy.dtype
-#
-#         """
-#         cdef tiledb_datatype_t typ
-#         check_error(self.ctx,
-#                     tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
-#         cdef unsigned int ncells = 0
-#         check_error(self.ctx,
-#                     tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
-#         # flexible types with itemsize 0 are interpreted as VARNUM cells
-#         if ncells == TILEDB_VAR_NUM:
-#             return np.dtype((_numpy_type(typ), 0))
-#         elif ncells > 1:
-#             nptyp = _numpy_type(typ)
-#             # special case for fixed sized bytes arguments
-#             if typ == TILEDB_CHAR:
-#                 return np.dtype((nptyp, ncells))
-#             # create an anon record dtype
-#             return np.dtype([('', nptyp)] * ncells)
-#         assert (ncells == 1)
-#         return np.dtype(_numpy_type(typ))
-#
-#     cdef unicode _get_name(Attr self):
-#         cdef const char* c_name = NULL
-#         check_error(self.ctx,
-#                     tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
-#         cdef unicode name = c_name.decode('UTF-8', 'strict')
-#         if name.startswith("__attr"):
-#             return u""
-#         return name
-#     @property
-#     def name(self):
-#         """Attribute string name, empty string if the attribute is anonymous
-#
-#         :rtype: str
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         return self._get_name()
-#
-#     @property
-#     def isanon(self):
-#         """Returns true if attribute is an anonymous attribute
-#
-#         :rtype: bool
-#
-#         """
-#         cdef unicode name = self._get_name()
-#         return name == u"" or name.startswith(u"__attr")
-#
-#     @property
-#     def compressor(self):
-#         """Returns string label of the attributes compressor and compressor level
-#
-#         :rtype: tuple(str, int)
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef int level = -1
-#         cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
-#         check_error(self.ctx,
-#                     tiledb_attribute_get_compressor(self.ctx.ptr, self.ptr, &compr, &level))
-#         if compr == TILEDB_NO_COMPRESSION:
-#             return (None, -1)
-#         return (_tiledb_compressor_string(compr), int(level))
-#
-#     cdef unsigned int _cell_val_num(Attr self) except? 0:
-#         cdef unsigned int ncells = 0
-#         check_error(self.ctx,
-#                     tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
-#         return ncells
-#
-#     @property
-#     def isvar(self):
-#         """Returns true if the attribute is variable length
-#
-#         :rtype: bool
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef unsigned int ncells = self._cell_val_num()
-#         return ncells == TILEDB_VAR_NUM
-#
-#     @property
-#     def ncells(self):
-#         """Returns the number of cells (scalar values) for a given attribute value
-#
-#         :rtype: int
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef unsigned int ncells = self._cell_val_num()
-#         assert (ncells != 0)
-#         return int(ncells)
-#
-#
+
+
+cdef class Attr(object):
+    """TileDB Attr class object
+
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param str name: Attribute name, empty if anonymous
+    :param dtype: Attribute value datatypes
+    :type dtype: numpy.dtype object or type or string
+    :param compressor: The compressor, level for attribute values
+    :type compressor: tuple(str, int)
+    :raises TypeError: invalid dtype
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+
+    cdef Ctx ctx
+    cdef tiledb_attribute_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_attribute_free(&self.ptr)
+
+    @staticmethod
+    cdef from_ptr(Ctx ctx, const tiledb_attribute_t* ptr):
+        """Constructs an Attr class instance from a (non-null) tiledb_attribute_t pointer
+        """
+        cdef Attr attr = Attr.__new__(Attr)
+        attr.ctx = ctx
+        # need to cast away the const
+        attr.ptr = <tiledb_attribute_t*> ptr
+        return attr
+
+    def __init__(self,
+                 Ctx ctx,
+                 name=u"",
+                 dtype=np.float64,
+                 compressor=None):
+        cdef bytes bname = ustring(name).encode('UTF-8')
+        cdef const char* name_ptr = PyBytes_AS_STRING(bname)
+        cdef np.dtype _dtype = np.dtype(dtype)
+        cdef tiledb_datatype_t tiledb_dtype
+        cdef unsigned int ncells
+        if np.issubdtype(_dtype, np.bytes_):
+            # flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
+            if _dtype.itemsize == 0:
+                tiledb_dtype = TILEDB_CHAR
+                ncells = TILEDB_VAR_NUM
+            else:
+                tiledb_dtype = TILEDB_CHAR
+                ncells = _dtype.itemsize
+        # handles n fixed size dtypes
+        elif _dtype.kind == 'V':
+            if _dtype.shape != ():
+                raise TypeError("nested sub-array numpy dtypes are not supported")
+            # check that types are the same
+            typs = [t for (t, _) in _dtype.fields.values()]
+            typ, ntypes = typs[0], len(typs)
+            if typs.count(typ) != ntypes:
+                raise TypeError('heterogenous record numpy dtypes are not supported')
+            tiledb_dtype = _tiledb_dtype(typ)
+            ncells = ntypes
+        # scalar cell type
+        else:
+            tiledb_dtype = _tiledb_dtype(_dtype)
+            ncells = 1
+        # compression and compression level
+        cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
+        cdef int _level = -1
+        if compressor is not None:
+            _compressor = _tiledb_compressor(ustring(compressor[0]))
+            _level = int(compressor[1])
+        # alloc attribute object and set cell num / compressor
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        cdef int rc = TILEDB_OK
+        rc = tiledb_attribute_alloc(ctx.ptr, name_ptr, tiledb_dtype, &attr_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx.ptr, rc)
+        rc = tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells)
+        if rc != TILEDB_OK:
+            tiledb_attribute_free(&attr_ptr)
+            _raise_ctx_err(ctx.ptr, rc)
+        rc = tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, _compressor, _level)
+        if rc != TILEDB_OK:
+            tiledb_attribute_free(&attr_ptr)
+            _raise_ctx_err(ctx.ptr, rc)
+        self.ctx = ctx
+        self.ptr = attr_ptr
+
+    def dump(self):
+        """Dumps a string representation of the Attr object to standard output (STDOUT)"""
+        check_error(self.ctx,
+                    tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
+        print('\n')
+        return
+
+    @property
+    def dtype(self):
+        """Return numpy dtype object representing the Attr type
+
+        :rtype: numpy.dtype
+
+        """
+        cdef tiledb_datatype_t typ
+        check_error(self.ctx,
+                    tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
+        cdef unsigned int ncells = 0
+        check_error(self.ctx,
+                    tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
+        # flexible types with itemsize 0 are interpreted as VARNUM cells
+        if ncells == TILEDB_VAR_NUM:
+            return np.dtype((_numpy_type(typ), 0))
+        elif ncells > 1:
+            nptyp = _numpy_type(typ)
+            # special case for fixed sized bytes arguments
+            if typ == TILEDB_CHAR:
+                return np.dtype((nptyp, ncells))
+            # create an anon record dtype
+            return np.dtype([('', nptyp)] * ncells)
+        assert (ncells == 1)
+        return np.dtype(_numpy_type(typ))
+
+    cdef unicode _get_name(Attr self):
+        cdef const char* c_name = NULL
+        check_error(self.ctx,
+                    tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
+        cdef unicode name = c_name.decode('UTF-8', 'strict')
+        if name.startswith("__attr"):
+            return u""
+        return name
+    @property
+    def name(self):
+        """Attribute string name, empty string if the attribute is anonymous
+
+        :rtype: str
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        return self._get_name()
+
+    @property
+    def isanon(self):
+        """Returns true if attribute is an anonymous attribute
+
+        :rtype: bool
+
+        """
+        cdef unicode name = self._get_name()
+        return name == u"" or name.startswith(u"__attr")
+
+    @property
+    def compressor(self):
+        """Returns string label of the attributes compressor and compressor level
+
+        :rtype: tuple(str, int)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef int level = -1
+        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
+        check_error(self.ctx,
+                    tiledb_attribute_get_compressor(self.ctx.ptr, self.ptr, &compr, &level))
+        if compr == TILEDB_NO_COMPRESSION:
+            return (None, -1)
+        return (_tiledb_compressor_string(compr), int(level))
+
+    cdef unsigned int _cell_val_num(Attr self) except? 0:
+        cdef unsigned int ncells = 0
+        check_error(self.ctx,
+                    tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
+        return ncells
+
+    @property
+    def isvar(self):
+        """Returns true if the attribute is variable length
+
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef unsigned int ncells = self._cell_val_num()
+        return ncells == TILEDB_VAR_NUM
+
+    @property
+    def ncells(self):
+        """Returns the number of cells (scalar values) for a given attribute value
+
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef unsigned int ncells = self._cell_val_num()
+        assert (ncells != 0)
+        return int(ncells)
+
+
 cdef class Dim(object):
     """TileDB Dimension class
 

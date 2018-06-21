@@ -194,20 +194,20 @@ class DomainTest(unittest.TestCase):
                     tiledb.Dim(ctx, "d1", (1, 4), 2, dtype=int),
                     tiledb.Dim(ctx, "d2", (1, 4), 2, dtype=float))
 
-"""
+
 class AttributeTest(unittest.TestCase):
 
     def test_minimal_attribute(self):
-        ctx = t.Ctx()
-        attr = t.Attr(ctx)
+        ctx = tiledb.Ctx()
+        attr = tiledb.Attr(ctx)
         self.assertTrue(attr.isanon)
         self.assertEqual(attr.name, u"")
         self.assertEqual(attr.dtype, np.float_)
         self.assertEqual(attr.compressor, (None, -1))
 
     def test_attribute(self):
-        ctx = t.Ctx()
-        attr = t.Attr(ctx, "foo")
+        ctx = tiledb.Ctx()
+        attr = tiledb.Attr(ctx, "foo")
         attr.dump()
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.float64,
@@ -217,8 +217,8 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(level, -1, "default compression level when none is specified")
 
     def test_full_attribute(self):
-        ctx = t.Ctx()
-        attr = t.Attr(ctx, "foo", dtype=np.int64, compressor=("zstd", 10))
+        ctx = tiledb.Ctx()
+        attr = tiledb.Attr(ctx, "foo", dtype=np.int64, compressor=("zstd", 10))
         attr.dump()
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.int64)
@@ -227,49 +227,49 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(level, 10)
 
     def test_ncell_attribute(self):
-        ctx = t.Ctx()
+        ctx = tiledb.Ctx()
         dtype = np.dtype([("", np.int32), ("", np.int32)])
-        attr = t.Attr(ctx, "foo", dtype=dtype)
+        attr = tiledb.Attr(ctx, "foo", dtype=dtype)
 
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 2)
 
         # dtype subarrays not supported
         with self.assertRaises(TypeError):
-            t.Attr(ctx, "foo", dtype=np.dtype((np.int32, 2)))
+            tiledb.Attr(ctx, "foo", dtype=np.dtype((np.int32, 2)))
 
         # mixed type record arrays not supported
         with self.assertRaises(TypeError):
-            t.Attr(ctx, "foo", dtype=np.dtype([("", np.float32), ("", np.int32)]))
+            tiledb.Attr(ctx, "foo", dtype=np.dtype([("", np.float32), ("", np.int32)]))
 
     def test_ncell_bytes_attribute(self):
-        ctx = t.Ctx()
+        ctx = tiledb.Ctx()
         dtype = np.dtype((np.bytes_, 10))
-        attr = t.Attr(ctx, "foo", dtype=dtype)
+        attr = tiledb.Attr(ctx, "foo", dtype=dtype)
 
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 10)
 
     def test_vararg_attribute(self):
-        ctx = t.Ctx()
-        attr = t.Attr(ctx, "foo", dtype=np.bytes_)
+        ctx = tiledb.Ctx()
+        attr = tiledb.Attr(ctx, "foo", dtype=np.bytes_)
         self.assertEqual(attr.dtype, np.dtype(np.bytes_))
         self.assertTrue(attr.isvar)
 
-    def test_unique_attributes(self):
-        ctx = t.Ctx()
-        dom = t.Domain(
-            ctx,
-            t.Dim(ctx, "d1", (1, 4), 2, dtype='u8'),
-            t.Dim(ctx, "d2", (1, 4), 2, dtype='u8'))
+#     def test_unique_attributes(self):
+#         ctx = tiledb.Ctx()
+#         dom = tiledb.Domain(
+#             ctx,
+#             tiledb.Dim(ctx, "d1", (1, 4), 2, dtype='u8'),
+#             tiledb.Dim(ctx, "d2", (1, 4), 2, dtype='u8'))
+#
+#         attr1 = tiledb.Attr(ctx, "foo", dtype=float)
+#         attr2 = tiledb.Attr(ctx, "foo", dtype=int)
+#
+#         with self.assertRaises(tiledb.TileDBError):
+#             tiledb.ArraySchema(ctx, "foobar", domain=dom, attrs=(attr1, attr2))
 
-        attr1 = t.Attr(ctx, "foo", dtype=float)
-        attr2 = t.Attr(ctx, "foo", dtype=int)
-
-        with self.assertRaises(t.TileDBError):
-            t.ArraySchema(ctx, "foobar", domain=dom, attrs=(attr1, attr2))
-
-
+"""
 class DenseArrayTest(DiskTestCase):
 
     def test_dense_array_not_sparse(self):
