@@ -862,6 +862,15 @@ cdef class Attr(object):
         self.ctx = ctx
         self.ptr = attr_ptr
 
+    def __eq__(self, other):
+        if not isinstance(other, Attr):
+            return False
+        if (self.name != other.name or
+            self.dtype != other.dtype or
+            self.compressor != other.compressor):
+            return False
+        return True
+
     def dump(self):
         """Dumps a string representation of the Attr object to standard output (STDOUT)"""
         check_error(self.ctx,
@@ -1055,6 +1064,16 @@ cdef class Dim(object):
 
     def __len__(self):
         return self.size
+
+    def __eq__(self, other):
+        if not isinstance(other, Dim):
+            return False
+        if (self.name != other.name or
+            self.domain != other.domain or
+            self.tile != other.tile or
+            self.dtype != other.dtype):
+            return False
+        return True
 
     def __array__(self, dtype=None, **kw):
         if not self._integer_domain():
@@ -1252,6 +1271,19 @@ cdef class Domain(object):
     def __iter__(self):
         """Returns a generator object that iterates over the domain's dimension objects"""
         return (self.dim(i) for i in range(self.ndim))
+
+    def __eq__(self, other):
+        if not isinstance(other, Domain):
+            return False
+        ndim = self.ndim
+        if (ndim != other.ndim or
+            self.dtype != other.dtype or
+            self.shape != other.shape):
+            return False
+        for i in range(ndim):
+            if self.dim(i) != other.dim(i):
+                return False
+        return True
 
     @property
     def ndim(self):
@@ -1831,317 +1863,326 @@ cdef class Domain(object):
 #     return subarray
 #
 #
-# cdef class ArraySchema(object):
-#     """
-#     Base class for TileDB Array representations
-#
-#     :param tiledb.Ctx ctx: A TileDB Context
-#     :param attrs: one or more array attributes
-#     :type attrs: tuple(tiledb.Attr, ...)
-#     :param cell_order:  TileDB label for cell layout
-#     :type cell_order: 'row-major' or 'C', 'col-major' or 'F'
-#     :param tile_order:  TileDB label for tile layout
-#     :type tile_order: 'row-major' or 'C', 'col-major' or 'F', 'unordered'
-#     :param int capacity: tile cell capacity
-#     :param coords_compressor: compressor label, level for (sparse) coordinates
-#     :type coords_compressor: tuple(str, int)
-#     :param offsets_compressor: compressor label, level for varnum attribute cells
-#     :type coords_compressor: tuple(str, int)
-#     :param bool sparse: True if schema is sparse, else False \
-#         (set by SparseArray and DenseArray derived classes)
-#     :raises TypeError: cannot convert uri to unicode string
-#     :raises: :py:exc:`tiledb.TileDBError`
-#
-#     """
-#     cdef Ctx ctx
-#     cdef unicode uri
-#     cdef tiledb_array_schema_t* ptr
-#
-#     def __cinit__(self):
-#         self.ptr = NULL
-#
-#     def __dealloc__(self):
-#         if self.ptr != NULL:
-#             tiledb_array_schema_free(&self.ptr)
-#
-#     def __init__(self, Ctx ctx, unicode uri,
-#                  domain=None,
-#                  attrs=(),
-#                  cell_order='row-major',
-#                  tile_order='row-major',
-#                  capacity=0,
-#                  coords_compressor=None,
-#                  offsets_compressor=None,
-#                  sparse=False):
-#         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-#         cdef bytes buri = unicode_path(uri)
-#         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-#         cdef tiledb_array_type_t array_type = TILEDB_SPARSE if sparse else TILEDB_DENSE
-#         cdef tiledb_array_schema_t* schema_ptr = NULL
-#         check_error(ctx,
-#                     tiledb_array_schema_create(ctx.ptr, &schema_ptr, array_type))
-#         cdef tiledb_layout_t cell_layout
-#         cdef tiledb_layout_t tile_layout
-#         try:
-#             cell_layout = _tiledb_layout(cell_order)
-#             tile_layout = _tiledb_layout(tile_order)
-#             check_error(ctx, tiledb_array_schema_set_cell_order(ctx.ptr, schema_ptr, cell_layout))
-#             check_error(ctx, tiledb_array_schema_set_tile_order(ctx.ptr, schema_ptr, tile_layout))
-#         except:
-#             tiledb_array_schema_free(&schema_ptr)
-#             raise
-#         cdef uint64_t _capacity = 0
-#         if capacity > 0:
-#             try:
-#                 _capacity = <uint64_t> capacity
-#                 check_error(ctx,
-#                             tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, _capacity))
-#             except:
-#                 tiledb_array_schema_free(&schema_ptr)
-#                 raise
-#         cdef int _level = -1
-#         cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
-#         if coords_compressor is not None:
-#             try:
-#                 compressor, level = coords_compressor
-#                 _compressor = _tiledb_compressor(compressor)
-#                 _level = int(level)
-#                 check_error(ctx,
-#                             tiledb_array_schema_set_coords_compressor(ctx.ptr, schema_ptr, _compressor, _level))
-#             except:
-#                 tiledb_array_schema_free(&schema_ptr)
-#                 raise
-#         if offsets_compressor is not None:
-#             try:
-#                 compressor, level = offsets_compressor
-#                 _compressor = _tiledb_compressor(compressor)
-#                 _level = int(level)
-#                 check_error(ctx,
-#                             tiledb_array_schema_set_offsets_compressor(ctx.ptr, schema_ptr, _compressor, _level))
-#             except:
-#                 tiledb_array_schema_free(&schema_ptr)
-#                 raise
-#         cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
-#         rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
-#         if rc != TILEDB_OK:
-#             tiledb_array_schema_free(&schema_ptr)
-#             check_error(ctx, rc)
-#         cdef tiledb_attribute_t* attr_ptr = NULL
-#         for attr in attrs:
-#             attr_ptr = (<Attr> attr).ptr
-#             rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
-#             if rc != TILEDB_OK:
-#                 tiledb_array_schema_free(&schema_ptr)
-#                 check_error(ctx, rc)
-#         rc = tiledb_array_schema_check(ctx.ptr, schema_ptr)
-#         if rc != TILEDB_OK:
-#             tiledb_array_schema_free(&schema_ptr)
-#             check_error(ctx, rc)
-#         with nogil:
-#             rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
-#         if rc != TILEDB_OK:
-#             check_error(ctx, rc)
-#         self.ctx = ctx
-#         self.uri = uri
-#         self.ptr = schema_ptr
-#
-#     @property
-#     def name(self):
-#         return self.uri
-#
-#     @property
-#     def sparse(self):
-#         """Returns true if the array is a sparse array representation
-#
-#         :rtype: bool
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef tiledb_array_type_t typ = TILEDB_DENSE
-#         check_error(self.ctx,
-#                     tiledb_array_schema_get_array_type(self.ctx.ptr, self.ptr, &typ))
-#         return typ == TILEDB_SPARSE
-#
-#     @property
-#     def capacity(self):
-#         """Returns the array capacity
-#
-#         :rtype: int
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef uint64_t cap = 0
-#         check_error(self.ctx,
-#                     tiledb_array_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
-#         return cap
-#
-#     cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr):
-#         check_error(self.ctx,
-#             tiledb_array_schema_get_cell_order(self.ctx.ptr, self.ptr, cell_order_ptr))
-#
-#     @property
-#     def cell_order(self):
-#         """Returns the cell order layout of the array representation"""
-#         cdef tiledb_layout_t order = TILEDB_UNORDERED
-#         self._cell_order(&order)
-#         return _tiledb_layout_string(order)
-#
-#     cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr):
-#         check_error(self.ctx,
-#             tiledb_array_schema_get_tile_order(self.ctx.ptr, self.ptr, tile_order_ptr))
-#
-#     @property
-#     def tile_order(self):
-#         """Returns the tile order layout of the array representation
-#
-#         :rtype: str
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef tiledb_layout_t order = TILEDB_UNORDERED
-#         self._tile_order(&order)
-#         return _tiledb_layout_string(order)
-#
-#     @property
-#     def coords_compressor(self):
-#         """Returns the compressor label, level for the array representation coordinates
-#
-#         :rtype: tuple(str, int)
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
-#         cdef int level = -1
-#         check_error(self.ctx,
-#                     tiledb_array_schema_get_coords_compressor(
-#                         self.ctx.ptr, self.ptr, &comp, &level))
-#         return (_tiledb_compressor_string(comp), level)
-#
-#     @property
-#     def offsets_compressor(self):
-#         """Returns the compressor label, level for the array representation varcell offsets
-#
-#         :rtype: tuple(str, int)
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
-#         cdef int level = -1
-#         check_error(self.ctx,
-#                     tiledb_array_schema_get_offsets_compressor(
-#                         self.ctx.ptr, self.ptr, &comp, &level))
-#         return (_tiledb_compressor_string(comp), level)
-#
-#     @property
-#     def domain(self):
-#         """Return a Domain associated with array instance
-#
-#         :rtype: tiledb.Domain
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef tiledb_domain_t* dom = NULL
-#         check_error(self.ctx,
-#                     tiledb_array_schema_get_domain(self.ctx.ptr, self.ptr, &dom))
-#         return Domain.from_ptr(self.ctx, dom)
-#
-#     @property
-#     def nattr(self):
-#         """Return the number of array attributes
-#
-#         :rtype: int
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef unsigned int nattr = 0
-#         check_error(self.ctx,
-#                     tiledb_array_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
-#         return int(nattr)
-#
-#     @property
-#     def ndim(self):
-#         """Return the number of array domain dimensions
-#
-#         :rtype: int
-#         """
-#         return self.domain.ndim
-#
-#     @property
-#     def shape(self):
-#         """Return the array's shape
-#
-#         :rtype: tuple(numpy scalar, numpy scalar)
-#         :raises TypeError: floating point (inexact) domain
-#         """
-#         return self.domain.shape
-#
-#     cdef _attr_name(self, unicode name):
-#         cdef bytes bname = name.encode('UTF-8')
-#         cdef tiledb_attribute_t* attr_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_array_schema_get_attribute_from_name(
-#                         self.ctx.ptr, self.ptr, bname, &attr_ptr))
-#         return Attr.from_ptr(self.ctx, attr_ptr)
-#
-#     cdef _attr_idx(self, int idx):
-#         cdef tiledb_attribute_t* attr_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_array_schema_get_attribute_from_index(
-#                         self.ctx.ptr, self.ptr, idx, &attr_ptr))
-#         return Attr.from_ptr(self.ctx, attr_ptr)
-#
-#     def attr(self, object key not None):
-#         """Returns an Attr instance given an int index or string label
-#
-#         :param key: attribute index (positional or associative)
-#         :type key: int or str
-#         :rtype: tiledb.Attr
-#         :return: The ArraySchema attribute at index or with the given name (label)
-#         :raises TypeError: invalid key type
-#
-#         """
-#         if isinstance(key, str):
-#             return self._attr_name(key)
-#         elif isinstance(key, _inttypes):
-#             return self._attr_idx(int(key))
-#         raise TypeError("attr indices must be a string name, "
-#                         "or an integer index, not {0!r}".format(type(key)))
-#
-#     def dump(self):
-#         """Dumps a string representation of the array object to standard output (STDOUT)"""
-#         check_error(self.ctx,
-#                     tiledb_array_schema_dump(self.ctx.ptr, self.ptr, stdout))
-#         print("\n")
-#         return
-#
-#     def consolidate(self):
-#         """Consolidates updates of an array object for increased read performance
-#
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         return array_consolidate(self.ctx, self.uri)
-#
-#     def nonempty_domain(self):
-#         """Return the minimum bounding domain which encompasses nonempty values
-#
-#         :rtype: tuple(tuple(numpy scalar, numpy scalar), ...)
-#         :return: A list of (inclusive) domain extent tuples, that contain all nonempty cells
-#
-#         """
-#         cdef Domain dom = self.domain
-#         cdef bytes buri = self.uri.encode('UTF-8')
-#         cdef np.ndarray extents = np.zeros(shape=(dom.ndim, 2), dtype=dom.dtype)
-#         cdef void* extents_ptr = np.PyArray_DATA(extents)
-#         cdef int empty = 0
-#         check_error(self.ctx,
-#                     tiledb_array_get_non_empty_domain(self.ctx.ptr, buri, extents_ptr, &empty))
-#         if empty > 0:
-#             return None
-#         return tuple((extents[i, 0].item(), extents[i, 1].item())
-#                      for i in range(dom.ndim))
-#
-#
+cdef class ArraySchema(object):
+    """
+    Schema class for TileDB dense / sparse array representations
+
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param attrs: one or more array attributes
+    :type attrs: tuple(tiledb.Attr, ...)
+    :param cell_order:  TileDB label for cell layout
+    :type cell_order: 'row-major' or 'C', 'col-major' or 'F'
+    :param tile_order:  TileDB label for tile layout
+    :type tile_order: 'row-major' or 'C', 'col-major' or 'F', 'unordered'
+    :param int capacity: tile cell capacity
+    :param coords_compressor: compressor label, level for (sparse) coordinates
+    :type coords_compressor: tuple(str, int)
+    :param offsets_compressor: compressor label, level for varnum attribute cells
+    :type coords_compressor: tuple(str, int)
+    :param bool sparse: True if schema is sparse, else False \
+        (set by SparseArray and DenseArray derived classes)
+    :raises TypeError: cannot convert uri to unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    cdef Ctx ctx
+    cdef tiledb_array_schema_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_array_schema_free(&self.ptr)
+
+    def __init__(self, Ctx ctx,
+                 domain=None,
+                 attrs=(),
+                 cell_order='row-major',
+                 tile_order='row-major',
+                 capacity=0,
+                 coords_compressor=None,
+                 offsets_compressor=None,
+                 sparse=False):
+        cdef tiledb_array_type_t array_type =\
+            TILEDB_SPARSE if sparse else TILEDB_DENSE
+        cdef tiledb_array_schema_t* schema_ptr = NULL
+        check_error(ctx,
+                    tiledb_array_schema_alloc(ctx.ptr, array_type, &schema_ptr))
+        cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
+        cdef tiledb_layout_t tile_layout = TILEDB_ROW_MAJOR
+        try:
+            cell_layout = _tiledb_layout(cell_order)
+            tile_layout = _tiledb_layout(tile_order)
+            check_error(ctx, tiledb_array_schema_set_cell_order(ctx.ptr, schema_ptr, cell_layout))
+            check_error(ctx, tiledb_array_schema_set_tile_order(ctx.ptr, schema_ptr, tile_layout))
+        except:
+            tiledb_array_schema_free(&schema_ptr)
+            raise
+        cdef uint64_t _capacity = 0
+        if capacity > 0:
+            try:
+                _capacity = <uint64_t> capacity
+                check_error(ctx,
+                    tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, _capacity))
+            except:
+                tiledb_array_schema_free(&schema_ptr)
+                raise
+        cdef int _level = -1
+        cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
+        if coords_compressor is not None:
+            try:
+                compressor, level = coords_compressor
+                _compressor = _tiledb_compressor(compressor)
+                _level = int(level)
+                check_error(ctx,
+                    tiledb_array_schema_set_coords_compressor(ctx.ptr, schema_ptr, _compressor, _level))
+            except:
+                tiledb_array_schema_free(&schema_ptr)
+                raise
+        if offsets_compressor is not None:
+            try:
+                compressor, level = offsets_compressor
+                _compressor = _tiledb_compressor(compressor)
+                _level = int(level)
+                check_error(ctx,
+                    tiledb_array_schema_set_offsets_compressor(ctx.ptr, schema_ptr, _compressor, _level))
+            except:
+                tiledb_array_schema_free(&schema_ptr)
+                raise
+        cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
+        rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
+        if rc != TILEDB_OK:
+            tiledb_array_schema_free(&schema_ptr)
+            _raise_ctx_err(ctx.ptr, rc)
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        for attr in attrs:
+            attr_ptr = (<Attr> attr).ptr
+            rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
+            if rc != TILEDB_OK:
+                tiledb_array_schema_free(&schema_ptr)
+                _raise_ctx_err(ctx.ptr, rc)
+        rc = tiledb_array_schema_check(ctx.ptr, schema_ptr)
+        if rc != TILEDB_OK:
+            tiledb_array_schema_free(&schema_ptr)
+            _raise_ctx_err(ctx.ptr, rc)
+        self.ctx = ctx
+        self.ptr = schema_ptr
+
+    def __eq__(self, other):
+        if not isinstance(other, ArraySchema):
+            return False
+        nattr = self.nattr
+        if nattr != other.nattr:
+            return False
+        if (self.sparse != other.sparse or
+            self.cell_order != other.cell_order or
+            self.tile_order != other.tile_order):
+            return False
+        if (self.capacity != other.capacity or
+            self.coords_compressor != other.coords_compressor or
+            self.offsets_compressor != other.offsets_compressor):
+            return False
+        if self.domain != other.domain:
+            return False
+        for i in range(nattr):
+            if self.attr(i) != other.attr(i):
+                return False
+        return True
+
+    @property
+    def sparse(self):
+        """Returns true if the array is a sparse array representation
+
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef tiledb_array_type_t typ = TILEDB_DENSE
+        check_error(self.ctx,
+                    tiledb_array_schema_get_array_type(self.ctx.ptr, self.ptr, &typ))
+        return typ == TILEDB_SPARSE
+
+    @property
+    def capacity(self):
+        """Returns the array capacity
+
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef uint64_t cap = 0
+        check_error(self.ctx,
+                    tiledb_array_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
+        return cap
+
+    cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr):
+        check_error(self.ctx,
+            tiledb_array_schema_get_cell_order(self.ctx.ptr, self.ptr, cell_order_ptr))
+
+    @property
+    def cell_order(self):
+        """Returns the cell order layout of the array representation"""
+        cdef tiledb_layout_t order = TILEDB_UNORDERED
+        self._cell_order(&order)
+        return _tiledb_layout_string(order)
+
+    cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr):
+        check_error(self.ctx,
+            tiledb_array_schema_get_tile_order(self.ctx.ptr, self.ptr, tile_order_ptr))
+
+    @property
+    def tile_order(self):
+        """Returns the tile order layout of the array representation
+
+        :rtype: str
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef tiledb_layout_t order = TILEDB_UNORDERED
+        self._tile_order(&order)
+        return _tiledb_layout_string(order)
+
+    @property
+    def coords_compressor(self):
+        """Returns the compressor label, level for the array representation coordinates
+
+        :rtype: tuple(str, int)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
+        cdef int level = -1
+        check_error(self.ctx,
+                    tiledb_array_schema_get_coords_compressor(
+                        self.ctx.ptr, self.ptr, &comp, &level))
+        return (_tiledb_compressor_string(comp), level)
+
+    @property
+    def offsets_compressor(self):
+        """Returns the compressor label, level for the array representation varcell offsets
+
+        :rtype: tuple(str, int)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
+        cdef int level = -1
+        check_error(self.ctx,
+                    tiledb_array_schema_get_offsets_compressor(
+                        self.ctx.ptr, self.ptr, &comp, &level))
+        return (_tiledb_compressor_string(comp), level)
+
+    @property
+    def domain(self):
+        """Return a Domain associated with array instance
+
+        :rtype: tiledb.Domain
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef tiledb_domain_t* dom = NULL
+        check_error(self.ctx,
+                    tiledb_array_schema_get_domain(self.ctx.ptr, self.ptr, &dom))
+        return Domain.from_ptr(self.ctx, dom)
+
+    @property
+    def nattr(self):
+        """Return the number of array attributes
+
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef unsigned int nattr = 0
+        check_error(self.ctx,
+                    tiledb_array_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
+        return int(nattr)
+
+    @property
+    def ndim(self):
+        """Return the number of array domain dimensions
+
+        :rtype: int
+        """
+        return self.domain.ndim
+
+    @property
+    def shape(self):
+        """Return the array's shape
+
+        :rtype: tuple(numpy scalar, numpy scalar)
+        :raises TypeError: floating point (inexact) domain
+        """
+        return self.domain.shape
+
+    cdef _attr_name(self, name):
+        cdef bytes bname = ustring(name).encode('UTF-8')
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_array_schema_get_attribute_from_name(
+                        self.ctx.ptr, self.ptr, bname, &attr_ptr))
+        return Attr.from_ptr(self.ctx, attr_ptr)
+
+    cdef _attr_idx(self, int idx):
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_array_schema_get_attribute_from_index(
+                        self.ctx.ptr, self.ptr, idx, &attr_ptr))
+        return Attr.from_ptr(self.ctx, attr_ptr)
+
+    def attr(self, object key not None):
+        """Returns an Attr instance given an int index or string label
+
+        :param key: attribute index (positional or associative)
+        :type key: int or str
+        :rtype: tiledb.Attr
+        :return: The ArraySchema attribute at index or with the given name (label)
+        :raises TypeError: invalid key type
+
+        """
+        if isinstance(key, (str, unicode)):
+            return self._attr_name(key)
+        elif isinstance(key, _inttypes):
+            return self._attr_idx(int(key))
+        raise TypeError("attr indices must be a string name, "
+                        "or an integer index, not {0!r}".format(type(key)))
+
+    def dump(self):
+        """Dumps a string representation of the array object to standard output (STDOUT)"""
+        check_error(self.ctx,
+                    tiledb_array_schema_dump(self.ctx.ptr, self.ptr, stdout))
+        print("\n")
+        return
+
+    # def consolidate(self):
+    #     """Consolidates updates of an array object for increased read performance
+    #
+    #     :raises: :py:exc:`tiledb.TileDBError`
+    #
+    #     """
+    #     return array_consolidate(self.ctx, self.uri)
+    #
+    # def nonempty_domain(self):
+    #     """Return the minimum bounding domain which encompasses nonempty values
+    #
+    #     :rtype: tuple(tuple(numpy scalar, numpy scalar), ...)
+    #     :return: A list of (inclusive) domain extent tuples, that contain all nonempty cells
+    #
+    #     """
+    #     cdef Domain dom = self.domain
+    #     cdef bytes buri = self.uri.encode('UTF-8')
+    #     cdef np.ndarray extents = np.zeros(shape=(dom.ndim, 2), dtype=dom.dtype)
+    #     cdef void* extents_ptr = np.PyArray_DATA(extents)
+    #     cdef int empty = 0
+    #     check_error(self.ctx,
+    #                 tiledb_array_get_non_empty_domain(self.ctx.ptr, buri, extents_ptr, &empty))
+    #     if empty > 0:
+    #         return None
+    #     return tuple((extents[i, 0].item(), extents[i, 1].item())
+    #                  for i in range(dom.ndim))
+    #
+
 # cdef class DenseArray(ArraySchema):
 #     """TileDB DenseArray class
 #

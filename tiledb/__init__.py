@@ -7,7 +7,7 @@ from .libtiledb import (
      Domain,
      Attr,
 #     KV,
-#     ArraySchema,
+     ArraySchema,
 #     DenseArray,
 #     SparseArray,
      TileDBError,

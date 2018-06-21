@@ -339,10 +339,10 @@ cdef extern from "tiledb/tiledb.h":
         void** tile_extent)
 
     # Array schema
-    int tiledb_array_schema_create(
+    int tiledb_array_schema_alloc(
         tiledb_ctx_t* ctx,
-        tiledb_array_schema_t** array_schema,
-        tiledb_array_type_t array_type)
+        tiledb_array_type_t array_type,
+        tiledb_array_schema_t** array_schema)
 
     void tiledb_array_schema_free(
         tiledb_array_schema_t** array_schema)
@@ -384,31 +384,14 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_compressor_t compressor,
         int compression_level)
 
-    int tiledb_array_schema_get_attribute_from_index(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        unsigned int index,
-        tiledb_attribute_t** attr)
-
-    int tiledb_array_schema_get_attribute_from_name(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        const char* name,
-        tiledb_attribute_t** attr)
-
     int tiledb_array_schema_check(
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema)
 
     int tiledb_array_schema_load(
         tiledb_ctx_t* ctx,
-        tiledb_array_schema_t** array_schema,
-        const char* array_name) nogil
-
-    int tiledb_array_schema_get_array_name(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        const char** array_name)
+        const char* array_uri,
+        tiledb_array_schema_t** array_schema)
 
     int tiledb_array_schema_get_array_type(
         tiledb_ctx_t* ctx,
@@ -423,7 +406,7 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_array_schema_get_cell_order(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
-        tiledb_layout_t* cell_order);
+        tiledb_layout_t* cell_order)
 
     int tiledb_array_schema_get_coords_compressor(
         tiledb_ctx_t* ctx,
@@ -451,6 +434,23 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         unsigned int* num_attributes)
+
+    int tiledb_array_schema_get_attribute_from_index(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        unsigned int index,
+        tiledb_attribute_t** attr)
+
+    int tiledb_array_schema_get_attribute_from_name(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        const char* name,
+        tiledb_attribute_t** attr)
+
+    int tiledb_array_schema_get_array_name(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        const char** array_name)
 
     int tiledb_array_schema_dump(
         tiledb_ctx_t* ctx,

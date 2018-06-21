@@ -133,24 +133,7 @@ class GroupTest(GroupTestCase):
 
         self.assertFalse(self.is_group(ctx, self.group3))
         self.assertFalse(self.is_group(ctx, self.group4))
-    
-    # def test_move_group(self):
-    #     ctx = tiledb.Ctx()
-    #
-    #     tiledb.move(ctx, self.group4, self.path("group1/group4"))
-    #
-    #     self.assertTrue(self.is_group(ctx, self.path("group1/group4")))
-    #     self.assertFalse(self.is_group(ctx, self.group4))
-    #
-    #     with self.assertRaises(tiledb.TileDBError):
-    #         tiledb.move(ctx, self.path("group1/group4"), self.path("group1/group3"))
-    #
-    #     tiledb.move(ctx, self.path("group1/group4"),
-    #                 self.path("group1/group3"),
-    #                 force=True)
-    #
-    #     self.assertTrue(self.is_group(ctx, self.path("group1/group3")))
-    #     self.assertFalse(self.is_group(ctx, self.path("group1/group4")))
+
 
 class DimensionTest(unittest.TestCase):
 
@@ -256,18 +239,99 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(attr.dtype, np.dtype(np.bytes_))
         self.assertTrue(attr.isvar)
 
-#     def test_unique_attributes(self):
-#         ctx = tiledb.Ctx()
-#         dom = tiledb.Domain(
-#             ctx,
-#             tiledb.Dim(ctx, "d1", (1, 4), 2, dtype='u8'),
-#             tiledb.Dim(ctx, "d2", (1, 4), 2, dtype='u8'))
-#
-#         attr1 = tiledb.Attr(ctx, "foo", dtype=float)
-#         attr2 = tiledb.Attr(ctx, "foo", dtype=int)
-#
-#         with self.assertRaises(tiledb.TileDBError):
-#             tiledb.ArraySchema(ctx, "foobar", domain=dom, attrs=(attr1, attr2))
+
+class ArraySchemaTest(unittest.TestCase):
+
+    def test_unique_attributes(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            ctx,
+            tiledb.Dim(ctx, "d1", (1, 4), 2, dtype='u8'),
+            tiledb.Dim(ctx, "d2", (1, 4), 2, dtype='u8'))
+
+        attr1 = tiledb.Attr(ctx, "foo", dtype=float)
+        attr2 = tiledb.Attr(ctx, "foo", dtype=int)
+
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.ArraySchema(ctx, domain=dom, attrs=(attr1, attr2))
+
+    def test_dense_array_schema(self):
+        ctx = tiledb.Ctx()
+        domain = tiledb.Domain(
+            ctx,
+            tiledb.Dim(ctx, domain=(1, 8), tile=2),
+            tiledb.Dim(ctx, domain=(1, 8), tile=2))
+        a1 = tiledb.Attr(ctx, "val", dtype='f8')
+        schema = tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,))
+        self.assertFalse(schema.sparse)
+        self.assertEqual(schema.cell_order, "row-major")
+        self.assertEqual(schema.tile_order, "row-major")
+        self.assertEqual(schema.domain, domain)
+        self.assertEqual(schema.ndim, 2)
+        self.assertEqual(schema.shape, (8, 8))
+        self.assertEqual(schema.nattr, 1)
+        self.assertEqual(schema.attr(0), a1)
+        self.assertEqual(schema,
+            tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,)))
+        self.assertNotEqual(schema,
+            tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,), sparse=True))
+
+    def test_dense_array_schema_fp_domain_error(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(ctx,
+            tiledb.Dim(ctx, domain=(1, 8), tile=2, dtype=np.float64))
+        att = tiledb.Attr(ctx, "val", dtype=np.float64)
+
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.ArraySchema(ctx, domain=dom, attrs=(att,))
+
+    def test_sparse_schema(self):
+        ctx = tiledb.Ctx()
+
+        # create dimensions
+        d1 = tiledb.Dim(ctx, "", domain=(1, 1000), tile=10, dtype="uint64")
+        d2 = tiledb.Dim(ctx, "d2", domain=(101, 10000), tile=100, dtype="uint64")
+
+        # create domain
+        domain = tiledb.Domain(ctx, d1, d2)
+
+        # create attributes
+        a1 = tiledb.Attr(ctx, "", dtype="int32,int32,int32")
+        a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="float32")
+
+        # create sparse array with schema
+        schema = tiledb.ArraySchema(ctx,
+                                    domain=domain,
+                                    attrs=(a1, a2),
+                                    capacity=10,
+                                    cell_order='col-major',
+                                    tile_order='row-major',
+                                    coords_compressor=('zstd', 4),
+                                    offsets_compressor=('blosc-lz', 5),
+                                    sparse=True)
+        schema.dump()
+        self.assertTrue(schema.sparse)
+        self.assertEqual(schema.capacity, 10)
+        self.assertEqual(schema.cell_order, "col-major")
+        self.assertEqual(schema.tile_order, "row-major")
+        self.assertEqual(schema.coords_compressor, ('zstd', 4))
+        self.assertEqual(schema.offsets_compressor, ('blosc-lz', 5))
+        self.assertEqual(schema.domain, domain)
+        self.assertEqual(schema.ndim, 2)
+        self.assertEqual(schema.shape, (1000, 9900))
+        self.assertEqual(schema.nattr, 2)
+        self.assertEqual(schema.attr(0), a1)
+        self.assertEqual(schema.attr("a2"), a2)
+        self.assertEqual(schema,
+                         tiledb.ArraySchema(ctx,
+                                    domain=domain,
+                                    attrs=(a1, a2),
+                                    capacity=10,
+                                    cell_order='col-major',
+                                    tile_order='row-major',
+                                    coords_compressor=('zstd', 4),
+                                    offsets_compressor=('blosc-lz', 5),
+                                    sparse=True))
 
 """
 class DenseArrayTest(DiskTestCase):
