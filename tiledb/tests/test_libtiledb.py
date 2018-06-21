@@ -172,14 +172,13 @@ class DimensionTest(unittest.TestCase):
 class DomainTest(unittest.TestCase):
 
     def test_domain(self):
-        ctx = t.Ctx()
-        dom = t.Domain(
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
             ctx,
-            t.Dim(ctx, "d1", (1, 4), 2, dtype='u8'),
-            t.Dim(ctx, "d2", (1, 4), 2, dtype='u8'))
+            tiledb.Dim(ctx, "d1", (1, 4), 2, dtype='u8'),
+            tiledb.Dim(ctx, "d2", (1, 4), 2, dtype='u8'))
         dom.dump()
         self.assertEqual(dom.ndim, 2)
-        self.assertEqual(dom.rank, dom.ndim)
         self.assertEqual(dom.dtype, np.dtype("uint64"))
         self.assertEqual(dom.shape, (4, 4))
 
@@ -188,12 +187,12 @@ class DomainTest(unittest.TestCase):
         self.assertEqual(["d1", "d2"], dim_names)
 
     def test_domain_dims_not_same_type(self):
-        ctx = t.Ctx()
+        ctx = tiledb.Ctx()
         with self.assertRaises(TypeError):
-            t.Domain(
+            tiledb.Domain(
                     ctx,
-                    t.Dim(ctx, "d1", (1, 4), 2, dtype=int),
-                    t.Dim(ctx, "d2", (1, 4), 2, dtype=float))
+                    tiledb.Dim(ctx, "d1", (1, 4), 2, dtype=int),
+                    tiledb.Dim(ctx, "d2", (1, 4), 2, dtype=float))
 
 """
 class AttributeTest(unittest.TestCase):

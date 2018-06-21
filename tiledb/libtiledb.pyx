@@ -1176,171 +1176,172 @@ cdef class Dim(object):
         return domain_array[0], domain_array[1]
 
 
-# cdef class Domain(object):
-#     """TileDB Domain class object
-#
-#     :param tiledb.Ctx ctx: A TileDB Context
-#     :param \*dims: one or more tiledb.Dim objects up to the Domains ndim (rank)
-#     :raises TypeError: All dimensions must have the same dtype
-#     :raises: :py:exc:`libtiledb.TileDBError`
-#
-#     """
-#
-#     cdef Ctx ctx
-#     cdef tiledb_domain_t* ptr
-#
-#     def __cinit__(self):
-#         self.ptr = NULL
-#
-#     def __dealloc__(self):
-#         if self.ptr != NULL:
-#             tiledb_domain_free(&self.ptr)
-#
-#     @staticmethod
-#     cdef from_ptr(Ctx ctx, const tiledb_domain_t* ptr):
-#         """Constructs an Domain class instance from a (non-null) tiledb_domain_t pointer"""
-#         cdef Domain dom = Domain.__new__(Domain)
-#         dom.ctx = ctx
-#         dom.ptr = <tiledb_domain_t*> ptr
-#         return dom
-#
-#     def __init__(self, Ctx ctx, *dims):
-#         cdef unsigned int ndim = len(dims)
-#         if ndim == 0:
-#             raise TileDBError("Domain must have ndim >= 1")
-#         cdef Dim dimension = dims[0]
-#         cdef tiledb_datatype_t domain_type = dimension._get_type()
-#         for i in range(1, ndim):
-#             dimension = dims[i]
-#             if dimension._get_type() != domain_type:
-#                 raise TypeError("all dimensions must have the same dtype")
-#         cdef tiledb_domain_t* domain_ptr = NULL
-#         cdef int rc = tiledb_domain_create(ctx.ptr, &domain_ptr)
-#         if rc != TILEDB_OK:
-#             check_error(ctx, rc)
-#         assert(domain_ptr != NULL)
-#         for i in range(ndim):
-#             dimension = dims[i]
-#             rc = tiledb_domain_add_dimension(
-#                 ctx.ptr, domain_ptr, dimension.ptr)
-#             if rc != TILEDB_OK:
-#                 tiledb_domain_free(&domain_ptr)
-#                 check_error(ctx, rc)
-#         self.ctx = ctx
-#         self.ptr = domain_ptr
-#
-#     def __repr__(self):
-#         dims = ",\n       ".join(
-#             [repr(self.dim(i)) for i in range(self.ndim)])
-#         return "Domain({0!s})".format(dims)
-#
-#     def __len__(self):
-#         """Returns the number of dimensions of the domain"""
-#         return self.ndim
-#
-#     def __iter__(self):
-#         """Returns a generator object that iterates over the domain's dimension objects"""
-#         return (self.dim(i) for i in range(self.ndim))
-#
-#     @property
-#     def ndim(self):
-#         """Returns the number of dimensions of the domain
-#
-#         :rtype: int
-#
-#         """
-#         cdef unsigned int ndim = 0
-#         check_error(self.ctx,
-#                     tiledb_domain_get_ndim(self.ctx.ptr, self.ptr, &ndim))
-#         return ndim
-#
-#     cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
-#         cdef tiledb_datatype_t typ
-#         check_error(self.ctx,
-#                     tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
-#         return typ
-#
-#     @property
-#     def dtype(self):
-#         """Returns the numpy dtype of the domain dimension types
-#
-#         :rtype: numpy.dtype
-#
-#         """
-#         cdef tiledb_datatype_t typ = self._get_type()
-#         return np.dtype(_numpy_type(typ))
-#
-#     cdef _integer_domain(Domain self):
-#         cdef tiledb_datatype_t typ = self._get_type()
-#         if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
-#             return False
-#         return True
-#
-#     cdef _shape(Domain self):
-#         return tuple(self.dim(i).shape[0] for i in range(self.ndim))
-#
-#     @property
-#     def shape(self):
-#         """Returns the domain's shape, valid only for integer domains
-#
-#         :rtype: tuple
-#         :raises TypeError: floating point (inexact) domain
-#
-#         """
-#         if not self._integer_domain():
-#             raise TypeError("shape valid only for integer domains")
-#         return self._shape()
-#
-#     @property
-#     def size(self):
-#         """Returns the domain's size (number of cells), valid only for integer domains
-#
-#         :rtype: int
-#         :raises TypeError: floating point (inexact) domain
-#
-#         """
-#         if not self._integer_domain():
-#             raise TypeError("shape valid only for integer domains")
-#         return np.product(self._shape())
-#
-#     def dim(self, int idx):
-#         """Returns a dimension object given the dimensions index
-#
-#         :param int idx: dimension index
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef tiledb_dimension_t* dim_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_domain_get_dimension_from_index(
-#                         self.ctx.ptr, self.ptr, idx, &dim_ptr))
-#         assert(dim_ptr != NULL)
-#         return Dim.from_ptr(self.ctx, dim_ptr)
-#
-#     def dim(self, unicode name):
-#         """Returns a dimension object given the dimensions label
-#
-#         :param str name: dimension name (label)
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef bytes uname = ustring(name).encode('UTF-8')
-#         cdef const char* name_ptr = uname
-#         cdef tiledb_dimension_t* dim_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_domain_get_dimension_from_name(
-#                         self.ctx.ptr, self.ptr, name_ptr, &dim_ptr))
-#         assert(dim_ptr != NULL)
-#         return Dim.from_ptr(self.ctx, dim_ptr)
-#
-#     def dump(self):
-#         """Dumps a string representation of the domain object to standard output (STDOUT)"""
-#         check_error(self.ctx,
-#                     tiledb_domain_dump(self.ctx.ptr, self.ptr, stdout))
-#         print("\n")
-#         return
-#
-#
+cdef class Domain(object):
+    """TileDB Domain class object
+
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param *dims: one or more tiledb.Dim objects up to the Domains ndim
+    :raises TypeError: All dimensions must have the same dtype
+    :raises: :py:exc:`libtiledb.TileDBError`
+
+    """
+
+    cdef Ctx ctx
+    cdef tiledb_domain_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_domain_free(&self.ptr)
+
+    @staticmethod
+    cdef from_ptr(Ctx ctx, const tiledb_domain_t* ptr):
+        """Constructs an Domain class instance from a (non-null) tiledb_domain_t pointer"""
+        assert(ptr != NULL)
+        cdef Domain dom = Domain.__new__(Domain)
+        dom.ctx = ctx
+        dom.ptr = <tiledb_domain_t*> ptr
+        return dom
+
+    def __init__(self, Ctx ctx, *dims):
+        cdef unsigned int ndim = len(dims)
+        if ndim == 0:
+            raise TileDBError("Domain must have ndim >= 1")
+        cdef Dim dimension = dims[0]
+        cdef tiledb_datatype_t domain_type = dimension._get_type()
+        for i in range(1, ndim):
+            dimension = dims[i]
+            if dimension._get_type() != domain_type:
+                raise TypeError("all dimensions must have the same dtype")
+        cdef tiledb_domain_t* domain_ptr = NULL
+        cdef int rc = tiledb_domain_alloc(ctx.ptr, &domain_ptr)
+        if rc != TILEDB_OK:
+            check_error(ctx, rc)
+        assert(domain_ptr != NULL)
+        for i in range(ndim):
+            dimension = dims[i]
+            rc = tiledb_domain_add_dimension(
+                ctx.ptr, domain_ptr, dimension.ptr)
+            if rc != TILEDB_OK:
+                tiledb_domain_free(&domain_ptr)
+                check_error(ctx, rc)
+        self.ctx = ctx
+        self.ptr = domain_ptr
+
+    def __repr__(self):
+        dims = ",\n       ".join(
+            [repr(self.dim(i)) for i in range(self.ndim)])
+        return "Domain({0!s})".format(dims)
+
+    def __len__(self):
+        """Returns the number of dimensions of the domain"""
+        return self.ndim
+
+    def __iter__(self):
+        """Returns a generator object that iterates over the domain's dimension objects"""
+        return (self.dim(i) for i in range(self.ndim))
+
+    @property
+    def ndim(self):
+        """Returns the number of dimensions of the domain
+
+        :rtype: int
+
+        """
+        cdef unsigned int ndim = 0
+        check_error(self.ctx,
+                    tiledb_domain_get_ndim(self.ctx.ptr, self.ptr, &ndim))
+        return ndim
+
+    cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
+        cdef tiledb_datatype_t typ
+        check_error(self.ctx,
+                    tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
+        return typ
+
+    @property
+    def dtype(self):
+        """Returns the numpy dtype of the domain dimension types
+
+        :rtype: numpy.dtype
+
+        """
+        cdef tiledb_datatype_t typ = self._get_type()
+        return np.dtype(_numpy_type(typ))
+
+    cdef _integer_domain(Domain self):
+        cdef tiledb_datatype_t typ = self._get_type()
+        if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
+            return False
+        return True
+
+    cdef _shape(Domain self):
+        return tuple(self.dim(i).shape[0] for i in range(self.ndim))
+
+    @property
+    def shape(self):
+        """Returns the domain's shape, valid only for integer domains
+
+        :rtype: tuple
+        :raises TypeError: floating point (inexact) domain
+
+        """
+        if not self._integer_domain():
+            raise TypeError("shape valid only for integer domains")
+        return self._shape()
+
+    @property
+    def size(self):
+        """Returns the domain's size (number of cells), valid only for integer domains
+
+        :rtype: int
+        :raises TypeError: floating point (inexact) domain
+
+        """
+        if not self._integer_domain():
+            raise TypeError("shape valid only for integer domains")
+        return np.product(self._shape())
+
+    def dim(self, int idx):
+        """Returns a dimension object given the dimensions index
+
+        :param int idx: dimension index
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef tiledb_dimension_t* dim_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_domain_get_dimension_from_index(
+                        self.ctx.ptr, self.ptr, idx, &dim_ptr))
+        assert(dim_ptr != NULL)
+        return Dim.from_ptr(self.ctx, dim_ptr)
+
+    def dim(self, unicode name):
+        """Returns a dimension object given the dimensions label
+
+        :param str name: dimension name (label)
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes uname = ustring(name).encode('UTF-8')
+        cdef const char* name_ptr = uname
+        cdef tiledb_dimension_t* dim_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_domain_get_dimension_from_name(
+                        self.ctx.ptr, self.ptr, name_ptr, &dim_ptr))
+        assert(dim_ptr != NULL)
+        return Dim.from_ptr(self.ctx, dim_ptr)
+
+    def dump(self):
+        """Dumps a string representation of the domain object to standard output (STDOUT)"""
+        check_error(self.ctx,
+                    tiledb_domain_dump(self.ctx.ptr, self.ptr, stdout))
+        print("\n")
+        return
+
+
 # cdef class KV(object):
 #     """TileDB KV array class object
 #

@@ -267,7 +267,7 @@ cdef extern from "tiledb/tiledb.h":
         FILE* out)
 
     # Domain
-    int tiledb_domain_create(
+    int tiledb_domain_alloc(
         tiledb_ctx_t* ctx,
         tiledb_domain_t** domain)
 

@@ -4,7 +4,7 @@ from .libtiledb import (
      Ctx,
      Config,
      Dim,
-#     Domain,
+     Domain,
 #     Attr,
 #     KV,
 #     ArraySchema,
