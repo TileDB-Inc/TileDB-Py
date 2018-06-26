@@ -537,7 +537,7 @@ cdef extern from "tiledb/tiledb.h":
         uint64_t* buffer_sizes);
 
     # Key / Value Schema
-    int tiledb_kv_schema_create(
+    int tiledb_kv_schema_alloc(
         tiledb_ctx_t* ctx,
         tiledb_kv_schema_t** kv_schema)
 
@@ -555,8 +555,8 @@ cdef extern from "tiledb/tiledb.h":
 
     int tiledb_kv_schema_load(
         tiledb_ctx_t* ctx,
-        tiledb_kv_schema_t** kv_schema,
-        const char* uri) nogil
+        const char* uri,
+        tiledb_kv_schema_t** kv_schema) nogil
 
     int tiledb_kv_schema_get_attribute_num(
         tiledb_ctx_t* ctx,
@@ -580,8 +580,18 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_kv_schema_t* kv_schema,
         FILE* out)
 
+    int tiledb_kv_schema_set_capacity(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_schema_t* kv_schema,
+        uint64_t capacity)
+
+    int tiledb_kv_schema_get_capacity(
+        tiledb_ctx_t* ctx,
+        const tiledb_kv_schema_t* kv_schema,
+        uint64_t* capacity)
+
     # Key / Value Item
-    int tiledb_kv_item_create(
+    int tiledb_kv_item_alloc(
         tiledb_ctx_t* ctx,
         tiledb_kv_item_t** kv_item)
 
@@ -621,8 +631,21 @@ cdef extern from "tiledb/tiledb.h":
     # Key / Value store
     int tiledb_kv_create(
         tiledb_ctx_t* ctx,
+        const char* uri,
+        const tiledb_kv_schema_t* schema) nogil
+
+    int tiledb_kv_alloc(
+        tiledb_ctx_t* ctx,
         const char* kv_uri,
-        const tiledb_kv_schema_t* kv_schema)
+        tiledb_kv_t** kv) nogil
+
+    int tiledb_kv_free(
+        tiledb_kv_t** kv)
+
+    int tiledb_kv_get_schema(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        tiledb_kv_schema_t** schema)
 
     int tiledb_kv_consolidate(
         tiledb_ctx_t* ctx,
@@ -635,14 +658,17 @@ cdef extern from "tiledb/tiledb.h":
 
     int tiledb_kv_open(
         tiledb_ctx_t* ctx,
-        tiledb_kv_t** kv,
-        const char* kv_uri,
+        tiledb_kv_t* kv,
         const char** attributes,
-        unsigned int attribute_num)
+        unsigned int attribute_num) nogil
 
     int tiledb_kv_close(
         tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv)
+        tiledb_kv_t* kv) nogil
+
+    int tiledb_kv_reopen(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv) nogil
 
     int tiledb_kv_add_item(
         tiledb_ctx_t* ctx,
@@ -651,15 +677,15 @@ cdef extern from "tiledb/tiledb.h":
 
     int tiledb_kv_flush(
         tiledb_ctx_t* ctx,
-        tiledb_kv_t* kv)
+        tiledb_kv_t* kv) nogil
 
     int tiledb_kv_get_item(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
-        tiledb_kv_item_t** kv_item,
         const void* key,
         tiledb_datatype_t key_type,
-        uint64_t key_size)
+        uint64_t key_size,
+        tiledb_kv_item_t** kv_item)
 
     # K/V Iterator
     int tiledb_kv_iter_alloc(
