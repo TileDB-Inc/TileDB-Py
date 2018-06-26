@@ -1597,7 +1597,7 @@ cdef class KV(object):
             rc = tiledb_kv_create(ctx_ptr, uri_ptr, schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        return
+        return KV(ctx, uri)
 
     def __init__(self, Ctx ctx, uri, attrs=(), buffered_items=None):
         # alloc tiledb kv object
@@ -1689,10 +1689,10 @@ cdef class KV(object):
 
         """
         return dict(self)
-    #
-    # def __iter__(self):
-    #     """Return an iterator object over KV key, values"""
-    #     return KVIter(self.ctx, self.uri)
+
+    def __iter__(self):
+        """Return an iterator object over KV key, values"""
+        return KVIter(self)
 
     def __setitem__(self, object key, object value):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -1785,13 +1785,17 @@ cdef class KV(object):
         return val.decode('UTF-8')
 
     def __contains__(self, key):
-        try:
-            self[key]
-            return True
-        except KeyError:
-            return False
-        except:
-            raise
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef bytes bkey = key.encode('UTF-8')
+        cdef const void* key_ptr = <void*> PyBytes_AS_STRING(bkey)
+        cdef uint64_t key_size = PyBytes_GET_SIZE(bkey)
+        cdef int has_key = 0
+        cdef int rc = tiledb_kv_has_key(
+            ctx_ptr, kv_ptr, key_ptr, TILEDB_CHAR, key_size, &has_key)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return has_key == 1
 
     def reopen(self):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -1824,63 +1828,72 @@ cdef class KV(object):
         for (k, v) in items.items():
             self[k] = v
 
-#
-# cdef class KVIter(object):
-#     """KV iterator object iterates over KV items
-#     """
-#
-#     cdef Ctx ctx
-#     cdef tiledb_kv_iter_t*ptr
-#
-#     def __cinit__(self):
-#         self.ptr = NULL
-#
-#     def __dealloc__(self):
-#         if self.ptr != NULL:
-#             tiledb_kv_iter_free(&self.ptr)
-#
-#     def __init__(self, Ctx ctx, uri):
-#         cdef bytes buri = unicode_path(uri)
-#         cdef tiledb_kv_iter_t* kv_iter_ptr = NULL
-#         check_error(ctx,
-#                     tiledb_kv_iter_create(ctx.ptr, &kv_iter_ptr, buri, NULL, 0))
-#         assert(kv_iter_ptr != NULL)
-#         self.ctx = ctx
-#         self.ptr = kv_iter_ptr
-#
-#     def __iter__(self):
-#         return self
-#
-#     def __next__(self):
-#         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-#         cdef int done = 0
-#         check_error(self.ctx,
-#                     tiledb_kv_iter_done(ctx_ptr, self.ptr, &done))
-#         if done > 0:
-#             raise StopIteration()
-#         cdef int rc
-#         cdef tiledb_kv_item_t* kv_item_ptr = NULL
-#         check_error(self.ctx,
-#                     tiledb_kv_iter_here(ctx_ptr, self.ptr, &kv_item_ptr))
-#         cdef tiledb_datatype_t dtype
-#         cdef const char* key_ptr = NULL
-#         cdef uint64_t key_size = 0
-#         check_error(self.ctx,
-#                     tiledb_kv_item_get_key(ctx_ptr, kv_item_ptr,
-#                                            <const void**> (&key_ptr), &dtype, &key_size))
-#         cdef bytes bkey = PyBytes_FromStringAndSize(key_ptr, key_size)
-#         cdef const char* val_ptr = NULL
-#         cdef uint64_t val_size = 0
-#         cdef bytes battr = b"value"
-#         check_error(self.ctx,
-#                     tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, battr,
-#                                              <const void**> (&val_ptr), &dtype, &val_size))
-#         cdef bytes bval = PyBytes_FromStringAndSize(val_ptr, val_size)
-#         check_error(self.ctx,
-#                     tiledb_kv_iter_next(ctx_ptr, self.ptr))
-#         return (bkey.decode('UTF-8'), bval.decode('UTF-8'))
-#
-#
+
+cdef class KVIter(object):
+    """KV iterator object iterates over KV items
+    """
+
+    cdef KV kv
+    cdef tiledb_kv_iter_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_kv_iter_free(&self.ptr)
+
+    def __init__(self, KV kv):
+        cdef tiledb_ctx_t* ctx_ptr = kv.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = kv.ptr
+        cdef tiledb_kv_iter_t* kv_iter_ptr = NULL
+        cdef int rc = TILEDB_OK
+        rc = tiledb_kv_iter_alloc(ctx_ptr, kv_ptr, &kv_iter_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        assert(kv_iter_ptr != NULL)
+        self.kv = kv
+        self.ptr = kv_iter_ptr
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        cdef tiledb_ctx_t* ctx_ptr = self.kv.ctx.ptr
+        cdef tiledb_kv_iter_t* iter_ptr = self.ptr
+        cdef int done = 0
+        cdef int rc = TILEDB_OK
+        rc = tiledb_kv_iter_done(ctx_ptr, iter_ptr, &done)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        if done > 0:
+            raise StopIteration()
+        cdef tiledb_kv_item_t* kv_item_ptr = NULL
+        rc = tiledb_kv_iter_here(ctx_ptr, iter_ptr, &kv_item_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef tiledb_datatype_t dtype
+        cdef const char* key_ptr = NULL
+        cdef uint64_t key_size = 0
+        rc = tiledb_kv_item_get_key(ctx_ptr, kv_item_ptr,
+                                    <const void**> (&key_ptr), &dtype, &key_size)
+        cdef bytes bkey = PyBytes_FromStringAndSize(key_ptr, <Py_ssize_t> key_size)
+        cdef const char* val_ptr = NULL
+        cdef uint64_t val_size = 0
+        # TODO: need to lookup attributes
+        cdef bytes battr = b"value"
+        cdef bytes attr_ptr = PyBytes_AS_STRING(battr)
+        rc = tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, attr_ptr,
+                                      <const void**> (&val_ptr), &dtype, &val_size)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef bytes bval = PyBytes_FromStringAndSize(val_ptr, <Py_ssize_t> val_size)
+        rc = tiledb_kv_iter_next(ctx_ptr, iter_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return bkey.decode('UTF-8'), bval.decode('UTF-8')
+
+
 # def index_as_tuple(idx):
 #     """Forces scalar index objects to a tuple representation"""
 #     if isinstance(idx, tuple):

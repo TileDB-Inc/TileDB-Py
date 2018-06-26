@@ -687,12 +687,18 @@ cdef extern from "tiledb/tiledb.h":
         uint64_t key_size,
         tiledb_kv_item_t** kv_item)
 
+    int tiledb_kv_has_key(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        const void* key_ptr,
+        tiledb_datatype_t key_type,
+        uint64_t key_size,
+        int* has_key)
+
     # K/V Iterator
     int tiledb_kv_iter_alloc(
         tiledb_ctx_t* ctx,
-        const char* kv_uri,
-        const char** attributes,
-        unsigned int attribute_num,
+        tiledb_kv_t* kv,
         tiledb_kv_iter_t** kv_iter)
 
     void tiledb_kv_iter_free(
