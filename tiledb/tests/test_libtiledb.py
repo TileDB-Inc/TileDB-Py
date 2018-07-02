@@ -333,6 +333,47 @@ class ArraySchemaTest(unittest.TestCase):
                                     offsets_compressor=('blosc-lz', 5),
                                     sparse=True))
 
+
+class ArrayTest(DiskTestCase):
+
+    def test_array_create(self):
+        ctx = tiledb.Ctx()
+        domain = tiledb.Domain(
+            ctx,
+            tiledb.Dim(ctx, domain=(1, 8), tile=2),
+            tiledb.Dim(ctx, domain=(1, 8), tile=2))
+        a1 = tiledb.Attr(ctx, "val", dtype='f8')
+        schema = tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,))
+
+        # persist array schema
+        tiledb.libtiledb.Array.create(self.path("foo"), schema)
+
+        # load array in readonly mode
+        array = tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r')
+        self.assertTrue(array.opened)
+        self.assertEqual(array.schema, schema)
+        self.assertEqual(array.mode, 'r')
+
+        # we have not written anything, so the array is empty
+        self.assertIsNone(array.nonempty_domain())
+
+        # this should be a no-op
+        array.consolidate()
+
+        array.reopen()
+        self.assertTrue(array.opened)
+
+        array.close()
+        self.assertEqual(array.opened, False)
+        with self.assertRaises(tiledb.TileDBError):
+            # cannot re-open a closed array
+            array.reopen()
+
+    def test_array_doesnt_exist(self):
+        ctx = tiledb.Ctx()
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r')
+
 """
 class DenseArrayTest(DiskTestCase):
 
@@ -927,74 +968,81 @@ class DenseIndexing(DiskTestCase):
         for idx in self.bad_index_2d:
             with self.assertRaises(IndexError):
                 T[idx]
+"""
 
 
 class RWTest(DiskTestCase):
 
     def test_read_write(self):
-        ctx = t.Ctx()
+        ctx = tiledb.Ctx()
 
-        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 2), tile=3))
-        att = t.Attr(ctx, dtype='i8')
-        arr = t.DenseArray(ctx, self.path("foo"), domain=dom, attrs=[att])
+        dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 2), tile=3))
+        att = tiledb.Attr(ctx, dtype='int64')
+        schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(att,))
+        tiledb.libtiledb.Array.create(self.path("foo"), schema)
 
-        A = np.array([1, 2, 3])
-        arr.write_direct(A)
-        arr.dump()
-        assert_array_equal(arr.read_direct(), A)
-        self.assertEqual(arr.ndim, A.ndim)
+        np_array = np.array([1, 2, 3], dtype='int64')
+
+        with tiledb.DenseArray(ctx, self.path("foo"), mode="w") as arr:
+            arr.write_direct(np_array)
+
+        with tiledb.DenseArray(ctx, self.path("foo"), mode="r") as arr:
+            arr.dump()
+            self.assertEqual(arr.nonempty_domain(), ((0, 2),))
+            self.assertEqual(arr.ndim, np_array.ndim)
+            assert_array_equal(arr.read_direct(), np_array)
 
 
 class NumpyToArray(DiskTestCase):
 
     def test_to_array0d(self):
         # Cannot create 0-dim arrays in TileDB
-        ctx = t.Ctx()
-        A = np.array(1)
-        with self.assertRaises(t.TileDBError):
-            t.DenseArray.from_numpy(ctx, self.path("foo"), A)
+        ctx = tiledb.Ctx()
+        np_array = np.array(1)
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.DenseArray.from_numpy(ctx, self.path("foo"), np_array)
 
     def test_to_array1d(self):
-        ctx = t.Ctx()
-        A = np.array([1.0, 2.0, 3.0])
-        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(A, arr[:])
+        ctx = tiledb.Ctx()
+        np_array = np.array([1.0, 2.0, 3.0])
+        arr = tiledb.DenseArray.from_numpy(ctx, self.path("foo"), np_array)
+        assert_array_equal(arr[:], np_array)
 
     def test_to_array2d(self):
-        ctx = t.Ctx()
-        A = np.ones((100, 100), dtype='i8')
-        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(A, arr[:])
+        ctx = tiledb.Ctx()
+        np_array = np.ones((100, 100), dtype='i8')
+        arr = tiledb.DenseArray.from_numpy(ctx, self.path("foo"), np_array)
+        assert_array_equal(arr[:], np_array)
 
     def test_to_array3d(self):
-        ctx = t.Ctx()
-        A = np.ones((1, 1, 1), dtype='i1')
-        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(A, arr[:])
+        ctx = tiledb.Ctx()
+        np_array = np.ones((1, 1, 1), dtype='i1')
+        arr = tiledb.DenseArray.from_numpy(ctx, self.path("foo"), np_array)
+        assert_array_equal(arr[:], np_array)
 
     def test_array_interface(self):
         # Tests that __array__ interface works
-        ctx = t.Ctx()
-        A1 = np.arange(1, 10)
-        arr1 = t.DenseArray.from_numpy(ctx, self.path("arr1"), A1)
-        A2 = np.array(arr1)
-        assert_array_equal(A1, A2)
+        ctx = tiledb.Ctx()
+        np_array1 = np.arange(1, 10)
+        arr1 = tiledb.DenseArray.from_numpy(ctx, self.path("arr1"), np_array1)
+        assert_array_equal(np.array(arr1), np_array1)
 
         # Test that __array__ interface throws an error when number of attributes > 1
-        dom = t.Domain(ctx, t.Dim(ctx, domain=(0, 2), tile=3))
-        foo = t.Attr(ctx, "foo", dtype='i8')
-        bar = t.Attr(ctx, "bar", dtype='i8')
-        arr2 = t.DenseArray(ctx, self.path("arr2"), domain=dom, attrs=(foo, bar))
+        dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 2), tile=3))
+        foo = tiledb.Attr(ctx, "foo", dtype='i8')
+        bar = tiledb.Attr(ctx, "bar", dtype='i8')
+        schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(foo, bar))
+        tiledb.DenseArray.create(self.path("arr2"), schema)
         with self.assertRaises(ValueError):
-            np.array(arr2)
+            with tiledb.DenseArray(ctx, self.path("arr2"), mode='r') as arr2:
+                np.array(arr2)
 
     def test_array_getindex(self):
         # Tests that __getindex__ interface works
-        ctx = t.Ctx()
-        A = np.arange(1, 10)
-        arr = t.DenseArray.from_numpy(ctx, self.path("foo"), A)
-        assert_array_equal(A[5:10], arr[5:10])
-"""
+        ctx = tiledb.Ctx()
+        np_array = np.arange(1, 10)
+        arr = tiledb.DenseArray.from_numpy(ctx, self.path("foo"), np_array)
+        assert_array_equal(arr[5:10], np_array[5:10])
 
 
 class KVSchema(DiskTestCase):

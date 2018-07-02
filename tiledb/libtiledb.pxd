@@ -101,6 +101,8 @@ cdef extern from "tiledb/tiledb.h":
         pass
     ctypedef struct tiledb_error_t:
         pass
+    ctypedef struct tiledb_array_t:
+        pass
     ctypedef struct tiledb_attribute_t:
         pass
     ctypedef struct tiledb_array_schema_t:
@@ -458,30 +460,32 @@ cdef extern from "tiledb/tiledb.h":
         FILE* out)
 
     # Query
-    int tiledb_query_create(
+    int tiledb_query_alloc(
         tiledb_ctx_t* ctx,
-        tiledb_query_t** query,
-        const char* array_name,
-        tiledb_query_type_t qtype)
+        tiledb_array_t* array,
+        tiledb_query_type_t query_type,
+        tiledb_query_t** query)
 
     int tiledb_query_set_subarray(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
         const void* subarray)
 
-    int tiledb_query_set_buffers(
+    int tiledb_query_set_buffer(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
-        const char** attributes,
-        unsigned int attribute_num,
-        void** buffers,
-        uint64_t* buffer_sizes)
+        const char* attribute,
+        void* buffer,
+        uint64_t* buffer_size)
 
-    int tiledb_query_reset_buffers(
+    int tiledb_query_set_buffer_var(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
-        void** buffers,
-        uint64_t* buffer_sizes)
+        const char* attribute,
+        uint64_t* buffer_off,
+        uint64_t* buffer_off_size,
+        void* buffer_val,
+        uint64_t* buffer_val_size)
 
     int tiledb_query_set_layout(
         tiledb_ctx_t* ctx,
@@ -490,6 +494,10 @@ cdef extern from "tiledb/tiledb.h":
 
     void tiledb_query_free(
         tiledb_query_t** query)
+
+    int tiledb_query_finalize(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query) nogil
 
     int tiledb_query_submit(
         tiledb_ctx_t* ctx,
@@ -506,13 +514,38 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_query_t* query,
         tiledb_query_status_t* status)
 
-    int tiledb_query_get_attribute_status(
+    int tiledb_query_get_type(
         tiledb_ctx_t* ctx,
-        const tiledb_query_t* query,
-        const char* attribute_name,
-        tiledb_query_status_t* status)
+        tiledb_query_t* query,
+        tiledb_query_type_t* query_type)
+
+    int tiledb_query_has_results(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        int* has_results)
 
     # Array
+    int tiledb_array_alloc(
+        tiledb_ctx_t* ctx,
+        const char* uri,
+        tiledb_array_t** array)
+
+    int tiledb_array_open(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        tiledb_query_type_t query_type) nogil
+
+    int tiledb_array_reopen(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array) nogil
+
+    int tiledb_array_close(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array) nogil
+
+    void tiledb_array_free(
+        tiledb_array_t** array)
+
     int tiledb_array_create(
         tiledb_ctx_t* ctx,
         const char* uri,
@@ -522,19 +555,36 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const char* array_path) nogil
 
+    int tiledb_array_get_schema(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        tiledb_array_schema_t** array_schema)
+
+    int tiledb_array_get_query_type(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        tiledb_query_type_t* query_type)
+
     int tiledb_array_get_non_empty_domain(
         tiledb_ctx_t* ctx,
-        const char* array_uri,
+        tiledb_array_t* array,
         void* domain,
-        int* isempty)
+        int* isempty) nogil
 
-    int tiledb_array_compute_max_read_buffer_sizes(
+    int tiledb_array_max_buffer_size(
         tiledb_ctx_t* ctx,
-        const char* array_uri,
+        tiledb_array_t* array,
+        const char* attribute,
         const void* subarray,
-        const char** attributes,
-        unsigned attribute_num,
-        uint64_t* buffer_sizes);
+        uint64_t* buffer_size) nogil
+
+    int tiledb_array_max_buffer_size_var(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const char* attribute,
+        const void* subarray,
+        uint64_t* buffer_off_size,
+        uint64_t* buffer_val_size) nogil
 
     # Key / Value Schema
     int tiledb_kv_schema_alloc(
