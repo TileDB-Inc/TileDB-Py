@@ -162,3 +162,9 @@ You can specify a particular Python version using the ``-e`` flag:
 ::
 
     $ tox -e py27
+
+If TileDB is not installed in a global system location, you must specify the install path to tox:
+
+::
+
+    $ env TILEDB_PATH=/path/to/tiledb LD_LIBRARY_PATH=/path/to/tiledb/libdir:${LD_LIBRARY_PATH} tox
