@@ -3,6 +3,8 @@ sudo: required
 
 language: python
 python:
+  - "2.7"
+  - "3.5"
   - "3.6"
 
 notifications:
@@ -14,12 +16,11 @@ install:
   - pushd ./build # . -> ./build
   - git clone https://github.com/TileDB-Inc/TileDB
   - pushd TileDB # ./build -> ./build/TileDB
-  - git checkout master
-  - scripts/install-deps.sh
+  - git checkout dev
   - mkdir build
   - pushd ./build  # ./build/TileDB/build
   - ../bootstrap
-  - make install
+  - make && make -C tiledb install
   - popd # ./build/TileDB/build -> ./build/TileDB
   - popd # ./build/TileDB -> ./build
   - popd # ./build -> .
@@ -29,4 +30,5 @@ install:
   - python setup.py build_ext --inplace --tiledb=./build/TileDB/dist
 
 script:
-  - env LD_LIBRARY_PATH="${TRAVIS_BUILD_DIR}/build/TileDB/dist/lib:$LD_LIBRARY_PATH" python -m unittest -v
+  - env LD_LIBRARY_PATH="${TRAVIS_BUILD_DIR}/build/TileDB/dist/lib:$LD_LIBRARY_PATH" python -m unittest tiledb.tests.all.suite_test
+

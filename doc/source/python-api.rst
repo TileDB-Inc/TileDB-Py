@@ -71,3 +71,10 @@ Version
 -------
 
 .. autofunction:: tiledb.libtiledb.version
+
+Statistics
+----------
+.. autofunction:: tiledb.libtiledb.stats_enable
+.. autofunction:: tiledb.libtiledb.stats_disable
+.. autofunction:: tiledb.libtiledb.stats_reset
+.. autofunction:: tiledb.libtiledb.stats_dump
