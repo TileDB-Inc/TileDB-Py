@@ -19,6 +19,7 @@ Build Dependencies
 * Numpy
 * Cython
 * C++11 compiler
+* CMake
 
 Install
 =======
@@ -37,11 +38,7 @@ A pre-built Conda package is available that will install TileDB as well.
 Pip
 '''
 
-A PyPI package is available which can be installed with Pip.
-
-You will need to build / install an up-to-date version of TileDB.
-See https://docs.tiledb.io/docs/installation for instructions.
-
+A PyPI package is available which can be installed with Pip. This package will download and install TileDB inside the site package if TileDB is not already installed on your system.
 
 :: 
 
@@ -49,7 +46,7 @@ See https://docs.tiledb.io/docs/installation for instructions.
     
 **Note** if the Numpy and Cython dependencies are not installed, pip will try to build them from source.  This can take a **long** time and make the install appear to "hang."  Pass the ``-v`` flag to pip to monitor the build process.
 
-If the install location of TileDB is not in compiler search path, create a requirements.txt file that specifies the tiledb install path manually.
+If you wish to use a custom version of the TileDB library and the install location is not in the compiler search path, create a requirements.txt file that specifies the tiledb install path manually.
 
 ::
     
@@ -74,7 +71,7 @@ Installing on Linux / OSX
    $ python setup.py build_ext --inplace
    $ python setup.py install
 
-If TileDB is installed in a non-standard location, pass the path to `setup.py` with the ``--tiledb=`` flag.
+If you wish to use a custom version of the TileDB library and it is installed in a non-standard location, pass the path to `setup.py` with the ``--tiledb=`` flag.
 If you want to pass extra compiler/linker flags during the c++ extension compilation step use ``--cxxflags=`` or ``--lflags=``.
 
 ::
