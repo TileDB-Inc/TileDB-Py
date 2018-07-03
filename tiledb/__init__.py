@@ -10,7 +10,7 @@ from .libtiledb import (
      KV,
      ArraySchema,
      DenseArray,
-#     SparseArray,
+     SparseArray,
      TileDBError,
      VFS,
      FileIO,

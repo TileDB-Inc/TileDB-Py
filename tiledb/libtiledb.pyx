@@ -834,7 +834,7 @@ cdef class Attr(object):
             if typs.count(typ) != ntypes:
                 raise TypeError('heterogenous record numpy dtypes are not supported')
             tiledb_dtype = _tiledb_dtype(typ)
-            ncells = ntypes
+            ncells = <unsigned int>(ntypes)
         # scalar cell type
         else:
             tiledb_dtype = _tiledb_dtype(_dtype)
@@ -1235,7 +1235,7 @@ cdef class Domain(object):
         return dom
 
     def __init__(self, Ctx ctx, *dims):
-        cdef unsigned int ndim = len(dims)
+        cdef Py_ssize_t ndim = len(dims)
         if ndim == 0:
             raise TileDBError("Domain must have ndim >= 1")
         cdef Dim dimension = dims[0]
@@ -2457,6 +2457,21 @@ cdef class Array(object):
     def ndim(self):
         return self.schema.ndim
 
+    @property
+    def domain(self):
+        return self.schema.domain
+
+    @property
+    def shape(self):
+        return self.schema.shape
+
+    @property
+    def nattr(self):
+        return self.schema.nattr
+
+    def attr(self, idx):
+        return self.schema.attr(idx)
+
     def nonempty_domain(self):
         """Return the minimum bounding domain which encompasses nonempty values
 
@@ -2501,7 +2516,7 @@ cdef class DenseArray(Array):
     """
 
     @staticmethod
-    def from_numpy(Ctx ctx, unicode uri, np.ndarray array, **kw):
+    def from_numpy(Ctx ctx, uri, np.ndarray array, **kw):
         """
         Persists a given numpy array as a TileDB DenseArray, returns a DenseArray class instance
 
@@ -2580,7 +2595,7 @@ cdef class DenseArray(Array):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
 
-        cdef int nattr = len(attr_names)
+        cdef Py_ssize_t nattr = len(attr_names)
         cdef tuple shape = \
             tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
                   for r in range(self.schema.ndim))
@@ -2630,156 +2645,114 @@ cdef class DenseArray(Array):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return out
-#
-#     def __setitem__(self, object selection, object val):
-#         """Set / update dense data cells
-#
-#         :param tuple selection: An int index, slice or tuple of integer/slice objects,
-#             specifiying the selected subarray region for each dimension of the DenseArray.
-#         :param value: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
-#             if the number of attributes is one, than a n-d numpy array is accepted.
-#         :type value: dict or :py:class:`numpy.ndarray`
-#         :raises IndexError: invalid or unsupported index selection
-#         :raises ValueError: value / coordinate length mismatch
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         >>> # array with one attribute
-#         >>> A[:] = np.array([...])
-#         >>> # array with multiple attributes
-#         >>> A[10:20, 35:100] = {"attr1": np.array([...]), "attr2": np.array([...])}
-#
-#         """
-#         cdef Domain domain = self.domain
-#         cdef tuple idx = replace_ellipsis(domain, index_as_tuple(selection))
-#         cdef np.ndarray subarray = index_domain_subarray(domain, idx)
-#         cdef Attr attr
-#         cdef list attributes = list()
-#         cdef list values = list()
-#         if isinstance(val, dict):
-#             for (k, v) in val.items():
-#                 attr = self.attr(k)
-#                 attributes.append(attr.name)
-#                 values.append(
-#                     np.ascontiguousarray(v, dtype=attr.dtype))
-#         elif np.isscalar(val):
-#             for i in range(self.nattr):
-#                 attr = self.attr(i)
-#                 subarray_shape = tuple(int(subarray[r, 1] - subarray[r, 0]) + 1
-#                                        for r in range(subarray.shape[0]))
-#                 attributes.append(attr.name)
-#                 values.append(
-#                     np.full(subarray_shape, val, dtype=attr.dtype))
-#         elif self.nattr == 1:
-#             attr = self.attr(0)
-#             attributes.append(attr.name)
-#             values.append(
-#                 np.ascontiguousarray(val, dtype=attr.dtype))
-#         else:
-#             raise ValueError("ambiguous attribute assignment, "
-#                              "more than one array attribute")
-#         # Check value layouts
-#         nattr = len(attributes)
-#         value = values[0]
-#         isfortran = value.ndim > 1 and value.flags.f_contiguous
-#         if nattr > 1:
-#             for i in range(1, nattr):
-#                 value = values[i]
-#                 if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
-#                     raise ValueError("mixed C and Fortran array layouts")
-#         self._write_dense_subarray(subarray, attributes, values, isfortran)
-#         return
-#
-#     cdef _write_dense_subarray(self, np.ndarray subarray, list attributes, list values, int isfortran):
-#         cdef Ctx ctx = self.ctx
-#         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-#
-#         # array uri
-#         cdef bytes buri = unicode_path(self.uri)
-#         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-#
-#         # attribute names / values
-#         battr_names = list(bytes(a, 'UTF-8') for a in attributes)
-#         cdef size_t nattr = len(attributes)
-#         cdef const char** attr_names_ptr = <const char**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-#         if attr_names_ptr == NULL:
-#             raise MemoryError()
-#         try:
-#             for i in range(nattr):
-#                 attr_names_ptr[i] = PyBytes_AS_STRING(battr_names[i])
-#         except:
-#             PyMem_Free(attr_names_ptr)
-#             raise
-#
-#         cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-#         if buffers_ptr == NULL:
-#             PyMem_Free(attr_names_ptr)
-#             raise MemoryError()
-#
-#         cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
-#         if buffer_sizes_ptr == NULL:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffers_ptr)
-#             raise MemoryError()
-#
-#         cdef np.ndarray array_value
-#         try:
-#             for i in range(nattr):
-#                 array_value = values[i]
-#                 buffers_ptr[i] = np.PyArray_DATA(array_value)
-#                 buffer_sizes_ptr[i] = <uint64_t> array_value.nbytes
-#         except:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffers_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             raise
-#
-#         # subarray
-#         cdef tiledb_query_t* query_ptr = NULL
-#         cdef int rc = tiledb_query_create(ctx_ptr, &query_ptr, uri_ptr, TILEDB_WRITE)
-#         if rc != TILEDB_OK:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffers_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             check_error(ctx, rc)
-#
-#         cdef tiledb_layout_t layout = TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR
-#         rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
-#         if rc != TILEDB_OK:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffers_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             tiledb_query_free(&query_ptr)
-#             check_error(ctx, rc)
-#
-#         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
-#         rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
-#         if rc != TILEDB_OK:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffers_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             tiledb_query_free(&query_ptr)
-#             check_error(ctx, rc)
-#
-#         rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
-#                                       buffers_ptr, buffer_sizes_ptr)
-#         if rc != TILEDB_OK:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffers_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             tiledb_query_free(&query_ptr)
-#             check_error(ctx, rc)
-#
-#         with nogil:
-#             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-#
-#         PyMem_Free(attr_names_ptr)
-#         PyMem_Free(buffers_ptr)
-#         PyMem_Free(buffer_sizes_ptr)
-#         tiledb_query_free(&query_ptr)
-#         if rc != TILEDB_OK:
-#             check_error(ctx, rc)
-#         return
-#
+
+    def __setitem__(self, object selection, object val):
+        """Set / update dense data cells
+
+        :param tuple selection: An int index, slice or tuple of integer/slice objects,
+            specifiying the selected subarray region for each dimension of the DenseArray.
+        :param value: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
+            if the number of attributes is one, than a n-d numpy array is accepted.
+        :type value: dict or :py:class:`numpy.ndarray`
+        :raises IndexError: invalid or unsupported index selection
+        :raises ValueError: value / coordinate length mismatch
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        >>> # array with one attribute
+        >>> A[:] = np.array([...])
+        >>> # array with multiple attributes
+        >>> A[10:20, 35:100] = {"attr1": np.array([...]), "attr2": np.array([...])}
+
+        """
+        cdef Domain domain = self.domain
+        cdef tuple idx = replace_ellipsis(domain, index_as_tuple(selection))
+        cdef np.ndarray subarray = index_domain_subarray(domain, idx)
+        cdef Attr attr
+        cdef list attributes = list()
+        cdef list values = list()
+        if isinstance(val, dict):
+            for (k, v) in val.items():
+                attr = self.schema.attr(k)
+                attributes.append(attr.name)
+                values.append(
+                    np.ascontiguousarray(v, dtype=attr.dtype))
+        elif np.isscalar(val):
+            for i in range(self.schema.nattr):
+                attr = self.schema.attr(i)
+                subarray_shape = tuple(int(subarray[r, 1] - subarray[r, 0]) + 1
+                                       for r in range(subarray.shape[0]))
+                attributes.append(attr.name)
+                values.append(
+                    np.full(subarray_shape, val, dtype=attr.dtype))
+        elif self.nattr == 1:
+            attr = self.schema.attr(0)
+            attributes.append(attr.name)
+            values.append(
+                np.ascontiguousarray(val, dtype=attr.dtype))
+        else:
+            raise ValueError("ambiguous attribute assignment, "
+                             "more than one array attribute")
+        # Check value layouts
+        nattr = len(attributes)
+        value = values[0]
+        isfortran = value.ndim > 1 and value.flags.f_contiguous
+        if nattr > 1:
+            for i in range(1, nattr):
+                value = values[i]
+                if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
+                    raise ValueError("mixed C and Fortran array layouts")
+        self._write_dense_subarray(subarray, attributes, values, isfortran)
+        return
+
+    cdef _write_dense_subarray(self, np.ndarray subarray, list attributes, list values, int isfortran):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+
+        cdef Py_ssize_t nattr = len(attributes)
+        cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
+        for i in range(nattr):
+            buffer_sizes[i] = values[i].nbytes
+
+        cdef tiledb_query_t* query_ptr = NULL
+        cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        cdef tiledb_layout_t layout = TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
+        rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+
+        cdef bytes battr_name
+        cdef void* buffer_ptr = NULL
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
+        try:
+            for i in range(nattr):
+                battr_name = attributes[i].encode('UTF-8')
+                buffer_ptr = np.PyArray_DATA(values[i])
+                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                             buffer_ptr, &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
+            tiledb_query_free(&query_ptr)
+            raise
+
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        tiledb_query_free(&query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return
+
     def __array__(self, dtype=None, **kw):
         if self.schema.nattr > 1:
             raise ValueError("cannot create numpy array from TileDB array with more than one attribute")
@@ -2811,6 +2784,7 @@ cdef class DenseArray(Array):
         cdef Attr attr = self.schema.attr(0)
         cdef bytes battr_name = attr.name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
+
 
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes
@@ -2907,440 +2881,323 @@ cdef class DenseArray(Array):
         return out
 
 
-# # point query index a tiledb array (zips) columnar index vectors
-# def index_domain_coords(Domain dom, tuple idx):
-#     """
-#     Returns a (zipped) coordinate array representation
-#     given coordinate indices in numpy's point indexing format
-#     """
-#     ndim = len(idx)
-#     if ndim != dom.ndim:
-#         raise IndexError("sparse index ndim must match "
-#                          "domain ndim: {0!r} != {1!r}".format(ndim, dom.ndim))
-#     idx = tuple(np.asarray(idx[i], dtype=dom.dim(i).dtype)
-#                 for i in range(ndim))
-#     # check that all sparse coordinates are the same size and dtype
-#     len0, dtype0 = len(idx[0]), idx[0].dtype
-#     for i in range(2, ndim):
-#         if len(idx[i]) != len0:
-#             raise IndexError("sparse index dimension length mismatch")
-#         if idx[i].dtype != dtype0:
-#             raise IndexError("sparse index dimension dtype mismatch")
-#     # zip coordinates
-#     return np.column_stack(idx)
-#
-#
-# cdef class SparseArray(ArraySchema):
-#     """
-#     TileDB SparseArray class
-#
-#     Inherits properties / methods of `tiledb.ArraySchema`
-#
-#     """
-#
-#     @staticmethod
-#     cdef from_ptr(Ctx ctx, unicode uri, const tiledb_array_schema_t* schema_ptr):
-#         """Constructs a SparseArray class instance from a URI and a tiledb_array_schema_t pointer"""
-#         cdef SparseArray arr = SparseArray.__new__(SparseArray)
-#         arr.ctx = ctx
-#         arr.uri = uri
-#         arr.ptr = <tiledb_array_schema_t*> schema_ptr
-#         return arr
-#
-#     @staticmethod
-#     def load(Ctx ctx, unicode uri):
-#         """
-#         Loads a persisted SparseArray at given URI, returns a SparseArray class instance
-#
-#         :param tiledb.Ctx ctx: A TileDB Context
-#         :param str uri: URI to the TileDB array resource
-#         :rtype: tiledb.SparseArray
-#         :return: A loaded SparseArray object (schema)
-#         :raises TypeError: cannot convert `uri` to unicode string
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         """
-#         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-#
-#         cdef bytes buri = ustring(uri).encode('UTF-8')
-#         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-#
-#         cdef tiledb_array_schema_t* schema_ptr = NULL
-#         cdef int rc = TILEDB_OK
-#         with nogil:
-#             rc = tiledb_array_schema_load(ctx_ptr, &schema_ptr, uri_ptr)
-#         if rc != TILEDB_OK:
-#             check_error(ctx, rc)
-#         return SparseArray.from_ptr(ctx, uri, schema_ptr)
-#
-#     def __init__(self, *args, **kw):
-#         kw['sparse'] = True
-#         super().__init__(*args, **kw)
-#
-#     def __len__(self):
-#         raise TypeError("SparseArray length is ambiguous; use shape[0]")
-#
-#     def __setitem__(self, object selection, object val):
-#         """Set / update sparse data cells
-#
-#         :param tuple selection: N coordinate value arrays (dim0, dim1, ...) where N in the ndim of the SparseArray,
-#             The format follows numpy sparse (point) indexing semantics.
-#         :param value: a dictionary of nonempty array attribute values, values must able to be converted to 1-d numpy arrays.\
-#             if the number of attributes is one, than a 1-d numpy array is accepted.
-#         :type value: dict or :py:class:`numpy.ndarray`
-#         :raises IndexError: invalid or unsupported index selection
-#         :raises ValueError: value / coordinate length mismatch
-#         :raises: :py:exc:`tiledb.TileDBError`
-#
-#         >>> # array with one attribute
-#         >>> A[I, J] = np.array([...])
-#         >>> # array with multiple attributes
-#         >>> A[I, J] = {"attr1": np.array([...]), "attr2": np.array([...])}
-#
-#         """
-#         idx = index_as_tuple(selection)
-#         sparse_coords = index_domain_coords(self.domain, idx)
-#         ncells = sparse_coords.shape[0]
-#         if self.nattr == 1 and not isinstance(val, dict):
-#             attr = self.attr(0)
-#             name = attr.name
-#             value = np.asarray(val, dtype=attr.dtype)
-#             if len(value) != ncells:
-#                 raise ValueError("value length does not match coordinate length")
-#             sparse_values = dict(((name, value),))
-#         else:
-#             sparse_values = dict()
-#             for (k, v) in dict(val).items():
-#                 attr = self.attr(k)
-#                 name = attr.name
-#                 value = np.asarray(v, dtype=attr.dtype)
-#                 if len(value) != ncells:
-#                     raise ValueError("value length does not match coordinate length")
-#                 sparse_values[name] = value
-#         self._write_sparse(sparse_coords, sparse_values)
-#         return
-#
-#     cdef _write_sparse(self, np.ndarray coords, dict values):
-#         cdef Ctx ctx = self.ctx
-#         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-#
-#         # array name
-#         cdef bytes barray_name = self.uri.encode('UTF-8')
-#
-#         # attr names
-#         battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
-#         cdef size_t nattr = self.nattr
-#         cdef const char** c_attr_names = <const char**> calloc(nattr + 1, sizeof(uintptr_t))
-#         for i in range(nattr):
-#             c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
-#         c_attr_names[nattr] = tiledb_coords()
-#         attr_values = list(values.values())
-#         cdef void** buffers = <void**> calloc(nattr + 1, sizeof(uintptr_t))
-#         cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
-#         cdef np.ndarray array_value
-#         for i in range(nattr):
-#             array_value = attr_values[i]
-#             buffers[i] = np.PyArray_DATA(array_value)
-#             buffer_sizes[i] = <uint64_t> array_value.nbytes
-#         buffers[nattr] = np.PyArray_DATA(coords)
-#         buffer_sizes[nattr] = <uint64_t> coords.nbytes
-#         cdef tiledb_query_t* query_ptr = NULL
-#         check_error(ctx,
-#                     tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_WRITE))
-#         check_error(ctx,
-#                     tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_UNORDERED))
-#         check_error(ctx,
-#                     tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, nattr + 1, buffers, buffer_sizes))
-#         cdef int rc = TILEDB_OK
-#         with nogil:
-#             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-#         tiledb_query_free(&query_ptr)
-#         if rc != TILEDB_OK:
-#             check_error(ctx, rc)
-#         return
-#
-#     def __getitem__(self, object selection):
-#         """Retrieve nonempty cell data for an item or region of the array
-#
-#         :param tuple selection: An int index, slice or tuple of integer/slice objects,
-#             specifying the selected subarray region for each dimension of the SparseArray.
-#         :rtype: :py:class:`collections.OrderedDict`
-#         :returns: An OrderedDict is returned with "coords" coordinate values being the first key. \
-#             "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
-#             Nonempty attribute values are returned as Numpy 1-d arrays.
-#
-#         >>> # Return nonempy cells within a floating point array domain (fp index bounds are inclusive)
-#         >>> A[5.0:579.9]
-#         >>> # Return an OrderedDict with cell coordinates
-#         >>> A[1:10, 100:999]
-#         >>> # Return the NumpyRecord array of TileDB cell coordinates
-#         >>> A[1:10, 100:999]["coords"]
-#         >>> # return just the "dim1" coordinates values
-#         >>> A[1:10, 100:999]["coords"]["dim1"]
-#
-#         """
-#
-#         idx = index_as_tuple(selection)
-#         idx = replace_ellipsis(self.domain, idx)
-#         idx, drop_axes = replace_scalars_slice(self.domain, idx)
-#         subarray = index_domain_subarray(self.domain, idx)
-#         attr_names = [self.attr(i).name for i in range(self.nattr)]
-#         return self._read_sparse_subarray(subarray, attr_names)
-#
-#     def _sparse_read_query(self, object idx):
-#         sparse_coords = index_domain_coords(self.domain, idx)
-#         ncells = sparse_coords.shape[0]
-#         sparse_values = dict()
-#         for i in range(self.nattr):
-#             attr = self.attr(i)
-#             name = attr.name
-#             value = np.zeros(shape=ncells, dtype=attr.dtype)
-#             sparse_values[name] = value
-#         self._read_sparse_multiple(sparse_coords, sparse_values)
-#         # attribute is anonymous, just return the result
-#         if self.nattr == 1 and self.attr(0).isanon:
-#             return sparse_values[self.attr(0).name]
-#         return sparse_values
-#
-#     cpdef np.dtype coords_dtype(self):
-#         """Returns the numpy record array dtype of the SparseArray coordinates
-#
-#         :rtype: numpy.dtype
-#         :returns: coord array record dtype
-#
-#         """
-#         # returns the record array dtype of the coordinate array
-#         return np.dtype([(dim.name, dim.dtype) for dim in self.domain])
-#
-#     cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names):
-#         # ctx references
-#         cdef Ctx ctx = self.ctx
-#         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-#
-#         # array name
-#         cdef bytes barray_uri = self.uri.encode('UTF-8')
-#
-#         # set subarray / layout
-#         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
-#
-#         cdef tiledb_query_t* query_ptr = NULL
-#         check_error(ctx,
-#                     tiledb_query_create(ctx_ptr, &query_ptr, barray_uri, TILEDB_READ))
-#         check_error(ctx,
-#                     tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*> subarray_ptr))
-#         check_error(ctx,
-#                     tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
-#
-#         # attr names
-#         battr_names = list(bytes(k, 'UTF-8') for k in attr_names)
-#
-#         cdef size_t nattr = len(battr_names) + 1  # coordinates
-#         cdef const char** attr_names_ptr = <const char**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-#         if attr_names_ptr == NULL:
-#             raise MemoryError()
-#         try:
-#             attr_names_ptr[0] = tiledb_coords()
-#             for i in range(1, nattr):
-#                 attr_names_ptr[i] = PyBytes_AS_STRING(battr_names[i - 1])
-#         except:
-#             PyMem_Free(attr_names_ptr)
-#             raise
-#
-#         cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
-#         if buffer_sizes_ptr == NULL:
-#             PyMem_Free(attr_names_ptr)
-#             raise MemoryError()
-#
-#         # check the max read buffer size
-#         cdef int rc = tiledb_array_compute_max_read_buffer_sizes(
-#             ctx_ptr, barray_uri, subarray_ptr, attr_names_ptr, nattr, buffer_sizes_ptr)
-#         if rc != TILEDB_OK:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             check_error(ctx, rc)
-#
-#         # allocate the max read buffer size
-#         cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-#         if buffers_ptr == NULL:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             raise MemoryError()
-#
-#         # initalize the buffer ptrs
-#         for i in range(nattr):
-#             buffers_ptr[i] = <void*> PyMem_Malloc(buffer_sizes_ptr[i])
-#             if buffers_ptr[i] == NULL:
-#                 PyMem_Free(attr_names_ptr)
-#                 PyMem_Free(buffer_sizes_ptr)
-#                 for j in range(i):
-#                     PyMem_Free(buffers_ptr[j])
-#                 PyMem_Free(buffers_ptr)
-#                 raise MemoryError()
-#
-#         rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
-#                                       buffers_ptr, buffer_sizes_ptr)
-#         if rc != TILEDB_OK:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             for i in range(nattr):
-#                 PyMem_Free(buffers_ptr[i])
-#             PyMem_Free(buffers_ptr)
-#             check_error(ctx, rc)
-#
-#         with nogil:
-#             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-#         tiledb_query_free(&query_ptr)
-#
-#         if rc != TILEDB_OK:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             for i in range(nattr):
-#                 PyMem_Free(buffers_ptr[i])
-#             PyMem_Free(buffers_ptr)
-#             check_error(ctx, rc)
-#
-#         # collect a list of dtypes for resulting to construct array
-#         dtypes = list()
-#         try:
-#             dtypes.append(self.coords_dtype())
-#             for i in range(1, nattr):
-#                 dtypes.append(self.attr(i - 1).dtype)
-#             # we need to increase the reference count of all dtype objects
-#             # because PyArray_NewFromDescr steals a reference
-#             for i in range(nattr):
-#                 Py_INCREF(dtypes[i])
-#         except:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             for i in range(nattr):
-#                 PyMem_Free(buffers_ptr[i])
-#             PyMem_Free(buffers_ptr)
-#             raise
-#
-#         cdef object out = OrderedDict()
-#         # all results are 1-d vectors
-#         cdef np.npy_intp dims[1]
-#         # coordinates
-#         try:
-#             dtype = dtypes[0]
-#             dims[0] = buffer_sizes_ptr[0] / dtype.itemsize
-#             out["coords"] = PyArray_NewFromDescr(
-#                 <PyTypeObject*> np.ndarray,
-#                 dtype, 1, dims, NULL,
-#                 PyMem_Realloc(buffers_ptr[0], buffer_sizes_ptr[0]),
-#                 np.NPY_OWNDATA, <object> NULL)
-#         except:
-#             PyMem_Free(attr_names_ptr)
-#             PyMem_Free(buffer_sizes_ptr)
-#             for i in range(nattr):
-#                 PyMem_Free(buffers_ptr[i])
-#             PyMem_Free(buffers_ptr)
-#             raise
-#
-#         # attributes
-#         for i in range(1, nattr):
-#             try:
-#                 dtype = dtypes[i]
-#                 dims[0] = buffer_sizes_ptr[i] / dtypes[i].itemsize
-#                 out[attr_names[i - 1]] = \
-#                     PyArray_NewFromDescr(
-#                         <PyTypeObject*> np.ndarray,
-#                         dtype, 1, dims, NULL,
-#                         PyMem_Realloc(buffers_ptr[i], buffer_sizes_ptr[i]),
-#                         np.NPY_OWNDATA, <object> NULL)
-#             except:
-#                 PyMem_Free(attr_names_ptr)
-#                 PyMem_Free(buffer_sizes_ptr)
-#                 # the previous buffers are now "owned"
-#                 # by the constructed numpy arrays
-#                 for j in range(i, nattr):
-#                     PyMem_Free(buffers_ptr[i])
-#                 PyMem_Free(buffers_ptr)
-#                 raise
-#         return out
-#
-#     cdef _read_sparse_multiple(self, np.ndarray coords, dict values):
-#         # ctx references
-#         cdef Ctx ctx = self.ctx
-#         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-#
-#         # array name
-#         cdef bytes barray_name = self.uri.encode('UTF-8')
-#
-#         # attr name
-#         battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
-#         cdef size_t nattr = self.nattr
-#         cdef const char** c_attr_names = <const char**> calloc(nattr + 1, sizeof(uintptr_t))
-#         try:
-#             for i in range(nattr):
-#                 c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
-#             c_attr_names[nattr] = tiledb_coords()
-#         except:
-#             free(c_attr_names)
-#             raise
-#         attr_values = list(values.values())
-#         cdef size_t ncoords = coords.shape[0]
-#         cdef char** buffers = <char**> calloc(nattr + 1, sizeof(uintptr_t))
-#         cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
-#         cdef uint64_t* buffer_item_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
-#         cdef np.ndarray array_value
-#         try:
-#             for i in range(nattr):
-#                 array_value = attr_values[i]
-#                 buffers[i] = <char*> np.PyArray_DATA(array_value)
-#                 buffer_sizes[i] = <uint64_t> array_value.nbytes
-#                 buffer_item_sizes[i] = <uint64_t> array_value.dtype.itemsize
-#             buffers[nattr] = <char*> np.PyArray_DATA(coords)
-#             buffer_sizes[nattr] = <uint64_t> coords.nbytes
-#             buffer_item_sizes[nattr] = <uint64_t> (coords.dtype.itemsize * self.domain.ndim)
-#         except:
-#             free(c_attr_names)
-#             free(buffers)
-#             free(buffer_sizes)
-#             raise
-#
-#         cdef int rc = TILEDB_OK
-#         cdef tiledb_query_t* query_ptr = NULL
-#         rc = tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ)
-#         if rc != TILEDB_OK:
-#             free(c_attr_names)
-#             free(buffers)
-#             free(buffer_sizes)
-#             check_error(ctx, rc)
-#
-#         rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_GLOBAL_ORDER)
-#         if rc != TILEDB_OK:
-#             free(c_attr_names)
-#             free(buffers)
-#             free(buffer_sizes)
-#             check_error(ctx, rc)
-#
-#         for i in range(ncoords):
-#             if i == 0:
-#                 rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names,
-#                                               nattr + 1, <void**> buffers, buffer_item_sizes)
-#             else:
-#                 for aidx in range(nattr):
-#                     buffers[aidx] += buffer_item_sizes[aidx]
-#                 buffers[nattr] += buffer_item_sizes[nattr]
-#                 rc = tiledb_query_reset_buffers(ctx_ptr, query_ptr,
-#                                                 <void**> buffers, buffer_item_sizes)
-#             if rc != TILEDB_OK:
-#                 break
-#             with nogil:
-#                 rc = tiledb_query_submit(ctx_ptr, query_ptr)
-#             if rc != TILEDB_OK:
-#                 break
-#
-#         free(c_attr_names)
-#         free(buffers)
-#         free(buffer_sizes)
-#         tiledb_query_free(&query_ptr)
-#         if rc != TILEDB_OK:
-#             check_error(ctx, rc)
-#         return
-#
-#
+# point query index a tiledb array (zips) columnar index vectors
+def index_domain_coords(Domain dom, tuple idx):
+    """
+    Returns a (zipped) coordinate array representation
+    given coordinate indices in numpy's point indexing format
+    """
+    ndim = len(idx)
+    if ndim != dom.ndim:
+        raise IndexError("sparse index ndim must match "
+                         "domain ndim: {0!r} != {1!r}".format(ndim, dom.ndim))
+    idx = tuple(np.asarray(idx[i], dtype=dom.dim(i).dtype)
+                for i in range(ndim))
+    # check that all sparse coordinates are the same size and dtype
+    len0, dtype0 = len(idx[0]), idx[0].dtype
+    for i in range(2, ndim):
+        if len(idx[i]) != len0:
+            raise IndexError("sparse index dimension length mismatch")
+        if idx[i].dtype != dtype0:
+            raise IndexError("sparse index dimension dtype mismatch")
+    # zip coordinates
+    return np.column_stack(idx)
+
+
+cdef class SparseArray(Array):
+    """
+    TileDB SparseArray class
+
+    Inherits properties / methods of `tiledb.Array`
+
+    """
+
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        if not self.schema.sparse:
+            raise ValueError("Array at {:r} is not a sparse array".format(self.uri))
+        return
+
+    def __len__(self):
+        raise TypeError("SparseArray length is ambiguous; use shape[0]")
+
+    def __setitem__(self, selection, val):
+        """Set / update sparse data cells
+
+        :param tuple selection: N coordinate value arrays (dim0, dim1, ...) where N in the ndim of the SparseArray,
+            The format follows numpy sparse (point) indexing semantics.
+        :param value: a dictionary of nonempty array attribute values, values must able to be converted to 1-d numpy arrays.\
+            if the number of attributes is one, than a 1-d numpy array is accepted.
+        :type value: dict or :py:class:`numpy.ndarray`
+        :raises IndexError: invalid or unsupported index selection
+        :raises ValueError: value / coordinate length mismatch
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        >>> # array with one attribute
+        >>> A[I, J] = np.array([...])
+        >>> # array with multiple attributes
+        >>> A[I, J] = {"attr1": np.array([...]), "attr2": np.array([...])}
+
+        """
+        idx = index_as_tuple(selection)
+        sparse_coords = index_domain_coords(self.schema.domain, idx)
+        ncells = sparse_coords.shape[0]
+        if self.schema.nattr == 1 and not isinstance(val, dict):
+            attr = self.attr(0)
+            name = attr.name
+            value = np.asarray(val, dtype=attr.dtype)
+            if len(value) != ncells:
+                raise ValueError("value length does not match coordinate length")
+            sparse_values = dict(((name, value),))
+        else:
+            sparse_values = dict()
+            for (k, v) in dict(val).items():
+                attr = self.attr(k)
+                name = attr.name
+                value = np.asarray(v, dtype=attr.dtype)
+                if len(value) != ncells:
+                    raise ValueError("value length does not match coordinate length")
+                sparse_values[name] = value
+        self._write_sparse(sparse_coords, sparse_values)
+        return
+
+    cdef _write_sparse(self, np.ndarray coords, dict values):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+
+        # attr names
+        cdef Py_ssize_t nattr = len(values) + 1
+        cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
+        for (i, buffer) in enumerate(values.values()):
+            buffer_sizes[i] = buffer.nbytes
+        buffer_sizes[nattr - 1] = coords.nbytes
+
+        cdef tiledb_query_t* query_ptr = NULL
+        cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_UNORDERED)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef bytes battr_name
+        cdef void* buffer_ptr = NULL
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
+        try:
+            for i, (name, buffer) in enumerate(values.items()):
+                battr_name = name.encode('UTF-8')
+                buffer_ptr = np.PyArray_DATA(buffer)
+                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                             buffer_ptr, &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
+            tiledb_query_free(&query_ptr)
+            raise
+        buffer_ptr = np.PyArray_DATA(coords)
+        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(), buffer_ptr, &(buffer_sizes_ptr[nattr - 1]))
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        with nogil:
+            rc = tiledb_query_finalize(ctx_ptr, query_ptr)
+        tiledb_query_free(&query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return
+
+    def __getitem__(self, object selection):
+        """Retrieve nonempty cell data for an item or region of the array
+
+        :param tuple selection: An int index, slice or tuple of integer/slice objects,
+            specifying the selected subarray region for each dimension of the SparseArray.
+        :rtype: :py:class:`collections.OrderedDict`
+        :returns: An OrderedDict is returned with "coords" coordinate values being the first key. \
+            "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
+            Nonempty attribute values are returned as Numpy 1-d arrays.
+
+        >>> # Return nonempy cells within a floating point array domain (fp index bounds are inclusive)
+        >>> A[5.0:579.9]
+        >>> # Return an OrderedDict with cell coordinates
+        >>> A[1:10, 100:999]
+        >>> # Return the NumpyRecord array of TileDB cell coordinates
+        >>> A[1:10, 100:999]["coords"]
+        >>> # return just the "dim1" coordinates values
+        >>> A[1:10, 100:999]["coords"]["dim1"]
+
+        """
+        dom = self.schema.domain
+        idx = index_as_tuple(selection)
+        idx = replace_ellipsis(dom, idx)
+        idx, drop_axes = replace_scalars_slice(dom, idx)
+        subarray = index_domain_subarray(dom, idx)
+        attr_names = [self.schema.attr(i).name for i in range(self.schema.nattr)]
+        return self._read_sparse_subarray(subarray, attr_names)
+
+    cpdef np.dtype coords_dtype(self):
+        """Returns the numpy record array dtype of the SparseArray coordinates
+
+        :rtype: numpy.dtype
+        :returns: coord array record dtype
+
+        """
+        # returns the record array dtype of the coordinate array
+        return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
+
+    cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names):
+        # ctx references
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+
+        # set subarray / layout
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
+        cdef tiledb_query_t* query_ptr = NULL
+        cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_READ, &query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*> subarray_ptr)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+
+        # check the max read buffer size
+        cdef Py_ssize_t nattr = len(attr_names) + 1  # coordinates
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        if buffer_sizes_ptr == NULL:
+            tiledb_query_free(&query_ptr)
+            raise MemoryError()
+
+        cdef bytes battr_name
+        try:
+            for i in range(nattr):
+                if i == 0:
+                    rc = tiledb_array_max_buffer_size(ctx_ptr, array_ptr, tiledb_coords(),
+                                                      subarray_ptr, &(buffer_sizes_ptr[0]))
+                else:
+                    battr_name = attr_names[i - 1].encode('UTF-8')
+                    rc = tiledb_array_max_buffer_size(ctx_ptr, array_ptr, battr_name,
+                                                      subarray_ptr, &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(&query_ptr)
+            raise
+
+        # allocate the max read buffer size and set query buffers
+        cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
+        if buffers_ptr == NULL:
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(&query_ptr)
+            raise MemoryError()
+
+        # initalize the buffer ptrs
+        for i in range(nattr):
+            buffers_ptr[i] = <void*> PyMem_Malloc(<size_t>(buffer_sizes_ptr[i]))
+            if buffers_ptr[i] == NULL:
+                PyMem_Free(buffer_sizes_ptr)
+                for j in range(i):
+                    PyMem_Free(buffers_ptr[j])
+                PyMem_Free(buffers_ptr)
+                tiledb_query_free(&query_ptr)
+                raise MemoryError()
+        try:
+            for i in range(nattr):
+                # coords
+                if i == 0:
+                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(),
+                                                  buffers_ptr[0], &(buffer_sizes_ptr[0]))
+                else:
+                    battr_name = attr_names[i - 1].encode('UTF-8')
+                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                                 buffers_ptr[i], &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
+            PyMem_Free(buffer_sizes_ptr)
+            for i in range(nattr):
+                PyMem_Free(buffers_ptr[i])
+            PyMem_Free(buffers_ptr)
+            tiledb_query_free(&query_ptr)
+            raise
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        tiledb_query_free(&query_ptr)
+        if rc != TILEDB_OK:
+            PyMem_Free(buffer_sizes_ptr)
+            for i in range(nattr):
+                PyMem_Free(buffers_ptr[i])
+            PyMem_Free(buffers_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+
+        # collect a list of dtypes for resulting to construct array
+        dtypes = list()
+        try:
+            dtypes.append(self.coords_dtype())
+            for i in range(1, nattr):
+                dtypes.append(self.attr(i - 1).dtype)
+            # we need to increase the reference count of all dtype objects
+            # because PyArray_NewFromDescr steals a reference
+            for i in range(nattr):
+                Py_INCREF(dtypes[i])
+        except:
+            PyMem_Free(buffer_sizes_ptr)
+            for i in range(nattr):
+                PyMem_Free(buffers_ptr[i])
+            PyMem_Free(buffers_ptr)
+            raise
+
+        cdef object out = OrderedDict()
+        # all results are 1-d vectors
+        cdef np.npy_intp dims[1]
+        # coordinates
+        try:
+            dtype = dtypes[0]
+            dims[0] = buffer_sizes_ptr[0] / dtype.itemsize
+            out["coords"] = PyArray_NewFromDescr(
+                <PyTypeObject*> np.ndarray,
+                dtype, 1, dims, NULL,
+                PyMem_Realloc(buffers_ptr[0], <size_t>(buffer_sizes_ptr[0])),
+                np.NPY_OWNDATA, <object> NULL)
+        except:
+            PyMem_Free(buffer_sizes_ptr)
+            for i in range(nattr):
+                PyMem_Free(buffers_ptr[i])
+            PyMem_Free(buffers_ptr)
+            raise
+
+        # attributes
+        for i in range(1, nattr):
+            try:
+                dtype = dtypes[i]
+                dims[0] = buffer_sizes_ptr[i] / dtypes[i].itemsize
+                out[attr_names[i - 1]] = \
+                    PyArray_NewFromDescr(
+                        <PyTypeObject*> np.ndarray,
+                        dtype, 1, dims, NULL,
+                        PyMem_Realloc(buffers_ptr[i], <size_t>(buffer_sizes_ptr[i])),
+                        np.NPY_OWNDATA, <object> NULL)
+            except:
+                PyMem_Free(buffer_sizes_ptr)
+                # the previous buffers are now "owned"
+                # by the constructed numpy arrays
+                for j in range(i, nattr):
+                    PyMem_Free(buffers_ptr[i])
+                PyMem_Free(buffers_ptr)
+                raise
+        PyMem_Free(buffer_sizes_ptr)
+        PyMem_Free(buffers_ptr)
+        return out
+
 def consolidate(Ctx ctx, path):
     """Consolidates a TileDB Array updates for improved read performance
 
