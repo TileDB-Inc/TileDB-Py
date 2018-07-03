@@ -1,0 +1,9 @@
+global-exclude .gitignore
+
+exclude MANIFEST.in
+exclude .readthedocs.yml
+exclude .travis.yml
+exclude requirements_dev.txt
+exclude tox.ini
+
+prune doc

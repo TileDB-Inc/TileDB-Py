@@ -1,21 +1,185 @@
 from __future__ import absolute_import, print_function
 
+import multiprocessing
 import os
+import shutil
+import subprocess
+import zipfile
+
+try:
+    # For Python 3
+    from urllib.request import urlopen
+    import io
+
+    def get_zipfile(url):
+        """Returns a ZipFile constructed from the file at the given URL."""
+        r = urlopen(url)
+        return zipfile.ZipFile(io.BytesIO(r.read()))
+except ImportError:
+    # Python 2
+    from urllib2 import urlopen
+    import StringIO
+
+    def get_zipfile(url):
+        """Returns a ZipFile constructed from the file at the given URL."""
+        r = urlopen(url)
+        return zipfile.ZipFile(StringIO.StringIO(r.read()))
+
 from setuptools import setup, Extension, find_packages
 from pkg_resources import resource_filename
 
 import sys
 from sys import version_info as ver
 
+# Directory containing this file
+containing_dir = os.path.abspath(os.path.dirname(__file__))
+# Build directory path
+build_dir = os.path.join(containing_dir, "build")
+# TileDB package source directory
+tiledb_pkg_dir = os.path.join(containing_dir, "tiledb")
+
+
+def libtiledb_exists(library_dirs):
+    """
+    Checks the given list of paths and returns true if any contain the TileDB library.
+    :return: The path to the TileDB library, or None.
+    """
+    names = libtiledb_library_names()
+    for dir in library_dirs:
+        for name in names:
+            full_path = os.path.join(dir, name)
+            if os.path.exists(full_path):
+                return full_path
+
+    # Also check to see if TileDB is globally installed.
+    import ctypes
+    if os.name == "posix":
+        if sys.platform == "darwin":
+            lib_name = "libtiledb.dylib"
+        else:
+            lib_name = "libtiledb.so"
+    try:
+        ctypes.CDLL(lib_name)
+        return lib_name
+    except:
+        pass
+
+    return None
+
+
+def libtiledb_library_names():
+    """
+    :return: List of TileDB shared library names.
+    """
+    if os.name == "posix":
+        if sys.platform == "darwin":
+            return ["libtiledb.dylib"]
+        else:
+            return ["libtiledb.so"]
+    elif os.name == "nt":
+        return ["tiledb.lib"]
+    else:
+        assert False, "Unsupported OS name " + os.name
+
+
+def download_libtiledb():
+    """
+    Downloads the native TileDB source.
+    :return: Path to extracted source directory.
+    """
+    version = "dev"
+    dest_name = "TileDB-%s" % version
+    dest = os.path.join(build_dir, dest_name)
+    if not os.path.exists(dest):
+        url = "https://github.com/TileDB-Inc/TileDB/archive/%s.zip" % version
+        print("Downloading TileDB package from %s..." % url)
+        with get_zipfile(url) as z:
+            z.extractall(build_dir)
+    return dest
+
+
+def build_libtiledb(src_dir):
+    """
+    Builds and installs the native TileDB library.
+    :param src_dir: Path to libtiledb source directory.
+    :return: Path to the directory where the library was installed.
+    """
+    libtiledb_build_dir = os.path.join(src_dir, "build")
+    libtiledb_install_dir = os.path.join(src_dir, "dist")
+    if not os.path.exists(libtiledb_build_dir):
+        os.makedirs(libtiledb_build_dir)
+    print("Building libtiledb in directory %s..." % libtiledb_build_dir)
+    cmake_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX=%s" % libtiledb_install_dir,
+                 "-DCMAKE_BUILD_TYPE=Release", "-DTILEDB_S3=ON", ".."]
+
+    have_make = True
+    try:
+        subprocess.check_call(["make", "-v"])
+    except:
+        have_make = False
+
+    if have_make:
+        njobs = multiprocessing.cpu_count() or 2
+        build_cmd = ["make", "-j%d" % njobs]
+        install_cmd = ["make", "install"]
+    else:
+        build_cmd = ["cmake", "--build", ".", "--config", "Release"]
+        install_cmd = ["cmake", "--build", ".", "--config", "Release", "--target", "install"]
+
+    # Build and install libtiledb
+    subprocess.check_call(cmake_cmd, cwd=libtiledb_build_dir)
+    subprocess.check_call(build_cmd, cwd=libtiledb_build_dir)
+    subprocess.check_call(install_cmd, cwd=os.path.join(libtiledb_build_dir, "tiledb"))
+
+    return libtiledb_install_dir
+
+
+def find_or_install_libtiledb(setuptools_cmd):
+    """
+    Find the TileDB library required for building the Cython extension. If not found,
+    download, build and install TileDB, copying the resulting shared libraries
+    into a path where they will be found by package_data.
+
+    :param setuptools_cmd: The setuptools command instance.
+    """
+    tiledb_ext = None
+    for ext in setuptools_cmd.distribution.ext_modules:
+        if ext.name == "tiledb.libtiledb":
+            tiledb_ext = ext
+            break
+
+    # Download, build and locally install TileDB if needed.
+    if not libtiledb_exists(tiledb_ext.library_dirs):
+        src_dir = download_libtiledb()
+        install_dir = build_libtiledb(src_dir)
+        # Copy libtiledb shared object(s) to the package directory so they can be found
+        # with package_data.
+        for libname in libtiledb_library_names():
+            src = os.path.join(install_dir, "lib", libname)
+            dest_dir = os.path.join(tiledb_pkg_dir, "native")
+            if not os.path.exists(dest_dir):
+                os.makedirs(dest_dir)
+            dest = os.path.join(dest_dir, libname)
+            print("Copying file %s to %s" % (src, dest))
+            shutil.copy(src, dest)
+        # Update the TileDB Extension instance with correct paths.
+        tiledb_ext.library_dirs += [os.path.join(install_dir, "lib")]
+        tiledb_ext.include_dirs += [os.path.join(install_dir, "include")]
+        # Update package_data so the shared object gets installed with the Python module.
+        libtiledb_objects = [os.path.join("native", libname) for libname in libtiledb_library_names()]
+        setuptools_cmd.distribution.package_data.update({"tiledb": libtiledb_objects})
+
+
 class LazyCommandClass(dict):
     """
     Lazy command class that defers operations requiring Cython and numpy until
     they've actually been downloaded and installed by setup_requires.
     """
+
     def __contains__(self, key):
         return (
-            key == 'build_ext'
-            or super(LazyCommandClass, self).__contains__(key)
+                key in ['build_ext', 'bdist_wheel']
+                or super(LazyCommandClass, self).__contains__(key)
         )
 
     def __setitem__(self, key, value):
@@ -24,9 +188,17 @@ class LazyCommandClass(dict):
         super(LazyCommandClass, self).__setitem__(key, value)
 
     def __getitem__(self, key):
-        if key != 'build_ext':
+        if key == 'build_ext':
+            return self.make_build_ext_cmd()
+        elif key == 'bdist_wheel':
+            return self.make_bdist_wheel_cmd()
+        else:
             return super(LazyCommandClass, self).__getitem__(key)
 
+    def make_build_ext_cmd(self):
+        """
+        :return: A command class implementing 'build_ext'.
+        """
         from Cython.Distutils import build_ext as cython_build_ext
 
         class build_ext(cython_build_ext):
@@ -34,6 +206,7 @@ class LazyCommandClass(dict):
             Custom build_ext command that lazily adds numpy's include_dir to
             extensions.
             """
+
             def build_extensions(self):
                 """
                 Lazily append numpy's include directory to Extension includes.
@@ -46,13 +219,29 @@ class LazyCommandClass(dict):
                 for ext in self.extensions:
                     ext.include_dirs.append(numpy_incl)
 
+                find_or_install_libtiledb(self)
+
                 # This explicitly calls the superclass method rather than the
                 # usual super() invocation because distutils' build_class, of
                 # which Cython's build_ext is a subclass, is an old-style class
                 # in Python 2, which doesn't support `super`.
                 cython_build_ext.build_extensions(self)
+
         return build_ext
 
+    def make_bdist_wheel_cmd(self):
+        """
+        :return: A command class implementing 'bdist_wheel'.
+        """
+        from wheel.bdist_wheel import bdist_wheel
+
+        class bdist_wheel_cmd(bdist_wheel):
+            def run(self):
+                # This may modify package_data:
+                find_or_install_libtiledb(self)
+                bdist_wheel.run(self)
+
+        return bdist_wheel_cmd
 
 tests_require = []
 if ver < (3,):
@@ -108,18 +297,19 @@ setup(
     },
     ext_modules=[
         Extension(
-          "tiledb.libtiledb",
-          include_dirs=inc_dirs,
-          define_macros=def_macros,
-          sources=sources,
-          library_dirs=lib_dirs,
-          libraries=libs,
-          extra_link_args=LFLAGS,
-          extra_compile_args=CXXFLAGS,
-          language="c++"
+            "tiledb.libtiledb",
+            include_dirs=inc_dirs,
+            define_macros=def_macros,
+            sources=sources,
+            library_dirs=lib_dirs,
+            libraries=libs,
+            extra_link_args=LFLAGS,
+            extra_compile_args=CXXFLAGS,
+            language="c++"
         )
     ],
     setup_requires=[
+        'cmake==3.11.0',
         'cython>=0.22',
         'numpy>=1.7',
         'setuptools>18.0',
@@ -139,10 +329,10 @@ setup(
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Operating System :: Unix',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
-
 )

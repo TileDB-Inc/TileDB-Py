@@ -1,5 +1,23 @@
 from __future__ import absolute_import
 
+import ctypes
+import os
+import sys
+
+if os.name == "posix":
+    if sys.platform == "darwin":
+        lib_name = "libtiledb.dylib"
+    else:
+        lib_name = "libtiledb.so"
+
+# Load the bundled TileDB dynamic library if it exists. This must occur before importing from libtiledb.
+try:
+    lib_dir = os.path.join(os.path.dirname(__file__), "native")
+    ctypes.CDLL(os.path.join(lib_dir, lib_name))
+except OSError as e:
+    # Otherwise try loading by name only.
+    ctypes.CDLL(lib_name)
+
 from .libtiledb import (
      Ctx,
      Config,
