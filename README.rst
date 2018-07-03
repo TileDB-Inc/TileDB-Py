@@ -129,10 +129,36 @@ Tests can now be run using Python's unittest framework
 
     $ python -m unittest -v
 
-Youo can also install a `symlink named site-packages/tiledb.egg-link` to the development folder of TileDB-Py with:
+You can also install a `symlink named site-packages/tiledb.egg-link` to the development folder of TileDB-Py with:
 
 ::
 
     $ pip install --editable .
 
 This enables local changes to the current development repo to be reflected globally
+
+Developing TileDB-Py
+--------------------
+
+TileDB-Py includes a handy Conda environment definition file for setting up a test environment:
+
+::
+
+    $ conda env create -f environment.yml
+
+This will create a ``tiledbpy`` conda environment with all the development library dependencies.
+
+
+The easiest way to test / develop TileDB-Py across Python versions (2.7, 3.5, and 3.6),
+is using `tox <https://tox.readthedocs.io/en/latest/index.html>`_.
+TileDB includes a tox.ini file, simply run `tox` in the toplevel source directory to run the test suite against multiple installed Python versions.
+
+::
+
+    $ tox
+
+You can specify a particular Python version using the ``-e`` flag:
+
+::
+
+    $ tox -e py27
