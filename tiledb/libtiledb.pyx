@@ -912,6 +912,7 @@ cdef class Attr(object):
         if name.startswith("__attr"):
             return u""
         return name
+
     @property
     def name(self):
         """Attribute string name, empty string if the attribute is anonymous
