@@ -18,7 +18,7 @@ from cpython.ref cimport (Py_INCREF, PyTypeObject)
 from libc.stdio cimport (FILE, stdout)
 from libc.stdio cimport stdout
 from libc.stdlib cimport malloc, calloc, free
-from libc.stdint cimport (uint64_t, UINT64_MAX, uintptr_t)
+from libc.stdint cimport (uint64_t, int64_t, uintptr_t)
 
 # Numpy imports
 """
@@ -66,6 +66,19 @@ IntType = np.dtype(np.int_)
 # Numpy initialization code
 np.import_array()
 
+def version():
+    """Return the version of the linked ``libtiledb`` shared library
+
+    :rtype: tuple
+    :return: Semver version (major, minor, rev)
+
+    """
+    cdef:
+        int major = 0
+        int minor = 0
+        int rev = 0
+    tiledb_version(&major, &minor, &rev)
+    return major, minor, rev
 
 class TileDBError(Exception):
     """TileDB Error Exception
@@ -87,7 +100,6 @@ class TileDBError(Exception):
         """
         return self.args[0]
 
-
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
     cdef const char* err_msg_ptr = NULL
     ret = tiledb_error_message(err_ptr, &err_msg_ptr)
@@ -96,8 +108,11 @@ cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
         if ret == TILEDB_OOM:
             return MemoryError()
         raise TileDBError("error retrieving error message")
-    cdef unicode message_string = err_msg_ptr.decode('UTF-8', 'strict')
-    tiledb_error_free(&err_ptr)
+    cdef unicode message_string
+    try:
+        message_string = err_msg_ptr.decode('UTF-8', 'strict')
+    finally:
+        tiledb_error_free(&err_ptr)
     raise TileDBError(message_string)
 
 
@@ -119,20 +134,24 @@ cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc):
 cpdef check_error(Ctx ctx, int rc):
     _raise_ctx_err(ctx.ptr, rc)
 
+def stats_enable():
+    """Enable TileDB internal statistics."""
+    tiledb_stats_enable()
 
-def version():
-    """Return the version of the linked ``libtiledb`` shared library
 
-    :rtype: tuple
-    :return: Semver version (major, minor, rev)
+def stats_disable():
+    """Disable TileDB internal statistics."""
+    tiledb_stats_disable()
 
-    """
-    cdef:
-        int major = 0
-        int minor = 0
-        int rev = 0
-    tiledb_version(&major, &minor, &rev)
-    return major, minor, rev
+
+def stats_reset():
+    """Reset all TileDB internal statistics to 0."""
+    tiledb_stats_reset()
+
+
+def stats_dump():
+    """Prints all TileDB internal statistics values to standard output."""
+    tiledb_stats_dump(stdout)
 
 
 cdef unicode ustring(object s):
@@ -174,7 +193,7 @@ cdef class Config(object):
     - ``vfs.hdfs.kerb_ticket_cache_path`` HDFS kerb ticket cache path.
 
     unknown parameters will be ignored
-        
+
     :param dict params: set parameter values from dict like object
     :param str path: set parameter values from persisted Config parameter file
 
@@ -192,12 +211,12 @@ cdef class Config(object):
     def __init__(self, params=None, path=None):
         cdef tiledb_config_t* config_ptr = NULL
         cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_create(&config_ptr, &err_ptr)
+        cdef int rc = tiledb_config_alloc(&config_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
         elif rc == TILEDB_ERR:
             _raise_tiledb_error(err_ptr)
-        assert (config_ptr != NULL)
+        assert(config_ptr != NULL)
         self.ptr = config_ptr
         if path is not None:
             self.load(path)
@@ -207,6 +226,7 @@ cdef class Config(object):
     @staticmethod
     cdef from_ptr(tiledb_config_t* ptr):
         """Constructs a Config class instance from a (non-null) tiledb_config_t pointer"""
+        assert(ptr != NULL)
         cdef Config config = Config.__new__(Config)
         config.ptr = ptr
         return config
@@ -227,19 +247,20 @@ cdef class Config(object):
         cdef Config config = Config.__new__(Config)
         cdef tiledb_config_t* config_ptr = NULL
         cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_create(&config_ptr, &err_ptr)
+        cdef int rc = tiledb_config_alloc(&config_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
         if rc == TILEDB_ERR:
             _raise_tiledb_error(err_ptr)
-        with nogil:
-            rc = tiledb_config_load_from_file(config_ptr, uri_ptr, &err_ptr)
+        # TODO: release GIL
+        rc = tiledb_config_load_from_file(config_ptr, uri_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             tiledb_config_free(&config_ptr)
             raise MemoryError()
         if rc == TILEDB_ERR:
             tiledb_config_free(&config_ptr)
             _raise_tiledb_error(err_ptr)
+        assert(config_ptr != NULL)
         config.ptr = config_ptr
         return config
 
@@ -388,7 +409,7 @@ cdef class Config(object):
 
     def from_file(self, path):
         """Update a Config object with parameter, values from a config file
-        
+
         :param path: A local Config file path
 
         """
@@ -407,8 +428,8 @@ cdef class Config(object):
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_error_t* err_ptr = NULL
         cdef int rc
-        with nogil:
-            rc = tiledb_config_save_to_file(self.ptr, uri_ptr, &err_ptr)
+        # TODO: Release GIL
+        rc = tiledb_config_save_to_file(self.ptr, uri_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
         elif rc == TILEDB_ERR:
@@ -466,10 +487,11 @@ cdef class ConfigItems(object):
 
     def __init__(self, Config config, unicode prefix=u""):
         cdef bytes bprefix = prefix.encode("UTF-8")
+        cdef const char* prefix_ptr = PyBytes_AS_STRING(bprefix)
         cdef tiledb_config_iter_t* config_iter_ptr = NULL
         cdef tiledb_error_t* err_ptr = NULL
-        cdef rc = tiledb_config_iter_create(
-            config.ptr, &config_iter_ptr, bprefix, &err_ptr)
+        cdef rc = tiledb_config_iter_alloc(
+            config.ptr, prefix_ptr, &config_iter_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
         elif rc == TILEDB_ERR:
@@ -542,7 +564,7 @@ cdef class Ctx(object):
             else:
                 _config.update(config)
         cdef tiledb_ctx_t* ctx_ptr = NULL
-        cdef int rc = tiledb_ctx_create(&ctx_ptr, _config.ptr)
+        cdef int rc = tiledb_ctx_alloc(_config.ptr, &ctx_ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
         elif rc == TILEDB_ERR:
@@ -564,7 +586,7 @@ cdef class Ctx(object):
 
 cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
     """
-    Return tiledb_datatype_t enum value for a given numpy dtype object  
+    Return tiledb_datatype_t enum value for a given numpy dtype object
     """
     if dtype == np.int32:
         return TILEDB_INT32
@@ -591,7 +613,7 @@ cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
     raise TypeError("data type {0!r} not understood".format(dtype))
 
 
-cdef int _numpy_type_num(tiledb_datatype_t tiledb_dtype):
+cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     """
     Return a numpy type num (int) given a tiledb_datatype_t enum value
     """
@@ -738,7 +760,7 @@ cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
 
 cdef unicode _tiledb_layout_string(tiledb_layout_t order):
     """
-    Return the unicode string label given a tiledb_layout_t enum value 
+    Return the unicode string label given a tiledb_layout_t enum value
     """
     if order == TILEDB_ROW_MAJOR:
         return u"row-major"
@@ -772,7 +794,7 @@ cdef class Attr(object):
 
     def __dealloc__(self):
         if self.ptr != NULL:
-            tiledb_attribute_free(self.ctx.ptr, &self.ptr)
+            tiledb_attribute_free(&self.ptr)
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_attribute_t* ptr):
@@ -790,6 +812,7 @@ cdef class Attr(object):
                  dtype=np.float64,
                  compressor=None):
         cdef bytes bname = ustring(name).encode('UTF-8')
+        cdef const char* name_ptr = PyBytes_AS_STRING(bname)
         cdef np.dtype _dtype = np.dtype(dtype)
         cdef tiledb_datatype_t tiledb_dtype
         cdef unsigned int ncells
@@ -811,24 +834,42 @@ cdef class Attr(object):
             if typs.count(typ) != ntypes:
                 raise TypeError('heterogenous record numpy dtypes are not supported')
             tiledb_dtype = _tiledb_dtype(typ)
-            ncells = ntypes
+            ncells = <unsigned int>(ntypes)
+        # scalar cell type
         else:
             tiledb_dtype = _tiledb_dtype(_dtype)
             ncells = 1
-        cdef tiledb_attribute_t* attr_ptr = NULL
-        check_error(ctx,
-            tiledb_attribute_create(ctx.ptr, &attr_ptr, bname, tiledb_dtype))
-        check_error(ctx,
-            tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells))
+        # compression and compression level
         cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
         cdef int _level = -1
         if compressor is not None:
             _compressor = _tiledb_compressor(ustring(compressor[0]))
             _level = int(compressor[1])
-            check_error(ctx,
-                tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, _compressor, _level))
+        # alloc attribute object and set cell num / compressor
+        cdef tiledb_attribute_t* attr_ptr = NULL
+        cdef int rc = TILEDB_OK
+        rc = tiledb_attribute_alloc(ctx.ptr, name_ptr, tiledb_dtype, &attr_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx.ptr, rc)
+        rc = tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells)
+        if rc != TILEDB_OK:
+            tiledb_attribute_free(&attr_ptr)
+            _raise_ctx_err(ctx.ptr, rc)
+        rc = tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, _compressor, _level)
+        if rc != TILEDB_OK:
+            tiledb_attribute_free(&attr_ptr)
+            _raise_ctx_err(ctx.ptr, rc)
         self.ctx = ctx
         self.ptr = attr_ptr
+
+    def __eq__(self, other):
+        if not isinstance(other, Attr):
+            return False
+        if (self.name != other.name or
+            self.dtype != other.dtype or
+            self.compressor != other.compressor):
+            return False
+        return True
 
     def dump(self):
         """Dumps a string representation of the Attr object to standard output (STDOUT)"""
@@ -871,6 +912,7 @@ cdef class Attr(object):
         if name.startswith("__attr"):
             return u""
         return name
+
     @property
     def name(self):
         """Attribute string name, empty string if the attribute is anonymous
@@ -954,17 +996,18 @@ cdef class Dim(object):
 
     """
     cdef Ctx ctx
-    cdef tiledb_dimension_t*ptr
+    cdef tiledb_dimension_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
 
     def __dealloc__(self):
         if self.ptr != NULL:
-            tiledb_dimension_free(self.ctx.ptr, &self.ptr)
+            tiledb_dimension_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_dimension_t*ptr):
+    cdef from_ptr(Ctx ctx, const tiledb_dimension_t* ptr):
+        assert(ptr != NULL)
         cdef Dim dim = Dim.__new__(Dim)
         dim.ctx = ctx
         # need to cast away the const
@@ -972,7 +1015,6 @@ cdef class Dim(object):
         return dim
 
     def __init__(self, Ctx ctx, name=u"", domain=None, tile=0, dtype=np.uint64):
-        cdef bytes bname = ustring(name).encode('UTF-8')
         if len(domain) != 2:
             raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
@@ -989,23 +1031,30 @@ cdef class Dim(object):
                     "invalid domain extent, domain cannot be safely cast to dtype {0!r}".format(dtype))
         domain_array = np.asarray(domain, dtype=dtype)
         domain_dtype = domain_array.dtype
+        # check that the domain type is a valid dtype (intger / floating)
         if (not np.issubdtype(domain_dtype, np.integer) and
                 not np.issubdtype(domain_dtype, np.floating)):
             raise TypeError("invalid Dim dtype {0!r}".format(domain_dtype))
+        # if the tile extent is specified, cast
         cdef void* tile_size_ptr = NULL
         if tile > 0:
             tile_size_array = np.array(tile, dtype=domain_dtype)
             if tile_size_array.size != 1:
                 raise ValueError("tile extent must be a scalar")
             tile_size_ptr = np.PyArray_DATA(tile_size_array)
+        # argument conversion
+        cdef bytes bname = ustring(name).encode('UTF-8')
+        cdef const char* name_ptr = PyBytes_AS_STRING(bname)
+        cdef tiledb_datatype_t dim_datatype = _tiledb_dtype(domain_dtype)
+        cdef const void* domain_ptr = np.PyArray_DATA(domain_array)
         cdef tiledb_dimension_t* dim_ptr = NULL
         check_error(ctx,
-                    tiledb_dimension_create(ctx.ptr,
-                                            &dim_ptr,
-                                            bname,
-                                            _tiledb_dtype(domain_dtype),
-                                            np.PyArray_DATA(domain_array),
-                                            tile_size_ptr))
+                    tiledb_dimension_alloc(ctx.ptr,
+                                           name_ptr,
+                                           dim_datatype,
+                                           domain_ptr,
+                                           tile_size_ptr,
+                                           &dim_ptr))
         assert(dim_ptr != NULL)
         self.ctx = ctx
         self.ptr = dim_ptr
@@ -1016,6 +1065,16 @@ cdef class Dim(object):
 
     def __len__(self):
         return self.size
+
+    def __eq__(self, other):
+        if not isinstance(other, Dim):
+            return False
+        if (self.name != other.name or
+            self.domain != other.domain or
+            self.tile != other.tile or
+            self.dtype != other.dtype):
+            return False
+        return True
 
     def __array__(self, dtype=None, **kw):
         if not self._integer_domain():
@@ -1043,7 +1102,7 @@ cdef class Dim(object):
     def name(self):
         """Return the string dimension label
 
-        anonymous dimensions return a default string representation based on the dimension rank
+        anonymous dimensions return a default string representation based on the dimension idx
 
         :rtype: str
 
@@ -1114,9 +1173,10 @@ cdef class Dim(object):
             return None
         cdef np.npy_intp shape[1]
         shape[0] = <np.npy_intp> 1
-        cdef int type_num = _numpy_type_num(self._get_type())
-        assert(type_num != np.NPY_NOTYPE)
-        cdef np.ndarray tile_array = np.PyArray_SimpleNewFromData(1, shape, type_num, tile_ptr)
+        cdef int typeid = _numpy_typeid(self._get_type())
+        assert(typeid != np.NPY_NOTYPE)
+        cdef np.ndarray tile_array =\
+            np.PyArray_SimpleNewFromData(1, shape, typeid, tile_ptr)
         if tile_array[0] == 0:
             # undefined tiles should span the whole dimension domain
             return self.shape[0]
@@ -1139,18 +1199,18 @@ cdef class Dim(object):
         assert(domain_ptr != NULL)
         cdef np.npy_intp shape[1]
         shape[0] = <np.npy_intp> 2
-        cdef int typeid = _numpy_type_num(self._get_type())
+        cdef int typeid = _numpy_typeid(self._get_type())
         assert (typeid != np.NPY_NOTYPE)
         cdef np.ndarray domain_array = \
             np.PyArray_SimpleNewFromData(1, shape, typeid, domain_ptr)
-        return (domain_array[0], domain_array[1])
+        return domain_array[0], domain_array[1]
 
 
 cdef class Domain(object):
     """TileDB Domain class object
 
     :param tiledb.Ctx ctx: A TileDB Context
-    :param \*dims: one or more tiledb.Dim objects up to the Domains rank
+    :param *dims: one or more tiledb.Dim objects up to the Domains ndim
     :raises TypeError: All dimensions must have the same dtype
     :raises: :py:exc:`libtiledb.TileDBError`
 
@@ -1164,74 +1224,79 @@ cdef class Domain(object):
 
     def __dealloc__(self):
         if self.ptr != NULL:
-            tiledb_domain_free(self.ctx.ptr, &self.ptr)
+            tiledb_domain_free(&self.ptr)
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_domain_t* ptr):
         """Constructs an Domain class instance from a (non-null) tiledb_domain_t pointer"""
+        assert(ptr != NULL)
         cdef Domain dom = Domain.__new__(Domain)
         dom.ctx = ctx
         dom.ptr = <tiledb_domain_t*> ptr
         return dom
 
     def __init__(self, Ctx ctx, *dims):
-        cdef unsigned int rank = len(dims)
-        if rank == 0:
-            raise TileDBError("Domain must have rank >= 1")
+        cdef Py_ssize_t ndim = len(dims)
+        if ndim == 0:
+            raise TileDBError("Domain must have ndim >= 1")
         cdef Dim dimension = dims[0]
         cdef tiledb_datatype_t domain_type = dimension._get_type()
-        for i in range(1, rank):
+        for i in range(1, ndim):
             dimension = dims[i]
             if dimension._get_type() != domain_type:
                 raise TypeError("all dimensions must have the same dtype")
         cdef tiledb_domain_t* domain_ptr = NULL
-        cdef int rc = tiledb_domain_create(ctx.ptr, &domain_ptr)
+        cdef int rc = tiledb_domain_alloc(ctx.ptr, &domain_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         assert(domain_ptr != NULL)
-        for i in range(rank):
+        for i in range(ndim):
             dimension = dims[i]
             rc = tiledb_domain_add_dimension(
                 ctx.ptr, domain_ptr, dimension.ptr)
             if rc != TILEDB_OK:
-                tiledb_domain_free(ctx.ptr, &domain_ptr)
+                tiledb_domain_free(&domain_ptr)
                 check_error(ctx, rc)
         self.ctx = ctx
         self.ptr = domain_ptr
 
     def __repr__(self):
         dims = ",\n       ".join(
-            [repr(self.dim(i)) for i in range(self.rank)])
+            [repr(self.dim(i)) for i in range(self.ndim)])
         return "Domain({0!s})".format(dims)
 
     def __len__(self):
-        """Returns the number of dimensions (rank) of the domain"""
-        return self.rank
+        """Returns the number of dimensions of the domain"""
+        return self.ndim
 
     def __iter__(self):
         """Returns a generator object that iterates over the domain's dimension objects"""
-        return (self.dim(i) for i in range(self.rank))
+        return (self.dim(i) for i in range(self.ndim))
 
-    @property
-    def rank(self):
-        """Returns the number of dimensions (rank) of the domain
-
-        :rtype: int
-
-        """
-        cdef unsigned int rank = 0
-        check_error(self.ctx,
-                    tiledb_domain_get_rank(self.ctx.ptr, self.ptr, &rank))
-        return rank
+    def __eq__(self, other):
+        if not isinstance(other, Domain):
+            return False
+        ndim = self.ndim
+        if (ndim != other.ndim or
+            self.dtype != other.dtype or
+            self.shape != other.shape):
+            return False
+        for i in range(ndim):
+            if self.dim(i) != other.dim(i):
+                return False
+        return True
 
     @property
     def ndim(self):
-        """Returns the number of dimensions (rank) of the domain
+        """Returns the number of dimensions of the domain
 
         :rtype: int
 
         """
-        return self.rank
+        cdef unsigned int ndim = 0
+        check_error(self.ctx,
+                    tiledb_domain_get_ndim(self.ctx.ptr, self.ptr, &ndim))
+        return ndim
 
     cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
         cdef tiledb_datatype_t typ
@@ -1256,7 +1321,7 @@ cdef class Domain(object):
         return True
 
     cdef _shape(Domain self):
-        return tuple(self.dim(i).shape[0] for i in range(self.rank))
+        return tuple(self.dim(i).shape[0] for i in range(self.ndim))
 
     @property
     def shape(self):
@@ -1273,8 +1338,8 @@ cdef class Domain(object):
     @property
     def size(self):
         """Returns the domain's size (number of cells), valid only for integer domains
-        
-        :rtype: int 
+
+        :rtype: int
         :raises TypeError: floating point (inexact) domain
 
         """
@@ -1283,7 +1348,7 @@ cdef class Domain(object):
         return np.product(self._shape())
 
     def dim(self, int idx):
-        """Returns a dimension object given the dimensions rank (index)
+        """Returns a dimension object given the dimensions index
 
         :param int idx: dimension index
         :raises: :py:exc:`tiledb.TileDBError`
@@ -1319,21 +1384,18 @@ cdef class Domain(object):
         print("\n")
         return
 
+cdef class KVSchema(object):
+    """
+    Schema class for TileDB KV (assocative) array representations
 
-cdef class KV(object):
-    """TileDB KV array class object
-
-    :param Ctx ctx: A TileDB Context
-    :param str uri: URI to persistent KV resource
-    :param attrs: one or more KV value attributes
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param attrs: one or more array attributes
     :type attrs: tuple(tiledb.Attr, ...)
-    :raises TypeError: invalid `uri` or `attrs` type
+    :param int capacity: tile cell capacity
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
-
     cdef Ctx ctx
-    cdef unicode uri
     cdef tiledb_kv_schema_t* ptr
 
     def __cinit__(self):
@@ -1341,64 +1403,104 @@ cdef class KV(object):
 
     def __dealloc__(self):
         if self.ptr != NULL:
-            tiledb_kv_schema_free(self.ctx.ptr, &self.ptr)
+            tiledb_kv_schema_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, unicode uri, const tiledb_kv_schema_t* ptr):
+    cdef from_ptr(Ctx ctx, const tiledb_kv_schema_t* ptr):
         """Constructs an KV class instance from a URI and a tiledb_kv_schema_t pointer
         """
-        cdef KV arr = KV.__new__(KV)
-        arr.ctx = ctx
-        arr.uri = uri
+        assert(ptr != NULL)
+        cdef KVSchema schema = KVSchema.__new__(KVSchema)
+        schema.ctx = ctx
         # need to cast away const
-        arr.ptr = <tiledb_kv_schema_t*> ptr
-        return arr
+        schema.ptr = <tiledb_kv_schema_t*> ptr
+        return schema
 
     @staticmethod
     def load(Ctx ctx, uri):
         """Loads a persisted KV array at given URI, returns an KV class instance
         """
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
-        cdef const char* uri_ptr = buri
-        cdef tiledb_kv_schema_t*schema_ptr = NULL
-        cdef int rc
-        with nogil:
-            rc = tiledb_kv_schema_load(ctx.ptr, &schema_ptr, uri_ptr)
-        if rc != TILEDB_OK:
-            check_error(ctx, rc)
-        return KV.from_ptr(ctx, uri, schema_ptr)
-
-    def __init__(self, Ctx ctx, uri, attrs=()):
-        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_kv_schema_t* schema_ptr = NULL
-        check_error(ctx,
-                    tiledb_kv_schema_create(ctx.ptr, &schema_ptr))
         cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_kv_schema_load(ctx_ptr, uri_ptr, &schema_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return KVSchema.from_ptr(ctx, schema_ptr)
+
+    def __init__(self, Ctx ctx,
+                 domain=None,
+                 attrs=(),
+                 capacity=None):
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef tiledb_kv_schema_t* schema_ptr = NULL
+        cdef int rc = tiledb_kv_schema_alloc(ctx.ptr, &schema_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        # add attributes, if no defined then _schema_check() will raise a TileDBError
         cdef tiledb_attribute_t* attr_ptr = NULL
-        for attr in attrs:
-            if not isinstance(attr, Attr):
-                tiledb_kv_schema_free(ctx.ptr, &schema_ptr)
-                raise TypeError("invalid attribute type {0!r}".format(type(attr)))
-            attr_ptr = (<Attr> attr).ptr
-            rc = tiledb_kv_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
-            if rc != TILEDB_OK:
-                tiledb_kv_schema_free(ctx.ptr, &schema_ptr)
-                check_error(ctx, rc)
+        try:
+            for attr in attrs:
+                if not isinstance(attr, Attr):
+                    tiledb_kv_schema_free(&schema_ptr)
+                    raise TypeError("invalid attribute type {0!r}".format(type(attr)))
+                attr_ptr = (<Attr> attr).ptr
+                check_error(ctx,
+                    tiledb_kv_schema_add_attribute(ctx_ptr, schema_ptr, attr_ptr))
+        except:
+            tiledb_kv_schema_free(&schema_ptr)
+            raise
+        # set the (sparse array) capacity if it is defined
+        cdef uint64_t _capacity = 0
+        if capacity is not None:
+            try:
+                val = int(capacity)
+                if val <= 0:
+                    raise ValueError("TileDB KVSchema capacity must be >= 0")
+                # checked cast
+                _capacity = val
+                check_error(ctx,
+                    tiledb_kv_schema_set_capacity(ctx_ptr, schema_ptr, _capacity))
+            except:
+                tiledb_kv_schema_free(&schema_ptr)
+                raise
         rc = tiledb_kv_schema_check(ctx.ptr, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_kv_schema_free(ctx.ptr, &schema_ptr)
-            check_error(ctx, rc)
-        rc = tiledb_kv_create(ctx.ptr, buri, schema_ptr)
-        if rc != TILEDB_OK:
-            tiledb_kv_schema_free(ctx.ptr, &schema_ptr)
+            tiledb_kv_schema_free(&schema_ptr)
             check_error(ctx, rc)
         self.ctx = ctx
-        self.uri = uri
         self.ptr = schema_ptr
+
+    def __eq__(self, other):
+        if not isinstance(other, KVSchema):
+            return False
+        nattr = self.nattr
+        if nattr != other.nattr or self.capacity != other.capacity:
+            return False
+        for i in range(nattr):
+            if self.attr(i) != other.attr(i):
+                return False
+        return True
+
+    @property
+    def capacity(self):
+        """Returns the array capacity
+
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef uint64_t cap = 0
+        check_error(self.ctx,
+                    tiledb_kv_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
+        return int(cap)
 
     @property
     def nattr(self):
-        """Returns the number of KV array attributes
+        """Return the number of kv attributes
 
         :rtype: int
         :raises: :py:exc:`tiledb.TileDBError`
@@ -1407,9 +1509,9 @@ cdef class KV(object):
         cdef unsigned int nattr = 0
         check_error(self.ctx,
                     tiledb_kv_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
-        return nattr
+        return int(nattr)
 
-    cdef Attr _attr_name(self, unicode name):
+    cdef _attr_name(self, name):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
@@ -1417,7 +1519,7 @@ cdef class KV(object):
                         self.ctx.ptr, self.ptr, bname, &attr_ptr))
         return Attr.from_ptr(self.ctx, attr_ptr)
 
-    cdef Attr _attr_idx(self, int idx):
+    cdef _attr_idx(self, int idx):
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
                     tiledb_kv_schema_get_attribute_from_index(
@@ -1430,16 +1532,155 @@ cdef class KV(object):
         :param key: attribute index (positional or associative)
         :type key: int or str
         :rtype: tiledb.Attr
+        :return: The ArraySchema attribute at index or with the given name (label)
+        :raises TypeError: invalid key type
+
+        """
+        if isinstance(key, (str, unicode)):
+            return self._attr_name(key)
+        elif isinstance(key, _inttypes):
+            return self._attr_idx(int(key))
+        raise TypeError("attr indices must be a string name, "
+                        "or an integer index, not {0!r}".format(type(key)))
+
+    def dump(self):
+        """Dumps a string representation of the array object to standard output (STDOUT)"""
+        check_error(self.ctx,
+                    tiledb_kv_schema_dump(self.ctx.ptr, self.ptr, stdout))
+        print("\n")
+        return
+
+cdef class KV(object):
+    """TileDB KV array class object
+
+    :param Ctx ctx: A TileDB Context
+    :param str uri: URI to persistent KV resource
+    :param attrs: one or more KV value attributes
+    :type attrs: tuple(tiledb.Attr, ...)
+    :raises TypeError: invalid `uri` or `attrs` type
+    :raises: :py:exc:`tiledb.TileDBError`
+    """
+
+    cdef Ctx ctx
+    cdef unicode uri
+    cdef KVSchema schema
+    cdef tiledb_kv_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_kv_free(&self.ptr)
+
+    @staticmethod
+    cdef from_ptr(Ctx ctx, unicode uri, const tiledb_kv_t* ptr):
+        """Constructs an KV class instance from a URI and a tiledb_kv_schema_t pointer
+        """
+        assert(ptr != NULL)
+        cdef KV kv = KV.__new__(KV)
+        kv.ctx = ctx
+        kv.uri = uri
+        # need to cast away const
+        kv.ptr = <tiledb_kv_t*> ptr
+        return kv
+
+    @staticmethod
+    def create(Ctx ctx, uri, KVSchema schema):
+        """Creates a persistent KV at the given URI, returns a KV class instance
+        """
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_kv_schema_t* schema_ptr = schema.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_kv_create(ctx_ptr, uri_ptr, schema_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return KV(ctx, uri)
+
+    def __init__(self, Ctx ctx, uri, attrs=(), buffered_items=None):
+        # alloc tiledb kv object
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_kv_t* kv_ptr = NULL
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_kv_alloc(ctx_ptr, uri_ptr, &kv_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        # set max_buffered_items if defined
+        cdef uint64_t max_items = 0
+        if buffered_items is not None:
+            try:
+                max_items = int(buffered_items)
+                rc = tiledb_kv_set_max_buffered_items(ctx_ptr, kv_ptr, max_items)
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+            except:
+                tiledb_kv_free(&kv_ptr)
+                raise
+        # set attributes
+        # TODO: read all for now
+        rc = tiledb_kv_open(ctx_ptr, kv_ptr, NULL, 0)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef tiledb_kv_schema_t* schema_ptr = NULL
+        rc = tiledb_kv_get_schema(ctx_ptr, kv_ptr, &schema_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef KVSchema schema
+        try:
+            schema = KVSchema.from_ptr(ctx, schema_ptr)
+        except:
+            if schema_ptr != NULL:
+                tiledb_kv_schema_free(&schema_ptr)
+            tiledb_kv_free(&kv_ptr)
+            raise
+        self.ctx = ctx
+        self.uri = unicode(uri)
+        self.schema = schema
+        self.ptr = kv_ptr
+
+    @property
+    def nattr(self):
+        """Returns the number of KV array attributes
+
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        return self.schema.nattr
+
+    def attr(self, object key not None):
+        """Returns an Attr instance given an int index or string label
+
+        :param key: attribute index (positional or associative)
+        :type key: int or str
+        :rtype: tiledb.Attr
         :return: The KV attribute at index or with the given name (label)
         :raises TypeError: invalid key type
 
         """
-        if isinstance(key, str):
-            return self._attr_name(key)
-        elif isinstance(key, _inttypes):
-            return self._attr_idx(int(key))
-        raise TypeError("attr() key must be a string name, "
-                        "or an integer index, not {0!r}".format(type(key)))
+        return self.schema.attr(key)
+
+    def reopen(self):
+        """Reopens a key-value store
+
+        Reopening the array is useful when there were updates to the key-value store after it got opened.
+
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_kv_reopen(ctx_ptr, kv_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return
 
     def consolidate(self):
         """Consolidates KV array updates for increased read performance
@@ -1448,13 +1689,13 @@ cdef class KV(object):
 
         """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-        cdef bytes buri = self.uri.encode('UTF-8')
+        cdef bytes buri = unicode_path(self.uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_kv_consolidate(ctx_ptr, uri_ptr)
         if rc != TILEDB_OK:
-            check_error(self.ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def dict(self):
@@ -1464,81 +1705,17 @@ cdef class KV(object):
         :return: Python dict of keys and attribute value (tuples)
 
         """
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-        cdef bytes buri = unicode_path(self.uri)
-
-        cdef Attr attr = self.attr(0)
-        cdef bytes battr = attr.name.encode('UTF-8')
-
-        cdef tiledb_kv_iter_t* kv_iter_ptr = NULL
-        check_error(self.ctx,
-                    tiledb_kv_iter_create(ctx_ptr, &kv_iter_ptr, buri, NULL, 0))
-        cdef int rc
-        cdef int done = 0
-
-        cdef tiledb_kv_item_t* kv_item_ptr = NULL
-
-        cdef bytes bkey
-        cdef const char* key_ptr = NULL
-        cdef tiledb_datatype_t dtype
-        cdef uint64_t key_size = 0
-
-        cdef bytes bvalue
-        cdef const char* val_ptr = NULL
-        cdef uint64_t val_size = 0
-
-        cdef dict result = dict()
-
-        while True:
-            _raise_ctx_err(ctx_ptr, tiledb_kv_iter_done(ctx_ptr, kv_iter_ptr, &done))
-            if done > 0:
-                break
-            rc = tiledb_kv_iter_here(ctx_ptr, kv_iter_ptr, &kv_item_ptr)
-            if rc != TILEDB_OK:
-                tiledb_kv_iter_free(ctx_ptr, &kv_iter_ptr)
-                _raise_ctx_err(ctx_ptr, rc)
-            rc = tiledb_kv_item_get_key(ctx_ptr, kv_item_ptr,
-                                        <const void**> (&key_ptr), &dtype, &key_size)
-            if rc != TILEDB_OK:
-                tiledb_kv_iter_free(ctx_ptr, &kv_iter_ptr)
-                _raise_ctx_err(ctx_ptr, rc)
-
-            bkey = PyBytes_FromStringAndSize(key_ptr, key_size)
-
-            rc = tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, battr,
-                                          <const void**> (&val_ptr), &dtype, &val_size)
-            if rc != TILEDB_OK:
-                tiledb_kv_iter_free(ctx_ptr, &kv_iter_ptr)
-                _raise_ctx_err(ctx_ptr, rc)
-
-            bval = PyBytes_FromStringAndSize(val_ptr, val_size)
-
-            result[bkey.decode('UTF-8')] = bval.decode('UTF-8')
-
-            rc = tiledb_kv_iter_next(ctx_ptr, kv_iter_ptr)
-
-            if rc != TILEDB_OK:
-                tiledb_kv_iter_free(ctx_ptr, &kv_iter_ptr)
-                _raise_ctx_err(ctx_ptr, rc)
-
-        return result
-
-
-    def dump(self):
-        """Dump KV array info to STDOUT"""
-        check_error(self.ctx,
-                    tiledb_kv_schema_dump(self.ctx.ptr, self.ptr, stdout))
-        print("\n")
-        return
+        return dict(self)
 
     def __iter__(self):
         """Return an iterator object over KV key, values"""
-        cdef Attr attr = self.attr(0)
-        return KVIter(self.ctx, self.uri, attribute=attr.name)
+        return KVIter(self)
 
     def __setitem__(self, object key, object value):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef bytes buri = unicode_path(self.uri)
+        cdef bytes bkey = key.encode('UTF-8')
+        cdef bytes bvalue = value.encode('UTF-8')
 
         cdef Attr attr = self.attr(0)
         cdef bytes battr = attr.name.encode('UTF-8')
@@ -1547,86 +1724,65 @@ cdef class KV(object):
         # Create KV item object
         cdef int rc
         cdef tiledb_kv_item_t* kv_item_ptr = NULL
-        rc = tiledb_kv_item_create(ctx_ptr, &kv_item_ptr)
+        rc = tiledb_kv_item_alloc(ctx_ptr, &kv_item_ptr)
         if rc != TILEDB_OK:
-            check_error(self.ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
         # add key
         # TODO: specialized for strings
-        cdef bytes bkey = key.encode('UTF-8')
         cdef const void* bkey_ptr = PyBytes_AS_STRING(bkey)
         cdef uint64_t bkey_size = PyBytes_GET_SIZE(bkey)
-
         rc = tiledb_kv_item_set_key(ctx_ptr, kv_item_ptr,
                                     bkey_ptr, TILEDB_CHAR, bkey_size)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-            check_error(self.ctx, rc)
+            tiledb_kv_item_free(&kv_item_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
         # add value
         # TODO: specialized for strings
-        cdef bytes bvalue = value.encode('UTF-8')
         cdef const void* bvalue_ptr = PyBytes_AS_STRING(bvalue)
         cdef uint64_t bvalue_size = PyBytes_GET_SIZE(bvalue)
-
         rc = tiledb_kv_item_set_value(ctx_ptr, kv_item_ptr, battr_ptr,
                                       bvalue_ptr, TILEDB_CHAR, bvalue_size)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-            check_error(self.ctx, rc)
+            tiledb_kv_item_free(&kv_item_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
         # save items
-        cdef tiledb_kv_t* kv_ptr = NULL
-        rc = tiledb_kv_open(ctx_ptr, &kv_ptr, buri, NULL, 1)
-        if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-            check_error(self.ctx, rc)
-
+        cdef tiledb_kv_t* kv_ptr = self.ptr
         rc = tiledb_kv_add_item(ctx_ptr, kv_ptr, kv_item_ptr)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-            check_error(self.ctx, rc)
+            tiledb_kv_item_free(&kv_item_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
         rc = tiledb_kv_flush(ctx_ptr, kv_ptr)
+        tiledb_kv_item_free(&kv_item_ptr)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-            check_error(self.ctx, rc)
-
-        rc = tiledb_kv_close(ctx_ptr, &kv_ptr)
-        tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-        if rc != TILEDB_OK:
-            check_error(self.ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def __getitem__(self, object key):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
         cdef bytes buri = unicode_path(self.uri)
+        cdef bytes bkey = key.encode('UTF-8')
 
         cdef Attr attr = self.attr(0)
         cdef bytes battr = attr.name.encode('UTF-8')
         cdef const char* battr_ptr = PyBytes_AS_STRING(battr)
 
-        # Create KV item object
-        cdef tiledb_kv_t* kv_ptr = NULL
-        cdef int rc = tiledb_kv_open(ctx_ptr, &kv_ptr, buri, &battr_ptr, 1)
-        if rc != TILEDB_OK:
-            check_error(self.ctx, rc)
-
         # add key
         # TODO: specialized for strings
-        cdef bytes bkey = key.encode('UTF-8')
         cdef const void* bkey_ptr = PyBytes_AS_STRING(bkey)
         cdef uint64_t bkey_size = PyBytes_GET_SIZE(bkey)
-
         cdef tiledb_kv_item_t* kv_item_ptr = NULL
-        rc = tiledb_kv_get_item(ctx_ptr, kv_ptr, &kv_item_ptr,
-                                bkey_ptr, TILEDB_CHAR, bkey_size)
+        rc = tiledb_kv_get_item(ctx_ptr, kv_ptr,
+                                bkey_ptr, TILEDB_CHAR, bkey_size, &kv_item_ptr)
         if rc != TILEDB_OK:
-            tiledb_kv_close(ctx_ptr, &kv_ptr)
-            check_error(self.ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
         if kv_item_ptr == NULL:
-            tiledb_kv_close(ctx_ptr, &kv_ptr)
+            tiledb_kv_item_free(&kv_item_ptr)
             raise KeyError(key)
 
         cdef const void* value_ptr = NULL
@@ -1635,27 +1791,48 @@ cdef class KV(object):
         rc = tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, battr_ptr,
                                       &value_ptr, &value_type, &value_size)
         if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-            tiledb_kv_close(ctx_ptr, &kv_ptr)
-            check_error(self.ctx, rc)
+            tiledb_kv_item_free(&kv_item_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
-        assert(value_ptr != NULL)
         cdef bytes val
         try:
-            val = PyBytes_FromStringAndSize(<char*> value_ptr, value_size)
+            val = PyBytes_FromStringAndSize(<char*> value_ptr, <Py_ssize_t> value_size)
         finally:
-            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-            tiledb_kv_close(ctx_ptr, &kv_ptr)
+            tiledb_kv_item_free(&kv_item_ptr)
         return val.decode('UTF-8')
 
-    def __contains__(self, unicode key):
-        try:
-            self[key]
-            return True
-        except KeyError:
-            return False
-        except:
-            raise
+    def __contains__(self, key):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef bytes bkey = key.encode('UTF-8')
+        cdef const void* key_ptr = <void*> PyBytes_AS_STRING(bkey)
+        cdef uint64_t key_size = PyBytes_GET_SIZE(bkey)
+        cdef int has_key = 0
+        cdef int rc = tiledb_kv_has_key(
+            ctx_ptr, kv_ptr, key_ptr, TILEDB_CHAR, key_size, &has_key)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return has_key == 1
+
+    def reopen(self):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_kv_reopen(ctx_ptr, kv_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return
+
+    def flush(self):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_kv_flush(ctx_ptr, kv_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return
 
     def update(self, *args, **kw):
         """Update a KV object from dict/iterable,
@@ -1663,81 +1840,17 @@ cdef class KV(object):
         Has the same semantics as Python dicts `.update()` method
         """
         # add stub dict update implementation for now
-        cdef dict items = dict()
+        items = dict()
         items.update(*args, **kw)
-        cdef uint64_t nitems = len(items)
-
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-
-        cdef Attr attr = self.attr(0)
-        cdef bytes battr = attr.name.encode('UTF-8')
-        cdef const char* battr_ptr = PyBytes_AS_STRING(battr)
-
-        cdef bytes buri = unicode_path(self.uri)
-
-        # open the kv store for writing
-        cdef tiledb_kv_t* kv_ptr = NULL
-        check_error(self.ctx, tiledb_kv_open(ctx_ptr, &kv_ptr, buri, NULL, 1))
-
-        # Set the number of items to be unbounded
-        check_error(self.ctx, tiledb_kv_set_max_buffered_items(ctx_ptr, kv_ptr, UINT64_MAX))
-
-        # Create a kv item object
-        cdef tiledb_kv_item_t* kv_item_ptr = NULL
-        check_error(self.ctx, tiledb_kv_item_create(ctx_ptr, &kv_item_ptr))
-
-        cdef bytes bkey
-        cdef const void* bkey_ptr = NULL
-
-        cdef bytes bvalue
-        cdef const void* bvalue_ptr = NULL
-
-        for (key, value) in items.items():
-            # add key
-            bkey = key.encode('UTF-8')
-            bkey_ptr = PyBytes_AS_STRING(bkey)
-            bkey_size = PyBytes_GET_SIZE(bkey)
-
-            rc = tiledb_kv_item_set_key(ctx_ptr, kv_item_ptr,
-                                        bkey_ptr, TILEDB_CHAR, PyBytes_GET_SIZE(bkey))
-            if rc != TILEDB_OK:
-                tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-                check_error(self.ctx, rc)
-
-            # add value
-            bvalue = value.encode('UTF-8')
-            bvalue_ptr = PyBytes_AS_STRING(bvalue)
-
-            rc = tiledb_kv_item_set_value(ctx_ptr, kv_item_ptr, battr_ptr,
-                                          bvalue_ptr, TILEDB_CHAR, PyBytes_GET_SIZE(bvalue))
-            if rc != TILEDB_OK:
-                tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-                check_error(self.ctx, rc)
-
-            # save items
-            rc = tiledb_kv_add_item(ctx_ptr, kv_ptr, kv_item_ptr)
-            if rc != TILEDB_OK:
-                tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-                check_error(self.ctx, rc)
-
-        rc = tiledb_kv_flush(ctx_ptr, kv_ptr)
-        if rc != TILEDB_OK:
-            tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-            check_error(self.ctx, rc)
-
-        rc = tiledb_kv_close(ctx_ptr, &kv_ptr)
-        tiledb_kv_item_free(ctx_ptr, &kv_item_ptr)
-        if rc != TILEDB_OK:
-            check_error(self.ctx, rc)
-        return
+        for (k, v) in items.items():
+            self[k] = v
 
 
 cdef class KVIter(object):
     """KV iterator object iterates over KV items
     """
 
-    cdef Ctx ctx
-    cdef bytes battr
+    cdef KV kv
     cdef tiledb_kv_iter_t* ptr
 
     def __cinit__(self):
@@ -1745,49 +1858,57 @@ cdef class KVIter(object):
 
     def __dealloc__(self):
         if self.ptr != NULL:
-            tiledb_kv_iter_free(self.ctx.ptr, &self.ptr)
+            tiledb_kv_iter_free(&self.ptr)
 
-    def __init__(self, Ctx ctx, uri, attribute="value"):
-        cdef bytes buri = unicode_path(uri)
+    def __init__(self, KV kv):
+        cdef tiledb_ctx_t* ctx_ptr = kv.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = kv.ptr
         cdef tiledb_kv_iter_t* kv_iter_ptr = NULL
-        check_error(ctx,
-                    tiledb_kv_iter_create(ctx.ptr, &kv_iter_ptr, buri, NULL, 0))
+        cdef int rc = TILEDB_OK
+        rc = tiledb_kv_iter_alloc(ctx_ptr, kv_ptr, &kv_iter_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         assert(kv_iter_ptr != NULL)
-        self.ctx = ctx
-        self.battr = attribute.encode("UTF-8")
+        self.kv = kv
         self.ptr = kv_iter_ptr
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = self.kv.ctx.ptr
+        cdef tiledb_kv_iter_t* iter_ptr = self.ptr
         cdef int done = 0
-        check_error(self.ctx,
-                    tiledb_kv_iter_done(ctx_ptr, self.ptr, &done))
+        cdef int rc = TILEDB_OK
+        rc = tiledb_kv_iter_done(ctx_ptr, iter_ptr, &done)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         if done > 0:
             raise StopIteration()
-        cdef int rc
         cdef tiledb_kv_item_t* kv_item_ptr = NULL
-        check_error(self.ctx,
-                    tiledb_kv_iter_here(ctx_ptr, self.ptr, &kv_item_ptr))
+        rc = tiledb_kv_iter_here(ctx_ptr, iter_ptr, &kv_item_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         cdef tiledb_datatype_t dtype
         cdef const char* key_ptr = NULL
         cdef uint64_t key_size = 0
-        check_error(self.ctx,
-                    tiledb_kv_item_get_key(ctx_ptr, kv_item_ptr,
-                                           <const void**> (&key_ptr), &dtype, &key_size))
-        cdef bytes bkey = PyBytes_FromStringAndSize(key_ptr, key_size)
+        rc = tiledb_kv_item_get_key(ctx_ptr, kv_item_ptr,
+                                    <const void**> (&key_ptr), &dtype, &key_size)
+        cdef bytes bkey = PyBytes_FromStringAndSize(key_ptr, <Py_ssize_t> key_size)
         cdef const char* val_ptr = NULL
         cdef uint64_t val_size = 0
-        check_error(self.ctx,
-                    tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, self.battr,
-                                             <const void**> (&val_ptr), &dtype, &val_size))
-        cdef bytes bval = PyBytes_FromStringAndSize(val_ptr, val_size)
-        check_error(self.ctx,
-                    tiledb_kv_iter_next(ctx_ptr, self.ptr))
-        return (bkey.decode('UTF-8'), bval.decode('UTF-8'))
-
+        # TODO: need to lookup attributes
+        cdef bytes battr = b"value"
+        cdef bytes attr_ptr = PyBytes_AS_STRING(battr)
+        rc = tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, attr_ptr,
+                                      <const void**> (&val_ptr), &dtype, &val_size)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef bytes bval = PyBytes_FromStringAndSize(val_ptr, <Py_ssize_t> val_size)
+        rc = tiledb_kv_iter_next(ctx_ptr, iter_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return bkey.decode('UTF-8'), bval.decode('UTF-8')
 
 def index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -1797,30 +1918,30 @@ def index_as_tuple(idx):
 
 
 def replace_ellipsis(Domain dom, tuple idx):
-    """Replace indexing ellipsis object with slice objects to match the domain rank"""
-    rank = dom.rank
+    """Replace indexing ellipsis object with slice objects to match the number of dimensions"""
+    ndim = dom.ndim
     # count number of ellipsis
     n_ellip = sum(1 for i in idx if i is Ellipsis)
     if n_ellip > 1:
         raise IndexError("an index can only have a single ellipsis ('...')")
     elif n_ellip == 1:
         n = len(idx)
-        if (n - 1) >= rank:
+        if (n - 1) >= ndim:
             # does nothing, strip it out
             idx = tuple(i for i in idx if i is not Ellipsis)
         else:
             # locate where the ellipse is, count the number of items to left and right
-            # fill in whole dim slices up to th rank of the array
+            # fill in whole dim slices up to th ndim of the array
             left = idx.index(Ellipsis)
             right = n - (left + 1)
-            new_idx = idx[:left] + ((slice(None),) * (rank - (n - 1)))
+            new_idx = idx[:left] + ((slice(None),) * (ndim - (n - 1)))
             if right:
                 new_idx += idx[-right:]
             idx = new_idx
-    idx_rank = len(idx)
-    if idx_rank < rank:
-        idx += (slice(None),) * (rank - idx_rank)
-    if len(idx) > rank:
+    idx_ndim = len(idx)
+    if idx_ndim < ndim:
+        idx += (slice(None),) * (ndim - idx_ndim)
+    if len(idx) > ndim:
         raise IndexError("too many indices for array")
     return idx
 
@@ -1828,15 +1949,12 @@ def replace_ellipsis(Domain dom, tuple idx):
 def replace_scalars_slice(Domain dom, tuple idx):
     """Replace scalar indices with slice objects"""
     new_idx, drop_axes = [], []
-    for i in range(dom.rank):
+    for i in range(dom.ndim):
         dim = dom.dim(i)
         dim_idx = idx[i]
         if np.isscalar(dim_idx):
             drop_axes.append(i)
             if isinstance(dim_idx, _inttypes):
-                if dim_idx >= dom.shape[i]:
-                    raise IndexError(
-                        "index {} is out of bounds for axis {} with size {}".format(dim_idx, i, dom.shape[i]))
                 start = int(dim_idx)
                 if start < 0:
                     start += int(dim.domain[1]) + 1
@@ -1855,13 +1973,13 @@ def index_domain_subarray(Domain dom, tuple idx):
     Return a numpy array representation of the tiledb subarray buffer
     for a given domain and tuple of index slices
     """
-    rank = dom.rank
-    if len(idx) != rank:
+    ndim = dom.ndim
+    if len(idx) != ndim:
         raise IndexError("number of indices does not match domain raank: "
-                         "({:!r} expected {:!r]".format(len(idx), rank))
+                         "({:!r} expected {:!r]".format(len(idx), ndim))
     # populate a subarray array / buffer to pass to tiledb
-    subarray = np.zeros(shape=(rank, 2), dtype=dom.dtype)
-    for r in range(rank):
+    subarray = np.zeros(shape=(ndim, 2), dtype=dom.dtype)
+    for r in range(ndim):
         # extract lower and upper bounds for domain dimension extent
         dim = dom.dim(r)
         (dim_lb, dim_ub) = dim.domain
@@ -1927,7 +2045,7 @@ def index_domain_subarray(Domain dom, tuple idx):
 
 cdef class ArraySchema(object):
     """
-    Base class for TileDB Array representations
+    Schema class for TileDB dense / sparse array representations
 
     :param tiledb.Ctx ctx: A TileDB Context
     :param attrs: one or more array attributes
@@ -1948,7 +2066,6 @@ cdef class ArraySchema(object):
 
     """
     cdef Ctx ctx
-    cdef unicode uri
     cdef tiledb_array_schema_t* ptr
 
     def __cinit__(self):
@@ -1956,9 +2073,22 @@ cdef class ArraySchema(object):
 
     def __dealloc__(self):
         if self.ptr != NULL:
-            tiledb_array_schema_free(self.ctx.ptr, &self.ptr)
+            tiledb_array_schema_free(&self.ptr)
 
-    def __init__(self, Ctx ctx, unicode uri,
+    @staticmethod
+    cdef from_ptr(Ctx ctx, const tiledb_array_schema_t* schema_ptr):
+        """
+        Constructs a ArraySchema class instance from a 
+        Ctx and tiledb_array_schema_t pointer
+        """
+        cdef ArraySchema schema = ArraySchema.__new__(ArraySchema)
+        schema.ctx = ctx
+        # cast away const
+        schema.ptr = <tiledb_array_schema_t*> schema_ptr
+        return schema
+
+
+    def __init__(self, Ctx ctx,
                  domain=None,
                  attrs=(),
                  cell_order='row-major',
@@ -1967,31 +2097,29 @@ cdef class ArraySchema(object):
                  coords_compressor=None,
                  offsets_compressor=None,
                  sparse=False):
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-        cdef bytes buri = unicode_path(uri)
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        cdef tiledb_array_type_t array_type = TILEDB_SPARSE if sparse else TILEDB_DENSE
+        cdef tiledb_array_type_t array_type =\
+            TILEDB_SPARSE if sparse else TILEDB_DENSE
         cdef tiledb_array_schema_t* schema_ptr = NULL
         check_error(ctx,
-                    tiledb_array_schema_create(ctx.ptr, &schema_ptr, array_type))
-        cdef tiledb_layout_t cell_layout
-        cdef tiledb_layout_t tile_layout
+                    tiledb_array_schema_alloc(ctx.ptr, array_type, &schema_ptr))
+        cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
+        cdef tiledb_layout_t tile_layout = TILEDB_ROW_MAJOR
         try:
             cell_layout = _tiledb_layout(cell_order)
             tile_layout = _tiledb_layout(tile_order)
             check_error(ctx, tiledb_array_schema_set_cell_order(ctx.ptr, schema_ptr, cell_layout))
             check_error(ctx, tiledb_array_schema_set_tile_order(ctx.ptr, schema_ptr, tile_layout))
         except:
-            tiledb_array_schema_free(ctx.ptr, &schema_ptr)
+            tiledb_array_schema_free(&schema_ptr)
             raise
         cdef uint64_t _capacity = 0
         if capacity > 0:
             try:
                 _capacity = <uint64_t> capacity
                 check_error(ctx,
-                            tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, _capacity))
+                    tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, _capacity))
             except:
-                tiledb_array_schema_free(ctx.ptr, &schema_ptr)
+                tiledb_array_schema_free(&schema_ptr)
                 raise
         cdef int _level = -1
         cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
@@ -2001,9 +2129,9 @@ cdef class ArraySchema(object):
                 _compressor = _tiledb_compressor(compressor)
                 _level = int(level)
                 check_error(ctx,
-                            tiledb_array_schema_set_coords_compressor(ctx.ptr, schema_ptr, _compressor, _level))
+                    tiledb_array_schema_set_coords_compressor(ctx.ptr, schema_ptr, _compressor, _level))
             except:
-                tiledb_array_schema_free(ctx.ptr, &schema_ptr)
+                tiledb_array_schema_free(&schema_ptr)
                 raise
         if offsets_compressor is not None:
             try:
@@ -2011,37 +2139,49 @@ cdef class ArraySchema(object):
                 _compressor = _tiledb_compressor(compressor)
                 _level = int(level)
                 check_error(ctx,
-                            tiledb_array_schema_set_offsets_compressor(ctx.ptr, schema_ptr, _compressor, _level))
+                    tiledb_array_schema_set_offsets_compressor(ctx.ptr, schema_ptr, _compressor, _level))
             except:
-                tiledb_array_schema_free(ctx.ptr, &schema_ptr)
+                tiledb_array_schema_free(&schema_ptr)
                 raise
         cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
         rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
         if rc != TILEDB_OK:
-            tiledb_array_schema_free(ctx.ptr, &schema_ptr)
-            check_error(ctx, rc)
+            tiledb_array_schema_free(&schema_ptr)
+            _raise_ctx_err(ctx.ptr, rc)
         cdef tiledb_attribute_t* attr_ptr = NULL
         for attr in attrs:
             attr_ptr = (<Attr> attr).ptr
             rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
             if rc != TILEDB_OK:
-                tiledb_array_schema_free(ctx.ptr, &schema_ptr)
-                check_error(ctx, rc)
+                tiledb_array_schema_free(&schema_ptr)
+                _raise_ctx_err(ctx.ptr, rc)
         rc = tiledb_array_schema_check(ctx.ptr, schema_ptr)
         if rc != TILEDB_OK:
-            tiledb_array_schema_free(ctx.ptr, &schema_ptr)
-            check_error(ctx, rc)
-        with nogil:
-            rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
-        if rc != TILEDB_OK:
-            check_error(ctx, rc)
+            tiledb_array_schema_free(&schema_ptr)
+            _raise_ctx_err(ctx.ptr, rc)
         self.ctx = ctx
-        self.uri = uri
         self.ptr = schema_ptr
 
-    @property
-    def name(self):
-        return self.uri
+    def __eq__(self, other):
+        if not isinstance(other, ArraySchema):
+            return False
+        nattr = self.nattr
+        if nattr != other.nattr:
+            return False
+        if (self.sparse != other.sparse or
+            self.cell_order != other.cell_order or
+            self.tile_order != other.tile_order):
+            return False
+        if (self.capacity != other.capacity or
+            self.coords_compressor != other.coords_compressor or
+            self.offsets_compressor != other.offsets_compressor):
+            return False
+        if self.domain != other.domain:
+            return False
+        for i in range(nattr):
+            if self.attr(i) != other.attr(i):
+                return False
+        return True
 
     @property
     def sparse(self):
@@ -2059,7 +2199,7 @@ cdef class ArraySchema(object):
     @property
     def capacity(self):
         """Returns the array capacity
-        
+
         :rtype: int
         :raises: :py:exc:`tiledb.TileDBError`
 
@@ -2114,7 +2254,7 @@ cdef class ArraySchema(object):
     @property
     def offsets_compressor(self):
         """Returns the compressor label, level for the array representation varcell offsets
-        
+
         :rtype: tuple(str, int)
         :raises: :py:exc:`tiledb.TileDBError`
 
@@ -2125,16 +2265,6 @@ cdef class ArraySchema(object):
                     tiledb_array_schema_get_offsets_compressor(
                         self.ctx.ptr, self.ptr, &comp, &level))
         return (_tiledb_compressor_string(comp), level)
-
-    @property
-    def rank(self):
-        """Return the array domain's rank
-
-        :rtype: tuple(str, int)
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        return self.domain.rank
 
     @property
     def domain(self):
@@ -2179,8 +2309,8 @@ cdef class ArraySchema(object):
         """
         return self.domain.shape
 
-    cdef _attr_name(self, unicode name):
-        cdef bytes bname = name.encode('UTF-8')
+    cdef _attr_name(self, name):
+        cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_name(
@@ -2204,7 +2334,7 @@ cdef class ArraySchema(object):
         :raises TypeError: invalid key type
 
         """
-        if isinstance(key, str):
+        if isinstance(key, (str, unicode)):
             return self._attr_name(key)
         elif isinstance(key, _inttypes):
             return self._attr_idx(int(key))
@@ -2218,13 +2348,130 @@ cdef class ArraySchema(object):
         print("\n")
         return
 
-    def consolidate(self):
-        """Consolidates updates of an array object for increased read performance
 
-        :raises: :py:exc:`tiledb.TileDBError`
+cdef class Array(object):
 
+    cdef Ctx ctx
+    cdef unicode uri
+    cdef unicode mode
+    cdef ArraySchema schema
+    cdef int opened
+    cdef tiledb_array_t* ptr
+
+    def __cinit__(self):
+        self.ptr = NULL
+        self.opened = 0
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_array_free(&self.ptr)
+
+    @staticmethod
+    def create(uri, ArraySchema schema):
+        """Creates a persistent TileDB Array at the given URI
         """
-        return array_consolidate(self.ctx, self.uri)
+        cdef tiledb_ctx_t* ctx_ptr = schema.ctx.ptr
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_array_schema_t* schema_ptr = schema.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return
+
+    def __init__(self, Ctx ctx, uri, mode='r'):
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_query_type_t query_type
+        if mode == 'r' or mode == 'rw':
+            query_type = TILEDB_READ
+        elif mode == 'w':
+            query_type = TILEDB_WRITE
+        else:
+            raise ValueError("TileDB array mode must be 'r', 'w', or 'rw'")
+        # allocate and then open the array
+        cdef tiledb_array_t* array_ptr = NULL
+        cdef int rc = TILEDB_OK
+        rc = tiledb_array_alloc(ctx_ptr, uri_ptr, &array_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        with nogil:
+            rc = tiledb_array_open(ctx_ptr, array_ptr, query_type)
+        if rc != TILEDB_OK:
+            tiledb_array_free(&array_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef tiledb_array_schema_t* array_schema_ptr = NULL
+        rc = tiledb_array_get_schema(ctx_ptr, array_ptr, &array_schema_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        self.ctx = ctx
+        self.uri = unicode(uri)
+        self.mode = unicode(mode)
+        self.schema = ArraySchema.from_ptr(ctx, array_schema_ptr)
+        self.opened = True
+        self.ptr = array_ptr
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_close(ctx_ptr, array_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        self.opened = False
+        return
+
+    def reopen(self):
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_reopen(ctx_ptr, array_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        self.opened = True
+        return
+
+    @property
+    def schema(self):
+        return self.schema
+
+    @property
+    def mode(self):
+        return self.mode
+
+    @property
+    def opened(self):
+        return self.opened
+
+    @property
+    def ndim(self):
+        return self.schema.ndim
+
+    @property
+    def domain(self):
+        return self.schema.domain
+
+    @property
+    def shape(self):
+        return self.schema.shape
+
+    @property
+    def nattr(self):
+        return self.schema.nattr
+
+    def attr(self, idx):
+        return self.schema.attr(idx)
 
     def nonempty_domain(self):
         """Return the minimum bounding domain which encompasses nonempty values
@@ -2233,63 +2480,44 @@ cdef class ArraySchema(object):
         :return: A list of (inclusive) domain extent tuples, that contain all nonempty cells
 
         """
-        cdef Domain dom = self.domain
-        cdef bytes buri = self.uri.encode('UTF-8')
-        cdef np.ndarray extents = np.zeros(shape=(dom.rank, 2), dtype=dom.dtype)
+        cdef Domain dom = self.schema.domain
+        cdef np.ndarray extents = np.zeros(shape=(dom.ndim, 2), dtype=dom.dtype)
+
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
         cdef void* extents_ptr = np.PyArray_DATA(extents)
         cdef int empty = 0
-        check_error(self.ctx,
-                    tiledb_array_get_non_empty_domain(self.ctx.ptr, buri, extents_ptr, &empty))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_get_non_empty_domain(ctx_ptr, array_ptr, extents_ptr, &empty)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         if empty > 0:
             return None
         return tuple((extents[i, 0].item(), extents[i, 1].item())
-                     for i in range(dom.rank))
+                     for i in range(dom.ndim))
+
+    def consolidate(self):
+        """Consolidates updates of an array object for increased read performance
+
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        return consolidate(self.ctx, self.uri)
+
+    def dump(self):
+        self.schema.dump()
 
 
-cdef class DenseArray(ArraySchema):
+cdef class DenseArray(Array):
     """TileDB DenseArray class
 
-    Inherits properties / methods of `tiledb.ArraySchema`
+    Inherits properties / methods of `tiledb.Array`
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, unicode uri, const tiledb_array_schema_t* schema_ptr):
-        """
-        Constructs a DenseArray class instance from a URI and a tiledb_array_schema_t pointer
-        """
-        cdef DenseArray arr = DenseArray.__new__(DenseArray)
-        arr.ctx = ctx
-        arr.uri = uri
-        # cast away const
-        arr.ptr = <tiledb_array_schema_t*> schema_ptr
-        return arr
-
-    @staticmethod
-    def load(Ctx ctx, unicode uri):
-        """Loads a persisted DenseArray at given URI, returns a DenseArray class instance
-
-        :param tiledb.Ctx ctx: A TileDB Context
-        :param str uri: URI to the TileDB array resource
-        :rtype: tiledb.DenseArray
-        :return: A loaded tiledb.DenseArray object (schema)
-        :raises TypeError: cannot convert `uri` to unicode string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-        cdef bytes buri = ustring(uri).encode('UTF-8')
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        cdef tiledb_array_schema_t* schema_ptr = NULL
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_array_schema_load(ctx_ptr, &schema_ptr, uri_ptr)
-        if rc != TILEDB_OK:
-            check_error(ctx, rc)
-        return DenseArray.from_ptr(ctx, uri, schema_ptr)
-
-    @staticmethod
-    def from_numpy(Ctx ctx, unicode path, np.ndarray array, **kw):
+    def from_numpy(Ctx ctx, uri, np.ndarray array, **kw):
         """
         Persists a given numpy array as a TileDB DenseArray, returns a DenseArray class instance
 
@@ -2303,20 +2531,25 @@ cdef class DenseArray(ArraySchema):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        # create an ArraySchema from the numpy array object
         dims = []
         for d in range(array.ndim):
             extent = array.shape[d]
             domain = (0, extent - 1)
-            dims.append(Dim(ctx, "", domain, extent, np.uint64))
+            dims.append(Dim(ctx, "", domain=domain, tile=extent, dtype=np.uint64))
         dom = Domain(ctx, *dims)
-        att = Attr(ctx, "", dtype=array.dtype)
-        arr = DenseArray(ctx, path, domain=dom, attrs=[att], **kw)
-        arr.write_direct(np.ascontiguousarray(array))
-        return arr
+        att = Attr(ctx, dtype=array.dtype)
+        schema = ArraySchema(ctx, domain=dom, attrs=(att,), **kw)
+        Array.create(uri, schema)
+        with DenseArray(ctx, uri, mode='w') as arr:
+            arr.write_direct(np.ascontiguousarray(array))
+        return DenseArray(ctx, uri, mode='r')
 
     def __init__(self, *args, **kw):
-        kw['sparse'] = False
         super().__init__(*args, **kw)
+        if self.schema.sparse:
+            raise ValueError("Array at {:r} is not a dense array".format(self.uri))
+        return
 
     def __len__(self):
         return self.domain.shape[0]
@@ -2332,7 +2565,7 @@ cdef class DenseArray(ArraySchema):
                 :py:class:`collections.OrderedDict` is with dense Numpy subarrays for each attribute.
         :raises IndexError: invalid or unsupported index selection
         :raises: :py:exc:`tiledb.TileDBError`
-        
+
         >>> # many aspects of Numpy's fancy indexing is supported
         >>> A[1:10, ...]
         >>> A[1:10, 100:999]
@@ -2340,10 +2573,10 @@ cdef class DenseArray(ArraySchema):
 
         """
         selection = index_as_tuple(selection)
-        idx = replace_ellipsis(self.domain, selection)
-        idx, drop_axes = replace_scalars_slice(self.domain, idx)
-        subarray = index_domain_subarray(self.domain, idx)
-        attr_names = [self.attr(i).name for i in range(self.nattr)]
+        idx = replace_ellipsis(self.schema.domain, selection)
+        idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
+        subarray = index_domain_subarray(self.schema.domain, idx)
+        attr_names = [self.schema.attr(i).name for i in range(self.schema.nattr)]
         out = self._read_dense_subarray(subarray, attr_names)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
@@ -2353,120 +2586,79 @@ cdef class DenseArray(ArraySchema):
             for (k, v) in out.items():
                 out[k] = v.squeeze(axis=drop_axes)
         # attribute is anonymous, just return the result
-        if self.nattr == 1 and self.attr(0).isanon:
-            return out[self.attr(0).name]
+        if self.schema.nattr == 1:
+            attr = self.schema.attr(0)
+            if attr.isanon:
+                return out[attr.name]
         return out
 
     cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names):
-        cdef Ctx ctx = self.ctx
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
 
-        # array uri
-        cdef bytes buri = unicode_path(self.uri)
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-
+        cdef Py_ssize_t nattr = len(attr_names)
         cdef tuple shape = \
             tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
-                  for r in range(self.rank))
+                  for r in range(self.schema.ndim))
 
+        cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
         out = OrderedDict()
-        for n in attr_names:
-            out[n] = np.empty(shape=shape, dtype=self.attr(n).dtype)
+        for i in range(nattr):
+            name = attr_names[i]
+            buffer = np.empty(shape=shape, dtype=self.schema.attr(name).dtype)
+            buffer_sizes[i] = buffer.nbytes
+            out[name] = buffer
 
-        # attr names
-        battr_names = list(bytes(k, 'UTF-8') for k in out.keys())
-        cdef size_t nattr = len(out.keys())
-        cdef const char** attr_names_ptr = <const char**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-        if attr_names_ptr == NULL:
-            raise MemoryError()
-        try:
-            for i in range(nattr):
-                attr_names_ptr[i] = PyBytes_AS_STRING(battr_names[i])
-        except:
-            PyMem_Free(attr_names_ptr)
-            raise
-        
-        # attr values
-        attr_values = list(out.values())
-        cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-        if buffers_ptr == NULL:
-            PyMem_Free(attr_names_ptr)
-            raise MemoryError()
-
-        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
-        if buffer_sizes_ptr == NULL:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            raise MemoryError()
-
-        cdef np.ndarray array_value
-        try:
-            for (i, array_value) in enumerate(out.values()):
-                buffers_ptr[i] = np.PyArray_DATA(array_value)
-                buffer_sizes_ptr[i] = <uint64_t> array_value.nbytes
-        except:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr) 
-            PyMem_Free(buffer_sizes_ptr)
-            raise
-            
         cdef tiledb_query_t* query_ptr = NULL
-        cdef int rc = tiledb_query_create(ctx_ptr, &query_ptr, uri_ptr, TILEDB_READ)
+        cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_READ, &query_ptr)
         if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr) 
-            PyMem_Free(buffer_sizes_ptr)
-            check_error(ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
         rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
         if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr) 
-            PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, &query_ptr)
-            check_error(ctx, rc)
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
-        rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
-                                      buffers_ptr, buffer_sizes_ptr)
-        if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, &query_ptr)
-            check_error(ctx, rc)
-
-        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR)
-        if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, &query_ptr)
-            check_error(ctx, rc)
-
+        cdef bytes battr_name
+        cdef void* buffer_ptr = NULL
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
+        try:
+            for i, (name, buffer) in enumerate(out.items()):
+                battr_name = name.encode('UTF-8')
+                buffer_ptr = np.PyArray_DATA(buffer)
+                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                             buffer_ptr, &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
+            tiledb_query_free(&query_ptr)
+            raise
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-
-        PyMem_Free(attr_names_ptr)
-        PyMem_Free(buffers_ptr)
-        PyMem_Free(buffer_sizes_ptr)
-        tiledb_query_free(ctx_ptr, &query_ptr)
+        tiledb_query_free(&query_ptr)
         if rc != TILEDB_OK:
-            check_error(ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
         return out
 
     def __setitem__(self, object selection, object val):
         """Set / update dense data cells
-        
+
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifiying the selected subarray region for each dimension of the DenseArray.
         :param value: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
-            if the number of attributes is one, than a n-d numpy array is accepted. 
-        :type value: dict or :py:class:`numpy.ndarray` 
+            if the number of attributes is one, than a n-d numpy array is accepted.
+        :type value: dict or :py:class:`numpy.ndarray`
         :raises IndexError: invalid or unsupported index selection
         :raises ValueError: value / coordinate length mismatch
         :raises: :py:exc:`tiledb.TileDBError`
-        
+
         >>> # array with one attribute
         >>> A[:] = np.array([...])
         >>> # array with multiple attributes
@@ -2481,20 +2673,20 @@ cdef class DenseArray(ArraySchema):
         cdef list values = list()
         if isinstance(val, dict):
             for (k, v) in val.items():
-                attr = self.attr(k)
+                attr = self.schema.attr(k)
                 attributes.append(attr.name)
                 values.append(
                     np.ascontiguousarray(v, dtype=attr.dtype))
         elif np.isscalar(val):
-            for i in range(self.nattr):
-                attr = self.attr(i)
+            for i in range(self.schema.nattr):
+                attr = self.schema.attr(i)
                 subarray_shape = tuple(int(subarray[r, 1] - subarray[r, 0]) + 1
                                        for r in range(subarray.shape[0]))
                 attributes.append(attr.name)
                 values.append(
                     np.full(subarray_shape, val, dtype=attr.dtype))
         elif self.nattr == 1:
-            attr = self.attr(0)
+            attr = self.schema.attr(0)
             attributes.append(attr.name)
             values.append(
                 np.ascontiguousarray(val, dtype=attr.dtype))
@@ -2514,156 +2706,122 @@ cdef class DenseArray(ArraySchema):
         return
 
     cdef _write_dense_subarray(self, np.ndarray subarray, list attributes, list values, int isfortran):
-        cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
 
-        # array uri
-        cdef bytes buri = unicode_path(self.uri)
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef Py_ssize_t nattr = len(attributes)
+        cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
+        for i in range(nattr):
+            buffer_sizes[i] = values[i].nbytes
 
-        # attribute names / values
-        battr_names = list(bytes(a, 'UTF-8') for a in attributes)
-        cdef size_t nattr = len(attributes)
-        cdef const char** attr_names_ptr = <const char**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-        if attr_names_ptr == NULL:
-            raise MemoryError()
-        try:
-            for i in range(nattr):
-                attr_names_ptr[i] = PyBytes_AS_STRING(battr_names[i])
-        except:
-            PyMem_Free(attr_names_ptr)
-            raise
-
-        cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-        if buffers_ptr == NULL:
-            PyMem_Free(attr_names_ptr)
-            raise MemoryError()
-
-        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
-        if buffer_sizes_ptr == NULL:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            raise MemoryError()
-
-        cdef np.ndarray array_value
-        try:
-            for i in range(nattr):
-                array_value = values[i]
-                buffers_ptr[i] = np.PyArray_DATA(array_value)
-                buffer_sizes_ptr[i] = <uint64_t> array_value.nbytes
-        except:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            PyMem_Free(buffer_sizes_ptr)
-            raise
-
-        # subarray
         cdef tiledb_query_t* query_ptr = NULL
-        cdef int rc = tiledb_query_create(ctx_ptr, &query_ptr, uri_ptr, TILEDB_WRITE)
+        cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
         if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            PyMem_Free(buffer_sizes_ptr)
-            check_error(ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
         cdef tiledb_layout_t layout = TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR
         rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
         if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, &query_ptr)
-            check_error(ctx, rc)
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
         rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
         if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, &query_ptr)
-            check_error(ctx, rc)
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
-        rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
-                                      buffers_ptr, buffer_sizes_ptr)
-        if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffers_ptr)
-            PyMem_Free(buffer_sizes_ptr)
-            tiledb_query_free(ctx_ptr, &query_ptr)
-            check_error(ctx, rc)
+        cdef bytes battr_name
+        cdef void* buffer_ptr = NULL
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
+        try:
+            for i in range(nattr):
+                battr_name = attributes[i].encode('UTF-8')
+                buffer_ptr = np.PyArray_DATA(values[i])
+                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                             buffer_ptr, &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
+            tiledb_query_free(&query_ptr)
+            raise
 
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-
-        PyMem_Free(attr_names_ptr)
-        PyMem_Free(buffers_ptr)
-        PyMem_Free(buffer_sizes_ptr)
-        tiledb_query_free(ctx_ptr, &query_ptr)
+        tiledb_query_free(&query_ptr)
         if rc != TILEDB_OK:
-            check_error(ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def __array__(self, dtype=None, **kw):
-        if self.nattr > 1:
+        if self.schema.nattr > 1:
             raise ValueError("cannot create numpy array from TileDB array with more than one attribute")
-        array = self.read_direct(self.attr(0).name)
+        array = self.read_direct(name = self.schema.attr(0).name)
         if dtype and array.dtype != dtype:
             return array.astype(dtype)
         return array
 
-    def write_direct(self, np.ndarray array not None, unicode attr_name=u""):
+    def write_direct(self, np.ndarray array not None):
         """
         Write directly to given array attribute with minimal checks,
         assumes that the numpy array is the same shape as the array's domain
 
         :param np.ndarray array: Numpy contigous dense array of the same dtype \
             and shape and layout of the DenseArray instance
-        :param str attr_name: write directly to an attribute name (default <anonymous>)
-        :raises TypeError: connot convert `attr_name` to unicode string
         :raises ValueError: array is not contiguous
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        cdef Ctx ctx = self.ctx
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-
+        if self.schema.nattr != 1:
+            raise ValueError("cannot write_direct to a multi-attribute DenseArray")
         if not array.flags.c_contiguous and not array.flags.f_contiguous:
             raise ValueError("array is not contiguous")
 
-        # array uri
-        cdef bytes buri = unicode_path(self.uri)
-        cdef const char* c_array_name = PyBytes_AS_STRING(buri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
 
         # attr name
-        cdef bytes battr_name = attr_name.encode('UTF-8')
+        cdef Attr attr = self.schema.attr(0)
+        cdef bytes battr_name = attr.name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
+
 
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes
 
-
         cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
-        if array.ndim > 1 and array.flags.f_contiguous:
+        if array.ndim == 1:
+            layout = TILEDB_GLOBAL_ORDER
+        elif array.ndim > 1 and array.flags.f_contiguous:
             layout = TILEDB_COL_MAJOR
 
         cdef tiledb_query_t* query_ptr = NULL
-        check_error(ctx,
-                    tiledb_query_create(ctx_ptr, &query_ptr, c_array_name, TILEDB_WRITE))
-        check_error(ctx,
-                    tiledb_query_set_layout(ctx_ptr, query_ptr, layout))
-        check_error(ctx,
-                    tiledb_query_set_buffers(ctx_ptr, query_ptr, &attr_name_ptr, 1, &buff_ptr, &buff_size))
-
         cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, &query_ptr)
         if rc != TILEDB_OK:
-            check_error(ctx, rc)
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        with nogil:
+            rc = tiledb_query_finalize(ctx_ptr, query_ptr)
+        tiledb_query_free(&query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
-    def read_direct(self, unicode attr_name=u""):
+    def read_direct(self, unicode name=None):
         """Read attribute directly with minimal overhead, returns a numpy ndarray over the entire domain
 
         :param str attr_name: read directly to an attribute name (default <anonymous>)
@@ -2674,17 +2832,23 @@ cdef class DenseArray(ArraySchema):
         """
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
 
-        # array name
-        cdef bytes barray_name = self.uri.encode('UTF-8')
-
-        # attr name
-        cdef Attr attr = self.attr(attr_name)
-        cdef bytes battr_name = attr_name.encode('UTF-8')
+        cdef Attr attr
+        cdef bytes battr_name
+        if name is None and self.schema.nattr != 1:
+            raise ValueError(
+                "read_direct with no provided attribute is ambiguous for multi-attribute arrays")
+        elif name is None:
+            attr = self.schema.attr(0)
+            battr_name = attr.name.encode('UTF-8')
+        else:
+            attr = self.schema.attr(name)
+            battr_name = attr.name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
 
-        cdef tiledb_layout_t cell_layout = TILEDB_UNORDERED
-        self._cell_order(&cell_layout)
+        cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
+        #self.schema._cell_order(&cell_layout)
         if cell_layout == TILEDB_ROW_MAJOR:
             order = 'C'
         elif cell_layout == TILEDB_COL_MAJOR:
@@ -2692,25 +2856,29 @@ cdef class DenseArray(ArraySchema):
         else:
             raise ValueError("invalid dense cell order {}".format(_tiledb_layout_string(cell_layout)))
 
-        out = np.empty(self.domain.shape, dtype=attr.dtype, order=order)
+        out = np.empty(self.schema.domain.shape, dtype=attr.dtype, order=order)
 
         cdef void* buff_ptr = np.PyArray_DATA(out)
         cdef uint64_t buff_size = out.nbytes
 
         cdef tiledb_query_t* query_ptr = NULL
-        check_error(ctx,
-                    tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ))
-        check_error(ctx,
-                    tiledb_query_set_layout(ctx_ptr, query_ptr, cell_layout))
-        check_error(ctx,
-                    tiledb_query_set_buffers(ctx_ptr, query_ptr,
-                                             &attr_name_ptr, 1, &buff_ptr, &buff_size))
         cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_READ, &query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, cell_layout)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, &query_ptr)
+        tiledb_query_free(&query_ptr)
         if rc != TILEDB_OK:
-            check_error(ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
         return out
 
 
@@ -2720,15 +2888,15 @@ def index_domain_coords(Domain dom, tuple idx):
     Returns a (zipped) coordinate array representation
     given coordinate indices in numpy's point indexing format
     """
-    rank = len(idx)
-    if rank != dom.rank:
-        raise IndexError("sparse index rank must match "
-                         "domain rank: {0!r} != {1!r}".format(rank, dom.rank))
+    ndim = len(idx)
+    if ndim != dom.ndim:
+        raise IndexError("sparse index ndim must match "
+                         "domain ndim: {0!r} != {1!r}".format(ndim, dom.ndim))
     idx = tuple(np.asarray(idx[i], dtype=dom.dim(i).dtype)
-                for i in range(rank))
+                for i in range(ndim))
     # check that all sparse coordinates are the same size and dtype
     len0, dtype0 = len(idx[0]), idx[0].dtype
-    for i in range(2, rank):
+    for i in range(2, ndim):
         if len(idx[i]) != len0:
             raise IndexError("sparse index dimension length mismatch")
         if idx[i].dtype != dtype0:
@@ -2737,68 +2905,36 @@ def index_domain_coords(Domain dom, tuple idx):
     return np.column_stack(idx)
 
 
-cdef class SparseArray(ArraySchema):
+cdef class SparseArray(Array):
     """
     TileDB SparseArray class
 
-    Inherits properties / methods of `tiledb.ArraySchema`
+    Inherits properties / methods of `tiledb.Array`
 
     """
 
-    @staticmethod
-    cdef from_ptr(Ctx ctx, unicode uri, const tiledb_array_schema_t* schema_ptr):
-        """Constructs a SparseArray class instance from a URI and a tiledb_array_schema_t pointer"""
-        cdef SparseArray arr = SparseArray.__new__(SparseArray)
-        arr.ctx = ctx
-        arr.uri = uri
-        arr.ptr = <tiledb_array_schema_t*> schema_ptr
-        return arr
-
-    @staticmethod
-    def load(Ctx ctx, unicode uri):
-        """
-        Loads a persisted SparseArray at given URI, returns a SparseArray class instance
-
-        :param tiledb.Ctx ctx: A TileDB Context
-        :param str uri: URI to the TileDB array resource
-        :rtype: tiledb.SparseArray
-        :return: A loaded SparseArray object (schema)
-        :raises TypeError: cannot convert `uri` to unicode string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-
-        cdef bytes buri = ustring(uri).encode('UTF-8')
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-
-        cdef tiledb_array_schema_t* schema_ptr = NULL
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_array_schema_load(ctx_ptr, &schema_ptr, uri_ptr)
-        if rc != TILEDB_OK:
-            check_error(ctx, rc)
-        return SparseArray.from_ptr(ctx, uri, schema_ptr)
 
     def __init__(self, *args, **kw):
-        kw['sparse'] = True
         super().__init__(*args, **kw)
+        if not self.schema.sparse:
+            raise ValueError("Array at {:r} is not a sparse array".format(self.uri))
+        return
 
     def __len__(self):
         raise TypeError("SparseArray length is ambiguous; use shape[0]")
 
-    def __setitem__(self, object selection, object val):
+    def __setitem__(self, selection, val):
         """Set / update sparse data cells
-        
-        :param tuple selection: N coordinate value arrays (dim0, dim1, ...) where N in the rank of the SparseArray,
+
+        :param tuple selection: N coordinate value arrays (dim0, dim1, ...) where N in the ndim of the SparseArray,
             The format follows numpy sparse (point) indexing semantics.
         :param value: a dictionary of nonempty array attribute values, values must able to be converted to 1-d numpy arrays.\
-            if the number of attributes is one, than a 1-d numpy array is accepted. 
-        :type value: dict or :py:class:`numpy.ndarray` 
+            if the number of attributes is one, than a 1-d numpy array is accepted.
+        :type value: dict or :py:class:`numpy.ndarray`
         :raises IndexError: invalid or unsupported index selection
         :raises ValueError: value / coordinate length mismatch
         :raises: :py:exc:`tiledb.TileDBError`
-        
+
         >>> # array with one attribute
         >>> A[I, J] = np.array([...])
         >>> # array with multiple attributes
@@ -2806,9 +2942,9 @@ cdef class SparseArray(ArraySchema):
 
         """
         idx = index_as_tuple(selection)
-        sparse_coords = index_domain_coords(self.domain, idx)
+        sparse_coords = index_domain_coords(self.schema.domain, idx)
         ncells = sparse_coords.shape[0]
-        if self.nattr == 1 and not isinstance(val, dict):
+        if self.schema.nattr == 1 and not isinstance(val, dict):
             attr = self.attr(0)
             name = attr.name
             value = np.asarray(val, dtype=attr.dtype)
@@ -2828,42 +2964,51 @@ cdef class SparseArray(ArraySchema):
         return
 
     cdef _write_sparse(self, np.ndarray coords, dict values):
-        cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-
-        # array name
-        cdef bytes barray_name = self.uri.encode('UTF-8')
+        cdef tiledb_array_t* array_ptr = self.ptr
 
         # attr names
-        battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
-        cdef size_t nattr = self.nattr
-        cdef const char** c_attr_names = <const char**> calloc(nattr + 1, sizeof(uintptr_t))
-        for i in range(nattr):
-            c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
-        c_attr_names[nattr] = tiledb_coords()
-        attr_values = list(values.values())
-        cdef void** buffers = <void**> calloc(nattr + 1, sizeof(uintptr_t))
-        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
-        cdef np.ndarray array_value
-        for i in range(nattr):
-            array_value = attr_values[i]
-            buffers[i] = np.PyArray_DATA(array_value)
-            buffer_sizes[i] = <uint64_t> array_value.nbytes
-        buffers[nattr] = np.PyArray_DATA(coords)
-        buffer_sizes[nattr] = <uint64_t> coords.nbytes
+        cdef Py_ssize_t nattr = len(values) + 1
+        cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
+        for (i, buffer) in enumerate(values.values()):
+            buffer_sizes[i] = buffer.nbytes
+        buffer_sizes[nattr - 1] = coords.nbytes
+
         cdef tiledb_query_t* query_ptr = NULL
-        check_error(ctx,
-                    tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_WRITE))
-        check_error(ctx,
-                    tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_UNORDERED))
-        check_error(ctx,
-                    tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names, nattr + 1, buffers, buffer_sizes))
         cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_UNORDERED)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef bytes battr_name
+        cdef void* buffer_ptr = NULL
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
+        try:
+            for i, (name, buffer) in enumerate(values.items()):
+                battr_name = name.encode('UTF-8')
+                buffer_ptr = np.PyArray_DATA(buffer)
+                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                             buffer_ptr, &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
+            tiledb_query_free(&query_ptr)
+            raise
+        buffer_ptr = np.PyArray_DATA(coords)
+        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(), buffer_ptr, &(buffer_sizes_ptr[nattr - 1]))
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, &query_ptr)
+        with nogil:
+            rc = tiledb_query_finalize(ctx_ptr, query_ptr)
+        tiledb_query_free(&query_ptr)
         if rc != TILEDB_OK:
-            check_error(ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def __getitem__(self, object selection):
@@ -2886,125 +3031,114 @@ cdef class SparseArray(ArraySchema):
         >>> A[1:10, 100:999]["coords"]["dim1"]
 
         """
-
+        dom = self.schema.domain
         idx = index_as_tuple(selection)
-        idx = replace_ellipsis(self.domain, idx)
-        idx, drop_axes = replace_scalars_slice(self.domain, idx)
-        subarray = index_domain_subarray(self.domain, idx)
-        attr_names = [self.attr(i).name for i in range(self.nattr)]
+        idx = replace_ellipsis(dom, idx)
+        idx, drop_axes = replace_scalars_slice(dom, idx)
+        subarray = index_domain_subarray(dom, idx)
+        attr_names = [self.schema.attr(i).name for i in range(self.schema.nattr)]
         return self._read_sparse_subarray(subarray, attr_names)
 
-    def _sparse_read_query(self, object idx):
-        sparse_coords = index_domain_coords(self.domain, idx)
-        ncells = sparse_coords.shape[0]
-        sparse_values = dict()
-        for i in range(self.nattr):
-            attr = self.attr(i)
-            name = attr.name
-            value = np.zeros(shape=ncells, dtype=attr.dtype)
-            sparse_values[name] = value
-        self._read_sparse_multiple(sparse_coords, sparse_values)
-        # attribute is anonymous, just return the result
-        if self.nattr == 1 and self.attr(0).isanon:
-            return sparse_values[self.attr(0).name]
-        return sparse_values
-
     cpdef np.dtype coords_dtype(self):
-        """Returns the numpy record array dtype of the SparseArray coordinates 
-        
-        :rtype: numpy.dtype 
+        """Returns the numpy record array dtype of the SparseArray coordinates
+
+        :rtype: numpy.dtype
         :returns: coord array record dtype
-        
+
         """
         # returns the record array dtype of the coordinate array
-        return np.dtype([(dim.name, dim.dtype) for dim in self.domain])
+        return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
 
     cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names):
         # ctx references
-        cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-
-        # array name
-        cdef bytes barray_uri = self.uri.encode('UTF-8')
+        cdef tiledb_array_t* array_ptr = self.ptr
 
         # set subarray / layout
         cdef void* subarray_ptr = np.PyArray_DATA(subarray)
-
         cdef tiledb_query_t* query_ptr = NULL
-        check_error(ctx,
-                    tiledb_query_create(ctx_ptr, &query_ptr, barray_uri, TILEDB_READ))
-        check_error(ctx,
-                    tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*> subarray_ptr))
-        check_error(ctx,
-                    tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR))
-
-        # attr names
-        battr_names = list(bytes(k, 'UTF-8') for k in attr_names)
-
-        cdef size_t nattr = len(battr_names) + 1  # coordinates
-        cdef const char** attr_names_ptr = <const char**> PyMem_Malloc(nattr * sizeof(uintptr_t))
-        if attr_names_ptr == NULL:
-            raise MemoryError()
-        try:
-            attr_names_ptr[0] = tiledb_coords()
-            for i in range(1, nattr):
-                attr_names_ptr[i] = PyBytes_AS_STRING(battr_names[i - 1])
-        except:
-            PyMem_Free(attr_names_ptr)
-            raise
-
-        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
-        if buffer_sizes_ptr == NULL:
-            PyMem_Free(attr_names_ptr)
-            raise MemoryError()
+        cdef int rc = TILEDB_OK
+        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_READ, &query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, <void*> subarray_ptr)
+        if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
 
         # check the max read buffer size
-        cdef int rc = tiledb_array_compute_max_read_buffer_sizes(
-            ctx_ptr, barray_uri, subarray_ptr, attr_names_ptr, nattr, buffer_sizes_ptr)
-        if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
-            PyMem_Free(buffer_sizes_ptr)
-            check_error(ctx, rc)
+        cdef Py_ssize_t nattr = len(attr_names) + 1  # coordinates
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        if buffer_sizes_ptr == NULL:
+            tiledb_query_free(&query_ptr)
+            raise MemoryError()
 
-        # allocate the max read buffer size
+        cdef bytes battr_name
+        try:
+            for i in range(nattr):
+                if i == 0:
+                    rc = tiledb_array_max_buffer_size(ctx_ptr, array_ptr, tiledb_coords(),
+                                                      subarray_ptr, &(buffer_sizes_ptr[0]))
+                else:
+                    battr_name = attr_names[i - 1].encode('UTF-8')
+                    rc = tiledb_array_max_buffer_size(ctx_ptr, array_ptr, battr_name,
+                                                      subarray_ptr, &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
+            PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(&query_ptr)
+            raise
+
+        # allocate the max read buffer size and set query buffers
         cdef void** buffers_ptr = <void**> PyMem_Malloc(nattr * sizeof(uintptr_t))
         if buffers_ptr == NULL:
-            PyMem_Free(attr_names_ptr)
             PyMem_Free(buffer_sizes_ptr)
+            tiledb_query_free(&query_ptr)
             raise MemoryError()
 
         # initalize the buffer ptrs
         for i in range(nattr):
-            buffers_ptr[i] = <void*> PyMem_Malloc(buffer_sizes_ptr[i])
+            buffers_ptr[i] = <void*> PyMem_Malloc(<size_t>(buffer_sizes_ptr[i]))
             if buffers_ptr[i] == NULL:
-                PyMem_Free(attr_names_ptr)
                 PyMem_Free(buffer_sizes_ptr)
                 for j in range(i):
                     PyMem_Free(buffers_ptr[j])
                 PyMem_Free(buffers_ptr)
+                tiledb_query_free(&query_ptr)
                 raise MemoryError()
-
-        rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, attr_names_ptr, nattr,
-                                      buffers_ptr, buffer_sizes_ptr)
-        if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
+        try:
+            for i in range(nattr):
+                # coords
+                if i == 0:
+                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(),
+                                                  buffers_ptr[0], &(buffer_sizes_ptr[0]))
+                else:
+                    battr_name = attr_names[i - 1].encode('UTF-8')
+                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                                 buffers_ptr[i], &(buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+        except:
             PyMem_Free(buffer_sizes_ptr)
             for i in range(nattr):
                 PyMem_Free(buffers_ptr[i])
             PyMem_Free(buffers_ptr)
-            check_error(ctx, rc)
-
+            tiledb_query_free(&query_ptr)
+            raise
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(ctx_ptr, &query_ptr)
-
+        tiledb_query_free(&query_ptr)
         if rc != TILEDB_OK:
-            PyMem_Free(attr_names_ptr)
             PyMem_Free(buffer_sizes_ptr)
             for i in range(nattr):
                 PyMem_Free(buffers_ptr[i])
             PyMem_Free(buffers_ptr)
-            check_error(ctx, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
         # collect a list of dtypes for resulting to construct array
         dtypes = list()
@@ -3017,7 +3151,6 @@ cdef class SparseArray(ArraySchema):
             for i in range(nattr):
                 Py_INCREF(dtypes[i])
         except:
-            PyMem_Free(attr_names_ptr)
             PyMem_Free(buffer_sizes_ptr)
             for i in range(nattr):
                 PyMem_Free(buffers_ptr[i])
@@ -3034,10 +3167,9 @@ cdef class SparseArray(ArraySchema):
             out["coords"] = PyArray_NewFromDescr(
                 <PyTypeObject*> np.ndarray,
                 dtype, 1, dims, NULL,
-                PyMem_Realloc(buffers_ptr[0], buffer_sizes_ptr[0]),
+                PyMem_Realloc(buffers_ptr[0], <size_t>(buffer_sizes_ptr[0])),
                 np.NPY_OWNDATA, <object> NULL)
         except:
-            PyMem_Free(attr_names_ptr)
             PyMem_Free(buffer_sizes_ptr)
             for i in range(nattr):
                 PyMem_Free(buffers_ptr[i])
@@ -3053,10 +3185,9 @@ cdef class SparseArray(ArraySchema):
                     PyArray_NewFromDescr(
                         <PyTypeObject*> np.ndarray,
                         dtype, 1, dims, NULL,
-                        PyMem_Realloc(buffers_ptr[i], buffer_sizes_ptr[i]),
+                        PyMem_Realloc(buffers_ptr[i], <size_t>(buffer_sizes_ptr[i])),
                         np.NPY_OWNDATA, <object> NULL)
             except:
-                PyMem_Free(attr_names_ptr)
                 PyMem_Free(buffer_sizes_ptr)
                 # the previous buffers are now "owned"
                 # by the constructed numpy arrays
@@ -3064,92 +3195,12 @@ cdef class SparseArray(ArraySchema):
                     PyMem_Free(buffers_ptr[i])
                 PyMem_Free(buffers_ptr)
                 raise
+        PyMem_Free(buffer_sizes_ptr)
+        PyMem_Free(buffers_ptr)
         return out
 
-    cdef _read_sparse_multiple(self, np.ndarray coords, dict values):
-        # ctx references
-        cdef Ctx ctx = self.ctx
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-
-        # array name
-        cdef bytes barray_name = self.uri.encode('UTF-8')
-
-        # attr name
-        battr_names = list(bytes(k, 'UTF-8') for k in values.keys())
-        cdef size_t nattr = self.nattr
-        cdef const char** c_attr_names = <const char**> calloc(nattr + 1, sizeof(uintptr_t))
-        try:
-            for i in range(nattr):
-                c_attr_names[i] = PyBytes_AS_STRING(battr_names[i])
-            c_attr_names[nattr] = tiledb_coords()
-        except:
-            free(c_attr_names)
-            raise
-        attr_values = list(values.values())
-        cdef size_t ncoords = coords.shape[0]
-        cdef char** buffers = <char**> calloc(nattr + 1, sizeof(uintptr_t))
-        cdef uint64_t* buffer_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
-        cdef uint64_t* buffer_item_sizes = <uint64_t*> calloc(nattr + 1, sizeof(uint64_t))
-        cdef np.ndarray array_value
-        try:
-            for i in range(nattr):
-                array_value = attr_values[i]
-                buffers[i] = <char*> np.PyArray_DATA(array_value)
-                buffer_sizes[i] = <uint64_t> array_value.nbytes
-                buffer_item_sizes[i] = <uint64_t> array_value.dtype.itemsize
-            buffers[nattr] = <char*> np.PyArray_DATA(coords)
-            buffer_sizes[nattr] = <uint64_t> coords.nbytes
-            buffer_item_sizes[nattr] = <uint64_t> (coords.dtype.itemsize * self.domain.rank)
-        except:
-            free(c_attr_names)
-            free(buffers)
-            free(buffer_sizes)
-            raise
-
-        cdef int rc = TILEDB_OK
-        cdef tiledb_query_t* query_ptr = NULL
-        rc = tiledb_query_create(ctx_ptr, &query_ptr, barray_name, TILEDB_READ)
-        if rc != TILEDB_OK:
-            free(c_attr_names)
-            free(buffers)
-            free(buffer_sizes)
-            check_error(ctx, rc)
-
-        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_GLOBAL_ORDER)
-        if rc != TILEDB_OK:
-            free(c_attr_names)
-            free(buffers)
-            free(buffer_sizes)
-            check_error(ctx, rc)
-
-        for i in range(ncoords):
-            if i == 0:
-                rc = tiledb_query_set_buffers(ctx_ptr, query_ptr, c_attr_names,
-                                              nattr + 1, <void**> buffers, buffer_item_sizes)
-            else:
-                for aidx in range(nattr):
-                    buffers[aidx] += buffer_item_sizes[aidx]
-                buffers[nattr] += buffer_item_sizes[nattr]
-                rc = tiledb_query_reset_buffers(ctx_ptr, query_ptr,
-                                                <void**> buffers, buffer_item_sizes)
-            if rc != TILEDB_OK:
-                break
-            with nogil:
-                rc = tiledb_query_submit(ctx_ptr, query_ptr)
-            if rc != TILEDB_OK:
-                break
-
-        free(c_attr_names)
-        free(buffers)
-        free(buffer_sizes)
-        tiledb_query_free(ctx_ptr, &query_ptr)
-        if rc != TILEDB_OK:
-            check_error(ctx, rc)
-        return
-
-
-def array_consolidate(Ctx ctx, path):
-    """Consolidate TileDB Array updates for improved read performance
+def consolidate(Ctx ctx, path):
+    """Consolidates a TileDB Array updates for improved read performance
 
     :param tiledb.Ctx ctx: The TileDB Context
     :param str path: path (URI) to the TileDB Array
@@ -3159,14 +3210,14 @@ def array_consolidate(Ctx ctx, path):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
-    cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     cdef bytes bpath = unicode_path(path)
     cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
+    cdef int rc = TILEDB_OK
     with nogil:
         rc = tiledb_array_consolidate(ctx_ptr, path_ptr)
     if rc != TILEDB_OK:
-        check_error(ctx, rc)
+        _raise_ctx_err(ctx_ptr, rc)
     return path
 
 
@@ -3181,7 +3232,7 @@ def group_create(Ctx ctx, path):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
-    cdef int rc = TILEDB_OK 
+    cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     cdef bytes bpath = unicode_path(path)
     cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
@@ -3241,33 +3292,6 @@ def remove(Ctx ctx, path):
     return
 
 
-def move(Ctx ctx, oldpath, newpath, force=False):
-    """Moves a TileDB resource from old path (URI) to new path (URI)
-    
-    :param tiledb.Ctx ctx: TileDB context
-    :param str oldpath: existing path (URI) of the TileDB resource
-    :param str newpath: new path (URI) of the TileDB resource
-    :param bool force: Force move the resource, if ``newpath`` is an existing resource it is deleted.
-    :rtype: str
-    :returns: new path (URI) of the TileDB resource
-    :raises TypeError: oldpath/newpath cannot be converted to a unicode string
-    :raises: :py:exc:`tiledb.TileDBError`
- 
-    """
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef bytes boldpath = unicode_path(oldpath)
-    cdef bytes bnewpath = unicode_path(newpath)
-    cdef const char* oldpath_ptr = PyBytes_AS_STRING(boldpath)
-    cdef const char* newpath_ptr = PyBytes_AS_STRING(bnewpath)
-    cdef int force_move = 1 if force else 0
-    with nogil:
-        rc = tiledb_object_move(ctx_ptr, oldpath_ptr, newpath_ptr, force_move)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    return
-
-
 cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     objtype = None
     if obj == TILEDB_GROUP:
@@ -3285,7 +3309,7 @@ cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
 
 def ls(Ctx ctx, path, func):
     """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
-    
+
     :param tiledb.Ctx ctx: TileDB context
     :param str path: URI of TileDB group object
     :param function func: callback to execute on every listed TileDB resource,\
@@ -3343,11 +3367,12 @@ cdef class FileHandle(object):
     def __dealloc__(self):
         cdef Ctx ctx = self.vfs.ctx
         if self.ptr != NULL:
-            tiledb_vfs_fh_free(ctx.ptr, &self.ptr)
+            tiledb_vfs_fh_free(&self.ptr)
 
     @staticmethod
     cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr):
         """Constructs a FileHandle class instance from a URI and a tiledb_vfs_fh_t pointer"""
+        assert(fh_ptr != NULL)
         cdef FileHandle fh = FileHandle.__new__(FileHandle)
         fh.vfs = vfs
         fh.uri = uri
@@ -3382,7 +3407,7 @@ cdef class VFS(object):
 
     def __dealloc__(self):
         if self.ptr != NULL:
-            tiledb_vfs_free(self.ctx.ptr, &self.ptr)
+            tiledb_vfs_free(&self.ptr)
 
     def __init__(self, Ctx ctx, config=None):
         cdef Config _config = Config()
@@ -3393,7 +3418,7 @@ cdef class VFS(object):
                 _config.update(config)
         cdef tiledb_vfs_t* vfs_ptr = NULL
         check_error(ctx,
-                    tiledb_vfs_create(ctx.ptr, &vfs_ptr, _config.ptr))
+                    tiledb_vfs_alloc(ctx.ptr, _config.ptr, &vfs_ptr))
         self.ctx = ctx
         self.ptr = vfs_ptr
 
@@ -3408,8 +3433,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_create_bucket(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_create_bucket(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return uri
 
     def remove_bucket(self, uri):
@@ -3426,9 +3457,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_remove_bucket(self.ctx.ptr, self.ptr, buri))
-        return
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_remove_bucket(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return uri
 
     def empty_bucket(self, uri):
         """Empty an object store bucket of all objects at the given URI
@@ -3441,8 +3478,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_empty_bucket(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_empty_bucket(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def is_empty_bucket(self, uri):
@@ -3458,9 +3501,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int isempty = 0
-        check_error(self.ctx,
-                    tiledb_vfs_is_empty_bucket(self.ctx.ptr, self.ptr, buri, &isempty))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_is_empty_bucket(ctx_ptr, vfs_ptr, uri_ptr, &isempty)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(isempty)
 
     def is_bucket(self, uri):
@@ -3474,9 +3523,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int is_bucket = 0
-        check_error(self.ctx,
-                    tiledb_vfs_is_bucket(self.ctx.ptr, self.ptr, buri, &is_bucket))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_is_bucket(ctx_ptr, vfs_ptr, uri_ptr, &is_bucket)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(is_bucket)
 
     def create_dir(self, uri):
@@ -3490,8 +3545,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_create_dir(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_create_dir(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return uri
 
     def is_dir(self, uri):
@@ -3505,9 +3566,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int is_dir = 0
-        check_error(self.ctx,
-                    tiledb_vfs_is_dir(self.ctx.ptr, self.ptr, buri, &is_dir))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_is_dir(ctx_ptr, vfs_ptr, uri_ptr, &is_dir)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(is_dir)
 
     def remove_dir(self, uri):
@@ -3519,8 +3586,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_remove_dir(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_remove_dir(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def is_file(self, uri):
@@ -3534,9 +3607,15 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef int is_file = 0
-        check_error(self.ctx,
-                    tiledb_vfs_is_file(self.ctx.ptr, self.ptr, buri, &is_file))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_is_file(ctx_ptr, vfs_ptr, uri_ptr, &is_file)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(is_file)
 
     def remove_file(self, uri):
@@ -3548,8 +3627,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_remove_file(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_remove_file(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def file_size(self, uri):
@@ -3563,13 +3648,19 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef uint64_t nbytes = 0
-        check_error(self.ctx,
-                    tiledb_vfs_file_size(self.ctx.ptr, self.ptr, buri, &nbytes))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_file_size(ctx_ptr, vfs_ptr, uri_ptr, &nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return int(nbytes)
 
-    def move(self, old_uri, new_uri, force=False):
-        """ Moves a VFS file or directory from old URI to new URI
+    def move_file(self, old_uri, new_uri):
+        """ Moves a VFS file from old URI to new URI
 
         :param str old_uri: Existing VFS file or directory resource URI
         :param str new_uri: URI to move existing VFS resource to
@@ -3582,11 +3673,40 @@ cdef class VFS(object):
         """
         cdef bytes bold_uri = unicode_path(old_uri)
         cdef bytes bnew_uri = unicode_path(new_uri)
-        cdef int force_move = 0
-        if force:
-            force_move = 1
-        check_error(self.ctx,
-                    tiledb_vfs_move(self.ctx.ptr, self.ptr, bold_uri, bnew_uri, force_move))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* old_uri_ptr = PyBytes_AS_STRING(bold_uri)
+        cdef const char* new_uri_ptr = PyBytes_AS_STRING(bnew_uri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_move_file(ctx_ptr, vfs_ptr, old_uri_ptr, new_uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return new_uri
+
+    def move_dir(self, old_uri, new_uri):
+        """ Moves a VFS dir from old URI to new URI
+
+        :param str old_uri: Existing VFS file or directory resource URI
+        :param str new_uri: URI to move existing VFS resource to
+        :param bool force: if VFS resource at `new_uri` exists, delete the resource and overwrite
+        :rtype: str
+        :return: new URI of VFS resource
+        :raises TypeError: cannot convert `old_uri`/`new_uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes bold_uri = unicode_path(old_uri)
+        cdef bytes bnew_uri = unicode_path(new_uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* old_uri_ptr = PyBytes_AS_STRING(bold_uri)
+        cdef const char* new_uri_ptr = PyBytes_AS_STRING(bnew_uri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_move_dir(ctx_ptr, vfs_ptr, old_uri_ptr, new_uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return new_uri
 
     def open(self, uri, mode=None):
@@ -3613,11 +3733,16 @@ cdef class VFS(object):
         else:
             raise ValueError("invalid mode {0!r}".format(mode))
         cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_vfs_fh_t* fh_ptr = NULL
-        check_error(self.ctx,
-                    tiledb_vfs_open(self.ctx.ptr, self.ptr, buri, vfs_mode, &fh_ptr))
-        cdef FileHandle fh = FileHandle.from_ptr(self, uri, fh_ptr)
-        return fh
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_open(ctx_ptr, vfs_ptr, uri_ptr, vfs_mode, &fh_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return FileHandle.from_ptr(self, buri.decode('UTF-8'), fh_ptr)
 
     def close(self, FileHandle fh):
         """Closes a VFS FileHandle object
@@ -3628,8 +3753,13 @@ cdef class VFS(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        check_error(self.ctx,
-                    tiledb_vfs_close(self.ctx.ptr, fh.ptr))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_close(ctx_ptr, fh_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return fh
 
     def readinto(self, FileHandle fh, bytes buffer, offset, nbytes):
@@ -3650,15 +3780,16 @@ cdef class VFS(object):
             raise ValueError("read nbytes but be >= 0")
         if nbytes > len(buffer):
             raise ValueError("read buffer is smaller than nbytes")
-        cdef Py_ssize_t _offset = offset
-        cdef Py_ssize_t _nbytes = nbytes
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
+        cdef uint64_t _offset = offset
+        cdef uint64_t _nbytes = nbytes
         cdef char* buffer_ptr = PyBytes_AS_STRING(buffer)
-        check_error(self.ctx,
-                    tiledb_vfs_read(self.ctx.ptr,
-                                    fh.ptr,
-                                    <uint64_t> _offset,
-                                    <void*> buffer_ptr,
-                                    <uint64_t> _nbytes))
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_read(ctx_ptr, fh_ptr, _offset, <void*> buffer_ptr, _nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return buffer
 
     def read(self, FileHandle fh, offset, nbytes):
@@ -3686,13 +3817,18 @@ cdef class VFS(object):
 
         """
         cdef bytes buffer = bytes(buff)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
         cdef const char* buffer_ptr = PyBytes_AS_STRING(buffer)
         cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)
-        check_error(self.ctx,
-                    tiledb_vfs_write(self.ctx.ptr,
-                                     fh.ptr,
-                                     <const void*> buffer_ptr,
-                                     <uint64_t> _nbytes))
+        assert(_nbytes >= 0)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_write(ctx_ptr, fh_ptr,
+                                  <const void*> buffer_ptr,
+                                  <uint64_t> _nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def sync(self, FileHandle fh):
@@ -3702,8 +3838,13 @@ cdef class VFS(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        check_error(self.ctx,
-                    tiledb_vfs_sync(self.ctx.ptr, fh.ptr))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_sync(ctx_ptr, fh_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return fh
 
     def touch(self, uri):
@@ -3717,8 +3858,14 @@ cdef class VFS(object):
 
         """
         cdef bytes buri = unicode_path(uri)
-        check_error(self.ctx,
-                    tiledb_vfs_touch(self.ctx.ptr, self.ptr, buri))
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_touch(ctx_ptr, vfs_ptr, uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return uri
 
     def supports(self, scheme):
@@ -3824,13 +3971,14 @@ class FileIO(object):
         if self.closed:
             raise IOError("cannot read from closed FileIO handle")
         nbytes_remaining = self._nbytes - self._offset
+        cdef Py_ssize_t nbytes
         if size < 0:
             nbytes = nbytes_remaining
         elif size > nbytes_remaining:
             nbytes = nbytes_remaining
         else:
             nbytes = size
-        buff = bytes(nbytes)
+        cdef bytes buff = PyBytes_FromStringAndSize(NULL, nbytes)
         self.vfs.readinto(self.fh, buff, self._offset, nbytes)
         self._offset += nbytes
         return buff
@@ -3840,10 +3988,10 @@ class FileIO(object):
             raise IOError("cannot read from a write-only FileIO handle")
         if self.closed:
             raise IOError("cannot read from closed FileIO handle")
-        nbytes = self._nbytes - self._offset
+        cdef Py_ssize_t nbytes = self._nbytes - self._offset
         if nbytes == 0:
-            return bytes(0)
-        buff = bytes(nbytes)
+            return PyBytes_FromStringAndSize(NULL, 0)
+        cdef bytes buff = PyBytes_FromStringAndSize(NULL, nbytes)
         self.vfs.readinto(self.fh, buff, self._offset, nbytes)
         self._offset += nbytes
         return buff

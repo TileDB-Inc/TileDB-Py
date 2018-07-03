@@ -7,11 +7,6 @@ from pkg_resources import resource_filename
 import sys
 from sys import version_info as ver
 
-# Check if Python version is supported
-if any([ver < (3, 4)]):
-    raise Exception("Unsupported Python version %d.%d.  Requires Python >= 3.4")
-
-
 class LazyCommandClass(dict):
     """
     Lazy command class that defers operations requiring Cython and numpy until
@@ -68,7 +63,7 @@ CXXFLAGS = os.environ.get("CXXFLAGS", "-std=c++11").split()
 LFLAGS = os.environ.get("LFLAGS", "").split()
 
 # Allow setting (lib) TileDB directory if it is installed on the system
-TILEDB_DIR = os.environ.get("TILEDB_DIR", "")
+TILEDB_PATH = os.environ.get("TILEDB_PATH", "")
 
 # Sources & libraries
 inc_dirs = []
@@ -83,7 +78,7 @@ optional_libs = []
 args = sys.argv[:]
 for arg in args:
     if arg.find('--tiledb=') == 0:
-        TILEDB_DIR = os.path.expanduser(arg.split('=')[1])
+        TILEDB_PATH = os.path.expanduser(arg.split('=')[1])
         sys.argv.remove(arg)
     if arg.find('--lflags=') == 0:
         LFLAGS = arg.split('=')[1].split()
@@ -92,9 +87,9 @@ for arg in args:
         CXXFLAGS = arg.split('=')[1].split()
         sys.argv.remove(arg)
 
-if TILEDB_DIR != '':
-    lib_dirs += [os.path.join(TILEDB_DIR, 'lib')]
-    inc_dirs += [os.path.join(TILEDB_DIR, 'include')]
+if TILEDB_PATH != '':
+    lib_dirs += [os.path.join(TILEDB_PATH, 'lib')]
+    inc_dirs += [os.path.join(TILEDB_PATH, 'include')]
 
 setup(
     name='tiledb',
