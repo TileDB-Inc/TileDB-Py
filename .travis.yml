@@ -11,24 +11,17 @@ notifications:
   email: false
 
 install:
-  # Install TileDB in the Python repo's build directory
-  - mkdir build
-  - pushd ./build # . -> ./build
-  - git clone https://github.com/TileDB-Inc/TileDB
-  - pushd TileDB # ./build -> ./build/TileDB
-  - git checkout dev
-  - mkdir build
-  - pushd ./build  # ./build/TileDB/build
-  - ../bootstrap
-  - make && make -C tiledb install
-  - popd # ./build/TileDB/build -> ./build/TileDB
-  - popd # ./build/TileDB -> ./build
-  - popd # ./build -> .
-  # Build and install extension module
   - pip install -U tox-travis pip setuptools wheel
   - pip install -r requirements_dev.txt
-  - python setup.py build_ext --inplace --tiledb=./build/TileDB/dist
 
 script:
-  - env LD_LIBRARY_PATH="${TRAVIS_BUILD_DIR}/build/TileDB/dist/lib:$LD_LIBRARY_PATH" python -m unittest tiledb.tests.all.suite_test
-
+  # Build and test extension module
+  - python setup.py build_ext --inplace
+  - LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH" python -m unittest tiledb.tests.all.suite_test;
+  # Check wheel build
+  - python setup.py bdist_wheel
+  - whl_file=`pwd`/dist/`ls dist`
+  - pushd /tmp
+  - echo "Installing wheel file from $whl_file..."
+  - pip install $whl_file
+  - python -c "import tiledb ; tiledb.libtiledb.version()"

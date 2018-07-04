@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+*.dylib
 
 # Cython extensions
 *.cpp
@@ -109,3 +110,5 @@ tiledb/version.py
 
 # IntelliJ
 .idea
+
+*.DS_Store
