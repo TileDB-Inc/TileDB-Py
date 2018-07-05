@@ -17,7 +17,8 @@ install:
 script:
   # Build and test extension module
   - python setup.py build_ext --inplace
-  - LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH" python -m unittest tiledb.tests.all.suite_test;
+  - LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH" python -m unittest tiledb.tests.all.suite_test
+  - # LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH" python -m doctest tiledb/libtiledb.pyx
   # Check wheel build
   - python setup.py bdist_wheel
   - whl_file=`pwd`/dist/`ls dist`
@@ -25,3 +26,6 @@ script:
   - echo "Installing wheel file from $whl_file..."
   - pip install $whl_file
   - python -c "import tiledb ; tiledb.libtiledb.version()"
+  - python $TRAVIS_BUILD_DIR/examples/quickstart_dense.py
+  - python $TRAVIS_BUILD_DIR/examples/quickstart_sparse.py
+  - python $TRAVIS_BUILD_DIR/examples/quickstart_kv.py
