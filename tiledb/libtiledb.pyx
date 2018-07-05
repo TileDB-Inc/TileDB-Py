@@ -84,7 +84,7 @@ class TileDBError(Exception):
     """TileDB Error Exception
 
     Captures and raises error return code (``TILEDB_ERR``) messages when calling ``libtiledb``
-    C api functions.  The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`
+    functions.  The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`.
 
     A Python :py:class:`MemoryError` is raised on ``TILEDB_OOM``
 
@@ -176,27 +176,75 @@ cdef bytes unicode_path(object path):
 cdef class Config(object):
     """TileDB Config class
 
-    Valid Parameters:
+    Valid parameters (unknown parameters will be ignored):
 
-    - ``sm.tile_cache_size`` The tile cache size in bytes. Any uint64_t value is acceptable.
-    - ``sm.array_schema_cache_size`` The array schema cache size in bytes. Any uint64_t value is acceptable.
-    - ``sm.fragment_metadata_cache_size`` The fragment metadata cache size in bytes. Any uint64_t value is acceptable.
-    - ``vfs.s3.region`` The S3 region, if S3 is enabled.
-    - ``vfs.s3.scheme`` The S3 scheme (http or https), if S3 is enabled.
-    - ``vfs.s3.endpoint_override`` The S3 endpoint, if S3 is enabled.
-    - ``vfs.s3.use_virtual_addressing`` The S3 use of virtual addressing (true or false), if S3 is enabled.
-    - ``vfs.s3.file_buffer_size`` The file buffer size (in bytes) used in S3 writes, if S3 is enables. Any uint64_t value is acceptable.
-    - ``vfs.s3.connect_timeout_ms`` The connection timeout in ms. Any long value is acceptable.
-    - ``vfs.s3.request_timeout_ms`` The request timeout in ms. Any long value is acceptable.
-    - ``vfs.hdfs.name_node`` Name node for HDFS.
-    - ``vfs.hdfs.username`` HDFS username.
-    - ``vfs.hdfs.kerb_ticket_cache_path`` HDFS kerb ticket cache path.
+    - ``sm.tile_cache_size``
+       The tile cache size in bytes. Any ``uint64_t`` value is acceptable.
+       **Default**: 10,000,000
+    - ``sm.array_schema_cache_size``
+       The array schema cache size in bytes. Any ``uint64_t`` value is acceptable.
+       **Default**: 10,000,000
+    - ``sm.fragment_metadata_cache_size``
+       The fragment metadata cache size in bytes. Any ``uint64_t`` value is
+       acceptable.
+    - ``sm.enable_signal_handlers``
+       Whether or not TileDB will install signal handlers.
+       **Default**: true
+       **Default**: 10,000,000
+    - ``sm.number_of_threads``
+       The number of allocated threads per TileDB context.
+       **Default**: number of cores
+    - ``vfs.max_parallel_ops``
+       The maximum number of VFS parallel operations.
+       **Default**: number of cores
+    - ``vfs.min_parallel_size``
+       The minimum number of bytes in a parallel VFS operation. (Does not
+       affect parallel S3 writes.)
+       **Default**: 10MB
+    - ``vfs.s3.region``
+       The S3 region, if S3 is enabled.
+       **Default**: us-east-1
+    - ``vfs.s3.scheme``
+       The S3 scheme (``http`` or ``https``), if S3 is enabled.
+       **Default**: https
+    - ``vfs.s3.endpoint_override``
+       The S3 endpoint, if S3 is enabled.
+       **Default**: ""
+    - ``vfs.s3.use_virtual_addressing``
+       The S3 use of virtual addressing (``true`` or ``false``), if S3 is
+       enabled.
+       **Default**: true
+    - ``vfs.s3.multipart_part_size``
+       The part size (in bytes) used in S3 multipart writes, if S3 is enabled.
+       Any ``uint64_t`` value is acceptable. Note: ``vfs.s3.multipart_part_size *
+       vfs.max_parallel_ops`` bytes will be buffered before issuing multipart
+       uploads in parallel.
+       **Default**: 5*1024*1024
+    - ``vfs.s3.connect_timeout_ms``
+       The connection timeout in ms. Any ``long`` value is acceptable.
+       **Default**: 3000
+    - ``vfs.s3.connect_max_tries``
+       The maximum tries for a connection. Any ``long`` value is acceptable.
+       **Default**: 5
+    - ``vfs.s3.connect_scale_factor``
+       The scale factor for exponential backofff when connecting to S3.
+       Any ``long`` value is acceptable.
+       **Default**: 25
+    - ``vfs.s3.request_timeout_ms``
+       The request timeout in ms. Any ``long`` value is acceptable.
+       **Default**: 3000
+    - ``vfs.hdfs.name_node"``
+       Name node for HDFS.
+       **Default**: ""
+    - ``vfs.hdfs.username``
+       HDFS username.
+       **Default**: ""
+    - ``vfs.hdfs.kerb_ticket_cache_path``
+       HDFS kerb ticket cache path.
+       **Default**: ""
 
-    unknown parameters will be ignored
-
-    :param dict params: set parameter values from dict like object
-    :param str path: set parameter values from persisted Config parameter file
-
+    :param dict params: Set parameter values from dict like object
+    :param str path: Set parameter values from persisted Config parameter file
     """
 
     cdef tiledb_config_t* ptr
@@ -265,6 +313,11 @@ cdef class Config(object):
         return config
 
     def __setitem__(self, object key, object value):
+        """Sets a config parameter value.
+
+        :param str key: Name of parameter to set
+        :param str value: Value of parameter to set
+        """
         key, value = unicode(key), unicode(value)
         cdef bytes bparam = key.encode('UTF-8')
         cdef bytes bvalue = value.encode('UTF-8')
@@ -277,6 +330,10 @@ cdef class Config(object):
         return
 
     def __getitem__(self, object key):
+        """Sets a config parameter value.
+
+        :param str key: Name of parameter to get
+        """
         key = unicode(key)
         cdef bytes bparam = key.encode('UTF-8')
         cdef const char* value_ptr = NULL
@@ -292,6 +349,11 @@ cdef class Config(object):
         return value.decode('UTF-8')
 
     def __delitem__(self, object key):
+        """
+        Removes a configured parameter (resetting it to its default).
+
+        :param str key: Name of parameter to reset.
+        """
         key = unicode(key)
         cdef bytes bkey = ustring(key).encode("UTF-8")
         cdef tiledb_error_t* err_ptr = NULL
@@ -303,7 +365,7 @@ cdef class Config(object):
         return
 
     def __iter__(self):
-        """ Returns an iterator over the Config parameters (keys)"""
+        """Returns an iterator over the Config parameters (keys)"""
         return ConfigKeys(self)
 
     def __len__(self):
@@ -382,7 +444,7 @@ cdef class Config(object):
             del self[k]
 
     def get(self, key, *args):
-        """
+        """Gets the value of a config parameter, or a default value.
 
         :param str key: Config parameter
         :param args: return `arg` if Config does not contain paramter `key`
@@ -400,18 +462,16 @@ cdef class Config(object):
     def update(self, object odict):
         """Update a config object with parameter, values from a dict like object
 
-        :param odict: dict like object containing parameter, values to update Config
-
+        :param odict: dict-like object containing parameter, values to update Config.
         """
         for (key, value) in odict.items():
             self[key] = value
         return
 
     def from_file(self, path):
-        """Update a Config object with parameter, values from a config file
+        """Update a Config object with from a persisted config file
 
         :param path: A local Config file path
-
         """
         config = Config.load(path)
         self.update(config)
@@ -539,7 +599,7 @@ cdef class ConfigItems(object):
 
 
 cdef class Ctx(object):
-    """TileDB Ctx class
+    """Class representing a TileDB context.
 
     A TileDB context wraps a TileDB storage manager.
 
@@ -575,8 +635,7 @@ cdef class Ctx(object):
         self.ptr = ctx_ptr
 
     def config(self):
-        """
-        Config parameters, values associated with a TileDB Ctx
+        """Returns the Config instance associated with the Ctx
         """
         cdef tiledb_config_t* config_ptr = NULL
         check_error(self,
@@ -773,13 +832,13 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
 
 
 cdef class Attr(object):
-    """TileDB Attr class object
+    """Class representing a TileDB array attribute.
 
     :param tiledb.Ctx ctx: A TileDB Context
     :param str name: Attribute name, empty if anonymous
     :param dtype: Attribute value datatypes
     :type dtype: numpy.dtype object or type or string
-    :param compressor: The compressor, level for attribute values
+    :param compressor: The compressor name and level for attribute values
     :type compressor: tuple(str, int)
     :raises TypeError: invalid dtype
     :raises: :py:exc:`tiledb.TileDBError`
@@ -872,7 +931,7 @@ cdef class Attr(object):
         return True
 
     def dump(self):
-        """Dumps a string representation of the Attr object to standard output (STDOUT)"""
+        """Dumps a string representation of the Attr object to standard output (stdout)"""
         check_error(self.ctx,
                     tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
         print('\n')
@@ -925,7 +984,7 @@ cdef class Attr(object):
 
     @property
     def isanon(self):
-        """Returns true if attribute is an anonymous attribute
+        """True if attribute is an anonymous attribute
 
         :rtype: bool
 
@@ -935,7 +994,7 @@ cdef class Attr(object):
 
     @property
     def compressor(self):
-        """Returns string label of the attributes compressor and compressor level
+        """String label of the attributes compressor and compressor level
 
         :rtype: tuple(str, int)
         :raises: :py:exc:`tiledb.TileDBError`
@@ -957,7 +1016,7 @@ cdef class Attr(object):
 
     @property
     def isvar(self):
-        """Returns true if the attribute is variable length
+        """True if the attribute is variable length
 
         :rtype: bool
         :raises: :py:exc:`tiledb.TileDBError`
@@ -968,7 +1027,7 @@ cdef class Attr(object):
 
     @property
     def ncells(self):
-        """Returns the number of cells (scalar values) for a given attribute value
+        """The number of cells (scalar values) for a given attribute value
 
         :rtype: int
         :raises: :py:exc:`tiledb.TileDBError`
@@ -980,7 +1039,7 @@ cdef class Attr(object):
 
 
 cdef class Dim(object):
-    """TileDB Dimension class
+    """Class representing a dimension of a TileDB Array.
 
     :param tiledb.Ctx ctx: A TileDB Context
     :param str name: the dimension name, empty if anonymous
@@ -992,7 +1051,7 @@ cdef class Dim(object):
         that can be corerced into a numpy dtype object
     :raises ValueError: invalid domain or tile extent
     :raises TypeError: invalid domain, tile extent, or dtype type
-    :raises: :py:exc:`libtiledb.TileDBError`
+    :raises: :py:exc:`TileDBError`
 
     """
     cdef Ctx ctx
@@ -1091,7 +1150,7 @@ cdef class Dim(object):
 
     @property
     def dtype(self):
-        """Return a numpy dtype representation of attribute of the dimension type
+        """Numpy dtype representation of the dimension type.
 
         :rtype: numpy.dtype
 
@@ -1100,9 +1159,9 @@ cdef class Dim(object):
 
     @property
     def name(self):
-        """Return the string dimension label
+        """The dimension label string.
 
-        anonymous dimensions return a default string representation based on the dimension idx
+        Anonymous dimensions return a default string representation based on the dimension index.
 
         :rtype: str
 
@@ -1114,7 +1173,7 @@ cdef class Dim(object):
 
     @property
     def isanon(self):
-        """Return True if the dimension is anonymous
+        """True if the dimension is anonymous
 
         :rtype: bool
 
@@ -1135,9 +1194,9 @@ cdef class Dim(object):
 
     @property
     def shape(self):
-        """Return the shape of the dimension given the dimension's domain.
+        """The shape of the dimension given the dimension's domain.
 
-        **Note** The given shape is only valid for integer dimension domains
+        **Note**: The shape is only valid for integer dimension domains.
 
         :rtype: tuple(numpy scalar, numpy scalar)
         :raises TypeError: floating point (inexact) domain
@@ -1149,7 +1208,7 @@ cdef class Dim(object):
 
     @property
     def size(self):
-        """Return the size of the dimension domain (number of cells along dimension)
+        """The size of the dimension domain (number of cells along dimension).
 
         :rtype: int
         :raises TypeError: floating point (inexact) domain
@@ -1161,7 +1220,7 @@ cdef class Dim(object):
 
     @property
     def tile(self):
-        """Return the tile extent of the given dimension
+        """The tile extent of the dimension.
 
         :rtype: numpy scalar
 
@@ -1184,9 +1243,9 @@ cdef class Dim(object):
 
     @property
     def domain(self):
-        """Return the dimension (inclusive) domain
+        """The dimension (inclusive) domain.
 
-        The dimension's domain is defined by a (lower bound, upper bound) tuple
+        The dimension's domain is defined by a (lower bound, upper bound) tuple.
 
         :rtype: tuple(numpy scalar, numpy scalar)
 
@@ -1207,12 +1266,12 @@ cdef class Dim(object):
 
 
 cdef class Domain(object):
-    """TileDB Domain class object
+    """Class representing the domain of a TileDB Array.
 
     :param tiledb.Ctx ctx: A TileDB Context
-    :param *dims: one or more tiledb.Dim objects up to the Domains ndim
+    :param *dims: one or more tiledb.Dim objects up to the Domain's ndim
     :raises TypeError: All dimensions must have the same dtype
-    :raises: :py:exc:`libtiledb.TileDBError`
+    :raises: :py:exc:`TileDBError`
 
     """
 
@@ -1288,7 +1347,7 @@ cdef class Domain(object):
 
     @property
     def ndim(self):
-        """Returns the number of dimensions of the domain
+        """The number of dimensions of the domain.
 
         :rtype: int
 
@@ -1306,7 +1365,7 @@ cdef class Domain(object):
 
     @property
     def dtype(self):
-        """Returns the numpy dtype of the domain dimension types
+        """The numpy dtype of the domain's dimension type.
 
         :rtype: numpy.dtype
 
@@ -1325,7 +1384,7 @@ cdef class Domain(object):
 
     @property
     def shape(self):
-        """Returns the domain's shape, valid only for integer domains
+        """The domain's shape, valid only for integer domains.
 
         :rtype: tuple
         :raises TypeError: floating point (inexact) domain
@@ -1337,7 +1396,7 @@ cdef class Domain(object):
 
     @property
     def size(self):
-        """Returns the domain's size (number of cells), valid only for integer domains
+        """The domain's size (number of cells), valid only for integer domains.
 
         :rtype: int
         :raises TypeError: floating point (inexact) domain
@@ -1348,7 +1407,7 @@ cdef class Domain(object):
         return np.product(self._shape())
 
     def dim(self, int idx):
-        """Returns a dimension object given the dimensions index
+        """Returns a Dim object from the domain given the dimension's index.
 
         :param int idx: dimension index
         :raises: :py:exc:`tiledb.TileDBError`
@@ -1362,7 +1421,7 @@ cdef class Domain(object):
         return Dim.from_ptr(self.ctx, dim_ptr)
 
     def dim(self, unicode name):
-        """Returns a dimension object given the dimensions label
+        """Returns a Dim object from the domain given the dimension's index.
 
         :param str name: dimension name (label)
         :raises: :py:exc:`tiledb.TileDBError`
@@ -1386,7 +1445,9 @@ cdef class Domain(object):
 
 cdef class KVSchema(object):
     """
-    Schema class for TileDB KV (assocative) array representations
+    Schema class for TileDB key-value (assocative) arrays.
+
+    **Note**: Only string-valued attributes are currently supported on KVs.
 
     :param tiledb.Ctx ctx: A TileDB Context
     :param attrs: one or more array attributes
@@ -1487,7 +1548,7 @@ cdef class KVSchema(object):
 
     @property
     def capacity(self):
-        """Returns the array capacity
+        """The KV array capacity
 
         :rtype: int
         :raises: :py:exc:`tiledb.TileDBError`
@@ -1500,7 +1561,7 @@ cdef class KVSchema(object):
 
     @property
     def nattr(self):
-        """Return the number of kv attributes
+        """The number of KV attributes
 
         :rtype: int
         :raises: :py:exc:`tiledb.TileDBError`
@@ -1551,7 +1612,7 @@ cdef class KVSchema(object):
         return
 
 cdef class KV(object):
-    """TileDB KV array class object
+    """Class representing a TileDB KV (key-value) array.
 
     :param Ctx ctx: A TileDB Context
     :param str uri: URI to persistent KV resource
@@ -1646,7 +1707,7 @@ cdef class KV(object):
 
     @property
     def nattr(self):
-        """Returns the number of KV array attributes
+        """The number of KV array attributes
 
         :rtype: int
         :raises: :py:exc:`tiledb.TileDBError`
@@ -1814,17 +1875,8 @@ cdef class KV(object):
             _raise_ctx_err(ctx_ptr, rc)
         return has_key == 1
 
-    def reopen(self):
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-        cdef tiledb_kv_t* kv_ptr = self.ptr
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_kv_reopen(ctx_ptr, kv_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        return
-
     def flush(self):
+        """Flush any buffered writes to the KV array."""
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_kv_t* kv_ptr = self.ptr
         cdef int rc = TILEDB_OK
@@ -1837,7 +1889,7 @@ cdef class KV(object):
     def update(self, *args, **kw):
         """Update a KV object from dict/iterable,
 
-        Has the same semantics as Python dicts `.update()` method
+        Has the same semantics as Python dict's `.update()` method
         """
         # add stub dict update implementation for now
         items = dict()
@@ -2185,7 +2237,7 @@ cdef class ArraySchema(object):
 
     @property
     def sparse(self):
-        """Returns true if the array is a sparse array representation
+        """True if the array is a sparse array representation
 
         :rtype: bool
         :raises: :py:exc:`tiledb.TileDBError`
@@ -2198,7 +2250,7 @@ cdef class ArraySchema(object):
 
     @property
     def capacity(self):
-        """Returns the array capacity
+        """The array capacity
 
         :rtype: int
         :raises: :py:exc:`tiledb.TileDBError`
@@ -2215,7 +2267,7 @@ cdef class ArraySchema(object):
 
     @property
     def cell_order(self):
-        """Returns the cell order layout of the array representation"""
+        """The cell order layout of the array."""
         cdef tiledb_layout_t order = TILEDB_UNORDERED
         self._cell_order(&order)
         return _tiledb_layout_string(order)
@@ -2226,7 +2278,7 @@ cdef class ArraySchema(object):
 
     @property
     def tile_order(self):
-        """Returns the tile order layout of the array representation
+        """The tile order layout of the array.
 
         :rtype: str
         :raises: :py:exc:`tiledb.TileDBError`
@@ -2238,7 +2290,7 @@ cdef class ArraySchema(object):
 
     @property
     def coords_compressor(self):
-        """Returns the compressor label, level for the array representation coordinates
+        """The compressor label and level for the array's coordinates.
 
         :rtype: tuple(str, int)
         :raises: :py:exc:`tiledb.TileDBError`
@@ -2253,7 +2305,7 @@ cdef class ArraySchema(object):
 
     @property
     def offsets_compressor(self):
-        """Returns the compressor label, level for the array representation varcell offsets
+        """The compressor label and level for the array's variable-length attribute offsets.
 
         :rtype: tuple(str, int)
         :raises: :py:exc:`tiledb.TileDBError`
@@ -2268,7 +2320,7 @@ cdef class ArraySchema(object):
 
     @property
     def domain(self):
-        """Return a Domain associated with array instance
+        """The Domain associated with the array.
 
         :rtype: tiledb.Domain
         :raises: :py:exc:`tiledb.TileDBError`
@@ -2281,7 +2333,7 @@ cdef class ArraySchema(object):
 
     @property
     def nattr(self):
-        """Return the number of array attributes
+        """The number of array attributes.
 
         :rtype: int
         :raises: :py:exc:`tiledb.TileDBError`
@@ -2294,7 +2346,7 @@ cdef class ArraySchema(object):
 
     @property
     def ndim(self):
-        """Return the number of array domain dimensions
+        """The number of array domain dimensions.
 
         :rtype: int
         """
@@ -2302,7 +2354,7 @@ cdef class ArraySchema(object):
 
     @property
     def shape(self):
-        """Return the array's shape
+        """The array's shape
 
         :rtype: tuple(numpy scalar, numpy scalar)
         :raises TypeError: floating point (inexact) domain
@@ -2342,7 +2394,7 @@ cdef class ArraySchema(object):
                         "or an integer index, not {0!r}".format(type(key)))
 
     def dump(self):
-        """Dumps a string representation of the array object to standard output (STDOUT)"""
+        """Dumps a string representation of the array object to standard output (stdout)"""
         check_error(self.ctx,
                     tiledb_array_schema_dump(self.ctx.ptr, self.ptr, stdout))
         print("\n")
@@ -2350,6 +2402,15 @@ cdef class ArraySchema(object):
 
 
 cdef class Array(object):
+    """Base class for TileDB array objects.
+
+    Defines common properties/functionality for the different array types. When an Array instance is initialized,
+    the array is opened with the specified mode.
+
+    :param Ctx ctx: TileDB context
+    :param str uri: URI of array to open
+    :param str mode: Mode ('r' or 'w') to open the array with.
+    """
 
     cdef Ctx ctx
     cdef unicode uri
@@ -2369,6 +2430,9 @@ cdef class Array(object):
     @staticmethod
     def create(uri, ArraySchema schema):
         """Creates a persistent TileDB Array at the given URI
+
+        :param str uri: URI at which to create the new empty array.
+        :param ArraySchema schema: Schema for the array
         """
         cdef tiledb_ctx_t* ctx_ptr = schema.ctx.ptr
         cdef bytes buri = unicode_path(uri)
@@ -2386,12 +2450,12 @@ cdef class Array(object):
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_query_type_t query_type
-        if mode == 'r' or mode == 'rw':
+        if mode == 'r':
             query_type = TILEDB_READ
         elif mode == 'w':
             query_type = TILEDB_WRITE
         else:
-            raise ValueError("TileDB array mode must be 'r', 'w', or 'rw'")
+            raise ValueError("TileDB array mode must be 'r' or 'w'")
         # allocate and then open the array
         cdef tiledb_array_t* array_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -2421,6 +2485,7 @@ cdef class Array(object):
         self.close()
 
     def close(self):
+        """Closes this array, flushing all buffered data."""
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef int rc = TILEDB_OK
@@ -2432,6 +2497,12 @@ cdef class Array(object):
         return
 
     def reopen(self):
+        """Reopens this array.
+
+        This is useful when the array is updated after it was opened.
+        To sync-up with the updates, the user must either close the array and open again, or just use ``reopen()``
+        without closing. Reopening will be generally faster than the former alternative.
+        """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef int rc = TILEDB_OK
@@ -2444,37 +2515,51 @@ cdef class Array(object):
 
     @property
     def schema(self):
+        """The :py:class:`ArraySchema` for this array."""
         return self.schema
 
     @property
     def mode(self):
+        """The mode this array was opened with."""
         return self.mode
 
     @property
     def opened(self):
+        """True if this array is currently open."""
         return self.opened
 
     @property
     def ndim(self):
+        """The number of dimensions of this array."""
         return self.schema.ndim
 
     @property
     def domain(self):
+        """The :py:class:`Domain` of this array."""
         return self.schema.domain
 
     @property
     def shape(self):
+        """The shape of this array."""
         return self.schema.shape
 
     @property
     def nattr(self):
+        """The number of attributes of this array."""
         return self.schema.nattr
 
-    def attr(self, idx):
-        return self.schema.attr(idx)
+    def attr(self, key):
+        """Returns an :py:class:`Attr` instance given an int index or string label
+
+        :param key: attribute index (positional or associative)
+        :type key: int or str
+        :rtype: :py:class:`Attr`
+        :return: The array attribute at index or with the given name (label)
+        :raises TypeError: invalid key type"""
+        return self.schema.attr(key)
 
     def nonempty_domain(self):
-        """Return the minimum bounding domain which encompasses nonempty values
+        """Return the minimum bounding domain which encompasses nonempty values.
 
         :rtype: tuple(tuple(numpy scalar, numpy scalar), ...)
         :return: A list of (inclusive) domain extent tuples, that contain all nonempty cells
@@ -2498,7 +2583,7 @@ cdef class Array(object):
                      for i in range(dom.ndim))
 
     def consolidate(self):
-        """Consolidates updates of an array object for increased read performance
+        """Consolidates fragments of an array object for increased read performance.
 
         :raises: :py:exc:`tiledb.TileDBError`
 
@@ -2510,9 +2595,9 @@ cdef class Array(object):
 
 
 cdef class DenseArray(Array):
-    """TileDB DenseArray class
+    """Class representing a dense TileDB array.
 
-    Inherits properties / methods of `tiledb.Array`
+    Inherits properties and methods of :py:class:`tiledb.Array`.
 
     """
 
@@ -2529,6 +2614,14 @@ cdef class DenseArray(Array):
         :return: A DenseArray with a single anonymous attribute
         :raises TypeError: cannot convert `uri` to unicode string
         :raises: :py:exc:`tiledb.TileDBError`
+
+        **Example:**
+
+        >>> import tiledb, numpy as np, tempfile
+        >>> ctx = tiledb.Ctx()
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     # Creates array 'array' on disk.
+        ...     A = tiledb.DenseArray.from_numpy(ctx, tmp + "/array",  np.array([1.0, 2.0, 3.0]))
 
         """
         # create an ArraySchema from the numpy array object
@@ -2566,10 +2659,35 @@ cdef class DenseArray(Array):
         :raises IndexError: invalid or unsupported index selection
         :raises: :py:exc:`tiledb.TileDBError`
 
-        >>> # many aspects of Numpy's fancy indexing is supported
-        >>> A[1:10, ...]
-        >>> A[1:10, 100:999]
-        >>> A[1, 2]
+        **Example:**
+
+        >>> import tiledb, numpy as np, tempfile
+        >>> ctx = tiledb.Ctx()
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     # Creates array 'array' on disk.
+        ...     A = tiledb.DenseArray.from_numpy(ctx, tmp + "/array",  np.ones((100, 100)))
+        ...     # Many aspects of Numpy's fancy indexing are supported:
+        ...     A[1:10, ...].shape
+        ...     A[1:10, 20:99].shape
+        ...     A[1, 2].shape
+        (9, 100)
+        (9, 79)
+        ()
+        >>> # Subselect on attributes when reading:
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(ctx, domain=dom,
+        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
+        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     tiledb.DenseArray.create(tmp + "/array", schema)
+        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='w') as A:
+        ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
+        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='r') as A:
+        ...         # Access specific attributes individually.
+        ...         A[0:5]["a1"]
+        ...         A[0:5]["a2"]
+        array([0, 0, 0, 0, 0])
+        array([1, 1, 1, 1, 1])
 
         """
         selection = index_as_tuple(selection)
@@ -2659,10 +2777,32 @@ cdef class DenseArray(Array):
         :raises ValueError: value / coordinate length mismatch
         :raises: :py:exc:`tiledb.TileDBError`
 
-        >>> # array with one attribute
-        >>> A[:] = np.array([...])
-        >>> # array with multiple attributes
-        >>> A[10:20, 35:100] = {"attr1": np.array([...]), "attr2": np.array([...])}
+        **Example:**
+
+        >>> import tiledb, numpy as np, tempfile
+        >>> ctx = tiledb.Ctx()
+        >>> # Write to single-attribute 2D array
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     # Create an array initially with all zero values
+        ...     with tiledb.DenseArray.from_numpy(ctx, tmp + "/array",  np.zeros((2, 2))) as A:
+        ...         pass
+        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='w') as A:
+        ...         # Write to the single (anonymous) attribute
+        ...         A[:] = np.array(([1,2], [3,4]))
+        >>>
+        >>> # Write to multi-attribute 2D array
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(ctx,
+        ...         tiledb.Dim(ctx, domain=(0, 1), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(ctx, domain=(0, 1), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(ctx, domain=dom,
+        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
+        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     tiledb.DenseArray.create(tmp + "/array", schema)
+        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='w') as A:
+        ...         # Write to each attribute
+        ...         A[0:2, 0:2] = {"a1": np.array(([-3, -4], [-5, -6])),
+        ...                        "a2": np.array(([1, 2], [3, 4]))}
 
         """
         cdef Domain domain = self.domain
@@ -2906,11 +3046,9 @@ def index_domain_coords(Domain dom, tuple idx):
 
 
 cdef class SparseArray(Array):
-    """
-    TileDB SparseArray class
+    """Class representing a sparse TileDB array.
 
-    Inherits properties / methods of `tiledb.Array`
-
+    Inherits properties and methods of :py:class:`tiledb.Array`.
     """
 
 
@@ -2935,10 +3073,25 @@ cdef class SparseArray(Array):
         :raises ValueError: value / coordinate length mismatch
         :raises: :py:exc:`tiledb.TileDBError`
 
-        >>> # array with one attribute
-        >>> A[I, J] = np.array([...])
-        >>> # array with multiple attributes
-        >>> A[I, J] = {"attr1": np.array([...]), "attr2": np.array([...])}
+        **Example:**
+
+        >>> import tiledb, numpy as np, tempfile
+        >>> ctx = tiledb.Ctx()
+        >>> # Write to multi-attribute 2D array
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(ctx,
+        ...         tiledb.Dim(ctx, domain=(0, 1), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(ctx, domain=(0, 1), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(ctx, domain=dom, sparse=True,
+        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
+        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     tiledb.SparseArray.create(tmp + "/array", schema)
+        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='w') as A:
+        ...         # Write in the corner cells (0,0) and (1,1) only.
+        ...         I, J = [0, 1], [0, 1]
+        ...         # Write to each attribute
+        ...         A[I, J] = {"a1": np.array([1, 2]),
+        ...                    "a2": np.array([3, 4])}
 
         """
         idx = index_as_tuple(selection)
@@ -3021,14 +3174,40 @@ cdef class SparseArray(Array):
             "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
             Nonempty attribute values are returned as Numpy 1-d arrays.
 
-        >>> # Return nonempy cells within a floating point array domain (fp index bounds are inclusive)
-        >>> A[5.0:579.9]
-        >>> # Return an OrderedDict with cell coordinates
-        >>> A[1:10, 100:999]
-        >>> # Return the NumpyRecord array of TileDB cell coordinates
-        >>> A[1:10, 100:999]["coords"]
-        >>> # return just the "dim1" coordinates values
-        >>> A[1:10, 100:999]["coords"]["dim1"]
+        **Example:**
+
+        >>> import tiledb, numpy as np, tempfile
+        >>> ctx = tiledb.Ctx()
+        >>> # Write to multi-attribute 2D array
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(ctx,
+        ...         tiledb.Dim(ctx, name="y", domain=(0, 9), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(ctx, name="x", domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(ctx, domain=dom, sparse=True,
+        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
+        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     tiledb.SparseArray.create(tmp + "/array", schema)
+        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='w') as A:
+        ...         # Write in the twp cells (0,0) and (2,3) only.
+        ...         I, J = [0, 2], [0, 3]
+        ...         # Write to each attribute
+        ...         A[I, J] = {"a1": np.array([1, 2]),
+        ...                    "a2": np.array([3, 4])}
+        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='r') as A:
+        ...         # Return an OrderedDict with cell coordinates
+        ...         A[0:3, 0:10]
+        ...         # Return the NumpyRecord array of TileDB cell coordinates
+        ...         A[0:3, 0:10]["coords"]
+        ...         # Return just the "x" coordinates values
+        ...         A[0:3, 0:10]["coords"]["x"]
+        OrderedDict([('coords', array([(0, 0), (2, 3)], dtype=[('y', '<u8'), ('x', '<u8')])), ('a1', array([1, 2])), ('a2', array([3, 4]))])
+        array([(0, 0), (2, 3)], dtype=[('y', '<u8'), ('x', '<u8')])
+        array([0, 3], dtype=uint64)
+
+        With a floating-point array domain, index bounds are inclusive, e.g.:
+
+        >>> # Return nonempty cells within a floating point array domain (fp index bounds are inclusive):
+        >>> # A[5.0:579.9]
 
         """
         dom = self.schema.domain
