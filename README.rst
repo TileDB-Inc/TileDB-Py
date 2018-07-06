@@ -1,5 +1,11 @@
+.. image:: https://github.com/TileDB-Inc/TileDB/raw/dev/doc/source/_static/tileDB_uppercase_600_112.png
+    :target: https://tiledb.io
+    :alt: TileDB logo
+    :width: 400px
+
 TileDB for Python
-#################
+=================
+
 .. image:: https://travis-ci.org/TileDB-Inc/TileDB-Py.svg?branch=dev
     :target: https://travis-ci.org/TileDB-Inc/TileDB-Py
     :alt: Travis status
@@ -7,25 +13,61 @@ TileDB for Python
     :target: https://tiledb-inc-tiledb-py.readthedocs-hosted.com/en/latest/?badge=latest
     :alt: Documentation Status
 
-``TileDB-Py`` is a Python interface to the `TileDB array storage manager <https://tiledb.io>`_.
+**Array data management made fast and easy.**
 
+`TileDB <https://tiledb.io>`_ is an efficient multi-dimensional array management system which introduces a novel on-disk format that can effectively store dense and sparse array data with support for fast updates and reads. It also features excellent compression and an efficient parallel I/O system with high scalability.
 
-Runtime Dependencies
+**TileDB-Py** is the official Python interface to TileDB.
+
+Quickstart
+----------
+
+First, install TileDB-Py with ``pip``::
+
+    $ pip install tiledb
+
+This may take a while, as the pip package will automatically download and build the native TileDB library in addition to the Python bindings.
+
+Next, save the `quickstart program <https://github.com/TileDB-Inc/TileDB-Py/blob/dev/examples/quickstart_dense.py>`_ into a file and run it::
+
+    $ wget https://github.com/TileDB-Inc/TileDB-Py/blob/dev/examples/quickstart_dense.py
+    $ python quickstart_dense.py
+    [[2 3 4]
+     [6 7 8]]
+
+Documentation
+-------------
+
+The full TileDB documentation can be found at `<https://docs.tiledb.io>`_ and includes many tutorials and examples to get you started.
+
+Installation
 ------------
-* Numpy
 
-Build Dependencies
-------------------
-* Numpy
-* Cython
-* C++11 compiler
-* CMake
+Pip
+~~~
 
-Install
-=======
+A PyPI package is available which can be installed with Pip. This package will download and install TileDB inside the site package if TileDB is not already installed on your system.
 
-Conda
-'''''
+::
+
+    $ pip install tiledb
+
+**Note** if the Numpy and Cython dependencies are not installed, pip will try to build them from source.  This can take a **long** time and make the install appear to "hang."  Pass the ``-v`` flag to pip to monitor the build process.
+
+If you wish to use a custom version of the TileDB library and the install location is not in the compiler search path, create a requirements.txt file that specifies the tiledb install path manually.
+
+::
+
+    $ cat > tiledb_requirements.txt <<EOF
+      tiledb==<version> --install-option="--tiledb=<path/to/tiledb/install>"
+      EOF
+    $ pip install -r tiledb_requirements.txt
+
+Do not forget to put the built ``.so / .dylib / .dll`` on the dynamic linker path, otherwise TileDB-Py will fail to load the shared library upon import.
+
+
+Conda Package
+~~~~~~~~~~~~~
 
 A pre-built Conda package is available that will install TileDB as well.
 
@@ -35,33 +77,23 @@ A pre-built Conda package is available that will install TileDB as well.
 
 *Note:*  Currently the pre-built TileDB conda package does not include the HDFS and S3 storage backends.
 
-Pip
-'''
+From Source
+~~~~~~~~~~~
 
-A PyPI package is available which can be installed with Pip. This package will download and install TileDB inside the site package if TileDB is not already installed on your system.
+**TileDB-Py Runtime Dependencies**
 
-:: 
+* Numpy
 
-    $ pip install tiledb
-    
-**Note** if the Numpy and Cython dependencies are not installed, pip will try to build them from source.  This can take a **long** time and make the install appear to "hang."  Pass the ``-v`` flag to pip to monitor the build process.
+**TileDB-Py Build Dependencies**
 
-If you wish to use a custom version of the TileDB library and the install location is not in the compiler search path, create a requirements.txt file that specifies the tiledb install path manually.
+* Numpy
+* Cython
+* C++11 compiler
+* CMake
 
-::
-    
-    $ cat > tiledb_requirements.txt <<EOF
-      tiledb==<version> --install-option="--tiledb=<path/to/tiledb/install>"
-      EOF
-    $ pip install -r tiledb_requirements.txt
-    
-Do not forget to put the built ``.so / .dylib / .dll`` on the dynamic linker path, otherwise TileDB-Py will fail to load the shared library upon import. 
 
-Installing TileDB-Py from source
-''''''''''''''''''''''''''''''''
-
-Installing on Linux / OSX
-''''''''''''''''''''''''''
+Linux / OSX
+'''''''''''
 
 ::
 
@@ -71,7 +103,7 @@ Installing on Linux / OSX
    $ python setup.py build_ext --inplace
    $ python setup.py install
 
-If you wish to use a custom version of the TileDB library and it is installed in a non-standard location, pass the path to `setup.py` with the ``--tiledb=`` flag.
+If you wish to use a custom version of the TileDB library and it is installed in a non-standard location, pass the path to ``setup.py`` with the ``--tiledb=`` flag.
 If you want to pass extra compiler/linker flags during the c++ extension compilation step use ``--cxxflags=`` or ``--lflags=``.
 
 ::
@@ -79,15 +111,14 @@ If you want to pass extra compiler/linker flags during the c++ extension compila
   $ python setup.py build_ext --inplace --tiledb=/home/tiledb/dist 
 
 If TileDB is installed in a non-standard location, you need to make the dynamic linker aware of ``libtiledb``'s location.
-Otherwise when importing the `tiledb` module you will get an error that the built extension module cannot find
+Otherwise when importing the ``tiledb`` module you will get an error that the built extension module cannot find
 ``libtiledb``'s symbols.
 
 ::
 
   $env LD_LIBARY_PATH="/home/tiledb/dist:$LD_LIBRARY_PATH" python -m unittest -v
 
-
-For macOS the linker env variable is ``DYLD_LIBARAY_PATH``
+For macOS the linker environment variable is ``DYLD_LIBARAY_PATH``
 
 Installing on Windows
 '''''''''''''''''''''
@@ -110,25 +141,19 @@ Once you've installed Miniconda and TileDB, open the Miniconda command prompt an
 
 Note that if you built TileDB from source, then replace ``C:\path\to\TileDB`` with ``C:\path\to\TileDB\dist``.
 
-Testing TileDB-Py from within the source folder
------------------------------------------------
+Testing TileDB-Py
+-----------------
 
-TileDB-Py can be tested without having the package installed.
-To compile the sources inplace from the source directory:
-
-::
+TileDB-Py can be tested within the source folder, without having the package installed.
+To compile the sources inplace from the source directory::
 
     $ python setup.py build_ext --inplace
 
-Tests can now be run using Python's unittest framework
-
-::
+Tests can now be run using Python's unittest framework::
 
     $ python -m unittest -v
 
-You can also install a `symlink named site-packages/tiledb.egg-link` to the development folder of TileDB-Py with:
-
-::
+You can also install a symlink named ``site-packages/tiledb.egg-link`` to the development folder of TileDB-Py with::
 
     $ pip install --editable .
 
@@ -137,31 +162,22 @@ This enables local changes to the current development repo to be reflected globa
 Developing TileDB-Py
 --------------------
 
-TileDB-Py includes a handy Conda environment definition file for setting up a test environment:
-
-::
+TileDB-Py includes a handy Conda environment definition file for setting up a test environment::
 
     $ conda env create -f environment.yml
 
 This will create a ``tiledbpy`` conda environment with all the development library dependencies.
 
-
 The easiest way to test / develop TileDB-Py across Python versions (2.7, 3.5, and 3.6),
 is using `tox <https://tox.readthedocs.io/en/latest/index.html>`_.
-TileDB includes a tox.ini file, simply run `tox` in the toplevel source directory to run the test suite against multiple installed Python versions.
-
-::
+TileDB includes a tox.ini file, simply run ``tox`` in the toplevel source directory to run the test suite against multiple installed Python versions::
 
     $ tox
 
-You can specify a particular Python version using the ``-e`` flag:
-
-::
+You can specify a particular Python version using the ``-e`` flag::
 
     $ tox -e py27
 
-If TileDB is not installed in a global system location, you must specify the install path to tox:
-
-::
+If TileDB is not installed in a global system location, you must specify the install path to tox::
 
     $ env TILEDB_PATH=/path/to/tiledb LD_LIBRARY_PATH=/path/to/tiledb/libdir:${LD_LIBRARY_PATH} tox

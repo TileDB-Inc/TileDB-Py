@@ -37,7 +37,11 @@ from .libtiledb import (
      object_type,
      ls,
      walk,
-     remove
+     remove,
+     stats_enable,
+     stats_disable,
+     stats_reset,
+     stats_dump
 )
 #
 # __all__ = [Ctx, Config, Dim, Domain, Attr, KV, ArraySchema, SparseArray, TileDBError, VFS,
