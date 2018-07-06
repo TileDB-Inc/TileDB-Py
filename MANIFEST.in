@@ -6,4 +6,6 @@ exclude .travis.yml
 exclude requirements_dev.txt
 exclude tox.ini
 
+include README.rst
+
 prune doc

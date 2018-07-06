@@ -2823,8 +2823,9 @@ cdef class DenseArray(Array):
                 subarray_shape = tuple(int(subarray[r, 1] - subarray[r, 0]) + 1
                                        for r in range(subarray.shape[0]))
                 attributes.append(attr.name)
-                values.append(
-                    np.full(subarray_shape, val, dtype=attr.dtype))
+                A = np.empty(subarray_shape, dtype=attr.dtype)
+                A[:] = val
+                values.append(A)
         elif self.nattr == 1:
             attr = self.schema.attr(0)
             attributes.append(attr.name)
