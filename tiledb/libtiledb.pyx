@@ -1570,7 +1570,7 @@ cdef class KVSchema(object):
         cdef unsigned int nattr = 0
         check_error(self.ctx,
                     tiledb_kv_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
-        return int(nattr)
+        return nattr
 
     cdef _attr_name(self, name):
         cdef bytes bname = ustring(name).encode('UTF-8')
@@ -1593,7 +1593,7 @@ cdef class KVSchema(object):
         :param key: attribute index (positional or associative)
         :type key: int or str
         :rtype: tiledb.Attr
-        :return: The ArraySchema attribute at index or with the given name (label)
+        :return: The KVSchema attribute at index or with the given name (label)
         :raises TypeError: invalid key type
 
         """
@@ -1770,7 +1770,7 @@ cdef class KV(object):
 
     def __iter__(self):
         """Return an iterator object over KV key, values"""
-        return KVIter(self)
+        return KVIter(self, self.attr(0).name)
 
     def __setitem__(self, object key, object value):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -1903,6 +1903,7 @@ cdef class KVIter(object):
     """
 
     cdef KV kv
+    cdef bytes battr
     cdef tiledb_kv_iter_t* ptr
 
     def __cinit__(self):
@@ -1912,7 +1913,9 @@ cdef class KVIter(object):
         if self.ptr != NULL:
             tiledb_kv_iter_free(&self.ptr)
 
-    def __init__(self, KV kv):
+    def __init__(self, KV kv, attr):
+        cdef bytes battr = attr.encode('UTF-8')
+
         cdef tiledb_ctx_t* ctx_ptr = kv.ctx.ptr
         cdef tiledb_kv_t* kv_ptr = kv.ptr
         cdef tiledb_kv_iter_t* kv_iter_ptr = NULL
@@ -1923,6 +1926,7 @@ cdef class KVIter(object):
         assert(kv_iter_ptr != NULL)
         self.kv = kv
         self.ptr = kv_iter_ptr
+        self.battr = battr
 
     def __iter__(self):
         return self
@@ -1949,9 +1953,7 @@ cdef class KVIter(object):
         cdef bytes bkey = PyBytes_FromStringAndSize(key_ptr, <Py_ssize_t> key_size)
         cdef const char* val_ptr = NULL
         cdef uint64_t val_size = 0
-        # TODO: need to lookup attributes
-        cdef bytes battr = b"value"
-        cdef bytes attr_ptr = PyBytes_AS_STRING(battr)
+        cdef bytes attr_ptr = PyBytes_AS_STRING(self.battr)
         rc = tiledb_kv_item_get_value(ctx_ptr, kv_item_ptr, attr_ptr,
                                       <const void**> (&val_ptr), &dtype, &val_size)
         if rc != TILEDB_OK:
@@ -1961,6 +1963,7 @@ cdef class KVIter(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return bkey.decode('UTF-8'), bval.decode('UTF-8')
+
 
 def index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -2139,6 +2142,18 @@ cdef class ArraySchema(object):
         schema.ptr = <tiledb_array_schema_t*> schema_ptr
         return schema
 
+    @staticmethod
+    def load(Ctx ctx, uri):
+        cdef bytes buri = uri.encode('UTF-8')
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_array_schema_t* array_schema_ptr = NULL
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_schema_load(ctx_ptr, uri_ptr, &array_schema_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return ArraySchema.from_ptr(ctx, array_schema_ptr)
 
     def __init__(self, Ctx ctx,
                  domain=None,
@@ -2342,7 +2357,7 @@ cdef class ArraySchema(object):
         cdef unsigned int nattr = 0
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
-        return int(nattr)
+        return nattr
 
     @property
     def ndim(self):
@@ -2415,8 +2430,8 @@ cdef class Array(object):
     cdef Ctx ctx
     cdef unicode uri
     cdef unicode mode
-    cdef ArraySchema schema
     cdef int opened
+    cdef object schema
     cdef tiledb_array_t* ptr
 
     def __cinit__(self):
@@ -2467,15 +2482,17 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             tiledb_array_free(&array_ptr)
             _raise_ctx_err(ctx_ptr, rc)
-        cdef tiledb_array_schema_t* array_schema_ptr = NULL
-        rc = tiledb_array_get_schema(ctx_ptr, array_ptr, &array_schema_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
+        cdef ArraySchema schema
+        try:
+            schema = ArraySchema.load(ctx, uri)
+        except:
+            tiledb_array_free(&array_ptr)
+            raise
         self.ctx = ctx
         self.uri = unicode(uri)
         self.mode = unicode(mode)
-        self.schema = ArraySchema.from_ptr(ctx, array_schema_ptr)
         self.opened = True
+        self.schema = schema
         self.ptr = array_ptr
 
     def __enter__(self):
@@ -2493,7 +2510,7 @@ cdef class Array(object):
             rc = tiledb_array_close(ctx_ptr, array_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        self.opened = False
+        self.schema = None
         return
 
     def reopen(self):
@@ -2510,13 +2527,16 @@ cdef class Array(object):
             rc = tiledb_array_reopen(ctx_ptr, array_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        self.opened = True
+        self.schema = ArraySchema.load(self.ctx, self.uri)
         return
 
     @property
     def schema(self):
         """The :py:class:`ArraySchema` for this array."""
-        return self.schema
+        schema = self.schema
+        if schema is None:
+            raise TileDBError("Cannot access schema, array is closed")
+        return schema
 
     @property
     def mode(self):
@@ -2524,9 +2544,16 @@ cdef class Array(object):
         return self.mode
 
     @property
-    def opened(self):
+    def isopen(self):
         """True if this array is currently open."""
-        return self.opened
+        cdef int isopen = 0
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        rc = tiledb_array_is_open(ctx_ptr, array_ptr, &isopen)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return isopen == 1
 
     @property
     def ndim(self):
@@ -2547,6 +2574,20 @@ cdef class Array(object):
     def nattr(self):
         """The number of attributes of this array."""
         return self.schema.nattr
+
+    @property
+    def coords_dtype(self):
+        """Returns the numpy record array dtype of the SparseArray coordinates
+
+        :rtype: numpy.dtype
+        :returns: coord array record dtype
+
+        """
+        # returns the record array dtype of the coordinate array
+        return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
+
+    def subarray(self, selection, coords=False, attrs=None, order=None):
+        raise NotImplementedError()
 
     def attr(self, key):
         """Returns an :py:class:`Attr` instance given an int index or string label
@@ -2594,6 +2635,32 @@ cdef class Array(object):
         self.schema.dump()
 
 
+cdef class Query(object):
+    """
+    Proxy object returned by query() to index into original array
+    on a subselection of attribution in a defined layout order
+
+    """
+
+    cdef Array array
+    cdef object attrs
+    cdef object coords
+    cdef object order
+
+    def __init__(self, array, attrs=None, coords=False, order='C'):
+        if array.mode != 'r':
+            raise ValueError("array mode must be read-only")
+        self.array = array
+        self.attrs = attrs
+        self.coords = coords
+        self.order = order
+
+    def __getitem__(self, object selection):
+        return self.array.subarray(selection,
+                                   attrs=self.attrs,
+                                   coords=self.coords,
+                                   order=self.order)
+
 cdef class DenseArray(Array):
     """Class representing a dense TileDB array.
 
@@ -2604,7 +2671,8 @@ cdef class DenseArray(Array):
     @staticmethod
     def from_numpy(Ctx ctx, uri, np.ndarray array, **kw):
         """
-        Persists a given numpy array as a TileDB DenseArray, returns a DenseArray class instance
+        Persists a given numpy array as a TileDB DenseArray,
+        returns a readonly DenseArray class instance.
 
         :param tiledb.Ctx ctx: A TileDB Context
         :param str uri: URI for the TileDB array resource
@@ -2641,7 +2709,7 @@ cdef class DenseArray(Array):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if self.schema.sparse:
-            raise ValueError("Array at {:r} is not a dense array".format(self.uri))
+            raise ValueError("Array at {} is not a dense array".format(self.uri))
         return
 
     def __len__(self):
@@ -2690,12 +2758,91 @@ cdef class DenseArray(Array):
         array([1, 1, 1, 1, 1])
 
         """
+        return self.subarray(selection)
+
+
+    def query(self, attrs=None, coords=False, order='C'):
+        """
+        Construct a proxy Query object for easy subarray queries of cells
+        for an item or region of the array across one or more attributes.
+
+        Optionally subselect over attributes, return dense result coordinate values,
+        and specify a layout a result layout / cell-order.
+
+        :param attrs: the DenseArray attributes to subselect over.
+        If attrs is None (default) all array attributes will be returned.
+        Array attributes can be defined by name or by positional index.
+        :param coords: if True, return array of coodinate value (default False).
+        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :return: A proxy Query object that can be used for indexing into the DenseArray
+        over the defined attributes, in the given result layout (order).
+
+        :raises ValueError: array is not opened for reads (mode = 'r')
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        **Example:**
+
+        # Subselect on attributes when reading:
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(ctx, domain=dom,
+        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
+        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     tiledb.DenseArray.create(tmp + "/array", schema)
+        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='w') as A:
+        ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
+        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='r') as A:
+        ...         # Access specific attributes individually.
+        ...         A.query(attrs=("a1",))[0:5]
+        array([0, 0, 0, 0, 0])
+        """
+        if not self.isopen or self.mode != 'r':
+            raise TileDBError("DenseArray is not opened for reading")
+        return Query(self, attrs=attrs, coords=coords, order=order)
+
+
+    def subarray(self, selection, coords=False, attrs=None, order=None):
+        """Retrieve data cells for an item or region of the array.
+
+        Optionally subselect over attributes, return dense result coordinate values,
+        and specify a layout a result layout / cell-order.
+
+        :param selection: tuple of scalar and/or slice objects
+        :param coords: if True, return array of coordinate value (default False).
+        :param attrs: the DenseArray attributes to subselect over.
+        If attrs is None (default) all array attributes will be returned.
+        Array attributes can be defined by name or by positional index.
+        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
+            is returned for that attribute.  If the array has multiple attributes, a \
+            :py:class:`collections.OrderedDict` is with dense Numpy subarrays for each attribute.
+        :raises IndexError: invalid or unsupported index selection
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        if not self.isopen or self.mode != 'r':
+            raise TileDBError("DenseArray is not opened for reading")
+        cdef tiledb_layout_t layout = TILEDB_UNORDERED
+        if order is None or order == 'C':
+            layout = TILEDB_ROW_MAJOR
+        elif order == 'F':
+            layout = TILEDB_COL_MAJOR
+        elif order == 'G':
+            layout = TILEDB_GLOBAL_ORDER
+        else:
+            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
+        attr_names = list()
+        if coords:
+            attr_names.append("coords")
+        if attrs is None:
+            attr_names.extend(self.schema.attr(i).name for i in range(self.schema.nattr))
+        else:
+            attr_names.extend(self.schema.attr(a).name for a in attrs)
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         subarray = index_domain_subarray(self.schema.domain, idx)
-        attr_names = [self.schema.attr(i).name for i in range(self.schema.nattr)]
-        out = self._read_dense_subarray(subarray, attr_names)
+        out = self._read_dense_subarray(subarray, attr_names, layout)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
             for (k, v) in out.items():
@@ -2704,13 +2851,13 @@ cdef class DenseArray(Array):
             for (k, v) in out.items():
                 out[k] = v.squeeze(axis=drop_axes)
         # attribute is anonymous, just return the result
-        if self.schema.nattr == 1:
+        if not coords and self.schema.nattr == 1:
             attr = self.schema.attr(0)
             if attr.isanon:
                 return out[attr.name]
         return out
-
-    cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names):
+ 
+    cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
 
@@ -2718,12 +2865,21 @@ cdef class DenseArray(Array):
         cdef tuple shape = \
             tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
                   for r in range(self.schema.ndim))
-
+        
         cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
         out = OrderedDict()
         for i in range(nattr):
             name = attr_names[i]
-            buffer = np.empty(shape=shape, dtype=self.schema.attr(name).dtype)
+            if name == "coords":
+                dtype = self.coords_dtype
+            else:
+                dtype = self.schema.attr(name).dtype
+            if layout == TILEDB_ROW_MAJOR:
+                buffer = np.empty(shape=shape, dtype=dtype, order='C')
+            elif layout == TILEDB_COL_MAJOR:
+                buffer = np.empty(shape=shape, dtype=dtype, order='F')
+            else:
+                buffer = np.empty(shape=np.prod(shape), dtype=dtype)
             buffer_sizes[i] = buffer.nbytes
             out[name] = buffer
 
@@ -2733,7 +2889,7 @@ cdef class DenseArray(Array):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
-        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
         if rc != TILEDB_OK:
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
@@ -2749,10 +2905,14 @@ cdef class DenseArray(Array):
         cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
         try:
             for i, (name, buffer) in enumerate(out.items()):
-                battr_name = name.encode('UTF-8')
                 buffer_ptr = np.PyArray_DATA(buffer)
-                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
-                                             buffer_ptr, &(buffer_sizes_ptr[i]))
+                if name == "coords":
+                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(),
+                                                 buffer_ptr, &(buffer_sizes_ptr[i]))
+                else:
+                    battr_name = name.encode('UTF-8')
+                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                                 buffer_ptr, &(buffer_sizes_ptr[i]))
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
         except:
@@ -2805,6 +2965,8 @@ cdef class DenseArray(Array):
         ...                        "a2": np.array(([1, 2], [3, 4]))}
 
         """
+        if not self.isopen or self.mode != 'w':
+            raise TileDBError("DenseArray is not opened for writing")
         cdef Domain domain = self.domain
         cdef tuple idx = replace_ellipsis(domain, index_as_tuple(selection))
         cdef np.ndarray subarray = index_domain_subarray(domain, idx)
@@ -2826,7 +2988,7 @@ cdef class DenseArray(Array):
                 A = np.empty(subarray_shape, dtype=attr.dtype)
                 A[:] = val
                 values.append(A)
-        elif self.nattr == 1:
+        elif self.schema.nattr == 1:
             attr = self.schema.attr(0)
             attributes.append(attr.name)
             values.append(
@@ -2914,6 +3076,8 @@ cdef class DenseArray(Array):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        if not self.isopen or self.mode != 'w':
+            raise TileDBError("DenseArray is not opened for writing")
         if self.schema.nattr != 1:
             raise ValueError("cannot write_direct to a multi-attribute DenseArray")
         if not array.flags.c_contiguous and not array.flags.f_contiguous:
@@ -2971,6 +3135,8 @@ cdef class DenseArray(Array):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        if not self.isopen or self.mode != 'r':
+            raise TileDBError("DenseArray is not opened for reading")
         cdef Ctx ctx = self.ctx
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
@@ -2988,14 +3154,11 @@ cdef class DenseArray(Array):
             battr_name = attr.name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
 
+        order = 'C'
         cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
-        #self.schema._cell_order(&cell_layout)
-        if cell_layout == TILEDB_ROW_MAJOR:
-            order = 'C'
-        elif cell_layout == TILEDB_COL_MAJOR:
+        if self.schema.cell_order == 'col-major' and self.schema.tile_order == 'col-major':
             order = 'F'
-        else:
-            raise ValueError("invalid dense cell order {}".format(_tiledb_layout_string(cell_layout)))
+            cell_layout = TILEDB_COL_MAJOR
 
         out = np.empty(self.schema.domain.shape, dtype=attr.dtype, order=order)
 
@@ -3052,7 +3215,6 @@ cdef class SparseArray(Array):
     Inherits properties and methods of :py:class:`tiledb.Array`.
     """
 
-
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if not self.schema.sparse:
@@ -3095,6 +3257,8 @@ cdef class SparseArray(Array):
         ...                    "a2": np.array([3, 4])}
 
         """
+        if not self.isopen or self.mode != 'w':
+            raise TileDBError("SparseArray is not opened for writing")
         idx = index_as_tuple(selection)
         sparse_coords = index_domain_coords(self.schema.domain, idx)
         ncells = sparse_coords.shape[0]
@@ -3174,6 +3338,8 @@ cdef class SparseArray(Array):
         :returns: An OrderedDict is returned with "coords" coordinate values being the first key. \
             "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
             Nonempty attribute values are returned as Numpy 1-d arrays.
+        :raises IndexError: invalid or unsupported index selection
+        :raises: :py:exc:`tiledb.TileDBError`
 
         **Example:**
 
@@ -3211,25 +3377,95 @@ cdef class SparseArray(Array):
         >>> # A[5.0:579.9]
 
         """
+        return self.subarray(selection)
+
+    def query(self, attrs=None, coords=True, order='C'):
+        """
+        Construct a proxy Query object for easy subarray queries of cells
+        for an item or region of the array across one or more attributes.
+
+        Optionally subselect over attributes, return dense result coordinate values,
+        and specify a layout a result layout / cell-order.
+
+        :param attrs: the SparseArray attributes to subselect over.
+        If attrs is None (default) all array attributes will be returned.
+        Array attributes can be defined by name or by positional index.
+        :param coords: if True, return array of coodinate value (default False).
+        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :return: A proxy Query object that can be used for indexing into the SparseArray
+        over the defined attributes, in the given result layout (order).
+
+        **Example:**
+
+        >>> import tiledb, numpy as np, tempfile
+        >>> ctx = tiledb.Ctx()
+        >>> # Write to multi-attribute 2D array
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(ctx,
+        ...         tiledb.Dim(ctx, name="y", domain=(0, 9), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(ctx, name="x", domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(ctx, domain=dom, sparse=True,
+        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
+        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     tiledb.SparseArray.create(tmp + "/array", schema)
+        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='w') as A:
+        ...         # Write in the twp cells (0,0) and (2,3) only.
+        ...         I, J = [0, 2], [0, 3]
+        ...         # Write to each attribute
+        ...         A[I, J] = {"a1": np.array([1, 2]),
+        ...                    "a2": np.array([3, 4])}
+        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='r') as A:
+        ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]
+        """
+        if not self.isopen:
+            raise TileDBError("SparseArray is not opened")
+        return Query(self, attrs=attrs, coords=coords, order=order)
+
+    def subarray(self, selection, coords=True, attrs=None, order=None):
+        """
+        Retrieve coordinate and data cells for an item or region of the array.
+
+        Optionally subselect over attributes, return sparse result coordinate values,
+        and specify a layout a result layout / cell-order.
+
+        :param selection: tuple of scalar and/or slice objects
+        :param coords: if True, return array of coordinate value (default True).
+        :param attrs: the SparseArray attributes to subselect over.
+        If attrs is None (default) all array attributes will be returned.
+        Array attributes can be defined by name or by positional index.
+        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :returns: An OrderedDict is returned with "coords" coordinate values being the first key. \
+            "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
+            Nonempty attribute values are returned as Numpy 1-d arrays.
+
+
+        """
+        if not self.isopen or self.mode != 'r':
+            raise TileDBError("SparseArray is not opened for reading")
+        cdef tiledb_layout_t layout = TILEDB_UNORDERED
+        if order is None or order == 'C':
+            layout = TILEDB_ROW_MAJOR
+        elif order == 'F':
+            layout = TILEDB_COL_MAJOR
+        elif order == 'G':
+            layout = TILEDB_GLOBAL_ORDER
+        else:
+            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
+        attr_names = list()
+        if coords:
+            attr_names.append("coords")
+        if attrs is None:
+            attr_names.extend(self.schema.attr(i).name for i in range(self.schema.nattr))
+        else:
+            attr_names.extend(self.schema.attr(a).name for a in attrs)
         dom = self.schema.domain
         idx = index_as_tuple(selection)
         idx = replace_ellipsis(dom, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
         subarray = index_domain_subarray(dom, idx)
-        attr_names = [self.schema.attr(i).name for i in range(self.schema.nattr)]
-        return self._read_sparse_subarray(subarray, attr_names)
+        return self._read_sparse_subarray(subarray, attr_names, layout)
 
-    cpdef np.dtype coords_dtype(self):
-        """Returns the numpy record array dtype of the SparseArray coordinates
-
-        :rtype: numpy.dtype
-        :returns: coord array record dtype
-
-        """
-        # returns the record array dtype of the coordinate array
-        return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
-
-    cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names):
+    cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout):
         # ctx references
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
@@ -3241,7 +3477,7 @@ cdef class SparseArray(Array):
         rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_READ, &query_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, TILEDB_ROW_MAJOR)
+        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
         if rc != TILEDB_OK:
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
@@ -3251,7 +3487,7 @@ cdef class SparseArray(Array):
             _raise_ctx_err(ctx_ptr, rc)
 
         # check the max read buffer size
-        cdef Py_ssize_t nattr = len(attr_names) + 1  # coordinates
+        cdef Py_ssize_t nattr = len(attr_names)
         cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
         if buffer_sizes_ptr == NULL:
             tiledb_query_free(&query_ptr)
@@ -3260,11 +3496,12 @@ cdef class SparseArray(Array):
         cdef bytes battr_name
         try:
             for i in range(nattr):
-                if i == 0:
+                name = attr_names[i]
+                if name == "coords":
                     rc = tiledb_array_max_buffer_size(ctx_ptr, array_ptr, tiledb_coords(),
                                                       subarray_ptr, &(buffer_sizes_ptr[0]))
                 else:
-                    battr_name = attr_names[i - 1].encode('UTF-8')
+                    battr_name = name.encode('UTF-8')
                     rc = tiledb_array_max_buffer_size(ctx_ptr, array_ptr, battr_name,
                                                       subarray_ptr, &(buffer_sizes_ptr[i]))
                 if rc != TILEDB_OK:
@@ -3293,12 +3530,12 @@ cdef class SparseArray(Array):
                 raise MemoryError()
         try:
             for i in range(nattr):
-                # coords
-                if i == 0:
+                name = attr_names[i]
+                if name == "coords":
                     rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(),
                                                   buffers_ptr[0], &(buffer_sizes_ptr[0]))
                 else:
-                    battr_name = attr_names[i - 1].encode('UTF-8')
+                    battr_name = name.encode('UTF-8')
                     rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
                                                  buffers_ptr[i], &(buffer_sizes_ptr[i]))
                 if rc != TILEDB_OK:
@@ -3310,6 +3547,7 @@ cdef class SparseArray(Array):
             PyMem_Free(buffers_ptr)
             tiledb_query_free(&query_ptr)
             raise
+
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
         tiledb_query_free(&query_ptr)
@@ -3323,9 +3561,12 @@ cdef class SparseArray(Array):
         # collect a list of dtypes for resulting to construct array
         dtypes = list()
         try:
-            dtypes.append(self.coords_dtype())
-            for i in range(1, nattr):
-                dtypes.append(self.attr(i - 1).dtype)
+            for i in range(nattr):
+                name = attr_names[i]
+                if name == "coords":
+                    dtypes.append(self.coords_dtype)
+                else:
+                    dtypes.append(self.attr(name).dtype)
             # we need to increase the reference count of all dtype objects
             # because PyArray_NewFromDescr steals a reference
             for i in range(nattr):
@@ -3340,28 +3581,12 @@ cdef class SparseArray(Array):
         cdef object out = OrderedDict()
         # all results are 1-d vectors
         cdef np.npy_intp dims[1]
-        # coordinates
-        try:
-            dtype = dtypes[0]
-            dims[0] = buffer_sizes_ptr[0] / dtype.itemsize
-            out["coords"] = PyArray_NewFromDescr(
-                <PyTypeObject*> np.ndarray,
-                dtype, 1, dims, NULL,
-                PyMem_Realloc(buffers_ptr[0], <size_t>(buffer_sizes_ptr[0])),
-                np.NPY_OWNDATA, <object> NULL)
-        except:
-            PyMem_Free(buffer_sizes_ptr)
-            for i in range(nattr):
-                PyMem_Free(buffers_ptr[i])
-            PyMem_Free(buffers_ptr)
-            raise
-
-        # attributes
-        for i in range(1, nattr):
+        for i in range(nattr):
             try:
+                name = attr_names[i]
                 dtype = dtypes[i]
                 dims[0] = buffer_sizes_ptr[i] / dtypes[i].itemsize
-                out[attr_names[i - 1]] = \
+                out[name] = \
                     PyArray_NewFromDescr(
                         <PyTypeObject*> np.ndarray,
                         dtype, 1, dims, NULL,
@@ -3378,6 +3603,7 @@ cdef class SparseArray(Array):
         PyMem_Free(buffer_sizes_ptr)
         PyMem_Free(buffers_ptr)
         return out
+
 
 def consolidate(Ctx ctx, path):
     """Consolidates a TileDB Array updates for improved read performance
