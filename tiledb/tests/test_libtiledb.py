@@ -350,7 +350,7 @@ class ArrayTest(DiskTestCase):
 
         # load array in readonly mode
         array = tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r')
-        self.assertTrue(array.opened)
+        self.assertTrue(array.isopen)
         self.assertEqual(array.schema, schema)
         self.assertEqual(array.mode, 'r')
 
@@ -361,10 +361,15 @@ class ArrayTest(DiskTestCase):
         array.consolidate()
 
         array.reopen()
-        self.assertTrue(array.opened)
+        self.assertTrue(array.isopen)
 
         array.close()
-        self.assertEqual(array.opened, False)
+        self.assertEqual(array.isopen, False)
+
+        with self.assertRaises(tiledb.TileDBError):
+            # cannot get schema from closed array
+            array.schema
+
         with self.assertRaises(tiledb.TileDBError):
             # cannot re-open a closed array
             array.reopen()
@@ -644,7 +649,8 @@ class DenseArrayTest(DiskTestCase):
     def test_multiple_attributes(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(ctx,
-                       tiledb.Dim(ctx, domain=(0, 7), tile=8, dtype=int))
+                       tiledb.Dim(ctx, domain=(0, 1), tile=1, dtype=int),
+                       tiledb.Dim(ctx, domain=(0, 3), tile=4, dtype=int))
         attr_int = tiledb.Attr(ctx, "ints", dtype=int)
         attr_float = tiledb.Attr(ctx, "floats", dtype=float)
         schema = tiledb.ArraySchema(ctx,
@@ -652,8 +658,10 @@ class DenseArrayTest(DiskTestCase):
                                     attrs=(attr_int, attr_float))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        V_ints = np.array([0, 1, 2, 3, 4, 6, 7, 5])
-        V_floats = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 5.0])
+        V_ints = np.array([[0, 1, 2, 3,],
+                           [4, 6, 7, 5]])
+        V_floats = np.array([[0.0, 1.0, 2.0, 3.0,],
+                             [4.0, 6.0, 7.0, 5.0]])
 
         V = {"ints": V_ints, "floats": V_floats}
         with tiledb.DenseArray(ctx, self.path("foo"), mode='w') as T:
@@ -663,6 +671,26 @@ class DenseArrayTest(DiskTestCase):
             R = T[:]
             assert_array_equal(V["ints"], R["ints"])
             assert_array_equal(V["floats"], R["floats"])
+
+            R = T.query(attrs=("ints",))[1:3]
+            assert_array_equal(V["ints"][1:3], R["ints"])
+
+            R = T.query(attrs=("floats",), order='F')[:]
+            self.assertTrue(R["floats"].flags.f_contiguous)
+
+            R = T.query(attrs=("ints",), coords=True)[0, 0:3]
+            self.assertTrue("coords" in R)
+            assert_array_equal(R["coords"],
+                               np.array([(0, 0), (0, 1), (0, 2)],
+                                        dtype=[('__dim_0', '<i8'),
+                                               ('__dim_1', '<i8')]))
+
+            # Global order returns results as a linear buffer
+            R = T.query(attrs=("ints",), order='G')[:]
+            self.assertEqual(R["ints"].shape, (8,))
+
+            with self.assertRaises(tiledb.TileDBError):
+                T.query(attrs=("unknown"))[:]
 
         with tiledb.DenseArray(ctx, self.path("foo"), mode='w') as T:
             # check error ncells length
@@ -817,6 +845,11 @@ class SparseArray(DiskTestCase):
 
             # retrieve just valid coordinates in subarray T[40:60]
             assert_array_equal(T[40:61]["coords"]["x"], [50, 60])
+
+            #TODO: dropping coords with one anon value returns just an array
+            res = T.query(coords=False)[40:61]
+            assert_array_equal(res[""], [1.0, 2.0])
+            self.assertEqual(("coords" in res), False)
 
 
 class DenseIndexing(DiskTestCase):
