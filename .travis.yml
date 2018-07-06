@@ -34,3 +34,10 @@ script:
   - python $TRAVIS_BUILD_DIR/examples/writing_dense_multiple.py
   - python $TRAVIS_BUILD_DIR/examples/writing_dense_padding.py
   - python $TRAVIS_BUILD_DIR/examples/writing_sparse_multiple.py
+  - python $TRAVIS_BUILD_DIR/examples/config.py
+  - python $TRAVIS_BUILD_DIR/examples/errors.py
+  - python $TRAVIS_BUILD_DIR/examples/fragments_consolidation.py
+  - python $TRAVIS_BUILD_DIR/examples/kv.py
+  - python $TRAVIS_BUILD_DIR/examples/multi_attribute.py
+  - rm -rf my_group && python $TRAVIS_BUILD_DIR/examples/object.py
+  - python $TRAVIS_BUILD_DIR/examples/vfs.py
