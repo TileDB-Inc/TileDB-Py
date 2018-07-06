@@ -61,7 +61,7 @@ def create_array():
                                 attrs=[tiledb.Attr(ctx, name="a", dtype=np.int32)])
 
     # Create the (empty) array on disk.
-    tiledb.DenseArray.create(array_name, schema)
+    tiledb.SparseArray.create(array_name, schema)
 
 
 def write_array():
