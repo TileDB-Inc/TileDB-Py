@@ -1,17 +1,19 @@
 .. image:: https://github.com/TileDB-Inc/TileDB/raw/dev/doc/source/_static/tileDB_uppercase_600_112.png
     :target: https://tiledb.io
     :alt: TileDB logo
-    :width: 400px
+    :width: 400
 
-TileDB for Python
-=================
+|
 
 .. image:: https://travis-ci.org/TileDB-Inc/TileDB-Py.svg?branch=dev
     :target: https://travis-ci.org/TileDB-Inc/TileDB-Py
     :alt: Travis status
+
 .. image:: https://readthedocs.com/projects/tiledb-inc-tiledb-py/badge/?version=latest
     :target: https://tiledb-inc-tiledb-py.readthedocs-hosted.com/en/latest/?badge=latest
     :alt: Documentation Status
+
+|
 
 **Array data management made fast and easy.**
 
@@ -35,10 +37,14 @@ Next, save the `quickstart program <https://github.com/TileDB-Inc/TileDB-Py/blob
     [[2 3 4]
      [6 7 8]]
 
+The dense quickstart program simply creates a dense array on disk, writes some simple data to it, and reads a slice of the data back, printing the slice to the console.
+
 Documentation
 -------------
 
 The full TileDB documentation can be found at `<https://docs.tiledb.io>`_ and includes many tutorials and examples to get you started.
+
+The latest Python API reference can be found at `<https://docs.tiledb.io/projects/tiledb-py/en/latest/python-api.html>`_.
 
 Installation
 ------------
@@ -46,13 +52,13 @@ Installation
 Pip
 ~~~
 
-A PyPI package is available which can be installed with Pip. This package will download and install TileDB inside the site package if TileDB is not already installed on your system.
+A PyPI package is available which can be installed with Pip. This package will download and install the native TileDB library inside the site package if TileDB is not already installed on your system.
 
 ::
 
     $ pip install tiledb
 
-**Note** if the Numpy and Cython dependencies are not installed, pip will try to build them from source.  This can take a **long** time and make the install appear to "hang."  Pass the ``-v`` flag to pip to monitor the build process.
+Note: if the Numpy and Cython dependencies are not installed, pip will try to build them from source.  This can take a **long** time and make the install appear to "hang."  Pass the ``-v`` flag to pip to monitor the build process.
 
 If you wish to use a custom version of the TileDB library and the install location is not in the compiler search path, create a requirements.txt file that specifies the tiledb install path manually.
 
@@ -75,27 +81,28 @@ A pre-built Conda package is available that will install TileDB as well.
 
     $ conda install -c conda-forge tiledb-py
 
-*Note:*  Currently the pre-built TileDB conda package does not include the HDFS and S3 storage backends.
+Note: Currently the pre-built TileDB conda package does not include the HDFS and S3 storage backends.
 
-From Source
-~~~~~~~~~~~
+Installing From Source
+~~~~~~~~~~~~~~~~~~~~~~
 
-**TileDB-Py Runtime Dependencies**
-
-* Numpy
-
-**TileDB-Py Build Dependencies**
+TileDB-Py Build Dependencies
+''''''''''''''''''''''''''''
 
 * Numpy
 * Cython
 * C++11 compiler
 * CMake
 
+TileDB-Py Runtime Dependencies
+''''''''''''''''''''''''''''''
+
+* Numpy
 
 Linux / OSX
 '''''''''''
 
-::
+Simply execute the following commands::
 
    $ git clone https://github.com/TileDB-Inc/TileDB-Py.git
    $ cd TileDB-Py
@@ -104,21 +111,19 @@ Linux / OSX
    $ python setup.py install
 
 If you wish to use a custom version of the TileDB library and it is installed in a non-standard location, pass the path to ``setup.py`` with the ``--tiledb=`` flag.
-If you want to pass extra compiler/linker flags during the c++ extension compilation step use ``--cxxflags=`` or ``--lflags=``.
+If you want to pass extra compiler/linker flags during the C++ extension compilation step use ``--cxxflags=`` or ``--lflags=``.
 
 ::
 
   $ python setup.py build_ext --inplace --tiledb=/home/tiledb/dist 
 
-If TileDB is installed in a non-standard location, you need to make the dynamic linker aware of ``libtiledb``'s location.
+If TileDB is installed in a non-standard location, you also need to make the dynamic linker aware of ``libtiledb``'s location.
 Otherwise when importing the ``tiledb`` module you will get an error that the built extension module cannot find
-``libtiledb``'s symbols.
+``libtiledb``'s symbols::
 
-::
+  $ env LD_LIBRARY_PATH="/home/tiledb/dist:$LD_LIBRARY_PATH" python -m unittest -v
 
-  $env LD_LIBARY_PATH="/home/tiledb/dist:$LD_LIBRARY_PATH" python -m unittest -v
-
-For macOS the linker environment variable is ``DYLD_LIBARAY_PATH``
+For macOS the linker environment variable is ``DYLD_LIBRARY_PATH``
 
 Installing on Windows
 '''''''''''''''''''''
@@ -141,26 +146,8 @@ Once you've installed Miniconda and TileDB, open the Miniconda command prompt an
 
 Note that if you built TileDB from source, then replace ``C:\path\to\TileDB`` with ``C:\path\to\TileDB\dist``.
 
-Testing TileDB-Py
------------------
-
-TileDB-Py can be tested within the source folder, without having the package installed.
-To compile the sources inplace from the source directory::
-
-    $ python setup.py build_ext --inplace
-
-Tests can now be run using Python's unittest framework::
-
-    $ python -m unittest -v
-
-You can also install a symlink named ``site-packages/tiledb.egg-link`` to the development folder of TileDB-Py with::
-
-    $ pip install --editable .
-
-This enables local changes to the current development repo to be reflected globally
-
-Developing TileDB-Py
---------------------
+Developing and testing TileDB-Py
+--------------------------------
 
 TileDB-Py includes a handy Conda environment definition file for setting up a test environment::
 
@@ -181,3 +168,17 @@ You can specify a particular Python version using the ``-e`` flag::
 If TileDB is not installed in a global system location, you must specify the install path to tox::
 
     $ env TILEDB_PATH=/path/to/tiledb LD_LIBRARY_PATH=/path/to/tiledb/libdir:${LD_LIBRARY_PATH} tox
+
+You can also run the unittests from the source folder without having the package installed. First build the package in place from the source directory::
+
+    $ python setup.py build_ext --inplace
+
+Tests can now be run using Python's unittest framework::
+
+    $ python -m unittest -v
+
+You can also install a symlink named ``site-packages/tiledb.egg-link`` to the development folder of TileDB-Py with::
+
+    $ pip install --editable .
+
+This enables local changes to the current development repo to be reflected globally.
