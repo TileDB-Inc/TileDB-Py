@@ -29,3 +29,8 @@ script:
   - python $TRAVIS_BUILD_DIR/examples/quickstart_dense.py
   - python $TRAVIS_BUILD_DIR/examples/quickstart_sparse.py
   - python $TRAVIS_BUILD_DIR/examples/quickstart_kv.py
+  - python $TRAVIS_BUILD_DIR/examples/reading_dense_layouts.py
+  - python $TRAVIS_BUILD_DIR/examples/reading_sparse_layouts.py
+  - python $TRAVIS_BUILD_DIR/examples/writing_dense_multiple.py
+  - python $TRAVIS_BUILD_DIR/examples/writing_dense_padding.py
+  - python $TRAVIS_BUILD_DIR/examples/writing_sparse_multiple.py
