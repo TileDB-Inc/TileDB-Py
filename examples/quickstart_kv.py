@@ -51,7 +51,7 @@ def create_array():
         print("KV Array already exists.")
         sys.exit(0)
 
-    # The KV array will have a single attribute "a" storing an integer.
+    # The KV array will have a single attribute "a" storing a string.
     schema = tiledb.KVSchema(ctx, attrs=[tiledb.Attr(ctx, name="a", dtype=bytes)])
 
     # Create the (empty) array on disk.
