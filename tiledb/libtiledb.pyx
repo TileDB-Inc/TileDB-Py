@@ -330,7 +330,7 @@ cdef class Config(object):
         return
 
     def __getitem__(self, object key):
-        """Sets a config parameter value.
+        """Gets a config parameter value.
 
         :param str key: Name of parameter to get
         """
