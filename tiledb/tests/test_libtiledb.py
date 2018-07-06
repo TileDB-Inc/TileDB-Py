@@ -38,6 +38,28 @@ class Config(DiskTestCase):
         config = ctx.config()
         self.assertEqual(config["sm.tile_cache_size"], "100")
 
+    def test_vfs_config(self):
+        config = tiledb.Config()
+        config["vfs.min_parallel_size"] = 1
+        ctx = tiledb.Ctx()
+        self.assertEqual(ctx.config()["vfs.min_parallel_size"], "10485760")
+        vfs = tiledb.VFS(ctx, config)
+        self.assertEqual(vfs.config()["vfs.min_parallel_size"], "1")
+
+    def test_config_iter(self):
+        config = tiledb.Config()
+        k, v = [], []
+        for p in config.items():
+            k.append(p[0])
+            v.append(p[1])
+        self.assertEqual(len(k), 29)
+
+        k, v = [], []
+        for p in config.items("vfs.s3."):
+            k.append(p[0])
+            v.append(p[1])
+        self.assertEqual(len(k), 15)
+
     def test_config_bad_param(self):
         config = tiledb.Config()
         config["sm.foo"] = "bar"
@@ -133,6 +155,14 @@ class GroupTest(GroupTestCase):
 
         self.assertFalse(self.is_group(ctx, self.group3))
         self.assertFalse(self.is_group(ctx, self.group4))
+
+    def test_move_group(self):
+        ctx = tiledb.Ctx()
+
+        self.assertTrue(self.is_group(ctx, self.group2))
+        tiledb.move(ctx, self.group2, self.group2 + "_moved")
+        self.assertFalse(self.is_group(ctx, self.group2))
+        self.assertTrue(self.is_group(ctx, self.group2 + "_moved"))
 
 
 class DimensionTest(unittest.TestCase):

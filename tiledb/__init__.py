@@ -38,6 +38,7 @@ from .libtiledb import (
      ls,
      walk,
      remove,
+     move,
      stats_enable,
      stats_disable,
      stats_reset,

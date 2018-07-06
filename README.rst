@@ -121,7 +121,7 @@ If TileDB is installed in a non-standard location, you also need to make the dyn
 Otherwise when importing the ``tiledb`` module you will get an error that the built extension module cannot find
 ``libtiledb``'s symbols::
 
-  $ env LD_LIBRARY_PATH="/home/tiledb/dist:$LD_LIBRARY_PATH" python -m unittest -v
+  $ env LD_LIBRARY_PATH="/home/tiledb/dist/lib:$LD_LIBRARY_PATH" python -m unittest -v
 
 For macOS the linker environment variable is ``DYLD_LIBRARY_PATH``
 
