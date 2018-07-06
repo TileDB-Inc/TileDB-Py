@@ -178,7 +178,7 @@ class LazyCommandClass(dict):
 
     def __contains__(self, key):
         return (
-                key in ['build_ext', 'bdist_wheel']
+                key in ['build_ext', 'bdist_wheel', 'bdist_egg']
                 or super(LazyCommandClass, self).__contains__(key)
         )
 
@@ -192,6 +192,8 @@ class LazyCommandClass(dict):
             return self.make_build_ext_cmd()
         elif key == 'bdist_wheel':
             return self.make_bdist_wheel_cmd()
+        elif key == 'bdist_egg':
+            return self.make_bdist_egg_cmd()
         else:
             return super(LazyCommandClass, self).__getitem__(key)
 
@@ -243,6 +245,20 @@ class LazyCommandClass(dict):
 
         return bdist_wheel_cmd
 
+    def make_bdist_egg_cmd(self):
+        """
+        :return: A command class implementing 'bdist_egg'.
+        """
+        from setuptools.command.bdist_egg import bdist_egg
+
+        class bdist_egg_cmd(bdist_egg):
+            def run(self):
+                # This may modify package_data:
+                find_or_install_libtiledb(self)
+                bdist_egg.run(self)
+
+        return bdist_egg_cmd
+
 tests_require = []
 if ver < (3,):
     tests_require.extend(["unittest2", "mock"])
@@ -280,9 +296,13 @@ if TILEDB_PATH != '':
     lib_dirs += [os.path.join(TILEDB_PATH, 'lib')]
     inc_dirs += [os.path.join(TILEDB_PATH, 'include')]
 
+with open('README.rst') as f:
+    readme_rst = f.read()
+
 setup(
     name='tiledb',
     description="Pythonic interface to the TileDB array storage manager",
+    long_description=readme_rst,
     author='TileDB, Inc.',
     author_email='help@tiledb.io',
     maintainer='TileDB, Inc.',
@@ -309,11 +329,12 @@ setup(
         )
     ],
     setup_requires=[
-        'cmake==3.11.0',
-        'cython>=0.22',
+        'cmake>=3.11.0',
+        'cython>=0.27',
         'numpy>=1.7',
-        'setuptools>18.0',
-        'setuptools-scm>1.5.4'
+        'setuptools>=18.0',
+        'setuptools_scm>=1.5.4',
+        'wheel>=0.30'
     ],
     install_requires=[
         'numpy>=1.7',
@@ -322,6 +343,7 @@ setup(
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
     classifiers=[
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
         'Intended Audience :: Science/Research',
@@ -329,6 +351,8 @@ setup(
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Operating System :: Unix',
+        'Operating System :: POSIX :: Linux',
+        'Operating System :: MacOS :: MacOS X',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
