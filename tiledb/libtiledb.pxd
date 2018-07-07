@@ -393,7 +393,7 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_array_schema_load(
         tiledb_ctx_t* ctx,
         const char* array_uri,
-        tiledb_array_schema_t** array_schema)
+        tiledb_array_schema_t** array_schema) nogil
 
     int tiledb_array_schema_get_array_type(
         tiledb_ctx_t* ctx,
@@ -550,6 +550,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const char* uri,
         const tiledb_array_schema_t* array_schema) nogil
+
+    int tiledb_array_is_open(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        int* is_open)
 
     int tiledb_array_consolidate(
         tiledb_ctx_t* ctx,
