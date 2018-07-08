@@ -398,7 +398,7 @@ cdef class Config(object):
         output.extend(format_str.format(p, v) for p, v in zip(params, values))
         return "\n".join(output)
 
-    def items(self, prefix=""):
+    def items(self, prefix=u""):
         """Returns an iterator object over Config paramters, values
 
         :param str prefix: return only parameters with a given prefix
@@ -408,7 +408,7 @@ cdef class Config(object):
         """
         return ConfigItems(self, prefix=prefix)
 
-    def keys(self, prefix=""):
+    def keys(self, prefix=u""):
         """Returns an iterator object over Config parameters (keys)
 
         :param str prefix: return only parameters with a given prefix
@@ -418,7 +418,7 @@ cdef class Config(object):
         """
         return ConfigKeys(self, prefix=prefix)
 
-    def values(self, prefix=""):
+    def values(self, prefix=u""):
         """Returns an iterator object over Config values
 
         :param str prefix: return only parameters with a given prefix
@@ -428,7 +428,7 @@ cdef class Config(object):
         """
         return ConfigValues(self, prefix=prefix)
 
-    def dict(self, prefix=""):
+    def dict(self, prefix=u""):
         """Returns a dict representation of a Config object
 
         :param str prefix: return only parameters with a given prefix
@@ -503,7 +503,7 @@ cdef class ConfigKeys(object):
     """
     cdef ConfigItems config_items
 
-    def __init__(self, Config config, unicode prefix=u""):
+    def __init__(self, Config config, prefix=u""):
         self.config_items = ConfigItems(config, prefix=prefix)
 
     def __iter__(self):
@@ -520,7 +520,7 @@ cdef class ConfigValues(object):
     """
     cdef ConfigItems config_items
 
-    def __init__(self, Config config, unicode prefix=u""):
+    def __init__(self, Config config, prefix=u""):
         self.config_items = ConfigItems(config, prefix=prefix)
 
     def __iter__(self):
@@ -545,7 +545,7 @@ cdef class ConfigItems(object):
         if self.ptr != NULL:
             tiledb_config_iter_free(&self.ptr)
 
-    def __init__(self, Config config, unicode prefix=u""):
+    def __init__(self, Config config, prefix=u""):
         cdef bytes bprefix = prefix.encode("UTF-8")
         cdef const char* prefix_ptr = PyBytes_AS_STRING(bprefix)
         cdef tiledb_config_iter_t* config_iter_ptr = NULL
@@ -3698,6 +3698,28 @@ def remove(Ctx ctx, path):
     return
 
 
+def move(Ctx ctx, old_path, new_path):
+    """Moves a TileDB resource (group, array, key-value).
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str old_path: path (URI) of the TileDB resource to move
+    :param str new_path: path (URI) of the destination
+    :raises TypeError: path cannot be converted to a unicode string
+    :raises: :py:exc:`TileDBError`
+    """
+    cdef int rc = TILEDB_OK
+    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef bytes b_old_path = unicode_path(old_path)
+    cdef bytes b_new_path = unicode_path(new_path)
+    cdef const char* old_path_ptr = PyBytes_AS_STRING(b_old_path)
+    cdef const char* new_path_ptr = PyBytes_AS_STRING(b_new_path)
+    with nogil:
+        rc = tiledb_object_move(ctx_ptr, old_path_ptr, new_path_ptr)
+    if rc != TILEDB_OK:
+        check_error(ctx, rc)
+    return
+
+
 cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     objtype = None
     if obj == TILEDB_GROUP:
@@ -4297,6 +4319,14 @@ cdef class VFS(object):
             return bool(supports)
         else:
             raise ValueError("unsupported vfs scheme '{0!s}://'".format(scheme))
+
+    def config(self):
+        """Returns the Config instance associated with the VFS
+        """
+        cdef tiledb_config_t* config_ptr = NULL
+        check_error(self.ctx,
+                    tiledb_vfs_get_config(self.ctx.ptr, self.ptr, &config_ptr))
+        return Config.from_ptr(config_ptr)
 
 
 class FileIO(object):

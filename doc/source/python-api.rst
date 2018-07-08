@@ -107,6 +107,7 @@ Object Management
 .. autofunction:: tiledb.group_create
 .. autofunction:: tiledb.object_type
 .. autofunction:: tiledb.remove
+.. autofunction:: tiledb.move
 .. autofunction:: tiledb.ls
 .. autofunction:: tiledb.walk
 
