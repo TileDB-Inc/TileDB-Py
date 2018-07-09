@@ -1,4 +1,4 @@
-# quickstart_sparse.py
+# using_tiledb_stats.py
 #
 # LICENSE
 #
@@ -26,63 +26,54 @@
 #
 # DESCRIPTION
 #
-# This is a part of the TileDB quickstart tutorial:
-#   https://docs.tiledb.io/en/latest/quickstart.html
+# This is a part of the TileDB tutorial:
+#   https://docs.tiledb.io/en/latest/using-tiledb-statistics.html
 #
-# When run, this program will create a simple 2D sparse array, write some data
-# to it, and read a slice of the data back.
+# When run, this program will create a 0.5GB dense array, and enable the
+# TileDB statistics surrounding reads from the array.
 #
-
 
 import numpy as np
-import sys
 import tiledb
 
-# Name of the array to create.
-array_name = "quickstart_sparse"
+# Name of array.
+array_name = "stats_array"
 
 
-def create_array():
-    # Create a TileDB context
+def create_array(row_tile_extent, col_tile_extent):
     ctx = tiledb.Ctx()
-
-    # The array will be 4x4 with dimensions "rows" and "cols", with domain [1,4].
     dom = tiledb.Domain(ctx,
-                        tiledb.Dim(ctx, name="rows", domain=(1, 4), tile=4, dtype=np.int32),
-                        tiledb.Dim(ctx, name="cols", domain=(1, 4), tile=4, dtype=np.int32))
+                        tiledb.Dim(ctx, name="rows", domain=(1, 12000), tile=row_tile_extent, dtype=np.int32),
+                        tiledb.Dim(ctx, name="cols", domain=(1, 12000), tile=col_tile_extent, dtype=np.int32))
 
-    # The array will be sparse with a single attribute "a" so each (i,j) cell can store an integer.
-    schema = tiledb.ArraySchema(ctx, domain=dom, sparse=True,
+    schema = tiledb.ArraySchema(ctx, domain=dom, sparse=False,
                                 attrs=[tiledb.Attr(ctx, name="a", dtype=np.int32)])
 
     # Create the (empty) array on disk.
-    tiledb.SparseArray.create(array_name, schema)
+    tiledb.DenseArray.create(array_name, schema)
 
 
 def write_array():
     ctx = tiledb.Ctx()
     # Open the array and write to it.
-    with tiledb.SparseArray(ctx, array_name, mode='w') as A:
-        # Write some simple data to cells (1, 1), (2, 4) and (2, 3).
-        I, J = [1, 2, 2], [1, 4, 3]
-        data = np.array(([1, 2, 3]))
-        A[I, J] = data
+    with tiledb.DenseArray(ctx, array_name, mode='w') as A:
+        data = np.arange(12000 * 12000)
+        A[:] = data
 
 
 def read_array():
     ctx = tiledb.Ctx()
     # Open the array and read from it.
-    with tiledb.SparseArray(ctx, array_name, mode='r') as A:
-        # Slice only rows 1, 2 and cols 2, 3, 4.
-        data = A[1:3, 2:5]
-        a_vals = data["a"]
-        for i, coord in enumerate(data["coords"]):
-            print("Cell (%d, %d) has data %d" % (coord[0], coord[1], a_vals[i]))
+    with tiledb.DenseArray(ctx, array_name, mode='r') as A:
+        # Read a slice of 3,000 rows.
+        # Enable the stats for the read query, and print the report.
+        tiledb.stats_enable()
+        data1 = A[1:3001, 1:12001]
+        tiledb.stats_dump()
+        tiledb.stats_disable()
 
 
-ctx = tiledb.Ctx()
-if tiledb.object_type(ctx, array_name) != "array":
-    create_array()
-    write_array()
-
+# Create array with each row as a tile.
+create_array(1, 12000)
+write_array()
 read_array()
