@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # This is a part of the TileDB quickstart tutorial:
-#   https://docs.tiledb.io/en/latest/quickstart.html
+#   https://docs.tiledb.io/en/latest/tutorials/quickstart.html
 #
 # When run, this program will create a simple key-value store, write some data
 # to it, and read data based on keys.
