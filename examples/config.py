@@ -61,6 +61,7 @@ def set_get_config():
 
 def print_default():
     config = tiledb.Config()
+    print("\nDefault settings:")
     for p in config.items():
         print("\"%s\" : \"%s\"" % (p[0], p[1]))
 
