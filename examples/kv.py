@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # This is a part of the TileDB tutorial:
-#   https://docs.tiledb.io/en/latest/kv.html
+#   https://docs.tiledb.io/en/latest/tutorials/kv.html
 #
 # This program shows the various ways you can use a TileDB key-value store.
 #
