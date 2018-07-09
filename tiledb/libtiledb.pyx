@@ -2782,19 +2782,19 @@ cdef class DenseArray(Array):
         and specify a layout a result layout / cell-order.
 
         :param attrs: the DenseArray attributes to subselect over.
-        If attrs is None (default) all array attributes will be returned.
-        Array attributes can be defined by name or by positional index.
+            If attrs is None (default) all array attributes will be returned.
+            Array attributes can be defined by name or by positional index.
         :param coords: if True, return array of coodinate value (default False).
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :return: A proxy Query object that can be used for indexing into the DenseArray
-        over the defined attributes, in the given result layout (order).
+            over the defined attributes, in the given result layout (order).
 
         :raises ValueError: array is not opened for reads (mode = 'r')
         :raises: :py:exc:`tiledb.TileDBError`
 
         **Example:**
 
-        # Subselect on attributes when reading:
+        >>> # Subselect on attributes when reading:
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
         ...     schema = tiledb.ArraySchema(ctx, domain=dom,
@@ -2807,6 +2807,7 @@ cdef class DenseArray(Array):
         ...         # Access specific attributes individually.
         ...         A.query(attrs=("a1",))[0:5]
         array([0, 0, 0, 0, 0])
+
         """
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
@@ -2822,8 +2823,8 @@ cdef class DenseArray(Array):
         :param selection: tuple of scalar and/or slice objects
         :param coords: if True, return array of coordinate value (default False).
         :param attrs: the DenseArray attributes to subselect over.
-        If attrs is None (default) all array attributes will be returned.
-        Array attributes can be defined by name or by positional index.
+            If attrs is None (default) all array attributes will be returned.
+            Array attributes can be defined by name or by positional index.
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
             is returned for that attribute.  If the array has multiple attributes, a \
@@ -3400,12 +3401,12 @@ cdef class SparseArray(Array):
         and specify a layout a result layout / cell-order.
 
         :param attrs: the SparseArray attributes to subselect over.
-        If attrs is None (default) all array attributes will be returned.
-        Array attributes can be defined by name or by positional index.
+            If attrs is None (default) all array attributes will be returned.
+            Array attributes can be defined by name or by positional index.
         :param coords: if True, return array of coodinate value (default False).
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :return: A proxy Query object that can be used for indexing into the SparseArray
-        over the defined attributes, in the given result layout (order).
+            over the defined attributes, in the given result layout (order).
 
         **Example:**
 
@@ -3428,6 +3429,7 @@ cdef class SparseArray(Array):
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='r') as A:
         ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]
+
         """
         if not self.isopen:
             raise TileDBError("SparseArray is not opened")
@@ -3443,8 +3445,8 @@ cdef class SparseArray(Array):
         :param selection: tuple of scalar and/or slice objects
         :param coords: if True, return array of coordinate value (default True).
         :param attrs: the SparseArray attributes to subselect over.
-        If attrs is None (default) all array attributes will be returned.
-        Array attributes can be defined by name or by positional index.
+            If attrs is None (default) all array attributes will be returned.
+            Array attributes can be defined by name or by positional index.
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :returns: An OrderedDict is returned with "coords" coordinate values being the first key. \
             "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
