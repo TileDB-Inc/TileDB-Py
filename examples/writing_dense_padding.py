@@ -45,11 +45,6 @@ def create_array():
     # Create a TileDB context
     ctx = tiledb.Ctx()
 
-    # Check if the array already exists.
-    if tiledb.object_type(ctx, array_name) == "array":
-        print("Array already exists.")
-        sys.exit(0)
-
     # The array will be 4x4 with dimensions "rows" and "cols", with domain [1,4].
     dom = tiledb.Domain(ctx,
                         tiledb.Dim(ctx, name="rows", domain=(1, 4), tile=2, dtype=np.int32),
@@ -79,6 +74,9 @@ def read_array():
         print(data["a"])
 
 
-create_array()
-write_array()
+ctx = tiledb.Ctx()
+if tiledb.object_type(ctx, array_name) != "array":
+    create_array()
+    write_array()
+
 read_array()
