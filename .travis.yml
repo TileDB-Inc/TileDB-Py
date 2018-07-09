@@ -41,3 +41,4 @@ script:
   - python $TRAVIS_BUILD_DIR/examples/multi_attribute.py
   - rm -rf my_group && python $TRAVIS_BUILD_DIR/examples/object.py
   - python $TRAVIS_BUILD_DIR/examples/vfs.py
+  - python $TRAVIS_BUILD_DIR/examples/using_tiledb_stats.py

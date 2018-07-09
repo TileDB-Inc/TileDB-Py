@@ -54,7 +54,8 @@ def create_array():
 def write_array():
     ctx = tiledb.Ctx()
     # Open the array and write to it.
-    A = tiledb.KV(ctx, array_name)
+    # We can optionally set the number of items to buffer before a flush.
+    A = tiledb.KV(ctx, array_name, buffered_items=2)
     A["key_1"] = "1"
     A["key_2"] = "2"
     A["key_3"] = "3"
