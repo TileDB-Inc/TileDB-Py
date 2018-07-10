@@ -87,7 +87,7 @@ def download_libtiledb():
     Downloads the native TileDB source.
     :return: Path to extracted source directory.
     """
-    version = "dev"
+    version = "1.3.0"
     dest_name = "TileDB-%s" % version
     dest = os.path.join(build_dir, dest_name)
     if not os.path.exists(dest):
