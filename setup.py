@@ -32,11 +32,13 @@ import sys
 from sys import version_info as ver
 
 # Directory containing this file
-containing_dir = os.path.abspath(os.path.dirname(__file__))
+CONTAINING_DIR = os.path.abspath(os.path.dirname(__file__))
+
 # Build directory path
-build_dir = os.path.join(containing_dir, "build")
+BUILD_DIR = os.path.join(CONTAINING_DIR, "build")
+
 # TileDB package source directory
-tiledb_pkg_dir = os.path.join(containing_dir, "tiledb")
+TILEDB_PKG_DIR = os.path.join(CONTAINING_DIR, "tiledb")
 
 
 def libtiledb_exists(library_dirs):
@@ -44,14 +46,17 @@ def libtiledb_exists(library_dirs):
     Checks the given list of paths and returns true if any contain the TileDB library.
     :return: The path to the TileDB library, or None.
     """
-    names = libtiledb_library_names()
-    for dir in library_dirs:
-        for name in names:
-            full_path = os.path.join(dir, name)
-            if os.path.exists(full_path):
-                return full_path
 
-    # Also check to see if TileDB is globally installed.
+    if len(library_dirs) > 0:
+        names = libtiledb_library_names()
+        paths = [os.path.join(d, n) for d in library_dirs for n in names]
+        for p in paths:
+            if os.path.exists(p):
+                return p
+        raise RuntimeError("Could not find given --tiledb library path(s): {}"
+                .format(", ".join(paths)))
+
+    # If no explicit path is given check to see if TileDB is globally installed.
     import ctypes
     if os.name == "posix":
         if sys.platform == "darwin":
@@ -79,7 +84,7 @@ def libtiledb_library_names():
     elif os.name == "nt":
         return ["tiledb.lib"]
     else:
-        assert False, "Unsupported OS name " + os.name
+        raise RuntimeError("Unsupported OS name " + os.name)
 
 
 def download_libtiledb():
@@ -89,12 +94,12 @@ def download_libtiledb():
     """
     version = "dev"
     dest_name = "TileDB-%s" % version
-    dest = os.path.join(build_dir, dest_name)
+    dest = os.path.join(BUILD_DIR, dest_name)
     if not os.path.exists(dest):
         url = "https://github.com/TileDB-Inc/TileDB/archive/%s.zip" % version
         print("Downloading TileDB package from %s..." % url)
         with get_zipfile(url) as z:
-            z.extractall(build_dir)
+            z.extractall(BUILD_DIR)
     return dest
 
 
@@ -156,7 +161,7 @@ def find_or_install_libtiledb(setuptools_cmd):
         # with package_data.
         for libname in libtiledb_library_names():
             src = os.path.join(install_dir, "lib", libname)
-            dest_dir = os.path.join(tiledb_pkg_dir, "native")
+            dest_dir = os.path.join(TILEDB_PKG_DIR, "native")
             if not os.path.exists(dest_dir):
                 os.makedirs(dest_dir)
             dest = os.path.join(dest_dir, libname)
@@ -259,6 +264,19 @@ class LazyCommandClass(dict):
 
         return bdist_egg_cmd
 
+
+def setup_requires():
+    req = ['cython>=0.27',
+           'numpy>=1.7',
+           'setuptools>=18.0',
+           'setuptools_scm>=1.5.4',
+           'wheel>=0.30']
+    tiledb_path = [TILEDB_PATH] if TILEDB_PATH != '' else []
+    if not libtiledb_exists(tiledb_path):
+        req.append('cmake>=3.11.0')
+    return req
+
+
 tests_require = []
 if ver < (3,):
     tests_require.extend(["unittest2", "mock"])
@@ -328,16 +346,10 @@ setup(
             language="c++"
         )
     ],
-    setup_requires=[
-        'cmake>=3.11.0',
-        'cython>=0.27',
-        'numpy>=1.7',
-        'setuptools>=18.0',
-        'setuptools_scm>=1.5.4',
-        'wheel>=0.30'
-    ],
+    setup_requires=setup_requires(),
     install_requires=[
         'numpy>=1.7',
+        'wheel>=0.30'
     ],
     tests_require=tests_require,
     packages=find_packages(),
