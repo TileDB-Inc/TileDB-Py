@@ -31,6 +31,8 @@ from pkg_resources import resource_filename
 import sys
 from sys import version_info as ver
 
+TILEDB_VERSION = "dev"
+
 # Directory containing this file
 CONTAINING_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -92,12 +94,11 @@ def download_libtiledb():
     Downloads the native TileDB source.
     :return: Path to extracted source directory.
     """
-    version = "dev"
-    dest_name = "TileDB-%s" % version
+    dest_name = "TileDB-{}".format(TILEDB_VERSION)
     dest = os.path.join(BUILD_DIR, dest_name)
     if not os.path.exists(dest):
-        url = "https://github.com/TileDB-Inc/TileDB/archive/%s.zip" % version
-        print("Downloading TileDB package from %s..." % url)
+        url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(TILEDB_VERSION)
+        print("Downloading TileDB package from {}...".format(url))
         with get_zipfile(url) as z:
             z.extractall(BUILD_DIR)
     return dest
@@ -113,9 +114,14 @@ def build_libtiledb(src_dir):
     libtiledb_install_dir = os.path.join(src_dir, "dist")
     if not os.path.exists(libtiledb_build_dir):
         os.makedirs(libtiledb_build_dir)
-    print("Building libtiledb in directory %s..." % libtiledb_build_dir)
-    cmake_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX=%s" % libtiledb_install_dir,
-                 "-DCMAKE_BUILD_TYPE=Release", "-DTILEDB_S3=ON", ".."]
+
+    print("Building libtiledb in directory {}...".format(libtiledb_build_dir))
+    cmake_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
+                 "-DCMAKE_BUILD_TYPE=Release",
+                 "-DTILEDB_S3=ON",
+                 "-DTILEDB_HDFS=ON",
+                 "-DTILEDB_TESTS=OFF",
+                 ".."]
 
     have_make = True
     try:
@@ -165,7 +171,7 @@ def find_or_install_libtiledb(setuptools_cmd):
             if not os.path.exists(dest_dir):
                 os.makedirs(dest_dir)
             dest = os.path.join(dest_dir, libname)
-            print("Copying file %s to %s" % (src, dest))
+            print("Copying file {0} to {1}".format(src, dest))
             shutil.copy(src, dest)
         # Update the TileDB Extension instance with correct paths.
         tiledb_ext.library_dirs += [os.path.join(install_dir, "lib")]
