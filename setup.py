@@ -268,15 +268,30 @@ class LazyCommandClass(dict):
         return bdist_egg_cmd
 
 
+def cmake_available():
+    """
+    Checks whether CMake command is available and >= version 3.3.
+    :return:
+    """
+    try:
+        output = subprocess.check_output(['cmake', '--version']).split()
+        version = output[2].decode('utf-8').split('.')
+        return int(version[0]) >= 3 and int(version[1]) >= 3
+    except:
+        return False
+
+
 def setup_requires():
     req = ['cython>=0.27',
            'numpy>=1.7',
            'setuptools>=18.0',
            'setuptools_scm>=1.5.4',
            'wheel>=0.30']
-    tiledb_path = [TILEDB_PATH] if TILEDB_PATH != '' else []
-    if not libtiledb_exists(tiledb_path):
+    # Add cmake requirement if libtiledb is not found and cmake is not available.
+    tiledb_lib_dir = [os.path.join(TILEDB_PATH, 'lib')] if TILEDB_PATH != '' else []
+    if not libtiledb_exists(tiledb_lib_dir) and not cmake_available():
         req.append('cmake>=3.11.0')
+
     return req
 
 
