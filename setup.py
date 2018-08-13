@@ -31,7 +31,7 @@ from pkg_resources import resource_filename
 import sys
 from sys import version_info as ver
 
-TILEDB_VERSION = "1.3.1"
+TILEDB_VERSION = "1.3.2"
 
 # Directory containing this file
 CONTAINING_DIR = os.path.abspath(os.path.dirname(__file__))
