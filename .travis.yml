@@ -13,7 +13,7 @@ notifications:
 
 install:
   - pip install -U tox-travis pip
-  - pip install -r requirements.txt
+  - pip install -r requirements_dev.txt
 
 script:
   # Build and test extension module
