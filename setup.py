@@ -55,9 +55,8 @@ def libtiledb_exists(library_dirs):
         for p in paths:
             if os.path.exists(p):
                 return p
-        raise RuntimeError("Could not find given --tiledb library path(s): {}"
-                .format(", ".join(paths)))
-
+        raise RuntimeError("Could not find given --tiledb library path(s):\n{}"
+                .format("\n".join(paths)))
     # If no explicit path is given check to see if TileDB is globally installed.
     import ctypes
     if os.name == "posix":
@@ -117,6 +116,8 @@ def build_libtiledb(src_dir):
     print("Building libtiledb in directory {}...".format(libtiledb_build_dir))
     cmake_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
                  "-DCMAKE_BUILD_TYPE=Release",
+                 "-DTILEDB_TESTS=OFF",
+                 "-DTILEDB_HDFS=ON",
                  "-DTILEDB_S3=ON",
                  ".."]
 
@@ -288,16 +289,14 @@ def setup_requires():
            'setuptools_scm>=1.5.4',
            'wheel>=0.30']
     # Add cmake requirement if libtiledb is not found and cmake is not available.
-    tiledb_lib_dir = [os.path.join(TILEDB_PATH, 'lib')] if TILEDB_PATH != '' else []
-    if not libtiledb_exists(tiledb_lib_dir) and not cmake_available():
+    if not libtiledb_exists(LIB_DIRS) and not cmake_available():
         req.append('cmake>=3.11.0')
-
     return req
 
 
-tests_require = []
+TESTS_REQUIRE = []
 if ver < (3,):
-    tests_require.extend(["unittest2", "mock"])
+    TESTS_REQUIRE.extend(["unittest2", "mock"])
 
 # Globals variables
 CXXFLAGS = os.environ.get("CXXFLAGS", "-std=c++11").split()
@@ -307,12 +306,11 @@ LFLAGS = os.environ.get("LFLAGS", "").split()
 TILEDB_PATH = os.environ.get("TILEDB_PATH", "")
 
 # Sources & libraries
-inc_dirs = []
-lib_dirs = []
-libs = ["tiledb"]
-def_macros = []
-sources = ["tiledb/libtiledb.pyx"]
-optional_libs = []
+INC_DIRS = []
+LIB_DIRS = []
+LIBS = ["tiledb"]
+DEF_MACROS = []
+SOURCES = ["tiledb/libtiledb.pyx"]
 
 # Pass command line flags to setup.py script
 # handle --tiledb=[PATH] --lflags=[FLAGS] --cxxflags=[FLAGS]
@@ -329,16 +327,19 @@ for arg in args:
         sys.argv.remove(arg)
 
 if TILEDB_PATH != '':
-    lib_dirs += [os.path.join(TILEDB_PATH, 'lib')]
-    inc_dirs += [os.path.join(TILEDB_PATH, 'include')]
+    LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
+    if sys.platform.startswith("linux"):
+        LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib64'),
+                     os.path.join(TILEDB_PATH, 'lib', 'x86_64-linux-gnu')]
+    INC_DIRS += [os.path.join(TILEDB_PATH, 'include')]
 
 with open('README.rst') as f:
-    readme_rst = f.read()
+    README_RST = f.read()
 
 setup(
     name='tiledb',
     description="Pythonic interface to the TileDB array storage manager",
-    long_description=readme_rst,
+    long_description=README_RST,
     author='TileDB, Inc.',
     author_email='help@tiledb.io',
     maintainer='TileDB, Inc.',
@@ -354,11 +355,11 @@ setup(
     ext_modules=[
         Extension(
             "tiledb.libtiledb",
-            include_dirs=inc_dirs,
-            define_macros=def_macros,
-            sources=sources,
-            library_dirs=lib_dirs,
-            libraries=libs,
+            include_dirs=INC_DIRS,
+            define_macros=DEF_MACROS,
+            sources=SOURCES,
+            library_dirs=LIB_DIRS,
+            libraries=LIBS,
             extra_link_args=LFLAGS,
             extra_compile_args=CXXFLAGS,
             language="c++"
@@ -369,7 +370,7 @@ setup(
         'numpy>=1.7',
         'wheel>=0.30'
     ],
-    tests_require=tests_require,
+    tests_require=TESTS_REQUIRE,
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
     classifiers=[
