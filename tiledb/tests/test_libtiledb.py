@@ -52,13 +52,13 @@ class Config(DiskTestCase):
         for p in config.items():
             k.append(p[0])
             v.append(p[1])
-        self.assertEqual(len(k), 29)
+        self.assertTrue(len(k) > 0)
 
         k, v = [], []
         for p in config.items("vfs.s3."):
             k.append(p[0])
             v.append(p[1])
-        self.assertEqual(len(k), 15)
+        self.assertTrue(len(k) > 0)
 
     def test_config_bad_param(self):
         config = tiledb.Config()
@@ -1163,10 +1163,14 @@ class KVArray(DiskTestCase):
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
         tiledb.KV.create(ctx, self.path("foo"), schema)
 
-        kv = tiledb.KV(ctx, self.path("foo"))
-        self.assertFalse("foo" in kv)
-        kv['foo'] = 'bar'
-        self.assertTrue("foo" in kv)
+        with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+            self.assertFalse("foo" in kv)
+
+        with tiledb.KV(ctx, self.path("foo"), mode='w') as kv:
+            kv['foo'] = 'bar'
+
+        with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+            self.assertTrue("foo" in kv)
 
     def test_kv_write_load_read(self):
         # create a kv database
@@ -1177,17 +1181,18 @@ class KVArray(DiskTestCase):
         tiledb.KV.create(ctx, self.path("foo"), schema)
 
         # load kv array, write, close / delete
-        kv = tiledb.KV(ctx, self.path("foo"))
+        kv = tiledb.KV(ctx, self.path("foo"), mode='w')
         kv['foo'] = 'bar'
+        kv.close()
         del kv
 
         # try to load it
-        kv = tiledb.KV(ctx, self.path("foo"))
-        self.assertEqual(kv["foo"], 'bar')
-        self.assertTrue('foo' in kv)
-        self.assertFalse('bar' in kv)
+        with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+          self.assertEqual(kv["foo"], 'bar')
+          self.assertTrue('foo' in kv)
+          self.assertFalse('bar' in kv)
 
-    def test_kv_update(self):
+    def test_kv_update_reload(self):
         # create a kv database
         ctx = tiledb.Ctx()
         a1 = tiledb.Attr(ctx, "val", dtype=bytes)
@@ -1196,13 +1201,17 @@ class KVArray(DiskTestCase):
         tiledb.KV.create(ctx, self.path("foo"), schema)
 
         # load kv array
-        kv = tiledb.KV(ctx, self.path("foo"))
-        kv['foo'] = 'bar'
-        kv['foo'] = 'baz'
-        kv.reopen()
-        self.assertEqual(kv['foo'], 'baz')
-        self.assertFalse('baz' in kv)
-        self.assertTrue('foo' in kv)
+        with tiledb.KV(ctx, self.path("foo"), mode='w') as kv1:
+            kv1['foo'] = 'bar'
+            kv1.flush()
+
+            with tiledb.KV(ctx, self.path("foo"), mode='r') as kv2:
+                self.assertTrue('foo' in kv2)
+                kv1['bar'] = 'baz'
+                kv1.flush()
+                self.assertFalse('bar' in kv2)
+                kv2.reopen()
+                self.assertTrue('bar' in kv2)
 
     def test_key_not_found(self):
         # create a kv database
@@ -1210,8 +1219,8 @@ class KVArray(DiskTestCase):
         a1 = tiledb.Attr(ctx, "value", dtype=bytes)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
         tiledb.KV.create(ctx, self.path("foo"), schema)
-        kv = tiledb.KV(ctx, self.path("foo"))
-        self.assertRaises(KeyError, kv.__getitem__, "not here")
+        with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+            self.assertRaises(KeyError, kv.__getitem__, "not here")
 
     def test_kv_dict(self):
         # create a kv database
@@ -1220,11 +1229,13 @@ class KVArray(DiskTestCase):
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
         tiledb.KV.create(ctx, self.path("foo"), schema)
 
-        kv = tiledb.KV(ctx, self.path("foo"))
-        kv['foo'] = 'bar'
-        kv['baz'] = 'foo'
-        self.assertEqual(kv.dict(), {'foo': 'bar', 'baz': 'foo'})
-        self.assertEqual(dict(kv), {'foo': 'bar', 'baz': 'foo'})
+        with tiledb.KV(ctx, self.path("foo"), mode='w') as kv:
+            kv['foo'] = 'bar'
+            kv['baz'] = 'foo'
+
+        with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+            self.assertEqual(kv.dict(), {'foo': 'bar', 'baz': 'foo'})
+            self.assertEqual(dict(kv), {'foo': 'bar', 'baz': 'foo'})
 
     def test_multiattribute(self):
         ctx = tiledb.Ctx()
@@ -1233,7 +1244,7 @@ class KVArray(DiskTestCase):
         schema = tiledb.KVSchema(ctx, attrs=(a1, a2))
         tiledb.KV.create(ctx, self.path("foo"), schema)
 
-        kv = tiledb.KV(ctx, self.path("foo"), attrs=("ints", "floats"))
+        kv = tiledb.KV(ctx, self.path("foo"), mode='r')
         self.assertIsInstance(kv, tiledb.KV)
 
         # known failure

@@ -300,8 +300,8 @@ cdef class Config(object):
             raise MemoryError()
         if rc == TILEDB_ERR:
             _raise_tiledb_error(err_ptr)
-        # TODO: release GIL
-        rc = tiledb_config_load_from_file(config_ptr, uri_ptr, &err_ptr)
+        with nogil:
+            rc = tiledb_config_load_from_file(config_ptr, uri_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             tiledb_config_free(&config_ptr)
             raise MemoryError()
@@ -1636,6 +1636,7 @@ cdef class KV(object):
 
     cdef Ctx ctx
     cdef unicode uri
+    cdef unicode mode
     cdef KVSchema schema
     cdef tiledb_kv_t* ptr
 
@@ -1673,35 +1674,31 @@ cdef class KV(object):
             _raise_ctx_err(ctx_ptr, rc)
         return KV(ctx, uri)
 
-    def __init__(self, Ctx ctx, uri, attrs=(), buffered_items=None):
-        # alloc tiledb kv object
+    def __init__(self, Ctx ctx, uri, mode='r'):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_query_type_t query_type
+        if mode == 'r':
+            query_type = TILEDB_READ
+        elif mode == 'w':
+            query_type = TILEDB_WRITE
+        else:
+            raise ValueError("TileDB array mode must be 'r' or 'w'")
+        # allocate and then open the array
         cdef tiledb_kv_t* kv_ptr = NULL
         cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_kv_alloc(ctx_ptr, uri_ptr, &kv_ptr)
+        rc = tiledb_kv_alloc(ctx_ptr, uri_ptr, &kv_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        # set max_buffered_items if defined
-        cdef uint64_t max_items = 0
-        if buffered_items is not None:
-            try:
-                max_items = int(buffered_items)
-                rc = tiledb_kv_set_max_buffered_items(ctx_ptr, kv_ptr, max_items)
-                if rc != TILEDB_OK:
-                    _raise_ctx_err(ctx_ptr, rc)
-            except:
-                tiledb_kv_free(&kv_ptr)
-                raise
-        # set attributes
-        # TODO: read all for now
-        rc = tiledb_kv_open(ctx_ptr, kv_ptr, NULL, 0)
+        with nogil:
+            rc = tiledb_kv_open(ctx_ptr, kv_ptr, query_type)
         if rc != TILEDB_OK:
+            tiledb_kv_free(&kv_ptr)
             _raise_ctx_err(ctx_ptr, rc)
         cdef tiledb_kv_schema_t* schema_ptr = NULL
-        rc = tiledb_kv_get_schema(ctx_ptr, kv_ptr, &schema_ptr)
+        with nogil:
+            rc = tiledb_kv_get_schema(ctx_ptr, kv_ptr, &schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         cdef KVSchema schema
@@ -1714,8 +1711,40 @@ cdef class KV(object):
             raise
         self.ctx = ctx
         self.uri = unicode(uri)
+        self.mode = unicode(mode)
         self.schema = schema
         self.ptr = kv_ptr
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    @property
+    def schema(self):
+        """The :py:class:`KVSchema` for this key-value store."""
+        schema = self.schema
+        if schema is None:
+            raise TileDBError("Cannot access schema, key-value store is closed")
+        return schema
+
+    @property
+    def mode(self):
+        """The mode this key-value store was opened with."""
+        return self.mode
+
+    @property
+    def isopen(self):
+        """True if this key-value store is currently open."""
+        cdef int isopen = 0
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        rc = tiledb_kv_is_open(ctx_ptr, kv_ptr, &isopen)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return isopen == 1
 
     @property
     def nattr(self):
@@ -1738,6 +1767,18 @@ cdef class KV(object):
 
         """
         return self.schema.attr(key)
+
+    def close(self):
+        """Closes this key-value store"""
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_kv_close(ctx_ptr, kv_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        self.schema = None
+        return
 
     def reopen(self):
         """Reopens a key-value store
@@ -1786,6 +1827,7 @@ cdef class KV(object):
 
     def __setitem__(self, object key, object value):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
         cdef bytes buri = unicode_path(self.uri)
         cdef bytes bkey = key.encode('UTF-8')
         cdef bytes bvalue = value.encode('UTF-8')
@@ -1822,12 +1864,10 @@ cdef class KV(object):
             _raise_ctx_err(ctx_ptr, rc)
 
         # save items
-        cdef tiledb_kv_t* kv_ptr = self.ptr
         rc = tiledb_kv_add_item(ctx_ptr, kv_ptr, kv_item_ptr)
         if rc != TILEDB_OK:
             tiledb_kv_item_free(&kv_item_ptr)
             _raise_ctx_err(ctx_ptr, rc)
-
         rc = tiledb_kv_flush(ctx_ptr, kv_ptr)
         tiledb_kv_item_free(&kv_item_ptr)
         if rc != TILEDB_OK:
@@ -1849,6 +1889,7 @@ cdef class KV(object):
         cdef const void* bkey_ptr = PyBytes_AS_STRING(bkey)
         cdef uint64_t bkey_size = PyBytes_GET_SIZE(bkey)
         cdef tiledb_kv_item_t* kv_item_ptr = NULL
+        cdef int rc = TILEDB_OK
         rc = tiledb_kv_get_item(ctx_ptr, kv_ptr,
                                 bkey_ptr, TILEDB_CHAR, bkey_size, &kv_item_ptr)
         if rc != TILEDB_OK:
@@ -1880,8 +1921,9 @@ cdef class KV(object):
         cdef bytes bkey = key.encode('UTF-8')
         cdef const void* key_ptr = <void*> PyBytes_AS_STRING(bkey)
         cdef uint64_t key_size = PyBytes_GET_SIZE(bkey)
-        cdef int has_key = 0
-        cdef int rc = tiledb_kv_has_key(
+        cdef int has_key = -1
+        cdef int rc = TILEDB_OK
+        rc = tiledb_kv_has_key(
             ctx_ptr, kv_ptr, key_ptr, TILEDB_CHAR, key_size, &has_key)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
@@ -2442,13 +2484,11 @@ cdef class Array(object):
     cdef Ctx ctx
     cdef unicode uri
     cdef unicode mode
-    cdef int opened
     cdef object schema
     cdef tiledb_array_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
-        self.opened = 0
 
     def __dealloc__(self):
         if self.ptr != NULL:
@@ -2503,7 +2543,6 @@ cdef class Array(object):
         self.ctx = ctx
         self.uri = unicode(uri)
         self.mode = unicode(mode)
-        self.opened = True
         self.schema = schema
         self.ptr = array_ptr
 
