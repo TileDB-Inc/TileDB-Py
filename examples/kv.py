@@ -55,27 +55,27 @@ def write_array():
     ctx = tiledb.Ctx()
     # Open the array and write to it.
     # We can optionally set the number of items to buffer before a flush.
-    A = tiledb.KV(ctx, array_name, buffered_items=2)
-    A["key_1"] = "1"
-    A["key_2"] = "2"
-    A["key_3"] = "3"
-    A.flush()
+    with tiledb.KV(ctx, array_name, mode='w') as A:
+        A["key_1"] = "1"
+        A["key_2"] = "2"
+        A["key_3"] = "3"
+        A.flush()
 
 
 def read_array():
     ctx = tiledb.Ctx()
     # Open the array and read from it.
-    A = tiledb.KV(ctx, array_name)
-    print("key_1: %s" % A["key_1"])
-    print("key_2: %s" % A["key_2"])
-    print("key_3: %s" % A["key_3"])
+    with tiledb.KV(ctx, array_name, mode='r') as A:
+        print("key_1: %s" % A["key_1"])
+        print("key_2: %s" % A["key_2"])
+        print("key_3: %s" % A["key_3"])
 
 
 def iter_kv():
     ctx = tiledb.Ctx()
-    A = tiledb.KV(ctx, array_name)
-    for p in A:
-        print("key: '%s', value: '%s'" % (p[0], p[1]))
+    with tiledb.KV(ctx, array_name, mode='r') as A:
+        for p in A:
+            print("key: '%s', value: '%s'" % (p[0], p[1]))
 
 
 if tiledb.object_type(tiledb.Ctx(), array_name) != "kv":
