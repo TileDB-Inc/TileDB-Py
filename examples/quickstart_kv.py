@@ -56,20 +56,20 @@ def create_array():
 def write_array():
     ctx = tiledb.Ctx()
     # Open the array and write to it.
-    A = tiledb.KV(ctx, kv_name)
-    A["key_1"] = "1"
-    A["key_2"] = "2"
-    A["key_3"] = "3"
-    A.flush()
+    with tiledb.KV(ctx, kv_name, mode='w') as A:
+        A["key_1"] = "1"
+        A["key_2"] = "2"
+        A["key_3"] = "3"
+        A.flush()
 
 
 def read_array():
     ctx = tiledb.Ctx()
     # Open the array and read from it.
-    A = tiledb.KV(ctx, kv_name)
-    print("key_1: %s" % A["key_1"])
-    print("key_2: %s" % A["key_2"])
-    print("key_3: %s" % A["key_3"])
+    with tiledb.KV(ctx, kv_name, mode='r') as A:
+        print("key_1: %s" % A["key_1"])
+        print("key_2: %s" % A["key_2"])
+        print("key_3: %s" % A["key_3"])
 
 
 ctx = tiledb.Ctx()
