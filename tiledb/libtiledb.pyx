@@ -2304,6 +2304,14 @@ cdef class ArraySchema(object):
                 return False
         return True
 
+    def __len__(self):
+        """Returns the number of Attributes in the ArraySchema"""
+        return self.nattr
+
+    def __iter__(self):
+        """Returns a generator object that iterates over the ArraySchema's Attribute objects"""
+        return (self.attr(i) for i in range(self.nattr))
+
     @property
     def sparse(self):
         """True if the array is a sparse array representation
