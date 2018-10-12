@@ -305,6 +305,8 @@ class ArraySchemaTest(unittest.TestCase):
             tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,)))
         self.assertNotEqual(schema,
             tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,), sparse=True))
+        # test iteration over attributes
+        self.assertEqual(list(schema), [a1])
 
     def test_dense_array_schema_fp_domain_error(self):
         ctx = tiledb.Ctx()
@@ -362,6 +364,8 @@ class ArraySchemaTest(unittest.TestCase):
                                     coords_compressor=('zstd', 4),
                                     offsets_compressor=('blosc-lz', 5),
                                     sparse=True))
+        # test iteration over attributes
+        self.assertEqual(list(schema), [a1, a2])
 
 
 class ArrayTest(DiskTestCase):
