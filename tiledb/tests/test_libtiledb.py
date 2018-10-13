@@ -370,14 +370,17 @@ class ArraySchemaTest(unittest.TestCase):
 
 class ArrayTest(DiskTestCase):
 
-    def test_array_create(self):
-        ctx = tiledb.Ctx()
+    def create_array_schema(self, ctx):
         domain = tiledb.Domain(
             ctx,
             tiledb.Dim(ctx, domain=(1, 8), tile=2),
             tiledb.Dim(ctx, domain=(1, 8), tile=2))
         a1 = tiledb.Attr(ctx, "val", dtype='f8')
-        schema = tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,))
+        return tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,))
+
+    def test_array_create(self):
+        ctx = tiledb.Ctx()
+        schema = self.create_array_schema(ctx)
 
         # persist array schema
         tiledb.libtiledb.Array.create(self.path("foo"), schema)
@@ -408,10 +411,35 @@ class ArrayTest(DiskTestCase):
             # cannot re-open a closed array
             array.reopen()
 
+    def test_array_create_encrypted(self):
+        ctx = tiledb.Ctx()
+        schema = self.create_array_schema(ctx)
+        # persist array schema
+        tiledb.libtiledb.Array.create(self.path("foo"), schema,
+                                      key=b"0123456789abcdeF0123456789abcdeF")
+
+        # check that we can open the array sucessfully
+        for key in (b"0123456789abcdeF0123456789abcdeF", "0123456789abcdeF0123456789abcdeF"):
+            with tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r', key=key) as array:
+                self.assertTrue(array.isopen)
+                self.assertEqual(array.schema, schema)
+                self.assertEqual(array.mode, 'r')
+
+        # check that opening the array with the wrong key fails:
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r',
+                                   key=b"0123456789abcdeF0123456789abcdeX")
+
+        # check that opening the array with the wrong key length fails:
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r',
+                                   key=b"0123456789abcdeF0123456789abcde")
+
     def test_array_doesnt_exist(self):
         ctx = tiledb.Ctx()
         with self.assertRaises(tiledb.TileDBError):
             tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r')
+
 
 class DenseArrayTest(DiskTestCase):
 
@@ -521,6 +549,7 @@ class DenseArrayTest(DiskTestCase):
         tiledb.DenseArray.create(self.path("foo"), schema)
 
         with tiledb.DenseArray(ctx, self.path("foo"), mode='w') as T:
+            print("DEBUG: ", T.nattr)
             T[:] = A
 
         with tiledb.DenseArray(ctx, self.path("foo"), mode='r') as T:
@@ -801,7 +830,6 @@ class SparseArray(DiskTestCase):
         values = np.array([3.3, 2.7])
         with tiledb.SparseArray(ctx, self.path("foo"), mode='w') as T:
             T[[2.5, 4.2]] = values
-
         with tiledb.SparseArray(ctx, self.path("foo"), mode='r') as T:
             assert_array_equal(T[[2.5, 4.2]], values)
 
@@ -812,7 +840,6 @@ class SparseArray(DiskTestCase):
         attr = tiledb.Attr(ctx, dtype=float)
         schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(attr,), sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
-
         values = np.array([3.3, 2.7])
         with tiledb.SparseArray(ctx, self.path("foo"), mode='w') as T:
             T[[4.2, 2.5]] = values
@@ -824,14 +851,14 @@ class SparseArray(DiskTestCase):
     def test_multiple_attributes(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(ctx,
-                tiledb.Dim(ctx, domain=(1, 10), tile=10, dtype=int),
-                tiledb.Dim(ctx, domain=(1, 10), tile=10, dtype=int))
+            tiledb.Dim(ctx, domain=(1, 10), tile=10, dtype=int),
+            tiledb.Dim(ctx, domain=(1, 10), tile=10, dtype=int))
         attr_int = tiledb.Attr(ctx, "ints", dtype=int)
         attr_float = tiledb.Attr(ctx, "floats", dtype="float")
         schema = tiledb.ArraySchema(ctx,
-                               domain=dom,
-                               attrs=(attr_int, attr_float,),
-                               sparse=True)
+                                domain=dom,
+                                attrs=(attr_int, attr_float,),
+                                sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         I = np.array([1, 1, 1, 2, 3, 3, 3, 4])
@@ -845,8 +872,8 @@ class SparseArray(DiskTestCase):
             T[I, J] = V
         with tiledb.SparseArray(ctx, self.path("foo"), mode='r') as T:
             R = T[I, J]
-            assert_array_equal(V["ints"], R["ints"])
-            assert_array_equal(V["floats"], R["floats"])
+        assert_array_equal(V["ints"], R["ints"])
+        assert_array_equal(V["floats"], R["floats"])
 
         # check error attribute does not exist
         # TODO: should this be an attribute error?

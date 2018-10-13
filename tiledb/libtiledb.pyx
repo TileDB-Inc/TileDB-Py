@@ -6,6 +6,7 @@ from cpython.version cimport PY_MAJOR_VERSION
 
 from cpython.bytes cimport (PyBytes_GET_SIZE,
                             PyBytes_AS_STRING,
+                            PyBytes_Size,
                             PyBytes_FromString,
                             PyBytes_FromStringAndSize)
 
@@ -19,6 +20,7 @@ from libc.stdio cimport (FILE, stdout)
 from libc.stdio cimport stdout
 from libc.stdlib cimport malloc, calloc, free
 from libc.stdint cimport (uint64_t, int64_t, uintptr_t)
+from libc cimport limits
 
 # Numpy imports
 """
@@ -1490,16 +1492,29 @@ cdef class KVSchema(object):
         return schema
 
     @staticmethod
-    def load(Ctx ctx, uri):
+    def load(Ctx ctx, uri, key=None):
         """Loads a persisted KV array at given URI, returns an KV class instance
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_kv_schema_t* schema_ptr = NULL
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t;t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
         cdef int rc = TILEDB_OK
         with nogil:
-            rc = tiledb_kv_schema_load(ctx_ptr, uri_ptr, &schema_ptr)
+            rc = tiledb_kv_schema_load_with_key(ctx_ptr, uri_ptr, key_type, key_ptr, key_len, &schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return KVSchema.from_ptr(ctx, schema_ptr)
@@ -1660,21 +1675,36 @@ cdef class KV(object):
         return kv
 
     @staticmethod
-    def create(Ctx ctx, uri, KVSchema schema):
+    def create(Ctx ctx, uri, KVSchema schema, key=None):
         """Creates a persistent KV at the given URI, returns a KV class instance
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_kv_schema_t* schema_ptr = schema.ptr
+        # encyrption key
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t;t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
         cdef int rc = TILEDB_OK
         with nogil:
-            rc = tiledb_kv_create(ctx_ptr, uri_ptr, schema_ptr)
+            rc = tiledb_kv_create_with_key(
+                ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return KV(ctx, uri)
 
-    def __init__(self, Ctx ctx, uri, mode='r'):
+    def __init__(self, Ctx ctx, uri, mode='r', key=None):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -1685,6 +1715,20 @@ cdef class KV(object):
             query_type = TILEDB_WRITE
         else:
             raise ValueError("TileDB array mode must be 'r' or 'w'")
+        # encyrption key
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t;t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
         # allocate and then open the array
         cdef tiledb_kv_t* kv_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -1692,21 +1736,14 @@ cdef class KV(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         with nogil:
-            rc = tiledb_kv_open(ctx_ptr, kv_ptr, query_type)
+            rc = tiledb_kv_open_with_key(ctx_ptr, kv_ptr, query_type, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
             tiledb_kv_free(&kv_ptr)
             _raise_ctx_err(ctx_ptr, rc)
-        cdef tiledb_kv_schema_t* schema_ptr = NULL
-        with nogil:
-            rc = tiledb_kv_get_schema(ctx_ptr, kv_ptr, &schema_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
         cdef KVSchema schema
         try:
-            schema = KVSchema.from_ptr(ctx, schema_ptr)
+            schema = KVSchema.load(ctx, uri, key=key)
         except:
-            if schema_ptr != NULL:
-                tiledb_kv_schema_free(&schema_ptr)
             tiledb_kv_free(&kv_ptr)
             raise
         self.ctx = ctx
@@ -2197,14 +2234,29 @@ cdef class ArraySchema(object):
         return schema
 
     @staticmethod
-    def load(Ctx ctx, uri):
+    def load(Ctx ctx, uri, key=None):
         cdef bytes buri = uri.encode('UTF-8')
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_array_schema_t* array_schema_ptr = NULL
+        # encyrption key
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t;t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
         cdef int rc = TILEDB_OK
         with nogil:
-            rc = tiledb_array_schema_load(ctx_ptr, uri_ptr, &array_schema_ptr)
+            rc = tiledb_array_schema_load_with_key(
+                ctx_ptr, uri_ptr, key_type, key_ptr, key_len, &array_schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return ArraySchema.from_ptr(ctx, array_schema_ptr)
@@ -2477,7 +2529,6 @@ cdef class ArraySchema(object):
         print("\n")
         return
 
-
 cdef class Array(object):
     """Base class for TileDB array objects.
 
@@ -2503,7 +2554,7 @@ cdef class Array(object):
             tiledb_array_free(&self.ptr)
 
     @staticmethod
-    def create(uri, ArraySchema schema):
+    def create(uri, ArraySchema schema, key=None):
         """Creates a persistent TileDB Array at the given URI
 
         :param str uri: URI at which to create the new empty array.
@@ -2513,24 +2564,59 @@ cdef class Array(object):
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_array_schema_t* schema_ptr = schema.ptr
+
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t;t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+
         cdef int rc = TILEDB_OK
         with nogil:
-            rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
+            rc = tiledb_array_create_with_key(ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
 
-    def __init__(self, Ctx ctx, uri, mode='r'):
+    def __init__(self, Ctx ctx, uri, mode='r', key=None):
+        # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        # uri
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        cdef tiledb_query_type_t query_type
+        # mode
+        cdef tiledb_query_type_t query_type = TILEDB_READ
+        # key
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+        # convert python mode string to a query type
         if mode == 'r':
             query_type = TILEDB_READ
         elif mode == 'w':
             query_type = TILEDB_WRITE
         else:
             raise ValueError("TileDB array mode must be 'r' or 'w'")
+        # check the key, and convert the key to bytes
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
         # allocate and then open the array
         cdef tiledb_array_t* array_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -2538,13 +2624,13 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         with nogil:
-            rc = tiledb_array_open(ctx_ptr, array_ptr, query_type)
+            rc = tiledb_array_open_with_key(ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
             tiledb_array_free(&array_ptr)
             _raise_ctx_err(ctx_ptr, rc)
         cdef ArraySchema schema
         try:
-            schema = ArraySchema.load(ctx, uri)
+            schema = ArraySchema.load(ctx, uri, key=key)
         except:
             tiledb_array_free(&array_ptr)
             raise
@@ -2586,7 +2672,6 @@ cdef class Array(object):
             rc = tiledb_array_reopen(ctx_ptr, array_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        self.schema = ArraySchema.load(self.ctx, self.uri)
         return
 
     @property
