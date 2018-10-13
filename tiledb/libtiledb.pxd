@@ -70,14 +70,27 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_GZIP
         TILEDB_ZSTD
         TILEDB_LZ4
-        TILEDB_BLOSC_LZ
-        TILEDB_BLOSC_LZ4
-        TILEDB_BLOSC_LZ4HC
-        TILEDB_BLOSC_SNAPPY
-        TILEDB_BLOSC_ZSTD
         TILEDB_RLE
         TILEDB_BZIP2
         TILEDB_DOUBLE_DELTA
+
+    ctypedef enum tiledb_filter_type_t:
+        TILEDB_FILTER_NONE = 0
+        TILEDB_FILTER_GZIP = 1
+        TILEDB_FILTER_ZSTD = 2
+        TILEDB_FILTER_LZ4 = 3
+        TILEDB_FILTER_RLE = 4
+        TILEDB_FILTER_BZIP2 = 5
+        TILEDB_FILTER_DOUBLE_DELTA = 6
+        TILEDB_FILTER_BIT_WIDTH_REDUCTION = 7
+        TILEDB_FILTER_BITSHUFFLE = 8
+        TILEDB_FILTER_BYTESHUFFLE = 9
+        TILEDB_FILTER_POSITIVE_DELTA = 10
+
+    ctypedef enum tiledb_filter_option_t:
+        TILEDB_COMPRESSION_LEVEL = 0
+        TILEDB_BIT_WIDTH_MAX_WINDOW = 1
+        TILEDB_POSITIVE_DELTA_MAX_WINDOW = 2
 
     ctypedef enum tiledb_encryption_type_t:
         TILEDB_NO_ENCRYPTION
@@ -116,6 +129,10 @@ cdef extern from "tiledb/tiledb.h":
     ctypedef struct tiledb_domain_t:
         pass
     ctypedef struct tiledb_query_t:
+        pass
+    ctypedef struct tiledb_filter_t:
+        pass
+    ctypedef struct tiledb_filter_list_t:
         pass
     ctypedef struct tiledb_kv_schema_t:
         pass
@@ -224,6 +241,66 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const char* group) nogil
 
+    # Filter
+    int tiledb_filter_alloc(
+        tiledb_ctx_t* ctx,
+        tiledb_filter_type_t filter_type,
+        tiledb_filter_t** filter) nogil
+
+    int tiledb_filter_free(
+        tiledb_filter_t **filter)
+
+    int tiledb_filter_get_type(
+        tiledb_ctx_t* ctx,
+        tiledb_filter_t* filter,
+        tiledb_filter_type_t* type)
+
+    int tiledb_filter_set_option(
+        tiledb_ctx_t* ctx,
+        tiledb_filter_t* filter,
+        tiledb_filter_option_t option,
+        const void* value)
+
+    int tiledb_filter_get_option(
+        tiledb_ctx_t* ctx,
+        tiledb_filter_t* filter,
+        tiledb_filter_option_t option,
+        void* value)
+
+    # Filter List
+    int tiledb_filter_list_alloc(
+        tiledb_ctx_t* ctx,
+        tiledb_filter_list_t** filter_list)
+
+    int tiledb_filter_list_free(
+        tiledb_filter_list_t** filter_list)
+
+    int tiledb_filter_list_add_filter(
+        tiledb_ctx_t* ctx,
+        tiledb_filter_list_t* filter_list,
+        tiledb_filter_t* filter)
+
+    int tiledb_filter_list_set_max_chunk_size(
+        tiledb_ctx_t* ctx,
+        const tiledb_filter_list_t* filter_list,
+        unsigned int max_chunk_size)
+
+    int tiledb_filter_list_get_nfilters(
+        tiledb_ctx_t* ctx,
+        const tiledb_filter_list_t* filter_list,
+        unsigned int* num_filters)
+
+    int tiledb_filter_list_get_filter_from_index(
+        tiledb_ctx_t* ctx,
+        const tiledb_filter_list_t* filter_list,
+        unsigned int index,
+        tiledb_filter_t** filter)
+
+    int tiledb_filter_list_get_max_chunk_size(
+        tiledb_ctx_t* ctx,
+        const tiledb_filter_list_t* filter_list,
+        unsigned int* max_chunk_size)
+
     # Attribute
     int tiledb_attribute_alloc(
         tiledb_ctx_t* ctx,
@@ -233,6 +310,11 @@ cdef extern from "tiledb/tiledb.h":
 
     void tiledb_attribute_free(
         tiledb_attribute_t** attr)
+
+    int tiledb_attribute_set_filter_list(
+        tiledb_ctx_t* ctx_ptr,
+        const tiledb_attribute_t* attr,
+        tiledb_filter_list_t* filter_list)
 
     int tiledb_attribute_set_compressor(
         tiledb_ctx_t* ctx,
@@ -253,7 +335,12 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_attribute_get_type(
         tiledb_ctx_t* ctx,
         const tiledb_attribute_t* attr,
-        tiledb_datatype_t* type);
+        tiledb_datatype_t* type)
+
+    int tiledb_attribute_get_filter_list(
+        tiledb_ctx_t* ctx,
+        const tiledb_attribute_t* attr,
+        tiledb_filter_list_t** filter_list)
 
     int tiledb_attribute_get_compressor(
         tiledb_ctx_t* ctx,
@@ -265,7 +352,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_attribute_t* attr,
         unsigned int* cell_val_num)
-
 
     int tiledb_attribute_dump(
         tiledb_ctx_t* ctx,
@@ -390,6 +476,16 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_compressor_t compressor,
         int compression_level)
 
+    int tiledb_array_schema_set_offsets_filter_list(
+        tiledb_ctx_t* ctx,
+         tiledb_array_schema_t* array_schmea,
+        tiledb_filter_list_t* filter_list)
+
+    int tiledb_array_schema_set_coords_filter_list(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        tiledb_filter_list_t* filter_list)
+
     int tiledb_array_schema_check(
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema)
@@ -433,6 +529,16 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_array_schema_t* array_schema,
         tiledb_compressor_t* compressor,
         int* compression_level)
+
+    int tiledb_array_schema_get_coords_filter_list(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        tiledb_filter_list_t** filter_list)
+
+    int tiledb_array_schema_get_offsets_filter_list(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        tiledb_filter_list_t** filter_list)
 
     int tiledb_array_schema_get_domain(
         tiledb_ctx_t* ctx,
