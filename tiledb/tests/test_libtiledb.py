@@ -524,6 +524,9 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(1, T.nattr)
             self.assertEqual(A.dtype, T.attr(0).dtype)
 
+            self.assertIsInstance(T.timestamp, int)
+            self.assertTrue(T.timestamp > 0)
+
             # check empty array
             B = T[:]
 
@@ -535,8 +538,13 @@ class DenseArrayTest(DiskTestCase):
             # check set array
             T[:] = A
 
+        read1_timestamp = -1
         with tiledb.DenseArray(ctx, self.path("foo"), mode='r') as T:
             self.assertEqual(((0, 1049),), T.nonempty_domain())
+
+            # check timestamp
+            read1_timestamp = T.timestamp
+            self.assertTrue(read1_timestamp > 0)
 
             # check slicing
             assert_array_equal(A, np.array(T))
@@ -597,10 +605,15 @@ class DenseArrayTest(DiskTestCase):
             B = np.arange(1e5, 2e5).astype(A.dtype)
             T[190:310] = B[190:310]
 
+        read2_timestamp = -1
         with tiledb.DenseArray(ctx, self.path("foo"), mode='r') as T:
             assert_array_equal(A[:190], T[:190])
             assert_array_equal(B[190:310], T[190:310])
             assert_array_equal(A[310:], T[310:])
+
+            # test timestamps are updated
+            read2_timestamp = T.timestamp
+            self.assertTrue(read2_timestamp > read1_timestamp)
 
     def test_array_1d_set_scalar(self):
         A = np.zeros(50)
@@ -613,7 +626,6 @@ class DenseArrayTest(DiskTestCase):
         tiledb.DenseArray.create(self.path("foo"), schema)
 
         with tiledb.DenseArray(ctx, self.path("foo"), mode='w') as T:
-            print("DEBUG: ", T.nattr)
             T[:] = A
 
         with tiledb.DenseArray(ctx, self.path("foo"), mode='r') as T:
@@ -756,6 +768,65 @@ class DenseArrayTest(DiskTestCase):
             assert_array_equal(B[190:310, 3:7], T[190:310, 3:7])
             assert_array_equal(A[310:], T[310:])
             assert_array_equal(A[:, 7:], T[:, 7:])
+
+    def test_open_with_timestamp(self):
+        import time
+        A = np.zeros(3)
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 2), tile=3, dtype=np.int64))
+        att = tiledb.Attr(ctx, dtype=A.dtype)
+        schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(att,))
+        tiledb.DenseArray.create(self.path("foo"), schema)
+
+        # write
+        with tiledb.DenseArray(ctx, self.path("foo"), mode='w') as T:
+            T[:] = A
+
+        read1_timestamp = -1
+        with tiledb.DenseArray(ctx, self.path("foo"), mode='r') as T:
+            read1_timestamp = T.timestamp
+            self.assertEqual(T[0], 0)
+            self.assertEqual(T[1], 0)
+            self.assertEqual(T[2], 0)
+
+        # sleep 200ms and write
+        time.sleep(0.2)
+        with tiledb.DenseArray(ctx, self.path("foo"), mode='w') as T:
+            T[0:1] = 1
+
+        read2_timestamp = -1
+        with tiledb.DenseArray(ctx, self.path("foo"), mode='r') as T:
+            read2_timestamp = T.timestamp
+            self.assertTrue(read2_timestamp > read1_timestamp)
+
+        # sleep 200ms and write
+        time.sleep(0.2)
+        with tiledb.DenseArray(ctx, self.path("foo"), mode='w') as T:
+            T[1:2] = 2
+
+        read3_timestamp = -1
+        with tiledb.DenseArray(ctx, self.path("foo"), mode='r') as T:
+            read3_timestamp = T.timestamp
+            self.assertTrue(read3_timestamp > read2_timestamp > read1_timestamp)
+
+        # read at first timestamp
+        with tiledb.DenseArray(ctx, self.path("foo"), timestamp=read1_timestamp, mode='r') as T:
+            self.assertEqual(T[0], 0)
+            self.assertEqual(T[1], 0)
+            self.assertEqual(T[2], 0)
+
+        # read at second timestamp
+        with tiledb.DenseArray(ctx, self.path("foo"), timestamp=read2_timestamp, mode='r') as T:
+            self.assertEqual(T[0], 1)
+            self.assertEqual(T[1], 0)
+            self.assertEqual(T[2], 0)
+
+        # read at third timestamp
+        with tiledb.DenseArray(ctx, self.path("foo"), timestamp=read3_timestamp, mode='r') as T:
+            self.assertEqual(T[0], 1)
+            self.assertEqual(T[1], 2)
+            self.assertEqual(T[2], 0)
 
     def test_ncell_attributes(self):
         ctx = tiledb.Ctx()
@@ -1243,7 +1314,7 @@ class KVSchema(DiskTestCase):
 class KVArray(DiskTestCase):
 
     def test_kv_write_schema_load(self):
-        # create a kv database
+        # create a kv array
         ctx = tiledb.Ctx()
         a1 = tiledb.Attr(ctx, "value", dtype=bytes)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
@@ -1252,13 +1323,15 @@ class KVArray(DiskTestCase):
         self.assertEqual(tiledb.KVSchema.load(ctx, self.path("foo")), schema)
 
     def test_kv_contains(self):
-        # create a kv database
+        # create a kv array
         ctx = tiledb.Ctx()
         a1 = tiledb.Attr(ctx, "value", dtype=bytes)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
         tiledb.KV.create(ctx, self.path("foo"), schema)
 
         with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+            self.assertIsInstance(kv.timestamp, int)
+            self.assertTrue(kv.timestamp > 0)
             self.assertFalse("foo" in kv)
 
         with tiledb.KV(ctx, self.path("foo"), mode='w') as kv:
@@ -1268,7 +1341,7 @@ class KVArray(DiskTestCase):
             self.assertTrue("foo" in kv)
 
     def test_kv_write_load_read(self):
-        # create a kv database
+        # create a kv array
         ctx = tiledb.Ctx()
         a1 = tiledb.Attr(ctx, "value", dtype=bytes)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
@@ -1288,7 +1361,7 @@ class KVArray(DiskTestCase):
           self.assertFalse('bar' in kv)
 
     def test_kv_update_reload(self):
-        # create a kv database
+        # create a kv array
         ctx = tiledb.Ctx()
         a1 = tiledb.Attr(ctx, "val", dtype=bytes)
         # persist kv schema
@@ -1309,7 +1382,7 @@ class KVArray(DiskTestCase):
                 self.assertTrue('bar' in kv2)
 
     def test_key_not_found(self):
-        # create a kv database
+        # create a kv array
         ctx = tiledb.Ctx()
         a1 = tiledb.Attr(ctx, "value", dtype=bytes)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
@@ -1318,7 +1391,7 @@ class KVArray(DiskTestCase):
             self.assertRaises(KeyError, kv.__getitem__, "not here")
 
     def test_kv_dict(self):
-        # create a kv database
+        # create a kv array
         ctx = tiledb.Ctx()
         a1 = tiledb.Attr(ctx, "value", dtype=bytes)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
@@ -1331,6 +1404,51 @@ class KVArray(DiskTestCase):
         with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
             self.assertEqual(kv.dict(), {'foo': 'bar', 'baz': 'foo'})
             self.assertEqual(dict(kv), {'foo': 'bar', 'baz': 'foo'})
+
+    def test_kv_timestamp(self):
+        import time
+        # create a new kv array
+        ctx = tiledb.Ctx()
+        a1 = tiledb.Attr(ctx, "value", dtype=bytes)
+        schema = tiledb.KVSchema(ctx, attrs=(a1,))
+        tiledb.KV.create(ctx, self.path("foo"), schema)
+
+        with tiledb.KV(ctx, self.path("foo"), mode='w') as kv:
+            kv['foo'] = 'bar'
+
+        read1_timestamp = -1
+        with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+            self.assertEqual(kv['foo'], 'bar')
+            read1_timestamp = kv.timestamp
+        self.assertTrue(read1_timestamp > 0)
+
+        # sleep for 200 ms, check that timestamp is updated
+        time.sleep(0.2)
+        with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+            self.assertTrue(kv.timestamp > read1_timestamp)
+            self.assertEqual(kv['foo'], 'bar')
+
+        # write some more data at a later time
+        with tiledb.KV(ctx, self.path("foo"), mode='w') as kv:
+            kv['foo'] = 'baz'
+            kv['aaa'] = 'bbb'
+
+        # check that we can open up at different timepoints deterministically
+        read2_timestamp = -1
+        with tiledb.KV(ctx, self.path("foo"), mode='r') as kv:
+            read2_timestamp = kv.timestamp
+            self.assertTrue(read2_timestamp > read1_timestamp)
+            self.assertEqual(kv['foo'], 'baz')
+            self.assertEqual(kv['aaa'], 'bbb')
+
+        with tiledb.KV(ctx, self.path("foo"), timestamp=read1_timestamp, mode='r') as kv:
+            self.assertEqual(kv.timestamp, read1_timestamp)
+            self.assertEqual(kv['foo'], 'bar')
+
+        with tiledb.KV(ctx, self.path("foo"), timestamp=read2_timestamp, mode='r') as kv:
+            self.assertEqual(kv.timestamp, read2_timestamp)
+            self.assertEqual(kv['foo'], 'baz')
+            self.assertEqual(kv['aaa'], 'bbb')
 
     def test_multiattribute(self):
         ctx = tiledb.Ctx()
