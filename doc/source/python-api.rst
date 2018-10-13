@@ -51,6 +51,34 @@ Attribute
 .. autoclass:: tiledb.Attr
    :members:
 
+Filters
+-------
+
+.. autoclass:: tiledb.FilterList
+   :members:
+.. autoclass:: tiledb.libtiledb.CompressionFilter
+   :members:
+.. autoclass:: tiledb.GzipFilter
+   :members:
+.. autoclass:: tiledb.ZstdFilter
+   :members:
+.. autoclass:: tiledb.LZ4Filter
+   :members:
+.. autoclass:: tiledb.Bzip2Filter
+   :members:
+.. autoclass:: tiledb.RleFilter
+   :members:
+.. autoclass:: tiledb.DoubleDeltaFilter
+   :members:
+.. autoclass:: tiledb.BitShuffleFilter
+   :members:
+.. autoclass:: tiledb.ByteShuffleFilter
+   :members:
+.. autoclass:: tiledb.BitWidthReductionFilter
+   :members:
+.. autoclass:: tiledb.PositiveDeltaFilter
+   :members:
+
 Dimension
 ---------
 
