@@ -79,6 +79,10 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_BZIP2
         TILEDB_DOUBLE_DELTA
 
+    ctypedef enum tiledb_encryption_type_t:
+        TILEDB_NO_ENCRYPTION
+        TILEDB_AES_256_GCM
+
     ctypedef enum tiledb_walk_order_t:
         TILEDB_PREORDER
         TILEDB_POSTORDER
@@ -395,6 +399,14 @@ cdef extern from "tiledb/tiledb.h":
         const char* array_uri,
         tiledb_array_schema_t** array_schema) nogil
 
+    int tiledb_array_schema_load_with_key(
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
+        tiledb_encryption_type_t key_type,
+        const void* key_ptr,
+        unsigned int key_len,
+        tiledb_array_schema_t** array_schema) nogil
+
     int tiledb_array_schema_get_array_type(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
@@ -535,6 +547,14 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_array_t* array,
         tiledb_query_type_t query_type) nogil
 
+    int tiledb_array_open_with_key(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        tiledb_query_type_t query_type,
+        tiledb_encryption_type_t key_type,
+        const void* key,
+        unsigned int key_len) nogil
+
     int tiledb_array_reopen(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array) nogil
@@ -551,6 +571,14 @@ cdef extern from "tiledb/tiledb.h":
         const char* uri,
         const tiledb_array_schema_t* array_schema) nogil
 
+    int tiledb_array_create_with_key(
+        tiledb_ctx_t* ctx,
+        const char* uri,
+        const tiledb_array_schema_t* array_schema,
+        tiledb_encryption_type_t key_type,
+        const void* key,
+        unsigned int key_len) nogil;
+
     int tiledb_array_is_open(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
@@ -563,7 +591,7 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_array_get_schema(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
-        tiledb_array_schema_t** array_schema)
+        tiledb_array_schema_t** array_schema) nogil
 
     int tiledb_array_get_query_type(
         tiledb_ctx_t* ctx,
@@ -611,6 +639,14 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_kv_schema_load(
         tiledb_ctx_t* ctx,
         const char* uri,
+        tiledb_kv_schema_t** kv_schema) nogil
+
+    int tiledb_kv_schema_load_with_key(
+        tiledb_ctx_t* ctx,
+        const char* uri,
+        tiledb_encryption_type_t key_type,
+        const void* key,
+        unsigned int key_len,
         tiledb_kv_schema_t** kv_schema) nogil
 
     int tiledb_kv_schema_get_attribute_num(
@@ -689,6 +725,14 @@ cdef extern from "tiledb/tiledb.h":
         const char* uri,
         const tiledb_kv_schema_t* schema) nogil
 
+    int tiledb_kv_create_with_key(
+        tiledb_ctx_t* ctx,
+        const char* uri,
+        const tiledb_kv_schema_t* schema,
+        tiledb_encryption_type_t key_type,
+        const void* key_ptr,
+        unsigned int key_len) nogil
+
     int tiledb_kv_consolidate(
         tiledb_ctx_t* ctx,
         const char* kv_uri) nogil
@@ -710,6 +754,14 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
         tiledb_query_type_t query_type) nogil
+
+    int tiledb_kv_open_with_key(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        tiledb_query_type_t query_type,
+        tiledb_encryption_type_t key_type,
+        const void* key,
+        unsigned int key_len) nogil
 
     int tiledb_kv_is_open(
         tiledb_ctx_t* ctx,
