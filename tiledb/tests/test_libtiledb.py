@@ -269,6 +269,35 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(attr.dtype, np.dtype(np.bytes_))
         self.assertTrue(attr.isvar)
 
+    def test_filter(self):
+        ctx = tiledb.Ctx()
+        gzip_filter = tiledb.libtiledb.GzipFilter(ctx, level=10)
+        self.assertIsInstance(gzip_filter, tiledb.libtiledb.Filter)
+        self.assertEqual(gzip_filter.level, 10)
+
+        bw_filter = tiledb.libtiledb.BitWidthReductionFilter(ctx, window=10)
+        self.assertIsInstance(bw_filter, tiledb.libtiledb.Filter)
+        self.assertEqual(bw_filter.window, 10)
+
+        filter_list = tiledb.libtiledb.FilterList(ctx, [gzip_filter, bw_filter], chunksize=1024)
+        self.assertEqual(filter_list.chunksize, 1024)
+        self.assertEqual(len(filter_list), 2)
+        self.assertEqual(filter_list[0].level, gzip_filter.level)
+        self.assertEqual(filter_list[1].window, bw_filter.window)
+
+        # test filter list iteration
+        self.assertEqual(len(list(filter_list)), 2)
+
+        with self.assertRaises(TypeError):
+            tiledb.Attr(ctx, "foo", dtype=np.int64, filters=[gzip_filter])
+
+        attr = tiledb.Attr(ctx, "foo",
+                           dtype=np.int64,
+                           filters=filter_list)
+
+        self.assertEqual(len(attr.filters), 2)
+        self.assertEqual(attr.filters.chunksize, filter_list.chunksize)
+
 
 class ArraySchemaTest(unittest.TestCase):
 
@@ -339,7 +368,7 @@ class ArraySchemaTest(unittest.TestCase):
                                     cell_order='col-major',
                                     tile_order='row-major',
                                     coords_compressor=('zstd', 4),
-                                    offsets_compressor=('blosc-lz', 5),
+                                    offsets_compressor=('lz4', 5),
                                     sparse=True)
         schema.dump()
         self.assertTrue(schema.sparse)
@@ -347,7 +376,7 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertEqual(schema.cell_order, "col-major")
         self.assertEqual(schema.tile_order, "row-major")
         self.assertEqual(schema.coords_compressor, ('zstd', 4))
-        self.assertEqual(schema.offsets_compressor, ('blosc-lz', 5))
+        self.assertEqual(schema.offsets_compressor, ('lz4', 5))
         self.assertEqual(schema.domain, domain)
         self.assertEqual(schema.ndim, 2)
         self.assertEqual(schema.shape, (1000, 9900))
@@ -362,10 +391,45 @@ class ArraySchemaTest(unittest.TestCase):
                                     cell_order='col-major',
                                     tile_order='row-major',
                                     coords_compressor=('zstd', 4),
-                                    offsets_compressor=('blosc-lz', 5),
+                                    offsets_compressor=('lz4', 5),
                                     sparse=True))
         # test iteration over attributes
         self.assertEqual(list(schema), [a1, a2])
+
+    def test_sparse_schema_filter_list(self):
+        ctx = tiledb.Ctx()
+
+        # create dimensions
+        d1 = tiledb.Dim(ctx, "", domain=(1, 1000), tile=10, dtype="uint64")
+        d2 = tiledb.Dim(ctx, "d2", domain=(101, 10000), tile=100, dtype="uint64")
+
+        # create domain
+        domain = tiledb.Domain(ctx, d1, d2)
+
+        # create attributes
+        a1 = tiledb.Attr(ctx, "", dtype="int32,int32,int32")
+        a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="float32")
+
+        off_filters = tiledb.libtiledb.FilterList(ctx,
+                        filters=[tiledb.libtiledb.ZstdFilter(ctx, level=10)],
+                        chunksize=2048)
+
+        coords_filters = tiledb.libtiledb.FilterList(ctx,
+                        filters=[tiledb.libtiledb.Bzip2Filter(ctx, level=5)],
+                        chunksize=4096)
+
+        # create sparse array with schema
+        schema = tiledb.ArraySchema(ctx,
+                                    domain=domain,
+                                    attrs=(a1, a2),
+                                    capacity=10,
+                                    cell_order='col-major',
+                                    tile_order='row-major',
+                                    coords_filters=coords_filters,
+                                    offsets_filters=off_filters,
+                                    sparse=True)
+        schema.dump()
+        self.assertTrue(schema.sparse)
 
 
 class ArrayTest(DiskTestCase):
