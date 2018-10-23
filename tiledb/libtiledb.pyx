@@ -871,7 +871,8 @@ cdef class CompressionFilter(Filter):
     def level(self):
         """The compression level setting for the filter.
 
-        Every compressor interprets this value differently (some ignore it, such as RLE)."""
+        Every compressor interprets this value differently (some ignore it, such as RLE).
+        """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef int rc = TILEDB_OK
         cdef int clevel = -1
@@ -885,8 +886,10 @@ cdef class NoOpFilter(Filter):
     """
     A filter that does nothing.
     """
+
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef NoOpFilter filter_obj = NoOpFilter.__new__(NoOpFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -915,6 +918,7 @@ cdef class GzipFilter(CompressionFilter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef GzipFilter filter_obj = GzipFilter.__new__(GzipFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -943,6 +947,7 @@ cdef class ZstdFilter(CompressionFilter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef ZstdFilter filter_obj = ZstdFilter.__new__(ZstdFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -971,6 +976,7 @@ cdef class LZ4Filter(CompressionFilter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef LZ4Filter filter_obj = LZ4Filter.__new__(LZ4Filter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -999,6 +1005,7 @@ cdef class Bzip2Filter(CompressionFilter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef Bzip2Filter filter_obj = Bzip2Filter.__new__(Bzip2Filter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -1027,6 +1034,7 @@ cdef class RleFilter(CompressionFilter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef RleFilter filter_obj = RleFilter.__new__(RleFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -1055,6 +1063,7 @@ cdef class DoubleDeltaFilter(CompressionFilter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef DoubleDeltaFilter filter_obj = DoubleDeltaFilter.__new__(DoubleDeltaFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -1083,6 +1092,7 @@ cdef class BitShuffleFilter(Filter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef BitShuffleFilter filter_obj = BitShuffleFilter.__new__(BitShuffleFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -1111,6 +1121,7 @@ cdef class ByteShuffleFilter(Filter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef ByteShuffleFilter filter_obj = ByteShuffleFilter.__new__(ByteShuffleFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -1139,6 +1150,7 @@ cdef class BitWidthReductionFilter(Filter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef BitWidthReductionFilter filter_obj = BitWidthReductionFilter.__new__(BitWidthReductionFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -1192,6 +1204,7 @@ cdef class PositiveDeltaFilter(Filter):
 
     @staticmethod
     cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+        assert(filter_ptr != NULL)
         cdef PositiveDeltaFilter filter_obj = PositiveDeltaFilter.__new__(PositiveDeltaFilter)
         filter_obj.ctx = ctx
         # need to cast away the const
@@ -1253,6 +1266,7 @@ cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type
     else:
         raise ValueError("unknown filter type tag: {:s}".format(filter_type))
 
+
 cdef class FilterList(object):
     """An ordered list of Filter objects for filtering TileDB data.
 
@@ -1290,6 +1304,7 @@ cdef class FilterList(object):
 
     @staticmethod
     cdef FilterList from_ptr(Ctx ctx, tiledb_filter_list_t* ptr):
+        assert(ptr != NULL)
         cdef FilterList filter_list = FilterList.__new__(FilterList)
         filter_list.ctx = ctx
         # need to cast away the const
@@ -1304,6 +1319,7 @@ cdef class FilterList(object):
         :param filters: An iterable list of Filter objects to add.
         :param unsigned int chunksize: If not None, the chunk size used by the filter list.
         """
+
         if filters is not None:
             filters = list(filters)
             for f in filters:
@@ -1341,6 +1357,7 @@ cdef class FilterList(object):
     @property
     def chunksize(self):
         """The chunk size used by the filter list."""
+
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_filter_list_t* filter_list_ptr = self.ptr
         cdef unsigned int chunksize = 0
@@ -1353,6 +1370,7 @@ cdef class FilterList(object):
     @property
     def nfilters(self):
         """Number of filters in the filter list."""
+
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_filter_list_t* filter_list_ptr = self.ptr
         cdef unsigned int nfilters = 0
@@ -1437,6 +1455,7 @@ cdef class Attr(object):
     cdef from_ptr(Ctx ctx, const tiledb_attribute_t* ptr):
         """Constructs an Attr class instance from a (non-null) tiledb_attribute_t pointer
         """
+        assert(ptr != NULL)
         cdef Attr attr = Attr.__new__(Attr)
         attr.ctx = ctx
         # need to cast away the const
@@ -2231,9 +2250,10 @@ cdef class KV(object):
 
     :param Ctx ctx: A TileDB Context
     :param str uri: URI to persistent KV resource
-    :param attrs: one or more KV value attributes
-    :type attrs: tuple(tiledb.Attr, ...)
-    :raises TypeError: invalid `uri` or `attrs` type
+    :param str mode: (default 'r') Open the KV object in read 'r' or write 'w' mode
+    :param str key: (default None) If not None, encryption key to decrypt the KV array
+    :param int timestamp: (default None) If not None, open the KV array at a given TileDB timestamp
+    :raises TypeError: invalid `uri` type
     :raises: :py:exc:`tiledb.TileDBError`
     """
 
@@ -2292,7 +2312,7 @@ cdef class KV(object):
             _raise_ctx_err(ctx_ptr, rc)
         return KV(ctx, uri)
 
-    def __init__(self, Ctx ctx, uri, mode='r', key=None):
+    def __init__(self, Ctx ctx, uri, mode='r', key=None, timestamp=None):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -2317,14 +2337,21 @@ cdef class KV(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t;t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+        cdef uint64_t _timestamp = 0
+        if timestamp is not None:
+            _timestamp = <uint64_t> timestamp
         # allocate and then open the array
         cdef tiledb_kv_t* kv_ptr = NULL
         cdef int rc = TILEDB_OK
         rc = tiledb_kv_alloc(ctx_ptr, uri_ptr, &kv_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        with nogil:
-            rc = tiledb_kv_open_with_key(ctx_ptr, kv_ptr, query_type, key_type, key_ptr, key_len)
+        if timestamp is None:
+            with nogil:
+                rc = tiledb_kv_open_with_key(ctx_ptr, kv_ptr, query_type, key_type, key_ptr, key_len)
+        else:
+            with nogil:
+                rc = tiledb_kv_open_at_with_key(ctx_ptr, kv_ptr, query_type, key_type, key_ptr, key_len, _timestamp)
         if rc != TILEDB_OK:
             tiledb_kv_free(&kv_ptr)
             _raise_ctx_err(ctx_ptr, rc)
@@ -2381,6 +2408,17 @@ cdef class KV(object):
         """
         return self.schema.nattr
 
+    @property
+    def timestamp(self):
+        """The timestamp the KV was opened at"""
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef uint64_t timestamp = 0
+        cdef int rc = TILEDB_OK
+        check_error(self.ctx,
+                    tiledb_kv_get_timestamp(ctx_ptr, kv_ptr, &timestamp))
+        return int(timestamp)
+
     def attr(self, object key not None):
         """Returns an Attr instance given an int index or string label
 
@@ -2405,7 +2443,7 @@ cdef class KV(object):
         self.schema = None
         return
 
-    def reopen(self):
+    def reopen(self, timestamp=None):
         """Reopens a key-value store
 
         Reopening the array is useful when there were updates to the key-value store after it got opened.
@@ -2414,16 +2452,23 @@ cdef class KV(object):
         """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_kv_t* kv_ptr = self.ptr
+        cdef uint64_t _timestamp = 0
         cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_kv_reopen(ctx_ptr, kv_ptr)
+        if timestamp is None:
+            with nogil:
+                rc = tiledb_kv_reopen(ctx_ptr, kv_ptr)
+        else:
+            _timestamp = <uint64_t> timestamp
+            with nogil:
+                rc = tiledb_kv_reopen_at(ctx_ptr, kv_ptr, _timestamp)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
 
-    def consolidate(self):
+    def consolidate(self, key=None):
         """Consolidates KV array updates for increased read performance
 
+        :param str key: (default None) If key is not None, consolidate KV with a given key
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
@@ -3165,7 +3210,9 @@ cdef class Array(object):
 
     :param Ctx ctx: TileDB context
     :param str uri: URI of array to open
-    :param str mode: Mode ('r' or 'w') to open the array with.
+    :param str mode: (default 'r') Open the KV object in read 'r' or write 'w' mode
+    :param str key: (default None) If not None, encryption key to decrypt the KV array
+    :param int timestamp: (default None) If not None, open the KV array at a given TileDB timestamp
     """
 
     cdef Ctx ctx
@@ -3215,7 +3262,7 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         return
 
-    def __init__(self, Ctx ctx, uri, mode='r', key=None):
+    def __init__(self, Ctx ctx, uri, mode='r', key=None, timestamp=None):
         # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         # uri
@@ -3245,14 +3292,23 @@ cdef class Array(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+        cdef uint64_t _timestamp = 0
+        if timestamp is not None:
+            _timestamp = <uint64_t> timestamp
         # allocate and then open the array
         cdef tiledb_array_t* array_ptr = NULL
         cdef int rc = TILEDB_OK
         rc = tiledb_array_alloc(ctx_ptr, uri_ptr, &array_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        with nogil:
-            rc = tiledb_array_open_with_key(ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len)
+        if timestamp is None:
+            with nogil:
+                rc = tiledb_array_open_with_key(
+                    ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len)
+        else:
+            with nogil:
+                rc = tiledb_array_open_at_with_key(
+                    ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len, _timestamp)
         if rc != TILEDB_OK:
             tiledb_array_free(&array_ptr)
             _raise_ctx_err(ctx_ptr, rc)
@@ -3286,7 +3342,7 @@ cdef class Array(object):
         self.schema = None
         return
 
-    def reopen(self):
+    def reopen(self, timestamp=None):
         """Reopens this array.
 
         This is useful when the array is updated after it was opened.
@@ -3295,9 +3351,15 @@ cdef class Array(object):
         """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
+        cdef uint64_t _timestamp = 0
         cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_array_reopen(ctx_ptr, array_ptr)
+        if timestamp is None:
+            with nogil:
+                rc = tiledb_array_reopen(ctx_ptr, array_ptr)
+        else:
+            _timestamp = <uint64_t> timestamp
+            with nogil:
+                rc = tiledb_array_reopen_at(ctx_ptr, array_ptr, _timestamp)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
@@ -3346,6 +3408,18 @@ cdef class Array(object):
     def nattr(self):
         """The number of attributes of this array."""
         return self.schema.nattr
+
+    @property
+    def timestamp(self):
+        """Returns the timestamp the array is opened at"""
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+        cdef uint64_t timestamp = 0
+        cdef int rc = TILEDB_OK
+        rc = tiledb_array_get_timestamp(ctx_ptr, array_ptr, &timestamp)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return int(timestamp)
 
     @property
     def coords_dtype(self):
@@ -4382,11 +4456,12 @@ cdef class SparseArray(Array):
         return out
 
 
-def consolidate(Ctx ctx, path):
+def consolidate(Ctx ctx, uri):
     """Consolidates a TileDB Array updates for improved read performance
 
     :param tiledb.Ctx ctx: The TileDB Context
-    :param str path: path (URI) to the TileDB Array
+    :param str uri: URI to the TileDB Array
+    :param int timestamp: (default None) timestamp
     :rtype: str
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
@@ -4394,39 +4469,39 @@ def consolidate(Ctx ctx, path):
 
     """
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef bytes bpath = unicode_path(path)
-    cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
+    cdef bytes buri = unicode_path(uri)
+    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
     cdef int rc = TILEDB_OK
     with nogil:
-        rc = tiledb_array_consolidate(ctx_ptr, path_ptr)
+        rc = tiledb_array_consolidate(ctx_ptr, uri_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
-    return path
+    return uri
 
 
-def group_create(Ctx ctx, path):
+def group_create(Ctx ctx, uri):
     """Create a TileDB Group object at the specified path (URI)
 
     :param tiledb.Ctx ctx: The TileDB Context
-    :param str path: path (URI) of the TileDB Group to be created
+    :param str uri: URI of the TileDB Group to be created
     :rtype: str
-    :return: The path (URI) of the created TileDB Group
+    :return: The URI of the created TileDB Group
     :raises TypeError: cannot convert path to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef bytes bpath = unicode_path(path)
-    cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
+    cdef bytes buri = unicode_path(uri)
+    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
     with nogil:
-        rc = tiledb_group_create(ctx_ptr, path_ptr)
+        rc = tiledb_group_create(ctx_ptr, uri_ptr)
     if rc != TILEDB_OK:
         check_error(ctx, rc)
-    return path
+    return uri
 
 
-def object_type(Ctx ctx, path):
+def object_type(Ctx ctx, uri):
     """Returns the TileDB object type at the specified path (URI)
 
     :param tiledb.Ctx ctx: The TileDB Context
@@ -4438,8 +4513,8 @@ def object_type(Ctx ctx, path):
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef bytes bpath = unicode_path(path)
-    cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
+    cdef bytes buri = unicode_path(uri)
+    cdef const char* path_ptr = PyBytes_AS_STRING(buri)
     cdef tiledb_object_t obj = TILEDB_INVALID
     with nogil:
         rc = tiledb_object_type(ctx_ptr, path_ptr, &obj)
@@ -4455,39 +4530,39 @@ def object_type(Ctx ctx, path):
     return objtype
 
 
-def remove(Ctx ctx, path):
+def remove(Ctx ctx, uri):
     """Removes (deletes) the TileDB object at the specified path (URI)
 
     :param tiledb.Ctx ctx: The TileDB Context
-    :param str path: path (URI) of the TileDB resource
-    :raises TypeError: path cannot be converted to a unicode string
+    :param str uri: URI of the TileDB resource
+    :raises TypeError: uri cannot be converted to a unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef bytes bpath = unicode_path(path)
-    cdef const char* path_ptr = PyBytes_AS_STRING(bpath)
+    cdef bytes buri = unicode_path(uri)
+    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
     with nogil:
-        rc = tiledb_object_remove(ctx_ptr, path_ptr)
+        rc = tiledb_object_remove(ctx_ptr, uri_ptr)
     if rc != TILEDB_OK:
         check_error(ctx, rc)
     return
 
 
-def move(Ctx ctx, old_path, new_path):
+def move(Ctx ctx, old_uri, new_uri):
     """Moves a TileDB resource (group, array, key-value).
 
     :param tiledb.Ctx ctx: The TileDB Context
-    :param str old_path: path (URI) of the TileDB resource to move
-    :param str new_path: path (URI) of the destination
-    :raises TypeError: path cannot be converted to a unicode string
+    :param str old_uri: path (URI) of the TileDB resource to move
+    :param str new_uri: path (URI) of the destination
+    :raises TypeError: uri cannot be converted to a unicode string
     :raises: :py:exc:`TileDBError`
     """
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef bytes b_old_path = unicode_path(old_path)
-    cdef bytes b_new_path = unicode_path(new_path)
+    cdef bytes b_old_path = unicode_path(old_uri)
+    cdef bytes b_new_path = unicode_path(new_uri)
     cdef const char* old_path_ptr = PyBytes_AS_STRING(b_old_path)
     cdef const char* new_path_ptr = PyBytes_AS_STRING(b_new_path)
     with nogil:

@@ -661,9 +661,23 @@ cdef extern from "tiledb/tiledb.h":
         const void* key,
         unsigned int key_len) nogil
 
+    int tiledb_array_open_at_with_key(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        tiledb_query_type_t query_type,
+        tiledb_encryption_type_t encryption_type,
+        const void * encryption_key,
+        int key_length,
+        uint64_t timestamp) nogil
+
     int tiledb_array_reopen(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array) nogil
+
+    int tiledb_array_reopen_at(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint64_t timestamp) nogil
 
     int tiledb_array_close(
         tiledb_ctx_t* ctx,
@@ -698,6 +712,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
         tiledb_array_schema_t** array_schema) nogil
+
+    int tiledb_array_get_timestamp(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint64_t* timestamp) nogil
 
     int tiledb_array_get_query_type(
         tiledb_ctx_t* ctx,
@@ -856,6 +875,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_kv_t* kv,
         tiledb_kv_schema_t** schema) nogil
 
+    int tiledb_kv_get_timestamp(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        uint64_t* timestamp) nogil
+
     int tiledb_kv_open(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
@@ -865,9 +889,19 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv,
         tiledb_query_type_t query_type,
-        tiledb_encryption_type_t key_type,
-        const void* key,
+        tiledb_encryption_type_t encryption_type,
+        const void* encryption_key,
         unsigned int key_len) nogil
+
+    int tiledb_kv_open_at_with_key(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* array,
+        tiledb_query_type_t query_type,
+        tiledb_encryption_type_t encryption_type,
+        const void * encryption_key,
+        int key_length,
+        uint64_t timestamp) nogil
+
 
     int tiledb_kv_is_open(
         tiledb_ctx_t* ctx,
@@ -877,6 +911,11 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_kv_reopen(
         tiledb_ctx_t* ctx,
         tiledb_kv_t* kv) nogil
+
+    int tiledb_kv_reopen_at(
+        tiledb_ctx_t* ctx,
+        tiledb_kv_t* kv,
+        uint64_t timestamp) nogil
 
     int tiledb_kv_close(
         tiledb_ctx_t* ctx,
