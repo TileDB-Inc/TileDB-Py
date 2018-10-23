@@ -2310,7 +2310,7 @@ cdef class KV(object):
                 ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        return KV(ctx, uri)
+        return
 
     def __init__(self, Ctx ctx, uri, mode='r', key=None, timestamp=None):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2475,9 +2475,23 @@ cdef class KV(object):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef bytes buri = unicode_path(self.uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        # encyrption key
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
         cdef int rc = TILEDB_OK
         with nogil:
-            rc = tiledb_kv_consolidate(ctx_ptr, uri_ptr)
+            rc = tiledb_kv_consolidate_with_key(ctx_ptr, uri_ptr, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
@@ -3469,13 +3483,13 @@ cdef class Array(object):
         return tuple((extents[i, 0].item(), extents[i, 1].item())
                      for i in range(dom.ndim))
 
-    def consolidate(self):
+    def consolidate(self, key=None):
         """Consolidates fragments of an array object for increased read performance.
 
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return consolidate(self.ctx, self.uri)
+        return consolidate(self.ctx, uri=self.uri, key=key)
 
     def dump(self):
         self.schema.dump()
@@ -4456,12 +4470,12 @@ cdef class SparseArray(Array):
         return out
 
 
-def consolidate(Ctx ctx, uri):
+def consolidate(Ctx ctx, uri=None, key=None):
     """Consolidates a TileDB Array updates for improved read performance
 
     :param tiledb.Ctx ctx: The TileDB Context
     :param str uri: URI to the TileDB Array
-    :param int timestamp: (default None) timestamp
+    :param str: (default None) Key to decrypt array if the array is encrypted
     :rtype: str
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
@@ -4471,9 +4485,23 @@ def consolidate(Ctx ctx, uri):
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+    # encyrption key
+    cdef bytes bkey
+    cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+    cdef void* key_ptr = NULL
+    cdef unsigned int key_len = 0
+    if key is not None:
+        if isinstance(key, str):
+            bkey = key.encode('ascii')
+        else:
+            bkey = bytes(key)
+        key_type = TILEDB_AES_256_GCM
+        key_ptr = <void *> PyBytes_AS_STRING(bkey)
+        #TODO: unsafe cast here ssize_t -> uint64_t
+        key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
     cdef int rc = TILEDB_OK
     with nogil:
-        rc = tiledb_array_consolidate(ctx_ptr, uri_ptr)
+        rc = tiledb_array_consolidate_with_key(ctx_ptr, uri_ptr, key_type, key_ptr, key_len)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
     return uri
