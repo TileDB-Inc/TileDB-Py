@@ -180,7 +180,7 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_config_save_to_file(
         tiledb_config_t* config,
         const char* filename,
-        tiledb_error_t** error)
+        tiledb_error_t** error) nogil
 
     # Config Iterator
     int tiledb_config_iter_alloc(
