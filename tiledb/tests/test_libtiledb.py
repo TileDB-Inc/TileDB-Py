@@ -488,6 +488,7 @@ class ArrayTest(DiskTestCase):
                 self.assertTrue(array.isopen)
                 self.assertEqual(array.schema, schema)
                 self.assertEqual(array.mode, 'r')
+            tiledb.consolidate(ctx, uri=self.path("foo"), key=key)
 
         # check that opening the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
@@ -498,6 +499,11 @@ class ArrayTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r',
                                    key=b"0123456789abcdeF0123456789abcde")
+
+        # check that consolidating the array with the wrong key fails:
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.consolidate(ctx, uri=self.path("foo"),
+                               key=b"0123456789abcdeF0123456789abcde")
 
     def test_array_doesnt_exist(self):
         ctx = tiledb.Ctx()
@@ -1359,6 +1365,33 @@ class KVArray(DiskTestCase):
           self.assertEqual(kv["foo"], 'bar')
           self.assertTrue('foo' in kv)
           self.assertFalse('bar' in kv)
+
+    def test_kv_write_load_read_encrypted(self):
+         # create a kv array
+        ctx = tiledb.Ctx()
+        a1 = tiledb.Attr(ctx, "value", dtype=bytes)
+        schema = tiledb.KVSchema(ctx, attrs=(a1,))
+        # persist kv schema
+        tiledb.KV.create(ctx, self.path("foo"), schema, key=b"0123456789abcdeF0123456789abcdeF")
+
+        with tiledb.KV(ctx, self.path("foo"), mode='w', key=b"0123456789abcdeF0123456789abcdeF") as kv:
+            kv['foo'] = 'bar'
+
+        # try to load it
+        with tiledb.KV(ctx, self.path("foo"), mode='r', key=b"0123456789abcdeF0123456789abcdeF") as kv:
+          self.assertEqual(kv["foo"], 'bar')
+          self.assertTrue('foo' in kv)
+          self.assertFalse('bar' in kv)
+
+        # loading with no key fails
+        with self.assertRaises(tiledb.TileDBError):
+            with tiledb.KV(ctx, self.path("foo")) as kv:
+                self.assertTrue('foo' in kv)
+
+        # loading with wrong key fails
+        with self.assertRaises(tiledb.TileDBError):
+            with tiledb.KV(ctx, self.path("foo"), key=b"0123456789abcdeF0123456789abcdeZ") as kv:
+                self.assertTrue('foo' in kv)
 
     def test_kv_update_reload(self):
         # create a kv array
