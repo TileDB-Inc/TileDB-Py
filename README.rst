@@ -177,6 +177,10 @@ Tests can now be run using Python's unittest framework::
 
     $ python -m unittest -v
 
+Doctests can be run using the doctest modele::
+
+    $ python -m doctest -o NORMALIZE_WHITESPACE -f tiledb/libtiledb.pyx
+
 You can also install a symlink named ``site-packages/tiledb.egg-link`` to the development folder of TileDB-Py with::
 
     $ pip install --editable .
