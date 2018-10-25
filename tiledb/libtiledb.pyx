@@ -319,6 +319,9 @@ cdef class Config(object):
 
         :param str key: Name of parameter to set
         :param str value: Value of parameter to set
+        :raises TypeError: `key` or `value` cannot be encoded into a UTF-8 string
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         key, value = unicode(key), unicode(value)
         cdef bytes bparam = key.encode('UTF-8')
@@ -335,6 +338,12 @@ cdef class Config(object):
         """Gets a config parameter value.
 
         :param str key: Name of parameter to get
+        :return: Config parameter value string
+        :rtype str:
+        :raises TypeError: `key` cannot be encoded into a UTF-8 string
+        :raises KeyError: Config parameter not found
+        :raises: :py:exc:`tiledb.TileDBError`
+
         """
         key = unicode(key)
         cdef bytes bparam = key.encode('UTF-8')
@@ -355,6 +364,8 @@ cdef class Config(object):
         Removes a configured parameter (resetting it to its default).
 
         :param str key: Name of parameter to reset.
+        :raises TypeError: `key` cannot be encoded into a UTF-8 string
+
         """
         key = unicode(key)
         cdef bytes bkey = ustring(key).encode("UTF-8")
@@ -415,7 +426,7 @@ cdef class Config(object):
 
         :param str prefix: return only parameters with a given prefix
         :rtype: ConfigKeys
-        :returns: Iterator over Config parameter string keys
+        :returns: iterator over Config parameter string keys
 
         """
         return ConfigKeys(self, prefix=prefix)
@@ -425,7 +436,7 @@ cdef class Config(object):
 
         :param str prefix: return only parameters with a given prefix
         :rtype: ConfigValues
-        :returns: Iterator over Config string values
+        :returns: iterator over Config string values
 
         """
         return ConfigValues(self, prefix=prefix)
@@ -449,7 +460,7 @@ cdef class Config(object):
         """Gets the value of a config parameter, or a default value.
 
         :param str key: Config parameter
-        :param args: return `arg` if Config does not contain paramter `key`
+        :param args: return `arg` if Config does not contain parameter `key`
         :return: Parameter value, `arg` or None.
 
         """
@@ -465,6 +476,7 @@ cdef class Config(object):
         """Update a config object with parameter, values from a dict like object
 
         :param odict: dict-like object containing parameter, values to update Config.
+
         """
         for (key, value) in odict.items():
             self[key] = value
@@ -474,6 +486,7 @@ cdef class Config(object):
         """Update a Config object with from a persisted config file
 
         :param path: A local Config file path
+
         """
         config = Config.load(path)
         self.update(config)
@@ -488,10 +501,11 @@ cdef class Config(object):
         """
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_config_t* config_ptr = self.ptr
         cdef tiledb_error_t* err_ptr = NULL
         cdef int rc
-        # TODO: Release GIL
-        rc = tiledb_config_save_to_file(self.ptr, uri_ptr, &err_ptr)
+        with nogil:
+            rc = tiledb_config_save_to_file(config_ptr, uri_ptr, &err_ptr)
         if rc == TILEDB_OOM:
             raise MemoryError()
         elif rc == TILEDB_ERR:
@@ -536,6 +550,12 @@ cdef class ConfigValues(object):
 cdef class ConfigItems(object):
     """
     An iterator object over Config parameter, values
+
+    :param config: TileDB Config object
+    :type config: tiledb.Config
+    :param prefix: (default "") Filter paramter names with given prefix
+    :type prefix: str
+
     """
     cdef Config config
     cdef tiledb_config_iter_t* ptr
@@ -607,6 +627,7 @@ cdef class Ctx(object):
 
     :param config: Initialize Ctx with given config parameters
     :type config: tiledb.Config or dict
+
     """
 
     cdef tiledb_ctx_t* ptr
@@ -646,8 +667,7 @@ cdef class Ctx(object):
 
 
 cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
-    """
-    Return tiledb_datatype_t enum value for a given numpy dtype object
+    """Return tiledb_datatype_t enum value for a given numpy dtype object
     """
     if dtype == np.int32:
         return TILEDB_INT32
@@ -872,6 +892,10 @@ cdef class CompressionFilter(Filter):
         """The compression level setting for the filter.
 
         Every compressor interprets this value differently (some ignore it, such as RLE).
+
+        :return: compression level
+        :rtype: int
+
         """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef int rc = TILEDB_OK
@@ -879,7 +903,7 @@ cdef class CompressionFilter(Filter):
         rc = tiledb_filter_get_option(ctx_ptr, self.ptr, TILEDB_COMPRESSION_LEVEL, &clevel)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        return int(clevel)
+        return clevel
 
 
 cdef class NoOpFilter(Filter):
@@ -902,6 +926,11 @@ cdef class NoOpFilter(Filter):
 
 cdef class GzipFilter(CompressionFilter):
     """Filter that compresses using gzip.
+
+    :param ctx: TileDB Ctx
+    :type ctx: tiledb.Ctx
+    :param level: (default None) If not None set the compressor level
+    :type level: int
 
     **Example:**
 
@@ -932,6 +961,11 @@ cdef class GzipFilter(CompressionFilter):
 cdef class ZstdFilter(CompressionFilter):
     """Filter that compresses using zstd.
 
+    :param ctx: TileDB Ctx
+    :type ctx: tiledb.Ctx
+    :param level: (default None) If not None set the compressor level
+    :type level: int
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
@@ -961,6 +995,11 @@ cdef class ZstdFilter(CompressionFilter):
 cdef class LZ4Filter(CompressionFilter):
     """Filter that compresses using lz4.
 
+    :param ctx: TileDB Ctx
+    :type ctx: tiledb.Ctx
+    :param level: (default None) If not None set the compressor level
+    :type level: int
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
@@ -989,6 +1028,9 @@ cdef class LZ4Filter(CompressionFilter):
 
 cdef class Bzip2Filter(CompressionFilter):
     """Filter that compresses using bzip2.
+
+    :param level: (default None) If not None set the compressor level
+    :type level: int
 
     **Example:**
 
@@ -1135,6 +1177,11 @@ cdef class ByteShuffleFilter(Filter):
 cdef class BitWidthReductionFilter(Filter):
     """Filter that performs bit-width reduction.
 
+     :param ctx: A TileDB Context
+     :type ctx: tiledb.Ctx
+     :param window: (default None) max window size for the filter
+     :type window: int
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
@@ -1158,11 +1205,6 @@ cdef class BitWidthReductionFilter(Filter):
         return filter_obj
 
     def __init__(self, Ctx ctx, window=None):
-        """Creates a new bit width reduction filter.
-
-        :param tiledb.Ctx ctx: A TileDB Context
-        :param unsigned int window: If not none, the max window for the filter.
-        """
         super().__init__(ctx, TILEDB_FILTER_BIT_WIDTH_REDUCTION)
         if window is None:
             return
@@ -1175,7 +1217,11 @@ cdef class BitWidthReductionFilter(Filter):
 
     @property
     def window(self):
-        """The maximum window size used for the filter."""
+        """
+        :return: The maximum window size used for the filter
+        :rtype: int
+
+        """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_filter_t* filter_ptr = self.ptr
         cdef unsigned int cwindow = 0
@@ -1188,6 +1234,11 @@ cdef class BitWidthReductionFilter(Filter):
 
 cdef class PositiveDeltaFilter(Filter):
     """Filter that performs positive-delta encoding.
+
+    :param ctx: A TileDB Context
+    :type ctx: tiledb.Ctx
+    :param window: (default None) the max window for the filter
+    :type window: int
 
     **Example:**
 
@@ -1212,11 +1263,6 @@ cdef class PositiveDeltaFilter(Filter):
         return filter_obj
 
     def __init__(self, Ctx ctx, window=None):
-        """Creates a new positive-delta encoding filter.
-
-        :param tiledb.Ctx ctx: A TileDB Context
-        :param unsigned int window: If not none, the max window for the filter.
-        """
         super().__init__(ctx, TILEDB_FILTER_POSITIVE_DELTA)
         if window is None:
             return
@@ -1229,7 +1275,11 @@ cdef class PositiveDeltaFilter(Filter):
 
     @property
     def window(self):
-        """The maximum window size used for the filter."""
+        """
+        :return: The maximum window size used for the filter
+        :rtype: int
+
+        """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_filter_t* filter_ptr = self.ptr
         cdef unsigned int cwindow = 0
@@ -1272,6 +1322,12 @@ cdef class FilterList(object):
 
     FilterLists contain zero or more Filters, used for filtering attribute data, the array coordinate data, etc.
 
+    :param ctx: A TileDB context
+    :type ctx: tiledb.Ctx
+    :param filters: An iterable of Filter objects to add.
+    :param chunksize: (default None) chunk size used by the filter list in bytes
+    :type chunksize: int
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
@@ -1312,14 +1368,6 @@ cdef class FilterList(object):
         return filter_list
 
     def __init__(self, Ctx ctx, filters=None, chunksize=None):
-        """
-        Initializes a new list of filters.
-
-        :param tiledb.Ctx ctx: A TileDB context
-        :param filters: An iterable list of Filter objects to add.
-        :param unsigned int chunksize: If not None, the chunk size used by the filter list.
-        """
-
         if filters is not None:
             filters = list(filters)
             for f in filters:
@@ -1369,7 +1417,10 @@ cdef class FilterList(object):
 
     @property
     def nfilters(self):
-        """Number of filters in the filter list."""
+        """
+        :return: Number of filters in the filter list
+        :rtype: int
+        """
 
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_filter_list_t* filter_list_ptr = self.ptr
@@ -1400,7 +1451,15 @@ cdef class FilterList(object):
         return self.nfilters
 
     def __getitem__(self, idx):
-        """Gets a copy of the filter in the list at the given index."""
+        """Gets a copy of the filter in the list at the given index
+
+        :param idx: index into the
+        :type idx: int or slice
+        :returns: A filter at given index / slice
+        :raises IndexError: invalid index
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         if not isinstance(idx, (int, slice)):
             raise TypeError("FilterList indices must be integers or slices, not {:s}".format(type(idx).__name__))
         nfilters = self.nfilters
@@ -1622,6 +1681,12 @@ cdef class Attr(object):
 
     @property
     def filters(self):
+        """FilterList of the TileDB attribute
+
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         cdef int rc = TILEDB_OK
         check_error(self.ctx,
@@ -2468,7 +2533,8 @@ cdef class KV(object):
     def consolidate(self, key=None):
         """Consolidates KV array updates for increased read performance
 
-        :param str key: (default None) If key is not None, consolidate KV with a given key
+        :param key: (default None) If key is not None, consolidate KV with a given key
+        :type key: str or bytes
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
@@ -2852,6 +2918,10 @@ cdef class ArraySchema(object):
     :type coords_compressor: tuple(str, int)
     :param offsets_compressor: compressor label, level for varnum attribute cells
     :type coords_compressor: tuple(str, int)
+    :param coords_filters: (default None) coordinate filter list
+    :type coords_filters: tiledb.FilterList
+    :param offsets_filters: (default None) offsets filter list
+    :type offsets_filters: tiledb.FilterList
     :param bool sparse: True if schema is sparse, else False \
         (set by SparseArray and DenseArray derived classes)
     :raises TypeError: cannot convert uri to unicode string
@@ -3120,6 +3190,11 @@ cdef class ArraySchema(object):
 
     @property
     def offsets_filters(self):
+        """The FilterList for the array's variable-length attribute offsets
+
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         check_error(self.ctx,
             tiledb_array_schema_get_offsets_filter_list(
@@ -3128,6 +3203,11 @@ cdef class ArraySchema(object):
 
     @property
     def coords_filters(self):
+        """The FilterList for the array's coordinates
+
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         check_error(self.ctx,
             tiledb_array_schema_get_coords_filter_list(
@@ -3425,7 +3505,12 @@ cdef class Array(object):
 
     @property
     def timestamp(self):
-        """Returns the timestamp the array is opened at"""
+        """Returns the timestamp the array is opened at
+
+        :rtype: int
+        :returns: tiledb timestamp at which point the array was opened
+
+        """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef uint64_t timestamp = 0
@@ -3437,7 +3522,7 @@ cdef class Array(object):
 
     @property
     def coords_dtype(self):
-        """Returns the numpy record array dtype of the SparseArray coordinates
+        """Returns the numpy record array dtype of the array coordinates
 
         :rtype: numpy.dtype
         :returns: coord array record dtype
@@ -3486,6 +3571,8 @@ cdef class Array(object):
     def consolidate(self, key=None):
         """Consolidates fragments of an array object for increased read performance.
 
+        :param key: (default None) encryption key to decrypt an encrypted array
+        :type key: str or bytes
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
@@ -4476,7 +4563,7 @@ def consolidate(Ctx ctx, uri=None, key=None):
     :param tiledb.Ctx ctx: The TileDB Context
     :param str uri: URI to the TileDB Array
     :param str: (default None) Key to decrypt array if the array is encrypted
-    :rtype: str
+    :rtype: str or bytes
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
