@@ -64,6 +64,8 @@ def libtiledb_exists(library_dirs):
             lib_name = "libtiledb.dylib"
         else:
             lib_name = "libtiledb.so"
+    elif os.name == "nt":
+        lib_name = "tiledb.lib"
     try:
         ctypes.CDLL(lib_name)
         return lib_name
@@ -117,8 +119,8 @@ def build_libtiledb(src_dir):
     cmake_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
                  "-DCMAKE_BUILD_TYPE=Release",
                  "-DTILEDB_TESTS=OFF",
-                 "-DTILEDB_HDFS=ON",
                  "-DTILEDB_S3=ON",
+                 "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
                  ".."]
 
     have_make = True
