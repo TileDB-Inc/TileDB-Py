@@ -1,0 +1,25 @@
+build: false
+
+platform:
+  - x64
+
+environment:
+  matrix:
+    - PYTHON: "C:\\Python36-x64"
+
+install:
+  - |
+    %PYTHON%\python.exe -m pip install -U pip
+    %PYTHON%\python.exe -m pip install wheel tox virtualenv
+
+test_script:
+  - |
+    %PYTHON%\Scripts\tox.exe -e py
+
+after_test:
+  - |
+    %PYTHON%\python.exe setup.py bdist_wheel
+    %PYTHON%\python.exe -m pip wheel -w dist .
+
+artifacts:
+  - path: 'dist\*'
