@@ -9,6 +9,8 @@ if os.name == "posix":
         lib_name = "libtiledb.dylib"
     else:
         lib_name = "libtiledb.so"
+elif os.name == "nt":
+    lib_name = "tiledb.lib"
 
 # Load the bundled TileDB dynamic library if it exists. This must occur before importing from libtiledb.
 try:

@@ -116,19 +116,23 @@ def build_libtiledb(src_dir):
     if not os.path.exists(libtiledb_build_dir):
         os.makedirs(libtiledb_build_dir)
     print("Building libtiledb in directory {}...".format(libtiledb_build_dir))
-    cmake_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
-                 "-DCMAKE_BUILD_TYPE=Release",
-                 "-DTILEDB_TESTS=OFF",
-                 "-DTILEDB_S3=ON",
-                 "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
-                 ".."]
-
+    # On Windows, need to specify the x64 toolchain
+    if os.name == "nt":
+        cmake_cmd = ["cmake", "-A X64"]
+    else:
+        cmake_cmd = ["cmake",]
+    cmake_cmd.extend([
+        "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DTILEDB_TESTS=OFF",
+        "-DTILEDB_S3=ON",
+        "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
+        ".."])
     have_make = True
     try:
         subprocess.check_call(["make", "-v"])
     except:
         have_make = False
-
     if have_make:
         njobs = multiprocessing.cpu_count() or 2
         build_cmd = ["make", "-j{:d}".format(njobs)]
@@ -136,7 +140,6 @@ def build_libtiledb(src_dir):
     else:
         build_cmd = ["cmake", "--build", ".", "--config", "Release"]
         install_cmd = ["cmake", "--build", ".", "--config", "Release", "--target", "install"]
-
     # Build and install libtiledb
     subprocess.check_call(cmake_cmd, cwd=libtiledb_build_dir)
     subprocess.check_call(build_cmd, cwd=libtiledb_build_dir)
