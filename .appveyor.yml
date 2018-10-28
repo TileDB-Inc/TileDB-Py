@@ -1,23 +1,26 @@
+build: off
+
 platform:
   - x64
 
 environment:
   matrix:
+    - PYTHON: "C:\\Python27-x64"
+      TOXENV: "py27"
+        
+    - PYTHON: "C\\Python35-x64"
+      TOXENV: "py35"
+
     - PYTHON: "C:\\Python36-x64"
+      TOXENV: "py36"
 
 install:
-  - |
-    %PYTHON%\python.exe -m pip install -U pip
-    %PYTHON%\python.exe -m pip install wheel tox virtualenv
-
+  - 'python -m pip install tox'
+  - 'python -m pip install wheel'
+ 
 test_script:
-  - |
-    %PYTHON%\Scripts\tox.exe -e py
+  - 'python -m tox'
 
-after_test:
-  - |
-    %PYTHON%\python.exe setup.py bdist_wheel
-    %PYTHON%\python.exe -m pip wheel -w dist .
-
-artifacts:
-  - path: 'dist\*'
+on_failure:
+  - ps: dir "env:"
+  - ps: get-content .tox\*\log\*
