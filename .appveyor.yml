@@ -3,11 +3,17 @@ build: off
 platform:
   - x64
 
+image:
+  - Visual Studio 2015
+
 environment:
   matrix:
     - PYTHON: "C:\\Python27-x64"
       TOXENV: "py27"
         
+    - PYTHON: "C\\Python34-x64"
+      TOXENV: "py34"
+
     - PYTHON: "C\\Python35-x64"
       TOXENV: "py35"
 
