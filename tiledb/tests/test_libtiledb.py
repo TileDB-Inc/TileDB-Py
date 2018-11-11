@@ -886,8 +886,8 @@ class DenseArrayTest(DiskTestCase):
             self.assertTrue("coords" in R)
             assert_array_equal(R["coords"],
                                np.array([(0, 0), (0, 1), (0, 2)],
-                                        dtype=[('__dim_0', '<i8'),
-                                               ('__dim_1', '<i8')]))
+                                        dtype=[('__dim_0', '<i4'),
+                                               ('__dim_1', '<i4')]))
 
             # Global order returns results as a linear buffer
             R = T.query(attrs=("ints",), order='G')[:]
