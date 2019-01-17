@@ -444,7 +444,10 @@ class ArrayTest(DiskTestCase):
         return tiledb.ArraySchema(ctx, domain=domain, attrs=(a1,))
 
     def test_array_create(self):
-        ctx = tiledb.Ctx()
+        config = tiledb.Config()
+        config["sm.consolidation.step_min_frag"] = 0
+        config["sm.consolidation.steps"] = 1
+        ctx = tiledb.Ctx(config=config)
         schema = self.create_array_schema(ctx)
 
         # persist array schema
@@ -461,7 +464,7 @@ class ArrayTest(DiskTestCase):
         self.assertIsNone(array.nonempty_domain())
 
         # this should be a no-op
-        array.consolidate()
+        array.consolidate(config)
 
         array.reopen()
         self.assertTrue(array.isopen)
@@ -478,7 +481,10 @@ class ArrayTest(DiskTestCase):
             array.reopen()
 
     def test_array_create_encrypted(self):
-        ctx = tiledb.Ctx()
+        config = tiledb.Config()
+        config["sm.consolidation.step_min_frags"] = 0
+        config["sm.consolidation.steps"] = 1
+        ctx = tiledb.Ctx(config=config)
         schema = self.create_array_schema(ctx)
         # persist array schema
         tiledb.libtiledb.Array.create(self.path("foo"), schema,
@@ -490,7 +496,7 @@ class ArrayTest(DiskTestCase):
                 self.assertTrue(array.isopen)
                 self.assertEqual(array.schema, schema)
                 self.assertEqual(array.mode, 'r')
-            tiledb.consolidate(ctx, uri=self.path("foo"), key=key)
+            tiledb.consolidate(ctx, config, uri=self.path("foo"), key=key)
 
         # check that opening the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
@@ -504,7 +510,7 @@ class ArrayTest(DiskTestCase):
 
         # check that consolidating the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.consolidate(ctx, uri=self.path("foo"),
+            tiledb.consolidate(ctx, config, uri=self.path("foo"),
                                key=b"0123456789abcdeF0123456789abcde")
 
     def test_array_doesnt_exist(self):

@@ -706,14 +706,16 @@ cdef extern from "tiledb/tiledb.h":
 
     int tiledb_array_consolidate(
         tiledb_ctx_t* ctx,
-        const char* array_path) nogil
+        const char* array_path,
+        tiledb_config_t* config) nogil
 
     int tiledb_array_consolidate_with_key(
         tiledb_ctx_t* ctx,
         const char* uri,
         tiledb_encryption_type_t key_type,
         const void* key_ptr,
-        unsigned int key_len) nogil
+        unsigned int key_len,
+        tiledb_config_t* config) nogil
 
     int tiledb_array_get_schema(
         tiledb_ctx_t* ctx,
@@ -867,14 +869,16 @@ cdef extern from "tiledb/tiledb.h":
 
     int tiledb_kv_consolidate(
         tiledb_ctx_t* ctx,
-        const char* kv_uri) nogil
+        const char* kv_uri,
+        tiledb_config_t* config) nogil
 
     int tiledb_kv_consolidate_with_key(
         tiledb_ctx_t* ctx,
         const char* kv_uri,
         tiledb_encryption_type_t encryption_type,
         const void* encryption_key,
-        unsigned int key_len) nogil
+        unsigned int key_len,
+        tiledb_config_t* config) nogil
 
     int tiledb_kv_alloc(
         tiledb_ctx_t* ctx,
