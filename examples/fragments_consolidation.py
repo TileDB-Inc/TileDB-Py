@@ -102,6 +102,10 @@ if tiledb.object_type(ctx, array_name) != "array":
 
 # Optionally consolidate
 if len(sys.argv) > 1 and sys.argv[1] == "consolidate":
-    tiledb.consolidate(ctx, array_name)
+    config = tiledb.Config()
+    config["sm.consolidation.steps"] = 1
+    config["sm.consolidation.step_max_frags"] = 3
+    config["sm.consolidation.step_min_frags"] = 1
+    tiledb.consolidate(ctx, config, array_name)
 
 read_array()
