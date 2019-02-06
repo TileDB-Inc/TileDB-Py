@@ -10,15 +10,17 @@ if os.name == "posix":
     else:
         lib_name = "libtiledb.so"
 else:
-    lib_name = "libtiledb"
+    lib_name = "tiledb"
 
 # Load the bundled TileDB dynamic library if it exists. This must occur before importing from libtiledb.
-try:
-    lib_dir = os.path.join(os.path.dirname(__file__), "native")
-    ctypes.CDLL(os.path.join(lib_dir, lib_name))
-except OSError as e:
-    # Otherwise try loading by name only.
-    ctypes.CDLL(lib_name)
+# On Windows we put the DLLs next to .pyd out of necessity, so this can be skipped.
+if os.name != 'nt':
+    try:
+        lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "native")
+        ctypes.CDLL(os.path.join(lib_dir, lib_name))
+    except OSError as e:
+        # Otherwise try loading by name only.
+        ctypes.CDLL(lib_name)
 
 from .libtiledb import (
      Ctx,

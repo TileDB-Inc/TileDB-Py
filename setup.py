@@ -34,7 +34,7 @@ from pkg_resources import resource_filename
 import sys
 from sys import version_info as ver
 
-TILEDB_VERSION = "master"
+TILEDB_VERSION = "fix_zlib_static_sb"
 
 # Directory containing this file
 CONTAINING_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -45,6 +45,8 @@ BUILD_DIR = os.path.join(CONTAINING_DIR, "build")
 # TileDB package source directory
 TILEDB_PKG_DIR = os.path.join(CONTAINING_DIR, "tiledb")
 
+def is_windows():
+    return os.name == 'nt'
 
 def libtiledb_exists(library_dirs):
     """
@@ -68,7 +70,7 @@ def libtiledb_exists(library_dirs):
         else:
             lib_name = "libtiledb.so"
     elif os.name == "nt":
-        lib_name = "tiledb.lib"
+        lib_name = "tiledb.dll"
     try:
         ctypes.CDLL(lib_name)
         return lib_name
@@ -88,7 +90,7 @@ def libtiledb_library_names():
         else:
             return ["libtiledb.so"]
     elif os.name == "nt":
-        return ["tiledb.lib"]
+            return ["tiledb.dll"]
     else:
         raise RuntimeError("Unsupported OS name " + os.name)
 
@@ -101,7 +103,7 @@ def download_libtiledb():
     dest_name = "TileDB-{}".format(TILEDB_VERSION)
     dest = os.path.join(BUILD_DIR, dest_name)
     if not os.path.exists(dest):
-        url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(TILEDB_VERSION)
+        url = "https://github.com/ihnorton/TileDB/archive/{}.zip".format(TILEDB_VERSION)
         print("Downloading TileDB package from {}...".format(TILEDB_VERSION))
         with get_zipfile(url) as z:
             z.extractall(BUILD_DIR)
@@ -114,7 +116,6 @@ def build_libtiledb(src_dir):
     :param src_dir: Path to libtiledb source directory.
     :return: Path to the directory where the library was installed.
     """
-
     # From https://github.com/pandas-dev/pandas/pull/24274
     # 3-Clause BSD License: https://github.com/pandas-dev/pandas/blob/master/LICENSE
     # For mac, ensure extensions are built for macos 10.9 when compiling on a
@@ -135,12 +136,21 @@ def build_libtiledb(src_dir):
         os.makedirs(libtiledb_build_dir)
 
     print("Building libtiledb in directory {}...".format(libtiledb_build_dir))
-    cmake_cmd = ["cmake", "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
-                 "-DCMAKE_BUILD_TYPE=Release",
-                 "-DTILEDB_TESTS=OFF",
-                 "-DTILEDB_S3=ON",
-                 "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
-                 ".."]
+    cmake_cmd = ["cmake",
+                    "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
+                    "-DCMAKE_BUILD_TYPE=Release",
+                    "-DTILEDB_TESTS=OFF",
+                    "-DTILEDB_S3=ON",
+                    "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
+                    ]
+
+    if os.name == 'nt':
+        cmake_cmd.extend(['-A', 'x64', "-DMSVC_MP_FLAG=/MP4"])
+
+    # cmake target directory -- important
+    cmake_cmd.append(src_dir)
+
+    print("CMake configure command: {}".format(cmake_cmd))
 
     have_make = True
     try:
@@ -148,19 +158,21 @@ def build_libtiledb(src_dir):
     except:
         have_make = False
 
-    if have_make:
+    if have_make and not os.name == 'nt':
         njobs = multiprocessing.cpu_count() or 2
         build_cmd = ["make", "-j{:d}".format(njobs)]
-        install_cmd = ["make", "install"]
+        install_cmd = ["make", "install-tiledb"]
     else:
         build_cmd = ["cmake", "--build", ".", "--config", "Release"]
-        install_cmd = ["cmake", "--build", ".", "--config", "Release", "--target", "install"]
+        install_cmd = ["cmake", "--build", ".", "--config", "Release", "--target", "install-tiledb"]
 
     # Build and install libtiledb
     subprocess.check_call(cmake_cmd, cwd=libtiledb_build_dir)
     subprocess.check_call(build_cmd, cwd=libtiledb_build_dir)
-    subprocess.check_call(install_cmd, cwd=os.path.join(libtiledb_build_dir, "tiledb"))
+    subprocess.check_call(install_cmd, cwd=libtiledb_build_dir)
 
+    if not 'TILEDB_PATH' in os.environ:
+        os.environ['TILEDB_PATH'] = libtiledb_install_dir
     return libtiledb_install_dir
 
 
@@ -182,21 +194,53 @@ def find_or_install_libtiledb(setuptools_cmd):
     if not libtiledb_exists(tiledb_ext.library_dirs):
         src_dir = download_libtiledb()
         install_dir = build_libtiledb(src_dir)
+        lib_subdir = 'bin' if os.name=='nt' else 'lib'
+        native_subdir = '' if is_windows() else 'native'
         # Copy libtiledb shared object(s) to the package directory so they can be found
         # with package_data.
+        dest_dir = os.path.join(TILEDB_PKG_DIR, native_subdir)
         for libname in libtiledb_library_names():
-            src = os.path.join(install_dir, "lib", libname)
-            dest_dir = os.path.join(TILEDB_PKG_DIR, "native")
+            src = os.path.join(install_dir, lib_subdir, libname)
             if not os.path.exists(dest_dir):
                 os.makedirs(dest_dir)
             dest = os.path.join(dest_dir, libname)
             print("Copying file {0} to {1}".format(src, dest))
             shutil.copy(src, dest)
+
+        # TODO hack
+        # also copy the lib file for dependees
+        # this needs to come before
+        if is_windows():
+            def do_copy(src, dest):
+                print("Copying file {0} to {1}".format(src, dest))
+                shutil.copy(src, dest)
+
+            # lib files for linking
+            src = os.path.join(install_dir, "lib", "tiledb.lib")
+            dest = os.path.join(dest_dir, "tiledb.lib")
+            do_copy(src, dest)
+
+            # tbb
+            src = os.path.join(install_dir, "bin", "tbb.dll")
+            dest = os.path.join(dest_dir, "tbb.dll")
+            do_copy(src, dest)
+            src = os.path.join(install_dir, "lib", "tbb.lib")
+            dest = os.path.join(dest_dir, "tbb.lib")
+            do_copy(src, dest)
+
+            #
+            tiledb_ext.library_dirs += [os.path.join(install_dir, "lib")]
+
         # Update the TileDB Extension instance with correct paths.
-        tiledb_ext.library_dirs += [os.path.join(install_dir, "lib")]
+        tiledb_ext.library_dirs += [os.path.join(install_dir, lib_subdir)]
         tiledb_ext.include_dirs += [os.path.join(install_dir, "include")]
         # Update package_data so the shared object gets installed with the Python module.
-        libtiledb_objects = [os.path.join("native", libname) for libname in libtiledb_library_names()]
+        libtiledb_objects = [os.path.join(native_subdir, libname) for libname in libtiledb_library_names()]
+        if is_windows():
+            libtiledb_objects.extend(
+                [os.path.join(native_subdir, libname) for libname in
+                              ["tiledb.lib", "tbb.dll", "tbb.lib"]])
+
         setuptools_cmd.distribution.package_data.update({"tiledb": libtiledb_objects})
 
 
@@ -320,7 +364,7 @@ if ver < (3,):
     TESTS_REQUIRE.extend(["unittest2", "mock"])
 
 # Globals variables
-CXXFLAGS = os.environ.get("CXXFLAGS", "-std=c++11").split()
+CXXFLAGS = os.environ.get("CXXFLAGS", "-std=c++11" if not is_windows() else "").split()
 LFLAGS = os.environ.get("LFLAGS", "").split()
 
 # Allow setting (lib) TileDB directory if it is installed on the system
@@ -347,11 +391,14 @@ for arg in args:
         CXXFLAGS = arg.split('=')[1].split()
         sys.argv.remove(arg)
 
+
 if TILEDB_PATH != '':
     LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
     if sys.platform.startswith("linux"):
         LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib64'),
                      os.path.join(TILEDB_PATH, 'lib', 'x86_64-linux-gnu')]
+    elif os.name == 'nt':
+        LIB_DIRS += ['lib']
     INC_DIRS += [os.path.join(TILEDB_PATH, 'include')]
 
 with open('README.rst') as f:
