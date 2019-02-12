@@ -34,7 +34,7 @@ from pkg_resources import resource_filename
 import sys
 from sys import version_info as ver
 
-TILEDB_VERSION = "fix_zlib_static_sb"
+TILEDB_VERSION = "backport-1.4.2"
 
 # Directory containing this file
 CONTAINING_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -103,7 +103,7 @@ def download_libtiledb():
     dest_name = "TileDB-{}".format(TILEDB_VERSION)
     dest = os.path.join(BUILD_DIR, dest_name)
     if not os.path.exists(dest):
-        url = "https://github.com/ihnorton/TileDB/archive/{}.zip".format(TILEDB_VERSION)
+        url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(TILEDB_VERSION)
         print("Downloading TileDB package from {}...".format(TILEDB_VERSION))
         with get_zipfile(url) as z:
             z.extractall(BUILD_DIR)
