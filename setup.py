@@ -34,7 +34,11 @@ from pkg_resources import resource_filename
 import sys
 from sys import version_info as ver
 
+# Target branch
 TILEDB_VERSION = "backport-1.4.2"
+
+# Use `setup.py [] --debug` for a debug build of libtiledb
+TILEDB_DEBUG_BUILD = False
 
 # Directory containing this file
 CONTAINING_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -138,11 +142,17 @@ def build_libtiledb(src_dir):
     print("Building libtiledb in directory {}...".format(libtiledb_build_dir))
     cmake_cmd = ["cmake",
                     "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
-                    "-DCMAKE_BUILD_TYPE=Release",
                     "-DTILEDB_TESTS=OFF",
                     "-DTILEDB_S3=ON",
                     "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
                     ]
+
+    if TILEDB_DEBUG_BUILD:
+        build_type = "Debug"
+    else:
+        build_type = "Release"
+
+    cmake_cmd.append("-DCMAKE_BUILD_TYPE={}".format(build_type))
 
     if os.name == 'nt':
         cmake_cmd.extend(['-A', 'x64', "-DMSVC_MP_FLAG=/MP4"])
@@ -389,6 +399,9 @@ for arg in args:
         sys.argv.remove(arg)
     if arg.find('--cxxflags=') == 0:
         CXXFLAGS = arg.split('=')[1].split()
+        sys.argv.remove(arg)
+    if arg.find('--debug') == 0:
+        TILEDB_DEBUG_BUILD = True
         sys.argv.remove(arg)
 
 
