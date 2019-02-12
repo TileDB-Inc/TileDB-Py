@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-import unittest
+import unittest, os
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -129,11 +129,12 @@ class GroupTest(GroupTestCase):
 
         groups = []
         def append_to_groups(path, obj):
-            groups.append((path, obj))
+            groups.append((os.path.normpath(path), obj))
 
         tiledb.walk(ctx, self.path(""), append_to_groups, order="preorder")
 
         groups.sort()
+
         self.assertTrue(groups[0][0].endswith(self.group1) and groups[0][1] == "group")
         self.assertTrue(groups[1][0].endswith(self.group2) and groups[1][1] == "group")
         self.assertTrue(groups[2][0].endswith(self.group3) and groups[2][1] == "group")
@@ -853,8 +854,8 @@ class DenseArrayTest(DiskTestCase):
     def test_multiple_attributes(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(ctx,
-                       tiledb.Dim(ctx, domain=(0, 1), tile=1, dtype=int),
-                       tiledb.Dim(ctx, domain=(0, 3), tile=4, dtype=int))
+                       tiledb.Dim(ctx, domain=(0, 1), tile=1, dtype=np.int64),
+                       tiledb.Dim(ctx, domain=(0, 3), tile=4, dtype=np.int64))
         attr_int = tiledb.Attr(ctx, "ints", dtype=int)
         attr_float = tiledb.Attr(ctx, "floats", dtype=float)
         schema = tiledb.ArraySchema(ctx,
