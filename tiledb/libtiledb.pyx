@@ -1486,6 +1486,8 @@ cdef class Attr(object):
     :param str name: Attribute name, empty if anonymous
     :param dtype: Attribute value datatypes
     :type dtype: numpy.dtype object or type or string
+    :param filters: List of filters to apply
+    :type filters: FilterList
     :param compressor: The compressor name and level for attribute values.
                        Available compressors:
                          - "gzip"
