@@ -453,6 +453,9 @@ class ArrayTest(DiskTestCase):
         # persist array schema
         tiledb.libtiledb.Array.create(self.path("foo"), schema)
 
+        # this should be a no-op
+        tiledb.consolidate(ctx, config, self.path("foo"))
+
         # load array in readonly mode
         array = tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r')
         self.assertTrue(array.isopen)
@@ -462,9 +465,6 @@ class ArrayTest(DiskTestCase):
 
         # we have not written anything, so the array is empty
         self.assertIsNone(array.nonempty_domain())
-
-        # this should be a no-op
-        array.consolidate(config)
 
         array.reopen()
         self.assertTrue(array.isopen)
