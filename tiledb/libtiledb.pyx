@@ -1386,15 +1386,17 @@ cdef class FilterList(object):
             _raise_ctx_err(ctx_ptr, rc)
         cdef tiledb_filter_t* filter_ptr = NULL
         cdef Filter filter
-        try:
-            for f in filters:
-                filter_ptr = (<Filter> f).ptr
-                rc = tiledb_filter_list_add_filter(ctx_ptr, filter_list_ptr, filter_ptr)
-                if rc != TILEDB_OK:
-                    _raise_ctx_err(ctx_ptr, rc)
-        except:
-            tiledb_filter_list_free(&filter_list_ptr)
-            raise
+
+        if filters is not None:
+            try:
+                    for f in filters:
+                        filter_ptr = (<Filter> f).ptr
+                        rc = tiledb_filter_list_add_filter(ctx_ptr, filter_list_ptr, filter_ptr)
+                        if rc != TILEDB_OK:
+                            _raise_ctx_err(ctx_ptr, rc)
+            except:
+                tiledb_filter_list_free(&filter_list_ptr)
+                raise
         if chunksize is not None:
             rc = tiledb_filter_list_set_max_chunk_size(ctx_ptr, filter_list_ptr, chunksize)
             if rc != TILEDB_OK:

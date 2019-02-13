@@ -299,6 +299,11 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(len(attr.filters), 2)
         self.assertEqual(attr.filters.chunksize, filter_list.chunksize)
 
+    def test_filter_list(self):
+        ctx = tiledb.Ctx()
+
+        # should be constructible without a `filters` keyword arg set
+        filter_list1 = tiledb.FilterList()
 
 class ArraySchemaTest(unittest.TestCase):
 
