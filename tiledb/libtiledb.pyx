@@ -1434,6 +1434,24 @@ cdef class FilterList(object):
             return filters[0]
         return filters
 
+    def append(self, Filter filter):
+        """Appends `filter` to the end of filter list
+
+        :param filter: filter object to add
+        :type filter: Filter
+        :returns: None
+        """
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_filter_list_t* filter_list_ptr = self.ptr
+        assert(filter_list_ptr != NULL)
+
+        cdef tiledb_filter_t* filter_ptr = filter.ptr
+
+        cdef int rc = TILEDB_OK
+        rc = tiledb_filter_list_add_filter(ctx_ptr, filter_list_ptr, filter_ptr)
+        if rc != TILEDB_OK:
+             _raise_ctx_err(ctx_ptr, rc)
+
 
 cdef class Attr(object):
     """Class representing a TileDB array attribute.
