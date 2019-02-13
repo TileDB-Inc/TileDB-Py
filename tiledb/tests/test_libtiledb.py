@@ -308,9 +308,10 @@ class AttributeTest(unittest.TestCase):
 
     def test_filter_list(self):
         ctx = tiledb.Ctx()
-
         # should be constructible without a `filters` keyword arg set
-        filter_list1 = tiledb.FilterList()
+        filter_list1 = tiledb.FilterList(ctx)
+        filter_list1.append(tiledb.GzipFilter(ctx))
+        self.assertEqual(len(filter_list1), 1)
 
 class ArraySchemaTest(unittest.TestCase):
 
