@@ -763,47 +763,6 @@ cdef _numpy_scalar(tiledb_datatype_t typ, void* data, uint64_t nbytes):
     return PyArray_Scalar(data, np.PyArray_DescrFromType(type_num), None)
 """
 
-cdef tiledb_compressor_t _tiledb_compressor(object c) except TILEDB_NO_COMPRESSION:
-    """
-    Return a tiledb_compressor_t enum value from a string label, or None for no compression
-    """
-    if c is None:
-        return TILEDB_NO_COMPRESSION
-    elif c == "gzip":
-        return TILEDB_GZIP
-    elif c == "zstd":
-        return TILEDB_ZSTD
-    elif c == "lz4":
-        return TILEDB_LZ4
-    elif c == "rle":
-        return TILEDB_RLE
-    elif c == "bzip2":
-        return TILEDB_BZIP2
-    elif c == "double-delta":
-        return TILEDB_DOUBLE_DELTA
-    raise ValueError("unknown compressor: {0!r}".format(c))
-
-
-cdef unicode _tiledb_compressor_string(tiledb_compressor_t c):
-    """
-    Return the (unicode) string representation of a tiledb_compressor_t enum value
-    """
-    if c == TILEDB_NO_COMPRESSION:
-        return u"none"
-    elif c == TILEDB_GZIP:
-        return u"gzip"
-    elif c == TILEDB_ZSTD:
-        return u"zstd"
-    elif c == TILEDB_LZ4:
-        return u"lz4"
-    elif c == TILEDB_RLE:
-        return u"rle"
-    elif c == TILEDB_BZIP2:
-        return u"bzip2"
-    elif c == TILEDB_DOUBLE_DELTA:
-        return u"double-delta"
-
-
 cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
     """
     Return the tiledb_layout_t enum value given a layout string label
@@ -897,13 +856,8 @@ cdef class CompressionFilter(Filter):
         :rtype: int
 
         """
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-        cdef int rc = TILEDB_OK
-        cdef int clevel = -1
-        rc = tiledb_filter_get_option(ctx_ptr, self.ptr, TILEDB_COMPRESSION_LEVEL, &clevel)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        return clevel
+        # <todo> reimplement on top of filter API?
+        pass
 
 
 cdef class NoOpFilter(Filter):
@@ -1488,7 +1442,7 @@ cdef class Attr(object):
     :type dtype: numpy.dtype object or type or string
     :param filters: List of filters to apply
     :type filters: FilterList
-    :param compressor: The compressor name and level for attribute values.
+    :param compressor: <todo: reimplement?> The compressor name and level for attribute values.
                        Available compressors:
                          - "gzip"
                          - "zstd"
@@ -1527,7 +1481,6 @@ cdef class Attr(object):
                  Ctx ctx,
                  name=u"",
                  dtype=np.float64,
-                 compressor=None,
                  filters=None):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
@@ -1553,16 +1506,12 @@ cdef class Attr(object):
                 raise TypeError('heterogenous record numpy dtypes are not supported')
             tiledb_dtype = _tiledb_dtype(typ)
             ncells = <unsigned int>(ntypes)
+
         # scalar cell type
         else:
             tiledb_dtype = _tiledb_dtype(_dtype)
             ncells = 1
-        # compression and compression level
-        cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
-        cdef int _level = -1
-        if compressor is not None:
-            _compressor = _tiledb_compressor(ustring(compressor[0]))
-            _level = int(compressor[1])
+
         cdef FilterList filter_list
         if filters is not None:
             if not isinstance(filters, FilterList):
@@ -1578,11 +1527,7 @@ cdef class Attr(object):
         if rc != TILEDB_OK:
             tiledb_attribute_free(&attr_ptr)
             _raise_ctx_err(ctx.ptr, rc)
-        if _compressor != TILEDB_NO_COMPRESSION:
-            rc = tiledb_attribute_set_compressor(ctx.ptr, attr_ptr, _compressor, _level)
-            if rc != TILEDB_OK:
-                tiledb_attribute_free(&attr_ptr)
-                _raise_ctx_err(ctx.ptr, rc)
+
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         if filters is not None:
             filter_list_ptr = filter_list.ptr
@@ -1597,8 +1542,7 @@ cdef class Attr(object):
         if not isinstance(other, Attr):
             return False
         if (self.name != other.name or
-            self.dtype != other.dtype or
-            self.compressor != other.compressor):
+            self.dtype != other.dtype):
             return False
         return True
 
@@ -1672,14 +1616,8 @@ cdef class Attr(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        cdef int level = -1
-        cdef tiledb_compressor_t compr = TILEDB_NO_COMPRESSION
-        check_error(self.ctx,
-                    tiledb_attribute_get_compressor(self.ctx.ptr, self.ptr, &compr, &level))
-        if compr == TILEDB_NO_COMPRESSION:
-            return (None, -1)
-        return (_tiledb_compressor_string(compr), int(level))
-
+        # <todo> do we want to reimplement this on top of new API?
+        pass
 
     @property
     def filters(self):
@@ -2920,10 +2858,6 @@ cdef class ArraySchema(object):
     :param tile_order:  TileDB label for tile layout
     :type tile_order: 'row-major' or 'C', 'col-major' or 'F', 'unordered'
     :param int capacity: tile cell capacity
-    :param coords_compressor: compressor label, level for (sparse) coordinates
-    :type coords_compressor: tuple(str, int)
-    :param offsets_compressor: compressor label, level for varnum attribute cells
-    :type coords_compressor: tuple(str, int)
     :param coords_filters: (default None) coordinate filter list
     :type coords_filters: tiledb.FilterList
     :param offsets_filters: (default None) offsets filter list
@@ -2990,8 +2924,6 @@ cdef class ArraySchema(object):
                  cell_order='row-major',
                  tile_order='row-major',
                  capacity=0,
-                 coords_compressor=None,
-                 offsets_compressor=None,
                  coords_filters=None,
                  offsets_filters=None,
                  sparse=False):
@@ -3019,28 +2951,7 @@ cdef class ArraySchema(object):
             except:
                 tiledb_array_schema_free(&schema_ptr)
                 raise
-        cdef int _level = -1
-        cdef tiledb_compressor_t _compressor = TILEDB_NO_COMPRESSION
-        if coords_compressor is not None:
-            try:
-                compressor, level = coords_compressor
-                _compressor = _tiledb_compressor(compressor)
-                _level = int(level)
-                check_error(ctx,
-                    tiledb_array_schema_set_coords_compressor(ctx.ptr, schema_ptr, _compressor, _level))
-            except:
-                tiledb_array_schema_free(&schema_ptr)
-                raise
-        if offsets_compressor is not None:
-            try:
-                compressor, level = offsets_compressor
-                _compressor = _tiledb_compressor(compressor)
-                _level = int(level)
-                check_error(ctx,
-                    tiledb_array_schema_set_offsets_compressor(ctx.ptr, schema_ptr, _compressor, _level))
-            except:
-                tiledb_array_schema_free(&schema_ptr)
-                raise
+
         cdef FilterList filter_list
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         try:
@@ -3092,9 +3003,7 @@ cdef class ArraySchema(object):
             self.cell_order != other.cell_order or
             self.tile_order != other.tile_order):
             return False
-        if (self.capacity != other.capacity or
-            self.coords_compressor != other.coords_compressor or
-            self.offsets_compressor != other.offsets_compressor):
+        if (self.capacity != other.capacity):
             return False
         if self.domain != other.domain:
             return False
@@ -3172,12 +3081,8 @@ cdef class ArraySchema(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
-        cdef int level = -1
-        check_error(self.ctx,
-                    tiledb_array_schema_get_coords_compressor(
-                        self.ctx.ptr, self.ptr, &comp, &level))
-        return (_tiledb_compressor_string(comp), level)
+        # <todo> reimplement on top of filter API?
+        pass
 
     @property
     def offsets_compressor(self):
@@ -3187,12 +3092,8 @@ cdef class ArraySchema(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        cdef tiledb_compressor_t comp = TILEDB_NO_COMPRESSION
-        cdef int level = -1
-        check_error(self.ctx,
-                    tiledb_array_schema_get_offsets_compressor(
-                        self.ctx.ptr, self.ptr, &comp, &level))
-        return (_tiledb_compressor_string(comp), level)
+        # <todo> reimplement on top of filter API?
+        pass
 
     @property
     def offsets_filters(self):

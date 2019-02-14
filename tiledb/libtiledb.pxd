@@ -65,15 +65,6 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_GLOBAL_ORDER
         TILEDB_UNORDERED
 
-    ctypedef enum tiledb_compressor_t:
-        TILEDB_NO_COMPRESSION
-        TILEDB_GZIP
-        TILEDB_ZSTD
-        TILEDB_LZ4
-        TILEDB_RLE
-        TILEDB_BZIP2
-        TILEDB_DOUBLE_DELTA
-
     ctypedef enum tiledb_filter_type_t:
         TILEDB_FILTER_NONE = 0
         TILEDB_FILTER_GZIP = 1
@@ -316,12 +307,6 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_attribute_t* attr,
         tiledb_filter_list_t* filter_list)
 
-    int tiledb_attribute_set_compressor(
-        tiledb_ctx_t* ctx,
-        tiledb_attribute_t* attr,
-        tiledb_compressor_t compressor,
-        int compression_level)
-
     int tiledb_attribute_set_cell_val_num(
         tiledb_ctx_t* ctx,
         tiledb_attribute_t* attr,
@@ -341,12 +326,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_attribute_t* attr,
         tiledb_filter_list_t** filter_list)
-
-    int tiledb_attribute_get_compressor(
-        tiledb_ctx_t* ctx,
-        const tiledb_attribute_t* attr,
-        tiledb_compressor_t* compressor,
-        int* compression_level)
 
     int tiledb_attribute_get_cell_val_num(
         tiledb_ctx_t* ctx,
@@ -464,18 +443,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_array_schema_t* array_schema,
         tiledb_layout_t tile_order)
 
-    int tiledb_array_schema_set_coords_compressor(
-        tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema,
-        tiledb_compressor_t compressor,
-        int compression_level)
-
-    int tiledb_array_schema_set_offsets_compressor(
-        tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema,
-        tiledb_compressor_t compressor,
-        int compression_level)
-
     int tiledb_array_schema_set_offsets_filter_list(
         tiledb_ctx_t* ctx,
          tiledb_array_schema_t* array_schmea,
@@ -517,18 +484,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         tiledb_layout_t* cell_order)
-
-    int tiledb_array_schema_get_coords_compressor(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        tiledb_compressor_t* compressor,
-        int* compression_level)
-
-    int tiledb_array_schema_get_offsets_compressor(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        tiledb_compressor_t* compressor,
-        int* compression_level)
 
     int tiledb_array_schema_get_coords_filter_list(
         tiledb_ctx_t* ctx,
