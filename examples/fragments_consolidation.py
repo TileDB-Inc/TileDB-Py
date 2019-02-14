@@ -106,6 +106,6 @@ if len(sys.argv) > 1 and sys.argv[1] == "consolidate":
     config["sm.consolidation.steps"] = 1
     config["sm.consolidation.step_max_frags"] = 3
     config["sm.consolidation.step_min_frags"] = 1
-    tiledb.consolidate(ctx, config, array_name)
+    tiledb.consolidate(ctx, config=config, uri=array_name)
 
 read_array()
