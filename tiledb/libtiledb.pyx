@@ -3676,7 +3676,7 @@ cdef class DenseArray(Array):
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
             is returned for that attribute.  If the array has multiple attributes, a \
-            :py:class:`collections.OrderedDict` is with dense Numpy subarrays for each attribute.
+            :py:class:`collections.OrderedDict` is returned with dense Numpy subarrays for each attribute.
         :raises IndexError: invalid or unsupported index selection
         :raises: :py:exc:`tiledb.TileDBError`
 
