@@ -2532,17 +2532,19 @@ cdef class KV(object):
             _raise_ctx_err(ctx_ptr, rc)
         return
 
-    def consolidate(self, Config config, key=None):
+    def consolidate(self, Config config=None, key=None):
         """Consolidates KV array updates for increased read performance
 
-        :param tiledb.Config config: The TileDB Config with consolidation parameters set
+        :param tiledb.Config: (default None) The TileDB Config with consolidation parameters set
         :param key: (default None) If key is not None, consolidate KV with a given key
         :type key: str or bytes
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-        cdef tiledb_config_t* config_ptr = config.ptr
+        cdef tiledb_config_t* config_ptr = NULL
+        if config is not None:
+            config_ptr = config.ptr
         cdef bytes buri = unicode_path(self.uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         # encyrption key
@@ -3577,7 +3579,7 @@ cdef class Array(object):
         return tuple((extents[i, 0].item(), extents[i, 1].item())
                      for i in range(dom.ndim))
 
-    def consolidate(self, Config config, key=None):
+    def consolidate(self, Config config=None, key=None):
         """Consolidates fragments of an array object for increased read performance.
 
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
@@ -3814,7 +3816,7 @@ cdef class DenseArray(Array):
             if attr.isanon:
                 return out[attr.name]
         return out
- 
+
     cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
@@ -3823,7 +3825,7 @@ cdef class DenseArray(Array):
         cdef tuple shape = \
             tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
                   for r in range(self.schema.ndim))
-        
+
         cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
         out = OrderedDict()
         for i in range(nattr):
@@ -4377,7 +4379,7 @@ cdef class SparseArray(Array):
         ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='r') as A:
         ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]
         OrderedDict([('a1', array([1, 2]))])
-        
+
         """
         if not self.isopen:
             raise TileDBError("SparseArray is not opened")
@@ -4566,8 +4568,7 @@ cdef class SparseArray(Array):
         PyMem_Free(buffers_ptr)
         return out
 
-
-def consolidate(Ctx ctx, Config config, uri=None, key=None):
+def consolidate(Ctx ctx, Config config=None, uri=None, key=None):
     """Consolidates a TileDB Array updates for improved read performance
 
     :param tiledb.Ctx ctx: The TileDB Context
@@ -4581,7 +4582,9 @@ def consolidate(Ctx ctx, Config config, uri=None, key=None):
 
     """
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef tiledb_config_t* config_ptr = config.ptr
+    cdef tiledb_config_t* config_ptr = NULL
+    if config is not None:
+        config_ptr = config.ptr
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
     # encyrption key
