@@ -453,8 +453,11 @@ class ArrayTest(DiskTestCase):
         # persist array schema
         tiledb.libtiledb.Array.create(self.path("foo"), schema)
 
-        # this should be a no-op
+        # these should be no-ops
+        #   full signature
         tiledb.consolidate(ctx, config, self.path("foo"))
+        #   kw signature
+        tiledb.consolidate(ctx, uri=self.path("foo"))
 
         # load array in readonly mode
         array = tiledb.libtiledb.Array(ctx, self.path("foo"), mode='r')
@@ -1373,6 +1376,35 @@ class KVArray(DiskTestCase):
           self.assertEqual(kv["foo"], 'bar')
           self.assertTrue('foo' in kv)
           self.assertFalse('bar' in kv)
+
+    def test_kv_write_consolidate(self):
+        # create a kv array
+        ctx = tiledb.Ctx()
+        a1 = tiledb.Attr(ctx, "value", dtype=bytes)
+        schema = tiledb.KVSchema(ctx, attrs=(a1,))
+
+        # persist kv schema
+        tiledb.KV.create(ctx, self.path("foo"), schema)
+
+        def append_kv(path, k, v):
+            kv = tiledb.KV(ctx, path, mode='w')
+            kv[k] = v
+            kv.close()
+            del kv
+
+        # load kv array, write, close / delete
+        kvpath = self.path("foo")
+        append_kv(kvpath, 'foo', 'bar')
+        append_kv(kvpath, 'foo', 'baz')
+        append_kv(kvpath, 'foo', 'bza')
+
+        kvw = tiledb.KV(ctx, kvpath, mode='w')
+        kvw.consolidate()
+        kvw.close()
+        del kvw
+
+        kvr = tiledb.KV(ctx, kvpath, mode='r')
+        self.assertEqual(kvr['foo'], 'bza')
 
     def test_kv_write_load_read_encrypted(self):
          # create a kv array
