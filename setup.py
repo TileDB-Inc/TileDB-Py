@@ -58,6 +58,8 @@ def libtiledb_exists(library_dirs):
     :return: The path to the TileDB library, or None.
     """
 
+    print("libtiledb_exists checking 'library_dirs': {}".format(library_dirs))
+
     if len(library_dirs) > 0:
         names = libtiledb_library_names()
         paths = [os.path.join(d, n) for d in library_dirs for n in names]
@@ -411,7 +413,7 @@ if TILEDB_PATH != '':
         LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib64'),
                      os.path.join(TILEDB_PATH, 'lib', 'x86_64-linux-gnu')]
     elif os.name == 'nt':
-        LIB_DIRS += ['lib']
+        LIB_DIRS += [os.path.join(TILEDB_PATH, 'bin')]
     INC_DIRS += [os.path.join(TILEDB_PATH, 'include')]
 
 with open('README.rst') as f:
