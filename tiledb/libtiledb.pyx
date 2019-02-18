@@ -2826,8 +2826,10 @@ def index_domain_subarray(Domain dom, tuple idx):
         if start is not None:
             # don't round / promote fp slices
             if np.issubdtype(dim.dtype, np.integer):
-                if not isinstance(start, _inttypes):
+                if isinstance(start, (np.float32, np.float64)):
                     raise IndexError("cannot index integral domain dimension with floating point slice")
+                elif not isinstance(start, _inttypes):
+                    raise IndexError("cannot index integral domain dimension with non-integral slice (dtype: {})".format(type(start)))
             # apply negative indexing (wrap-around semantics)
             if start < 0:
                 start += int(dim_ub) + 1
