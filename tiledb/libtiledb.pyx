@@ -2,6 +2,7 @@
 #cython: embedsignature=True
 #cython: auto_pickle=False
 
+
 from cpython.version cimport PY_MAJOR_VERSION
 
 from cpython.bytes cimport (PyBytes_GET_SIZE,
@@ -14,13 +15,18 @@ from cpython.mem cimport (PyMem_Malloc,
                           PyMem_Realloc,
                           PyMem_Free)
 
-from cpython.ref cimport (Py_INCREF, PyTypeObject)
+from cpython.ref cimport (Py_INCREF, Py_DECREF, PyTypeObject)
 
 from libc.stdio cimport (FILE, stdout)
 from libc.stdio cimport stdout
 from libc.stdlib cimport malloc, calloc, free
-from libc.stdint cimport (uint64_t, int64_t, uintptr_t)
+from libc.string cimport memcpy
+from libc.stdint cimport (uint8_t, uint64_t, int64_t, uintptr_t)
 from libc cimport limits
+
+
+cdef extern from "Python.h":
+    object PyUnicode_FromStringAndSize(const char *u, Py_ssize_t size)
 
 # Numpy imports
 """
@@ -32,6 +38,7 @@ cdef extern from "numpyFlags.h":
 
 import numpy as np
 cimport numpy as np
+cimport cython
 
 cdef extern from "numpy/arrayobject.h":
     # Steals a reference to dtype, need to incref the dtype
@@ -81,6 +88,10 @@ def version():
         int rev = 0
     tiledb_version(&major, &minor, &rev)
     return major, minor, rev
+
+def offset_size():
+    """Return the offset size (TILEDB_OFFSET_SIZE)"""
+    return tiledb_offset_size()
 
 
 # Global Ctx object to be used by default in all constructors
@@ -699,7 +710,9 @@ cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
         return TILEDB_INT16
     elif dtype == np.uint16:
         return TILEDB_UINT16
-    elif dtype == np.str_ or dtype == np.bytes_:  # or bytes
+    elif dtype == np.unicode_:
+        return TILEDB_STRING_UTF8
+    elif dtype == np.bytes_:
         return TILEDB_CHAR
     raise TypeError("data type {0!r} not understood".format(dtype))
 
@@ -730,6 +743,8 @@ cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
         return np.NPY_UINT16
     elif tiledb_dtype == TILEDB_CHAR:
         return np.NPY_STRING
+    elif tiledb_dtype == TILEDB_STRING_UTF8:
+        return np.NPY_UNICODE
     else:
         return np.NPY_NOTYPE
 
@@ -760,6 +775,8 @@ cdef _numpy_type(tiledb_datatype_t tiledb_dtype):
         return np.uint16
     elif tiledb_dtype == TILEDB_CHAR:
         return np.bytes_
+    elif tiledb_dtype == TILEDB_STRING_UTF8:
+        return np.unicode_
     raise TypeError("tiledb datatype not understood")
 
 """
@@ -1458,6 +1475,8 @@ cdef class Attr(object):
     :param str name: Attribute name, empty if anonymous
     :param dtype: Attribute value datatypes
     :type dtype: numpy.dtype object or type or string
+    :param var: Attribute is variable-length (automatic for byte/string tyeps)
+    :type dtype: bool
     :param filters: List of filters to apply
     :type filters: FilterList
     :param compressor: <todo: reimplement?> The compressor name and level for attribute values.
@@ -1498,6 +1517,7 @@ cdef class Attr(object):
     def __init__(self,
                  name=u"",
                  dtype=np.float64,
+                 var=False,
                  filters=None,
                  Ctx ctx=default_ctx()):
         cdef bytes bname = ustring(name).encode('UTF-8')
@@ -1505,10 +1525,15 @@ cdef class Attr(object):
         cdef np.dtype _dtype = np.dtype(dtype)
         cdef tiledb_datatype_t tiledb_dtype
         cdef unsigned int ncells
-        if np.issubdtype(_dtype, np.bytes_):
-            # flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
-            if _dtype.itemsize == 0:
+        if any(np.issubdtype(_dtype, _t) for _t in (np.bytes_, np.unicode_)):
+            # - flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
+            # - unicode and string types are always stored as VAR because we don't want to
+            #   store the pad (numpy pads to max length for 'S' and 'U' dtypes)
+            if (_dtype.itemsize == 0) and _dtype.kind == 'S':
                 tiledb_dtype = TILEDB_CHAR
+                ncells = TILEDB_VAR_NUM
+            elif (_dtype.itemsize == 0) and _dtype.kind == 'U':
+                tiledb_dtype = TILEDB_STRING_UTF8
                 ncells = TILEDB_VAR_NUM
             else:
                 tiledb_dtype = TILEDB_CHAR
@@ -1524,7 +1549,10 @@ cdef class Attr(object):
                 raise TypeError('heterogenous record numpy dtypes are not supported')
             tiledb_dtype = _tiledb_dtype(typ)
             ncells = <unsigned int>(ntypes)
-
+        # variable-length cell type
+        elif var:
+            tiledb_dtype = _tiledb_dtype(_dtype)
+            ncells = TILEDB_VAR_NUM
         # scalar cell type
         else:
             tiledb_dtype = _tiledb_dtype(_dtype)
@@ -1912,10 +1940,10 @@ cdef class Dim(object):
 cdef class Domain(object):
     """Class representing the domain of a TileDB Array.
 
-    :param tiledb.Ctx ctx: A TileDB Context
     :param *dims: one or more tiledb.Dim objects up to the Domain's ndim
     :raises TypeError: All dimensions must have the same dtype
     :raises: :py:exc:`TileDBError`
+    :param tiledb.Ctx ctx: A TileDB Context
 
     """
 
@@ -2349,7 +2377,7 @@ cdef class KV(object):
         else:
             raise ValueError("TileDB array mode must be 'r' or 'w' (got: '{}')".
                              format(mode))
-        # encyrption key
+        # encryption key
         cdef bytes bkey
         cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
         cdef void* key_ptr = NULL
@@ -3554,6 +3582,10 @@ cdef class DenseArray(Array):
 
     """
 
+    cdef object _buffer_sizes
+    cdef object _var_offsets
+    cdef object _var_bytes
+
     @staticmethod
     def from_numpy(uri, np.ndarray array, Ctx ctx=default_ctx(), **kw):
         """
@@ -3583,22 +3615,52 @@ cdef class DenseArray(Array):
             extent = array.shape[d]
             domain = (0, extent - 1)
             dims.append(Dim("", domain=domain, tile=extent, dtype=np.uint64, ctx=ctx))
+
+        if array.dtype == np.object:
+            # use the dtype of the first element for now
+            # consistency check will be done during construction pass
+            el = array.flat[0]
+            if type(el) is bytes:
+                el_type = np.dtype('S')
+            elif type(el) is str:
+                el_type = np.dtype('U')
+            elif type(el) == np.ndarray:
+                if len(el.shape) != 1:
+                    raise TypeError("Unsupported sub-array type for Attribute: {} " \
+                                    "(only strings and 1D homogeneous NumPy arrays are supported)".
+                                    format(type(el)))
+                el_type = el.dtype
+            else:
+                raise TypeError("Unsupported sub-array type for Attribute: {} " \
+                                "(only strings and homogeneous-typed NumPy arrays are supported)".
+                                format(type(el)))
+        else:
+            el_type = array.dtype
+
+        att = Attr(dtype=el_type, ctx=ctx)
         dom = Domain(*dims, ctx=ctx)
-        att = Attr(ctx=ctx, dtype=array.dtype)
         schema = ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
         Array.create(uri, schema)
+
         with DenseArray(uri, mode='w', ctx=ctx) as arr:
-            arr.write_direct(np.ascontiguousarray(array))
+            # <TODO> probably need better typecheck here
+            if array.dtype == np.object:
+                arr[:] = array
+            else:
+                arr.write_direct(np.ascontiguousarray(array))
         return DenseArray(uri, mode='r', ctx=ctx)
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if self.schema.sparse:
             raise ValueError("Array at {} is not a dense array".format(self.uri))
+        self._var_offsets = dict()
+        self._var_bytes = dict()
         return
 
     def __len__(self):
         return self.domain.shape[0]
+
 
     def __getitem__(self, object selection):
         """Retrieve data cells for an item or region of the array.
@@ -3742,9 +3804,209 @@ cdef class DenseArray(Array):
                 return out[attr.name]
         return out
 
+    cdef _varlen_type_compat(self, object reftype, object val):
+        if isinstance(val, bytes) and reftype is bytes:
+            return True
+        elif (val, np.bytes_) and np.issubdtype(reftype, np.bytes_):
+            return True
+        elif isinstance(val, np.unicode_) and np.issubdtype(reftype, np.unicode_):
+            return True
+        elif isinstance(val, np.ndarray):
+            if reftype == val.dtype:
+                return True
+            elif np.issubdtype(val.dtype, np.bytes_) and np.issubdtype(reftype, np.bytes_):
+                return True
+            elif np.issubdtype(val.dtype, np.string_) and np.issubdtype(reftype, np.string_):
+                return True
+        # default case
+        return False
+
+    cdef _varlen_cell_dtype(self, object var):
+        cdef np.dtype _dtype
+        if isinstance(var, np.ndarray):
+            _dtype = var.dtype
+            if np.issubdtype(_dtype, np.bytes_):
+                # handles 'S[n]' dtypes for all n
+                return np.bytes_
+            elif np.issubdtype(_dtype, np.unicode_):
+                # handles 'U[n]' dtypes for all n
+                return np.unicode_
+            else:
+                return _dtype
+        elif isinstance(var, bytes):
+            return np.bytes_
+        elif isinstance(var, unicode):
+            return np.unicode_
+
+        raise TypeError("Unsupported varlen cell datatype")
+
+    cdef _varlen_dtype_itemsize(self, object item):
+        if (isinstance(item, np.dtype) and np.issubdtype(item, np.bytes_)):
+            return sizeof(char)
+        elif isinstance(item, np.dtype):
+            return item.itemsize
+        elif item == np.bytes_:
+            return sizeof(char)
+        elif item == np.unicode_:
+            # Note this is just a place-holder, we call CPython API to get actual size
+            return sizeof(char)
+
+        raise TypeError("Unknown dtype itemsize for '{}'.".format(item))
+
+    cdef _pack_varlen_bytes(self, object val):
+        cdef arr = <np.ndarray?>val
+
+        if len(arr) == 0:
+            raise Exception("Empty arrays are not supported.")
+
+        assert((arr.dtype == np.dtype('O') or
+                np.issubdtype(arr.dtype, np.bytes_) or
+                np.issubdtype(arr.dtype, np.unicode_)),
+               "_pack_varlen_bytes: input array must be np.object or np.bytes!")
+
+
+        first_dtype = self._varlen_cell_dtype(arr[0])
+        # item size
+        cdef uint64_t el_size = self._varlen_dtype_itemsize(first_dtype)
+
+        if el_size==0:
+            raise TypeError("Zero-size cell elements are not supported.")
+
+        # total buffer size
+        cdef uint64_t buffer_size = 0
+        cdef np.ndarray buffer_offsets = np.empty(len(arr), dtype=np.uint64)
+        cdef uint64_t el_buffer_size = 0
+
+        # first pass: check types and calculate offsets
+        for (i, item) in enumerate(arr):
+            if first_dtype != self._varlen_cell_dtype(item):
+                  msg = ("Data types of variable-length sub-arrays must be consistent. "
+                         "Type '{}', of 1st sub-array, is inconsistent with type '{}', of item {}."
+                        ).format(first_dtype, self._varlen_cell_dtype(item), i)
+
+                  raise TypeError(msg)
+
+            # current offset is last buffer_size
+            buffer_offsets[i] = buffer_size
+
+            if first_dtype == np.unicode_:
+                # this will cache the materialized (if any) UTF8 object
+                if PY_MAJOR_VERSION >= 3:
+                    utf8 = (<str>item).encode('UTF-8')
+                else:
+                    utf8 = (<char*>item).encode('UTF-8')
+                el_buffer_size = len(utf8)
+            else:
+                el_buffer_size = el_size * len(item)
+            assert(el_buffer_size > 0)
+
+            # *running total* buffer size
+            buffer_size += el_buffer_size
+
+        # return a numpy buffer because that is what the caller uses for non-varlen buffers
+        cdef np.ndarray buffer = np.zeros(shape=buffer_size, dtype=np.uint8)
+                                # <TODO> should be np.empty(shape=buffer_size, dtype=np.uint8)
+        cdef char* buffer_ptr = <char*>np.PyArray_DATA(buffer)
+        cdef char* input_ptr = NULL
+        cdef object tmp_utf8 = None
+
+        # bytes to copy in this block
+        cdef uint64_t nbytes = 0
+        # loop over sub-items and copy into buffer
+        for (i, subarray) in enumerate(val):
+            if (isinstance(subarray, bytes) or
+                (isinstance(subarray, np.ndarray) and np.issubdtype(subarray.dtype, np.bytes_))):
+                input_ptr = <char*>PyBytes_AS_STRING(subarray)
+            elif (isinstance(subarray, str) or (isinstance(subarray, unicode)) or
+                (isinstance(subarray, np.ndarray) and np.issubdtype(subarray.dtype, np.unicode_))):
+                tmp_utf8 = subarray.encode("UTF-8")
+                input_ptr = <char*>tmp_utf8
+            else:
+                input_ptr = <char*>np.PyArray_DATA(subarray)
+
+            if i == len(val)-1:
+                nbytes = buffer_size - buffer_offsets[i]
+            else:
+                nbytes = buffer_offsets[i+1] - buffer_offsets[i]
+
+            memcpy(buffer_ptr, input_ptr, nbytes)
+            buffer_ptr += nbytes
+            # clean up the encoded object *after* storing
+            if tmp_utf8:
+                del tmp_utf8
+
+        return buffer, buffer_offsets
+
+    @cython.boundscheck(False)
+    cdef _unpack_varlen_buffers(self, object out):
+        assert(type(out) == OrderedDict)
+
+        cdef:
+            char* varbytes_ptr = NULL
+            uint64_t* offsets_ptr = NULL
+            uint64_t* sizes_ptr = NULL
+            char* el_ptr = NULL
+            uint64_t el_bytelen = 0
+            np.npy_intp dims[1]
+            object newobj
+            np.ndarray out_array
+            uint64_t el
+            uint64_t num_offsets
+
+        for i, (name, buffer) in enumerate(out.items()):
+            if not name in self._var_offsets:
+                continue
+
+            out_array = out[name]
+            out_flat = out_array.ravel()
+
+            offsets = self._var_offsets[name]
+            num_offsets = len(offsets)
+            varbytes_ptr = <char*>np.PyArray_DATA(self._var_bytes[name])
+            offsets_ptr = <uint64_t*> np.PyArray_DATA(offsets)
+
+            # <TODO> is this array always matched to `enumerate(out)` indices?
+            sizes_ptr = <uint64_t*> np.PyArray_DATA(self._buffer_sizes)
+
+            el_type = self.schema.attr(name).dtype
+
+            el = 0
+            while el < num_offsets:
+
+                el_ptr = (<char*>varbytes_ptr + (offsets_ptr[el]))
+
+                if el < num_offsets - 1:
+                    el_bytelen = (offsets_ptr[el + 1] - offsets_ptr[el])
+                else:
+                    el_bytelen = (sizes_ptr[i] - offsets_ptr[el])
+
+                if el_type == np.unicode_:
+                    newobj = PyUnicode_FromStringAndSize(<char*>el_ptr, el_bytelen)
+                elif el_type == np.bytes_:
+                    newobj = PyBytes_FromStringAndSize(<char*>el_ptr, el_bytelen)
+                else:
+                    # note: must not divide by itemsize for a string, because it may be zero (e.g 'S0')
+                    dims[0] = el_bytelen / el_type.base.itemsize
+                    Py_INCREF(el_type.base)
+                    newobj = \
+                        PyArray_NewFromDescr(
+                            <PyTypeObject*> np.ndarray,
+                            el_type.base, 1, dims, NULL,
+                            el_ptr,
+                            np.NPY_ENSURECOPY, <object> NULL)
+
+                # set the output object
+                out_flat[el] = newobj
+                # increment
+                el = el + 1
+
     cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
+        cdef uint64_t var_vals_size
+        cdef uint64_t var_offsets_sizebytes
+        cdef bytes battr_name
 
         cdef Py_ssize_t nattr = len(attr_names)
         cdef tuple shape = \
@@ -3752,20 +4014,41 @@ cdef class DenseArray(Array):
                   for r in range(self.schema.ndim))
 
         cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
+        cdef np.ndarray offsets_sizes = np.zeros((nattr,),  dtype=np.uint64)
+
         out = OrderedDict()
         for i in range(nattr):
             name = attr_names[i]
             if name == "coords":
                 dtype = self.coords_dtype
+            elif self.schema.attr(name).isvar:
+                # for var arrays we create an object array
+                dtype = np.object
             else:
                 dtype = self.schema.attr(name).dtype
+
             if layout == TILEDB_ROW_MAJOR:
                 buffer = np.empty(shape=shape, dtype=dtype, order='C')
             elif layout == TILEDB_COL_MAJOR:
                 buffer = np.empty(shape=shape, dtype=dtype, order='F')
             else:
                 buffer = np.empty(shape=np.prod(shape), dtype=dtype)
-            buffer_sizes[i] = buffer.nbytes
+
+            # allocate buffer to hold result of query for var-length attribute
+            if self.schema.attr(name).isvar:
+                battr_name = attr_names[i].encode('UTF-8')
+                tiledb_array_max_buffer_size_var(ctx_ptr, array_ptr, battr_name, subarray_ptr,
+                                                 &var_offsets_sizebytes, &var_vals_size)
+
+                # <TODO> where to deallocate this?
+                # NOTE var_offsets_size is in BYTES
+                self._var_offsets[name] = np.empty(int(var_offsets_sizebytes / offset_size()), dtype=np.uint64)
+                self._var_bytes[name] = np.empty(var_vals_size, dtype=np.uint8)
+
+                offsets_sizes[i] = var_offsets_sizebytes
+                buffer_sizes[i] = var_vals_size
+            else:
+                buffer_sizes[i] = buffer.nbytes
             out[name] = buffer
 
         cdef tiledb_query_t* query_ptr = NULL
@@ -3779,21 +4062,34 @@ cdef class DenseArray(Array):
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
 
-        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
         rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
         if rc != TILEDB_OK:
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
 
-        cdef bytes battr_name
         cdef void* buffer_ptr = NULL
+        cdef void* var_vals_buffer_ptr = NULL
+        cdef uint64_t* var_offsets_buffer_ptr = NULL
+        cdef bint has_var = False
         cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
+        cdef uint64_t* offsets_sizes_ptr = <uint64_t*> np.PyArray_DATA(offsets_sizes)
         try:
             for i, (name, buffer) in enumerate(out.items()):
                 buffer_ptr = np.PyArray_DATA(buffer)
                 if name == "coords":
                     rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(),
                                                  buffer_ptr, &(buffer_sizes_ptr[i]))
+                elif self.schema.attr(name).isvar:
+                    battr_name = name.encode('UTF-8')
+                    has_var = True
+
+                    var_vals_buffer_ptr = np.PyArray_DATA(self._var_bytes[name])
+                    var_offsets_buffer_ptr = <uint64_t*> np.PyArray_DATA(self._var_offsets[name])
+
+                    rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
+                                                     var_offsets_buffer_ptr, &(offsets_sizes_ptr[i]),
+                                                     var_vals_buffer_ptr, &(buffer_sizes_ptr[i]))
+
                 else:
                     battr_name = name.encode('UTF-8')
                     rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
@@ -3802,12 +4098,20 @@ cdef class DenseArray(Array):
                     _raise_ctx_err(ctx_ptr, rc)
         except:
             tiledb_query_free(&query_ptr)
+            Py_DECREF(self._var_offsets)
+            for val in self._var_bytes:
+                Py_DECREF(val)
+            Py_DECREF(self._var_bytes)
             raise
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
         tiledb_query_free(&query_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+
+        if has_var:
+            self._buffer_sizes = buffer_sizes
+            self._unpack_varlen_buffers(out)
         return out
 
     def __setitem__(self, object selection, object val):
@@ -3875,11 +4179,16 @@ cdef class DenseArray(Array):
         elif self.schema.nattr == 1:
             attr = self.schema.attr(0)
             attributes.append(attr.name)
-            values.append(
-                np.ascontiguousarray(val, dtype=attr.dtype))
+            if val.dtype == np.object or np.issubdtype(val.dtype, np.bytes_):
+                values.append(val)
+            else:
+                values.append(
+                    np.ascontiguousarray(val, dtype=attr.dtype))
         else:
             raise ValueError("ambiguous attribute assignment, "
-                             "more than one array attribute")
+                             "more than one array attribute "
+                             "(use a dict({'attr' :val}) to "
+                             "assign multiple attributes)")
         # Check value layouts
         nattr = len(attributes)
         value = values[0]
@@ -3892,14 +4201,32 @@ cdef class DenseArray(Array):
         self._write_dense_subarray(subarray, attributes, values, isfortran)
         return
 
+    cdef _ndarray_is_varlen(self, np.ndarray array):
+        return  (np.issubdtype(array.dtype, np.bytes_) or
+                 np.issubdtype(array.dtype, np.unicode_) or
+                 array.dtype == np.object
+                 )
+
     cdef _write_dense_subarray(self, np.ndarray subarray, list attributes, list values, int isfortran):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
 
         cdef Py_ssize_t nattr = len(attributes)
         cdef np.ndarray buffer_sizes = np.zeros((nattr,),  dtype=np.uint64)
+        cdef np.ndarray buffer_offsets_sizes = np.zeros((nattr,),  dtype=np.uint64)
+        output_values = list()
+        output_offsets = list()
         for i in range(nattr):
-            buffer_sizes[i] = values[i].nbytes
+            if self._ndarray_is_varlen(values[i]):
+                buffer, offsets = self._pack_varlen_bytes(values[i])
+                buffer_sizes[i] = buffer.nbytes
+                buffer_offsets_sizes[i] = offsets.nbytes
+                output_values.append(buffer)
+                output_offsets.append(offsets)
+            else:
+                output_values.append(values[i])
+                buffer_sizes[i] = values[i].nbytes
+                output_offsets.append(None) # <TODO> place-holder
 
         cdef tiledb_query_t* query_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -3921,13 +4248,23 @@ cdef class DenseArray(Array):
 
         cdef bytes battr_name
         cdef void* buffer_ptr = NULL
+        cdef uint64_t* offsets_buffer_ptr = NULL
         cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
+        cdef uint64_t* offsets_buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_offsets_sizes)
         try:
             for i in range(nattr):
                 battr_name = attributes[i].encode('UTF-8')
-                buffer_ptr = np.PyArray_DATA(values[i])
-                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
-                                             buffer_ptr, &(buffer_sizes_ptr[i]))
+                buffer_ptr = np.PyArray_DATA(output_values[i])
+
+                if output_offsets[i] is not None:
+                    # VAR_NUM attribute
+                    offsets_buffer_ptr = <uint64_t*>np.PyArray_DATA(output_offsets[i])
+                    rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
+                                                     offsets_buffer_ptr, &(offsets_buffer_sizes_ptr[i]),
+                                                     buffer_ptr, &(buffer_sizes_ptr[i]))
+                else:
+                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                                 buffer_ptr, &(buffer_sizes_ptr[i]))
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
         except:

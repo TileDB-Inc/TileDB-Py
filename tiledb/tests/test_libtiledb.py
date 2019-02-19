@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import absolute_import
 
 import unittest, os
@@ -7,7 +9,6 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.tests.common import DiskTestCase
-
 
 class VersionTest(unittest.TestCase):
 
@@ -951,6 +952,155 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 T[:] = V
 
+class DenseVarlen(DiskTestCase):
+    def test_varlen_write_bytes(self):
+        A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee','ffffff','g','hhhhhhhhhh'], dtype=bytes)
+
+        # basic write
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1,len(A))), ctx=ctx)
+        att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            assert_array_equal(A[:], T[:])
+
+
+    def test_varlen_write_unicode(self):
+        A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd',
+                      'ee','ffffff','g','hhhhhhhhhh'],
+                     dtype=np.unicode_)
+
+        # basic write
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(1,len(A)), ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(dtype=np.unicode_, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            assert_array_equal(A[:], T[:])
+
+
+    def test_varlen_write_floats(self):
+        A = np.array([np.random.rand(x) for x in np.random.randint(1,12,8)], dtype=np.object)
+
+        # basic write
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(1,len(A))), ctx=ctx)
+        att = tiledb.Attr(dtype=np.float64, var=True, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            T_ = T[:]
+            self.assertEqual(len(A), len(T))
+            # can't use assert_array_equal w/ np.object array
+            self.assertTrue(all(np.array_equal(x,A[i]) for i,x in enumerate(T_)))
+
+
+    def test_varlen_write_fixedbytes(self):
+        A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee',
+                      'ffffff','g','hhhhhhhhhh'], dtype=np.dtype('S'))
+
+        # basic write
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1,len(A))), ctx=ctx)
+        att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            assert_array_equal(A[:], T[:])
+
+
+    def test_varlen_write_fixedunicode(self):
+        A = np.array([u'aa',u'bbb',u'ccccc',u'ddddddddddddddddddddd',u'ee',
+                      u'ffffff',u'g',u'hhhhhhhhhh'], dtype=np.dtype('U'))
+
+        # basic write
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1,len(A))), ctx=ctx)
+        att = tiledb.Attr(dtype=np.unicode_, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            assert_array_equal(A[:], T[:])
+
+
+    def test_varlen_write_ints(self):
+        A = np.array([np.random.randint(0,pow(10,6),x, dtype=np.uint64) for x in np.random.randint(1,12,8)], dtype=np.object)
+
+        print("random sub-length test array: {}".format(A))
+
+        # basic write
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(1,len(A)), ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(dtype=np.int64, var=True, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            T_ = T[:]
+            self.assertEqual(len(A), len(T))
+            # can't use assert_array_equal w/ np.object array
+            self.assertTrue(all(np.array_equal(x,A[i]) for i,x in enumerate(T_)))
+
+    def test_varlen_wrong_domain(self):
+        A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee','ffffff','g','hhhhhhhhhh'])
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(1,3)), ctx=ctx)
+        att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            with self.assertRaises(tiledb.TileDBError):
+                T[:] = A
+
+    def test_array_varlen_mismatched(self):
+        A = np.array([b'aa', b'bbb', b'cccc',
+                     np.array([1,3,4], dtype=np.uint64),
+                ], dtype = np.object)
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(0,3), ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode='w') as T:
+            with self.assertRaises(TypeError):
+                T[:] = A
+
 
 class SparseArray(DiskTestCase):
 
@@ -1324,6 +1474,23 @@ class NumpyToArray(DiskTestCase):
         np_array = np.ones((1, 1, 1), dtype='i1')
         arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx)
         assert_array_equal(arr[:], np_array)
+
+    def test_bytes_to_array1d(self):
+        np_array = np.array([b'abcdef', b'gh', b'ijkl', b'mnopqrs', b'1234545lkjalsdfj'], dtype=object)
+        arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array)
+        assert_array_equal(arr[:], np_array)
+
+        arr_reload = tiledb.DenseArray(self.path("foo"))
+        assert_array_equal(arr_reload[:], np_array)
+
+    def test_unicode_to_array1d(self):
+        np_array = np.array(['1234545lkjalsdfj', 'mnopqrs', 'ijkl', 'gh', 'abcdef',
+                             'aαbββcγγγdδδδδ', '"aαbββc', 'γγγdδδδδ'], dtype=object)
+        arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array)
+        assert_array_equal(arr[:], np_array)
+
+        arr_reload = tiledb.DenseArray(self.path("foo"))
+        assert_array_equal(arr_reload[:], np_array)
 
     def test_array_interface(self):
         # Tests that __array__ interface works
