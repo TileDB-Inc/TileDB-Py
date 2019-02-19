@@ -16,6 +16,9 @@ cdef extern from "tiledb/tiledb.h":
     enum: TILEDB_MAX_PATH
     unsigned int tiledb_max_path()
 
+    enum: TILEDB_OFFSET_SIZE
+    unsigned int tiledb_offset_size()
+
     # Version
     void tiledb_version(int* major, int* minor, int* rev)
 
@@ -54,6 +57,12 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_UINT16
         TILEDB_UINT32
         TILEDB_UINT64
+        TILEDB_STRING_ASCII
+        TILEDB_STRING_UTF8
+        TILEDB_STRING_UTF16
+        TILEDB_STRING_UTF32
+        TILEDB_STRING_UCS2
+        TILEDB_STRING_UCS4
 
     ctypedef enum tiledb_array_type_t:
         TILEDB_DENSE
