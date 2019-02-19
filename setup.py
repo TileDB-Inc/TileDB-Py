@@ -35,7 +35,7 @@ import sys
 from sys import version_info as ver
 
 # Target branch
-TILEDB_VERSION = "backport-1.4.2"
+TILEDB_VERSION = "1.4.2"
 
 # Use `setup.py [] --debug` for a debug build of libtiledb
 TILEDB_DEBUG_BUILD = False
