@@ -455,6 +455,7 @@ class ArrayTest(DiskTestCase):
         self.assertTrue(array.isopen)
         self.assertEqual(array.schema, schema)
         self.assertEqual(array.mode, 'r')
+        self.assertEqual(array.uri, self.path("foo"))
 
         # we have not written anything, so the array is empty
         self.assertIsNone(array.nonempty_domain())
