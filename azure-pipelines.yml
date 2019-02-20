@@ -9,6 +9,12 @@ strategy:
     windows:
       imageName: 'vs2017-win2016'
       python.version: '3.x'
+    linux_py2:
+      imageName: 'ubuntu-16.04'
+      python.version: '2.7'
+    linux_py3:
+      imageName: 'ubuntu-16.04'
+      python.version: '3.x'
   maxParallel: 4
 
 pool:
