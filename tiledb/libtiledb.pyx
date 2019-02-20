@@ -3531,6 +3531,11 @@ cdef class Array(object):
         # returns the record array dtype of the coordinate array
         return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
 
+    @property
+    def uri(self):
+        """Returns the URI of the array"""
+        return self.uri
+
     def subarray(self, selection, coords=False, attrs=None, order=None):
         raise NotImplementedError()
 
