@@ -1371,7 +1371,8 @@ class KVArray(DiskTestCase):
         a1 = tiledb.Attr(ctx, "value", dtype=bytes)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
         # persist kv schema
-        tiledb.KV.create(ctx, self.path("foo"), schema)
+        kv = tiledb.KV.create(ctx, self.path("foo"), schema)
+        self.assertNotEqual(kv, None)
         self.assertEqual(tiledb.KVSchema.load(ctx, self.path("foo")), schema)
 
     def test_kv_contains(self):
@@ -1419,7 +1420,9 @@ class KVArray(DiskTestCase):
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
 
         # persist kv schema
-        tiledb.KV.create(ctx, self.path("foo"), schema)
+        kv = tiledb.KV.create(ctx, self.path("foo"), schema)
+        kv.close()
+
 
         def append_kv(path, k, v):
             kv = tiledb.KV(ctx, path, mode='w')
