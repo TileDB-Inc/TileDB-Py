@@ -2125,7 +2125,7 @@ cdef class KVSchema(object):
 
     @staticmethod
     def load(Ctx ctx, uri, key=None):
-        """Loads a persisted KV array at given URI, returns an KV class instance
+        """Loads the KVSchema for persisted KV array at given URI, returns an KVSchema class instance
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
@@ -2335,9 +2335,10 @@ cdef class KV(object):
                 ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        return
 
-    def __init__(self, Ctx ctx, uri, mode='r', key=None, timestamp=None):
+        return KV(ctx, uri, key=key)
+
+  def __init__(self, Ctx ctx, uri, mode='r', key=None, timestamp=None):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -2347,7 +2348,8 @@ cdef class KV(object):
         elif mode == 'w':
             query_type = TILEDB_WRITE
         else:
-            raise ValueError("TileDB array mode must be 'r' or 'w'")
+            raise ValueError("TileDB array mode must be 'r' or 'w' (got: '{}')".
+                             format(mode))
         # encyrption key
         cdef bytes bkey
         cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
