@@ -2996,6 +2996,8 @@ cdef class ArraySchema(object):
             tiledb_array_schema_free(&schema_ptr)
             raise
 
+        if  not isinstance(domain, Domain):
+            raise TypeError("'domain' must be an instance of Domain (domain is: '{}')".format(domain))
         cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
         rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
         if rc != TILEDB_OK:
