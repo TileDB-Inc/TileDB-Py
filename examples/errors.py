@@ -34,12 +34,10 @@
 
 import tiledb
 
-ctx = tiledb.Ctx()
-
 # Catch an error
 try:
-    tiledb.group_create(ctx, "my_group")
-    tiledb.group_create(ctx, "my_group")
+    tiledb.group_create("my_group")
+    tiledb.group_create("my_group")
 except tiledb.TileDBError as e:
     print("TileDB exception: %s" % e.message)
 

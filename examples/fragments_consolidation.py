@@ -42,37 +42,30 @@ array_name = "fragments_consolidation"
 
 
 def create_array():
-    # Create a TileDB context
-    ctx = tiledb.Ctx()
-
     # The array will be 4x4 with dimensions "rows" and "cols", with domain [1,4] and space tiles 2x2.
-    dom = tiledb.Domain(ctx,
-                        tiledb.Dim(ctx, name="rows", domain=(1, 4), tile=2, dtype=np.int32),
-                        tiledb.Dim(ctx, name="cols", domain=(1, 4), tile=2, dtype=np.int32))
+    dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(1, 4), tile=2, dtype=np.int32),
+                        tiledb.Dim(name="cols", domain=(1, 4), tile=2, dtype=np.int32))
 
     # The array will be dense with a single attribute "a" so each (i,j) cell can store an integer.
-    schema = tiledb.ArraySchema(ctx, domain=dom, sparse=False,
-                                attrs=[tiledb.Attr(ctx, name="a", dtype=np.int32)])
+    schema = tiledb.ArraySchema(domain=dom, sparse=False,
+                                attrs=[tiledb.Attr(name="a", dtype=np.int32)])
 
     # Create the (empty) array on disk.
     tiledb.DenseArray.create(array_name, schema)
 
 
 def write_array_1():
-    ctx = tiledb.Ctx()
-    with tiledb.DenseArray(ctx, array_name, mode='w') as A:
+    with tiledb.DenseArray(array_name, mode='w') as A:
         A[1:3, 1:5] = np.array(([1, 2, 3, 4, 5, 6, 7, 8]))
 
 
 def write_array_2():
-    ctx = tiledb.Ctx()
-    with tiledb.DenseArray(ctx, array_name, mode='w') as A:
+    with tiledb.DenseArray(array_name, mode='w') as A:
         A[2:4, 2:4] = np.array(([101, 102, 103, 104]))
 
 
 def write_array_3():
-    ctx = tiledb.Ctx()
-    with tiledb.DenseArray(ctx, array_name, mode='w') as A:
+    with tiledb.DenseArray(array_name, mode='w') as A:
         # Note: sparse (unordered) writes to dense arrays are not yet supported in Python.
         # Instead we can make two single-cell writes (results in total of 4 fragments).
         A[1:2, 1:2] = np.array(([201]))
@@ -80,8 +73,7 @@ def write_array_3():
 
 
 def read_array():
-    ctx = tiledb.Ctx()
-    with tiledb.DenseArray(ctx, array_name, mode='r') as A:
+    with tiledb.DenseArray(array_name, mode='r') as A:
         # Read the entire array. To get coord values as well, we use the .query() syntax.
         data = A.query(coords=True)[:, :]
         a_vals = data["a"]
@@ -91,10 +83,8 @@ def read_array():
                 print("Cell {} has data {}".format(str(coords[i, j]), str(a_vals[i, j])))
 
 
-ctx = tiledb.Ctx()
-
 # Create and write array only if it does not exist
-if tiledb.object_type(ctx, array_name) != "array":
+if tiledb.object_type(array_name) != "array":
     create_array()
     write_array_1()
     write_array_2()
@@ -106,6 +96,6 @@ if len(sys.argv) > 1 and sys.argv[1] == "consolidate":
     config["sm.consolidation.steps"] = 1
     config["sm.consolidation.step_max_frags"] = 3
     config["sm.consolidation.step_min_frags"] = 1
-    tiledb.consolidate(ctx, config=config, uri=array_name)
+    tiledb.consolidate(config=config, uri=array_name)
 
 read_array()

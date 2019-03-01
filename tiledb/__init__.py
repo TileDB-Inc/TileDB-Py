@@ -48,6 +48,7 @@ from .libtiledb import (
      BitWidthReductionFilter,
      PositiveDeltaFilter,
      consolidate,
+     default_ctx,
      group_create,
      object_type,
      ls,
