@@ -177,7 +177,7 @@ Tests can now be run using Python's unittest framework::
 
     $ python -m unittest -v
 
-Doctests can be run using the doctest modele::
+Doctests can be run using the doctest module::
 
     $ python -m doctest -o NORMALIZE_WHITESPACE -f tiledb/libtiledb.pyx
 

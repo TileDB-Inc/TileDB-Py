@@ -43,20 +43,16 @@ kv_name = "quickstart_kv"
 
 
 def create_array():
-    # Create a TileDB context
-    ctx = tiledb.Ctx()
-
     # The KV array will have a single attribute "a" storing a string.
-    schema = tiledb.KVSchema(ctx, attrs=[tiledb.Attr(ctx, name="a", dtype=bytes)])
+    schema = tiledb.KVSchema(attrs=[tiledb.Attr(name="a", dtype=bytes)])
 
     # Create the (empty) array on disk.
-    tiledb.KV.create(ctx, kv_name, schema)
+    tiledb.KV.create(kv_name, schema)
 
 
 def write_array():
-    ctx = tiledb.Ctx()
     # Open the array and write to it.
-    with tiledb.KV(ctx, kv_name, mode='w') as A:
+    with tiledb.KV(kv_name, mode='w') as A:
         A["key_1"] = "1"
         A["key_2"] = "2"
         A["key_3"] = "3"
@@ -64,16 +60,14 @@ def write_array():
 
 
 def read_array():
-    ctx = tiledb.Ctx()
     # Open the array and read from it.
-    with tiledb.KV(ctx, kv_name, mode='r') as A:
+    with tiledb.KV(kv_name, mode='r') as A:
         print("key_1: %s" % A["key_1"])
         print("key_2: %s" % A["key_2"])
         print("key_3: %s" % A["key_3"])
 
 
-ctx = tiledb.Ctx()
-if tiledb.object_type(ctx, kv_name) != "kv":
+if tiledb.object_type(kv_name) != "kv":
     create_array()
     write_array()
 

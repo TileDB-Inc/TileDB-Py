@@ -44,7 +44,7 @@ def set_get_config_ctx_vfs():
     config_ctx = ctx.config()
 
     # Set/get config to/from VFS
-    vfs = tiledb.VFS(ctx, config)
+    vfs = tiledb.VFS(config)
     config_vfs = vfs.config()
 
 

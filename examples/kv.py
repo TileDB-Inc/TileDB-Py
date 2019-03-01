@@ -39,23 +39,19 @@ array_name = "kv_array"
 
 
 def create_array():
-    # Create a TileDB context
-    ctx = tiledb.Ctx()
-
     # Create a KV with a single attribute.
     # Note: KV arrays with multiple attributes or non-string-valued attributes
     # are not currently supported in Python.
-    schema = tiledb.KVSchema(ctx, attrs=[tiledb.Attr(ctx, name="a1", dtype=bytes)])
+    schema = tiledb.KVSchema(attrs=[tiledb.Attr(name="a1", dtype=bytes)])
 
     # Create the (empty) array on disk.
-    tiledb.KV.create(ctx, array_name, schema)
+    tiledb.KV.create(array_name, schema)
 
 
 def write_array():
-    ctx = tiledb.Ctx()
     # Open the array and write to it.
     # We can optionally set the number of items to buffer before a flush.
-    with tiledb.KV(ctx, array_name, mode='w') as A:
+    with tiledb.KV(array_name, mode='w') as A:
         A["key_1"] = "1"
         A["key_2"] = "2"
         A["key_3"] = "3"
@@ -63,22 +59,20 @@ def write_array():
 
 
 def read_array():
-    ctx = tiledb.Ctx()
     # Open the array and read from it.
-    with tiledb.KV(ctx, array_name, mode='r') as A:
+    with tiledb.KV(array_name, mode='r') as A:
         print("key_1: %s" % A["key_1"])
         print("key_2: %s" % A["key_2"])
         print("key_3: %s" % A["key_3"])
 
 
 def iter_kv():
-    ctx = tiledb.Ctx()
-    with tiledb.KV(ctx, array_name, mode='r') as A:
+    with tiledb.KV(array_name, mode='r') as A:
         for p in A:
             print("key: '%s', value: '%s'" % (p[0], p[1]))
 
 
-if tiledb.object_type(tiledb.Ctx(), array_name) != "kv":
+if tiledb.object_type(array_name) != "kv":
     create_array()
     write_array()
 

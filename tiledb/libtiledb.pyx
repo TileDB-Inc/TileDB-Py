@@ -82,6 +82,16 @@ def version():
     tiledb_version(&major, &minor, &rev)
     return major, minor, rev
 
+
+# Global Ctx object to be used by default in all constructors
+# Users needing a specific context should pass a context as kwarg.
+cdef Ctx _global_ctx = Ctx()
+
+def default_ctx():
+    """Returns the default tiledb.Ctx object"""
+    return _global_ctx
+
+
 class TileDBError(Exception):
     """TileDB Error Exception
 
@@ -805,7 +815,7 @@ cdef class Filter(object):
         if self.ptr != NULL:
             tiledb_filter_free(&self.ptr)
 
-    def __init__(self, Ctx ctx, tiledb_filter_type_t filter_type):
+    def __init__(self, tiledb_filter_type_t filter_type, Ctx ctx = default_ctx()):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef tiledb_filter_t* filter_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -825,18 +835,17 @@ cdef class CompressionFilter(Filter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.GzipFilter(ctx, level=10)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.GzipFilter(level=10)]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
-    def __init__(self, Ctx ctx, tiledb_filter_type_t filter_type, level):
-        super().__init__(ctx, filter_type)
+    def __init__(self, tiledb_filter_type_t filter_type, level, Ctx ctx=default_ctx()):
+        super().__init__(filter_type, ctx)
         if level is None:
             return
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -866,7 +875,7 @@ cdef class NoOpFilter(Filter):
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef NoOpFilter filter_obj = NoOpFilter.__new__(NoOpFilter)
         filter_obj.ctx = ctx
@@ -874,8 +883,8 @@ cdef class NoOpFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx):
-        super().__init__(ctx, TILEDB_FILTER_NONE)
+    def __init__(self, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_NONE, ctx=ctx)
 
 
 cdef class GzipFilter(CompressionFilter):
@@ -889,18 +898,17 @@ cdef class GzipFilter(CompressionFilter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.GzipFilter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.GzipFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef GzipFilter filter_obj = GzipFilter.__new__(GzipFilter)
         filter_obj.ctx = ctx
@@ -908,8 +916,8 @@ cdef class GzipFilter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx, level=None):
-        super().__init__(ctx, TILEDB_FILTER_GZIP, level)
+    def __init__(self, level=None, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_GZIP, level, ctx=ctx)
 
 
 cdef class ZstdFilter(CompressionFilter):
@@ -923,18 +931,17 @@ cdef class ZstdFilter(CompressionFilter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.ZstdFilter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.ZstdFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef ZstdFilter filter_obj = ZstdFilter.__new__(ZstdFilter)
         filter_obj.ctx = ctx
@@ -942,8 +949,8 @@ cdef class ZstdFilter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx, level=None):
-        super().__init__(ctx, TILEDB_FILTER_ZSTD, level)
+    def __init__(self, level=None, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_ZSTD, level, ctx=ctx)
 
 
 cdef class LZ4Filter(CompressionFilter):
@@ -957,18 +964,17 @@ cdef class LZ4Filter(CompressionFilter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.LZ4Filter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.LZ4Filter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef LZ4Filter filter_obj = LZ4Filter.__new__(LZ4Filter)
         filter_obj.ctx = ctx
@@ -976,8 +982,8 @@ cdef class LZ4Filter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx, level=None):
-        super().__init__(ctx, TILEDB_FILTER_LZ4, level)
+    def __init__(self, level=None, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_LZ4, level, ctx)
 
 
 cdef class Bzip2Filter(CompressionFilter):
@@ -989,18 +995,17 @@ cdef class Bzip2Filter(CompressionFilter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.Bzip2Filter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.Bzip2Filter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef Bzip2Filter filter_obj = Bzip2Filter.__new__(Bzip2Filter)
         filter_obj.ctx = ctx
@@ -1008,8 +1013,8 @@ cdef class Bzip2Filter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx, level=None):
-        super().__init__(ctx, TILEDB_FILTER_BZIP2, level)
+    def __init__(self, level=None, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_BZIP2, level, ctx=ctx)
 
 
 cdef class RleFilter(CompressionFilter):
@@ -1018,18 +1023,17 @@ cdef class RleFilter(CompressionFilter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.RleFilter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.RleFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef RleFilter filter_obj = RleFilter.__new__(RleFilter)
         filter_obj.ctx = ctx
@@ -1037,8 +1041,8 @@ cdef class RleFilter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx):
-        super().__init__(ctx, TILEDB_FILTER_RLE, None)
+    def __init__(self, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_RLE, None, ctx=ctx)
 
 
 cdef class DoubleDeltaFilter(CompressionFilter):
@@ -1047,18 +1051,17 @@ cdef class DoubleDeltaFilter(CompressionFilter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.DoubleDeltaFilter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.DoubleDeltaFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef DoubleDeltaFilter filter_obj = DoubleDeltaFilter.__new__(DoubleDeltaFilter)
         filter_obj.ctx = ctx
@@ -1066,8 +1069,8 @@ cdef class DoubleDeltaFilter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx):
-        super().__init__(ctx, TILEDB_FILTER_DOUBLE_DELTA, None)
+    def __init__(self, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_DOUBLE_DELTA, None, ctx)
 
 
 cdef class BitShuffleFilter(Filter):
@@ -1076,18 +1079,17 @@ cdef class BitShuffleFilter(Filter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.BitShuffleFilter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.BitShuffleFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef BitShuffleFilter filter_obj = BitShuffleFilter.__new__(BitShuffleFilter)
         filter_obj.ctx = ctx
@@ -1095,8 +1097,8 @@ cdef class BitShuffleFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx):
-        super().__init__(ctx, TILEDB_FILTER_BITSHUFFLE)
+    def __init__(self, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_BITSHUFFLE, ctx=ctx)
 
 
 cdef class ByteShuffleFilter(Filter):
@@ -1105,18 +1107,17 @@ cdef class ByteShuffleFilter(Filter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.ByteShuffleFilter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.ByteShuffleFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef ByteShuffleFilter filter_obj = ByteShuffleFilter.__new__(ByteShuffleFilter)
         filter_obj.ctx = ctx
@@ -1124,8 +1125,8 @@ cdef class ByteShuffleFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx):
-        super().__init__(ctx, TILEDB_FILTER_BYTESHUFFLE)
+    def __init__(self, Ctx ctx = default_ctx()):
+        super().__init__(TILEDB_FILTER_BYTESHUFFLE, ctx=ctx)
 
 
 cdef class BitWidthReductionFilter(Filter):
@@ -1139,18 +1140,17 @@ cdef class BitWidthReductionFilter(Filter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.BitWidthReductionFilter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.BitWidthReductionFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef BitWidthReductionFilter filter_obj = BitWidthReductionFilter.__new__(BitWidthReductionFilter)
         filter_obj.ctx = ctx
@@ -1158,8 +1158,8 @@ cdef class BitWidthReductionFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx, window=None):
-        super().__init__(ctx, TILEDB_FILTER_BIT_WIDTH_REDUCTION)
+    def __init__(self, window=None, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_BIT_WIDTH_REDUCTION, ctx)
         if window is None:
             return
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -1197,18 +1197,17 @@ cdef class PositiveDeltaFilter(Filter):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [tiledb.PositiveDeltaFilter(ctx)]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1,))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.PositiveDeltaFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_filter_t* filter_ptr):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
         assert(filter_ptr != NULL)
         cdef PositiveDeltaFilter filter_obj = PositiveDeltaFilter.__new__(PositiveDeltaFilter)
         filter_obj.ctx = ctx
@@ -1216,8 +1215,8 @@ cdef class PositiveDeltaFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx, window=None):
-        super().__init__(ctx, TILEDB_FILTER_POSITIVE_DELTA)
+    def __init__(self, window=None, Ctx ctx=default_ctx()):
+        super().__init__(TILEDB_FILTER_POSITIVE_DELTA, ctx=ctx)
         if window is None:
             return
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -1246,27 +1245,27 @@ cdef class PositiveDeltaFilter(Filter):
 
 cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type, tiledb_filter_t* filter_ptr):
     if filter_type == TILEDB_FILTER_NONE:
-        return NoOpFilter.from_ptr(ctx, filter_ptr)
+        return NoOpFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_GZIP:
-       return GzipFilter.from_ptr(ctx, filter_ptr)
+       return GzipFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_ZSTD:
-        return ZstdFilter.from_ptr(ctx, filter_ptr)
+        return ZstdFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_LZ4:
-        return LZ4Filter.from_ptr(ctx, filter_ptr)
+        return LZ4Filter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_RLE:
-        return RleFilter.from_ptr(ctx, filter_ptr)
+        return RleFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_BZIP2:
-        return Bzip2Filter.from_ptr(ctx, filter_ptr)
+        return Bzip2Filter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_DOUBLE_DELTA:
-        return DoubleDeltaFilter.from_ptr(ctx, filter_ptr)
+        return DoubleDeltaFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_BIT_WIDTH_REDUCTION:
-        return BitWidthReductionFilter.from_ptr(ctx, filter_ptr)
+        return BitWidthReductionFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_BITSHUFFLE:
-        return BitShuffleFilter.from_ptr(ctx, filter_ptr)
+        return BitShuffleFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_BYTESHUFFLE:
-        return ByteShuffleFilter.from_ptr(ctx, filter_ptr)
+        return ByteShuffleFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_POSITIVE_DELTA:
-        return PositiveDeltaFilter.from_ptr(ctx,  filter_ptr)
+        return PositiveDeltaFilter.from_ptr(filter_ptr, ctx=ctx)
     else:
         raise ValueError("unknown filter type tag: {:s}".format(filter_type))
 
@@ -1285,19 +1284,18 @@ cdef class FilterList(object):
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
-    >>> ctx = tiledb.Ctx()
     >>> with tempfile.TemporaryDirectory() as tmp:
-    ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
     ...     # Create several filters
-    ...     gzip_filter = tiledb.GzipFilter(ctx)
-    ...     bw_filter = tiledb.BitWidthReductionFilter(ctx)
+    ...     gzip_filter = tiledb.GzipFilter()
+    ...     bw_filter = tiledb.BitWidthReductionFilter()
     ...     # Create a filter list that will first perform bit width reduction, then gzip compression.
-    ...     filters = tiledb.FilterList(ctx, [bw_filter, gzip_filter])
-    ...     a1 = tiledb.Attr(ctx, name="a1", dtype=np.int64, filters=filters)
+    ...     filters = tiledb.FilterList([bw_filter, gzip_filter])
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64, filters=filters)
     ...     # Create a second attribute filtered only by gzip compression.
-    ...     a2 = tiledb.Attr(ctx, name="a2", dtype=np.int64,
-    ...                      filters=tiledb.FilterList(ctx, [gzip_filter]))
-    ...     schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(a1, a2))
+    ...     a2 = tiledb.Attr(name="a2", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([gzip_filter]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1, a2))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
@@ -1313,7 +1311,7 @@ cdef class FilterList(object):
             tiledb_filter_list_free(&self.ptr)
 
     @staticmethod
-    cdef FilterList from_ptr(Ctx ctx, tiledb_filter_list_t* ptr):
+    cdef FilterList from_ptr(tiledb_filter_list_t* ptr, Ctx ctx=default_ctx()):
         assert(ptr != NULL)
         cdef FilterList filter_list = FilterList.__new__(FilterList)
         filter_list.ctx = ctx
@@ -1321,7 +1319,7 @@ cdef class FilterList(object):
         filter_list.ptr = <tiledb_filter_list_t*> ptr
         return filter_list
 
-    def __init__(self, Ctx ctx, filters=None, chunksize=None):
+    def __init__(self, filters=None, chunksize=None, Ctx ctx=default_ctx()):
         if filters is not None:
             filters = list(filters)
             for f in filters:
@@ -1487,7 +1485,7 @@ cdef class Attr(object):
             tiledb_attribute_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_attribute_t* ptr):
+    cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx = default_ctx()):
         """Constructs an Attr class instance from a (non-null) tiledb_attribute_t pointer
         """
         assert(ptr != NULL)
@@ -1498,10 +1496,10 @@ cdef class Attr(object):
         return attr
 
     def __init__(self,
-                 Ctx ctx,
                  name=u"",
                  dtype=np.float64,
-                 filters=None):
+                 filters=None,
+                 Ctx ctx=default_ctx()):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
         cdef np.dtype _dtype = np.dtype(dtype)
@@ -1652,7 +1650,7 @@ cdef class Attr(object):
         check_error(self.ctx,
                     tiledb_attribute_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
 
-        return FilterList.from_ptr(self.ctx, filter_list_ptr)
+        return FilterList.from_ptr(filter_list_ptr, self.ctx)
 
     cdef unsigned int _cell_val_num(Attr self) except? 0:
         cdef unsigned int ncells = 0
@@ -1687,7 +1685,6 @@ cdef class Attr(object):
 cdef class Dim(object):
     """Class representing a dimension of a TileDB Array.
 
-    :param tiledb.Ctx ctx: A TileDB Context
     :param str name: the dimension name, empty if anonymous
     :param domain:
     :type domain: tuple(int, int) or tuple(float, float)
@@ -1698,6 +1695,7 @@ cdef class Dim(object):
     :raises ValueError: invalid domain or tile extent
     :raises TypeError: invalid domain, tile extent, or dtype type
     :raises: :py:exc:`TileDBError`
+    :param tiledb.Ctx ctx: A TileDB Context
 
     """
     cdef Ctx ctx
@@ -1711,7 +1709,7 @@ cdef class Dim(object):
             tiledb_dimension_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_dimension_t* ptr):
+    cdef from_ptr(const tiledb_dimension_t* ptr, Ctx ctx = default_ctx()):
         assert(ptr != NULL)
         cdef Dim dim = Dim.__new__(Dim)
         dim.ctx = ctx
@@ -1719,7 +1717,7 @@ cdef class Dim(object):
         dim.ptr = <tiledb_dimension_t*> ptr
         return dim
 
-    def __init__(self, Ctx ctx, name=u"", domain=None, tile=0, dtype=np.uint64):
+    def __init__(self, name=u"", domain=None, tile=0, dtype=np.uint64, Ctx ctx=default_ctx()):
         if len(domain) != 2:
             raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
@@ -1932,7 +1930,7 @@ cdef class Domain(object):
             tiledb_domain_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_domain_t* ptr):
+    cdef from_ptr(const tiledb_domain_t* ptr, Ctx ctx = default_ctx()):
         """Constructs an Domain class instance from a (non-null) tiledb_domain_t pointer"""
         assert(ptr != NULL)
         cdef Domain dom = Domain.__new__(Domain)
@@ -1940,7 +1938,7 @@ cdef class Domain(object):
         dom.ptr = <tiledb_domain_t*> ptr
         return dom
 
-    def __init__(self, Ctx ctx, *dims):
+    def __init__(self, *dims, Ctx ctx=default_ctx()):
         cdef Py_ssize_t ndim = len(dims)
         if ndim == 0:
             raise TileDBError("Domain must have ndim >= 1")
@@ -2064,7 +2062,7 @@ cdef class Domain(object):
                     tiledb_domain_get_dimension_from_index(
                         self.ctx.ptr, self.ptr, idx, &dim_ptr))
         assert(dim_ptr != NULL)
-        return Dim.from_ptr(self.ctx, dim_ptr)
+        return Dim.from_ptr(dim_ptr, self.ctx)
 
     def dim(self, unicode name):
         """Returns a Dim object from the domain given the dimension's index.
@@ -2080,7 +2078,7 @@ cdef class Domain(object):
                     tiledb_domain_get_dimension_from_name(
                         self.ctx.ptr, self.ptr, name_ptr, &dim_ptr))
         assert(dim_ptr != NULL)
-        return Dim.from_ptr(self.ctx, dim_ptr)
+        return Dim.from_ptr(dim_ptr, self.ctx)
 
     def dump(self):
         """Dumps a string representation of the domain object to standard output (STDOUT)"""
@@ -2113,7 +2111,7 @@ cdef class KVSchema(object):
             tiledb_kv_schema_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_kv_schema_t* ptr):
+    cdef from_ptr(const tiledb_kv_schema_t* ptr, Ctx ctx=default_ctx()):
         """Constructs an KV class instance from a URI and a tiledb_kv_schema_t pointer
         """
         assert(ptr != NULL)
@@ -2124,7 +2122,7 @@ cdef class KVSchema(object):
         return schema
 
     @staticmethod
-    def load(Ctx ctx, uri, key=None):
+    def load(uri, Ctx ctx=default_ctx(), key=None):
         """Loads the KVSchema for persisted KV array at given URI, returns an KVSchema class instance
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2149,12 +2147,13 @@ cdef class KVSchema(object):
             rc = tiledb_kv_schema_load_with_key(ctx_ptr, uri_ptr, key_type, key_ptr, key_len, &schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        return KVSchema.from_ptr(ctx, schema_ptr)
+        return KVSchema.from_ptr(schema_ptr, ctx)
 
-    def __init__(self, Ctx ctx,
+    def __init__(self,
                  domain=None,
                  attrs=(),
-                 capacity=None):
+                 capacity=None,
+                 Ctx ctx=default_ctx()):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef tiledb_kv_schema_t* schema_ptr = NULL
         cdef int rc = tiledb_kv_schema_alloc(ctx.ptr, &schema_ptr)
@@ -2237,14 +2236,14 @@ cdef class KVSchema(object):
         check_error(self.ctx,
                     tiledb_kv_schema_get_attribute_from_name(
                         self.ctx.ptr, self.ptr, bname, &attr_ptr))
-        return Attr.from_ptr(self.ctx, attr_ptr)
+        return Attr.from_ptr(attr_ptr, self.ctx)
 
     cdef _attr_idx(self, int idx):
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
                     tiledb_kv_schema_get_attribute_from_index(
                         self.ctx.ptr, self.ptr, idx, &attr_ptr))
-        return Attr.from_ptr(self.ctx, attr_ptr)
+        return Attr.from_ptr(attr_ptr, ctx=self.ctx)
 
     def attr(self, object key not None):
         """Returns an Attr instance given an int index or string label
@@ -2296,7 +2295,7 @@ cdef class KV(object):
             tiledb_kv_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, unicode uri, const tiledb_kv_t* ptr):
+    cdef from_ptr(unicode uri, const tiledb_kv_t* ptr, Ctx ctx=default_ctx()):
         """Constructs an KV class instance from a URI and a tiledb_kv_schema_t pointer
         """
         assert(ptr != NULL)
@@ -2308,14 +2307,14 @@ cdef class KV(object):
         return kv
 
     @staticmethod
-    def create(Ctx ctx, uri, KVSchema schema, key=None):
+    def create(uri, KVSchema schema, key=None, Ctx ctx=default_ctx()):
         """Creates a persistent KV at the given URI, returns a KV class instance
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_kv_schema_t* schema_ptr = schema.ptr
-        # encyrption key
+        # encryption key
         cdef bytes bkey
         cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
         cdef void* key_ptr = NULL
@@ -2336,9 +2335,9 @@ cdef class KV(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
-        return KV(ctx, uri, key=key)
+        return KV(uri, key=key, ctx=ctx)
 
-  def __init__(self, Ctx ctx, uri, mode='r', key=None, timestamp=None):
+    def __init__(self, uri, mode='r', key=None, timestamp=None, Ctx ctx=default_ctx()):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -2384,7 +2383,7 @@ cdef class KV(object):
             _raise_ctx_err(ctx_ptr, rc)
         cdef KVSchema schema
         try:
-            schema = KVSchema.load(ctx, uri, key=key)
+            schema = KVSchema.load(uri, key=key, ctx=ctx)
         except:
             tiledb_kv_free(&kv_ptr)
             raise
@@ -2872,7 +2871,6 @@ cdef class ArraySchema(object):
     """
     Schema class for TileDB dense / sparse array representations
 
-    :param tiledb.Ctx ctx: A TileDB Context
     :param attrs: one or more array attributes
     :type attrs: tuple(tiledb.Attr, ...)
     :param cell_order:  TileDB label for cell layout
@@ -2888,6 +2886,7 @@ cdef class ArraySchema(object):
         (set by SparseArray and DenseArray derived classes)
     :raises TypeError: cannot convert uri to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
+    :param tiledb.Ctx ctx: A TileDB Context
 
     """
     cdef Ctx ctx
@@ -2901,7 +2900,7 @@ cdef class ArraySchema(object):
             tiledb_array_schema_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(Ctx ctx, const tiledb_array_schema_t* schema_ptr):
+    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=default_ctx()):
         """
         Constructs a ArraySchema class instance from a 
         Ctx and tiledb_array_schema_t pointer
@@ -2913,7 +2912,7 @@ cdef class ArraySchema(object):
         return schema
 
     @staticmethod
-    def load(Ctx ctx, uri, key=None):
+    def load(uri, Ctx ctx=default_ctx(), key=None):
         cdef bytes buri = uri.encode('UTF-8')
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -2938,9 +2937,9 @@ cdef class ArraySchema(object):
                 ctx_ptr, uri_ptr, key_type, key_ptr, key_len, &array_schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        return ArraySchema.from_ptr(ctx, array_schema_ptr)
+        return ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
 
-    def __init__(self, Ctx ctx,
+    def __init__(self,
                  domain=None,
                  attrs=(),
                  cell_order='row-major',
@@ -2948,7 +2947,8 @@ cdef class ArraySchema(object):
                  capacity=0,
                  coords_filters=None,
                  offsets_filters=None,
-                 sparse=False):
+                 sparse=False,
+                 Ctx ctx=default_ctx()):
         cdef tiledb_array_type_t array_type =\
             TILEDB_SPARSE if sparse else TILEDB_DENSE
         cdef tiledb_array_schema_t* schema_ptr = NULL
@@ -3130,7 +3130,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_offsets_filter_list(
                 self.ctx.ptr, self.ptr, &filter_list_ptr))
-        return FilterList.from_ptr(self.ctx, filter_list_ptr)
+        return FilterList.from_ptr(filter_list_ptr, self.ctx)
 
     @property
     def coords_filters(self):
@@ -3143,7 +3143,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_coords_filter_list(
                 self.ctx.ptr, self.ptr, &filter_list_ptr))
-        return FilterList.from_ptr(self.ctx, filter_list_ptr)
+        return FilterList.from_ptr(filter_list_ptr, self.ctx)
 
     @property
     def domain(self):
@@ -3156,7 +3156,7 @@ cdef class ArraySchema(object):
         cdef tiledb_domain_t* dom = NULL
         check_error(self.ctx,
                     tiledb_array_schema_get_domain(self.ctx.ptr, self.ptr, &dom))
-        return Domain.from_ptr(self.ctx, dom)
+        return Domain.from_ptr(dom, self.ctx)
 
     @property
     def nattr(self):
@@ -3194,14 +3194,14 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_name(
                         self.ctx.ptr, self.ptr, bname, &attr_ptr))
-        return Attr.from_ptr(self.ctx, attr_ptr)
+        return Attr.from_ptr(attr_ptr, self.ctx)
 
     cdef _attr_idx(self, int idx):
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_index(
                         self.ctx.ptr, self.ptr, idx, &attr_ptr))
-        return Attr.from_ptr(self.ctx, attr_ptr)
+        return Attr.from_ptr(attr_ptr, ctx=self.ctx)
 
     def attr(self, object key not None):
         """Returns an Attr instance given an int index or string label
@@ -3233,11 +3233,11 @@ cdef class Array(object):
     Defines common properties/functionality for the different array types. When an Array instance is initialized,
     the array is opened with the specified mode.
 
-    :param Ctx ctx: TileDB context
     :param str uri: URI of array to open
     :param str mode: (default 'r') Open the KV object in read 'r' or write 'w' mode
     :param str key: (default None) If not None, encryption key to decrypt the KV array
     :param int timestamp: (default None) If not None, open the KV array at a given TileDB timestamp
+    :param Ctx ctx: TileDB context
     """
 
     cdef Ctx ctx
@@ -3287,7 +3287,7 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         return
 
-    def __init__(self, Ctx ctx, uri, mode='r', key=None, timestamp=None):
+    def __init__(self, uri, mode='r', key=None, timestamp=None, Ctx ctx=default_ctx()):
         # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         # uri
@@ -3339,7 +3339,7 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         cdef ArraySchema schema
         try:
-            schema = ArraySchema.load(ctx, uri, key=key)
+            schema = ArraySchema.load(uri, key=key, ctx=ctx)
         except:
             tiledb_array_free(&array_ptr)
             raise
@@ -3553,14 +3553,14 @@ cdef class DenseArray(Array):
     """
 
     @staticmethod
-    def from_numpy(Ctx ctx, uri, np.ndarray array, **kw):
+    def from_numpy(uri, np.ndarray array, Ctx ctx=default_ctx(), **kw):
         """
         Persists a given numpy array as a TileDB DenseArray,
         returns a readonly DenseArray class instance.
 
-        :param tiledb.Ctx ctx: A TileDB Context
         :param str uri: URI for the TileDB array resource
         :param numpy.ndarray array: dense numpy array to persist
+        :param tiledb.Ctx ctx: A TileDB Context
         :param \*\*kw: additional arguments to pass to the DenseArray constructor
         :rtype: tiledb.DenseArray
         :return: A DenseArray with a single anonymous attribute
@@ -3570,10 +3570,9 @@ cdef class DenseArray(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
-        >>> ctx = tiledb.Ctx()
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     # Creates array 'array' on disk.
-        ...     A = tiledb.DenseArray.from_numpy(ctx, tmp + "/array",  np.array([1.0, 2.0, 3.0]))
+        ...     A = tiledb.DenseArray.from_numpy(tmp + "/array",  np.array([1.0, 2.0, 3.0]))
 
         """
         # create an ArraySchema from the numpy array object
@@ -3581,14 +3580,14 @@ cdef class DenseArray(Array):
         for d in range(array.ndim):
             extent = array.shape[d]
             domain = (0, extent - 1)
-            dims.append(Dim(ctx, "", domain=domain, tile=extent, dtype=np.uint64))
-        dom = Domain(ctx, *dims)
-        att = Attr(ctx, dtype=array.dtype)
-        schema = ArraySchema(ctx, domain=dom, attrs=(att,), **kw)
+            dims.append(Dim("", domain=domain, tile=extent, dtype=np.uint64, ctx=ctx))
+        dom = Domain(*dims, ctx=ctx)
+        att = Attr(ctx=ctx, dtype=array.dtype)
+        schema = ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
         Array.create(uri, schema)
-        with DenseArray(ctx, uri, mode='w') as arr:
+        with DenseArray(uri, mode='w', ctx=ctx) as arr:
             arr.write_direct(np.ascontiguousarray(array))
-        return DenseArray(ctx, uri, mode='r')
+        return DenseArray(uri, mode='r', ctx=ctx)
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -3614,10 +3613,9 @@ cdef class DenseArray(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
-        >>> ctx = tiledb.Ctx()
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     # Creates array 'array' on disk.
-        ...     A = tiledb.DenseArray.from_numpy(ctx, tmp + "/array",  np.ones((100, 100)))
+        ...     A = tiledb.DenseArray.from_numpy(tmp + "/array",  np.ones((100, 100)))
         ...     # Many aspects of Numpy's fancy indexing are supported:
         ...     A[1:10, ...].shape
         ...     A[1:10, 20:99].shape
@@ -3627,14 +3625,14 @@ cdef class DenseArray(Array):
         ()
         >>> # Subselect on attributes when reading:
         >>> with tempfile.TemporaryDirectory() as tmp:
-        ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-        ...     schema = tiledb.ArraySchema(ctx, domain=dom,
-        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
-        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
         ...     tiledb.DenseArray.create(tmp + "/array", schema)
-        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='w') as A:
+        ...     with tiledb.DenseArray(tmp + "/array", mode='w') as A:
         ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
-        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='r') as A:
+        ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
         ...         # Access specific attributes individually.
         ...         A[0:5]["a1"]
         ...         A[0:5]["a2"]
@@ -3668,14 +3666,14 @@ cdef class DenseArray(Array):
 
         >>> # Subselect on attributes when reading:
         >>> with tempfile.TemporaryDirectory() as tmp:
-        ...     dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 9), tile=2, dtype=np.uint64))
-        ...     schema = tiledb.ArraySchema(ctx, domain=dom,
-        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
-        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
         ...     tiledb.DenseArray.create(tmp + "/array", schema)
-        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='w') as A:
+        ...     with tiledb.DenseArray(tmp + "/array", mode='w') as A:
         ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
-        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='r') as A:
+        ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
         ...         # Access specific attributes individually.
         ...         A.query(attrs=("a1",))[0:5]
         OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
@@ -3825,26 +3823,25 @@ cdef class DenseArray(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
-        >>> ctx = tiledb.Ctx()
         >>> # Write to single-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     # Create an array initially with all zero values
-        ...     with tiledb.DenseArray.from_numpy(ctx, tmp + "/array",  np.zeros((2, 2))) as A:
+        ...     with tiledb.DenseArray.from_numpy(tmp + "/array",  np.zeros((2, 2))) as A:
         ...         pass
-        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='w') as A:
+        ...     with tiledb.DenseArray(tmp + "/array", mode='w') as A:
         ...         # Write to the single (anonymous) attribute
         ...         A[:] = np.array(([1,2], [3,4]))
         >>>
         >>> # Write to multi-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
-        ...     dom = tiledb.Domain(ctx,
-        ...         tiledb.Dim(ctx, domain=(0, 1), tile=2, dtype=np.uint64),
-        ...         tiledb.Dim(ctx, domain=(0, 1), tile=2, dtype=np.uint64))
-        ...     schema = tiledb.ArraySchema(ctx, domain=dom,
-        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
-        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     dom = tiledb.Domain(
+        ...         tiledb.Dim(domain=(0, 1), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(domain=(0, 1), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
         ...     tiledb.DenseArray.create(tmp + "/array", schema)
-        ...     with tiledb.DenseArray(ctx, tmp + "/array", mode='w') as A:
+        ...     with tiledb.DenseArray(tmp + "/array", mode='w') as A:
         ...         # Write to each attribute
         ...         A[0:2, 0:2] = {"a1": np.array(([-3, -4], [-5, -6])),
         ...                        "a2": np.array(([1, 2], [3, 4]))}
@@ -4124,17 +4121,16 @@ cdef class SparseArray(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
-        >>> ctx = tiledb.Ctx()
         >>> # Write to multi-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
-        ...     dom = tiledb.Domain(ctx,
-        ...         tiledb.Dim(ctx, domain=(0, 1), tile=2, dtype=np.uint64),
-        ...         tiledb.Dim(ctx, domain=(0, 1), tile=2, dtype=np.uint64))
-        ...     schema = tiledb.ArraySchema(ctx, domain=dom, sparse=True,
-        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
-        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     dom = tiledb.Domain(
+        ...         tiledb.Dim(domain=(0, 1), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(domain=(0, 1), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom, sparse=True,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
         ...     tiledb.SparseArray.create(tmp + "/array", schema)
-        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='w') as A:
+        ...     with tiledb.SparseArray(tmp + "/array", mode='w') as A:
         ...         # Write in the corner cells (0,0) and (1,1) only.
         ...         I, J = [0, 1], [0, 1]
         ...         # Write to each attribute
@@ -4229,23 +4225,22 @@ cdef class SparseArray(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
-        >>> ctx = tiledb.Ctx()
         >>> # Write to multi-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
-        ...     dom = tiledb.Domain(ctx,
-        ...         tiledb.Dim(ctx, name="y", domain=(0, 9), tile=2, dtype=np.uint64),
-        ...         tiledb.Dim(ctx, name="x", domain=(0, 9), tile=2, dtype=np.uint64))
-        ...     schema = tiledb.ArraySchema(ctx, domain=dom, sparse=True,
-        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
-        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     dom = tiledb.Domain(
+        ...         tiledb.Dim(name="y", domain=(0, 9), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(name="x", domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom, sparse=True,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
         ...     tiledb.SparseArray.create(tmp + "/array", schema)
-        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='w') as A:
+        ...     with tiledb.SparseArray(tmp + "/array", mode='w') as A:
         ...         # Write in the twp cells (0,0) and (2,3) only.
         ...         I, J = [0, 2], [0, 3]
         ...         # Write to each attribute
         ...         A[I, J] = {"a1": np.array([1, 2]),
         ...                    "a2": np.array([3, 4])}
-        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='r') as A:
+        ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
         ...         # Return an OrderedDict with cell coordinates
         ...         A[0:3, 0:10]
         ...         # Return the NumpyRecord array of TileDB cell coordinates
@@ -4285,23 +4280,22 @@ cdef class SparseArray(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
-        >>> ctx = tiledb.Ctx()
         >>> # Write to multi-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
-        ...     dom = tiledb.Domain(ctx,
-        ...         tiledb.Dim(ctx, name="y", domain=(0, 9), tile=2, dtype=np.uint64),
-        ...         tiledb.Dim(ctx, name="x", domain=(0, 9), tile=2, dtype=np.uint64))
-        ...     schema = tiledb.ArraySchema(ctx, domain=dom, sparse=True,
-        ...         attrs=(tiledb.Attr(ctx, name="a1", dtype=np.int64),
-        ...                tiledb.Attr(ctx, name="a2", dtype=np.int64)))
+        ...     dom = tiledb.Domain(
+        ...         tiledb.Dim(name="y", domain=(0, 9), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(name="x", domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom, sparse=True,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
         ...     tiledb.SparseArray.create(tmp + "/array", schema)
-        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='w') as A:
+        ...     with tiledb.SparseArray(tmp + "/array", mode='w') as A:
         ...         # Write in the twp cells (0,0) and (2,3) only.
         ...         I, J = [0, 2], [0, 3]
         ...         # Write to each attribute
         ...         A[I, J] = {"a1": np.array([1, 2]),
         ...                    "a2": np.array([3, 4])}
-        ...     with tiledb.SparseArray(ctx, tmp + "/array", mode='r') as A:
+        ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
         ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]
         OrderedDict([('a1', array([1, 2]))])
 
@@ -4493,10 +4487,9 @@ cdef class SparseArray(Array):
         PyMem_Free(buffers_ptr)
         return out
 
-def consolidate(Ctx ctx, Config config=None, uri=None, key=None):
+def consolidate(Config config=None, uri=None, key=None, Ctx ctx=default_ctx()):
     """Consolidates a TileDB Array updates for improved read performance
 
-    :param tiledb.Ctx ctx: The TileDB Context
     :param tiledb.Config config: The TileDB Config with consolidation parameters set
     :param str uri: URI to the TileDB Array
     :param str: (default None) Key to decrypt array if the array is encrypted
@@ -4504,6 +4497,7 @@ def consolidate(Ctx ctx, Config config=None, uri=None, key=None):
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
+    :param tiledb.Ctx ctx: The TileDB Context
 
     """
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -4534,12 +4528,12 @@ def consolidate(Ctx ctx, Config config=None, uri=None, key=None):
     return uri
 
 
-def group_create(Ctx ctx, uri):
+def group_create(uri, Ctx ctx=default_ctx()):
     """Create a TileDB Group object at the specified path (URI)
 
-    :param tiledb.Ctx ctx: The TileDB Context
     :param str uri: URI of the TileDB Group to be created
     :rtype: str
+    :param tiledb.Ctx ctx: The TileDB Context
     :return: The URI of the created TileDB Group
     :raises TypeError: cannot convert path to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
@@ -4556,12 +4550,12 @@ def group_create(Ctx ctx, uri):
     return uri
 
 
-def object_type(Ctx ctx, uri):
+def object_type(uri, Ctx ctx=default_ctx()):
     """Returns the TileDB object type at the specified path (URI)
 
-    :param tiledb.Ctx ctx: The TileDB Context
     :param str path: path (URI) of the TileDB resource
     :rtype: str
+    :param tiledb.Ctx ctx: The TileDB Context
     :return: object type string
     :raises TypeError: cannot convert path to unicode string
 
@@ -4585,11 +4579,11 @@ def object_type(Ctx ctx, uri):
     return objtype
 
 
-def remove(Ctx ctx, uri):
+def remove(uri, Ctx ctx=default_ctx()):
     """Removes (deletes) the TileDB object at the specified path (URI)
 
-    :param tiledb.Ctx ctx: The TileDB Context
     :param str uri: URI of the TileDB resource
+    :param tiledb.Ctx ctx: The TileDB Context
     :raises TypeError: uri cannot be converted to a unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
@@ -4605,7 +4599,7 @@ def remove(Ctx ctx, uri):
     return
 
 
-def move(Ctx ctx, old_uri, new_uri):
+def move(old_uri, new_uri, Ctx ctx = default_ctx()):
     """Moves a TileDB resource (group, array, key-value).
 
     :param tiledb.Ctx ctx: The TileDB Context
@@ -4642,13 +4636,13 @@ cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     return 1
 
 
-def ls(Ctx ctx, path, func):
+def ls(path, func, Ctx ctx=default_ctx()):
     """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
 
-    :param tiledb.Ctx ctx: TileDB context
     :param str path: URI of TileDB group object
     :param function func: callback to execute on every listed TileDB resource,\
             URI resource path and object type label are passed as arguments to the callback
+    :param tiledb.Ctx ctx: TileDB context
     :raises TypeError: cannot convert path to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
@@ -4659,13 +4653,13 @@ def ls(Ctx ctx, path, func):
     return
 
 
-def walk(Ctx ctx, path, func, order="preorder"):
-    """Recursively visits TileDB resources and applies a callback that have a prefix of ``path``
+def walk(path, func, order="preorder", Ctx ctx=default_ctx()):
+    """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``path``
 
-    :param tiledb.Ctx ctx: The TileDB context
     :param str path: URI of TileDB group object
     :param function func: callback to execute on every listed TileDB resource,\
             URI resource path and object type label are passed as arguments to the callback
+    :param tiledb.Ctx ctx: The TileDB context
     :param str order: 'preorder' (default) or 'postorder' tree traversal
     :raises TypeError: cannot convert path to unicode string
     :raises ValueError: unknown order
@@ -4744,7 +4738,7 @@ cdef class VFS(object):
         if self.ptr != NULL:
             tiledb_vfs_free(&self.ptr)
 
-    def __init__(self, Ctx ctx, config=None):
+    def __init__(self, config=None, Ctx ctx=default_ctx()):
         cdef Config _config = Config()
         if config is not None:
             if isinstance(config, Config):
