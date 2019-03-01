@@ -44,23 +44,19 @@ array_name = "multi_attribute"
 
 
 def create_array():
-    # Create a TileDB context
-    ctx = tiledb.Ctx()
-
     # Check if the array already exists.
-    if tiledb.object_type(ctx, array_name) == "array":
+    if tiledb.object_type(array_name) == "array":
         return
 
     # The array will be 4x4 with dimensions "rows" and "cols", with domain [1,4].
-    dom = tiledb.Domain(ctx,
-                        tiledb.Dim(ctx, name="rows", domain=(1, 4), tile=4, dtype=np.int32),
-                        tiledb.Dim(ctx, name="cols", domain=(1, 4), tile=4, dtype=np.int32))
+    dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(1, 4), tile=4, dtype=np.int32),
+                        tiledb.Dim(name="cols", domain=(1, 4), tile=4, dtype=np.int32))
 
     # Add two attributes "a1" and "a2", so each (i,j) cell can store
     # a character on "a1" and a vector of two floats on "a2".
-    schema = tiledb.ArraySchema(ctx, domain=dom, sparse=False,
-                                attrs=[tiledb.Attr(ctx, name="a1", dtype=np.uint8),
-                                       tiledb.Attr(ctx, name="a2",
+    schema = tiledb.ArraySchema(domain=dom, sparse=False,
+                                attrs=[tiledb.Attr(name="a1", dtype=np.uint8),
+                                       tiledb.Attr(name="a2",
                                                    dtype=np.dtype([("", np.float32), ("", np.float32)]))])
 
     # Create the (empty) array on disk.
@@ -68,9 +64,8 @@ def create_array():
 
 
 def write_array():
-    ctx = tiledb.Ctx()
     # Open the array and write to it.
-    with tiledb.DenseArray(ctx, array_name, mode='w') as A:
+    with tiledb.DenseArray(array_name, mode='w') as A:
         data_a1 = np.array((list(map(ord, ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
                                            'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p']))))
         data_a2 = np.array(([(1.1, 1.2), (2.1, 2.2), (3.1, 3.2), (4.1, 4.2),
@@ -82,9 +77,8 @@ def write_array():
 
 
 def read_array():
-    ctx = tiledb.Ctx()
     # Open the array and read from it.
-    with tiledb.DenseArray(ctx, array_name, mode='r') as A:
+    with tiledb.DenseArray(array_name, mode='r') as A:
         # Slice only rows 1, 2 and cols 2, 3, 4.
         data = A[1:3, 2:5]
         print("Reading both attributes a1 and a2:")
@@ -94,9 +88,8 @@ def read_array():
 
 
 def read_array_subselect():
-    ctx = tiledb.Ctx()
     # Open the array and read from it.
-    with tiledb.DenseArray(ctx, array_name, mode='r') as A:
+    with tiledb.DenseArray(array_name, mode='r') as A:
         # Slice only rows 1, 2 and cols 2, 3, 4, attribute 'a1' only.
         # We use the '.query()' syntax which allows attribute subselection.
         data = A.query(attrs=["a1"])[1:3, 2:5]

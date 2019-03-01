@@ -54,15 +54,13 @@ import tiledb
 
 
 def create_array(array_name, sparse):
-    ctx = tiledb.Ctx()
-    if tiledb.object_type(ctx, array_name) == "array":
+    if tiledb.object_type(array_name) == "array":
         return
 
-    dom = tiledb.Domain(ctx,
-                        tiledb.Dim(ctx, name="rows", domain=(1, 4), tile=4, dtype=np.int32),
-                        tiledb.Dim(ctx, name="cols", domain=(1, 4), tile=4, dtype=np.int32))
-    schema = tiledb.ArraySchema(ctx, domain=dom, sparse=sparse,
-                                attrs=[tiledb.Attr(ctx, name="a", dtype=np.int32)])
+    dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(1, 4), tile=4, dtype=np.int32),
+                        tiledb.Dim(name="cols", domain=(1, 4), tile=4, dtype=np.int32))
+    schema = tiledb.ArraySchema(domain=dom, sparse=sparse,
+                                attrs=[tiledb.Attr(name="a", dtype=np.int32)])
     if sparse:
         tiledb.SparseArray.create(array_name, schema)
     else:
@@ -70,18 +68,16 @@ def create_array(array_name, sparse):
 
 
 def create_kv(array_name):
-    ctx = tiledb.Ctx()
-    schema = tiledb.KVSchema(ctx, attrs=[tiledb.Attr(ctx, name="a", dtype=bytes)])
-    tiledb.KV.create(ctx, array_name, schema)
+    schema = tiledb.KVSchema(attrs=[tiledb.Attr(name="a", dtype=bytes)])
+    tiledb.KV.create(array_name, schema)
 
 
 def create_hierarchy():
-    ctx = tiledb.Ctx()
 
     # Create groups
-    tiledb.group_create(ctx, "my_group")
-    tiledb.group_create(ctx, "my_group/dense_arrays")
-    tiledb.group_create(ctx, "my_group/sparse_arrays")
+    tiledb.group_create("my_group")
+    tiledb.group_create("my_group/dense_arrays")
+    tiledb.group_create("my_group/sparse_arrays")
 
     # Create arrays
     create_array("my_group/dense_arrays/array_A", False)
@@ -94,25 +90,23 @@ def create_hierarchy():
 
 
 def list_obj(path):
-    ctx = tiledb.Ctx()
 
     # List children
     print("\nListing hierarchy:")
-    tiledb.ls(ctx, path, lambda obj_path, obj_type: print(obj_path, obj_type))
+    tiledb.ls(path, lambda obj_path, obj_type: print(obj_path, obj_type))
 
     # Walk in a path with a pre- and post-order traversal
     print("\nPreorder traversal:")
-    tiledb.walk(ctx, path, lambda obj_path, obj_type: print(obj_path, obj_type))  # Default order is preorder
+    tiledb.walk(path, lambda obj_path, obj_type: print(obj_path, obj_type))  # Default order is preorder
 
     print("\nPostorder traversal:")
-    tiledb.walk(ctx, path, lambda obj_path, obj_type: print(obj_path, obj_type), "postorder")
+    tiledb.walk(path, lambda obj_path, obj_type: print(obj_path, obj_type), order="postorder")
 
 
 def move_remove_obj():
-    ctx = tiledb.Ctx()
-    tiledb.move(ctx, "my_group", "my_group_2")
-    tiledb.remove(ctx, "my_group_2/dense_arrays")
-    tiledb.remove(ctx, "my_group_2/sparse_arrays/array_C")
+    tiledb.move("my_group", "my_group_2")
+    tiledb.remove("my_group_2/dense_arrays")
+    tiledb.remove("my_group_2/sparse_arrays/array_C")
 
 
 create_hierarchy()

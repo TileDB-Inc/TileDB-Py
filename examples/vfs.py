@@ -37,10 +37,8 @@ import tiledb
 
 
 def dirs_files():
-    ctx = tiledb.Ctx()
-
     # Create TileDB VFS
-    vfs = tiledb.VFS(ctx)
+    vfs = tiledb.VFS()
 
     # Create directory
     if not vfs.is_dir("dir_A"):
@@ -70,10 +68,8 @@ def dirs_files():
 
 
 def write():
-    ctx = tiledb.Ctx()
-
     # Create TileDB VFS
-    vfs = tiledb.VFS(ctx)
+    vfs = tiledb.VFS()
 
     # Create VFS file handle
     f = vfs.open("tiledb_vfs.bin", "w")
@@ -96,10 +92,8 @@ def write():
 
 
 def read():
-    ctx = tiledb.Ctx()
-
     # Create TileDB VFS
-    vfs = tiledb.VFS(ctx)
+    vfs = tiledb.VFS()
 
     # Read binary data
     f = vfs.open("tiledb_vfs.bin", "r")
