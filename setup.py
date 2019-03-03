@@ -36,7 +36,7 @@ import sys
 from sys import version_info as ver
 
 # Target branch
-TILEDB_VERSION = "dev"
+TILEDB_VERSION = "faf0334ac607b0f9eb5b4265c2f8e94a98060b8b" # ss/capnp-based-rest-client"
 
 # Use `setup.py [] --debug` for a debug build of libtiledb
 TILEDB_DEBUG_BUILD = False

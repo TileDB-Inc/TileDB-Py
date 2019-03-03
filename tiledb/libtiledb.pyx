@@ -3299,6 +3299,33 @@ cdef class ArraySchema(object):
         print("\n")
         return
 
+    def serialize(self, format='JSON'):
+        """Returns a JSON (as string) representation of the array schema"""
+        cdef tiledb_serialization_type_t serialization_type
+        if format == 'JSON':
+            serialization_type = TILEDB_JSON
+        else:
+            raise Exception("Capnp unimplemented")
+
+        cdef char* out = NULL
+        cdef uint64_t out_len = 0
+        cdef int rc = TILEDB_OK
+        rc = tiledb_array_schema_serialize(
+                self.ctx.ptr, self.ptr, serialization_type,
+                &out, &out_len)
+
+        if rc != TILEDB_OK:
+            raise Exception("Failed to serialize array schema to JSON.")
+
+        cdef py_string
+        try:
+            # API includes \0 terminator...
+            py_string = out[:out_len - 1]
+        finally:
+            free(out)
+
+        return py_string.decode('UTF-8')
+
 cdef class Array(object):
     """Base class for TileDB array objects.
 
