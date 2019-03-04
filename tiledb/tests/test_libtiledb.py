@@ -464,6 +464,49 @@ class ArraySchemaTest(unittest.TestCase):
         schema.dump()
         self.assertTrue(schema.sparse)
 
+    def test_sparse_schema_json_dump(self):
+        self.maxDiff = None
+        ctx = tiledb.Ctx()
+
+        # create dimensions
+        d1 = tiledb.Dim("", domain=(1, 1000), tile=10, dtype="uint64", ctx=ctx)
+        d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64", ctx=ctx)
+
+        # create domain
+        domain = tiledb.Domain(d1, d2, ctx=ctx)
+
+        # create attributes
+        a1 = tiledb.Attr("", dtype="int32,int32,int32", ctx=ctx)
+        #a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="float32")
+        filter_list = tiledb.FilterList([tiledb.GzipFilter(ctx=ctx)], ctx=ctx)
+        a2 = tiledb.Attr("a2", filters=filter_list, dtype="float32", ctx=ctx)
+
+        off_filters = tiledb.libtiledb.FilterList(filters=[tiledb.libtiledb.ZstdFilter(ctx=ctx, level=10)],
+                                                  chunksize=2048, ctx=ctx)
+
+        coords_filters = tiledb.libtiledb.FilterList(filters=[tiledb.libtiledb.Bzip2Filter(ctx=ctx, level=5)],
+                                                     chunksize=4096, ctx=ctx)
+
+        # create sparse array with schema
+        schema = tiledb.ArraySchema(ctx=ctx,
+                                    domain=domain,
+                                    attrs=(a1, a2),
+                                    capacity=10,
+                                    cell_order='col-major',
+                                    tile_order='row-major',
+                                    coords_filters=coords_filters,
+                                    offsets_filters=off_filters,
+                                    sparse=True)
+
+        #old_ref_json = """{"arrayType":"sparse","attributes":[{"cellValNum":3,"name":"__attr","type":"INT32","filterPipeline":{"filters":[]}},{"cellValNum":1,"name":"a2","type":"FLOAT32","filterPipeline":{"filters":[{"type":"GZIP","data":{"int32":-1}}]}}],"capacity":"10","cellOrder":"col-major","coordsFilterPipeline":{"filters":[{"type":"BZIP2","data":{"int32":5}}]},"domain":{"cellOrder":"row-major","dimensions":[{"name":"__dim_0","nullTileExtent":false,"type":"UINT64","tileExtent":{"uint64":"10"},"domain":{"uint64":["1","1000"]}},{"name":"d2","nullTileExtent":false,"type":"UINT64","tileExtent":{"uint64":"100"},"domain":{"uint64":["101","10000"]}}],"tileOrder":"row-major","type":"UINT64"},"offsetFilterPipeline":{"filters":[{"type":"ZSTD","data":{"int32":10}}]},"tileOrder":"row-major","uri":"","""
+
+        # TODO figure out better way to test this
+        #      actually, when deser is implemented that will be simple
+        ref_json = """{"arrayType":"sparse","attributes":[{"cellValNum":3,"name":"__attr","type":"INT32","filterPipeline":{}},{"cellValNum":1,"name":"a2","type":"FLOAT32","filterPipeline":{"filters":[{"type":"GZIP","data":{"int32":-1}}]}}],"capacity":"10","cellOrder":"col-major","coordsFilterPipeline":{"filters":[{"type":"BZIP2","data":{"int32":5}}]},"domain":{"cellOrder":"row-major","dimensions":[{"name":"__dim_0","nullTileExtent":false,"type":"UINT64","tileExtent":{"uint64":"10"},"domain":{"uint64":["1","1000"]}},{"name":"d2","nullTileExtent":false,"type":"UINT64","tileExtent":{"uint64":"100"},"domain":{"uint64":["101","10000"]}}],"tileOrder":"row-major","type":"UINT64"},"offsetFilterPipeline":{"filters":[{"type":"ZSTD","data":{"int32":10}}]},"tileOrder":"row-major","uri":"","""
+        ref_json += """"version":[{}]}}""".format(','.join(str(i) for i in tiledb.version()))
+        json = schema.serialize(format='JSON')
+
+        self.assertEqual(json, ref_json)
 
 class ArrayTest(DiskTestCase):
 
