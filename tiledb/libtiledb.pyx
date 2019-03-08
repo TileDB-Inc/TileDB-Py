@@ -3219,6 +3219,10 @@ cdef class ArraySchema(object):
         return self.domain.shape
 
     cdef _attr_name(self, name):
+        if name == "coords":
+            raise ValueError("'coords' attribute may not be accessed directly "
+                             "(use 'T.query(coords=True)')")
+
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
@@ -3497,7 +3501,7 @@ cdef class Array(object):
         """Returns the URI of the array"""
         return self.uri
 
-    def subarray(self, selection, coords=False, attrs=None, order=None):
+    def subarray(self, selection, attrs=None, coords=False, order=None):
         raise NotImplementedError()
 
     def attr(self, key):
@@ -3748,7 +3752,7 @@ cdef class DenseArray(Array):
         return Query(self, attrs=attrs, coords=coords, order=order)
 
 
-    def subarray(self, selection, coords=False, attrs=None, order=None):
+    def subarray(self, selection, attrs=None, coords=False, order=None):
         """Retrieve data cells for an item or region of the array.
 
         Optionally subselect over attributes, return dense result coordinate values,
@@ -3785,6 +3789,7 @@ cdef class DenseArray(Array):
             attr_names.extend(self.schema.attr(i).name for i in range(self.schema.nattr))
         else:
             attr_names.extend(self.schema.attr(a).name for a in attrs)
+
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
@@ -4035,7 +4040,7 @@ cdef class DenseArray(Array):
                 buffer = np.empty(shape=np.prod(shape), dtype=dtype)
 
             # allocate buffer to hold result of query for var-length attribute
-            if self.schema.attr(name).isvar:
+            if (name != "coords") and (self.schema.attr(name).isvar):
                 battr_name = attr_names[i].encode('UTF-8')
                 tiledb_array_max_buffer_size_var(ctx_ptr, array_ptr, battr_name, subarray_ptr,
                                                  &var_offsets_sizebytes, &var_vals_size)
