@@ -1475,7 +1475,7 @@ cdef class Attr(object):
     :param str name: Attribute name, empty if anonymous
     :param dtype: Attribute value datatypes
     :type dtype: numpy.dtype object or type or string
-    :param var: Attribute is variable-length (automatic for byte/string tyeps)
+    :param var: Attribute is variable-length (automatic for byte/string types)
     :type dtype: bool
     :param filters: List of filters to apply
     :type filters: FilterList
