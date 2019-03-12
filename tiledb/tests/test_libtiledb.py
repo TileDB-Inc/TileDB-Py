@@ -1051,7 +1051,7 @@ class DenseVarlen(DiskTestCase):
 
 
     def test_varlen_write_ints(self):
-        A = np.array([np.random.randint(0,pow(10,6),x, dtype=np.uint64) for x in np.random.randint(1,12,8)], dtype=np.object)
+        A = np.array([np.uint64(np.random.randint(0,pow(10,6),x)) for x in np.random.randint(1,12,8)], dtype=np.object)
 
         print("random sub-length test array: {}".format(A))
 
