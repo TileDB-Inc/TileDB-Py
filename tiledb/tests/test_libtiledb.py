@@ -1477,20 +1477,20 @@ class NumpyToArray(DiskTestCase):
 
     def test_bytes_to_array1d(self):
         np_array = np.array([b'abcdef', b'gh', b'ijkl', b'mnopqrs', b'1234545lkjalsdfj'], dtype=object)
-        arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array)
-        assert_array_equal(arr[:], np_array)
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+            assert_array_equal(arr[:], np_array)
 
-        arr_reload = tiledb.DenseArray(self.path("foo"))
-        assert_array_equal(arr_reload[:], np_array)
+        with tiledb.DenseArray(self.path("foo")) as arr_reload:
+            assert_array_equal(arr_reload[:], np_array)
 
     def test_unicode_to_array1d(self):
         np_array = np.array(['1234545lkjalsdfj', 'mnopqrs', 'ijkl', 'gh', 'abcdef',
                              'aαbββcγγγdδδδδ', '"aαbββc', 'γγγdδδδδ'], dtype=object)
-        arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array)
-        assert_array_equal(arr[:], np_array)
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+            assert_array_equal(arr[:], np_array)
 
-        arr_reload = tiledb.DenseArray(self.path("foo"))
-        assert_array_equal(arr_reload[:], np_array)
+        with tiledb.DenseArray(self.path("foo")) as arr_reload:
+            assert_array_equal(arr_reload[:], np_array)
 
     def test_array_interface(self):
         # Tests that __array__ interface works
