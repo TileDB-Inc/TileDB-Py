@@ -3552,8 +3552,147 @@ cdef class Array(object):
     def dump(self):
         self.schema.dump()
 
+    cdef _ndarray_is_varlen(self, np.ndarray array):
+        return  (np.issubdtype(array.dtype, np.bytes_) or
+                 np.issubdtype(array.dtype, np.unicode_) or
+                 array.dtype == np.object
+                 )
+
+    cdef _varlen_dtype_itemsize(self, object item):
+        if (isinstance(item, np.dtype) and np.issubdtype(item, np.bytes_)):
+            return sizeof(char)
+        elif isinstance(item, np.dtype):
+            return item.itemsize
+        elif item == np.bytes_:
+            return sizeof(char)
+        elif item == np.unicode_:
+            # Note this is just a place-holder, we call CPython API to get actual size
+            return sizeof(char)
+
+        raise TypeError("Unknown dtype itemsize for '{}'.".format(item))
+
+    cdef _varlen_type_compat(self, object reftype, object val):
+        if isinstance(val, bytes) and reftype is bytes:
+            return True
+        elif (val, np.bytes_) and np.issubdtype(reftype, np.bytes_):
+            return True
+        elif isinstance(val, np.unicode_) and np.issubdtype(reftype, np.unicode_):
+            return True
+        elif isinstance(val, np.ndarray):
+            if reftype == val.dtype:
+                return True
+            elif np.issubdtype(val.dtype, np.bytes_) and np.issubdtype(reftype, np.bytes_):
+                return True
+            elif np.issubdtype(val.dtype, np.string_) and np.issubdtype(reftype, np.string_):
+                return True
+        # default case
+        return False
+
+    cdef _varlen_cell_dtype(self, object var):
+        cdef np.dtype _dtype
+        if isinstance(var, np.ndarray):
+            _dtype = var.dtype
+            if np.issubdtype(_dtype, np.bytes_):
+                # handles 'S[n]' dtypes for all n
+                return np.bytes_
+            elif np.issubdtype(_dtype, np.unicode_):
+                # handles 'U[n]' dtypes for all n
+                return np.unicode_
+            else:
+                return _dtype
+        elif isinstance(var, bytes):
+            return np.bytes_
+        elif isinstance(var, unicode):
+            return np.unicode_
+
+        raise TypeError("Unsupported varlen cell datatype")
+
+    cdef _pack_varlen_bytes(self, object val):
+        cdef arr = <np.ndarray?>val
+
+        if len(arr) == 0:
+            raise Exception("Empty arrays are not supported.")
+
+        assert((arr.dtype == np.dtype('O') or
+                np.issubdtype(arr.dtype, np.bytes_) or
+                np.issubdtype(arr.dtype, np.unicode_)),
+               "_pack_varlen_bytes: input array must be np.object or np.bytes!")
+
+
+        first_dtype = self._varlen_cell_dtype(arr[0])
+        # item size
+        cdef uint64_t el_size = self._varlen_dtype_itemsize(first_dtype)
+
+        if el_size==0:
+            raise TypeError("Zero-size cell elements are not supported.")
+
+        # total buffer size
+        cdef uint64_t buffer_size = 0
+        cdef np.ndarray buffer_offsets = np.empty(len(arr), dtype=np.uint64)
+        cdef uint64_t el_buffer_size = 0
+
+        # first pass: check types and calculate offsets
+        for (i, item) in enumerate(arr):
+            if first_dtype != self._varlen_cell_dtype(item):
+                msg = ("Data types of variable-length sub-arrays must be consistent. "
+                       "Type '{}', of 1st sub-array, is inconsistent with type '{}', of item {}."
+                       ).format(first_dtype, self._varlen_cell_dtype(item), i)
+
+                raise TypeError(msg)
+
+            # current offset is last buffer_size
+            buffer_offsets[i] = buffer_size
+
+            if first_dtype == np.unicode_:
+                # this will cache the materialized (if any) UTF8 object
+                if PY_MAJOR_VERSION >= 3:
+                    utf8 = (<str>item).encode('UTF-8')
+                else:
+                    utf8 = (<unicode>item).encode('UTF-8')
+                el_buffer_size = len(utf8)
+            else:
+                el_buffer_size = el_size * len(item)
+            assert(el_buffer_size > 0)
+
+            # *running total* buffer size
+            buffer_size += el_buffer_size
+
+        # return a numpy buffer because that is what the caller uses for non-varlen buffers
+        cdef np.ndarray buffer = np.zeros(shape=buffer_size, dtype=np.uint8)
+        # <TODO> should be np.empty(shape=buffer_size, dtype=np.uint8)
+        cdef char* buffer_ptr = <char*>np.PyArray_DATA(buffer)
+        cdef char* input_ptr = NULL
+        cdef object tmp_utf8 = None
+
+        # bytes to copy in this block
+        cdef uint64_t nbytes = 0
+        # loop over sub-items and copy into buffer
+        for (i, subarray) in enumerate(val):
+            if (isinstance(subarray, bytes) or
+                    (isinstance(subarray, np.ndarray) and np.issubdtype(subarray.dtype, np.bytes_))):
+                input_ptr = <char*>PyBytes_AS_STRING(subarray)
+            elif (isinstance(subarray, str) or (isinstance(subarray, unicode)) or
+                  (isinstance(subarray, np.ndarray) and np.issubdtype(subarray.dtype, np.unicode_))):
+                tmp_utf8 = subarray.encode("UTF-8")
+                input_ptr = <char*>tmp_utf8
+            else:
+                input_ptr = <char*>np.PyArray_DATA(subarray)
+
+            if i == len(val)-1:
+                nbytes = buffer_size - buffer_offsets[i]
+            else:
+                nbytes = buffer_offsets[i+1] - buffer_offsets[i]
+
+            memcpy(buffer_ptr, input_ptr, nbytes)
+            buffer_ptr += nbytes
+            # clean up the encoded object *after* storing
+            if tmp_utf8:
+                del tmp_utf8
+
+        return buffer, buffer_offsets
+
     @cython.boundscheck(False)
-    cdef _unpack_varlen_query(self, ReadQuery read, str name):
+    cdef _unpack_varlen_query(self, ReadQuery read, unicode name):
         assert(name != "coords")
         assert(self.schema.attr(name).isvar)
 
@@ -4033,138 +4172,6 @@ cdef class DenseArray(Array):
                 return out[attr.name]
         return out
 
-    cdef _varlen_type_compat(self, object reftype, object val):
-        if isinstance(val, bytes) and reftype is bytes:
-            return True
-        elif (val, np.bytes_) and np.issubdtype(reftype, np.bytes_):
-            return True
-        elif isinstance(val, np.unicode_) and np.issubdtype(reftype, np.unicode_):
-            return True
-        elif isinstance(val, np.ndarray):
-            if reftype == val.dtype:
-                return True
-            elif np.issubdtype(val.dtype, np.bytes_) and np.issubdtype(reftype, np.bytes_):
-                return True
-            elif np.issubdtype(val.dtype, np.string_) and np.issubdtype(reftype, np.string_):
-                return True
-        # default case
-        return False
-
-    cdef _varlen_cell_dtype(self, object var):
-        cdef np.dtype _dtype
-        if isinstance(var, np.ndarray):
-            _dtype = var.dtype
-            if np.issubdtype(_dtype, np.bytes_):
-                # handles 'S[n]' dtypes for all n
-                return np.bytes_
-            elif np.issubdtype(_dtype, np.unicode_):
-                # handles 'U[n]' dtypes for all n
-                return np.unicode_
-            else:
-                return _dtype
-        elif isinstance(var, bytes):
-            return np.bytes_
-        elif isinstance(var, unicode):
-            return np.unicode_
-
-        raise TypeError("Unsupported varlen cell datatype")
-
-    cdef _varlen_dtype_itemsize(self, object item):
-        if (isinstance(item, np.dtype) and np.issubdtype(item, np.bytes_)):
-            return sizeof(char)
-        elif isinstance(item, np.dtype):
-            return item.itemsize
-        elif item == np.bytes_:
-            return sizeof(char)
-        elif item == np.unicode_:
-            # Note this is just a place-holder, we call CPython API to get actual size
-            return sizeof(char)
-
-        raise TypeError("Unknown dtype itemsize for '{}'.".format(item))
-
-    cdef _pack_varlen_bytes(self, object val):
-        cdef arr = <np.ndarray?>val
-
-        if len(arr) == 0:
-            raise Exception("Empty arrays are not supported.")
-
-        assert((arr.dtype == np.dtype('O') or
-                np.issubdtype(arr.dtype, np.bytes_) or
-                np.issubdtype(arr.dtype, np.unicode_)),
-               "_pack_varlen_bytes: input array must be np.object or np.bytes!")
-
-
-        first_dtype = self._varlen_cell_dtype(arr[0])
-        # item size
-        cdef uint64_t el_size = self._varlen_dtype_itemsize(first_dtype)
-
-        if el_size==0:
-            raise TypeError("Zero-size cell elements are not supported.")
-
-        # total buffer size
-        cdef uint64_t buffer_size = 0
-        cdef np.ndarray buffer_offsets = np.empty(len(arr), dtype=np.uint64)
-        cdef uint64_t el_buffer_size = 0
-
-        # first pass: check types and calculate offsets
-        for (i, item) in enumerate(arr):
-            if first_dtype != self._varlen_cell_dtype(item):
-                  msg = ("Data types of variable-length sub-arrays must be consistent. "
-                         "Type '{}', of 1st sub-array, is inconsistent with type '{}', of item {}."
-                        ).format(first_dtype, self._varlen_cell_dtype(item), i)
-
-                  raise TypeError(msg)
-
-            # current offset is last buffer_size
-            buffer_offsets[i] = buffer_size
-
-            if first_dtype == np.unicode_:
-                # this will cache the materialized (if any) UTF8 object
-                if PY_MAJOR_VERSION >= 3:
-                    utf8 = (<str>item).encode('UTF-8')
-                else:
-                    utf8 = (<char*>item).encode('UTF-8')
-                el_buffer_size = len(utf8)
-            else:
-                el_buffer_size = el_size * len(item)
-            assert(el_buffer_size > 0)
-
-            # *running total* buffer size
-            buffer_size += el_buffer_size
-
-        # return a numpy buffer because that is what the caller uses for non-varlen buffers
-        cdef np.ndarray buffer = np.zeros(shape=buffer_size, dtype=np.uint8)
-                                # <TODO> should be np.empty(shape=buffer_size, dtype=np.uint8)
-        cdef char* buffer_ptr = <char*>np.PyArray_DATA(buffer)
-        cdef char* input_ptr = NULL
-        cdef object tmp_utf8 = None
-
-        # bytes to copy in this block
-        cdef uint64_t nbytes = 0
-        # loop over sub-items and copy into buffer
-        for (i, subarray) in enumerate(val):
-            if (isinstance(subarray, bytes) or
-                (isinstance(subarray, np.ndarray) and np.issubdtype(subarray.dtype, np.bytes_))):
-                input_ptr = <char*>PyBytes_AS_STRING(subarray)
-            elif (isinstance(subarray, str) or (isinstance(subarray, unicode)) or
-                (isinstance(subarray, np.ndarray) and np.issubdtype(subarray.dtype, np.unicode_))):
-                tmp_utf8 = subarray.encode("UTF-8")
-                input_ptr = <char*>tmp_utf8
-            else:
-                input_ptr = <char*>np.PyArray_DATA(subarray)
-
-            if i == len(val)-1:
-                nbytes = buffer_size - buffer_offsets[i]
-            else:
-                nbytes = buffer_offsets[i+1] - buffer_offsets[i]
-
-            memcpy(buffer_ptr, input_ptr, nbytes)
-            buffer_ptr += nbytes
-            # clean up the encoded object *after* storing
-            if tmp_utf8:
-                del tmp_utf8
-
-        return buffer, buffer_offsets
 
     cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout):
 
@@ -4298,12 +4305,6 @@ cdef class DenseArray(Array):
                     raise ValueError("mixed C and Fortran array layouts")
         self._write_dense_subarray(subarray, attributes, values, isfortran)
         return
-
-    cdef _ndarray_is_varlen(self, np.ndarray array):
-        return  (np.issubdtype(array.dtype, np.bytes_) or
-                 np.issubdtype(array.dtype, np.unicode_) or
-                 array.dtype == np.object
-                 )
 
     cdef _write_dense_subarray(self, np.ndarray subarray, list attributes, list values, int isfortran):
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -4618,17 +4619,36 @@ cdef class SparseArray(Array):
         if rc != TILEDB_OK:
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
+
         cdef bytes battr_name
         cdef void* buffer_ptr = NULL
+        cdef uint64_t* offsets_ptr = NULL
+        cdef uint64_t offsets_size = 0
         cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
         try:
             for i, (name, buffer) in enumerate(values.items()):
                 battr_name = name.encode('UTF-8')
-                buffer_ptr = np.PyArray_DATA(buffer)
-                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
-                                             buffer_ptr, &(buffer_sizes_ptr[i]))
-                if rc != TILEDB_OK:
-                    _raise_ctx_err(ctx_ptr, rc)
+                if self._ndarray_is_varlen(buffer):
+                    packed_buffer, offsets = self._pack_varlen_bytes(buffer)
+                    buffer_sizes[i] = packed_buffer.nbytes
+                    offsets_size = offsets.nbytes
+                    buffer_ptr = np.PyArray_DATA(packed_buffer)
+                    offsets_ptr = <uint64_t*> np.PyArray_DATA(offsets)
+
+                    rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
+                                                     offsets_ptr, &(offsets_size),
+                                                     buffer_ptr, &(buffer_sizes_ptr[i]))
+
+
+                    if rc != TILEDB_OK:
+                        _raise_ctx_err(ctx_ptr, rc)
+                else:
+                    buffer_sizes[i] = buffer.nbytes
+                    buffer_ptr = np.PyArray_DATA(buffer)
+                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                                 buffer_ptr, &(buffer_sizes_ptr[i]))
+                    if rc != TILEDB_OK:
+                        _raise_ctx_err(ctx_ptr, rc)
         except:
             tiledb_query_free(&query_ptr)
             raise
@@ -4644,6 +4664,7 @@ cdef class SparseArray(Array):
         tiledb_query_free(&query_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+
         return
 
     def __getitem__(self, object selection):
