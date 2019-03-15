@@ -406,7 +406,6 @@ for arg in args:
         TILEDB_DEBUG_BUILD = True
         sys.argv.remove(arg)
 
-
 if TILEDB_PATH != '':
     LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
     if sys.platform.startswith("linux"):
@@ -418,6 +417,21 @@ if TILEDB_PATH != '':
 
 with open('README.rst') as f:
     README_RST = f.read()
+
+cy_extension=Extension(
+    "tiledb.libtiledb",
+    include_dirs=INC_DIRS,
+    define_macros=DEF_MACROS,
+    sources=SOURCES,
+    library_dirs=LIB_DIRS,
+    libraries=LIBS,
+    extra_link_args=LFLAGS,
+    extra_compile_args=CXXFLAGS,
+    language="c++"
+    )
+if TILEDB_DEBUG_BUILD:
+  # monkey patch to tell Cython to generate debug mapping
+  cy_extension.__setattr__('cython_gdb', True)
 
 setup(
     name='tiledb',
@@ -436,17 +450,7 @@ setup(
         'write_to': 'tiledb/version.py'
     },
     ext_modules=[
-        Extension(
-            "tiledb.libtiledb",
-            include_dirs=INC_DIRS,
-            define_macros=DEF_MACROS,
-            sources=SOURCES,
-            library_dirs=LIB_DIRS,
-            libraries=LIBS,
-            extra_link_args=LFLAGS,
-            extra_compile_args=CXXFLAGS,
-            language="c++"
-        )
+      cy_extension
     ],
     setup_requires=setup_requires(),
     install_requires=[
