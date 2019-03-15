@@ -1247,6 +1247,59 @@ class SparseArray(DiskTestCase):
             assert_array_equal(res[""], [1.0, 2.0])
             self.assertEqual(("coords" in res), False)
 
+    def test_sparse_bytes(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx)
+        att = tiledb.Attr("", dtype=np.bytes_, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(self.path("foo"), schema)
+
+        with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            self.assertIsNone(T.nonempty_domain())
+        A = np.array([b'aaa', b'bbbbbbbbbbbbbbbbbbbb', b'ccccccccccccccccccccccccc'],
+                     dtype=np.bytes_)
+
+        with tiledb.SparseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[[50, 60, 100]] = A
+
+        with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            self.assertEqual(((50, 100),), T.nonempty_domain())
+
+            # retrieve just valid coordinates in subarray T[40:60]
+            assert_array_equal(T[40:61]["coords"]["x"], [50, 60])
+
+            #TODO: dropping coords with one anon value returns just an array
+            res = T.query(coords=False)[40:61]
+            assert_array_equal(res[""], A[0:2])
+            self.assertEqual(("coords" in res), False)
+
+    def test_sparse_unicode(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx)
+        att = tiledb.Attr("", dtype=np.unicode_, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(self.path("foo"), schema)
+
+        with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            self.assertIsNone(T.nonempty_domain())
+        A = np_array = np.array([u'1234545lkjalsdfj', u'mnopqrs', u'ijkl', u'gh', u'abcdef',
+                                 u'aαbββcγγγdδδδδ', u'aαbββc', u'γγγdδδδδ'], dtype=object)
+
+        with tiledb.SparseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[[3, 4, 5, 6, 7, 50, 60, 100]] = A
+
+        with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            self.assertEqual(((3, 100),), T.nonempty_domain())
+
+            # retrieve just valid coordinates in subarray T[40:60]
+            assert_array_equal(T[40:61]["coords"]["x"], [50, 60])
+
+            #TODO: dropping coords with one anon value returns just an array
+            res = T.query(coords=False)[40:61]
+            assert_array_equal(res[""], A[5:7])
+            self.assertEqual(("coords" in res), False)
 
 class DenseIndexing(DiskTestCase):
 
