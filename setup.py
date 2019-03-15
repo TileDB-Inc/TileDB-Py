@@ -431,7 +431,10 @@ cy_extension=Extension(
     )
 if TILEDB_DEBUG_BUILD:
   # monkey patch to tell Cython to generate debug mapping
-  cy_extension.__setattr__('cython_gdb', True)
+  if sys.version_info < (3,0):
+      cy_extension.__dict__['cython_gdb'] = True
+  else:
+      cy_extension.__setattr__('cython_gdb', True)
 
 setup(
     name='tiledb',
