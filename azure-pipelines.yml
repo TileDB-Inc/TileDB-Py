@@ -48,6 +48,13 @@ steps:
     python -m unittest -v
   displayName: 'Run tests'
 
+- script: |
+    cat /Users/vsts/agent/*/work/1/s/build/TileDB-*/build/externals/src/ep_awssdk-stamp/ep_awssdk-configure-*.log || true
+    cat D:/a/1/s/build/TileDB-*/build/externals/src/ep_awssdk-stamp/ep_awssdk-configure-*.log || true
+    cat $(Agent.BuildDirectory)/build/externals/src/ep_awssdk-stamp/ep_awssdk-configure-*.log || true
+  condition: always()
+  displayName: PrintAWSLogs
+
 - task: PublishTestResults@2
   inputs:
     testResultsFiles: '**/test-results.xml'
