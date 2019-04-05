@@ -9,6 +9,7 @@ import platform
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
 
+
 try:
     # For Python 3
     from urllib.request import urlopen
@@ -48,6 +49,25 @@ BUILD_DIR = os.path.join(CONTAINING_DIR, "build")
 
 # TileDB package source directory
 TILEDB_PKG_DIR = os.path.join(CONTAINING_DIR, "tiledb")
+
+# Set deployment target for mac
+#
+# Need to ensure thatextensions are built for macos 10.9 when compiling on a
+# 10.9 system or above, overriding distutils behaviour which is to target
+# the version used to build the current python binary.
+#
+# TO OVERRIDE:
+#   set MACOSX_DEPLOYMENT_TARGET before calling setup.py
+#
+# From https://github.com/pandas-dev/pandas/pull/24274
+# 3-Clause BSD License: https://github.com/pandas-dev/pandas/blob/master/LICENSE
+if sys.platform == 'darwin':
+  if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
+      current_system = LooseVersion(platform.mac_ver()[0])
+      python_target = LooseVersion(
+          get_config_var('MACOSX_DEPLOYMENT_TARGET'))
+      if python_target < '10.9' and current_system >= '10.9':
+          os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
 
 def is_windows():
     return os.name == 'nt'
@@ -122,20 +142,6 @@ def build_libtiledb(src_dir):
     :param src_dir: Path to libtiledb source directory.
     :return: Path to the directory where the library was installed.
     """
-    # From https://github.com/pandas-dev/pandas/pull/24274
-    # 3-Clause BSD License: https://github.com/pandas-dev/pandas/blob/master/LICENSE
-    # For mac, ensure extensions are built for macos 10.9 when compiling on a
-    # 10.9 system or above, overriding distutils behaviour which is to target
-    # the version that python was built for. This may be overridden by setting
-    # MACOSX_DEPLOYMENT_TARGET before calling setup.py
-    if sys.platform == 'darwin':
-      if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
-          current_system = LooseVersion(platform.mac_ver()[0])
-          python_target = LooseVersion(
-              get_config_var('MACOSX_DEPLOYMENT_TARGET'))
-          if python_target < '10.9' and current_system >= '10.9':
-              os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
-
     libtiledb_build_dir = os.path.join(src_dir, "build")
     libtiledb_install_dir = os.path.join(src_dir, "dist")
     if not os.path.exists(libtiledb_build_dir):
