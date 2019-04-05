@@ -32,7 +32,7 @@ This may take a while, as the pip package will automatically download and build 
 
 Next, save the `quickstart program <https://github.com/TileDB-Inc/TileDB-Py/blob/dev/examples/quickstart_dense.py>`_ into a file and run it::
 
-    $ wget https://github.com/TileDB-Inc/TileDB-Py/blob/dev/examples/quickstart_dense.py
+    $ wget https://raw.githubusercontent.com/TileDB-Inc/TileDB-Py/dev/examples/quickstart_dense.py
     $ python quickstart_dense.py
     [[2 3 4]
      [6 7 8]]
