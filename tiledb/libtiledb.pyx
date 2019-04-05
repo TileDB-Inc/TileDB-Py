@@ -1479,15 +1479,6 @@ cdef class Attr(object):
     :type dtype: bool
     :param filters: List of filters to apply
     :type filters: FilterList
-    :param compressor: <todo: reimplement?> The compressor name and level for attribute values.
-                       Available compressors:
-                         - "gzip"
-                         - "zstd"
-                         - "lz4"
-                         - "rle"
-                         - "bzip2"
-                         - "double-delta"
-    :type compressor: tuple(str, int)
     :raises TypeError: invalid dtype
     :raises: :py:exc:`tiledb.TileDBError`
 
@@ -1940,7 +1931,7 @@ cdef class Dim(object):
 cdef class Domain(object):
     """Class representing the domain of a TileDB Array.
 
-    :param *dims: one or more tiledb.Dim objects up to the Domain's ndim
+    :param *dims*: one or more tiledb.Dim objects up to the Domain's ndim
     :raises TypeError: All dimensions must have the same dtype
     :raises: :py:exc:`TileDBError`
     :param tiledb.Ctx ctx: A TileDB Context
@@ -2558,7 +2549,7 @@ cdef class KV(object):
     def dict(self):
         """Return a dict representation of the KV array object
 
-        :rtype: dict
+        :rtype: :py:class:`dict`
         :return: Python dict of keys and attribute value (tuples)
 
         """
