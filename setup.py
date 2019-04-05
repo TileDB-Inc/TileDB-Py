@@ -52,7 +52,7 @@ TILEDB_PKG_DIR = os.path.join(CONTAINING_DIR, "tiledb")
 def is_windows():
     return os.name == 'nt'
 
-def libtiledb_exists(library_dirs):
+def _libtiledb_exists(library_dirs):
     """
     Checks the given list of paths and returns true if any contain the TileDB library.
     :return: The path to the TileDB library, or None.
@@ -78,12 +78,19 @@ def libtiledb_exists(library_dirs):
     elif os.name == "nt":
         lib_name = "tiledb.dll"
     try:
+        # note: this is a relative path on linux
+        #       https://bugs.python.org/issue21042
         ctypes.CDLL(lib_name)
         return lib_name
     except:
         pass
 
     return None
+
+def libtiledb_exists(library_dirs):
+    lib = _libtiledb_exists(library_dirs)
+    print("libtiledb_exists found: '{}'".format(lib))
+    return lib
 
 
 def libtiledb_library_names():
@@ -142,12 +149,18 @@ def build_libtiledb(src_dir):
         os.makedirs(libtiledb_build_dir)
 
     print("Building libtiledb in directory {}...".format(libtiledb_build_dir))
-    cmake_cmd = ["cmake",
+    cmake = os.environ.get("CMAKE", "cmake")
+    cmake_cmd = [cmake,
                     "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
                     "-DTILEDB_TESTS=OFF",
                     "-DTILEDB_S3=ON",
                     "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
+                    "-DTILEDB_INSTALL_LIBDIR=lib"
                     ]
+
+    extra_cmake_args = os.environ.get("CMAKE_ARGS", [])
+    if extra_cmake_args:
+        cmake_cmd.extend(extra_cmake_args.split())
 
     if TILEDB_DEBUG_BUILD:
         build_type = "Debug"
@@ -252,7 +265,7 @@ def find_or_install_libtiledb(setuptools_cmd):
             libtiledb_objects.extend(
                 [os.path.join(native_subdir, libname) for libname in
                               ["tiledb.lib", "tbb.dll", "tbb.lib"]])
-
+        print("libtiledb_objects: ", libtiledb_objects)
         setuptools_cmd.distribution.package_data.update({"tiledb": libtiledb_objects})
 
 
@@ -406,6 +419,7 @@ for arg in args:
         TILEDB_DEBUG_BUILD = True
         sys.argv.remove(arg)
 
+
 if TILEDB_PATH != '':
     LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
     if sys.platform.startswith("linux"):
@@ -431,6 +445,7 @@ cy_extension=Extension(
     )
 if TILEDB_DEBUG_BUILD:
   # monkey patch to tell Cython to generate debug mapping
+  # files (in `cython_debug`)
   if sys.version_info < (3,0):
       cy_extension.__dict__['cython_gdb'] = True
   else:
