@@ -12,9 +12,12 @@ if os.name == "posix":
 else:
     lib_name = "tiledb"
 
-# Load the bundled TileDB dynamic library if it exists. This must occur before importing from libtiledb.
-# On Windows we put the DLLs next to .pyd out of necessity, so this can be skipped.
-if os.name != 'nt':
+# On Windows and whl builds, we may have a shared library already linked, or
+# adjacent to, the cython .pyd shared object. In this case, we can import directly
+# from .libtiledb
+try:
+    from .libtiledb import Ctx
+except:
     try:
         lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "native")
         ctypes.CDLL(os.path.join(lib_dir, lib_name))
