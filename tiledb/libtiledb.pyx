@@ -1674,7 +1674,7 @@ cdef class Dim(object):
         return dim
 
     def __init__(self, name=u"", domain=None, tile=0, dtype=np.uint64, Ctx ctx=default_ctx()):
-        if len(domain) != 2:
+        if domain is None or len(domain) != 2:
             raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
             dtype = np.dtype(dtype)
@@ -1789,8 +1789,8 @@ cdef class Dim(object):
 
     cdef _shape(self):
         domain = self.domain
-        return ((np.asscalar(domain[1]) -
-                 np.asscalar(domain[0]) + 1),)
+        return ((domain[1].item() -
+                 domain[0].item() + 1),)
 
     @property
     def shape(self):
