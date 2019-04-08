@@ -199,72 +199,9 @@ cdef bytes unicode_path(object path):
 cdef class Config(object):
     """TileDB Config class
 
-    Valid parameters (unknown parameters will be ignored):
+    See: https://docs.tiledb.io/en/stable/tutorials/config.html#summary-of-parameters
 
-    - ``sm.tile_cache_size``
-       The tile cache size in bytes. Any ``uint64_t`` value is acceptable.
-       **Default**: 10,000,000
-    - ``sm.array_schema_cache_size``
-       The array schema cache size in bytes. Any ``uint64_t`` value is acceptable.
-       **Default**: 10,000,000
-    - ``sm.fragment_metadata_cache_size``
-       The fragment metadata cache size in bytes. Any ``uint64_t`` value is
-       acceptable.
-    - ``sm.enable_signal_handlers``
-       Whether or not TileDB will install signal handlers.
-       **Default**: true
-       **Default**: 10,000,000
-    - ``sm.number_of_threads``
-       The number of allocated threads per TileDB context.
-       **Default**: number of cores
-    - ``vfs.max_parallel_ops``
-       The maximum number of VFS parallel operations.
-       **Default**: number of cores
-    - ``vfs.min_parallel_size``
-       The minimum number of bytes in a parallel VFS operation. (Does not
-       affect parallel S3 writes.)
-       **Default**: 10MB
-    - ``vfs.s3.region``
-       The S3 region, if S3 is enabled.
-       **Default**: us-east-1
-    - ``vfs.s3.scheme``
-       The S3 scheme (``http`` or ``https``), if S3 is enabled.
-       **Default**: https
-    - ``vfs.s3.endpoint_override``
-       The S3 endpoint, if S3 is enabled.
-       **Default**: ""
-    - ``vfs.s3.use_virtual_addressing``
-       The S3 use of virtual addressing (``true`` or ``false``), if S3 is
-       enabled.
-       **Default**: true
-    - ``vfs.s3.multipart_part_size``
-       The part size (in bytes) used in S3 multipart writes, if S3 is enabled.
-       Any ``uint64_t`` value is acceptable. Note: ``vfs.s3.multipart_part_size *
-       vfs.max_parallel_ops`` bytes will be buffered before issuing multipart
-       uploads in parallel.
-       **Default**: 5*1024*1024
-    - ``vfs.s3.connect_timeout_ms``
-       The connection timeout in ms. Any ``long`` value is acceptable.
-       **Default**: 3000
-    - ``vfs.s3.connect_max_tries``
-       The maximum tries for a connection. Any ``long`` value is acceptable.
-       **Default**: 5
-    - ``vfs.s3.connect_scale_factor``
-       The scale factor for exponential backofff when connecting to S3.
-       Any ``long`` value is acceptable.
-       **Default**: 25
-    - ``vfs.s3.request_timeout_ms``
-       The request timeout in ms. Any ``long`` value is acceptable.
-       **Default**: 3000
-    - ``vfs.hdfs.name_node"``
-       Name node for HDFS.
-       **Default**: ""
-    - ``vfs.hdfs.username``
-       HDFS username.
-       **Default**: ""
-    - ``vfs.hdfs.kerb_ticket_cache_path``
-       HDFS kerb ticket cache path.
-       **Default**: ""
+    Unknown parameters will be ignored!
 
     :param dict params: Set parameter values from dict like object
     :param str path: Set parameter values from persisted Config parameter file

@@ -26,6 +26,7 @@ except:
         ctypes.CDLL(lib_name)
 
 from .libtiledb import (
+     Array,
      Ctx,
      Config,
      Dim,
@@ -61,8 +62,10 @@ from .libtiledb import (
      stats_enable,
      stats_disable,
      stats_reset,
-     stats_dump
+     stats_dump,
 )
+
+from .highlevel import *
 #
 # __all__ = [Ctx, Config, Dim, Domain, Attr, KV, ArraySchema, SparseArray, TileDBError, VFS,
 #            array_consolidate, group_create, object_type, ls, walk, remove]
