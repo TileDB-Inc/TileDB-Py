@@ -3,7 +3,6 @@ from tiledb.libtiledb import *
 
 import numpy as np
 
-import pdb
 def open(uri, key=None, attr=None, mode='r', config=None):
     if config:
         cfg = tiledb.Config(config)
@@ -32,7 +31,7 @@ def save(uri, array, config=None, **kw):
     else:
         ctx = default_ctx()
 
-    tiledb.from_numpy(uri, array, ctx=ctx)
+    return tiledb.from_numpy(uri, array, ctx=ctx)
 
 
 def empty_like(uri, arr, config=None, key=None, tile=None):
