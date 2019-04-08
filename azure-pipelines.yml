@@ -45,7 +45,7 @@ steps:
 
 
 - script: |
-    python -m unittest -v
+    python -m unittest tiledb.tests.all.suite_test
   displayName: 'Run tests'
 
 - task: PublishTestResults@2
