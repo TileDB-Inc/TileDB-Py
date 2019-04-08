@@ -115,6 +115,50 @@ def regularize_tiling(tile, ndim):
         tiling = tuple(tile)
     return tiling
 
+
+def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
+    """
+    Return an ArraySchema corresponding to a NumPy-like object or
+    a `shape` and `dtype`. Users are encouraged to pass 'tile' and
+    'capacity' keyword arguments as appropriate for a given
+    application.
+
+    :param T: NumPy array or TileDB URI
+    :return: tiledb.ArraySchema
+    """
+    def is_ndarray_like(obj):
+        return hasattr(arr, 'shape') and hasattr(arr, 'dtype') and hasattr(arr, 'ndim')
+
+    if len(args) == 1:
+        arr = args[0]
+        if is_ndarray_like(arr):
+            tiling = regularize_tiling(kw.pop('tile', None), arr.ndim)
+            schema = schema_like_numpy(arr, tile=tiling)
+        else:
+            raise ValueError("expected ndarray-like object")
+    elif shape and dtype:
+        ndim = len(shape)
+        tiling = regularize_tiling(kw.pop('tile', None), ndim)
+        dims = []
+        for d in range(ndim):
+            # support smaller tile extents by kw
+            # domain is based on full shape
+            tile_extent = tiling[d] if tiling else shape[d]
+            domain = (0, shape[d] - 1)
+            dims.append(Dim("", domain=domain, tile=tile_extent, dtype=np.uint64, ctx=ctx))
+
+        att = Attr(dtype=dtype, ctx=ctx)
+        dom = Domain(*dims, ctx=ctx)
+        schema = ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+    elif kw is not None:
+        raise ValueError
+    else:
+        raise ValueError("Must provide either ndarray-like object or 'shape' "
+                         "and 'dtype' keyword arguments")
+
+    return schema
+
+
 def schema_like_numpy(array, ctx=default_ctx(), **kw):
     # create an ArraySchema from the numpy array object
     tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
