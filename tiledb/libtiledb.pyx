@@ -3289,7 +3289,7 @@ cdef class Array(object):
     the array is opened with the specified mode.
 
     :param str uri: URI of array to open
-    :param str mode: (default 'r') Open the KV object in read 'r' or write 'w' mode
+    :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
     :param str key: (default None) If not None, encryption key to decrypt the KV array
     :param int timestamp: (default None) If not None, open the KV array at a given TileDB timestamp
     :param Ctx ctx: TileDB context
@@ -4564,6 +4564,7 @@ cdef class DenseArray(Array):
             _raise_ctx_err(ctx_ptr, rc)
         return out
 
+    # this is necessary for python 2
     def __reduce__(self):
         return (_create_densearray, (type(self), self.__getstate__()))
 

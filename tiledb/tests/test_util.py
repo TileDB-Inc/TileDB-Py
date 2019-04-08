@@ -70,7 +70,6 @@ class UtilTest(DiskTestCase):
     def test_save(self):
         uri = self.path("test_save")
         arr = np.array(np.arange(3))
-        tiledb.save(uri, arr)
-
-        with tiledb.open(uri) as T:
-            assert_array_equal(arr, T)
+        with tiledb.save(uri, arr) as tmp:
+            with tiledb.open(uri) as T:
+                assert_array_equal(arr, T)

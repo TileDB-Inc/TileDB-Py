@@ -1555,8 +1555,8 @@ class ArrayViewTest(DiskTestCase):
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
                 buf.seek(0)
-                T_rt = pickle.load(buf)
-                assert_array_equal(T, T_rt)
+                with pickle.load(buf) as T_rt:
+                    assert_array_equal(T, T_rt)
 
         with tiledb.DenseArray(uri, 'r', attr="") as T:
             assert_array_equal(T, anon_ar)
@@ -1564,7 +1564,8 @@ class ArrayViewTest(DiskTestCase):
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
                 buf.seek(0)
-                assert_array_equal(pickle.load(buf), anon_ar)
+                with pickle.load(buf) as tmp:
+                    assert_array_equal(tmp, anon_ar)
 
         # set subarray on multi-attribute
         range_ar = np.arange(0,9).reshape(3,3)

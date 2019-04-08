@@ -66,12 +66,15 @@ class DaskSupport(DiskTestCase):
         # smoke-test computation
         # note: re-init from_tiledb each time, or else dask just uses the cached materialization
         D = da.from_tiledb(uri, attribute='attr2')
-        self.assertAlmostEqual(np.mean(ar2), D.mean().compute(scheduler='threads', num_workers=4))
+        self.assertAlmostEqual(np.mean(ar2), D.mean().compute(scheduler='threads'))
         D = da.from_tiledb(uri, attribute='attr2')
         self.assertAlmostEqual(np.mean(ar2), D.mean().compute(scheduler='single-threaded'))
+        D = da.from_tiledb(uri, attribute='attr2')
+        self.assertAlmostEqual(np.mean(ar2), D.mean().compute(scheduler='processes'))
 
         # test dask.distributed
         from dask.distributed import Client
+        D = da.from_tiledb(uri, attribute='attr2')
         with Client() as client:
             assert_approx_equal(D.mean().compute(), np.mean(ar2))
 
