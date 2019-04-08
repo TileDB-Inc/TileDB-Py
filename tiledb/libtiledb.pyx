@@ -103,6 +103,56 @@ def default_ctx():
     return _global_ctx
 
 
+def regularize_tiling(tile, ndim):
+    if not tile:
+        return None
+    elif np.isscalar(tile):
+        tiling = tuple(int(tile) for _ in range(ndim))
+    elif (tile is str) or (len(tile) != ndim):
+        raise ValueError("'tile' argument must be iterable "
+                         "and match array dimensionality")
+    else:
+        tiling = tuple(tile)
+    return tiling
+
+def schema_like_numpy(array, ctx=default_ctx(), **kw):
+    # create an ArraySchema from the numpy array object
+    tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
+
+    dims = []
+    for d in range(array.ndim):
+        # support smaller tile extents by kw
+        # domain is based on full shape
+        tile_extent = tiling[d] if tiling else array.shape[d]
+        domain = (0, array.shape[d] - 1)
+        dims.append(Dim("", domain=domain, tile=tile_extent, dtype=np.uint64, ctx=ctx))
+
+    if array.dtype == np.object:
+        # for object arrays, we use the dtype of the first element
+        # consistency check should be done later, if needed
+        el = array.flat[0]
+        if type(el) is bytes:
+            el_type = np.dtype('S')
+        elif type(el) is str:
+            el_type = np.dtype('U')
+        elif type(el) == np.ndarray:
+            if len(el.shape) != 1:
+                raise TypeError("Unsupported sub-array type for Attribute: {} " \
+                                "(only strings and 1D homogeneous NumPy arrays are supported)".
+                                format(type(el)))
+            el_type = el.dtype
+        else:
+            raise TypeError("Unsupported sub-array type for Attribute: {} " \
+                            "(only strings and homogeneous-typed NumPy arrays are supported)".
+                            format(type(el)))
+    else:
+        el_type = array.dtype
+
+    att = Attr(dtype=el_type, ctx=ctx)
+    dom = Domain(*dims, ctx=ctx)
+    return ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+
+
 class TileDBError(Exception):
     """TileDB Error Exception
 
@@ -2697,9 +2747,8 @@ def index_as_tuple(idx):
     return (idx,)
 
 
-def replace_ellipsis(Domain dom, tuple idx):
+def replace_ellipsis(ndim: int, idx: tuple):
     """Replace indexing ellipsis object with slice objects to match the number of dimensions"""
-    ndim = dom.ndim
     # count number of ellipsis
     n_ellip = sum(1 for i in idx if i is Ellipsis)
     if n_ellip > 1:
@@ -2726,7 +2775,7 @@ def replace_ellipsis(Domain dom, tuple idx):
     return idx
 
 
-def replace_scalars_slice(Domain dom, tuple idx):
+def replace_scalars_slice(dom: Domain, idx: tuple):
     """Replace scalar indices with slice objects"""
     new_idx, drop_axes = [], []
     for i in range(dom.ndim):
@@ -2748,7 +2797,7 @@ def replace_scalars_slice(Domain dom, tuple idx):
     return tuple(new_idx), tuple(drop_axes)
 
 
-def index_domain_subarray(Domain dom, tuple idx):
+def index_domain_subarray(dom: Domain, idx: tuple):
     """
     Return a numpy array representation of the tiledb subarray buffer
     for a given domain and tuple of index slices
@@ -3205,6 +3254,8 @@ cdef class Array(object):
     cdef Ctx ctx
     cdef unicode uri
     cdef unicode mode
+    cdef object view_attr # can be None
+    cdef object key # can be None
     cdef object schema
     cdef tiledb_array_t* ptr
 
@@ -3214,6 +3265,15 @@ cdef class Array(object):
     def __dealloc__(self):
         if self.ptr != NULL:
             tiledb_array_free(&self.ptr)
+
+    def _ctx_(self) -> Ctx:
+        """
+        Get Ctx object associated with the array. This method
+        exists primarily for serialization.
+
+        :return: Ctx object associated with array.
+        """
+        return self.ctx
 
     @staticmethod
     def create(uri, ArraySchema schema, key=None):
@@ -3249,7 +3309,7 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         return
 
-    def __init__(self, uri, mode='r', key=None, timestamp=None, Ctx ctx=default_ctx()):
+    def __init__(self, uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
         # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         # uri
@@ -3305,10 +3365,17 @@ cdef class Array(object):
         except:
             tiledb_array_free(&array_ptr)
             raise
+
+        # view on a single attribute
+        if attr and not any(attr == schema.attr(i).name for i in range(schema.nattr)):
+            raise KeyError("No attribute matching '{}'".format(attr))
+        else:
+            self.view_attr = unicode(attr) if (attr is not None) else None
         self.ctx = ctx
         self.uri = unicode(uri)
         self.mode = unicode(mode)
         self.schema = schema
+        self.key = key
         self.ptr = array_ptr
 
     def __enter__(self):
@@ -3365,6 +3432,11 @@ cdef class Array(object):
         return self.mode
 
     @property
+    def iswritable(self):
+        """This array is currently opened as writable."""
+        return self.mode == 'w'
+
+    @property
     def isopen(self):
         """True if this array is currently open."""
         cdef int isopen = 0
@@ -3387,6 +3459,13 @@ cdef class Array(object):
         return self.schema.domain
 
     @property
+    def dtype(self):
+        """The NumPy dtype of the specified attribute"""
+        if self.view_attr is None and self.schema.nattr > 1:
+            raise NotImplementedError("Multi-attribute does not have single dtype!")
+        return self.schema.attr(0).dtype
+
+    @property
     def shape(self):
         """The shape of this array."""
         return self.schema.shape
@@ -3394,7 +3473,10 @@ cdef class Array(object):
     @property
     def nattr(self):
         """The number of attributes of this array."""
-        return self.schema.nattr
+        if self.view_attr:
+            return 1
+        else:
+           return self.schema.nattr
 
     @property
     def timestamp(self):
@@ -3875,13 +3957,24 @@ cdef class Query(object):
                                    coords=self.coords,
                                    order=self.order)
 
+
+# work around https://github.com/cython/cython/issues/2757
+def _create_densearray(cls, sta):
+    rv = DenseArray.__new__(cls)
+    rv.__setstate__(sta)
+    return rv
+
 cdef class DenseArray(Array):
     """Class representing a dense TileDB array.
 
     Inherits properties and methods of :py:class:`tiledb.Array`.
 
     """
-
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        if self.schema.sparse:
+            raise ValueError("Array at {} is not a dense array".format(self.uri))
+        return
 
     @staticmethod
     def from_numpy(uri, np.ndarray array, Ctx ctx=default_ctx(), **kw):
@@ -3906,37 +3999,7 @@ cdef class DenseArray(Array):
         ...     A = tiledb.DenseArray.from_numpy(tmp + "/array",  np.array([1.0, 2.0, 3.0]))
 
         """
-        # create an ArraySchema from the numpy array object
-        dims = []
-        for d in range(array.ndim):
-            extent = array.shape[d]
-            domain = (0, extent - 1)
-            dims.append(Dim("", domain=domain, tile=extent, dtype=np.uint64, ctx=ctx))
-
-        if array.dtype == np.object:
-            # use the dtype of the first element for now
-            # consistency check will be done during construction pass
-            el = array.flat[0]
-            if type(el) is bytes:
-                el_type = np.dtype('S')
-            elif type(el) is str:
-                el_type = np.dtype('U')
-            elif type(el) == np.ndarray:
-                if len(el.shape) != 1:
-                    raise TypeError("Unsupported sub-array type for Attribute: {} " \
-                                    "(only strings and 1D homogeneous NumPy arrays are supported)".
-                                    format(type(el)))
-                el_type = el.dtype
-            else:
-                raise TypeError("Unsupported sub-array type for Attribute: {} " \
-                                "(only strings and homogeneous-typed NumPy arrays are supported)".
-                                format(type(el)))
-        else:
-            el_type = array.dtype
-
-        att = Attr(dtype=el_type, ctx=ctx)
-        dom = Domain(*dims, ctx=ctx)
-        schema = ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+        schema = schema_like_numpy(array, ctx=ctx, **kw)
         Array.create(uri, schema)
 
         with DenseArray(uri, mode='w', ctx=ctx) as arr:
@@ -3947,15 +4010,8 @@ cdef class DenseArray(Array):
                 arr.write_direct(np.ascontiguousarray(array))
         return DenseArray(uri, mode='r', ctx=ctx)
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        if self.schema.sparse:
-            raise ValueError("Array at {} is not a dense array".format(self.uri))
-        return
-
     def __len__(self):
         return self.domain.shape[0]
-
 
     def __getitem__(self, object selection):
         """Retrieve data cells for an item or region of the array.
@@ -3965,7 +4021,8 @@ cdef class DenseArray(Array):
         :rtype: :py:class:`numpy.ndarray` or :py:class:`collections.OrderedDict`
         :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
                 is returned for that attribute.  If the array has multiple attributes, a \
-                :py:class:`collections.OrderedDict` is with dense Numpy subarrays for each attribute.
+                :py:class:`collections.OrderedDict` is returned with dense Numpy subarrays \
+                for each attribute.
         :raises IndexError: invalid or unsupported index selection
         :raises: :py:exc:`tiledb.TileDBError`
 
@@ -3999,7 +4056,12 @@ cdef class DenseArray(Array):
         array([1, 1, 1, 1, 1])
 
         """
-        return self.subarray(selection)
+        if self.view_attr:
+            result = self.subarray(selection, attrs=(self.view_attr,))
+            return result[self.view_attr]
+        else:
+            result = self.subarray(selection)
+            return result
 
 
     def query(self, attrs=None, coords=False, order='C'):
@@ -4082,7 +4144,7 @@ cdef class DenseArray(Array):
             attr_names.extend(self.schema.attr(a).name for a in attrs)
 
         selection = index_as_tuple(selection)
-        idx = replace_ellipsis(self.schema.domain, selection)
+        idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         subarray = index_domain_subarray(self.schema.domain, idx)
         out = self._read_dense_subarray(subarray, attr_names, layout)
@@ -4111,6 +4173,8 @@ cdef class DenseArray(Array):
                   for r in range(self.schema.ndim))
 
         cdef Py_ssize_t nattr = len(attr_names)
+
+        cdef int i
         for i in range(nattr):
 
             name = attr_names[i]
@@ -4189,7 +4253,7 @@ cdef class DenseArray(Array):
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
         cdef Domain domain = self.domain
-        cdef tuple idx = replace_ellipsis(domain, index_as_tuple(selection))
+        cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))
         cdef np.ndarray subarray = index_domain_subarray(domain, idx)
         cdef Attr attr
         cdef list attributes = list()
@@ -4217,10 +4281,28 @@ cdef class DenseArray(Array):
             else:
                 values.append(
                     np.ascontiguousarray(val, dtype=attr.dtype))
+        elif self.view_attr is not None:
+            # this is a hack pending
+            # https://github.com/TileDB-Inc/TileDB/issues/1162
+            # (it implicitly relies on the fact that we treat all arrays
+            #  as zero initialized as long as query returns TILEDB_OK)
+            # see also: https://github.com/TileDB-Inc/TileDB-Py/issues/128
+            if self.schema.nattr == 1:
+                attributes.append(self.schema.attr(0).name)
+                values.append(val)
+            else:
+                dtype = self.schema.attr(self.view_attr).dtype
+                readable = DenseArray(self.uri, 'r')
+                current = readable[selection]
+                current[self.view_attr] = \
+                    np.ascontiguousarray(val, dtype=dtype)
+                # `current` is an OrderedDict
+                attributes.extend(current.keys())
+                values.extend(current.values())
         else:
             raise ValueError("ambiguous attribute assignment, "
                              "more than one array attribute "
-                             "(use a dict({'attr' :val}) to "
+                             "(use a dict({'attr': val}) to "
                              "assign multiple attributes)")
         # Check value layouts
         nattr = len(attributes)
@@ -4306,9 +4388,14 @@ cdef class DenseArray(Array):
         return
 
     def __array__(self, dtype=None, **kw):
-        if self.schema.nattr > 1:
+        if self.view_attr is None and self.nattr > 1:
             raise ValueError("cannot create numpy array from TileDB array with more than one attribute")
-        array = self.read_direct(name = self.schema.attr(0).name)
+        cdef unicode name
+        if self.view_attr:
+            name = self.view_attr
+        else:
+            name = self.schema.attr(0).name
+        array = self.read_direct(name=name)
         if dtype and array.dtype != dtype:
             return array.astype(dtype)
         return array
@@ -4433,6 +4520,35 @@ cdef class DenseArray(Array):
             _raise_ctx_err(ctx_ptr, rc)
         return out
 
+    def __reduce__(self):
+        return (_create_densearray, (type(self), self.__getstate__()))
+
+    # pickling support: this is a lightweight pickle for distributed use.
+    #   simply treat as wrapper around URI, not actual data.
+    def __getstate__(self):
+        config_dict = self._ctx_().config().dict()
+        return (self.uri, self.mode, self.key, self.view_attr, self.timestamp, config_dict)
+
+    def __setstate__(self, state):
+        cdef:
+            unicode uri, mode
+            object view_attr = None
+            object timestamp = None
+            object key = None
+            dict config_dict = {}
+        uri, mode, key, view_attr, _timestamp, config_dict = state
+
+        if mode == 'r':
+            timestamp = _timestamp
+        if config_dict is not {}:
+            config_dict = state[5]
+            config = Config(params=config_dict)
+            ctx = Ctx(config)
+        else:
+            ctx = default_ctx()
+
+        self.__init__(uri, mode=mode, key=key, attr=view_attr,
+                      timestamp=timestamp, ctx=ctx)
 
 # point query index a tiledb array (zips) columnar index vectors
 def index_domain_coords(Domain dom, tuple idx):
@@ -4728,7 +4844,7 @@ cdef class SparseArray(Array):
             attr_names.extend(self.schema.attr(a).name for a in attrs)
         dom = self.schema.domain
         idx = index_as_tuple(selection)
-        idx = replace_ellipsis(dom, idx)
+        idx = replace_ellipsis(dom.ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
         subarray = index_domain_subarray(dom, idx)
         return self._read_sparse_subarray(subarray, attr_names, layout)
@@ -4963,6 +5079,7 @@ cdef class FileHandle(object):
     Instances of this class are returned by TileDB VFS methods and are not instantiated directly
     """
 
+    cdef Ctx ctx
     cdef VFS vfs
     cdef unicode uri
     cdef tiledb_vfs_fh_t* ptr
@@ -4971,9 +5088,9 @@ cdef class FileHandle(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        cdef Ctx ctx = self.vfs.ctx
         if self.ptr != NULL:
             tiledb_vfs_fh_free(&self.ptr)
+
 
     @staticmethod
     cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr):

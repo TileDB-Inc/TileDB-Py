@@ -1478,9 +1478,104 @@ class DenseIndexing(DiskTestCase):
                 with self.assertRaises(IndexError):
                     T[idx]
 
+class PickleTest(DiskTestCase):
+    # test that DenseArray and View can be pickled for multiprocess use
+    # note that the current pickling is by URI and attributes (it is
+    #     not, and likely should not be, a way to serialize array data)
+    def test_pickle_roundtrip(self):
+        import io, pickle
+
+        ctx = tiledb.Ctx()
+        uri = self.path("foo")
+        with tiledb.DenseArray.from_numpy(uri, np.random.rand(5), ctx=ctx) as T:
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                with pickle.load(buf) as T2:
+                    assert_array_equal(T, T2)
+
+            with io.BytesIO() as buf, tiledb.DenseArray(uri) as V:
+                pickle.dump(V, buf)
+                buf.seek(0)
+                V2 = pickle.load(buf)
+                # make sure anonymous view pickles and round-trips
+                assert_array_equal(V, V2)
+
+    def test_pickle_with_config(self):
+        import io, pickle
+        opts = dict()
+        opts['vfs.s3.region'] = 'kuyper-belt-1'
+        opts['vfs.max_parallel_ops'] = 1
+
+        config = tiledb.Config(params=opts)
+        ctx = tiledb.Ctx(config)
+
+        uri = self.path("pickle_config")
+        T = tiledb.DenseArray.from_numpy(uri, np.random.rand(3,3), ctx=ctx)
+
+        with io.BytesIO() as buf:
+            pickle.dump(T, buf)
+            buf.seek(0)
+            T2 = pickle.load(buf)
+            assert_array_equal(T, T2)
+            self.maxDiff = None
+            d1 = ctx.config().dict()
+            d2 = T2._ctx_().config().dict()
+            self.assertEqual(d1['vfs.s3.region'], d2['vfs.s3.region'])
+            self.assertEqual(d1['vfs.max_parallel_ops'], d2['vfs.max_parallel_ops'])
+        T.close()
+        T2.close()
+
+
+class ArrayViewTest(DiskTestCase):
+    def test_view_multiattr(self):
+        import io, pickle
+        ctx = tiledb.Ctx()
+        uri = self.path("foo_multiattr")
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3),
+                            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3),
+                            ctx=ctx)
+        schema = tiledb.ArraySchema(ctx=ctx,
+                                    domain=dom,
+                                    attrs=(tiledb.Attr(""), tiledb.Attr("named")))
+        tiledb.libtiledb.Array.create(uri, schema)
+
+        anon_ar = np.random.rand(3, 3)
+        named_ar = np.random.rand(3, 3)
+
+        with tiledb.DenseArray(uri, 'w') as T:
+            T[:] = {'': anon_ar, 'named': named_ar}
+
+        with self.assertRaises(KeyError):
+            T = tiledb.DenseArray(uri, 'r', attr="foo111")
+
+        with tiledb.DenseArray(uri, 'r', attr="named") as T:
+            assert_array_equal(T, named_ar)
+            # make sure each attr view can pickle and round-trip
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                T_rt = pickle.load(buf)
+                assert_array_equal(T, T_rt)
+
+        with tiledb.DenseArray(uri, 'r', attr="") as T:
+            assert_array_equal(T, anon_ar)
+
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                assert_array_equal(pickle.load(buf), anon_ar)
+
+        # set subarray on multi-attribute
+        range_ar = np.arange(0,9).reshape(3,3)
+        with tiledb.DenseArray(uri, 'w', attr='named') as V_named:
+            V_named[1:3,1:3] = range_ar[1:3,1:3]
+
+        with tiledb.DenseArray(uri, 'r', attr='named') as V_named:
+            assert_array_equal(V_named[1:3,1:3], range_ar[1:3,1:3])
+
 
 class RWTest(DiskTestCase):
-
     def test_read_write(self):
         ctx = tiledb.Ctx()
 
@@ -1952,3 +2047,11 @@ class VFS(DiskTestCase):
         io.seek(5)
         self.assertEqual(io.readall(), buffer[5:])
         self.assertEqual(io.readall(), b"")
+
+
+#if __name__ == '__main__':
+#    # run a single example for in-process debugging
+#    # better to use `pytest --gdb` if available
+#    t = DenseArrayTest()
+#    t.setUp()
+#    t.test_array_1d()
