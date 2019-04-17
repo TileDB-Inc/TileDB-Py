@@ -253,11 +253,11 @@ class AttributeTest(unittest.TestCase):
 
     def test_ncell_attribute(self):
         ctx = tiledb.Ctx()
-        dtype = np.dtype([("", np.int32), ("", np.int32)])
+        dtype = np.dtype([("", np.int32), ("", np.int32), ("", np.int32)])
         attr = tiledb.Attr("foo", ctx=ctx, dtype=dtype)
 
         self.assertEqual(attr.dtype, dtype)
-        self.assertEqual(attr.ncells, 2)
+        self.assertEqual(attr.ncells, 3)
 
         # dtype subarrays not supported
         with self.assertRaises(TypeError):
@@ -881,11 +881,28 @@ class DenseArrayTest(DiskTestCase):
     def test_ncell_attributes(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 9), tile=10, dtype=int), ctx=ctx)
-        attr = tiledb.Attr(ctx=ctx, dtype=[("", np.int32), ("", np.int32)])
+        attr = tiledb.Attr(ctx=ctx, dtype=[("", np.int32), ("", np.int32), ("", np.int32)])
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        A = np.ones((10,), dtype=[("", np.int32), ("", np.int32)])
+        A = np.ones((10,), dtype=[("", np.int32), ("", np.int32), ("", np.int32)])
+        self.assertEqual(A.dtype, attr.dtype)
+
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            assert_array_equal(A, T[:])
+            assert_array_equal(A[:5], T[:5])
+
+    def test_complex_attributes(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 9), tile=10,
+                                       dtype=int), ctx=ctx)
+        attr = tiledb.Attr(ctx=ctx, dtype=np.complex64)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        A = np.ones(10, dtype=np.complex64) + 1j
+        attr.dump()
         self.assertEqual(A.dtype, attr.dtype)
 
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
