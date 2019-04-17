@@ -745,6 +745,10 @@ cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
         return TILEDB_STRING_UTF8
     elif dtype == np.bytes_:
         return TILEDB_CHAR
+    elif dtype == np.complex64:
+        return TILEDB_FLOAT32
+    elif dtype == np.complex128:
+        return TILEDB_FLOAT64
     raise TypeError("data type {0!r} not understood".format(dtype))
 
 
@@ -780,7 +784,7 @@ cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
         return np.NPY_NOTYPE
 
 
-cdef _numpy_type(tiledb_datatype_t tiledb_dtype):
+cdef _numpy_type(tiledb_datatype_t tiledb_dtype, cell_size = 1):
     """
     Return a numpy *type* (not dtype) object given a tiledb_datatype_t enum value
     """
@@ -793,9 +797,15 @@ cdef _numpy_type(tiledb_datatype_t tiledb_dtype):
     elif tiledb_dtype == TILEDB_UINT64:
         return np.uint64
     elif tiledb_dtype == TILEDB_FLOAT32:
-        return np.float32
+        if cell_size == 2:
+            return np.complex64
+        else:
+            return np.float32
     elif tiledb_dtype == TILEDB_FLOAT64:
-        return np.float64
+        if cell_size == 2:
+            return np.complex128
+        else:
+            return np.float64
     elif tiledb_dtype == TILEDB_INT8:
         return np.int8
     elif tiledb_dtype == TILEDB_UINT8:
@@ -1561,16 +1571,20 @@ cdef class Attr(object):
                 tiledb_dtype = TILEDB_CHAR
                 ncells = _dtype.itemsize
         # handles n fixed size dtypes
-        elif _dtype.kind == 'V':
+        elif _dtype.kind in ('V', 'c'):
             if _dtype.shape != ():
                 raise TypeError("nested sub-array numpy dtypes are not supported")
-            # check that types are the same
-            typs = [t for (t, _) in _dtype.fields.values()]
-            typ, ntypes = typs[0], len(typs)
-            if typs.count(typ) != ntypes:
-                raise TypeError('heterogenous record numpy dtypes are not supported')
-            tiledb_dtype = _tiledb_dtype(typ)
-            ncells = <unsigned int>(ntypes)
+            if (_dtype.kind == 'V'):
+                # check that types are the same
+                typs = [t for (t, _) in _dtype.fields.values()]
+                typ, ntypes = typs[0], len(typs)
+                if typs.count(typ) != ntypes:
+                    raise TypeError('heterogenous record numpy dtypes are not supported')
+                tiledb_dtype = _tiledb_dtype(typ)
+                ncells = <unsigned int>(ntypes)
+            else:
+                tiledb_dtype = _tiledb_dtype(_dtype)
+                ncells = 2
         # variable-length cell type
         elif var:
             tiledb_dtype = _tiledb_dtype(_dtype)
@@ -1642,6 +1656,9 @@ cdef class Attr(object):
             # special case for fixed sized bytes arguments
             if typ == TILEDB_CHAR:
                 return np.dtype((nptyp, ncells))
+            # special case for complex types of size 2
+            if ncells == 2:
+                return np.dtype(_numpy_type(typ, 2))
             # create an anon record dtype
             return np.dtype([('', nptyp)] * ncells)
         assert (ncells == 1)
