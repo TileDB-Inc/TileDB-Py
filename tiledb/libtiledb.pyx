@@ -1657,7 +1657,7 @@ cdef class Attr(object):
             if typ == TILEDB_CHAR:
                 return np.dtype((nptyp, ncells))
             # special case for complex types of size 2
-            if ncells == 2:
+            if ncells == 2 and (nptyp == np.float32 or nptyp == np.float64):
                 return np.dtype(_numpy_type(typ, 2))
             # create an anon record dtype
             return np.dtype([('', nptyp)] * ncells)

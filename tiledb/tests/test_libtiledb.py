@@ -823,10 +823,19 @@ class DenseArrayTest(DiskTestCase):
         ctx = tiledb.Ctx()
         a = np.array(['ab', 'cd', 'ef', 'gh', 'ij', 'kl'], dtype='|S2')
         with tiledb.from_numpy(self.path('fixed_string'), a) as T:
-            R = tiledb.open(self.path('fixed_string'))
-            self.assertEqual(T.dtype, R.dtype)
-            self.assertEqual(R.attr(0).ncells, 2)
-            assert_array_equal(T,R)
+            with tiledb.open(self.path('fixed_string')) as R:
+                self.assertEqual(T.dtype, R.dtype)
+                self.assertEqual(R.attr(0).ncells, 2)
+                assert_array_equal(T,R)
+
+    def test_ncell_int(self):
+        a = np.array([(1, 2), (3, 4), (5, 6)], dtype=[("", np.int16), ("", np.int16)])
+        with tiledb.from_numpy(self.path('ncell_int16'), a) as T:
+            with tiledb.open(self.path('ncell_int16')) as R:
+                self.assertEqual(T.dtype, R.dtype)
+                self.assertEqual(R.attr(0).ncells, 2)
+                assert_array_equal(T,R)
+
 
     def test_open_with_timestamp(self):
         import time
