@@ -819,6 +819,15 @@ class DenseArrayTest(DiskTestCase):
             assert_array_equal(A[310:], T[310:])
             assert_array_equal(A[:, 7:], T[:, 7:])
 
+    def test_fixed_string(self):
+        ctx = tiledb.Ctx()
+        a = np.array(['ab', 'cd', 'ef', 'gh', 'ij', 'kl'], dtype='|S2')
+        with tiledb.from_numpy(self.path('fixed_string'), a) as T:
+            R = tiledb.open(self.path('fixed_string'))
+            self.assertEqual(T.dtype, R.dtype)
+            self.assertEqual(R.attr(0).ncells, 2)
+            assert_array_equal(T,R)
+
     def test_open_with_timestamp(self):
         import time
         A = np.zeros(3)
@@ -901,7 +910,7 @@ class DenseArrayTest(DiskTestCase):
         attr = tiledb.Attr(ctx=ctx, dtype=np.complex64)
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
         tiledb.DenseArray.create(self.path("foo"), schema)
-        A = np.ones(10, dtype=np.complex64) + 1j
+        A = np.random.rand(20).astype(np.float32).view(dtype=np.complex64)
         attr.dump()
         self.assertEqual(A.dtype, attr.dtype)
 
