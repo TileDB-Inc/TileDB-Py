@@ -29,19 +29,23 @@ script:
   - echo "Installing wheel file from $whl_file..."
   - pip install $whl_file
   - python -c "import tiledb ; tiledb.libtiledb.version()"
-  - python $TRAVIS_BUILD_DIR/examples/quickstart_dense.py
-  - python $TRAVIS_BUILD_DIR/examples/quickstart_sparse.py
-  - python $TRAVIS_BUILD_DIR/examples/quickstart_kv.py
-  - python $TRAVIS_BUILD_DIR/examples/reading_dense_layouts.py
-  - python $TRAVIS_BUILD_DIR/examples/reading_sparse_layouts.py
-  - python $TRAVIS_BUILD_DIR/examples/writing_dense_multiple.py
-  - python $TRAVIS_BUILD_DIR/examples/writing_dense_padding.py
-  - python $TRAVIS_BUILD_DIR/examples/writing_sparse_multiple.py
-  - python $TRAVIS_BUILD_DIR/examples/config.py
-  - python $TRAVIS_BUILD_DIR/examples/errors.py
-  - python $TRAVIS_BUILD_DIR/examples/fragments_consolidation.py
-  - python $TRAVIS_BUILD_DIR/examples/kv.py
-  - python $TRAVIS_BUILD_DIR/examples/multi_attribute.py
-  - rm -rf my_group && python $TRAVIS_BUILD_DIR/examples/object.py
-  - python $TRAVIS_BUILD_DIR/examples/vfs.py
-  - python $TRAVIS_BUILD_DIR/examples/using_tiledb_stats.py
+  - mkdir -p $TRAVIS_BUILD_DIR/test_examples && cd $TRAVIS_BUILD_DIR/test_examples
+  - python ../examples/quickstart_dense.py
+  - python ../examples/quickstart_sparse.py
+  - python ../examples/quickstart_kv.py
+  - python ../examples/reading_dense_layouts.py
+  - python ../examples/reading_sparse_layouts.py
+  - python ../examples/writing_dense_multiple.py
+  - python ../examples/writing_dense_padding.py
+  - python ../examples/writing_sparse_multiple.py
+  - python ../examples/config.py
+  - python ../examples/fragments_consolidation.py
+  - python ../examples/kv.py
+  - python ../examples/multi_attribute.py
+  - python ../examples/errors.py
+  - rm -rf my_group
+  - python ../examples/object.py
+  - python ../examples/vfs.py
+  - python ../examples/using_tiledb_stats.py
+  - cd ..
+  - rm -rf test_examples
