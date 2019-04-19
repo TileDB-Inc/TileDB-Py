@@ -1631,6 +1631,29 @@ class RWTest(DiskTestCase):
             self.assertEqual(arr.ndim, np_array.ndim)
             assert_array_equal(arr.read_direct(), np_array)
 
+    def test_write_direct_global_order(self):
+        ctx = tiledb.Ctx()
+        dims = (tiledb.Dim(ctx=ctx, domain=(0, 6), tile=2),
+                tiledb.Dim(ctx=ctx, domain=(0, 6), tile=2))
+        dom = tiledb.Domain(*dims, ctx=ctx)
+        att = tiledb.Attr(ctx=ctx, dtype='int64')
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        #tiledb.DenseArray.create(self.path('global_write'), schema)
+        data = np.arange(1,50)
+        # write
+        with tiledb.DenseArray(self.path('global_write'), mode='w', ctx=ctx) as arr:
+            def do_write(slc, sub, allow_global=True):
+                arr.write_direct(np.ascontiguousarray(slc),
+                                        subarray=np.array(sub),
+                                        allow_global=allow_global)
+            do_write(data[0:12], [0,5,0,1])
+            do_write(data[12:14], [6,6,0,1], False)
+            do_write(data[14:26], [0,5,2,3])
+            do_write(data[26:28], [6,6,2,3], False)
+            do_write(data[28:40], [0,5,4,5])
+            do_write(data[40:42], [6,6,4,5], False)
+            do_write(data[42:49], [0,5,6,6], False)
+
 
 class NumpyToArray(DiskTestCase):
 

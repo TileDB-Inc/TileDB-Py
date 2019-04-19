@@ -4461,7 +4461,9 @@ cdef class DenseArray(Array):
             return array.astype(dtype)
         return array
 
-    def write_direct(self, np.ndarray array not None):
+    def write_direct(self, np.ndarray array not None,
+                     attr = None, np.ndarray subarray = None,
+                     finalize = True, allow_global = True):
         """
         Write directly to given array attribute with minimal checks,
         assumes that the numpy array is the same shape as the array's domain
@@ -4483,22 +4485,26 @@ cdef class DenseArray(Array):
         cdef tiledb_array_t* array_ptr = self.ptr
 
         # attr name
-        cdef Attr attr = self.schema.attr(0)
-        cdef bytes battr_name = attr.name.encode('UTF-8')
+        cdef Attr
+        if attr:
+            attr_name = attr
+        else:
+            attr_name = self.schema.attr(0)
+
+        cdef bytes battr_name = attr_name.name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
-
-
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes
 
         cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
-        if array.ndim == 1:
+        if array.ndim == 1 and allow_global:
             layout = TILEDB_GLOBAL_ORDER
         elif array.ndim > 1 and array.flags.f_contiguous:
             layout = TILEDB_COL_MAJOR
 
         cdef tiledb_query_t* query_ptr = NULL
         cdef int rc = TILEDB_OK
+
         rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
@@ -4510,6 +4516,12 @@ cdef class DenseArray(Array):
         if rc != TILEDB_OK:
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
+
+        cdef void* subarray_ptr = NULL
+        if subarray is not None:
+            subarray_ptr = np.PyArray_DATA(subarray)
+            rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
+
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
         if rc != TILEDB_OK:
