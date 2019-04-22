@@ -2886,8 +2886,8 @@ def index_domain_subarray(dom: Domain, idx: tuple):
         if start is not None and stop is not None:
             if type(start) != type(stop):
                 promoted_dtype = np.promote_types(type(start), type(stop))
-                start = np.array(start, dtype=promoted_dtype)[0]
-                stop = np.array(stop, dtype=promoted_dtype)[0]
+                start = np.array(start, dtype=promoted_dtype, ndmin=1)[0]
+                stop = np.array(stop, dtype=promoted_dtype, ndmin=1)[0]
 
         if start is not None:
             # don't round / promote fp slices
