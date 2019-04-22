@@ -4938,6 +4938,7 @@ cdef class SparseArray(Array):
                     el_dtype = self.attr(name).dtype
                 arr = read._buffers[name]
 
+                # this is a work-around for NumPy restrictions removed in 1.16
                 if el_dtype == np.dtype('S0'):
                     out[name] = b''
                 elif el_dtype == np.dtype('U0'):
