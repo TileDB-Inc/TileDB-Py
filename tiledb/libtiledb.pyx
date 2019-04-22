@@ -2865,8 +2865,8 @@ def index_domain_subarray(dom: Domain, idx: tuple):
     """
     ndim = dom.ndim
     if len(idx) != ndim:
-        raise IndexError("number of indices does not match domain raank: "
-                         "({:!r} expected {:!r]".format(len(idx), ndim))
+        raise IndexError("number of indices does not match domain rank: "
+                         "(got {!r}, expected: {!r})".format(len(idx), ndim))
     # populate a subarray array / buffer to pass to tiledb
     subarray = np.zeros(shape=(ndim, 2), dtype=dom.dtype)
     for r in range(ndim):
@@ -4315,6 +4315,7 @@ cdef class DenseArray(Array):
             raise TileDBError("DenseArray is not opened for writing")
         cdef Domain domain = self.domain
         cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))
+        idx,_drop = replace_scalars_slice(domain, idx)
         cdef np.ndarray subarray = index_domain_subarray(domain, idx)
         cdef Attr attr
         cdef list attributes = list()

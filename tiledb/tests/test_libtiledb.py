@@ -680,6 +680,13 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             assert_array_equal(A, T[:])
 
+        with tiledb.DenseArray(self.path("foo"), mode='w') as T:
+            value = -1,3,10
+            A[0], A[1], A[3] = value
+            T[0], T[1], T[3] = value
+        with tiledb.DenseArray(self.path("foo"), mode='r') as T:
+            assert_array_equal(A, T[:])
+
         for value in (-1, 3, 10):
             with tiledb.DenseArray(self.path("foo"), mode='w') as T:
                 A[5:25] = value
