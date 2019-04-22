@@ -4937,9 +4937,14 @@ cdef class SparseArray(Array):
                 else:
                     el_dtype = self.attr(name).dtype
                 arr = read._buffers[name]
-                # all output is 1D vectors, so just change dtype
-                arr.dtype = el_dtype
-                out[name] = arr
+
+                if el_dtype == np.dtype('S0'):
+                    out[name] = b''
+                elif el_dtype == np.dtype('U0'):
+                    out[name] = u''
+                else:
+                    arr.dtype = el_dtype
+                    out[name] = arr
 
         return out
 

@@ -1347,6 +1347,23 @@ class SparseArray(DiskTestCase):
             assert_array_equal(res[""], A[5:7])
             self.assertEqual(("coords" in res), False)
 
+    def test_sparse_fixes(self):
+        # indexing a 1 element item in a sparse array
+        # (issue directly reported)
+        # the test here is that the indexing does not raise
+        ctx = tiledb.Ctx()
+        dims = (tiledb.Dim('foo', ctx=ctx, domain=(0, 6), tile=2),
+                tiledb.Dim('bar', ctx=ctx, domain=(0, 6), tile=1),
+                tiledb.Dim('baz', ctx=ctx, domain=(0, 100), tile=1))
+        dom = tiledb.Domain(*dims, ctx=ctx)
+        att = tiledb.Attr(ctx=ctx, dtype='S1')
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,),
+                                    sparse=True)
+        tiledb.SparseArray.create(self.path('foo'), schema)
+        with tiledb.SparseArray(self.path('foo')) as T:
+            T[:]
+
+
 class DenseIndexing(DiskTestCase):
 
     def _test_index(self, A, T, idx):
