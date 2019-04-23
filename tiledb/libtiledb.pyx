@@ -133,7 +133,7 @@ def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
         arr = args[0]
         if is_ndarray_like(arr):
             tiling = regularize_tiling(kw.pop('tile', None), arr.ndim)
-            schema = schema_like_numpy(arr, tile=tiling)
+            schema = schema_like_numpy(arr, tile=tiling, ctx=ctx)
         else:
             raise ValueError("expected ndarray-like object")
     elif shape and dtype:
