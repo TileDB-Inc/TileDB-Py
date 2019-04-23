@@ -319,6 +319,7 @@ class AttributeTest(unittest.TestCase):
         filter_list1.append(tiledb.GzipFilter(ctx=ctx))
         self.assertEqual(len(filter_list1), 1)
 
+
 class ArraySchemaTest(unittest.TestCase):
 
     def test_unique_attributes(self):
@@ -987,6 +988,36 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 T[:] = V
 
+
+    def test_multiple_attributes_direct(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+                       tiledb.Dim(domain=(0, 1), tile=1, dtype=np.int64, ctx=ctx),
+                       tiledb.Dim(domain=(0, 3), tile=4, dtype=np.int64, ctx=ctx),
+                       ctx=ctx)
+        attr_int = tiledb.Attr("ints", dtype=int, ctx=ctx)
+        attr_float = tiledb.Attr("floats", dtype=float, ctx=ctx)
+        schema = tiledb.ArraySchema(ctx=ctx,
+                                    domain=dom,
+                                    attrs=(attr_int, attr_float))
+        tiledb.DenseArray.create(self.path("foo"), schema)
+
+        V_ints = np.array([[0, 1, 2, 3,],
+                           [4, 6, 7, 5]])
+        V_floats = np.array([[0.0, 1.0, 2.0, 3.0,],
+                             [4.0, 6.0, 7.0, 5.0]])
+
+        V = {"ints": V_ints, "floats": V_floats}
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T.write_direct([V_ints, V_floats], ["ints", "floats"],
+                                finalize=True, allow_global=True)
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            R = T[:]
+            assert_array_equal(V["ints"], R["ints"])
+            assert_array_equal(V["floats"], R["floats"])
+
+
 class DenseVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
         A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee','ffffff','g','hhhhhhhhhh'], dtype=bytes)
@@ -1623,7 +1654,7 @@ class RWTest(DiskTestCase):
         np_array = np.array([1, 2, 3], dtype='int64')
 
         with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as arr:
-            arr.write_direct(np_array)
+            arr.write_direct([np_array])
 
         with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as arr:
             arr.dump()
@@ -1633,26 +1664,24 @@ class RWTest(DiskTestCase):
 
     def test_write_direct_global_order(self):
         ctx = tiledb.Ctx()
-        dims = (tiledb.Dim(ctx=ctx, domain=(0, 6), tile=2),
-                tiledb.Dim(ctx=ctx, domain=(0, 6), tile=2))
+        dims = (tiledb.Dim(ctx=ctx, domain=(0, 4), tile=2),
+                tiledb.Dim(ctx=ctx, domain=(0, 4), tile=2))
         dom = tiledb.Domain(*dims, ctx=ctx)
         att = tiledb.Attr(ctx=ctx, dtype='int64')
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
-        #tiledb.DenseArray.create(self.path('global_write'), schema)
-        data = np.arange(1,50)
+        tiledb.DenseArray.create(self.path('global_write'), schema)
+        data = np.arange(16)
         # write
         with tiledb.DenseArray(self.path('global_write'), mode='w', ctx=ctx) as arr:
-            def do_write(slc, sub, allow_global=True):
-                arr.write_direct(np.ascontiguousarray(slc),
+            def do_write(data, sub, finalize=False):
+                arr.write_direct([np.ascontiguousarray(data)],
                                         subarray=np.array(sub),
-                                        allow_global=allow_global)
-            do_write(data[0:12], [0,5,0,1])
-            do_write(data[12:14], [6,6,0,1], False)
-            do_write(data[14:26], [0,5,2,3])
-            do_write(data[26:28], [6,6,2,3], False)
-            do_write(data[28:40], [0,5,4,5])
-            do_write(data[40:42], [6,6,4,5], False)
-            do_write(data[42:49], [0,5,6,6], False)
+                                        allow_global=True,
+                                        finalize=finalize)
+            do_write(data[0:4], [0,1,0,1])
+            do_write(data[4:8], [0,1,2,3])
+            do_write(data[8:12], [2,3,0,1])
+            do_write(data[12:16], [2,3,2,3], finalize=True)
 
 
 class NumpyToArray(DiskTestCase):

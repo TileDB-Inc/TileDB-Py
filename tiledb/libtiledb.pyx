@@ -2939,7 +2939,9 @@ cdef class ArraySchema(object):
     """
     Schema class for TileDB dense / sparse array representations
 
-    :param attrs: one or more array attributes
+    :param attrs: one or more array attrib
+    
+    utes
     :type attrs: tuple(tiledb.Attr, ...)
     :param cell_order:  TileDB label for cell layout
     :type cell_order: 'row-major' or 'C', 'col-major' or 'F'
@@ -4068,7 +4070,7 @@ cdef class DenseArray(Array):
             if array.dtype == np.object:
                 arr[:] = array
             else:
-                arr.write_direct(np.ascontiguousarray(array))
+                arr.write_direct([np.ascontiguousarray(array)])
         return DenseArray(uri, mode='r', ctx=ctx)
 
     def __len__(self):
@@ -4461,8 +4463,8 @@ cdef class DenseArray(Array):
             return array.astype(dtype)
         return array
 
-    def write_direct(self, np.ndarray array not None,
-                     attr = None, np.ndarray subarray = None,
+    def write_direct(self, list arrays not None,
+                     attrs = None, np.ndarray subarray = None,
                      finalize = True, allow_global = True):
         """
         Write directly to given array attribute with minimal checks,
@@ -4476,31 +4478,22 @@ cdef class DenseArray(Array):
         """
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
-        if self.schema.nattr != 1:
-            raise ValueError("cannot write_direct to a multi-attribute DenseArray")
-        if not array.flags.c_contiguous and not array.flags.f_contiguous:
-            raise ValueError("array is not contiguous")
 
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
 
         # attr name
         cdef Attr
-        if attr:
-            attr_name = attr
-        else:
-            attr_name = self.schema.attr(0)
-
-        cdef bytes battr_name = attr_name.name.encode('UTF-8')
-        cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
-        cdef void* buff_ptr = np.PyArray_DATA(array)
-        cdef uint64_t buff_size = array.nbytes
+        if not attrs:
+            attrs = [self.schema.attr(0).name]
 
         cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
-        if array.ndim == 1 and allow_global:
-            layout = TILEDB_GLOBAL_ORDER
-        elif array.ndim > 1 and array.flags.f_contiguous:
-            layout = TILEDB_COL_MAJOR
+        for array in arrays:
+            if array.ndim == 1 and allow_global:
+                layout = TILEDB_GLOBAL_ORDER
+            elif array.ndim > 1 and array.flags.f_contiguous:
+                layout = TILEDB_COL_MAJOR
+                break
 
         cdef tiledb_query_t* query_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -4512,10 +4505,26 @@ cdef class DenseArray(Array):
         if rc != TILEDB_OK:
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
-        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
-        if rc != TILEDB_OK:
-            tiledb_query_free(&query_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
+
+        cdef:
+            bytes battr_name
+            cdef char* attr_name_ptr
+            cdef void* buff_ptr
+            cdef uint64_t buff_size
+
+        for idx, attr in enumerate(attrs):
+            if not array[idx].flags.c_contiguous and not array[idx].flags.f_contiguous:
+                raise ValueError("array is not contiguous")
+
+            battr_name = attrs[idx].encode('UTF-8')
+            attr_name_ptr = PyBytes_AS_STRING(battr_name)
+            buff_ptr = np.PyArray_DATA(arrays[idx])
+            buff_size = arrays[idx].nbytes
+
+            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
+            if rc != TILEDB_OK:
+                tiledb_query_free(&query_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
 
         cdef void* subarray_ptr = NULL
         if subarray is not None:
