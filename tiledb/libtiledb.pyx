@@ -5202,7 +5202,7 @@ cdef class VFS(object):
             tiledb_vfs_free(&self.ptr)
 
     def __init__(self, config=None, Ctx ctx=default_ctx()):
-        cdef Config _config = Config()
+        cdef Config _config = Config(ctx.config())
         if config is not None:
             if isinstance(config, Config):
                 _config = config
