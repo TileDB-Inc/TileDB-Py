@@ -10,6 +10,9 @@
     [#140](https://github.com/TileDB-Inc/TileDB-Py/issues/140)
   - dense array scalar assignment (direct report).
   - improved support for returning fixed-size strings from sparse arrays (direct report).
+* fixed `VFS.is_bucket` when VFS is initialized with a Ctx object [#148](https://github.com/TileDB-Inc/TileDB-Py/pull/148)
+* fixed `schema_like` to correctly forward a Ctx keyword arg [#148](https://github.com/TileDB-Inc/TileDB-Py/pull/148)
+
 
 # TileDB-Py 0.4.1 Release Notes
 
