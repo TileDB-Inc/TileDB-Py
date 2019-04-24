@@ -996,6 +996,7 @@ class DenseArrayTest(DiskTestCase):
                        tiledb.Dim(domain=(0, 3), tile=4, dtype=np.int64, ctx=ctx),
                        ctx=ctx)
         attr_int = tiledb.Attr("ints", dtype=int, ctx=ctx)
+        dtype = np.dtype([("", np.float32), ("", np.float32)])
         attr_float = tiledb.Attr("floats", dtype=float, ctx=ctx)
         schema = tiledb.ArraySchema(ctx=ctx,
                                     domain=dom,
@@ -1004,8 +1005,8 @@ class DenseArrayTest(DiskTestCase):
 
         V_ints = np.array([[0, 1, 2, 3,],
                            [4, 6, 7, 5]])
-        V_floats = np.array([[0.0, 1.0, 2.0, 3.0,],
-                             [4.0, 6.0, 7.0, 5.0]])
+        V_floats = np.array([[(0.0, 0.0), (1.0, 1.0), (2.0, 2.0), (3.0, 3.0),],
+                             [(4.0, 4.0), (6.0, 6.0), (7.0, 7.0), (5.0, 5.0)]])
 
         V = {"ints": V_ints, "floats": V_floats}
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
