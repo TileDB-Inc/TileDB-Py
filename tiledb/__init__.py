@@ -16,6 +16,7 @@ else:
 # adjacent to, the cython .pyd shared object. In this case, we can import directly
 # from .libtiledb
 try:
+    import tiledb
     from .libtiledb import Ctx
 except:
     try:
