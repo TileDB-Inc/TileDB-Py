@@ -442,6 +442,8 @@ if TILEDB_PATH != '':
     elif os.name == 'nt':
         LIB_DIRS += [os.path.join(TILEDB_PATH, 'bin')]
     INC_DIRS += [os.path.join(TILEDB_PATH, 'include')]
+    if sys.platform == 'darwin':
+        LFLAGS += ['-Wl,-rpath,{}'.format(p) for p in LIB_DIRS]
 
 with open('README.rst') as f:
     README_RST = f.read()
@@ -452,6 +454,7 @@ cy_extension=Extension(
     define_macros=DEF_MACROS,
     sources=SOURCES,
     library_dirs=LIB_DIRS,
+    runtime_library_dirs=LIB_DIRS,
     libraries=LIBS,
     extra_link_args=LFLAGS,
     extra_compile_args=CXXFLAGS,
