@@ -11,9 +11,6 @@ from cpython.bytes cimport (PyBytes_GET_SIZE,
                             PyBytes_FromString,
                             PyBytes_FromStringAndSize)
 
-from cpython.mem cimport (PyMem_Malloc,
-                          PyMem_Realloc,
-                          PyMem_Free)
 
 from cpython.ref cimport (Py_INCREF, Py_DECREF, PyTypeObject)
 
@@ -52,6 +49,10 @@ cdef extern from "numpy/arrayobject.h":
                                 object obj)
     # Steals a reference to dtype, need to incref the dtype
     object PyArray_Scalar(void* ptr, np.dtype descr, object itemsize)
+    void PyArray_ENABLEFLAGS(np.ndarray arr, int flags)
+    void* PyDataMem_NEW(size_t nbytes)
+    void* PyDataMem_RENEW(void* data, size_t nbytes)
+    void PyDataMem_FREE(void* data)
 
 import sys
 from os.path import abspath
@@ -72,7 +73,8 @@ _MB = 1024 * _KB
 # The native int type for this platform
 IntType = np.dtype(np.int_)
 
-# Numpy initialization code
+# Numpy initialization code (critical)
+# https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
 np.import_array()
 
 def version():
@@ -3840,7 +3842,6 @@ cdef class ReadQuery(object):
     @property
     def _offsets(self): return self._offsets
 
-
     def __init__(self, Array array, np.ndarray subarray, list attr_names, tiledb_layout_t layout):
         self._buffers = dict()
         self._offsets = dict()
@@ -3854,8 +3855,10 @@ cdef class ReadQuery(object):
         cdef:
             vector [void*] buffer_ptrs
             vector [uint64_t*] offsets_ptrs
+            void* tmp_ptr = NULL
             void* subarray_ptr = NULL
             np.npy_intp dims[1]
+            np.ndarray tmparray
             bytes battr_name
             Py_ssize_t nattr = len(attr_names)
 
@@ -3880,11 +3883,13 @@ cdef class ReadQuery(object):
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
 
-        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        # lifetime: free in finally clause
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyDataMem_NEW(nattr * sizeof(uint64_t))
         if buffer_sizes_ptr == NULL:
             tiledb_query_free(&query_ptr)
             raise MemoryError()
-        cdef uint64_t* offsets_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        # lifetime: free in finally clause
+        cdef uint64_t* offsets_sizes_ptr = <uint64_t*> PyDataMem_NEW(nattr * sizeof(uint64_t))
         if offsets_sizes_ptr == NULL:
             tiledb_query_free(&query_ptr)
             raise MemoryError()
@@ -3911,19 +3916,31 @@ cdef class ReadQuery(object):
 
                     # allocate buffer to hold offsets for var-length attribute
                     # NOTE offsets_sizes is in BYTES
-                    offsets_ptrs.push_back(<uint64_t*> PyMem_Malloc(<size_t>(offsets_sizes_ptr[i])))
-                    #self._offsets[name] = np.empty(offsets_sizes_ptr[i], dtype=np.uint8)
+
+                    # lifetime:
+                    # - free on exception
+                    # - otherwise, ownership transferred to NumPy
+                    tmp_ptr = PyDataMem_NEW(<size_t>(offsets_sizes_ptr[i]))
+                    if tmp_ptr == NULL:
+                        raise MemoryError()
+                    offsets_ptrs.push_back(<uint64_t*> tmp_ptr)
+                    tmp_ptr = NULL
                 else:
 
                     rc = tiledb_array_max_buffer_size(ctx_ptr, array_ptr, battr_name,
                                                       subarray_ptr, &(buffer_sizes_ptr[i]))
-
                     if rc != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
                     offsets_ptrs.push_back(NULL)
 
-                buffer_ptrs.push_back(<void*> PyMem_Malloc(<size_t>(buffer_sizes_ptr[i])))
-                #self._buffers[name] = np.empty(buffer_sizes_ptr[i], dtype=np.uint8)
+                # lifetime:
+                # - free on exception
+                # - otherwise, ownership transferred to NumPy
+                tmp_ptr = PyDataMem_NEW(<size_t>(buffer_sizes_ptr[i]))
+                if tmp_ptr == NULL:
+                    raise MemoryError()
+                buffer_ptrs.push_back(tmp_ptr)
+                tmp_ptr = NULL
 
             # set the query buffers
             for i in range(nattr):
@@ -3956,39 +3973,34 @@ cdef class ReadQuery(object):
             for i in range(nattr):
                 name = attr_names[i]
 
-                dtype = np.dtype('uint8')
-
                 # Note: we don't know the actual read size until *after* the query executes
                 #       so the realloc below is very important as consumers of this buffer
                 #       rely on the size corresponding to actual bytes read.
                 if name != "coords" and schema.attr(name).isvar:
                     dims[0] = offsets_sizes_ptr[i]
-                    Py_INCREF(dtype)
+                    tmp_ptr = PyDataMem_RENEW(offsets_ptrs[i], <size_t>(offsets_sizes_ptr[i]))
                     self._offsets[name] = \
-                        PyArray_NewFromDescr(
-                            <PyTypeObject*> np.ndarray,
-                            dtype, 1, dims, NULL,
-                            PyMem_Realloc(offsets_ptrs[i], <size_t>(offsets_sizes_ptr[i])),
-                            np.NPY_OWNDATA, <object> NULL)
+                        np.PyArray_SimpleNewFromData(1, dims, np.NPY_UINT8, tmp_ptr)
+                    PyArray_ENABLEFLAGS(self._offsets[name], np.NPY_OWNDATA)
 
                 dims[0] = buffer_sizes_ptr[i]
-                Py_INCREF(dtype)
+                tmp_ptr = PyDataMem_RENEW(buffer_ptrs[i], <size_t>(buffer_sizes_ptr[i]))
                 self._buffers[name] = \
-                    PyArray_NewFromDescr(
-                        <PyTypeObject*> np.ndarray,
-                        dtype, 1, dims, NULL,
-                        PyMem_Realloc(buffer_ptrs[i], <size_t>(buffer_sizes_ptr[i])),
-                        np.NPY_OWNDATA, <object> NULL)
+                    np.PyArray_SimpleNewFromData(1, dims, np.NPY_UINT8, tmp_ptr)
+                PyArray_ENABLEFLAGS(self._buffers[name], np.NPY_OWNDATA)
+
         except:
+            # we only free the PyDataMem_NEW'd buffers on exception,
+            # otherwise NumPy manages them
             for i in range(nattr):
                 if buffer_ptrs[i] != NULL:
-                    PyMem_Free(buffer_ptrs[i])
+                    PyDataMem_FREE(buffer_ptrs[i])
                 if offsets_ptrs[i] != NULL:
-                    PyMem_Free(offsets_ptrs[i])
+                    PyDataMem_FREE(offsets_ptrs[i])
             raise
         finally:
-            PyMem_Free(buffer_sizes_ptr)
-            PyMem_Free(offsets_sizes_ptr)
+            PyDataMem_FREE(buffer_sizes_ptr)
+            PyDataMem_FREE(offsets_sizes_ptr)
             tiledb_query_free(&query_ptr)
 
 
