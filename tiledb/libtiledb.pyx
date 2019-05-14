@@ -3405,6 +3405,7 @@ cdef class Array(object):
         cdef uint64_t _timestamp = 0
         if timestamp is not None:
             _timestamp = <uint64_t> timestamp
+
         # allocate and then open the array
         cdef tiledb_array_t* array_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -3431,9 +3432,12 @@ cdef class Array(object):
 
         # view on a single attribute
         if attr and not any(attr == schema.attr(i).name for i in range(schema.nattr)):
+            tiledb_array_close(ctx_ptr, array_ptr)
+            tiledb_array_free(&array_ptr)
             raise KeyError("No attribute matching '{}'".format(attr))
         else:
             self.view_attr = unicode(attr) if (attr is not None) else None
+
         self.ctx = ctx
         self.uri = unicode(uri)
         self.mode = unicode(mode)
