@@ -1610,7 +1610,7 @@ class ArrayViewTest(DiskTestCase):
             T[:] = {'': anon_ar, 'named': named_ar}
 
         with self.assertRaises(KeyError):
-            T = tiledb.DenseArray(uri, 'r', attr="foo111")
+            T = tiledb.DenseArray(uri, 'r', attr="foo111", ctx=ctx)
 
         with tiledb.DenseArray(uri, 'r', attr="named", ctx=ctx) as T:
             assert_array_equal(T, named_ar)
