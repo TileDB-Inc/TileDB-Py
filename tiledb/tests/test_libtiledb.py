@@ -1606,13 +1606,13 @@ class ArrayViewTest(DiskTestCase):
         anon_ar = np.random.rand(3, 3)
         named_ar = np.random.rand(3, 3)
 
-        with tiledb.DenseArray(uri, 'w') as T:
+        with tiledb.DenseArray(uri, 'w', ctx=ctx) as T:
             T[:] = {'': anon_ar, 'named': named_ar}
 
         with self.assertRaises(KeyError):
             T = tiledb.DenseArray(uri, 'r', attr="foo111")
 
-        with tiledb.DenseArray(uri, 'r', attr="named") as T:
+        with tiledb.DenseArray(uri, 'r', attr="named", ctx=ctx) as T:
             assert_array_equal(T, named_ar)
             # make sure each attr view can pickle and round-trip
             with io.BytesIO() as buf:
@@ -1621,7 +1621,7 @@ class ArrayViewTest(DiskTestCase):
                 with pickle.load(buf) as T_rt:
                     assert_array_equal(T, T_rt)
 
-        with tiledb.DenseArray(uri, 'r', attr="") as T:
+        with tiledb.DenseArray(uri, 'r', attr="", ctx=ctx) as T:
             assert_array_equal(T, anon_ar)
 
             with io.BytesIO() as buf:
@@ -1632,10 +1632,10 @@ class ArrayViewTest(DiskTestCase):
 
         # set subarray on multi-attribute
         range_ar = np.arange(0,9).reshape(3,3)
-        with tiledb.DenseArray(uri, 'w', attr='named') as V_named:
+        with tiledb.DenseArray(uri, 'w', attr='named', ctx=ctx) as V_named:
             V_named[1:3,1:3] = range_ar[1:3,1:3]
 
-        with tiledb.DenseArray(uri, 'r', attr='named') as V_named:
+        with tiledb.DenseArray(uri, 'r', attr='named', ctx=ctx) as V_named:
             assert_array_equal(V_named[1:3,1:3], range_ar[1:3,1:3])
 
 
