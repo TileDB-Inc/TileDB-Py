@@ -2377,7 +2377,7 @@ cdef class KV(object):
 
     @staticmethod
     def create(uri, KVSchema schema, key=None, Ctx ctx=default_ctx()):
-        """Creates a persistent KV at the given URI, returns a KV class instance
+        """Creates a persistent KV at the given URI
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
@@ -2404,7 +2404,7 @@ cdef class KV(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
-        return KV(uri, key=key, ctx=ctx)
+        return
 
     def __init__(self, uri, mode='r', key=None, timestamp=None, Ctx ctx=default_ctx()):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
