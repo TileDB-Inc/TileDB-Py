@@ -1749,8 +1749,7 @@ class KVArray(DiskTestCase):
         a1 = tiledb.Attr("value", dtype=bytes, ctx=ctx)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
         # persist kv schema
-        kv = tiledb.KV.create(self.path("foo"), schema, ctx=ctx)
-        self.assertNotEqual(kv, None)
+        tiledb.KV.create(self.path("foo"), schema, ctx=ctx)
         self.assertEqual(tiledb.KVSchema.load(self.path("foo"), ctx=ctx), schema)
 
     def test_kv_contains(self):
@@ -1798,8 +1797,7 @@ class KVArray(DiskTestCase):
         schema = tiledb.KVSchema(attrs=(a1,), ctx=ctx)
 
         # persist kv schema
-        kv = tiledb.KV.create(self.path("foo1"), schema, ctx=ctx)
-        kv.close()
+        tiledb.KV.create(self.path("foo1"), schema, ctx=ctx)
 
         def append_kv(path, k, v):
             kv = tiledb.KV(path, mode='w', ctx=ctx)
@@ -1850,18 +1848,19 @@ class KVArray(DiskTestCase):
 
     def test_kv_update_reload(self):
         # create a kv array
-        ctx = tiledb.Ctx()
-        a1 = tiledb.Attr("val", ctx=ctx, dtype=bytes)
+        ctx1 = tiledb.Ctx()
+        ctx2 = tiledb.Ctx()
+        a1 = tiledb.Attr("val", ctx=ctx1, dtype=bytes)
         # persist kv schema
-        schema = tiledb.KVSchema(attrs=(a1,), ctx=ctx)
-        tiledb.KV.create(self.path("foo"), schema, ctx=ctx)
+        schema = tiledb.KVSchema(attrs=(a1,), ctx=ctx1)
+        tiledb.KV.create(self.path("foo"), schema, ctx=ctx1)
 
         # load kv array
-        with tiledb.KV(self.path("foo"), mode='w', ctx=ctx) as kv1:
+        with tiledb.KV(self.path("foo"), mode='w', ctx=ctx1) as kv1:
             kv1['foo'] = 'bar'
             kv1.flush()
 
-            with tiledb.KV(self.path("foo"), mode='r', ctx=ctx) as kv2:
+            with tiledb.KV(self.path("foo"), mode='r', ctx=ctx2) as kv2:
                 self.assertTrue('foo' in kv2)
                 kv1['bar'] = 'baz'
                 kv1.flush()
