@@ -3823,11 +3823,11 @@ cdef class Array(object):
                 # note: must not divide by itemsize for a string, because it may be zero (e.g 'S0')
                 dims[0] = el_bytelen / el_dtype.base.itemsize
                 newobj = \
-                    PyArray_NewFromDescr(
+                    np.copy(PyArray_NewFromDescr(
                         <PyTypeObject*> np.ndarray,
                         el_dtype.base, 1, dims, NULL,
                         el_ptr,
-                        np.NPY_ENSURECOPY, <object> NULL)
+                        0, <object> NULL))
 
             # set the output object
             out_flat[el] = newobj

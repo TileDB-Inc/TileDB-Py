@@ -1046,14 +1046,13 @@ class DenseVarlen(DiskTestCase):
         att = tiledb.Attr(dtype=np.float64, var=True, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
-
         tiledb.DenseArray.create(self.path("foo"), schema)
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[:] = A
 
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             T_ = T[:]
-            self.assertEqual(len(A), len(T))
+            self.assertEqual(len(A), len(T_))
             # can't use assert_array_equal w/ np.object array
             self.assertTrue(all(np.array_equal(x,A[i]) for i,x in enumerate(T_)))
 
