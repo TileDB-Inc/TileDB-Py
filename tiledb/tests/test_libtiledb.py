@@ -1559,9 +1559,9 @@ class PickleTest(DiskTestCase):
             with io.BytesIO() as buf, tiledb.DenseArray(uri) as V:
                 pickle.dump(V, buf)
                 buf.seek(0)
-                V2 = pickle.load(buf)
-                # make sure anonymous view pickles and round-trips
-                assert_array_equal(V, V2)
+                with pickle.load(buf) as V2:
+                    # make sure anonymous view pickles and round-trips
+                    assert_array_equal(V, V2)
 
     def test_pickle_with_config(self):
         import io, pickle
