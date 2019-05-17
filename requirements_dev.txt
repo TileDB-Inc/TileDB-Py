@@ -6,3 +6,4 @@ setuptools==40.8.0
 setuptools-scm==1.5.4
 wheel==0.30.0
 tox==3.0.0
+psutil

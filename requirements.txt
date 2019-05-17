@@ -4,3 +4,4 @@ numpy>=1.7.2
 setuptools>=18.0.1
 setuptools-scm>=1.5.4
 wheel>=0.30.0
+psutil
