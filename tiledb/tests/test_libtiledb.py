@@ -2111,6 +2111,75 @@ class VFS(DiskTestCase):
         self.assertEqual(io.readall(), b"")
 
 
+class MemoryTest(DiskTestCase):
+    # sanity check that memory usage doesn't increase more than 10% reading 40MB 100x
+    # https://github.com/TileDB-Inc/TileDB-Py/issues/150
+
+    def setUp(self):
+        super(MemoryTest, self).setUp()
+        import sys
+        if not sys.platform.startswith("linux"):
+            self.skipTest("Only run MemoryTest on linux")
+
+    @staticmethod
+    def use_many_buffers(path):
+        import psutil, os
+        # https://stackoverflow.com/questions/938733/total-memory-used-by-python-process
+        process = psutil.Process(os.getpid())
+
+        x = np.ones(10000000, dtype=np.float32)
+        ctx = tiledb.Ctx()
+        d1 = tiledb.Dim(
+            'test_domain', domain=(0, x.shape[0] - 1), tile=10000, dtype="uint32")
+        domain = tiledb.Domain(d1)
+        v = tiledb.Attr(
+            'test_value',
+            dtype="float32")
+
+        schema = tiledb.ArraySchema(
+            domain=domain, attrs=(v,), cell_order="row-major", tile_order="row-major")
+
+        A = tiledb.DenseArray.create(path, schema)
+
+        with tiledb.DenseArray(path, mode="w", ctx=ctx) as A:
+            A[:] = {'test_value': x}
+
+        with tiledb.DenseArray(path, mode='r') as data:
+            data[:]
+            initial = process.memory_info().rss
+            print("  initial RSS: {}".format(round(initial / (10 ** 6)), 2))
+            for i in range(100):
+                # read but don't store: this memory should be freed
+                data[:]
+
+                if i % 10 == 0:
+                    print('    read iter {}, RSS (MB): {}'.format(
+                        i, round(process.memory_info().rss / (10 ** 6), 2)))
+
+        return initial
+
+    def test_memory_cleanup(self):
+        import tiledb, numpy as np
+        import psutil, os
+
+        # run function which reads 100x from a 40MB test array
+        # TODO: RSS is too loose to do this end-to-end, so should use instrumentation.
+        print("Starting TileDB-Py memory test:")
+        initial = self.use_many_buffers(self.path('test_memory_cleanup'))
+
+        process = psutil.Process(os.getpid())
+        final = process.memory_info().rss
+        print("  final RSS: {}".format(round(final / (10 ** 6)), 2))
+
+        import gc
+        gc.collect()
+
+        final_gc = process.memory_info().rss
+        print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
+
+        self.assertTrue((final - initial) < (.1 * initial))
+
+
 #if __name__ == '__main__':
 #    # run a single example for in-process debugging
 #    # better to use `pytest --gdb` if available
