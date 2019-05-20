@@ -11,9 +11,6 @@ from cpython.bytes cimport (PyBytes_GET_SIZE,
                             PyBytes_FromString,
                             PyBytes_FromStringAndSize)
 
-from cpython.mem cimport (PyMem_Malloc,
-                          PyMem_Realloc,
-                          PyMem_Free)
 
 from cpython.ref cimport (Py_INCREF, Py_DECREF, PyTypeObject)
 
@@ -52,6 +49,10 @@ cdef extern from "numpy/arrayobject.h":
                                 object obj)
     # Steals a reference to dtype, need to incref the dtype
     object PyArray_Scalar(void* ptr, np.dtype descr, object itemsize)
+    void PyArray_ENABLEFLAGS(np.ndarray arr, int flags)
+    void* PyDataMem_NEW(size_t nbytes)
+    void* PyDataMem_RENEW(void* data, size_t nbytes)
+    void PyDataMem_FREE(void* data)
 
 import sys
 from os.path import abspath
@@ -72,7 +73,8 @@ _MB = 1024 * _KB
 # The native int type for this platform
 IntType = np.dtype(np.int_)
 
-# Numpy initialization code
+# Numpy initialization code (critical)
+# https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
 np.import_array()
 
 def version():
@@ -101,6 +103,100 @@ cdef Ctx _global_ctx = Ctx()
 def default_ctx():
     """Returns the default tiledb.Ctx object"""
     return _global_ctx
+
+
+def regularize_tiling(tile, ndim):
+    if not tile:
+        return None
+    elif np.isscalar(tile):
+        tiling = tuple(int(tile) for _ in range(ndim))
+    elif (tile is str) or (len(tile) != ndim):
+        raise ValueError("'tile' argument must be iterable "
+                         "and match array dimensionality")
+    else:
+        tiling = tuple(tile)
+    return tiling
+
+
+def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
+    """
+    Return an ArraySchema corresponding to a NumPy-like object or
+    a `shape` and `dtype`. Users are encouraged to pass 'tile' and
+    'capacity' keyword arguments as appropriate for a given
+    application.
+
+    :param T: NumPy array or TileDB URI
+    :return: tiledb.ArraySchema
+    """
+    def is_ndarray_like(obj):
+        return hasattr(arr, 'shape') and hasattr(arr, 'dtype') and hasattr(arr, 'ndim')
+
+    if len(args) == 1:
+        arr = args[0]
+        if is_ndarray_like(arr):
+            tiling = regularize_tiling(kw.pop('tile', None), arr.ndim)
+            schema = schema_like_numpy(arr, tile=tiling, ctx=ctx)
+        else:
+            raise ValueError("expected ndarray-like object")
+    elif shape and dtype:
+        ndim = len(shape)
+        tiling = regularize_tiling(kw.pop('tile', None), ndim)
+        dims = []
+        for d in range(ndim):
+            # support smaller tile extents by kw
+            # domain is based on full shape
+            tile_extent = tiling[d] if tiling else shape[d]
+            domain = (0, shape[d] - 1)
+            dims.append(Dim("", domain=domain, tile=tile_extent, dtype=np.uint64, ctx=ctx))
+
+        att = Attr(dtype=dtype, ctx=ctx)
+        dom = Domain(*dims, ctx=ctx)
+        schema = ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+    elif kw is not None:
+        raise ValueError
+    else:
+        raise ValueError("Must provide either ndarray-like object or 'shape' "
+                         "and 'dtype' keyword arguments")
+
+    return schema
+
+
+def schema_like_numpy(array, ctx=default_ctx(), **kw):
+    # create an ArraySchema from the numpy array object
+    tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
+
+    dims = []
+    for d in range(array.ndim):
+        # support smaller tile extents by kw
+        # domain is based on full shape
+        tile_extent = tiling[d] if tiling else array.shape[d]
+        domain = (0, array.shape[d] - 1)
+        dims.append(Dim("", domain=domain, tile=tile_extent, dtype=np.uint64, ctx=ctx))
+
+    if array.dtype == np.object:
+        # for object arrays, we use the dtype of the first element
+        # consistency check should be done later, if needed
+        el = array.flat[0]
+        if type(el) is bytes:
+            el_type = np.dtype('S')
+        elif type(el) is str:
+            el_type = np.dtype('U')
+        elif type(el) == np.ndarray:
+            if len(el.shape) != 1:
+                raise TypeError("Unsupported sub-array type for Attribute: {} " \
+                                "(only strings and 1D homogeneous NumPy arrays are supported)".
+                                format(type(el)))
+            el_type = el.dtype
+        else:
+            raise TypeError("Unsupported sub-array type for Attribute: {} " \
+                            "(only strings and homogeneous-typed NumPy arrays are supported)".
+                            format(type(el)))
+    else:
+        el_type = array.dtype
+
+    att = Attr(dtype=el_type, ctx=ctx)
+    dom = Domain(*dims, ctx=ctx)
+    return ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
 
 
 class TileDBError(Exception):
@@ -199,72 +295,9 @@ cdef bytes unicode_path(object path):
 cdef class Config(object):
     """TileDB Config class
 
-    Valid parameters (unknown parameters will be ignored):
+    See: https://docs.tiledb.io/en/stable/tutorials/config.html#summary-of-parameters
 
-    - ``sm.tile_cache_size``
-       The tile cache size in bytes. Any ``uint64_t`` value is acceptable.
-       **Default**: 10,000,000
-    - ``sm.array_schema_cache_size``
-       The array schema cache size in bytes. Any ``uint64_t`` value is acceptable.
-       **Default**: 10,000,000
-    - ``sm.fragment_metadata_cache_size``
-       The fragment metadata cache size in bytes. Any ``uint64_t`` value is
-       acceptable.
-    - ``sm.enable_signal_handlers``
-       Whether or not TileDB will install signal handlers.
-       **Default**: true
-       **Default**: 10,000,000
-    - ``sm.number_of_threads``
-       The number of allocated threads per TileDB context.
-       **Default**: number of cores
-    - ``vfs.max_parallel_ops``
-       The maximum number of VFS parallel operations.
-       **Default**: number of cores
-    - ``vfs.min_parallel_size``
-       The minimum number of bytes in a parallel VFS operation. (Does not
-       affect parallel S3 writes.)
-       **Default**: 10MB
-    - ``vfs.s3.region``
-       The S3 region, if S3 is enabled.
-       **Default**: us-east-1
-    - ``vfs.s3.scheme``
-       The S3 scheme (``http`` or ``https``), if S3 is enabled.
-       **Default**: https
-    - ``vfs.s3.endpoint_override``
-       The S3 endpoint, if S3 is enabled.
-       **Default**: ""
-    - ``vfs.s3.use_virtual_addressing``
-       The S3 use of virtual addressing (``true`` or ``false``), if S3 is
-       enabled.
-       **Default**: true
-    - ``vfs.s3.multipart_part_size``
-       The part size (in bytes) used in S3 multipart writes, if S3 is enabled.
-       Any ``uint64_t`` value is acceptable. Note: ``vfs.s3.multipart_part_size *
-       vfs.max_parallel_ops`` bytes will be buffered before issuing multipart
-       uploads in parallel.
-       **Default**: 5*1024*1024
-    - ``vfs.s3.connect_timeout_ms``
-       The connection timeout in ms. Any ``long`` value is acceptable.
-       **Default**: 3000
-    - ``vfs.s3.connect_max_tries``
-       The maximum tries for a connection. Any ``long`` value is acceptable.
-       **Default**: 5
-    - ``vfs.s3.connect_scale_factor``
-       The scale factor for exponential backofff when connecting to S3.
-       Any ``long`` value is acceptable.
-       **Default**: 25
-    - ``vfs.s3.request_timeout_ms``
-       The request timeout in ms. Any ``long`` value is acceptable.
-       **Default**: 3000
-    - ``vfs.hdfs.name_node"``
-       Name node for HDFS.
-       **Default**: ""
-    - ``vfs.hdfs.username``
-       HDFS username.
-       **Default**: ""
-    - ``vfs.hdfs.kerb_ticket_cache_path``
-       HDFS kerb ticket cache path.
-       **Default**: ""
+    Unknown parameters will be ignored!
 
     :param dict params: Set parameter values from dict like object
     :param str path: Set parameter values from persisted Config parameter file
@@ -714,6 +747,10 @@ cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
         return TILEDB_STRING_UTF8
     elif dtype == np.bytes_:
         return TILEDB_CHAR
+    elif dtype == np.complex64:
+        return TILEDB_FLOAT32
+    elif dtype == np.complex128:
+        return TILEDB_FLOAT64
     raise TypeError("data type {0!r} not understood".format(dtype))
 
 
@@ -749,7 +786,7 @@ cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
         return np.NPY_NOTYPE
 
 
-cdef _numpy_type(tiledb_datatype_t tiledb_dtype):
+cdef _numpy_type(tiledb_datatype_t tiledb_dtype, cell_size = 1):
     """
     Return a numpy *type* (not dtype) object given a tiledb_datatype_t enum value
     """
@@ -762,9 +799,15 @@ cdef _numpy_type(tiledb_datatype_t tiledb_dtype):
     elif tiledb_dtype == TILEDB_UINT64:
         return np.uint64
     elif tiledb_dtype == TILEDB_FLOAT32:
-        return np.float32
+        if cell_size == 2:
+            return np.complex64
+        else:
+            return np.float32
     elif tiledb_dtype == TILEDB_FLOAT64:
-        return np.float64
+        if cell_size == 2:
+            return np.complex128
+        else:
+            return np.float64
     elif tiledb_dtype == TILEDB_INT8:
         return np.int8
     elif tiledb_dtype == TILEDB_UINT8:
@@ -1479,15 +1522,6 @@ cdef class Attr(object):
     :type dtype: bool
     :param filters: List of filters to apply
     :type filters: FilterList
-    :param compressor: <todo: reimplement?> The compressor name and level for attribute values.
-                       Available compressors:
-                         - "gzip"
-                         - "zstd"
-                         - "lz4"
-                         - "rle"
-                         - "bzip2"
-                         - "double-delta"
-    :type compressor: tuple(str, int)
     :raises TypeError: invalid dtype
     :raises: :py:exc:`tiledb.TileDBError`
 
@@ -1539,16 +1573,20 @@ cdef class Attr(object):
                 tiledb_dtype = TILEDB_CHAR
                 ncells = _dtype.itemsize
         # handles n fixed size dtypes
-        elif _dtype.kind == 'V':
+        elif _dtype.kind in ('V', 'c'):
             if _dtype.shape != ():
                 raise TypeError("nested sub-array numpy dtypes are not supported")
-            # check that types are the same
-            typs = [t for (t, _) in _dtype.fields.values()]
-            typ, ntypes = typs[0], len(typs)
-            if typs.count(typ) != ntypes:
-                raise TypeError('heterogenous record numpy dtypes are not supported')
-            tiledb_dtype = _tiledb_dtype(typ)
-            ncells = <unsigned int>(ntypes)
+            if (_dtype.kind == 'V'):
+                # check that types are the same
+                typs = [t for (t, _) in _dtype.fields.values()]
+                typ, ntypes = typs[0], len(typs)
+                if typs.count(typ) != ntypes:
+                    raise TypeError('heterogenous record numpy dtypes are not supported')
+                tiledb_dtype = _tiledb_dtype(typ)
+                ncells = <unsigned int>(ntypes)
+            else:
+                tiledb_dtype = _tiledb_dtype(_dtype)
+                ncells = 2
         # variable-length cell type
         elif var:
             tiledb_dtype = _tiledb_dtype(_dtype)
@@ -1620,6 +1658,9 @@ cdef class Attr(object):
             # special case for fixed sized bytes arguments
             if typ == TILEDB_CHAR:
                 return np.dtype((nptyp, ncells))
+            # special case for complex types of size 2
+            if ncells == 2 and (nptyp == np.float32 or nptyp == np.float64):
+                return np.dtype(_numpy_type(typ, 2))
             # create an anon record dtype
             return np.dtype([('', nptyp)] * ncells)
         assert (ncells == 1)
@@ -1746,7 +1787,7 @@ cdef class Dim(object):
         return dim
 
     def __init__(self, name=u"", domain=None, tile=0, dtype=np.uint64, Ctx ctx=default_ctx()):
-        if len(domain) != 2:
+        if domain is None or len(domain) != 2:
             raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
             dtype = np.dtype(dtype)
@@ -1861,8 +1902,8 @@ cdef class Dim(object):
 
     cdef _shape(self):
         domain = self.domain
-        return ((np.asscalar(domain[1]) -
-                 np.asscalar(domain[0]) + 1),)
+        return ((domain[1].item() -
+                 domain[0].item() + 1),)
 
     @property
     def shape(self):
@@ -1940,7 +1981,7 @@ cdef class Dim(object):
 cdef class Domain(object):
     """Class representing the domain of a TileDB Array.
 
-    :param *dims: one or more tiledb.Dim objects up to the Domain's ndim
+    :param *dims*: one or more tiledb.Dim objects up to the Domain's ndim
     :raises TypeError: All dimensions must have the same dtype
     :raises: :py:exc:`TileDBError`
     :param tiledb.Ctx ctx: A TileDB Context
@@ -2336,7 +2377,7 @@ cdef class KV(object):
 
     @staticmethod
     def create(uri, KVSchema schema, key=None, Ctx ctx=default_ctx()):
-        """Creates a persistent KV at the given URI, returns a KV class instance
+        """Creates a persistent KV at the given URI
         """
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef bytes buri = unicode_path(uri)
@@ -2363,7 +2404,7 @@ cdef class KV(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
-        return KV(uri, key=key, ctx=ctx)
+        return
 
     def __init__(self, uri, mode='r', key=None, timestamp=None, Ctx ctx=default_ctx()):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
@@ -2558,7 +2599,7 @@ cdef class KV(object):
     def dict(self):
         """Return a dict representation of the KV array object
 
-        :rtype: dict
+        :rtype: :py:class:`dict`
         :return: Python dict of keys and attribute value (tuples)
 
         """
@@ -2769,9 +2810,8 @@ def index_as_tuple(idx):
     return (idx,)
 
 
-def replace_ellipsis(Domain dom, tuple idx):
+def replace_ellipsis(ndim: int, idx: tuple):
     """Replace indexing ellipsis object with slice objects to match the number of dimensions"""
-    ndim = dom.ndim
     # count number of ellipsis
     n_ellip = sum(1 for i in idx if i is Ellipsis)
     if n_ellip > 1:
@@ -2798,7 +2838,7 @@ def replace_ellipsis(Domain dom, tuple idx):
     return idx
 
 
-def replace_scalars_slice(Domain dom, tuple idx):
+def replace_scalars_slice(dom: Domain, idx: tuple):
     """Replace scalar indices with slice objects"""
     new_idx, drop_axes = [], []
     for i in range(dom.ndim):
@@ -2820,15 +2860,15 @@ def replace_scalars_slice(Domain dom, tuple idx):
     return tuple(new_idx), tuple(drop_axes)
 
 
-def index_domain_subarray(Domain dom, tuple idx):
+def index_domain_subarray(dom: Domain, idx: tuple):
     """
     Return a numpy array representation of the tiledb subarray buffer
     for a given domain and tuple of index slices
     """
     ndim = dom.ndim
     if len(idx) != ndim:
-        raise IndexError("number of indices does not match domain raank: "
-                         "({:!r} expected {:!r]".format(len(idx), ndim))
+        raise IndexError("number of indices does not match domain rank: "
+                         "(got {!r}, expected: {!r})".format(len(idx), ndim))
     # populate a subarray array / buffer to pass to tiledb
     subarray = np.zeros(shape=(ndim, 2), dtype=dom.dtype)
     for r in range(ndim):
@@ -2848,8 +2888,8 @@ def index_domain_subarray(Domain dom, tuple idx):
         if start is not None and stop is not None:
             if type(start) != type(stop):
                 promoted_dtype = np.promote_types(type(start), type(stop))
-                start = np.array(start, dtype=promoted_dtype)[0]
-                stop = np.array(stop, dtype=promoted_dtype)[0]
+                start = np.array(start, dtype=promoted_dtype, ndmin=1)[0]
+                stop = np.array(stop, dtype=promoted_dtype, ndmin=1)[0]
 
         if start is not None:
             # don't round / promote fp slices
@@ -3268,7 +3308,7 @@ cdef class Array(object):
     the array is opened with the specified mode.
 
     :param str uri: URI of array to open
-    :param str mode: (default 'r') Open the KV object in read 'r' or write 'w' mode
+    :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
     :param str key: (default None) If not None, encryption key to decrypt the KV array
     :param int timestamp: (default None) If not None, open the KV array at a given TileDB timestamp
     :param Ctx ctx: TileDB context
@@ -3277,6 +3317,8 @@ cdef class Array(object):
     cdef Ctx ctx
     cdef unicode uri
     cdef unicode mode
+    cdef object view_attr # can be None
+    cdef object key # can be None
     cdef object schema
     cdef tiledb_array_t* ptr
 
@@ -3286,6 +3328,15 @@ cdef class Array(object):
     def __dealloc__(self):
         if self.ptr != NULL:
             tiledb_array_free(&self.ptr)
+
+    def _ctx_(self) -> Ctx:
+        """
+        Get Ctx object associated with the array. This method
+        exists primarily for serialization.
+
+        :return: Ctx object associated with array.
+        """
+        return self.ctx
 
     @staticmethod
     def create(uri, ArraySchema schema, key=None):
@@ -3321,7 +3372,7 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         return
 
-    def __init__(self, uri, mode='r', key=None, timestamp=None, Ctx ctx=default_ctx()):
+    def __init__(self, uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
         # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         # uri
@@ -3354,6 +3405,7 @@ cdef class Array(object):
         cdef uint64_t _timestamp = 0
         if timestamp is not None:
             _timestamp = <uint64_t> timestamp
+
         # allocate and then open the array
         cdef tiledb_array_t* array_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -3377,10 +3429,20 @@ cdef class Array(object):
         except:
             tiledb_array_free(&array_ptr)
             raise
+
+        # view on a single attribute
+        if attr and not any(attr == schema.attr(i).name for i in range(schema.nattr)):
+            tiledb_array_close(ctx_ptr, array_ptr)
+            tiledb_array_free(&array_ptr)
+            raise KeyError("No attribute matching '{}'".format(attr))
+        else:
+            self.view_attr = unicode(attr) if (attr is not None) else None
+
         self.ctx = ctx
         self.uri = unicode(uri)
         self.mode = unicode(mode)
         self.schema = schema
+        self.key = key
         self.ptr = array_ptr
 
     def __enter__(self):
@@ -3437,6 +3499,11 @@ cdef class Array(object):
         return self.mode
 
     @property
+    def iswritable(self):
+        """This array is currently opened as writable."""
+        return self.mode == 'w'
+
+    @property
     def isopen(self):
         """True if this array is currently open."""
         cdef int isopen = 0
@@ -3459,6 +3526,13 @@ cdef class Array(object):
         return self.schema.domain
 
     @property
+    def dtype(self):
+        """The NumPy dtype of the specified attribute"""
+        if self.view_attr is None and self.schema.nattr > 1:
+            raise NotImplementedError("Multi-attribute does not have single dtype!")
+        return self.schema.attr(0).dtype
+
+    @property
     def shape(self):
         """The shape of this array."""
         return self.schema.shape
@@ -3466,7 +3540,10 @@ cdef class Array(object):
     @property
     def nattr(self):
         """The number of attributes of this array."""
-        return self.schema.nattr
+        if self.view_attr:
+            return 1
+        else:
+           return self.schema.nattr
 
     @property
     def timestamp(self):
@@ -3746,11 +3823,11 @@ cdef class Array(object):
                 # note: must not divide by itemsize for a string, because it may be zero (e.g 'S0')
                 dims[0] = el_bytelen / el_dtype.base.itemsize
                 newobj = \
-                    PyArray_NewFromDescr(
+                    np.copy(PyArray_NewFromDescr(
                         <PyTypeObject*> np.ndarray,
                         el_dtype.base, 1, dims, NULL,
                         el_ptr,
-                        np.NPY_ENSURECOPY, <object> NULL)
+                        0, <object> NULL))
 
             # set the output object
             out_flat[el] = newobj
@@ -3769,7 +3846,6 @@ cdef class ReadQuery(object):
     @property
     def _offsets(self): return self._offsets
 
-
     def __init__(self, Array array, np.ndarray subarray, list attr_names, tiledb_layout_t layout):
         self._buffers = dict()
         self._offsets = dict()
@@ -3783,8 +3859,10 @@ cdef class ReadQuery(object):
         cdef:
             vector [void*] buffer_ptrs
             vector [uint64_t*] offsets_ptrs
+            void* tmp_ptr = NULL
             void* subarray_ptr = NULL
             np.npy_intp dims[1]
+            np.ndarray tmparray
             bytes battr_name
             Py_ssize_t nattr = len(attr_names)
 
@@ -3809,11 +3887,13 @@ cdef class ReadQuery(object):
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
 
-        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        # lifetime: free in finally clause
+        cdef uint64_t* buffer_sizes_ptr = <uint64_t*> PyDataMem_NEW(nattr * sizeof(uint64_t))
         if buffer_sizes_ptr == NULL:
             tiledb_query_free(&query_ptr)
             raise MemoryError()
-        cdef uint64_t* offsets_sizes_ptr = <uint64_t*> PyMem_Malloc(nattr * sizeof(uint64_t))
+        # lifetime: free in finally clause
+        cdef uint64_t* offsets_sizes_ptr = <uint64_t*> PyDataMem_NEW(nattr * sizeof(uint64_t))
         if offsets_sizes_ptr == NULL:
             tiledb_query_free(&query_ptr)
             raise MemoryError()
@@ -3840,19 +3920,31 @@ cdef class ReadQuery(object):
 
                     # allocate buffer to hold offsets for var-length attribute
                     # NOTE offsets_sizes is in BYTES
-                    offsets_ptrs.push_back(<uint64_t*> PyMem_Malloc(<size_t>(offsets_sizes_ptr[i])))
-                    #self._offsets[name] = np.empty(offsets_sizes_ptr[i], dtype=np.uint8)
+
+                    # lifetime:
+                    # - free on exception
+                    # - otherwise, ownership transferred to NumPy
+                    tmp_ptr = PyDataMem_NEW(<size_t>(offsets_sizes_ptr[i]))
+                    if tmp_ptr == NULL:
+                        raise MemoryError()
+                    offsets_ptrs.push_back(<uint64_t*> tmp_ptr)
+                    tmp_ptr = NULL
                 else:
 
                     rc = tiledb_array_max_buffer_size(ctx_ptr, array_ptr, battr_name,
                                                       subarray_ptr, &(buffer_sizes_ptr[i]))
-
                     if rc != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
                     offsets_ptrs.push_back(NULL)
 
-                buffer_ptrs.push_back(<void*> PyMem_Malloc(<size_t>(buffer_sizes_ptr[i])))
-                #self._buffers[name] = np.empty(buffer_sizes_ptr[i], dtype=np.uint8)
+                # lifetime:
+                # - free on exception
+                # - otherwise, ownership transferred to NumPy
+                tmp_ptr = PyDataMem_NEW(<size_t>(buffer_sizes_ptr[i]))
+                if tmp_ptr == NULL:
+                    raise MemoryError()
+                buffer_ptrs.push_back(tmp_ptr)
+                tmp_ptr = NULL
 
             # set the query buffers
             for i in range(nattr):
@@ -3885,39 +3977,34 @@ cdef class ReadQuery(object):
             for i in range(nattr):
                 name = attr_names[i]
 
-                dtype = np.dtype('uint8')
-
                 # Note: we don't know the actual read size until *after* the query executes
                 #       so the realloc below is very important as consumers of this buffer
                 #       rely on the size corresponding to actual bytes read.
                 if name != "coords" and schema.attr(name).isvar:
                     dims[0] = offsets_sizes_ptr[i]
-                    Py_INCREF(dtype)
+                    tmp_ptr = PyDataMem_RENEW(offsets_ptrs[i], <size_t>(offsets_sizes_ptr[i]))
                     self._offsets[name] = \
-                        PyArray_NewFromDescr(
-                            <PyTypeObject*> np.ndarray,
-                            dtype, 1, dims, NULL,
-                            PyMem_Realloc(offsets_ptrs[i], <size_t>(offsets_sizes_ptr[i])),
-                            np.NPY_OWNDATA, <object> NULL)
+                        np.PyArray_SimpleNewFromData(1, dims, np.NPY_UINT8, tmp_ptr)
+                    PyArray_ENABLEFLAGS(self._offsets[name], np.NPY_OWNDATA)
 
                 dims[0] = buffer_sizes_ptr[i]
-                Py_INCREF(dtype)
+                tmp_ptr = PyDataMem_RENEW(buffer_ptrs[i], <size_t>(buffer_sizes_ptr[i]))
                 self._buffers[name] = \
-                    PyArray_NewFromDescr(
-                        <PyTypeObject*> np.ndarray,
-                        dtype, 1, dims, NULL,
-                        PyMem_Realloc(buffer_ptrs[i], <size_t>(buffer_sizes_ptr[i])),
-                        np.NPY_OWNDATA, <object> NULL)
+                    np.PyArray_SimpleNewFromData(1, dims, np.NPY_UINT8, tmp_ptr)
+                PyArray_ENABLEFLAGS(self._buffers[name], np.NPY_OWNDATA)
+
         except:
+            # we only free the PyDataMem_NEW'd buffers on exception,
+            # otherwise NumPy manages them
             for i in range(nattr):
                 if buffer_ptrs[i] != NULL:
-                    PyMem_Free(buffer_ptrs[i])
+                    PyDataMem_FREE(buffer_ptrs[i])
                 if offsets_ptrs[i] != NULL:
-                    PyMem_Free(offsets_ptrs[i])
+                    PyDataMem_FREE(offsets_ptrs[i])
             raise
         finally:
-            PyMem_Free(buffer_sizes_ptr)
-            PyMem_Free(offsets_sizes_ptr)
+            PyDataMem_FREE(buffer_sizes_ptr)
+            PyDataMem_FREE(offsets_sizes_ptr)
             tiledb_query_free(&query_ptr)
 
 
@@ -3947,13 +4034,24 @@ cdef class Query(object):
                                    coords=self.coords,
                                    order=self.order)
 
+
+# work around https://github.com/cython/cython/issues/2757
+def _create_densearray(cls, sta):
+    rv = DenseArray.__new__(cls)
+    rv.__setstate__(sta)
+    return rv
+
 cdef class DenseArray(Array):
     """Class representing a dense TileDB array.
 
     Inherits properties and methods of :py:class:`tiledb.Array`.
 
     """
-
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        if self.schema.sparse:
+            raise ValueError("Array at {} is not a dense array".format(self.uri))
+        return
 
     @staticmethod
     def from_numpy(uri, np.ndarray array, Ctx ctx=default_ctx(), **kw):
@@ -3978,37 +4076,7 @@ cdef class DenseArray(Array):
         ...     A = tiledb.DenseArray.from_numpy(tmp + "/array",  np.array([1.0, 2.0, 3.0]))
 
         """
-        # create an ArraySchema from the numpy array object
-        dims = []
-        for d in range(array.ndim):
-            extent = array.shape[d]
-            domain = (0, extent - 1)
-            dims.append(Dim("", domain=domain, tile=extent, dtype=np.uint64, ctx=ctx))
-
-        if array.dtype == np.object:
-            # use the dtype of the first element for now
-            # consistency check will be done during construction pass
-            el = array.flat[0]
-            if type(el) is bytes:
-                el_type = np.dtype('S')
-            elif type(el) is str:
-                el_type = np.dtype('U')
-            elif type(el) == np.ndarray:
-                if len(el.shape) != 1:
-                    raise TypeError("Unsupported sub-array type for Attribute: {} " \
-                                    "(only strings and 1D homogeneous NumPy arrays are supported)".
-                                    format(type(el)))
-                el_type = el.dtype
-            else:
-                raise TypeError("Unsupported sub-array type for Attribute: {} " \
-                                "(only strings and homogeneous-typed NumPy arrays are supported)".
-                                format(type(el)))
-        else:
-            el_type = array.dtype
-
-        att = Attr(dtype=el_type, ctx=ctx)
-        dom = Domain(*dims, ctx=ctx)
-        schema = ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+        schema = schema_like_numpy(array, ctx=ctx, **kw)
         Array.create(uri, schema)
 
         with DenseArray(uri, mode='w', ctx=ctx) as arr:
@@ -4019,15 +4087,8 @@ cdef class DenseArray(Array):
                 arr.write_direct(np.ascontiguousarray(array))
         return DenseArray(uri, mode='r', ctx=ctx)
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        if self.schema.sparse:
-            raise ValueError("Array at {} is not a dense array".format(self.uri))
-        return
-
     def __len__(self):
         return self.domain.shape[0]
-
 
     def __getitem__(self, object selection):
         """Retrieve data cells for an item or region of the array.
@@ -4037,7 +4098,8 @@ cdef class DenseArray(Array):
         :rtype: :py:class:`numpy.ndarray` or :py:class:`collections.OrderedDict`
         :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
                 is returned for that attribute.  If the array has multiple attributes, a \
-                :py:class:`collections.OrderedDict` is with dense Numpy subarrays for each attribute.
+                :py:class:`collections.OrderedDict` is returned with dense Numpy subarrays \
+                for each attribute.
         :raises IndexError: invalid or unsupported index selection
         :raises: :py:exc:`tiledb.TileDBError`
 
@@ -4071,7 +4133,12 @@ cdef class DenseArray(Array):
         array([1, 1, 1, 1, 1])
 
         """
-        return self.subarray(selection)
+        if self.view_attr:
+            result = self.subarray(selection, attrs=(self.view_attr,))
+            return result[self.view_attr]
+        else:
+            result = self.subarray(selection)
+            return result
 
 
     def query(self, attrs=None, coords=False, order='C'):
@@ -4154,7 +4221,7 @@ cdef class DenseArray(Array):
             attr_names.extend(self.schema.attr(a).name for a in attrs)
 
         selection = index_as_tuple(selection)
-        idx = replace_ellipsis(self.schema.domain, selection)
+        idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         subarray = index_domain_subarray(self.schema.domain, idx)
         out = self._read_dense_subarray(subarray, attr_names, layout)
@@ -4183,6 +4250,8 @@ cdef class DenseArray(Array):
                   for r in range(self.schema.ndim))
 
         cdef Py_ssize_t nattr = len(attr_names)
+
+        cdef int i
         for i in range(nattr):
 
             name = attr_names[i]
@@ -4261,7 +4330,8 @@ cdef class DenseArray(Array):
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
         cdef Domain domain = self.domain
-        cdef tuple idx = replace_ellipsis(domain, index_as_tuple(selection))
+        cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))
+        idx,_drop = replace_scalars_slice(domain, idx)
         cdef np.ndarray subarray = index_domain_subarray(domain, idx)
         cdef Attr attr
         cdef list attributes = list()
@@ -4289,10 +4359,28 @@ cdef class DenseArray(Array):
             else:
                 values.append(
                     np.ascontiguousarray(val, dtype=attr.dtype))
+        elif self.view_attr is not None:
+            # this is a hack pending
+            # https://github.com/TileDB-Inc/TileDB/issues/1162
+            # (it implicitly relies on the fact that we treat all arrays
+            #  as zero initialized as long as query returns TILEDB_OK)
+            # see also: https://github.com/TileDB-Inc/TileDB-Py/issues/128
+            if self.schema.nattr == 1:
+                attributes.append(self.schema.attr(0).name)
+                values.append(val)
+            else:
+                dtype = self.schema.attr(self.view_attr).dtype
+                readable = DenseArray(self.uri, 'r')
+                current = readable[selection]
+                current[self.view_attr] = \
+                    np.ascontiguousarray(val, dtype=dtype)
+                # `current` is an OrderedDict
+                attributes.extend(current.keys())
+                values.extend(current.values())
         else:
             raise ValueError("ambiguous attribute assignment, "
                              "more than one array attribute "
-                             "(use a dict({'attr' :val}) to "
+                             "(use a dict({'attr': val}) to "
                              "assign multiple attributes)")
         # Check value layouts
         nattr = len(attributes)
@@ -4378,9 +4466,14 @@ cdef class DenseArray(Array):
         return
 
     def __array__(self, dtype=None, **kw):
-        if self.schema.nattr > 1:
+        if self.view_attr is None and self.nattr > 1:
             raise ValueError("cannot create numpy array from TileDB array with more than one attribute")
-        array = self.read_direct(name = self.schema.attr(0).name)
+        cdef unicode name
+        if self.view_attr:
+            name = self.view_attr
+        else:
+            name = self.schema.attr(0).name
+        array = self.read_direct(name=name)
         if dtype and array.dtype != dtype:
             return array.astype(dtype)
         return array
@@ -4505,6 +4598,36 @@ cdef class DenseArray(Array):
             _raise_ctx_err(ctx_ptr, rc)
         return out
 
+    # this is necessary for python 2
+    def __reduce__(self):
+        return (_create_densearray, (type(self), self.__getstate__()))
+
+    # pickling support: this is a lightweight pickle for distributed use.
+    #   simply treat as wrapper around URI, not actual data.
+    def __getstate__(self):
+        config_dict = self._ctx_().config().dict()
+        return (self.uri, self.mode, self.key, self.view_attr, self.timestamp, config_dict)
+
+    def __setstate__(self, state):
+        cdef:
+            unicode uri, mode
+            object view_attr = None
+            object timestamp = None
+            object key = None
+            dict config_dict = {}
+        uri, mode, key, view_attr, _timestamp, config_dict = state
+
+        if mode == 'r':
+            timestamp = _timestamp
+        if config_dict is not {}:
+            config_dict = state[5]
+            config = Config(params=config_dict)
+            ctx = Ctx(config)
+        else:
+            ctx = default_ctx()
+
+        self.__init__(uri, mode=mode, key=key, attr=view_attr,
+                      timestamp=timestamp, ctx=ctx)
 
 # point query index a tiledb array (zips) columnar index vectors
 def index_domain_coords(Domain dom, tuple idx):
@@ -4800,7 +4923,7 @@ cdef class SparseArray(Array):
             attr_names.extend(self.schema.attr(a).name for a in attrs)
         dom = self.schema.domain
         idx = index_as_tuple(selection)
-        idx = replace_ellipsis(dom, idx)
+        idx = replace_ellipsis(dom.ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
         subarray = index_domain_subarray(dom, idx)
         return self._read_sparse_subarray(subarray, attr_names, layout)
@@ -4830,9 +4953,15 @@ cdef class SparseArray(Array):
                 else:
                     el_dtype = self.attr(name).dtype
                 arr = read._buffers[name]
-                # all output is 1D vectors, so just change dtype
-                arr.dtype = el_dtype
-                out[name] = arr
+
+                # this is a work-around for NumPy restrictions removed in 1.16
+                if el_dtype == np.dtype('S0'):
+                    out[name] = b''
+                elif el_dtype == np.dtype('U0'):
+                    out[name] = u''
+                else:
+                    arr.dtype = el_dtype
+                    out[name] = arr
 
         return out
 
@@ -5035,6 +5164,7 @@ cdef class FileHandle(object):
     Instances of this class are returned by TileDB VFS methods and are not instantiated directly
     """
 
+    cdef Ctx ctx
     cdef VFS vfs
     cdef unicode uri
     cdef tiledb_vfs_fh_t* ptr
@@ -5043,9 +5173,9 @@ cdef class FileHandle(object):
         self.ptr = NULL
 
     def __dealloc__(self):
-        cdef Ctx ctx = self.vfs.ctx
         if self.ptr != NULL:
             tiledb_vfs_fh_free(&self.ptr)
+
 
     @staticmethod
     cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr):
@@ -5088,7 +5218,7 @@ cdef class VFS(object):
             tiledb_vfs_free(&self.ptr)
 
     def __init__(self, config=None, Ctx ctx=default_ctx()):
-        cdef Config _config = Config()
+        cdef Config _config = Config(ctx.config())
         if config is not None:
             if isinstance(config, Config):
                 _config = config

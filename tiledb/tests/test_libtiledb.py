@@ -253,11 +253,11 @@ class AttributeTest(unittest.TestCase):
 
     def test_ncell_attribute(self):
         ctx = tiledb.Ctx()
-        dtype = np.dtype([("", np.int32), ("", np.int32)])
+        dtype = np.dtype([("", np.int32), ("", np.int32), ("", np.int32)])
         attr = tiledb.Attr("foo", ctx=ctx, dtype=dtype)
 
         self.assertEqual(attr.dtype, dtype)
-        self.assertEqual(attr.ncells, 2)
+        self.assertEqual(attr.ncells, 3)
 
         # dtype subarrays not supported
         with self.assertRaises(TypeError):
@@ -630,6 +630,10 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(A[123], T[np.int32(123)])
             self.assertEqual(A[123], T[np.uint32(123)])
 
+            # mixed-type slicing
+            # https://github.com/TileDB-Inc/TileDB-Py/issues/140
+            self.assertEqual(A[0:1], T[0:np.uint16(1)])
+
             # basic step
             assert_array_equal(A[:50:2], T[:50:2])
             assert_array_equal(A[:2:50], T[:2:50])
@@ -678,6 +682,13 @@ class DenseArrayTest(DiskTestCase):
             T[:] = A
 
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            assert_array_equal(A, T[:])
+
+        with tiledb.DenseArray(self.path("foo"), mode='w') as T:
+            value = -1,3,10
+            A[0], A[1], A[3] = value
+            T[0], T[1], T[3] = value
+        with tiledb.DenseArray(self.path("foo"), mode='r') as T:
             assert_array_equal(A, T[:])
 
         for value in (-1, 3, 10):
@@ -819,6 +830,24 @@ class DenseArrayTest(DiskTestCase):
             assert_array_equal(A[310:], T[310:])
             assert_array_equal(A[:, 7:], T[:, 7:])
 
+    def test_fixed_string(self):
+        ctx = tiledb.Ctx()
+        a = np.array(['ab', 'cd', 'ef', 'gh', 'ij', 'kl'], dtype='|S2')
+        with tiledb.from_numpy(self.path('fixed_string'), a) as T:
+            with tiledb.open(self.path('fixed_string')) as R:
+                self.assertEqual(T.dtype, R.dtype)
+                self.assertEqual(R.attr(0).ncells, 2)
+                assert_array_equal(T,R)
+
+    def test_ncell_int(self):
+        a = np.array([(1, 2), (3, 4), (5, 6)], dtype=[("", np.int16), ("", np.int16)])
+        with tiledb.from_numpy(self.path('ncell_int16'), a) as T:
+            with tiledb.open(self.path('ncell_int16')) as R:
+                self.assertEqual(T.dtype, R.dtype)
+                self.assertEqual(R.attr(0).ncells, 2)
+                assert_array_equal(T,R)
+
+
     def test_open_with_timestamp(self):
         import time
         A = np.zeros(3)
@@ -881,11 +910,28 @@ class DenseArrayTest(DiskTestCase):
     def test_ncell_attributes(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 9), tile=10, dtype=int), ctx=ctx)
-        attr = tiledb.Attr(ctx=ctx, dtype=[("", np.int32), ("", np.int32)])
+        attr = tiledb.Attr(ctx=ctx, dtype=[("", np.int32), ("", np.int32), ("", np.int32)])
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        A = np.ones((10,), dtype=[("", np.int32), ("", np.int32)])
+        A = np.ones((10,), dtype=[("", np.int32), ("", np.int32), ("", np.int32)])
+        self.assertEqual(A.dtype, attr.dtype)
+
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            assert_array_equal(A, T[:])
+            assert_array_equal(A[:5], T[:5])
+
+    def test_complex_attributes(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 9), tile=10,
+                                       dtype=int), ctx=ctx)
+        attr = tiledb.Attr(ctx=ctx, dtype=np.complex64)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        A = np.random.rand(20).astype(np.float32).view(dtype=np.complex64)
+        attr.dump()
         self.assertEqual(A.dtype, attr.dtype)
 
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
@@ -1000,14 +1046,13 @@ class DenseVarlen(DiskTestCase):
         att = tiledb.Attr(dtype=np.float64, var=True, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
-
         tiledb.DenseArray.create(self.path("foo"), schema)
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[:] = A
 
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             T_ = T[:]
-            self.assertEqual(len(A), len(T))
+            self.assertEqual(len(A), len(T_))
             # can't use assert_array_equal w/ np.object array
             self.assertTrue(all(np.array_equal(x,A[i]) for i,x in enumerate(T_)))
 
@@ -1301,6 +1346,23 @@ class SparseArray(DiskTestCase):
             assert_array_equal(res[""], A[5:7])
             self.assertEqual(("coords" in res), False)
 
+    def test_sparse_fixes(self):
+        # indexing a 1 element item in a sparse array
+        # (issue directly reported)
+        # the test here is that the indexing does not raise
+        ctx = tiledb.Ctx()
+        dims = (tiledb.Dim('foo', ctx=ctx, domain=(0, 6), tile=2),
+                tiledb.Dim('bar', ctx=ctx, domain=(0, 6), tile=1),
+                tiledb.Dim('baz', ctx=ctx, domain=(0, 100), tile=1))
+        dom = tiledb.Domain(*dims, ctx=ctx)
+        att = tiledb.Attr(ctx=ctx, dtype='S1')
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,),
+                                    sparse=True)
+        tiledb.SparseArray.create(self.path('foo'), schema)
+        with tiledb.SparseArray(self.path('foo')) as T:
+            T[:]
+
+
 class DenseIndexing(DiskTestCase):
 
     def _test_index(self, A, T, idx):
@@ -1478,9 +1540,105 @@ class DenseIndexing(DiskTestCase):
                 with self.assertRaises(IndexError):
                     T[idx]
 
+class PickleTest(DiskTestCase):
+    # test that DenseArray and View can be pickled for multiprocess use
+    # note that the current pickling is by URI and attributes (it is
+    #     not, and likely should not be, a way to serialize array data)
+    def test_pickle_roundtrip(self):
+        import io, pickle
+
+        ctx = tiledb.Ctx()
+        uri = self.path("foo")
+        with tiledb.DenseArray.from_numpy(uri, np.random.rand(5), ctx=ctx) as T:
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                with pickle.load(buf) as T2:
+                    assert_array_equal(T, T2)
+
+            with io.BytesIO() as buf, tiledb.DenseArray(uri) as V:
+                pickle.dump(V, buf)
+                buf.seek(0)
+                with pickle.load(buf) as V2:
+                    # make sure anonymous view pickles and round-trips
+                    assert_array_equal(V, V2)
+
+    def test_pickle_with_config(self):
+        import io, pickle
+        opts = dict()
+        opts['vfs.s3.region'] = 'kuyper-belt-1'
+        opts['vfs.max_parallel_ops'] = 1
+
+        config = tiledb.Config(params=opts)
+        ctx = tiledb.Ctx(config)
+
+        uri = self.path("pickle_config")
+        T = tiledb.DenseArray.from_numpy(uri, np.random.rand(3,3), ctx=ctx)
+
+        with io.BytesIO() as buf:
+            pickle.dump(T, buf)
+            buf.seek(0)
+            T2 = pickle.load(buf)
+            assert_array_equal(T, T2)
+            self.maxDiff = None
+            d1 = ctx.config().dict()
+            d2 = T2._ctx_().config().dict()
+            self.assertEqual(d1['vfs.s3.region'], d2['vfs.s3.region'])
+            self.assertEqual(d1['vfs.max_parallel_ops'], d2['vfs.max_parallel_ops'])
+        T.close()
+        T2.close()
+
+
+class ArrayViewTest(DiskTestCase):
+    def test_view_multiattr(self):
+        import io, pickle
+        ctx = tiledb.Ctx()
+        uri = self.path("foo_multiattr")
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3),
+                            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3),
+                            ctx=ctx)
+        schema = tiledb.ArraySchema(ctx=ctx,
+                                    domain=dom,
+                                    attrs=(tiledb.Attr(""), tiledb.Attr("named")))
+        tiledb.libtiledb.Array.create(uri, schema)
+
+        anon_ar = np.random.rand(3, 3)
+        named_ar = np.random.rand(3, 3)
+
+        with tiledb.DenseArray(uri, 'w', ctx=ctx) as T:
+            T[:] = {'': anon_ar, 'named': named_ar}
+
+        with self.assertRaises(KeyError):
+            T = tiledb.DenseArray(uri, 'r', attr="foo111", ctx=ctx)
+
+        with tiledb.DenseArray(uri, 'r', attr="named", ctx=ctx) as T:
+            assert_array_equal(T, named_ar)
+            # make sure each attr view can pickle and round-trip
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                with pickle.load(buf) as T_rt:
+                    assert_array_equal(T, T_rt)
+
+        with tiledb.DenseArray(uri, 'r', attr="", ctx=ctx) as T:
+            assert_array_equal(T, anon_ar)
+
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                with pickle.load(buf) as tmp:
+                    assert_array_equal(tmp, anon_ar)
+
+        # set subarray on multi-attribute
+        range_ar = np.arange(0,9).reshape(3,3)
+        with tiledb.DenseArray(uri, 'w', attr='named', ctx=ctx) as V_named:
+            V_named[1:3,1:3] = range_ar[1:3,1:3]
+
+        with tiledb.DenseArray(uri, 'r', attr='named', ctx=ctx) as V_named:
+            assert_array_equal(V_named[1:3,1:3], range_ar[1:3,1:3])
+
 
 class RWTest(DiskTestCase):
-
     def test_read_write(self):
         ctx = tiledb.Ctx()
 
@@ -1590,8 +1748,7 @@ class KVArray(DiskTestCase):
         a1 = tiledb.Attr("value", dtype=bytes, ctx=ctx)
         schema = tiledb.KVSchema(ctx, attrs=(a1,))
         # persist kv schema
-        kv = tiledb.KV.create(self.path("foo"), schema, ctx=ctx)
-        self.assertNotEqual(kv, None)
+        tiledb.KV.create(self.path("foo"), schema, ctx=ctx)
         self.assertEqual(tiledb.KVSchema.load(self.path("foo"), ctx=ctx), schema)
 
     def test_kv_contains(self):
@@ -1639,8 +1796,7 @@ class KVArray(DiskTestCase):
         schema = tiledb.KVSchema(attrs=(a1,), ctx=ctx)
 
         # persist kv schema
-        kv = tiledb.KV.create(self.path("foo1"), schema, ctx=ctx)
-        kv.close()
+        tiledb.KV.create(self.path("foo1"), schema, ctx=ctx)
 
         def append_kv(path, k, v):
             kv = tiledb.KV(path, mode='w', ctx=ctx)
@@ -1691,18 +1847,19 @@ class KVArray(DiskTestCase):
 
     def test_kv_update_reload(self):
         # create a kv array
-        ctx = tiledb.Ctx()
-        a1 = tiledb.Attr("val", ctx=ctx, dtype=bytes)
+        ctx1 = tiledb.Ctx()
+        ctx2 = tiledb.Ctx()
+        a1 = tiledb.Attr("val", ctx=ctx1, dtype=bytes)
         # persist kv schema
-        schema = tiledb.KVSchema(attrs=(a1,), ctx=ctx)
-        tiledb.KV.create(self.path("foo"), schema, ctx=ctx)
+        schema = tiledb.KVSchema(attrs=(a1,), ctx=ctx1)
+        tiledb.KV.create(self.path("foo"), schema, ctx=ctx1)
 
         # load kv array
-        with tiledb.KV(self.path("foo"), mode='w', ctx=ctx) as kv1:
+        with tiledb.KV(self.path("foo"), mode='w', ctx=ctx1) as kv1:
             kv1['foo'] = 'bar'
             kv1.flush()
 
-            with tiledb.KV(self.path("foo"), mode='r', ctx=ctx) as kv2:
+            with tiledb.KV(self.path("foo"), mode='r', ctx=ctx2) as kv2:
                 self.assertTrue('foo' in kv2)
                 kv1['bar'] = 'baz'
                 kv1.flush()
@@ -1952,3 +2109,80 @@ class VFS(DiskTestCase):
         io.seek(5)
         self.assertEqual(io.readall(), buffer[5:])
         self.assertEqual(io.readall(), b"")
+
+
+class MemoryTest(DiskTestCase):
+    # sanity check that memory usage doesn't increase more than 10% reading 40MB 100x
+    # https://github.com/TileDB-Inc/TileDB-Py/issues/150
+
+    def setUp(self):
+        super(MemoryTest, self).setUp()
+        import sys
+        if not sys.platform.startswith("linux"):
+            self.skipTest("Only run MemoryTest on linux")
+
+    @staticmethod
+    def use_many_buffers(path):
+        import psutil, os
+        # https://stackoverflow.com/questions/938733/total-memory-used-by-python-process
+        process = psutil.Process(os.getpid())
+
+        x = np.ones(10000000, dtype=np.float32)
+        ctx = tiledb.Ctx()
+        d1 = tiledb.Dim(
+            'test_domain', domain=(0, x.shape[0] - 1), tile=10000, dtype="uint32")
+        domain = tiledb.Domain(d1)
+        v = tiledb.Attr(
+            'test_value',
+            dtype="float32")
+
+        schema = tiledb.ArraySchema(
+            domain=domain, attrs=(v,), cell_order="row-major", tile_order="row-major")
+
+        A = tiledb.DenseArray.create(path, schema)
+
+        with tiledb.DenseArray(path, mode="w", ctx=ctx) as A:
+            A[:] = {'test_value': x}
+
+        with tiledb.DenseArray(path, mode='r') as data:
+            data[:]
+            initial = process.memory_info().rss
+            print("  initial RSS: {}".format(round(initial / (10 ** 6)), 2))
+            for i in range(100):
+                # read but don't store: this memory should be freed
+                data[:]
+
+                if i % 10 == 0:
+                    print('    read iter {}, RSS (MB): {}'.format(
+                        i, round(process.memory_info().rss / (10 ** 6), 2)))
+
+        return initial
+
+    def test_memory_cleanup(self):
+        import tiledb, numpy as np
+        import psutil, os
+
+        # run function which reads 100x from a 40MB test array
+        # TODO: RSS is too loose to do this end-to-end, so should use instrumentation.
+        print("Starting TileDB-Py memory test:")
+        initial = self.use_many_buffers(self.path('test_memory_cleanup'))
+
+        process = psutil.Process(os.getpid())
+        final = process.memory_info().rss
+        print("  final RSS: {}".format(round(final / (10 ** 6)), 2))
+
+        import gc
+        gc.collect()
+
+        final_gc = process.memory_info().rss
+        print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
+
+        self.assertTrue((final - initial) < (.1 * initial))
+
+
+#if __name__ == '__main__':
+#    # run a single example for in-process debugging
+#    # better to use `pytest --gdb` if available
+#    t = DenseArrayTest()
+#    t.setUp()
+#    t.test_array_1d()

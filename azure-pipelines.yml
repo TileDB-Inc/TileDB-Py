@@ -27,25 +27,25 @@ steps:
     architecture: 'x64'
 
 - script: |
-    python -m pip install --upgrade pip setuptools wheel numpy tox setuptools-scm cython
+    python -m pip install --upgrade pip setuptools wheel numpy tox setuptools-scm cython psutil
   displayName: 'Install dependencies'
 
 - script: |
     call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
     python setup.py build_ext --inplace
     python setup.py install
-  displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
+  displayName: 'Build TileDB and TileDB-Py extension (Windows)'
   condition: eq(variables['Agent.OS'], 'Windows_NT')
 
 - script: |
     python setup.py build_ext --inplace
     python setup.py install
-  displayName: 'Build TileDB and TileDB-Py extension (Windows)'
+  displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
   condition: ne(variables['Agent.OS'], 'Windows_NT')
 
 
 - script: |
-    python -m unittest -v
+    python -m unittest tiledb.tests.all.suite_test
   displayName: 'Run tests'
 
 - task: PublishTestResults@2

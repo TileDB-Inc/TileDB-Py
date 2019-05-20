@@ -9,6 +9,7 @@ import platform
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
 
+
 try:
     # For Python 3
     from urllib.request import urlopen
@@ -35,7 +36,7 @@ import sys
 from sys import version_info as ver
 
 # Target branch
-TILEDB_VERSION = "1.5.0"
+TILEDB_VERSION = "1.5.1"
 
 # Use `setup.py [] --debug` for a debug build of libtiledb
 TILEDB_DEBUG_BUILD = False
@@ -49,10 +50,29 @@ BUILD_DIR = os.path.join(CONTAINING_DIR, "build")
 # TileDB package source directory
 TILEDB_PKG_DIR = os.path.join(CONTAINING_DIR, "tiledb")
 
+# Set deployment target for mac
+#
+# Need to ensure thatextensions are built for macos 10.9 when compiling on a
+# 10.9 system or above, overriding distutils behaviour which is to target
+# the version used to build the current python binary.
+#
+# TO OVERRIDE:
+#   set MACOSX_DEPLOYMENT_TARGET before calling setup.py
+#
+# From https://github.com/pandas-dev/pandas/pull/24274
+# 3-Clause BSD License: https://github.com/pandas-dev/pandas/blob/master/LICENSE
+if sys.platform == 'darwin':
+  if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
+      current_system = LooseVersion(platform.mac_ver()[0])
+      python_target = LooseVersion(
+          get_config_var('MACOSX_DEPLOYMENT_TARGET'))
+      if python_target < '10.9' and current_system >= '10.9':
+          os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
+
 def is_windows():
     return os.name == 'nt'
 
-def libtiledb_exists(library_dirs):
+def _libtiledb_exists(library_dirs):
     """
     Checks the given list of paths and returns true if any contain the TileDB library.
     :return: The path to the TileDB library, or None.
@@ -78,12 +98,19 @@ def libtiledb_exists(library_dirs):
     elif os.name == "nt":
         lib_name = "tiledb.dll"
     try:
+        # note: this is a relative path on linux
+        #       https://bugs.python.org/issue21042
         ctypes.CDLL(lib_name)
         return lib_name
     except:
         pass
 
     return None
+
+def libtiledb_exists(library_dirs):
+    lib = _libtiledb_exists(library_dirs)
+    print("libtiledb_exists found: '{}'".format(lib))
+    return lib
 
 
 def libtiledb_library_names():
@@ -122,32 +149,24 @@ def build_libtiledb(src_dir):
     :param src_dir: Path to libtiledb source directory.
     :return: Path to the directory where the library was installed.
     """
-    # From https://github.com/pandas-dev/pandas/pull/24274
-    # 3-Clause BSD License: https://github.com/pandas-dev/pandas/blob/master/LICENSE
-    # For mac, ensure extensions are built for macos 10.9 when compiling on a
-    # 10.9 system or above, overriding distutils behaviour which is to target
-    # the version that python was built for. This may be overridden by setting
-    # MACOSX_DEPLOYMENT_TARGET before calling setup.py
-    if sys.platform == 'darwin':
-      if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
-          current_system = LooseVersion(platform.mac_ver()[0])
-          python_target = LooseVersion(
-              get_config_var('MACOSX_DEPLOYMENT_TARGET'))
-          if python_target < '10.9' and current_system >= '10.9':
-              os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
-
     libtiledb_build_dir = os.path.join(src_dir, "build")
     libtiledb_install_dir = os.path.join(src_dir, "dist")
     if not os.path.exists(libtiledb_build_dir):
         os.makedirs(libtiledb_build_dir)
 
     print("Building libtiledb in directory {}...".format(libtiledb_build_dir))
-    cmake_cmd = ["cmake",
+    cmake = os.environ.get("CMAKE", "cmake")
+    cmake_cmd = [cmake,
                     "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
                     "-DTILEDB_TESTS=OFF",
                     "-DTILEDB_S3=ON",
                     "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
+                    "-DTILEDB_INSTALL_LIBDIR=lib"
                     ]
+
+    extra_cmake_args = os.environ.get("CMAKE_ARGS", [])
+    if extra_cmake_args:
+        cmake_cmd.extend(extra_cmake_args.split())
 
     if TILEDB_DEBUG_BUILD:
         build_type = "Debug"
@@ -252,7 +271,7 @@ def find_or_install_libtiledb(setuptools_cmd):
             libtiledb_objects.extend(
                 [os.path.join(native_subdir, libname) for libname in
                               ["tiledb.lib", "tbb.dll", "tbb.lib"]])
-
+        print("libtiledb_objects: ", libtiledb_objects)
         setuptools_cmd.distribution.package_data.update({"tiledb": libtiledb_objects})
 
 
@@ -406,6 +425,7 @@ for arg in args:
         TILEDB_DEBUG_BUILD = True
         sys.argv.remove(arg)
 
+
 if TILEDB_PATH != '':
     LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
     if sys.platform.startswith("linux"):
@@ -431,6 +451,7 @@ cy_extension=Extension(
     )
 if TILEDB_DEBUG_BUILD:
   # monkey patch to tell Cython to generate debug mapping
+  # files (in `cython_debug`)
   if sys.version_info < (3,0):
       cy_extension.__dict__['cython_gdb'] = True
   else:
