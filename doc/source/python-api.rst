@@ -8,7 +8,7 @@ TileDB Python API Reference
 Modules
 -------
 
-Typical usage of the Python interace to TileDB will use the top-level module ``tiledb``, e.g.
+Typical usage of the Python interface to TileDB will use the top-level module ``tiledb``, e.g.
 
 .. code-block:: python
 

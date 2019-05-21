@@ -2882,7 +2882,7 @@ def index_domain_subarray(dom: Domain, idx: tuple):
 
         dim_slice = idx[r]
         if not isinstance(dim_slice, slice):
-            raise IndexError("invalid index type: {!r}".format(dim_slice))
+            raise IndexError("invalid index type: {!r}".format(type(dim_slice)))
 
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
         #if step and step < 0:
@@ -4649,7 +4649,7 @@ cdef class SparseArray(Array):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if not self.schema.sparse:
-            raise ValueError("Array at {:r} is not a sparse array".format(self.uri))
+            raise ValueError("Array at '{}' is not a sparse array".format(self.uri))
         return
 
     def __len__(self):
@@ -4952,7 +4952,7 @@ cdef class SparseArray(Array):
 
         return out
 
-def consolidate(Config config=None, uri=None, key=None, Ctx ctx=default_ctx()):
+def consolidate(uri=None, Config config=None, key=None, Ctx ctx=default_ctx()):
     """Consolidates a TileDB Array updates for improved read performance
 
     :param tiledb.Config config: The TileDB Config with consolidation parameters set
