@@ -36,7 +36,7 @@ import sys
 from sys import version_info as ver
 
 # Target branch
-TILEDB_VERSION = "1.5.1"
+TILEDB_VERSION = "dev"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
@@ -46,6 +46,7 @@ TILEDB_DEBUG_BUILD = False
 # ALlow to override TILEDB_FORCE_ALL_DEPS with environment variable
 TILEDB_FORCE_ALL_DEPS = "TILEDB_FORCE_ALL_DEPS" in os.environ
 TILEDB_SERIALIZATION = "TILEDB_SERIALIZATION" in os.environ
+CMAKE_GENERATOR = os.environ.get("CMAKE_GENERATOR", None)
 
 # Directory containing this file
 CONTAINING_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -168,6 +169,7 @@ def build_libtiledb(src_dir):
                     "-DTILEDB_S3=ON",
                     "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
                     "-DTILEDB_INSTALL_LIBDIR=lib",
+                    "-DTILEDB_CPP_API=OFF",
                     "-DTILEDB_FORCE_ALL_DEPS:BOOL={}".format("ON" if TILEDB_FORCE_ALL_DEPS else "OFF"),
                     "-DTILEDB_SERIALIZATION:BOOL={}".format("ON" if TILEDB_SERIALIZATION else "OFF")
                     ]
@@ -186,6 +188,9 @@ def build_libtiledb(src_dir):
     if os.name == 'nt':
         cmake_cmd.extend(['-A', 'x64', "-DMSVC_MP_FLAG=/MP4"])
 
+    if CMAKE_GENERATOR:
+        cmake_cmd.extend(['-G', CMAKE_GENERATOR])
+
     # cmake target directory -- important
     cmake_cmd.append(src_dir)
 
@@ -202,10 +207,13 @@ def build_libtiledb(src_dir):
         build_cmd = ["make", "-j{:d}".format(njobs)]
         install_cmd = ["make", "install-tiledb"]
     else:
-        build_cmd = ["cmake", "--build", ".", "--config", "Release"]
-        install_cmd = ["cmake", "--build", ".", "--config", "Release", "--target", "install-tiledb"]
+        build_cmd = ["cmake", "--build", ".", "--config", build_type]
+        install_cmd = ["cmake", "--build", ".", "--config", build_type, "--target", "install-tiledb"]
 
     # Build and install libtiledb
+    # - run cmake
+    # - run build via 'cmake --build'
+    # - run install-tiledb
     subprocess.check_call(cmake_cmd, cwd=libtiledb_build_dir)
     subprocess.check_call(build_cmd, cwd=libtiledb_build_dir)
     subprocess.check_call(install_cmd, cwd=libtiledb_build_dir)

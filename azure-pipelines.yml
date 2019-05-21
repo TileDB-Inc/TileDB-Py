@@ -27,6 +27,10 @@ steps:
     architecture: 'x64'
 
 - script: |
+    printenv
+  displayName: 'Print env'
+
+- script: |
     python -m pip install --upgrade pip setuptools wheel numpy tox setuptools-scm cython psutil
   displayName: 'Install dependencies'
 
@@ -43,13 +47,20 @@ steps:
   displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
   condition: ne(variables['Agent.OS'], 'Windows_NT')
 
-
 - script: |
     python -m unittest tiledb.tests.all.suite_test
   displayName: 'Run tests'
 
-- task: PublishTestResults@2
-  inputs:
-    testResultsFiles: '**/test-results.xml'
-    testRunTitle: 'Python $(python.version)'
-  condition: succeededOrFailed()
+- bash: |
+    set -e pipefail
+    # Display log files if the build failed
+    echo "Dumping log files for failed build"
+    echo "----------------------------------"
+    for f in $(find $BUILD_REPOSITORY_LOCALPATH/build -name *.log);
+      do echo "------"
+         echo $f
+         echo "======"
+         cat $f
+      done;
+  condition: failed() # only run this job if the build step failed
+  displayName: "Print log files (failed build only)"

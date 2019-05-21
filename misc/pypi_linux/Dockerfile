@@ -1,12 +1,10 @@
 FROM quay.io/pypa/manylinux1_x86_64
 
 ###############################################
-# settings
+# settings (A)
 # NOTE: MUST USE the 'mu' variant here to be compatible
 #       with ~most~ linux distros (see manylinux README)
 ENV PYTHON_BASE /opt/python/cp27-cp27mu/bin/
-ENV TILEDB_VERSION 1.5.0
-ENV TILEDB_PY_VERSION 0.4.0
 
 RUN useradd tiledb
 ENV HOME /home/tiledb
@@ -20,6 +18,13 @@ RUN  $PYTHON_BASE/pip install cmake auditwheel && \
   perlbrew --notest install perl-5.10.0
 
 ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
+
+###############################################
+# settings (B)
+ENV TILEDB_VERSION 1.5.0
+ENV TILEDB_PY_VERSION 0.4.0
+###############################################
+
 # build libtiledb (core)
 # notes:
 #    1) we are using auditwheel from https://github.com/pypa/auditwheel
@@ -27,7 +32,7 @@ ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 #       and allows us to build libtiledb once, install it to a normal
 #       system path, and then use it to build wheels for all of the python
 #       versions.
-#    2) perl-5.10.0, buit above, is required to build OpenSSL
+#    2) perl-5.10.0, built above, is required to build OpenSSL
 RUN cd /home/tiledb/ && \
   source $HOME/perl5/perlbrew/etc/bashrc && \
   perlbrew use perl-5.10.0 && \
@@ -41,5 +46,8 @@ RUN cd /home/tiledb/ && \
   make -j2 && \
   make install-tiledb
 
-ADD build.sh /usr/bin/build.sh
+ADD misc/pypi_linux/build.sh /usr/bin/build.sh
 RUN chmod +x /usr/bin/build.sh
+
+# add source directory as optional TILEDB_PY_REPO
+ADD . /opt/TileDB-Py

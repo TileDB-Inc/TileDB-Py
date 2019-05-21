@@ -2,7 +2,8 @@
 
 # USAGE
 #------
-# 1) docker build .
+# 0) cd TileDB-Py (NOTE: root directory!)
+# 1) docker build -f misc/pypi_linux/Dockerfile .
 # - copy resulting IMAGE_HASH
 # 2) docker run -v wheels:/wheels -ti IMAGE_HASH build.sh
 #
@@ -12,11 +13,12 @@
 # -- python3.7 -c "import tiledb; print(tiledb.libtiledb.version())"
 set -ex
 
-export TILEDB_PY_VERSION=0.4.1
+export TILEDB_PY_VERSION="0.4.2"
+export TILEDB_PY_REPO="/opt/TileDB-Py"
 
 # build python27 wheel
 cd /home/tiledb
-git clone https://github.com/TileDB-Inc/TileDB-Py TileDB-Py27
+git clone $TILEDB_PY_REPO TileDB-Py27
 git -C TileDB-Py27 checkout $TILEDB_PY_VERSION
 
 cd /home/tiledb/TileDB-Py27
@@ -27,7 +29,7 @@ auditwheel repair dist/*.whl
 
 # build python35 wheel
 cd /home/tiledb
-git clone https://github.com/TileDB-Inc/TileDB-Py TileDB-Py35
+git clone $TILEDB_PY_REPO TileDB-Py35
 git -C TileDB-Py35 checkout $TILEDB_PY_VERSION
 
 cd /home/tiledb/TileDB-Py35
@@ -37,7 +39,7 @@ auditwheel repair dist/*.whl
 
 # build python36 wheel
 cd /home/tiledb
-git clone https://github.com/TileDB-Inc/TileDB-Py TileDB-Py36
+git clone $TILEDB_PY_REPO TileDB-Py36
 git -C TileDB-Py36 checkout $TILEDB_PY_VERSION
 
 cd /home/tiledb/TileDB-Py36
@@ -47,7 +49,7 @@ auditwheel repair dist/*.whl
 
 # build python37 wheel
 cd /home/tiledb
-git clone https://github.com/TileDB-Inc/TileDB-Py TileDB-Py37
+git clone $TILEDB_PY_REPO TileDB-Py37
 git -C TileDB-Py37 checkout $TILEDB_PY_VERSION
 
 cd /home/tiledb/TileDB-Py37
