@@ -487,7 +487,7 @@ class ArrayTest(DiskTestCase):
 
         # these should be no-ops
         #   full signature
-        tiledb.consolidate(config, self.path("foo"), ctx=ctx)
+        tiledb.consolidate(self.path("foo"), config=config, ctx=ctx)
         #   kw signature
         tiledb.consolidate(uri=self.path("foo"), ctx=ctx)
 
@@ -548,7 +548,7 @@ class ArrayTest(DiskTestCase):
                 self.assertTrue(array.isopen)
                 self.assertEqual(array.schema, schema)
                 self.assertEqual(array.mode, 'r')
-            tiledb.consolidate(config, uri=self.path("foo"), key=key, ctx=ctx)
+            tiledb.consolidate(uri=self.path("foo"), config=config, key=key, ctx=ctx)
 
         # check that opening the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
@@ -562,7 +562,7 @@ class ArrayTest(DiskTestCase):
 
         # check that consolidating the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.consolidate(config, uri=self.path("foo"),
+            tiledb.consolidate(self.path("foo"), config,
                                key=b"0123456789abcdeF0123456789abcde", ctx=ctx)
 
     def test_array_doesnt_exist(self):
@@ -2129,7 +2129,7 @@ class VFS(DiskTestCase):
 
 
 class MemoryTest(DiskTestCase):
-    # sanity check that memory usage doesn't increase more than 10% reading 40MB 100x
+    # sanity check that memory usage doesn't increase more than 2x when reading 40MB 100x
     # https://github.com/TileDB-Inc/TileDB-Py/issues/150
 
     def setUp(self):
@@ -2194,7 +2194,7 @@ class MemoryTest(DiskTestCase):
         final_gc = process.memory_info().rss
         print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
 
-        self.assertTrue((final - initial) < (.1 * initial))
+        self.assertTrue(final < (2 * initial))
 
 
 #if __name__ == '__main__':
