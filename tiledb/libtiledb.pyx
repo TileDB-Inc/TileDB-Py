@@ -3309,22 +3309,41 @@ cdef class ArraySchema(object):
         else:
             raise Exception("Capnp unimplemented")
 
-        cdef char* out = NULL
-        cdef uint64_t out_len = 0
         cdef int rc = TILEDB_OK
-        rc = tiledb_array_schema_serialize(
-                self.ctx.ptr, self.ptr, serialization_type,
-                &out, &out_len)
+
+        cdef tiledb_buffer_t* buffer
+        rc = tiledb_buffer_alloc(self.ctx.ptr, &buffer)
+        if rc != TILEDB_OK:
+            raise Exception("failed to allocate tiledb_buffer_t")
+
+        rc = tiledb_serialize_array_schema(
+                self.ctx.ptr,
+                self.ptr,
+                serialization_type,
+                1,
+                buffer)
 
         if rc != TILEDB_OK:
             raise Exception("Failed to serialize array schema to JSON.")
+
+        cdef char* out = NULL
+        cdef uint64_t out_len = 0
+        rc = tiledb_buffer_get_data(
+                self.ctx.ptr,
+                buffer,
+                <void**> (&out),
+                &out_len)
+
+        if rc != TILEDB_OK:
+            tiledb_buffer_free(&buffer)
+            raise("Failed to get data from serialization buffer")
 
         cdef py_string
         try:
             # API includes \0 terminator...
             py_string = out[:out_len - 1]
         finally:
-            free(out)
+            tiledb_buffer_free(&buffer)
 
         return py_string.decode('UTF-8')
 

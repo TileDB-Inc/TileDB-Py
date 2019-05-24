@@ -1,5 +1,6 @@
 from libc.stdio cimport FILE
-from libc.stdint cimport uint64_t
+from libc.stdint cimport uint64_t, int32_t
+
 
 cdef extern from "tiledb/tiledb.h":
     # Constants
@@ -100,10 +101,6 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_PREORDER
         TILEDB_POSTORDER
 
-    ctypedef enum tiledb_serialization_type_t:
-        TILEDB_JSON
-        TILEDB_CAPNP
-
     ctypedef enum tiledb_filesystem_t:
         TILEDB_HDFS
         TILEDB_S3
@@ -133,6 +130,8 @@ cdef extern from "tiledb/tiledb.h":
     ctypedef struct tiledb_domain_t:
         pass
     ctypedef struct tiledb_query_t:
+        pass
+    ctypedef struct tiledb_buffer_t:
         pass
     ctypedef struct tiledb_filter_t:
         pass
@@ -545,12 +544,28 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_array_schema_t* array_schema,
         FILE* out)
 
-    int tiledb_array_schema_serialize(
+    # Buffer
+    # TODO: finish wrapping
+    void tiledb_buffer_free(tiledb_buffer_t** buffer);
+
+    int tiledb_buffer_alloc(tiledb_ctx_t* ctx,
+                            tiledb_buffer_t** buffer);
+
+    int tiledb_buffer_set_type(
             tiledb_ctx_t* ctx,
-            const tiledb_array_schema_t* array_schema,
-            tiledb_serialization_type_t serialize_type,
-            char** serialized_string,
-            uint64_t* serialized_string_length)
+            tiledb_buffer_t* buffer,
+            tiledb_datatype_t datatype);
+
+    int tiledb_buffer_set_data(tiledb_ctx_t* ctx,
+            tiledb_buffer_t* buffer,
+            void* data,
+            uint64_t size);
+
+    int tiledb_buffer_get_data(
+            tiledb_ctx_t* ctx,
+            const tiledb_buffer_t* buffer,
+            void** data,
+            uint64_t* num_bytes)
 
     # Query
     int tiledb_query_alloc(
@@ -1126,3 +1141,14 @@ cdef extern from "tiledb/tiledb.h":
         unsigned* path_length) nogil
 
 
+cdef extern from "tiledb/tiledb_serialization.h":
+    ctypedef enum tiledb_serialization_type_t:
+        TILEDB_JSON
+        TILEDB_CAPNP
+
+    int tiledb_serialize_array_schema(
+            tiledb_ctx_t* ctx,
+            const tiledb_array_schema_t* array_schema,
+            tiledb_serialization_type_t serialize_type,
+            int32_t client_side,
+            tiledb_buffer_t* buffer)

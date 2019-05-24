@@ -465,31 +465,30 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertTrue(schema.sparse)
 
     def test_sparse_schema_json_dump(self):
+        self.maxDiff = None
         ctx = tiledb.Ctx()
 
         # create dimensions
-        d1 = tiledb.Dim(ctx, "", domain=(1, 1000), tile=10, dtype="uint64")
-        d2 = tiledb.Dim(ctx, "d2", domain=(101, 10000), tile=100, dtype="uint64")
+        d1 = tiledb.Dim("", domain=(1, 1000), tile=10, dtype="uint64", ctx=ctx)
+        d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64", ctx=ctx)
 
         # create domain
-        domain = tiledb.Domain(ctx, d1, d2)
+        domain = tiledb.Domain(d1, d2, ctx=ctx)
 
         # create attributes
-        a1 = tiledb.Attr(ctx, "", dtype="int32,int32,int32")
+        a1 = tiledb.Attr("", dtype="int32,int32,int32", ctx=ctx)
         #a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="float32")
-        filter_list = tiledb.FilterList(ctx, [tiledb.GzipFilter(ctx)])
-        a2 = tiledb.Attr(ctx, "a2", filters=filter_list, dtype="float32")
+        filter_list = tiledb.FilterList([tiledb.GzipFilter(ctx=ctx)], ctx=ctx)
+        a2 = tiledb.Attr("a2", filters=filter_list, dtype="float32", ctx=ctx)
 
-        off_filters = tiledb.libtiledb.FilterList(ctx,
-                                                  filters=[tiledb.libtiledb.ZstdFilter(ctx, level=10)],
-                                                  chunksize=2048)
+        off_filters = tiledb.libtiledb.FilterList(filters=[tiledb.libtiledb.ZstdFilter(ctx=ctx, level=10)],
+                                                  chunksize=2048, ctx=ctx)
 
-        coords_filters = tiledb.libtiledb.FilterList(ctx,
-                                                     filters=[tiledb.libtiledb.Bzip2Filter(ctx, level=5)],
-                                                     chunksize=4096)
+        coords_filters = tiledb.libtiledb.FilterList(filters=[tiledb.libtiledb.Bzip2Filter(ctx=ctx, level=5)],
+                                                     chunksize=4096, ctx=ctx)
 
         # create sparse array with schema
-        schema = tiledb.ArraySchema(ctx,
+        schema = tiledb.ArraySchema(ctx=ctx,
                                     domain=domain,
                                     attrs=(a1, a2),
                                     capacity=10,
