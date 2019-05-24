@@ -501,11 +501,10 @@ class ArraySchemaTest(unittest.TestCase):
         #old_ref_json = """{"arrayType":"sparse","attributes":[{"cellValNum":3,"name":"__attr","type":"INT32","filterPipeline":{"filters":[]}},{"cellValNum":1,"name":"a2","type":"FLOAT32","filterPipeline":{"filters":[{"type":"GZIP","data":{"int32":-1}}]}}],"capacity":"10","cellOrder":"col-major","coordsFilterPipeline":{"filters":[{"type":"BZIP2","data":{"int32":5}}]},"domain":{"cellOrder":"row-major","dimensions":[{"name":"__dim_0","nullTileExtent":false,"type":"UINT64","tileExtent":{"uint64":"10"},"domain":{"uint64":["1","1000"]}},{"name":"d2","nullTileExtent":false,"type":"UINT64","tileExtent":{"uint64":"100"},"domain":{"uint64":["101","10000"]}}],"tileOrder":"row-major","type":"UINT64"},"offsetFilterPipeline":{"filters":[{"type":"ZSTD","data":{"int32":10}}]},"tileOrder":"row-major","uri":"","""
 
         # TODO figure out better way to test this
+        #      actually, when deser is implemented that will be simple
         ref_json = """{"arrayType":"sparse","attributes":[{"cellValNum":3,"name":"__attr","type":"INT32","filterPipeline":{}},{"cellValNum":1,"name":"a2","type":"FLOAT32","filterPipeline":{"filters":[{"type":"GZIP","data":{"int32":-1}}]}}],"capacity":"10","cellOrder":"col-major","coordsFilterPipeline":{"filters":[{"type":"BZIP2","data":{"int32":5}}]},"domain":{"cellOrder":"row-major","dimensions":[{"name":"__dim_0","nullTileExtent":false,"type":"UINT64","tileExtent":{"uint64":"10"},"domain":{"uint64":["1","1000"]}},{"name":"d2","nullTileExtent":false,"type":"UINT64","tileExtent":{"uint64":"100"},"domain":{"uint64":["101","10000"]}}],"tileOrder":"row-major","type":"UINT64"},"offsetFilterPipeline":{"filters":[{"type":"ZSTD","data":{"int32":10}}]},"tileOrder":"row-major","uri":"","""
         ref_json += """"version":[{}]}}""".format(','.join(str(i) for i in tiledb.version()))
         json = schema.serialize(format='JSON')
-
-        import pdb; pdb.set_trace()
 
         self.assertEqual(json, ref_json)
 
