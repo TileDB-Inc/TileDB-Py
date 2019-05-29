@@ -3311,40 +3311,35 @@ cdef class ArraySchema(object):
 
         cdef int rc = TILEDB_OK
 
-        cdef tiledb_buffer_t* buffer
-        rc = tiledb_buffer_alloc(self.ctx.ptr, &buffer)
-        if rc != TILEDB_OK:
-            raise Exception("failed to allocate tiledb_buffer_t")
-
+        cdef tiledb_buffer_t* buff
         rc = tiledb_serialize_array_schema(
                 self.ctx.ptr,
                 self.ptr,
                 serialization_type,
                 1,
-                buffer)
+                &buff)
 
         if rc != TILEDB_OK:
-            raise Exception("Failed to serialize array schema to JSON.")
+            check_error(self.ctx, rc)
 
         cdef char* out = NULL
         cdef uint64_t out_len = 0
         rc = tiledb_buffer_get_data(
                 self.ctx.ptr,
-                buffer,
+                buff,
                 <void**> (&out),
                 &out_len)
 
         if rc != TILEDB_OK:
-            tiledb_buffer_free(&buffer)
-            raise("Failed to get data from serialization buffer")
+            tiledb_buffer_free(&buff)
+            check_error(self.ctx, rc)
 
         cdef py_string
         try:
             # API includes \0 terminator...
             py_string = out[:out_len - 1]
         finally:
-            tiledb_buffer_free(&buffer)
-
+            tiledb_buffer_free(&buff)
         return py_string.decode('UTF-8')
 
 cdef class Array(object):
