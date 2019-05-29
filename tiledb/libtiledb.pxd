@@ -1151,4 +1151,4 @@ cdef extern from "tiledb/tiledb_serialization.h":
             const tiledb_array_schema_t* array_schema,
             tiledb_serialization_type_t serialize_type,
             int32_t client_side,
-            tiledb_buffer_t* buffer)
+            tiledb_buffer_t** buff)

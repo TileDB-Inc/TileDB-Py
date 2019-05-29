@@ -3309,41 +3309,32 @@ cdef class ArraySchema(object):
         else:
             raise Exception("Capnp unimplemented")
 
+
+        cdef tiledb_buffer_t* buff
+        check_error(self.ctx, tiledb_buffer_alloc(self.ctx.ptr, &buff))
+
         cdef int rc = TILEDB_OK
-
-        cdef tiledb_buffer_t* buffer
-        rc = tiledb_buffer_alloc(self.ctx.ptr, &buffer)
-        if rc != TILEDB_OK:
-            raise Exception("failed to allocate tiledb_buffer_t")
-
-        rc = tiledb_serialize_array_schema(
-                self.ctx.ptr,
-                self.ptr,
-                serialization_type,
-                1,
-                buffer)
-
-        if rc != TILEDB_OK:
-            raise Exception("Failed to serialize array schema to JSON.")
-
+        cdef py_string
         cdef char* out = NULL
         cdef uint64_t out_len = 0
-        rc = tiledb_buffer_get_data(
-                self.ctx.ptr,
-                buffer,
-                <void**> (&out),
-                &out_len)
-
-        if rc != TILEDB_OK:
-            tiledb_buffer_free(&buffer)
-            raise("Failed to get data from serialization buffer")
-
-        cdef py_string
         try:
+            check_error(self.ctx,
+                tiledb_serialize_array_schema(
+                    self.ctx.ptr,
+                    self.ptr,
+                    serialization_type,
+                    1,
+                    &buff))
+            check_error(self.ctx,
+                tiledb_buffer_get_data(
+                    self.ctx.ptr,
+                    buff,
+                    <void**> (&out),
+                    &out_len))
             # API includes \0 terminator...
             py_string = out[:out_len - 1]
         finally:
-            tiledb_buffer_free(&buffer)
+            tiledb_buffer_free(&buff)
 
         return py_string.decode('UTF-8')
 
@@ -4821,7 +4812,7 @@ cdef class SparseArray(Array):
                     if rc != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
             buffer_ptr = np.PyArray_DATA(coords)
-            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(), 
+            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(),
                     buffer_ptr, &(buffer_sizes_ptr[nattr - 1]))
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
