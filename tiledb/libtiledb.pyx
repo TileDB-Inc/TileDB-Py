@@ -3992,7 +3992,6 @@ cdef class ReadQuery(object):
                 self._buffers[name] = \
                     np.PyArray_SimpleNewFromData(1, dims, np.NPY_UINT8, tmp_ptr)
                 PyArray_ENABLEFLAGS(self._buffers[name], np.NPY_OWNDATA)
-
         except:
             # we only free the PyDataMem_NEW'd buffers on exception,
             # otherwise NumPy manages them
@@ -4454,15 +4453,12 @@ cdef class DenseArray(Array):
                                                  buffer_ptr, &(buffer_sizes_ptr[i]))
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
-        except:
+            with nogil:
+                rc = tiledb_query_submit(ctx_ptr, query_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+        finally:
             tiledb_query_free(&query_ptr)
-            raise
-
-        with nogil:
-            rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(&query_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def __array__(self, dtype=None, **kw):
@@ -4519,24 +4515,23 @@ cdef class DenseArray(Array):
         rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
-        if rc != TILEDB_OK:
+        try:
+            rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            with nogil:
+                rc = tiledb_query_submit(ctx_ptr, query_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            with nogil:
+                rc = tiledb_query_finalize(ctx_ptr, query_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+        finally:
             tiledb_query_free(&query_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
-        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
-        if rc != TILEDB_OK:
-            tiledb_query_free(&query_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
-        with nogil:
-            rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        if rc != TILEDB_OK:
-            tiledb_query_free(&query_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
-        with nogil:
-            rc = tiledb_query_finalize(ctx_ptr, query_ptr)
-        tiledb_query_free(&query_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
         return
 
     def read_direct(self, unicode name=None):
@@ -4581,21 +4576,21 @@ cdef class DenseArray(Array):
         cdef tiledb_query_t* query_ptr = NULL
         cdef int rc = TILEDB_OK
         rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_READ, &query_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        rc = tiledb_query_set_layout(ctx_ptr, query_ptr, cell_layout)
-        if rc != TILEDB_OK:
+        try:
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_query_set_layout(ctx_ptr, query_ptr, cell_layout)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            with nogil:
+                rc = tiledb_query_submit(ctx_ptr, query_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+        finally:
             tiledb_query_free(&query_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
-        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
-        if rc != TILEDB_OK:
-            tiledb_query_free(&query_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
-        with nogil:
-            rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        tiledb_query_free(&query_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
         return out
 
     # this is necessary for python 2
@@ -4772,22 +4767,21 @@ cdef class SparseArray(Array):
                                                  buffer_ptr, &(buffer_sizes_ptr[i]))
                     if rc != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
-        except:
+            buffer_ptr = np.PyArray_DATA(coords)
+            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(), 
+                    buffer_ptr, &(buffer_sizes_ptr[nattr - 1]))
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            with nogil:
+                rc = tiledb_query_submit(ctx_ptr, query_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            with nogil:
+                rc = tiledb_query_finalize(ctx_ptr, query_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+        finally:
             tiledb_query_free(&query_ptr)
-            raise
-        buffer_ptr = np.PyArray_DATA(coords)
-        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(), buffer_ptr, &(buffer_sizes_ptr[nattr - 1]))
-        if rc != TILEDB_OK:
-            tiledb_query_free(&query_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
-        with nogil:
-            rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        with nogil:
-            rc = tiledb_query_finalize(ctx_ptr, query_ptr)
-        tiledb_query_free(&query_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-
         return
 
     def __getitem__(self, object selection):
