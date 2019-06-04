@@ -205,6 +205,48 @@ class DimensionTest(unittest.TestCase):
         self.assertEqual(dim.shape, (4,))
         self.assertEqual(dim.tile, 2)
 
+    def test_datetime_dimension(self):
+        ctx = tiledb.Ctx()
+
+        # Regular usage
+        dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
+                         tile=np.timedelta64(20, 'D'), dtype=np.datetime64('', 'D'))
+        self.assertEqual(dim.dtype, np.dtype(np.datetime64('', 'D')))
+        self.assertEqual(dim.tile, np.timedelta64(20, 'D'))
+        self.assertNotEqual(dim.tile, np.timedelta64(21, 'D'))
+        self.assertNotEqual(dim.tile, np.timedelta64(20, 'W')) # Sanity check unit
+        self.assertTupleEqual(dim.domain, (np.datetime64('2010-01-01'), np.datetime64('2020-01-01')))
+
+        # No tile extent specified
+        dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
+                         dtype=np.datetime64('', 'D'))
+        self.assertEqual(dim.dtype, np.dtype(np.datetime64('', 'D')))
+        self.assertIsNone(dim.tile)
+        self.assertTupleEqual(dim.domain, (np.datetime64('2010-01-01'), np.datetime64('2020-01-01')))
+
+        # Integer tile extent is ok
+        dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
+                         tile=20, dtype=np.datetime64('', 'D'))
+        self.assertEqual(dim.dtype, np.dtype(np.datetime64('', 'D')))
+        self.assertEqual(dim.tile, np.timedelta64(20, 'D'))
+
+        # Year resolution
+        dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010'), np.datetime64('2020')),
+                         tile=5, dtype=np.datetime64('', 'Y'))
+        self.assertEqual(dim.dtype, np.dtype(np.datetime64('', 'Y')))
+        self.assertEqual(dim.tile, np.timedelta64(5, 'Y'))
+        self.assertTupleEqual(dim.domain, (np.datetime64('2010', 'Y'), np.datetime64('2020', 'Y')))
+
+        # End domain promoted to day resolution
+        dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020')),
+                         tile=2, dtype=np.datetime64('', 'D'))
+        self.assertEqual(dim.tile, np.timedelta64(2, 'D'))
+        self.assertTupleEqual(dim.domain, (np.datetime64('2010-01-01', 'D'), np.datetime64('2020-01-01', 'D')))
+
+        # Domain values can't be integral
+        with self.assertRaises(TypeError):
+            dim = tiledb.Dim(name="d1", ctx=ctx, domain=(-10, 10), tile=2, dtype=np.datetime64('', 'D'))
+
 
 class DomainTest(unittest.TestCase):
 
@@ -227,6 +269,13 @@ class DomainTest(unittest.TestCase):
             tiledb.Domain(
                     tiledb.Dim("d1", (1, 4), 2, dtype=int),
                     tiledb.Dim("d2", (1, 4), 2, dtype=float))
+
+    def test_datetime_domain(self):
+        ctx = tiledb.Ctx()
+        dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
+                         tile=np.timedelta64(20, 'D'), dtype=np.datetime64('', 'D'))
+        dom = tiledb.Domain(dim)
+        self.assertEqual(dom.dtype, np.datetime64('', 'D'))
 
 
 class AttributeTest(unittest.TestCase):
@@ -295,6 +344,13 @@ class AttributeTest(unittest.TestCase):
         attr = tiledb.Attr("foo", ctx=ctx, dtype=np.bytes_)
         self.assertEqual(attr.dtype, np.dtype(np.bytes_))
         self.assertTrue(attr.isvar)
+
+    def test_datetime_attribute(self):
+        ctx = tiledb.Ctx()
+        attr = tiledb.Attr("foo", ctx=ctx, dtype=np.datetime64('', 'D'))
+        self.assertEqual(attr.dtype, np.dtype(np.datetime64('', 'D')))
+        self.assertNotEqual(attr.dtype, np.dtype(np.datetime64))
+        self.assertNotEqual(attr.dtype, np.dtype(np.datetime64('', 'Y')))
 
     def test_filter(self):
         ctx = tiledb.Ctx()
@@ -1754,6 +1810,94 @@ class DenseIndexing(DiskTestCase):
             for idx in self.bad_index_2d:
                 with self.assertRaises(IndexError):
                     T[idx]
+
+
+class DatetimeSlicing(DiskTestCase):
+    def test_dense_datetime_vector(self):
+        ctx = tiledb.Ctx()
+        uri = self.path("foo_datetime_vector")
+
+        # Domain is 10 years, day resolution, one tile per 365 days
+        dim = tiledb.Dim(name="d1", ctx=ctx,
+                         domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
+                         tile=np.timedelta64(365, 'D'), dtype=np.datetime64('', 'D').dtype)
+        dom = tiledb.Domain(dim, ctx=ctx)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom,
+                                    attrs=(tiledb.Attr('a1', dtype=np.float64),))
+        tiledb.Array.create(uri, schema)
+
+        # Write a few years of data at the beginning using a timedelta object
+        ndays = 365 * 2
+        a1_vals = np.random.rand(ndays)
+        start = np.datetime64('2010-01-01')
+        # Datetime indexing is inclusive, so a delta of one less
+        end = start + np.timedelta64(ndays - 1, 'D')
+        with tiledb.DenseArray(uri, 'w', ctx=ctx) as T:
+            T[start: end] = {'a1': a1_vals}
+
+        # Read back data
+        with tiledb.DenseArray(uri, 'r', attr='a1', ctx=ctx) as T:
+            assert_array_equal(T[start: end], a1_vals)
+
+        # Check nonempty domain
+        with tiledb.DenseArray(uri, 'r', ctx=ctx) as T:
+            nonempty = T.nonempty_domain()
+            d1_nonempty = nonempty[0]
+            self.assertEqual(d1_nonempty[0].dtype, np.datetime64('', 'D'))
+            self.assertEqual(d1_nonempty[1].dtype, np.datetime64('', 'D'))
+            self.assertTupleEqual(d1_nonempty, (start, end))
+
+        # Slice a few days from the middle using two datetimes
+        with tiledb.DenseArray(uri, 'r', attr='a1', ctx=ctx) as T:
+            # Slice using datetimes
+            actual = T[np.datetime64('2010-11-01'): np.datetime64('2011-01-31')]
+
+            # Convert datetime interval to integer offset/length into original array
+            read_offset = (np.datetime64('2010-11-01') - start) / np.timedelta64(1, 'D')
+            read_ndays = (np.datetime64('2011-01-31') - np.datetime64('2010-11-01') + 1) / np.timedelta64(1, 'D')
+            expected = a1_vals[read_offset : read_offset + read_ndays]
+            assert_array_equal(actual, expected)
+
+        # Slice the first year
+        with tiledb.DenseArray(uri, 'r', attr='a1', ctx=ctx) as T:
+            actual = T[np.datetime64('2010'): np.datetime64('2011')]
+
+            # Convert datetime interval to integer offset/length into original array
+            read_offset = (np.datetime64('2010-01-01') - start) / np.timedelta64(1, 'D')
+            read_ndays = (np.datetime64('2011-01-01') - np.datetime64('2010-01-01') + 1) / np.timedelta64(1, 'D')
+            expected = a1_vals[read_offset: read_offset + read_ndays]
+            assert_array_equal(actual, expected)
+
+    def test_sparse_datetime_vector(self):
+        ctx = tiledb.Ctx()
+        uri = self.path("foo_datetime_sparse_vector")
+
+        # ns resolution, one tile per second, max domain possible
+        dim = tiledb.Dim(name="d1", ctx=ctx,
+                         domain=(np.datetime64(0, 'ns'), np.datetime64(np.iinfo(np.int64).max - 1, 'ns')),
+                         tile=np.timedelta64(1, 's'), dtype=np.datetime64('', 'ns').dtype)
+        self.assertEqual(dim.tile, np.timedelta64('1000000000', 'ns'))
+        dom = tiledb.Domain(dim, ctx=ctx)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, sparse=True,
+                                    attrs=(tiledb.Attr('a1', dtype=np.float64),))
+        tiledb.Array.create(uri, schema)
+
+        # Write 10k cells every 1000 ns starting at time 0
+        coords = np.datetime64(0, 'ns') + np.arange(0, 10000 * 1000, 1000)
+        a1_vals = np.random.rand(len(coords))
+        with tiledb.SparseArray(uri, 'w', ctx=ctx) as T:
+            T[coords] = {'a1': a1_vals}
+
+        # Read all
+        with tiledb.SparseArray(uri, 'r', ctx=ctx) as T:
+            assert_array_equal(T[:]['a1'], a1_vals)
+
+        # Read back first 10 cells
+        with tiledb.SparseArray(uri, 'r', ctx=ctx) as T:
+            start = np.datetime64(0, 'ns')
+            vals = T[start: start + np.timedelta64(10000, 'ns')]['a1']
+            assert_array_equal(vals, a1_vals[0: 11])
+
 
 class PickleTest(DiskTestCase):
     # test that DenseArray and View can be pickled for multiprocess use

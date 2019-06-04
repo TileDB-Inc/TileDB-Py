@@ -170,6 +170,8 @@ cdef tiledb_datatype_t c_dtype_to_tiledb(np.dtype dtype) except? TILEDB_CHAR:
         return TILEDB_FLOAT32
     elif dtype == np.complex128:
         return TILEDB_FLOAT64
+    elif dtype.kind == 'M':
+        return _tiledb_dtype_datetime(dtype)
     raise TypeError("data type {0!r} not understood".format(dtype))
 
 def dtype_to_tiledb(np.dtype dtype):

@@ -68,6 +68,19 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_STRING_UTF32
         TILEDB_STRING_UCS2
         TILEDB_STRING_UCS4
+        TILEDB_DATETIME_YEAR
+        TILEDB_DATETIME_MONTH
+        TILEDB_DATETIME_WEEK
+        TILEDB_DATETIME_DAY
+        TILEDB_DATETIME_HR
+        TILEDB_DATETIME_MIN
+        TILEDB_DATETIME_SEC
+        TILEDB_DATETIME_MS
+        TILEDB_DATETIME_US
+        TILEDB_DATETIME_NS
+        TILEDB_DATETIME_PS
+        TILEDB_DATETIME_FS
+        TILEDB_DATETIME_AS
 
     ctypedef enum tiledb_array_type_t:
         TILEDB_DENSE
