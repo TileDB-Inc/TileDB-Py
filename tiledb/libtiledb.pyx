@@ -55,6 +55,10 @@ _MB = 1024 * _KB
 # The native int type for this platform
 IntType = np.dtype(np.int_)
 
+# Numpy initialization code (critical)
+# https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
+np.import_array()
+
 def version():
     """Return the version of the linked ``libtiledb`` shared library
 
@@ -72,6 +76,16 @@ def version():
 def offset_size():
     """Return the offset size (TILEDB_OFFSET_SIZE)"""
     return tiledb_offset_size()
+
+
+# Global Ctx object to be used by default in all constructors
+# Users needing a specific context should pass a context as kwarg.
+cdef Ctx _global_ctx = Ctx()
+
+def default_ctx():
+    """Returns the default tiledb.Ctx object"""
+    return _global_ctx
+
 
 def regularize_tiling(tile, ndim):
     if not tile:
@@ -804,6 +818,126 @@ cdef class Ctx(object):
         return Config.from_ptr(config_ptr)
 
 
+def _tiledb_datetime_extent(begin, end):
+    """
+    Returns the integer extent of a datetime range.
+
+    :param begin: beginning of datetime range
+    :type begin: numpy.datetime64
+    :param end: end of datetime range
+    :type end: numpy.datetime64
+    :return: Extent of range, returned as an integer number of time units
+    :rtype: int
+    """
+    extent = end - begin + 1
+    date_unit = np.datetime_data(extent.dtype)[0]
+    one = np.timedelta64(1, date_unit)
+    # Dividing a timedelta by 1 will convert the timedelta to an integer
+    return int(extent / one)
+
+
+cdef bint _tiledb_type_is_datetime(tiledb_datatype_t tiledb_type) except? False:
+    """Returns True if the tiledb type is a datetime type"""
+    if tiledb_type == TILEDB_DATETIME_YEAR or tiledb_type == TILEDB_DATETIME_MONTH \
+            or tiledb_type == TILEDB_DATETIME_WEEK or tiledb_type == TILEDB_DATETIME_DAY \
+            or tiledb_type == TILEDB_DATETIME_HR or tiledb_type == TILEDB_DATETIME_MIN \
+            or tiledb_type == TILEDB_DATETIME_SEC or tiledb_type == TILEDB_DATETIME_MS \
+            or tiledb_type == TILEDB_DATETIME_US or tiledb_type == TILEDB_DATETIME_NS \
+            or tiledb_type == TILEDB_DATETIME_PS or tiledb_type == TILEDB_DATETIME_FS \
+            or tiledb_type == TILEDB_DATETIME_AS:
+        return True
+    return False
+
+
+def _tiledb_type_to_datetime(tiledb_datatype_t tiledb_type):
+    """Return a datetime64 with appropriate unit for the given tiledb_datetype_t enum value"""
+    if tiledb_type == TILEDB_DATETIME_YEAR:
+        return np.datetime64('', 'Y')
+    elif tiledb_type == TILEDB_DATETIME_MONTH:
+        return np.datetime64('', 'M')
+    elif tiledb_type == TILEDB_DATETIME_WEEK:
+        return np.datetime64('', 'W')
+    elif tiledb_type == TILEDB_DATETIME_DAY:
+        return np.datetime64('', 'D')
+    elif tiledb_type == TILEDB_DATETIME_HR:
+        return np.datetime64('', 'h')
+    elif tiledb_type == TILEDB_DATETIME_MIN:
+        return np.datetime64('', 'm')
+    elif tiledb_type == TILEDB_DATETIME_SEC:
+        return np.datetime64('', 's')
+    elif tiledb_type == TILEDB_DATETIME_MS:
+        return np.datetime64('', 'ms')
+    elif tiledb_type == TILEDB_DATETIME_US:
+        return np.datetime64('', 'us')
+    elif tiledb_type == TILEDB_DATETIME_NS:
+        return np.datetime64('', 'ns')
+    elif tiledb_type == TILEDB_DATETIME_PS:
+        return np.datetime64('', 'ps')
+    elif tiledb_type == TILEDB_DATETIME_FS:
+        return np.datetime64('', 'fs')
+    elif tiledb_type == TILEDB_DATETIME_AS:
+        return np.datetime64('', 'as')
+    else:
+        raise TypeError("tiledb type is not a datetime {0!r}".format(tiledb_type))
+
+
+cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DATETIME_YEAR:
+    """Return tiledb_datetype_t enum value for a given np.datetime64 dtype"""
+    if dtype.kind != 'M':
+        raise TypeError("data type {0!r} not a datetime".format(dtype))
+    date_unit = np.datetime_data(dtype)[0]
+    if date_unit == 'generic':
+        raise TypeError("datetime {0!r} does not specify a date unit".format(dtype))
+    elif date_unit == 'Y':
+        return TILEDB_DATETIME_YEAR
+    elif date_unit == 'M':
+        return TILEDB_DATETIME_MONTH
+    elif date_unit == 'W':
+        return TILEDB_DATETIME_WEEK
+    elif date_unit == 'D':
+        return TILEDB_DATETIME_DAY
+    elif date_unit == 'h':
+        return TILEDB_DATETIME_HR
+    elif date_unit == 'm':
+        return TILEDB_DATETIME_MIN
+    elif date_unit == 's':
+        return TILEDB_DATETIME_SEC
+    elif date_unit == 'ms':
+        return TILEDB_DATETIME_MS
+    elif date_unit == 'us':
+        return TILEDB_DATETIME_US
+    elif date_unit == 'ns':
+        return TILEDB_DATETIME_NS
+    elif date_unit == 'ps':
+        return TILEDB_DATETIME_PS
+    elif date_unit == 'fs':
+        return TILEDB_DATETIME_FS
+    elif date_unit == 'as':
+        return TILEDB_DATETIME_AS
+    else:
+        raise TypeError("unhandled datetime data type {0!r}".format(dtype))
+
+
+def _tiledb_cast_tile_extent(tile_extent, dtype):
+    """
+    Given a tile extent value, cast it to np.array of the given numpy dtype.
+    """
+    # Special handling for datetime domains
+    if dtype.kind == 'M':
+        date_unit = np.datetime_data(dtype)[0]
+        if isinstance(tile_extent, np.timedelta64):
+            extent_value = int(tile_extent / np.timedelta64(1, date_unit))
+            tile_size_array = np.array(np.int64(extent_value), dtype=np.int64)
+        else:
+            tile_size_array = np.array(tile_extent, dtype=dtype)
+    else:
+        tile_size_array = np.array(tile_extent, dtype=dtype)
+
+    if tile_size_array.size != 1:
+        raise ValueError("tile extent must be a scalar")
+    return tile_size_array
+
+
 cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     """
     Return a numpy type num (int) given a tiledb_datatype_t enum value
@@ -832,6 +966,8 @@ cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
         return np.NPY_STRING
     elif tiledb_dtype == TILEDB_STRING_UTF8:
         return np.NPY_UNICODE
+    elif _tiledb_type_is_datetime(tiledb_dtype):
+        return np.NPY_DATETIME
     else:
         return np.NPY_NOTYPE
 
@@ -867,6 +1003,8 @@ cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
             return np.dtype('S1')
         elif tiledb_dtype == TILEDB_STRING_UTF8:
             return np.dtype('U1')
+        elif _tiledb_type_is_datetime(tiledb_dtype):
+            return _tiledb_type_to_datetime(tiledb_dtype)
 
     elif cell_val_num == 2 and tiledb_dtype == TILEDB_FLOAT32:
         return np.complex64
@@ -1814,26 +1952,35 @@ cdef class Dim(object):
             raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
             dtype = np.dtype(dtype)
+            dtype_min, dtype_max = None, None
             if np.issubdtype(dtype, np.integer):
                 info = np.iinfo(dtype)
+                dtype_min, dtype_max = info.min, info.max
             elif np.issubdtype(dtype, np.floating):
                 info = np.finfo(dtype)
+                dtype_min, dtype_max = info.min, info.max
+            elif dtype.kind == 'M':
+                info = np.iinfo(np.int64)
+                date_unit = np.datetime_data(dtype)[0]
+                dtype_min = np.datetime64(info.min, date_unit)
+                dtype_max = np.datetime64(info.max, date_unit)
             else:
                 raise TypeError("invalid Dim dtype {0!r}".format(dtype))
-            if (domain[0] < info.min or domain[0] > info.max or
-                    domain[1] < info.min or domain[1] > info.max):
+            if (domain[0] < dtype_min or domain[0] > dtype_max or
+                    domain[1] < dtype_min or domain[1] > dtype_max):
                 raise TypeError(
                     "invalid domain extent, domain cannot be safely cast to dtype {0!r}".format(dtype))
         domain_array = np.asarray(domain, dtype=dtype)
         domain_dtype = domain_array.dtype
-        # check that the domain type is a valid dtype (intger / floating)
+        # check that the domain type is a valid dtype (integer / floating)
         if (not np.issubdtype(domain_dtype, np.integer) and
-                not np.issubdtype(domain_dtype, np.floating)):
+                not np.issubdtype(domain_dtype, np.floating) and
+                not domain_dtype.kind == 'M'):
             raise TypeError("invalid Dim dtype {0!r}".format(domain_dtype))
         # if the tile extent is specified, cast
         cdef void* tile_size_ptr = NULL
         if tile is not None:
-            tile_size_array = np.array(tile, dtype=domain_dtype)
+            tile_size_array = _tiledb_cast_tile_extent(tile, domain_dtype)
             if tile_size_array.size != 1:
                 raise ValueError("tile extent must be a scalar")
             tile_size_ptr = np.PyArray_DATA(tile_size_array)
@@ -1923,23 +2070,30 @@ cdef class Dim(object):
             return False
         return True
 
+    cdef _datetime_domain(self):
+        cdef tiledb_datatype_t typ = self._get_type()
+        return _tiledb_type_is_datetime(typ)
+
     cdef _shape(self):
         domain = self.domain
-        return ((domain[1].item() -
-                 domain[0].item() + 1),)
+        if self._datetime_domain():
+            return (_tiledb_datetime_extent(domain[0].item(), domain[1].item()),)
+        else:
+            return ((domain[1].item() -
+                     domain[0].item() + 1),)
 
     @property
     def shape(self):
         """The shape of the dimension given the dimension's domain.
 
-        **Note**: The shape is only valid for integer dimension domains.
+        **Note**: The shape is only valid for integer and datetime dimension domains.
 
         :rtype: tuple(numpy scalar, numpy scalar)
         :raises TypeError: floating point (inexact) domain
 
         """
-        if not self._integer_domain():
-            raise TypeError("shape only valid for integer dimension domains")
+        if not self._integer_domain() and not self._datetime_domain():
+            raise TypeError("shape only valid for integer and datetime dimension domains")
         return self._shape()
 
     @property
@@ -1958,7 +2112,7 @@ cdef class Dim(object):
     def tile(self):
         """The tile extent of the dimension.
 
-        :rtype: numpy scalar
+        :rtype: numpy scalar or np.timedelta64
 
         """
         cdef void* tile_ptr = NULL
@@ -1968,14 +2122,29 @@ cdef class Dim(object):
             return None
         cdef np.npy_intp shape[1]
         shape[0] = <np.npy_intp> 1
-        cdef int typeid = _numpy_typeid(self._get_type())
+        cdef tiledb_datatype_t tiledb_type = self._get_type()
+        cdef int typeid = _numpy_typeid(tiledb_type)
         assert(typeid != np.NPY_NOTYPE)
         cdef np.ndarray tile_array =\
             np.PyArray_SimpleNewFromData(1, shape, typeid, tile_ptr)
-        if tile_array[0] == 0:
-            # undefined tiles should span the whole dimension domain
-            return self.shape[0]
-        return tile_array[0]
+
+        if _tiledb_type_is_datetime(tiledb_type):
+            # Coerce to np.int64
+            tile_array.dtype = np.int64
+            datetime_dtype = _tiledb_type_to_datetime(tiledb_type).dtype
+            date_unit = np.datetime_data(datetime_dtype)[0]
+            extent = None
+            if tile_array[0] == 0:
+                # undefined tiles should span the whole dimension domain
+                extent = int(self.shape[0])
+            else:
+                extent = int(tile_array[0])
+            return np.timedelta64(extent, date_unit)
+        else:
+            if tile_array[0] == 0:
+                # undefined tiles should span the whole dimension domain
+                return self.shape[0]
+            return tile_array[0]
 
     @property
     def domain(self):
@@ -1994,10 +2163,15 @@ cdef class Dim(object):
         assert(domain_ptr != NULL)
         cdef np.npy_intp shape[1]
         shape[0] = <np.npy_intp> 2
-        cdef int typeid = _numpy_typeid(self._get_type())
+        cdef tiledb_datatype_t tiledb_type = self._get_type()
+        cdef int typeid = _numpy_typeid(tiledb_type)
         assert (typeid != np.NPY_NOTYPE)
         cdef np.ndarray domain_array = \
             np.PyArray_SimpleNewFromData(1, shape, typeid, domain_ptr)
+
+        if _tiledb_type_is_datetime(tiledb_type):
+            domain_array.dtype = _tiledb_type_to_datetime(tiledb_type).dtype
+
         return domain_array[0], domain_array[1]
 
 
@@ -2899,7 +3073,12 @@ def index_domain_subarray(dom: Domain, idx: tuple):
                 start = np.array(start, dtype=promoted_dtype, ndmin=1)[0]
                 stop = np.array(stop, dtype=promoted_dtype, ndmin=1)[0]
 
+        # Datetimes will be treated specially
+        is_datetime = dim.dtype.kind == 'M'
+
         if start is not None:
+            if is_datetime and not isinstance(start, np.datetime64):
+                raise IndexError('cannot index datetime dimension with non-datetime interval')
             # don't round / promote fp slices
             if np.issubdtype(dim.dtype, np.integer):
                 if isinstance(start, (np.float32, np.float64)):
@@ -2907,7 +3086,7 @@ def index_domain_subarray(dom: Domain, idx: tuple):
                 elif not isinstance(start, _inttypes):
                     raise IndexError("cannot index integral domain dimension with non-integral slice (dtype: {})".format(type(start)))
             # apply negative indexing (wrap-around semantics)
-            if start < 0:
+            if not is_datetime and start < 0:
                 start += int(dim_ub) + 1
             if start < dim_lb:
                 # numpy allows start value < the array dimension shape,
@@ -2917,23 +3096,28 @@ def index_domain_subarray(dom: Domain, idx: tuple):
         else:
             start = dim_lb
         if stop is not None:
+            if is_datetime and not isinstance(stop, np.datetime64):
+                raise IndexError('cannot index datetime dimension with non-datetime interval')
             # don't round / promote fp slices
             if np.issubdtype(dim.dtype, np.integer):
                 if not isinstance(stop, _inttypes):
                     raise IndexError("cannot index integral domain dimension with floating point slice")
-            if stop < 0:
+            if not is_datetime and stop < 0:
                 stop += dim_ub
             if stop > dim_ub:
                 # numpy allows stop value > than the array dimension shape,
                 # clamp to upper bound of dimension domain
-                stop = int(dim_ub) + 1
+                if is_datetime:
+                    stop = dim_ub
+                else:
+                    stop = int(dim_ub) + 1
         else:
-            if np.issubdtype(dim.dtype, np.floating):
+            if np.issubdtype(dim.dtype, np.floating) or is_datetime:
                 stop = dim_ub
             else:
                 stop = int(dim_ub) + 1
-        if np.issubdtype(type(stop), np.floating):
-            # inclusive bounds for floating point ranges
+        if np.issubdtype(type(stop), np.floating) or is_datetime:
+            # inclusive bounds for floating point / datetime ranges
             subarray[r, 0] = start
             subarray[r, 1] = stop
         elif np.issubdtype(type(stop), np.integer):
@@ -3622,8 +3806,16 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         if empty > 0:
             return None
-        return tuple((extents[i, 0].item(), extents[i, 1].item())
-                     for i in range(dom.ndim))
+
+        if dom.dtype.kind == 'M':
+            # Convert to np.datetime64
+            date_unit = np.datetime_data(dom.dtype)[0]
+            return tuple((np.datetime64(extents[i, 0].item(), date_unit),
+                          np.datetime64(extents[i, 1].item(), date_unit))
+                         for i in range(dom.ndim))
+        else:
+            return tuple((extents[i, 0].item(), extents[i, 1].item())
+                         for i in range(dom.ndim))
 
     def consolidate(self, Config config=None, key=None):
         """Consolidates fragments of an array object for increased read performance.
@@ -4146,9 +4338,17 @@ cdef class DenseArray(Array):
         out = OrderedDict()
         read = ReadQuery(self, subarray, attr_names, layout)
 
-        cdef tuple output_shape = \
-            tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
-                  for r in range(self.schema.ndim))
+        cdef tuple output_shape
+        domain_dtype = self.domain.dtype
+        is_datetime = domain_dtype.kind == 'M'
+        if is_datetime:
+            output_shape = \
+                tuple(_tiledb_datetime_extent(subarray[r, 0], subarray[r, 1])
+                      for r in range(self.schema.ndim))
+        else:
+            output_shape = \
+                tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
+                      for r in range(self.schema.ndim))
 
         cdef Py_ssize_t nattr = len(attr_names)
 
