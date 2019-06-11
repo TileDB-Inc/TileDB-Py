@@ -3942,7 +3942,7 @@ cdef class ReadQuery(object):
                 # - otherwise, ownership transferred to NumPy
                 tmp_ptr = PyDataMem_NEW(<size_t>(buffer_sizes_ptr[i]))
                 if tmp_ptr == NULL:
-                    raise MemoryError()
+                    raise MemoryError("Failed to allocate memory for buffer!")
                 buffer_ptrs.push_back(tmp_ptr)
                 tmp_ptr = NULL
 
@@ -3995,9 +3995,10 @@ cdef class ReadQuery(object):
         except:
             # we only free the PyDataMem_NEW'd buffers on exception,
             # otherwise NumPy manages them
-            for i in range(nattr):
+            for i in range(buffer_ptrs.size()):
                 if buffer_ptrs[i] != NULL:
                     PyDataMem_FREE(buffer_ptrs[i])
+            for i in range(offsets_ptrs.size()):
                 if offsets_ptrs[i] != NULL:
                     PyDataMem_FREE(offsets_ptrs[i])
             raise
