@@ -3309,10 +3309,7 @@ cdef class ArraySchema(object):
         else:
             raise Exception("Capnp unimplemented")
 
-
         cdef tiledb_buffer_t* buff
-        check_error(self.ctx, tiledb_buffer_alloc(self.ctx.ptr, &buff))
-
         cdef int rc = TILEDB_OK
         cdef py_string
         cdef char* out = NULL
