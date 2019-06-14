@@ -66,6 +66,15 @@ from .libtiledb import (
 )
 
 from .highlevel import *
+
+# Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
+#       Therefore, 'tiledb/__init__.py' must *only* exist in this package.
+#       Furthermore, in sub-packages, the `find_packages` helper will not work at the
+#       root directory due to lack of 'tiledb/__init__.py'. Sub-package 'setup.py' scripts
+#       must declare constituents accordingly, such as by running 'find_packages' on a sub-directory
+#       and applying prefixes accordingly.
+#   1) https://packaging.python.org/guides/packaging-namespace-packages/#native-namespace-packages
+#   2) https://stackoverflow.com/a/53486554
 #
-# __all__ = [Ctx, Config, Dim, Domain, Attr, KV, ArraySchema, SparseArray, TileDBError, VFS,
-#            array_consolidate, group_create, object_type, ls, walk, remove]
+# Note: 'pip -e' in particular will not work without this declaration:
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
