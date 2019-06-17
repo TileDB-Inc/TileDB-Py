@@ -3339,11 +3339,14 @@ cdef class Array(object):
         return self.ctx
 
     @staticmethod
-    def create(uri, ArraySchema schema, key=None):
+    def create(uri, ArraySchema schema, key=None, Ctx ctx=None):
         """Creates a persistent TileDB Array at the given URI
 
         :param str uri: URI at which to create the new empty array.
         :param ArraySchema schema: Schema for the array
+        :param str key: (default None) Encryption key to use for array
+        :param ctx Ctx: (default None) Optional TileDB Ctx used when creating the array,
+                        by default uses the ArraySchema's associated context.
         """
         cdef tiledb_ctx_t* ctx_ptr = schema.ctx.ptr
         cdef bytes buri = unicode_path(uri)
@@ -3362,8 +3365,11 @@ cdef class Array(object):
                 bkey = bytes(key)
             key_type = TILEDB_AES_256_GCM
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
-            #TODO: unsafe cast here ssize_t -> uint64_t;t
+            #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+        
+        if ctx is not None:
+            ctx_ptr = ctx.ptr
 
         cdef int rc = TILEDB_OK
         with nogil:

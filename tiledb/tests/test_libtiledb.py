@@ -515,6 +515,19 @@ class ArrayTest(DiskTestCase):
             # cannot re-open a closed array
             array.reopen()
 
+    def test_array_create_with_ctx(self):
+        config = tiledb.Config()
+        config["sm.consolidation.step_min_frag"] = 0
+        config["sm.consolidation.steps"] = 1
+        ctx = tiledb.Ctx(config=config)
+        schema = self.create_array_schema(ctx)
+
+        with self.assertRaises(TypeError):
+            tiledb.libtiledb.Array.create(self.path("foo"), schema, ctx="foo")
+
+        # persist array schema
+        tiledb.libtiledb.Array.create(self.path("foo"), schema, ctx=tiledb.Ctx())
+
     def test_array_create_encrypted(self):
         config = tiledb.Config()
         config["sm.consolidation.step_min_frags"] = 0
