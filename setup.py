@@ -37,6 +37,8 @@ from sys import version_info as ver
 
 # Target branch
 TILEDB_VERSION = "1.5.1"
+# allow overriding w/ environment variable
+TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
 # Use `setup.py [] --debug` for a debug build of libtiledb
 TILEDB_DEBUG_BUILD = False
