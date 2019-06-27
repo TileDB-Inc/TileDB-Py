@@ -73,3 +73,28 @@ class UtilTest(DiskTestCase):
         with tiledb.save(uri, arr) as tmp:
             with tiledb.open(uri) as T:
                 assert_array_equal(arr, T)
+
+    def test_array_exists(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile() as tmpfn:
+            self.assertFalse(tiledb.array_exists(tmpfn.name))
+
+        uri = self.path("test_array_exists_dense")
+        with tiledb.from_numpy(uri, np.arange(0,5)) as T:
+            self.assertTrue(tiledb.array_exists(uri))
+            self.assertTrue(tiledb.array_exists(uri, isdense=True))
+            self.assertFalse(tiledb.array_exists(uri, issparse=True))
+
+        uri = self.path("test_array_exists_sparse")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, dtype=int, ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(dtype=int, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.SparseArray(uri, mode='w') as T:
+            T[[0,1]] = np.array([0,1])
+
+        self.assertTrue(tiledb.array_exists(uri))
+        self.assertTrue(tiledb.array_exists(uri, issparse=True))
+        self.assertFalse(tiledb.array_exists(uri, isdense=True))

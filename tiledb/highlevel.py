@@ -92,3 +92,23 @@ def from_numpy(uri, array, ctx=default_ctx(), **kw):
 
     return DenseArray.from_numpy(uri, array, ctx=ctx, **kw)
 
+def array_exists(uri, isdense=False, issparse=False):
+    """
+    Check if arrays exists and is open-able at the given URI
+
+    Optionally restrict to `isdense` or `issparse` array types.
+    """
+    try:
+        a = tiledb.open(uri)
+    except TileDBError as exc:
+        return False
+
+    if isdense:
+        rval = not a.schema.sparse
+    elif issparse:
+        rval = a.schema.sparse
+    else:
+        rval = True
+
+    a.close()
+    return rval
