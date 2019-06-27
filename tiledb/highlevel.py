@@ -3,7 +3,7 @@ from tiledb.libtiledb import *
 
 import numpy as np
 
-def open(uri, key=None, attr=None, mode='r', config=None):
+def open(uri, key=None, attr=None, mode='r', config=None, ctx=None):
     """
     Open a TileDB array at the given URI
 
@@ -14,10 +14,14 @@ def open(uri, key=None, attr=None, mode='r', config=None):
     :param config: TileDB config dictionary, dict or None
     :return:
     """
+    if ctx and config:
+      raise ValueError("Received extra Ctx or Config argument: either one may be provided, but not both")
+
     if config:
         cfg = tiledb.Config(config)
         ctx = tiledb.Ctx(cfg)
-    else:
+
+    if ctx is None:
         ctx = default_ctx()
 
     schema = ArraySchema.load(uri, ctx=ctx)
