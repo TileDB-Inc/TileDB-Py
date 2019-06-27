@@ -3,7 +3,7 @@ from tiledb.libtiledb import *
 
 import numpy as np
 
-def open(uri, key=None, attr=None, mode='r', config=None, ctx=None):
+def open(uri, mode='r', key=None, attr=None, config=None, ctx=None):
     """
     Open a TileDB array at the given URI
 
