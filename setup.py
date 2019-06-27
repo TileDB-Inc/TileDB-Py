@@ -43,6 +43,10 @@ TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 # Use `setup.py [] --debug` for a debug build of libtiledb
 TILEDB_DEBUG_BUILD = False
 
+# ALlow to override TILEDB_FORCE_ALL_DEPS with environment variable
+TILEDB_FORCE_ALL_DEPS = "TILEDB_FORCE_ALL_DEPS" in os.environ
+TILEDB_SERIALIZATION = "TILEDB_SERIALIZATION" in os.environ
+
 # Directory containing this file
 CONTAINING_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -163,7 +167,9 @@ def build_libtiledb(src_dir):
                     "-DTILEDB_TESTS=OFF",
                     "-DTILEDB_S3=ON",
                     "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
-                    "-DTILEDB_INSTALL_LIBDIR=lib"
+                    "-DTILEDB_INSTALL_LIBDIR=lib",
+                    "-DTILEDB_FORCE_ALL_DEPS:BOOL={}".format("ON" if TILEDB_FORCE_ALL_DEPS else "OFF"),
+                    "-DTILEDB_SERIALIZATION:BOOL={}".format("ON" if TILEDB_SERIALIZATION else "OFF")
                     ]
 
     extra_cmake_args = os.environ.get("CMAKE_ARGS", [])
