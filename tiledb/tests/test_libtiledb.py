@@ -1165,16 +1165,16 @@ class SparseArray(DiskTestCase):
     @unittest.expectedFailure
     def test_simple_1d_sparse_vector(self):
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(ctx, tiledb.Dim(ctx, domain=(0, 3), tile=4, dtype=int))
-        att = tiledb.Attr(ctx, dtype=int)
-        schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(att,), sparse=True)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, dtype=int, ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(dtype=int, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         values = np.array([3, 4])
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='w') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[[1, 2]] = values
 
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='r') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             assert_array_equal(T[[1, 2]], values)
 
     @unittest.expectedFailure
