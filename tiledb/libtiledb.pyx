@@ -1786,7 +1786,7 @@ cdef class Dim(object):
         dim.ptr = <tiledb_dimension_t*> ptr
         return dim
 
-    def __init__(self, name=u"", domain=None, tile=0, dtype=np.uint64, Ctx ctx=default_ctx()):
+    def __init__(self, name=u"", domain=None, tile=None, dtype=np.uint64, Ctx ctx=default_ctx()):
         if domain is None or len(domain) != 2:
             raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
@@ -1803,22 +1803,25 @@ cdef class Dim(object):
                     "invalid domain extent, domain cannot be safely cast to dtype {0!r}".format(dtype))
         domain_array = np.asarray(domain, dtype=dtype)
         domain_dtype = domain_array.dtype
-        # check that the domain type is a valid dtype (intger / floating)
+        # check that the domain type is a valid dtype (integer / floating)
         if (not np.issubdtype(domain_dtype, np.integer) and
                 not np.issubdtype(domain_dtype, np.floating)):
             raise TypeError("invalid Dim dtype {0!r}".format(domain_dtype))
-        # if the tile extent is specified, cast
-        cdef void* tile_size_ptr = NULL
-        if tile > 0:
-            tile_size_array = np.array(tile, dtype=domain_dtype)
-            if tile_size_array.size != 1:
-                raise ValueError("tile extent must be a scalar")
-            tile_size_ptr = np.PyArray_DATA(tile_size_array)
+
+        # if the tile extent is specified, cast; otherwise use domain size
+        if tile is None:
+            tile = domain[1] - domain[0] + 1
+
+        tile_size_array = np.array(tile, dtype=domain_dtype)
+        if tile_size_array.size != 1:
+            raise ValueError("tile extent must be a scalar")
+
         # argument conversion
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
         cdef tiledb_datatype_t dim_datatype = _tiledb_dtype(domain_dtype)
         cdef const void* domain_ptr = np.PyArray_DATA(domain_array)
+        cdef void* tile_size_ptr = np.PyArray_DATA(tile_size_array)
         cdef tiledb_dimension_t* dim_ptr = NULL
         check_error(ctx,
                     tiledb_dimension_alloc(ctx.ptr,
@@ -3367,7 +3370,7 @@ cdef class Array(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-        
+
         if ctx is not None:
             ctx_ptr = ctx.ptr
 
@@ -4575,6 +4578,9 @@ cdef class DenseArray(Array):
             order = 'F'
             cell_layout = TILEDB_COL_MAJOR
 
+        subarray = np.array([self.domain.dim(i).domain for i in np.arange(self.ndim)], dtype=self.domain.dtype)
+        cdef void* subarray_ptr = np.PyArray_DATA(subarray)
+
         out = np.empty(self.schema.domain.shape, dtype=attr.dtype, order=order)
 
         cdef void* buff_ptr = np.PyArray_DATA(out)
@@ -4590,6 +4596,9 @@ cdef class DenseArray(Array):
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
             rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
             with nogil:
@@ -4775,7 +4784,7 @@ cdef class SparseArray(Array):
                     if rc != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
             buffer_ptr = np.PyArray_DATA(coords)
-            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(), 
+            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(),
                     buffer_ptr, &(buffer_sizes_ptr[nattr - 1]))
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)

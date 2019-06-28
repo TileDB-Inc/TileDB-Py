@@ -181,7 +181,7 @@ class DimensionTest(unittest.TestCase):
         dim = tiledb.Dim(domain=(0, 4),ctx=ctx)
         self.assertEqual(dim.name, "", "dimension name is empty")
         self.assertEqual(dim.shape, (5,))
-        self.assertEqual(dim.tile, None, "tiled extent is None (void)")
+        self.assertEqual(dim.tile, (5,))
 
     def test_dimension(self):
         ctx = tiledb.Ctx()
