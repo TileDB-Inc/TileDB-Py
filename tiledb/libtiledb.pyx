@@ -3394,10 +3394,19 @@ cdef class Array(object):
         # convert python mode string to a query type
         if mode == 'r':
             query_type = TILEDB_READ
+        elif mode == 'rw':
+            query_type = TILEDB_READ
         elif mode == 'w':
             query_type = TILEDB_WRITE
         else:
-            raise ValueError("TileDB array mode must be 'r' or 'w'")
+            raise ValueError("TileDB array mode must be 'r', 'w', or 'rw'")
+        
+        cdef uint64_t _timestamp = 0
+        if timestamp is not None:
+            if mode == 'rw' or mode == 'w':
+                raise ValueError("opening with a timestamp is only valid in readonly mode (mode='r')")
+            _timestamp = <uint64_t> timestamp
+	
         # check the key, and convert the key to bytes
         if key is not None:
             if isinstance(key, str):
@@ -3408,10 +3417,7 @@ cdef class Array(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-        cdef uint64_t _timestamp = 0
-        if timestamp is not None:
-            _timestamp = <uint64_t> timestamp
-
+        
         # allocate and then open the array
         cdef tiledb_array_t* array_ptr = NULL
         cdef int rc = TILEDB_OK
