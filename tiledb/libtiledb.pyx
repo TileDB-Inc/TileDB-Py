@@ -3630,6 +3630,8 @@ cdef class Array(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        if self.mode == 'r':
+            raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
         return consolidate(self.ctx, config, uri=self.uri, key=key)
 
     def dump(self):
@@ -3960,7 +3962,6 @@ cdef class ReadQuery(object):
                     battr_name = tiledb_coords()
                 else:
                     battr_name = name.encode('UTF-8')
-
                 if name != "coords" and schema.attr(name).isvar:
                     rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
                                                      offsets_ptrs[i], &(offsets_sizes_ptr[i]),

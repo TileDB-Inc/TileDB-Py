@@ -498,6 +498,10 @@ class ArrayTest(DiskTestCase):
         self.assertEqual(array.mode, 'r')
         self.assertEqual(array.uri, self.path("foo"))
 
+        # test that we cannot consolidate an array in readonly mode
+        with self.assertRaises(tiledb.TileDBError):
+            array.consolidate()
+
         # we have not written anything, so the array is empty
         self.assertIsNone(array.nonempty_domain())
 
