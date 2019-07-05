@@ -1786,7 +1786,7 @@ cdef class Dim(object):
         dim.ptr = <tiledb_dimension_t*> ptr
         return dim
 
-    def __init__(self, name=u"", domain=None, tile=0, dtype=np.uint64, Ctx ctx=default_ctx()):
+    def __init__(self, name=u"", domain=None, tile=None, dtype=np.uint64, Ctx ctx=default_ctx()):
         if domain is None or len(domain) != 2:
             raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
@@ -1809,7 +1809,7 @@ cdef class Dim(object):
             raise TypeError("invalid Dim dtype {0!r}".format(domain_dtype))
         # if the tile extent is specified, cast
         cdef void* tile_size_ptr = NULL
-        if tile > 0:
+        if tile is not None:
             tile_size_array = np.array(tile, dtype=domain_dtype)
             if tile_size_array.size != 1:
                 raise ValueError("tile extent must be a scalar")
@@ -4558,48 +4558,29 @@ cdef class DenseArray(Array):
         cdef tiledb_array_t* array_ptr = self.ptr
 
         cdef Attr attr
-        cdef bytes battr_name
+        cdef unicode attr_name
         if name is None and self.schema.nattr != 1:
             raise ValueError(
                 "read_direct with no provided attribute is ambiguous for multi-attribute arrays")
         elif name is None:
             attr = self.schema.attr(0)
-            battr_name = attr.name.encode('UTF-8')
+            attr_name = attr.name
         else:
             attr = self.schema.attr(name)
-            battr_name = attr.name.encode('UTF-8')
-        cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
-
+            attr_name = attr.name
         order = 'C'
         cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
         if self.schema.cell_order == 'col-major' and self.schema.tile_order == 'col-major':
             order = 'F'
             cell_layout = TILEDB_COL_MAJOR
 
-        out = np.empty(self.schema.domain.shape, dtype=attr.dtype, order=order)
+        cdef ArraySchema schema = self.schema
+        cdef Domain domain = schema.domain
 
-        cdef void* buff_ptr = np.PyArray_DATA(out)
-        cdef uint64_t buff_size = out.nbytes
-
-        cdef tiledb_query_t* query_ptr = NULL
-        cdef int rc = TILEDB_OK
-        rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_READ, &query_ptr)
-        try:
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
-            rc = tiledb_query_set_layout(ctx_ptr, query_ptr, cell_layout)
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
-            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
-            with nogil:
-                rc = tiledb_query_submit(ctx_ptr, query_ptr)
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
-        finally:
-            tiledb_query_free(&query_ptr)
-        return out
+        idx = tuple(slice(None) for _ in range(domain.ndim))
+        subarray = index_domain_subarray(domain, idx)
+        out = self._read_dense_subarray(subarray, [attr_name,], cell_layout)
+        return out[attr_name]
 
     # this is necessary for python 2
     def __reduce__(self):
