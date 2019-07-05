@@ -3379,6 +3379,27 @@ cdef class Array(object):
         return
 
     def __init__(self, uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
+        cdef ArraySchema schema
+        schema = ArraySchema.load(uri, key=key, ctx=ctx)
+        # view on a single attribute
+        if attr and not any(attr == schema.attr(i).name for i in range(schema.nattr)):
+            raise KeyError("No attribute matching '{}'".format(attr))
+        else:
+            self.view_attr = unicode(attr) if (attr is not None) else None
+        self.ctx = ctx
+        self.uri = unicode(uri)
+        self.mode = unicode(mode)
+        self.schema = schema
+        self.key = key
+        self.ptr = self.open(self.ctx, self.uri, mode=self.mode, key=self.key, timestamp=timestamp)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    cdef tiledb_array_t* open(self, Ctx ctx, uri, mode='r', key=None, timestamp=None):
         # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         # uri
@@ -3400,13 +3421,13 @@ cdef class Array(object):
             query_type = TILEDB_WRITE
         else:
             raise ValueError("TileDB array mode must be 'r', 'w', or 'rw'")
-        
+
         cdef uint64_t _timestamp = 0
         if timestamp is not None:
             if mode == 'rw' or mode == 'w':
                 raise ValueError("opening with a timestamp is only valid in readonly mode (mode='r')")
             _timestamp = <uint64_t> timestamp
-	
+
         # check the key, and convert the key to bytes
         if key is not None:
             if isinstance(key, str):
@@ -3417,7 +3438,7 @@ cdef class Array(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-        
+
         # allocate and then open the array
         cdef tiledb_array_t* array_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -3435,33 +3456,7 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             tiledb_array_free(&array_ptr)
             _raise_ctx_err(ctx_ptr, rc)
-        cdef ArraySchema schema
-        try:
-            schema = ArraySchema.load(uri, key=key, ctx=ctx)
-        except:
-            tiledb_array_free(&array_ptr)
-            raise
-
-        # view on a single attribute
-        if attr and not any(attr == schema.attr(i).name for i in range(schema.nattr)):
-            tiledb_array_close(ctx_ptr, array_ptr)
-            tiledb_array_free(&array_ptr)
-            raise KeyError("No attribute matching '{}'".format(attr))
-        else:
-            self.view_attr = unicode(attr) if (attr is not None) else None
-
-        self.ctx = ctx
-        self.uri = unicode(uri)
-        self.mode = unicode(mode)
-        self.schema = schema
-        self.key = key
-        self.ptr = array_ptr
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        return array_ptr
 
     def close(self):
         """Closes this array, flushing all buffered data."""
@@ -3511,9 +3506,14 @@ cdef class Array(object):
         return self.mode
 
     @property
+    def isreadable(self):
+        """this array is currently opened as readable"""
+        return self.mode == 'r' or self.mode == 'rw'
+
+    @property
     def iswritable(self):
         """This array is currently opened as writable."""
-        return self.mode == 'w'
+        return self.mode == 'w' or self.mode == 'rw'
 
     @property
     def isopen(self):
@@ -4054,6 +4054,7 @@ def _create_densearray(cls, sta):
     rv.__setstate__(sta)
     return rv
 
+
 cdef class DenseArray(Array):
     """Class representing a dense TileDB array.
 
@@ -4190,7 +4191,7 @@ cdef class DenseArray(Array):
         OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
 
         """
-        if not self.isopen or self.mode != 'r':
+        if not self.isopen or not self.isreadable:
             raise TileDBError("DenseArray is not opened for reading")
         return Query(self, attrs=attrs, coords=coords, order=order)
 
@@ -4214,7 +4215,7 @@ cdef class DenseArray(Array):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        if not self.isopen or self.mode != 'r':
+        if not self.isopen or not self.isreadable:
             raise TileDBError("DenseArray is not opened for reading")
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'C':
@@ -4340,7 +4341,7 @@ cdef class DenseArray(Array):
         ...                        "a2": np.array(([1, 2], [3, 4]))}
 
         """
-        if not self.isopen or self.mode != 'w':
+        if not self.isopen or not self.iswritable:
             raise TileDBError("DenseArray is not opened for writing")
         cdef Domain domain = self.domain
         cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))

@@ -1674,7 +1674,7 @@ class RWTest(DiskTestCase):
             self.assertEqual(arr.nonempty_domain(), ((0, 2),))
             self.assertEqual(arr.ndim, np_array.ndim)
             assert_array_equal(arr.read_direct(), np_array)
-	
+
     def test_mode_rw(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), tile=2))
@@ -1683,7 +1683,8 @@ class RWTest(DiskTestCase):
         tiledb.DenseArray.create(self.path("foo"), schema)
         
         with tiledb.DenseArray(self.path("foo"), mode="rw", ctx=ctx) as arr:
-            pass 
+            self.assertTrue(arr.isreadable)
+            self.assertTrue(arr.iswritable)
 
 
 class NumpyToArray(DiskTestCase):
