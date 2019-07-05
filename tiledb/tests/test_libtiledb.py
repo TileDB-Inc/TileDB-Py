@@ -178,10 +178,10 @@ class DimensionTest(unittest.TestCase):
 
     def test_minimal_dimension(self):
         ctx = tiledb.Ctx()
-        dim = tiledb.Dim(domain=(0, 4),ctx=ctx)
+        dim = tiledb.Dim(domain=(0, 4), tile=5, ctx=ctx)
         self.assertEqual(dim.name, "", "dimension name is empty")
         self.assertEqual(dim.shape, (5,))
-        self.assertEqual(dim.tile, None, "tiled extent is None (void)")
+        self.assertEqual(dim.tile, 5)
 
     def test_dimension(self):
         ctx = tiledb.Ctx()
@@ -1021,7 +1021,7 @@ class DenseVarlen(DiskTestCase):
 
         # basic write
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1,len(A))), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1, len(A)), tile=len(A)), ctx=ctx)
         att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
@@ -1041,7 +1041,7 @@ class DenseVarlen(DiskTestCase):
 
         # basic write
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(1,len(A)), ctx=ctx), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A), ctx=ctx), ctx=ctx)
         att = tiledb.Attr(dtype=np.unicode_, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
@@ -1059,7 +1059,7 @@ class DenseVarlen(DiskTestCase):
 
         # basic write
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(1,len(A))), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)), ctx=ctx)
         att = tiledb.Attr(dtype=np.float64, var=True, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
@@ -1080,7 +1080,7 @@ class DenseVarlen(DiskTestCase):
 
         # basic write
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1,len(A))), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1, len(A)), tile=len(A)), ctx=ctx)
         att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
@@ -1099,7 +1099,7 @@ class DenseVarlen(DiskTestCase):
 
         # basic write
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1,len(A))), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1, len(A)), tile=len(A)), ctx=ctx)
         att = tiledb.Attr(dtype=np.unicode_, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
@@ -1119,7 +1119,7 @@ class DenseVarlen(DiskTestCase):
 
         # basic write
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(1,len(A)), ctx=ctx), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A), ctx=ctx), ctx=ctx)
         att = tiledb.Attr(dtype=np.int64, var=True, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
@@ -1137,7 +1137,7 @@ class DenseVarlen(DiskTestCase):
     def test_varlen_wrong_domain(self):
         A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee','ffffff','g','hhhhhhhhhh'])
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(1,3)), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3), ctx=ctx)
         att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
@@ -1153,7 +1153,7 @@ class DenseVarlen(DiskTestCase):
                 ], dtype = np.object)
 
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(0,3), ctx=ctx), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, ctx=ctx), ctx=ctx)
         att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
