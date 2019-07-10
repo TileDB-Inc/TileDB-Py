@@ -85,3 +85,23 @@ class DaskSupport(DiskTestCase):
         D.to_tiledb(uri)
         DT = da.from_tiledb(uri)
         assert_array_equal(D, DT)
+
+    @unittest.expectedFailure
+    def test_dask_blocks(self):
+        uri = self.path("np_blocks")
+        A = np.ones((2, 50, 50))
+        T = tiledb.from_numpy(uri, A, tile=(1, 5, 5))
+        T.close()
+
+        with tiledb.open(uri) as T:
+            D = da.from_tiledb(T)
+            assert_array_equal(D, A)
+
+        D2 = da.from_tiledb(uri)
+        assert_array_equal(D2, A)
+
+        D3 = D2.map_overlap(
+                lambda x: x + 1, depth={0: 0, 1: 1, 2: 1},
+                dtype=A.dtype
+                ).compute()
+        assert_array_equal(D2 * 2, D3)
