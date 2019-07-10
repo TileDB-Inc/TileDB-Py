@@ -86,9 +86,8 @@ class DaskSupport(DiskTestCase):
         DT = da.from_tiledb(uri)
         assert_array_equal(D, DT)
 
-    @unittest.expectedFailure
-    def test_dask_blocks(self):
-        uri = self.path("np_blocks")
+    def test_dask_overlap_blocks(self):
+        uri = self.path("np_overlap_blocks")
         A = np.ones((2, 50, 50))
         T = tiledb.from_numpy(uri, A, tile=(1, 5, 5))
         T.close()
@@ -105,3 +104,61 @@ class DaskSupport(DiskTestCase):
                 dtype=A.dtype
                 ).compute()
         assert_array_equal(D2 * 2, D3)
+
+    def test_labeled_dask_overlap_blocks(self):
+        uri = self.path("np_labeled_overlap_blocks")
+        A = np.ones((2, 50, 50))
+
+        dom = tiledb.Domain(
+                tiledb.Dim(name="BANDS", domain=(0, 1), tile=1),
+                tiledb.Dim(name="Y", domain=(0, 49),
+                        tile=5, dtype=np.uint64),
+                tiledb.Dim(name="X", domain=(0, 49),
+                        tile=5, dtype=np.uint64))
+
+        schema = tiledb.ArraySchema(domain=dom, sparse=False,
+                                    attrs=[tiledb.Attr(name="TDB_VALUES",
+                                        dtype=A.dtype)])
+
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.open(uri, 'w') as T:
+            arr = da.from_array(A)
+            arr.to_tiledb(T)
+
+        D2 = da.from_tiledb(uri)
+ 
+        D3 = D2.map_overlap(
+                lambda x: x + 1, depth={0: 0, 1: 1, 2: 1},
+                dtype=D2.dtype
+                ).compute()
+        assert_array_equal(D2 + 1, D3)
+
+    def test_labeled_dask_blocks(self):
+        uri = self.path("np_labeled_map_blocks")
+        A = np.ones((2, 50, 50))
+
+        dom = tiledb.Domain(
+                tiledb.Dim(name="BANDS", domain=(0, 1), tile=1),
+                tiledb.Dim(name="Y", domain=(0, 49),
+                        tile=5, dtype=np.uint64),
+                tiledb.Dim(name="X", domain=(0, 49),
+                        tile=5, dtype=np.uint64))
+
+        schema = tiledb.ArraySchema(domain=dom, sparse=False,
+                                    attrs=[tiledb.Attr(name="TDB_VALUES",
+                                        dtype=A.dtype)])
+
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.open(uri, 'w') as T:
+            arr = da.from_array(A)
+            arr.to_tiledb(T)
+
+        D2 = da.from_tiledb(uri)
+ 
+        D3 = D2.map_blocks(
+                lambda x: x + 1,
+                dtype=D2.dtype
+                ).compute()
+        assert_array_equal(D2 + 1, D3)
