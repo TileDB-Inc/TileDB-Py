@@ -21,9 +21,14 @@ ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 
 ###############################################
 # settings (B)
-ENV TILEDB_VERSION 1.5.0
-ENV TILEDB_PY_VERSION 0.4.0
+ENV TILEDB_VERSION dev
+ENV TILEDB_PY_VERSION dev
 ###############################################
+# 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
+# 2) adding -lrt as a work-around for now because python2.7 doesn't link it, but it
+#    ends up as an unlinked dependency.
+ENV CXXFLAGS -Wno-unused-parameter -lrt
+ENV CFLAGS -Wno-unused-parameter -lrt
 
 # build libtiledb (core)
 # notes:
@@ -40,10 +45,10 @@ RUN cd /home/tiledb/ && \
   git -C TileDB checkout $TILEDB_VERSION && \
   mkdir build && \
   cd build && \
-  $CMAKE -DTILEDB_S3=ON -DTILEDB_HDFS=ON -DTILEDB_TESTS=OFF \
+  $CMAKE -DTILEDB_S3=ON -DTILEDB_CPP_API=OFF -DTILEDB_HDFS=ON -DTILEDB_TESTS=OFF \
          -DTILEDB_FORCE_ALL_DEPS:BOOL=ON -DSANITIZER="OFF;-DCOMPILER_SUPPORTS_AVX2:BOOL=FALSE" \
          ../TileDB && \
-  make -j2 && \
+  make -j8 && \
   make install-tiledb
 
 ADD misc/pypi_linux/build.sh /usr/bin/build.sh

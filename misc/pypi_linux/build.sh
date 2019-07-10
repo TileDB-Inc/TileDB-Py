@@ -22,9 +22,7 @@ git clone $TILEDB_PY_REPO TileDB-Py27
 git -C TileDB-Py27 checkout $TILEDB_PY_VERSION
 
 cd /home/tiledb/TileDB-Py27
-# adding -lrt as a work-around for now because python2.7 doesn't link it, but it
-# ends up as an unlinked dependency.
-CFLAGS="-lrt" /opt/python/cp27-cp27mu/bin/python2.7 setup.py build_ext bdist_wheel --tiledb=/usr/local
+/opt/python/cp27-cp27mu/bin/python2.7 setup.py build_ext bdist_wheel --tiledb=/usr/local
 auditwheel repair dist/*.whl
 
 # build python35 wheel
