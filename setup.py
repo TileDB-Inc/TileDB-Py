@@ -393,10 +393,10 @@ def cmake_available():
     except:
         return False
 
-
+numpy_required_version = 'numpy<=1.16' if sys.hexversion <0x3050000 else 'numpy>=1.7'
 def setup_requires():
     req = ['cython>=0.27',
-           'numpy>=1.7',
+           numpy_required_version,
            'setuptools>=18.0',
            'setuptools_scm>=1.5.4',
            'wheel>=0.30']
@@ -497,7 +497,7 @@ setup(
     ],
     setup_requires=setup_requires(),
     install_requires=[
-        'numpy>=1.7',
+        numpy_required_version,
         'wheel>=0.30'
     ],
     tests_require=TESTS_REQUIRE,
@@ -517,8 +517,9 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
 )
