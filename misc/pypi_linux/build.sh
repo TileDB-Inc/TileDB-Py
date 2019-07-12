@@ -5,7 +5,7 @@
 # 0) cd TileDB-Py (NOTE: root directory!)
 # 1) docker build -f misc/pypi_linux/Dockerfile .
 # - copy resulting IMAGE_HASH
-# 2) docker run -v wheels:/wheels -ti IMAGE_HASH build.sh
+# 2) docker run -v misc/pypi_linux/wheels:/wheels -ti IMAGE_HASH build.sh
 #
 # testing (e.g. using the official python docker images)
 # - $ docker run -v `pwd`/wheels:/wheels --rm -ti python bash
@@ -13,7 +13,6 @@
 # -- python3.7 -c "import tiledb; print(tiledb.libtiledb.version())"
 set -ex
 
-export TILEDB_PY_VERSION="0.4.2"
 export TILEDB_PY_REPO="/opt/TileDB-Py"
 
 # build python27 wheel
