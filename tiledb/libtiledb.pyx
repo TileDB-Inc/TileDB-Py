@@ -3371,7 +3371,7 @@ cdef class Array(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-        
+
         if ctx is not None:
             ctx_ptr = ctx.ptr
 
@@ -4381,8 +4381,8 @@ cdef class DenseArray(Array):
                 values.append(val)
             else:
                 dtype = self.schema.attr(self.view_attr).dtype
-                readable = DenseArray(self.uri, 'r')
-                current = readable[selection]
+                with DenseArray(self.uri, 'r', ctx=Ctx(self.ctx.config())) as readable:
+                    current = readable[selection]
                 current[self.view_attr] = \
                     np.ascontiguousarray(val, dtype=dtype)
                 # `current` is an OrderedDict
@@ -4761,7 +4761,7 @@ cdef class SparseArray(Array):
                     if rc != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
             buffer_ptr = np.PyArray_DATA(coords)
-            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(), 
+            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, tiledb_coords(),
                     buffer_ptr, &(buffer_sizes_ptr[nattr - 1]))
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
