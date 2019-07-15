@@ -464,7 +464,6 @@ class ArraySchemaTest(unittest.TestCase):
         schema.dump()
         self.assertTrue(schema.sparse)
 
-
 class ArrayTest(DiskTestCase):
 
     def create_array_schema(self, ctx):
@@ -570,6 +569,27 @@ class ArrayTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.libtiledb.Array(self.path("foo"), mode='r', ctx=ctx)
 
+    def test_create_schema_matches(self):
+        ctx = tiledb.Ctx()
+        dims = (tiledb.Dim(ctx=ctx, domain=(0, 6), tile=2),)
+        dom = tiledb.Domain(*dims, ctx=ctx)
+        att = tiledb.Attr(ctx=ctx, dtype=np.byte)
+
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), sparse=True)
+        uri = self.path('s1')
+        with self.assertRaises(ValueError):
+            tiledb.DenseArray.create(uri, schema)
+
+        dense_schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        uri = self.path('d1')
+        with self.assertRaises(ValueError):
+            tiledb.SparseArray.create(uri, dense_schema)
+
+        class MySparseArray(tiledb.SparseArray):
+            pass
+
+        with self.assertRaises(ValueError):
+            MySparseArray.create(uri, dense_schema)
 
 class DenseArrayTest(DiskTestCase):
 

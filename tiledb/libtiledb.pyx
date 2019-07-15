@@ -3342,8 +3342,8 @@ cdef class Array(object):
         """
         return self.ctx
 
-    @staticmethod
-    def create(uri, ArraySchema schema, key=None, Ctx ctx=None):
+    @classmethod
+    def create(cls, uri, ArraySchema schema, key=None, Ctx ctx=None):
         """Creates a persistent TileDB Array at the given URI
 
         :param str uri: URI at which to create the new empty array.
@@ -3352,6 +3352,11 @@ cdef class Array(object):
         :param ctx Ctx: (default None) Optional TileDB Ctx used when creating the array,
                         by default uses the ArraySchema's associated context.
         """
+        if issubclass(cls, DenseArray) and schema.sparse:
+            raise ValueError("Array.create `schema` argument must be a dense schema for DenseArray and subclasses")
+        if issubclass(cls, SparseArray) and not schema.sparse:
+            raise ValueError("Array.create `schema` argument must be a sparse schema for SparseArray and subclasses")
+
         cdef tiledb_ctx_t* ctx_ptr = schema.ctx.ptr
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
