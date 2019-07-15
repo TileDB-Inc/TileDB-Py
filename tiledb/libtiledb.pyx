@@ -2976,7 +2976,7 @@ cdef class ArraySchema(object):
     @staticmethod
     cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=default_ctx()):
         """
-        Constructs a ArraySchema class instance from a 
+        Constructs a ArraySchema class instance from a
         Ctx and tiledb_array_schema_t pointer
         """
         cdef ArraySchema schema = ArraySchema.__new__(ArraySchema)
@@ -4211,6 +4211,21 @@ cdef class DenseArray(Array):
         :raises IndexError: invalid or unsupported index selection
         :raises: :py:exc:`tiledb.TileDBError`
 
+        **Example:**
+
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
+        ...     tiledb.DenseArray.create(tmp + "/array", schema)
+        ...     with tiledb.DenseArray(tmp + "/array", mode='w') as A:
+        ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
+        ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
+        ...         # A[0:5], attribute a1, row-major without coordinates
+        ...         A.subarray((slice(0, 5),), attrs=("a1",), coords=False, order='C')
+        OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
+
         """
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
@@ -4222,7 +4237,9 @@ cdef class DenseArray(Array):
         elif order == 'G':
             layout = TILEDB_GLOBAL_ORDER
         else:
-            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
+            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
+                             "'F' (TILEDB_COL_MAJOR), "\
+                             "or 'G' (TILEDB_GLOBAL_ORDER)")
         attr_names = list()
         if coords:
             attr_names.append("coords")
@@ -4888,8 +4905,31 @@ cdef class SparseArray(Array):
             "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
             Nonempty attribute values are returned as Numpy 1-d arrays.
 
+        **Example:**
+
+        >>> import tiledb, numpy as np, tempfile
+        >>> # Write to multi-attribute 2D array
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(
+        ...         tiledb.Dim(name="y", domain=(0, 9), tile=2, dtype=np.uint64),
+        ...         tiledb.Dim(name="x", domain=(0, 9), tile=2, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom, sparse=True,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
+        ...     tiledb.SparseArray.create(tmp + "/array", schema)
+        ...     with tiledb.SparseArray(tmp + "/array", mode='w') as A:
+        ...         # Write in the twp cells (0,0) and (2,3) only.
+        ...         I, J = [0, 2], [0, 3]
+        ...         # Write to each attribute
+        ...         A[I, J] = {"a1": np.array([1, 2]),
+        ...                    "a2": np.array([3, 4])}
+        ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
+        ...         # A[0:3, 0:10], attribute a1, row-major without coordinates
+        ...         A.subarray((slice(0, 3), slice(0, 10)), attrs=("a1",), coords=False, order='G')
+        OrderedDict([('a1', array([1, 2]))])
 
         """
+
         if not self.isopen or self.mode != 'r':
             raise TileDBError("SparseArray is not opened for reading")
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
