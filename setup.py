@@ -410,8 +410,13 @@ TESTS_REQUIRE = []
 if ver < (3,):
     TESTS_REQUIRE.extend(["unittest2", "mock"])
 
-# Globals variables
-CXXFLAGS = os.environ.get("CXXFLAGS", "-std=c++11" if not is_windows() else "").split()
+# Global variables
+CXXFLAGS = os.environ.get("CXXFLAGS", "").split()
+if not is_windows():
+  CXXFLAGS.append("-std=c++11")
+  if not TILEDB_DEBUG_BUILD:
+    CXXFLAGS.append("-Wno-deprecated-declarations")
+
 LFLAGS = os.environ.get("LFLAGS", "").split()
 
 # Allow setting (lib) TileDB directory if it is installed on the system
