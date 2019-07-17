@@ -3,14 +3,13 @@
 # USAGE
 #------
 # 0) cd TileDB-Py (NOTE: root directory!)
-# 1) docker build -f misc/pypi_linux/Dockerfile .
+# 1) docker build -f misc/pypi_linux/Dockerfile . -t wheel_builder
 # - copy resulting IMAGE_HASH
-# 2) docker run -v misc/pypi_linux/wheels:/wheels -ti IMAGE_HASH build.sh
+# 2) docker run -v misc/pypi_linux/wheels:/wheels -ti wheel_builder build.sh
 #
-# testing (e.g. using the official python docker images)
-# - $ docker run -v `pwd`/wheels:/wheels --rm -ti python bash
+# testing (e.g. using the official python docker images) # - $ docker run -v `pwd`/wheels:/wheels --rm -ti python bash
 # -- pip3 install /wheels/*cp37*.whl
-# -- python3.7 -c "import tiledb; print(tiledb.libtiledb.version())"
+# -- python3.7 -c "import tiledb; print(tiledb.libtiledb.version()) and assert tiledb.VFS().supports('s3')"
 set -ex
 
 export TILEDB_PY_REPO="/opt/TileDB-Py"
