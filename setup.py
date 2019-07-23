@@ -171,7 +171,8 @@ def build_libtiledb(src_dir):
                     "-DTILEDB_INSTALL_LIBDIR=lib",
                     "-DTILEDB_CPP_API=OFF",
                     "-DTILEDB_FORCE_ALL_DEPS:BOOL={}".format("ON" if TILEDB_FORCE_ALL_DEPS else "OFF"),
-                    "-DTILEDB_SERIALIZATION:BOOL={}".format("ON" if TILEDB_SERIALIZATION else "OFF")
+                    "-DTILEDB_SERIALIZATION:BOOL={}".format("ON" if TILEDB_SERIALIZATION else "OFF"),
+                    "-DTILEDB_STATIC:BOOL={}".format("ON" if BUILD_STATIC else "OFF"),
                     ]
 
     extra_cmake_args = os.environ.get("CMAKE_ARGS", [])
@@ -413,7 +414,7 @@ if ver < (3,):
 # Global variables
 CXXFLAGS = os.environ.get("CXXFLAGS", "").split()
 if not is_windows():
-  CXXFLAGS.append("-std=c++11")
+  CXXFLAGS.extend(["-std=c++11"])
   if not TILEDB_DEBUG_BUILD:
     CXXFLAGS.append("-Wno-deprecated-declarations")
 
@@ -428,6 +429,9 @@ LIB_DIRS = []
 LIBS = ["tiledb"]
 DEF_MACROS = []
 SOURCES = ["tiledb/libtiledb.pyx"]
+
+# Defaults
+BUILD_STATIC=False
 
 # Pass command line flags to setup.py script
 # handle --tiledb=[PATH] --lflags=[FLAGS] --cxxflags=[FLAGS]
@@ -445,7 +449,9 @@ for arg in args:
     if arg.find('--debug') == 0:
         TILEDB_DEBUG_BUILD = True
         sys.argv.remove(arg)
-
+    if arg.find('--static') == 0:
+        BUILD_STATIC = True
+        sys.argv.remove(arg)
 
 if TILEDB_PATH != '':
     LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
@@ -468,7 +474,6 @@ cy_extension=Extension(
     sources=SOURCES,
     library_dirs=LIB_DIRS,
     runtime_library_dirs=LIB_DIRS,
-    libraries=LIBS,
     extra_link_args=LFLAGS,
     extra_compile_args=CXXFLAGS,
     language="c++"
@@ -480,6 +485,16 @@ if TILEDB_DEBUG_BUILD:
       cy_extension.__dict__['cython_gdb'] = True
   else:
       cy_extension.__setattr__('cython_gdb', True)
+
+if BUILD_STATIC:
+  import glob
+  liblist = glob.glob(os.path.join(TILEDB_PATH, "lib", "*.a"))
+  liblist = [x for x in liblist if not 'libtiledb' in x] + [x for x in liblist if 'libtiledb' in x]
+  liblist.insert(0, '-Wl,--whole-archive')
+  liblist.append('-Wl,--no-whole-archive')
+  cy_extension.__dict__['extra_objects'] = liblist
+else:
+  cy_extension.__dict__['libraries'] = LIBS
 
 setup(
     name='tiledb',
