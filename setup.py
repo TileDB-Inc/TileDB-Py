@@ -467,19 +467,29 @@ cy_extension=Extension(
     define_macros=DEF_MACROS,
     sources=SOURCES,
     library_dirs=LIB_DIRS,
-    runtime_library_dirs=LIB_DIRS,
     libraries=LIBS,
     extra_link_args=LFLAGS,
     extra_compile_args=CXXFLAGS,
     language="c++"
     )
-if TILEDB_DEBUG_BUILD:
-  # monkey patch to tell Cython to generate debug mapping
-  # files (in `cython_debug`)
+
+# Helper to set Extension attributes correctly based on python version
+def ext_attr_update(attr, value):
   if sys.version_info < (3,0):
-      cy_extension.__dict__['cython_gdb'] = True
+      cy_extension.__dict__[attr] = value
   else:
-      cy_extension.__setattr__('cython_gdb', True)
+      cy_extension.__setattr__(attr, value)
+
+# Monkey patches to be forwarded to cythonize
+# some of these will error out if passed directly
+# to Extension(..) above
+
+# - generate XML debug mapping file (`cython_debug`)
+if TILEDB_DEBUG_BUILD:
+  ext_attr_update('cython_gdb', True)
+# - set rt lib dirs to get correct RPATH on unixy platforms
+if not is_windows():
+  ext_attr_update('runtime_library_dirs', LIB_DIRS)
 
 setup(
     name='tiledb',
