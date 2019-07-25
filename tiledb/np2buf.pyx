@@ -1,5 +1,5 @@
 # Set true to enable modular compilation
-DEF TILEDBPY_MODULAR = True
+DEF TILEDBPY_MODULAR = False
 IF TILEDBPY_MODULAR:
     include "common.pxi"
     from cpython.version cimport PY_MAJOR_VERSION
