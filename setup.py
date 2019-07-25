@@ -427,7 +427,6 @@ INC_DIRS = []
 LIB_DIRS = []
 LIBS = ["tiledb"]
 DEF_MACROS = []
-SOURCES = ["tiledb/libtiledb.pyx"]
 
 # Pass command line flags to setup.py script
 # handle --tiledb=[PATH] --lflags=[FLAGS] --cxxflags=[FLAGS]
@@ -461,24 +460,40 @@ if TILEDB_PATH != '':
 with open('README.rst') as f:
     README_RST = f.read()
 
-cy_extension=Extension(
+
+__extensions = [
+  Extension(
     "tiledb.libtiledb",
     include_dirs=INC_DIRS,
     define_macros=DEF_MACROS,
-    sources=SOURCES,
+    sources=["tiledb/libtiledb.pyx"],
     library_dirs=LIB_DIRS,
     libraries=LIBS,
     extra_link_args=LFLAGS,
     extra_compile_args=CXXFLAGS,
     language="c++"
     )
+#    ,
+#    Extension(
+#        "tiledb.np2buf",
+#        include_dirs=INC_DIRS,
+#        define_macros=DEF_MACROS,
+#        sources=["tiledb/np2buf.pyx"],
+#        library_dirs=LIB_DIRS,
+#        libraries=LIBS,
+#        extra_link_args=LFLAGS,
+#        extra_compile_args=CXXFLAGS,
+#        language="c++"
+#        )
+]
 
 # Helper to set Extension attributes correctly based on python version
 def ext_attr_update(attr, value):
-  if sys.version_info < (3,0):
-      cy_extension.__dict__[attr] = value
-  else:
-      cy_extension.__setattr__(attr, value)
+  for x in __extensions:
+    if sys.version_info < (3,0):
+        x.__dict__[attr] = value
+    else:
+        x.__setattr__(attr, value)
 
 # Monkey patches to be forwarded to cythonize
 # some of these will error out if passed directly
@@ -512,9 +527,7 @@ setup(
         'local_scheme': 'dirty-tag',
         'write_to': 'tiledb/version.py'
     },
-    ext_modules=[
-      cy_extension
-    ],
+    ext_modules=__extensions,
     setup_requires=setup_requires(),
     install_requires=[
         numpy_required_version,
