@@ -34,7 +34,7 @@ def default_ctx():
 
 # Set true to enable modular compilation.
 # This variable must be updated in all pyx files!
-DEF TILEDBPY_MODULAR = False
+DEF TILEDBPY_MODULAR = True
 
 # np2buf.pyx
 IF TILEDBPY_MODULAR:
