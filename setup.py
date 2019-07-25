@@ -427,7 +427,7 @@ INC_DIRS = []
 LIB_DIRS = []
 LIBS = ["tiledb"]
 DEF_MACROS = []
-SOURCES = ["tiledb/libtiledb.pyx"]
+SOURCES = ["tiledb/libtiledb_py.pyx", "tiledb/numpy_to_buffer.pyx"]
 
 # Pass command line flags to setup.py script
 # handle --tiledb=[PATH] --lflags=[FLAGS] --cxxflags=[FLAGS]
@@ -497,7 +497,7 @@ if not is_windows():
   ext_attr_update('runtime_library_dirs', LIB_DIRS)
 
 setup(
-    name='tiledb',
+    name='tiledb_py',
     description="Pythonic interface to the TileDB array storage manager",
     long_description=README_RST,
     author='TileDB, Inc.',
