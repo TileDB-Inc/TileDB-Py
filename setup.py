@@ -473,18 +473,18 @@ __extensions = [
     extra_compile_args=CXXFLAGS,
     language="c++"
     )
-    ,
-    Extension(
-        "tiledb.np2buf",
-        include_dirs=INC_DIRS,
-        define_macros=DEF_MACROS,
-        sources=["tiledb/np2buf.pyx"],
-        library_dirs=LIB_DIRS,
-        libraries=LIBS,
-        extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
-        language="c++"
-        )
+#    ,
+#    Extension(
+#        "tiledb.np2buf",
+#        include_dirs=INC_DIRS,
+#        define_macros=DEF_MACROS,
+#        sources=["tiledb/np2buf.pyx"],
+#        library_dirs=LIB_DIRS,
+#        libraries=LIBS,
+#        extra_link_args=LFLAGS,
+#        extra_compile_args=CXXFLAGS,
+#        language="c++"
+#        )
 ]
 
 # Helper to set Extension attributes correctly based on python version
