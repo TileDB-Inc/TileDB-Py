@@ -32,13 +32,9 @@ def default_ctx():
 #    MODULAR IMPORTS                                                          #
 ###############################################################################
 
-# Set true to enable modular compilation.
-# This variable must be updated in all pyx files!
-DEF TILEDBPY_MODULAR = False
-
 # np2buf.pyx
 IF TILEDBPY_MODULAR:
-    from np2buf import array_to_buffer
+    from np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
 ELSE:
     include "np2buf.pyx"
 
@@ -1802,7 +1798,7 @@ cdef class Dim(object):
         # argument conversion
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
-        cdef tiledb_datatype_t dim_datatype = _tiledb_dtype(domain_dtype)
+        cdef tiledb_datatype_t dim_datatype = dtype_to_tiledb(domain_dtype)
         cdef const void* domain_ptr = np.PyArray_DATA(domain_array)
         cdef tiledb_dimension_t* dim_ptr = NULL
         check_error(ctx,
