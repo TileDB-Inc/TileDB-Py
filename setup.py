@@ -43,7 +43,13 @@ TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 # Use `setup.py [] --debug` for a debug build of libtiledb
 TILEDB_DEBUG_BUILD = False
 
-# ALlow to override TILEDB_FORCE_ALL_DEPS with environment variable
+# Use `setup.py [] --modular` for a modular build of libtiledb_py
+#   Each .pyx file will be built as a separate shared library for faster
+#   compilation. This is disabled by default to avoid distributing multiple
+#   shared libraries.
+TILEDBPY_MODULAR = False
+
+# Allow to override TILEDB_FORCE_ALL_DEPS with environment variable
 TILEDB_FORCE_ALL_DEPS = "TILEDB_FORCE_ALL_DEPS" in os.environ
 TILEDB_SERIALIZATION = "TILEDB_SERIALIZATION" in os.environ
 CMAKE_GENERATOR = os.environ.get("CMAKE_GENERATOR", None)
@@ -444,7 +450,9 @@ for arg in args:
     if arg.find('--debug') == 0:
         TILEDB_DEBUG_BUILD = True
         sys.argv.remove(arg)
-
+    if arg.find('--modular') == 0:
+        TILEDBPY_MODULAR = True
+        sys.argv.remove(arg)
 
 if TILEDB_PATH != '':
     LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
@@ -473,19 +481,27 @@ __extensions = [
     extra_compile_args=CXXFLAGS,
     language="c++"
     )
-#    ,
-#    Extension(
-#        "tiledb.np2buf",
-#        include_dirs=INC_DIRS,
-#        define_macros=DEF_MACROS,
-#        sources=["tiledb/np2buf.pyx"],
-#        library_dirs=LIB_DIRS,
-#        libraries=LIBS,
-#        extra_link_args=LFLAGS,
-#        extra_compile_args=CXXFLAGS,
-#        language="c++"
-#        )
 ]
+
+MODULAR_SOURCES = [
+  'tiledb/np2buf.pyx'
+  ]
+
+if TILEDBPY_MODULAR:
+  for source in MODULAR_SOURCES:
+    module_name = os.path.splitext(os.path.split(source)[-1])[0]
+    ext = Extension(
+        "tiledb.{}".format(module_name),
+        include_dirs=INC_DIRS,
+        define_macros=DEF_MACROS,
+        sources=[source],
+        library_dirs=LIB_DIRS,
+        libraries=LIBS,
+        extra_link_args=LFLAGS,
+        extra_compile_args=CXXFLAGS,
+        language="c++"
+        )
+    __extensions.append(ext)
 
 # Helper to set Extension attributes correctly based on python version
 def ext_attr_update(attr, value):
@@ -510,6 +526,9 @@ if TILEDB_DEBUG_BUILD:
 #   note that we set rpath for darwin separately above.
 if not is_windows():
   ext_attr_update('runtime_library_dirs', LIB_DIRS)
+
+# This must always be set so the compile-time conditional has a value
+ext_attr_update('cython_compile_time_env', {'TILEDBPY_MODULAR': TILEDBPY_MODULAR})
 
 setup(
     name='tiledb',
