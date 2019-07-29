@@ -102,11 +102,13 @@ def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
     def is_ndarray_like(obj):
         return hasattr(arr, 'shape') and hasattr(arr, 'dtype') and hasattr(arr, 'ndim')
 
+    # support override of default dimension dtype
+    dim_dtype = kw.pop('dim_dtype', np.uint64)
     if len(args) == 1:
         arr = args[0]
         if is_ndarray_like(arr):
             tiling = regularize_tiling(kw.pop('tile', None), arr.ndim)
-            schema = schema_like_numpy(arr, tile=tiling, ctx=ctx)
+            schema = schema_like_numpy(arr, tile=tiling, dim_dtype=dim_dtype, ctx=ctx)
         else:
             raise ValueError("expected ndarray-like object")
     elif shape and dtype:
@@ -114,15 +116,17 @@ def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
             dtype = np.dtype('S')
         elif np.issubdtype(dtype, np.unicode_):
             dtype = np.dtype('U')
+
         ndim = len(shape)
         tiling = regularize_tiling(kw.pop('tile', None), ndim)
+
         dims = []
         for d in range(ndim):
             # support smaller tile extents by kw
             # domain is based on full shape
             tile_extent = tiling[d] if tiling else shape[d]
             domain = (0, shape[d] - 1)
-            dims.append(Dim("", domain=domain, tile=tile_extent, dtype=np.uint64, ctx=ctx))
+            dims.append(Dim("", domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
 
         att = Attr(dtype=dtype, ctx=ctx)
         dom = Domain(*dims, ctx=ctx)
@@ -140,13 +144,14 @@ def schema_like_numpy(array, ctx=default_ctx(), **kw):
     # create an ArraySchema from the numpy array object
     tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
 
+    dim_dtype = kw.pop('dim_dtype', np.uint64)
     dims = []
     for d in range(array.ndim):
         # support smaller tile extents by kw
         # domain is based on full shape
         tile_extent = tiling[d] if tiling else array.shape[d]
         domain = (0, array.shape[d] - 1)
-        dims.append(Dim("", domain=domain, tile=tile_extent, dtype=np.uint64, ctx=ctx))
+        dims.append(Dim("", domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
 
     if array.dtype == np.object:
         # for object arrays, we use the dtype of the first element

@@ -968,7 +968,8 @@ class DenseArrayTest(DiskTestCase):
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
         tiledb.DenseArray.create(self.path("foo"), schema)
         A = np.random.rand(20).astype(np.float32).view(dtype=np.complex64)
-        attr.dump()
+
+        self.assertEqual(schema, tiledb.schema_like(A, dim_dtype=int))
         self.assertEqual(A.dtype, attr.dtype)
 
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
