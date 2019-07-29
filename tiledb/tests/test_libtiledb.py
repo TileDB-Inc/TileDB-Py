@@ -967,6 +967,7 @@ class DenseArrayTest(DiskTestCase):
         attr = tiledb.Attr(ctx=ctx, dtype=np.complex64)
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
         tiledb.DenseArray.create(self.path("foo"), schema)
+
         A = np.random.rand(20).astype(np.float32).view(dtype=np.complex64)
 
         self.assertEqual(schema, tiledb.schema_like(A, dim_dtype=int))
@@ -974,6 +975,7 @@ class DenseArrayTest(DiskTestCase):
 
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[:] = A
+
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             assert_array_equal(A, T[:])
             assert_array_equal(A[:5], T[:5])
@@ -1074,8 +1076,8 @@ class DenseVarlen(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             assert_array_equal(A[:], T[:])
 
-
     def test_varlen_write_floats(self):
+        # Generates 8 variable-length float64 subarrays (subarray len and content are randomized)
         A = np.array([np.random.rand(x) for x in np.random.randint(1,12,8)], dtype=np.object)
 
         # basic write
@@ -1085,6 +1087,7 @@ class DenseVarlen(DiskTestCase):
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
         tiledb.DenseArray.create(self.path("foo"), schema)
+
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[:] = A
 
@@ -1096,6 +1099,7 @@ class DenseVarlen(DiskTestCase):
 
 
     def test_varlen_write_fixedbytes(self):
+        # The actual dtype of this array is 'S21'
         A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee',
                       'ffffff','g','hhhhhhhhhh'], dtype=np.dtype('S'))
 
@@ -1169,9 +1173,11 @@ class DenseVarlen(DiskTestCase):
                 T[:] = A
 
     def test_array_varlen_mismatched(self):
-        A = np.array([b'aa', b'bbb', b'cccc',
-                     np.array([1,3,4], dtype=np.uint64),
-                ], dtype = np.object)
+        # Test that we raise a TypeError when passing a heterogeneous object array.
+        A = np.array(
+                [  b'aa', b'bbb', b'cccc',
+                   np.uint64([1,3,4]), ],
+                dtype = np.object)
 
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, ctx=ctx), ctx=ctx)
@@ -1367,6 +1373,7 @@ class SparseArray(DiskTestCase):
 
         with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             self.assertIsNone(T.nonempty_domain())
+
         A = np_array = np.array([u'1234545lkjalsdfj', u'mnopqrs', u'ijkl', u'gh', u'abcdef',
                                  u'aαbββcγγγdδδδδ', u'aαbββc', u'γγγdδδδδ'], dtype=object)
 
