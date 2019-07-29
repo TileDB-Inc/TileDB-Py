@@ -35,7 +35,7 @@ cdef _varlen_type_compat(object reftype, object val):
     # default case
     return False
 
-cdef _varlen_celldtype(object var):
+cdef _varlen_cell_dtype(object var):
     cdef np.dtype dtype
     if isinstance(var, np.ndarray):
         dtype = var.dtype
@@ -65,8 +65,7 @@ def array_to_buffer(object val):
             np.issubdtype(arr.dtype, np.unicode_)),
            "_pack_varlen_bytes: input array must be np.object or np.bytes!")
 
-
-    firstdtype = _varlen_celldtype(arr.flat[0])
+    firstdtype = _varlen_cell_dtype(arr.flat[0])
     # item size
     cdef uint64_t el_size = _varlen_dtype_itemsize(firstdtype)
 
@@ -81,10 +80,10 @@ def array_to_buffer(object val):
 
     # first pass: check types and calculate offsets
     for (i, item) in enumerate(arr.flat):
-        if firstdtype != _varlen_celldtype(item):
+        if firstdtype != _varlen_cell_dtype(item):
             msg = ("Data types of variable-length sub-arrays must be consistent. "
                    "Type '{}', of 1st sub-array, is inconsistent with type '{}', of item {}."
-                   ).format(firstdtype, _varlen_celldtype(item), i)
+                   ).format(firstdtype, _varlen_cell_dtype(item), i)
 
             raise TypeError(msg)
 
