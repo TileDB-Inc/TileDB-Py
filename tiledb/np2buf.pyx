@@ -66,7 +66,7 @@ def array_to_buffer(object val):
            "_pack_varlen_bytes: input array must be np.object or np.bytes!")
 
 
-    firstdtype = _varlen_celldtype(arr[0])
+    firstdtype = _varlen_celldtype(arr.flat[0])
     # item size
     cdef uint64_t el_size = _varlen_dtype_itemsize(firstdtype)
 

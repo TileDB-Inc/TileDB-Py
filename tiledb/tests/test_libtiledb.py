@@ -1139,6 +1139,27 @@ class DenseVarlen(DiskTestCase):
             # can't use assert_array_equal w/ np.object array
             self.assertTrue(all(np.array_equal(x,A[i]) for i,x in enumerate(T_)))
 
+    def test_varlen_write_floats_2d(self):
+        A = np.array([np.random.rand(x) for x in np.arange(1,10)], dtype=np.object).reshape(3,3)
+
+        # basic write
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=len(A)),
+                            tiledb.Dim(domain=(1, 3), tile=len(A)),
+                            ctx=ctx)
+        att = tiledb.Attr(dtype=np.float64, var=True, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        tiledb.DenseArray.create(self.path("foo"), schema)
+
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            T_ = T[:]
+            self.assertEqual(len(A), len(T_))
+            # can't use assert_array_equal w/ np.object array
+            self.assertTrue(np.all([np.array_equal(A.flat[i], T[:].flat[i]) for i in np.arange(0, 9)]))
 
     def test_varlen_write_fixedbytes(self):
         # The actual dtype of this array is 'S21'
