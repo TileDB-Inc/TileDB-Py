@@ -1038,6 +1038,48 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 T[:] = V
 
+    def test_array_2d_s1(self):
+        # This array is currently read back with dtype object
+        A = np.array([['A', 'B'], ['A', 'B']], dtype='S')
+
+        uri = self.path("varlen_2d_s1")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(0, 1), tile=2, dtype=np.int64),
+                            tiledb.Dim(name="cols", domain=(0, 1), tile=2, dtype=np.int64), ctx=ctx)
+
+        schema = tiledb.ArraySchema(domain=dom, sparse=False,
+                                    attrs=[tiledb.Attr(name="a", dtype='S', ctx=ctx)],
+                                    ctx=ctx)
+
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode='w', ctx=ctx) as T:
+            T[...] = A
+
+        with tiledb.DenseArray(uri) as T:
+            assert_array_equal(A, T)
+
+    def test_array_2d_s3_mixed(self):
+        # This array is currently read back with dtype object
+        A = np.array([['AAA', 'B'], ['AB', 'C']], dtype='S3')
+
+        uri = self.path("varlen_2d_s1")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(0, 1), tile=2, dtype=np.int64),
+                            tiledb.Dim(name="cols", domain=(0, 1), tile=2, dtype=np.int64), ctx=ctx)
+
+        schema = tiledb.ArraySchema(domain=dom, sparse=False,
+                                    attrs=[tiledb.Attr(name="a", dtype='S3', ctx=ctx)],
+                                    ctx=ctx)
+
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode='w', ctx=ctx) as T:
+            T[...] = A
+
+        with tiledb.DenseArray(uri) as T:
+            assert_array_equal(A, T)
+
 class DenseVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
         A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee','ffffff','g','hhhhhhhhhh'], dtype=bytes)
@@ -1058,14 +1100,14 @@ class DenseVarlen(DiskTestCase):
 
 
     def test_varlen_write_unicode(self):
-        A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd',
-                      'ee','ffffff','g','hhhhhhhhhh'],
-                     dtype=np.unicode_)
+        A = np.array(['aa','bbb',
+                      'ccccc','ddddddddddddddddddddd',
+                      'ee','ffffff','g','hhhhhhhhhh'], dtype=np.unicode_)
 
         # basic write
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A), ctx=ctx), ctx=ctx)
-        att = tiledb.Attr(dtype=np.unicode_, ctx=ctx)
+        att = tiledb.Attr(dtype=np.unicode_, var=True, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
 
@@ -1181,7 +1223,7 @@ class DenseVarlen(DiskTestCase):
 
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, ctx=ctx), ctx=ctx)
-        att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
+        att = tiledb.Attr(dtype=np.bytes_, var=True, ctx=ctx)
 
         schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
 
@@ -1189,6 +1231,26 @@ class DenseVarlen(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode='w') as T:
             with self.assertRaises(TypeError):
                 T[:] = A
+
+    def test_array_varlen_2d_s_fixed(self):
+        A = np.array([['AAAAAAAAAa', 'BBB'], ['ACCC', 'BBBCBCBCBCCCBBCBCBCCBC']], dtype='S')
+
+        uri = self.path("varlen_2d_s_fixed")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(0, 1), tile=2, dtype=np.int64),
+                            tiledb.Dim(name="cols", domain=(0, 1), tile=2, dtype=np.int64), ctx=ctx)
+
+        schema = tiledb.ArraySchema(domain=dom, sparse=False,
+                                    attrs=[tiledb.Attr(name="a", dtype='S', var=True, ctx=ctx)],
+                                    ctx=ctx)
+
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode='w', ctx=ctx) as T:
+            T[...] = A
+
+        with tiledb.DenseArray(uri) as T:
+            assert_array_equal(A, T)
 
 
 class SparseArray(DiskTestCase):
@@ -1340,7 +1402,7 @@ class SparseArray(DiskTestCase):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx)
-        att = tiledb.Attr("", dtype=np.bytes_, ctx=ctx)
+        att = tiledb.Attr("", var=True, dtype=np.bytes_, ctx=ctx)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
@@ -1367,7 +1429,7 @@ class SparseArray(DiskTestCase):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx)
-        att = tiledb.Attr("", dtype=np.unicode_, ctx=ctx)
+        att = tiledb.Attr("", var=True, dtype=np.unicode_, ctx=ctx)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
