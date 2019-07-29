@@ -153,28 +153,31 @@ def schema_like_numpy(array, ctx=default_ctx(), **kw):
         domain = (0, array.shape[d] - 1)
         dims.append(Dim("", domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
 
+    var = False
     if array.dtype == np.object:
         # for object arrays, we use the dtype of the first element
         # consistency check should be done later, if needed
-        el = array.flat[0]
-        if type(el) is bytes:
-            el_type = np.dtype('S')
-        elif type(el) is str:
-            el_type = np.dtype('U')
-        elif type(el) == np.ndarray:
-            if len(el.shape) != 1:
+        el0 = array.flat[0]
+        if type(el0) is bytes:
+            el_dtype = np.dtype('S')
+            var = True
+        elif type(el0) is str:
+            el_dtype = np.dtype('U')
+            var = True
+        elif type(el0) == np.ndarray:
+            if len(el0.shape) != 1:
                 raise TypeError("Unsupported sub-array type for Attribute: {} " \
-                                "(only strings and 1D homogeneous NumPy arrays are supported)".
-                                format(type(el)))
-            el_type = el.dtype
+                                "(only string arrays and 1D homogeneous NumPy arrays are supported)".
+                                format(type(el0)))
+            el_dtype = el0.dtype
         else:
             raise TypeError("Unsupported sub-array type for Attribute: {} " \
                             "(only strings and homogeneous-typed NumPy arrays are supported)".
-                            format(type(el)))
+                            format(type(el0)))
     else:
-        el_type = array.dtype
+        el_dtype = array.dtype
 
-    att = Attr(dtype=el_type, ctx=ctx)
+    att = Attr(dtype=el_dtype, var=var, ctx=ctx)
     dom = Domain(*dims, ctx=ctx)
     return ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
 
@@ -706,40 +709,6 @@ cdef class Ctx(object):
         return Config.from_ptr(config_ptr)
 
 
-cdef tiledb_datatype_t _tiledb_dtype(np.dtype dtype) except? TILEDB_CHAR:
-    """Return tiledb_datatype_t enum value for a given numpy dtype object
-    """
-    if dtype == np.int32:
-        return TILEDB_INT32
-    elif dtype == np.uint32:
-        return TILEDB_UINT32
-    elif dtype == np.int64:
-        return TILEDB_INT64
-    elif dtype == np.uint64:
-        return TILEDB_UINT64
-    elif dtype == np.float32:
-        return TILEDB_FLOAT32
-    elif dtype == np.float64:
-        return TILEDB_FLOAT64
-    elif dtype == np.int8:
-        return TILEDB_INT8
-    elif dtype == np.uint8:
-        return TILEDB_UINT8
-    elif dtype == np.int16:
-        return TILEDB_INT16
-    elif dtype == np.uint16:
-        return TILEDB_UINT16
-    elif dtype == np.unicode_:
-        return TILEDB_STRING_UTF8
-    elif dtype == np.bytes_:
-        return TILEDB_CHAR
-    elif dtype == np.complex64:
-        return TILEDB_FLOAT32
-    elif dtype == np.complex128:
-        return TILEDB_FLOAT64
-    raise TypeError("data type {0!r} not understood".format(dtype))
-
-
 cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     """
     Return a numpy type num (int) given a tiledb_datatype_t enum value
@@ -771,41 +740,64 @@ cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     else:
         return np.NPY_NOTYPE
 
+cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
+    """
+    Return a numpy type given a tiledb_datatype_t enum value
+    """
+    cdef base_dtype
+    cdef uint32_t cell_val_num = cell_size
 
-cdef _numpy_type(tiledb_datatype_t tiledb_dtype, cell_size = 1):
-    """
-    Return a numpy *type* (not dtype) object given a tiledb_datatype_t enum value
-    """
-    if tiledb_dtype == TILEDB_INT32:
-        return np.int32
-    elif tiledb_dtype == TILEDB_UINT32:
-        return np.uint32
-    elif tiledb_dtype == TILEDB_INT64:
-        return np.int64
-    elif tiledb_dtype == TILEDB_UINT64:
-        return np.uint64
-    elif tiledb_dtype == TILEDB_FLOAT32:
-        if cell_size == 2:
-            return np.complex64
-        else:
+    if cell_val_num == 1:
+        if tiledb_dtype == TILEDB_INT32:
+            return np.int32
+        elif tiledb_dtype == TILEDB_UINT32:
+            return np.uint32
+        elif tiledb_dtype == TILEDB_INT64:
+            return np.int64
+        elif tiledb_dtype == TILEDB_UINT64:
+            return np.uint64
+        elif tiledb_dtype == TILEDB_FLOAT32:
             return np.float32
-    elif tiledb_dtype == TILEDB_FLOAT64:
-        if cell_size == 2:
-            return np.complex128
-        else:
+        elif tiledb_dtype == TILEDB_FLOAT64:
             return np.float64
-    elif tiledb_dtype == TILEDB_INT8:
-        return np.int8
-    elif tiledb_dtype == TILEDB_UINT8:
-        return np.uint8
-    elif tiledb_dtype == TILEDB_INT16:
-        return np.int16
-    elif tiledb_dtype == TILEDB_UINT16:
-        return np.uint16
-    elif tiledb_dtype == TILEDB_CHAR:
-        return np.bytes_
-    elif tiledb_dtype == TILEDB_STRING_UTF8:
-        return np.unicode_
+        elif tiledb_dtype == TILEDB_INT8:
+            return np.int8
+        elif tiledb_dtype == TILEDB_UINT8:
+            return np.uint8
+        elif tiledb_dtype == TILEDB_INT16:
+            return np.int16
+        elif tiledb_dtype == TILEDB_UINT16:
+            return np.uint16
+        elif tiledb_dtype == TILEDB_CHAR:
+            return np.dtype('S1')
+        elif tiledb_dtype == TILEDB_STRING_UTF8:
+            return np.dtype('U1')
+
+    elif cell_val_num == 2 and tiledb_dtype == TILEDB_FLOAT32:
+        return np.complex64
+
+    elif cell_val_num == 2 and tiledb_dtype == TILEDB_FLOAT64:
+        return np.complex128
+
+    elif tiledb_dtype in (TILEDB_CHAR, TILEDB_STRING_UTF8):
+        if tiledb_dtype == TILEDB_CHAR:
+            dtype_str = '|S'
+        elif tiledb_dtype == TILEDB_STRING_UTF8:
+            dtype_str = '|U'
+        if cell_val_num != TILEDB_VAR_NUM:
+            dtype_str += str(cell_val_num)
+        return np.dtype(dtype_str)
+
+    elif cell_val_num == TILEDB_VAR_NUM:
+        base_dtype = _numpy_dtype(tiledb_dtype, cell_size=1)
+        return base_dtype
+
+    elif cell_val_num > 1:
+        # construct anonymous record dtype
+        base_dtype = _numpy_dtype(tiledb_dtype, cell_size=1)
+        rec = np.dtype([('', base_dtype)] * cell_val_num)
+        return  rec
+
     raise TypeError("tiledb datatype not understood")
 
 """
@@ -1544,43 +1536,17 @@ cdef class Attr(object):
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
         cdef np.dtype _dtype = np.dtype(dtype)
         cdef tiledb_datatype_t tiledb_dtype
-        cdef unsigned int ncells
-        if any(np.issubdtype(_dtype, _t) for _t in (np.bytes_, np.unicode_)):
-            # - flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
-            # - unicode and string types are always stored as VAR because we don't want to
-            #   store the pad (numpy pads to max length for 'S' and 'U' dtypes)
-            if (_dtype.itemsize == 0) and _dtype.kind == 'S':
-                tiledb_dtype = TILEDB_CHAR
-                ncells = TILEDB_VAR_NUM
-            elif (_dtype.itemsize == 0) and _dtype.kind == 'U':
-                tiledb_dtype = TILEDB_STRING_UTF8
-                ncells = TILEDB_VAR_NUM
-            else:
-                tiledb_dtype = TILEDB_CHAR
-                ncells = _dtype.itemsize
-        # handles n fixed size dtypes
-        elif _dtype.kind in ('V', 'c'):
-            if _dtype.shape != ():
-                raise TypeError("nested sub-array numpy dtypes are not supported")
-            if (_dtype.kind == 'V'):
-                # check that types are the same
-                typs = [t for (t, _) in _dtype.fields.values()]
-                typ, ntypes = typs[0], len(typs)
-                if typs.count(typ) != ntypes:
-                    raise TypeError('heterogenous record numpy dtypes are not supported')
-                tiledb_dtype = _tiledb_dtype(typ)
-                ncells = <unsigned int>(ntypes)
-            else:
-                tiledb_dtype = _tiledb_dtype(_dtype)
-                ncells = 2
-        # variable-length cell type
-        elif var:
-            tiledb_dtype = _tiledb_dtype(_dtype)
+        cdef uint32_t ncells
+
+        tiledb_dtype, ncells = array_type_ncells(_dtype)
+
+        if var or (_dtype.kind in ('U', 'S') and _dtype.itemsize == 0):
+            var = True
             ncells = TILEDB_VAR_NUM
-        # scalar cell type
-        else:
-            tiledb_dtype = _tiledb_dtype(_dtype)
-            ncells = 1
+
+        # variable-length cell type
+        if ncells == TILEDB_VAR_NUM and not var:
+            raise TypeError("dtype is not compatible with var-length attribute")
 
         cdef FilterList filter_list
         if filters is not None:
@@ -1633,24 +1599,11 @@ cdef class Attr(object):
         cdef tiledb_datatype_t typ
         check_error(self.ctx,
                     tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
-        cdef unsigned int ncells = 0
+        cdef uint32_t ncells = 0
         check_error(self.ctx,
                     tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
-        # flexible types with itemsize 0 are interpreted as VARNUM cells
-        if ncells == TILEDB_VAR_NUM:
-            return np.dtype((_numpy_type(typ), 0))
-        elif ncells > 1:
-            nptyp = _numpy_type(typ)
-            # special case for fixed sized bytes arguments
-            if typ == TILEDB_CHAR:
-                return np.dtype((nptyp, ncells))
-            # special case for complex types of size 2
-            if ncells == 2 and (nptyp == np.float32 or nptyp == np.float64):
-                return np.dtype(_numpy_type(typ, 2))
-            # create an anon record dtype
-            return np.dtype([('', nptyp)] * ncells)
-        assert (ncells == 1)
-        return np.dtype(_numpy_type(typ))
+
+        return np.dtype(_numpy_dtype(typ, ncells))
 
     cdef unicode _get_name(Attr self):
         cdef const char* c_name = NULL
@@ -1854,7 +1807,7 @@ cdef class Dim(object):
         :rtype: numpy.dtype
 
         """
-        return np.dtype(_numpy_type(self._get_type()))
+        return np.dtype(_numpy_dtype(self._get_type()))
 
     @property
     def name(self):
@@ -2070,7 +2023,7 @@ cdef class Domain(object):
 
         """
         cdef tiledb_datatype_t typ = self._get_type()
-        return np.dtype(_numpy_type(typ))
+        return np.dtype(_numpy_dtype(typ))
 
     cdef _integer_domain(Domain self):
         cdef tiledb_datatype_t typ = self._get_type()
@@ -2973,7 +2926,7 @@ cdef class ArraySchema(object):
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_array_schema_t* array_schema_ptr = NULL
-        # encyrption key
+        # encryption key
         cdef bytes bkey
         cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
         cdef void* key_ptr = NULL
@@ -3631,8 +3584,7 @@ cdef class Array(object):
     cdef _ndarray_is_varlen(self, np.ndarray array):
         return  (np.issubdtype(array.dtype, np.bytes_) or
                  np.issubdtype(array.dtype, np.unicode_) or
-                 array.dtype == np.object
-                 )
+                 array.dtype == np.object)
 
     @cython.boundscheck(False)
     cdef _unpack_varlen_query(self, ReadQuery read, unicode name):
@@ -3701,7 +3653,6 @@ cdef class Array(object):
             el = el + 1
 
         return out_array
-
 
 cdef class ReadQuery(object):
     cdef object _buffers
@@ -4141,7 +4092,7 @@ cdef class DenseArray(Array):
             if name != "coords" and self.schema.attr(name).isvar:
                 # for var arrays we create an object array
                 dtype = np.object
-                out[name] = self._unpack_varlen_query(read, name)
+                out[name] = self._unpack_varlen_query(read, name).reshape(self.shape)
             else:
                 if name == "coords":
                     dtype = self.coords_dtype
@@ -4286,7 +4237,7 @@ cdef class DenseArray(Array):
         output_values = list()
         output_offsets = list()
         for i in range(nattr):
-            if self._ndarray_is_varlen(values[i]):
+            if self.schema.attr(i).isvar:
                 buffer, offsets = array_to_buffer(values[i])
                 buffer_sizes[i] = buffer.nbytes
                 buffer_offsets_sizes[i] = offsets.nbytes

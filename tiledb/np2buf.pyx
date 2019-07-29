@@ -3,6 +3,7 @@ IF TILEDBPY_MODULAR:
     include "common.pxi"
     from cpython.version cimport PY_MAJOR_VERSION
 
+from collections import deque
 
 cdef _varlen_dtype_itemsize(object item):
     if (isinstance(item, np.dtype) and np.issubdtype(item, np.bytes_)):
@@ -34,18 +35,18 @@ cdef _varlen_type_compat(object reftype, object val):
     # default case
     return False
 
-cdef _varlen_cell_dtype(object var):
-    cdef np.dtype _dtype
+cdef _varlen_celldtype(object var):
+    cdef np.dtype dtype
     if isinstance(var, np.ndarray):
-        _dtype = var.dtype
-        if np.issubdtype(_dtype, np.bytes_):
+        dtype = var.dtype
+        if np.issubdtype(dtype, np.bytes_):
             # handles 'S[n]' dtypes for all n
             return np.bytes_
-        elif np.issubdtype(_dtype, np.unicode_):
+        elif np.issubdtype(dtype, np.unicode_):
             # handles 'U[n]' dtypes for all n
             return np.unicode_
         else:
-            return _dtype
+            return dtype
     elif isinstance(var, bytes):
         return np.bytes_
     elif isinstance(var, unicode):
@@ -65,31 +66,32 @@ def array_to_buffer(object val):
            "_pack_varlen_bytes: input array must be np.object or np.bytes!")
 
 
-    first_dtype = _varlen_cell_dtype(arr[0])
+    firstdtype = _varlen_celldtype(arr[0])
     # item size
-    cdef uint64_t el_size = _varlen_dtype_itemsize(first_dtype)
+    cdef uint64_t el_size = _varlen_dtype_itemsize(firstdtype)
 
     if el_size==0:
         raise TypeError("Zero-size cell elements are not supported.")
 
     # total buffer size
     cdef uint64_t buffer_size = 0
-    cdef np.ndarray buffer_offsets = np.empty(len(arr), dtype=np.uint64)
+    cdef uint64_t buffer_n_elem = np.prod(arr.shape)
+    cdef np.ndarray buffer_offsets = np.empty(buffer_n_elem, dtype=np.uint64)
     cdef uint64_t el_buffer_size = 0
 
     # first pass: check types and calculate offsets
-    for (i, item) in enumerate(arr):
-        if first_dtype != _varlen_cell_dtype(item):
+    for (i, item) in enumerate(arr.flat):
+        if firstdtype != _varlen_celldtype(item):
             msg = ("Data types of variable-length sub-arrays must be consistent. "
                    "Type '{}', of 1st sub-array, is inconsistent with type '{}', of item {}."
-                   ).format(first_dtype, _varlen_cell_dtype(item), i)
+                   ).format(firstdtype, _varlen_celldtype(item), i)
 
             raise TypeError(msg)
 
         # current offset is last buffer_size
         buffer_offsets[i] = buffer_size
 
-        if first_dtype == np.unicode_:
+        if firstdtype == np.unicode_:
             # this will cache the materialized (if any) UTF8 object
             if PY_MAJOR_VERSION >= 3:
                 utf8 = (<str>item).encode('UTF-8')
@@ -113,18 +115,18 @@ def array_to_buffer(object val):
     # bytes to copy in this block
     cdef uint64_t nbytes = 0
     # loop over sub-items and copy into buffer
-    for (i, subarray) in enumerate(val):
-        if (isinstance(subarray, bytes) or
-                (isinstance(subarray, np.ndarray) and np.issubdtype(subarray.dtype, np.bytes_))):
-            input_ptr = <char*>PyBytes_AS_STRING(subarray)
-        elif (isinstance(subarray, str) or (isinstance(subarray, unicode)) or
-              (isinstance(subarray, np.ndarray) and np.issubdtype(subarray.dtype, np.unicode_))):
-            tmp_utf8 = subarray.encode("UTF-8")
+    for (i, subitem) in enumerate(val.flat):
+        if (isinstance(subitem, bytes) or
+                (isinstance(subitem, np.ndarray) and np.issubdtype(subitem.dtype, np.bytes_))):
+            input_ptr = <char*>PyBytes_AS_STRING(subitem)
+        elif (isinstance(subitem, str) or (isinstance(subitem, unicode)) or
+              (isinstance(subitem, np.ndarray) and np.issubdtype(subitem.dtype, np.unicode_))):
+            tmp_utf8 = subitem.encode("UTF-8")
             input_ptr = <char*>tmp_utf8
         else:
-            input_ptr = <char*>np.PyArray_DATA(subarray)
+            input_ptr = <char*>np.PyArray_DATA(subitem)
 
-        if i == len(val)-1:
+        if i == buffer_n_elem - 1:
             nbytes = buffer_size - buffer_offsets[i]
         else:
             nbytes = buffer_offsets[i+1] - buffer_offsets[i]
@@ -136,3 +138,94 @@ def array_to_buffer(object val):
             del tmp_utf8
 
     return buffer, buffer_offsets
+
+cdef tiledb_datatype_t c_dtype_to_tiledb(np.dtype dtype) except? TILEDB_CHAR:
+    """Return tiledb_datatype_t enum value for a given numpy dtype object
+    """
+    if dtype == np.int32:
+        return TILEDB_INT32
+    elif dtype == np.uint32:
+        return TILEDB_UINT32
+    elif dtype == np.int64:
+        return TILEDB_INT64
+    elif dtype == np.uint64:
+        return TILEDB_UINT64
+    elif dtype == np.float32:
+        return TILEDB_FLOAT32
+    elif dtype == np.float64:
+        return TILEDB_FLOAT64
+    elif dtype == np.int8:
+        return TILEDB_INT8
+    elif dtype == np.uint8:
+        return TILEDB_UINT8
+    elif dtype == np.int16:
+        return TILEDB_INT16
+    elif dtype == np.uint16:
+        return TILEDB_UINT16
+    elif dtype == np.unicode_:
+        return TILEDB_STRING_UTF8
+    elif dtype == np.bytes_:
+        return TILEDB_CHAR
+    elif dtype == np.complex64:
+        return TILEDB_FLOAT32
+    elif dtype == np.complex128:
+        return TILEDB_FLOAT64
+    raise TypeError("data type {0!r} not understood".format(dtype))
+
+def dtype_to_tiledb(np.dtype dtype):
+    return c_dtype_to_tiledb(dtype)
+
+def array_type_ncells(np.dtype dtype):
+    """
+    Returns the TILEDB_{TYPE} and ncells corresponding to a given numpy dtype
+    """
+
+    cdef np.dtype checked_dtype = np.dtype(dtype)
+    cdef uint32_t ncells
+
+    # - flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
+    # - unicode and string types are always stored as VAR because we don't want to
+    #   store the pad (numpy pads to max length for 'S' and 'U' dtypes)
+
+    if np.issubdtype(checked_dtype, np.bytes_):
+        tdb_type = TILEDB_CHAR
+        if checked_dtype.itemsize == 0:
+            ncells = TILEDB_VAR_NUM
+        else:
+            ncells = checked_dtype.itemsize
+
+    elif np.issubdtype(checked_dtype, np.unicode_):
+        tdb_type = TILEDB_STRING_UTF8
+        if checked_dtype.itemsize == 0:
+            ncells = TILEDB_VAR_NUM
+        else:
+            ncells = checked_dtype.itemsize
+
+    elif np.issubdtype(checked_dtype, np.complexfloating):
+        # handle complex dtypes
+        tdb_type = dtype_to_tiledb(checked_dtype)
+        ncells = 2
+
+    elif checked_dtype.kind == 'V':
+        # handles n fixed-size record dtypes
+        if checked_dtype.shape != ():
+            raise TypeError("nested sub-array numpy dtypes are not supported")
+        # check that types are the same
+        # TODO: make sure this is not too slow for large record types
+        deq = deque(checked_dtype.fields.values())
+        typ0, _ = deq.popleft()
+        nfields = 1
+        for (typ, _) in deq:
+            nfields += 1
+            if typ != typ0:
+                raise TypeError('heterogenous record numpy dtypes are not supported')
+
+        tdb_type = dtype_to_tiledb(typ0)
+        ncells = <uint32_t>(len(checked_dtype.fields.values()))
+
+    else:
+        # scalar cell type
+        tdb_type = c_dtype_to_tiledb(checked_dtype)
+        ncells = 1
+
+    return tdb_type, ncells
