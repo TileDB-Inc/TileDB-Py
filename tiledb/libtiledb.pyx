@@ -102,10 +102,6 @@ def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
     def is_ndarray_like(obj):
         return hasattr(arr, 'shape') and hasattr(arr, 'dtype') and hasattr(arr, 'ndim')
 
-    if np.issubdtype(np.bytes_, dtype):
-        dtype = np.dtype('S')
-    elif np.issubdtype(np.unicode_, dtype):
-        dtype = np.dtype('U')
     if len(args) == 1:
         arr = args[0]
         if is_ndarray_like(arr):
@@ -114,6 +110,10 @@ def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
         else:
             raise ValueError("expected ndarray-like object")
     elif shape and dtype:
+        if np.issubdtype(np.bytes_, dtype):
+            dtype = np.dtype('S')
+        elif np.issubdtype(dtype, np.unicode_):
+            dtype = np.dtype('U')
         ndim = len(shape)
         tiling = regularize_tiling(kw.pop('tile', None), ndim)
         dims = []
