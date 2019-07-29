@@ -60,13 +60,20 @@ from .libtiledb import (
      walk,
      remove,
      move,
+     schema_like,
      stats_enable,
      stats_disable,
      stats_reset,
      stats_dump,
 )
 
-from .highlevel import *
+from .highlevel import (
+     open,
+     save,
+     from_numpy,
+     empty_like,
+     array_exists
+)
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
 #       Therefore, 'tiledb/__init__.py' must *only* exist in this package.
