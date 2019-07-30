@@ -47,8 +47,10 @@ steps:
   displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
   condition: ne(variables['Agent.OS'], 'Windows_NT')
 
-- script: |
+- bash: |
     python -m unittest tiledb.tests.all.suite_test
+    # Run doctests
+    python -m doctest -o NORMALIZE_WHITESPACE -f tiledb/libtiledb.pyx
   displayName: 'Run tests'
 
 - bash: |
