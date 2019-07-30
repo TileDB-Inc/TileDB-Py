@@ -20,7 +20,8 @@ script:
   # Run doctests
   - if [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then (LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH" python -m doctest -o NORMALIZE_WHITESPACE -f tiledb/libtiledb.pyx); fi
   # Run unittests
-  - LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH" python -m unittest tiledb.tests.all.suite_test
+  - export LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH"
+  - python -m unittest tiledb.tests.all.suite_test
   # Check wheel build
   - python setup.py bdist_wheel
   - whl_file=`pwd`/dist/`ls dist`
