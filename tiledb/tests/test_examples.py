@@ -1,23 +1,26 @@
-import os, glob, unittest, tempfile, sys
+import os, sys, glob, unittest, tempfile, shutil
 import subprocess
 
 def run_checked(args):
-  with tempfile.TemporaryDirectory() as tmp:
-    cmd = [sys.executable] + args
-    proc = subprocess.Popen(cmd, cwd=tmp, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    out, err = proc.communicate()
-    status = proc.returncode
-    
-    if status != 0:
-      print("Call failed: {}".format(args))
-      print("--- stdout:")
-      print(out.decode())
-      print("--- stderr:")
-      print(err.decode())
-      sys.exit(1)
+  tmp = tempfile.mkdtemp()
+  cmd = [sys.executable] + args
+  proc = subprocess.Popen(cmd, cwd=tmp, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+  out, err = proc.communicate()
+  status = proc.returncode
+
+  if status != 0:
+    print("Call failed: {}".format(args))
+    print("--- stdout:")
+    print(out.decode())
+    print("--- stderr:")
+    print(err.decode())
+    sys.exit(1)
+
+  shutil.rmtree(tmp)
 
 class ExamplesTest(unittest.TestCase):
 
+  @unittest.skipIf('TRAVIS' in os.environ, "Don't run examples/ unittests on travis")
   def test_examples(self):
     examples_path = os.path.abspath(os.path.join(os.path.split(__file__)[0], "../../examples"))
     for ex in glob.glob(examples_path+"/*.py"):
