@@ -4089,7 +4089,8 @@ cdef class DenseArray(Array):
         >>> import tiledb, numpy as np, tempfile
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     # Creates array 'array' on disk.
-        ...     A = tiledb.DenseArray.from_numpy(tmp + "/array",  np.array([1.0, 2.0, 3.0]))
+        ...     with tiledb.DenseArray.from_numpy(tmp + "/array",  np.array([1.0, 2.0, 3.0])) as A:
+        ...         pass
 
         """
         schema = schema_like_numpy(array, ctx=ctx, **kw)
