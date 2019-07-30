@@ -49,8 +49,14 @@ steps:
 
 - bash: |
     python -m unittest tiledb.tests.all.suite_test
-    # Run doctests
-    python -m doctest -o NORMALIZE_WHITESPACE -f tiledb/libtiledb.pyx
+
+    # Test wheel build, install, and run
+    python setup.py bdist_wheel
+    whl_file=`pwd`/dist/`ls dist`
+    pushd /tmp
+    echo "Installing wheel file from $whl_file..."
+    pip install $whl_file
+    python -c "import tiledb ; tiledb.libtiledb.version()"
   displayName: 'Run tests'
 
 - bash: |
