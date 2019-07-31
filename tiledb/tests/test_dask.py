@@ -20,7 +20,6 @@ class DaskSupport(DiskTestCase):
         else:
             super().setUp()
 
-    @unittest.expectedFailure
     def test_dask_from_numpy_1d(self):
         uri = self.path("np_1attr")
         A = np.random.randn(50,50)
@@ -46,8 +45,6 @@ class DaskSupport(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-
-    @unittest.expectedFailure
     def test_dask_multiattr_2d(self):
         uri = self.path("multiattr")
 
@@ -78,7 +75,6 @@ class DaskSupport(DiskTestCase):
         with Client() as client:
             assert_approx_equal(D.mean().compute(), np.mean(ar2))
 
-    @unittest.expectedFailure
     def test_dask_write(self):
         uri = self.path("dask_w")
         D = da.random.random(10,10)
