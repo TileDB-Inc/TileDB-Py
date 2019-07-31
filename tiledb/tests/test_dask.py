@@ -122,12 +122,11 @@ class DaskSupport(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-        with tiledb.open(uri, 'w') as T:
-            arr = da.from_array(A)
-            arr.to_tiledb(T)
+        with tiledb.open(uri, 'w', attr="TDB_VALUES") as T:
+            T[:] = A
 
-        D2 = da.from_tiledb(uri)
- 
+        D2 = da.from_tiledb(uri, attribute="TDB_VALUES")
+
         D3 = D2.map_overlap(
                 lambda x: x + 1, depth={0: 0, 1: 1, 2: 1},
                 dtype=D2.dtype
@@ -150,15 +149,13 @@ class DaskSupport(DiskTestCase):
                                         dtype=A.dtype)])
 
         tiledb.DenseArray.create(uri, schema)
+        with tiledb.open(uri, 'w', attr='TDB_VALUES') as D1:
+            D1[:] = A
 
-        with tiledb.open(uri, 'w') as T:
-            arr = da.from_array(A)
-            arr.to_tiledb(T)
+        D2 = da.from_tiledb(uri, attribute="TDB_VALUES")
 
-        D2 = da.from_tiledb(uri)
- 
         D3 = D2.map_blocks(
                 lambda x: x + 1,
                 dtype=D2.dtype
-                ).compute()
+                ).compute(scheduler='processes')
         assert_array_equal(D2 + 1, D3)
