@@ -10,6 +10,21 @@ from numpy.testing import assert_array_equal
 import tiledb
 from tiledb.tests.common import DiskTestCase
 
+def safe_dump(obj):
+    # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
+    #      functions...
+    try:
+        import io
+        from contextlib import redirect_stdout
+        with io.StringIO() as buf, redirect_stdout(buf):
+            obj.dump()
+    except ImportError:
+        obj.dump()
+    except Exception as exc:
+        print("Exception occurred calling 'obj.dump()' with redirect.", exc,
+              "\nTrying 'obj.dump()' alone.")
+        obj.dump()
+
 class VersionTest(unittest.TestCase):
 
     def test_version(self):
@@ -198,7 +213,7 @@ class DomainTest(unittest.TestCase):
         dom = tiledb.Domain(
             tiledb.Dim("d1", (1, 4), 2, dtype='u8'),
             tiledb.Dim("d2", (1, 4), 2, dtype='u8'))
-        dom.dump()
+        safe_dump(dom)
         self.assertEqual(dom.ndim, 2)
         self.assertEqual(dom.dtype, np.dtype("uint64"))
         self.assertEqual(dom.shape, (4, 4))
@@ -227,7 +242,7 @@ class AttributeTest(unittest.TestCase):
     def test_attribute(self):
         ctx = tiledb.Ctx()
         attr = tiledb.Attr("foo", ctx=ctx)
-        attr.dump()
+        safe_dump(attr)
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.float64,
                          "default attribute type is float64")
@@ -242,7 +257,7 @@ class AttributeTest(unittest.TestCase):
         #attr = tiledb.Attr(ctx, "foo", dtype=np.int64, compressor=("zstd", 10))
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10, ctx=ctx)], ctx=ctx)
         attr = tiledb.Attr("foo", ctx=ctx, dtype=np.int64, filters=filter_list)
-        attr.dump()
+        safe_dump(attr)
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.int64)
 
@@ -395,7 +410,7 @@ class ArraySchemaTest(unittest.TestCase):
                                     offsets_filters=offsets_filters,
                                     ctx=ctx)
 
-        schema.dump()
+        safe_dump(schema)
         self.assertTrue(schema.sparse)
         self.assertEqual(schema.capacity, 10)
         self.assertEqual(schema.cell_order, "col-major")
@@ -461,7 +476,7 @@ class ArraySchemaTest(unittest.TestCase):
                                     offsets_filters=off_filters,
                                     sparse=True,
                                     ctx=ctx)
-        schema.dump()
+        safe_dump(schema)
         self.assertTrue(schema.sparse)
 
 class ArrayTest(DiskTestCase):
@@ -1781,7 +1796,7 @@ class RWTest(DiskTestCase):
             arr.write_direct(np_array)
 
         with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as arr:
-            arr.dump()
+            safe_dump(arr)
             self.assertEqual(arr.nonempty_domain(), ((0, 2),))
             self.assertEqual(arr.ndim, np_array.ndim)
             assert_array_equal(arr.read_direct(), np_array)
@@ -2306,6 +2321,7 @@ class MemoryTest(DiskTestCase):
         print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
 
         self.assertTrue(final < (2 * initial))
+
 
 
 #if __name__ == '__main__':
