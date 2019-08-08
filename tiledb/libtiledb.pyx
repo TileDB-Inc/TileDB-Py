@@ -4275,12 +4275,15 @@ cdef class DenseArray(Array):
         cdef Attr attr
         cdef list attributes = list()
         cdef list values = list()
+
         if isinstance(val, dict):
             for (k, v) in val.items():
                 attr = self.schema.attr(k)
                 attributes.append(attr.name)
-                values.append(
-                    np.ascontiguousarray(v, dtype=attr.dtype))
+                # object arrays are var-len and handled later
+                if type(v) is np.ndarray and v.dtype is not np.dtype('O'):
+                    v = np.ascontiguousarray(v, dtype=attr.dtype)
+                values.append(v)
         elif np.isscalar(val):
             for i in range(self.schema.nattr):
                 attr = self.schema.attr(i)
@@ -4293,15 +4296,15 @@ cdef class DenseArray(Array):
         elif self.schema.nattr == 1:
             attr = self.schema.attr(0)
             attributes.append(attr.name)
-            if val.dtype == np.object or np.issubdtype(val.dtype, np.bytes_):
-                values.append(val)
-            else:
-                values.append(
-                    np.ascontiguousarray(val, dtype=attr.dtype))
+            # object arrays are var-len and handled later
+            if type(val) is np.ndarray and val.dtype is not np.dtype('O'):
+                val = np.ascontiguousarray(val, dtype=attr.dtype)
+            values.append(val)
         elif self.view_attr is not None:
-            # this is a hack pending
-            # https://github.com/TileDB-Inc/TileDB/issues/1162
-            # (it implicitly relies on the fact that we treat all arrays
+            # Support single-attribute assignment for multi-attr array
+            # This is a hack pending
+            #   https://github.com/TileDB-Inc/TileDB/issues/1162
+            # (note: implicitly relies on the fact that we treat all arrays
             #  as zero initialized as long as query returns TILEDB_OK)
             # see also: https://github.com/TileDB-Inc/TileDB-Py/issues/128
             if self.schema.nattr == 1:
