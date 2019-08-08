@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase
+from tiledb.tests.common import DiskTestCase, assert_subarrays_equal
 
 def safe_dump(obj):
     # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
@@ -1175,6 +1175,42 @@ class DenseVarlen(DiskTestCase):
             self.assertEqual(len(A), len(T_))
             # can't use assert_array_equal w/ np.object array
             self.assertTrue(np.all([np.array_equal(A.flat[i], T[:].flat[i]) for i in np.arange(0, 9)]))
+
+    def test_varlen_write_int_subarray(self):
+        A = np.array(list(map(np.array,
+                        [np.arange(i, 2 * i + 1) for i in np.arange(0, 16)])
+                        ),
+                     dtype='O').reshape(4,4)
+
+        uri = self.path("test_varlen_write_int_subarray")
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=len(A)),
+                            tiledb.Dim(domain=(0, 3), tile=len(A)),
+                            ctx=ctx)
+        att = tiledb.Attr(dtype=np.uint64, var=True, ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(uri, schema)
+
+        # NumPy forces single-element object arrays into a contiguous layout
+        #       so we alternate the size to get a consistent baseline array.
+        A_onestwos = np.array(
+            list(map(np.array,
+                     list([(1,) if x % 2 == 0 else (1, 2) for x in range(16)]))),
+            dtype=np.dtype('O')).reshape(4,4)
+
+        with tiledb.open(uri, 'w') as T:
+            T[:] = A_onestwos
+
+        with tiledb.open(uri, 'w') as T:
+            T[1:3,1:3] = A[1:3,1:3]
+
+        A_assigned = A_onestwos.copy()
+        A_assigned[1:3,1:3] = A[1:3,1:3]
+
+        with tiledb.open(uri) as T:
+            assert_subarrays_equal(A_assigned, T[:])
 
     def test_varlen_write_fixedbytes(self):
         # The actual dtype of this array is 'S21'
