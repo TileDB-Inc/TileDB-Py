@@ -6,6 +6,15 @@ import shutil
 import tempfile
 import traceback
 from unittest import TestCase
+from numpy.testing import assert_equal, assert_array_equal
+
+
+def assert_subarrays_equal(a, b):
+    assert_equal(a.shape, b.shape)
+
+    for a_el, b_el in zip(a.flat, b.flat):
+        assert_array_equal(a_el, b_el)
+
 
 class DiskTestCase(TestCase):
     pathmap = dict()
