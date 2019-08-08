@@ -93,7 +93,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                                        dtype=np.uint64),
                             tiledb.Dim(name="datetime",
                                        domain=(0, np.iinfo(np.uint64).max - 3600 * 1000000000),
-                                       tile=3600 * 1_000_000_000,
+                                       tile=3600 * 1000000000,
                                        dtype=np.uint64),
                             tiledb.Dim(name="cccc",
                                        domain=(0, dtype_max(np.uint64) - 1),
