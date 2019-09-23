@@ -81,7 +81,7 @@ A pre-built Conda package is available that will install TileDB as well.
 
     $ conda install -c conda-forge tiledb-py
 
-Note: Currently the pre-built TileDB conda package does not include the HDFS and S3 storage backends.
+Note: Currently the pre-built TileDB conda package does not include the HDFS storage backend.
 
 Installing From Source
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -186,3 +186,12 @@ You can also install a symlink named ``site-packages/tiledb.egg-link`` to the de
     $ pip install --editable .
 
 This enables local changes to the current development repo to be reflected globally.
+
+Building TileDB-Py against libtiledb from conda
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TileDB core (`libtiledb`) is distributed as a separate conda package, [`tiledb`](https://anaconda.org/conda-forge/tiledb), which may be used for local builds of TileDB-Py:
+
+- activate the desired conda environment
+- run `conda install tiledb`
+- run `python setup.py build_ext --inplace --tiledb=$CONDA_PREFIX`
