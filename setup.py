@@ -36,7 +36,7 @@ import sys
 from sys import version_info as ver
 
 # Target branch
-TILEDB_VERSION = "1.6.0"
+TILEDB_VERSION = "1.6.3"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
@@ -51,7 +51,9 @@ TILEDBPY_MODULAR = False
 
 # Allow to override TILEDB_FORCE_ALL_DEPS with environment variable
 TILEDB_FORCE_ALL_DEPS = "TILEDB_FORCE_ALL_DEPS" in os.environ
-TILEDB_SERIALIZATION = "TILEDB_SERIALIZATION" in os.environ
+TILEDB_SERIALIZATION = "ON"
+if TILEDB_SERIALIZATION in os.environ:
+    TILEDB_SERIALIZATION = "TILEDB_SERIALIZATION" in os.environ
 CMAKE_GENERATOR = os.environ.get("CMAKE_GENERATOR", None)
 
 # Directory containing this file
