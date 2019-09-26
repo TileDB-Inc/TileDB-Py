@@ -1,6 +1,8 @@
-from __future__ import absolute_import
+IF TILEDBPY_MODULAR:
+  include "common.pxi"
+  from .libtiledb cimport *
 
-include "common.pxi"
+import numpy as np
 
 # ref
 #   https://github.com/TileDB-Inc/TileDB-Py/issues/102
