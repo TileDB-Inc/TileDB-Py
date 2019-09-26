@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-
-from .libtiledb cimport *
+from .libtiledb cimport SparseArray, ArraySchema
 
 cdef class DomainIndexer:
     cdef SparseArray array

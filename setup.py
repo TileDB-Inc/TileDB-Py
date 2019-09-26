@@ -468,7 +468,6 @@ if TILEDB_PATH != '':
 with open('README.rst') as f:
     README_RST = f.read()
 
-
 __extensions = [
   Extension(
     "tiledb.libtiledb",
@@ -482,7 +481,6 @@ __extensions = [
     language="c++"
     )
 ]
-
 
 MODULAR_SOURCES = [
   'tiledb/np2buf.pyx',
