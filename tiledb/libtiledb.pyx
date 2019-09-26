@@ -4453,6 +4453,9 @@ cdef class SparseArray(Array):
         super().__init__(*args, **kw)
         if not self.schema.sparse:
             raise ValueError("Array at '{}' is not a sparse array".format(self.uri))
+
+        cdef domain_index = DomainIndexer(self)
+        self.domain_index = domain_index
         return
 
     def __len__(self):
@@ -4725,6 +4728,14 @@ cdef class SparseArray(Array):
                     out[name] = arr
 
         return out
+
+    @property
+    def domain_index(self):
+        return self.domain_index
+
+    @property
+    def dindex(self):
+        return self.domain_index
 
 def consolidate(uri=None, Config config=None, key=None, Ctx ctx=default_ctx()):
     """Consolidates a TileDB Array updates for improved read performance
