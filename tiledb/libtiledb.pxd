@@ -1,8 +1,8 @@
-from __future__ import absolute_import
-
 from libc.stdio cimport FILE
 from libc.stdint cimport uint64_t
-from tiledb.indexing cimport DomainIndexer
+
+IF TILEDBPY_MODULAR:
+    from .indexing cimport DomainIndexer
 
 include "common.pxi"
 
@@ -1268,3 +1268,7 @@ cdef class Query(object):
 cdef class ReadQuery(object):
     cdef object _buffers
     cdef object _offsets
+
+IF (not TILEDBPY_MODULAR):
+    include "indexing.pxd"
+

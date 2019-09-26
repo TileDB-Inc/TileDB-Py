@@ -4,12 +4,9 @@
 
 from __future__ import absolute_import
 
-include "common.pxi"
-
-
-
 from cpython.version cimport PY_MAJOR_VERSION
 
+include "common.pxi"
 
 import sys
 from os.path import abspath
@@ -37,12 +34,15 @@ def default_ctx():
 #    MODULAR IMPORTS                                                          #
 ###############################################################################
 
-# np2buf.pyx
 IF TILEDBPY_MODULAR:
     from .np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
+    from .indexing import DomainIndexer
 ELSE:
+    include "indexing.pyx"
     include "np2buf.pyx"
 
+#from .np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
+#from .indexing import DomainIndexer
 
 ###############################################################################
 #    Utility/setup                                                            #
