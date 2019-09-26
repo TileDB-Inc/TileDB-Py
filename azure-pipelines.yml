@@ -42,12 +42,14 @@ steps:
   condition: eq(variables['Agent.OS'], 'Windows_NT')
 
 - script: |
+    set -xeo pipefail
     python setup.py build_ext --inplace
     python setup.py install
   displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
   condition: ne(variables['Agent.OS'], 'Windows_NT')
 
 - bash: |
+    set -xeo pipefail
     python -m unittest tiledb.tests.all.suite_test
 
     # Test wheel build, install, and run
@@ -60,7 +62,7 @@ steps:
   displayName: 'Run tests'
 
 - bash: |
-    set -e pipefail
+    set -xeo pipefail
     # Display log files if the build failed
     echo "Dumping log files for failed build"
     echo "----------------------------------"
