@@ -483,8 +483,10 @@ __extensions = [
     )
 ]
 
+
 MODULAR_SOURCES = [
-  'tiledb/np2buf.pyx'
+  'tiledb/np2buf.pyx',
+  'tiledb/indexing.pyx',
   ]
 
 if TILEDBPY_MODULAR:
