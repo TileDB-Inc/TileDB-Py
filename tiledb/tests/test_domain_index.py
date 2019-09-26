@@ -7,6 +7,28 @@ from tiledb.tests.common import *
 
 class DomainIndexingTest(DiskTestCase):
 
+    def test_int_domain_indexing(self):
+        path = self.path("int_domain_indexing")
+
+        dom = tiledb.Domain(tiledb.Dim(name="x", domain=(-10,10), tile=1, dtype=np.int64))
+        schema = tiledb.ArraySchema(domain=dom, sparse=True,
+                                    attrs=[tiledb.Attr(name="a", dtype=np.float64)])
+
+        tiledb.SparseArray.create(path, schema)
+
+        X = np.arange(-10,11,step=1)
+        val = np.random.rand(len(X))
+
+        with tiledb.SparseArray(path, mode='w') as A:
+            A[X] = val
+
+        with tiledb.SparseArray(path) as A:
+            assert_array_equal(A.domain_index[ X[0]]['a'], val[0])
+            assert_array_equal(A.domain_index[ X[-1]]['a'], val[-1])
+            assert_array_equal(A.domain_index[ X[0]:X[-1] ]['a'], val[:])
+            # sanity check
+            assert_array_equal(A.domain_index[ X[0]:X[-1] ]['coords'].view(np.int64), X[:])
+
     def test_fp_domain_indexing(self):
         array_path = self.path("test_domain_idx")
 
