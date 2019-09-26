@@ -2,9 +2,14 @@
 #cython: embedsignature=True
 #cython: auto_pickle=False
 
+from __future__ import absolute_import
+
 include "common.pxi"
 
+
+
 from cpython.version cimport PY_MAJOR_VERSION
+
 
 import sys
 from os.path import abspath
@@ -34,7 +39,7 @@ def default_ctx():
 
 # np2buf.pyx
 IF TILEDBPY_MODULAR:
-    from np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
+    from .np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
 ELSE:
     include "np2buf.pyx"
 
@@ -42,14 +47,6 @@ ELSE:
 ###############################################################################
 #    Utility/setup                                                            #
 ###############################################################################
-
-# Integer types supported by Python / System
-if sys.version_info >= (3, 0):
-    _MAXINT = 2 ** 31 - 1
-    _inttypes = (int, np.integer)
-else:
-    _MAXINT = sys.maxint
-    _inttypes = (int, long, np.integer)
 
 # KB / MB in bytes
 _KB = 1024
@@ -397,7 +394,6 @@ cdef class Config(object):
     :param str path: Set parameter values from persisted Config parameter file
     """
 
-    cdef tiledb_config_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -665,7 +661,6 @@ cdef class ConfigKeys(object):
     """
     An iterator object over Config parameter strings (keys)
     """
-    cdef ConfigItems config_items
 
     def __init__(self, Config config, prefix=u""):
         self.config_items = ConfigItems(config, prefix=prefix)
@@ -682,7 +677,6 @@ cdef class ConfigValues(object):
     """
     An iterator object over Config parameter value strings
     """
-    cdef ConfigItems config_items
 
     def __init__(self, Config config, prefix=u""):
         self.config_items = ConfigItems(config, prefix=prefix)
@@ -705,8 +699,6 @@ cdef class ConfigItems(object):
     :type prefix: str
 
     """
-    cdef Config config
-    cdef tiledb_config_iter_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -777,8 +769,6 @@ cdef class Ctx(object):
     :type config: tiledb.Config or dict
 
     """
-
-    cdef tiledb_ctx_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -947,9 +937,6 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
 
 cdef class Filter(object):
     """Base class for all TileDB filters."""
-
-    cdef Ctx ctx
-    cdef tiledb_filter_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -1443,9 +1430,6 @@ cdef class FilterList(object):
 
     """
 
-    cdef Ctx ctx
-    cdef tiledb_filter_list_t* ptr
-
     def __cint__(self):
         self.ptr = NULL
 
@@ -1610,8 +1594,20 @@ cdef class Attr(object):
 
     """
 
-    cdef Ctx ctx
-    cdef tiledb_attribute_t* ptr
+    cdef unicode _get_name(Attr self):
+        cdef const char* c_name = NULL
+        check_error(self.ctx,
+                    tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
+        cdef unicode name = c_name.decode('UTF-8', 'strict')
+        if name.startswith("__attr"):
+            return u""
+        return name
+
+    cdef unsigned int _cell_val_num(Attr self) except? 0:
+        cdef unsigned int ncells = 0
+        check_error(self.ctx,
+                    tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
+        return ncells
 
     def __cinit__(self):
         self.ptr = NULL
@@ -1710,15 +1706,6 @@ cdef class Attr(object):
 
         return np.dtype(_numpy_dtype(typ, ncells))
 
-    cdef unicode _get_name(Attr self):
-        cdef const char* c_name = NULL
-        check_error(self.ctx,
-                    tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
-        cdef unicode name = c_name.decode('UTF-8', 'strict')
-        if name.startswith("__attr"):
-            return u""
-        return name
-
     @property
     def name(self):
         """Attribute string name, empty string if the attribute is anonymous
@@ -1765,12 +1752,6 @@ cdef class Attr(object):
 
         return FilterList.from_ptr(filter_list_ptr, self.ctx)
 
-    cdef unsigned int _cell_val_num(Attr self) except? 0:
-        cdef unsigned int ncells = 0
-        check_error(self.ctx,
-                    tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
-        return ncells
-
     @property
     def isvar(self):
         """True if the attribute is variable length
@@ -1811,8 +1792,6 @@ cdef class Dim(object):
     :param tiledb.Ctx ctx: A TileDB Context
 
     """
-    cdef Ctx ctx
-    cdef tiledb_dimension_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -2032,9 +2011,6 @@ cdef class Domain(object):
 
     """
 
-    cdef Ctx ctx
-    cdef tiledb_domain_t* ptr
-
     def __cinit__(self):
         self.ptr = NULL
 
@@ -2050,6 +2026,21 @@ cdef class Domain(object):
         dom.ctx = ctx
         dom.ptr = <tiledb_domain_t*> ptr
         return dom
+
+    cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
+        cdef tiledb_datatype_t typ
+        check_error(self.ctx,
+                    tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
+        return typ
+
+    cdef _integer_domain(Domain self):
+        cdef tiledb_datatype_t typ = self._get_type()
+        if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
+            return False
+        return True
+
+    cdef _shape(Domain self):
+        return tuple(self.dim(i).shape[0] for i in range(self.ndim))
 
     def __init__(self, *dims, Ctx ctx=default_ctx()):
         cdef Py_ssize_t ndim = len(dims)
@@ -2114,12 +2105,6 @@ cdef class Domain(object):
                     tiledb_domain_get_ndim(self.ctx.ptr, self.ptr, &ndim))
         return ndim
 
-    cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
-        cdef tiledb_datatype_t typ
-        check_error(self.ctx,
-                    tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
-        return typ
-
     @property
     def dtype(self):
         """The numpy dtype of the domain's dimension type.
@@ -2129,15 +2114,6 @@ cdef class Domain(object):
         """
         cdef tiledb_datatype_t typ = self._get_type()
         return np.dtype(_numpy_dtype(typ))
-
-    cdef _integer_domain(Domain self):
-        cdef tiledb_datatype_t typ = self._get_type()
-        if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
-            return False
-        return True
-
-    cdef _shape(Domain self):
-        return tuple(self.dim(i).shape[0] for i in range(self.ndim))
 
     @property
     def shape(self):
@@ -2213,8 +2189,6 @@ cdef class KVSchema(object):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
-    cdef Ctx ctx
-    cdef tiledb_kv_schema_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -2393,12 +2367,6 @@ cdef class KV(object):
     :raises TypeError: invalid `uri` type
     :raises: :py:exc:`tiledb.TileDBError`
     """
-
-    cdef Ctx ctx
-    cdef unicode uri
-    cdef unicode mode
-    cdef KVSchema schema
-    cdef tiledb_kv_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -2784,10 +2752,6 @@ cdef class KVIter(object):
     """KV iterator object iterates over KV items
     """
 
-    cdef KV kv
-    cdef bytes battr
-    cdef tiledb_kv_iter_t* ptr
-
     def __cinit__(self):
         self.ptr = NULL
 
@@ -3003,8 +2967,6 @@ cdef class ArraySchema(object):
     :param tiledb.Ctx ctx: A TileDB Context
 
     """
-    cdef Ctx ctx
-    cdef tiledb_array_schema_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -3357,14 +3319,6 @@ cdef class Array(object):
     :param int timestamp: (default None) If not None, open the KV array at a given TileDB timestamp
     :param Ctx ctx: TileDB context
     """
-
-    cdef Ctx ctx
-    cdef unicode uri
-    cdef unicode mode
-    cdef object view_attr # can be None
-    cdef object key # can be None
-    cdef object schema
-    cdef tiledb_array_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL
@@ -3760,8 +3714,6 @@ cdef class Array(object):
         return out_array
 
 cdef class ReadQuery(object):
-    cdef object _buffers
-    cdef object _offsets
 
     @property
     def _buffers(self): return self._buffers
@@ -3936,11 +3888,6 @@ cdef class Query(object):
 
     """
 
-    cdef Array array
-    cdef object attrs
-    cdef object coords
-    cdef object order
-
     def __init__(self, array, attrs=None, coords=False, order='C'):
         if array.mode != 'r':
             raise ValueError("array mode must be read-only")
@@ -3968,6 +3915,7 @@ cdef class DenseArray(Array):
     Inherits properties and methods of :py:class:`tiledb.Array`.
 
     """
+
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if self.schema.sparse:
@@ -4977,11 +4925,6 @@ cdef class FileHandle(object):
     Instances of this class are returned by TileDB VFS methods and are not instantiated directly
     """
 
-    cdef Ctx ctx
-    cdef VFS vfs
-    cdef unicode uri
-    cdef tiledb_vfs_fh_t* ptr
-
     def __cinit__(self):
         self.ptr = NULL
 
@@ -5019,9 +4962,6 @@ cdef class VFS(object):
     :type config: tiledb.Config or dict
 
     """
-
-    cdef Ctx ctx
-    cdef tiledb_vfs_t* ptr
 
     def __cinit__(self):
         self.ptr = NULL

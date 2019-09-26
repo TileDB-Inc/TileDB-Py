@@ -3,6 +3,8 @@ IF TILEDBPY_MODULAR:
     include "common.pxi"
     from cpython.version cimport PY_MAJOR_VERSION
 
+from .libtiledb cimport *
+
 from collections import deque
 
 cdef _varlen_dtype_itemsize(object item):

@@ -1,5 +1,10 @@
+from __future__ import absolute_import
+
 from libc.stdio cimport FILE
 from libc.stdint cimport uint64_t
+from tiledb.indexing cimport DomainIndexer
+
+include "common.pxi"
 
 cdef extern from "tiledb/tiledb.h":
     # Constants
@@ -1113,3 +1118,153 @@ cdef extern from "tiledb/tiledb.h":
         const char* uri,
         char* path_out,
         unsigned* path_length) nogil
+
+cdef class Config(object):
+    cdef tiledb_config_t* ptr
+
+    @staticmethod
+    cdef from_ptr(tiledb_config_t* ptr)
+
+
+
+cdef class ConfigKeys(object):
+    cdef ConfigItems config_items
+
+cdef class ConfigItems(object):
+    cdef Config config
+    cdef tiledb_config_iter_t* ptr
+
+cdef class ConfigValues(object):
+    pass
+
+cdef class Ctx(object):
+    cdef tiledb_ctx_t* ptr
+
+cdef class Filter(object):
+    cdef Ctx ctx
+    cdef tiledb_filter_t* ptr
+
+cdef class FilterList(object):
+    cdef Ctx ctx
+    cdef tiledb_filter_list_t* ptr
+
+    @staticmethod
+    cdef FilterList from_ptr(tiledb_filter_list_t* ptr, Ctx ctx=*)
+
+    cdef Filter _getfilter(FilterList self, int idx)
+
+cdef class Attr(object):
+    cdef Ctx ctx
+    cdef tiledb_attribute_t* ptr
+
+    @staticmethod
+    cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx=*)
+    cdef unicode _get_name(Attr self)
+    cdef unsigned int _cell_val_num(Attr self) except? 0
+
+
+cdef class Dim(object):
+    cdef Ctx ctx
+    cdef tiledb_dimension_t* ptr
+
+    @staticmethod
+    cdef from_ptr(const tiledb_dimension_t* ptr, Ctx ctx=*)
+
+    cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR
+    cdef _integer_domain(self)
+    cdef _shape(self)
+
+cdef class Domain(object):
+    cdef Ctx ctx
+    cdef tiledb_domain_t* ptr
+
+    @staticmethod
+    cdef from_ptr(const tiledb_domain_t* ptr, Ctx ctx=*)
+    cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR
+    cdef _integer_domain(Domain self)
+    cdef _shape(Domain self)
+
+
+
+cdef class KVSchema(object):
+    cdef Ctx ctx
+    cdef tiledb_kv_schema_t* ptr
+
+    @staticmethod
+    cdef from_ptr(const tiledb_kv_schema_t* ptr, Ctx ctx=*)
+    cdef _attr_name(self, name)
+    cdef _attr_idx(self, int idx)
+
+
+
+cdef class KV(object):
+    cdef Ctx ctx
+    cdef unicode uri
+    cdef unicode mode
+    cdef KVSchema schema
+    cdef tiledb_kv_t* ptr
+
+    @staticmethod
+    cdef from_ptr(unicode uri, const tiledb_kv_t* ptr, Ctx ctx=*)
+
+cdef class KVIter(object):
+    cdef KV kv
+    cdef bytes battr
+    cdef tiledb_kv_iter_t* ptr
+
+cdef class ArraySchema(object):
+    cdef Ctx ctx
+    cdef tiledb_array_schema_t* ptr
+
+    @staticmethod
+    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=*)
+    cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr)
+    cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr)
+    cdef _attr_name(self, name)
+    cdef _attr_idx(self, int idx)
+
+cdef class Array(object):
+    cdef Ctx ctx
+    cdef unicode uri
+    cdef unicode mode
+    cdef object view_attr # can be None
+    cdef object key # can be None
+    cdef object schema
+    cdef tiledb_array_t* ptr
+
+    cdef _ndarray_is_varlen(self, np.ndarray array)
+    cdef _unpack_varlen_query(self, ReadQuery read, unicode name)
+
+
+cdef class SparseArray(Array):
+    cdef DomainIndexer domain_index
+
+    cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout)
+
+
+cdef class DenseArray(Array):
+    cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout)
+
+cdef class FileHandle(object):
+    cdef Ctx ctx
+    cdef VFS vfs
+    cdef unicode uri
+    cdef tiledb_vfs_fh_t* ptr
+
+    @staticmethod
+    cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr)
+    cpdef closed(self)
+
+cdef class VFS(object):
+    cdef Ctx ctx
+    cdef tiledb_vfs_t* ptr
+
+cdef class Query(object):
+    cdef Array array
+    cdef object attrs
+    cdef object coords
+    cdef object order
+
+cdef class ReadQuery(object):
+    cdef object _buffers
+    cdef object _offsets
