@@ -12,7 +12,7 @@ ENV HOME /home/tiledb
 # dependencies:
 # - cmake (need recent) and auditwheel from pip
 # - perl 5.10.0 for openssl
-RUN  $PYTHON_BASE/pip install cmake auditwheel && \
+RUN  $PYTHON_BASE/pip install cmake==3.13.3 auditwheel && \
   curl -L https://install.perlbrew.pl | bash && \
   source $HOME/perl5/perlbrew/etc/bashrc && \
   perlbrew --notest install perl-5.10.0
@@ -21,14 +21,17 @@ ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 
 ###############################################
 # settings (B)
-ENV TILEDB_VERSION 1.6.0
+ENV TILEDB_VERSION 1.6.3
 ENV TILEDB_PY_VERSION 0.4.3
 ###############################################
 # 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
 # 2) adding -lrt as a work-around for now because python2.7 doesn't link it, but it
 #    ends up as an unlinked dependency.
-ENV CXXFLAGS -Wno-unused-parameter -lrt
-ENV CFLAGS -Wno-unused-parameter -lrt
+# 3) Capnproto (TileDB Serialization) requeries -DKJ_USE_EPOLL=0 -D__BIONIC__=1 per
+#    https://github.com/capnproto/capnproto/issues/350#issuecomment-270930594
+
+ENV CXXFLAGS -Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1
+ENV CFLAGS -Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1
 
 # build libtiledb (core)
 # notes:
@@ -46,7 +49,8 @@ RUN cd /home/tiledb/ && \
   mkdir build && \
   cd build && \
   $CMAKE -DTILEDB_S3=ON -DTILEDB_CPP_API=OFF -DTILEDB_HDFS=ON -DTILEDB_TESTS=OFF \
-         -DTILEDB_FORCE_ALL_DEPS:BOOL=ON -DSANITIZER="OFF;-DCOMPILER_SUPPORTS_AVX2:BOOL=FALSE" \
+         -DTILEDB_SERIALIZATION=ON -DTILEDB_FORCE_ALL_DEPS:BOOL=ON \
+         -DSANITIZER="OFF;-DCOMPILER_SUPPORTS_AVX2:BOOL=FALSE" \
          ../TileDB && \
   make -j8 && \
   make install-tiledb
