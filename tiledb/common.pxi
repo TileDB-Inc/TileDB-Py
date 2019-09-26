@@ -1,5 +1,3 @@
-from libtiledb cimport *
-
 from cpython.bytes cimport (PyBytes_GET_SIZE,
                             PyBytes_AS_STRING,
                             PyBytes_Size,
@@ -47,3 +45,14 @@ cdef extern from "numpy/arrayobject.h":
     void* PyDataMem_NEW(size_t nbytes)
     void* PyDataMem_RENEW(void* data, size_t nbytes)
     void PyDataMem_FREE(void* data)
+
+
+import sys
+
+# Integer types supported by Python / System
+if sys.version_info >= (3, 0):
+    _MAXINT = 2 ** 31 - 1
+    _inttypes = (int, np.integer)
+else:
+    _MAXINT = sys.maxint
+    _inttypes = (int, long, np.integer)
