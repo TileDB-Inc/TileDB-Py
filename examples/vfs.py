@@ -34,7 +34,10 @@
 
 import struct
 import tiledb
+import os
 
+def path(p):
+    return os.path.join(os.getcwd(), p)
 
 def dirs_files():
     # Create TileDB VFS
@@ -42,29 +45,29 @@ def dirs_files():
 
     # Create directory
     if not vfs.is_dir("dir_A"):
-        vfs.create_dir("dir_A")
+        vfs.create_dir(path("dir_A"))
         print("Created 'dir_A'")
     else:
         print("'dir_A' already exists")
 
     # Creating an (empty) file
     if not vfs.is_file("dir_A/file_A"):
-        vfs.touch("dir_A/file_A")
+        vfs.touch(path("dir_A/file_A"))
         print("Created empty file 'dir_A/file_A'")
     else:
         print("'dir_A/file_A' already exists")
 
     # Getting the file size
-    print("Size of file 'dir_A/file_A': {}".format(vfs.file_size("dir_A/file_A")))
+    print("Size of file 'dir_A/file_A': {}".format(vfs.file_size(path("dir_A/file_A"))))
 
     # Moving files (moving directories is similar)
     print("Moving file 'dir_A/file_A' to 'dir_A/file_B'")
-    vfs.move_file("dir_A/file_A", "dir_A/file_B")
+    vfs.move_file(path("dir_A/file_A"), path("dir_A/file_B"))
 
     # Deleting files and directories
     print("Deleting 'dir_A/file_B' and 'dir_A'")
-    vfs.remove_file("dir_A/file_B")
-    vfs.remove_dir("dir_A")
+    vfs.remove_file(path("dir_A/file_B"))
+    vfs.remove_dir(path("dir_A"))
 
 
 def write():
