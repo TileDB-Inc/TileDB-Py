@@ -1,4 +1,4 @@
-import os, sys, glob, unittest, tempfile, shutil
+import os, sys, glob, unittest, tempfile, shutil, platform
 import subprocess
 
 def run_checked(args):
@@ -27,6 +27,9 @@ class ExamplesTest(unittest.TestCase):
       args = [ex]
       run_checked(args)
 
+  # some of the doctests are missing a clean-up step on windows
+  @unittest.skipIf(platform.system() is 'Windows', "")
+  def test_docs(self):
     if sys.version_info >= (3,6):
       doctest_args = ['-m', 'doctest', '-o', 'NORMALIZE_WHITESPACE', '-f',
                       os.path.abspath(os.path.join(__file__, '../../', 'libtiledb.pyx'))]

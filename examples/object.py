@@ -51,6 +51,7 @@ from __future__ import print_function
 
 import numpy as np
 import tiledb
+import os
 
 
 def create_array(array_name, sparse):
@@ -71,22 +72,23 @@ def create_kv(array_name):
     schema = tiledb.KVSchema(attrs=[tiledb.Attr(name="a", dtype=bytes)])
     tiledb.KV.create(array_name, schema)
 
+def path(p):
+    return os.path.join(os.getcwd(), p)
 
 def create_hierarchy():
-
     # Create groups
-    tiledb.group_create("my_group")
-    tiledb.group_create("my_group/dense_arrays")
-    tiledb.group_create("my_group/sparse_arrays")
+    tiledb.group_create(path("my_group"))
+    tiledb.group_create(path("my_group/dense_arrays"))
+    tiledb.group_create(path("my_group/sparse_arrays"))
 
     # Create arrays
-    create_array("my_group/dense_arrays/array_A", False)
-    create_array("my_group/dense_arrays/array_B", False)
-    create_array("my_group/sparse_arrays/array_C", True)
-    create_array("my_group/sparse_arrays/array_D", True)
+    create_array(path("my_group/dense_arrays/array_A"), False)
+    create_array(path("my_group/dense_arrays/array_B"), False)
+    create_array(path("my_group/sparse_arrays/array_C"), True)
+    create_array(path("my_group/sparse_arrays/array_D"), True)
 
     # Create key-value store
-    create_kv("my_group/dense_arrays/kv")
+    create_kv(path("my_group/dense_arrays/kv"))
 
 
 def list_obj(path):
@@ -104,12 +106,15 @@ def list_obj(path):
 
 
 def move_remove_obj():
-    tiledb.move("my_group", "my_group_2")
-    tiledb.remove("my_group_2/dense_arrays")
-    tiledb.remove("my_group_2/sparse_arrays/array_C")
+    tiledb.move(path("my_group"), path("my_group_2"))
+    tiledb.remove(path("my_group_2/dense_arrays"))
+    tiledb.remove(path("my_group_2/sparse_arrays/array_C"))
 
 
 create_hierarchy()
 list_obj("my_group")
 move_remove_obj()  # Renames 'my_group' to 'my_group_2'
 list_obj("my_group_2")
+
+# clean up
+tiledb.remove("my_group_2")
