@@ -42,7 +42,7 @@ def generate_data():
 
     a2_data = np.array(
                 list(map(
-                    lambda v: np.repeat(v[0], v[1]),
+                    lambda v: np.repeat(v[0], v[1]).astype(np.int64),
                     [
                     (1,1), (2,2), (3,1), (4,1),
                     (5,1), (6,2), (7,2), (8,3),

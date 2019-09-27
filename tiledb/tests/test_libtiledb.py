@@ -1177,7 +1177,7 @@ class DenseVarlen(DiskTestCase):
             self.assertTrue(np.all([np.array_equal(A.flat[i], T[:].flat[i]) for i in np.arange(0, 9)]))
 
     def test_varlen_write_int_subarray(self):
-        A = np.array(list(map(np.array,
+        A = np.array(list(map(lambda x: np.array(x, dtype=np.uint64),
                         [np.arange(i, 2 * i + 1) for i in np.arange(0, 16)])
                         ),
                      dtype='O').reshape(4,4)
@@ -1196,7 +1196,7 @@ class DenseVarlen(DiskTestCase):
         # NumPy forces single-element object arrays into a contiguous layout
         #       so we alternate the size to get a consistent baseline array.
         A_onestwos = np.array(
-            list(map(np.array,
+            list(map(lambda x: np.array(x, dtype=np.uint64),
                      list([(1,) if x % 2 == 0 else (1, 2) for x in range(16)]))),
             dtype=np.dtype('O')).reshape(4,4)
 

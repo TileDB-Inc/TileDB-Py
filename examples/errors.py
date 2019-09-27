@@ -41,4 +41,8 @@ try:
 except tiledb.TileDBError as e:
     print("TileDB exception: %s" % e.message)
 
+# clean up
+if tiledb.VFS().is_dir("my_group"):
+    tiledb.remove("my_group")
+
 # Setting a different error handler for the context is not yet supported.
