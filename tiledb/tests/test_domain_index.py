@@ -45,9 +45,9 @@ class DomainIndexingTest(DiskTestCase):
         tiledb.SparseArray.create(array_path, schema)
 
         # fake data
-        X = np.linspace(*(-89.75, 89.75), 359)
-        Y = np.linspace(*(-179.75, 179.75), 359)
-        Z = np.linspace(*(157498, 157857), 359)
+        X = np.linspace(-89.75, 89.75, 359)
+        Y = np.linspace(-179.75, 179.75, 359)
+        Z = np.linspace(157498, 157857, 359)
 
         #data = np.random.rand(*map(lambda x: x[0], (X.shape, Y.shape, Z.shape)))
         data = np.random.rand(X.shape[0])
