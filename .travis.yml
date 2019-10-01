@@ -16,11 +16,6 @@ install:
 script:
   # Build and test extension module
   - python setup.py build_ext --inplace
-  # Run doctests
-  - if [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then (LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH" python -m doctest -o NORMALIZE_WHITESPACE -f tiledb/libtiledb.pyx); fi
-  # Run unittests
-  - export LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH"
-  - python -m unittest tiledb.tests.all.suite_test
   # Check wheel build
   - python setup.py bdist_wheel
   - whl_file=`pwd`/dist/`ls dist`
@@ -28,23 +23,9 @@ script:
   - echo "Installing wheel file from $whl_file..."
   - pip install $whl_file
   - python -c "import tiledb ; tiledb.libtiledb.version()"
-  - mkdir -p $TRAVIS_BUILD_DIR/test_examples && cd $TRAVIS_BUILD_DIR/test_examples
-  - python ../examples/quickstart_dense.py
-  - python ../examples/quickstart_sparse.py
-  - python ../examples/quickstart_kv.py
-  - python ../examples/reading_dense_layouts.py
-  - python ../examples/reading_sparse_layouts.py
-  - python ../examples/writing_dense_multiple.py
-  - python ../examples/writing_dense_padding.py
-  - python ../examples/writing_sparse_multiple.py
-  - python ../examples/config.py
-  - python ../examples/fragments_consolidation.py
-  - python ../examples/kv.py
-  - python ../examples/multi_attribute.py
-  - python ../examples/errors.py
-  - rm -rf my_group
-  - python ../examples/object.py
-  - python ../examples/vfs.py
-  - python ../examples/using_tiledb_stats.py
-  - cd ..
-  - rm -rf test_examples
+  - popd
+  # Run unittests
+  - export LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH"
+  - python -m unittest tiledb.tests.all.suite_test
+  # Run doctests
+  - if [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then (LD_LIBRARY_PATH="$TRAVIS_BUILD_DIR/tiledb:$LD_LIBRARY_PATH" python -m doctest -o NORMALIZE_WHITESPACE -f tiledb/libtiledb.pyx); fi
