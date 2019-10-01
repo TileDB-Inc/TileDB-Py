@@ -36,7 +36,7 @@ import sys
 from sys import version_info as ver
 
 # Target branch
-TILEDB_VERSION = "1.6.0"
+TILEDB_VERSION = "1.6.2"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
@@ -173,7 +173,7 @@ def build_libtiledb(src_dir):
                     "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
                     "-DTILEDB_TESTS=OFF",
                     "-DTILEDB_S3=ON",
-                    "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
+                    "-DTILEDB_HDFS={}".format("OFF" if os.name == "posix" else "OFF"),
                     "-DTILEDB_INSTALL_LIBDIR=lib",
                     "-DTILEDB_CPP_API=OFF",
                     "-DTILEDB_FORCE_ALL_DEPS:BOOL={}".format("ON" if TILEDB_FORCE_ALL_DEPS else "OFF"),

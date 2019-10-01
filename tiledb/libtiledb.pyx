@@ -22,7 +22,23 @@ np.import_array()
 ###############################################################################
 # Ctx used by default in all constructors
 # Users needing a specific context should pass their own context as kwarg.
-cdef Ctx _global_ctx = Ctx()
+
+def __init_default_ctx__():
+    num_threads = 1
+    config_dict = {
+             'sm.num_tbb_threads': num_threads,
+             'sm.num_async_threads': num_threads,
+             'sm.num_reader_threads': num_threads,
+             'sm.num_writer_threads': num_threads,
+             'sm.num_tbb_threads': num_threads,
+             'vfs.s3.max_parallel_ops': num_threads,
+             'vfs.file.max_parallel_ops': num_threads,
+             'vfs.num_threads': num_threads
+             }
+    config = Config(config_dict)
+    return Ctx(config)
+
+cdef Ctx _global_ctx = __init_default_ctx__()
 
 def default_ctx():
     """Returns the default tiledb.Ctx object"""
