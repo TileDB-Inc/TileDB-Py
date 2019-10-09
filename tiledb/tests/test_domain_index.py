@@ -112,3 +112,34 @@ class DomainIndexingTest(DiskTestCase):
             #    tmp['data'],
             #    data[:]
             #)
+
+    def test_fp_domain_count(self):
+        array_path = self.path("test_domain_count")
+        tile = 1
+
+        dom = tiledb.Domain(tiledb.Dim(name="x", domain=(0.0, 2.0), tile=tile, dtype=np.float64),
+                            tiledb.Dim(name="y", domain=(0.0, 2.0), tile=tile, dtype=np.float64),
+                            )
+        schema = tiledb.ArraySchema(domain=dom, sparse=True,
+                                    attrs=[tiledb.Attr(name="data", dtype=np.float64)])
+
+        tiledb.SparseArray.create(array_path, schema)
+
+        # fake data
+        X = [1.0]
+        Y = [1.0]
+        data = [1.0]
+
+        with tiledb.SparseArray(array_path, mode='w') as A:
+            A[X, Y] = data
+
+        with tiledb.SparseArray(array_path) as A:
+            # check direct slicing
+            assert_array_equal(
+                A.domain_index[ X[0], Y[0] ]['data'],
+                data[0])
+
+            # check counting by slice
+            assert_equal(A.domain_index[0:2.0, 0:1.0]['coords'].shape[0], 1)
+            assert_equal(A.domain_index[0:2.0, np.nextafter(1.0, 2.0)]['coords'].shape[0], 0)
+
