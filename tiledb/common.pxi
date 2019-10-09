@@ -10,7 +10,7 @@ from libc.stdio cimport (FILE, stdout)
 from libc.stdio cimport stdout
 from libc.stdlib cimport malloc, calloc, free
 from libc.string cimport memcpy
-from libc.stdint cimport (uint8_t, uint32_t, uint64_t, int64_t, uintptr_t)
+from libc.stdint cimport (uint8_t, uint32_t, uint64_t, int64_t, uintptr_t, int32_t)
 from libc cimport limits
 from libcpp.vector cimport vector
 
