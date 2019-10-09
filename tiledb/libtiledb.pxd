@@ -624,6 +624,24 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_query_t* query,
         int* has_results)
 
+    int tiledb_query_get_fragment_num(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        uint32_t* num)
+
+    int tiledb_query_get_fragment_uri(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        uint64_t idx,
+        const char** uri)
+
+    int tiledb_query_get_fragment_timestamp_range(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        uint64_t idx,
+        uint64_t* t1,
+        uint64_t* t2)
+
     # Array
     int tiledb_array_alloc(
         tiledb_ctx_t* ctx,
@@ -1132,13 +1150,18 @@ cdef extern from "tiledb/tiledb.h":
         char* path_out,
         unsigned* path_length) nogil
 
+
+###############################################################################
+#                                                                             #
+#   TileDB-Py API declaration                                                 #
+#                                                                             #
+###############################################################################
+
 cdef class Config(object):
     cdef tiledb_config_t* ptr
 
     @staticmethod
     cdef from_ptr(tiledb_config_t* ptr)
-
-
 
 cdef class ConfigKeys(object):
     cdef ConfigItems config_items
@@ -1235,13 +1258,14 @@ cdef class ArraySchema(object):
 
 cdef class Array(object):
     cdef Ctx ctx
+    cdef tiledb_array_t* ptr
     cdef unicode uri
     cdef unicode mode
     cdef object view_attr # can be None
     cdef object key # can be None
     cdef object schema
-    cdef tiledb_array_t* ptr
     cdef DomainIndexer domain_index
+    cdef object last_fragment_info
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
     cdef _unpack_varlen_query(self, ReadQuery read, unicode name)
