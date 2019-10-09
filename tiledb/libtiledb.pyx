@@ -183,12 +183,50 @@ def schema_like_numpy(array, ctx=default_ctx(), **kw):
     dom = Domain(*dims, ctx=ctx)
     return ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
 
+# note: this function is cdef, so it must return a python object in order to
+#       properly forward python exceptions raised within the function. See:
+#       https://cython.readthedocs.io/en/latest/src/userguide/language_basics.html#error-return-values
+cdef dict get_query_fragment_info(tiledb_ctx_t* ctx_ptr,
+                                   tiledb_query_t* query_ptr):
+
+    cdef int rc = TILEDB_OK
+    cdef uint32_t num_fragments
+    cdef int32_t fragment_idx
+    cdef const char* fragment_uri_ptr
+    cdef unicode fragment_uri
+    cdef uint64_t fragment_t1, fragment_t2
+    cdef dict result = dict()
+
+    rc = tiledb_query_get_fragment_num(ctx_ptr, query_ptr, &num_fragments)
+    if rc != TILEDB_OK:
+        _raise_ctx_err(ctx_ptr, rc)
+
+    if (num_fragments < 1):
+        return result
+
+    for fragment_idx in range(0, num_fragments):
+
+        rc = tiledb_query_get_fragment_uri(ctx_ptr, query_ptr, fragment_idx, &fragment_uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_query_get_fragment_timestamp_range(
+                ctx_ptr, query_ptr, fragment_idx, &fragment_t1, &fragment_t2)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        fragment_uri = fragment_uri_ptr.decode('UTF-8')
+        result[fragment_uri] = (fragment_t1, fragment_t2)
+
+    return result
+
 cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   tiledb_array_t* array_ptr,
                   object tiledb_array,
                   np.ndarray coords,
                   list attributes,
-                  list values):
+                  list values,
+                  dict fragment_info):
 
     cdef bint issparse = tiledb_array.schema.sparse
     cdef bint isfortran = False
@@ -283,6 +321,16 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_query_finalize(ctx_ptr, query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        if fragment_info is not False:
+            assert(type(fragment_info) is dict)
+            fragment_info.clear()
+            fragment_info.update(get_query_fragment_info(ctx_ptr, query_ptr))
+
     finally:
         tiledb_query_free(&query_ptr)
     return
@@ -3629,6 +3677,7 @@ cdef class Array(object):
         self.key = key
         self.ptr = array_ptr
         self.domain_index = DomainIndexer(self)
+        self.last_fragment_info = dict()
 
     def __enter__(self):
         return self
@@ -3904,6 +3953,10 @@ cdef class Array(object):
     @property
     def dindex(self):
         return self.domain_index
+
+    @property
+    def last_write_info(self):
+        return self.last_fragment_info
 
 cdef class ReadQuery(object):
 
@@ -4474,7 +4527,7 @@ cdef class DenseArray(Array):
                              "(use a dict({'attr': val}) to "
                              "assign multiple attributes)")
 
-        _write_array(self.ctx.ptr, self.ptr, self, subarray, attributes, values)
+        _write_array(self.ctx.ptr, self.ptr, self, subarray, attributes, values, self.last_fragment_info)
         return
 
     def __array__(self, dtype=None, **kw):
@@ -4727,6 +4780,7 @@ cdef class SparseArray(Array):
             sparse_coords,
             sparse_attributes,
             sparse_values,
+            self.last_fragment_info
         )
         return
 

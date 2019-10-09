@@ -1149,6 +1149,25 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(uri) as T:
             assert_array_equal(A, T)
 
+    def test_written_fragment_info(self):
+        uri = self.path("test_written_fragment_info")
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64, ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(ctx=ctx, dtype=np.int64)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode='w', ctx=ctx) as T:
+            T[:] = np.arange(0, 10, dtype=np.int64)
+
+            self.assertTrue(T.last_write_info is not None)
+            self.assertTrue(len(T.last_write_info.keys()) == 1)
+            print(T.last_write_info.values())
+            t_w1, t_w2 = list(T.last_write_info.values())[0]
+            self.assertTrue(t_w1 > 0)
+            self.assertTrue(t_w2 > 0)
+
 class DenseVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
         A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee','ffffff','g','hhhhhhhhhh'], dtype=bytes)
