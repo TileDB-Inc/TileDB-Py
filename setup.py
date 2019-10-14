@@ -468,12 +468,24 @@ if TILEDB_PATH != '':
 with open('README.rst') as f:
     README_RST = f.read()
 
+# Source files for build
+MODULAR_SOURCES = [
+  'tiledb/np2buf.pyx',
+  'tiledb/indexing.pyx',
+  ]
+MODULAR_HEADERS = [
+  'tiledb/libtiledb.pxd',
+  'tiledb/np2buf.pxd',
+  'tiledb/indexing.pxd'
+  ]
+
 __extensions = [
   Extension(
     "tiledb.libtiledb",
     include_dirs=INC_DIRS,
     define_macros=DEF_MACROS,
     sources=["tiledb/libtiledb.pyx"],
+    depends=MODULAR_HEADERS,
     library_dirs=LIB_DIRS,
     libraries=LIBS,
     extra_link_args=LFLAGS,
@@ -481,11 +493,6 @@ __extensions = [
     language="c++"
     )
 ]
-
-MODULAR_SOURCES = [
-  'tiledb/np2buf.pyx',
-  'tiledb/indexing.pyx',
-  ]
 
 if TILEDBPY_MODULAR:
   for source in MODULAR_SOURCES:
