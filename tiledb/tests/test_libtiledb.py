@@ -1380,43 +1380,48 @@ class SparseArray(DiskTestCase):
     @unittest.expectedFailure
     def test_sparse_ordered_fp_domain(self):
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(ctx, tiledb.Dim(ctx, "x", domain=(0.0, 10.0), tile=2.0, dtype=float))
-        attr = tiledb.Attr(ctx, dtype=float)
-        schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(attr,), sparse=True)
+        dom = tiledb.Domain(
+                tiledb.Dim("x", domain=(0.0, 10.0), tile=2.0, dtype=float, ctx=ctx),
+                ctx=ctx)
+        attr = tiledb.Attr(dtype=float, ctx=ctx)
+        attr = tiledb.Attr(dtype=float, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True, ctx=ctx)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         values = np.array([3.3, 2.7])
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='w') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[[2.5, 4.2]] = values
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='r') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             assert_array_equal(T[[2.5, 4.2]], values)
 
     @unittest.expectedFailure
     def test_sparse_unordered_fp_domain(self):
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(ctx, tiledb.Dim(ctx, "x", domain=(0.0, 10.0), tile=2.0, dtype=float))
-        attr = tiledb.Attr(ctx, dtype=float)
-        schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(attr,), sparse=True)
+        dom = tiledb.Domain(tiledb.Dim("x", domain=(0.0, 10.0), tile=2.0, dtype=float), ctx=ctx)
+        attr = tiledb.Attr(dtype=float, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True, ctx=ctx)
         tiledb.SparseArray.create(self.path("foo"), schema)
         values = np.array([3.3, 2.7])
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='w') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[[4.2, 2.5]] = values
 
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='r') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             assert_array_equal(T[[2.5, 4.2]], values[::-1])
 
     @unittest.expectedFailure
     def test_multiple_attributes(self):
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(ctx,
-            tiledb.Dim(ctx, domain=(1, 10), tile=10, dtype=int),
-            tiledb.Dim(ctx, domain=(1, 10), tile=10, dtype=int))
-        attr_int = tiledb.Attr(ctx, "ints", dtype=int)
-        attr_float = tiledb.Attr(ctx, "floats", dtype="float")
-        schema = tiledb.ArraySchema(ctx,
+        dom = tiledb.Domain(
+                tiledb.Dim(domain=(1, 10), tile=10, dtype=int, ctx=ctx),
+                tiledb.Dim(domain=(1, 10), tile=10, dtype=int, ctx=ctx),
+                ctx=ctx)
+        attr_int = tiledb.Attr("ints", dtype=int, ctx=ctx)
+        attr_float = tiledb.Attr("floats", dtype="float", ctx=ctx)
+        schema = tiledb.ArraySchema(
                                 domain=dom,
                                 attrs=(attr_int, attr_float,),
-                                sparse=True)
+                                sparse=True,
+                                ctx=ctx)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         I = np.array([1, 1, 1, 2, 3, 3, 3, 4])
@@ -1426,16 +1431,16 @@ class SparseArray(DiskTestCase):
         V_floats = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 5.0])
 
         V = {"ints": V_ints, "floats": V_floats}
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='w') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[I, J] = V
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='r') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             R = T[I, J]
         assert_array_equal(V["ints"], R["ints"])
         assert_array_equal(V["floats"], R["floats"])
 
         # check error attribute does not exist
         # TODO: should this be an attribute error?
-        with tiledb.SparseArray(ctx, self.path("foo"), mode='w') as T:
+        with tiledb.SparseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             V["foo"] = V["ints"].astype(np.int8)
             with self.assertRaises(tiledb.TileDBError):
                 T[I, J] = V
