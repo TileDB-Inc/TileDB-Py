@@ -24,9 +24,10 @@ cdef class DomainIndexer(object):
         indexer.schema = schema
         return indexer
 
-    def __init__(self, Array array):
+    def __init__(self, Array array, query = None):
         self.array = array
         self.schema = array.schema
+        self.query = query
 
     def __getitem__(self, object idx):
         # implements domain-based indexing: slice by domain coordinates, not 0-based python indexing
@@ -61,6 +62,20 @@ cdef class DomainIndexer(object):
         attr_names = list(self.schema.attr(i).name for i in range(self.schema.nattr))
 
         order = None
+        # TODO make coords optional for array.domain_index. there are no kwargs in slicing[], so
+        #      one way to do this would be to overload __call__ and return a new
+        #      object with a flag set. not ideal.
+        coords = True
+
+        if self.query is not None:
+            # if we are called via Query object, then we need to respect Query semantics
+            order = self.query.order
+            attr_names = self.query.attrs if self.query.attrs else attr_names # query.attrs might be None -> all
+            coords = self.query.coords
+
+        if coords:
+            attr_names.insert(0, "coords")
+
         if order is None or order == 'C':
             layout = TILEDB_ROW_MAJOR
         elif order == 'F':
@@ -70,12 +85,6 @@ cdef class DomainIndexer(object):
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
 
-        # TODO make coords optional. there are no kwargs in slicing[], so
-        #      one way to do this would be to overload __call__ and return a new
-        #      object with a flag set. not ideal.
-        attr_names = list()
-        attr_names.append("coords")
-        attr_names.extend(self.schema.attr(i).name for i in range(self.schema.nattr))
 
         if isinstance(self.array, SparseArray):
             return (<SparseArray>self.array)._read_sparse_subarray(subarray, attr_names, layout)

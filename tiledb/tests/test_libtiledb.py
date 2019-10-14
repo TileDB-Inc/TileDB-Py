@@ -1450,6 +1450,37 @@ class SparseArray(DiskTestCase):
             with self.assertRaises(AttributeError):
                 T[I, J] = V
 
+    def test_query_fp_domain_index(self):
+        uri = self.path("query_fp_domain_index")
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float, ctx=ctx),
+            ctx=ctx)
+        attr = tiledb.Attr("a", dtype=np.float32, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(uri, schema)
+
+        values = np.array([3.3, 2.7])
+        with tiledb.SparseArray(uri, mode='w', ctx=ctx) as T:
+            T[[2.5, 4.2]] = values
+        with tiledb.SparseArray(uri, mode='r', ctx=ctx) as T:
+            assert_array_equal(
+                T.query(coords=True).domain_index[-10.0: np.nextafter(4.2, 0)]["a"],
+                np.float32(3.3)
+            )
+            assert_array_equal(
+                T.query(coords=True).domain_index[-10.0: np.nextafter(4.2, 0)]["coords"]["x"],
+                np.float32([2.5])
+            )
+            assert_array_equal(
+                T.query(coords=False).domain_index[-10.0: 5.0]["a"],
+                np.float32([3.3, 2.7])
+            )
+            self.assertTrue(
+                'coords' not in T.query(coords=False).domain_index[-10.0: 5.0]
+            )
+
     def test_subarray(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -1850,25 +1881,26 @@ class NumpyToArray(DiskTestCase):
         ctx = tiledb.Ctx()
         np_array = np.array(1)
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx)
+            with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as A:
+                pass
 
     def test_to_array1d(self):
         ctx = tiledb.Ctx()
         np_array = np.array([1.0, 2.0, 3.0])
-        arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx)
-        assert_array_equal(arr[:], np_array)
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
+            assert_array_equal(arr[:], np_array)
 
     def test_to_array2d(self):
         ctx = tiledb.Ctx()
         np_array = np.ones((100, 100), dtype='i8')
-        arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx)
-        assert_array_equal(arr[:], np_array)
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
+            assert_array_equal(arr[:], np_array)
 
     def test_to_array3d(self):
         ctx = tiledb.Ctx()
         np_array = np.ones((1, 1, 1), dtype='i1')
-        arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx)
-        assert_array_equal(arr[:], np_array)
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
+            assert_array_equal(arr[:], np_array)
 
     def test_bytes_to_array1d(self):
         np_array = np.array([b'abcdef', b'gh', b'ijkl', b'mnopqrs', b'1234545lkjalsdfj'], dtype=object)
@@ -1891,8 +1923,8 @@ class NumpyToArray(DiskTestCase):
         # Tests that __array__ interface works
         ctx = tiledb.Ctx()
         np_array1 = np.arange(1, 10)
-        arr1 = tiledb.DenseArray.from_numpy(self.path("arr1"), np_array1, ctx=ctx)
-        assert_array_equal(np.array(arr1), np_array1)
+        with tiledb.DenseArray.from_numpy(self.path("arr1"), np_array1, ctx=ctx) as arr1:
+            assert_array_equal(np.array(arr1), np_array1)
 
         # Test that __array__ interface throws an error when number of attributes > 1
         dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3), ctx=ctx)
@@ -1908,8 +1940,8 @@ class NumpyToArray(DiskTestCase):
         # Tests that __getindex__ interface works
         ctx = tiledb.Ctx()
         np_array = np.arange(1, 10)
-        arr = tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx)
-        assert_array_equal(arr[5:10], np_array[5:10])
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
+            assert_array_equal(arr[5:10], np_array[5:10])
 
 
 class KVSchema(DiskTestCase):
