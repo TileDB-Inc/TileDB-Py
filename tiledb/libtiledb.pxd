@@ -1184,8 +1184,6 @@ cdef class Domain(object):
     cdef _integer_domain(Domain self)
     cdef _shape(Domain self)
 
-
-
 cdef class KVSchema(object):
     cdef Ctx ctx
     cdef tiledb_kv_schema_t* ptr
@@ -1194,8 +1192,6 @@ cdef class KVSchema(object):
     cdef from_ptr(const tiledb_kv_schema_t* ptr, Ctx ctx=*)
     cdef _attr_name(self, name)
     cdef _attr_idx(self, int idx)
-
-
 
 cdef class KV(object):
     cdef Ctx ctx
@@ -1231,16 +1227,13 @@ cdef class Array(object):
     cdef object key # can be None
     cdef object schema
     cdef tiledb_array_t* ptr
+    cdef DomainIndexer domain_index
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
     cdef _unpack_varlen_query(self, ReadQuery read, unicode name)
 
-
 cdef class SparseArray(Array):
-    cdef DomainIndexer domain_index
-
     cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout)
-
 
 cdef class DenseArray(Array):
     cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout)
@@ -1264,6 +1257,7 @@ cdef class Query(object):
     cdef object attrs
     cdef object coords
     cdef object order
+    cdef DomainIndexer domain_index
 
 cdef class ReadQuery(object):
     cdef object _buffers
