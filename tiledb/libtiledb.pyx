@@ -3453,6 +3453,7 @@ cdef class Array(object):
         self.schema = schema
         self.key = key
         self.ptr = array_ptr
+        self.domain_index = DomainIndexer(self)
 
     def __enter__(self):
         return self
@@ -3713,6 +3714,14 @@ cdef class Array(object):
 
         return out_array
 
+    @property
+    def domain_index(self):
+        return self.domain_index
+
+    @property
+    def dindex(self):
+        return self.domain_index
+
 cdef class ReadQuery(object):
 
     @property
@@ -3895,12 +3904,17 @@ cdef class Query(object):
         self.attrs = attrs
         self.coords = coords
         self.order = order
+        self.domain_index = DomainIndexer(array, query=self)
 
     def __getitem__(self, object selection):
         return self.array.subarray(selection,
                                    attrs=self.attrs,
                                    coords=self.coords,
                                    order=self.order)
+
+    @property
+    def domain_index(self):
+        return self.domain_index
 
 
 # work around https://github.com/cython/cython/issues/2757
@@ -4454,8 +4468,6 @@ cdef class SparseArray(Array):
         if not self.schema.sparse:
             raise ValueError("Array at '{}' is not a sparse array".format(self.uri))
 
-        cdef domain_index = DomainIndexer(self)
-        self.domain_index = domain_index
         return
 
     def __len__(self):
@@ -4728,14 +4740,6 @@ cdef class SparseArray(Array):
                     out[name] = arr
 
         return out
-
-    @property
-    def domain_index(self):
-        return self.domain_index
-
-    @property
-    def dindex(self):
-        return self.domain_index
 
 def consolidate(uri=None, Config config=None, key=None, Ctx ctx=default_ctx()):
     """Consolidates a TileDB Array updates for improved read performance

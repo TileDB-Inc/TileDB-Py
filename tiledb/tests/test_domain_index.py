@@ -5,7 +5,7 @@ import tiledb
 
 from tiledb.tests.common import *
 
-class DomainIndexingTest(DiskTestCase):
+class DomainIndexingSparseTest(DiskTestCase):
 
     def test_int_domain_indexing(self):
         path = self.path("int_domain_indexing")
@@ -142,4 +142,28 @@ class DomainIndexingTest(DiskTestCase):
             # check counting by slice
             assert_equal(A.domain_index[0:2.0, 0:1.0]['coords'].shape[0], 1)
             assert_equal(A.domain_index[0:2.0, np.nextafter(1.0, 2.0)]['coords'].shape[0], 0)
+
+class DomainIndexingDenseTest(DiskTestCase):
+
+    def test_int_domain_indexing(self):
+        path = self.path("dense_int_domain_indexing")
+
+        dom = tiledb.Domain(tiledb.Dim(name="x", domain=(0,10), tile=1, dtype=np.int64))
+        schema = tiledb.ArraySchema(domain=dom, sparse=False,
+                                    attrs=[tiledb.Attr(name="a", dtype=np.float64)])
+
+        tiledb.DenseArray.create(path, schema)
+
+        X = np.arange(0,11,step=1)
+        val = np.random.rand(len(X))
+
+        with tiledb.DenseArray(path, mode='w') as A:
+            A[:] = val
+
+        with tiledb.DenseArray(path) as A:
+            assert_array_equal(A.domain_index[ X[0]]['a'], val[0])
+            assert_array_equal(A.domain_index[ X[-1]]['a'], val[-1])
+            assert_array_equal(A.domain_index[ X[0]:X[-1] ]['a'], val[:])
+            # sanity check
+            assert_array_equal(A.domain_index[ X[0]:X[-1] ]['coords'].view(np.int64), X[:])
 

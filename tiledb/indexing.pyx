@@ -24,7 +24,7 @@ cdef class DomainIndexer(object):
         indexer.schema = schema
         return indexer
 
-    def __init__(self, SparseArray array):
+    def __init__(self, Array array):
         self.array = array
         self.schema = array.schema
 
@@ -33,6 +33,7 @@ cdef class DomainIndexer(object):
 
         cdef Domain dom = self.schema.domain
         cdef ndim = dom.ndim
+        cdef list attr_names = list()
 
         idx = _index_as_tuple(idx)
 
@@ -57,7 +58,8 @@ cdef class DomainIndexer(object):
             assert isinstance(subidx, slice)
             subarray[i] = subidx.start, subidx.stop
 
-        # TODO...
+        attr_names = list(self.schema.attr(i).name for i in range(self.schema.nattr))
+
         order = None
         if order is None or order == 'C':
             layout = TILEDB_ROW_MAJOR
@@ -75,4 +77,9 @@ cdef class DomainIndexer(object):
         attr_names.append("coords")
         attr_names.extend(self.schema.attr(i).name for i in range(self.schema.nattr))
 
-        return self.array._read_sparse_subarray(subarray, attr_names, layout)
+        if isinstance(self.array, SparseArray):
+            return (<SparseArray>self.array)._read_sparse_subarray(subarray, attr_names, layout)
+        elif isinstance(self.array, DenseArray):
+            return (<DenseArray>self.array)._read_dense_subarray(subarray, attr_names, layout)
+        else:
+            raise Exception("No handler for Array type: " + str(type(self.array)))
