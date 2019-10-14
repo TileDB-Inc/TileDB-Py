@@ -502,6 +502,8 @@ if TILEDBPY_MODULAR:
         language="c++"
         )
     __extensions.append(ext)
+else:
+  __extensions[0].depends += MODULAR_SOURCES
 
 # Helper to set Extension attributes correctly based on python version
 def ext_attr_update(attr, value):
