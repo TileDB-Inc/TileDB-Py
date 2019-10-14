@@ -1,5 +1,5 @@
-from .libtiledb cimport SparseArray, ArraySchema
+from .libtiledb cimport Array, ArraySchema, Query
 
 cdef class DomainIndexer:
-    cdef SparseArray array
+    cdef Array array
     cdef ArraySchema schema
