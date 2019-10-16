@@ -2270,6 +2270,23 @@ class VFS(DiskTestCase):
         self.assertEqual(io.readall(), buffer[5:])
         self.assertEqual(io.readall(), b"")
 
+    def test_ls(self):
+        import os
+        basepath = self.path("test_vfs_ls")
+        os.mkdir(basepath)
+        for id in (1,2,3):
+            dir = os.path.join(basepath, "dir"+str(id))
+            os.mkdir(dir)
+            fname =os.path.join(basepath, "file_"+str(id))
+            os.close(os.open(fname, os.O_CREAT | os.O_EXCL))
+
+        expected = ('dir1','dir2','dir3', 'file_1', 'file_2', 'file_3')
+        vfs = tiledb.VFS(ctx=tiledb.Ctx())
+        self.assertSetEqual(
+            set(os.path.normpath(
+                'file://' + os.path.join(basepath, x)) for x in expected),
+            set(os.path.normpath(x) for x in vfs.ls(basepath))
+        )
 
 class MemoryTest(DiskTestCase):
     # sanity check that memory usage doesn't increase more than 2x when reading 40MB 100x
@@ -2338,8 +2355,6 @@ class MemoryTest(DiskTestCase):
         print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
 
         self.assertTrue(final < (2 * initial))
-
-
 
 #if __name__ == '__main__':
 #    # run a single example for in-process debugging
