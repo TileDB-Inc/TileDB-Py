@@ -4514,6 +4514,16 @@ def move(old_uri, new_uri, Ctx ctx = default_ctx()):
         check_error(ctx, rc)
     return
 
+cdef int vfs_ls_callback(const char* path_ptr, void* py_list):
+    cdef list result_list
+    cdef unicode path
+    try:
+        result_list = <list?>py_list
+        path = path_ptr.decode('UTF-8')
+        result_list.append(path)
+    except StopIteration:
+        return 0
+    return 1
 
 cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     objtype = None
@@ -4853,6 +4863,27 @@ cdef class VFS(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
+
+    def ls(self, uri):
+        """Lists contents of directory at the given URI. Raises TileDBError
+        for non-existent directory.
+
+        :param str uri: URI of a VFS directory resource
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef list result_list = list()
+
+        cdef int rc = TILEDB_OK
+
+        check_error(self.ctx,
+                    tiledb_vfs_ls(ctx_ptr, vfs_ptr, uri_ptr, vfs_ls_callback, <void*>result_list))
+
+        return result_list
 
     def file_size(self, uri):
         """Returns the size (in bytes) of a VFS file at the given URI
