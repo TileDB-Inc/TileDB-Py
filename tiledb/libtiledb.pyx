@@ -78,15 +78,6 @@ def offset_size():
     return tiledb_offset_size()
 
 
-# Global Ctx object to be used by default in all constructors
-# Users needing a specific context should pass a context as kwarg.
-cdef Ctx _global_ctx = Ctx()
-
-def default_ctx():
-    """Returns the default tiledb.Ctx object"""
-    return _global_ctx
-
-
 def regularize_tiling(tile, ndim):
     if not tile:
         return None
@@ -3940,10 +3931,6 @@ cdef class ReadQuery(object):
             np.ndarray tmparray
             bytes battr_name
             Py_ssize_t nattr = len(attr_names)
-
-        cdef tuple shape = \
-            tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
-                  for r in range(schema.ndim))
 
         # set subarray / layout
         subarray_ptr = np.PyArray_DATA(subarray)

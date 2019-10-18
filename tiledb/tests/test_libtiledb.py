@@ -218,11 +218,9 @@ class DimensionTest(unittest.TestCase):
         self.assertTupleEqual(dim.domain, (np.datetime64('2010-01-01'), np.datetime64('2020-01-01')))
 
         # No tile extent specified
-        dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
-                         dtype=np.datetime64('', 'D'))
-        self.assertEqual(dim.dtype, np.dtype(np.datetime64('', 'D')))
-        self.assertIsNone(dim.tile)
-        self.assertTupleEqual(dim.domain, (np.datetime64('2010-01-01'), np.datetime64('2020-01-01')))
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
+                       dtype=np.datetime64('', 'D'))
 
         # Integer tile extent is ok
         dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
@@ -1853,8 +1851,9 @@ class DatetimeSlicing(DiskTestCase):
             actual = T[np.datetime64('2010-11-01'): np.datetime64('2011-01-31')]
 
             # Convert datetime interval to integer offset/length into original array
-            read_offset = (np.datetime64('2010-11-01') - start) / np.timedelta64(1, 'D')
-            read_ndays = (np.datetime64('2011-01-31') - np.datetime64('2010-11-01') + 1) / np.timedelta64(1, 'D')
+            # must be cast to int because float slices are not allowed in NumPy 1.12+
+            read_offset = int( (np.datetime64('2010-11-01') - start) / np.timedelta64(1, 'D') )
+            read_ndays = int( (np.datetime64('2011-01-31') - np.datetime64('2010-11-01') + 1) / np.timedelta64(1, 'D') )
             expected = a1_vals[read_offset : read_offset + read_ndays]
             assert_array_equal(actual, expected)
 
@@ -1863,8 +1862,8 @@ class DatetimeSlicing(DiskTestCase):
             actual = T[np.datetime64('2010'): np.datetime64('2011')]
 
             # Convert datetime interval to integer offset/length into original array
-            read_offset = (np.datetime64('2010-01-01') - start) / np.timedelta64(1, 'D')
-            read_ndays = (np.datetime64('2011-01-01') - np.datetime64('2010-01-01') + 1) / np.timedelta64(1, 'D')
+            read_offset = int( (np.datetime64('2010-01-01') - start) / np.timedelta64(1, 'D') )
+            read_ndays = int( (np.datetime64('2011-01-01') - np.datetime64('2010-01-01') + 1) / np.timedelta64(1, 'D') )
             expected = a1_vals[read_offset: read_offset + read_ndays]
             assert_array_equal(actual, expected)
 
