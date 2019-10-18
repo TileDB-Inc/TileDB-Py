@@ -1185,6 +1185,7 @@ cdef class Dim(object):
 
     cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR
     cdef _integer_domain(self)
+    cdef _datetime_domain(self)
     cdef _shape(self)
 
 cdef class Domain(object):
