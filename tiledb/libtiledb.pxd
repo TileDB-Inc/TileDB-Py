@@ -691,6 +691,42 @@ cdef extern from "tiledb/tiledb.h":
         uint64_t* t1,
         uint64_t* t2)
 
+    int tiledb_query_add_range(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        uint32_t dim_idx,
+        const void * start,
+        const void * end,
+        const void * stride)
+
+    int tiledb_query_get_range(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        uint32_t dim_idx,
+        uint64_t range_idx,
+        const void** start,
+        const void** end,
+        const void** stride)
+
+    int tiledb_query_get_range_num(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        uint32_t dim_idx,
+        uint64_t * range_num)
+
+    int tiledb_query_get_est_result_size(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        const char* attr_name,
+        uint64_t* size)
+
+    int tiledb_query_get_est_result_size_var(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        const char* attr_name,
+        uint64_t* size_off,
+        uint64_t* size_val)
+
     # Array
     int tiledb_array_alloc(
         tiledb_ctx_t* ctx,
@@ -1063,9 +1099,13 @@ cdef class Array(object):
     cdef object key # can be None
     cdef object schema
     cdef DomainIndexer domain_index
+
+    # TODO make this a cython type TBD
+    cdef object multi_index
+
     cdef object last_fragment_info
     # TODO make this Metadata
-    cdef object meta
+    cdef Metadata meta
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
     cdef _unpack_varlen_query(self, ReadQuery read, unicode name)
@@ -1104,6 +1144,8 @@ cdef class ReadQuery(object):
 cdef class Metadata(object):
     cdef Array array
 
+cdef class TileDBError(Exception):
+    pass
 
 IF (not TILEDBPY_MODULAR):
     include "indexing.pxd"
