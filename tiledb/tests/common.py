@@ -2,18 +2,15 @@ from __future__ import absolute_import
 
 import glob
 import os
+import sys
+import random
 import shutil
 import tempfile
 import traceback
 from unittest import TestCase
+
+import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
-
-
-def assert_subarrays_equal(a, b):
-    assert_equal(a.shape, b.shape)
-
-    for a_el, b_el in zip(a.flat, b.flat):
-        assert_array_equal(a_el, b_el)
 
 
 class DiskTestCase(TestCase):
@@ -41,4 +38,48 @@ class DiskTestCase(TestCase):
         frame = traceback.extract_stack(limit=2)[-2][2]
         self.pathmap[out] = frame
         return out
+
+
+def assert_subarrays_equal(a, b):
+    assert_equal(a.shape, b.shape)
+
+    for a_el, b_el in zip(a.flat, b.flat):
+        assert_array_equal(a_el, b_el)
+
+# python 2 vs 3 compatibility
+if sys.hexversion >= 0x3000000:
+    getchr = chr
+else:
+    getchr = unichr
+
+def gen_chr(max):
+    while True:
+        s = getchr(random.randrange(max))
+        if len(s) > 0: break
+    return s
+
+def rand_utf8(size=5):
+    return u''.join([gen_chr(0xD7FF) for _ in range(0, size)])
+
+def rand_ascii(size=5):
+    return u''.join([gen_chr(127) for _ in range(0,size)])
+
+def rand_ascii_bytes(size=5):
+    return b''.join([gen_chr(127).encode('utf-8') for _ in range(0,size)])
+
+def dtype_max(dtype):
+    if not np.issubdtype(dtype, np.generic):
+        raise TypeError("expected numpy dtype!")
+    iinfo = np.iinfo(dtype)
+    return iinfo.max
+
+def dtype_min(dtype):
+    if not np.issubdtype(dtype, np.generic):
+        raise TypeError("expected numpy dtype!")
+    iinfo = np.iinfo(dtype)
+    return iinfo.min
+
+def rand_int_sequential(size, dtype=np.uint64):
+    arr = np.random.randint(dtype_max(dtype), size=size, dtype=dtype)
+    return np.sort(arr)
 

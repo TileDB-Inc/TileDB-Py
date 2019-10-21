@@ -1,5 +1,5 @@
 from libc.stdio cimport FILE
-from libc.stdint cimport uint64_t
+from libc.stdint cimport uint64_t, uint32_t
 
 IF TILEDBPY_MODULAR:
     from .indexing cimport DomainIndexer
@@ -369,6 +369,10 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_attribute_t* attr,
         FILE* out)
 
+    # Datatype
+    uint64_t tiledb_datatype_size(
+        tiledb_datatype_t type);
+
     # Domain
     int tiledb_domain_alloc(
         tiledb_ctx_t* ctx,
@@ -563,6 +567,55 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         FILE* out)
+
+    int tiledb_array_put_metadata(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const char* key,
+        tiledb_datatype_t value_type,
+        uint32_t value_num,
+        const void* value)
+
+    int tiledb_array_delete_metadata(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const char* key)
+
+    int tiledb_array_get_metadata(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const char* key,
+        tiledb_datatype_t* value_type,
+        uint32_t* value_num,
+        const void** value)
+
+    int tiledb_array_get_metadata_num(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint64_t* num)
+
+    int tiledb_array_get_metadata_from_index(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint64_t index,
+        const char** key,
+        uint32_t* key_len,
+        tiledb_datatype_t* value_type,
+        uint32_t* value_num,
+        const void** value)
+
+    int tiledb_array_consolidate_metadata(
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
+        tiledb_config_t* config)
+
+    int tiledb_array_consolidate_metadata_with_key(
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
+        tiledb_encryption_type_t encryption_type,
+        const void* encryption_key,
+        uint32_t key_length,
+        tiledb_config_t* config)
 
     # Query
     int tiledb_query_alloc(
@@ -1155,9 +1208,8 @@ cdef extern from "tiledb/tiledb.h":
         char* path_out,
         unsigned* path_length) nogil
 
-
 # Free helper functions
-
+cdef unicode ustring(object s)
 cpdef check_error(Ctx ctx, int rc)
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr)
 cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc)
@@ -1279,6 +1331,8 @@ cdef class Array(object):
     cdef object schema
     cdef DomainIndexer domain_index
     cdef object last_fragment_info
+    # TODO make this Metadata
+    cdef object meta
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
     cdef _unpack_varlen_query(self, ReadQuery read, unicode name)
@@ -1313,6 +1367,10 @@ cdef class Query(object):
 cdef class ReadQuery(object):
     cdef object _buffers
     cdef object _offsets
+
+cdef class Metadata(object):
+    cdef Array array
+
 
 IF (not TILEDBPY_MODULAR):
     include "indexing.pxd"

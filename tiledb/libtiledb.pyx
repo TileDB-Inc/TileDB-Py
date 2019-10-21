@@ -37,12 +37,11 @@ def default_ctx():
 IF TILEDBPY_MODULAR:
     from .np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
     from .indexing import DomainIndexer
+    from metadata import xget_metadata, xput_metadata, xload_metadata
 ELSE:
     include "indexing.pyx"
     include "np2buf.pyx"
-
-#from .np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
-#from .indexing import DomainIndexer
+    include "metadata.pyx"
 
 ###############################################################################
 #    Utility/setup                                                            #
@@ -335,13 +334,11 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         tiledb_query_free(&query_ptr)
     return
 
-
-
 class TileDBError(Exception):
     """TileDB Error Exception
 
     Captures and raises error return code (``TILEDB_ERR``) messages when calling ``libtiledb``
-    functions.  The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`.
+    functions.  The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`
 
     A Python :py:class:`MemoryError` is raised on ``TILEDB_OOM``
 
@@ -411,7 +408,7 @@ def stats_dump():
     tiledb_stats_dump(stdout)
 
 
-cdef unicode ustring(object s):
+cpdef unicode ustring(object s):
     """Coerce a python object to a unicode string"""
 
     if type(s) is unicode:
@@ -3695,6 +3692,7 @@ cdef class Array(object):
         self.ptr = array_ptr
         self.domain_index = DomainIndexer(self)
         self.last_fragment_info = dict()
+        self.meta = Metadata(self)
 
     def __enter__(self):
         return self
@@ -3735,6 +3733,10 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
+
+    @property
+    def meta(self):
+        return self.meta
 
     @property
     def schema(self):
@@ -5019,10 +5021,12 @@ def consolidate(uri=None, Config config=None, key=None, Ctx ctx=default_ctx()):
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
     # encyrption key
-    cdef bytes bkey
-    cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-    cdef void* key_ptr = NULL
-    cdef unsigned int key_len = 0
+    cdef:
+        bytes bkey
+        tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        void* key_ptr = NULL
+        unsigned int key_len = 0
+
     if key is not None:
         if isinstance(key, str):
             bkey = key.encode('ascii')
@@ -5858,3 +5862,5 @@ class FileIO(object):
         self._nbytes += nbytes
         self._offset += nbytes
         return nbytes
+
+
