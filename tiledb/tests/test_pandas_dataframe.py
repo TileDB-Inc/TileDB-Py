@@ -6,50 +6,13 @@ try:
 except ImportError:
     import_failed = True
 
-
 import unittest, os
 import string, random
 import numpy as np
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase
-
-try:
-    getchr = chr
-except:
-    getchr = unichr
-
-def gen_chr(max):
-    while True:
-        s = getchr(random.randrange(max))
-        if len(s) > 0: break
-    return s
-
-def rand_utf8(size=5):
-    return u''.join([gen_chr(0xD7FF) for _ in range(0, size)])
-
-def rand_ascii(size=5):
-    return u''.join([gen_chr(127) for _ in range(0,size)])
-
-def rand_ascii_bytes(size=5):
-    return b''.join([gen_chr(127).encode('utf-8') for _ in range(0,size)])
-
-def dtype_max(dtype):
-    if not np.issubdtype(dtype, np.generic):
-        raise TypeError("expected numpy dtype!")
-    iinfo = np.iinfo(dtype)
-    return iinfo.max
-
-def dtype_min(dtype):
-    if not np.issubdtype(dtype, np.generic):
-        raise TypeError("expected numpy dtype!")
-    iinfo = np.iinfo(dtype)
-    return iinfo.min
-
-def rand_int_sequential(size, dtype=np.uint64):
-    arr = np.random.randint(dtype_max(dtype), size=size, dtype=dtype)
-    return np.sort(arr)
+from tiledb.tests.common import *
 
 def make_dataframe_ex1(col_size=10):
     data_dict = {
