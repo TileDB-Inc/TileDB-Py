@@ -335,7 +335,8 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         tiledb_query_free(&query_ptr)
     return
 
-class TileDBError(Exception):
+
+cdef class TileDBError(Exception):
     """TileDB Error Exception
 
     Captures and raises error return code (``TILEDB_ERR``) messages when calling ``libtiledb``
@@ -3057,6 +3058,10 @@ cdef class Array(object):
         self.key = key
         self.ptr = array_ptr
         self.domain_index = DomainIndexer(self)
+
+        # TODO cython
+        from .multirange_indexing import MultiRangeIndexer
+        self.multi_index = MultiRangeIndexer(self)
         self.last_fragment_info = dict()
         self.meta = Metadata(self)
 
@@ -3338,6 +3343,10 @@ cdef class Array(object):
     @property
     def dindex(self):
         return self.domain_index
+
+    @property
+    def multi_index(self):
+        return self.multi_index
 
     @property
     def last_write_info(self):
@@ -4143,8 +4152,9 @@ cdef class SparseArrayImpl(Array):
             attr = self.attr(0)
             name = attr.name
             value = np.ascontiguousarray(val, dtype=attr.dtype)
-            if len(value) != ncells:
-                raise ValueError("value length does not match coordinate length")
+            if value.size != ncells:
+                raise ValueError("value length ({}) does not match "
+                                 "coordinate length ({})".format(len(value), ncells))
             sparse_attributes.append(name)
             sparse_values.append(value)
         else:
@@ -4152,8 +4162,9 @@ cdef class SparseArrayImpl(Array):
                 attr = self.attr(k)
                 name = attr.name
                 value = v if attr.dtype is 'O' else np.ascontiguousarray(v, dtype=attr.dtype)
-                if len(value) != ncells:
-                    raise ValueError("value length does not match coordinate length")
+                if value.size != ncells:
+                    raise ValueError("value length ({}) does not match "
+                                     "coordinate length ({})".format(value.size, ncells))
                 sparse_attributes.append(name)
                 sparse_values.append(value)
 

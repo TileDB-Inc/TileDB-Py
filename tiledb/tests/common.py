@@ -46,6 +46,14 @@ def assert_subarrays_equal(a, b):
     for a_el, b_el in zip(a.flat, b.flat):
         assert_array_equal(a_el, b_el)
 
+def assert_all_arrays_equal(*arrays):
+    # TODO this should display raise in the calling location if possible
+    assert len(arrays) % 2 == 0, \
+           "Expected even number of arrays"
+
+    for a1,a2 in zip(arrays[0::2], arrays[1::2]):
+        assert_array_equal(a1, a2)
+
 # python 2 vs 3 compatibility
 if sys.hexversion >= 0x3000000:
     getchr = chr
@@ -83,3 +91,23 @@ def rand_int_sequential(size, dtype=np.uint64):
     arr = np.random.randint(dtype_max(dtype), size=size, dtype=dtype)
     return np.sort(arr)
 
+def intspace(start, stop, num=50, dtype=np.int64):
+    """
+    Return evenly spaced values over range ensuring that stop is
+    always the maximum (will not overflow with int dtype as linspace)
+    :param start:
+    :param stop:
+    :param num:
+    :param dtype:
+    :return:
+    """
+    rval = np.zeros(num, dtype=dtype)
+    step = (stop-start)//num
+    nextval = start
+
+    for i in range(num):
+        rval[i] = nextval
+        nextval += step
+
+    rval[-1] = stop
+    return rval
