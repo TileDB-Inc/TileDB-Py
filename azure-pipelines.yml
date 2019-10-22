@@ -32,7 +32,7 @@ steps:
   displayName: 'Print env'
 
 - script: |
-    python -m pip install --upgrade pip setuptools wheel numpy tox setuptools-scm cython psutil dask
+    python -m pip install --upgrade setuptools wheel numpy tox setuptools-scm cython psutil dask
   displayName: 'Install dependencies'
 
 - script: |
