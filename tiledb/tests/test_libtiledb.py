@@ -2496,16 +2496,18 @@ class MemoryTest(DiskTestCase):
     def setUp(self):
         super(MemoryTest, self).setUp()
         import sys
-        if not sys.platform.startswith("linux"):
-            self.skipTest("Only run MemoryTest on linux")
+        #if not sys.platform.startswith("linux"):
+        #    self.skipTest("Only run MemoryTest on linux")
 
     @staticmethod
-    def use_many_buffers(path):
+    def use_many_buffers(path, array_type):
         import psutil, os
         # https://stackoverflow.com/questions/938733/total-memory-used-by-python-process
         process = psutil.Process(os.getpid())
 
         x = np.ones(10000000, dtype=np.float32)
+        coords = np.arange(10000000)
+
         ctx = tiledb.Ctx()
         d1 = tiledb.Dim(
             'test_domain', domain=(0, x.shape[0] - 1), tile=10000, dtype="uint32")
@@ -2513,16 +2515,24 @@ class MemoryTest(DiskTestCase):
         v = tiledb.Attr(
             'test_value',
             dtype="float32")
-
+        
         schema = tiledb.ArraySchema(
-            domain=domain, attrs=(v,), cell_order="row-major", tile_order="row-major")
+                     domain=domain,
+                     attrs=(v,),
+                     cell_order="row-major",
+                     tile_order="row-major",
+                     sparse=(array_type is tiledb.SparseArray))
 
-        A = tiledb.DenseArray.create(path, schema)
+        A = array_type.create(path, schema)
 
-        with tiledb.DenseArray(path, mode="w", ctx=ctx) as A:
-            A[:] = {'test_value': x}
-
-        with tiledb.DenseArray(path, mode='r') as data:
+        if array_type is tiledb.DenseArray:
+            with array_type(path, mode="w", ctx=ctx) as A:
+                A[:] = {'test_value': x}
+        else:
+            with array_type(path, mode="w", ctx=ctx) as A:
+                A[coords] = x
+  
+        with array_type(path, mode='r') as data:
             data[:]
             initial = process.memory_info().rss
             print("  initial RSS: {}".format(round(initial / (10 ** 6)), 2))
@@ -2543,7 +2553,9 @@ class MemoryTest(DiskTestCase):
         # run function which reads 100x from a 40MB test array
         # TODO: RSS is too loose to do this end-to-end, so should use instrumentation.
         print("Starting TileDB-Py memory test:")
-        initial = self.use_many_buffers(self.path('test_memory_cleanup'))
+        initial = self.use_many_buffers(self.path('test_memory_cleanup_dense'), tiledb.DenseArray)
+        # TODO also run this test on sparse (currently fails)
+        self.use_many_buffers(self.path('test_memory_cleanup_sparse'), tiledb.SparseArray)
 
         process = psutil.Process(os.getpid())
         final = process.memory_info().rss
