@@ -64,7 +64,7 @@ def array_to_buffer(object val):
     assert((arr.dtype == np.dtype('O') or
             np.issubdtype(arr.dtype, np.bytes_) or
             np.issubdtype(arr.dtype, np.unicode_)),
-           "_pack_varlen_bytes: input array must be np.object or np.bytes!")
+           "array_to_buffer: input array must be np.object or np.bytes!")
 
     firstdtype = _varlen_cell_dtype(arr.flat[0])
     # item size
