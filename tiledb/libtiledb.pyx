@@ -4757,7 +4757,7 @@ cdef class SparseArray(Array):
         if self.schema.nattr == 1 and not isinstance(val, dict):
             attr = self.attr(0)
             name = attr.name
-            value = np.asarray(val, dtype=attr.dtype)
+            value = np.ascontiguousarray(val, dtype=attr.dtype)
             if len(value) != ncells:
                 raise ValueError("value length does not match coordinate length")
             sparse_attributes.append(name)
@@ -4766,7 +4766,7 @@ cdef class SparseArray(Array):
             for (k, v) in dict(val).items():
                 attr = self.attr(k)
                 name = attr.name
-                value = v if attr.dtype is 'O' else np.asarray(v, dtype=attr.dtype)
+                value = v if attr.dtype is 'O' else np.ascontiguousarray(v, dtype=attr.dtype)
                 if len(value) != ncells:
                     raise ValueError("value length does not match coordinate length")
                 sparse_attributes.append(name)
