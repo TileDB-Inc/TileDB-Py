@@ -564,6 +564,7 @@ setup(
     tests_require=TESTS_REQUIRE,
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
+    zip_safe=False,
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
