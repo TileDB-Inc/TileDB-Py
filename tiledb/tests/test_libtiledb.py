@@ -54,6 +54,7 @@ class Config(DiskTestCase):
     def test_config(self):
         config = tiledb.Config()
         config["sm.tile_cache_size"] = 100
+        assert(repr(config) is not None)
         ctx = tiledb.Ctx(config)
 
     def test_ctx_config(self):

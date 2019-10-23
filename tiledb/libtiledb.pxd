@@ -1171,7 +1171,7 @@ cdef class ConfigItems(object):
     cdef tiledb_config_iter_t* ptr
 
 cdef class ConfigValues(object):
-    pass
+    cdef ConfigItems config_items
 
 cdef class Ctx(object):
     cdef tiledb_ctx_t* ptr
