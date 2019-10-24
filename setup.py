@@ -496,11 +496,16 @@ __extensions = [
 if TILEDBPY_MODULAR:
   for source in MODULAR_SOURCES:
     module_name = os.path.splitext(os.path.split(source)[-1])[0]
+    if module_name+'.pxd' in MODULAR_HEADERS:
+      deps = module_name+'.pxd'
+    else:
+      deps = None
     ext = Extension(
         "tiledb.{}".format(module_name),
         include_dirs=INC_DIRS,
         define_macros=DEF_MACROS,
         sources=[source],
+        depends=[deps] if deps else [],
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
