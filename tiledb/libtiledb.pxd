@@ -1156,6 +1156,14 @@ cdef extern from "tiledb/tiledb.h":
         unsigned* path_length) nogil
 
 
+# Free helper functions
+
+cpdef check_error(Ctx ctx, int rc)
+cdef _raise_tiledb_error(tiledb_error_t* err_ptr)
+cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc)
+
+cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DATETIME_YEAR
+
 ###############################################################################
 #                                                                             #
 #   TileDB-Py API declaration                                                 #
@@ -1308,4 +1316,3 @@ cdef class ReadQuery(object):
 
 IF (not TILEDBPY_MODULAR):
     include "indexing.pxd"
-

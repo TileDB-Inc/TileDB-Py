@@ -1,8 +1,8 @@
 # Set true to enable modular compilation
 IF TILEDBPY_MODULAR:
     include "common.pxi"
-    from .libtiledb import *
     from .libtiledb cimport *
+    from cpython.version cimport PY_MAJOR_VERSION
 
 from collections import deque
 
