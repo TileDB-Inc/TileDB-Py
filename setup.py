@@ -475,7 +475,6 @@ MODULAR_SOURCES = [
   ]
 MODULAR_HEADERS = [
   'tiledb/libtiledb.pxd',
-  'tiledb/np2buf.pxd',
   'tiledb/indexing.pxd'
   ]
 
