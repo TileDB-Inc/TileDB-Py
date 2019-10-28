@@ -847,6 +847,7 @@ cdef class Ctx(object):
             # after the exception is raised
             _raise_ctx_err(ctx_ptr, rc)
         self.ptr = ctx_ptr
+        self._set_default_tags()
 
     def config(self):
         """Returns the Config instance associated with the Ctx
@@ -855,6 +856,22 @@ cdef class Ctx(object):
         check_error(self,
                     tiledb_ctx_get_config(self.ptr, &config_ptr))
         return Config.from_ptr(config_ptr)
+
+    def set_tag(self, key, value):
+        """Sets a string:string "tag" on the Ctx"""
+        cdef tiledb_ctx_t* ctx_ptr = self.ptr
+        bkey = key.encode('UTF-8')
+        bvalue = value.encode('UTF-8')
+        cdef int rc = TILEDB_OK
+        rc = tiledb_ctx_set_tag(ctx_ptr, bkey, bvalue)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+    def _set_default_tags(self):
+        """Sets all default tags on the Ctx"""
+        self.set_tag('x-tiledb-api-language', 'python')
+        self.set_tag('x-tiledb-api-language-version', '{}.{}.{}'.format(*sys.version_info))
+        self.set_tag('x-tiledb-api-sys-platform', sys.platform)
 
 
 def _tiledb_datetime_extent(begin, end):

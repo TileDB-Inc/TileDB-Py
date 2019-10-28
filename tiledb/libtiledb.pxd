@@ -246,6 +246,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_filesystem_t fs,
         int* is_supported)
 
+    int tiledb_ctx_set_tag(
+        tiledb_ctx_t* ctx,
+        const char* key,
+        const char* value)
+
     # Error
     int tiledb_error_message(
         tiledb_error_t* err,
