@@ -2168,7 +2168,7 @@ cdef class Dim(object):
         :rtype: numpy scalar or np.timedelta64
 
         """
-        cdef void* tile_ptr = NULL
+        cdef const void* tile_ptr = NULL
         check_error(self.ctx,
                     tiledb_dimension_get_tile_extent(self.ctx.ptr, self.ptr, &tile_ptr))
         if tile_ptr == NULL:
@@ -2179,7 +2179,7 @@ cdef class Dim(object):
         cdef int typeid = _numpy_typeid(tiledb_type)
         assert(typeid != np.NPY_NOTYPE)
         cdef np.ndarray tile_array =\
-            np.PyArray_SimpleNewFromData(1, shape, typeid, tile_ptr)
+            np.PyArray_SimpleNewFromData(1, shape, typeid, <void*>tile_ptr)
 
         if _tiledb_type_is_datetime(tiledb_type):
             # Coerce to np.int64
@@ -2208,7 +2208,7 @@ cdef class Dim(object):
         :rtype: tuple(numpy scalar, numpy scalar)
 
         """
-        cdef void* domain_ptr = NULL
+        cdef const void* domain_ptr = NULL
         check_error(self.ctx,
                     tiledb_dimension_get_domain(self.ctx.ptr,
                                                 self.ptr,
@@ -2220,7 +2220,7 @@ cdef class Dim(object):
         cdef int typeid = _numpy_typeid(tiledb_type)
         assert (typeid != np.NPY_NOTYPE)
         cdef np.ndarray domain_array = \
-            np.PyArray_SimpleNewFromData(1, shape, typeid, domain_ptr)
+            np.PyArray_SimpleNewFromData(1, shape, typeid, <void*>domain_ptr)
 
         if _tiledb_type_is_datetime(tiledb_type):
             domain_array.dtype = _tiledb_type_to_datetime(tiledb_type).dtype
