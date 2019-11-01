@@ -140,11 +140,11 @@ def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
 
     return schema
 
-
 def schema_like_numpy(array, ctx=default_ctx(), **kw):
     # create an ArraySchema from the numpy array object
     tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
 
+    attr_name = kw.pop('attr_name', '')
     dim_dtype = kw.pop('dim_dtype', np.uint64)
     dims = []
     for d in range(array.ndim):
@@ -178,7 +178,7 @@ def schema_like_numpy(array, ctx=default_ctx(), **kw):
     else:
         el_dtype = array.dtype
 
-    att = Attr(dtype=el_dtype, var=var, ctx=ctx)
+    att = Attr(dtype=el_dtype, name=attr_name, var=var, ctx=ctx)
     dom = Domain(*dims, ctx=ctx)
     return ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
 
