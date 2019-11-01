@@ -2106,6 +2106,11 @@ class NumpyToArray(DiskTestCase):
         with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
             assert_array_equal(arr[5:10], np_array[5:10])
 
+    def test_to_array1d_attr_name(self):
+        ctx = tiledb.Ctx()
+        np_array = np.array([1.0, 2.0, 3.0])
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, attr_name='a', ctx=ctx) as arr:
+            assert_array_equal(arr[:]['a'], np_array)
 
 class KVSchema(DiskTestCase):
 
