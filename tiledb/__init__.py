@@ -33,8 +33,6 @@ from .libtiledb import (
      Dim,
      Domain,
      Attr,
-     KVSchema,
-     KV,
      ArraySchema,
      DenseArray,
      SparseArray,
