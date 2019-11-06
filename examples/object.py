@@ -37,7 +37,6 @@
 #   - dense_arrays/
 #     - array_A
 #     - array_B
-#     - kv
 #   - sparse_arrays/
 #     - array_C
 #     - array_D
@@ -67,11 +66,6 @@ def create_array(array_name, sparse):
     else:
         tiledb.DenseArray.create(array_name, schema)
 
-
-def create_kv(array_name):
-    schema = tiledb.KVSchema(attrs=[tiledb.Attr(name="a", dtype=bytes)])
-    tiledb.KV.create(array_name, schema)
-
 def path(p):
     return os.path.join(os.getcwd(), p)
 
@@ -86,9 +80,6 @@ def create_hierarchy():
     create_array(path("my_group/dense_arrays/array_B"), False)
     create_array(path("my_group/sparse_arrays/array_C"), True)
     create_array(path("my_group/sparse_arrays/array_D"), True)
-
-    # Create key-value store
-    create_kv(path("my_group/dense_arrays/kv"))
 
 
 def list_obj(path):
