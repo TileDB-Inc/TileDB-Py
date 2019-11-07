@@ -1070,10 +1070,10 @@ cdef class Array(object):
     cdef _ndarray_is_varlen(self, np.ndarray array)
     cdef _unpack_varlen_query(self, ReadQuery read, unicode name)
 
-cdef class SparseArray(Array):
+cdef class SparseArrayImpl(Array):
     cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout)
 
-cdef class DenseArray(Array):
+cdef class DenseArrayImpl(Array):
     cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout)
 
 cdef class FileHandle(object):

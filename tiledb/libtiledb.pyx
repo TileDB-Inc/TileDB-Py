@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from cpython.version cimport PY_MAJOR_VERSION
 
 include "common.pxi"
+from .array import DenseArray, SparseArray
 
 import sys
 from os.path import abspath
@@ -2948,9 +2949,9 @@ cdef class Array(object):
         :param ctx Ctx: (default None) Optional TileDB Ctx used when creating the array,
                         by default uses the ArraySchema's associated context.
         """
-        if issubclass(cls, DenseArray) and schema.sparse:
+        if issubclass(cls, DenseArrayImpl) and schema.sparse:
             raise ValueError("Array.create `schema` argument must be a dense schema for DenseArray and subclasses")
-        if issubclass(cls, SparseArray) and not schema.sparse:
+        if issubclass(cls, SparseArrayImpl) and not schema.sparse:
             raise ValueError("Array.create `schema` argument must be a sparse schema for SparseArray and subclasses")
 
         cdef tiledb_ctx_t* ctx_ptr = schema.ctx.ptr
@@ -3539,7 +3540,7 @@ def _create_densearray(cls, sta):
     rv.__setstate__(sta)
     return rv
 
-cdef class DenseArray(Array):
+cdef class DenseArrayImpl(Array):
     """Class representing a dense TileDB array.
 
     Inherits properties and methods of :py:class:`tiledb.Array`.
@@ -3898,7 +3899,7 @@ cdef class DenseArray(Array):
                 values.append(val)
             else:
                 dtype = self.schema.attr(self.view_attr).dtype
-                with DenseArray(self.uri, 'r', ctx=Ctx(self.ctx.config())) as readable:
+                with DenseArrayImpl(self.uri, 'r', ctx=Ctx(self.ctx.config())) as readable:
                     current = readable[selection]
                 current[self.view_attr] = \
                     np.ascontiguousarray(val, dtype=dtype)
@@ -4081,7 +4082,7 @@ def index_domain_coords(Domain dom, tuple idx):
     return np.column_stack(idx)
 
 
-cdef class SparseArray(Array):
+cdef class SparseArrayImpl(Array):
     """Class representing a sparse TileDB array.
 
     Inherits properties and methods of :py:class:`tiledb.Array`.
