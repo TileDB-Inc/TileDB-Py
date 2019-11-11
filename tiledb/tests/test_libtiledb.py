@@ -1651,6 +1651,43 @@ class SparseArray(DiskTestCase):
         with tiledb.SparseArray(self.path('foo')) as T:
             T[:]
 
+    def test_sparse_2d_varlen_int(self):
+        path = self.path('test_sparse_2d_varlen_int')
+        dtype = np.int32
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(domain=(1, 4), tile=2, ctx=ctx),
+            tiledb.Dim(domain=(1, 4), tile=2, ctx=ctx),
+            ctx=ctx)
+        att = tiledb.Attr(dtype=dtype, var=True, ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,), sparse=True, ctx=ctx)
+
+        tiledb.SparseArray.create(path, schema)
+
+        c1 = np.array([1,2,3,4])
+        c2 = np.array([2,1,3,4])
+
+        data = np.array([
+            np.array([1,1], dtype=np.int32),
+            np.array([2], dtype=np.int32),
+            np.array([3,3,3], dtype=np.int32),
+            np.array([4], dtype=np.int32)
+            ], dtype='O')
+
+        with tiledb.SparseArray(path, 'w') as A:
+            A[c1, c2] = data
+
+        with tiledb.SparseArray(path) as A:
+            res = A[:]
+            assert_subarrays_equal(
+                res[''],
+                data
+            )
+            assert_array_equal(
+                res['coords'].view(dom.dim(0).dtype).reshape(-1, 2),
+                np.column_stack([c1, c2])
+            )
+
 
 class DenseIndexing(DiskTestCase):
 

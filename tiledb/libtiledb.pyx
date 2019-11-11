@@ -4148,25 +4148,25 @@ cdef class SparseArrayImpl(Array):
         sparse_attributes = list()
         sparse_values = list()
 
-        if self.schema.nattr == 1 and not isinstance(val, dict):
-            attr = self.attr(0)
+        if not isinstance(val, dict):
+            if self.nattr > 1:
+                raise ValueError("Expected dict-like object {name: value} for multi-attribute "
+                                 "array.")
+            val = dict({self.attr(0).name: val})
+
+        for (k, v) in dict(val).items():
+            attr = self.attr(k)
             name = attr.name
-            value = np.ascontiguousarray(val, dtype=attr.dtype)
-            if value.size != ncells:
+            if attr.isvar:
+                # ensure that the value is array-convertible, for example: pandas.Series
+                v = np.asarray(v)
+            else:
+                v = np.ascontiguousarray(v, dtype=attr.dtype)
+            if v.size != ncells:
                 raise ValueError("value length ({}) does not match "
-                                 "coordinate length ({})".format(len(value), ncells))
+                                 "coordinate length ({})".format(v.size, ncells))
             sparse_attributes.append(name)
-            sparse_values.append(value)
-        else:
-            for (k, v) in dict(val).items():
-                attr = self.attr(k)
-                name = attr.name
-                value = v if attr.dtype is 'O' else np.ascontiguousarray(v, dtype=attr.dtype)
-                if value.size != ncells:
-                    raise ValueError("value length ({}) does not match "
-                                     "coordinate length ({})".format(value.size, ncells))
-                sparse_attributes.append(name)
-                sparse_values.append(value)
+            sparse_values.append(v)
 
         assert len(sparse_attributes) == self.schema.nattr
         assert len(sparse_values) == self.schema.nattr
