@@ -21,7 +21,7 @@ rtd_version = rtd_version if rtd_version in ['stable', 'latest'] else 'stable'
 # -- Project information -----------------------------------------------------
 
 project = 'TileDB-Py'
-copyright = '2018, TileDB, Inc.'
+copyright = '2019, TileDB, Inc.'
 author = 'TileDB, Inc.'
 
 # The short X.Y version
