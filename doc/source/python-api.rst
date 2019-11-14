@@ -117,18 +117,6 @@ Sparse Array
    .. automethod:: __getitem__(selection)
    .. automethod:: __setitem__(selection, value)
 
-Key-value Schema
-----------------
-
-.. autoclass:: tiledb.KVSchema
-   :members:
-
-Key-value
----------
-
-.. autoclass:: tiledb.KV
-   :members:
-
 Object Management
 -----------------
 
