@@ -472,7 +472,7 @@ with open('README.rst') as f:
 MODULAR_SOURCES = [
   'tiledb/np2buf.pyx',
   'tiledb/indexing.pyx',
-  'tiledb/metadata.pyx',
+  'tiledb/libmetadata.pyx',
   ]
 MODULAR_HEADERS = [
   'tiledb/libtiledb.pxd',

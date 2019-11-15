@@ -42,7 +42,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         if import_failed:
             self.skipTest("Pandas not available")
         else:
-            super().setUp()
+            super(PandasDataFrameRoundtrip, self).setUp()
 
     def test_manual_dataframe_rt(self):
 

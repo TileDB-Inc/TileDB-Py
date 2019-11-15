@@ -53,7 +53,12 @@ cdef _varlen_cell_dtype(object var):
     elif isinstance(var, unicode):
         return np.unicode_
 
-    raise TypeError("Unsupported varlen cell datatype")
+    try:
+        actual_type = str(type(var))
+    except:
+        actual_type = "[failed to get type]"
+
+    raise TypeError(f"Unsupported varlen cell datatype ('{actual_type}')")
 
 def array_to_buffer(object val):
     cdef arr = <np.ndarray?>val

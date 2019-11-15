@@ -1154,5 +1154,6 @@ cdef class Metadata(object):
 cdef class TileDBError(Exception):
     pass
 
+
 IF (not TILEDBPY_MODULAR):
     include "indexing.pxd"
