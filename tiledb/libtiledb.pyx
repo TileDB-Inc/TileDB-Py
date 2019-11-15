@@ -57,11 +57,11 @@ def initialize_ctx(config = None):
 IF TILEDBPY_MODULAR:
     from .np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
     from .indexing import DomainIndexer
-    from metadata import xget_metadata, xput_metadata, xload_metadata
+    from .libmetadata import get_metadata, put_metadata, load_metadata
 ELSE:
     include "indexing.pyx"
     include "np2buf.pyx"
-    include "metadata.pyx"
+    include "libmetadata.pyx"
 
 ###############################################################################
 #    Utility/setup                                                            #
@@ -217,7 +217,7 @@ cdef dict get_query_fragment_info(tiledb_ctx_t* ctx_ptr,
 
     cdef int rc = TILEDB_OK
     cdef uint32_t num_fragments
-    cdef int32_t fragment_idx
+    cdef Py_ssize_t fragment_idx
     cdef const char* fragment_uri_ptr
     cdef unicode fragment_uri
     cdef uint64_t fragment_t1, fragment_t2
@@ -5539,5 +5539,3 @@ class FileIO(object):
         self._nbytes += nbytes
         self._offset += nbytes
         return nbytes
-
-

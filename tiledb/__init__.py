@@ -15,6 +15,9 @@ else:
 # On Windows and whl builds, we may have a shared library already linked, or
 # adjacent to, the cython .pyd shared object. In this case, we can import directly
 # from .libtiledb
+import tiledb
+from .libtiledb import Ctx
+
 try:
     import tiledb
     from .libtiledb import Ctx
