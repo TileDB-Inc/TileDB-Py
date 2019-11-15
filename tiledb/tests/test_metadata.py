@@ -42,6 +42,14 @@ class MetadataTest(DiskTestCase):
             with self.assertRaises(OverflowError):
                 A.meta['bigint'] = np.iinfo(np.int64).max + 1
 
+            # can't write mixed-type list
+            with self.assertRaises(TypeError):
+                A.meta['mixed_list'] = [1, 2.1]
+
+            # can't write mixed-type tuple
+            with self.assertRaises(TypeError):
+                A.meta['mixed_list'] = (0, 3.1)
+
             # can't write objects
             with self.assertRaises(ValueError):
                 A.meta['object'] = object
@@ -51,7 +59,16 @@ class MetadataTest(DiskTestCase):
             'double': 1.000001212,
             'bytes': b"0123456789abcdeF0123456789abcdeF",
             'str': "abcdefghijklmnopqrstuvwxyz",
+            'tuple_int': (1,2,3,2,1, int(np.random.randint(0,10000,1)[0]) ),
+            'list_int': [1,2,3,2,1, int(np.random.randint(0,10000,1)[0]) ],
+            'tuple_float': (10.0, 11.0, float(np.random.rand(1)[0]) ),
+            'list_float': [10.0, 11.0, float(np.random.rand(1)[0]) ]
         }
+
+        def tupleize(v):
+            if isinstance(v, list):
+                v = tuple(v)
+            return v
 
         with tiledb.Array(path, mode='w') as A:
             for k,v in test_vals.items():
@@ -59,17 +76,20 @@ class MetadataTest(DiskTestCase):
 
         with tiledb.Array(path) as A:
             for k,v in test_vals.items():
-                self.assertEqual(A.meta[k], v)
+                # metadata only has one iterable type: tuple, so we cannot
+                # perfectly round-trip the input type.
+
+                self.assertEqual(A.meta[k], tupleize(v))
 
         # test dict-like functionality
         with tiledb.Array(path) as A:
             self.assertSetEqual(set(A.meta.keys()), set(test_vals.keys()))
             self.assertFalse('gnokey' in A.meta)
-            self.assertEqual(len(A.meta), 4)
+            self.assertEqual(len(A.meta), len(test_vals))
 
             for k,v in A.meta.items():
                 self.assertTrue(k in test_vals.keys())
-                self.assertEqual(v, test_vals[k])
+                self.assertEqual(tupleize(v), tupleize(test_vals[k]),)
 
         # test a 1 MB blob
         blob = np.random.rand(int((1024**2)/8)).tostring()
@@ -78,14 +98,15 @@ class MetadataTest(DiskTestCase):
 
         with tiledb.Array(path) as A:
             self.assertEqual(A.meta['bigblob'], blob)
-            self.assertEqual(len(A.meta), 5)
+            self.assertEqual(len(A.meta), len(test_vals)+1)
 
         # test del key
         with tiledb.Array(path, 'w') as A:
             del A.meta['bigblob']
 
         with tiledb.Array(path) as A:
-            self.assertEqual(len(A.meta), 4)
+            self.assertTrue('bigblob' not in A.meta)
+            self.assertEqual(len(A.meta), len(test_vals))
             with self.assertRaises(KeyError):
                 A.meta['bigblob']
 
@@ -93,6 +114,16 @@ class MetadataTest(DiskTestCase):
         with tiledb.Array(path, 'w') as A:
             with self.assertRaises(NotImplementedError):
                 A.meta.pop('nokey', 'hello!')
+
+        # Note: this requires a work-around to check all keys
+        # test empty value
+        with tiledb.Array(path, 'w') as A:
+            A.meta['empty_val'] = ()
+
+        with tiledb.Array(path) as A:
+            self.assertTrue('empty_val' in A.meta)
+            self.assertEqual(A.meta['empty_val'], ())
+
 
     def test_metadata_consecutive(self):
         path = self.path("test_md_consecutive")

@@ -26,85 +26,97 @@ cdef object metadata_value_check(val):
         if val > numeric_limits[int64_t].max():
             raise OverflowError("Overflow integer values not supported!")
 
-cdef object pack_metadata_val(val, vector[char]& data_buf,
-                              tiledb_datatype_t* ret_type, uint32_t* value_num):
+
+cdef class PackedBuffer:
+    cdef bytes data
+    cdef tiledb_datatype_t tdbtype
+    cdef uint32_t value_num
+
+    def __init__(self, data,tdbtype,value_num):
+        self.data = data
+        self.tdbtype = tdbtype
+        self.value_num = value_num
+
+cdef PackedBuffer pack_metadata_val(value):
+
+    cdef tiledb_datatype_t tiledb_type
+
+    if isinstance(value, (str, bytes, unicode)):
+        pass
+    elif not isinstance(value, (list, tuple)):
+        value = (value,)
 
     cdef:
-        tiledb_datatype_t first_type
-        tiledb_datatype_t next_type
-        object utf8
-        const char* data_ptr = NULL
+        char[:] char_ptr
+        double[:] double_buf
+        int64_t[:] int64_buf
+        double* double_ptr
+        int64_t* int64_ptr
+        Py_ssize_t pack_idx = 0
+        Py_ssize_t value_len = 0
+        uint64_t itemsize = 0
+        bytearray data
+        char[:] buf_view
+        object value_item
 
-    cdef:
-        double o_float64
-        int64_t o_int64
+    val0 = value[0]
 
-    metadata_value_check(val)
-
-    if isinstance(val, (list, tuple)):
-        value_num[0] = <uint32_t>len(val)
-        raise NotImplementedError("list, tuple")
-
-        #first_type = tiledb_item_type(val[0])
-        #type_nbytes = tiledb_datatype_size(first_type)
-        #buffer_nbytes = type_nbytes * len(val)
-        #data.reserve(buffer_nbytes)
-
-        #for v in val:
-        #    next_type = tiledb_item_type(v)
-        #    if first_type != next_type:
-        #        raise ValueError("list/tuple elements must be homogeneous!")
-
-        #    data.insert(data.end(), type_nbytes, <char*>&v_raw)
-
-    elif isinstance(val, int) or (PY_MAJOR_VERSION < 3 and isinstance(val, long)):
-
-        first_type = TILEDB_INT64
-        data_nbytes = tiledb_datatype_size(first_type)
-        value_num[0] = <uint32_t>1
-        o_int64 = PyLong_AsLongLong(val)
-        data_ptr = <char*>&o_int64
-
-    elif isinstance(val, float):
-
-        first_type = TILEDB_FLOAT64
-        data_nbytes = tiledb_datatype_size(first_type)
-        value_num[0] = <uint32_t>1
-        o_double = PyFloat_AsDouble(val)
-        data_ptr = <char*>&o_double
-
-    elif isinstance(val, bytes):
-
-        first_type = TILEDB_CHAR
-        data_nbytes = len(val)
-        value_num[0] = len(val)
-        data_ptr = PyBytes_AS_STRING(val)
-
-    elif isinstance(val, unicode):
-
-        first_type = TILEDB_STRING_UTF8
-        utf8 = (<str>val).encode('UTF-8')
-        data_ptr = <char*>utf8
-        data_nbytes = len(utf8)
-        value_num[0] = data_nbytes
-
-    elif isinstance(val, np.ndarray):
-
+    # NOTE: string types must
+    #       - not check val0: it is a char
+    #       - be checked first, for the same reason
+    if isinstance(value, unicode):
+        value = value.encode('UTF-8')
+        tiledb_type = TILEDB_STRING_UTF8
+    elif isinstance(value, bytes):
+        tiledb_type = TILEDB_CHAR
+    elif isinstance(val0, int):
+        tiledb_type = TILEDB_INT64
+    elif isinstance(val0, long):
+        tiledb_type = TILEDB_INT64
+    elif isinstance(val0, float):
+        # Note: all python floats are doubles
+        tiledb_type = TILEDB_FLOAT64
+    elif isinstance(value, np.ndarray):
+        # TODO support np.array as metadata with type tag
         raise ValueError("Unsupported type: numpy array")
-
     else:
-        # TODO serialize as JSON?
-        raise ValueError("Unsupported item type '{}'".format(type(val)))
+        raise ValueError("Unsupported item type '{}'".format(type(value)))
 
-    data_buf.resize(data_nbytes)
-    # note: cython doesn't support C++11 back_inserter (which supports len+pointer)
-    memcpy(data_buf.data(), data_ptr, data_nbytes)
+    value_len = len(value)
+    itemsize = tiledb_datatype_size(tiledb_type)
+    data = bytearray(itemsize * len(value))
+    pack_idx = 0
 
-    # note: cython pass-by-reference bug
-    # https://github.com/cython/cython/issues/1863
-    ret_type[0] = first_type
-    return None
+    if tiledb_type == TILEDB_INT64:
+        buf_view = data
+        int64_ptr = <int64_t*>&buf_view[0]
+        for value_item in value:
+            # TODO ideally we would support numpy scalars here
+            if not isinstance(value_item, (int, long)):
+                raise TypeError(f"Inconsistent type in 'int' list ('{type(value_item)}')")
+            int64_ptr[pack_idx] = int(value_item)
+            pack_idx += 1
 
+    elif tiledb_type == TILEDB_FLOAT64:
+        buf_view = data
+        double_ptr = <double*>&buf_view[0]
+        for value_item in value:
+            # TODO ideally we would support numpy scalars here
+            if not isinstance(value_item, float):
+                raise TypeError(f"Inconsistent type in 'float' list ('{type(value_item)}')")
+            double_ptr[pack_idx] = value_item
+            pack_idx += 1
+
+    elif tiledb_type == TILEDB_CHAR:
+        # already bytes
+        data = bytearray(value)
+    elif tiledb_type == TILEDB_STRING_UTF8:
+        # already bytes
+        data = bytearray(value)
+    else:
+        assert False, "internal error: unhandled type in pack routine!"
+
+    return PackedBuffer(bytes(data), tiledb_type, len(value))
 
 cdef object unpack_metadata_val(tiledb_datatype_t value_type,
                                 uint32_t value_num,
@@ -114,7 +126,10 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
         double o_float64
         int64_t o_int64
 
-    if value_type == TILEDB_STRING_UTF8:
+    if value_num == 0:
+        raise TileDBError("internal error: unexpected value_num==0")
+
+    elif value_type == TILEDB_STRING_UTF8:
         new_obj = value_ptr[:value_num].decode('UTF-8')
         return new_obj
 
@@ -125,12 +140,15 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
     elif value_num > 1:
 
         # unpack sequence
-        # should this return tuple instead or list?
+        # should this return tuple instead of list?
         new_obj = list()
         for i in range(0, value_num):
             item = unpack_metadata_val(value_type, 1, value_ptr)
             new_obj.append(item)
             value_ptr += tiledb_datatype_size(value_type)
+
+        new_obj = tuple(new_obj)
+        return new_obj
 
     elif value_type == TILEDB_INT64:
         return deref(<int64_t*>value_ptr)
@@ -165,37 +183,48 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
     else:
         raise NotImplementedError("unimplemented type")
 
-    return None
 
+def put_metadata(Array array,
+                 key, value):
 
-cdef object put_metadata(Array array,
-                         key, val):
+    # TODO ?
+    #if not (isinstance(key, str) or isinstance(key, unicode)):
+    #    raise ValueError("Unexpected key type '{}': expected str "
+    #                     "type".format(type(key)))
 
     cdef tiledb_array_t* array_ptr = array.ptr
     cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
 
     cdef int rc = TILEDB_OK
-    cdef vector[char] data_buf = vector[char]()
-    cdef const char* key_cstr
     cdef bytes key_utf8
+    cdef const char* key_ptr
     cdef tiledb_datatype_t ret_type
-    cdef uint32_t value_num
-
-    pack_metadata_val(val, data_buf, &ret_type, &value_num)
-
-    if (data_buf.size() < 1):
-        raise ValueError("Failed to serialize pyobject value '{}'".format(val))
+    cdef PackedBuffer packed_buf
+    cdef const unsigned char[:] data_view
+    cdef const void* data_ptr
 
     key_utf8 = key.encode('UTF-8')
-    key_cstr = PyBytes_AS_STRING(key_utf8)
+    key_ptr = PyBytes_AS_STRING(key_utf8)
+
+    if isinstance(value, tuple) and len(value) == 0:
+        # special case for empty values
+        packed_buf = PackedBuffer(b'', TILEDB_INT32, 0)
+        data_ptr = NULL
+    else:
+        packed_buf = pack_metadata_val(value)
+        if (len(packed_buf.data) < 1):
+            raise ValueError("Unsupported zero-length metadata value")
+
+        data_view = packed_buf.data
+        data_ptr = <void*>&data_view[0]
 
     rc = tiledb_array_put_metadata(
             ctx_ptr,
             array_ptr,
-            key_cstr,
-            ret_type,
-            value_num,
-            data_buf.data())
+            key_ptr,
+            packed_buf.tdbtype,
+            packed_buf.value_num,
+            data_ptr)
 
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
@@ -209,15 +238,14 @@ cdef object get_metadata(array: Array,
     cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
 
     cdef:
-        const char* key_ptr
-        object key_utf8
         int32_t rc
-
-    cdef:
+        object key_utf8
+        const char* key_ptr
         uint32_t key_len
         tiledb_datatype_t value_type
-        uint32_t value_num
+        uint32_t value_num = 0
         const char* value = NULL
+        bint has_key
 
     key_utf8 = key.encode('UTF-8')
     key_ptr = <const char*>key_utf8
@@ -246,15 +274,16 @@ cdef object load_metadata(Array array, unpack=True):
 
     :param ctx: tiledb_ctx_t
     :param array: tiledb_array_t
-    :param unpack: unpack the values into dictionary
-    :return: dict(k: v) if unpack else list(k)
+    :param unpack: unpack the values into dictionary (True)
+
+    :return: dict(k: v) if unpack, else list
     """
+
     cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
     cdef tiledb_array_t* array_ptr = array.ptr
-
     cdef uint64_t metadata_num
-    rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
 
+    rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
 
@@ -282,23 +311,85 @@ cdef object load_metadata(Array array, unpack=True):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
-        if value_num == 0:
-            # TODO warning
-            raise ValueError("Unexpected 0-length value")
+        key = key_ptr[:key_len].decode('UTF-8')
 
-        key = PyUnicode_FromStringAndSize(key_ptr, key_len)
-
-        unpacked_val = unpack_metadata_val(value_type, value_num, value)
-
-        if unpacked_val is None:
-            raise KeyError("key not found: ", key)
-
-        if unpack:
-            ret_val[key] = unpacked_val
-        else:
+        if not unpack:
             ret_val.append(key)
+        else:
+            if value_num == 0:
+                unpacked_val = ()
+            else:
+                unpacked_val = unpack_metadata_val(value_type, value_num, value)
+
+            if unpacked_val is None:
+                raise TileDBError("internal error: no unpackable value for ", key)
+
+            ret_val[key] = unpacked_val
 
     return ret_val
+
+def len_metadata(Array array):
+    cdef:
+        int32_t rc
+        uint64_t num
+
+    rc = tiledb_array_get_metadata_num(
+            array.ctx.ptr,
+            array.ptr,
+            &num)
+
+    if rc != TILEDB_OK:
+        _raise_ctx_err(array.ctx.ptr, rc)
+
+    return <int>num
+
+def del_metadata(Array array, key):
+    cdef:
+        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
+        const char* key_ptr
+        object key_utf8
+        int32_t rc
+
+    key_utf8 = key.encode('UTF-8')
+    key_ptr = <const char*>key_utf8
+
+    rc = tiledb_array_delete_metadata(array.ctx.ptr, array.ptr, key_ptr)
+    if rc != TILEDB_OK:
+        _raise_ctx_err(ctx_ptr, rc)
+
+
+def consolidate_metadata(Array array):
+
+        cdef uint32_t rc = 0
+
+        cdef:
+            tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+            void* key_ptr = NULL
+            uint32_t key_len = 0
+
+        cdef bytes bkey
+        cdef bytes buri = unicode_path(array.uri)
+
+        if array.key is not None:
+            if isinstance(array.key, str):
+                bkey = array.key.encode('ascii')
+            else:
+                bkey = bytes(array.key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t
+            key_len = <uint32_t> PyBytes_GET_SIZE(bkey)
+
+        rc = tiledb_array_consolidate_metadata_with_key(
+                array.ctx.ptr,
+                buri,
+                key_type,
+                key_ptr,
+                key_len,
+                NULL)
+
+        if rc != TILEDB_OK:
+            _raise_ctx_err(array.ctx.ptr, rc)
 
 
 cdef class Metadata(object):
@@ -380,8 +471,8 @@ cdef class Metadata(object):
         cdef bytes buri = unicode_path(self.array.uri)
         cdef unicode key = (<Array?>self.array).key
         if key is not None:
-            if isinstance(self.array.key, str):
-                bkey = self.array.key.encode('ascii')
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
             else:
                 bkey = bytes(self.array.key)
             key_type = TILEDB_AES_256_GCM
