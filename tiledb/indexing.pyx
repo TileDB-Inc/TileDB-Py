@@ -119,11 +119,9 @@ cdef dict execute_dense(tiledb_ctx_t* ctx_ptr,
                                               battr_name, &result_bytes)
 
         if rc != TILEDB_OK:
-            tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
 
         if result_bytes == 0:
-            tiledb_query_free(&query_ptr)
             raise TileDBError("Multi-range query returned size estimate result 0!")
 
         _, result_rem_d = divmod(result_bytes, attr.dtype.itemsize)
@@ -362,7 +360,6 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
                                         NULL)
 
             if rc != TILEDB_OK:
-                tiledb_query_free(&query_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
     try:
         if array.schema.sparse:
