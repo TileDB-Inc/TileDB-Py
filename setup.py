@@ -244,7 +244,7 @@ def find_or_install_libtiledb(setuptools_cmd):
             break
 
     # Download, build and locally install TileDB if needed.
-    if not libtiledb_exists(tiledb_ext.library_dirs):
+    if hasattr(tiledb_ext, 'tiledb_from_source') or not libtiledb_exists(tiledb_ext.library_dirs):
         src_dir = download_libtiledb()
         install_dir = build_libtiledb(src_dir)
         lib_subdir = 'bin' if os.name=='nt' else 'lib'
@@ -454,7 +454,7 @@ for arg in args:
         TILEDBPY_MODULAR = True
         sys.argv.remove(arg)
 
-if TILEDB_PATH != '':
+if TILEDB_PATH != '' and TILEDB_PATH != 'source':
     LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
     if sys.platform.startswith("linux"):
         LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib64'),
@@ -540,6 +540,9 @@ if TILEDB_DEBUG_BUILD:
 #   note that we set rpath for darwin separately above.
 if not is_windows():
   ext_attr_update('runtime_library_dirs', LIB_DIRS)
+
+if TILEDB_PATH == 'source':
+  ext_attr_update('tiledb_from_source', True)
 
 # This must always be set so the compile-time conditional has a value
 ext_attr_update('cython_compile_time_env', {'TILEDBPY_MODULAR': TILEDBPY_MODULAR})
