@@ -4,7 +4,6 @@
 #------
 # 0) cd TileDB-Py (NOTE: root directory!)
 # 1) docker build -f misc/pypi_linux/Dockerfile . -t wheel_builder
-# - copy resulting IMAGE_HASH
 # 2) docker run -v `pwd`/misc/pypi_linux/wheels:/wheels -ti wheel_builder build.sh
 #
 # testing (e.g. using the official python docker images)
