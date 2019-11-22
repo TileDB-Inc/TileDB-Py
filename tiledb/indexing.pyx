@@ -196,8 +196,6 @@ cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
     cdef np.ndarray buffer_sizes = np.zeros(nattr, np.uint64)
     cdef np.ndarray result_bytes_read = np.zeros(nattr, np.uint64)
 
-#    cdef np.ndarray array_total_bytes = np.zeros(nattr, np.uint64)
-
     # TODO ... make this nicer
     cdef uint64_t init_element_count = 1310720 # 10 MB int64
     cdef uint64_t max_element_count  = 6553600 # 50 MB int64
@@ -205,16 +203,19 @@ cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
     while repeat_query:
         for attr_idx in range(nattr):
             if return_coord and attr_idx == 0:
+                # coords
                 attr_name = coord_name
                 attr_dtype = coords_dtype
             else:
+                # attributes
                 attr = array.schema.attr(attr_idx - (1 if return_coord else 0))
                 attr_dtype = attr.dtype
                 attr_name = attr.name
 
-
             if repeat_count < 1:
-                result_dict[attr_name] = np.zeros(init_element_count, dtype=attr_dtype)
+                # coords_dtype is a record with 1 element per ndim coords
+                result_dict[attr_name] = np.zeros(init_element_count,
+                                                  dtype=attr_dtype)
             else:
                 new_el_count = init_element_count if (repeat_count < 2) else max_element_count
 
@@ -222,17 +223,18 @@ cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
                 attr_array = result_dict[attr_name]
                 # TODO make sure 'refcheck=False' is always safe
                 attr_array.resize(attr_array.size + new_el_count, refcheck=False)
-                buffer_sizes[attr_idx] = attr_array.nbytes
 
             attr_item_size = coords_dtype.itemsize
             battr_name = attr_name.encode('UTF-8')
 
             attr_array = result_dict[attr_name]
             attr_array_ptr = np.PyArray_DATA(attr_array)
+
+            # we need to give the pointer to the current starting point after reallocation
             attr_array_ptr = \
                 <void*>(<char*>attr_array_ptr + <ptrdiff_t>result_bytes_read[attr_idx])
 
-            buffer_sizes[attr_idx] = attr_array.nbytes
+            buffer_sizes[attr_idx] = attr_array.nbytes - result_bytes_read[attr_idx]
             buffer_sizes_ptr = <uint64_t*>np.PyArray_DATA(buffer_sizes)
 
             rc = tiledb_query_set_buffer(ctx_ptr, query_ptr,
