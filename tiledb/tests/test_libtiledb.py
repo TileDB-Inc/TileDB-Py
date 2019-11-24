@@ -1169,6 +1169,7 @@ class DenseArrayTest(DiskTestCase):
             self.assertTrue(t_w1 > 0)
             self.assertTrue(t_w2 > 0)
 
+
 class DenseVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
         A = np.array(['aa','bbb','ccccc','ddddddddddddddddddddd','ee','ffffff','g','hhhhhhhhhh'], dtype=bytes)

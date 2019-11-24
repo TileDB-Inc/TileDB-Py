@@ -2,6 +2,8 @@ IF TILEDBPY_MODULAR:
   include "common.pxi"
   from .libtiledb cimport *
 
+from libc.stdio cimport printf
+
 import numpy as np
 from .array import DenseArray, SparseArray
 
@@ -125,6 +127,7 @@ cdef dict execute(tiledb_ctx_t* ctx_ptr,
     cdef bint repeat_query = True
     cdef tiledb_query_status_t query_status
     cdef uint64_t repeat_count = 0
+    cdef uint64_t buffer_bytes_remaining = 0
 
     cdef Py_ssize_t nattr = len(attr_names)
     cdef uint64_t ndim = array.ndim
@@ -133,10 +136,19 @@ cdef dict execute(tiledb_ctx_t* ctx_ptr,
     cdef np.ndarray buffer_sizes = np.zeros(nattr, np.uint64)
     cdef np.ndarray result_bytes_read = np.zeros(nattr, np.uint64)
 
-    # TODO ... make this nicer
     cdef uint64_t init_element_count = 1310720 # 10 MB int64
     cdef uint64_t max_element_count  = 6553600 # 50 MB int64
 
+    # There are two different conditions which may cause incomplete queries,
+    # requiring retries and potentially reallocation to complete the read.
+    # 1) user-allocated buffer is not large enough. In this case, we need to
+    #    allocate more memory and retry. This is accomplished below by resizing
+    #    the array in-place (preserving the existing data), then bumping the
+    #    query buffer pointer.
+    # 2) internal memory limit is exceeded: the libtiledb parameter
+    #    'sm.memory_budget' governs internal memory allocation. If libtiledb's
+    #    internal allocation exceeds this budget, the query may need to be
+    #    retried, but we do not necessarily need to bump the user buffer allocation.
     while repeat_query:
         for attr_idx in range(nattr):
             if return_coord and attr_idx == 0:
@@ -149,22 +161,25 @@ cdef dict execute(tiledb_ctx_t* ctx_ptr,
                 attr_dtype = attr.dtype
                 attr_name = attr.name
 
-            if repeat_count < 1:
+            if repeat_count == 0:
                 # coords_dtype is a record with 1 element per ndim coords
                 result_dict[attr_name] = np.zeros(init_element_count,
                                                   dtype=attr_dtype)
-            else:
+
+            # Get the array here in order to save a lookup
+            attr_array = result_dict[attr_name]
+            if repeat_count > 0:
                 new_el_count = init_element_count if (repeat_count < 2) else max_element_count
 
-                # resize in place
-                attr_array = result_dict[attr_name]
-                # TODO make sure 'refcheck=False' is always safe
-                attr_array.resize(attr_array.size + new_el_count, refcheck=False)
+                buffer_bytes_remaining = attr_array.nbytes - result_bytes_read[attr_idx]
+                if buffer_sizes[attr_idx] > (.25 * buffer_bytes_remaining):
+                    # The conditional above handles situation (2) in order to avoid re-allocation
+                    # on every repeat, if we are reading small amounts at a time due to libtiledb
+                    # memory budget.
+                    # TODO make sure 'refcheck=False' is always safe
+                    attr_array.resize(attr_array.size + new_el_count, refcheck=False)
 
-            attr_item_size = coords_dtype.itemsize
             battr_name = attr_name.encode('UTF-8')
-
-            attr_array = result_dict[attr_name]
             attr_array_ptr = np.PyArray_DATA(attr_array)
 
             # we need to give the pointer to the current starting point after reallocation
@@ -200,6 +215,7 @@ cdef dict execute(tiledb_ctx_t* ctx_ptr,
             _raise_ctx_err(ctx_ptr, rc)
 
         if query_status == TILEDB_INCOMPLETE:
+            #printf("%s\n", <const char*>"got incomplete!")
             repeat_query = True
             repeat_count += 1
         elif query_status == TILEDB_COMPLETED:
@@ -235,7 +251,7 @@ cdef dict execute(tiledb_ctx_t* ctx_ptr,
     return result_dict
 
 cpdef multi_index(Array array, tuple attr_names, tuple ranges,
-                  order = None, coords = True):
+                  order = None, coords = False):
 
     cdef tiledb_layout_t layout = TILEDB_UNORDERED
     if order is None or order == 'C':
