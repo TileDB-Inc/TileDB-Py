@@ -1,0 +1,2 @@
+clean:
+	rm -f tiledb/*.cpp tiledb/*.so tiledb/*.dll tiledb/*.pyc tiledb/native/libtiledb.*
