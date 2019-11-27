@@ -355,8 +355,7 @@ class AttributeTest(unittest.TestCase):
         ctx = tiledb.Ctx()
         gzip_filter = tiledb.libtiledb.GzipFilter(ctx=ctx, level=10)
         self.assertIsInstance(gzip_filter, tiledb.libtiledb.Filter)
-        # <todo>
-        #self.assertEqual(gzip_filter.level, 10)
+        self.assertEqual(gzip_filter.level, 10)
 
         bw_filter = tiledb.libtiledb.BitWidthReductionFilter(ctx=ctx, window=10)
         self.assertIsInstance(bw_filter, tiledb.libtiledb.Filter)
