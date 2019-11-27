@@ -99,16 +99,16 @@ cdef dict execute_dense(tiledb_ctx_t* ctx_ptr,
                         tuple attr_names):
 
     # Create and assign attribute result buffers
-    cdef uint64_t attr_idx
+    cdef uint64_t attr_idx = 0
     cdef dict res = dict()
     cdef Attr attr
     cdef bytes battr_name
     cdef unicode attr_name
     cdef uint64_t result_bytes = 0
-    cdef size_t result_elements
-    cdef float result_elements_f, result_rem
+    cdef uint64_t result_elements = 0
+    cdef uint64_t attr_array_size = 0
+    cdef double result_rem_d = 0
     cdef np.ndarray attr_array
-    cdef uint64_t attr_array_size
     cdef void* attr_array_ptr = NULL
 
     for attr_idx in range(array.schema.nattr):
@@ -126,22 +126,20 @@ cdef dict execute_dense(tiledb_ctx_t* ctx_ptr,
             tiledb_query_free(&query_ptr)
             raise TileDBError("Multi-range query returned size estimate result 0!")
 
-        result_elements_f, result_rem = divmod(result_bytes, attr.dtype.itemsize)
-
-        if result_rem != 0:
+        _, result_rem_d = divmod(result_bytes, attr.dtype.itemsize)
+        if result_rem_d != 0:
             raise TileDBError("Multi-range query size estimate "
                               "is not integral multiple of dtype bytes"
-                              " (result_bytes: '{}', result_rem: '{}'".format(
-                              result_bytes, result_rem))
+                              " (result_bytes: '{}', itemsize: '{}', remainder: '{}')".format(
+                              result_bytes, result_rem_d, attr.dtype.itemsize))
 
         # TODO check that size matches cross-product of ranges (for dense)?
-
-        result_elements = <size_t>result_elements_f
+        result_elements = result_bytes / attr.dtype.itemsize
 
         attr_array = np.zeros(result_elements, dtype=attr.dtype)
         attr_array_size = attr_array.nbytes
-        attr_array_ptr = np.PyArray_DATA(attr_array)
 
+        attr_array_ptr = np.PyArray_DATA(attr_array)
         rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
                                      attr_array_ptr, &attr_array_size)
         if rc != TILEDB_OK:
