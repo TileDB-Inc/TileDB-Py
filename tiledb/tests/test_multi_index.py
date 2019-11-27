@@ -255,7 +255,7 @@ class TestMultiRange(DiskTestCase):
             )
         )
 
-    def test_mr_1d_dense_int(self):
+    def test_mr_1d_dense_int64(self):
         attr_name = ''
         ctx = tiledb.Ctx()
         path = self.path('multi_index_1d')
@@ -284,6 +284,7 @@ class TestMultiRange(DiskTestCase):
                 orig_array[0],
                 A.multi_index[-10][attr_name]
             )
+
 
     def test_mr_1d_sparse_double(self):
         attr_name = ''
