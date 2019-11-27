@@ -1188,8 +1188,14 @@ cdef class CompressionFilter(Filter):
         :rtype: int
 
         """
-        # <todo> reimplement on top of filter API?
-        pass
+        cdef int32_t rc = TILEDB_OK
+        cdef tiledb_filter_option_t option = TILEDB_COMPRESSION_LEVEL
+        cdef int32_t level = -1
+
+        rc = tiledb_filter_get_option(self.ctx.ptr, self.ptr, option, &level)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(self.ctx.ptr, rc)
+        return level
 
 
 cdef class NoOpFilter(Filter):
