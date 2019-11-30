@@ -3791,16 +3791,14 @@ cdef class DenseArrayImpl(Array):
                       for r in range(self.schema.ndim))
 
         cdef Py_ssize_t nattr = len(attr_names)
-
         cdef int i
         for i in range(nattr):
 
             name = attr_names[i]
-
             if name != "coords" and self.schema.attr(name).isvar:
                 # for var arrays we create an object array
                 dtype = np.object
-                out[name] = self._unpack_varlen_query(read, name).reshape(self.shape)
+                out[name] = self._unpack_varlen_query(read, name).reshape(output_shape)
             else:
                 if name == "coords":
                     dtype = self.coords_dtype
