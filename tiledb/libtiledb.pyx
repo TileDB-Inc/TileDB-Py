@@ -3043,8 +3043,14 @@ cdef class Array(object):
             tiledb_array_free(&array_ptr)
             _raise_ctx_err(ctx_ptr, rc)
         cdef ArraySchema schema
+        cdef tiledb_array_schema_t* array_schema_ptr = NULL
         try:
-            schema = ArraySchema.load(uri, key=key, ctx=ctx)
+            rc = TILEDB_OK
+            with nogil:
+                rc = tiledb_array_get_schema(ctx_ptr, array_ptr, &array_schema_ptr)
+            if rc != TILEDB_OK:
+              _raise_ctx_err(ctx_ptr, rc)
+            schema = ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
         except:
             tiledb_array_free(&array_ptr)
             raise
