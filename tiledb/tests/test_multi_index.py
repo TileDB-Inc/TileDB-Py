@@ -183,7 +183,7 @@ class TestMultiRange(DiskTestCase):
         ibi = IBI()
         # ndim = 1
         arr = make_arr(1)
-        m = MultiRangeIndexer(arr)
+        m = MultiRangeIndexer.__test_init__(arr)
         self.assertEqual(
             m.getitem_ranges( ibi[[1]] ),
             (((1, 1),),)
@@ -203,7 +203,7 @@ class TestMultiRange(DiskTestCase):
 
         # ndim = 2
         arr2 = make_arr(2)
-        m = MultiRangeIndexer(arr2)
+        m = MultiRangeIndexer.__test_init__(arr2)
 
         self.assertEqual(
             m.getitem_ranges( ibi[[1]] ),
@@ -220,7 +220,7 @@ class TestMultiRange(DiskTestCase):
 
         # ndim = 3
         arr3 = make_arr(3)
-        m = MultiRangeIndexer(arr3)
+        m = MultiRangeIndexer.__test_init__(arr3)
 
         self.assertEqual(
             m.getitem_ranges( ibi[1, 2, 3] ),
@@ -446,3 +446,76 @@ class TestMultiRange(DiskTestCase):
                 np.vstack([coords[0:3,:].reshape(-1,2), coords[5,:]]),
                 res['coords'].view('f4').reshape(-1,2)
             )
+
+    def test_mr_incomplete_dense(self):
+        path = self.path("incomplete_dense")
+        # create 10 MB array
+        data = np.arange(1310720, dtype=np.int64)
+        # if `tile` is not set, it defaults to the full array and we
+        # only read 8 bytes at a time.
+        use_tile=131072
+        #use_tile = None
+        with tiledb.from_numpy(path, data, tile=use_tile) as A:
+            print("domain: " + str(A.schema.domain))
+            pass
+
+        # create context with 1 MB memory budget
+        config = tiledb.Config({'sm.memory_budget': 2 * 1024**2})
+        ctx = tiledb.Ctx(config=config)
+
+        # TODO would be good to check repeat count here. Not currently exposed by retry loop.
+        with tiledb.DenseArray(path, ctx=ctx) as A:
+            res = A.multi_index[ slice(0, len(data) - 1) ]
+            assert_array_equal(res[""], data)
+
+    def test_mr_1d_sparse_query(self):
+        ctx = tiledb.Ctx()
+        path = self.path('mr_1d_sparse_query')
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(-100, 100), tile=1,
+                                       dtype=np.float32, ctx=ctx),
+                            ctx=ctx)
+        attrs = [tiledb.Attr(name="U", dtype=np.float64, ctx=ctx),
+                 tiledb.Attr(name="V", dtype=np.uint32, ctx=ctx)]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(path, schema)
+
+        U = np.random.rand(11)
+        V = np.random.randint(0,np.iinfo(np.uint32).max, 11).astype(np.uint32)
+
+        coords = np.linspace(-10, 10, num=11, dtype=np.float32)
+        data = {'U':  U,
+                'V':  V}
+
+        with tiledb.open(path, 'w') as A:
+            A[coords] = data
+
+        with tiledb.open(path) as A:
+            for k,d in data.items():
+                Q = A.query(attrs=k)
+                res = Q.multi_index[[-10]]
+                assert_array_equal(
+                    d[[0]],
+                    res[k]
+                )
+                assert_array_equal(
+                    coords[[0]],
+                    res['coords'].view('f4')
+                )
+
+                res = A.multi_index[10, :]
+                assert_array_equal(
+                    d[[-1]].squeeze(),
+                    res[k]
+                )
+                assert_array_equal(
+                    coords[[-1]],
+                    res['coords'].view('f4')
+                )
+
+                res = A.multi_index[ [ slice(coords[0],coords[2]), [coords[-1]]] ]
+                assert_array_equal(
+                    np.hstack([ d[0:3], d[-1] ]),
+                    res[k]
+                )
