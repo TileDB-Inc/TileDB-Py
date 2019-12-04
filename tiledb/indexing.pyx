@@ -2,6 +2,8 @@ IF TILEDBPY_MODULAR:
   include "common.pxi"
   from .libtiledb cimport *
 
+from libc.stdio cimport printf
+
 import numpy as np
 from .array import DenseArray, SparseArray
 import weakref
@@ -100,92 +102,35 @@ cdef class DomainIndexer(object):
         else:
             raise Exception("No handler for Array type: " + str(type(self.array)))
 
-cdef dict execute_dense(tiledb_ctx_t* ctx_ptr,
+cdef class QueryAttr(object):
+    cdef unicode name
+    cdef np.dtype dtype
+
+    def __init__(self, name, dtype):
+        self.name = name
+        self.dtype = dtype
+
+cdef dict execute_multi_index(tiledb_ctx_t* ctx_ptr,
                         tiledb_query_t* query_ptr,
-                        DenseArrayImpl array,
-                        tuple attr_names):
-
-    # Create and assign attribute result buffers
-    cdef uint64_t attr_idx = 0
-    cdef dict res = dict()
-    cdef Attr attr
-    cdef bytes battr_name
-    cdef unicode attr_name
-    cdef uint64_t result_bytes = 0
-    cdef uint64_t result_elements = 0
-    cdef uint64_t attr_array_size = 0
-    cdef double result_rem_d = 0
-    cdef np.ndarray attr_array
-    cdef void* attr_array_ptr = NULL
-
-    for attr_idx in range(array.schema.nattr):
-        attr = array.schema.attr(attr_idx)
-        attr_name = attr.name
-        battr_name = attr_name.encode('UTF-8')
-        rc = tiledb_query_get_est_result_size(ctx_ptr, query_ptr,
-                                              battr_name, &result_bytes)
-
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-
-        if result_bytes == 0:
-            raise TileDBError("Multi-range query returned size estimate result 0!")
-
-        _, result_rem_d = divmod(result_bytes, attr.dtype.itemsize)
-        if result_rem_d != 0:
-            raise TileDBError("Multi-range query size estimate "
-                              "is not integral multiple of dtype bytes"
-                              " (result_bytes: '{}', itemsize: '{}', remainder: '{}')".format(
-                              result_bytes, result_rem_d, attr.dtype.itemsize))
-
-        # TODO check that size matches cross-product of ranges (for dense)?
-        result_elements = result_bytes / attr.dtype.itemsize
-
-        attr_array = np.zeros(result_elements, dtype=attr.dtype)
-        attr_array_size = attr_array.nbytes
-
-        attr_array_ptr = np.PyArray_DATA(attr_array)
-        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
-                                     attr_array_ptr, &attr_array_size)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-
-        # store the result
-        res[attr_name] = attr_array
-
-    with nogil:
-        rc = tiledb_query_submit(ctx_ptr, query_ptr)
-
-    if rc != TILEDB_OK:
-        _raise_ctx_err(ctx_ptr, rc)
-
-    return res
-
-cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
-                        tiledb_query_t* query_ptr,
-                        SparseArrayImpl array,
+                        Array array,
                         tuple attr_names,
                         return_coord):
 
-    # NOTE: query_ptr *must* be freed in caller
+    # NOTE: query_ptr *must* only be freed in caller
 
     cdef np.dtype coords_dtype
     cdef unicode coord_name = (tiledb_coords()).decode('UTF-8')
-    # coordinate attribute must be first
-    if return_coord:
-        attr_names = (coord_name, *attr_names)
-        coords_dtype = array.coords_dtype
-
-    # Create and assign attribute result buffers
     cdef uint64_t attr_idx
     cdef Attr attr
     cdef bytes battr_name
     cdef unicode attr_name
+    cdef np.dtype attr_dtype
     cdef uint64_t result_bytes = 0
     cdef size_t result_elements
     cdef float result_elements_f, result_rem
     cdef np.ndarray attr_array
     cdef uint64_t el_count
+    cdef QueryAttr qattr
 
     cdef void* attr_array_ptr = NULL
     cdef uint64_t* buffer_sizes_ptr = NULL
@@ -193,46 +138,66 @@ cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
     cdef bint repeat_query = True
     cdef tiledb_query_status_t query_status
     cdef uint64_t repeat_count = 0
+    cdef uint64_t buffer_bytes_remaining = 0
 
-    cdef Py_ssize_t nattr = len(attr_names)
+    # Get the attributes
+    cdef list attrs = [QueryAttr(a.name, a.dtype)
+                       for a in [array.schema.attr(name)
+                                 for name in attr_names]]
+
+    print(attrs)
+    # Coordinate attribute buffer must be set first
+    if return_coord:
+        attrs.insert(0, QueryAttr(coord_name, array.coords_dtype))
+
+    # Create and assign attribute result buffers
+
+    cdef Py_ssize_t nattr = len(attrs)
     cdef uint64_t ndim = array.ndim
 
     cdef dict result_dict = dict()
     cdef np.ndarray buffer_sizes = np.zeros(nattr, np.uint64)
     cdef np.ndarray result_bytes_read = np.zeros(nattr, np.uint64)
 
-    # TODO ... make this nicer
     cdef uint64_t init_element_count = 1310720 # 10 MB int64
     cdef uint64_t max_element_count  = 6553600 # 50 MB int64
 
+    # There are two different conditions which may cause incomplete queries,
+    # requiring retries and potentially reallocation to complete the read.
+    # 1) user-allocated buffer is not large enough. In this case, we need to
+    #    allocate more memory and retry. This is accomplished below by resizing
+    #    the array in-place (preserving the existing data), then bumping the
+    #    query buffer pointer.
+    # 2) internal memory limit is exceeded: the libtiledb parameter
+    #    'sm.memory_budget' governs internal memory allocation. If libtiledb's
+    #    internal allocation exceeds this budget, the query may need to be
+    #    retried, but we do not necessarily need to bump the user buffer allocation.
     while repeat_query:
         for attr_idx in range(nattr):
-            if return_coord and attr_idx == 0:
-                # coords
-                attr_name = coord_name
-                attr_dtype = coords_dtype
-            else:
-                # attributes
-                attr = array.schema.attr(attr_idx - (1 if return_coord else 0))
-                attr_dtype = attr.dtype
-                attr_name = attr.name
+            qattr = attrs[attr_idx]
+            attr_name = qattr.name
+            attr_dtype = qattr.dtype
 
-            if repeat_count < 1:
-                # coords_dtype is a record with 1 element per ndim coords
+            if repeat_count == 0:
+
                 result_dict[attr_name] = np.zeros(init_element_count,
                                                   dtype=attr_dtype)
-            else:
+
+            # Get the array here in order to save a lookup
+            attr_array = result_dict[attr_name]
+            if repeat_count > 0:
                 new_el_count = init_element_count if (repeat_count < 2) else max_element_count
 
-                # resize in place
-                attr_array = result_dict[attr_name]
-                # TODO make sure 'refcheck=False' is always safe
-                attr_array.resize(attr_array.size + new_el_count, refcheck=False)
+                buffer_bytes_remaining = attr_array.nbytes - result_bytes_read[attr_idx]
+                if buffer_sizes[attr_idx] > (.25 * buffer_bytes_remaining):
+                    # Check number of bytes read during the *last* pass.
+                    # The conditional above handles situation (2) in order to avoid re-allocation
+                    # on every repeat, in case we are reading small chunks at a time due to libtiledb
+                    # memory budget.
+                    # TODO make sure 'refcheck=False' is always safe
+                    attr_array.resize(attr_array.size + new_el_count, refcheck=False)
 
-            attr_item_size = coords_dtype.itemsize
             battr_name = attr_name.encode('UTF-8')
-
-            attr_array = result_dict[attr_name]
             attr_array_ptr = np.PyArray_DATA(attr_array)
 
             # we need to give the pointer to the current starting point after reallocation
@@ -248,12 +213,14 @@ cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
                                          &(buffer_sizes_ptr[attr_idx]))
 
             if rc != TILEDB_OK:
+                # NOTE: query_ptr *must* only be freed in caller
                 _raise_ctx_err(ctx_ptr, rc)
 
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
 
         if rc != TILEDB_OK:
+            # NOTE: query_ptr *must* only be freed in caller
             _raise_ctx_err(ctx_ptr, rc)
 
         # update bytes-read count
@@ -262,9 +229,11 @@ cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
 
         rc = tiledb_query_get_status(ctx_ptr, query_ptr, &query_status)
         if rc != TILEDB_OK:
+            # NOTE: query_ptr *must* only be freed in caller
             _raise_ctx_err(ctx_ptr, rc)
 
         if query_status == TILEDB_INCOMPLETE:
+            #printf("%s\n", <const char*>"got incomplete!")
             repeat_query = True
             repeat_count += 1
         elif query_status == TILEDB_COMPLETED:
@@ -281,13 +250,9 @@ cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
 
     # resize arrays to final bytes-read
     for attr_idx in range(nattr):
-        if return_coord and attr_idx == 0:
-            attr_name = coord_name
-            attr_dtype = coords_dtype
-        else:
-            attr = array.schema.attr(attr_idx - (1 if return_coord else 0))
-            attr_dtype = attr.dtype
-            attr_name = attr.name
+        qattr = attrs[attr_idx]
+        attr_name = qattr.name
+        attr_dtype = qattr.dtype
 
         attr_item_size = attr_dtype.itemsize
         attr_array = result_dict[attr_name]
@@ -300,7 +265,7 @@ cdef dict execute_sparse(tiledb_ctx_t* ctx_ptr,
     return result_dict
 
 cpdef multi_index(Array array, tuple attr_names, tuple ranges,
-                  order = None, coords = True):
+                  order = None, coords = None):
 
     cdef tiledb_layout_t layout = TILEDB_UNORDERED
     if order is None or order == 'C':
@@ -352,12 +317,11 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
             continue
 
         for range_idx in range(len(dim_ranges)):
-            cur_range = dim_ranges[range_idx]
-            if len(cur_range) != 2:
-                raise TileDBError("internal error: invalid sub-range: ", cur_range)
+            if len(dim_ranges[range_idx]) != 2:
+                raise TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
 
-            start = np.array(cur_range[0], dtype=dim.dtype)
-            end = np.array(cur_range[1], dtype=dim.dtype)
+            start = np.array(dim_ranges[range_idx][0], dtype=dim.dtype)
+            end = np.array(dim_ranges[range_idx][1], dtype=dim.dtype)
 
             start_ptr = np.PyArray_DATA(start)
             end_ptr = np.PyArray_DATA(end)
@@ -371,10 +335,9 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
     try:
-        if array.schema.sparse:
-            result = execute_sparse(ctx_ptr, query_ptr, array, attr_names, coords)
-        else:
-            result = execute_dense(ctx_ptr, query_ptr, array, attr_names)
+        if coords is None:
+            coords = array.schema.sparse
+        result = execute_multi_index(ctx_ptr, query_ptr, array, attr_names, coords)
     finally:
         tiledb_query_free(&query_ptr)
 
