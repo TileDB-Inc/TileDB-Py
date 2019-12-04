@@ -3142,7 +3142,7 @@ cdef class Array(object):
         self.ptr = array_ptr
         self.domain_index = DomainIndexer(self)
 
-        # TODO cython
+        # Delayed to avoid circular import
         from .multirange_indexing import MultiRangeIndexer
         self.multi_index = MultiRangeIndexer(self)
         self.last_fragment_info = dict()
@@ -3614,6 +3614,9 @@ cdef class Query(object):
         self.coords = coords
         self.order = order
         self.domain_index = DomainIndexer(array, query=self)
+        # Delayed to avoid circular import
+        from .multirange_indexing import MultiRangeIndexer
+        self.multi_index = MultiRangeIndexer(array, query=self)
 
     def __getitem__(self, object selection):
         return self.array.subarray(selection,
@@ -3622,8 +3625,16 @@ cdef class Query(object):
                                    order=self.order)
 
     @property
+    def attrs(self):
+        return self.attrs
+
+    @property
     def domain_index(self):
         return self.domain_index
+
+    @property
+    def multi_index(self):
+        return self.multi_index
 
 
 # work around https://github.com/cython/cython/issues/2757

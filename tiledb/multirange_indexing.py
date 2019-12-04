@@ -74,6 +74,8 @@ class MultiRangeIndexer(object):
     #def __init__(self, array: Array, query = None):
 
     def __init__(self, array, query = None):
+        if not issubclass(type(array), tiledb.Array):
+            raise ValueError("Internal error: MultiRangeIndexer expected tiledb.Array")
         self.array_ref = weakref.ref(array)
         self.schema = array.schema
         self.query = query
@@ -83,6 +85,19 @@ class MultiRangeIndexer(object):
         assert self.array_ref() is not None, \
             "Internal error: invariant violation (indexing call w/ dead array_ref)"
         return self.array_ref()
+
+    @classmethod
+    def __test_init__(cls, array):
+        """
+        Internal helper method for testing getitem range calculation.
+        :param array:
+        :return:
+        """
+        m = cls.__new__(cls)
+        m.array_ref = weakref.ref(array)
+        m.schema = array.schema
+        m.query = None
+        return m
 
     def getitem_ranges(self, idx):
         dom = self.schema.domain
@@ -107,6 +122,10 @@ class MultiRangeIndexer(object):
 
         dom = self.schema.domain
         attr_names = tuple(self.schema.attr(i).name for i in range(self.schema.nattr))
+
+        if self.query is not None:
+            # if we are called via Query object, then we need to respect Query semantics
+            attr_names = tuple(self.query.attrs) if self.query.attrs else attr_names # query.attrs might be None -> all
 
         # TODO order
         result_dict = multi_index(
