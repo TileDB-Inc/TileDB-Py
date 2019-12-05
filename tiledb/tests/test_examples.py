@@ -28,7 +28,7 @@ class ExamplesTest(unittest.TestCase):
       run_checked(args)
 
   # some of the doctests are missing a clean-up step on windows
-  @unittest.skipIf(platform.system() is 'Windows', "")
+  @unittest.skipIf(platform.system() == 'Windows', "")
   def test_docs(self):
     if sys.version_info >= (3,6):
       doctest_args = ['-m', 'doctest', '-o', 'NORMALIZE_WHITESPACE', '-f',
