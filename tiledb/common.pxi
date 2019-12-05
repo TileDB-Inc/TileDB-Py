@@ -17,6 +17,8 @@ from libc.stdint cimport (uint8_t, int8_t,
                           uint32_t, int32_t,
                           uint64_t, int64_t,
                           uintptr_t)
+from libc.stddef cimport ptrdiff_t
+
 from libc cimport limits
 from libcpp.vector cimport vector
 

@@ -1102,6 +1102,7 @@ cdef class Array(object):
     cdef tiledb_array_t* ptr
     cdef unicode uri
     cdef unicode mode
+    cdef bint _isopen
     cdef object view_attr # can be None
     cdef object key # can be None
     cdef object schema
@@ -1111,7 +1112,6 @@ cdef class Array(object):
     cdef object multi_index
 
     cdef object last_fragment_info
-    # TODO make this Metadata
     cdef Metadata meta
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
