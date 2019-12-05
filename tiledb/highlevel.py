@@ -24,17 +24,7 @@ def open(uri, mode='r', key=None, attr=None, config=None, ctx=None):
     if ctx is None:
         ctx = default_ctx()
 
-    schema = ArraySchema.load(uri, ctx=ctx)
-    if not schema:
-        raise Exception("Unable to load tiledb ArraySchema from URI: '{}'".format(uri))
-
-    if schema.sparse:
-        return tiledb.SparseArray(uri, mode=mode, key=key, attr=attr, ctx=ctx)
-    elif not schema.sparse:
-        return tiledb.DenseArray(uri, mode=mode, key=key, attr=attr, ctx=ctx)
-    else:
-        raise Exception("Unknown TileDB array type")
-
+    return tiledb.Array.load_typed(uri, mode, key, None, attr, ctx)
 
 def save(uri, array, config=None, **kw):
     """

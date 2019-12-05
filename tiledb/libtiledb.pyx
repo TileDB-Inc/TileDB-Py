@@ -2917,6 +2917,67 @@ cdef class ArraySchema(object):
         print("\n")
         return
 
+# Wrapper class to allow returning a Python object so that exceptions work correctly
+# within preload_array
+cdef class ArrayPtr(object):
+    cdef tiledb_array_t* ptr
+
+cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=default_ctx()):
+    # ctx
+    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    # uri
+    cdef bytes buri = unicode_path(uri)
+    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+    # mode
+    cdef tiledb_query_type_t query_type = TILEDB_READ
+    # key
+    cdef bytes bkey
+    cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+    cdef void* key_ptr = NULL
+    cdef unsigned int key_len = 0
+    # convert python mode string to a query type
+    if mode == 'r':
+        query_type = TILEDB_READ
+    elif mode == 'w':
+        query_type = TILEDB_WRITE
+    else:
+        raise ValueError("TileDB array mode must be 'r' or 'w'")
+    # check the key, and convert the key to bytes
+    if key is not None:
+        if isinstance(key, str):
+            bkey = key.encode('ascii')
+        else:
+            bkey = bytes(key)
+        key_type = TILEDB_AES_256_GCM
+        key_ptr = <void *> PyBytes_AS_STRING(bkey)
+        #TODO: unsafe cast here ssize_t -> uint64_t
+        key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+    cdef uint64_t _timestamp = 0
+    if timestamp is not None:
+        _timestamp = <uint64_t> timestamp
+
+    # allocate and then open the array
+    cdef tiledb_array_t* array_ptr = NULL
+    cdef int rc = TILEDB_OK
+    rc = tiledb_array_alloc(ctx_ptr, uri_ptr, &array_ptr)
+    if rc != TILEDB_OK:
+        _raise_ctx_err(ctx_ptr, rc)
+    if timestamp is None:
+        with nogil:
+            rc = tiledb_array_open_with_key(
+                ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len)
+    else:
+        with nogil:
+            rc = tiledb_array_open_at_with_key(
+                ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len, _timestamp)
+    if rc != TILEDB_OK:
+        tiledb_array_free(&array_ptr)
+        _raise_ctx_err(ctx_ptr, rc)
+
+    cdef ArrayPtr retval = ArrayPtr()
+    retval.ptr = array_ptr
+    return retval
+
 cdef class Array(object):
     """Base class for TileDB array objects.
 
@@ -2991,57 +3052,67 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         return
 
+    @staticmethod
+    def load_typed(uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
+        cdef int32_t rc = TILEDB_OK
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef tiledb_array_schema_t* schema_ptr
+        cdef tiledb_array_type_t array_type
+        cdef Array new_array
+        cdef object new_array_typed
+
+        # *** preload_array owns array_ptr until it returns ***
+        #     and will free array_ptr upon exception
+        cdef ArrayPtr tmp_array = preload_array(uri, mode, key, timestamp, ctx)
+        assert tmp_array.ptr != NULL, "Internal error, array loading return nullptr"
+        cdef tiledb_array_t* array_ptr = tmp_array.ptr
+        # *** now we own array_ptr -- free in the try..except clause ***
+        try:
+            rc = tiledb_array_get_schema(ctx_ptr, array_ptr, &schema_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_array_schema_get_array_type(ctx_ptr, schema_ptr, &array_type)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            if array_type == TILEDB_DENSE:
+                new_array_typed = DenseArray.__new__(DenseArray)
+            else:
+                new_array_typed = SparseArray.__new__(SparseArray)
+
+        except TileDBError as exc:
+            tiledb_array_free(&array_ptr)
+            raise exc
+
+        # *** this assignment must happen outside the try block ***
+        # *** because the array destructor will free array_ptr  ***
+        # note: must use the immediate form `(<cast>x).m()` here
+        #       do not assign a temporary Array object
+        if array_type == TILEDB_DENSE:
+            (<DenseArrayImpl>new_array_typed).ptr = array_ptr
+            (<DenseArrayImpl>new_array_typed)._isopen = True
+        else:
+            (<SparseArrayImpl>new_array_typed).ptr = array_ptr
+            (<SparseArrayImpl>new_array_typed)._isopen = True
+        # *** new_array_typed now owns array_ptr ***
+
+        new_array_typed.__init__(uri, mode=mode, key=key, timestamp=timestamp, attr=attr)
+        return new_array_typed
+
     def __init__(self, uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
         # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-        # uri
-        cdef bytes buri = unicode_path(uri)
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        # mode
-        cdef tiledb_query_type_t query_type = TILEDB_READ
-        # key
-        cdef bytes bkey
-        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        cdef void* key_ptr = NULL
-        cdef unsigned int key_len = 0
-        # convert python mode string to a query type
-        if mode == 'r':
-            query_type = TILEDB_READ
-        elif mode == 'w':
-            query_type = TILEDB_WRITE
-        else:
-            raise ValueError("TileDB array mode must be 'r' or 'w'")
-        # check the key, and convert the key to bytes
-        if key is not None:
-            if isinstance(key, str):
-                bkey = key.encode('ascii')
-            else:
-                bkey = bytes(key)
-            key_type = TILEDB_AES_256_GCM
-            key_ptr = <void *> PyBytes_AS_STRING(bkey)
-            #TODO: unsafe cast here ssize_t -> uint64_t
-            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-        cdef uint64_t _timestamp = 0
-        if timestamp is not None:
-            _timestamp = <uint64_t> timestamp
-
-        # allocate and then open the array
+        # array
+        cdef ArrayPtr tmp_array
         cdef tiledb_array_t* array_ptr = NULL
-        cdef int rc = TILEDB_OK
-        rc = tiledb_array_alloc(ctx_ptr, uri_ptr, &array_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        if timestamp is None:
-            with nogil:
-                rc = tiledb_array_open_with_key(
-                    ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len)
+
+        if not self._isopen:
+            tmp_array = preload_array(uri, mode, key, timestamp, ctx)
+            array_ptr =  tmp_array.ptr
         else:
-            with nogil:
-                rc = tiledb_array_open_at_with_key(
-                    ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len, _timestamp)
-        if rc != TILEDB_OK:
-            tiledb_array_free(&array_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
+            array_ptr = self.ptr
+
         cdef ArraySchema schema
         cdef tiledb_array_schema_t* array_schema_ptr = NULL
         try:
