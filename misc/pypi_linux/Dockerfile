@@ -21,7 +21,7 @@ ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 
 ###############################################
 # settings (B)
-ENV TILEDB_VERSION 1.7.1
+ENV TILEDB_VERSION 442257d9cf997c22dc06647e2d645476953a23e8
 ENV TILEDB_PY_VERSION 0.5.2
 ###############################################
 # 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
