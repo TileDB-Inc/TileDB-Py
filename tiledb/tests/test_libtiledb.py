@@ -2395,6 +2395,23 @@ class MemoryTest(DiskTestCase):
 
         self.assertTrue(final < (2 * initial))
 
+class HighlevelTests(DiskTestCase):
+    def test_open(self):
+        uri = self.path("test_open")
+        with tiledb.from_numpy(uri, np.random.rand(10)) as A:
+            pass
+
+        ctx = tiledb.Ctx()
+        with tiledb.DenseArray(uri, ctx=ctx) as A:
+            self.assertEqual(A._ctx_(), ctx)
+
+        with tiledb.open(uri, ctx=ctx) as A:
+            self.assertEqual(A._ctx_(), ctx)
+
+        config = tiledb.Config()
+        with tiledb.open(uri, config=config) as A:
+            self.assertEqual(A._ctx_().config(), config)
+
 #if __name__ == '__main__':
 #    # run a single example for in-process debugging
 #    # better to use `pytest --gdb` if available
