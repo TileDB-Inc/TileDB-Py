@@ -3056,7 +3056,7 @@ cdef class Array(object):
     def load_typed(uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
         cdef int32_t rc = TILEDB_OK
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-        cdef tiledb_array_schema_t* schema_ptr
+        cdef tiledb_array_schema_t* schema_ptr = NULL
         cdef tiledb_array_type_t array_type
         cdef Array new_array
         cdef object new_array_typed
@@ -3097,7 +3097,7 @@ cdef class Array(object):
             (<SparseArrayImpl>new_array_typed)._isopen = True
         # *** new_array_typed now owns array_ptr ***
 
-        new_array_typed.__init__(uri, mode=mode, key=key, timestamp=timestamp, attr=attr)
+        new_array_typed.__init__(uri, mode=mode, key=key, timestamp=timestamp, attr=attr, ctx=ctx)
         return new_array_typed
 
     def __init__(self, uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
