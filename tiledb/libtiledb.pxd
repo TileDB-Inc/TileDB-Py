@@ -1098,6 +1098,7 @@ cdef class ArraySchema(object):
     cdef _attr_idx(self, int idx)
 
 cdef class Array(object):
+    cdef object __weakref__
     cdef Ctx ctx
     cdef tiledb_array_t* ptr
     cdef unicode uri
@@ -1106,13 +1107,11 @@ cdef class Array(object):
     cdef object view_attr # can be None
     cdef object key # can be None
     cdef object schema
+
     cdef DomainIndexer domain_index
-
-    # TODO make this a cython type TBD
     cdef object multi_index
-
-    cdef object last_fragment_info
     cdef Metadata meta
+    cdef object last_fragment_info
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
     cdef _unpack_varlen_query(self, ReadQuery read, unicode name)
@@ -1149,7 +1148,7 @@ cdef class ReadQuery(object):
     cdef object _offsets
 
 cdef class Metadata(object):
-    cdef Array array
+    cdef object array_ref
 
 cdef class TileDBError(Exception):
     pass

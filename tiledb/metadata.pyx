@@ -3,6 +3,8 @@ IF TILEDBPY_MODULAR:
     from .libtiledb import *
     from .libtiledb cimport *
 
+import weakref
+
 from cython.operator cimport dereference as deref
 from cpython.long cimport PyLong_AsLongLong
 from cpython.float cimport PyFloat_AsDouble
@@ -14,8 +16,6 @@ from libcpp.limits cimport numeric_limits
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[vector[char]] move(unique_ptr[vector[char]])
     #cdef unique_ptr[vector[char]] make_unique(vector[char])
-
-
 
 cdef object metadata_value_check(val):
     if isinstance(val, int):
@@ -168,9 +168,11 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
     return None
 
 
-cdef object put_metadata(tiledb_ctx_t* ctx_ptr,
-                         tiledb_array_t* array_ptr,
+cdef object put_metadata(Array array,
                          key, val):
+
+    cdef tiledb_array_t* array_ptr = array.ptr
+    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
 
     cdef int rc = TILEDB_OK
     cdef vector[char] data_buf = vector[char]()
@@ -200,9 +202,11 @@ cdef object put_metadata(tiledb_ctx_t* ctx_ptr,
 
     return None
 
-cdef object get_metadata(tiledb_ctx_t* ctx_ptr,
-                         tiledb_array_t* array_ptr,
+cdef object get_metadata(array: Array,
                          key: unicode):
+
+    cdef tiledb_array_t* array_ptr = array.ptr
+    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
 
     cdef:
         const char* key_ptr
@@ -231,12 +235,12 @@ cdef object get_metadata(tiledb_ctx_t* ctx_ptr,
 
     return unpack_metadata_val(value_type, value_num, value)
 
-cdef put_metadata_dict(tiledb_ctx_t* ctx_ptr, tiledb_array_t* array_ptr, kv):
+cdef put_metadata_dict(Array array, kv):
 
     for k,v in kv.iteritems():
-        put_metadata(ctx_ptr, array_ptr, k, v)
+        put_metadata(array, k, v)
 
-cdef object load_metadata(tiledb_ctx_t* ctx_ptr, tiledb_array_t* array_ptr, unpack=True):
+cdef object load_metadata(Array array, unpack=True):
     """
     Load array metadata dict or keys
 
@@ -245,6 +249,8 @@ cdef object load_metadata(tiledb_ctx_t* ctx_ptr, tiledb_array_t* array_ptr, unpa
     :param unpack: unpack the values into dictionary
     :return: dict(k: v) if unpack else list(k)
     """
+    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
+    cdef tiledb_array_t* array_ptr = array.ptr
 
     cdef uint64_t metadata_num
     rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
@@ -296,9 +302,14 @@ cdef object load_metadata(tiledb_ctx_t* ctx_ptr, tiledb_array_t* array_ptr, unpa
 
 
 cdef class Metadata(object):
-
     def __init__(self, array):
-        self.array = array
+        self.array_ref = weakref.ref(array)
+
+    @property
+    def array(self):
+        assert self.array_ref() is not None, \
+            "Internal error: invariant violation ([] from gc'd Array)"
+        return self.array_ref()
 
     def __setitem__(self, key, value):
         """
@@ -312,7 +323,7 @@ cdef class Metadata(object):
             raise ValueError("Unexpected key type '{}': expected str "
                              "type".format(type(key)))
 
-        put_metadata(self.array.ctx.ptr, self.array.ptr, key, value)
+        put_metadata(self.array, key, value)
 
     def __getitem__(self, key):
         """
@@ -326,7 +337,7 @@ cdef class Metadata(object):
 
         # `get_metadata` expects unicode
         key = ustring(key)
-        v = get_metadata(self.array.ctx.ptr, self.array.ptr, key)
+        v = get_metadata(self.array, key)
 
         if v is None:
             raise TileDBError("Failed to unpack value for key: '{}'".format(key))
@@ -359,7 +370,7 @@ cdef class Metadata(object):
         # TODO: ensure that the array is not x-locked?
 
         cdef uint32_t rc = 0
-
+        cdef tiledb_ctx_t* ctx_ptr = (<Array?>self.array).ctx.ptr
         cdef:
             tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
             void* key_ptr = NULL
@@ -367,7 +378,8 @@ cdef class Metadata(object):
         cdef bytes bkey
 
         cdef bytes buri = unicode_path(self.array.uri)
-        if self.array.key is not None:
+        cdef unicode key = (<Array?>self.array).key
+        if key is not None:
             if isinstance(self.array.key, str):
                 bkey = self.array.key.encode('ascii')
             else:
@@ -378,7 +390,7 @@ cdef class Metadata(object):
             key_len = <uint32_t> PyBytes_GET_SIZE(bkey)
 
         rc = tiledb_array_consolidate_metadata_with_key(
-                self.array.ctx.ptr,
+                ctx_ptr,
                 buri,
                 key_type,
                 key_ptr,
@@ -386,7 +398,7 @@ cdef class Metadata(object):
                 NULL)
 
         if rc != TILEDB_OK:
-            _raise_ctx_err(self.array.ctx.ptr, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
     def __delitem__(self, key):
         """
@@ -400,29 +412,30 @@ cdef class Metadata(object):
         :param key:
         :return:
         """
-        cdef:
-            tiledb_ctx_t* ctx_ptr = self.array.ctx.ptr
-            const char* key_ptr
-            object key_utf8
-            int32_t rc
+        cdef tiledb_ctx_t*  ctx_ptr = (<Array>self.array).ctx.ptr
+        cdef tiledb_array_t*  array_ptr = (<Array>self.array).ptr
+        cdef const char* key_ptr
+        cdef object key_utf8
+        cdef int32_t rc
 
         key_utf8 = key.encode('UTF-8')
         key_ptr = <const char*>key_utf8
 
-        rc = tiledb_array_delete_metadata(self.array.ctx.ptr, self.array.ptr, key_ptr)
+        rc = tiledb_array_delete_metadata(ctx_ptr, array_ptr, key_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
     def __len__(self):
-        cdef:
-            int32_t rc
-            uint64_t num
+        cdef tiledb_ctx_t*  ctx_ptr = (<Array>self.array).ctx.ptr
+        cdef tiledb_array_t*  array_ptr = (<Array>self.array).ptr
+        cdef int32_t rc
+        cdef uint64_t num
 
         rc = tiledb_array_get_metadata_num(
-                self.array.ctx.ptr, self.array.ptr, &num)
+                ctx_ptr, array_ptr, &num)
 
         if rc != TILEDB_OK:
-            _raise_ctx_err(self.array.ctx.ptr, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
         return <int>num
 
@@ -432,12 +445,11 @@ cdef class Metadata(object):
 
         :return: List of keys
         """
-        return load_metadata(self.array.ctx.ptr, self.array.ptr, unpack=False)
+        return load_metadata(self.array, unpack=False)
 
     def values(self):
         # TODO this should be an iterator
-
-        data = load_metadata(self.array.ctx.ptr, self.array.ptr, unpack=True)
+        data = load_metadata(self.array, unpack=False)
         return data.values()
 
     def pop(self, key, default=None):
@@ -445,7 +457,7 @@ cdef class Metadata(object):
 
     def items(self):
         # TODO this should be an iterator
-        data = load_metadata(self.array.ctx.ptr, self.array.ptr, unpack=True)
+        data = load_metadata(self.array, unpack=True)
         return tuple( (k, data[k]) for k in data.keys() )
 
     def _set_numpy(self, key, np.ndarray arr, datatype = None):
@@ -458,6 +470,8 @@ cdef class Metadata(object):
         :param arr: 1d NumPy ndarray
         :return:
         """
+        cdef tiledb_ctx_t*  ctx_ptr = (<Array>self.array).ctx.ptr
+        cdef tiledb_array_t*  array_ptr = (<Array>self.array).ptr
 
         cdef:
             int32_t rc = TILEDB_OK
@@ -489,12 +503,12 @@ cdef class Metadata(object):
         cdef const char* data_ptr = <const char*>np.PyArray_DATA(arr)
 
         rc = tiledb_array_put_metadata(
-                self.array.ctx.ptr,
-                self.array.ptr,
+                ctx_ptr,
+                array_ptr,
                 key_cstr,
                 tiledb_type,
                 value_num,
                 data_ptr)
 
         if rc != TILEDB_OK:
-            _raise_ctx_err(self.array.ctx.ptr, rc)
+            _raise_ctx_err(ctx_ptr, rc)

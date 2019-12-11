@@ -1,7 +1,7 @@
 import tiledb
 from tiledb import Array, ArraySchema
 import os, numpy as np
-import sys
+import sys, weakref
 
 try:
     from tiledb.libtiledb import multi_index
@@ -74,11 +74,15 @@ class MultiRangeIndexer(object):
     #def __init__(self, array: Array, query = None):
 
     def __init__(self, array, query = None):
-        self.array = array
-        # TODO remove
-        if hasattr(array, 'schema'):
-            self.schema = array.schema
+        self.array_ref = weakref.ref(array)
+        self.schema = array.schema
         self.query = query
+
+    @property
+    def array(self):
+        assert self.array_ref() is not None, \
+            "Internal error: invariant violation (indexing call w/ dead array_ref)"
+        return self.array_ref()
 
     def getitem_ranges(self, idx):
         dom = self.schema.domain
