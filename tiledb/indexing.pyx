@@ -160,7 +160,8 @@ cdef dict execute_multi_index(tiledb_ctx_t* ctx_ptr,
     cdef np.ndarray result_bytes_read = np.zeros(nattr, np.uint64)
 
     cdef uint64_t init_element_count = 1310720 # 10 MB int64
-    cdef uint64_t max_element_count  = 6553600 # 50 MB int64
+    # switch from exponential to linear (+4GB) allocation
+    cdef uint64_t linear_alloc_bytes = 4 * (2**30) # 4 GB
 
     # There are two different conditions which may cause incomplete queries,
     # requiring retries and potentially reallocation to complete the read.
@@ -179,15 +180,12 @@ cdef dict execute_multi_index(tiledb_ctx_t* ctx_ptr,
             attr_dtype = qattr.dtype
 
             if repeat_count == 0:
-
                 result_dict[attr_name] = np.zeros(init_element_count,
                                                   dtype=attr_dtype)
 
             # Get the array here in order to save a lookup
             attr_array = result_dict[attr_name]
             if repeat_count > 0:
-                new_el_count = init_element_count if (repeat_count < 2) else max_element_count
-
                 buffer_bytes_remaining = attr_array.nbytes - result_bytes_read[attr_idx]
                 if buffer_sizes[attr_idx] > (.25 * buffer_bytes_remaining):
                     # Check number of bytes read during the *last* pass.
@@ -195,7 +193,11 @@ cdef dict execute_multi_index(tiledb_ctx_t* ctx_ptr,
                     # on every repeat, in case we are reading small chunks at a time due to libtiledb
                     # memory budget.
                     # TODO make sure 'refcheck=False' is always safe
-                    attr_array.resize(attr_array.size + new_el_count, refcheck=False)
+                    if attr_array.nbytes < linear_alloc_bytes:
+                        attr_array.resize(attr_array.size * 2, refcheck=False)
+                    else:
+                        new_size = attr_array.size + linear_alloc_bytes / attr_dtype.itemsize
+                        attr_array.resize(new_size, refcheck=False)
 
             battr_name = attr_name.encode('UTF-8')
             attr_array_ptr = np.PyArray_DATA(attr_array)
