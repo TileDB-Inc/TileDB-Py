@@ -4,6 +4,7 @@ IF TILEDBPY_MODULAR:
 
 import numpy as np
 from .array import DenseArray, SparseArray
+import weakref
 
 def _index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -25,14 +26,21 @@ cdef class DomainIndexer(object):
         return indexer
 
     def __init__(self, Array array, query = None):
-        self.array = array
+        self.array_ref = weakref.ref(array)
         self.schema = array.schema
         self.query = query
+
+    @property
+    def array(self):
+        assert self.array_ref() is not None, \
+            "Internal error: invariant violation (index[] with dead array_ref)"
+        return self.array_ref()
 
     def __getitem__(self, object idx):
         # implements domain-based indexing: slice by domain coordinates, not 0-based python indexing
 
-        cdef Domain dom = self.schema.domain
+        cdef ArraySchema schema = self.array.schema
+        cdef Domain dom = schema.domain
         cdef ndim = dom.ndim
         cdef list attr_names = list()
 
@@ -59,7 +67,7 @@ cdef class DomainIndexer(object):
             assert isinstance(subidx, slice)
             subarray[i] = subidx.start, subidx.stop
 
-        attr_names = list(self.schema.attr(i).name for i in range(self.schema.nattr))
+        attr_names = list(schema.attr(i).name for i in range(schema.nattr))
 
         order = None
         # TODO make coords optional for array.domain_index. there are no kwargs in slicing[], so
@@ -84,7 +92,6 @@ cdef class DomainIndexer(object):
             layout = TILEDB_GLOBAL_ORDER
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
-
 
         if isinstance(self.array, SparseArray):
             return (<SparseArrayImpl>self.array)._read_sparse_subarray(subarray, attr_names, layout)
