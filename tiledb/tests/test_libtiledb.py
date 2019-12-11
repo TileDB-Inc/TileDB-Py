@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-import unittest, os
+import sys, os, platform, unittest
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -2395,6 +2395,13 @@ class MemoryTest(DiskTestCase):
 
         self.assertTrue(final < (2 * initial))
 
+has_psutil = False
+try:
+    import psutil
+    has_psutil = True
+except ImportError:
+    pass
+
 class HighlevelTests(DiskTestCase):
     def test_open(self):
         uri = self.path("test_open")
@@ -2411,6 +2418,35 @@ class HighlevelTests(DiskTestCase):
         config = tiledb.Config()
         with tiledb.open(uri, config=config) as A:
             self.assertEqual(A._ctx_().config(), config)
+
+    @unittest.skipIf(platform.system() == 'Windows' or \
+                     sys.version_info < (3,2), "")
+    def test_ctx_thread_cleanup(self):
+        from concurrent.futures import ThreadPoolExecutor
+        config = {
+            'sm.num_reader_threads': 128,
+        }
+        ll = list()
+        uri = self.path("test_ctx_thread_cleanup")
+        with tiledb.from_numpy(uri, np.random.rand(100)) as A:
+            pass
+
+        thisproc = psutil.Process(os.getpid())
+
+        for n in range(0, 10):
+            if n > 0:
+                try:
+                    # checking exact thread count is unreliable, so
+                    # make sure we are holding < 2x per run.
+                    self.assertTrue(len(thisproc.threads()) < 2 * start_threads)
+                except AssertionError as exc:
+                    print("Failed on iteration: ", n)
+                    raise exc
+
+            with tiledb.DenseArray(uri, ctx=tiledb.Ctx(config)) as A:
+                res = A[:]
+            if n == 0:
+                start_threads = len(thisproc.threads())
 
 #if __name__ == '__main__':
 #    # run a single example for in-process debugging
