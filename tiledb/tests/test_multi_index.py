@@ -482,7 +482,7 @@ class TestMultiRange(DiskTestCase):
         tiledb.SparseArray.create(path, schema)
 
         U = np.random.rand(11)
-        V = np.random.randint(0,np.iinfo(np.uint32).max, 11).astype(np.uint32)
+        V = np.random.randint(0,np.iinfo(np.uint32).max, 11, dtype=np.uint32))
 
         coords = np.linspace(-10, 10, num=11, dtype=np.float32)
         data = {'U':  U,
