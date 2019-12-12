@@ -519,3 +519,30 @@ class TestMultiRange(DiskTestCase):
                     np.hstack([ d[0:3], d[-1] ]),
                     res[k]
                 )
+
+    def test_mr_1d_dense_vectorized(self):
+        ctx = tiledb.Ctx()
+        path = self.path('mr_1d_dense_vectorized')
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 999), tile=1000,
+                                       dtype=np.uint32, ctx=ctx),
+                            ctx=ctx)
+        attrs = tiledb.Attr(name="U", dtype=np.float64, ctx=ctx)
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attrs,), sparse=False, ctx=ctx)
+        tiledb.DenseArray.create(path, schema)
+
+        data = np.random.rand(1000)
+        with tiledb.DenseArray(path, 'w') as A:
+            A[0] = data[0]
+            A[-1] = data[-1]
+            A[:] = data
+
+        for _ in range(0,50):
+            with tiledb.DenseArray(path) as A:
+                idxs = random.sample(range(0, 999), k=100)
+                res = A.multi_index[idxs]
+                assert_array_equal(
+                    data[idxs],
+                    res['U']
+                )
