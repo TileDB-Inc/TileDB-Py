@@ -145,7 +145,6 @@ cdef dict execute_multi_index(tiledb_ctx_t* ctx_ptr,
                        for a in [array.schema.attr(name)
                                  for name in attr_names]]
 
-    print(attrs)
     # Coordinate attribute buffer must be set first
     if return_coord:
         attrs.insert(0, QueryAttr(coord_name, array.coords_dtype))
