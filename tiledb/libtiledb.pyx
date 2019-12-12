@@ -52,6 +52,9 @@ ELSE:
 _KB = 1024
 _MB = 1024 * _KB
 
+# Maximum number of retries for incomplete query
+_MAX_QUERY_RETRIES = 3
+
 # The native int type for this platform
 IntType = np.dtype(np.int_)
 
@@ -3450,6 +3453,7 @@ cdef class ReadQuery(object):
             tiledb_ctx_t* ctx_ptr = array.ctx.ptr
             tiledb_array_t* array_ptr = array.ptr
             tiledb_query_t* query_ptr
+            tiledb_query_status_t query_status
             ArraySchema schema = array.schema
 
         cdef:
@@ -3461,6 +3465,9 @@ cdef class ReadQuery(object):
             np.ndarray tmparray
             bytes battr_name
             Py_ssize_t nattr = len(attr_names)
+            bint retry_query = True
+            uint64_t retry_count = 0
+            uint64_t update_res_bytes_idx = 0
 
         # set subarray / layout
         subarray_ptr = np.PyArray_DATA(subarray)
@@ -3490,6 +3497,12 @@ cdef class ReadQuery(object):
             tiledb_query_free(&query_ptr)
             raise MemoryError()
 
+        # current total bytes read per attribute
+        cdef np.ndarray bytes_read = np.zeros(nattr, dtype=np.uint64)
+        cdef np.ndarray offsets_bytes_read = np.zeros(nattr, dtype=np.uint64)
+        cdef void* buffer_ptr_here = NULL
+        cdef void* offsets_ptr_here = NULL
+
         try:
             # get buffer sizes, and allocate buffers
             for i in range(nattr):
@@ -3512,10 +3525,9 @@ cdef class ReadQuery(object):
 
                     # allocate buffer to hold offsets for var-length attribute
                     # NOTE offsets_sizes is in BYTES
-
-                    # lifetime:
-                    # - free on exception
-                    # - otherwise, ownership transferred to NumPy
+                    #   lifetime:
+                    #   - free on exception
+                    #   - otherwise, ownership transferred to NumPy
                     tmp_ptr = PyDataMem_NEW(<size_t>(offsets_sizes_ptr[i]))
                     if tmp_ptr == NULL:
                         raise MemoryError()
@@ -3538,32 +3550,73 @@ cdef class ReadQuery(object):
                 buffer_ptrs.push_back(tmp_ptr)
                 tmp_ptr = NULL
 
-            # set the query buffers
-            for i in range(nattr):
-                name = attr_names[i]
-                if name == "coords":
-                    assert(i == 0)
-                    battr_name = tiledb_coords()
-                else:
-                    battr_name = name.encode('UTF-8')
-                if name != "coords" and schema.attr(name).isvar:
-                    rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
-                                                     offsets_ptrs[i], &(offsets_sizes_ptr[i]),
-                                                     buffer_ptrs[i], &(buffer_sizes_ptr[i]))
-
-                    if rc != TILEDB_OK:
-                        _raise_ctx_err(ctx_ptr, rc)
-                else:
-                    rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
-                                                 buffer_ptrs[i], &(buffer_sizes_ptr[i]))
-                    if rc != TILEDB_OK:
-                        _raise_ctx_err(ctx_ptr, rc)
-
             # execute query
-            with nogil:
-                rc = tiledb_query_submit(ctx_ptr, query_ptr)
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
+            retry_count = 0
+            while retry_query:
+                # set the query buffers
+                # NOTE: the buffers *must* be reset after every query submit
+                #       there is no tracking of byte-count on libtiledb side
+                #       so it is not sufficient to resubmit and/or update the
+                #       buffer sizes.
+                for i in range(nattr):
+                    name = attr_names[i]
+                    if name == "coords":
+                        assert(i == 0)
+                        battr_name = tiledb_coords()
+                    else:
+                        battr_name = name.encode('UTF-8')
+                    if name != "coords" and schema.attr(name).isvar:
+                        buffer_ptr_here = <void*>(<char*>buffer_ptrs[i] + <ptrdiff_t>bytes_read[i])
+                        offsets_ptr_here = <void*>(<char*>offsets_ptrs[i] + <ptrdiff_t>offsets_bytes_read[i])
+
+                        rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
+                                                         offsets_ptrs[i], &(offsets_sizes_ptr[i]),
+                                                         buffer_ptr_here, &(buffer_sizes_ptr[i]))
+
+                        if rc != TILEDB_OK:
+                            _raise_ctx_err(ctx_ptr, rc)
+                    else:
+                        buffer_ptr_here = <void*>(<char*>buffer_ptrs[i] + <ptrdiff_t>bytes_read[i])
+
+                        rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
+                                                     buffer_ptr_here, &(buffer_sizes_ptr[i]))
+                        if rc != TILEDB_OK:
+                            _raise_ctx_err(ctx_ptr, rc)
+
+                with nogil:
+                    rc = tiledb_query_submit(ctx_ptr, query_ptr)
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+
+                rc = tiledb_query_get_status(ctx_ptr, query_ptr, &query_status)
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+
+                # loop over the buffers and update bytes_read and current size remaining
+                for update_res_bytes_idx in range(nattr):
+                    bytes_read[update_res_bytes_idx] += buffer_sizes_ptr[update_res_bytes_idx]
+                    offsets_bytes_read[update_res_bytes_idx] += buffer_sizes_ptr[update_res_bytes_idx]
+
+                    # update the actual sizes array
+                    #buffer_sizes_ptr[update_res_bytes_idx] -= buffer_sizes_ptr[update_res_bytes_idx]
+                    #offsets_sizes_ptr[update_res_bytes_idx] -= offsets_sizes_ptr[update_res_bytes_idx]
+
+                if query_status == TILEDB_COMPLETED:
+                    retry_query = False
+                    break
+                elif query_status == TILEDB_INCOMPLETE:
+                    if buffer_sizes_ptr[update_res_bytes_idx] == 0:
+                        retry_count += 1
+                        if retry_count > _MAX_QUERY_RETRIES:
+                            retry_query = False
+                            raise TileDBError("Query failed to complete within "
+                                              "tiledb.libtiledb._MAX_QUERY_RETRIES ('{}') retries".
+                                              format(_MAX_QUERY_RETRIES))
+                    retry_query = True
+                else:
+                    retry_query = False
+                    raise TileDBError("WARNING: unexpected query status, not INCOMPLETE OR COMPLETED. "
+                                      "Got '{}'".format(query_status))
 
             for i in range(nattr):
                 name = attr_names[i]
@@ -3578,8 +3631,9 @@ cdef class ReadQuery(object):
                         np.PyArray_SimpleNewFromData(1, dims, np.NPY_UINT8, tmp_ptr)
                     PyArray_ENABLEFLAGS(self._offsets[name], np.NPY_OWNDATA)
 
-                dims[0] = buffer_sizes_ptr[i]
-                tmp_ptr = PyDataMem_RENEW(buffer_ptrs[i], <size_t>(buffer_sizes_ptr[i]))
+                #dims[0] = buffer_sizes_ptr[i]
+                dims[0] = bytes_read[i]
+                tmp_ptr = PyDataMem_RENEW(buffer_ptrs[i], <size_t>(bytes_read[i]))
                 self._buffers[name] = \
                     np.PyArray_SimpleNewFromData(1, dims, np.NPY_UINT8, tmp_ptr)
                 PyArray_ENABLEFLAGS(self._buffers[name], np.NPY_OWNDATA)
@@ -3901,7 +3955,7 @@ cdef class DenseArrayImpl(Array):
                     # special case: the C API returns 0 len for blank arrays
                     arr = np.zeros(output_shape, dtype=dtype)
                 elif len(arr) != np.prod(output_shape):
-                    raise Exception("Mismatched output array shape!")
+                    raise Exception("Mismatched output array shape! (arr.shape: {}, output.shape: {}".format(arr.shape, output_shape))
 
                 if layout == TILEDB_ROW_MAJOR:
                     arr.shape = output_shape
