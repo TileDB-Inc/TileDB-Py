@@ -1149,6 +1149,28 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(uri) as T:
             assert_array_equal(A, T)
 
+    def test_incomplete_dense(self):
+        path = self.path("incomplete_dense")
+        # create 10 MB array
+        data = np.arange(1310720, dtype=np.int64)
+        # if `tile` is not set, it defaults to the full array and we
+        # only read 8 bytes at a time.
+        use_tile=131072
+        #use_tile = None
+        with tiledb.from_numpy(path, data, tile=use_tile) as A:
+            pass
+
+        # create context with 1 MB memory budget
+        config = tiledb.Config({'sm.memory_budget': 2 * 1024**2})
+        ctx = tiledb.Ctx(config=config)
+
+        # TODO would be good to check repeat count here. Not currently exposed by retry loop.
+        with tiledb.DenseArray(path, ctx=ctx) as A:
+            res_mr = A.multi_index[ slice(0, len(data) - 1) ]
+            assert_array_equal(res_mr[""], data)
+            res_idx = A[:]
+            assert_array_equal(res_idx, data)
+
     def test_written_fragment_info(self):
         uri = self.path("test_written_fragment_info")
 
