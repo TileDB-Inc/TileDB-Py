@@ -1,0 +1,50 @@
+steps:
+- task: Cache@2
+  inputs:
+    key: 'libtiledb | "$(Agent.OS)" | "$(LIBTILEDB_SHA)" | v3'
+    path: $(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)
+    cacheHitVar: LIBTILEDB_CACHE_RESTORED
+
+- bash: |
+    find $PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}
+  condition: eq(variables.LIBTILEDB_CACHE_RESTORED, 'true')
+  displayName: "Print files restored from cache"
+
+- bash: |
+    set -xe pipefail
+
+    unset SYSTEM
+
+    # Darwin
+    INSTALL=$PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}
+    SRC=$BUILD_REPOSITORY_LOCALPATH/tiledb_src
+
+    git clone https://github.com/TileDB-Inc/TileDB $SRC
+    git -C $SRC checkout $LIBTILEDB_VERSION
+
+    libtiledb_sha_actual=$(git -C $SRC show-ref -s $LIBTILEDB_VERSION)
+    if [[ "$libtiledb_sha_actual" -ne "$(LIBTILEDB_SHA)" ]]; then
+      echo "variable LIBTILEDB_SHA ('$LIBTILEDB_SHA') does not match SHA of LIBTILEDB_VERSION checkout ('$libtiledb_sha_actual')";
+      exit 1;
+    fi
+
+    mkdir -p $BUILD_REPOSITORY_LOCALPATH/tiledb-build
+    cd $BUILD_REPOSITORY_LOCALPATH/tiledb-build
+
+    $SRC/bootstrap --force-build-all-deps --enable=s3,serialization --enable-static-tiledb --disable-avx2 --disable-cpp-api --disable-tests --prefix=$INSTALL
+    make -j4
+    make -C tiledb install
+
+    cp $BUILD_REPOSITORY_LOCALPATH/tiledb-build/externals/install/lib/libz.1.dylib $PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}/lib
+
+    echo "--- listing files"
+    ls $BUILD_REPOSITORY_LOCALPATH
+    find $INSTALL
+
+    otool -L ${INSTALL}/lib/libtiledb.dylib;
+  condition: ne(variables.LIBTILEDB_CACHE_RESTORED, 'true')
+  displayName: "Build libtiledb"
+
+- bash: |
+    cp  $PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}/lib/libz.1.dylib $BUILD_REPOSITORY_LOCALPATH
+  displayName: "Copy libz (tmp work-around for delocate)"
