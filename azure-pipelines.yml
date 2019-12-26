@@ -1,14 +1,4 @@
 jobs:
-  - job: ci
-    template: ./misc/azure-ci.yml
-    condition: not(or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-')))
-
-  - job: release
-    template: ./misc/azure-release.yml
-    condition: contains(variables['Build.SourceBranchName'], 'release-')
-    variables:
-      TILEDB_VERSION: '1.7.2'
-
-  - job: publish
-    template: ./misc/azure-publish.yml
-    condition: startsWith(variables['Build.SourceBranch'], 'refs/tags')
+  - template: ./misc/azure-ci.yml
+  #- template: ./misc/azure-release.yml
+  #- template: ./misc/azure-publish.yml

@@ -1,77 +1,78 @@
-trigger:
-- dev
+  #  template: ./misc/azure-ci.yml
 
-strategy:
-  matrix:
-    mac:
-      imageName: 'macOS-10.14'
-      python.version: '3.x'
-      SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
-    windows:
-      imageName: 'vs2017-win2016'
-      python.version: '3.x'
-    linux_py2:
-      imageName: 'ubuntu-16.04'
-      python.version: '2.7'
-    linux_py3:
-      imageName: 'ubuntu-16.04'
-      python.version: '3.x'
-  maxParallel: 4
+jobs:
+- job: osx
+  pool:
+    vmImage: $(imageName)
+  condition: not(or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-')))
+  strategy:
+    matrix:
+      mac:
+        imageName: 'macOS-10.14'
+        python.version: '3.x'
+        SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
+      windows:
+        imageName: 'vs2017-win2016'
+        python.version: '3.x'
+      linux_py2:
+        imageName: 'ubuntu-16.04'
+        python.version: '2.7'
+      linux_py3:
+        imageName: 'ubuntu-16.04'
+        python.version: '3.x'
+    maxParallel: 4
 
-pool:
-  vmImage: $(imageName)
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+      architecture: 'x64'
 
-steps:
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '$(python.version)'
-    architecture: 'x64'
+  - script: |
+      printenv
+    displayName: 'Print env'
 
-- script: |
-    printenv
-  displayName: 'Print env'
+  - script: |
+      python -m pip install --upgrade setuptools wheel numpy tox setuptools-scm cython psutil dask
+    displayName: 'Install dependencies'
 
-- script: |
-    python -m pip install --upgrade setuptools wheel numpy tox setuptools-scm cython psutil dask
-  displayName: 'Install dependencies'
+  - script: |
+      call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+      python setup.py build_ext --inplace
+      python setup.py install
+    displayName: 'Build TileDB and TileDB-Py extension (Windows)'
+    condition: eq(variables['Agent.OS'], 'Windows_NT')
 
-- script: |
-    call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-    python setup.py build_ext --inplace
-    python setup.py install
-  displayName: 'Build TileDB and TileDB-Py extension (Windows)'
-  condition: eq(variables['Agent.OS'], 'Windows_NT')
+  - bash: |
+      set -xeo pipefail
+      python setup.py build_ext --inplace
+      python setup.py install
+    displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
+    condition: ne(variables['Agent.OS'], 'Windows_NT')
 
-- bash: |
-    set -xeo pipefail
-    python setup.py build_ext --inplace
-    python setup.py install
-  displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
-  condition: ne(variables['Agent.OS'], 'Windows_NT')
+  - bash: |
+      set -xeo pipefail
+      python -m unittest tiledb.tests.all.suite_test
 
-- bash: |
-    set -xeo pipefail
-    python -m unittest tiledb.tests.all.suite_test
+      # Test wheel build, install, and run
+      python setup.py bdist_wheel
+      whl_file=`pwd`/dist/`ls dist/*.whl`
+      pushd /tmp
+      echo "Installing wheel file: '$whl_file'"
+      pip install $whl_file
+      python -c "import tiledb ; tiledb.libtiledb.version()"
+    displayName: 'Run tests'
 
-    # Test wheel build, install, and run
-    python setup.py bdist_wheel
-    whl_file=`pwd`/dist/`ls dist/*.whl`
-    pushd /tmp
-    echo "Installing wheel file: '$whl_file'"
-    pip install $whl_file
-    python -c "import tiledb ; tiledb.libtiledb.version()"
-  displayName: 'Run tests'
-
-- bash: |
-    set -xeo pipefail
-    # Display log files if the build failed
-    echo "Dumping log files for failed build"
-    echo "----------------------------------"
-    for f in $(find $BUILD_REPOSITORY_LOCALPATH/build -name *.log);
-      do echo "------"
-         echo $f
-         echo "======"
-         cat $f
-      done;
-  condition: failed() # only run this job if the build step failed
-  displayName: "Print log files (failed build only)"
+  - bash: |
+      set -xeo pipefail
+      # Display log files if the build failed
+      echo "Dumping log files for failed build"
+      echo "----------------------------------"
+      for f in $(find $BUILD_REPOSITORY_LOCALPATH/build -name *.log);
+        do echo "------"
+           echo $f
+           echo "======"
+           cat $f
+        done;
+    condition: failed() # only run this job if the build step failed
+    displayName: "Print log files (failed build only)"
