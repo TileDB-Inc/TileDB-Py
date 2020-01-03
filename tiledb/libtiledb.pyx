@@ -113,7 +113,7 @@ def regularize_tiling(tile, ndim):
     return tiling
 
 
-def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
+def schema_like(*args, shape=None, dtype=None, ctx=None, **kw):
     """
     Return an ArraySchema corresponding to a NumPy-like object or
     a `shape` and `dtype`. Users are encouraged to pass 'tile' and
@@ -123,6 +123,8 @@ def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
     :param T: NumPy array or TileDB URI
     :return: tiledb.ArraySchema
     """
+    if not ctx:
+        ctx = default_ctx()
     def is_ndarray_like(obj):
         return hasattr(arr, 'shape') and hasattr(arr, 'dtype') and hasattr(arr, 'ndim')
 
@@ -163,7 +165,9 @@ def schema_like(*args, shape=None, dtype=None, ctx=default_ctx(), **kw):
 
     return schema
 
-def schema_like_numpy(array, ctx=default_ctx(), **kw):
+def schema_like_numpy(array, ctx=None, **kw):
+    if not ctx:
+        ctx = default_ctx()
     # create an ArraySchema from the numpy array object
     tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
 
@@ -1160,7 +1164,9 @@ cdef class Filter(object):
         if self.ptr != NULL:
             tiledb_filter_free(&self.ptr)
 
-    def __init__(self, tiledb_filter_type_t filter_type, Ctx ctx = default_ctx()):
+    def __init__(self, tiledb_filter_type_t filter_type, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef tiledb_filter_t* filter_ptr = NULL
         cdef int rc = TILEDB_OK
@@ -1189,7 +1195,9 @@ cdef class CompressionFilter(Filter):
 
     """
 
-    def __init__(self, tiledb_filter_type_t filter_type, level, Ctx ctx=default_ctx()):
+    def __init__(self, tiledb_filter_type_t filter_type, level, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(filter_type, ctx)
         if level is None:
             return
@@ -1226,7 +1234,9 @@ cdef class NoOpFilter(Filter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef NoOpFilter filter_obj = NoOpFilter.__new__(NoOpFilter)
         filter_obj.ctx = ctx
@@ -1234,7 +1244,9 @@ cdef class NoOpFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx=default_ctx()):
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_NONE, ctx=ctx)
 
 
@@ -1259,7 +1271,9 @@ cdef class GzipFilter(CompressionFilter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef GzipFilter filter_obj = GzipFilter.__new__(GzipFilter)
         filter_obj.ctx = ctx
@@ -1267,7 +1281,9 @@ cdef class GzipFilter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, level=None, Ctx ctx=default_ctx()):
+    def __init__(self, level=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_GZIP, level, ctx=ctx)
 
 
@@ -1292,7 +1308,9 @@ cdef class ZstdFilter(CompressionFilter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef ZstdFilter filter_obj = ZstdFilter.__new__(ZstdFilter)
         filter_obj.ctx = ctx
@@ -1300,7 +1318,9 @@ cdef class ZstdFilter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, level=None, Ctx ctx=default_ctx()):
+    def __init__(self, level=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_ZSTD, level, ctx=ctx)
 
 
@@ -1325,7 +1345,9 @@ cdef class LZ4Filter(CompressionFilter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef LZ4Filter filter_obj = LZ4Filter.__new__(LZ4Filter)
         filter_obj.ctx = ctx
@@ -1333,7 +1355,9 @@ cdef class LZ4Filter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, level=None, Ctx ctx=default_ctx()):
+    def __init__(self, level=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_LZ4, level, ctx)
 
 
@@ -1356,7 +1380,9 @@ cdef class Bzip2Filter(CompressionFilter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef Bzip2Filter filter_obj = Bzip2Filter.__new__(Bzip2Filter)
         filter_obj.ctx = ctx
@@ -1364,7 +1390,9 @@ cdef class Bzip2Filter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, level=None, Ctx ctx=default_ctx()):
+    def __init__(self, level=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_BZIP2, level, ctx=ctx)
 
 
@@ -1384,7 +1412,9 @@ cdef class RleFilter(CompressionFilter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef RleFilter filter_obj = RleFilter.__new__(RleFilter)
         filter_obj.ctx = ctx
@@ -1392,7 +1422,9 @@ cdef class RleFilter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx=default_ctx()):
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_RLE, None, ctx=ctx)
 
 
@@ -1412,7 +1444,9 @@ cdef class DoubleDeltaFilter(CompressionFilter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef DoubleDeltaFilter filter_obj = DoubleDeltaFilter.__new__(DoubleDeltaFilter)
         filter_obj.ctx = ctx
@@ -1420,7 +1454,9 @@ cdef class DoubleDeltaFilter(CompressionFilter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx=default_ctx()):
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = None
         super().__init__(TILEDB_FILTER_DOUBLE_DELTA, None, ctx)
 
 
@@ -1440,7 +1476,9 @@ cdef class BitShuffleFilter(Filter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef BitShuffleFilter filter_obj = BitShuffleFilter.__new__(BitShuffleFilter)
         filter_obj.ctx = ctx
@@ -1448,7 +1486,9 @@ cdef class BitShuffleFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx=default_ctx()):
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_BITSHUFFLE, ctx=ctx)
 
 
@@ -1468,7 +1508,9 @@ cdef class ByteShuffleFilter(Filter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef ByteShuffleFilter filter_obj = ByteShuffleFilter.__new__(ByteShuffleFilter)
         filter_obj.ctx = ctx
@@ -1476,7 +1518,9 @@ cdef class ByteShuffleFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, Ctx ctx = default_ctx()):
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_BYTESHUFFLE, ctx=ctx)
 
 
@@ -1501,7 +1545,9 @@ cdef class BitWidthReductionFilter(Filter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef BitWidthReductionFilter filter_obj = BitWidthReductionFilter.__new__(BitWidthReductionFilter)
         filter_obj.ctx = ctx
@@ -1509,7 +1555,9 @@ cdef class BitWidthReductionFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, window=None, Ctx ctx=default_ctx()):
+    def __init__(self, window=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_BIT_WIDTH_REDUCTION, ctx)
         if window is None:
             return
@@ -1558,7 +1606,9 @@ cdef class PositiveDeltaFilter(Filter):
     """
 
     @staticmethod
-    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(filter_ptr != NULL)
         cdef PositiveDeltaFilter filter_obj = PositiveDeltaFilter.__new__(PositiveDeltaFilter)
         filter_obj.ctx = ctx
@@ -1566,7 +1616,9 @@ cdef class PositiveDeltaFilter(Filter):
         filter_obj.ptr = <tiledb_filter_t*> filter_ptr
         return filter_obj
 
-    def __init__(self, window=None, Ctx ctx=default_ctx()):
+    def __init__(self, window=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         super().__init__(TILEDB_FILTER_POSITIVE_DELTA, ctx=ctx)
         if window is None:
             return
@@ -1659,7 +1711,9 @@ cdef class FilterList(object):
             tiledb_filter_list_free(&self.ptr)
 
     @staticmethod
-    cdef FilterList from_ptr(tiledb_filter_list_t* ptr, Ctx ctx=default_ctx()):
+    cdef FilterList from_ptr(tiledb_filter_list_t* ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(ptr != NULL)
         cdef FilterList filter_list = FilterList.__new__(FilterList)
         filter_list.ctx = ctx
@@ -1667,7 +1721,9 @@ cdef class FilterList(object):
         filter_list.ptr = <tiledb_filter_list_t*> ptr
         return filter_list
 
-    def __init__(self, filters=None, chunksize=None, Ctx ctx=default_ctx()):
+    def __init__(self, filters=None, chunksize=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         if filters is not None:
             filters = list(filters)
             for f in filters:
@@ -1838,9 +1894,11 @@ cdef class Attr(object):
             tiledb_attribute_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx=None):
         """Constructs an Attr class instance from a (non-null) tiledb_attribute_t pointer
         """
+        if not ctx:
+            ctx = default_ctx()
         assert(ptr != NULL)
         cdef Attr attr = Attr.__new__(Attr)
         attr.ctx = ctx
@@ -1853,7 +1911,9 @@ cdef class Attr(object):
                  dtype=np.float64,
                  var=False,
                  filters=None,
-                 Ctx ctx=default_ctx()):
+                 Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
         cdef np.dtype _dtype = np.dtype(dtype)
@@ -2022,7 +2082,9 @@ cdef class Dim(object):
             tiledb_dimension_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(const tiledb_dimension_t* ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_dimension_t* ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         assert(ptr != NULL)
         cdef Dim dim = Dim.__new__(Dim)
         dim.ctx = ctx
@@ -2030,7 +2092,9 @@ cdef class Dim(object):
         dim.ptr = <tiledb_dimension_t*> ptr
         return dim
 
-    def __init__(self, name=u"", domain=None, tile=None, dtype=np.uint64, Ctx ctx=default_ctx()):
+    def __init__(self, name=u"", domain=None, tile=None, dtype=np.uint64, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         if domain is None or len(domain) != 2:
             raise ValueError('invalid domain extent, must be a pair')
         if dtype is not None:
@@ -2276,8 +2340,10 @@ cdef class Domain(object):
             tiledb_domain_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(const tiledb_domain_t* ptr, Ctx ctx = default_ctx()):
+    cdef from_ptr(const tiledb_domain_t* ptr, Ctx ctx=None):
         """Constructs an Domain class instance from a (non-null) tiledb_domain_t pointer"""
+        if not ctx:
+            ctx = default_ctx()
         assert(ptr != NULL)
         cdef Domain dom = Domain.__new__(Domain)
         dom.ctx = ctx
@@ -2299,7 +2365,9 @@ cdef class Domain(object):
     cdef _shape(Domain self):
         return tuple(self.dim(i).shape[0] for i in range(self.ndim))
 
-    def __init__(self, *dims, Ctx ctx=default_ctx()):
+    def __init__(self, *dims, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         cdef Py_ssize_t ndim = len(dims)
         if ndim == 0:
             raise TileDBError("Domain must have ndim >= 1")
@@ -2608,11 +2676,13 @@ cdef class ArraySchema(object):
             tiledb_array_schema_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=default_ctx()):
+    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=None):
         """
         Constructs a ArraySchema class instance from a
         Ctx and tiledb_array_schema_t pointer
         """
+        if not ctx:
+            ctx = default_ctx()
         cdef ArraySchema schema = ArraySchema.__new__(ArraySchema)
         schema.ctx = ctx
         # cast away const
@@ -2620,7 +2690,9 @@ cdef class ArraySchema(object):
         return schema
 
     @staticmethod
-    def load(uri, Ctx ctx=default_ctx(), key=None):
+    def load(uri, Ctx ctx=None, key=None):
+        if not ctx:
+            ctx = default_ctx()
         cdef bytes buri = uri.encode('UTF-8')
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -2656,7 +2728,9 @@ cdef class ArraySchema(object):
                  coords_filters=None,
                  offsets_filters=None,
                  sparse=False,
-                 Ctx ctx=default_ctx()):
+                 Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         cdef tiledb_array_type_t array_type =\
             TILEDB_SPARSE if sparse else TILEDB_DENSE
         cdef tiledb_array_schema_t* schema_ptr = NULL
@@ -2944,7 +3018,9 @@ cdef class ArraySchema(object):
 cdef class ArrayPtr(object):
     cdef tiledb_array_t* ptr
 
-cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=default_ctx()):
+cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=None):
+    if not ctx:
+        ctx = default_ctx()
     # ctx
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     # uri
@@ -3075,7 +3151,9 @@ cdef class Array(object):
         return
 
     @staticmethod
-    def load_typed(uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
+    def load_typed(uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         cdef int32_t rc = TILEDB_OK
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         cdef tiledb_array_schema_t* schema_ptr = NULL
@@ -3122,7 +3200,9 @@ cdef class Array(object):
         new_array_typed.__init__(uri, mode=mode, key=key, timestamp=timestamp, attr=attr, ctx=ctx)
         return new_array_typed
 
-    def __init__(self, uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=default_ctx()):
+    def __init__(self, uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         # array
@@ -3730,7 +3810,7 @@ cdef class DenseArrayImpl(Array):
         return
 
     @staticmethod
-    def from_numpy(uri, np.ndarray array, Ctx ctx=default_ctx(), **kw):
+    def from_numpy(uri, np.ndarray array, Ctx ctx=None, **kw):
         """
         Persists a given numpy array as a TileDB DenseArray,
         returns a readonly DenseArray class instance.
@@ -3753,6 +3833,8 @@ cdef class DenseArrayImpl(Array):
         ...         pass
 
         """
+        if not ctx:
+            ctx = default_ctx()
         schema = schema_like_numpy(array, ctx=ctx, **kw)
         Array.create(uri, schema)
 
@@ -4543,7 +4625,7 @@ cdef class SparseArrayImpl(Array):
 
         return out
 
-def consolidate(uri=None, Config config=None, key=None, Ctx ctx=default_ctx()):
+def consolidate(uri=None, Config config=None, key=None, Ctx ctx=None):
     """Consolidates a TileDB Array updates for improved read performance
 
     :param tiledb.Config config: The TileDB Config with consolidation parameters set
@@ -4556,6 +4638,8 @@ def consolidate(uri=None, Config config=None, key=None, Ctx ctx=default_ctx()):
     :param tiledb.Ctx ctx: The TileDB Context
 
     """
+    if not ctx:
+        ctx = default_ctx()
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     cdef tiledb_config_t* config_ptr = NULL
     if config is not None:
@@ -4586,7 +4670,7 @@ def consolidate(uri=None, Config config=None, key=None, Ctx ctx=default_ctx()):
     return uri
 
 
-def group_create(uri, Ctx ctx=default_ctx()):
+def group_create(uri, Ctx ctx=None):
     """Create a TileDB Group object at the specified path (URI)
 
     :param str uri: URI of the TileDB Group to be created
@@ -4597,6 +4681,8 @@ def group_create(uri, Ctx ctx=default_ctx()):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
+    if not ctx:
+        ctx = default_ctx()
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     cdef bytes buri = unicode_path(uri)
@@ -4608,7 +4694,7 @@ def group_create(uri, Ctx ctx=default_ctx()):
     return uri
 
 
-def object_type(uri, Ctx ctx=default_ctx()):
+def object_type(uri, Ctx ctx=None):
     """Returns the TileDB object type at the specified path (URI)
 
     :param str path: path (URI) of the TileDB resource
@@ -4618,6 +4704,8 @@ def object_type(uri, Ctx ctx=default_ctx()):
     :raises TypeError: cannot convert path to unicode string
 
     """
+    if not ctx:
+        ctx = default_ctx()
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     cdef bytes buri = unicode_path(uri)
@@ -4638,7 +4726,7 @@ def object_type(uri, Ctx ctx=default_ctx()):
     return objtype
 
 
-def remove(uri, Ctx ctx=default_ctx()):
+def remove(uri, Ctx ctx=None):
     """Removes (deletes) the TileDB object at the specified path (URI)
 
     :param str uri: URI of the TileDB resource
@@ -4647,6 +4735,8 @@ def remove(uri, Ctx ctx=default_ctx()):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
+    if not ctx:
+        ctx = default_ctx()
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     cdef bytes buri = unicode_path(uri)
@@ -4658,7 +4748,7 @@ def remove(uri, Ctx ctx=default_ctx()):
     return
 
 
-def move(old_uri, new_uri, Ctx ctx = default_ctx()):
+def move(old_uri, new_uri, Ctx ctx=None):
     """Moves a TileDB resource (group, array, key-value).
 
     :param tiledb.Ctx ctx: The TileDB Context
@@ -4667,6 +4757,8 @@ def move(old_uri, new_uri, Ctx ctx = default_ctx()):
     :raises TypeError: uri cannot be converted to a unicode string
     :raises: :py:exc:`TileDBError`
     """
+    if not ctx:
+        ctx = default_ctx()
     cdef int rc = TILEDB_OK
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
     cdef bytes b_old_path = unicode_path(old_uri)
@@ -4706,7 +4798,7 @@ cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     return 1
 
 
-def ls(path, func, Ctx ctx=default_ctx()):
+def ls(path, func, Ctx ctx=None):
     """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
 
     :param str path: URI of TileDB group object
@@ -4717,13 +4809,15 @@ def ls(path, func, Ctx ctx=default_ctx()):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
+    if not ctx:
+        ctx = default_ctx()
     cdef bytes bpath = unicode_path(path)
     check_error(ctx,
                 tiledb_object_ls(ctx.ptr, bpath, walk_callback, <void*> func))
     return
 
 
-def walk(path, func, order="preorder", Ctx ctx=default_ctx()):
+def walk(path, func, order="preorder", Ctx ctx=None):
     """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``path``
 
     :param str path: URI of TileDB group object
@@ -4736,6 +4830,8 @@ def walk(path, func, order="preorder", Ctx ctx=default_ctx()):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
+    if not ctx:
+        ctx = default_ctx()
     cdef bytes bpath = unicode_path(path)
     cdef tiledb_walk_order_t walk_order
     if order == "postorder":
@@ -4801,7 +4897,9 @@ cdef class VFS(object):
         if self.ptr != NULL:
             tiledb_vfs_free(&self.ptr)
 
-    def __init__(self, Config config=None, Ctx ctx=default_ctx()):
+    def __init__(self, Config config=None, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
         cdef Config _config = Config(ctx.config())
         if config is not None:
             if isinstance(config, Config):
