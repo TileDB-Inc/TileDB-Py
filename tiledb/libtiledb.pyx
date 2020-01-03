@@ -25,11 +25,22 @@ np.import_array()
 ###############################################################################
 # Ctx used by default in all constructors
 # Users needing a specific context should pass their own context as kwarg.
-cdef Ctx _global_ctx = Ctx()
+cdef Ctx _global_ctx = None
+def _get_global_ctx():
+    return _global_ctx
 
 def default_ctx():
     """Returns the default tiledb.Ctx object"""
+    global _global_ctx
+    if _global_ctx is None:
+        _global_ctx = Ctx()
     return _global_ctx
+
+def initialize_ctx(config = None):
+    global _global_ctx
+    if _global_ctx is not None:
+        raise TileDBError("Global context already initialized!")
+    _global_ctx = Ctx(config)
 
 ###############################################################################
 #    MODULAR IMPORTS                                                          #

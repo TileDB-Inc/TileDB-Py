@@ -110,14 +110,14 @@ cdef class QueryAttr(object):
         self.name = name
         self.dtype = dtype
 
-cdef dict execute_multi_index(tiledb_ctx_t* ctx_ptr,
-                        tiledb_query_t* query_ptr,
-                        Array array,
-                        tuple attr_names,
-                        return_coord):
+cdef dict execute_multi_index(Array array,
+                              tiledb_query_t* query_ptr,
+                              tuple attr_names,
+                              return_coord):
 
     # NOTE: query_ptr *must* only be freed in caller
 
+    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
     cdef np.dtype coords_dtype
     cdef unicode coord_name = (tiledb_coords()).decode('UTF-8')
     cdef uint64_t attr_idx
@@ -132,7 +132,6 @@ cdef dict execute_multi_index(tiledb_ctx_t* ctx_ptr,
     cdef uint64_t el_count
     cdef QueryAttr qattr
 
-    cdef void* attr_array_ptr = NULL
     cdef uint64_t* buffer_sizes_ptr = NULL
 
     cdef bint repeat_query = True
@@ -338,7 +337,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
     try:
         if coords is None:
             coords = array.schema.sparse
-        result = execute_multi_index(ctx_ptr, query_ptr, array, attr_names, coords)
+        result = execute_multi_index(array, query_ptr, attr_names, coords)
     finally:
         tiledb_query_free(&query_ptr)
 
