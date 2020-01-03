@@ -37,6 +37,14 @@ def default_ctx():
     return _global_ctx
 
 def initialize_ctx(config = None):
+    """
+    Initialize the TileDB-Py default Ctx. This function exists primarily to
+    allow configuration overrides for global per-process parameters, such as
+    the TBB thread count in particular.
+
+    :param config: Config object or dictionary with config parameters.
+    :return:  None
+    """
     global _global_ctx
     if _global_ctx is not None:
         raise TileDBError("Global context already initialized!")
