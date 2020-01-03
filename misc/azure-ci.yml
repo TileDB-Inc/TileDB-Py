@@ -1,7 +1,7 @@
   #  template: ./misc/azure-ci.yml
 
 jobs:
-- job: osx
+- job:
   pool:
     vmImage: $(imageName)
   condition: not(or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-')))
