@@ -2469,11 +2469,23 @@ class HighlevelTests(DiskTestCase):
             if n == 0:
                 start_threads = len(thisproc.threads())
 
+# Wrapper to execute specific code in subprocess so that we can ensure the thread count
+# init is correct. Necessary because multiprocess.get_context is only available in Python 3.4+,
+# and the multiprocessing method may be set to fork by other tests (e.g. dask).
+def init_test_wrapper(cfg=None):
+    import subprocess, os
+    python_exe = sys.executable
+    cmd = 'from test_libtiledb import *; init_test_helper({})'.format(cfg)
+    test_path = os.path.dirname(os.path.abspath(__file__))
+
+    sp_output = subprocess.check_output([python_exe, '-c', cmd], cwd=test_path)
+    return int(sp_output.decode('UTF-8').strip())
+
 def init_test_helper(cfg=None):
     import tiledb
     tiledb.libtiledb.initialize_ctx(cfg)
     num_tbb_threads = tiledb.default_ctx().config()['sm.num_tbb_threads']
-    return int(num_tbb_threads)
+    print(int(num_tbb_threads))
 
 class ContextTest(unittest.TestCase):
     def test_default_context(self):
@@ -2483,16 +2495,15 @@ class ContextTest(unittest.TestCase):
 
     def test_init_config(self):
         import multiprocessing as mp
-        mp_ctx = mp.get_context('spawn')
 
-        with mp_ctx.Pool(1) as p:
-            self.assertEqual(-1, p.apply(init_test_helper))
+        p = mp.Pool(1)
+        self.assertEqual(-1, p.apply(init_test_wrapper))
 
-        with mp_ctx.Pool(1) as p:
-            self.assertEqual(
-                1,
-                p.apply(init_test_helper, args=({'sm.num_tbb_threads': 1},))
-            )
+        p = mp.Pool(1)
+        self.assertEqual(
+            1,
+            p.apply(init_test_wrapper, args=({'sm.num_tbb_threads': 1},))
+        )
 
 
 #if __name__ == '__main__':
