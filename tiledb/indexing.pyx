@@ -158,8 +158,8 @@ cdef dict execute_multi_index(Array array,
     cdef np.ndarray result_bytes_read = np.zeros(nattr, np.uint64)
 
     cdef uint64_t init_buffer_size = 1310720 * 8 # 10 MB int64
-    if 'py.init_buffer_size' in array.ctx.config():
-        init_buffer_size = int(array.ctx.config()['py.init_buffer_size'])
+    if 'py.init_buffer_bytes' in array.ctx.config():
+        init_buffer_size = int(array.ctx.config()['py.init_buffer_bytes'])
     # switch from exponential to linear (+4GB) allocation
     cdef uint64_t linear_alloc_bytes = 4 * (2**30) # 4 GB
 
