@@ -157,7 +157,9 @@ cdef dict execute_multi_index(Array array,
     cdef np.ndarray buffer_sizes = np.zeros(nattr, np.uint64)
     cdef np.ndarray result_bytes_read = np.zeros(nattr, np.uint64)
 
-    cdef uint64_t init_element_count = 1310720 # 10 MB int64
+    cdef uint64_t init_buffer_size = 1310720 * 8 # 10 MB int64
+    if 'py.init_buffer_size' in array.ctx.config():
+        init_buffer_size = int(array.ctx.config()['py.init_buffer_size'])
     # switch from exponential to linear (+4GB) allocation
     cdef uint64_t linear_alloc_bytes = 4 * (2**30) # 4 GB
 
@@ -177,8 +179,9 @@ cdef dict execute_multi_index(Array array,
             attr_name = qattr.name
             attr_dtype = qattr.dtype
 
+            # allocate initial array
             if repeat_count == 0:
-                result_dict[attr_name] = np.zeros(init_element_count,
+                result_dict[attr_name] = np.zeros(int(init_buffer_size / attr_dtype.itemsize),
                                                   dtype=attr_dtype)
 
             # Get the array here in order to save a lookup

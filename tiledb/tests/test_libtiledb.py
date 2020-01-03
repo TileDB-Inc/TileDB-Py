@@ -1153,8 +1153,9 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.from_numpy(path, data, tile=use_tile) as A:
             pass
 
-        # create context with 1 MB memory budget
-        config = tiledb.Config({'sm.memory_budget': 2 * 1024**2})
+        # create context with 1 MB memory budget (2 MB total, 1 MB usable)
+        config = tiledb.Config({'sm.memory_budget': 2 * 1024**2,
+                                'py.init_buffer_size': 1024**2 })
         ctx = tiledb.Ctx(config=config)
 
         # TODO would be good to check repeat count here. Not currently exposed by retry loop.
