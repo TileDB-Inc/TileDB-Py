@@ -34,13 +34,6 @@ class VersionTest(unittest.TestCase):
         self.assertTrue(v[0] >= 1, "TileDB major version must be >= 1")
 
 
-class DefaultContextTest(unittest.TestCase):
-    def test_default_context(self):
-        ctx = tiledb.default_ctx()
-        self.assertIsInstance(ctx, tiledb.Ctx)
-        self.assertIsInstance(ctx.config(), tiledb.Config)
-
-
 class StatsTest(unittest.TestCase):
 
     def test_stats(self):
@@ -2470,6 +2463,32 @@ class HighlevelTests(DiskTestCase):
                 res = A[:]
             if n == 0:
                 start_threads = len(thisproc.threads())
+
+def init_test_helper(cfg=None):
+    import tiledb
+    tiledb.libtiledb.initialize_ctx(cfg)
+    num_tbb_threads = tiledb.default_ctx().config()['sm.num_tbb_threads']
+    return int(num_tbb_threads)
+
+class ContextTest(unittest.TestCase):
+    def test_default_context(self):
+        ctx = tiledb.default_ctx()
+        self.assertIsInstance(ctx, tiledb.Ctx)
+        self.assertIsInstance(ctx.config(), tiledb.Config)
+
+    def test_init_config(self):
+        import multiprocessing as mp
+        mp_ctx = mp.get_context('spawn')
+
+        with mp_ctx.Pool(1) as p:
+            self.assertEqual(-1, p.apply(init_test_helper))
+
+        with mp_ctx.Pool(1) as p:
+            self.assertEqual(
+                1,
+                p.apply(init_test_helper, args=({'sm.num_tbb_threads': 1},))
+            )
+
 
 #if __name__ == '__main__':
 #    # run a single example for in-process debugging
