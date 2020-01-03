@@ -73,10 +73,12 @@ def empty_like(uri, arr, config=None, key=None, tile=None):
     return tiledb.DenseArray(uri, mode='w', key=key, ctx=ctx)
 
 
-def from_numpy(uri, array, ctx=default_ctx(), **kw):
+def from_numpy(uri, array, ctx=None, **kw):
     """
     Convenience method, see `tiledb.DenseArray.from_numpy`
     """
+    if not ctx:
+        ctx = default_ctx()
     if not isinstance(array, np.ndarray):
         raise Exception("from_numpy is only currently supported for numpy.ndarray")
 
