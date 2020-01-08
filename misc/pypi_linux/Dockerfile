@@ -60,4 +60,4 @@ ADD misc/pypi_linux/build.sh /usr/bin/build.sh
 RUN chmod +x /usr/bin/build.sh
 
 # add source directory as optional TILEDB_PY_REPO
-ADD . /opt/TileDB-Py
+ADD .  /opt/TileDB-Py
