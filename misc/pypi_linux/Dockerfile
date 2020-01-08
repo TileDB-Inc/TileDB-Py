@@ -21,8 +21,8 @@ ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 
 ###############################################
 # settings (B)
-ENV TILEDB_VERSION 1.7.2
-ENV TILEDB_PY_VERSION 0.5.3
+ENV TILEDB_VERSION 1.7.3
+ENV TILEDB_PY_VERSION 0.5.4
 ###############################################
 # 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
 # 2) adding -lrt as a work-around for now because python2.7 doesn't link it, but it
