@@ -1,11 +1,14 @@
 stages:
 - stage: Release
   variables:
-    LIBTILEDB_VERSION: release-1.7.3
-    LIBTILEDB_SHA: c4e938bdb155e88767c9f7dbd76f80ce0c30ec22
+    TILEDBPY_VERSION: 0.5.4
+    LIBTILEDB_VERSION: 1.7.3
+    LIBTILEDB_SHA: 86071783c209db936e6d870550583610e9594818
     CIBW_SKIP: cp35-*
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-'))
+
   jobs:
+
   - job:
     pool:
       vmImage: 'macOS-10.13'
@@ -20,12 +23,26 @@ stages:
         python setup.py sdist --dist-dir wheelhouse
         python -m pip install --upgrade pip
         pip install cibuildwheel==1.1.0 pytest
-        export CIBW_ENVIRONMENT="TILEDB_PATH=${HOSTPREFIX}/${PIPELINE_WORKSPACE}/.libtiledb_dist/${LIBTILEDB_SHA}"
-        cibuildwheel --output-dir wheelhouse `ls wheelhouse/tiledb-*.tar.gz`
+        export CIBW_ENVIRONMENT="TILEDB_PATH=${HOSTPREFIX}/${PIPELINE_WORKSPACE}/.libtiledb_dist/${LIBTILEDB_SHA} SETUPTOOLS_SCM_PRETEND_VERSION=${TILEDBPY_VERSION}"
+        cibuildwheel --output-dir wheelhouse .
       displayName: "Build and test wheels"
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}
     - template: azure-print-logs.yml
+
+
+#  - job: sdist
+#    displayName: "Make sdist bundle"
+#    pool:
+#      vmImage: 'ubuntu-16.04'
+#    steps:
+#    - task: UsePythonVersion@0
+#    - bash: |
+#        python setup.py sdist
+#    - task: PublishBuildArtifacts@1
+#      inputs:
+#        pathtoPublish: dist
+#        artifactName: 'tiledb_py_sdist'
 
 #  - job:
 #    variables:
