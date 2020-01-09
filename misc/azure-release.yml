@@ -10,18 +10,18 @@ stages:
     pool:
       vmImage: 'macOS-10.13'
     variables:
-      cibw_test_command: "cd {project}/tiledb/tests && pytest"
+      #cibw_test_command: "cd {project}/tiledb/tests && pytest"
       cibw_test_requires: "pytest"
     steps:
     - template: azure-libtiledb-darwin.yml
     - task: UsePythonVersion@0
     - bash: |
         set -xe pipefail
-        python setup.py sdist --dist-dir {output_dir}
+        python setup.py sdist --dist-dir wheelhouse
         python -m pip install --upgrade pip
         pip install cibuildwheel==1.1.0 pytest
         export CIBW_ENVIRONMENT="TILEDB_PATH=${HOSTPREFIX}/${PIPELINE_WORKSPACE}/.libtiledb_dist/${LIBTILEDB_SHA}"
-        cibuildwheel --output-dir wheelhouse .
+        cibuildwheel --output-dir wheelhouse `ls wheelhouse/tiledb-*.tar.gz`
       displayName: "Build and test wheels"
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}
