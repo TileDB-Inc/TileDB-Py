@@ -284,6 +284,10 @@ class TestMultiRange(DiskTestCase):
                 orig_array[0],
                 A.multi_index[-10][attr_name]
             )
+            self.assertEqual(
+                -10,
+                A.multi_index[-10]['coords'].view('i8')
+            )
 
 
     def test_multirange_1d_sparse_double(self):

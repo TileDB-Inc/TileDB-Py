@@ -123,15 +123,18 @@ class MultiRangeIndexer(object):
         dom = self.schema.domain
         attr_names = tuple(self.schema.attr(i).name for i in range(self.schema.nattr))
 
+        coords = None
         if self.query is not None:
             # if we are called via Query object, then we need to respect Query semantics
             attr_names = tuple(self.query.attrs) if self.query.attrs else attr_names # query.attrs might be None -> all
+            coords = self.query.coords
 
         # TODO order
         result_dict = multi_index(
             self.array,
             attr_names,
-            ranges
+            ranges,
+            coords=coords
         )
 
         if self.schema.sparse:
