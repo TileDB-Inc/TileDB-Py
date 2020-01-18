@@ -62,7 +62,8 @@ else:
 
 def gen_chr(max):
     while True:
-        s = getchr(random.randrange(max))
+        # TODO we exclude 0x0 here because the key API does not embedded NULL
+        s = getchr(random.randrange(1, max))
         if len(s) > 0: break
     return s
 
