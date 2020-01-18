@@ -339,7 +339,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
                 _raise_ctx_err(ctx_ptr, rc)
     try:
         if coords is None:
-            coords = array.schema.sparse
+            coords = True
         result = execute_multi_index(array, query_ptr, attr_names, coords)
     finally:
         tiledb_query_free(&query_ptr)

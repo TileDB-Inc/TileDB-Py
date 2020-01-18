@@ -3782,6 +3782,10 @@ cdef class Query(object):
         return self.attrs
 
     @property
+    def coords(self):
+        return self.coords
+
+    @property
     def domain_index(self):
         return self.domain_index
 
