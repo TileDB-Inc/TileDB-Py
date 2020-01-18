@@ -45,8 +45,8 @@ def make_2d_dense(ctx, path, attr_name=''):
 
 class TestMultiRange(DiskTestCase):
 
-    def test_mr_1d_1dim_ranges(self):
-        path = self.path('test_mr_1d_1dim_ranges')
+    def test_multirange_1d_1dim_ranges(self):
+        path = self.path('test_multirange_1d_1dim_ranges')
         attr_name = 'a'
 
         ctx = tiledb.Ctx()
@@ -71,8 +71,8 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(a2, expected2)
             self.assertEqual(a2.dtype, expected2.dtype)
 
-    def test_mr_2d_1dim_ranges(self):
-        path = self.path('test_mr_1dim_ranges')
+    def test_multirange_2d_1dim_ranges(self):
+        path = self.path('test_multirange_1dim_ranges')
         attr_name = 'a'
 
         ctx = tiledb.Ctx()
@@ -94,9 +94,9 @@ class TestMultiRange(DiskTestCase):
 
             assert_array_equal(a, expected)
 
-    def test_mr_2d_2dim_ranges(self):
+    def test_multirange_2d_2dim_ranges(self):
         ctx = tiledb.Ctx()
-        path = self.path('test_mr_2dim_ranges')
+        path = self.path('test_multirange_2dim_ranges')
         attr_name = 'a'
 
         make_2d_dense(ctx, path, attr_name=attr_name)
@@ -255,7 +255,7 @@ class TestMultiRange(DiskTestCase):
             )
         )
 
-    def test_mr_1d_dense_int64(self):
+    def test_multirange_1d_dense_int64(self):
         attr_name = ''
         ctx = tiledb.Ctx()
         path = self.path('multi_index_1d')
@@ -286,7 +286,7 @@ class TestMultiRange(DiskTestCase):
             )
 
 
-    def test_mr_1d_sparse_double(self):
+    def test_multirange_1d_sparse_double(self):
         attr_name = ''
         ctx = tiledb.Ctx()
         path = self.path('mr_1d_sparse_double')
@@ -324,7 +324,7 @@ class TestMultiRange(DiskTestCase):
                 res['coords'].astype(np.float64)
             )
 
-    def test_mr_2d_sparse_domain_utypes(self):
+    def test_multirange_2d_sparse_domain_utypes(self):
         attr_name = 'foo'
         ctx = tiledb.Ctx()
 
@@ -392,7 +392,7 @@ class TestMultiRange(DiskTestCase):
                     res['coords'].astype(dtype),
                     coords[start:stop+1])
 
-    def test_mr_2d_sparse_float(self):
+    def test_multirange_2d_sparse_float(self):
         attr_name = ''
         ctx = tiledb.Ctx()
         path = self.path('mr_2d_sparse_float')
@@ -447,7 +447,7 @@ class TestMultiRange(DiskTestCase):
                 res['coords'].view('f4').reshape(-1,2)
             )
 
-    def test_mr_1d_sparse_query(self):
+    def test_multirange_1d_sparse_query(self):
         ctx = tiledb.Ctx()
         path = self.path('mr_1d_sparse_query')
 
@@ -499,7 +499,7 @@ class TestMultiRange(DiskTestCase):
                     res[k]
                 )
 
-    def test_mr_1d_dense_vectorized(self):
+    def test_multirange_1d_dense_vectorized(self):
         ctx = tiledb.Ctx()
         path = self.path('mr_1d_dense_vectorized')
 
