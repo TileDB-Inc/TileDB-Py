@@ -1,9 +1,9 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.5.4
-    LIBTILEDB_VERSION: 1.7.3
-    LIBTILEDB_SHA: 86071783c209db936e6d870550583610e9594818
+    TILEDBPY_VERSION: 0.5.5
+    LIBTILEDB_VERSION: 1.7.4
+    LIBTILEDB_SHA: 00eb29c7e9fdff959ba7bf0cec60959f9f069a71
     CIBW_SKIP: cp35-*
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-'))
 
