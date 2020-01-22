@@ -1,5 +1,5 @@
 cmake>=3.11.0
-cython>=0.27.3
+cython>=0.29
 numpy==1.16.*
 setuptools>=18.0.1
 setuptools-scm>=1.5.4
