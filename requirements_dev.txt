@@ -1,7 +1,7 @@
 # pinned dependencies for the development and CI
 # note: cmake 3.13 is the last manylinux1 release on pypi
 cmake==3.13.*
-cython==0.27.3
+cython==0.29
 numpy==1.16.*
 setuptools==40.8.0
 setuptools-scm==1.5.4
