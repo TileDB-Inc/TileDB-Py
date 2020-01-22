@@ -259,6 +259,9 @@ cdef object get_metadata(array: Array,
         _raise_ctx_err(ctx_ptr, rc)
 
     if (value == NULL):
+        if value_num == 1:
+            # in this case, the key exists with empty value
+            return ()
         raise KeyError(key)
 
     return unpack_metadata_val(value_type, value_num, value)
