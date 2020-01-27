@@ -4598,10 +4598,6 @@ cdef class SparseArrayImpl(Array):
         cdef np.npy_intp dims[1]
         cdef Py_ssize_t nattr = len(attr_names)
 
-        cdef tuple shape = \
-            tuple(int(subarray[r, 1]) - int(subarray[r, 0]) + 1
-                  for r in range(self.schema.ndim))
-
         read = ReadQuery(self, subarray, attr_names, layout)
 
         # collect a list of dtypes for resulting to construct array

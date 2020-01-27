@@ -1977,6 +1977,43 @@ class DatetimeSlicing(DiskTestCase):
             vals = T[start: start + np.timedelta64(10000, 'ns')]['a1']
             assert_array_equal(vals, a1_vals[0: 11])
 
+    def test_datetime_types(self):
+        ctx = tiledb.Ctx()
+
+        units = ['h', 'm', 's', 'ms', 'us', 'ns', 'ps', 'fs']
+
+        for res in units:
+            uri = self.path("test_datetime_type_" + res)
+
+            tmax = 1000
+            tile = np.timedelta64(1, res)
+
+            dim = tiledb.Dim(name="d1", ctx=ctx,
+                             domain=(np.datetime64(0, res), np.datetime64(tmax, res)),
+                             tile=tile, dtype=np.datetime64('', res).dtype)
+
+            dom = tiledb.Domain(dim, ctx=ctx)
+            schema = tiledb.ArraySchema(ctx=ctx, domain=dom, sparse=True,
+                                        attrs=(tiledb.Attr('a1', dtype=np.float64),))
+
+            tiledb.Array.create(uri, schema)
+
+            # Write tmax cells every 10 units starting at time 0
+            coords = np.datetime64(0, res) + np.arange(0, tmax, 10)  # np.arange(0, 10000 * 1000, 1000)
+            a1_vals = np.random.rand(len(coords))
+            with tiledb.SparseArray(uri, 'w', ctx=ctx) as T:
+                T[coords] = {'a1': a1_vals}
+
+            # Read all
+            with tiledb.SparseArray(uri, 'r', ctx=ctx) as T:
+                assert_array_equal(T[:]['a1'], a1_vals)
+
+            # Read back first 10 cells
+            with tiledb.SparseArray(uri, 'r', ctx=ctx) as T:
+                start = np.datetime64(0, res)
+                vals = T[start: start + np.timedelta64(int(tmax/10), res)]['a1']
+                assert_array_equal(vals, a1_vals[0: 11])
+
 
 class PickleTest(DiskTestCase):
     # test that DenseArray and View can be pickled for multiprocess use
