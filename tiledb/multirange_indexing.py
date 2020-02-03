@@ -8,11 +8,6 @@ try:
 except:
     from tiledb.indexing import multi_index
 
-def _index_as_tuple(idx):
-    """Forces scalar index objects to a tuple representation"""
-    if isinstance(idx, tuple):
-        return idx
-    return (idx,)
 
 def mr_dense_result_shape(ranges, base_shape = None):
     # assumptions: len(ranges) matches number of dims
@@ -36,11 +31,6 @@ def mr_dense_result_numel(ranges):
     return np.prod(mr_dense_result_shape(ranges))
 
 def sel_to_subranges(dim_sel):
-    if isinstance(dim_sel, list):
-        dim_sel = tuple(dim_sel)
-    elif not isinstance(dim_sel, tuple):
-        dim_sel = (dim_sel,)
-
     subranges = list()
     for range in dim_sel:
         if np.isscalar(range):
@@ -53,6 +43,8 @@ def sel_to_subranges(dim_sel):
                 pass
             else:
                 subranges.append( (range.start, range.stop) )
+        elif isinstance(range, tuple):
+            subranges.extend((range,))
         elif isinstance(range, list):
             for el in range:
                 subranges.append( (el, el) )
@@ -102,10 +94,16 @@ class MultiRangeIndexer(object):
     def getitem_ranges(self, idx):
         dom = self.schema.domain
         ndim = dom.ndim
-        idx = _index_as_tuple(idx)
+
+        if isinstance(idx, tuple):
+            idx = list(idx)
+        else:
+            idx = [idx]
 
         ranges = list()
         for i,sel in enumerate(idx):
+            if not isinstance(sel, list):
+                sel = [sel]
             subranges = sel_to_subranges(sel)
             ranges.append(subranges)
 
