@@ -254,6 +254,31 @@ class TestMultiRange(DiskTestCase):
                 ((4, 6),)
             )
         )
+        self.assertEqual(
+            m.getitem_ranges( ibi[ (1,2) ]),
+            (
+                ((1,1),),
+                ((2,2),),
+                (),
+            )
+        )
+        self.assertEqual(
+            m.getitem_ranges( ibi[ [(1,2)] ]),
+            (
+                ((1,2),),
+                (),
+                (),
+            )
+        )
+        self.assertEqual(
+            m.getitem_ranges( ibi[ [ (1,2), 4], [slice(1,4)] ] ),
+            (
+                ((1,2), (4,4)),
+                ((1,4),),
+                ()
+            )
+        )
+
 
     def test_multirange_1d_dense_int64(self):
         attr_name = ''
@@ -287,6 +312,14 @@ class TestMultiRange(DiskTestCase):
             self.assertEqual(
                 -10,
                 A.multi_index[-10]['coords'].view('i8')
+            )
+            assert_array_equal(
+                orig_array[0:],
+                A.multi_index[ [(-10, 10)] ][attr_name]
+            )
+            assert_array_equal(
+                orig_array[0:],
+                A.multi_index[ [slice(-10, 10),] ][attr_name]
             )
 
 
