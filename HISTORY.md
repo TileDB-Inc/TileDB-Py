@@ -1,7 +1,15 @@
 # In progress
 
+# TileDB-Py 0.5.6 Release Notes
+
+* Bump release target to [TileDB 1.7.5](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.5)
+
 ## Improvements
-- added support for multi-valued (homogeneous) metadata [#226](https://github.com/TileDB-Inc/TileDB-Py/pull/226)
+- Added support for multi-valued (homogeneous) metadata [#226](https://github.com/TileDB-Inc/TileDB-Py/pull/226)
+- Added support for tuples as range specifiers in `Array.multi_index` for consistency with `tiledb.cloudarray` apply [#263](https://github.com/TileDB-Inc/TileDB-Py/pull/263)
+
+## Bug fixes
+- Fix bug when reading SparseArray with 'ms' datetime units [#260](https://github.com/TileDB-Inc/TileDB-Py/pull/261)
 
 # TileDB-Py 0.5.5 Release Notes
 
