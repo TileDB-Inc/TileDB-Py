@@ -2531,15 +2531,11 @@ class ContextTest(unittest.TestCase):
         self.assertIsInstance(ctx.config(), tiledb.Config)
 
     def test_init_config(self):
-        import multiprocessing as mp
+        self.assertEqual(-1, init_test_wrapper())
 
-        p = mp.Pool(1)
-        self.assertEqual(-1, p.apply(init_test_wrapper))
-
-        p = mp.Pool(1)
         self.assertEqual(
             1,
-            p.apply(init_test_wrapper, args=({'sm.num_tbb_threads': 1},))
+            init_test_wrapper({'sm.num_tbb_threads': 1})
         )
 
 
