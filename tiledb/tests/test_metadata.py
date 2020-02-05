@@ -4,7 +4,7 @@ import tiledb
 from tiledb.libtiledb import ustring
 import numpy as np
 
-import unittest, os
+import unittest, os, time
 from tiledb.tests.common import *
 
 class MetadataTest(DiskTestCase):
@@ -142,6 +142,7 @@ class MetadataTest(DiskTestCase):
             with tiledb.Array(path, mode='w') as A:
                 A.meta['randint'] = int(randints[i])
                 A.meta['randutf8'] = randutf8s[i]
+                time.sleep(0.001)
 
         with tiledb.Array(path) as A:
             self.assertEqual(A.meta['randint'], randints[-1])
@@ -160,6 +161,7 @@ class MetadataTest(DiskTestCase):
                 with tiledb.Array(path, mode='w') as A:
                     A.meta[randutf8s[i] + u'{}'.format(randints[i])] = int(randints[i])
                     A.meta[randutf8s[i]] = randutf8s[i]
+                    time.sleep(0.001)
 
         # test data
         with tiledb.Array(path) as A:
