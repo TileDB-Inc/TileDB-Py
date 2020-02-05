@@ -350,7 +350,14 @@ class TestMultiRange(DiskTestCase):
                 orig_array[-1],
                 A.multi_index[30][attr_name]
             )
-
+            assert_array_equal(
+                orig_array[-1],
+                A.multi_index[30.0][attr_name]
+            )
+            assert_array_equal(
+                orig_array[coords.size-3:coords.size],
+                A.multi_index[(28.0,30.0),][attr_name]
+            )
             res = A.multi_index[ slice(0,5) ]
             assert_array_equal(
                 orig_array[0:6],
@@ -360,6 +367,7 @@ class TestMultiRange(DiskTestCase):
                 coords[0:6],
                 res['coords'].astype(np.float64)
             )
+
 
     def test_multirange_2d_sparse_domain_utypes(self):
         attr_name = 'foo'
@@ -464,6 +472,7 @@ class TestMultiRange(DiskTestCase):
                 res['coords'].view('f4').reshape(-1,2)
             )
 
+            #===
             res = A.multi_index[10, :]
             assert_array_equal(
                 orig_array[[-1], :].squeeze(),
@@ -474,6 +483,7 @@ class TestMultiRange(DiskTestCase):
                 res['coords'].view('f4').reshape(-1,2)
             )
 
+            #===
             res = A.multi_index[ [ slice(0,2), [5]] ]
             assert_array_equal(
                 np.vstack([orig_array[0:3,:], orig_array[5,:]]).flatten(),
@@ -482,6 +492,26 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(
                 np.vstack([coords[0:3,:].reshape(-1,2), coords[5,:]]),
                 res['coords'].view('f4').reshape(-1,2)
+            )
+
+            #===
+            res = A.multi_index[ slice(0.0, 2.0), slice(2.0, 5.0) ]
+            assert_array_equal(
+                orig_array[0:3,2:6].flatten(),
+                res[attr_name]
+            )
+            assert_array_equal(
+                coords[0:3,2:6].flatten(),
+                res['coords'].view('f4')
+            )
+            res = A.multi_index[ slice(np.float32(0.0), np.float32(2.0)), slice(np.float32(2.0), np.float32(5.0)) ]
+            assert_array_equal(
+                orig_array[0:3,2:6].flatten(),
+                res[attr_name]
+            )
+            assert_array_equal(
+                coords[0:3,2:6].flatten(),
+                res['coords'].view('f4')
             )
 
     def test_multirange_1d_sparse_query(self):
@@ -562,3 +592,42 @@ class TestMultiRange(DiskTestCase):
                     data[idxs],
                     res['U']
                 )
+
+    def test_multirange_2d_dense_float(self):
+        attr_name = ''
+        ctx = tiledb.Ctx()
+        path = self.path('multirange_2d_dense_float')
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 10), tile=1,
+                                       dtype=np.int64, ctx=ctx),
+                            tiledb.Dim(domain=(0, 10), tile=1,
+                                       dtype=np.int64, ctx=ctx),
+                            ctx=ctx)
+        att = tiledb.Attr(name=attr_name, dtype=np.float64, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
+        tiledb.DenseArray.create(path, schema)
+
+        orig_array = np.random.rand(11,11)
+
+        with tiledb.open(path, 'w') as A:
+            A[:] = orig_array
+
+        with tiledb.open(path) as A:
+            assert_array_equal(
+                orig_array[[0], :],
+                A.multi_index[[0], :][attr_name]
+            )
+
+            assert_array_equal(
+                orig_array[[-1,-1], :],
+                A.multi_index[[10,10], :][attr_name]
+            )
+            assert_array_equal(
+                orig_array[0:4,7:10],
+                A.multi_index[[(0,3)], slice(7,9)][attr_name]
+            )
+            # TODO this should be an error to match NumPy 1.12 semantics
+            #assert_array_equal(
+            #    orig_array[0:4,7:10],
+            #    A.multi_index[[(np.float64(0),np.float64(3.0))], slice(7,9)][attr_name]
+            #)
