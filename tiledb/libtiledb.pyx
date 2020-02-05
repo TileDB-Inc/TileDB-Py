@@ -2057,6 +2057,10 @@ cdef class Attr(object):
         return int(ncells)
 
 
+    def __repr__(self):
+        return f"""Attr(name={repr(self.name)}, dtype={self.dtype!s})"""
+
+
 cdef class Dim(object):
     """Class representing a dimension of a TileDB Array.
 

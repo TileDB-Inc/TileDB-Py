@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-import sys, os, platform, unittest
+import sys, os, re, platform, unittest
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -380,6 +380,7 @@ class AttributeTest(unittest.TestCase):
         filter_list1 = tiledb.FilterList(ctx=ctx)
         filter_list1.append(tiledb.GzipFilter(ctx=ctx))
         self.assertEqual(len(filter_list1), 1)
+
 
 class ArraySchemaTest(unittest.TestCase):
 
@@ -2538,6 +2539,14 @@ class ContextTest(unittest.TestCase):
             init_test_wrapper({'sm.num_tbb_threads': 1})
         )
 
+
+class ReprTest(unittest.TestCase):
+    def test_reprs(self):
+        attr = tiledb.Attr(name="itsanattr", dtype=np.float64)
+        self.assertTrue(
+            re.match(r"Attr\(name=[u]?'itsanattr', dtype=float64\)",
+                     repr(attr))
+        )
 
 #if __name__ == '__main__':
 #    # run a single example for in-process debugging
