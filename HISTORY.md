@@ -1,6 +1,7 @@
 # In progress
 
 ## Improvements
+- Added repr for ArraySchema [#267](https://github.com/TileDB-Inc/TileDB-Py/pull/267)
 - Added repr for Attr [#266](https://github.com/TileDB-Inc/TileDB-Py/pull/266)
 
 # TileDB-Py 0.5.6 Release Notes

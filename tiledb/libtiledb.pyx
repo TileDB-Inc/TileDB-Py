@@ -12,6 +12,11 @@ from .array import DenseArray, SparseArray
 import sys
 from os.path import abspath
 from collections import OrderedDict
+try:
+    # Python 2
+    from StringIO import StringIO
+except:
+    from io import StringIO
 
 ###############################################################################
 #     Numpy initialization code (critical)                                    #
@@ -3016,6 +3021,29 @@ cdef class ArraySchema(object):
                     tiledb_array_schema_dump(self.ctx.ptr, self.ptr, stdout))
         print("\n")
         return
+
+    def __repr__(self):
+        # TODO support/use __qualname__
+        # TODO add filters
+        output = StringIO()
+        output.write("ArraySchema(\n")
+        output.write("  domain=Domain(*[\n")
+        for i in range(self.domain.ndim):
+            output.write(f"    {repr(self.domain.dim(i))},\n")
+        output.write("  ]),\n")
+        output.write("  attrs=[\n")
+        for i in range(self.nattr):
+            output.write(f"    {repr(self.attr(i))},\n")
+        output.write("  ],\n")
+        output.write(
+            f"  cell_order='{self.cell_order}',\n"
+            f"  tile_order='{self.tile_order}'"
+        )
+        output.write(")\n")
+        output.write("""# note: filters omitted""")
+
+        return output.getvalue()
+
 
 # Wrapper class to allow returning a Python object so that exceptions work correctly
 # within preload_array
