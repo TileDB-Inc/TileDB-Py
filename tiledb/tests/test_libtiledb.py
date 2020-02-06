@@ -2541,11 +2541,18 @@ class ContextTest(unittest.TestCase):
 
 
 class ReprTest(unittest.TestCase):
-    def test_reprs(self):
+    def test_attr_repr(self):
         attr = tiledb.Attr(name="itsanattr", dtype=np.float64)
         self.assertTrue(
             re.match(r"Attr\(name=[u]?'itsanattr', dtype=float64\)",
                      repr(attr))
+        )
+
+        g = dict()
+        exec("from tiledb import Attr; from numpy import float64", g)
+        self.assertEqual(
+            eval(repr(attr), g),
+            attr
         )
 
     def test_arrayschema_repr(self):
