@@ -1954,7 +1954,7 @@ class DatetimeSlicing(DiskTestCase):
 
         # ns resolution, one tile per second, max domain possible
         dim = tiledb.Dim(name="d1", ctx=ctx,
-                         domain=(np.datetime64(0, 'ns'), np.datetime64(np.iinfo(np.int64).max - 1, 'ns')),
+                         domain=(np.datetime64(0, 'ns'), np.datetime64(int(np.iinfo(np.int64).max) - 1, 'ns')),
                          tile=np.timedelta64(1, 's'), dtype=np.datetime64('', 'ns').dtype)
         self.assertEqual(dim.tile, np.timedelta64('1000000000', 'ns'))
         dom = tiledb.Domain(dim, ctx=ctx)
