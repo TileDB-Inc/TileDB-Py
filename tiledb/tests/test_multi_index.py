@@ -377,7 +377,7 @@ class TestMultiRange(DiskTestCase):
 
         for dtype in types:
             min = 0
-            max = np.iinfo(dtype).max - 1
+            max = int(np.iinfo(dtype).max) - 1
             path = self.path('multi_index_2d_sparse_' + str(dtype.__name__))
 
             dom = tiledb.Domain(tiledb.Dim(domain=(min, max), tile=1,

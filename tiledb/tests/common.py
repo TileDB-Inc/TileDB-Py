@@ -80,13 +80,13 @@ def dtype_max(dtype):
     if not np.issubdtype(dtype, np.generic):
         raise TypeError("expected numpy dtype!")
     iinfo = np.iinfo(dtype)
-    return iinfo.max
+    return int(iinfo.max)
 
 def dtype_min(dtype):
     if not np.issubdtype(dtype, np.generic):
         raise TypeError("expected numpy dtype!")
     iinfo = np.iinfo(dtype)
-    return iinfo.min
+    return int(iinfo.min)
 
 def rand_int_sequential(size, dtype=np.uint64):
     arr = np.random.randint(dtype_max(dtype), size=size, dtype=dtype)
