@@ -133,7 +133,7 @@ class MetadataTest(DiskTestCase):
         with tiledb.from_numpy(path, np.ones((5,), np.float64)) as A:
             pass
 
-        randints = np.random.randint(0,np.iinfo(np.int64).max - 1,
+        randints = np.random.randint(0,int(np.iinfo(np.int64).max) - 1,
                                      size=write_count, dtype=np.int64)
         randutf8s = [rand_utf8(i) for i in np.random.randint(1,30,size=write_count)]
 
