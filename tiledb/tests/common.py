@@ -79,14 +79,30 @@ def rand_ascii_bytes(size=5):
 def dtype_max(dtype):
     if not np.issubdtype(dtype, np.generic):
         raise TypeError("expected numpy dtype!")
-    iinfo = np.iinfo(dtype)
-    return int(iinfo.max)
+
+    if np.issubdtype(dtype, np.floating):
+        finfo = np.finfo(dtype)
+        return finfo.max
+
+    elif np.issubdtype(dtype, np.integer):
+        iinfo = np.iinfo(dtype)
+        return int(iinfo.max)
+
+    raise "Unknown dtype for dtype_max '{dtype}'".format(str(dtype))
 
 def dtype_min(dtype):
     if not np.issubdtype(dtype, np.generic):
         raise TypeError("expected numpy dtype!")
-    iinfo = np.iinfo(dtype)
-    return int(iinfo.min)
+
+    if np.issubdtype(dtype, np.floating):
+        finfo = np.finfo(dtype)
+        return finfo.min
+
+    elif np.issubdtype(dtype, np.integer):
+        iinfo = np.iinfo(dtype)
+        return int(iinfo.min)
+
+    raise "Unknown dtype for dtype_min '{dtype}'".format(str(dtype))
 
 def rand_int_sequential(size, dtype=np.uint64):
     arr = np.random.randint(dtype_max(dtype), size=size, dtype=dtype)
