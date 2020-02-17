@@ -73,6 +73,9 @@ from .highlevel import (
      array_exists
 )
 
+# TODO restricted imports
+from .dataframe_ import from_dataframe, from_csv, open_dataframe
+
 from .version import version as __version__
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
