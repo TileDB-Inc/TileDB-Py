@@ -105,7 +105,6 @@ def from_csv(uri, csv_file, distributed=False, **kwargs):
 
 def write_attr_metadata(array, metadata):
     """
-
     :param array: open, writable TileDB array
     :param metadata: dict
     :return:
@@ -154,10 +153,6 @@ def from_dataframe(uri, dataframe, **kwargs):
     )
 
     tiledb.Array.create(uri, schema, ctx=ctx)
-
-    # TODO remove
-    global df
-    df = dataframe
 
     with tiledb.DenseArray(uri, 'w') as A:
         write_dict =  {k: v.values for k,v in dataframe.to_dict(orient='series').items()}
