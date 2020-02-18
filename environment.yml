@@ -5,6 +5,7 @@ dependencies:
   - python=3.6
   - numpy=1.14.*
   - cython=0.28.*
+  - pandas>=1.0
   - pip:
     - tox==3.0.0
     - setuptools-scm==2.1.0
