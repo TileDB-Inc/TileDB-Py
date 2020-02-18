@@ -14,7 +14,7 @@ else:
 # - implement support for read CSV via TileDB VFS from any supported FS
 
 TILEDB_KWARG_DEFAULTS = {
-    'ctx': tiledb.default_ctx(),
+    'ctx': None,
     'cell_order': 'row-major',
     'tile_order': 'row-major',
     'sparse': False
@@ -118,9 +118,12 @@ def write_attr_metadata(array, metadata):
 def from_dataframe(uri, dataframe, **kwargs):
 
     args = TILEDB_KWARG_DEFAULTS
+
     tiledb_args = kwargs.pop('tiledb_args', None)
     if tiledb_args is not None:
         args.update(tiledb_args)
+    if not args.get('ctx', None):
+        args['ctx'] = tiledb.default_ctx()
 
     ctx = args['ctx']
     tile_order = args['tile_order']
