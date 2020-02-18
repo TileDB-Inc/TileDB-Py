@@ -1938,7 +1938,13 @@ cdef class Attr(object):
         cdef FilterList filter_list
         if filters is not None:
             if not isinstance(filters, FilterList):
-                raise TypeError("filters argument must be a tiledb.FilterList")
+                try:
+                    filters = iter(filters)
+                except:
+                    raise TypeError("filters argument must be a tiledb.FilterList or iterable of Filters")
+                else:
+                    # we want this to raise a specific error if construction fails
+                    filters = FilterList(filters)
             filter_list = filters
         # alloc attribute object and set cell num / compressor
         cdef tiledb_attribute_t* attr_ptr = NULL
@@ -2771,14 +2777,14 @@ cdef class ArraySchema(object):
 
             if offsets_filters is not None:
                 if not isinstance(offsets_filters, FilterList):
-                    raise TypeError("offsets_filters must be a tiledb.FilterList instance")
+                    offsets_filters = FilterList(offsets_filters)
                 filter_list = offsets_filters
                 filter_list_ptr = filter_list.ptr
                 check_error(ctx,
                     tiledb_array_schema_set_offsets_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
             if coords_filters is not None:
                 if not isinstance(coords_filters, FilterList):
-                    raise TypeError("coords_filters must be a tiledb.FilterList instance")
+                    coords_filters = FilterList(coords_filters)
                 filter_list = coords_filters
                 filter_list_ptr = filter_list.ptr
                 check_error(ctx,
