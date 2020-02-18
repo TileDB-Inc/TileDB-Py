@@ -1,6 +1,8 @@
 # In progress
 
 ## Improvements
+- Added dataframe and CSV helper functions [#TDB](...)
+    `tiledb.{from_dataframe, from_csv, open_dataframe}`
 - Added repr for ArraySchema [#267](https://github.com/TileDB-Inc/TileDB-Py/pull/267)
 - Added repr for Attr [#266](https://github.com/TileDB-Inc/TileDB-Py/pull/266)
 
