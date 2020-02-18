@@ -33,7 +33,7 @@ stages:
       displayName: 'Print env'
 
     - script: |
-        python -m pip install --upgrade setuptools wheel numpy tox setuptools-scm cython psutil dask
+        python -m pip install --upgrade setuptools wheel numpy tox setuptools-scm cython psutil dask pandas
       displayName: 'Install dependencies'
 
     - script: |
