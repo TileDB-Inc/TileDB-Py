@@ -363,8 +363,9 @@ class AttributeTest(unittest.TestCase):
         # test filter list iteration
         self.assertEqual(len(list(filter_list)), 2)
 
-        with self.assertRaises(TypeError):
-            tiledb.Attr("foo", ctx=ctx, dtype=np.int64, filters=[gzip_filter])
+        # test `filters` kwarg accepts python list of filters
+        tiledb.Attr("foo", ctx=ctx, dtype=np.int64, filters=[gzip_filter])
+        tiledb.Attr("foo", ctx=ctx, dtype=np.int64, filters=(gzip_filter,))
 
         attr = tiledb.Attr("foo",
                            ctx=ctx,
@@ -380,6 +381,10 @@ class AttributeTest(unittest.TestCase):
         filter_list1 = tiledb.FilterList(ctx=ctx)
         filter_list1.append(tiledb.GzipFilter(ctx=ctx))
         self.assertEqual(len(filter_list1), 1)
+
+        filter_list2 = [x for x in filter_list1]
+        attr = tiledb.Attr(filters=filter_list2)
+        self.assertEqual(len(attr.filters), 1)
 
 
 class ArraySchemaTest(unittest.TestCase):
@@ -505,13 +510,15 @@ class ArraySchemaTest(unittest.TestCase):
         filter_list = tiledb.FilterList([tiledb.GzipFilter(ctx=ctx)], ctx=ctx)
         a2 = tiledb.Attr("a2", filters=filter_list, dtype="float32", ctx=ctx)
 
+        off_filters_pylist = [tiledb.libtiledb.ZstdFilter(level=10,ctx=ctx)]
         off_filters = tiledb.libtiledb.FilterList(
-                        filters=[tiledb.libtiledb.ZstdFilter(level=10,ctx=ctx)],
+                        filters=off_filters_pylist,
                         chunksize=2048,
                         ctx=ctx)
 
+        coords_filters_pylist = [tiledb.libtiledb.Bzip2Filter(level=5, ctx=ctx)]
         coords_filters = tiledb.libtiledb.FilterList(
-                        filters=[tiledb.libtiledb.Bzip2Filter(level=5, ctx=ctx)],
+                        filters=coords_filters_pylist,
                         chunksize=4096, ctx=ctx)
 
         # create sparse array with schema
@@ -526,6 +533,20 @@ class ArraySchemaTest(unittest.TestCase):
                                     ctx=ctx)
         safe_dump(schema)
         self.assertTrue(schema.sparse)
+
+        # make sure we can construct ArraySchema with python lists of filters
+        schema2 = tiledb.ArraySchema(domain=domain,
+                                    attrs=(a1, a2),
+                                    capacity=10,
+                                    cell_order='col-major',
+                                    tile_order='row-major',
+                                    coords_filters=coords_filters_pylist,
+                                    offsets_filters=off_filters,
+                                    sparse=True,
+                                    ctx=ctx)
+        self.assertEqual(len(schema2.coords_filters), 1)
+        self.assertEqual(len(schema2.offsets_filters), 1)
+
 
 class ArrayTest(DiskTestCase):
 
