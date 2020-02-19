@@ -5,6 +5,7 @@
     `tiledb.{from_dataframe, from_csv, open_dataframe}`
 - Added repr for ArraySchema [#267](https://github.com/TileDB-Inc/TileDB-Py/pull/267)
 - Added repr for Attr [#266](https://github.com/TileDB-Inc/TileDB-Py/pull/266)
+- Added `Array.dim` access for direct access to Dim by name or index (similar to `Array.attr`) [#272](https://github.com/TileDB-Inc/TileDB-Py/pull/266)
 
 ## Bug fixes
 - Fixed accessing domain dimension by name (`domain.dim('dim name')`) [#271](https://github.com/TileDB-Inc/TileDB-Py/pull/271)
