@@ -697,6 +697,8 @@ class DenseArrayTest(DiskTestCase):
 
             self.assertEqual(1, T.nattr)
             self.assertEqual(A.dtype, T.attr(0).dtype)
+            self.assertEqual(T.dim(T.schema.domain.dim(0).name), T.dim(0))
+            with self.assertRaises(ValueError): T.dim(1.0)
 
             self.assertIsInstance(T.timestamp, int)
             self.assertTrue(T.timestamp > 0)
