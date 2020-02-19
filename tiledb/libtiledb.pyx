@@ -460,6 +460,12 @@ cdef bytes unicode_path(object path):
     return ustring(path).encode('UTF-8')
 
 
+def safe_repr(obj):
+    try:
+        return repr(obj)
+    except:
+        return "<repr failed>"
+
 ###############################################################################
 #                                                                             #
 #    CLASS DEFINITIONS                                                        #
@@ -2479,33 +2485,32 @@ cdef class Domain(object):
             raise TypeError("shape valid only for integer domains")
         return np.product(self._shape())
 
-    def dim(self, int idx):
-        """Returns a Dim object from the domain given the dimension's index.
+    def dim(self, dim_id):
+        """Returns a Dim object from the domain given the dimension's index or name.
 
-        :param int idx: dimension index
+        :param dim_d: dimension index (int) or name (str)
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
         cdef tiledb_dimension_t* dim_ptr = NULL
-        check_error(self.ctx,
-                    tiledb_domain_get_dimension_from_index(
-                        self.ctx.ptr, self.ptr, idx, &dim_ptr))
-        assert(dim_ptr != NULL)
-        return Dim.from_ptr(dim_ptr, self.ctx)
+        cdef bytes uname
+        cdef const char* name_ptr = NULL
 
-    def dim(self, unicode name):
-        """Returns a Dim object from the domain given the dimension's index.
+        if isinstance(dim_id, str):
+            uname = ustring(dim_id).encode('UTF-8')
+            name_ptr = uname
+            check_error(self.ctx,
+                        tiledb_domain_get_dimension_from_name(
+                            self.ctx.ptr, self.ptr, name_ptr, &dim_ptr))
+        elif isinstance(dim_id, int):
+            check_error(self.ctx,
+                        tiledb_domain_get_dimension_from_index(
+                            self.ctx.ptr, self.ptr, dim_id, &dim_ptr))
+        else:
+            raise ValueError("Unsupported dim identifier: '{dim_id}' (expected int or str)".format(
+                safe_repr(dim_id)
+            ))
 
-        :param str name: dimension name (label)
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef bytes uname = ustring(name).encode('UTF-8')
-        cdef const char* name_ptr = uname
-        cdef tiledb_dimension_t* dim_ptr = NULL
-        check_error(self.ctx,
-                    tiledb_domain_get_dimension_from_name(
-                        self.ctx.ptr, self.ptr, name_ptr, &dim_ptr))
         assert(dim_ptr != NULL)
         return Dim.from_ptr(dim_ptr, self.ctx)
 
