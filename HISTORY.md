@@ -6,6 +6,9 @@
 - Added repr for ArraySchema [#267](https://github.com/TileDB-Inc/TileDB-Py/pull/267)
 - Added repr for Attr [#266](https://github.com/TileDB-Inc/TileDB-Py/pull/266)
 
+## Bug fixes
+- Fixed accessing domain dimension by name (`domain.dim('dim name')`) [#271](https://github.com/TileDB-Inc/TileDB-Py/pull/271)
+
 # TileDB-Py 0.5.6 Release Notes
 
 * Bump release target to [TileDB 1.7.5](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.5)
