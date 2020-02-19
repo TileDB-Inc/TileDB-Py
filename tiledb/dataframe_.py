@@ -219,7 +219,8 @@ def from_csv(uri, csv_file, distributed=False, **kwargs):
     try:
         import pandas
     except ImportError as exc:
-        raise ImportError("tiledb.from_csv requires pandas") from exc
+        print("tiledb.from_csv requires pandas")
+        raise
 
     tiledb_args = kwargs.pop('tiledb_args', None)
 
