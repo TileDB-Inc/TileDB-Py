@@ -1,8 +1,9 @@
-cmake>=3.11.0
-cython>=0.29
+setuptools
+wheel
 numpy==1.16.*
-setuptools>=18.0.1
-setuptools-scm>=1.5.4
-wheel>=0.30
+tox
+setuptools-scm
+cython
+dask
+pandas
 psutil
-pandas>=1.0
