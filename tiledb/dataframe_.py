@@ -90,17 +90,6 @@ def attrs_from_df(df, ctx=None):
     return attrs, attr_reprs
 
 
-def from_csv(uri, csv_file, distributed=False, **kwargs):
-
-    try:
-        import pandas
-    except ImportError as exc:
-        raise ImportError("tiledb.from_csv requires pandas") from exc
-
-    tiledb_args = kwargs.pop('tiledb_args', None)
-
-    df = pandas.read_csv(csv_file, **kwargs)
-    from_dataframe(uri, df, tiledb_args=tiledb_args, **kwargs)
 
 
 def write_attr_metadata(array, metadata):
@@ -116,7 +105,15 @@ def write_attr_metadata(array, metadata):
 
 
 def from_dataframe(uri, dataframe, **kwargs):
+    """Create TileDB array at given URI from pandas dataframe
 
+    :param uri: URI for new TileDB array
+    :param dataframe: pandas DataFrame
+    :param kwargs: optional keyword arguments for Pandas and TileDB.
+                TileDB context and configuration arguments
+                may be passed in a dictionary as `tiledb_args={...}`
+    :return:
+    """
     args = TILEDB_KWARG_DEFAULTS
 
     tiledb_args = kwargs.pop('tiledb_args', None)
@@ -166,13 +163,25 @@ def from_dataframe(uri, dataframe, **kwargs):
 
 
 def open_dataframe(uri):
-    """
+    """Open TileDB array at given URI as a Pandas dataframe
+
+    If the array was saved using tiledb.from_dataframe, then columns
+    will be interpreted as non-primitive pandas or numpy types when
+    available.
 
     :param uri:
     :return: dataframe constructed from given TileDB array URI
-    """
 
+    **Example:**
+
+    >>> import tiledb
+    >>> df = tiledb.open_dataframe("iris.tldb")
+    >>> tiledb.objec_type("iris.tldb")
+    'array'
+    """
     import pandas as pd
+
+    # TODO support `distributed=True` option?
 
     with tiledb.open(uri) as A:
         if not '__pandas_attribute_repr' in A.meta:
@@ -187,3 +196,32 @@ def open_dataframe(uri):
                 data[col_name] = new_col
 
     return pd.DataFrame.from_dict(data)
+
+
+def from_csv(uri, csv_file, distributed=False, **kwargs):
+    """Create TileDB array at given URI from a CSV file
+
+    :param uri: URI for new TileDB array
+    :param csv_file: input CSV file
+    :param distributed:
+    :param kwargs: optional keyword arguments for Pandas and TileDB.
+                TileDB context and configuration arguments
+                may be passed in a dictionary as `tiledb_args={...}`
+    :return: None
+
+    **Example:**
+
+    >>> import tiledb
+    >>> tiledb.from_csv("iris.tldb", "iris.csv")
+    >>> tiledb.object_type("iris.tldb")
+    'array'
+    """
+    try:
+        import pandas
+    except ImportError as exc:
+        raise ImportError("tiledb.from_csv requires pandas") from exc
+
+    tiledb_args = kwargs.pop('tiledb_args', None)
+
+    df = pandas.read_csv(csv_file, **kwargs)
+    from_dataframe(uri, df, tiledb_args=tiledb_args, **kwargs)
