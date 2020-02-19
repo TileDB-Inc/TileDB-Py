@@ -5,5 +5,5 @@ tox
 setuptools-scm
 cython
 dask
-pandas
+pandas ; python_version > '3.5'
 psutil
