@@ -256,6 +256,10 @@ class DomainTest(unittest.TestCase):
         dim_names = [dim.name for dim in dom]
         self.assertEqual(["d1", "d2"], dim_names)
 
+        # check that we can access dim by name
+        dim_d1 = dom.dim("d1")
+        self.assertEqual(dim_d1, dom.dim(0))
+
     def test_domain_dims_not_same_type(self):
         with self.assertRaises(TypeError):
             tiledb.Domain(
