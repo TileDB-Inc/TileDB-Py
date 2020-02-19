@@ -2496,7 +2496,7 @@ cdef class Domain(object):
         cdef bytes uname
         cdef const char* name_ptr = NULL
 
-        if isinstance(dim_id, str):
+        if isinstance(dim_id, (str, unicode)):
             uname = ustring(dim_id).encode('UTF-8')
             name_ptr = uname
             check_error(self.ctx,
@@ -2507,7 +2507,7 @@ cdef class Domain(object):
                         tiledb_domain_get_dimension_from_index(
                             self.ctx.ptr, self.ptr, dim_id, &dim_ptr))
         else:
-            raise ValueError("Unsupported dim identifier: '{dim_id}' (expected int or str)".format(
+            raise ValueError("Unsupported dim identifier: '{}' (expected int or str)".format(
                 safe_repr(dim_id)
             ))
 
@@ -3442,6 +3442,16 @@ cdef class Array(object):
         :return: The array attribute at index or with the given name (label)
         :raises TypeError: invalid key type"""
         return self.schema.attr(key)
+
+    def dim(self, dim_id):
+        """Returns a :py:class:`Dim` instance given a dim index or name
+
+        :param key: attribute index (positional or associative)
+        :type key: int or str
+        :rtype: :py:class:`Attr`
+        :return: The array attribute at index or with the given name (label)
+        :raises TypeError: invalid key type"""
+        return self.schema.domain.dim(dim_id)
 
     def nonempty_domain(self):
         """Return the minimum bounding domain which encompasses nonempty values.
