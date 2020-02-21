@@ -321,6 +321,10 @@ class TestMultiRange(DiskTestCase):
                 orig_array[0:],
                 A.multi_index[ [slice(-10, 10),] ][attr_name]
             )
+            assert_array_equal(
+                orig_array[0:10],
+                A.multi_index[ -10:np.int64(-1) ][attr_name]
+            )
 
 
     def test_multirange_1d_sparse_double(self):
