@@ -189,3 +189,15 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         df_from_array = tiledb.open_dataframe(csv_array_uri)
         tm.assert_frame_equal(df_orig, df_from_array)
+
+        # Test reading via TileDB VFS. The main goal is to support reading
+        # from a remote VFS, using local with `file://` prefix as a test for now.
+        with tiledb.FileIO(tiledb.VFS(), csv_uri, 'rb') as fio:
+            csv_uri_unc = "file://" + csv_uri
+            csv_array_uri2 = "file://" + os.path.join(csv_array_uri+"_2")
+            print(csv_array_uri2, csv_uri_unc)
+            tiledb.from_csv(csv_array_uri2, csv_uri_unc, index_col=0, parse_dates=[1])
+
+            df_from_array2 = tiledb.open_dataframe(csv_array_uri2)
+            tm.assert_frame_equal(df_orig, df_from_array2)
+
