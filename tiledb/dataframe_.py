@@ -1,6 +1,8 @@
 import tiledb, numpy as np
 import json
 import sys
+import os
+import io
 
 if sys.version_info >= (3,3):
     unicode_type = str
@@ -117,7 +119,7 @@ def from_dataframe(uri, dataframe, **kwargs):
     args = TILEDB_KWARG_DEFAULTS
 
     tiledb_args = kwargs.pop('tiledb_args', None)
-    if tiledb_args is not None:
+    if isinstance(tiledb_args, dict):
         args.update(tiledb_args)
     if not args.get('ctx', None):
         args['ctx'] = tiledb.default_ctx()
@@ -222,7 +224,13 @@ def from_csv(uri, csv_file, distributed=False, **kwargs):
         print("tiledb.from_csv requires pandas")
         raise
 
-    tiledb_args = kwargs.pop('tiledb_args', None)
+    tiledb_args = kwargs.pop('tiledb_args', {})
+
+    if isinstance(csv_file, str) and not os.path.isfile(csv_file):
+        # for non-local files, use TileDB VFS i/o
+        ctx = tiledb_args.get('ctx', tiledb.default_ctx())
+        vfs = tiledb.VFS(ctx=ctx)
+        csv_file = tiledb.FileIO(vfs, csv_file, mode='rb')
 
     df = pandas.read_csv(csv_file, **kwargs)
     from_dataframe(uri, df, tiledb_args=tiledb_args, **kwargs)

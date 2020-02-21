@@ -6,6 +6,7 @@
 - Added repr for ArraySchema [#267](https://github.com/TileDB-Inc/TileDB-Py/pull/267)
 - Added repr for Attr [#266](https://github.com/TileDB-Inc/TileDB-Py/pull/266)
 - Added `Array.dim` access for direct access to Dim by name or index (similar to `Array.attr`) [#272](https://github.com/TileDB-Inc/TileDB-Py/pull/272)
+- Added support for `read_csv` to read the input file from a TileDB VFS [#275](https://github.com/TileDB-Inc/TileDB-Py/pull/275)
 
 ## Bug fixes
 - Fixed a number of bugs in the FileIO class, to allow using as input to other libraries which accept
