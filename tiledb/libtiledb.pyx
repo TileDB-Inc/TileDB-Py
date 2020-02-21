@@ -2636,8 +2636,10 @@ def index_domain_subarray(dom: Domain, idx: tuple):
                 raise IndexError('cannot index datetime dimension with non-datetime interval')
             # don't round / promote fp slices
             if np.issubdtype(dim.dtype, np.integer):
-                if not isinstance(stop, _inttypes):
+                if isinstance(start, (np.float32, np.float64)):
                     raise IndexError("cannot index integral domain dimension with floating point slice")
+                elif not isinstance(start, _inttypes):
+                    raise IndexError("cannot index integral domain dimension with non-integral slice (dtype: {})".format(type(start)))
             if not is_datetime and stop < 0:
                 stop += dim_ub
             if stop > dim_ub:

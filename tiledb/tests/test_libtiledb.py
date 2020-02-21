@@ -760,6 +760,10 @@ class DenseArrayTest(DiskTestCase):
             # mixed-type slicing
             # https://github.com/TileDB-Inc/TileDB-Py/issues/140
             self.assertEqual(A[0:1], T[0:np.uint16(1)])
+            self.assertEqual(A[0:1], T[np.int64(0):1])
+            with self.assertRaises(IndexError):
+                # this is a consequence of NumPy promotion rules
+                self.assertEqual(A[0:1], T[np.uint64(0):1])
 
             # basic step
             assert_array_equal(A[:50:2], T[:50:2])
