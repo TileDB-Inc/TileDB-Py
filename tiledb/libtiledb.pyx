@@ -5276,13 +5276,13 @@ cdef class VFS(object):
             _raise_ctx_err(ctx_ptr, rc)
         return new_uri
 
-    def open(self, uri, mode=None):
+    def open(self, uri, mode='rb'):
         """Opens a VFS file resource for reading / writing / appends at URI
 
         If the file did not exist upon opening, a new file is created.
 
         :param str uri: URI of VFS file resource
-        :param mode str: 'r' for opening the file to read, 'w' to write, 'a' to append
+        :param mode str: 'rb' for opening the file to read, 'wb' to write, 'ab' to append
         :rtype: FileHandle
         :return: VFS FileHandle
         :raises TypeError: cannot convert `uri` to unicode string
