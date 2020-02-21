@@ -2404,12 +2404,12 @@ class VFS(DiskTestCase):
         lines = [rand_utf8(random.randint(0, 50))+'\n' for _ in range(10)]
         rand_uri = self.path("test_fio.rand")
         with tiledb.FileIO(vfs, rand_uri, 'wb') as f:
-            txtio = io.TextIOWrapper(f)
+            txtio = io.TextIOWrapper(f, encoding='utf-8')
             txtio.writelines(lines)
             txtio.flush()
 
         with tiledb.FileIO(vfs, rand_uri, 'rb') as f2:
-            txtio = io.TextIOWrapper(f2)
+            txtio = io.TextIOWrapper(f2, encoding='utf-8')
             self.assertEqual(txtio.readlines(), lines)
 
     def test_ls(self):

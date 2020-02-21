@@ -5523,8 +5523,8 @@ class FileIO(io.RawIOBase):
         return self._readonly
 
     def seek(self, offset, whence=0):
-        if not isinstance(offset, int):
-            raise TypeError("offset must be an integer")
+        if not isinstance(offset, (int, long)):
+            raise TypeError(f"Offset must be an integer or None (got {safe_repr(offset)})")
         if whence == 0:
             if offset < 0:
                 raise ValueError("offset must be a positive or zero value when SEEK_SET")
@@ -5549,12 +5549,12 @@ class FileIO(io.RawIOBase):
         return not self._readonly
 
     def read(self, size=-1):
-        if not isinstance(size, int):
-            raise TypeError("offset must be an integer")
+        if not isinstance(size, (int, long)):
+            raise TypeError(f"size must be an integer or None (got {safe_repr(size)})")
         if self._mode == "wb":
-            raise IOError("cannot read from write-only FileIO handle")
+            raise IOError("Cannot read from write-only FileIO handle")
         if self.closed:
-            raise IOError("cannot read from closed FileIO handle")
+            raise IOError("Cannot read from closed FileIO handle")
         nbytes_remaining = self._nbytes - self._offset
         cdef Py_ssize_t nbytes
         if size < 0:
@@ -5571,6 +5571,9 @@ class FileIO(io.RawIOBase):
         self.vfs.readinto(self.fh, buff, self._offset, nbytes)
         self._offset += nbytes
         return buff
+
+    def read1(self, size=-1):
+        return self.read(size)
 
     def readall(self):
         if self._mode == "wb":
