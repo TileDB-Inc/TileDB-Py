@@ -2,13 +2,13 @@
 
 from __future__ import absolute_import
 
-import sys, os, re, platform, unittest
+import sys, os, io, re, platform, unittest, random
 
 import numpy as np
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, assert_subarrays_equal
+from tiledb.tests.common import DiskTestCase, assert_subarrays_equal, rand_utf8
 
 def safe_dump(obj):
     # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
@@ -2318,82 +2318,99 @@ class VFS(DiskTestCase):
         vfs = tiledb.VFS(ctx=ctx)
 
         buffer = b"bar"
-        fh = vfs.open(self.path("foo"), "w")
+        fh = vfs.open(self.path("foo"), "wb")
         vfs.write(fh, buffer)
         vfs.close(fh)
         self.assertEqual(vfs.file_size(self.path("foo")), 3)
 
-        fh = vfs.open(self.path("foo"), "r")
+        fh = vfs.open(self.path("foo"), "rb")
         self.assertEqual(vfs.read(fh, 0, 3), buffer)
         vfs.close(fh)
 
         # write / read empty input
-        fh = vfs.open(self.path("baz"), "w")
+        fh = vfs.open(self.path("baz"), "wb")
         vfs.write(fh, b"")
         vfs.close(fh)
         self.assertEqual(vfs.file_size(self.path("baz")), 0)
 
-        fh = vfs.open(self.path("baz"), "r")
+        fh = vfs.open(self.path("baz"), "rb")
         self.assertEqual(vfs.read(fh, 0, 0), b"")
         vfs.close(fh)
 
         # read from file that does not exist
         with self.assertRaises(tiledb.TileDBError):
-            vfs.open(self.path("do_not_exist"), "r")
+            vfs.open(self.path("do_not_exist"), "rb")
 
     def test_io(self):
         ctx = tiledb.Ctx()
         vfs = tiledb.VFS(ctx=ctx)
 
         buffer = b"0123456789"
-        io = tiledb.FileIO(vfs, self.path("foo"), mode="w")
-        io.write(buffer)
-        io.flush()
-        self.assertEqual(io.tell(), len(buffer))
+        fio = tiledb.FileIO(vfs, self.path("foo"), mode="wb")
+        fio.write(buffer)
+        fio.flush()
+        self.assertEqual(fio.tell(), len(buffer))
 
-        io = tiledb.FileIO(vfs, self.path("foo"), mode="r")
+        fio = tiledb.FileIO(vfs, self.path("foo"), mode="rb")
         with self.assertRaises(IOError):
-            io.write(b"foo")
+            fio.write(b"foo")
 
         self.assertEqual(vfs.file_size(self.path("foo")), len(buffer))
 
-        io = tiledb.FileIO(vfs, self.path("foo"), mode='r')
-        self.assertEqual(io.read(3), b'012')
-        self.assertEqual(io.tell(), 3)
-        self.assertEqual(io.read(3), b'345')
-        self.assertEqual(io.tell(), 6)
-        self.assertEqual(io.read(10), b'6789')
-        self.assertEqual(io.tell(), 10)
+        fio = tiledb.FileIO(vfs, self.path("foo"), mode='rb')
+        self.assertEqual(fio.read(3), b'012')
+        self.assertEqual(fio.tell(), 3)
+        self.assertEqual(fio.read(3), b'345')
+        self.assertEqual(fio.tell(), 6)
+        self.assertEqual(fio.read(10), b'6789')
+        self.assertEqual(fio.tell(), 10)
 
         # seek from beginning
-        io.seek(0)
-        self.assertEqual(io.tell(), 0)
-        self.assertEqual(io.read(), buffer)
+        fio.seek(0)
+        self.assertEqual(fio.tell(), 0)
+        self.assertEqual(fio.read(), buffer)
 
         # seek must be positive when SEEK_SET
         with self.assertRaises(ValueError):
-            io.seek(-1, 0)
+            fio.seek(-1, 0)
 
-        # seek from current position
-        io.seek(5)
-        self.assertEqual(io.tell(), 5)
-        io.seek(3, 1)
-        self.assertEqual(io.tell(), 8)
-        io.seek(-3, 1)
-        self.assertEqual(io.tell(), 5)
+        # seek from current positfion
+        fio.seek(5)
+        self.assertEqual(fio.tell(), 5)
+        fio.seek(3, 1)
+        self.assertEqual(fio.tell(), 8)
+        fio.seek(-3, 1)
+        self.assertEqual(fio.tell(), 5)
 
         # seek from end
-        io.seek(-4, 2)
-        self.assertEqual(io.tell(), 6)
+        fio.seek(-4, 2)
+        self.assertEqual(fio.tell(), 6)
 
         # Test readall
-        io.seek(0)
-        self.assertEqual(io.readall(), buffer)
-        self.assertEqual(io.tell(), 10)
+        fio.seek(0)
+        self.assertEqual(fio.readall(), buffer)
+        self.assertEqual(fio.tell(), 10)
 
-        io.seek(5)
-        self.assertEqual(io.readall(), buffer[5:])
-        self.assertEqual(io.readall(), b"")
+        fio.seek(5)
+        self.assertEqual(fio.readall(), buffer[5:])
+        self.assertEqual(fio.readall(), b"")
+
+        # Reading from the end should return empty
+        fio.seek(0)
+        fio.read()
+        self.assertEqual(fio.read(), b"")
+
+        # Test writing and reading lines with TextIOWrapper
+        lines = [rand_utf8(random.randint(0, 50))+'\n' for _ in range(10)]
+        rand_uri = self.path("test_fio.rand")
+        with tiledb.FileIO(vfs, rand_uri, 'wb') as f:
+            txtio = io.TextIOWrapper(f)
+            txtio.writelines(lines)
+            txtio.flush()
+
+        with tiledb.FileIO(vfs, rand_uri, 'rb') as f2:
+            txtio = io.TextIOWrapper(f2)
+            self.assertEqual(txtio.readlines(), lines)
 
     def test_ls(self):
         import os
