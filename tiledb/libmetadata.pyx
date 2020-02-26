@@ -200,7 +200,6 @@ def put_metadata(Array array,
     cdef const char* key_ptr
     cdef tiledb_datatype_t ret_type
     cdef PackedBuffer packed_buf
-    cdef const unsigned char[:] data_view
     cdef const void* data_ptr
 
     key_utf8 = key.encode('UTF-8')
@@ -209,13 +208,15 @@ def put_metadata(Array array,
     if isinstance(value, tuple) and len(value) == 0:
         # special case for empty values
         packed_buf = PackedBuffer(b'', TILEDB_INT32, 0)
-        data_ptr = NULL
     else:
         packed_buf = pack_metadata_val(value)
         if (len(packed_buf.data) < 1):
             raise ValueError("Unsupported zero-length metadata value")
 
-        data_view = packed_buf.data
+    cdef const unsigned char[:] data_view = packed_buf.data
+    if packed_buf.value_num == 0:
+        data_ptr = NULL
+    else:
         data_ptr = <void*>&data_view[0]
 
     rc = tiledb_array_put_metadata(
