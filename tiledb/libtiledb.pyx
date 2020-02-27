@@ -3227,9 +3227,9 @@ cdef class Array(object):
             else:
                 new_array_typed = SparseArray.__new__(SparseArray)
 
-        except TileDBError as exc:
+        except:
             tiledb_array_free(&array_ptr)
-            raise exc
+            raise
 
         # *** this assignment must happen outside the try block ***
         # *** because the array destructor will free array_ptr  ***
