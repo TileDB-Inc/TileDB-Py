@@ -156,7 +156,7 @@ def from_dataframe(uri, dataframe, **kwargs):
 
     tiledb.Array.create(uri, schema, ctx=ctx)
 
-    with tiledb.DenseArray(uri, 'w') as A:
+    with tiledb.DenseArray(uri, 'w', ctx=ctx) as A:
         write_dict =  {k: v.values for k,v in dataframe.to_dict(orient='series').items()}
         A[0:nrows] = write_dict
 
