@@ -2526,6 +2526,11 @@ class HighlevelTests(DiskTestCase):
         with tiledb.open(uri, config=config) as A:
             self.assertEqual(A._ctx_().config(), config)
 
+        with self.assertRaises(KeyError):
+            # This path must test `tiledb.open` specifically
+            # https://github.com/TileDB-Inc/TileDB-Py/issues/277
+            tiledb.open(uri, 'r', attr='the-missing-attr')
+
     @unittest.skipIf(platform.system() == 'Windows' or \
                      sys.version_info < (3,2), "")
     def test_ctx_thread_cleanup(self):
