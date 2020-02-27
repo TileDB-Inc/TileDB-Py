@@ -9,9 +9,11 @@
 - Added support for `read_csv` to read the input file from a TileDB VFS [#275](https://github.com/TileDB-Inc/TileDB-Py/pull/275)
 
 ## Bug fixes
+- Fixed accessing domain dimension by name (`domain.dim('dim name')`) [#271](https://github.com/TileDB-Inc/TileDB-Py/pull/271)
 - Fixed a number of bugs in the FileIO class, to allow using as input to other libraries which accept
   a file-like object (e.g. pandas readers) [#273](https://github.com/TileDB-Inc/TileDB-Py/pull/273)
-- Fixed accessing domain dimension by name (`domain.dim('dim name')`) [#271](https://github.com/TileDB-Inc/TileDB-Py/pull/271)
+- Fixed bug in tiledb.open path when attribute name does not exist [#277](https://github.com/TileDB-Inc/TileDB-Py/pull/277)
+
 
 # TileDB-Py 0.5.6 Release Notes
 

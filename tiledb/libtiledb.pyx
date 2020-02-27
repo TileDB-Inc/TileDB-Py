@@ -3252,14 +3252,14 @@ cdef class Array(object):
         # ctx
         cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
         # array
-        cdef ArrayPtr tmp_array
-        cdef tiledb_array_t* array_ptr = NULL
+        cdef ArrayPtr preload_ptr
 
         if not self._isopen:
-            tmp_array = preload_array(uri, mode, key, timestamp, ctx)
-            array_ptr =  tmp_array.ptr
-        else:
-            array_ptr = self.ptr
+            preload_ptr = preload_array(uri, mode, key, timestamp, ctx)
+            self.ptr =  preload_ptr.ptr
+
+        assert self.ptr != NULL, "internal error: unexpected null tiledb_array_t pointer in Array.__init__"
+        cdef tiledb_array_t* array_ptr = self.ptr
 
         cdef ArraySchema schema
         cdef tiledb_array_schema_t* array_schema_ptr = NULL
@@ -3271,13 +3271,16 @@ cdef class Array(object):
               _raise_ctx_err(ctx_ptr, rc)
             schema = ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
         except:
+            tiledb_array_close(ctx_ptr, array_ptr)
             tiledb_array_free(&array_ptr)
+            self.ptr = NULL
             raise
 
         # view on a single attribute
         if attr and not any(attr == schema.attr(i).name for i in range(schema.nattr)):
             tiledb_array_close(ctx_ptr, array_ptr)
             tiledb_array_free(&array_ptr)
+            self.ptr = NULL
             raise KeyError("No attribute matching '{}'".format(attr))
         else:
             self.view_attr = unicode(attr) if (attr is not None) else None
@@ -3287,7 +3290,6 @@ cdef class Array(object):
         self.mode = unicode(mode)
         self.schema = schema
         self.key = key
-        self.ptr = array_ptr
         self.domain_index = DomainIndexer(self)
 
         # Delayed to avoid circular import
