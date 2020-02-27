@@ -1220,6 +1220,23 @@ class DenseArrayTest(DiskTestCase):
             self.assertTrue(t_w1 > 0)
             self.assertTrue(t_w2 > 0)
 
+    def test_missing_schema_error(self):
+        uri = self.path("test_missing_schema_error")
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64, ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(ctx=ctx, dtype=np.int64)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode='w', ctx=ctx) as T:
+            T[:] = np.arange(0, 10, dtype=np.int64)
+
+        tiledb.VFS().remove_file(os.path.join(uri, "__array_schema.tdb"))
+
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.DenseArray(uri)
+
 
 class DenseVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
