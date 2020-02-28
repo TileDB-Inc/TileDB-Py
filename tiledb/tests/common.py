@@ -119,8 +119,12 @@ def intspace(start, stop, num=50, dtype=np.int64):
     :return:
     """
     rval = np.zeros(num, dtype=dtype)
-    step = (stop-start)//num
+    step = (stop-start) // num
     nextval = start
+
+    if np.issubdtype(dtype, np.integer) and step < 1:
+      raise ValueError("Cannot use non-integral step value '{}' for integer dtype!".format(
+                      step))
 
     for i in range(num):
         rval[i] = nextval
