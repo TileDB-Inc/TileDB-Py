@@ -646,7 +646,7 @@ cdef class Config(object):
         return "\n".join(output)
 
     def items(self, prefix=u""):
-        """Returns an iterator object over Config paramters, values
+        """Returns an iterator object over Config parameters, values
 
         :param str prefix: return only parameters with a given prefix
         :rtype: ConfigItems
@@ -4466,11 +4466,21 @@ cdef class SparseArrayImpl(Array):
         for (k, v) in dict(val).items():
             attr = self.attr(k)
             name = attr.name
-            if attr.isvar:
-                # ensure that the value is array-convertible, for example: pandas.Series
-                v = np.asarray(v)
-            else:
-                v = np.ascontiguousarray(v, dtype=attr.dtype)
+
+            try:
+                if attr.isvar:
+                    # ensure that the value is array-convertible, for example: pandas.Series
+                    v = np.asarray(v)
+                else:
+                    if (np.issubdtype(attr.dtype, np.string_) and not
+                        (np.issubdtype(v.dtype, np.string_) or v.dtype == np.dtype('O'))):
+                        raise ValueError("Cannot write a string value to non-string "
+                                         "typed attribute '{}'!".format(name))
+
+                    v = np.ascontiguousarray(v, dtype=attr.dtype)
+            except Exception as exc:
+                raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
+
             if v.size != ncells:
                 raise ValueError("value length ({}) does not match "
                                  "coordinate length ({})".format(v.size, ncells))
