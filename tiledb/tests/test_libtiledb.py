@@ -1708,6 +1708,7 @@ class SparseArray(DiskTestCase):
             self.assertEqual(("coords" in res), False)
 
     def test_sparse_fixes(self):
+        uri = self.path("test_sparse_fixes")
         # indexing a 1 element item in a sparse array
         # (issue directly reported)
         # the test here is that the indexing does not raise
@@ -1716,12 +1717,29 @@ class SparseArray(DiskTestCase):
                 tiledb.Dim('bar', ctx=ctx, domain=(0, 6), tile=1),
                 tiledb.Dim('baz', ctx=ctx, domain=(0, 100), tile=1))
         dom = tiledb.Domain(*dims, ctx=ctx)
-        att = tiledb.Attr(ctx=ctx, dtype='S1')
+        att = tiledb.Attr(name="strattr", ctx=ctx, dtype='S1')
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,),
                                     sparse=True)
-        tiledb.SparseArray.create(self.path('foo'), schema)
-        with tiledb.SparseArray(self.path('foo')) as T:
+        tiledb.SparseArray.create(uri, schema)
+        with tiledb.SparseArray(uri) as T:
             T[:]
+
+        # - test that assigning incompatible value to fixed-len str raises error
+        # - test that value-conversion error raises exception w/ attr name context
+        c = np.vstack(list((x,y,z) for x in range(7) for y in range(7) for z in range(101)))
+        with tiledb.SparseArray(uri, 'w') as T:
+            with self.assertRaises(ValueError):
+                T[c[:,0],c[:,1],c[:,2]] = {'strattr': np.random.rand(7,7,101)}
+            save_exc = list()
+            try:
+                T[c[:,0],c[:,1],c[:,2]] = {'strattr': np.random.rand(7,7,101)}
+            except ValueError as e:
+                save_exc.append(e)
+            exc = save_exc.pop()
+            if (sys.version_info > (3,3)):
+                self.assertEqual(str(exc.__context__),
+                                 "Cannot write a string value to non-string typed attribute 'strattr'!")
+
 
     def test_sparse_2d_varlen_int(self):
         path = self.path('test_sparse_2d_varlen_int')
