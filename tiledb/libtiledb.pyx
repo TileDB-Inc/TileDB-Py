@@ -2076,7 +2076,7 @@ cdef class Attr(object):
 
 
     def __repr__(self):
-        return f"""Attr(name={repr(self.name)}, dtype={self.dtype!s})"""
+        return f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}')"""
 
 
 cdef class Dim(object):
@@ -2171,7 +2171,7 @@ cdef class Dim(object):
         self.ptr = dim_ptr
 
     def __repr__(self):
-        return 'Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype={3!s})' \
+        return "Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype='{3!s}')" \
             .format(self.name, self.domain, self.tile, self.dtype)
 
     def __len__(self):

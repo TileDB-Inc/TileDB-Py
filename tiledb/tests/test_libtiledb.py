@@ -2632,7 +2632,7 @@ class ReprTest(unittest.TestCase):
     def test_attr_repr(self):
         attr = tiledb.Attr(name="itsanattr", dtype=np.float64)
         self.assertTrue(
-            re.match(r"Attr\(name=[u]?'itsanattr', dtype=float64\)",
+            re.match(r"Attr\(name=[u]?'itsanattr', dtype='float64'\)",
                      repr(attr))
         )
 
@@ -2655,8 +2655,7 @@ class ReprTest(unittest.TestCase):
         schema_repr = repr(orig_schema)
         g = dict()
         setup = ("from tiledb import ArraySchema, Domain, Attr, Dim\n"
-                 "import numpy as np\n"
-                 "from numpy import uint64, float64\n")
+                 "import numpy as np\n")
 
         exec(setup, g)
         new_schema = eval(schema_repr, g)
