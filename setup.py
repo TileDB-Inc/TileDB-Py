@@ -465,8 +465,8 @@ if TILEDB_PATH != '' and TILEDB_PATH != 'source':
     if sys.platform == 'darwin':
         LFLAGS += ['-Wl,-rpath,{}'.format(p) for p in LIB_DIRS]
 
-with open('README.rst') as f:
-    README_RST = f.read()
+with open('README.md') as f:
+    README_MD = f.read()
 
 # Source files for build
 MODULAR_SOURCES = [
@@ -550,7 +550,7 @@ ext_attr_update('cython_compile_time_env', {'TILEDBPY_MODULAR': TILEDBPY_MODULAR
 setup(
     name='tiledb',
     description="Pythonic interface to the TileDB array storage manager",
-    long_description=README_RST,
+    long_description=README_MD,
     author='TileDB, Inc.',
     author_email='help@tiledb.io',
     maintainer='TileDB, Inc.',
