@@ -176,6 +176,7 @@ def build_libtiledb(src_dir):
                     "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
                     "-DTILEDB_INSTALL_LIBDIR=lib",
                     "-DTILEDB_CPP_API=OFF",
+                    "-DTILEDB_LOG_OUTPUT_ON_FAILURE=ON",
                     "-DTILEDB_FORCE_ALL_DEPS:BOOL={}".format("ON" if TILEDB_FORCE_ALL_DEPS else "OFF"),
                     "-DTILEDB_SERIALIZATION:BOOL={}".format("ON" if TILEDB_SERIALIZATION else "OFF")
                     ]
