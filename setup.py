@@ -1,5 +1,6 @@
 from __future__ import absolute_import, print_function
 
+import ctypes
 import multiprocessing
 import os
 import shutil
@@ -289,12 +290,32 @@ def find_or_install_libtiledb(setuptools_cmd):
         tiledb_ext.library_dirs += [os.path.join(install_dir, lib_subdir)]
         tiledb_ext.include_dirs += [os.path.join(install_dir, "include")]
         # Update package_data so the shared object gets installed with the Python module.
-        libtiledb_objects = [os.path.join(native_subdir, libname) for libname in libtiledb_library_names()]
+        libtiledb_objects = [os.path.join(native_subdir, libname)
+                             for libname in libtiledb_library_names()]
+
+        # Make sure the built library is usable
+        for shared_obj in libtiledb_objects:
+            if is_windows(): continue
+            test_path = os.path.join(TILEDB_PKG_DIR, shared_obj)
+            # should only ever be 1, not sure why libtiledb_library_names -> List
+            try:
+                ctypes.CDLL(test_path)
+            except:
+                print("\n-------------------")
+                print("Failed to load shared library: {}".format(test_path))
+                print("-------------------\n")
+                raise
+
+        # This needs to be a glob in order to pick up the versioned SO
+        libtiledb_objects = [so + '*' for so in libtiledb_objects]
+
         if is_windows():
             libtiledb_objects.extend(
                 [os.path.join(native_subdir, libname) for libname in
                               ["tiledb.lib", "tbb.dll", "tbb.lib"]])
+        print("\n-------------------")
         print("libtiledb_objects: ", libtiledb_objects)
+        print("-------------------\n")
         setuptools_cmd.distribution.package_data.update({"tiledb": libtiledb_objects})
 
 
