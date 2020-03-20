@@ -1,7 +1,11 @@
-# In progress
+# TileDB-Py 0.5.7 Release Notes
 
-## Improvements
-- added support for multi-valued (homogeneous) metadata [#226](https://github.com/TileDB-Inc/TileDB-Py/pull/226)
+* Bump release target to [TileDB 1.7.6](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.6)
+
+
+# TileDB-Py 0.5.6 Release Notes
+
+* Bump release target to [TileDB 1.7.5](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.5)
 
 # TileDB-Py 0.5.5 Release Notes
 
