@@ -1,4 +1,4 @@
-# In progress
+# In Progress
 
 ## Improvements
 - Added dataframe and CSV helper functions [#269](https://github.com/TileDB-Inc/TileDB-Py/pull/269)
@@ -14,6 +14,15 @@
   a file-like object (e.g. pandas readers) [#273](https://github.com/TileDB-Inc/TileDB-Py/pull/273)
 - Fixed bug in tiledb.open path when attribute name does not exist [#277](https://github.com/TileDB-Inc/TileDB-Py/pull/277)
 
+# TileDB-Py 0.5.7 Release Notes
+
+## Improvements
+
+- Bump release target to [TileDB 1.7.6](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.6)
+
+## Bug fixes
+
+- Fix bug writing zero-length string (#291)(https://github.com/TileDB-Inc/TileDB-Py/pull/291)
 
 # TileDB-Py 0.5.6 Release Notes
 
