@@ -1,9 +1,10 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.5.6
-    LIBTILEDB_VERSION: v1.7.5
-    LIBTILEDB_SHA: 84d7d33454809ef76b1b41592fb602d64d568a6fbb78da1d381116d98a568cdc
+    TILEDBPY_VERSION: 0.5.7
+    LIBTILEDB_VERSION: 1.7.6
+    LIBTILEDB_SHA: 11f4f597ba9aac47be7802877b15cffbb5464816
+    SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     CIBW_SKIP: cp35-*
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-'))
 
@@ -11,7 +12,7 @@ stages:
 
   - job:
     pool:
-      vmImage: 'macOS-10.13'
+      vmImage: 'macOS-10.14'
     variables:
       #cibw_test_command: "cd {project}/tiledb/tests && pytest"
       cibw_test_requires: "pytest"
@@ -26,10 +27,9 @@ stages:
         export CIBW_ENVIRONMENT="TILEDB_PATH=${HOSTPREFIX}/${PIPELINE_WORKSPACE}/.libtiledb_dist/${LIBTILEDB_SHA} SETUPTOOLS_SCM_PRETEND_VERSION=${TILEDBPY_VERSION}"
         cibuildwheel --output-dir wheelhouse .
       displayName: "Build and test wheels"
+    - template: azure-print-logs.yml
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}
-    - template: azure-print-logs.yml
-
 
 #  - job: sdist
 #    displayName: "Make sdist bundle"
