@@ -1,14 +1,14 @@
 steps:
-- task: Cache@2
-  inputs:
-    key: 'libtiledb | "$(Agent.OS)" | "$(LIBTILEDB_SHA)" | v3'
-    path: $(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)
-    cacheHitVar: LIBTILEDB_CACHE_RESTORED
-
-- bash: |
-    find $PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}
-  condition: eq(variables.LIBTILEDB_CACHE_RESTORED, 'true')
-  displayName: "Print files restored from cache"
+  #- task: Cache@2
+  #  inputs:
+  #    key: 'libtiledb | "$(Agent.OS)" "$(imageName)" | "$(LIBTILEDB_SHA)" | v4'
+  #    path: $(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)
+  #    cacheHitVar: LIBTILEDB_CACHE_RESTORED
+  #
+  #- bash: |
+  #    find $PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}
+  #  condition: eq(variables.LIBTILEDB_CACHE_RESTORED, 'true')
+  #  displayName: "Print files restored from cache"
 
 - bash: |
     set -xe pipefail
