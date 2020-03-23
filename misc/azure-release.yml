@@ -11,7 +11,7 @@ stages:
 
   - job:
     pool:
-      vmImage: 'macOS-10.13'
+      vmImage: 'macOS-10.14'
     variables:
       #cibw_test_command: "cd {project}/tiledb/tests && pytest"
       cibw_test_requires: "pytest"
