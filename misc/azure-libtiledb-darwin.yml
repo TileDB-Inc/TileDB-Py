@@ -18,6 +18,7 @@ steps:
     # Darwin
     INSTALL=$PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}
     SRC=$BUILD_REPOSITORY_LOCALPATH/tiledb_src
+    export MACOSX_DEPLOYMENT_TARGET=10.9
 
     git clone https://github.com/TileDB-Inc/TileDB $SRC
     git -C $SRC checkout $LIBTILEDB_VERSION
