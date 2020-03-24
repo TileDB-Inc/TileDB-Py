@@ -105,7 +105,11 @@ def array_to_buffer(object val):
             el_buffer_size = len(utf8)
         else:
             el_buffer_size = el_size * len(item)
-        assert(el_buffer_size > 0)
+
+        if (el_buffer_size == 0) and (
+                (firstdtype == np.bytes_) or
+                (firstdtype == np.unicode_)):
+            el_buffer_size = 1
 
         # *running total* buffer size
         buffer_size += el_buffer_size
