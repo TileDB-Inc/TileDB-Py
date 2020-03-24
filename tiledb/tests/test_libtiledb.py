@@ -1102,7 +1102,7 @@ class DenseArrayTest(DiskTestCase):
 
     def test_array_2d_s1(self):
         # This array is currently read back with dtype object
-        A = np.array([['A', 'B'], ['A', 'B']], dtype='S')
+        A = np.array([['A', 'B'], ['C', '']], dtype='S')
 
         uri = self.path("varlen_2d_s1")
         ctx = tiledb.Ctx()
@@ -1211,7 +1211,7 @@ class DenseVarlen(DiskTestCase):
     def test_varlen_write_unicode(self):
         A = np.array(['aa','bbb',
                       'ccccc','ddddddddddddddddddddd',
-                      'ee','ffffff','g','hhhhhhhhhh'], dtype=np.unicode_)
+                      'ee','ffffff','g','','hhhhhhhhhh'], dtype=np.unicode_)
 
         # basic write
         ctx = tiledb.Ctx()
@@ -1642,10 +1642,10 @@ class SparseArray(DiskTestCase):
             self.assertIsNone(T.nonempty_domain())
 
         A = np_array = np.array([u'1234545lkjalsdfj', u'mnopqrs', u'ijkl', u'gh', u'abcdef',
-                                 u'aαbββcγγγdδδδδ', u'aαbββc', u'γγγdδδδδ'], dtype=object)
+                                 u'aαbββcγγγdδδδδ', u'aαbββc', u'', u'γγγdδδδδ'], dtype=object)
 
         with tiledb.SparseArray(self.path("foo"), mode='w', ctx=ctx) as T:
-            T[[3, 4, 5, 6, 7, 50, 60, 100]] = A
+            T[[3, 4, 5, 6, 7, 50, 60, 70, 100]] = A
 
         with tiledb.SparseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             self.assertEqual(((3, 100),), T.nonempty_domain())
@@ -2163,7 +2163,7 @@ class NumpyToArray(DiskTestCase):
             assert_array_equal(arr[:], np_array)
 
     def test_bytes_to_array1d(self):
-        np_array = np.array([b'abcdef', b'gh', b'ijkl', b'mnopqrs', b'1234545lkjalsdfj'], dtype=object)
+        np_array = np.array([b'abcdef', b'gh', b'ijkl', b'mnopqrs', b'', b'1234545lkjalsdfj'], dtype=object)
         with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
@@ -2172,7 +2172,7 @@ class NumpyToArray(DiskTestCase):
 
     def test_unicode_to_array1d(self):
         np_array = np.array(['1234545lkjalsdfj', 'mnopqrs', 'ijkl', 'gh', 'abcdef',
-                             'aαbββcγγγdδδδδ', '"aαbββc', 'γγγdδδδδ'], dtype=object)
+                             'aαbββcγγγdδδδδ', '"aαbββc', '', 'γγγdδδδδ'], dtype=object)
         with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 

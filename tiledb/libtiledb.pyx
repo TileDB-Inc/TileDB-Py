@@ -3514,6 +3514,15 @@ cdef class Array(object):
                         el_ptr,
                         0, <object> NULL))
 
+            # handle empty string case
+            if (<char*>(el_ptr[0]) == NULL and el_bytelen == 1):
+                if el_dtype == np.unicode_:
+                    newobj = u''
+                elif el_dtype == np.bytes_:
+                    newobj = b''
+                else:
+                    raise ValueError("Unexpected non-string variable length item with length zero")
+
             # set the output object
             out_flat[el] = newobj
             # increment
