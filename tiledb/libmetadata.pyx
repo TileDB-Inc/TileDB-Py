@@ -264,7 +264,12 @@ cdef object get_metadata(array: Array,
     if (value == NULL):
         if value_num == 1:
             # in this case, the key exists with empty value
-            return ()
+            if value_type == TILEDB_CHAR:
+                return b''
+            elif value_type == TILEDB_STRING_UTF8:
+                return u''
+            else:
+                return ()
         raise KeyError(key)
 
     return unpack_metadata_val(value_type, value_num, value)
@@ -322,8 +327,10 @@ cdef object load_metadata(Array array, unpack=True):
         if not unpack:
             ret_val.append(key)
         else:
+            # TODO change this after TileDB 1.8 fix
+            # in this case, the key might exist with empty value
             if value_num == 0:
-                unpacked_val = ()
+                unpacked_val = array.meta[key]
             else:
                 unpacked_val = unpack_metadata_val(value_type, value_num, value)
 

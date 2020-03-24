@@ -59,6 +59,7 @@ class MetadataTest(DiskTestCase):
             'double': 1.000001212,
             'bytes': b"0123456789abcdeF0123456789abcdeF",
             'str': "abcdefghijklmnopqrstuvwxyz",
+            'emptystr': "",
             'tuple_int': (1,2,3,2,1, int(np.random.randint(0,10000,1)[0]) ),
             'list_int': [1,2,3,2,1, int(np.random.randint(0,10000,1)[0]) ],
             'tuple_float': (10.0, 11.0, float(np.random.rand(1)[0]) ),
