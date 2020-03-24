@@ -59,28 +59,27 @@ cdef PackedBuffer pack_metadata_val(value):
         char[:] buf_view
         object value_item
 
-    val0 = value[0]
 
-    # NOTE: string types must
-    #       - not check val0: it is a char
-    #       - be checked first, for the same reason
+    # NOTE: string types must not check val0: it is a char
     if isinstance(value, unicode):
         value = value.encode('UTF-8')
         tiledb_type = TILEDB_STRING_UTF8
     elif isinstance(value, bytes):
         tiledb_type = TILEDB_CHAR
-    elif isinstance(val0, int):
-        tiledb_type = TILEDB_INT64
-    elif isinstance(val0, long):
-        tiledb_type = TILEDB_INT64
-    elif isinstance(val0, float):
-        # Note: all python floats are doubles
-        tiledb_type = TILEDB_FLOAT64
-    elif isinstance(value, np.ndarray):
-        # TODO support np.array as metadata with type tag
-        raise ValueError("Unsupported type: numpy array")
     else:
-        raise ValueError("Unsupported item type '{}'".format(type(value)))
+        val0 = value[0]
+        if isinstance(val0, int):
+            tiledb_type = TILEDB_INT64
+        elif isinstance(val0, long):
+            tiledb_type = TILEDB_INT64
+        elif isinstance(val0, float):
+            # Note: all python floats are doubles
+            tiledb_type = TILEDB_FLOAT64
+        elif isinstance(value, np.ndarray):
+            # TODO support np.array as metadata with type tag
+            raise ValueError("Unsupported type: numpy array")
+        else:
+            raise ValueError("Unsupported item type '{}'".format(type(value)))
 
     value_len = len(value)
     itemsize = tiledb_datatype_size(tiledb_type)
@@ -187,11 +186,6 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
 def put_metadata(Array array,
                  key, value):
 
-    # TODO ?
-    #if not (isinstance(key, str) or isinstance(key, unicode)):
-    #    raise ValueError("Unexpected key type '{}': expected str "
-    #                     "type".format(type(key)))
-
     cdef tiledb_array_t* array_ptr = array.ptr
     cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
 
@@ -199,6 +193,7 @@ def put_metadata(Array array,
     cdef bytes key_utf8
     cdef const char* key_ptr
     cdef tiledb_datatype_t ret_type
+    cdef tiledb_datatype_t ttype
     cdef PackedBuffer packed_buf
     cdef const unsigned char[:] data_view
     cdef const void* data_ptr
@@ -206,10 +201,16 @@ def put_metadata(Array array,
     key_utf8 = key.encode('UTF-8')
     key_ptr = PyBytes_AS_STRING(key_utf8)
 
-    if isinstance(value, tuple) and len(value) == 0:
+    if (isinstance(value, (bytes, unicode)) or isinstance(value, tuple))\
+            and len(value) == 0:
         # special case for empty values
-        packed_buf = PackedBuffer(b'', TILEDB_INT32, 0)
-        data_ptr = NULL
+        if isinstance(value, bytes):
+            ttype = TILEDB_CHAR
+        elif isinstance(value, unicode):
+            ttype = TILEDB_STRING_UTF8
+        else:
+            ttype = TILEDB_INT32
+        packed_buf = PackedBuffer(b'', ttype, 0)
     else:
         packed_buf = pack_metadata_val(value)
         if (len(packed_buf.data) < 1):
