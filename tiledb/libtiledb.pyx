@@ -2397,11 +2397,6 @@ cdef class Domain(object):
         if ndim == 0:
             raise TileDBError("Domain must have ndim >= 1")
         cdef Dim dimension = dims[0]
-        cdef tiledb_datatype_t domain_type = dimension._get_type()
-        for i in range(1, ndim):
-            dimension = dims[i]
-            if dimension._get_type() != domain_type:
-                raise TypeError("all dimensions must have the same dtype")
 
         if (ndim > 1):
             if all(dim.name == '__dim_0' for dim in dims):
@@ -5646,3 +5641,17 @@ class FileIO(io.RawIOBase):
         self._nbytes += nbytes
         self._offset += nbytes
         return nbytes
+
+def vacuum(array_uri, Config config=None, Ctx ctx=None):
+    cdef tiledb_ctx_t* ctx_ptr = NULL
+    cdef tiledb_config_t* config_ptr = NULL
+
+    if not ctx:
+        ctx = default_ctx()
+
+    ctx_ptr = ctx.ptr
+    config_ptr = config.ptr if config is not None else NULL
+    cdef bytes buri = unicode_path(array_uri)
+    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+
+    tiledb_array_vacuum(ctx_ptr, uri_ptr, config_ptr)

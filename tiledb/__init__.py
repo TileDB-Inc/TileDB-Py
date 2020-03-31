@@ -61,6 +61,7 @@ from .libtiledb import (
      stats_disable,
      stats_reset,
      stats_dump,
+     vacuum
 )
 
 from .array import DenseArray, SparseArray
