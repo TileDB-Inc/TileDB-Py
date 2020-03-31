@@ -188,7 +188,7 @@ class DimensionTest(unittest.TestCase):
     def test_minimal_dimension(self):
         ctx = tiledb.Ctx()
         dim = tiledb.Dim(domain=(0, 4), tile=5, ctx=ctx)
-        self.assertEqual(dim.name, "", "dimension name is empty")
+        self.assertEqual(dim.name, "__dim_0", "automatic dimension name is incorrect")
         self.assertEqual(dim.shape, (5,))
         self.assertEqual(dim.tile, 5)
 
@@ -273,6 +273,12 @@ class DomainTest(unittest.TestCase):
         dom = tiledb.Domain(dim)
         self.assertEqual(dom.dtype, np.datetime64('', 'D'))
 
+    def test_domain_mixed_names_error(self):
+        ctx = tiledb.Ctx()
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Domain(
+                tiledb.Dim("d1", (1, 4), 2, dtype='u8'),
+                tiledb.Dim("__dim_0", (1, 4), 2, dtype='u8'))
 
 class AttributeTest(unittest.TestCase):
 
@@ -441,14 +447,14 @@ class ArraySchemaTest(unittest.TestCase):
         ctx = tiledb.Ctx()
 
         # create dimensions
-        d1 = tiledb.Dim("", domain=(1, 1000), tile=10, dtype="uint64", ctx=ctx)
+        d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64", ctx=ctx)
         d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64", ctx=ctx)
 
         # create domain
         domain = tiledb.Domain(d1, d2, ctx=ctx)
 
         # create attributes
-        a1 = tiledb.Attr("", dtype="int32,int32,int32", ctx=ctx)
+        a1 = tiledb.Attr("a1", dtype="int32,int32,int32", ctx=ctx)
         a2 = tiledb.Attr("a2",
                          filters=tiledb.FilterList([tiledb.GzipFilter(-1, ctx=ctx)], ctx=ctx),
                          dtype="float32", ctx=ctx)
@@ -502,14 +508,14 @@ class ArraySchemaTest(unittest.TestCase):
         ctx = tiledb.Ctx()
 
         # create dimensions
-        d1 = tiledb.Dim("", domain=(1, 1000), tile=10, dtype="uint64", ctx=ctx)
+        d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64", ctx=ctx)
         d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64", ctx=ctx)
 
         # create domain
         domain = tiledb.Domain(d1, d2, ctx=ctx)
 
         # create attributes
-        a1 = tiledb.Attr("", dtype="int32,int32,int32", ctx=ctx)
+        a1 = tiledb.Attr("a1", dtype="int32,int32,int32", ctx=ctx)
         #a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="float32")
         filter_list = tiledb.FilterList([tiledb.GzipFilter(ctx=ctx)], ctx=ctx)
         a2 = tiledb.Attr("a2", filters=filter_list, dtype="float32", ctx=ctx)

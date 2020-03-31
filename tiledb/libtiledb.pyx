@@ -158,7 +158,7 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kw):
             # domain is based on full shape
             tile_extent = tiling[d] if tiling else shape[d]
             domain = (0, shape[d] - 1)
-            dims.append(Dim("", domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
+            dims.append(Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
 
         att = Attr(dtype=dtype, ctx=ctx)
         dom = Domain(*dims, ctx=ctx)
@@ -180,12 +180,12 @@ def schema_like_numpy(array, ctx=None, **kw):
     attr_name = kw.pop('attr_name', '')
     dim_dtype = kw.pop('dim_dtype', np.uint64)
     dims = []
-    for d in range(array.ndim):
+    for (dim_num,d) in enumerate(range(array.ndim)):
         # support smaller tile extents by kw
         # domain is based on full shape
         tile_extent = tiling[d] if tiling else array.shape[d]
         domain = (0, array.shape[d] - 1)
-        dims.append(Dim("", domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
+        dims.append(Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
 
     var = False
     if array.dtype == np.object:
@@ -2114,7 +2114,7 @@ cdef class Dim(object):
         dim.ptr = <tiledb_dimension_t*> ptr
         return dim
 
-    def __init__(self, name=u"", domain=None, tile=None, dtype=np.uint64, Ctx ctx=None):
+    def __init__(self, name=u"__dim_0", domain=None, tile=None, dtype=np.uint64, Ctx ctx=None):
         if not ctx:
             ctx = default_ctx()
         if domain is None or len(domain) != 2:
@@ -2344,6 +2344,9 @@ cdef class Dim(object):
         return domain_array[0], domain_array[1]
 
 
+def clone_dim_with_name(Dim dim, name):
+    return Dim(name=name, domain=dim.domain, tile=dim.tile, dtype=dim.dtype, ctx=dim.ctx)
+
 cdef class Domain(object):
     """Class representing the domain of a TileDB Array.
 
@@ -2399,6 +2402,14 @@ cdef class Domain(object):
             dimension = dims[i]
             if dimension._get_type() != domain_type:
                 raise TypeError("all dimensions must have the same dtype")
+
+        if (ndim > 1):
+            if all(dim.name == '__dim_0' for dim in dims):
+                # rename anonymous dimensions sequentially
+                dims = [clone_dim_with_name(dims[i], name=f'__dim_{i}') for i in range(ndim)]
+            elif any(dim.name.startswith('__dim_0') for dim in dims[1:]):
+                raise TileDBError("Mixed dimension naming: dimensions must be either all anonymous or all named.")
+
         cdef tiledb_domain_t* domain_ptr = NULL
         cdef int rc = tiledb_domain_alloc(ctx.ptr, &domain_ptr)
         if rc != TILEDB_OK:
