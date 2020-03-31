@@ -838,6 +838,11 @@ cdef extern from "tiledb/tiledb.h":
         uint64_t* buffer_off_size,
         uint64_t* buffer_val_size) nogil
 
+    int tiledb_array_vacuum(
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
+        tiledb_config_t* config) nogil
+
     # Resource management
     int tiledb_object_type(
         tiledb_ctx_t* ctx,

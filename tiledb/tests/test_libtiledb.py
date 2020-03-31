@@ -260,12 +260,6 @@ class DomainTest(unittest.TestCase):
         dim_d1 = dom.dim("d1")
         self.assertEqual(dim_d1, dom.dim(0))
 
-    def test_domain_dims_not_same_type(self):
-        with self.assertRaises(TypeError):
-            tiledb.Domain(
-                    tiledb.Dim("d1", (1, 4), 2, dtype=int),
-                    tiledb.Dim("d2", (1, 4), 2, dtype=float))
-
     def test_datetime_domain(self):
         ctx = tiledb.Ctx()
         dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
@@ -2474,6 +2468,30 @@ class VFS(DiskTestCase):
                 'file://' + os.path.join(basepath, x)) for x in expected),
             set(os.path.normpath(x) for x in vfs.ls(basepath))
         )
+
+class ConsolidationTest(DiskTestCase):
+
+    def test_array_vacuum(self):
+        ctx = tiledb.Ctx()
+        vfs = tiledb.VFS(ctx=ctx)
+        path = self.path("test_array_vacuum")
+
+        dshape = (0, 19)
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=dshape, tile=3), ctx=ctx)
+        att = tiledb.Attr(ctx=ctx, dtype='int64')
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        tiledb.libtiledb.Array.create(path, schema)
+
+        for i in range(*dshape):
+            with tiledb.open(path, 'w') as A:
+                A[i:dshape[1]] = np.random.rand(dshape[1] - i)
+
+        paths = vfs.ls(path)
+        self.assertEqual(len(paths), 2 * dshape[1] + 3)
+
+        tiledb.consolidate(path, ctx=ctx)
+        tiledb.vacuum(path, ctx=ctx)
+        self.assertEqual(len(paths), 2 * dshape[1] + 3)
 
 class MemoryTest(DiskTestCase):
     # sanity check that memory usage doesn't increase more than 2x when reading 40MB 100x
