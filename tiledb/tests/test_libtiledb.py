@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-import sys, os, io, re, platform, unittest, random
+import sys, os, io, re, platform, unittest, random, tempfile
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -391,7 +391,7 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(len(attr.filters), 1)
 
 
-class ArraySchemaTest(unittest.TestCase):
+class ArraySchemaTest(DiskTestCase):
 
     def test_unique_attributes(self):
         ctx = tiledb.Ctx()
@@ -550,6 +550,47 @@ class ArraySchemaTest(unittest.TestCase):
                                     ctx=ctx)
         self.assertEqual(len(schema2.coords_filters), 1)
         self.assertEqual(len(schema2.offsets_filters), 1)
+
+
+    def test_attr_names(self):
+        print("Starting attr/dim name test")
+        test_chars = "[]()^ #%&!@:;,+={}'~`.-_"
+
+        def test_name(attr_name, dim_name):
+            path = self.path(attr_name + "_array")
+            ctx = tiledb.default_ctx()
+            dims = [
+                tiledb.Dim(name=dim_name, ctx=ctx, domain=(0,9), tile=10, dtype=np.uint64)
+            ]
+            dom = tiledb.Domain(*dims)
+            attrs = [
+                tiledb.Attr(name=attr_name, dtype=np.float64, ctx=ctx)
+            ]
+
+            schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+            tiledb.SparseArray.create(path, schema, ctx=ctx)
+
+            data = [np.random.rand(10) for _ in range(3)]
+            for d in data:
+                with tiledb.open(path, 'w') as A:
+                    A[np.arange(0,10)] = d
+
+            tiledb.consolidate(path)
+
+            with tiledb.open(path) as A_r:
+                assert_array_equal(A_r[:][attr_name], data[-1])
+
+            print("  attr/dim name test: ", "attr: '{}'".format(attr_name), "dim: '{}'".format(dim_name), "path: {}".format(path))
+
+        for c in test_chars:
+            name_list = [
+                c + u"묔闗삩",
+                u"y룬ꚓ鴘உ㊇" + c + u"⡔㫛_㽉組✋",
+                u"兛⛺थ,ἠ" + c
+            ]
+
+            for name in name_list:
+                test_name(name, 'dim_' + name)
 
 
 class ArrayTest(DiskTestCase):
@@ -1777,7 +1818,6 @@ class SparseArray(DiskTestCase):
                 res['coords'].view(dom.dim(0).dtype).reshape(-1, 2),
                 np.column_stack([c1, c2])
             )
-
 
 class DenseIndexing(DiskTestCase):
 
