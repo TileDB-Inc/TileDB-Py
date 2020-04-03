@@ -2669,22 +2669,23 @@ class ReprTest(unittest.TestCase):
 
     def test_arrayschema_repr(self):
         ctx = tiledb.default_ctx()
-        domain = tiledb.Domain(
-            tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
-            tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
-            ctx=ctx)
-        a1 = tiledb.Attr("val", dtype='f8', ctx=ctx)
-        orig_schema = tiledb.ArraySchema(domain=domain, attrs=(a1,), ctx=ctx)
+        for sparse in [False, True]:
+            domain = tiledb.Domain(
+                tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
+                tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
+                ctx=ctx)
+            a1 = tiledb.Attr("val", dtype='f8', ctx=ctx)
+            orig_schema = tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=sparse, ctx=ctx)
 
-        schema_repr = repr(orig_schema)
-        g = dict()
-        setup = ("from tiledb import ArraySchema, Domain, Attr, Dim\n"
-                 "import numpy as np\n")
+            schema_repr = repr(orig_schema)
+            g = dict()
+            setup = ("from tiledb import ArraySchema, Domain, Attr, Dim\n"
+                     "import numpy as np\n")
 
-        exec(setup, g)
-        new_schema = eval(schema_repr, g)
+            exec(setup, g)
+            new_schema = eval(schema_repr, g)
 
-        self.assertEqual(new_schema, orig_schema)
+            self.assertEqual(new_schema, orig_schema)
 
 #if __name__ == '__main__':
 #    # run a single example for in-process debugging

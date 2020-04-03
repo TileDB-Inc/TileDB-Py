@@ -3059,6 +3059,7 @@ cdef class ArraySchema(object):
             f"  cell_order='{self.cell_order}',\n"
             f"  tile_order='{self.tile_order}'"
         )
+        output.write(f", sparse={self.sparse}")
         output.write(")\n")
         output.write("""# note: filters omitted""")
 
