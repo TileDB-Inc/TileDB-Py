@@ -30,8 +30,10 @@ ENV TILEDB_PY_VERSION 0.5.6
 # 3) Capnproto (TileDB Serialization) requeries -DKJ_USE_EPOLL=0 -D__BIONIC__=1 per
 #    https://github.com/capnproto/capnproto/issues/350#issuecomment-270930594
 
-ENV CXXFLAGS -Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1
-ENV CFLAGS -Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1
+ENV CFLAGS -Wno-unused-parameter
+ENV CXXFLAGS -Wno-unused-parameter
+ENV CPPFLAGS -DKJ_USE_EPOLL=0 -D__BIONIC__=1
+ENV LIBS -lrt
 
 # build libtiledb (core)
 # notes:
@@ -48,7 +50,7 @@ RUN cd /home/tiledb/ && \
   git -C TileDB checkout $TILEDB_VERSION && \
   mkdir build && \
   cd build && \
-  $CMAKE -DTILEDB_S3=ON -DTILEDB_CPP_API=OFF -DTILEDB_HDFS=ON -DTILEDB_TESTS=OFF \
+  $CMAKE -DTILEDB_S3=ON -DTILEDB_AZURE=ON -DTILEDB_GCS=ON -DTILEDB_CPP_API=OFF -DTILEDB_HDFS=ON -DTILEDB_TESTS=OFF \
          -DTILEDB_SERIALIZATION=ON -DTILEDB_FORCE_ALL_DEPS:BOOL=ON \
          -DTILEDB_LOG_OUTPUT_ON_FAILURE:BOOL=ON \
          -DSANITIZER="OFF;-DCOMPILER_SUPPORTS_AVX2:BOOL=FALSE" \
