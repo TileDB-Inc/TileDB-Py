@@ -14,6 +14,14 @@
   a file-like object (e.g. pandas readers) [#273](https://github.com/TileDB-Inc/TileDB-Py/pull/273)
 - Fixed bug in tiledb.open path when attribute name does not exist [#277](https://github.com/TileDB-Inc/TileDB-Py/pull/277)
 
+# TileDB-Py 0.5.9 Release Notes
+
+* Bump release target to [TileDB 1.7.7](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.7)
+
+# TileDB-Py 0.5.8 Release Notes
+
+* Rebuild/release due to wheel build error on linux for 0.5.7.
+
 # TileDB-Py 0.5.7 Release Notes
 
 ## Improvements
