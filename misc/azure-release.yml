@@ -1,32 +1,88 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.5.7
-    LIBTILEDB_VERSION: 1.7.6
-    LIBTILEDB_SHA: 11f4f597ba9aac47be7802877b15cffbb5464816
+    TILEDBPY_VERSION: 0.6.0
+    LIBTILEDB_VERSION: 2.0.0
+    LIBTILEDB_SHA: e12987374c87f4b7c44428be6e4b5b9ee2511aab
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
-    CIBW_SKIP: cp35-*
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-'))
 
   jobs:
 
   - job:
-    pool:
-      vmImage: 'macOS-10.14'
     variables:
       #cibw_test_command: "cd {project}/tiledb/tests && pytest"
       cibw_test_requires: "pytest"
+      TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
+      TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
+      TILEDB_INSTALL: '$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)'
+    strategy:
+      matrix:
+        #macOS:
+        #      imageName: 'macOS-10.14'
+        #  CIBW_SKIP: cp35-*
+        #  SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
+        windows:
+          imageName: 'vs2017-win2016'
+          CIBW_SKIP: 'cp27-* cp35-* cp36-* *-win32'
+    pool:
+      vmImage: $(imageName)
+
     steps:
-    - template: azure-libtiledb-darwin.yml
     - task: UsePythonVersion@0
+    - template: azure-libtiledb-darwin.yml
+
+    - bash: |
+        # Set the CIBW_ENVIRONMENT from bash in order to get forward slashes because somewhere in  the
+        # cmd/cibw/python chain we end up losing the slashes entirely if we use a job-level variable.
+        MPATH=$(python -c 'import os; print(os.environ["TILEDB_INSTALL"].replace("\\","/"))')
+        export CIBW_ENVIRONMENT="TILEDB_PATH=${MPATH} SETUPTOOLS_SCM_PRETEND_VERSION=0.6.1"
+        echo "##vso[task.setvariable variable=CIBW_ENVIRONMENT]$CIBW_ENVIRONMENT"
+      displayName: "Set CIBW_ENVIRONMENT"
+      condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
+
     - bash: |
         set -xe pipefail
+        git checkout $(TILEDBPY_VERSION)
+        python -m pip install --upgrade pip pytest cython
         python setup.py sdist --dist-dir wheelhouse
-        python -m pip install --upgrade pip
-        pip install cibuildwheel==1.1.0 pytest
-        export CIBW_ENVIRONMENT="TILEDB_PATH=${HOSTPREFIX}/${PIPELINE_WORKSPACE}/.libtiledb_dist/${LIBTILEDB_SHA} SETUPTOOLS_SCM_PRETEND_VERSION=${TILEDBPY_VERSION}"
+        pip install cibuildwheel==1.1.0
         cibuildwheel --output-dir wheelhouse .
-      displayName: "Build and test wheels"
+      displayName: "Build and test wheels (macOS)"
+      condition: and(succeeded(), ne(variables['Agent.OS'], 'Windows_NT'))
+
+    - script: |
+        echo ON
+        set "CIBW_BUILD_VERBOSITY=3"
+        set "TILEDB_WHEEL_BUILD=1"
+        echo "cibw env: "
+        echo "%CIBW_ENVIRONMENT%"
+        echo "tiledb_install: "
+        echo "%TILEDB_INSTALL%"
+        echo "%TILEDB_INSTALL%"
+        python -c "import os; print(os.environ['CIBW_ENVIRONMENT'])"
+        python -c "import platform; print('py compiler: ', platform.python_compiler())"
+        :: this runs under cmd on windows, which we need to use vcvarsall
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+        git checkout $(TILEDBPY_VERSION)
+        python -m pip install --upgrade pip pytest cython
+        python setup.py sdist --dist-dir wheelhouse
+        pip install cibuildwheel==1.1.0
+        cibuildwheel --output-dir wheelhouse .
+      displayName: "Build and test wheels (Windows)"
+      condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
+
+    - bash: |
+        set -x
+        echo "TILEDB_SRC -----------------------------------------"
+        find $TILEDB_SRC || true
+        echo "TILEDB_BUILD -----------------------------------------"
+        find $TILEDB_BUILD || true
+        echo "TILEDB_INSTALL -----------------------------------------"
+        find $TILEDB_INSTALL || true
+      displayName: "List all the files"
+      condition: always()
+
     - template: azure-print-logs.yml
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}
