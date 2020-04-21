@@ -35,7 +35,7 @@ stages:
         # Set the CIBW_ENVIRONMENT from bash in order to get forward slashes because somewhere in  the
         # cmd/cibw/python chain we end up losing the slashes entirely if we use a job-level variable.
         MPATH=$(python -c 'import os; print(os.environ["TILEDB_INSTALL"].replace("\\","/"))')
-        export CIBW_ENVIRONMENT="TILEDB_PATH=${MPATH} SETUPTOOLS_SCM_PRETEND_VERSION=0.5.10"
+        export CIBW_ENVIRONMENT="TILEDB_PATH=${MPATH} SETUPTOOLS_SCM_PRETEND_VERSION=0.5.9"
         echo "##vso[task.setvariable variable=CIBW_ENVIRONMENT]$CIBW_ENVIRONMENT"
       displayName: "Set CIBW_ENVIRONMENT"
       condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
