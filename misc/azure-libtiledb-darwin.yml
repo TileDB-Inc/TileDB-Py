@@ -1,7 +1,7 @@
 steps:
   #- task: Cache@2
   #  inputs:
-  #    key: 'libtiledb | "$(Agent.OS)" "$(imageName)" | "$(LIBTILEDB_SHA)" | v4'
+  #    key: 'libtiledb | "$(Agent.OS)" | "$(LIBTILEDB_SHA)" | v0'
   #    path: $(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)
   #    cacheHitVar: LIBTILEDB_CACHE_RESTORED
   #
@@ -12,40 +12,61 @@ steps:
 
 - bash: |
     set -xe pipefail
-
     unset SYSTEM
 
-    # Darwin
-    INSTALL=$PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}
-    SRC=$BUILD_REPOSITORY_LOCALPATH/tiledb_src
-    export MACOSX_DEPLOYMENT_TARGET=10.9
+    # Print cmake version
+    echo "CMake version:"
+    cmake --version
 
-    git clone https://github.com/TileDB-Inc/TileDB $SRC
-    git -C $SRC checkout $LIBTILEDB_VERSION
+    git clone https://github.com/TileDB-Inc/TileDB $TILEDB_SRC
+    git -C $(TILEDB_SRC) checkout $(LIBTILEDB_VERSION)
 
-    libtiledb_sha_actual=$(git -C $SRC show-ref -s $LIBTILEDB_VERSION)
-    if [[ "$libtiledb_sha_actual" -ne "$(LIBTILEDB_SHA)" ]]; then
+    libtiledb_sha_actual=$(git -C $TILEDB_SRC show-ref -s $LIBTILEDB_VERSION)
+    if [[ "$libtiledb_sha_actual" != "$(LIBTILEDB_SHA)" ]]; then
       echo "variable LIBTILEDB_SHA ('$LIBTILEDB_SHA') does not match SHA of LIBTILEDB_VERSION checkout ('$libtiledb_sha_actual')";
       exit 1;
     fi
 
-    mkdir -p $BUILD_REPOSITORY_LOCALPATH/tiledb-build
-    cd $BUILD_REPOSITORY_LOCALPATH/tiledb-build
+    mkdir -p $TILEDB_BUILD
+    cd $TILEDB_BUILD
 
-    $SRC/bootstrap --force-build-all-deps --enable=s3,serialization --enable-static-tiledb --disable-avx2 --disable-cpp-api --disable-tests --prefix=$INSTALL
-    make -j4
-    make -C tiledb install
+    $TILEDB_SRC/bootstrap --force-build-all-deps --enable=s3,serialization --enable-static-tiledb --disable-avx2 --disable-cpp-api --disable-tests --prefix=$TILEDB_INSTALL
 
-    cp $BUILD_REPOSITORY_LOCALPATH/tiledb-build/externals/install/lib/libz.1.dylib $PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}/lib
+    cmake --build $TILEDB_BUILD --config Release -j3
+    cmake --build $TILEDB_BUILD --target install-tiledb --config Release
+
+    cp $TILEDB_BUILD/externals/install/lib/libz.1.dylib $TILEDB_INSTALL/lib || true
 
     echo "--- listing files"
-    ls $BUILD_REPOSITORY_LOCALPATH
-    find $INSTALL
+    ls $BUILD_REPOSITORY_LOCALPATH || true
+    find $TILEDB_INSTALL || true
 
-    otool -L ${INSTALL}/lib/libtiledb.dylib;
-  condition: ne(variables.LIBTILEDB_CACHE_RESTORED, 'true')
+    if [[ "$AGENT_OS" == "Darwin" ]]; then
+      otool -L ${TILEDB_INSTALL}/lib/libtiledb.dylib;
+    fi
+  condition: and(ne(variables['Agent.OS'], 'Windows_NT'), ne(variables.LIBTILEDB_CACHE_RESTORED, 'true'))
   displayName: "Build libtiledb"
-
 - bash: |
     cp  $PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}/lib/libz.1.dylib $BUILD_REPOSITORY_LOCALPATH
+  condition: ne(variables['Agent.OS'], 'Windows_NT')
   displayName: "Copy libz (tmp work-around for delocate)"
+
+  # cruft
+  #  cd $(TILEDB_BUILD)
+  #  :: MUST RUN THIS IN BUILD DIR
+  #  cmake -DTILEDB_INSTALL_LIBDIR=lib -DCMAKE_INSTALL_PREFIX=$(TILEDB_INSTALL) CMAKE_PREFIX_PATH=$(TILEDB_INSTALL) .
+# this runs under cmd on windows, which we need in order to use vcvarsall
+- script: |
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+    echo ON
+    git clone https://github.com/TileDB-Inc/TileDB $(TILEDB_SRC)
+    git -C $(TILEDB_SRC) checkout $(LIBTILEDB_VERSION)
+
+    mkdir $(TILEDB_INSTALL)
+    cd $(TILEDB_BUILD)
+    :: use cmake directly because the powershell arg/quoting rules are bonkers
+    cmake -A X64 -DCMAKE_BUILD_TYPE=Release -DTILEDB_WERROR=ON -DTILEDB_TBB=ON -DTILEDB_TBB_SHARED=ON -DTILEDB_TOOLS=OFF -DTILEDB_SUPERBUILD=ON -DTILEDB_FORCE_ALL_DEPS=ON -DTILEDB_CPP_API=OFF -DTILEDB_S3=ON -DCMAKE_INSTALL_PREFIX=$(TILEDB_INSTALL) -DTILEDB_TESTS=OFF -DTILEDB_HDFS=OFF -DTILEDB_LOG_OUTPUT_ON_FAILURE=ON -DTILEDB_STATIC=$TILEDB_STATIC -DTILEDB_VERBOSE=ON -DMSVC_MP_FLAG="/MP3"  $(TILEDB_SRC) .
+
+    cmake --build . --config Release -j3
+    cmake --build . --target install-tiledb --config Release
+  condition: eq(variables['Agent.OS'], 'Windows_NT')

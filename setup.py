@@ -37,7 +37,7 @@ import sys
 from sys import version_info as ver
 
 # Target branch
-TILEDB_VERSION = "1.7.7"
+TILEDB_VERSION = "dev"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
@@ -226,8 +226,6 @@ def build_libtiledb(src_dir):
     subprocess.check_call(build_cmd, cwd=libtiledb_build_dir)
     subprocess.check_call(install_cmd, cwd=libtiledb_build_dir)
 
-    if not 'TILEDB_PATH' in os.environ:
-        os.environ['TILEDB_PATH'] = libtiledb_install_dir
     return libtiledb_install_dir
 
 
@@ -235,7 +233,7 @@ def find_or_install_libtiledb(setuptools_cmd):
     """
     Find the TileDB library required for building the Cython extension. If not found,
     download, build and install TileDB, copying the resulting shared libraries
-    into a path where they will be found by package_data.
+    into a path where they will be found by package_data or the build process.
 
     :param setuptools_cmd: The setuptools command instance.
     """
@@ -245,50 +243,56 @@ def find_or_install_libtiledb(setuptools_cmd):
             tiledb_ext = ext
             break
 
+    wheel_build = getattr(tiledb_ext, 'tiledb_wheel_build', False)
+    from_source = getattr(tiledb_ext, 'tiledb_from_source', False)
+    lib_exists = libtiledb_exists(tiledb_ext.library_dirs)
+
     # Download, build and locally install TileDB if needed.
-    if hasattr(tiledb_ext, 'tiledb_from_source') or not libtiledb_exists(tiledb_ext.library_dirs):
+    if from_source or not lib_exists:
         src_dir = download_libtiledb()
-        install_dir = build_libtiledb(src_dir)
+        prefix_dir = build_libtiledb(src_dir)
+    elif hasattr(tiledb_ext, 'tiledb_path'):
+        prefix_dir = getattr(tiledb_ext, 'tiledb_path')
+
+    if from_source or wheel_build or not lib_exists:
         lib_subdir = 'bin' if os.name=='nt' else 'lib'
         native_subdir = '' if is_windows() else 'native'
         # Copy libtiledb shared object(s) to the package directory so they can be found
         # with package_data.
         dest_dir = os.path.join(TILEDB_PKG_DIR, native_subdir)
         for libname in libtiledb_library_names():
-            src = os.path.join(install_dir, lib_subdir, libname)
+            src = os.path.join(prefix_dir, lib_subdir, libname)
             if not os.path.exists(dest_dir):
                 os.makedirs(dest_dir)
             dest = os.path.join(dest_dir, libname)
             print("Copying file {0} to {1}".format(src, dest))
             shutil.copy(src, dest)
 
-        # TODO hack
-        # also copy the lib file for dependees
-        # this needs to come before
+        # Copy dependencies
         if is_windows():
             def do_copy(src, dest):
                 print("Copying file {0} to {1}".format(src, dest))
                 shutil.copy(src, dest)
 
             # lib files for linking
-            src = os.path.join(install_dir, "lib", "tiledb.lib")
+            src = os.path.join(prefix_dir, "lib", "tiledb.lib")
             dest = os.path.join(dest_dir, "tiledb.lib")
             do_copy(src, dest)
 
             # tbb
-            src = os.path.join(install_dir, "bin", "tbb.dll")
+            src = os.path.join(prefix_dir, "bin", "tbb.dll")
             dest = os.path.join(dest_dir, "tbb.dll")
             do_copy(src, dest)
-            src = os.path.join(install_dir, "lib", "tbb.lib")
+            src = os.path.join(prefix_dir, "lib", "tbb.lib")
             dest = os.path.join(dest_dir, "tbb.lib")
             do_copy(src, dest)
 
             #
-            tiledb_ext.library_dirs += [os.path.join(install_dir, "lib")]
+            tiledb_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
 
         # Update the TileDB Extension instance with correct paths.
-        tiledb_ext.library_dirs += [os.path.join(install_dir, lib_subdir)]
-        tiledb_ext.include_dirs += [os.path.join(install_dir, "include")]
+        tiledb_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
+        tiledb_ext.include_dirs += [os.path.join(prefix_dir, "include")]
         # Update package_data so the shared object gets installed with the Python module.
         libtiledb_objects = [os.path.join(native_subdir, libname)
                              for libname in libtiledb_library_names()]
@@ -449,7 +453,7 @@ LFLAGS = os.environ.get("LFLAGS", "").split()
 
 # Allow setting (lib) TileDB directory if it is installed on the system
 TILEDB_PATH = os.environ.get("TILEDB_PATH", "")
-
+print("TILEDB_PATH from env: '{}'".format(TILEDB_PATH))
 # Sources & libraries
 INC_DIRS = []
 LIB_DIRS = []
@@ -477,7 +481,10 @@ for arg in args:
         sys.argv.remove(arg)
 
 if TILEDB_PATH != '' and TILEDB_PATH != 'source':
-    LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
+    print("TILEDB_PATH in block before: '{}'".format(TILEDB_PATH))
+    TILEDB_PATH=os.path.normpath(TILEDB_PATH)
+    print("TILEDB_PATH in block after: '{}'".format(TILEDB_PATH))
+    LIB_DIRS += [os.path.join(os.path.normpath(TILEDB_PATH), 'lib')]
     if sys.platform.startswith("linux"):
         LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib64'),
                      os.path.join(TILEDB_PATH, 'lib', 'x86_64-linux-gnu')]
@@ -488,7 +495,7 @@ if TILEDB_PATH != '' and TILEDB_PATH != 'source':
         LFLAGS += ['-Wl,-rpath,{}'.format(p) for p in LIB_DIRS]
 
 with open('README.rst') as f:
-    README_RST = f.read()
+    README_MD = f.read()
 
 # Source files for build
 MODULAR_SOURCES = [
@@ -551,6 +558,10 @@ def ext_attr_update(attr, value):
 # some of these will error out if passed directly
 # to Extension(..) above
 
+if ('bdist_wheel' in sys.argv):
+    ext_attr_update('tiledb_wheel_build', True)
+
+
 # - build with `#line` directive annotations
 # (equivalent to `emit_linenums` command line directive)
 ext_attr_update('cython_line_directives', 1)
@@ -565,6 +576,8 @@ if not is_windows():
 
 if TILEDB_PATH == 'source':
   ext_attr_update('tiledb_from_source', True)
+elif TILEDB_PATH != '':
+  ext_attr_update('tiledb_path', TILEDB_PATH)
 
 # This must always be set so the compile-time conditional has a value
 ext_attr_update('cython_compile_time_env', {'TILEDBPY_MODULAR': TILEDBPY_MODULAR})
@@ -572,7 +585,7 @@ ext_attr_update('cython_compile_time_env', {'TILEDBPY_MODULAR': TILEDBPY_MODULAR
 setup(
     name='tiledb',
     description="Pythonic interface to the TileDB array storage manager",
-    long_description=README_RST,
+    long_description=README_MD,
     author='TileDB, Inc.',
     author_email='help@tiledb.io',
     maintainer='TileDB, Inc.',
