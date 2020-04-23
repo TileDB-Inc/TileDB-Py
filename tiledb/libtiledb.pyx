@@ -255,7 +255,7 @@ cdef dict get_query_fragment_info(tiledb_ctx_t* ctx_ptr,
 cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   tiledb_array_t* array_ptr,
                   object tiledb_array,
-                  np.ndarray coords,
+                  tuple coords_or_subarray,
                   list attributes,
                   list values,
                   dict fragment_info):
@@ -267,7 +267,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     # add 1 to nattr for sparse coordinates
     if issparse:
-        nattr_alloc += 1
+        nattr_alloc += tiledb_array.schema.ndim
 
     # Set up buffers
     cdef np.ndarray buffer_sizes = np.zeros((nattr_alloc,),  dtype=np.uint64)
@@ -306,11 +306,12 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     # Set coordinate buffer size and name, and layout for sparse writes
     if issparse:
-        nattr += 1
-        attributes.append(tiledb_coords().decode('UTF-8'))
-        output_values.append(coords)
-        output_offsets.append(None)
-        buffer_sizes[-1] = coords.nbytes
+        for dim_idx in range(tiledb_array.schema.ndim):
+            attributes.append(tiledb_array.schema.domain.dim(dim_idx).name)
+            buffer_sizes[nattr + dim_idx] = coords_or_subarray[dim_idx].nbytes
+        nattr += tiledb_array.schema.ndim
+        output_values.extend(coords_or_subarray)
+        output_offsets.extend(list(None for _ in range(tiledb_array.schema.ndim)))
         layout = TILEDB_UNORDERED
 
     rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
@@ -318,17 +319,17 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         tiledb_query_free(&query_ptr)
         _raise_ctx_err(ctx_ptr, rc)
 
-    cdef void* coords_ptr = NULL
     cdef void* buffer_ptr = NULL
     cdef bytes battr_name
     cdef uint64_t* offsets_buffer_ptr = NULL
     cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
     cdef uint64_t* offsets_buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_offsets_sizes)
 
-    # set coords for sparse, or subarray
+    # set subarray
+    cdef void* subarray_ptr = NULL
     if not issparse:
-        coords_ptr = np.PyArray_DATA(coords)
-        rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, coords_ptr)
+        subarray_ptr = np.PyArray_DATA(coords_or_subarray[0])
+        rc = tiledb_query_set_subarray(ctx_ptr, query_ptr, subarray_ptr)
     if rc != TILEDB_OK:
         tiledb_query_free(&query_ptr)
         _raise_ctx_err(ctx_ptr, rc)
@@ -4246,7 +4247,7 @@ cdef class DenseArrayImpl(Array):
                              "(use a dict({'attr': val}) to "
                              "assign multiple attributes)")
 
-        _write_array(self.ctx.ptr, self.ptr, self, subarray, attributes, values, self.last_fragment_info)
+        _write_array(self.ctx.ptr, self.ptr, self, (subarray,), attributes, values, self.last_fragment_info)
         return
 
     def __array__(self, dtype=None, **kw):
@@ -4413,8 +4414,8 @@ def index_domain_coords(Domain dom, tuple idx):
         if idx[i].dtype != dtype0:
             raise IndexError("sparse index dimension dtype mismatch")
     # zip coordinates
-    return np.column_stack(idx)
-
+    #return np.column_stack(idx)
+    return idx
 
 cdef class SparseArrayImpl(Array):
     """Class representing a sparse TileDB array.
@@ -4468,7 +4469,7 @@ cdef class SparseArrayImpl(Array):
             raise TileDBError("SparseArray is not opened for writing")
         idx = index_as_tuple(selection)
         sparse_coords = index_domain_coords(self.schema.domain, idx)
-        ncells = sparse_coords.shape[0]
+        ncells = sparse_coords[0].shape[0]
 
         sparse_attributes = list()
         sparse_values = list()

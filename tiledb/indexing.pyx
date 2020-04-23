@@ -118,8 +118,6 @@ cdef dict execute_multi_index(Array array,
     # NOTE: query_ptr *must* only be freed in caller
 
     cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
-    cdef np.dtype coords_dtype
-    cdef unicode coord_name = (tiledb_coords()).decode('UTF-8')
     cdef uint64_t attr_idx
     cdef Attr attr
     cdef bytes battr_name
@@ -138,15 +136,19 @@ cdef dict execute_multi_index(Array array,
     cdef tiledb_query_status_t query_status
     cdef uint64_t repeat_count = 0
     cdef uint64_t buffer_bytes_remaining = 0
+    cdef list attrs = list()
+
+    # Coordinate attribute buffers must be set first
+    if return_coord:
+        dims = tuple(array.schema.domain.dim(dim_idx) for dim_idx in \
+                     range(array.schema.ndim))
+        attrs += [QueryAttr(dim.name, dim.dtype) for dim in dims]
 
     # Get the attributes
-    cdef list attrs = [QueryAttr(a.name, a.dtype)
+    attrs += [QueryAttr(a.name, a.dtype)
                        for a in [array.schema.attr(name)
                                  for name in attr_names]]
 
-    # Coordinate attribute buffer must be set first
-    if return_coord:
-        attrs.insert(0, QueryAttr(coord_name, array.coords_dtype))
 
     # Create and assign attribute result buffers
 
@@ -260,10 +262,6 @@ cdef dict execute_multi_index(Array array,
         attr_item_size = attr_dtype.itemsize
         attr_array = result_dict[attr_name]
         attr_array.resize(int(result_bytes_read[attr_idx] / attr_item_size), refcheck=False)
-
-    if return_coord:
-        # replace internal name identifier
-        result_dict["coords"] = result_dict.pop(coord_name)
 
     return result_dict
 
