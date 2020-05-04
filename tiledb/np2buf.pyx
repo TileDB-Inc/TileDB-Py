@@ -19,23 +19,6 @@ cdef _varlen_dtype_itemsize(object item):
 
     raise TypeError("Unknown dtype itemsize for '{}'.".format(item))
 
-cdef _varlen_type_compat(object reftype, object val):
-    if isinstance(val, bytes) and reftype is bytes:
-        return True
-    elif (val, np.bytes_) and np.issubdtype(reftype, np.bytes_):
-        return True
-    elif isinstance(val, np.unicode_) and np.issubdtype(reftype, np.unicode_):
-        return True
-    elif isinstance(val, np.ndarray):
-        if reftype == val.dtype:
-            return True
-        elif np.issubdtype(val.dtype, np.bytes_) and np.issubdtype(reftype, np.bytes_):
-            return True
-        elif np.issubdtype(val.dtype, np.string_) and np.issubdtype(reftype, np.string_):
-            return True
-    # default case
-    return False
-
 cdef _varlen_cell_dtype(object var):
     cdef np.dtype dtype
     if isinstance(var, np.ndarray):

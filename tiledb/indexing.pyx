@@ -137,7 +137,7 @@ cdef dict execute_multi_index(Array array,
 
     cdef:
         Attr attr
-        uint64_t attr_idx
+        Py_ssize_t attr_idx
         bytes battr_name
         unicode attr_name
         np.ndarray attr_array
@@ -315,7 +315,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
     #####################
     # we loop over the range tuple left to right and apply
     # (unspecified dimensions are excluded)
-    cdef size_t dim_idx, range_idx
+    cdef Py_ssize_t dim_idx, range_idx
 
     for dim_idx in range(len(ranges)):
         c_dim_idx = <uint32_t>dim_idx

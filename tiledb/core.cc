@@ -8,7 +8,6 @@
 #include "numpy/arrayobject.h"
 #undef NPY_NO_DEPRECATED_API
 
-
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
@@ -47,14 +46,10 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
 
 struct BufferInfo {
 
-  BufferInfo(std::string name,
-             size_t data_nbytes,
-             tiledb_datatype_t data_type,
-             uint32_t cell_val_num,
-             size_t offsets_num,
-             bool isvar = false)
+  BufferInfo(std::string name, size_t data_nbytes, tiledb_datatype_t data_type,
+             uint32_t cell_val_num, size_t offsets_num, bool isvar = false)
 
-             : name(name), type(data_type), cell_val_num(cell_val_num), isvar(isvar) {
+      : name(name), type(data_type), cell_val_num(cell_val_num), isvar(isvar) {
 
     dtype = tiledb_dtype(data_type, cell_val_num);
     elem_nbytes = tiledb_datatype_size(type);
@@ -79,7 +74,7 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
   if (cell_val_num == 1) {
     auto np = py::module::import("numpy");
     auto datetime64 = np.attr("datetime64");
-    switch(type) {
+    switch (type) {
     case TILEDB_INT32:
       return py::dtype("int32");
     case TILEDB_INT64:
@@ -177,8 +172,9 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     return np_dtype(rec_list);
   }
 
-  TPY_ERROR_LOC("tiledb datatype not understood ('" + tiledb::impl::type_to_str(type)
-                + "', cell_val_num: " + std::to_string(cell_val_num) + ")");
+  TPY_ERROR_LOC("tiledb datatype not understood ('" +
+                tiledb::impl::type_to_str(type) +
+                "', cell_val_num: " + std::to_string(cell_val_num) + ")");
 }
 
 class PyQuery {
@@ -210,7 +206,6 @@ public:
 
     tiledb_array_t *c_array_ = (py::capsule)array.attr("__capsule__")();
 
-    /* TBD whether we use the C++ API ... */
     // we never own this pointer, pass own=false
     array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false),
                                             [](Array *p) {} /* no deleter*/);
@@ -333,13 +328,13 @@ public:
       case TILEDB_DATETIME_PS:
       case TILEDB_DATETIME_FS:
       case TILEDB_DATETIME_AS: {
-        using T = int64_t;
         py::dtype dtype = tiledb_dtype(tiledb_type, 1);
         auto dt0 = r0.attr("astype")(dtype);
         auto dt1 = r1.attr("astype")(dtype);
         // TODO, this is suboptimal, should define pybind converter
         auto darray = py::array(py::make_tuple(dt0, dt1));
-        query_->add_range(dim_idx, *(int64_t*)darray.data(0), *(int64_t*)darray.data(1));
+        query_->add_range(dim_idx, *(int64_t *)darray.data(0),
+                          *(int64_t *)darray.data(1));
         break;
       }
       default:
@@ -462,7 +457,7 @@ public:
     uint64_t cell_nbytes = tiledb_datatype_size(type);
     if (cell_val_num != TILEDB_VAR_NUM)
       cell_nbytes *= cell_val_num;
-    auto dtype = tiledb_dtype(type,cell_val_num);
+    auto dtype = tiledb_dtype(type, cell_val_num);
 
     uint64_t buf_nbytes = 0;
     uint64_t offsets_num = 0;
@@ -481,25 +476,23 @@ public:
       offsets_num = init_buffer_bytes_ / sizeof(uint64_t);
     }
 
-    buffers_.insert(
-        {name, BufferInfo(name, buf_nbytes, type, cell_val_num, offsets_num, var)});
+    buffers_.insert({name, BufferInfo(name, buf_nbytes, type, cell_val_num,
+                                      offsets_num, var)});
   }
 
   void set_buffers() {
     for (auto bp : buffers_) {
       auto name = bp.first;
       const BufferInfo b = bp.second;
-      void* data_ptr =
-          (void*)((char *)b.data.data() + (b.data_vals_read * b.elem_nbytes));
+      void *data_ptr =
+          (void *)((char *)b.data.data() + (b.data_vals_read * b.elem_nbytes));
       uint64_t data_nelem =
           (b.data.size() - (b.data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
 
       if (b.isvar) {
-        uint64_t *offsets_ptr =
-            (uint64_t *)b.offsets.data() + b.offsets_read;
+        uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + b.offsets_read;
         query_->set_buffer(b.name, offsets_ptr,
-                           b.offsets.size() - b.offsets_read,
-                           data_ptr,
+                           b.offsets.size() - b.offsets_read, data_ptr,
                            data_nelem);
       } else {
         query_->set_buffer(b.name, data_ptr, data_nelem);
@@ -530,7 +523,6 @@ public:
       }
     }
 
-    // TODO ignore non-requested attributes
     for (auto attr_pair : schema.attributes()) {
       alloc_buffer(attr_pair.first);
     }
@@ -560,11 +552,10 @@ public:
 
       update_read_elem_num();
 
-      // TODO handle linear reallocation
       for (auto bp : buffers_) {
         auto buf = bp.second;
 
-        if ( (buf.data_vals_read * buf.elem_nbytes) < buf.data.nbytes() * 2) {
+        if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) < buf.data.nbytes() * 2) {
           buf.data.resize({buf.data.size() * 2}, false);
 
           if (buf.isvar)
@@ -577,7 +568,6 @@ public:
         py::gil_scoped_release release;
         query_->submit();
       }
-
     }
 
     update_read_elem_num();
