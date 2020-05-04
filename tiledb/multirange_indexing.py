@@ -2,6 +2,7 @@ import tiledb
 from tiledb import Array, ArraySchema, TileDBError
 import os, numpy as np
 import sys, weakref
+from collections import OrderedDict
 
 def mr_dense_result_shape(ranges, base_shape = None):
     # assumptions: len(ranges) matches number of dims
@@ -117,14 +118,13 @@ class MultiRangeIndexer(object):
             attr_names = tuple(self.query.attrs) if self.query.attrs else attr_names # query.attrs might be None -> all
             coords = self.query.coords
 
-        # TODO order
         from tiledb.core import PyQuery
         q = PyQuery(self.array._ctx_(), self.array, attr_names, coords)
 
         q.set_ranges(ranges)
         q.submit()
 
-        result_dict = q.results()
+        result_dict = OrderedDict(q.results())
 
         for name, item in result_dict.items():
             if len(item[1]) > 0:

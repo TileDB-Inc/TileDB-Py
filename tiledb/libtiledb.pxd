@@ -849,6 +849,20 @@ cdef extern from "tiledb/tiledb.h":
         void* domain,
         int* isempty) nogil
 
+    int32_t tiledb_array_get_non_empty_domain_from_index(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint32_t idx,
+        void* domain,
+        int32_t* is_empty);
+
+    int32_t tiledb_array_get_non_empty_domain_from_name(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const char* name,
+        void* domain,
+        int32_t* is_empty);
+
     int32_t tiledb_array_get_non_empty_domain_var_size_from_index(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,

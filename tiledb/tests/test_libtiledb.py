@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, assert_subarrays_equal, rand_utf8
+from tiledb.tests.common import DiskTestCase, assert_subarrays_equal, rand_utf8, rand_ascii, rand_ascii_bytes
 
 def safe_dump(obj):
     # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
@@ -557,7 +557,7 @@ class ArraySchemaTest(unittest.TestCase):
         ctx = tiledb.Ctx()
         dims = [
             tiledb.Dim(name="dpos", ctx=ctx, domain=(-100.0, 100.0), tile=10, dtype=np.float64),
-            tiledb.Dim(name="str_index", domain=("a", "bb"), tile=50, dtype=np.bytes_)
+            tiledb.Dim(name="str_index", domain=(None,None), tile=None, dtype=np.bytes_)
         ]
         dom = tiledb.Domain(*dims)
         attrs = [
@@ -1011,7 +1011,6 @@ class DenseArrayTest(DiskTestCase):
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        print("path is: ", self.path("foo"))
         # write
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[:] = A
@@ -1842,6 +1841,54 @@ class SparseArray(DiskTestCase):
         with tiledb.open(path) as A:
             res = A[:]
             assert_subarrays_equal(data[coords1[sidx],coords2_idx[sidx]], res['val'])
+
+    def test_sparse_string_domain(self):
+        path = self.path("sparse_string_domain")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(None,None), dtype=np.bytes_, ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(name="a", ctx=ctx, dtype=np.int64)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), sparse=True, capacity=10000)
+        tiledb.SparseArray.create(path, schema)
+
+        data = [1,2,3,4]
+        coords = [b"aa",b"bbb", b"c", b"dddd"]
+
+        with tiledb.open(path, 'w') as A:
+            A[coords] = data
+
+        with tiledb.open(path) as A:
+            ned = A.nonempty_domain()[0]
+            res = A[ned[0] : ned[1]]
+            assert_array_equal(res['a'], data)
+            self.assertEqual(set(res['d']), set(coords))
+
+
+    def test_sparse_string_domain2(self):
+        path = self.path("sparse_string_domain2")
+        ctx = tiledb.Ctx()
+        dims = [
+            tiledb.Dim(name="str", domain=(None,None), tile=None, dtype=np.bytes_),
+        ]
+        dom = tiledb.Domain(*dims)
+        attrs = [
+            tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)
+        ]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(path, schema, ctx=ctx)
+
+        data = np.random.rand(10)
+        coords = [rand_ascii_bytes(random.randint(5, 50)) for _ in range(10)]
+
+        with tiledb.open(path, 'w') as A:
+            A[coords] = data
+
+        with tiledb.open(path) as A:
+            ned = A.nonempty_domain()[0]
+            res = A[ned[0] : ned[1] ]
+            self.assertTrue(set(res['str']) == set(coords))
+            # must check data ordered by coords
+            assert_array_equal(res['val'], data[np.argsort(coords, kind='stable')])
 
 class DenseIndexing(DiskTestCase):
 

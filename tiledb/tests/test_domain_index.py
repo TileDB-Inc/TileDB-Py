@@ -104,8 +104,8 @@ class DomainIndexingSparseTest(DiskTestCase):
                 data[:]
             )
 
-            ## check entire domain
-            ## TODO uncomment if vectorized indexing is available
+            # check entire domain
+            # TODO uncomment if vectorized indexing is available
             #coords = np.array([X,Y,Z]).transpose().flatten()
             #tmp = A.domain_index[X,Y,Z]
             #assert_array_equal(

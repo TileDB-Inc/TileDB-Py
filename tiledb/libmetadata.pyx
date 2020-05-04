@@ -17,16 +17,6 @@ cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[vector[char]] move(unique_ptr[vector[char]])
     #cdef unique_ptr[vector[char]] make_unique(vector[char])
 
-cdef object metadata_value_check(val):
-    if isinstance(val, int):
-        if val > numeric_limits[int64_t].max():
-            raise OverflowError("Overflow integer values not supported!")
-
-    elif (PY_MAJOR_VERSION < 3) and isinstance(val, long):
-        if val > numeric_limits[int64_t].max():
-            raise OverflowError("Overflow integer values not supported!")
-
-
 cdef class PackedBuffer:
     cdef bytes data
     cdef tiledb_datatype_t tdbtype
@@ -274,10 +264,6 @@ cdef object get_metadata(array: Array,
 
     return unpack_metadata_val(value_type, value_num, value)
 
-cdef put_metadata_dict(Array array, kv):
-
-    for k,v in kv.iteritems():
-        put_metadata(array, k, v)
 
 cdef object load_metadata(Array array, unpack=True):
     """
