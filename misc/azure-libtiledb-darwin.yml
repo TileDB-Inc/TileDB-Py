@@ -32,7 +32,7 @@ steps:
     mkdir -p $BUILD_REPOSITORY_LOCALPATH/tiledb-build
     cd $BUILD_REPOSITORY_LOCALPATH/tiledb-build
 
-    $SRC/bootstrap --force-build-all-deps --enable=s3,serialization --enable-static-tiledb --disable-avx2 --disable-cpp-api --disable-tests --prefix=$INSTALL
+    $SRC/bootstrap --force-build-all-deps --enable=s3,serialization --enable-static-tiledb --disable-avx2 --disable-tests --prefix=$INSTALL
     make -j4
     make -C tiledb install
 

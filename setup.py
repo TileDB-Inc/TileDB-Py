@@ -37,7 +37,7 @@ import sys
 from sys import version_info as ver
 
 # Target branch
-TILEDB_VERSION = "dev"
+TILEDB_VERSION = "2.0.0"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 

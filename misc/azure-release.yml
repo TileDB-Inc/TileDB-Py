@@ -1,9 +1,9 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.5.7
-    LIBTILEDB_VERSION: 1.7.6
-    LIBTILEDB_SHA: 11f4f597ba9aac47be7802877b15cffbb5464816
+    TILEDBPY_VERSION: 0.6.0
+    LIBTILEDB_VERSION: 2.0.0
+    LIBTILEDB_SHA: e12987374c87f4b7c44428be6e4b5b9ee2511aab
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     CIBW_SKIP: cp35-*
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-'))
