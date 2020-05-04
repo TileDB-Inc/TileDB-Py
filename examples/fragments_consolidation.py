@@ -77,10 +77,11 @@ def read_array():
         # Read the entire array. To get coord values as well, we use the .query() syntax.
         data = A.query(coords=True)[:, :]
         a_vals = data["a"]
-        coords = data["coords"]
-        for i in range(coords.shape[0]):
-            for j in range(coords.shape[1]):
-                print("Cell {} has data {}".format(str(coords[i, j]), str(a_vals[i, j])))
+        rows = data["rows"]
+        cols = data["cols"]
+        for i in range(rows.shape[0]):
+            for j in range(cols.shape[0]):
+                print("Cell {} has data {}".format(str((rows[i,j], cols[i,j])), str(a_vals[i, j])))
 
 
 # Create and write array only if it does not exist

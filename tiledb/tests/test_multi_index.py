@@ -285,7 +285,7 @@ class TestMultiRange(DiskTestCase):
         ctx = tiledb.Ctx()
         path = self.path('multi_index_1d')
 
-        dom = tiledb.Domain(tiledb.Dim(domain=(-10, 10), tile=9,
+        dom = tiledb.Domain(tiledb.Dim(name='coords', domain=(-10, 10), tile=9,
                                        dtype=np.int64, ctx=ctx),
                             ctx=ctx)
         att = tiledb.Attr(name=attr_name, dtype=np.float32, ctx=ctx)
@@ -332,7 +332,7 @@ class TestMultiRange(DiskTestCase):
         ctx = tiledb.Ctx()
         path = self.path('mr_1d_sparse_double')
 
-        dom = tiledb.Domain(tiledb.Dim(domain=(0, 30), tile=10,
+        dom = tiledb.Domain(tiledb.Dim(name='coords', domain=(0, 30), tile=10,
                                        dtype=np.float64, ctx=ctx),
                             ctx=ctx)
         att = tiledb.Attr(name=attr_name, dtype=np.float64, ctx=ctx)
@@ -405,7 +405,7 @@ class TestMultiRange(DiskTestCase):
                     coords
                 )
                 assert_array_equal(
-                    res['coords'].astype(dtype),
+                    res['__dim_0'].astype(dtype),
                     coords
                 )
 
@@ -415,7 +415,7 @@ class TestMultiRange(DiskTestCase):
                     coords[0]
                 )
                 assert_array_equal(
-                    res['coords'].astype(dtype),
+                    res['__dim_0'].astype(dtype),
                     coords[0]
                 )
 
@@ -425,7 +425,7 @@ class TestMultiRange(DiskTestCase):
                     coords[-1]
                 )
                 assert_array_equal(
-                    res['coords'].astype(dtype),
+                    res['__dim_0'].astype(dtype),
                     coords[-1]
                 )
 
@@ -438,7 +438,7 @@ class TestMultiRange(DiskTestCase):
                     res[attr_name],
                     coords[start:stop+1])
                 assert_array_equal(
-                    res['coords'].astype(dtype),
+                    res['__dim_0'].astype(dtype),
                     coords[start:stop+1])
 
     def test_multirange_2d_sparse_float(self):
@@ -459,11 +459,9 @@ class TestMultiRange(DiskTestCase):
         d1 = np.linspace(0, 10, num=11, dtype=np.float32)
         d2 = np.linspace(0, 10, num=11, dtype=np.float32)
         coords_d1,coords_d2 = np.meshgrid(d1,d2,indexing='ij')
-        coords_d1,coords_d2 = coords_d1.flatten(), coords_d2.flatten()
-        coords = np.column_stack([coords_d1, coords_d2]).reshape(11,11,2)
 
         with tiledb.open(path, 'w') as A:
-            A[coords_d1,coords_d2] = orig_array
+            A[coords_d1.flatten(),coords_d2.flatten()] = orig_array
 
         with tiledb.open(path) as A:
             res = A.multi_index[[0], :]
@@ -472,8 +470,8 @@ class TestMultiRange(DiskTestCase):
                 res[attr_name]
             )
             assert_array_equal(
-                coords[[0], :].squeeze(),
-                res['coords'].view('f4').reshape(-1,2)
+                coords_d1[0, :],
+                res['__dim_0']
             )
 
             #===
@@ -483,8 +481,8 @@ class TestMultiRange(DiskTestCase):
                 res[attr_name]
             )
             assert_array_equal(
-                coords[[-1], :].squeeze(),
-                res['coords'].view('f4').reshape(-1,2)
+                coords_d2[[-1], :].squeeze(),
+                res['__dim_1']
             )
 
             #===
@@ -494,8 +492,8 @@ class TestMultiRange(DiskTestCase):
                 res[attr_name]
             )
             assert_array_equal(
-                np.vstack([coords[0:3,:].reshape(-1,2), coords[5,:]]),
-                res['coords'].view('f4').reshape(-1,2)
+                np.vstack((coords_d1[0:3], coords_d1[5])).flatten(),
+                res['__dim_0']
             )
 
             #===
@@ -505,8 +503,12 @@ class TestMultiRange(DiskTestCase):
                 res[attr_name]
             )
             assert_array_equal(
-                coords[0:3,2:6].flatten(),
-                res['coords'].view('f4')
+                coords_d1[0:3,2:6].flatten(),
+                res['__dim_0']
+            )
+            assert_array_equal(
+                coords_d2[0:3,2:6].flatten(),
+                res['__dim_1']
             )
             res = A.multi_index[ slice(np.float32(0.0), np.float32(2.0)), slice(np.float32(2.0), np.float32(5.0)) ]
             assert_array_equal(
@@ -514,16 +516,20 @@ class TestMultiRange(DiskTestCase):
                 res[attr_name]
             )
             assert_array_equal(
-                coords[0:3,2:6].flatten(),
-                res['coords'].view('f4')
+                coords_d1[0:3,2:6].flatten(),
+                res['__dim_0']
+            )
+            assert_array_equal(
+                coords_d2[0:3,2:6].flatten(),
+                res['__dim_1']
             )
 
     def test_multirange_1d_sparse_query(self):
         ctx = tiledb.Ctx()
         path = self.path('mr_1d_sparse_query')
 
-        dom = tiledb.Domain(tiledb.Dim(domain=(-100, 100), tile=1,
-                                       dtype=np.float32, ctx=ctx),
+        dom = tiledb.Domain(tiledb.Dim(name='coords', domain=(-100, 100),
+                                       tile=1, dtype=np.float32, ctx=ctx),
                             ctx=ctx)
         attrs = [tiledb.Attr(name="U", dtype=np.float64, ctx=ctx),
                  tiledb.Attr(name="V", dtype=np.uint32, ctx=ctx)]

@@ -27,7 +27,7 @@ class DomainIndexingSparseTest(DiskTestCase):
             assert_array_equal(A.domain_index[ X[-1]]['a'], val[-1])
             assert_array_equal(A.domain_index[ X[0]:X[-1] ]['a'], val[:])
             # sanity check
-            assert_array_equal(A.domain_index[ X[0]:X[-1] ]['coords'].view(np.int64), X[:])
+            assert_array_equal(A.domain_index[ X[0]:X[-1] ]['x'], X[:])
 
     def test_fp_domain_indexing(self):
         array_path = self.path("test_domain_idx")
@@ -89,8 +89,8 @@ class DomainIndexingSparseTest(DiskTestCase):
             coords = X[145], Y[145], Z[145]
             tmp = A.domain_index[coords]
             assert_array_equal(
-                tmp['coords'].view(np.float64),
-                np.array(coords)
+                tmp['x'],
+                X[145]
             )
             assert_array_equal(
                 tmp['data'],
@@ -104,10 +104,10 @@ class DomainIndexingSparseTest(DiskTestCase):
                 data[:]
             )
 
-            # check entire domain
-            # TODO uncomment if vectorized indexing is available
+            ## check entire domain
+            ## TODO uncomment if vectorized indexing is available
             #coords = np.array([X,Y,Z]).transpose().flatten()
-            #tmp = A.domain_index[coords]
+            #tmp = A.domain_index[X,Y,Z]
             #assert_array_equal(
             #    tmp['data'],
             #    data[:]
@@ -140,8 +140,10 @@ class DomainIndexingSparseTest(DiskTestCase):
                 data[0])
 
             # check counting by slice
-            assert_equal(A.domain_index[0:2.0, 0:1.0]['coords'].shape[0], 1)
-            assert_equal(A.domain_index[0:2.0, np.nextafter(1.0, 2.0)]['coords'].shape[0], 0)
+            assert_equal(A.domain_index[0:2.0, 0:1.0]['x'].shape[0], 1)
+            assert_equal(A.domain_index[0:2.0, 0:1.0]['y'].shape[0], 1)
+            assert_equal(A.domain_index[0:2.0, np.nextafter(1.0, 2.0)]['x'].shape[0], 0)
+            assert_equal(A.domain_index[0:2.0, np.nextafter(1.0, 2.0)]['y'].shape[0], 0)
 
 class DomainIndexingDenseTest(DiskTestCase):
 
@@ -165,5 +167,5 @@ class DomainIndexingDenseTest(DiskTestCase):
             assert_array_equal(A.domain_index[ X[-1]]['a'], val[-1])
             assert_array_equal(A.domain_index[ X[0]:X[-1] ]['a'], val[:])
             # sanity check
-            assert_array_equal(A.domain_index[ X[0]:X[-1] ]['coords'].view(np.int64), X[:])
+            assert_array_equal(A.domain_index[ X[0]:X[-1] ]['x'], X[:])
 

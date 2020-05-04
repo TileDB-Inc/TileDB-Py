@@ -75,10 +75,9 @@ def read_array(order):
         # other than the default row-major
         data = A.query(attrs=["a"], order=order, coords=True)[1:3, 2:5]
         a_vals = data["a"]
-        coords = data["coords"]
 
-        for i in range(coords.shape[0]):
-            print("Cell {} has data {}".format(str(coords[i]), str(a_vals[i])))
+        for i, coord in enumerate(zip(data["rows"], data["cols"])):
+            print("Cell {} has data {}".format(str(coord), str(a_vals[i])))
 
 
 # Check if the array already exists.

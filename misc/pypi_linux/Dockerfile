@@ -21,8 +21,8 @@ ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 
 ###############################################
 # settings (B)
-ENV TILEDB_VERSION 1.7.5
-ENV TILEDB_PY_VERSION 0.5.6
+ENV TILEDB_VERSION cpp_c_ptr
+ENV TILEDB_PY_VERSION upd_heter_dim2 
 ###############################################
 # 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
 # 2) adding -lrt as a work-around for now because python2.7 doesn't link it, but it
@@ -44,11 +44,11 @@ ENV CFLAGS -Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1
 RUN cd /home/tiledb/ && \
   source $HOME/perl5/perlbrew/etc/bashrc && \
   perlbrew use perl-5.10.0 && \
-  git clone https://github.com/TileDB-Inc/TileDB && \
+  git clone https://github.com/ihnorton/TileDB && \
   git -C TileDB checkout $TILEDB_VERSION && \
   mkdir build && \
   cd build && \
-  $CMAKE -DTILEDB_S3=ON -DTILEDB_CPP_API=OFF -DTILEDB_HDFS=ON -DTILEDB_TESTS=OFF \
+  $CMAKE -DTILEDB_S3=ON -DTILEDB_CPP_API=ON -DTILEDB_HDFS=ON -DTILEDB_TESTS=OFF \
          -DTILEDB_SERIALIZATION=ON -DTILEDB_FORCE_ALL_DEPS:BOOL=ON \
          -DTILEDB_LOG_OUTPUT_ON_FAILURE:BOOL=ON \
          -DSANITIZER="OFF;-DCOMPILER_SUPPORTS_AVX2:BOOL=FALSE" \
