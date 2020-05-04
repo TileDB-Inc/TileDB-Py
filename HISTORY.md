@@ -1,3 +1,11 @@
+# TileDB-Py 0.6.0 Release Notes
+
+## Improvements
+* Target TileDB version 2.0
+  - Added support for heterogeneous and string-typed dimensions [#304](https://github.com/TileDB-Inc/TileDB-Py/pull/304)
+  - Added support for `tiledb_array_vacuum` for cleaning up consolidated fragments
+* Added Windows wheels for Python 3.7 and 3.8 on PyPI
+
 # TileDB-Py 0.5.9 Release Notes
 
 * Bump release target to [TileDB 1.7.7](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.7)
