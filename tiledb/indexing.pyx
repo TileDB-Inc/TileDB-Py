@@ -63,11 +63,11 @@ cdef class DomainIndexer(object):
             else:
                 new_idx.append(dim_idx)
 
-        subarray = np.zeros(shape=(ndim, 2), dtype=dom.dtype)
+        subarray = list()
 
         for i, subidx in enumerate(new_idx):
             assert isinstance(subidx, slice)
-            subarray[i] = subidx.start, subidx.stop
+            subarray.append((subidx.start, subidx.stop))
 
         attr_names = list(schema.attr(i).name for i in range(schema.nattr))
 
@@ -84,7 +84,7 @@ cdef class DomainIndexer(object):
             coords = self.query.coords
 
         if coords:
-            attr_names.insert(0, "coords")
+            attr_names = [dom.dim(idx).name for idx in range(self.schema.ndim)] + attr_names
 
         if order is None or order == 'C':
             layout = TILEDB_ROW_MAJOR
@@ -98,7 +98,7 @@ cdef class DomainIndexer(object):
         if isinstance(self.array, SparseArray):
             return (<SparseArrayImpl>self.array)._read_sparse_subarray(subarray, attr_names, layout)
         elif isinstance(self.array, DenseArray):
-            return (<DenseArrayImpl>self.array)._read_dense_subarray(subarray, attr_names, layout)
+            return (<DenseArrayImpl>self.array)._read_dense_subarray(subarray, attr_names, layout, coords)
         else:
             raise Exception("No handler for Array type: " + str(type(self.array)))
 
@@ -117,36 +117,46 @@ cdef dict execute_multi_index(Array array,
 
     # NOTE: query_ptr *must* only be freed in caller
 
-    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
-    cdef np.dtype coords_dtype
-    cdef unicode coord_name = (tiledb_coords()).decode('UTF-8')
-    cdef uint64_t attr_idx
-    cdef Attr attr
-    cdef bytes battr_name
-    cdef unicode attr_name
-    cdef np.dtype attr_dtype
-    cdef uint64_t result_bytes = 0
-    cdef size_t result_elements
-    cdef float result_elements_f, result_rem
-    cdef np.ndarray attr_array
-    cdef uint64_t el_count
-    cdef QueryAttr qattr
+    cdef:
+        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
+        tiledb_query_status_t query_status
 
-    cdef uint64_t* buffer_sizes_ptr = NULL
+    cdef:
+        uint64_t result_bytes = 0
+        size_t result_elements
+        float result_elements_f, result_rem
+        uint64_t el_count = 0
+        bint repeat_query = True
+        uint64_t repeat_count = 0
+        uint64_t buffer_bytes_remaining = 0
+        uint64_t* buffer_sizes_ptr = NULL
 
-    cdef bint repeat_query = True
-    cdef tiledb_query_status_t query_status
-    cdef uint64_t repeat_count = 0
-    cdef uint64_t buffer_bytes_remaining = 0
+    cdef:
+        np.dtype coords_dtype
+        unicode coord_name = (tiledb_coords()).decode('UTF-8')
+
+    cdef:
+        Attr attr
+        uint64_t attr_idx
+        bytes battr_name
+        unicode attr_name
+        np.ndarray attr_array
+        np.dtype attr_dtype
+        QueryAttr qattr
+
+    cdef list attrs = list()
+
+    # Coordinate attribute buffers must be set first
+    if return_coord:
+        dims = tuple(array.schema.domain.dim(dim_idx) for dim_idx in \
+                     range(array.schema.ndim))
+        attrs += [QueryAttr(dim.name, dim.dtype) for dim in dims]
 
     # Get the attributes
-    cdef list attrs = [QueryAttr(a.name, a.dtype)
+    attrs += [QueryAttr(a.name, a.dtype)
                        for a in [array.schema.attr(name)
                                  for name in attr_names]]
 
-    # Coordinate attribute buffer must be set first
-    if return_coord:
-        attrs.insert(0, QueryAttr(coord_name, array.coords_dtype))
 
     # Create and assign attribute result buffers
 
@@ -245,7 +255,7 @@ cdef dict execute_multi_index(Array array,
         elif query_status == TILEDB_FAILED:
             raise TileDBError("Query returned TILEDB_FAILED")
         elif query_status == TILEDB_INPROGRESS:
-            raise TileDBError("Query return TILEDB_INPROGRESS")
+            raise TileDBError("Query returned TILEDB_INPROGRESS")
         elif query_status == TILEDB_INCOMPLETE:
             raise TileDBError("Query returned TILEDB_INCOMPLETE")
         else:
@@ -260,10 +270,6 @@ cdef dict execute_multi_index(Array array,
         attr_item_size = attr_dtype.itemsize
         attr_array = result_dict[attr_name]
         attr_array.resize(int(result_bytes_read[attr_idx] / attr_item_size), refcheck=False)
-
-    if return_coord:
-        # replace internal name identifier
-        result_dict["coords"] = result_dict.pop(coord_name)
 
     return result_dict
 

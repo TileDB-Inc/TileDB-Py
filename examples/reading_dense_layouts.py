@@ -79,7 +79,7 @@ def read_array(order):
         # dense arrays and specify an order other than the default row-major
         data = A.query(attrs=["a"], order=order, coords=True)[1:3, 2:5]
         a_vals = data["a"]
-        coords = data["coords"]
+        coords = np.asarray(list(zip(data["rows"], data["cols"])))
 
         if order != 'G' and a_vals.flags['F_CONTIGUOUS']:
             print("NOTE: The following result array has col-major layout internally")

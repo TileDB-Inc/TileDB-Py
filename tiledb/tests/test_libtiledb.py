@@ -421,6 +421,8 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertEqual(schema.shape, (8, 8))
         self.assertEqual(schema.nattr, 1)
         self.assertEqual(schema.attr(0), a1)
+        self.assertTrue(schema.has_attr("val"))
+        self.assertFalse(schema.has_attr("nononoattr"))
         self.assertEqual(schema,
             tiledb.ArraySchema(ctx=ctx, domain=domain, attrs=(a1,)))
         self.assertNotEqual(schema,
@@ -551,6 +553,25 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertEqual(len(schema2.coords_filters), 1)
         self.assertEqual(len(schema2.offsets_filters), 1)
 
+    def test_mixed_string_schema(self):
+        ctx = tiledb.Ctx()
+        dims = [
+            tiledb.Dim(name="dpos", ctx=ctx, domain=(-100.0, 100.0), tile=10, dtype=np.float64),
+            tiledb.Dim(name="str_index", domain=("a", "bb"), tile=50, dtype=np.bytes_)
+        ]
+        dom = tiledb.Domain(*dims)
+        attrs = [
+            tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)
+        ]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+
+        self.assertTrue(schema.domain.has_dim("str_index"))
+        self.assertFalse(schema.domain.has_dim("nonono_str_index"))
+        self.assertTrue(schema.domain.dim("str_index").isvar)
+        self.assertFalse(schema.domain.dim("dpos").isvar)
+        self.assertEqual(schema.domain.dim("dpos").dtype, np.double)
+        self.assertEqual(schema.domain.dim("str_index").dtype, np.bytes_)
 
 class ArrayTest(DiskTestCase):
 
@@ -977,6 +998,7 @@ class DenseArrayTest(DiskTestCase):
                 self.assertEqual(T.dtype, R.dtype)
                 self.assertEqual(R.attr(0).ncells, 2)
                 assert_array_equal(T,R)
+                assert_array_equal(T, R.multi_index[0:2][''])
 
 
     def test_open_with_timestamp(self):
@@ -989,6 +1011,7 @@ class DenseArrayTest(DiskTestCase):
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
+        print("path is: ", self.path("foo"))
         # write
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[:] = A
@@ -1108,11 +1131,10 @@ class DenseArrayTest(DiskTestCase):
             self.assertTrue(R["floats"].flags.f_contiguous)
 
             R = T.query(attrs=("ints",), coords=True)[0, 0:3]
-            self.assertTrue("coords" in R)
-            assert_array_equal(R["coords"],
-                               np.array([(0, 0), (0, 1), (0, 2)],
-                                        dtype=[('__dim_0', '<i8'),
-                                               ('__dim_1', '<i8')]))
+            self.assertTrue("__dim_0" in R)
+            self.assertTrue("__dim_1" in R)
+            assert_array_equal(R["__dim_0"], np.array([0,0,0]))
+            assert_array_equal(R["__dim_1"], np.array([0,1,2]))
 
             # Global order returns results as a linear buffer
             R = T.query(attrs=("ints",), order='G')[:]
@@ -1153,6 +1175,9 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(uri) as T:
             assert_array_equal(A, T)
 
+            res = T.multi_index[(0,1), (0,1)]['a']
+            assert_array_equal(A, res)
+
     def test_array_2d_s3_mixed(self):
         # This array is currently read back with dtype object
         A = np.array([['AAA', 'B'], ['AB', 'C']], dtype='S3')
@@ -1174,6 +1199,9 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(uri) as T:
             assert_array_equal(A, T)
 
+            res = T.multi_index[(0,1), (0,1)]['a']
+            assert_array_equal(A, res)
+
     def test_incomplete_dense(self):
         path = self.path("incomplete_dense")
         # create 10 MB array
@@ -1193,7 +1221,6 @@ class DenseArrayTest(DiskTestCase):
             config['py.init_buffer_bytes'],
             str(1024**2)
         )
-
         # TODO would be good to check repeat count here. Not currently exposed by retry loop.
         with tiledb.DenseArray(path, ctx=ctx) as A:
             res_mr = A.multi_index[ slice(0, len(data) - 1) ]
@@ -1255,6 +1282,8 @@ class DenseVarlen(DiskTestCase):
 
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             assert_array_equal(A[:], T[:])
+
+            assert_array_equal(A, T.multi_index[1:len(A)][''])
 
 
     def test_varlen_write_unicode(self):
@@ -1616,7 +1645,7 @@ class SparseArray(DiskTestCase):
                 np.float32(3.3)
             )
             assert_array_equal(
-                T.query(coords=True).domain_index[-10.0: np.nextafter(4.2, 0)]["coords"]["x"],
+                T.query(coords=True).domain_index[-10.0: np.nextafter(4.2, 0)]["x"],
                 np.float32([2.5])
             )
             assert_array_equal(
@@ -1645,7 +1674,7 @@ class SparseArray(DiskTestCase):
             self.assertEqual(((50, 100),), T.nonempty_domain())
 
             # retrieve just valid coordinates in subarray T[40:60]
-            assert_array_equal(T[40:61]["coords"]["x"], [50, 60])
+            assert_array_equal(T[40:61]["x"], [50, 60])
 
             #TODO: dropping coords with one anon value returns just an array
             res = T.query(coords=False)[40:61]
@@ -1672,7 +1701,7 @@ class SparseArray(DiskTestCase):
             self.assertEqual(((50, 100),), T.nonempty_domain())
 
             # retrieve just valid coordinates in subarray T[40:60]
-            assert_array_equal(T[40:61]["coords"]["x"], [50, 60])
+            assert_array_equal(T[40:61]["x"], [50, 60])
 
             #TODO: dropping coords with one anon value returns just an array
             res = T.query(coords=False)[40:61]
@@ -1700,7 +1729,7 @@ class SparseArray(DiskTestCase):
             self.assertEqual(((3, 100),), T.nonempty_domain())
 
             # retrieve just valid coordinates in subarray T[40:60]
-            assert_array_equal(T[40:61]["coords"]["x"], [50, 60])
+            assert_array_equal(T[40:61]["x"], [50, 60])
 
             #TODO: dropping coords with one anon value returns just an array
             res = T.query(coords=False)[40:61]
@@ -1774,10 +1803,45 @@ class SparseArray(DiskTestCase):
                 data
             )
             assert_array_equal(
-                res['coords'].view(dom.dim(0).dtype).reshape(-1, 2),
-                np.column_stack([c1, c2])
+                res['__dim_0'],
+                c1
+            )
+            assert_array_equal(
+                res['__dim_1'],
+                c2
             )
 
+    def test_sparse_mixed_domain_uint_float64(self):
+        path = self.path("mixed_domain_uint_float64")
+        ctx = tiledb.Ctx()
+        dims = [
+            tiledb.Dim(name="index", domain=(0, 51), tile=11, dtype=np.uint64),
+            tiledb.Dim(name="dpos", ctx=ctx, domain=(-100.0, 100.0), tile=10, dtype=np.float64)
+        ]
+        dom = tiledb.Domain(*dims)
+        attrs = [
+            tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)
+        ]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(path, schema, ctx=ctx)
+
+        data = np.random.rand(50, 63)
+        coords1 = np.repeat(np.arange(0,50), 63)
+        coords2 = np.linspace(-100.0,100.0, num=3150)
+
+
+        with tiledb.open(path, 'w') as A:
+            A[coords1, coords2] = data
+
+        # tiledb returns coordinates in sorted order, so we need to check the output
+        # sorted by the first dim coordinates
+        sidx = np.argsort(coords1, kind='stable')
+        coords2_idx = np.tile(np.arange(0,63), 50)[sidx]
+
+        with tiledb.open(path) as A:
+            res = A[:]
+            assert_subarrays_equal(data[coords1[sidx],coords2_idx[sidx]], res['val'])
 
 class DenseIndexing(DiskTestCase):
 
