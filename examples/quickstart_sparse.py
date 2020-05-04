@@ -70,7 +70,7 @@ def read_array():
         # Slice only rows 1, 2 and cols 2, 3, 4.
         data = A[1:3, 2:5]
         a_vals = data["a"]
-        for i, coord in enumerate(data["coords"]):
+        for i, coord in enumerate(zip(data["rows"], data["cols"])):
             print("Cell (%d, %d) has data %d" % (coord[0], coord[1], a_vals[i]))
 
 

@@ -1,13 +1,7 @@
 import tiledb
-from tiledb import Array, ArraySchema
+from tiledb import Array, ArraySchema, TileDBError
 import os, numpy as np
 import sys, weakref
-
-try:
-    from tiledb.libtiledb import multi_index
-except:
-    from tiledb.indexing import multi_index
-
 
 def mr_dense_result_shape(ranges, base_shape = None):
     # assumptions: len(ranges) matches number of dims
@@ -59,11 +53,6 @@ class MultiRangeIndexer(object):
     Implements multi-range / outer / orthogonal indexing.
 
     """
-    # for cython
-    # comment out for Python 2 :/
-    #array: Array
-    #schema: ArraySchema
-    #def __init__(self, array: Array, query = None):
 
     def __init__(self, array, query = None):
         if not issubclass(type(array), tiledb.Array):
@@ -118,6 +107,7 @@ class MultiRangeIndexer(object):
         # implements multi-range / outer / orthogonal indexing
         ranges = self.getitem_ranges(idx)
 
+        schema = self.schema
         dom = self.schema.domain
         attr_names = tuple(self.schema.attr(i).name for i in range(self.schema.nattr))
 
@@ -128,12 +118,21 @@ class MultiRangeIndexer(object):
             coords = self.query.coords
 
         # TODO order
-        result_dict = multi_index(
-            self.array,
-            attr_names,
-            ranges,
-            coords=coords
-        )
+        from tiledb.core import PyQuery
+        q = PyQuery(self.array._ctx_(), self.array, attr_names, coords)
+
+        q.set_ranges(ranges)
+        q.submit()
+
+        result_dict = q.results()
+
+        for name, item in result_dict.items():
+            if len(item[1]) > 0:
+                arr = self.array._unpack_varlen_query(item, name)
+            else:
+                arr = item[0]
+                arr.dtype = schema.attr_or_dim_dtype(name)
+            result_dict[name] = arr
 
         if self.schema.sparse:
             return result_dict

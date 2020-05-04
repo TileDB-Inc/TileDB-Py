@@ -399,6 +399,12 @@ cdef extern from "tiledb/tiledb.h":
         const char* name,
         tiledb_dimension_t** dim)
 
+    int tiledb_domain_has_dimension(
+        tiledb_ctx_t * ctx,
+        const tiledb_domain_t* domain,
+        const char* name,
+        int32_t* has_dim)
+
     int tiledb_domain_dump(
         tiledb_ctx_t* ctx,
         const tiledb_domain_t* domain,
@@ -420,6 +426,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_dimension_t* dim,
         const char** name)
+
+    int tiledb_dimension_get_cell_val_num(
+        tiledb_ctx_t* ctx,
+        const tiledb_dimension_t* dim,
+        uint32_t* cell_val_num)
 
     int tiledb_dimension_get_type(
         tiledb_ctx_t* ctx,
@@ -449,6 +460,12 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
         tiledb_attribute_t* attr)
+
+    int tiledb_array_schema_has_attribute(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        const char* name,
+        int32_t* has_attr)
 
     int tiledb_array_schema_set_domain(
         tiledb_ctx_t* ctx,
@@ -699,6 +716,15 @@ cdef extern from "tiledb/tiledb.h":
         const void * end,
         const void * stride)
 
+    int tiledb_query_add_range_var(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        uint32_t dim_idx,
+        const void * start,
+        uint64_t start_size,
+        const void * end,
+        uint64_t end_size)
+
     int tiledb_query_get_range(
         tiledb_ctx_t* ctx,
         const tiledb_query_t* query,
@@ -823,20 +849,37 @@ cdef extern from "tiledb/tiledb.h":
         void* domain,
         int* isempty) nogil
 
-    int tiledb_array_max_buffer_size(
+    int32_t tiledb_array_get_non_empty_domain_var_size_from_index(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
-        const char* attribute,
-        const void* subarray,
-        uint64_t* buffer_size) nogil
+        uint32_t idx,
+        uint64_t* start_size,
+        uint64_t* end_size,
+        int32_t* is_empty)
 
-    int tiledb_array_max_buffer_size_var(
+    int32_t tiledb_array_get_non_empty_domain_var_size_from_name(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
-        const char* attribute,
-        const void* subarray,
-        uint64_t* buffer_off_size,
-        uint64_t* buffer_val_size) nogil
+        const char* name,
+        uint64_t* start_size,
+        uint64_t* end_size,
+        int32_t* is_empty)
+
+    int32_t tiledb_array_get_non_empty_domain_var_from_index(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint32_t idx,
+        void* start,
+        void* end,
+        int32_t* is_empty);
+
+    int32_t tiledb_array_get_non_empty_domain_var_from_name(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const char* name,
+        void* start,
+        void* end,
+        int32_t* is_empty)
 
     int tiledb_array_vacuum(
         tiledb_ctx_t* ctx,
@@ -1077,6 +1120,7 @@ cdef class Dim(object):
     cdef from_ptr(const tiledb_dimension_t* ptr, Ctx ctx=*)
 
     cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR
+    cdef unsigned int _cell_val_num(Dim self) except? 0
     cdef _integer_domain(self)
     cdef _datetime_domain(self)
     cdef _shape(self)
@@ -1119,13 +1163,13 @@ cdef class Array(object):
     cdef object last_fragment_info
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
-    cdef _unpack_varlen_query(self, ReadQuery read, unicode name)
+    cpdef _unpack_varlen_query(self, tuple result, unicode name)
 
 cdef class SparseArrayImpl(Array):
-    cdef _read_sparse_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout)
+    cdef _read_sparse_subarray(self, list subarray, list attr_names, tiledb_layout_t layout)
 
 cdef class DenseArrayImpl(Array):
-    cdef _read_dense_subarray(self, np.ndarray subarray, list attr_names, tiledb_layout_t layout)
+    cdef _read_dense_subarray(self, list subarray, list attr_names, tiledb_layout_t layout, bint include_coords)
 
 cdef class FileHandle(object):
     cdef Ctx ctx

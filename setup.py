@@ -176,7 +176,7 @@ def build_libtiledb(src_dir):
                     "-DTILEDB_S3=ON",
                     "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
                     "-DTILEDB_INSTALL_LIBDIR=lib",
-                    "-DTILEDB_CPP_API=OFF",
+                    "-DTILEDB_CPP_API=ON",
                     "-DTILEDB_LOG_OUTPUT_ON_FAILURE=ON",
                     "-DTILEDB_FORCE_ALL_DEPS:BOOL={}".format("ON" if TILEDB_FORCE_ALL_DEPS else "OFF"),
                     "-DTILEDB_SERIALIZATION:BOOL={}".format("ON" if TILEDB_SERIALIZATION else "OFF")
@@ -240,10 +240,12 @@ def find_or_install_libtiledb(setuptools_cmd):
     :param setuptools_cmd: The setuptools command instance.
     """
     tiledb_ext = None
+    core_ext = None
     for ext in setuptools_cmd.distribution.ext_modules:
         if ext.name == "tiledb.libtiledb":
             tiledb_ext = ext
-            break
+        elif ext.name == "tiledb.core":
+            core_ext = ext
 
     # Download, build and locally install TileDB if needed.
     if hasattr(tiledb_ext, 'tiledb_from_source') or not libtiledb_exists(tiledb_ext.library_dirs):
@@ -285,10 +287,13 @@ def find_or_install_libtiledb(setuptools_cmd):
 
             #
             tiledb_ext.library_dirs += [os.path.join(install_dir, "lib")]
+            core_ext.library_dirs += [os.path.join(install_dir, "lib")]
 
         # Update the TileDB Extension instance with correct paths.
         tiledb_ext.library_dirs += [os.path.join(install_dir, lib_subdir)]
         tiledb_ext.include_dirs += [os.path.join(install_dir, "include")]
+        core_ext.library_dirs += [os.path.join(install_dir, lib_subdir)]
+        core_ext.include_dirs += [os.path.join(install_dir, "include")]
         # Update package_data so the shared object gets installed with the Python module.
         libtiledb_objects = [os.path.join(native_subdir, libname)
                              for libname in libtiledb_library_names()]
@@ -408,6 +413,18 @@ class LazyCommandClass(dict):
 
         return bdist_egg_cmd
 
+class get_pybind_include(object):
+  """Helper class to determine the pybind11 include path
+  The purpose of this class is to postpone importing pybind11
+  until it is actually installed, so that the ``get_include()``
+  method can be invoked. """
+
+  def __init__(self, user=False):
+    self.user = user
+
+  def __str__(self):
+    import pybind11
+    return pybind11.get_include(self.user)
 
 def cmake_available():
     """
@@ -427,7 +444,8 @@ def setup_requires():
            numpy_required_version,
            'setuptools>=18.0',
            'setuptools_scm>=1.5.4',
-           'wheel>=0.30']
+           'wheel>=0.30',
+           'pybind11']
     # Add cmake requirement if libtiledb is not found and cmake is not available.
     if not libtiledb_exists(LIB_DIRS) and not cmake_available():
         req.append('cmake>=3.11.0')
@@ -437,15 +455,6 @@ def setup_requires():
 TESTS_REQUIRE = []
 if ver < (3,):
     TESTS_REQUIRE.extend(["unittest2", "mock"])
-
-# Global variables
-CXXFLAGS = os.environ.get("CXXFLAGS", "").split()
-if not is_windows():
-  CXXFLAGS.append("-std=c++11")
-  if not TILEDB_DEBUG_BUILD:
-    CXXFLAGS.append("-Wno-deprecated-declarations")
-
-LFLAGS = os.environ.get("LFLAGS", "").split()
 
 # Allow setting (lib) TileDB directory if it is installed on the system
 TILEDB_PATH = os.environ.get("TILEDB_PATH", "")
@@ -475,6 +484,18 @@ for arg in args:
     if arg.find('--modular') == 0:
         TILEDBPY_MODULAR = True
         sys.argv.remove(arg)
+
+# Global variables
+CXXFLAGS = os.environ.get("CXXFLAGS", "").split()
+if not is_windows():
+  CXXFLAGS.append("-std=c++11")
+  if not TILEDB_DEBUG_BUILD:
+    CXXFLAGS.append("-Wno-deprecated-declarations")
+  elif TILEDB_DEBUG_BUILD:
+    CXXFLAGS.append("-g")
+    CXXFLAGS.append("-O0")
+    CXXFLAGS.append("-UNDEBUG") # defined by distutils
+LFLAGS = os.environ.get("LFLAGS", "").split()
 
 if TILEDB_PATH != '' and TILEDB_PATH != 'source':
     LIB_DIRS += [os.path.join(TILEDB_PATH, 'lib')]
@@ -513,7 +534,19 @@ __extensions = [
     extra_link_args=LFLAGS,
     extra_compile_args=CXXFLAGS,
     language="c++"
-    )
+    ),
+  Extension(
+    "tiledb.core",
+    ["tiledb/core.cc"],
+    include_dirs = INC_DIRS + [
+        get_pybind_include(),
+        get_pybind_include(user=True)
+    ],
+  language="c++",
+  libraries=LIBS,
+  extra_link_args=LFLAGS,
+  extra_compile_args=CXXFLAGS,
+  )
 ]
 
 if TILEDBPY_MODULAR:
