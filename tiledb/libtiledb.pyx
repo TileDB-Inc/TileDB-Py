@@ -2599,7 +2599,7 @@ cdef class Domain(object):
         assert(dim_ptr != NULL)
         return Dim.from_ptr(dim_ptr, self.ctx)
 
-    def has_dim(self, unicode name):
+    def has_dim(self, name):
         """
         Returns true if the Domain has a Dimension with the given name
 
@@ -2608,16 +2608,20 @@ cdef class Domain(object):
         :return:
         """
         cdef:
+            cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+            cdef tiledb_domain_t* dom_ptr = self.ptr
             int32_t has_dim = 0
             int32_t rc = TILEDB_OK
             bytes bname = name.encode("UTF-8")
 
         rc = tiledb_domain_has_dimension(
-            self.ctx.ptr,
-            self.ptr,
+            ctx_ptr,
+            dom_ptr,
             bname,
             &has_dim
         )
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
         return bool(has_dim)
 
 
@@ -2685,7 +2689,7 @@ def replace_scalars_slice(dom: Domain, idx: tuple):
     return tuple(new_idx), tuple(drop_axes)
 
 
-def index_domain_subarray(dom: Domain, idx: tuple):
+def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
     """
     Return a numpy array representation of the tiledb subarray buffer
     for a given domain and tuple of index slices
@@ -2700,7 +2704,11 @@ def index_domain_subarray(dom: Domain, idx: tuple):
         # extract lower and upper bounds for domain dimension extent
         dim = dom.dim(r)
         dim_dtype = dim.dtype
-        (dim_lb, dim_ub) = dim.domain
+
+        if np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_):
+            (dim_lb, dim_ub) = array.nonempty_domain()[r]
+        else:
+            (dim_lb, dim_ub) = dim.domain
 
         dim_slice = idx[r]
         if not isinstance(dim_slice, slice):
@@ -2709,6 +2717,10 @@ def index_domain_subarray(dom: Domain, idx: tuple):
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
 
         if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
+            if start is None:
+                start = dim_lb
+            if stop is None:
+                stop = dim_ub
             if not isinstance(start, (bytes,unicode)) or not isinstance(stop, (bytes,unicode)):
                 raise TileDBError(f"Non-string range '({start},{stop})' provided for string dimension '{dim.name}'")
             subarray.append((start,stop))
@@ -3163,7 +3175,7 @@ cdef class ArraySchema(object):
         raise TypeError("attr indices must be a string name, "
                         "or an integer index, not {0!r}".format(type(key)))
 
-    def has_attr(self, unicode name):
+    def has_attr(self, name):
         """Returns true if the given name is an Attribute of the ArraySchema
 
         :param name: attribute name
@@ -3631,7 +3643,7 @@ cdef class Array(object):
         return self.schema.domain.dim(dim_id)
 
     def _nonempty_domain_var(self):
-        cdef list result = list()
+        cdef list results = list()
         cdef Domain dom = self.schema.domain
 
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
@@ -3650,36 +3662,44 @@ cdef class Array(object):
         cdef np.dtype end_dtype
 
         for dim_idx in range(dom.ndim):
-            rc = tiledb_array_get_non_empty_domain_var_size_from_index(
-                    ctx_ptr, array_ptr, dim_idx, &start_size, &end_size, &is_empty)
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
-
-            if (is_empty):
-                result.append((None, None))
-                continue
-
             start_dtype = dom.dim(dim_idx).dtype
+
             if np.issubdtype(start_dtype, np.str_) or np.issubdtype(start_dtype, np.bytes_):
+                rc = tiledb_array_get_non_empty_domain_var_size_from_index(
+                    ctx_ptr, array_ptr, dim_idx, &start_size, &end_size, &is_empty)
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+
+                if is_empty:
+                    results.append((None, None))
+                    continue
+
                 buf_dtype = 'S'
                 start_buf = np.empty(end_size, 'S' + str(start_size))
                 end_buf = np.empty(end_size, 'S' + str(end_size))
             else:
-                start_buf = np.empty(1, start_dtype)
-                end_buf = np.empty(1, start_dtype)
+                # this one is contiguous
+                start_buf = np.empty(2, start_dtype)
 
             start_buf_ptr = np.PyArray_DATA(start_buf)
             end_buf_ptr = np.PyArray_DATA(end_buf)
 
-            rc = tiledb_array_get_non_empty_domain_var_from_index(
-                ctx_ptr, array_ptr, dim_idx, start_buf_ptr, end_buf_ptr, &is_empty
-            )
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
+            if np.issubdtype(start_dtype, np.str_) or np.issubdtype(start_dtype, np.bytes_):
+                    rc = tiledb_array_get_non_empty_domain_var_from_index(
+                             ctx_ptr, array_ptr, dim_idx, start_buf_ptr, end_buf_ptr, &is_empty
+                    )
+                    if rc != TILEDB_OK:
+                        _raise_ctx_err(ctx_ptr, rc)
+                    results.append((start_buf.item(0), end_buf.item(0)))
+            else:
+                    rc = tiledb_array_get_non_empty_domain_from_index(
+                            ctx_ptr, array_ptr, dim_idx, start_buf_ptr, &is_empty
+                    )
+                    if rc != TILEDB_OK:
+                        _raise_ctx_err(ctx_ptr, rc)
+                    results.append((start_buf.item(0), start_buf.item(1)))
 
-            result.append((start_buf.item(0), end_buf.item(0)))
-
-        return tuple(result)
+        return tuple(results)
 
     def nonempty_domain(self):
         """Return the minimum bounding domain which encompasses nonempty values.
@@ -3800,7 +3820,7 @@ cdef class Array(object):
                         0, <object> NULL))
 
             # handle empty string case
-            if (<char*>(el_ptr[0]) == NULL and el_bytelen == 1):
+            if (<char>(el_ptr[0]) == '\0' and el_bytelen == 1):
                 if el_dtype == np.unicode_:
                     newobj = u''
                 elif el_dtype == np.bytes_:
@@ -4082,7 +4102,7 @@ cdef class DenseArrayImpl(Array):
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
-        subarray = index_domain_subarray(self.schema.domain, idx)
+        subarray = index_domain_subarray(self, self.schema.domain, idx)
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, layout, coords)
         if any(s.step for s in idx):
@@ -4203,7 +4223,7 @@ cdef class DenseArrayImpl(Array):
         cdef Domain domain = self.domain
         cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))
         idx,_drop = replace_scalars_slice(domain, idx)
-        cdef object subarray = index_domain_subarray(domain, idx)
+        cdef object subarray = index_domain_subarray(self, domain, idx)
         cdef Attr attr
         cdef list attributes = list()
         cdef list values = list()
@@ -4369,7 +4389,7 @@ cdef class DenseArrayImpl(Array):
         cdef Domain domain = schema.domain
 
         idx = tuple(slice(None) for _ in range(domain.ndim))
-        subarray = index_domain_subarray(domain, idx)
+        subarray = index_domain_subarray(self, domain, idx)
         out = self._read_dense_subarray(subarray, [attr_name,], cell_layout, False)
         return out[attr_name]
 
@@ -4569,7 +4589,7 @@ cdef class SparseArrayImpl(Array):
         ...         A[0:3, 0:10]
         ...         # Return just the "x" coordinates values
         ...         A[0:3, 0:10]["x"]
-        OrderedDict([('y', array([0, 2], dtype=uint64)), ('x', array([0, 3], dtype=uint64)), ('a1', array([1, 2])), ('a2', array([3, 4]))])
+        OrderedDict([('a1', array([1, 2])), ('a2', array([3, 4])), ('y', array([0, 2], dtype=uint64)), ('x', array([0, 3], dtype=uint64))])
         array([0, 3], dtype=uint64)
 
         With a floating-point array domain, index bounds are inclusive, e.g.:
@@ -4677,17 +4697,20 @@ cdef class SparseArrayImpl(Array):
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
         attr_names = list()
-        if coords:
-            attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
+
         if attrs is None:
             attr_names.extend(self.schema.attr(i).name for i in range(self.schema.nattr))
         else:
             attr_names.extend(self.schema.attr(a).name for a in attrs)
+
+        if coords:
+            attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
+
         dom = self.schema.domain
         idx = index_as_tuple(selection)
         idx = replace_ellipsis(dom.ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
-        subarray = index_domain_subarray(dom, idx)
+        subarray = index_domain_subarray(self, dom, idx)
         return self._read_sparse_subarray(subarray, attr_names, layout)
 
     cdef _read_sparse_subarray(self, list subarray, list attr_names, tiledb_layout_t layout):
