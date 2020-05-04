@@ -1768,6 +1768,54 @@ class SparseArray(DiskTestCase):
                 self.assertEqual(str(exc.__context__),
                                  "Cannot write a string value to non-string typed attribute 'strattr'!")
 
+    def test_sparse_fixes_ch1560(self):
+        from tiledb import Domain, Attr, Dim
+        from collections import OrderedDict
+        from numpy import array
+
+        uri = self.path("sparse_fixes_ch1560")
+        ctx = tiledb.Ctx({'sm.check_coord_dups': False})
+        schema = tiledb.ArraySchema(
+            domain=Domain(*[
+                Dim(name='id', domain=(1, 5000), tile=25, dtype='int32', ctx=ctx),
+            ]),
+            attrs=[
+                Attr(name='a1', dtype='datetime64[s]', ctx=ctx),
+                Attr(name='a2', dtype='|S0', ctx=ctx),
+                Attr(name='a3', dtype='|S0', ctx=ctx),
+                Attr(name='a4', dtype='int32', ctx=ctx),
+                Attr(name='a5', dtype='int8', ctx=ctx),
+                Attr(name='a6', dtype='int32', ctx=ctx),
+            ],
+            cell_order='row-major',
+            tile_order='row-major',
+            sparse=True)
+
+        tiledb.SparseArray.create(uri, schema)
+
+        data = OrderedDict(
+            [
+                ('a1', array(['2017-04-01T04:00:00', '2019-10-01T00:00:00',
+                              '2019-10-01T00:00:00', '2019-10-01T00:00:00'],
+                             dtype='datetime64[s]')),
+                ('a2', [b'Bus', b'The RIDE', b'The RIDE', b'The RIDE']),
+                ('a3', [b'Bus', b'The RIDE', b'The RIDE', b'The RIDE']),
+                ('a4', array([6911721,  138048,  138048,  138048], dtype='int32')),
+                ('a5', array([20, 23, 23, 23], dtype='int8')),
+                ('a6', array([345586,   6002,   6002,   6002], dtype='int32'))
+            ])
+
+        with tiledb.open(uri, 'w', ctx=ctx) as A:
+            A[[1,462, 462, 462]] = data
+
+        with tiledb.open(uri, ctx=ctx) as A:
+            res = A[:]
+            res.pop('id')
+            for k,v in res.items():
+                if isinstance(data[k], (np.ndarray,list)):
+                    assert_array_equal(res[k], data[k])
+                else:
+                    self.assertEqual(res[k], data[k])
 
     def test_sparse_2d_varlen_int(self):
         path = self.path('test_sparse_2d_varlen_int')
