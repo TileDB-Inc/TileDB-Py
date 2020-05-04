@@ -1,39 +1,18 @@
-# In Progress
+# TileDB-Py 0.5.9 Release Notes
 
-## Improvements
-- Added dataframe and CSV helper functions [#269](https://github.com/TileDB-Inc/TileDB-Py/pull/269)
-  - `tiledb.{from_dataframe, from_csv, open_dataframe}`
-- Added repr for ArraySchema [#267](https://github.com/TileDB-Inc/TileDB-Py/pull/267)
-- Added repr for Attr [#266](https://github.com/TileDB-Inc/TileDB-Py/pull/266)
-- Added `Array.dim` access for direct access to Dim by name or index (similar to `Array.attr`) [#272](https://github.com/TileDB-Inc/TileDB-Py/pull/272)
-- Added support for `read_csv` to read the input file from a TileDB VFS [#275](https://github.com/TileDB-Inc/TileDB-Py/pull/275)
+* Bump release target to [TileDB 1.7.7](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.7)
 
-## Bug fixes
-- Fixed accessing domain dimension by name (`domain.dim('dim name')`) [#271](https://github.com/TileDB-Inc/TileDB-Py/pull/271)
-- Fixed a number of bugs in the FileIO class, to allow using as input to other libraries which accept
-  a file-like object (e.g. pandas readers) [#273](https://github.com/TileDB-Inc/TileDB-Py/pull/273)
-- Fixed bug in tiledb.open path when attribute name does not exist [#277](https://github.com/TileDB-Inc/TileDB-Py/pull/277)
+# TileDB-Py 0.5.8 Release Notes
+
+* Rebuild/release due to wheel build error on linux for 0.5.7.
 
 # TileDB-Py 0.5.7 Release Notes
 
-## Improvements
-
-- Bump release target to [TileDB 1.7.6](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.6)
-
-## Bug fixes
-
-- Fix bug writing zero-length string (#291)(https://github.com/TileDB-Inc/TileDB-Py/pull/291)
+* Bump release target to [TileDB 1.7.6](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.6)
 
 # TileDB-Py 0.5.6 Release Notes
 
 * Bump release target to [TileDB 1.7.5](https://github.com/TileDB-Inc/TileDB/releases/tag/1.7.5)
-
-## Improvements
-- Added support for multi-valued (homogeneous) metadata [#226](https://github.com/TileDB-Inc/TileDB-Py/pull/226)
-- Added support for tuples as range specifiers in `Array.multi_index` for consistency with `tiledb.cloudarray` apply [#263](https://github.com/TileDB-Inc/TileDB-Py/pull/263)
-
-## Bug fixes
-- Fix bug when reading SparseArray with 'ms' datetime units [#260](https://github.com/TileDB-Inc/TileDB-Py/pull/261)
 
 # TileDB-Py 0.5.5 Release Notes
 
