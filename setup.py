@@ -606,6 +606,7 @@ setup(
     name='tiledb',
     description="Pythonic interface to the TileDB array storage manager",
     long_description=README_MD,
+    long_description_content_type='text/markdown',
     author='TileDB, Inc.',
     author_email='help@tiledb.io',
     maintainer='TileDB, Inc.',
