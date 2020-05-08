@@ -11,6 +11,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
+#define TILEDB_DEPRECATED
+#define TILEDB_DEPRECATED_EXPORT
+
 #include <tiledb/tiledb> // C++
 
 #if !defined(NDEBUG)
