@@ -591,6 +591,8 @@ ext_attr_update('cython_line_directives', 1)
 # - generate XML debug mapping file (`cython_debug`)
 if TILEDB_DEBUG_BUILD:
   ext_attr_update('cython_gdb', True)
+  __extensions[1].depends += "tiledb/debug.cc"
+
 # - set rt lib dirs to get correct RPATH on unixy platforms
 #   note that we set rpath for darwin separately above.
 if not is_windows():
