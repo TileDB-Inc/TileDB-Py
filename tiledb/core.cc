@@ -231,6 +231,7 @@ public:
       init_buffer_bytes_ =
           std::atoi(ctx_.config().get("py.init_buffer_bytes").c_str());
     } catch (TileDBError &e) { /* pass, key not found */
+      (void)e;
     }
     try {
       exp_alloc_max_bytes_ =
