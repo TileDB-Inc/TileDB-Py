@@ -1317,7 +1317,7 @@ class DenseArrayTest(DiskTestCase):
             # ensure that empty results are handled correctly
             assert_array_equal(
                 T2.multi_index[101:105][''],
-                np.array([], dtype=np.uint8)
+                np.array([], dtype=np.dtype('<U'))
             )
 
     def test_written_fragment_info(self):
