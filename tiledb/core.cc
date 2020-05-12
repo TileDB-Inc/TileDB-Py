@@ -492,7 +492,8 @@ public:
       if (b.isvar) {
         uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + b.offsets_read;
         query_->set_buffer(b.name, offsets_ptr,
-                           b.offsets.size() - b.offsets_read, data_ptr,
+                           b.offsets.size() - b.offsets_read,
+                           data_ptr,
                            data_nelem);
       } else {
         query_->set_buffer(b.name, data_ptr, data_nelem);
@@ -505,7 +506,19 @@ public:
       auto name = read_info.first;
       uint64_t offset_elem_num, data_vals_num;
       std::tie(offset_elem_num, data_vals_num) = read_info.second;
+
       BufferInfo &buf = buffers_.at(name);
+
+      // update offsets due to incomplete resets
+      auto offset_ptr = buf.offsets.mutable_data();
+      if (buf.isvar && (buf.offsets_read > 0) && (offset_ptr[buf.offsets_read] == 0)) {
+        auto last_offset = offset_ptr[buf.offsets_read - 1];
+        auto last_size = (buf.data_vals_read * buf.elem_nbytes) - last_offset;
+        for (uint64_t i = 0; i < offset_elem_num; i++) {
+          offset_ptr[buf.offsets_read + i] += last_offset + last_size;
+        }
+      }
+
       buf.data_vals_read += data_vals_num;
       buf.offsets_read += offset_elem_num;
     }
@@ -555,7 +568,7 @@ public:
       for (auto bp : buffers_) {
         auto buf = bp.second;
 
-        if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) < buf.data.nbytes() * 2) {
+        if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) > (buf.data.nbytes() + 1) / 2) {
           buf.data.resize({buf.data.size() * 2}, false);
 
           if (buf.isvar)
@@ -579,6 +592,61 @@ public:
       buf.data.resize({buf.data_vals_read * buf.elem_nbytes});
       buf.offsets.resize({buf.offsets_read});
     }
+  }
+
+  py::array unpack_buffer(std::string name,
+      py::array buf, py::array_t<uint64_t> off) {
+    if (buf.size() < 1)
+      TPY_ERROR_LOC("Unexpected empty buffer array");
+    if (off.size() < 1)
+      TPY_ERROR_LOC(("Unexpected empty offsets array"));
+
+    auto dtype = buffer_dtype(name);
+    bool is_unicode = dtype.is(py::dtype("U"));
+    bool is_str = dtype.is(py::dtype("S"));
+    if (is_unicode || is_str) {
+      dtype = py::dtype("O");
+    }
+
+    auto result_array = py::array(py::dtype("O"), off.size());
+    uint64_t last = 0;
+    uint64_t cur = 0;
+    ssize_t size = 0;
+
+    auto off_data = off.data();
+    last = off_data[0]; // initial should always be 0
+    for (auto i = 1; i < off.size() + 1; i++) {
+      if (i == off.size())
+        cur = buf.nbytes();
+      else {
+        cur = off_data[i];
+      }
+
+      size = cur - last;
+
+      py::object o;
+      auto data_ptr = (char*)buf.data() + last;
+      if (is_unicode)
+        if (data_ptr[0] == '\0' && size == 1) {
+          o = py::str("");
+        } else {
+          o = py::str(data_ptr, size);
+        }
+      else if (is_str)
+        if (data_ptr[0] == '\0' && size == 1) {
+          o = py::bytes("");
+        } else {
+          o = py::bytes(data_ptr, size);
+        }
+      else {
+        o = py::array(py::dtype("uint8"), size, data_ptr);
+        o.attr("dtype") = dtype;
+      }
+      result_array[py::int_(i - 1)] = o;
+      last = cur;
+    }
+
+    return result_array;
   }
 
   void submit_write() {}
@@ -618,6 +686,7 @@ PYBIND11_MODULE(core, m) {
       .def("submit", &PyQuery::submit)
       .def("results", &PyQuery::results)
       .def("buffer_dtype", &PyQuery::buffer_dtype)
+      .def("unpack_buffer", &PyQuery::unpack_buffer)
       .def("test_array", &PyQuery::test_array)
       .def("test_err",
            [](py::object self, std::string s) { throw TileDBPyError(s); });
