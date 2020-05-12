@@ -2791,7 +2791,9 @@ class HighlevelTests(DiskTestCase):
     @unittest.skipIf(platform.system() == 'Windows' or \
                      sys.version_info < (3,2), "")
     def test_ctx_thread_cleanup(self):
-        from concurrent.futures import ThreadPoolExecutor
+        # This test checks that contexts are destroyed correctly.
+        # It creates new contexts repeatedly, in-process, and
+        # checks that the total number of threads stays stable.
         config = {
             'sm.num_reader_threads': 128,
         }
