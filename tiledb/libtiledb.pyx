@@ -3756,85 +3756,6 @@ cdef class Array(object):
                  np.issubdtype(array.dtype, np.unicode_) or
                  array.dtype == np.object)
 
-    @cython.boundscheck(False)
-    cpdef _unpack_varlen_query(self, tuple result, unicode name):
-        assert(name != "coords")
-
-        cdef:
-            char* varbuf_ptr = NULL
-            uint64_t* offsets_ptr = NULL,
-            uint64_t* sizes_ptr = NULL
-            char* el_ptr = NULL
-            uint64_t el_bytelen = 0
-            np.npy_intp dims[1]
-            object newobj
-            np.ndarray out_array
-            uint64_t el = 0, num_offsets = 0, buffer_size = 0
-
-        cdef np.dtype el_dtype = self.schema.attr(name).dtype if self.schema.has_attr(name) \
-                                                              else self.schema.domain.dim(name).dtype
-
-        #varbuf = read._buffers[name]
-        #offsets = read._offsets[name].view(np.uint64)
-        varbuf = result[0]
-        offsets = result[1]
-        offsets_ptr = <uint64_t*> np.PyArray_DATA(offsets)
-        varbuf_ptr = <char*>np.PyArray_DATA(varbuf)
-
-        buffer_size = varbuf.nbytes
-        num_offsets = len(offsets)
-
-        if (self.schema._needs_var_buffer(name) or
-            np.issubdtype(el_dtype, np.unicode_) or
-            np.issubdtype(el_dtype, np.bytes_)):
-           out_array = np.empty(num_offsets, dtype=np.object)
-        else:
-            out_array = np.empty(num_offsets, dtype=el_dtype)
-        out_flat = out_array.ravel()
-
-        el = 0
-        while el < num_offsets:
-            el_ptr = (<char*>varbuf_ptr + (offsets_ptr[el]))
-
-            if el < num_offsets - 1:
-                el_bytelen = offsets_ptr[el + 1] - offsets_ptr[el]
-            else:
-                el_bytelen = buffer_size - offsets_ptr[el]
-
-            if el_dtype == np.unicode_:
-                newobj = PyUnicode_FromStringAndSize(<char*>el_ptr, el_bytelen)
-            elif el_dtype == np.bytes_:
-                newobj = PyBytes_FromStringAndSize(<char*>el_ptr, el_bytelen)
-            else:
-                # we need to increase the reference count of dtype object
-                # because PyArray_NewFromDescr steals a reference
-                Py_INCREF(el_dtype.base)
-
-                # note: must not divide by itemsize for a string, because it may be zero (e.g 'S0')
-                dims[0] = el_bytelen / el_dtype.base.itemsize
-                newobj = \
-                    np.copy(PyArray_NewFromDescr(
-                        <PyTypeObject*> np.ndarray,
-                        el_dtype.base, 1, dims, NULL,
-                        el_ptr,
-                        0, <object> NULL))
-
-            # handle empty string case
-            if (<char>(el_ptr[0]) == '\0' and el_bytelen == 1):
-                if el_dtype == np.unicode_:
-                    newobj = u''
-                elif el_dtype == np.bytes_:
-                    newobj = b''
-                else:
-                    raise ValueError("Unexpected non-string variable length item with length zero")
-
-            # set the output object
-            out_flat[el] = newobj
-            # increment
-            el = el + 1
-
-        return out_array
-
     @property
     def domain_index(self):
         return self.domain_index
@@ -4153,7 +4074,7 @@ cdef class DenseArrayImpl(Array):
             if not self.schema.domain.has_dim(name) and self.schema.attr(name).isvar:
                 # for var arrays we create an object array
                 dtype = np.object
-                out[name] = self._unpack_varlen_query(results[name], name).reshape(output_shape)
+                out[name] = q.unpack_buffer(name, results[name][0], results[name][1]).reshape(output_shape)
             else:
                 dtype = q.buffer_dtype(name)
 
@@ -4734,7 +4655,7 @@ cdef class SparseArrayImpl(Array):
             name = attr_names[i]
             if self.schema._needs_var_buffer(name):
                 # for var arrays we create an object array
-                out[name] = self._unpack_varlen_query(results[name], name)
+                out[name] = q.unpack_buffer(name, results[name][0], results[name][1])
             else:
                 if self.schema.domain.has_dim(name):
                     el_dtype = self.schema.domain.dim(name).dtype

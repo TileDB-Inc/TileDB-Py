@@ -128,7 +128,7 @@ class MultiRangeIndexer(object):
 
         for name, item in result_dict.items():
             if len(item[1]) > 0:
-                arr = self.array._unpack_varlen_query(item, name)
+                arr = q.unpack_buffer(name, item[0], item[1])
             else:
                 arr = item[0]
                 arr.dtype = schema.attr_or_dim_dtype(name)
