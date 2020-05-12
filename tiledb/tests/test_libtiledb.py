@@ -2791,6 +2791,7 @@ class HighlevelTests(DiskTestCase):
     @unittest.skipIf(platform.system() == 'Windows' or \
                      sys.version_info < (3,2), "")
     def test_ctx_thread_cleanup(self):
+        import warnings
         # This test checks that contexts are destroyed correctly.
         # It creates new contexts repeatedly, in-process, and
         # checks that the total number of threads stays stable.
@@ -2806,16 +2807,24 @@ class HighlevelTests(DiskTestCase):
 
         for n in range(0, 10):
             if n > 0:
-                try:
-                    # checking exact thread count is unreliable, so
-                    # make sure we are holding < 2x per run.
-                    self.assertTrue(len(thisproc.threads()) < 2 * start_threads)
-                except AssertionError as exc:
-                    print("Failed on iteration: ", n)
-                    raise exc
+                retry = 0
+                while retry < 3:
+                    try:
+                        # checking exact thread count is unreliable, so
+                        # make sure we are holding < 2x per run.
+                        self.assertTrue(len(thisproc.threads()) < 2 * start_threads)
+                        break
+                    except AssertionError as exc:
+                            raise exc
+                    except RuntimeError as rterr:
+                        retry += 1
+                        if retry > 2:
+                            raise rterr
+                        warnings.warn("Thread cleanup test RuntimeError: {} \n    on iteration: {}".format(str(rterr), n))
 
             with tiledb.DenseArray(uri, ctx=tiledb.Ctx(config)) as A:
                 res = A[:]
+
             if n == 0:
                 start_threads = len(thisproc.threads())
 
