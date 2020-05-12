@@ -3677,12 +3677,12 @@ cdef class Array(object):
                 buf_dtype = 'S'
                 start_buf = np.empty(end_size, 'S' + str(start_size))
                 end_buf = np.empty(end_size, 'S' + str(end_size))
+                start_buf_ptr = np.PyArray_DATA(start_buf)
+                end_buf_ptr = np.PyArray_DATA(end_buf)
             else:
                 # this one is contiguous
                 start_buf = np.empty(2, start_dtype)
-
-            start_buf_ptr = np.PyArray_DATA(start_buf)
-            end_buf_ptr = np.PyArray_DATA(end_buf)
+                start_buf_ptr = np.PyArray_DATA(start_buf)
 
             if np.issubdtype(start_dtype, np.str_) or np.issubdtype(start_dtype, np.bytes_):
                     rc = tiledb_array_get_non_empty_domain_var_from_index(
