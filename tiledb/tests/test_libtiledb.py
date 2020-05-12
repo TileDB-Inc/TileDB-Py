@@ -1227,6 +1227,45 @@ class DenseArrayTest(DiskTestCase):
             res_idx = A[:]
             assert_array_equal(res_idx, data)
 
+    def test_incomplete_dense_varlen(self):
+        ncells = 100
+
+        path = self.path("incomplete_dense_varlen")
+        str_data = [rand_utf8(random.randint(0, n)) for n in range(ncells)]
+        data = np.array(str_data, dtype=np.unicode_)
+
+        # basic write
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(data)), tile=len(data), ctx=ctx), ctx=ctx)
+        att = tiledb.Attr(dtype=np.unicode_, var=True, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+
+        tiledb.DenseArray.create(path, schema)
+        with tiledb.DenseArray(path, mode='w', ctx=ctx) as T:
+            T[:] = data
+
+        with tiledb.DenseArray(path, mode='r', ctx=ctx) as T:
+            assert_array_equal(data, T[:])
+
+        # set the memory to the max length of a cell
+        # these settings force ~100 retries
+        # TODO would be good to check repeat count here; not yet exposed
+        #      Also would be useful to have max cell config in libtiledb.
+        init_buffer_bytes = 1024**2
+        config = tiledb.Config({'sm.memory_budget': ncells,
+                                'sm.memory_budget_var': ncells,
+                                'py.init_buffer_bytes': init_buffer_bytes })
+
+        ctx2 = tiledb.Ctx(config=config)
+        self.assertEqual(
+            config['py.init_buffer_bytes'],
+            str(init_buffer_bytes)
+        )
+
+        with tiledb.DenseArray(path, mode='r', ctx=ctx2) as T2:
+            assert_array_equal(data, T2[:])
+
     def test_written_fragment_info(self):
         uri = self.path("test_written_fragment_info")
 
