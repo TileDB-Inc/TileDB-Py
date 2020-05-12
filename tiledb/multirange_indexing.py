@@ -131,7 +131,12 @@ class MultiRangeIndexer(object):
                 arr = q.unpack_buffer(name, item[0], item[1])
             else:
                 arr = item[0]
-                arr.dtype = schema.attr_or_dim_dtype(name)
+                final_dtype = schema.attr_or_dim_dtype(name)
+                if (len(arr) < 1 and np.issubdtype(final_dtype, np.str_)):
+                    # special handling to get correctly-typed empty array
+                    arr.dtype = final_dtype.str + '1'
+                else:
+                    arr.dtype = schema.attr_or_dim_dtype(name)
             result_dict[name] = arr
 
         if self.schema.sparse:
