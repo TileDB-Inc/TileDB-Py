@@ -5,32 +5,67 @@ stages:
     LIBTILEDB_VERSION: 2.0.0
     LIBTILEDB_SHA: e12987374c87f4b7c44428be6e4b5b9ee2511aab
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
+    TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
+    TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
+    TILEDB_INSTALL: '$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)'
+    MACOSX_DEPLOYMENT_TARGET: 10.9
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-'))
 
   jobs:
-
-  - job:
-    variables:
-      #cibw_test_command: "cd {project}/tiledb/tests && pytest"
-      cibw_test_requires: "pytest"
-      TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
-      TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
-      TILEDB_INSTALL: '$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)'
+  - job: build1_libtiledb
     strategy:
       matrix:
-        #macOS:
-        #      imageName: 'macOS-10.14'
-        #  CIBW_SKIP: cp35-*
-        #  SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
-        windows:
-          imageName: 'vs2017-win2016'
-          CIBW_SKIP: 'cp27-* cp35-* cp36-* *-win32'
+          macOS_libtiledb:
+            imageName: 'macOS-10.15'
+          windows_libtiledb:
+            imageName: 'vs2017-win2016'
     pool:
       vmImage: $(imageName)
 
     steps:
     - task: UsePythonVersion@0
     - template: azure-libtiledb-darwin.yml
+
+  - job: build2_python
+    dependsOn: build1_libtiledb
+    condition: succeeded()
+    variables:
+      cibw_test_requires: "pytest"
+    strategy:
+      matrix:
+        macOS_py:
+          imageName: 'macOS-10.15'
+          CIBW_SKIP: 'cp35-* pp*'
+          SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
+        windows_py:
+          imageName: 'vs2017-win2016'
+          CIBW_SKIP: 'cp27-* cp35-* cp36-* *-win32 pp*'
+    pool:
+      vmImage: $(imageName)
+
+    steps:
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download libtiledb artifact'
+      inputs:
+        artifactName: libtiledb-$(Agent.OS)
+        path: $(TILEDB_INSTALL)
+
+    # we have to archive the files because azp breaks newlines in a bare directory restore
+    - bash: |
+        set -x
+        if [[ "$AGENT_OS" == "Windows_NT" ]]; then
+          7z x -o${TILEDB_INSTALL}/ ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -y
+        else
+          tar xzf ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -C ${TILEDB_INSTALL};
+          find ${TILEDB_INSTALL}
+        fi
+
+        # Copy libz (temporary work-around for delocate on macOS)
+        if [[ "$AGENT_OS" == "Darwin" ]]; then
+          cp ${TILEDB_INSTALL}/lib/libz.1.dylib $BUILD_REPOSITORY_LOCALPATH
+          install_name_tool -change libz.1.dylib ${BUILD_REPOSITORY_LOCALPATH}/libz.1.dylib ${TILEDB_INSTALL}/lib/libtiledb.dylib
+        fi
+      displayName: 'Extract libtiledb files'
 
     - bash: |
         # Set the CIBW_ENVIRONMENT from bash in order to get forward slashes because somewhere in  the
@@ -39,14 +74,18 @@ stages:
         export CIBW_ENVIRONMENT="TILEDB_PATH=${MPATH} SETUPTOOLS_SCM_PRETEND_VERSION=0.6.1"
         echo "##vso[task.setvariable variable=CIBW_ENVIRONMENT]$CIBW_ENVIRONMENT"
       displayName: "Set CIBW_ENVIRONMENT"
-      condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
+      condition: succeeded()
 
     - bash: |
         set -xe pipefail
-        git checkout $(TILEDBPY_VERSION)
-        python -m pip install --upgrade pip pytest cython
-        python setup.py sdist --dist-dir wheelhouse
-        pip install cibuildwheel==1.1.0
+        export CIBW_BUILD_VERBOSITY=3
+        export TILEDB_WHEEL_BUILD=1
+        echo "${TILEDB_INSTALL}"
+        python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
+        git rev-parse HEAD
+        python3 -m pip install --upgrade pip pytest cython
+        python3 setup.py sdist --dist-dir wheelhouse
+        pip3 install cibuildwheel==1.4.1
         cibuildwheel --output-dir wheelhouse .
       displayName: "Build and test wheels (macOS)"
       condition: and(succeeded(), ne(variables['Agent.OS'], 'Windows_NT'))
@@ -64,13 +103,17 @@ stages:
         python -c "import platform; print('py compiler: ', platform.python_compiler())"
         :: this runs under cmd on windows, which we need to use vcvarsall
         call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-        git checkout $(TILEDBPY_VERSION)
+        git rev-parse HEAD
         python -m pip install --upgrade pip pytest cython
         python setup.py sdist --dist-dir wheelhouse
-        pip install cibuildwheel==1.1.0
+        pip install cibuildwheel==1.4.1
         cibuildwheel --output-dir wheelhouse .
       displayName: "Build and test wheels (Windows)"
       condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
+
+    - template: azure-print-logs.yml
+    - task: PublishBuildArtifacts@1
+      inputs: {pathtoPublish: 'wheelhouse'}
 
     - bash: |
         set -x
@@ -82,55 +125,3 @@ stages:
         find $TILEDB_INSTALL || true
       displayName: "List all the files"
       condition: always()
-
-    - template: azure-print-logs.yml
-    - task: PublishBuildArtifacts@1
-      inputs: {pathtoPublish: 'wheelhouse'}
-
-#  - job: sdist
-#    displayName: "Make sdist bundle"
-#    pool:
-#      vmImage: 'ubuntu-16.04'
-#    steps:
-#    - task: UsePythonVersion@0
-#    - bash: |
-#        python setup.py sdist
-#    - task: PublishBuildArtifacts@1
-#      inputs:
-#        pathtoPublish: dist
-#        artifactName: 'tiledb_py_sdist'
-
-#  - job:
-#    variables:
-#      HOSTPREFIX: "/host/" # linux builds are run in docker w/ '-v/:/host'
-#      cibw_before_build:
-#        /host/${BUILD_REPOSITORY_LOCALPATH}/misc/azure-build-libtiledb-unix.sh
-#    pool:
-#      vmImage: 'ubuntu-16.04'
-#    resources:
-#      containers:
-#      - container: manylinux2010
-#        image: 'quay.io/pypa/manylinux2010_x86_64'
-#    container: manylinux2010
-#    steps:
-#    - task: UsePythonVersion@0
-#    - bash: |
-#        set -xe pipefail
-#        python -m pip install --upgrade pip
-#        pip install cibuildwheel==1.1.0
-#        export CIBW_ENVIRONMENT="TILEDB_PATH=${HOSTPREFIX}/${PIPELINE_WORKSPACE}/.libtiledb_dist/${LIBTILEDB_SHA} CXXFLAGS='-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1' CFLAGS='-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1'"
-#        cibuildwheel --output-dir wheelhouse .
-#    - template: azure-print-logs.yml
-
-#- job: windows
-#  pool: {vmImage: 'vs2017-win2016'}
-#  variables:
-#    CIBW_SKIP: cp27-win_amd64, cp35-win_amd64
-#  steps:
-#    - task: UsePythonVersion@0
-#    - script: choco install vcpython27 -f -y
-#      displayName: Install Visual C++ for Python 2.7
-#    - bash: |
-#        python -m pip install --upgrade pip
-#        pip install cibuildwheel==1.1.0
-#        cibuildwheel --output-dir wheelhouse .

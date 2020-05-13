@@ -4,6 +4,7 @@ import ctypes
 import multiprocessing
 import os
 import sys
+import urllib
 import shutil
 import subprocess
 import zipfile
@@ -155,8 +156,15 @@ def download_libtiledb():
     if not os.path.exists(dest):
         url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(TILEDB_VERSION)
         print("Downloading TileDB package from {}...".format(TILEDB_VERSION))
-        with get_zipfile(url) as z:
-            z.extractall(BUILD_DIR)
+        try:
+            raise urllib.error.URLError("foo")
+            with get_zipfile(url) as z:
+                z.extractall(BUILD_DIR)
+        except urllib.error.URLError:
+            # try falling back to wget, maybe SSL is broken
+            subprocess.check_call(['wget', url])
+            with zipfile.ZipFile("{}.zip".format(TILEDB_VERSION)) as z:
+                z.extractall(BUILD_DIR)
     return dest
 
 
