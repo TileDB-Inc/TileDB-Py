@@ -2842,7 +2842,7 @@ class HighlevelTests(DiskTestCase):
             # https://github.com/TileDB-Inc/TileDB-Py/issues/277
             tiledb.open(uri, 'r', attr='the-missing-attr')
 
-    @unittest.skipIf(platform.system() == 'Windows' or \
+    @unittest.skipIf(not has_psutil or \
                      sys.version_info < (3,2), "")
     def test_ctx_thread_cleanup(self):
         import warnings
