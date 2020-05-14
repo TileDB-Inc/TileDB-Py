@@ -1931,8 +1931,6 @@ cdef class Attr(object):
         check_error(self.ctx,
                     tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
         cdef unicode name = c_name.decode('UTF-8', 'strict')
-        if name.startswith("__attr"):
-            return u""
         return name
 
     cdef unsigned int _cell_val_num(Attr self) except? 0:
@@ -2056,6 +2054,14 @@ cdef class Attr(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        internal_name = self._get_name()
+        # handle __attr names
+        if internal_name == "__attr":
+            return u""
+        return internal_name
+
+    @property
+    def _internal_name(self):
         return self._get_name()
 
     @property
@@ -4016,7 +4022,9 @@ cdef class DenseArrayImpl(Array):
         if coords:
             attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
         if attrs is None:
-            attr_names.extend(self.schema.attr(i).name for i in range(self.schema.nattr))
+            attr_names.extend(
+                self.schema.attr(i)._internal_name for i in range(self.schema.nattr)
+            )
         else:
             attr_names.extend(self.schema.attr(a).name for a in attrs)
 
@@ -4037,7 +4045,7 @@ cdef class DenseArrayImpl(Array):
         if not coords and self.schema.nattr == 1:
             attr = self.schema.attr(0)
             if attr.isanon:
-                return out[attr.name]
+                return out[attr._internal_name]
         return out
 
 
@@ -4152,7 +4160,7 @@ cdef class DenseArrayImpl(Array):
         if isinstance(val, dict):
             for (k, v) in val.items():
                 attr = self.schema.attr(k)
-                attributes.append(attr.name)
+                attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
                 if type(v) is np.ndarray and v.dtype is not np.dtype('O'):
                     v = np.ascontiguousarray(v, dtype=attr.dtype)
@@ -4162,13 +4170,13 @@ cdef class DenseArrayImpl(Array):
                 attr = self.schema.attr(i)
                 subarray_shape = tuple(int(subarray[r][1] - subarray[r][0]) + 1
                                        for r in range(len(subarray)))
-                attributes.append(attr.name)
+                attributes.append(attr._internal_name)
                 A = np.empty(subarray_shape, dtype=attr.dtype)
                 A[:] = val
                 values.append(A)
         elif self.schema.nattr == 1:
             attr = self.schema.attr(0)
-            attributes.append(attr.name)
+            attributes.append(attr._internal_name)
             # object arrays are var-len and handled later
             if type(val) is np.ndarray and val.dtype is not np.dtype('O'):
                 val = np.ascontiguousarray(val, dtype=attr.dtype)
@@ -4237,7 +4245,7 @@ cdef class DenseArrayImpl(Array):
 
         # attr name
         cdef Attr attr = self.schema.attr(0)
-        cdef bytes battr_name = attr.name.encode('UTF-8')
+        cdef bytes battr_name = attr._internal_name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
 
 
@@ -4296,10 +4304,10 @@ cdef class DenseArrayImpl(Array):
                 "read_direct with no provided attribute is ambiguous for multi-attribute arrays")
         elif name is None:
             attr = self.schema.attr(0)
-            attr_name = attr.name
+            attr_name = attr._internal_name
         else:
             attr = self.schema.attr(name)
-            attr_name = attr.name
+            attr_name = attr._internal_name
         order = 'C'
         cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
         if self.schema.cell_order == 'col-major' and self.schema.tile_order == 'col-major':
@@ -4441,7 +4449,7 @@ cdef class SparseArrayImpl(Array):
 
         for (k, v) in dict(val).items():
             attr = self.attr(k)
-            name = attr.name
+            name = attr._internal_name
 
             try:
                 if attr.isvar:
