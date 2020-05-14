@@ -2002,6 +2002,7 @@ class SparseArray(DiskTestCase):
             res = A[ned[0] : ned[1]]
             assert_array_equal(res['a'], data)
             self.assertEqual(set(res['d']), set(coords))
+            self.assertEqual(A.nonempty_domain(), ((b"aa", b"dddd"),))
 
 
     def test_sparse_string_domain2(self):
