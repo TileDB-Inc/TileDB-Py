@@ -126,6 +126,7 @@ class MultiRangeIndexer(object):
 
         result_dict = OrderedDict(q.results())
 
+        final_names = dict()
         for name, item in result_dict.items():
             if len(item[1]) > 0:
                 arr = q.unpack_buffer(name, item[0], item[1])
@@ -137,7 +138,12 @@ class MultiRangeIndexer(object):
                     arr.dtype = final_dtype.str + '1'
                 else:
                     arr.dtype = schema.attr_or_dim_dtype(name)
+            if name == '__attr':
+                final_names[name] = ''
             result_dict[name] = arr
+
+        for name, replacement in final_names.items():
+            result_dict[replacement] = result_dict.pop(name)
 
         if self.schema.sparse:
             return result_dict
