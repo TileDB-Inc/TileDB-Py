@@ -133,8 +133,11 @@ class MultiRangeIndexer(object):
             else:
                 arr = item[0]
                 final_dtype = schema.attr_or_dim_dtype(name)
-                if (len(arr) < 1 and np.issubdtype(final_dtype, np.str_)):
+                if (len(arr) < 1 and
+                        (np.issubdtype(final_dtype, np.str_) or
+                         np.issubdtype(final_dtype, np.unicode_))):
                     # special handling to get correctly-typed empty array
+                    # (expression below changes itemsize from 0 to 1)
                     arr.dtype = final_dtype.str + '1'
                 else:
                     arr.dtype = schema.attr_or_dim_dtype(name)
