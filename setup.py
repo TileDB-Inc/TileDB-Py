@@ -157,12 +157,11 @@ def download_libtiledb():
         url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(TILEDB_VERSION)
         print("Downloading TileDB package from {}...".format(TILEDB_VERSION))
         try:
-            raise urllib.error.URLError("foo")
             with get_zipfile(url) as z:
                 z.extractall(BUILD_DIR)
         except urllib.error.URLError:
             # try falling back to wget, maybe SSL is broken
-            subprocess.check_call(['wget', url])
+            subprocess.check_call(['wget', url], shell=True)
             with zipfile.ZipFile("{}.zip".format(TILEDB_VERSION)) as z:
                 z.extractall(BUILD_DIR)
     return dest
