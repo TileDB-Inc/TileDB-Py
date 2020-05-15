@@ -157,12 +157,11 @@ def download_libtiledb():
         url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(TILEDB_VERSION)
         print("Downloading TileDB package from {}...".format(TILEDB_VERSION))
         try:
-            raise urllib.error.URLError("foo")
             with get_zipfile(url) as z:
                 z.extractall(BUILD_DIR)
         except urllib.error.URLError:
             # try falling back to wget, maybe SSL is broken
-            subprocess.check_call(['wget', url])
+            subprocess.check_call(['wget', url], shell=True)
             with zipfile.ZipFile("{}.zip".format(TILEDB_VERSION)) as z:
                 z.extractall(BUILD_DIR)
     return dest
@@ -263,15 +262,26 @@ def find_or_install_libtiledb(setuptools_cmd):
     wheel_build = getattr(tiledb_ext, 'tiledb_wheel_build', False)
     from_source = getattr(tiledb_ext, 'tiledb_from_source', False)
     lib_exists = libtiledb_exists(tiledb_ext.library_dirs)
+    do_install = False
 
     # Download, build and locally install TileDB if needed.
     if from_source or not lib_exists:
         src_dir = download_libtiledb()
         prefix_dir = build_libtiledb(src_dir)
+        do_install = True
+    elif lib_exists:
+        prefix_dir = os.path.abspath(os.path.join(os.path.split(lib_exists)[0], ".."))
     elif hasattr(tiledb_ext, 'tiledb_path'):
         prefix_dir = getattr(tiledb_ext, 'tiledb_path')
 
-    if from_source or wheel_build or not lib_exists:
+
+    if wheel_build and is_windows() and lib_exists:
+        do_install = True
+
+    print("prefix_dir: ", core_ext)
+    print("do_install: ", do_install)
+
+    if do_install:
         lib_subdir = 'bin' if os.name=='nt' else 'lib'
         native_subdir = '' if is_windows() else 'native'
         # Copy libtiledb shared object(s) to the package directory so they can be found
@@ -608,9 +618,8 @@ def ext_attr_update(attr, value):
 # some of these will error out if passed directly
 # to Extension(..) above
 
-#if (('bdist_wheel' in sys.argv) or ('TILEDB_WHEEL_BUILD' in os.environ)):
-print("SETTING tiledb_wheel_build = True")
-ext_attr_update('tiledb_wheel_build', True)
+if (('bdist_wheel' in sys.argv) or ('TILEDB_WHEEL_BUILD' in os.environ)):
+    ext_attr_update('tiledb_wheel_build', True)
 
 
 # - build with `#line` directive annotations
