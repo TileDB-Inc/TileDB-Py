@@ -269,6 +269,11 @@ def find_or_install_libtiledb(setuptools_cmd):
         prefix_dir = build_libtiledb(src_dir)
     elif hasattr(tiledb_ext, 'tiledb_path'):
         prefix_dir = getattr(tiledb_ext, 'tiledb_path')
+    elif wheel_build and lib_exists:
+        if len(tiledb_ext.library_dirs) > 1:
+          import warnings
+          warnings.warn("More than one library_dir available: using the first")
+        prefix_dir = os.path.abspath(os.path.join(tiledb_ext.library_dirs[0], ".."))
 
     if from_source or wheel_build or not lib_exists:
         lib_subdir = 'bin' if os.name=='nt' else 'lib'
