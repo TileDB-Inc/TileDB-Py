@@ -270,12 +270,16 @@ def find_or_install_libtiledb(setuptools_cmd):
         prefix_dir = build_libtiledb(src_dir)
         do_install = True
     elif lib_exists:
-        prefix_dir = os.path.abspath(os.path.join(lib_exists, ".."))
+        prefix_dir = os.path.abspath(os.path.join(os.path.split(lib_exists)[0], ".."))
     elif hasattr(tiledb_ext, 'tiledb_path'):
         prefix_dir = getattr(tiledb_ext, 'tiledb_path')
 
-    if wheel_build and is_windows():
+
+    if wheel_build and is_windows() and lib_exists:
         do_install = True
+
+    print("prefix_dir: ", core_ext)
+    print("do_install: ", do_install)
 
     if do_install:
         lib_subdir = 'bin' if os.name=='nt' else 'lib'
