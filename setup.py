@@ -262,20 +262,22 @@ def find_or_install_libtiledb(setuptools_cmd):
     wheel_build = getattr(tiledb_ext, 'tiledb_wheel_build', False)
     from_source = getattr(tiledb_ext, 'tiledb_from_source', False)
     lib_exists = libtiledb_exists(tiledb_ext.library_dirs)
+    do_install = False
 
     # Download, build and locally install TileDB if needed.
     if from_source or not lib_exists:
         src_dir = download_libtiledb()
         prefix_dir = build_libtiledb(src_dir)
+        do_install = True
+    elif lib_exists:
+        prefix_dir = os.path.abspath(os.path.join(lib_exists, ".."))
     elif hasattr(tiledb_ext, 'tiledb_path'):
         prefix_dir = getattr(tiledb_ext, 'tiledb_path')
-    elif wheel_build and lib_exists:
-        if len(tiledb_ext.library_dirs) > 1:
-          import warnings
-          warnings.warn("More than one library_dir available: using the first")
-        prefix_dir = os.path.abspath(os.path.join(tiledb_ext.library_dirs[0], ".."))
 
-    if from_source or wheel_build or not lib_exists:
+    if wheel_build and is_windows():
+        do_install = True
+
+    if do_install:
         lib_subdir = 'bin' if os.name=='nt' else 'lib'
         native_subdir = '' if is_windows() else 'native'
         # Copy libtiledb shared object(s) to the package directory so they can be found
