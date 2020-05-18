@@ -41,7 +41,7 @@ from sys import version_info as ver
 print("setup.py sys.argv is: ", sys.argv)
 
 # Target branch
-TILEDB_VERSION = "2.0.0"
+TILEDB_VERSION = "2.0.2"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
