@@ -66,6 +66,7 @@ def array_to_buffer(object val):
     cdef uint64_t buffer_n_elem = np.prod(arr.shape)
     cdef np.ndarray buffer_offsets = np.empty(buffer_n_elem, dtype=np.uint64)
     cdef uint64_t el_buffer_size = 0
+    cdef uint64_t item_len = 0
 
     # first pass: check types and calculate offsets
     for (i, item) in enumerate(arr.flat):
@@ -87,7 +88,11 @@ def array_to_buffer(object val):
                 utf8 = (<unicode>item).encode('UTF-8')
             el_buffer_size = len(utf8)
         else:
-            el_buffer_size = el_size * len(item)
+            if hasattr(item, '__len__'):
+                item_len = len(item)
+            else:
+                item_len = 1
+            el_buffer_size = el_size * item_len
 
         if (el_buffer_size == 0) and (
                 (firstdtype == np.bytes_) or
