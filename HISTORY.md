@@ -1,3 +1,11 @@
+# TileDB-Py 0.6.1 Release Notes
+
+## Bug fixes
+* Fix assignment order for `nonempty_domain` with string dimensions ([#308](https://github.com/TileDB-Inc/TileDB-Py/pull/308)) (test in [#311](https://github.com/TileDB-Inc/TileDB-Py/commit/35e5ff64ccfe7bf8f30a5900bfbe67c46cd1f97d))
+* Fix bug in string attribute handling for var-length attributes ([#307](https://github.com/TileDB-Inc/TileDB-Py/issues/307))
+* Fix regression reading anonymous attributes from TileDB 1.7 arrays ([#311](https://github.com/TileDB-Inc/TileDB-Py/pull/311))
+* Fix incorrect `multi_index` error when string attribute results are empty ([#311](https://github.com/TileDB-Inc/TileDB-Py/pull/311))
+
 # TileDB-Py 0.6.0 Release Notes
 
 ## Improvements
