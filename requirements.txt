@@ -1,9 +1,2 @@
+numpy==1.16.* ; python_version < '3.6'
 setuptools
-wheel
-numpy==1.16.*
-tox
-setuptools-scm
-cython
-dask
-pandas ; python_version > '3.5'
-psutil
