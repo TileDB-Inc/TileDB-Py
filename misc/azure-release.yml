@@ -125,3 +125,18 @@ stages:
         find $TILEDB_INSTALL || true
       displayName: "List all the files"
       condition: always()
+
+  - job: build1_linux_wheels
+    strategy:
+      matrix:
+        wheels:
+          imageName: 'ubuntu-16.04'
+    pool:
+      vmImage: $(imageName)
+
+    steps:
+    - bash: |
+        docker build -f misc/pypi_linux/Dockerfile . -t wheel_builder
+        docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder build.sh
+    - task: PublishBuildArtifacts@1
+      inputs: {pathtoPublish: 'wheelhouse'}
