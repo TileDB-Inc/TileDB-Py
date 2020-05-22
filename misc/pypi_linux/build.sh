@@ -17,7 +17,7 @@ export TILEDB_PY_REPO="/opt/TileDB-Py"
 # build python27 wheel
 cd /home/tiledb
 git clone $TILEDB_PY_REPO TileDB-Py27
-git -C TileDB-Py27 checkout $TILEDB_PY_VERSION
+git -C TileDB-Py27 checkout $TILEDBPY_VERSION
 
 cd /home/tiledb/TileDB-Py27
 /opt/python/cp27-cp27mu/bin/python2.7 setup.py build_ext bdist_wheel --tiledb=/usr/local
@@ -29,7 +29,7 @@ cd tiledb/tests
 # build python35 wheel
 cd /home/tiledb
 git clone $TILEDB_PY_REPO TileDB-Py35
-git -C TileDB-Py35 checkout $TILEDB_PY_VERSION
+git -C TileDB-Py35 checkout $TILEDBPY_VERSION
 
 cd /home/tiledb/TileDB-Py35
 /opt/python/cp35-cp35m/bin/python3.5 setup.py build_ext bdist_wheel --tiledb=/usr/local
@@ -42,7 +42,7 @@ cd tiledb/tests
 # build python36 wheel
 cd /home/tiledb
 git clone $TILEDB_PY_REPO TileDB-Py36
-git -C TileDB-Py36 checkout $TILEDB_PY_VERSION
+git -C TileDB-Py36 checkout $TILEDBPY_VERSION
 
 cd /home/tiledb/TileDB-Py36
 /opt/python/cp36-cp36m/bin/python3.6 setup.py build_ext bdist_wheel --tiledb=/usr/local
@@ -55,7 +55,7 @@ cd tiledb/tests
 # build python37 wheel
 cd /home/tiledb
 git clone $TILEDB_PY_REPO TileDB-Py37
-git -C TileDB-Py37 checkout $TILEDB_PY_VERSION
+git -C TileDB-Py37 checkout $TILEDBPY_VERSION
 
 cd /home/tiledb/TileDB-Py37
 /opt/python/cp37-cp37m/bin/python3.7 setup.py build_ext bdist_wheel --tiledb=/usr/local
@@ -67,7 +67,7 @@ cd tiledb/tests
 # build python38 wheel
 cd /home/tiledb
 git clone $TILEDB_PY_REPO TileDB-Py38
-git -C TileDB-Py38 checkout $TILEDB_PY_VERSION
+git -C TileDB-Py38 checkout $TILEDBPY_VERSION
 
 cd /home/tiledb/TileDB-Py38
 /opt/python/cp38-cp38/bin/python3.8 setup.py build_ext bdist_wheel --tiledb=/usr/local
