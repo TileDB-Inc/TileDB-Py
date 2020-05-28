@@ -5629,15 +5629,20 @@ def vacuum(array_uri, Config config=None, Ctx ctx=None):
     >>> import tempfile
     >>> path = tempfile.mkdtemp()
     >>> with tiledb.from_numpy(path, np.random.rand(4)) as A:
-    >>>     pass # make sure to close
+    ...     pass # make sure to close
     >>> with tiledb.open(path, 'w') as A:
-    >>>     for i in range(4):
-    >>>         A[:] = np.ones(4, dtype=np.int64) * i
+    ...     for i in range(4):
+    ...         A[:] = np.ones(4, dtype=np.int64) * i
     >>> paths = tiledb.VFS().ls(path)
-    >>> len(paths) # should be 11 (3 base files + 2*4 fragment+ok files)
+    >>> len(paths) # should be 13 (3 base files + 2*5 fragment+ok files)
+    13
+    >>> () ; tiledb.consolidate(path) ; () # doctest:+ELLIPSIS
+    (...)
     >>> tiledb.vacuum(path)
     >>> paths = tiledb.VFS().ls(path)
     >>> len(paths) # should now be 5 (3 base files + 2 fragment+ok files)
+    5
+
 
     :param str array_uri: URI of array to be vacuumed
     :param config: Override the context configuration for vacuuming.
