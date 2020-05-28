@@ -5617,6 +5617,20 @@ class FileIO(io.RawIOBase):
         return nbytes
 
 def vacuum(array_uri, Config config=None, Ctx ctx=None):
+    """
+    Remove consolidated fragments. After consolidation, you may optionally
+    remove the consolidated fragments with the "vacuum" step. This operation
+    of this function is controlled by the `sm.vacuum.mode` parameter, which
+    accepts the values `fragments`, `fragment_meta`, and `array_meta`.
+
+    :param str array_uri: URI of array to be vacuumed
+    :param config: Override the context configuration for vacuuming.
+        Defaults to None, inheriting the context parameters.
+    :param (ctx: tiledb.Ctx, optional): Context. Defaults to
+        `tiledb.default_ctx()`.
+    :raises TypeError: cannot convert `uri` to unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+    """
     cdef tiledb_ctx_t* ctx_ptr = NULL
     cdef tiledb_config_t* config_ptr = NULL
 
