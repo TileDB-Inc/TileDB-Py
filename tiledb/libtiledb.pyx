@@ -5623,6 +5623,22 @@ def vacuum(array_uri, Config config=None, Ctx ctx=None):
     of this function is controlled by the `sm.vacuum.mode` parameter, which
     accepts the values `fragments`, `fragment_meta`, and `array_meta`.
 
+    **Example:**
+
+    >>> import tiledb, numpy as np
+    >>> import tempfile
+    >>> path = tempfile.mkdtemp()
+    >>> with tiledb.from_numpy(path, np.random.rand(4)) as A:
+    >>>     pass # make sure to close
+    >>> with tiledb.open(path, 'w') as A:
+    >>>     for i in range(4):
+    >>>         A[:] = np.ones(4, dtype=np.int64) * i
+    >>> paths = tiledb.VFS().ls(path)
+    >>> len(paths) # should be 11 (3 base files + 2*4 fragment+ok files)
+    >>> tiledb.vacuum(path)
+    >>> paths = tiledb.VFS().ls(path)
+    >>> len(paths) # should now be 5 (3 base files + 2 fragment+ok files)
+
     :param str array_uri: URI of array to be vacuumed
     :param config: Override the context configuration for vacuuming.
         Defaults to None, inheriting the context parameters.
