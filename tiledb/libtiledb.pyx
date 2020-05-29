@@ -3664,13 +3664,12 @@ cdef class Array(object):
         cdef np.ndarray end_buf
         cdef void* start_buf_ptr
         cdef void* end_buf_ptr
-        cdef np.dtype start_dtype
-        cdef np.dtype end_dtype
+        cdef np.dtype dim_dtype
 
         for dim_idx in range(dom.ndim):
-            start_dtype = dom.dim(dim_idx).dtype
+            dim_dtype = dom.dim(dim_idx).dtype
 
-            if np.issubdtype(start_dtype, np.str_) or np.issubdtype(start_dtype, np.bytes_):
+            if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
                 rc = tiledb_array_get_non_empty_domain_var_size_from_index(
                     ctx_ptr, array_ptr, dim_idx, &start_size, &end_size, &is_empty)
                 if rc != TILEDB_OK:
@@ -3687,15 +3686,17 @@ cdef class Array(object):
                 end_buf_ptr = np.PyArray_DATA(end_buf)
             else:
                 # this one is contiguous
-                start_buf = np.empty(2, start_dtype)
+                start_buf = np.empty(2, dim_dtype)
                 start_buf_ptr = np.PyArray_DATA(start_buf)
 
-            if np.issubdtype(start_dtype, np.str_) or np.issubdtype(start_dtype, np.bytes_):
+            if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
                     rc = tiledb_array_get_non_empty_domain_var_from_index(
                              ctx_ptr, array_ptr, dim_idx, start_buf_ptr, end_buf_ptr, &is_empty
                     )
                     if rc != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
+                    if is_empty:
+                        return None
                     results.append((start_buf.item(0), end_buf.item(0)))
             else:
                     rc = tiledb_array_get_non_empty_domain_from_index(
@@ -3703,7 +3704,11 @@ cdef class Array(object):
                     )
                     if rc != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
-                    results.append((start_buf.item(0), start_buf.item(1)))
+                    if is_empty:
+                        return None
+                    res_typed = (np.array(start_buf.item(0), dtype=dim_dtype),
+                                 np.array(start_buf.item(1), dtype=dim_dtype))
+                    results.append(res_typed)
 
         return tuple(results)
 
@@ -3715,8 +3720,13 @@ cdef class Array(object):
 
         """
         cdef Domain dom = self.schema.domain
-        if (any([dom.dim(idx).isvar for idx in range(dom.ndim)])):
+        dom_dims = [dom.dim(idx) for idx in range(dom.ndim)]
+        dom_dtypes = [dim.dtype for dim in dom_dims]
+
+        if any(dim.isvar for dim in dom_dims) or \
+                dom_dims.count(dom_dims[0].dtype) != len(dom_dims):
             return self._nonempty_domain_var()
+
         cdef np.ndarray extents = np.zeros(shape=(dom.ndim, 2), dtype=dom.dtype)
 
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
