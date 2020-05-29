@@ -1970,7 +1970,6 @@ class SparseArray(DiskTestCase):
         coords1 = np.repeat(np.arange(0,50), 63)
         coords2 = np.linspace(-100.0,100.0, num=3150)
 
-
         with tiledb.open(path, 'w') as A:
             A[coords1, coords2] = data
 
@@ -1982,6 +1981,9 @@ class SparseArray(DiskTestCase):
         with tiledb.open(path) as A:
             res = A[:]
             assert_subarrays_equal(data[coords1[sidx],coords2_idx[sidx]], res['val'])
+            a_nonempty = A.nonempty_domain()
+            self.assertEqual(a_nonempty[0], (0,49))
+            self.assertEqual(a_nonempty[1], (-100.0, 100.0))
 
     def test_sparse_string_domain(self):
         path = self.path("sparse_string_domain")
@@ -2027,7 +2029,7 @@ class SparseArray(DiskTestCase):
 
         with tiledb.open(path) as A:
             ned = A.nonempty_domain()[0]
-            res = A[ned[0] : ned[1] ]
+            res = A[ned[0] : ned[1]]
             self.assertTrue(set(res['str']) == set(coords))
             # must check data ordered by coords
             assert_array_equal(res['val'], data[np.argsort(coords, kind='stable')])
