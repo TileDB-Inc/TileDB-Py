@@ -1,9 +1,9 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.6.1
-    LIBTILEDB_VERSION: 2.0.2
-    LIBTILEDB_SHA: 2f6a79b22b71ea6fb0474813ccad59559455e43a
+    TILEDBPY_VERSION: 0.6.2
+    LIBTILEDB_VERSION: 2.0.3
+    LIBTILEDB_SHA: cf03c60109cb566af83cfa41771fa8bd05d4cc9a
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
@@ -71,7 +71,7 @@ stages:
         # Set the CIBW_ENVIRONMENT from bash in order to get forward slashes because somewhere in  the
         # cmd/cibw/python chain we end up losing the slashes entirely if we use a job-level variable.
         MPATH=$(python -c 'import os; print(os.environ["TILEDB_INSTALL"].replace("\\","/"))')
-        export CIBW_ENVIRONMENT="TILEDB_PATH=${MPATH} SETUPTOOLS_SCM_PRETEND_VERSION=0.6.1"
+        export CIBW_ENVIRONMENT="TILEDB_PATH=${MPATH} SETUPTOOLS_SCM_PRETEND_VERSION=${TILEDBPY_VERSION}"
         echo "##vso[task.setvariable variable=CIBW_ENVIRONMENT]$CIBW_ENVIRONMENT"
       displayName: "Set CIBW_ENVIRONMENT"
       condition: succeeded()
@@ -125,3 +125,18 @@ stages:
         find $TILEDB_INSTALL || true
       displayName: "List all the files"
       condition: always()
+
+  - job: build1_linux_wheels
+    strategy:
+      matrix:
+        wheels:
+          imageName: 'ubuntu-16.04'
+    pool:
+      vmImage: $(imageName)
+
+    steps:
+    - bash: |
+        docker build -f misc/pypi_linux/Dockerfile . -t wheel_builder
+        docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder build.sh
+    - task: PublishBuildArtifacts@1
+      inputs: {pathtoPublish: 'wheelhouse'}

@@ -1970,7 +1970,6 @@ class SparseArray(DiskTestCase):
         coords1 = np.repeat(np.arange(0,50), 63)
         coords2 = np.linspace(-100.0,100.0, num=3150)
 
-
         with tiledb.open(path, 'w') as A:
             A[coords1, coords2] = data
 
@@ -1982,6 +1981,9 @@ class SparseArray(DiskTestCase):
         with tiledb.open(path) as A:
             res = A[:]
             assert_subarrays_equal(data[coords1[sidx],coords2_idx[sidx]], res['val'])
+            a_nonempty = A.nonempty_domain()
+            self.assertEqual(a_nonempty[0], (0,49))
+            self.assertEqual(a_nonempty[1], (-100.0, 100.0))
 
     def test_sparse_string_domain(self):
         path = self.path("sparse_string_domain")
@@ -2027,7 +2029,7 @@ class SparseArray(DiskTestCase):
 
         with tiledb.open(path) as A:
             ned = A.nonempty_domain()[0]
-            res = A[ned[0] : ned[1] ]
+            res = A[ned[0] : ned[1]]
             self.assertTrue(set(res['str']) == set(coords))
             # must check data ordered by coords
             assert_array_equal(res['val'], data[np.argsort(coords, kind='stable')])
@@ -2730,21 +2732,42 @@ class ConsolidationTest(DiskTestCase):
         path = self.path("test_array_vacuum")
 
         dshape = (0, 19)
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=dshape, tile=3), ctx=ctx)
-        att = tiledb.Attr(ctx=ctx, dtype='int64')
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
-        tiledb.libtiledb.Array.create(path, schema)
+        num_writes = 10
 
-        for i in range(*dshape):
-            with tiledb.open(path, 'w') as A:
-                A[i:dshape[1]] = np.random.rand(dshape[1] - i)
+        def create_array(target_path):
+            dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=dshape, tile=3), ctx=ctx)
+            att = tiledb.Attr(ctx=ctx, dtype='int64')
+            schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+            tiledb.libtiledb.Array.create(target_path, schema)
 
+        def write_fragments(target_path):
+            for i in range(num_writes):
+                with tiledb.open(target_path, 'w') as A:
+                    A[i:dshape[1]] = np.random.rand(dshape[1] - i)
+
+        create_array(path)
+        write_fragments(path)
         paths = vfs.ls(path)
-        self.assertEqual(len(paths), 2 * dshape[1] + 3)
+        self.assertEqual(len(paths), 3 + 2 * num_writes)
 
         tiledb.consolidate(path, ctx=ctx)
         tiledb.vacuum(path, ctx=ctx)
-        self.assertEqual(len(paths), 2 * dshape[1] + 3)
+
+        paths = vfs.ls(path)
+        self.assertEqual(len(paths), 5)
+
+        del path
+
+        path2 = self.path("test_array_vacuum_fragment_meta")
+        create_array(path2)
+        write_fragments(path2)
+        tiledb.consolidate(path2,
+                           config=tiledb.Config({'sm.consolidation.mode': 'fragment_meta'}))
+        tiledb.vacuum(path2,
+                      config=tiledb.Config({'sm.vacuum.mode': 'fragment_meta'}))
+        paths = vfs.ls(path2)
+
+        self.assertEqual(len(paths), 3 + 2 * num_writes + 1)
 
 class RegTests(DiskTestCase):
     def test_tiledb_py_0_6_anon_attr(self):

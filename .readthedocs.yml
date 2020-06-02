@@ -5,10 +5,13 @@ formats: []
 # https://docs.readthedocs.io/en/stable/config-file/v2.html
 version: 2
 
+sphinx:
+  configuration: doc/source/conf.py
+
 python:
   version: 3.7
   install:
     # this order is important: we need to get cmake
-    - requirements: requirements.txt
+    - requirements: requirements_dev.txt
     - method: setuptools
       path: .
