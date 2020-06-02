@@ -1,3 +1,11 @@
+# TileDB-Py 0.6.2 Release Notes
+
+## Bug fixes
+* Fix `nonempty_domain` with heterogeneous non-string dimensions ([#320](https://github.com/TileDB-Inc/TileDB-Py/pull/320))
+
+## Improvements
+* Add doctest for `tiledb.vacuum` ([#319](https://github.com/TileDB-Inc/TileDB-Py/pull/320))
+
 # TileDB-Py 0.6.1 Release Notes
 
 ## Bug fixes
