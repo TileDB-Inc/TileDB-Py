@@ -21,9 +21,9 @@ ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 
 ###############################################
 # settings (B)
-ENV LIBTILEDB_VERSION 2.0.2
-ENV LIBTILEDB_SHA 2f6a79b22b71ea6fb0474813ccad59559455e43a
-ENV TILEDBPY_VERSION 0.6.1
+ENV LIBTILEDB_VERSION 2.0.3
+ENV LIBTILEDB_SHA cf03c60109cb566af83cfa41771fa8bd05d4cc9a
+ENV TILEDBPY_VERSION 0.6.2
 ###############################################
 # 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
 # 2) adding -lrt as a work-around for now because python2.7 doesn't link it, but it
