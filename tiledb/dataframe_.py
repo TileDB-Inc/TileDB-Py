@@ -97,7 +97,7 @@ def attrs_from_df(df, index_dims=None, ctx=None):
 
     return attrs, attr_reprs
 
-def dim_for_column(ctx, df: 'pd.DataFrame', col, col_name):
+def dim_for_column(ctx, df, col, col_name):
     if isinstance(col, np.ndarray):
         col_values = col
     else:
