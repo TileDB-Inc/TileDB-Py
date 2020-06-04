@@ -6,6 +6,7 @@ import sys
 import random
 import shutil
 import tempfile
+import datetime
 import traceback
 from unittest import TestCase
 
@@ -60,21 +61,24 @@ if sys.hexversion >= 0x3000000:
 else:
     getchr = unichr
 
-def gen_chr(max):
+def gen_chr(max, printable=False):
     while True:
         # TODO we exclude 0x0 here because the key API does not embedded NULL
         s = getchr(random.randrange(1, max))
-        if len(s) > 0: break
+        if printable and not s.isprintable():
+            continue
+        if len(s) > 0:
+            break
     return s
 
 def rand_utf8(size=5):
     return u''.join([gen_chr(0xD7FF) for _ in range(0, size)])
 
-def rand_ascii(size=5):
-    return u''.join([gen_chr(127) for _ in range(0,size)])
+def rand_ascii(size=5, printable=False):
+    return u''.join([gen_chr(127, printable) for _ in range(0,size)])
 
-def rand_ascii_bytes(size=5):
-    return b''.join([gen_chr(127).encode('utf-8') for _ in range(0,size)])
+def rand_ascii_bytes(size=5, printable=False):
+    return b''.join([gen_chr(127, printable).encode('utf-8') for _ in range(0,size)])
 
 def dtype_max(dtype):
     if not np.issubdtype(dtype, np.generic):
@@ -88,7 +92,10 @@ def dtype_max(dtype):
         iinfo = np.iinfo(dtype)
         return int(iinfo.max)
 
-    raise "Unknown dtype for dtype_max '{dtype}'".format(str(dtype))
+    elif np.issubdtype(dtype, np.datetime64):
+        return np.datetime64(datetime.datetime.max)
+
+    raise "Unknown dtype for dtype_max '{}'".format(str(dtype))
 
 def dtype_min(dtype):
     if not np.issubdtype(dtype, np.generic):
@@ -102,11 +109,32 @@ def dtype_min(dtype):
         iinfo = np.iinfo(dtype)
         return int(iinfo.min)
 
+    elif np.issubdtype(dtype, np.datetime64):
+        return np.datetime64(datetime.datetime.min)
+
     raise "Unknown dtype for dtype_min '{dtype}'".format(str(dtype))
 
 def rand_int_sequential(size, dtype=np.uint64):
-    arr = np.random.randint(dtype_max(dtype), size=size, dtype=dtype)
+    arr = np.random.randint(
+        dtype_min(dtype), high=dtype_max(dtype), size=size, dtype=dtype
+    )
     return np.sort(arr)
+
+def rand_datetime64_array(size, dtype=None):
+    if not dtype:
+        dtype = np.dtype('M8[ns]')
+
+    # generate randint inbounds on the range of M8[ns]
+    # (TODO this will give weird results for ps/fs/as scale but those are uncommon)
+    start = np.datetime64('1678-01-01').astype(dtype).astype(np.int64)
+    stop = np.datetime64('2202-01-01').astype(dtype).astype(np.int64)
+
+    arr = np.random.randint(
+        start, stop, size=size, dtype=np.int64
+    )
+    arr.sort()
+
+    return arr.astype(dtype)
 
 def intspace(start, stop, num=50, dtype=np.int64):
     """

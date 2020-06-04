@@ -3,11 +3,13 @@ import json
 import sys
 import os
 import io
+from collections import OrderedDict
 
 if sys.version_info >= (3,3):
     unicode_type = str
 else:
     unicode_type = unicode
+unicode_dtype = np.dtype(unicode_type)
 
 # TODO
 # - handle missing values
@@ -27,7 +29,7 @@ class ColumnInfo:
         self.dtype = dtype
         self.repr = repr
 
-def attr_dtype_from_column(col):
+def dtype_from_column(col):
     import pandas as pd
 
     col_dtype = col.dtype
@@ -47,7 +49,7 @@ def attr_dtype_from_column(col):
 
     # Pandas 1.0 has StringDtype extension type
     if col_dtype.name == 'string':
-        return ColumnInfo(unicode_type)
+        return ColumnInfo(unicode_dtype)
 
     if col_dtype == 'bool':
         return ColumnInfo(np.uint8, repr=np.dtype('bool'))
@@ -59,9 +61,10 @@ def attr_dtype_from_column(col):
         inferred_dtype = pd.api.types.infer_dtype(col)
 
         if inferred_dtype == 'bytes':
-            return ColumnInfo(bytes)
+            return ColumnInfo(np.bytes_)
         elif inferred_dtype == 'string':
-            return ColumnInfo(unicode_type)
+            # TODO we need to make sure this is actually convertible
+            return ColumnInfo(unicode_dtype)
 
         elif inferred_dtype == 'mixed':
             raise ValueError(
@@ -76,14 +79,17 @@ def attr_dtype_from_column(col):
 
 
 # TODO make this a staticmethod on Attr?
-def attrs_from_df(df, ctx=None):
+def attrs_from_df(df, index_dims=None, ctx=None):
     attr_reprs = dict()
 
     if ctx is None:
         ctx = tiledb.default_ctx()
     attrs = list()
     for name, col in df.items():
-        attr_info = attr_dtype_from_column(col)
+        # ignore any column used as a dim/index
+        if index_dims and name in index_dims:
+            continue
+        attr_info = dtype_from_column(col)
         attrs.append(tiledb.Attr(name=name, dtype=attr_info.dtype))
 
         if attr_info.repr is not None:
@@ -91,19 +97,91 @@ def attrs_from_df(df, ctx=None):
 
     return attrs, attr_reprs
 
+def dim_for_column(ctx, df, col, col_name):
+    if isinstance(col, np.ndarray):
+        col_values = col
+    else:
+        col_values = col.values
 
+    if len(col_values) < 1:
+        raise ValueError("Empty column '{}' cannot be used for dimension!".format(col_name))
 
+    dim_info = dtype_from_column(col_values)
 
-def write_attr_metadata(array, metadata):
+    if col_values.dtype is np.dtype('O'):
+        if type(col_values[0]) in (bytes, unicode_type):
+            dim_min, dim_max = (None, None)
+            # TODO... core only supports TILEDB_ASCII right now
+            dim_info = ColumnInfo(np.bytes_)
+        else:
+            raise TypeError("other unknown column type not yet supported")
+    else:
+        dim_min = np.min(col_values)
+        dim_max = np.max(col_values)
+
+    dim = tiledb.Dim(
+        name = col_name,
+        domain = (dim_min, dim_max),
+        dtype = dim_info.dtype,
+        tile = 1 # TODO
+    )
+
+    return dim
+
+def get_index_metadata(dataframe):
+    md = dict()
+    for index in dataframe.index.names:
+        # Note: this may be expensive.
+        md[index] = dtype_from_column(dataframe.index.get_level_values(index)).dtype
+
+    return md
+
+def write_array_metadata(array, attr_metadata = None, index_metadata = None):
     """
     :param array: open, writable TileDB array
     :param metadata: dict
     :return:
     """
+    if attr_metadata:
+        attr_md_dict = {n: str(t) for n,t in attr_metadata.items()}
+        array.meta['__pandas_attribute_repr'] = json.dumps(attr_md_dict)
 
-    md_dict = {n: str(t) for n,t in metadata.items()}
+    if index_metadata:
+        index_md_dict = {n: str(t) for n,t in index_metadata.items()}
+        array.meta['__pandas_index_dims'] = json.dumps(index_md_dict)
 
-    array.meta['__pandas_attribute_repr'] = json.dumps(md_dict)
+def create_dims(ctx, dataframe, index_dims):
+    import pandas as pd
+    index = dataframe.index
+    index_dict = OrderedDict()
+
+    if isinstance(index, pd.MultiIndex):
+        for name in index.names:
+            index_dict[name] = dataframe.index.get_level_values(name)
+
+    elif isinstance(index, (pd.Index, pd.RangeIndex, pd.Int64Index)):
+        if hasattr(index, 'name') and index.name is not None:
+            name = index.name
+        else:
+            name = 'rows'
+
+        index_dict[name] = index.values
+
+    else:
+        raise ValueError("Unhandled index type {}".format(type(index)))
+
+    dims = list(
+        dim_for_column(ctx, dataframe, values, name) for name,values in index_dict.items()
+    )
+
+    if index_dims:
+        for name in index_dims:
+            col = dataframe[name]
+            dims.append(
+                dim_for_column(ctx, dataframe, col.values, name)
+            )
+
+    return dims
 
 
 def from_dataframe(uri, dataframe, **kwargs):
@@ -118,11 +196,17 @@ def from_dataframe(uri, dataframe, **kwargs):
     """
     args = TILEDB_KWARG_DEFAULTS
 
-    tiledb_args = kwargs.pop('tiledb_args', None)
-    if isinstance(tiledb_args, dict):
-        args.update(tiledb_args)
-    if not args.get('ctx', None):
+    #tiledb_args = kwargs.pop('tiledb_args', {})
+    #index_dims = tiledb_args.pop('index_dims', None)
+
+    #if isinstance(tiledb_args, dict):
+    #    args.update(tiledb_args)
+    if 'ctx' not in kwargs:
         args['ctx'] = tiledb.default_ctx()
+    if 'sparse' in kwargs:
+        args['sparse'] = kwargs.pop('sparse', None)
+
+    index_dims = kwargs.pop('index_dims', None)
 
     ctx = args['ctx']
     tile_order = args['tile_order']
@@ -133,17 +217,20 @@ def from_dataframe(uri, dataframe, **kwargs):
     tiling = np.min((nrows % 200, nrows))
 
     # create the domain and attributes
-    dim = tiledb.Dim(
-        name="rows",
-        domain=(0, nrows-1),
-        dtype=np.uint64,
-        tile=tiling,
-    )
+    dims = create_dims(ctx, dataframe, index_dims)
+
+    if len(dims) > 1:
+        sparse = True
+    if any([d.dtype in (np.bytes_, np.unicode_) for d in dims]):
+        sparse = True
+    if any([np.issubdtype(d.dtype, np.datetime64) for d in dims]):
+        sparse = True
+
     domain = tiledb.Domain(
-       dim,
+       *dims,
        ctx = ctx
     )
-    attrs, attr_metadata = attrs_from_df(dataframe)
+    attrs, attr_metadata = attrs_from_df(dataframe, index_dims=index_dims)
 
     # now create the ArraySchema
     schema = tiledb.ArraySchema(
@@ -156,12 +243,27 @@ def from_dataframe(uri, dataframe, **kwargs):
 
     tiledb.Array.create(uri, schema, ctx=ctx)
 
-    with tiledb.DenseArray(uri, 'w', ctx=ctx) as A:
-        write_dict =  {k: v.values for k,v in dataframe.to_dict(orient='series').items()}
-        A[0:nrows] = write_dict
+    write_dict = {k: v.values for k,v in dataframe.to_dict(orient='series').items()}
 
-        if attr_metadata is not None:
-            write_attr_metadata(A, attr_metadata)
+    index_metadata = get_index_metadata(dataframe)
+
+    try:
+        A = tiledb.open(uri, 'w', ctx=ctx)
+
+        if sparse:
+            coords = []
+            for k in range(len(dims)):
+                coords.append(dataframe.index.get_level_values(k))
+
+            # TODO ensure correct col/dim ordering
+            A[tuple(coords)] = write_dict
+
+        else:
+            A[:] = write_dict
+
+        write_array_metadata(A, attr_metadata, index_metadata)
+    finally:
+        A.close()
 
 
 def open_dataframe(uri):
@@ -186,18 +288,39 @@ def open_dataframe(uri):
     # TODO support `distributed=True` option?
 
     with tiledb.open(uri) as A:
-        if not '__pandas_attribute_repr' in A.meta:
-            raise ValueError("Missing key '__pandas_attribute_repr'")
-        repr_meta = json.loads(A.meta['__pandas_attribute_repr'])
+        #if not '__pandas_attribute_repr' in A.meta \
+        #    and not '__pandas_repr' in A.meta:
+        #    raise ValueError("Missing required keys to reload overloaded dataframe dtypes")
+
+        # TODO missing key should only be a warning, return best-effort?
+        # TODO this should be generalized for round-tripping overloadable types
+        #      for any array (e.g. np.uint8 <> bool)
+        repr_meta = None
+        index_dims = None
+        if '__pandas_attribute_repr' in A.meta:
+            # backwards compatibility... unsure if necessary at this point
+            repr_meta = json.loads(A.meta['__pandas_attribute_repr'])
+        if '__pandas_index_dims' in A.meta:
+            index_dims = json.loads(A.meta['__pandas_index_dims'])
 
         data = A[:]
+        indexes = list()
 
         for col_name, col_val in data.items():
-            if col_name in repr_meta:
+            if repr_meta and col_name in repr_meta:
                 new_col = pd.Series(col_val, dtype=repr_meta[col_name])
                 data[col_name] = new_col
+            elif index_dims and col_name in index_dims:
+                new_col = pd.Series(col_val, dtype=index_dims[col_name])
+                data[col_name] = new_col
+                indexes.append(col_name)
 
-    return pd.DataFrame.from_dict(data)
+
+    new_df = pd.DataFrame.from_dict(data)
+    if len(indexes) > 0:
+        new_df.set_index(indexes, inplace=True)
+
+    return new_df
 
 
 def from_csv(uri, csv_file, distributed=False, **kwargs):

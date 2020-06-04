@@ -4457,32 +4457,34 @@ cdef class SparseArrayImpl(Array):
                                  "array.")
             val = dict({self.attr(0).name: val})
 
-        for (k, v) in dict(val).items():
-            attr = self.attr(k)
-            name = attr._internal_name
+        # must iterate in Attr order to ensure that value order matches
+        for attr_idx in range(self.schema.nattr):
+            attr = self.attr(attr_idx)
+            name = attr.name
+            attr_val = val[name]
 
             try:
                 if attr.isvar:
                     # ensure that the value is array-convertible, for example: pandas.Series
-                    v = np.asarray(v)
+                    attr_val = np.asarray(attr_val)
                 else:
                     if (np.issubdtype(attr.dtype, np.string_) and not
-                        (np.issubdtype(v.dtype, np.string_) or v.dtype == np.dtype('O'))):
+                        (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
                         raise ValueError("Cannot write a string value to non-string "
                                          "typed attribute '{}'!".format(name))
 
-                    v = np.ascontiguousarray(v, dtype=attr.dtype)
+                    attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
             except Exception as exc:
                 raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
 
-            if v.size != ncells:
-                raise ValueError("value length ({}) does not match "
-                                 "coordinate length ({})".format(v.size, ncells))
-            sparse_attributes.append(name)
-            sparse_values.append(v)
+            if attr_val.size != ncells:
+               raise ValueError("value length ({}) does not match "
+                                 "coordinate length ({})".format(attr_val.size, ncells))
+            sparse_attributes.append(attr._internal_name)
+            sparse_values.append(attr_val)
 
-        assert len(sparse_attributes) == self.schema.nattr
-        assert len(sparse_values) == self.schema.nattr
+        assert len(sparse_attributes) == len(val.keys())
+        assert len(sparse_values) == len(val.values())
 
         _write_array(
             self.ctx.ptr, self.ptr, self,
@@ -4524,7 +4526,7 @@ cdef class SparseArrayImpl(Array):
         ...         A[I, J] = {"a1": np.array([1, 2]),
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
-        ...         # Return an OrderedDict with cell coordinates
+        ...         # Return an OrderedDict with values and coordinates
         ...         A[0:3, 0:10]
         ...         # Return just the "x" coordinates values
         ...         A[0:3, 0:10]["x"]

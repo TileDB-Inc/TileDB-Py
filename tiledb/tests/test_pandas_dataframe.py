@@ -9,6 +9,7 @@ except ImportError:
     import_failed = True
 
 import unittest, os
+import warnings
 import string, random
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -16,21 +17,36 @@ from numpy.testing import assert_array_equal
 import tiledb
 from tiledb.tests.common import *
 
+if (sys.version_info > (3,0)):
+    str_type = str
+else:
+    str_type = unicode
+
 def make_dataframe_basic1(col_size=10):
+    # ensure no duplicates when using as string dim
+    chars = list()
+    for _ in range(col_size):
+        next = rand_ascii_bytes(2)
+        while next in chars:
+            next = rand_ascii_bytes(2)
+        chars.append(next)
+
     data_dict = {
-        'time': rand_int_sequential(col_size, dtype=np.uint64),
-        'x': np.array([rand_ascii(4) for _ in range(col_size)]),
-        'chars': np.array([rand_ascii_bytes(2) for _ in range(col_size)]),
+        'time': rand_datetime64_array(col_size),
+        'x': np.array([rand_ascii(4).encode('UTF-8') for _ in range(col_size)]),
+        'chars': np.array(chars),
         'cccc': np.arange(0, col_size),
 
         'q': np.array([rand_utf8(np.random.randint(1, 100)) for _ in range(col_size)]),
+        't': np.array([rand_utf8(4) for _ in range(col_size)]),
+
         'r': np.array([rand_ascii_bytes(np.random.randint(1, 100)) for _ in range(col_size)]),
         's': np.array([rand_ascii() for _ in range(col_size)]),
-        'vals_int64': np.random.randint(dtype_max(np.int64), size=col_size, dtype=np.int64),
-        'vals_float64': np.random.rand(col_size),
-        't': np.array([rand_utf8(4) for _ in range(col_size)]),
         'u': np.array([rand_ascii_bytes() for _ in range(col_size)]),
         'v': np.array([rand_ascii_bytes() for _ in range(col_size)]),
+
+        'vals_int64': np.random.randint(dtype_max(np.int64), size=col_size, dtype=np.int64),
+        'vals_float64': np.random.rand(col_size),
     }
 
     # TODO: dump this dataframe to pickle/base64 so that it can be reconstructed if
@@ -99,7 +115,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         compression = tiledb.FilterList([tiledb.ZstdFilter(level=-1)])
         attrs = [
-            tiledb.Attr(name="x", dtype='U', filters=compression, ctx=ctx),
+            tiledb.Attr(name="x", dtype='S', filters=compression, ctx=ctx),
             tiledb.Attr(name="chars", dtype='|S2', filters=compression, ctx=ctx),
 
             tiledb.Attr(name="q", dtype='U', filters=compression, ctx=ctx),
@@ -200,3 +216,70 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_from_array2 = tiledb.open_dataframe(csv_array_uri2)
             tm.assert_frame_equal(df_orig, df_from_array2)
 
+    def test_dataframe_index_to_sparse_dims(self):
+        # This test
+        # - loops over all of the columns from make_basic_dataframe,
+        # - sets the index to the current column
+        # - creates a dataframe
+        # - check that indexing the nonempty_domain of the resulting
+        #   dimension matches the input
+
+        # TODO should find a way to dump the whole dataframe dict to a
+        #      (print-safe) bytestring in order to debug generated output
+        df = make_dataframe_basic1(100)
+
+        for col in df.columns:
+            uri = self.path("df_indx_dim+{}".format(str(col)))
+
+            # ensure that all column which will be used as string dim index
+            # is sorted, because that is how it will be returned
+            if df.dtypes[col] == 'O':
+                df.sort_values(col, inplace=True)
+
+                # also ensure that string columns are converted to bytes
+                # b/c only TILEDB_ASCII supported for string dimension
+                if type(df[col][0]) == str_type:
+                    df[col] = [x.encode('UTF-8') for x in df[col]]
+
+            new_df = df.set_index(col)
+
+            tiledb.from_dataframe(uri, new_df, sparse=True)
+
+            with tiledb.open(uri) as A:
+                self.assertEqual(A.domain.dim(0).name, col)
+
+                nonempty = A.nonempty_domain()[0]
+                res = A.multi_index[nonempty[0]:nonempty[1]]
+
+                # TODO use tiledb.open_dataframe here
+                res_df = pd.DataFrame(res, index=res.pop(col))
+                tm.assert_frame_equal(new_df, res_df, check_like=True)
+
+    def test_dataframe_multiindex_dims(self):
+        uri = self.path("df_multiindex_dims")
+
+        col_size = 10
+        df_dict = {
+            'time': rand_datetime64_array(col_size),
+            'double_range': np.linspace(-1000, 1000, col_size),
+            'vals': np.random.rand(col_size)
+            }
+        df = pd.DataFrame(df_dict)
+        df.set_index(['time', 'double_range'], inplace=True)
+
+        tiledb.from_dataframe(uri, df)
+
+        with tiledb.open(uri) as A:
+            ned_time = A.nonempty_domain()[0]
+            ned_dbl = A.nonempty_domain()[1]
+
+            res = A.multi_index[slice(*ned_time), :]
+            assert_array_equal(
+                res['time'], df_dict['time']
+            )
+            assert_array_equal(
+                res['double_range'], df_dict['double_range']
+            )
+            assert_array_equal(
+                res['vals'], df.vals.values
+            )
