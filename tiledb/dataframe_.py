@@ -18,11 +18,22 @@ unicode_dtype = np.dtype(unicode_type)
 # - implement support for read CSV via TileDB VFS from any supported FS
 
 TILEDB_KWARG_DEFAULTS = {
-    'ctx': None,
     'cell_order': 'row-major',
     'tile_order': 'row-major',
     'sparse': False
 }
+
+def parse_tiledb_kwargs(kwargs):
+    args = dict(TILEDB_KWARG_DEFAULTS)
+
+    if 'ctx' in kwargs:
+        args['ctx'] = kwargs.pop('ctx')
+    if 'sparse' in kwargs:
+        args['sparse'] = kwargs.pop('sparse')
+    if 'index_dims' in kwargs:
+        args['index_dims'] = kwargs.pop('index_dims')
+
+    return args
 
 class ColumnInfo:
     def __init__(self, dtype, repr=None):
@@ -62,6 +73,7 @@ def dtype_from_column(col):
 
         if inferred_dtype == 'bytes':
             return ColumnInfo(np.bytes_)
+
         elif inferred_dtype == 'string':
             # TODO we need to make sure this is actually convertible
             return ColumnInfo(unicode_dtype)
@@ -77,13 +89,13 @@ def dtype_from_column(col):
         )
     )
 
-
 # TODO make this a staticmethod on Attr?
 def attrs_from_df(df, index_dims=None, ctx=None):
     attr_reprs = dict()
 
     if ctx is None:
         ctx = tiledb.default_ctx()
+
     attrs = list()
     for name, col in df.items():
         # ignore any column used as a dim/index
@@ -194,24 +206,16 @@ def from_dataframe(uri, dataframe, **kwargs):
                 may be passed in a dictionary as `tiledb_args={...}`
     :return:
     """
-    args = TILEDB_KWARG_DEFAULTS
+    args = parse_tiledb_kwargs(kwargs)
 
-    #tiledb_args = kwargs.pop('tiledb_args', {})
-    #index_dims = tiledb_args.pop('index_dims', None)
-
-    #if isinstance(tiledb_args, dict):
-    #    args.update(tiledb_args)
-    if 'ctx' not in kwargs:
-        args['ctx'] = tiledb.default_ctx()
-    if 'sparse' in kwargs:
-        args['sparse'] = kwargs.pop('sparse', None)
-
-    index_dims = kwargs.pop('index_dims', None)
-
-    ctx = args['ctx']
+    ctx = args.get('ctx', None)
     tile_order = args['tile_order']
     cell_order = args['cell_order']
     sparse = args['sparse']
+    index_dims = args.get('index_dims', None)
+
+    if ctx is None:
+        ctx = tiledb.default_ctx()
 
     nrows = len(dataframe)
     tiling = np.min((nrows % 200, nrows))
@@ -315,7 +319,6 @@ def open_dataframe(uri):
                 data[col_name] = new_col
                 indexes.append(col_name)
 
-
     new_df = pd.DataFrame.from_dict(data)
     if len(indexes) > 0:
         new_df.set_index(indexes, inplace=True)
@@ -323,12 +326,11 @@ def open_dataframe(uri):
     return new_df
 
 
-def from_csv(uri, csv_file, distributed=False, **kwargs):
+def from_csv(uri, csv_file, **kwargs):
     """Create TileDB array at given URI from a CSV file
 
     :param uri: URI for new TileDB array
     :param csv_file: input CSV file
-    :param distributed:
     :param kwargs: optional keyword arguments for Pandas and TileDB.
                 TileDB context and configuration arguments
                 may be passed in a dictionary as `tiledb_args={...}`
@@ -347,7 +349,7 @@ def from_csv(uri, csv_file, distributed=False, **kwargs):
         print("tiledb.from_csv requires pandas")
         raise
 
-    tiledb_args = kwargs.pop('tiledb_args', {})
+    tiledb_args = parse_tiledb_kwargs(kwargs)
 
     if isinstance(csv_file, str) and not os.path.isfile(csv_file):
         # for non-local files, use TileDB VFS i/o
@@ -356,4 +358,4 @@ def from_csv(uri, csv_file, distributed=False, **kwargs):
         csv_file = tiledb.FileIO(vfs, csv_file, mode='rb')
 
     df = pandas.read_csv(csv_file, **kwargs)
-    from_dataframe(uri, df, tiledb_args=tiledb_args, **kwargs)
+    from_dataframe(uri, df, **tiledb_args, **kwargs)
