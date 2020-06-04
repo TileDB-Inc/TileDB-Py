@@ -86,6 +86,14 @@ def make_dataframe_basic2():
 
     return df
 
+def make_dataframe_basic3(col_size=10):
+    df_dict = {
+        'time': rand_datetime64_array(col_size),
+        'double_range': np.linspace(-1000, 1000, col_size),
+        'int_vals': np.random.rand(col_size)
+        }
+    df = pd.DataFrame(df_dict)
+    return df
 
 class PandasDataFrameRoundtrip(DiskTestCase):
     def setUp(self):
@@ -160,7 +168,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         # TODO tiledb.read_dataframe
         with tiledb.open(uri) as B:
             df_readback = pd.DataFrame.from_dict(B[:])
-            tm.assert_frame_equal(df, df_readback)
+
+        tm.assert_frame_equal(df, df_readback)
 
     def test_dataframe_basic2(self):
         uri = self.path("dataframe_basic_rt2")
@@ -259,12 +268,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         uri = self.path("df_multiindex_dims")
 
         col_size = 10
-        df_dict = {
-            'time': rand_datetime64_array(col_size),
-            'double_range': np.linspace(-1000, 1000, col_size),
-            'vals': np.random.rand(col_size)
-            }
-        df = pd.DataFrame(df_dict)
+        df = make_dataframe_basic3(col_size)
+        df_dict = df.to_dict(orient='series')
         df.set_index(['time', 'double_range'], inplace=True)
 
         tiledb.from_dataframe(uri, df)
@@ -281,5 +286,32 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                 res['double_range'], df_dict['double_range']
             )
             assert_array_equal(
-                res['vals'], df.vals.values
+                res['int_vals'], df.int_vals.values
             )
+
+    def test_csv_col_to_sparse_dims(self):
+        df = make_dataframe_basic3(20)
+
+        try:
+            tmp_dir = self.path("csv_col_to_sparse_dims")
+            os.mkdir(tmp_dir)
+            tmp_csv = os.path.join(tmp_dir, "generated.csv")
+
+            df.sort_values('time', inplace=True)
+            df.to_csv(tmp_csv, index=False)
+            df.set_index(['time', 'double_range'], inplace=True)
+
+            tmp_array = os.path.join(tmp_dir, "array")
+            tiledb.from_csv(tmp_array, tmp_csv, index_col=['time', 'double_range'], parse_dates=['time'])
+
+            df_bk = tiledb.open_dataframe(tmp_array)
+            tm.assert_frame_equal(df, df_bk)
+
+            tmp_array2 = os.path.join(tmp_dir, "array2")
+            # also check that from_csv(..., sparse=True) works
+            tiledb.from_csv(tmp_array2, tmp_csv, sparse=True)
+            print("hello")
+
+        finally:
+            pass
+            #os.remove(tmp_csv)
