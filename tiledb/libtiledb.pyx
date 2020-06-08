@@ -2822,6 +2822,7 @@ cdef class ArraySchema(object):
     :type coords_filters: tiledb.FilterList
     :param offsets_filters: (default None) offsets filter list
     :type offsets_filters: tiledb.FilterList
+    :param bool allow_duplicates: True if duplicates are allowed
     :param bool sparse: True if schema is sparse, else False \
         (set by SparseArray and DenseArray derived classes)
     :raises TypeError: cannot convert uri to unicode string
@@ -2889,6 +2890,7 @@ cdef class ArraySchema(object):
                  capacity=0,
                  coords_filters=None,
                  offsets_filters=None,
+                 allows_duplicates=False,
                  sparse=False,
                  Ctx ctx=None):
         if not ctx:
@@ -2917,6 +2919,11 @@ cdef class ArraySchema(object):
             except:
                 tiledb_array_schema_free(&schema_ptr)
                 raise
+
+        cdef bint ballows_dups = 0
+        if allows_duplicates:
+            ballows_dups = 1
+            tiledb_array_schema_set_allows_dups(ctx.ptr, schema_ptr, ballows_dups)
 
         cdef FilterList filter_list
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
@@ -3000,6 +3007,17 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
                     tiledb_array_schema_get_array_type(self.ctx.ptr, self.ptr, &typ))
         return typ == TILEDB_SPARSE
+
+    @property
+    def allows_duplicates(self):
+        """Returns True if the (sparse) array allows duplicates."""
+
+        if not self.sparse:
+            raise TileDBError("ArraySchema.allows_duplicates does not apply to dense arrays")
+
+        cdef int ballows_dups
+        tiledb_array_schema_get_allows_dups(self.ctx.ptr, self.ptr, &ballows_dups)
+        return bool(ballows_dups)
 
     @property
     def capacity(self):
