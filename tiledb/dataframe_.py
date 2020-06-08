@@ -20,6 +20,7 @@ unicode_dtype = np.dtype(unicode_type)
 TILEDB_KWARG_DEFAULTS = {
     'cell_order': 'row-major',
     'tile_order': 'row-major',
+    'allows_duplicates': False,
     'sparse': False
 }
 
@@ -32,6 +33,8 @@ def parse_tiledb_kwargs(kwargs):
         args['sparse'] = kwargs.pop('sparse')
     if 'index_dims' in kwargs:
         args['index_dims'] = kwargs.pop('index_dims')
+    if 'allows_duplicates' in kwargs:
+        args['allows_duplicates'] = kwargs.pop('allows_duplicates')
 
     return args
 
@@ -211,6 +214,7 @@ def from_dataframe(uri, dataframe, **kwargs):
     ctx = args.get('ctx', None)
     tile_order = args['tile_order']
     cell_order = args['cell_order']
+    allows_duplicates = args['allows_duplicates']
     sparse = args['sparse']
     index_dims = args.get('index_dims', None)
 
@@ -242,6 +246,7 @@ def from_dataframe(uri, dataframe, **kwargs):
         attrs=attrs,
         cell_order=cell_order,
         tile_order=tile_order,
+        allows_duplicates=allows_duplicates,
         sparse=sparse
     )
 

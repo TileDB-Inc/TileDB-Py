@@ -12,7 +12,7 @@ import unittest, os
 import warnings
 import string, random
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 
 import tiledb
 from tiledb.tests.common import *
@@ -90,7 +90,7 @@ def make_dataframe_basic3(col_size=10):
     df_dict = {
         'time': rand_datetime64_array(col_size),
         'double_range': np.linspace(-1000, 1000, col_size),
-        'int_vals': np.random.rand(col_size)
+        'int_vals': np.random.randint(dtype_max(np.int64), size=col_size, dtype=np.int64)
         }
     df = pd.DataFrame(df_dict)
     return df
@@ -250,8 +250,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                 if type(df[col][0]) == str_type:
                     df[col] = [x.encode('UTF-8') for x in df[col]]
 
-            df.drop_duplicates(subset=col, inplace=True)
-            new_df = df.set_index(col)
+            new_df = df.drop_duplicates(subset=col)
+            new_df.set_index(col, inplace=True)
 
             tiledb.from_dataframe(uri, new_df, sparse=True)
 
@@ -308,3 +308,29 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df_bk = tiledb.open_dataframe(tmp_array)
 
         tm.assert_frame_equal(df, df_bk)
+
+        # Test 2: check from_csv `sparse` and `allows_duplicates` keyword args
+        df = make_dataframe_basic3(20)
+        tmp_csv2 = os.path.join(tmp_dir, "generated2.csv")
+        tmp_array2a = os.path.join(tmp_dir, "array2a")
+        tmp_array2b = os.path.join(tmp_dir, "array2b")
+
+        # create a duplicate value
+        df.int_vals[0] = df.int_vals[1]
+        df.sort_values('int_vals', inplace=True)
+
+        df.to_csv(tmp_csv2, index=False)
+
+        # try once and make sure error is raised because of duplicate value
+        with self.assertRaisesRegex(tiledb.TileDBError, "Duplicate coordinates \\(.*\\) are not allowed"):
+            tiledb.from_csv(tmp_array2a, tmp_csv2, index_col=['int_vals'], sparse=True)
+
+        # try again, check from_csv(allows_duplicates=True, sparse=True)
+        tiledb.from_csv(tmp_array2b, tmp_csv2, index_col=['int_vals'],
+                        sparse=True, allows_duplicates=True, float_precision='round-trip')
+
+        with tiledb.open(tmp_array2b) as A:
+            #self.assertTrue(A.schema.sparse)
+            res = A[:]
+            assert_array_equal(res['int_vals'], df.int_vals.values)
+            assert_array_almost_equal(res['double_range'], df.double_range.values)
