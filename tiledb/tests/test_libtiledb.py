@@ -427,6 +427,8 @@ class ArraySchemaTest(unittest.TestCase):
             tiledb.ArraySchema(ctx=ctx, domain=domain, attrs=(a1,)))
         self.assertNotEqual(schema,
             tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=True, ctx=ctx))
+        with self.assertRaises(tiledb.TileDBError):
+            schema.allows_duplicates
         # test iteration over attributes
         self.assertEqual(list(schema), [a1])
 
@@ -464,6 +466,7 @@ class ArraySchemaTest(unittest.TestCase):
                                     capacity=10,
                                     cell_order='col-major',
                                     tile_order='row-major',
+                                    allows_duplicates=True,
                                     sparse=True,
                                     coords_filters=coords_filters,
                                     offsets_filters=offsets_filters,
@@ -485,6 +488,7 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertEqual(schema.nattr, 2)
         self.assertEqual(schema.attr(0), a1)
         self.assertEqual(schema.attr("a2"), a2)
+        self.assertEqual(schema.allows_duplicates, True)
         self.assertEqual(schema,
                          tiledb.ArraySchema(
                                     domain=domain,
@@ -492,6 +496,7 @@ class ArraySchemaTest(unittest.TestCase):
                                     capacity=10,
                                     cell_order='col-major',
                                     tile_order='row-major',
+                                    allows_duplicates=True,
                                     sparse=True,
                                     coords_filters=coords_filters,
                                     offsets_filters=offsets_filters,
