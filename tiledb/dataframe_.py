@@ -358,4 +358,5 @@ def from_csv(uri, csv_file, **kwargs):
         csv_file = tiledb.FileIO(vfs, csv_file, mode='rb')
 
     df = pandas.read_csv(csv_file, **kwargs)
-    from_dataframe(uri, df, **tiledb_args, **kwargs)
+    kwargs.update(tiledb_args)
+    from_dataframe(uri, df, **kwargs)
