@@ -1,5 +1,5 @@
 # note: cmake 3.13 is the last manylinux1 release on pypi
-cmake==3.13.*
+cmake >= 3.13
 cython
 pybind11
 wheel
