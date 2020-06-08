@@ -3254,6 +3254,8 @@ cdef class ArraySchema(object):
             f"  tile_order='{self.tile_order}'"
         )
         output.write(f", sparse={self.sparse}")
+        if self.sparse:
+            output.write(f", allows_duplicates={self.allows_duplicates}")
         output.write(")\n")
         output.write("""# note: filters omitted""")
 
