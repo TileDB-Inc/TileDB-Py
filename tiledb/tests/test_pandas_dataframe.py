@@ -293,26 +293,18 @@ class PandasDataFrameRoundtrip(DiskTestCase):
     def test_csv_col_to_sparse_dims(self):
         df = make_dataframe_basic3(20)
 
-        try:
-            tmp_dir = self.path("csv_col_to_sparse_dims")
-            os.mkdir(tmp_dir)
-            tmp_csv = os.path.join(tmp_dir, "generated.csv")
+        # Test 1: basic round-trip
+        tmp_dir = self.path("csv_col_to_sparse_dims")
+        os.mkdir(tmp_dir)
+        tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-            df.sort_values('time', inplace=True)
-            df.to_csv(tmp_csv, index=False)
-            df.set_index(['time', 'double_range'], inplace=True)
+        df.sort_values('time', inplace=True)
+        df.to_csv(tmp_csv, index=False)
+        df.set_index(['time', 'double_range'], inplace=True)
 
-            tmp_array = os.path.join(tmp_dir, "array")
-            tiledb.from_csv(tmp_array, tmp_csv, index_col=['time', 'double_range'], parse_dates=['time'])
+        tmp_array = os.path.join(tmp_dir, "array")
+        tiledb.from_csv(tmp_array, tmp_csv, index_col=['time', 'double_range'], parse_dates=['time'])
 
-            df_bk = tiledb.open_dataframe(tmp_array)
-            tm.assert_frame_equal(df, df_bk)
+        df_bk = tiledb.open_dataframe(tmp_array)
 
-            tmp_array2 = os.path.join(tmp_dir, "array2")
-            # also check that from_csv(..., sparse=True) works
-            tiledb.from_csv(tmp_array2, tmp_csv, sparse=True)
-            print("hello")
-
-        finally:
-            pass
-            #os.remove(tmp_csv)
+        tm.assert_frame_equal(df, df_bk)
