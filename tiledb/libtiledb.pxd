@@ -571,6 +571,16 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_array_schema_t* array_schema,
         const char** array_name)
 
+    int tiledb_array_schema_get_allows_dups(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        int* allows_dups);
+
+    int tiledb_array_schema_set_allows_dups(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        int allows_dups)
+
     int tiledb_array_schema_dump(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
