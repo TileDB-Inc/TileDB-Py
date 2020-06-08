@@ -250,6 +250,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                 if type(df[col][0]) == str_type:
                     df[col] = [x.encode('UTF-8') for x in df[col]]
 
+            df.drop_duplicates(subset=col, inplace=True)
             new_df = df.set_index(col)
 
             tiledb.from_dataframe(uri, new_df, sparse=True)
