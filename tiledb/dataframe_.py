@@ -328,6 +328,9 @@ def open_dataframe(uri):
     >>> tiledb.objec_type("iris.tldb")
     'array'
     """
+    warnings.warn("open_dataframe is deprecated and will be removed in the next release",
+                  DeprecationWarning)
+
     import pandas as pd
 
     # TODO support `distributed=True` option?
