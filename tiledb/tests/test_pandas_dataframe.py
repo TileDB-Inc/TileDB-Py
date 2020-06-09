@@ -316,7 +316,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tmp_array2b = os.path.join(tmp_dir, "array2b")
 
         # create a duplicate value
-        df.int_vals[0] = df.int_vals[1]
+        df.loc[0, 'int_vals'] = df.int_vals[1]
         df.sort_values('int_vals', inplace=True)
 
         df.to_csv(tmp_csv2, index=False)
