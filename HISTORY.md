@@ -1,3 +1,7 @@
+# TileDB-Py 0.6.3 Release Notes
+
+* Fix unnecessary implicit ordering requirement for multi-attribute assignment. [#328](https://github.com/TileDB-Inc/TileDB-Py/pull/328)
+
 # TileDB-Py 0.6.2 Release Notes
 
 ## Bug fixes

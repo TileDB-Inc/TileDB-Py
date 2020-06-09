@@ -4205,7 +4205,10 @@ cdef class DenseArrayImpl(Array):
         cdef list values = list()
 
         if isinstance(val, dict):
-            for (k, v) in val.items():
+            for attr_idx in range(self.schema.nattr):
+                attr = self.schema.attr(attr_idx)
+                k = attr.name
+                v = val[k]
                 attr = self.schema.attr(k)
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
