@@ -334,3 +334,41 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             res = A[:]
             assert_array_equal(res['int_vals'], df.int_vals.values)
             assert_array_almost_equal(res['double_range'], df.double_range.values)
+
+    def test_csv_schema_only(self):
+        df = make_dataframe_basic3(10)
+
+        tmp_dir = self.path("csv_schema_only")
+        os.mkdir(tmp_dir)
+        tmp_csv = os.path.join(tmp_dir, "generated.csv")
+
+        df.sort_values('time', inplace=True)
+        df.to_csv(tmp_csv, index=False)
+
+        tmp_array = os.path.join(tmp_dir, "array")
+        tiledb.from_csv(tmp_array, tmp_csv,
+                        index_col=['time', 'double_range'],
+                        parse_dates=['time'],
+                        mode='schema_only')
+
+        t0, t1 = df.time.min(), df.time.max()
+
+        import numpy
+        ref_schema = tiledb.ArraySchema(
+                        domain=tiledb.Domain(*[
+                          tiledb.Dim(name='time', domain=(t0.to_datetime64(), t1.to_datetime64()), tile=1, dtype='datetime64[ns]'),
+                          tiledb.Dim(name='double_range', domain=(-1000.0, 1000.0), tile=1.0, dtype='float64'),
+                        ]),
+                        attrs=[
+                          tiledb.Attr(name='int_vals', dtype='int64'),
+                        ],
+                        cell_order='row-major',
+                        tile_order='row-major', sparse=True,
+                        allows_duplicates=False)
+                        # note: filters omitted
+
+        array_nfiles= len(tiledb.VFS().ls(tmp_array))
+        self.assertEqual(array_nfiles, 3)
+
+        with tiledb.open(tmp_array) as A:
+            self.assertEqual(A.schema, ref_schema)
