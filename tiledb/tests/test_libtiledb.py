@@ -420,6 +420,7 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertEqual(schema.ndim, 2)
         self.assertEqual(schema.shape, (8, 8))
         self.assertEqual(schema.nattr, 1)
+        self.assertEqual(schema.domain.homogeneous, True)
         self.assertEqual(schema.attr(0), a1)
         self.assertTrue(schema.has_attr("val"))
         self.assertFalse(schema.has_attr("nononoattr"))
@@ -577,6 +578,7 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertFalse(schema.domain.dim("dpos").isvar)
         self.assertEqual(schema.domain.dim("dpos").dtype, np.double)
         self.assertEqual(schema.domain.dim("str_index").dtype, np.bytes_)
+        self.assertFalse(schema.domain.homogeneous())
 
 class ArrayTest(DiskTestCase):
 
