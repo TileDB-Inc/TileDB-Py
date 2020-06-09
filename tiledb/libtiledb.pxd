@@ -1157,6 +1157,7 @@ cdef class Domain(object):
     cdef from_ptr(const tiledb_domain_t* ptr, Ctx ctx=*)
     cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR
     cdef _integer_domain(Domain self)
+    cdef _is_homogeneous(Domain self)
     cdef _shape(Domain self)
 
 cdef class ArraySchema(object):

@@ -2466,10 +2466,16 @@ cdef class Domain(object):
         return typ
 
     cdef _integer_domain(Domain self):
+        if not self._is_homogeneous():
+            return False
         cdef tiledb_datatype_t typ = self._get_type()
         if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
             return False
         return True
+
+    cdef _is_homogeneous(Domain self):
+        cdef np.dtype dtype0 = self.dim(0).dtype
+        return all(self.dim(i).dtype == dtype0 for i in range(1,self.ndim))
 
     cdef _shape(Domain self):
         return tuple(self.dim(i).shape[0] for i in range(self.ndim))
@@ -2520,11 +2526,17 @@ cdef class Domain(object):
     def __eq__(self, other):
         if not isinstance(other, Domain):
             return False
-        ndim = self.ndim
-        if (ndim != other.ndim or
-            self.dtype != other.dtype or
+
+        cdef bint same_dtype = self._is_homogeneous()
+
+        if (same_dtype and
             self.shape != other.shape):
             return False
+
+        ndim = self.ndim
+        if (ndim != other.ndim):
+            return False
+
         for i in range(ndim):
             if self.dim(i) != other.dim(i):
                 return False
@@ -2575,6 +2587,11 @@ cdef class Domain(object):
         if not self._integer_domain():
             raise TypeError("shape valid only for integer domains")
         return np.product(self._shape())
+
+    @property
+    def homogeneous(self):
+        """Returns True if the domain's dimension types are homogeneous."""
+        return self._is_homogeneous()
 
     def dim(self, dim_id):
         """Returns a Dim object from the domain given the dimension's index or name.
