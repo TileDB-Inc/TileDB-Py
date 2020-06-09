@@ -578,7 +578,7 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertFalse(schema.domain.dim("dpos").isvar)
         self.assertEqual(schema.domain.dim("dpos").dtype, np.double)
         self.assertEqual(schema.domain.dim("str_index").dtype, np.bytes_)
-        self.assertFalse(schema.domain.homogeneous())
+        self.assertFalse(schema.domain.homogeneous)
 
 class ArrayTest(DiskTestCase):
 

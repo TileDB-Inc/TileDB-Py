@@ -21,7 +21,8 @@ TILEDB_KWARG_DEFAULTS = {
     'cell_order': 'row-major',
     'tile_order': 'row-major',
     'allows_duplicates': False,
-    'sparse': False
+    'sparse': False,
+    'mode': 'ingest'
 }
 
 def parse_tiledb_kwargs(kwargs):
@@ -35,6 +36,8 @@ def parse_tiledb_kwargs(kwargs):
         args['index_dims'] = kwargs.pop('index_dims')
     if 'allows_duplicates' in kwargs:
         args['allows_duplicates'] = kwargs.pop('allows_duplicates')
+    if 'mode' in kwargs:
+        args['mode'] = kwargs.pop('mode')
 
     return args
 
@@ -204,6 +207,7 @@ def from_dataframe(uri, dataframe, **kwargs):
 
     :param uri: URI for new TileDB array
     :param dataframe: pandas DataFrame
+    :param mode: Creation mode, one of 'ingest' (default), 'create_schema'
     :param kwargs: optional keyword arguments for Pandas and TileDB.
                 TileDB context and configuration arguments
                 may be passed in a dictionary as `tiledb_args={...}`
@@ -217,6 +221,11 @@ def from_dataframe(uri, dataframe, **kwargs):
     allows_duplicates = args['allows_duplicates']
     sparse = args['sparse']
     index_dims = args.get('index_dims', None)
+    mode = args.get('mode', 'ingest')
+
+    write = True
+    if mode is not None and mode == 'schema_only':
+        write = False
 
     if ctx is None:
         ctx = tiledb.default_ctx()
@@ -256,23 +265,24 @@ def from_dataframe(uri, dataframe, **kwargs):
 
     index_metadata = get_index_metadata(dataframe)
 
-    try:
-        A = tiledb.open(uri, 'w', ctx=ctx)
+    if write:
+        try:
+            A = tiledb.open(uri, 'w', ctx=ctx)
 
-        if sparse:
-            coords = []
-            for k in range(len(dims)):
-                coords.append(dataframe.index.get_level_values(k))
+            if sparse:
+                coords = []
+                for k in range(len(dims)):
+                    coords.append(dataframe.index.get_level_values(k))
 
-            # TODO ensure correct col/dim ordering
-            A[tuple(coords)] = write_dict
+                # TODO ensure correct col/dim ordering
+                A[tuple(coords)] = write_dict
 
-        else:
-            A[:] = write_dict
+            else:
+                A[:] = write_dict
 
-        write_array_metadata(A, attr_metadata, index_metadata)
-    finally:
-        A.close()
+            write_array_metadata(A, attr_metadata, index_metadata)
+        finally:
+            A.close()
 
 
 def open_dataframe(uri):
@@ -354,7 +364,15 @@ def from_csv(uri, csv_file, **kwargs):
         print("tiledb.from_csv requires pandas")
         raise
 
+    mode = kwargs.pop('mode', None)
     tiledb_args = parse_tiledb_kwargs(kwargs)
+    if mode is not None:
+        tiledb_args['mode'] = mode
+        # For schema-only mode we need to pass a max read count into
+        #   pandas.read_csv
+        # Note that 'nrows' is a pandas arg!
+        if mode == 'schema_only' and not 'nrows' in kwargs:
+            kwargs['nrows'] = 500
 
     if isinstance(csv_file, str) and not os.path.isfile(csv_file):
         # for non-local files, use TileDB VFS i/o
@@ -363,5 +381,6 @@ def from_csv(uri, csv_file, **kwargs):
         csv_file = tiledb.FileIO(vfs, csv_file, mode='rb')
 
     df = pandas.read_csv(csv_file, **kwargs)
+
     kwargs.update(tiledb_args)
     from_dataframe(uri, df, **kwargs)
