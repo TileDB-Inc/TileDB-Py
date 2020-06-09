@@ -4,6 +4,7 @@ import sys
 import os
 import io
 from collections import OrderedDict
+import warnings
 
 if sys.version_info >= (3,3):
     unicode_type = str
@@ -207,8 +208,14 @@ def create_dims(ctx, dataframe, index_dims):
 
     return dims
 
-
 def from_dataframe(uri, dataframe, **kwargs):
+    # deprecated in 0.6.3
+    warnings.warn("tiledb.from_dataframe is deprecated; please use .from_pandas",
+                  DeprecationWarning)
+
+    from_pandas(uri, dataframe, **kwargs)
+
+def from_pandas(uri, dataframe, **kwargs):
     """Create TileDB array at given URI from pandas dataframe
 
     :param uri: URI for new TileDB array
@@ -402,4 +409,4 @@ def from_csv(uri, csv_file, **kwargs):
     df = pandas.read_csv(csv_file, **kwargs)
 
     kwargs.update(tiledb_args)
-    from_dataframe(uri, df, **kwargs)
+    from_pandas(uri, df, **kwargs)
