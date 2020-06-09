@@ -22,7 +22,9 @@ TILEDB_KWARG_DEFAULTS = {
     'tile_order': 'row-major',
     'allows_duplicates': False,
     'sparse': False,
-    'mode': 'ingest'
+    'mode': 'ingest',
+    'attrs_filters': None,
+    'coords_filters': None
 }
 
 def parse_tiledb_kwargs(kwargs):
@@ -38,6 +40,10 @@ def parse_tiledb_kwargs(kwargs):
         args['allows_duplicates'] = kwargs.pop('allows_duplicates')
     if 'mode' in kwargs:
         args['mode'] = kwargs.pop('mode')
+    if 'attrs_filters' in kwargs:
+        args['attrs_filters'] = kwargs.pop('attrs_filters')
+    if 'coords_filters' in kwargs:
+        args['coords_filters'] = kwargs.pop('coords_filters')
 
     return args
 
@@ -96,7 +102,7 @@ def dtype_from_column(col):
     )
 
 # TODO make this a staticmethod on Attr?
-def attrs_from_df(df, index_dims=None, ctx=None):
+def attrs_from_df(df, index_dims=None, filters=None, ctx=None):
     attr_reprs = dict()
 
     if ctx is None:
@@ -108,7 +114,7 @@ def attrs_from_df(df, index_dims=None, ctx=None):
         if index_dims and name in index_dims:
             continue
         attr_info = dtype_from_column(col)
-        attrs.append(tiledb.Attr(name=name, dtype=attr_info.dtype))
+        attrs.append(tiledb.Attr(name=name, dtype=attr_info.dtype, filters=filters))
 
         if attr_info.repr is not None:
             attr_reprs[name] = attr_info.repr
@@ -209,8 +215,8 @@ def from_dataframe(uri, dataframe, **kwargs):
     :param dataframe: pandas DataFrame
     :param mode: Creation mode, one of 'ingest' (default), 'create_schema'
     :param kwargs: optional keyword arguments for Pandas and TileDB.
-                TileDB context and configuration arguments
-                may be passed in a dictionary as `tiledb_args={...}`
+        TileDB arguments: tile_order, cell_order, allows_duplicates, sparse,
+                          mode, attrs_filters, coords_filters
     :return:
     """
     args = parse_tiledb_kwargs(kwargs)
@@ -222,6 +228,8 @@ def from_dataframe(uri, dataframe, **kwargs):
     sparse = args['sparse']
     index_dims = args.get('index_dims', None)
     mode = args.get('mode', 'ingest')
+    attrs_filters = args.get('attrs_filters', None)
+    coords_filters = args.get('coords_filters', None)
 
     write = True
     if mode is not None and mode == 'schema_only':
@@ -229,6 +237,14 @@ def from_dataframe(uri, dataframe, **kwargs):
 
     if ctx is None:
         ctx = tiledb.default_ctx()
+
+    if attrs_filters is None:
+       attrs_filters = tiledb.FilterList(
+            [tiledb.ZstdFilter(1, ctx=ctx)])
+
+    if coords_filters is None:
+        coords_filters = tiledb.FilterList(
+            [tiledb.ZstdFilter(1, ctx=ctx)])
 
     nrows = len(dataframe)
     tiling = np.min((nrows % 200, nrows))
@@ -247,7 +263,9 @@ def from_dataframe(uri, dataframe, **kwargs):
        *dims,
        ctx = ctx
     )
-    attrs, attr_metadata = attrs_from_df(dataframe, index_dims=index_dims)
+
+    attrs, attr_metadata = attrs_from_df(dataframe, index_dims=index_dims,
+                                         filters=attrs_filters)
 
     # now create the ArraySchema
     schema = tiledb.ArraySchema(
@@ -255,6 +273,7 @@ def from_dataframe(uri, dataframe, **kwargs):
         attrs=attrs,
         cell_order=cell_order,
         tile_order=tile_order,
+        coords_filters=coords_filters,
         allows_duplicates=allows_duplicates,
         sparse=sparse
     )
