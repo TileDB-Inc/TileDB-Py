@@ -345,11 +345,17 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df.sort_values('time', inplace=True)
         df.to_csv(tmp_csv, index=False)
 
+        attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(1)])
+        # from_dataframe default is 1, so use 7 here to check
+        #   the arg is correctly parsed/passed
+        coords_filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
+
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(tmp_array, tmp_csv,
                         index_col=['time', 'double_range'],
                         parse_dates=['time'],
-                        mode='schema_only')
+                        mode='schema_only',
+                        coords_filters=coords_filters)
 
         t0, t1 = df.time.min(), df.time.max()
 
@@ -360,8 +366,9 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                           tiledb.Dim(name='double_range', domain=(-1000.0, 1000.0), tile=1.0, dtype='float64'),
                         ]),
                         attrs=[
-                          tiledb.Attr(name='int_vals', dtype='int64'),
+                          tiledb.Attr(name='int_vals', dtype='int64', filters=attrs_filters),
                         ],
+                        coords_filters=coords_filters,
                         cell_order='row-major',
                         tile_order='row-major', sparse=True,
                         allows_duplicates=False)
@@ -372,3 +379,11 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         with tiledb.open(tmp_array) as A:
             self.assertEqual(A.schema, ref_schema)
+
+            # TODO currently no equality check for filters
+            self.assertEqual(
+                A.schema.coords_filters[0].level, coords_filters[0].level
+            )
+            self.assertEqual(
+                A.schema.attr(0).filters[0].level, attrs_filters[0].level
+            )
