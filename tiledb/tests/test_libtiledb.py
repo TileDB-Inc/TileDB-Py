@@ -1125,6 +1125,12 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[:] = V
 
+        # check setting attribute in different order from Attr definition
+        #   https://github.com/TileDB-Inc/TileDB-Py/issues/299
+        V2 = {"floats": V_floats, "ints": V_ints}
+        with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
+            T[:] = V
+
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             R = T[:]
             assert_array_equal(V["ints"], R["ints"])
