@@ -2324,9 +2324,8 @@ class DatetimeSlicing(DiskTestCase):
             tile = np.timedelta64(1, res)
 
             dim = tiledb.Dim(name="d1", ctx=ctx,
-                             domain=(np.datetime64(0, res), np.datetime64(tmax, res)),
+                             domain=(None,None),
                              tile=tile, dtype=np.datetime64('', res).dtype)
-
             dom = tiledb.Domain(dim, ctx=ctx)
             schema = tiledb.ArraySchema(ctx=ctx, domain=dom, sparse=True,
                                         attrs=(tiledb.Attr('a1', dtype=np.float64),))
