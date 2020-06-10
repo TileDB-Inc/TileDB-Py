@@ -120,17 +120,24 @@ def rand_int_sequential(size, dtype=np.uint64):
     )
     return np.sort(arr)
 
-def rand_datetime64_array(size, dtype=None):
+def rand_datetime64_array(size, start=None, stop=None, dtype=None):
     if not dtype:
         dtype = np.dtype('M8[ns]')
 
     # generate randint inbounds on the range of M8[ns]
     # (TODO this will give weird results for ps/fs/as scale but those are uncommon)
-    start = np.datetime64('1678-01-01').astype(dtype).astype(np.int64)
-    stop = np.datetime64('2202-01-01').astype(dtype).astype(np.int64)
+    if start is None:
+        start = np.datetime64('1678-01-01')
+    else:
+        start = np.datetime64(start)
+    if stop is None:
+        stop = np.datetime64('2202-01-01')
+    else:
+        stop = np.datetime64(stop)
 
     arr = np.random.randint(
-        start, stop, size=size, dtype=np.int64
+        start.astype(dtype).astype(np.int64), stop.astype(dtype).astype(np.int64),
+        size=size, dtype=np.int64
     )
     arr.sort()
 

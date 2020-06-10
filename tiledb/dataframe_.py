@@ -220,7 +220,7 @@ def from_pandas(uri, dataframe, **kwargs):
 
     :param uri: URI for new TileDB array
     :param dataframe: pandas DataFrame
-    :param mode: Creation mode, one of 'ingest' (default), 'create_schema'
+    :param mode: Creation mode, one of 'ingest' (default), 'create_schema', 'append'
     :param kwargs: optional keyword arguments for Pandas and TileDB.
         TileDB arguments: tile_order, cell_order, allows_duplicates, sparse,
                           mode, attrs_filters, coords_filters
@@ -239,65 +239,70 @@ def from_pandas(uri, dataframe, **kwargs):
     coords_filters = args.get('coords_filters', None)
 
     write = True
-    if mode is not None and mode == 'schema_only':
-        write = False
+    create_array = True
+    if mode is not None:
+        if mode == 'schema_only':
+            write = False
+        elif mode == 'append':
+            create_array = False
 
     if ctx is None:
         ctx = tiledb.default_ctx()
 
-    if attrs_filters is None:
-       attrs_filters = tiledb.FilterList(
-            [tiledb.ZstdFilter(1, ctx=ctx)])
+    if create_array:
+        if attrs_filters is None:
+           attrs_filters = tiledb.FilterList(
+                [tiledb.ZstdFilter(1, ctx=ctx)])
 
-    if coords_filters is None:
-        coords_filters = tiledb.FilterList(
-            [tiledb.ZstdFilter(1, ctx=ctx)])
+        if coords_filters is None:
+            coords_filters = tiledb.FilterList(
+                [tiledb.ZstdFilter(1, ctx=ctx)])
 
-    nrows = len(dataframe)
-    tiling = np.min((nrows % 200, nrows))
+        nrows = len(dataframe)
+        tiling = np.min((nrows % 200, nrows))
 
-    # create the domain and attributes
-    dims = create_dims(ctx, dataframe, index_dims)
+        # create the domain and attributes
+        dims = create_dims(ctx, dataframe, index_dims)
 
-    if len(dims) > 1:
-        sparse = True
-    if any([d.dtype in (np.bytes_, np.unicode_) for d in dims]):
-        sparse = True
-    if any([np.issubdtype(d.dtype, np.datetime64) for d in dims]):
-        sparse = True
+        if len(dims) > 1:
+            sparse = True
+        if any([d.dtype in (np.bytes_, np.unicode_) for d in dims]):
+            sparse = True
+        if any([np.issubdtype(d.dtype, np.datetime64) for d in dims]):
+            sparse = True
 
-    domain = tiledb.Domain(
-       *dims,
-       ctx = ctx
-    )
+        domain = tiledb.Domain(
+           *dims,
+           ctx = ctx
+        )
 
-    attrs, attr_metadata = attrs_from_df(dataframe, index_dims=index_dims,
-                                         filters=attrs_filters)
+        attrs, attr_metadata = attrs_from_df(dataframe, index_dims=index_dims,
+                                             filters=attrs_filters)
 
-    # now create the ArraySchema
-    schema = tiledb.ArraySchema(
-        domain=domain,
-        attrs=attrs,
-        cell_order=cell_order,
-        tile_order=tile_order,
-        coords_filters=coords_filters,
-        allows_duplicates=allows_duplicates,
-        sparse=sparse
-    )
+        # now create the ArraySchema
+        schema = tiledb.ArraySchema(
+            domain=domain,
+            attrs=attrs,
+            cell_order=cell_order,
+            tile_order=tile_order,
+            coords_filters=coords_filters,
+            allows_duplicates=allows_duplicates,
+            sparse=sparse
+        )
 
-    tiledb.Array.create(uri, schema, ctx=ctx)
-
-    write_dict = {k: v.values for k,v in dataframe.to_dict(orient='series').items()}
-
-    index_metadata = get_index_metadata(dataframe)
+        tiledb.Array.create(uri, schema, ctx=ctx)
 
     if write:
+        write_dict = {k: v.values for k,v in dataframe.to_dict(orient='series').items()}
+
+        index_metadata = get_index_metadata(dataframe)
+
         try:
             A = tiledb.open(uri, 'w', ctx=ctx)
 
-            if sparse:
+            if A.schema.sparse:
                 coords = []
-                for k in range(len(dims)):
+                for k in range(A.schema.ndim):
                     coords.append(dataframe.index.get_level_values(k))
 
                 # TODO ensure correct col/dim ordering
@@ -306,7 +311,8 @@ def from_pandas(uri, dataframe, **kwargs):
             else:
                 A[:] = write_dict
 
-            write_array_metadata(A, attr_metadata, index_metadata)
+            if create_array:
+                write_array_metadata(A, attr_metadata, index_metadata)
         finally:
             A.close()
 
