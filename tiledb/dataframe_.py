@@ -25,7 +25,8 @@ TILEDB_KWARG_DEFAULTS = {
     'sparse': False,
     'mode': 'ingest',
     'attrs_filters': None,
-    'coords_filters': None
+    'coords_filters': None,
+    'full_domain': False
 }
 
 def parse_tiledb_kwargs(kwargs):
@@ -45,6 +46,8 @@ def parse_tiledb_kwargs(kwargs):
         args['attrs_filters'] = kwargs.pop('attrs_filters')
     if 'coords_filters' in kwargs:
         args['coords_filters'] = kwargs.pop('coords_filters')
+    if 'full_domain' in kwargs:
+        args['full_domain'] = kwargs.pop('full_domain')
 
     return args
 
@@ -122,7 +125,7 @@ def attrs_from_df(df, index_dims=None, filters=None, ctx=None):
 
     return attrs, attr_reprs
 
-def dim_for_column(ctx, df, col, col_name):
+def dim_for_column(ctx, df, col, col_name, full_domain=False):
     if isinstance(col, np.ndarray):
         col_values = col
     else:
@@ -140,6 +143,10 @@ def dim_for_column(ctx, df, col, col_name):
             dim_info = ColumnInfo(np.bytes_)
         else:
             raise TypeError("other unknown column type not yet supported")
+
+    if full_domain:
+        # Use the full type domain, deferring to the constructor
+        dim_min, dim_max = (None, None)
     else:
         dim_min = np.min(col_values)
         dim_max = np.max(col_values)
@@ -175,7 +182,7 @@ def write_array_metadata(array, attr_metadata = None, index_metadata = None):
         index_md_dict = {n: str(t) for n,t in index_metadata.items()}
         array.meta['__pandas_index_dims'] = json.dumps(index_md_dict)
 
-def create_dims(ctx, dataframe, index_dims):
+def create_dims(ctx, dataframe, index_dims, full_domain=False):
     import pandas as pd
     index = dataframe.index
     index_dict = OrderedDict()
@@ -196,7 +203,8 @@ def create_dims(ctx, dataframe, index_dims):
         raise ValueError("Unhandled index type {}".format(type(index)))
 
     dims = list(
-        dim_for_column(ctx, dataframe, values, name) for name,values in index_dict.items()
+        dim_for_column(ctx, dataframe, values, name, full_domain=full_domain)
+            for name,values in index_dict.items()
     )
 
     if index_dims:
@@ -231,12 +239,13 @@ def from_pandas(uri, dataframe, **kwargs):
     ctx = args.get('ctx', None)
     tile_order = args['tile_order']
     cell_order = args['cell_order']
-    allows_duplicates = args['allows_duplicates']
+    allows_duplicates = args.get('allows_duplicates', False)
     sparse = args['sparse']
     index_dims = args.get('index_dims', None)
     mode = args.get('mode', 'ingest')
     attrs_filters = args.get('attrs_filters', None)
     coords_filters = args.get('coords_filters', None)
+    full_domain = args.get('full_domain', False)
 
     write = True
     create_array = True
@@ -262,7 +271,7 @@ def from_pandas(uri, dataframe, **kwargs):
         tiling = np.min((nrows % 200, nrows))
 
         # create the domain and attributes
-        dims = create_dims(ctx, dataframe, index_dims)
+        dims = create_dims(ctx, dataframe, index_dims, full_domain=full_domain)
 
         if len(dims) > 1:
             sparse = True
@@ -399,8 +408,15 @@ def from_csv(uri, csv_file, **kwargs):
         print("tiledb.from_csv requires pandas")
         raise
 
-    mode = kwargs.pop('mode', None)
     tiledb_args = parse_tiledb_kwargs(kwargs)
+
+    if isinstance(csv_file, str) and not os.path.isfile(csv_file):
+        # for non-local files, use TileDB VFS i/o
+        ctx = tiledb_args.get('ctx', tiledb.default_ctx())
+        vfs = tiledb.VFS(ctx=ctx)
+        csv_file = tiledb.FileIO(vfs, csv_file, mode='rb')
+
+    mode = kwargs.pop('mode', None)
     if mode is not None:
         tiledb_args['mode'] = mode
         # For schema-only mode we need to pass a max read count into
@@ -409,13 +425,29 @@ def from_csv(uri, csv_file, **kwargs):
         if mode == 'schema_only' and not 'nrows' in kwargs:
             kwargs['nrows'] = 500
 
-    if isinstance(csv_file, str) and not os.path.isfile(csv_file):
-        # for non-local files, use TileDB VFS i/o
-        ctx = tiledb_args.get('ctx', tiledb.default_ctx())
-        vfs = tiledb.VFS(ctx=ctx)
-        csv_file = tiledb.FileIO(vfs, csv_file, mode='rb')
+    chunksize = kwargs.get('chunksize', None)
 
-    df = pandas.read_csv(csv_file, **kwargs)
+    if chunksize is not None:
+        array_created = False
+        if mode == 'schema_only':
+            raise TileDBError("schema_only ingestion not supported for chunked read")
+        elif mode == 'append':
+            array_created = True
 
-    kwargs.update(tiledb_args)
-    from_pandas(uri, df, **kwargs)
+        csv_kwargs = kwargs.copy()
+        kwargs.update(tiledb_args)
+
+        for df in pandas.read_csv(csv_file, **csv_kwargs):
+            kwargs['full_domain'] = True
+            if array_created:
+                kwargs['mode'] = 'append'
+            # after the first chunk, switch to append mode
+            array_created = True
+
+            from_pandas(uri, df, **kwargs)
+
+    else:
+        df = pandas.read_csv(csv_file, **kwargs)
+
+        kwargs.update(tiledb_args)
+        from_pandas(uri, df, **kwargs)
