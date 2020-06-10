@@ -2166,6 +2166,7 @@ cdef class Dim(object):
     def __init__(self, name=u"__dim_0", domain=None, tile=None, dtype=np.uint64, Ctx ctx=None):
         if not ctx:
             ctx = default_ctx()
+
         if domain is None or len(domain) != 2:
             raise ValueError('invalid domain extent, must be a pair')
 
@@ -2199,12 +2200,23 @@ cdef class Dim(object):
                     date_unit = np.datetime_data(dtype)[0]
                     dtype_min = np.datetime64(info.min, date_unit)
                     dtype_max = np.datetime64(info.max, date_unit)
+                    # special case for datetime64 minimum
+                    if domain == (None,None):
+                        dtype_min = np.datetime64(info.min + 1, date_unit)
                 else:
                     raise TypeError("invalid Dim dtype {0!r}".format(dtype))
-                if (domain[0] < dtype_min or domain[0] > dtype_max or
+
+                if domain == (None, None):
+                    # this means to use the full extent of the type
+                    if dtype == np.int64 and not (dtype.kind == 'M'):
+                        # except that the domain range currently must fit in UInt64
+                        dtype_min = dtype_min + 1
+                    domain = (dtype_min, dtype_max)
+                elif (domain[0] < dtype_min or domain[0] > dtype_max or
                         domain[1] < dtype_min or domain[1] > dtype_max):
                     raise TypeError(
                         "invalid domain extent, domain cannot be safely cast to dtype {0!r}".format(dtype))
+
             domain_array = np.asarray(domain, dtype=dtype)
             domain_ptr = np.PyArray_DATA(domain_array)
             domain_dtype = domain_array.dtype

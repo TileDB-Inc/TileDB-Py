@@ -124,14 +124,16 @@ def rand_datetime64_array(size, start=None, stop=None, dtype=None):
     if not dtype:
         dtype = np.dtype('M8[ns]')
 
-    # generate randint inbounds on the range of M8[ns]
-    # (TODO this will give weird results for ps/fs/as scale but those are uncommon)
+    # generate randint inbounds on the range of the dtype
+    units = np.datetime_data(dtype)[0]
+    intmin, intmax = np.iinfo(np.int64).min, np.iinfo(np.int64).max
+
     if start is None:
-        start = np.datetime64('1678-01-01')
+        start = np.datetime64(intmin + 1, units)
     else:
         start = np.datetime64(start)
     if stop is None:
-        stop = np.datetime64('2202-01-01')
+        stop = np.datetime64(intmax, units)
     else:
         stop = np.datetime64(stop)
 
