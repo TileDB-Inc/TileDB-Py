@@ -86,9 +86,9 @@ def make_dataframe_basic2():
 
     return df
 
-def make_dataframe_basic3(col_size=10):
+def make_dataframe_basic3(col_size=10, time_range=(None,None)):
     df_dict = {
-        'time': rand_datetime64_array(col_size),
+        'time': rand_datetime64_array(col_size, start=time_range[0], stop=time_range[1]),
         'double_range': np.linspace(-1000, 1000, col_size),
         'int_vals': np.random.randint(dtype_max(np.int64), size=col_size, dtype=np.int64)
         }
@@ -336,7 +336,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             assert_array_almost_equal(res['double_range'], df.double_range.values)
 
     def test_csv_schema_only(self):
-        df = make_dataframe_basic3(10)
+        col_size = 10
+        df = make_dataframe_basic3(col_size)
 
         tmp_dir = self.path("csv_schema_only")
         os.mkdir(tmp_dir)
@@ -370,11 +371,12 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                         ],
                         coords_filters=coords_filters,
                         cell_order='row-major',
-                        tile_order='row-major', sparse=True,
+                        tile_order='row-major',
+                        sparse=True,
                         allows_duplicates=False)
                         # note: filters omitted
 
-        array_nfiles= len(tiledb.VFS().ls(tmp_array))
+        array_nfiles = len(tiledb.VFS().ls(tmp_array))
         self.assertEqual(array_nfiles, 3)
 
         with tiledb.open(tmp_array) as A:
@@ -387,3 +389,21 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             self.assertEqual(
                 A.schema.attr(0).filters[0].level, attrs_filters[0].level
             )
+
+        # Test mode='append'
+        tiledb.from_csv(tmp_array, tmp_csv,
+                        index_col=['time', 'double_range'], mode='append')
+        df2 = make_dataframe_basic3(10, time_range=(t0, t1))
+        df2.sort_values('time', inplace=True)
+        df2.set_index(['time', 'double_range'], inplace=True)
+        tiledb.from_dataframe(tmp_array, df2, mode='append')
+
+        with tiledb.open(tmp_array) as A:
+            res = A[:]
+            df_bk = pd.DataFrame(res)
+            df_bk.set_index(['time','double_range'], inplace=True)
+
+            df.set_index(['time','double_range'], inplace=True)
+            df_combined = pd.concat([df, df2])
+            df_combined.sort_index(level='time', inplace=True)
+            tm.assert_frame_equal(df_bk, df_combined)
