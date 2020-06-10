@@ -407,3 +407,28 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_combined = pd.concat([df, df2])
             df_combined.sort_index(level='time', inplace=True)
             tm.assert_frame_equal(df_bk, df_combined)
+
+    def test_csv_chunked(self):
+        col_size = 200
+        df = make_dataframe_basic3(col_size)
+
+        tmp_dir = self.path("csv_chunked")
+        os.mkdir(tmp_dir)
+        tmp_csv = os.path.join(tmp_dir, "generated.csv")
+
+        df.sort_values('time', inplace=True)
+        df.to_csv(tmp_csv, index=False)
+
+        tmp_array = os.path.join(tmp_dir, "array")
+        tiledb.from_csv(tmp_array, tmp_csv,
+                        index_col=['time', 'double_range'],
+                        parse_dates=['time'],
+                        chunksize=10)
+
+        with tiledb.open(tmp_array) as A:
+            res = A[:]
+            df_bk = pd.DataFrame(res)
+            df_bk.set_index(['time','double_range'], inplace=True)
+
+            df.set_index(['time','double_range'], inplace=True)
+            tm.assert_frame_equal(df_bk, df)
