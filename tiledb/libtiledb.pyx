@@ -1232,6 +1232,15 @@ cdef class Filter(object):
         self.ptr = filter_ptr
         return
 
+    def __repr__(self):
+        output = StringIO()
+        output.write(f"{type(self).__name__}(")
+        if hasattr(self, '_attrs_'):
+            for f in self._attrs_():
+                a = getattr(self, f)
+                output.write(f"{f}={a}")
+        output.write(")")
+        return output.getvalue()
 
 cdef class CompressionFilter(Filter):
     """Base class for filters performing compression.
@@ -1304,6 +1313,8 @@ cdef class NoOpFilter(Filter):
             ctx = default_ctx()
         super().__init__(TILEDB_FILTER_NONE, ctx=ctx)
 
+    def _attrs_(self):
+        return {}
 
 cdef class GzipFilter(CompressionFilter):
     """Filter that compresses using gzip.
@@ -1341,6 +1352,8 @@ cdef class GzipFilter(CompressionFilter):
             ctx = default_ctx()
         super().__init__(TILEDB_FILTER_GZIP, level, ctx=ctx)
 
+    def _attrs_(self):
+        return {'level': self.level}
 
 cdef class ZstdFilter(CompressionFilter):
     """Filter that compresses using zstd.
@@ -1378,6 +1391,8 @@ cdef class ZstdFilter(CompressionFilter):
             ctx = default_ctx()
         super().__init__(TILEDB_FILTER_ZSTD, level, ctx=ctx)
 
+    def _attrs_(self):
+        return {'level': self.level}
 
 cdef class LZ4Filter(CompressionFilter):
     """Filter that compresses using lz4.
@@ -1415,6 +1430,8 @@ cdef class LZ4Filter(CompressionFilter):
             ctx = default_ctx()
         super().__init__(TILEDB_FILTER_LZ4, level, ctx)
 
+    def _attrs_(self):
+        return {'level': self.level}
 
 cdef class Bzip2Filter(CompressionFilter):
     """Filter that compresses using bzip2.
@@ -1450,6 +1467,8 @@ cdef class Bzip2Filter(CompressionFilter):
             ctx = default_ctx()
         super().__init__(TILEDB_FILTER_BZIP2, level, ctx=ctx)
 
+    def _attrs_(self):
+        return {'level': self.level}
 
 cdef class RleFilter(CompressionFilter):
     """Filter that compresses using run-length encoding (RLE).
@@ -1482,6 +1501,8 @@ cdef class RleFilter(CompressionFilter):
             ctx = default_ctx()
         super().__init__(TILEDB_FILTER_RLE, None, ctx=ctx)
 
+    def _attrs_(self):
+        return {}
 
 cdef class DoubleDeltaFilter(CompressionFilter):
     """Filter that performs double-delta encoding.
@@ -1514,6 +1535,8 @@ cdef class DoubleDeltaFilter(CompressionFilter):
             ctx = None
         super().__init__(TILEDB_FILTER_DOUBLE_DELTA, None, ctx)
 
+    def _attrs_(self):
+        return {}
 
 cdef class BitShuffleFilter(Filter):
     """Filter that performs a bit shuffle transformation.
@@ -1546,6 +1569,8 @@ cdef class BitShuffleFilter(Filter):
             ctx = default_ctx()
         super().__init__(TILEDB_FILTER_BITSHUFFLE, ctx=ctx)
 
+    def _attrs_(self):
+        return {}
 
 cdef class ByteShuffleFilter(Filter):
     """Filter that performs a byte shuffle transformation.
@@ -1578,6 +1603,8 @@ cdef class ByteShuffleFilter(Filter):
             ctx = default_ctx()
         super().__init__(TILEDB_FILTER_BYTESHUFFLE, ctx=ctx)
 
+    def _attrs_(self):
+        return {}
 
 cdef class BitWidthReductionFilter(Filter):
     """Filter that performs bit-width reduction.
@@ -1622,6 +1649,9 @@ cdef class BitWidthReductionFilter(Filter):
         rc = tiledb_filter_set_option(ctx_ptr, self.ptr, TILEDB_BIT_WIDTH_MAX_WINDOW, &cwindow)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+
+    def _attrs_(self):
+        return {'window': self.window}
 
     @property
     def window(self):
@@ -1684,6 +1714,9 @@ cdef class PositiveDeltaFilter(Filter):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
+    def _attrs_(self):
+        return {'window': self.window}
+
     @property
     def window(self):
         """
@@ -1699,7 +1732,6 @@ cdef class PositiveDeltaFilter(Filter):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return int(cwindow)
-
 
 cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type, tiledb_filter_t* filter_ptr):
     if filter_type == TILEDB_FILTER_NONE:
@@ -1814,6 +1846,10 @@ cdef class FilterList(object):
                 tiledb_filter_list_free(&filter_list_ptr)
         self.ctx = ctx
         self.ptr = filter_list_ptr
+
+    def __repr__(self):
+        output = StringIO()
+        output.write("FilterList([")
 
     @property
     def chunksize(self):
@@ -2125,7 +2161,14 @@ cdef class Attr(object):
 
 
     def __repr__(self):
-        return f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}')"""
+        filters_str = ""
+        if self.filters:
+            filters_str = " FilterList(["
+            for f in self.filters:
+                filters_str += "'" + repr(f) + "',"
+            filters_str += "])"
+
+        return f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}'{filters_str})"""
 
 
 cdef class Dim(object):
@@ -3267,7 +3310,6 @@ cdef class ArraySchema(object):
 
     def __repr__(self):
         # TODO support/use __qualname__
-        # TODO add filters
         output = StringIO()
         output.write("ArraySchema(\n")
         output.write("  domain=Domain(*[\n")
@@ -3280,13 +3322,23 @@ cdef class ArraySchema(object):
         output.write("  ],\n")
         output.write(
             f"  cell_order='{self.cell_order}',\n"
-            f"  tile_order='{self.tile_order}'"
+            f"  tile_order='{self.tile_order}',\n"
         )
-        output.write(f", sparse={self.sparse}")
+        output.write(f"  capacity={self.capacity},\n")
+        output.write(f"  sparse={self.sparse},\n")
         if self.sparse:
-            output.write(f", allows_duplicates={self.allows_duplicates}")
+            output.write(f"  allows_duplicates={self.allows_duplicates},\n")
+
+        if self.coords_filters is not None:
+            output.write(f"  coords_filters=FilterList([")
+            for i,f in enumerate(self.coords_filters):
+                output.write(f"{repr(f)}")
+                if i < len(self.coords_filters):
+                    output.write(", ")
+
+            output.write(f"])\n")
+
         output.write(")\n")
-        output.write("""# note: filters omitted""")
 
         return output.getvalue()
 
