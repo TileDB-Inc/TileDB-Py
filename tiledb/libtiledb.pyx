@@ -1242,6 +1242,16 @@ cdef class Filter(object):
         output.write(")")
         return output.getvalue()
 
+    def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+        for f in self._attrs_():
+           left = getattr(self, f)
+           right = getattr(other, f)
+           if left != right:
+               return False
+        return True
+
 cdef class CompressionFilter(Filter):
     """Base class for filters performing compression.
 
@@ -1850,6 +1860,14 @@ cdef class FilterList(object):
     def __repr__(self):
         output = StringIO()
         output.write("FilterList([")
+
+    def __eq__(self, other):
+        if len(self) != len(other):
+            return False
+        for i,f in enumerate(self):
+            if f != other[i]:
+                return False
+        return True
 
     @property
     def chunksize(self):
@@ -3053,6 +3071,8 @@ cdef class ArraySchema(object):
         if (self.capacity != other.capacity):
             return False
         if self.domain != other.domain:
+            return False
+        if self.coords_filters != other.coords_filters:
             return False
         for i in range(nattr):
             if self.attr(i) != other.attr(i):
