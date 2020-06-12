@@ -3017,7 +3017,7 @@ class ReprTest(unittest.TestCase):
 
             schema_repr = repr(orig_schema)
             g = dict()
-            setup = ("from tiledb import ArraySchema, Domain, Attr, Dim\n"
+            setup = ("from tiledb import *\n"
                      "import numpy as np\n")
 
             exec(setup, g)
