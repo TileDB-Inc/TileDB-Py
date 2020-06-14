@@ -98,8 +98,8 @@ def _libtiledb_exists(library_dirs):
 
     print("libtiledb_exists checking 'library_dirs': {}".format(library_dirs))
 
+    names = libtiledb_library_names()
     if len(library_dirs) > 0:
-        names = libtiledb_library_names()
         paths = [os.path.join(d, n) for d in library_dirs for n in names]
         for p in paths:
             if os.path.exists(p):
@@ -108,13 +108,8 @@ def _libtiledb_exists(library_dirs):
                 .format("\n".join(paths)))
     # If no explicit path is given check to see if TileDB is globally installed.
     import ctypes
-    if os.name == "posix":
-        if sys.platform == "darwin":
-            lib_name = "libtiledb.dylib"
-        else:
-            lib_name = "libtiledb.so"
-    elif os.name == "nt":
-        lib_name = "tiledb.dll"
+    lib_name = names[0]
+
     try:
         # note: this is a relative path on linux
         #       https://bugs.python.org/issue21042
