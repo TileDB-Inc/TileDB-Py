@@ -4786,7 +4786,6 @@ cdef class SparseArrayImpl(Array):
 
         from tiledb.core import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), True)
-        #q.set_subarray(subarray)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 
