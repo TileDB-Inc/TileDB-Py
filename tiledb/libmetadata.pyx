@@ -205,7 +205,9 @@ def put_metadata(Array array,
         if (len(packed_buf.data) < 1):
             raise ValueError("Unsupported zero-length metadata value")
 
-    cdef const unsigned char[:] data_view = packed_buf.data
+    cdef bytes data = packed_buf.data
+    cdef const unsigned char[:] data_view = data
+
     if packed_buf.value_num == 0:
         data_ptr = NULL
     else:
