@@ -601,9 +601,9 @@ public:
   py::array unpack_buffer(std::string name,
       py::array buf, py::array_t<uint64_t> off) {
     if (buf.size() < 1)
-      TPY_ERROR_LOC("Unexpected empty buffer array");
+      TPY_ERROR_LOC(std::string("Unexpected empty buffer array ('") + name + "')");
     if (off.size() < 1)
-      TPY_ERROR_LOC(("Unexpected empty offsets array"));
+      TPY_ERROR_LOC(std::string("Unexpected empty offsets array ('") + name + "')");
 
     auto dtype = buffer_dtype(name);
     bool is_unicode = dtype.is(py::dtype("U"));
