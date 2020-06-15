@@ -32,7 +32,7 @@ using namespace pybind11::literals;
                       std::to_string(__LINE__) + ")");
 
 const uint64_t DEFAULT_INIT_BUFFER_BYTES = 1310720 * 8;
-const uint64_t DEFAULT_EXP_ALLOC_MAX_BYTES = 4 * pow(2, 30);
+const uint64_t DEFAULT_EXP_ALLOC_MAX_BYTES = uint64_t(4 * pow(2, 30));
 
 class TileDBPyError : std::runtime_error {
 public:
@@ -214,8 +214,8 @@ public:
                                             [](Array *p) {} /* no deleter*/);
 
     query_ = std::shared_ptr<tiledb::Query>(
-        new Query(ctx_, *array_, TILEDB_READ)); //,
-    //                     [](Query* p){} /* no deleter*/);
+        new Query(ctx_, *array_, TILEDB_READ));
+        //        [](Query* p){} /* note: no deleter*/);
 
     if (coords.is(py::none()))
       include_coords_ = true;
@@ -227,17 +227,28 @@ public:
     }
 
     // get config parameters
+    std::string tmp_str;
     try {
+      tmp_str = ctx_.config().get("py.init_buffer_bytes");
       init_buffer_bytes_ =
-          std::atoi(ctx_.config().get("py.init_buffer_bytes").c_str());
-    } catch (TileDBError &e) { /* pass, key not found */
+        std::stoull(tmp_str);
+    } catch (const TileDBError &e) { /* pass, key not found */
       (void)e;
+    } catch (const std::invalid_argument &e) {
+      (void)e;
+      throw TileDBError("Failed to convert 'py.init_buffer_bytes' to uint64_t ('" + tmp_str + "')");
     }
+
     try {
+      tmp_str = ctx_.config().get("py.exp_alloc_max_bytes");
       exp_alloc_max_bytes_ =
-          std::atoi(ctx_.config().get("py.exp_alloc_max_bytes").c_str());
+        std::stoull(tmp_str);
     } catch (TileDBError &e) {
       /* pass, key not found */
+      (void)e;
+    } catch (const std::invalid_argument &e) {
+      (void)e;
+      throw TileDBError("Failed to convert 'py.exp_alloc_max_bytes' to uint64_t ('" + tmp_str + "')");
     }
   }
 
@@ -345,6 +356,7 @@ public:
         TPY_ERROR_LOC("Unknown dim type conversion!");
       }
     } catch (py::cast_error &e) {
+      (void)e;
       std::string msg = "Failed to cast dim range '" + (string)py::repr(r) +
                         "' to dim type " +
                         tiledb::impl::type_to_str(tiledb_type);
@@ -436,6 +448,7 @@ public:
       auto t = buffer_type(name);
       return tiledb_dtype(t.first, t.second);
     } catch (TileDBError &e) {
+      (void)e;
       return py::none();
     }
   }
@@ -547,10 +560,16 @@ public:
     set_buffers();
 
     size_t max_retries = 0, retries = 0;
+    std::string tmp_str;
     try {
+      tmp_str = ctx_.config().get("py.max_incomplete_retries");
       max_retries =
-          std::atoi(ctx_.config().get("py.max_incomplete_retries").c_str());
+          std::stoull(tmp_str);
+    } catch (const std::invalid_argument &e) {
+      (void)e;
+      throw TileDBError("Failed to convert 'py.max_incomplete_retries' to uint64_t ('" + tmp_str + "')");
     } catch (tiledb::TileDBError &e) {
+      (void)e;
       max_retries = 100;
     }
 
@@ -564,7 +583,7 @@ public:
     while (query_->query_status() == Query::Status::INCOMPLETE) {
       if (++retries > max_retries)
         TPY_ERROR_LOC(
-            "Exceeded maximum retries ('py.max_incomplete_retries': " +
+            "Exceeded maximum retries ('py.max_incomplete_retries': '" +
             std::to_string(max_retries) + "')");
 
       update_read_elem_num();
@@ -673,12 +692,16 @@ public:
     return results;
   }
 
-  py::array test_array() {
+  py::array _test_array() {
     py::array_t<uint8_t> a;
     a.resize({10});
 
     a.resize({20});
     return std::move(a);
+  }
+
+  uint64_t _test_init_buffer_bytes() {
+    return init_buffer_bytes_;
   }
 };
 
@@ -691,9 +714,10 @@ PYBIND11_MODULE(core, m) {
       .def("results", &PyQuery::results)
       .def("buffer_dtype", &PyQuery::buffer_dtype)
       .def("unpack_buffer", &PyQuery::unpack_buffer)
-      .def("test_array", &PyQuery::test_array)
-      .def("test_err",
-           [](py::object self, std::string s) { throw TileDBPyError(s); });
+      .def("_test_array", &PyQuery::_test_array)
+      .def("_test_err",
+           [](py::object self, std::string s) { throw TileDBPyError(s); })
+      .def_property_readonly("_test_init_buffer_bytes", &PyQuery::_test_init_buffer_bytes);
 
   /*
      We need to make sure C++ TileDBError is translated to a correctly-typed py
@@ -712,6 +736,8 @@ PYBIND11_MODULE(core, m) {
     } catch (const tiledb::TileDBError &e) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
     } catch (std::exception &e) {
+      auto tmp_errstr = std::string("pybind untranslated std::exception: '") + std::string(e.what()) + "'";
+      PyErr_SetString(tiledb_py_error.ptr(), tmp_errstr.c_str());
     }
   });
 }
