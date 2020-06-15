@@ -19,7 +19,7 @@ class CoreCCTest(DiskTestCase):
             q = core.PyQuery(ctx, a, ("",), False)
 
             try:
-                q.test_err("bad foo happened")
+                q._test_err("bad foo happened")
             except Exception as exc:
                 assert isinstance(exc, tiledb.TileDBError)
                 assert exc.message == "bad foo happened"
@@ -56,3 +56,19 @@ class CoreCCTest(DiskTestCase):
             res = q2.results()[''][0]
             res.dtype = np.double
             assert_array_equal(res, a[:])
+
+    def test_pyquery_init(self):
+        uri = self.path("test_pyquery_basic")
+        intmax = np.iinfo(np.int64).max
+        config_dict = {
+            "sm.tile_cache_size": '100',
+            "py.init_buffer_bytes": str(intmax)
+            }
+        ctx = tiledb.Ctx(config=config_dict)
+
+        with tiledb.from_numpy(uri, np.random.rand(4)) as A:
+            pass
+
+        with tiledb.open(uri) as a:
+            q = core.PyQuery(ctx, a, ("",), False)
+            self.assertEqual(q._test_init_buffer_bytes, intmax)
