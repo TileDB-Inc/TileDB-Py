@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-import sys, os, io, re, platform, unittest, random
+import sys, os, io, re, platform, unittest, random, warnings
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -3007,12 +3007,13 @@ class ReprTest(unittest.TestCase):
 
     def test_arrayschema_repr(self):
         ctx = tiledb.default_ctx()
+        filters = tiledb.FilterList([tiledb.ZstdFilter(-1)])
         for sparse in [False, True]:
             domain = tiledb.Domain(
                 tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
                 tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
                 ctx=ctx)
-            a1 = tiledb.Attr("val", dtype='f8', ctx=ctx)
+            a1 = tiledb.Attr("val", dtype='f8', filters=filters, ctx=ctx)
             orig_schema = tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=sparse, ctx=ctx)
 
             schema_repr = repr(orig_schema)
@@ -3021,7 +3022,16 @@ class ReprTest(unittest.TestCase):
                      "import numpy as np\n")
 
             exec(setup, g)
-            new_schema = eval(schema_repr, g)
+            new_schema = None
+            try:
+                new_schema = eval(schema_repr, g)
+            except Exception as exc:
+                warn_str = """Exception during ReprTest schema eval""" + \
+                           """, schema string was:\n""" + \
+                           """'''""" + \
+                           """\n{}\n'''""".format(schema_repr)
+                warnings.warn(warn_str)
+                raise
 
             self.assertEqual(new_schema, orig_schema)
 
