@@ -2181,9 +2181,9 @@ cdef class Attr(object):
     def __repr__(self):
         filters_str = ""
         if self.filters:
-            filters_str = " FilterList(["
+            filters_str = ", filters=FilterList(["
             for f in self.filters:
-                filters_str += "'" + repr(f) + "',"
+                filters_str +=  repr(f) + ", "
             filters_str += "])"
 
         return f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}'{filters_str})"""
