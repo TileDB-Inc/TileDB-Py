@@ -24,11 +24,12 @@ TILEDB_KWARG_DEFAULTS = {
     'cell_order': 'row-major',
     'tile_order': 'row-major',
     'allows_duplicates': False,
-    'sparse': None,
+    'sparse': True,
     'mode': 'ingest',
     'attrs_filters': None,
     'coords_filters': None,
-    'full_domain': False
+    'full_domain': False,
+    'tile': None
 }
 
 def parse_tiledb_kwargs(kwargs):
@@ -50,6 +51,8 @@ def parse_tiledb_kwargs(kwargs):
         args['coords_filters'] = kwargs.pop('coords_filters')
     if 'full_domain' in kwargs:
         args['full_domain'] = kwargs.pop('full_domain')
+    if 'tile' in kwargs:
+        args['tile'] = kwargs.pop('tile')
 
     return args
 
@@ -127,7 +130,7 @@ def attrs_from_df(df, index_dims=None, filters=None, ctx=None):
 
     return attrs, attr_reprs
 
-def dim_for_column(ctx, df, col, col_name, full_domain=False):
+def dim_info_for_column(ctx, df, col, tile=None, full_domain=False):
     if isinstance(col, np.ndarray):
         col_values = col
     else:
@@ -136,15 +139,24 @@ def dim_for_column(ctx, df, col, col_name, full_domain=False):
     if len(col_values) < 1:
         raise ValueError("Empty column '{}' cannot be used for dimension!".format(col_name))
 
-    dim_info = dtype_from_column(col_values)
-
     if col_values.dtype is np.dtype('O'):
-        if type(col_values[0]) in (bytes, unicode_type):
+        col_val0_type = type(col_values[0])
+        if col_val0_type in (bytes, unicode_type):
             dim_min, dim_max = (None, None)
             # TODO... core only supports TILEDB_ASCII right now
             dim_info = ColumnInfo(np.bytes_)
         else:
-            raise TypeError("other unknown column type not yet supported")
+            raise TypeError("Unknown column type not yet supported ('{}')".format(col_val0_type))
+    else:
+        dim_info = dtype_from_column(col_values)
+
+    return dim_info
+
+def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False):
+    if isinstance(col, np.ndarray):
+        col_values = col
+    else:
+        col_values = col.values
 
     if full_domain:
         # Use the full type domain, deferring to the constructor
@@ -153,11 +165,17 @@ def dim_for_column(ctx, df, col, col_name, full_domain=False):
         dim_min = np.min(col_values)
         dim_max = np.max(col_values)
 
+    if not dim_info.dtype in (np.bytes_, np.unicode) and \
+        np.isscalar(dim_min) and np.isscalar(dim_max):
+        dim_range = np.uint64(np.abs(np.uint64(dim_max) - np.uint64(dim_min)) + 1)
+        if dim_range < tile:
+            tile = dim_range
+
     dim = tiledb.Dim(
-        name = col_name,
+        name = name,
         domain = (dim_min, dim_max),
         dtype = dim_info.dtype,
-        tile = 1 # TODO
+        tile = tile
     )
 
     return dim
@@ -170,21 +188,8 @@ def get_index_metadata(dataframe):
 
     return md
 
-def write_array_metadata(array, attr_metadata = None, index_metadata = None):
-    """
-    :param array: open, writable TileDB array
-    :param metadata: dict
-    :return:
-    """
-    if attr_metadata:
-        attr_md_dict = {n: str(t) for n,t in attr_metadata.items()}
-        array.meta['__pandas_attribute_repr'] = json.dumps(attr_md_dict)
-
-    if index_metadata:
-        index_md_dict = {n: str(t) for n,t in index_metadata.items()}
-        array.meta['__pandas_index_dims'] = json.dumps(index_md_dict)
-
-def create_dims(ctx, dataframe, index_dims, full_domain=False):
+def create_dims(ctx, dataframe, index_dims,
+                tile=None, full_domain=False, sparse=None):
     import pandas as pd
     index = dataframe.index
     index_dict = OrderedDict()
@@ -204,9 +209,42 @@ def create_dims(ctx, dataframe, index_dims, full_domain=False):
     else:
         raise ValueError("Unhandled index type {}".format(type(index)))
 
+    dim_types = list(
+        dim_info_for_column(ctx, dataframe, values,
+                            tile=tile, full_domain=full_domain)
+        for values in index_dict.values()
+    )
+
+    if any([d.dtype in (np.bytes_, np.unicode_) for d in dim_types]):
+        if sparse is False:
+            raise TileDBError("Cannot create dense array with string-typed dimensions")
+        elif sparse is None:
+            sparse = True
+
+    d0 = dim_types[0]
+    if not all(d0.dtype == d.dtype for d in dim_types[1:]):
+        if sparse is False:
+            raise TileDBError("Cannot create dense array with heterogeneous dimension data types")
+        elif sparse is None:
+            sparse = True
+
+    ndim = len(dim_types)
+    if tile is None:
+        if sparse:
+            tile = 1
+        elif ndim == 1:
+            tile = 10000
+        elif ndim == 2:
+            tile = 1000
+        elif ndim == 3:
+            tile = 100
+        else:
+            tile = 10
+
     dims = list(
-        dim_for_column(ctx, dataframe, values, name, full_domain=full_domain)
-            for name,values in index_dict.items()
+        dim_for_column(ctx, name, dim_types[i], values,
+                       tile=tile, full_domain=full_domain)
+        for i, (name, values) in enumerate(index_dict.items())
     )
 
     if index_dims:
@@ -216,7 +254,21 @@ def create_dims(ctx, dataframe, index_dims, full_domain=False):
                 dim_for_column(ctx, dataframe, col.values, name)
             )
 
-    return dims
+    return dims, sparse
+
+def write_array_metadata(array, attr_metadata = None, index_metadata = None):
+    """
+    :param array: open, writable TileDB array
+    :param metadata: dict
+    :return:
+    """
+    if attr_metadata:
+        attr_md_dict = {n: str(t) for n,t in attr_metadata.items()}
+        array.meta['__pandas_attribute_repr'] = json.dumps(attr_md_dict)
+
+    if index_metadata:
+        index_md_dict = {n: str(t) for n,t in index_metadata.items()}
+        array.meta['__pandas_index_dims'] = json.dumps(index_md_dict)
 
 def from_dataframe(uri, dataframe, **kwargs):
     # deprecated in 0.6.3
@@ -248,6 +300,8 @@ def from_pandas(uri, dataframe, **kwargs):
     attrs_filters = args.get('attrs_filters', None)
     coords_filters = args.get('coords_filters', None)
     full_domain = args.get('full_domain', False)
+    tile = args.get('tile', None)
+    nrows = args.get('nrows', None)
 
     write = True
     create_array = True
@@ -271,25 +325,14 @@ def from_pandas(uri, dataframe, **kwargs):
             coords_filters = tiledb.FilterList(
                 [tiledb.ZstdFilter(1, ctx=ctx)])
 
-        nrows = len(dataframe)
-        tiling = np.min((nrows % 200, nrows))
+        if nrows:
+            if full_domain is None:
+                full_domain = False
 
         # create the domain and attributes
-        dims = create_dims(ctx, dataframe, index_dims,
-                           full_domain=full_domain)
-
-        if any([d.dtype in (np.bytes_, np.unicode_) for d in dims]):
-            if sparse is False:
-                raise TileDBError("Cannot create string-typed 'dense' array")
-            elif sparse is None:
-                sparse = True
-
-        d0 = dims[0]
-        if not all(d0.dtype == d.dtype for d in dims[1:]):
-            if sparse is False:
-                raise TileDBError("Cannot create ")
-            elif sparse is None:
-                sparse = True
+        # if sparse==None then this function may return a default based on types
+        dims, sparse = create_dims(ctx, dataframe, index_dims, sparse=sparse,
+                           tile=tile, full_domain=full_domain)
 
         domain = tiledb.Domain(
            *dims,
@@ -442,8 +485,7 @@ def from_csv(uri, csv_file, **kwargs):
 
     if chunksize is not None:
         if not 'nrows' in kwargs:
-            if not kwargs.get('sparse', True):
-                raise TileDBError("Chunked read into dense array requires nrows")
+            full_domain = True
 
         array_created = False
         if mode == 'schema_only':
