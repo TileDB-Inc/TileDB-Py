@@ -6,6 +6,8 @@ import io
 from collections import OrderedDict
 import warnings
 
+from tiledb import TileDBError
+
 if sys.version_info >= (3,3):
     unicode_type = str
 else:
@@ -254,6 +256,8 @@ def from_pandas(uri, dataframe, **kwargs):
             write = False
         elif mode == 'append':
             create_array = False
+        elif mode != 'ingest':
+            raise TileDBError("Invalid mode specified ('{}')".format(mode))
 
     if ctx is None:
         ctx = tiledb.default_ctx()
