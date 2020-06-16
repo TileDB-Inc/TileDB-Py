@@ -163,7 +163,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         uri = self.path("dataframe_basic_rt1")
         df = make_dataframe_basic1()
 
-        tiledb.from_dataframe(uri, df)
+        tiledb.from_dataframe(uri, df, sparse=False)
 
         # TODO tiledb.read_dataframe
         with tiledb.open(uri) as B:
@@ -176,7 +176,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         df = make_dataframe_basic2()
 
-        tiledb.from_dataframe(uri, df)
+        tiledb.from_dataframe(uri, df, sparse=False)
 
         with tiledb.open(uri) as B:
             df_readback = tiledb.open_dataframe(uri)
@@ -203,14 +203,14 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         }
 
         df_orig = pd.DataFrame.from_dict(data_dict)
-
         csv_uri = os.path.join(uri, "test.csv")
+
         # note: encoding must be specified to avoid printing the b'' bytes
         #       prefix, see https://github.com/pandas-dev/pandas/issues/9712
         df_orig.to_csv(csv_uri, mode='w')
 
         csv_array_uri = os.path.join(uri, "tiledb_csv")
-        tiledb.from_csv(csv_array_uri, csv_uri, index_col = 0, parse_dates=[1])
+        tiledb.from_csv(csv_array_uri, csv_uri, index_col = 0, parse_dates=[1], sparse=False)
 
         df_from_array = tiledb.open_dataframe(csv_array_uri)
         tm.assert_frame_equal(df_orig, df_from_array)
@@ -220,7 +220,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.FileIO(tiledb.VFS(), csv_uri, 'rb') as fio:
             csv_uri_unc = "file:///" + csv_uri
             csv_array_uri2 = "file:///" + os.path.join(csv_array_uri+"_2")
-            tiledb.from_csv(csv_array_uri2, csv_uri_unc, index_col=0, parse_dates=[1])
+            tiledb.from_csv(csv_array_uri2, csv_uri_unc, index_col=0, parse_dates=[1], sparse=False)
 
             df_from_array2 = tiledb.open_dataframe(csv_array_uri2)
             tm.assert_frame_equal(df_orig, df_from_array2)
