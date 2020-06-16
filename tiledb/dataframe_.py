@@ -424,6 +424,8 @@ def from_csv(uri, csv_file, **kwargs):
         # Note that 'nrows' is a pandas arg!
         if mode == 'schema_only' and not 'nrows' in kwargs:
             kwargs['nrows'] = 500
+        elif mode not in ['ingest', 'append']:
+            raise TileDBError("Invalid mode specified ('{}')".format(mode))
 
     chunksize = kwargs.get('chunksize', None)
 
