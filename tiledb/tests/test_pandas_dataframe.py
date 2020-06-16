@@ -290,6 +290,26 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                 res['int_vals'], df.int_vals.values
             )
 
+    def test_csv_dense(self):
+        col_size = 10
+        df_data = {
+            'index': np.arange(0,col_size),
+            'chars': np.array([rand_ascii(4).encode('UTF-8') for _ in range(col_size)]),
+            'vals_float64': np.random.rand(col_size),
+        }
+        df = pd.DataFrame(df_data).set_index('index')
+
+        # Test 1: basic round-trip
+        tmp_dir = self.path("csv_dense")
+        os.mkdir(tmp_dir)
+        tmp_csv = os.path.join(tmp_dir, "generated.csv")
+
+        df.to_csv(tmp_csv)
+
+        tmp_array = os.path.join(tmp_dir, "array")
+        tiledb.from_csv(tmp_array, tmp_csv, index_col=['index'],
+                        sparse=False)
+
     def test_csv_col_to_sparse_dims(self):
         df = make_dataframe_basic3(20)
 
