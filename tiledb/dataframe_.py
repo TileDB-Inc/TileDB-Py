@@ -24,7 +24,7 @@ TILEDB_KWARG_DEFAULTS = {
     'cell_order': 'row-major',
     'tile_order': 'row-major',
     'allows_duplicates': False,
-    'sparse': False,
+    'sparse': None,
     'mode': 'ingest',
     'attrs_filters': None,
     'coords_filters': None,
@@ -230,7 +230,7 @@ def from_pandas(uri, dataframe, **kwargs):
 
     :param uri: URI for new TileDB array
     :param dataframe: pandas DataFrame
-    :param mode: Creation mode, one of 'ingest' (default), 'create_schema', 'append'
+    :param mode: Creation mode, one of 'ingest' (default), 'schema_only', 'append'
     :param kwargs: optional keyword arguments for Pandas and TileDB.
         TileDB arguments: tile_order, cell_order, allows_duplicates, sparse,
                           mode, attrs_filters, coords_filters
@@ -275,14 +275,21 @@ def from_pandas(uri, dataframe, **kwargs):
         tiling = np.min((nrows % 200, nrows))
 
         # create the domain and attributes
-        dims = create_dims(ctx, dataframe, index_dims, full_domain=full_domain)
+        dims = create_dims(ctx, dataframe, index_dims,
+                           full_domain=full_domain)
 
-        if len(dims) > 1:
-            sparse = True
         if any([d.dtype in (np.bytes_, np.unicode_) for d in dims]):
-            sparse = True
-        if any([np.issubdtype(d.dtype, np.datetime64) for d in dims]):
-            sparse = True
+            if sparse is False:
+                raise TileDBError("Cannot create string-typed 'dense' array")
+            elif sparse is None:
+                sparse = True
+
+        d0 = dims[0]
+        if not all(d0.dtype == d.dtype for d in dims[1:]):
+            if sparse is False:
+                raise TileDBError("Cannot create ")
+            elif sparse is None:
+                sparse = True
 
         domain = tiledb.Domain(
            *dims,
@@ -434,6 +441,10 @@ def from_csv(uri, csv_file, **kwargs):
     chunksize = kwargs.get('chunksize', None)
 
     if chunksize is not None:
+        if not 'nrows' in kwargs:
+            if not kwargs.get('sparse', True):
+                raise TileDBError("Chunked read into dense array requires nrows")
+
         array_created = False
         if mode == 'schema_only':
             raise TileDBError("schema_only ingestion not supported for chunked read")
