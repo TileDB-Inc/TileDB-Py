@@ -75,7 +75,7 @@ from .highlevel import (
 )
 
 # TODO restricted imports
-from .dataframe_ import from_dataframe, from_csv, open_dataframe
+from .dataframe_ import from_csv, from_pandas, from_dataframe, open_dataframe
 
 from .version import version as __version__
 
