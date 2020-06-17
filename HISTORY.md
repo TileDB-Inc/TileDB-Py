@@ -1,5 +1,9 @@
 # TileDB-Py 0.6.3 Release Notes
 
+## Improvements
+* Bump release target to [TileDB 2.0.5](https://github.com/TileDB-Inc/TileDB/releases/tag/2.0.5)
+
+## Bug fixes
 * Fix unnecessary implicit ordering requirement for multi-attribute assignment. [#328](https://github.com/TileDB-Inc/TileDB-Py/pull/328)
 
 # TileDB-Py 0.6.2 Release Notes
