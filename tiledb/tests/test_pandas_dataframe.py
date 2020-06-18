@@ -383,8 +383,9 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         import numpy
         ref_schema = tiledb.ArraySchema(
                         domain=tiledb.Domain(*[
-                          tiledb.Dim(name='time', domain=(t0.to_datetime64(), t1.to_datetime64()), tile=1, dtype='datetime64[ns]'),
-                          tiledb.Dim(name='double_range', domain=(-1000.0, 1000.0), tile=1.0, dtype='float64'),
+                          tiledb.Dim(name='time', domain=(t0.to_datetime64(), t1.to_datetime64()),
+                                     tile=1000, dtype='datetime64[ns]'),
+                          tiledb.Dim(name='double_range', domain=(-1000.0, 1000.0), tile=1000, dtype='float64'),
                         ]),
                         attrs=[
                           tiledb.Attr(name='int_vals', dtype='int64', filters=attrs_filters),

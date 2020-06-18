@@ -142,7 +142,6 @@ def dim_info_for_column(ctx, df, col, tile=None, full_domain=False):
     if col_values.dtype is np.dtype('O'):
         col_val0_type = type(col_values[0])
         if col_val0_type in (bytes, unicode_type):
-            dim_min, dim_max = (None, None)
             # TODO... core only supports TILEDB_ASCII right now
             dim_info = ColumnInfo(np.bytes_)
         else:
@@ -152,24 +151,64 @@ def dim_info_for_column(ctx, df, col, tile=None, full_domain=False):
 
     return dim_info
 
-def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False):
+def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False, ndim=None):
     if isinstance(col, np.ndarray):
         col_values = col
     else:
         col_values = col.values
 
+    if tile is None:
+        if ndim is None:
+            raise TileDBError("Unexpected Nonetype ndim")
+
+        if ndim == 1:
+            tile = 10000
+        elif ndim == 2:
+            tile = 1000
+        elif ndim == 3:
+            tile = 100
+        else:
+            tile = 10
+
+    dtype = dim_info.dtype
+
     if full_domain:
-        # Use the full type domain, deferring to the constructor
-        dim_min, dim_max = (None, None)
+        if not dim_info.dtype in (np.bytes_, np.unicode):
+            # Use the full type domain, deferring to the constructor
+            (dtype_min, dtype_max) = tiledb.libtiledb.dtype_range(dim_info.dtype)
+
+            dim_max = dtype_max
+            if dtype.kind == 'M':
+                date_unit = np.datetime_data(dtype)[0]
+                dim_min = np.datetime64(dtype_min + 1, date_unit)
+                tile_max = np.iinfo(np.uint64).max - tile
+                if np.abs(np.uint64(dtype_max) - np.uint64(dtype_min)) > tile_max:
+                    dim_max = np.datetime64(dtype_max - tile, date_unit)
+            elif dtype is np.int64:
+                dim_min = dtype_min + 1
+            else:
+                dim_min = dtype_min
+
+            if dtype.kind != 'M' and np.issubdtype(dtype, np.integer):
+                tile_max = np.iinfo(np.uint64).max - tile
+                if np.abs(np.uint64(dtype_max) - np.uint64(dtype_min)) > tile_max:
+                    dim_max = dtype_max - tile
+        else:
+            dim_min, dim_max = (None, None)
+
     else:
         dim_min = np.min(col_values)
         dim_max = np.max(col_values)
 
-    if not dim_info.dtype in (np.bytes_, np.unicode) and \
-        np.isscalar(dim_min) and np.isscalar(dim_max):
-        dim_range = np.uint64(np.abs(np.uint64(dim_max) - np.uint64(dim_min)) + 1)
-        if dim_range < tile:
-            tile = dim_range
+    if not dim_info.dtype in (np.bytes_, np.unicode):
+        if np.issubdtype(dtype, np.integer):
+            dim_range = np.uint64(np.abs(np.uint64(dim_max) - np.uint64(dim_min)))
+            if dim_range < tile:
+                tile = dim_range
+        elif np.issubdtype(dtype, np.float64):
+            dim_range = dim_max - dim_min
+            if dim_range < tile:
+                tile = np.ceil(dim_range)
 
     dim = tiledb.Dim(
         name = name,
@@ -229,21 +268,10 @@ def create_dims(ctx, dataframe, index_dims,
             sparse = True
 
     ndim = len(dim_types)
-    if tile is None:
-        if sparse:
-            tile = 1
-        elif ndim == 1:
-            tile = 10000
-        elif ndim == 2:
-            tile = 1000
-        elif ndim == 3:
-            tile = 100
-        else:
-            tile = 10
 
     dims = list(
         dim_for_column(ctx, name, dim_types[i], values,
-                       tile=tile, full_domain=full_domain)
+                       tile=tile, full_domain=full_domain, ndim=ndim)
         for i, (name, values) in enumerate(index_dict.items())
     )
 
