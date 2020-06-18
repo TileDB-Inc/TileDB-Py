@@ -2746,7 +2746,8 @@ class VFS(DiskTestCase):
         for size in rand_sizes:
             file_path = os.path.join(path, "f_" + str(size))
             with tiledb.FileIO(vfs, file_path, 'wb') as f:
-                f.write(np.arange(0,size, dtype=np.uint8))
+                data = os.urandom(size)
+                f.write(data)
 
         self.assertEqual(vfs.dir_size(path), sum(rand_sizes))
 
