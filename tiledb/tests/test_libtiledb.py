@@ -2736,6 +2736,20 @@ class VFS(DiskTestCase):
             set(os.path.normpath(x) for x in vfs.ls(basepath))
         )
 
+    def test_dir_size(self):
+        import os
+        vfs = tiledb.VFS(ctx=tiledb.Ctx())
+
+        path = self.path("test_vfs_dir_size")
+        os.mkdir(path)
+        rand_sizes = [np.random.randint(100) for _ in range(4)]
+        for size in rand_sizes:
+            file_path = os.path.join(path, "f_" + str(size))
+            with tiledb.FileIO(vfs, file_path, 'wb') as f:
+                f.write(np.arange(0,size, dtype=np.uint8))
+
+        self.assertEqual(vfs.dir_size(path), sum(rand_sizes))
+
 class ConsolidationTest(DiskTestCase):
 
     def test_array_vacuum(self):
