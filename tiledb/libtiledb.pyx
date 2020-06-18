@@ -5366,6 +5366,28 @@ cdef class VFS(object):
             _raise_ctx_err(ctx_ptr, rc)
         return int(nbytes)
 
+    def dir_size(self, uri):
+        """Returns the size (in bytes) of a VFS directory at the given URI
+
+        :param str uri: URI of a VFS directory resource
+        :rtype: int
+        :return: dir size in number of bytes
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef uint64_t nbytes = 0
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_dir_size(ctx_ptr, vfs_ptr, uri_ptr, &nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return int(nbytes)
+
     def move_file(self, old_uri, new_uri):
         """ Moves a VFS file from old URI to new URI
 
