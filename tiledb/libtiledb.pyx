@@ -501,6 +501,23 @@ def safe_repr(obj):
     except:
         return "<repr failed>"
 
+def dtype_range(np.dtype dtype):
+    if np.issubdtype(dtype, np.integer):
+        info = np.iinfo(dtype)
+        dtype_min, dtype_max = info.min, info.max
+    elif np.issubdtype(dtype, np.floating):
+        info = np.finfo(dtype)
+        dtype_min, dtype_max = info.min, info.max
+    elif dtype.kind == 'M':
+        info = np.iinfo(np.int64)
+        date_unit = np.datetime_data(dtype)[0]
+        dtype_min = np.datetime64(info.min + 1, date_unit)
+        dtype_max = np.datetime64(info.max, date_unit)
+    else:
+        raise TypeError("invalid Dim dtype {0!r}".format(dtype))
+
+    return (dtype_min, dtype_max)
+
 ###############################################################################
 #                                                                             #
 #    CLASS DEFINITIONS                                                        #
@@ -2249,27 +2266,14 @@ cdef class Dim(object):
         else:
             if dtype is not None:
                 dtype = np.dtype(dtype)
-                dtype_min, dtype_max = None, None
-                if np.issubdtype(dtype, np.integer):
-                    info = np.iinfo(dtype)
-                    dtype_min, dtype_max = info.min, info.max
-                elif np.issubdtype(dtype, np.floating):
-                    info = np.finfo(dtype)
-                    dtype_min, dtype_max = info.min, info.max
-                elif dtype.kind == 'M':
-                    info = np.iinfo(np.int64)
-                    date_unit = np.datetime_data(dtype)[0]
-                    dtype_min = np.datetime64(info.min, date_unit)
-                    dtype_max = np.datetime64(info.max, date_unit)
-                    # special case for datetime64 minimum
-                    if domain == (None,None):
-                        dtype_min = np.datetime64(info.min + 1, date_unit)
-                else:
-                    raise TypeError("invalid Dim dtype {0!r}".format(dtype))
+                dtype_min, dtype_max = dtype_range(dtype)
 
                 if domain == (None, None):
                     # this means to use the full extent of the type
-                    if dtype == np.int64 and not (dtype.kind == 'M'):
+                    if dtype.kind == 'M':
+                        date_unit = np.datetime_data(dtype)[0]
+                        dtype_min = np.datetime64(dtype_min + 1, date_unit)
+                    elif dtype == np.int64 and not (dtype.kind == 'M'):
                         # except that the domain range currently must fit in UInt64
                         dtype_min = dtype_min + 1
                     domain = (dtype_min, dtype_max)
