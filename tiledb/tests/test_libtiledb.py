@@ -677,7 +677,7 @@ class ArrayTest(DiskTestCase):
 
         # check that consolidating the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.consolidate(self.path("foo"), config,
+            tiledb.consolidate(self.path("foo"), config=config,
                                key=b"0123456789abcdeF0123456789abcde", ctx=ctx)
 
     def test_array_doesnt_exist(self):
@@ -2795,6 +2795,15 @@ class ConsolidationTest(DiskTestCase):
         paths = vfs.ls(path2)
 
         self.assertEqual(len(paths), 3 + 2 * num_writes + 1)
+
+        path3 = self.path("test_array_vacuum2")
+        create_array(path3)
+        write_fragments(path3)
+        conf = tiledb.Config({'sm.consolidation.mode': 'fragment_meta'})
+        with tiledb.open(path3, 'w') as A:
+            A.consolidate(config=conf)
+
+        paths = vfs.ls(path2)
 
 class RegTests(DiskTestCase):
     def test_tiledb_py_0_6_anon_attr(self):
