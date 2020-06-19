@@ -3887,7 +3887,7 @@ cdef class Array(object):
         """
         if self.mode == 'r':
             raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
-        return consolidate(self.ctx, config, uri=self.uri, key=key)
+        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx)
 
     def dump(self):
         self.schema.dump()
@@ -4821,17 +4821,17 @@ cdef class SparseArrayImpl(Array):
 
         return out
 
-def consolidate(uri=None, Config config=None, key=None, Ctx ctx=None):
-    """Consolidates a TileDB Array updates for improved read performance
+def consolidate(uri, key=None, Config config=None, Ctx ctx=None):
+    """Consolidates TileDB array fragments for improved read performance
 
-    :param tiledb.Config config: The TileDB Config with consolidation parameters set
     :param str uri: URI to the TileDB Array
-    :param str: (default None) Key to decrypt array if the array is encrypted
+    :param str key: (default None) Key to decrypt array if the array is encrypted
+    :param tiledb.Config config: The TileDB Config with consolidation parameters set
+    :param tiledb.Ctx ctx: (default None) The TileDB Context
     :rtype: str or bytes
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
-    :param tiledb.Ctx ctx: The TileDB Context
 
     """
     if not ctx:
@@ -4842,7 +4842,7 @@ def consolidate(uri=None, Config config=None, key=None, Ctx ctx=None):
         config_ptr = config.ptr
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-    # encyrption key
+    # encryption key
     cdef:
         bytes bkey
         tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
@@ -5779,7 +5779,7 @@ class FileIO(io.RawIOBase):
 
 def vacuum(array_uri, Config config=None, Ctx ctx=None):
     """
-    Remove consolidated fragments. After consolidation, you may optionally
+    Remove fragments. After consolidation, you may optionally
     remove the consolidated fragments with the "vacuum" step. This operation
     of this function is controlled by the `sm.vacuum.mode` parameter, which
     accepts the values `fragments`, `fragment_meta`, and `array_meta`.
