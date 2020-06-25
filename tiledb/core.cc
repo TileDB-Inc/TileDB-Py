@@ -219,6 +219,10 @@ public:
         //        [](Query* p){} /* note: no deleter*/);
 
     tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
+    if (array_->schema().array_type() == TILEDB_DENSE &&
+        layout == TILEDB_UNORDERED) {
+          TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
+    }
     query_->set_layout(layout);
 
     if (coords.is(py::none())) {
@@ -560,7 +564,6 @@ public:
     }
 
     // schema.attributes() is unordered, but we need to return ordered results
-    size_t attr_idx = 0;
     for (size_t attr_idx = 0; attr_idx < schema.attribute_num(); attr_idx++) {
       auto attr = schema.attribute(attr_idx);
       alloc_buffer(attr.name());
