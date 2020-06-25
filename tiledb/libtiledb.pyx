@@ -1220,7 +1220,7 @@ cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
         return TILEDB_COL_MAJOR
     elif order == "global":
         return TILEDB_GLOBAL_ORDER
-    elif order == None or order == "unordered":
+    elif order == None or order == "unordered" or order == 'U':
         return TILEDB_UNORDERED
     raise ValueError("unknown tiledb layout: {0!r}".format(order))
 
@@ -4166,10 +4166,13 @@ cdef class DenseArrayImpl(Array):
             layout = TILEDB_COL_MAJOR
         elif order == 'G':
             layout = TILEDB_GLOBAL_ORDER
+        elif order == 'U':
+            pass
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
                              "'F' (TILEDB_COL_MAJOR), "\
-                             "or 'G' (TILEDB_GLOBAL_ORDER)")
+                             "'G' (TILEDB_GLOBAL_ORDER), "\
+                             "or 'U' (TILEDB_UNORDERED)")
         attr_names = list()
         if coords:
             attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
@@ -4781,8 +4784,14 @@ cdef class SparseArrayImpl(Array):
             layout = TILEDB_COL_MAJOR
         elif order == 'G':
             layout = TILEDB_GLOBAL_ORDER
+        elif order == 'U':
+            pass
         else:
-            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
+            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
+                             "'F' (TILEDB_COL_MAJOR), "\
+                             "'G' (TILEDB_GLOBAL_ORDER), "\
+                             "or 'U' (TILEDB_UNORDERED)")
+
         attr_names = list()
 
         if attrs is None:
