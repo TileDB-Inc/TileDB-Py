@@ -29,7 +29,8 @@ TILEDB_KWARG_DEFAULTS = {
     'attrs_filters': None,
     'coords_filters': None,
     'full_domain': False,
-    'tile': None
+    'tile': None,
+    'row_start_idx': None
 }
 
 def parse_tiledb_kwargs(kwargs):
@@ -53,6 +54,9 @@ def parse_tiledb_kwargs(kwargs):
         args['full_domain'] = kwargs.pop('full_domain')
     if 'tile' in kwargs:
         args['tile'] = kwargs.pop('tile')
+    if 'row_start_idx' in kwargs:
+        args['row_start_idx'] = kwargs.pop('row_start_idx')
+
 
     return args
 
@@ -130,7 +134,8 @@ def attrs_from_df(df, index_dims=None, filters=None, ctx=None):
 
     return attrs, attr_reprs
 
-def dim_info_for_column(ctx, df, col, tile=None, full_domain=False):
+def dim_info_for_column(ctx, df, col, tile=None, full_domain=False, index_dtype=None):
+
     if isinstance(col, np.ndarray):
         col_values = col
     else:
@@ -139,7 +144,9 @@ def dim_info_for_column(ctx, df, col, tile=None, full_domain=False):
     if len(col_values) < 1:
         raise ValueError("Empty column '{}' cannot be used for dimension!".format(col_name))
 
-    if col_values.dtype is np.dtype('O'):
+    if index_dtype is not None:
+        dim_info = ColumnInfo(index_dtype)
+    elif col_values.dtype is np.dtype('O'):
         col_val0_type = type(col_values[0])
         if col_val0_type in (bytes, unicode_type):
             # TODO... core only supports TILEDB_ASCII right now
@@ -232,6 +239,7 @@ def create_dims(ctx, dataframe, index_dims,
     import pandas as pd
     index = dataframe.index
     index_dict = OrderedDict()
+    index_dtype = None
 
     if isinstance(index, pd.MultiIndex):
         for name in index.names:
@@ -241,6 +249,7 @@ def create_dims(ctx, dataframe, index_dims,
         if hasattr(index, 'name') and index.name is not None:
             name = index.name
         else:
+            index_dtype = np.dtype('uint64')
             name = 'rows'
 
         index_dict[name] = index.values
@@ -250,7 +259,8 @@ def create_dims(ctx, dataframe, index_dims,
 
     dim_types = list(
         dim_info_for_column(ctx, dataframe, values,
-                            tile=tile, full_domain=full_domain)
+                            tile=tile, full_domain=full_domain,
+                            index_dtype=index_dtype)
         for values in index_dict.values()
     )
 
@@ -330,6 +340,7 @@ def from_pandas(uri, dataframe, **kwargs):
     full_domain = args.get('full_domain', False)
     tile = args.get('tile', None)
     nrows = args.get('nrows', None)
+    row_start_idx = args.get('row_start_idx', None)
 
     write = True
     create_array = True
@@ -400,7 +411,10 @@ def from_pandas(uri, dataframe, **kwargs):
                 A[tuple(coords)] = write_dict
 
             else:
-                A[:] = write_dict
+                if row_start_idx is None:
+                    row_start_idx = 0
+                row_end_idx = row_start_idx + len(dataframe)
+                A[row_start_idx:row_end_idx] = write_dict
 
             if create_array:
                 write_array_metadata(A, attr_metadata, index_metadata)
@@ -524,7 +538,9 @@ def from_csv(uri, csv_file, **kwargs):
         csv_kwargs = kwargs.copy()
         kwargs.update(tiledb_args)
 
+        rows_written = 0
         for df in pandas.read_csv(csv_file, **csv_kwargs):
+            kwargs['row_start_idx'] = rows_written
             kwargs['full_domain'] = True
             if array_created:
                 kwargs['mode'] = 'append'
@@ -532,6 +548,7 @@ def from_csv(uri, csv_file, **kwargs):
             array_created = True
 
             from_pandas(uri, df, **kwargs)
+            rows_written += len(df)
 
     else:
         df = pandas.read_csv(csv_file, **kwargs)

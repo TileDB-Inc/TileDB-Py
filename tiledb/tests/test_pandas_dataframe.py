@@ -440,6 +440,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df.sort_values('time', inplace=True)
         df.to_csv(tmp_csv, index=False)
 
+        # Test sparse chunked
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(tmp_array, tmp_csv,
                         index_col=['time', 'double_range'],
@@ -451,5 +452,22 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_bk = pd.DataFrame(res)
             df_bk.set_index(['time','double_range'], inplace=True)
 
-            df.set_index(['time','double_range'], inplace=True)
+            df_ck = df.set_index(['time','double_range'])
+            tm.assert_frame_equal(df_bk, df_ck)
+
+        # Test dense chunked
+        tmp_array_dense = os.path.join(tmp_dir, "array_dense")
+        tiledb.from_csv(tmp_array_dense, tmp_csv,
+                        parse_dates=['time'],
+                        sparse=False,
+                        chunksize=25)
+
+        with tiledb.open(tmp_array_dense) as A:
+            # chunked writes go to unlimited domain, so we must only read nonempty
+            ned = A.nonempty_domain()[0]
+            # TODO should support numpy scalar here
+            res = A.multi_index[int(ned[0]):int(ned[1])]
+            res.pop('rows')
+            df_bk = pd.DataFrame(res)
+
             tm.assert_frame_equal(df_bk, df)
