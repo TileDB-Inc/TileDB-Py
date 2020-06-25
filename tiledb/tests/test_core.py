@@ -16,7 +16,7 @@ class CoreCCTest(DiskTestCase):
             pass
 
         with tiledb.open(uri) as a:
-            q = core.PyQuery(ctx, a, ("",), False)
+            q = core.PyQuery(ctx, a, ("",), False, 0)
 
             try:
                 q._test_err("bad foo happened")
@@ -49,7 +49,7 @@ class CoreCCTest(DiskTestCase):
                     q.set_ranges([[("aa", "bbbb")]])
 
         with tiledb.open(uri) as a:
-            q2 = core.PyQuery(ctx, a, ("",), False)
+            q2 = core.PyQuery(ctx, a, ("",), False, 0)
 
             q2.set_ranges([[(0,3)]])
             q2.submit()
@@ -70,5 +70,5 @@ class CoreCCTest(DiskTestCase):
             pass
 
         with tiledb.open(uri) as a:
-            q = core.PyQuery(ctx, a, ("",), False)
+            q = core.PyQuery(ctx, a, ("",), False, 0)
             self.assertEqual(q._test_init_buffer_bytes, intmax)

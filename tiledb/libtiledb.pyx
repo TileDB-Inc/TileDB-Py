@@ -3947,6 +3947,10 @@ cdef class Query(object):
         return self.coords
 
     @property
+    def order(self):
+        return self.order
+
+    @property
     def domain_index(self):
         return self.domain_index
 
@@ -4188,7 +4192,7 @@ cdef class DenseArrayImpl(Array):
                               tiledb_layout_t layout, bint include_coords):
 
         from tiledb.core import PyQuery
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), include_coords)
+        q = PyQuery(self._ctx_(), self, tuple(attr_names), include_coords, <int32_t>layout)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 
@@ -4756,6 +4760,7 @@ cdef class SparseArrayImpl(Array):
 
         if not self.isopen or self.mode != 'r':
             raise TileDBError("SparseArray is not opened for reading")
+
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'C':
             layout = TILEDB_ROW_MAJOR
@@ -4789,7 +4794,7 @@ cdef class SparseArrayImpl(Array):
         cdef Py_ssize_t nattr = len(attr_names)
 
         from tiledb.core import PyQuery
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), True)
+        q = PyQuery(self._ctx_(), self, tuple(attr_names), True, <int32_t>layout)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 
