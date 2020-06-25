@@ -486,9 +486,18 @@ def from_csv(uri, csv_file, **kwargs):
 
     :param uri: URI for new TileDB array
     :param csv_file: input CSV file
-    :param kwargs: optional keyword arguments for Pandas and TileDB.
-                TileDB context and configuration arguments
-                may be passed in a dictionary as `tiledb_args={...}`
+    :param kwargs:
+                - Any pandas.read_csv supported keyword argument.
+                - TileDB-specific arguments:
+                    'allows_duplicates': Generated schema should allow duplicates
+                    'cell_order': Schema cell order
+                    'tile_order': Schema tile order
+                    'mode': (default 'ingest'), Ingestion mode: 'ingest', 'schema_only', 'append'
+                    'full_domain': Dimensions should be created with full range of the dtype
+                    'attrs_filters': FilterList to apply to all Attributes
+                    'coords_filters': FilterList to apply to all coordinates (Dimensions)
+                    'sparse': (default True) Create sparse schema
+                    'tile': Schema tiling (capacity)
     :return: None
 
     **Example:**
