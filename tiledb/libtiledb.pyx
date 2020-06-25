@@ -36,11 +36,25 @@ cdef Ctx _global_ctx = None
 def _get_global_ctx():
     return _global_ctx
 
-def default_ctx():
-    """Returns the default tiledb.Ctx object"""
+def default_ctx(config = None):
+    """
+    Returns, and optionally initializes, the default tiledb.Ctx object
+
+    For initialization, this function must be called before any other
+    tiledb functions. Initialization allows to pass a `Config` object
+    overriding defaults for process-global parameters such as the TBB
+    thread count.
+
+    :param config (default None): Config object or dictionary with config parameters.
+    :return: Ctx
+    """
     global _global_ctx
-    if _global_ctx is None:
-        _global_ctx = Ctx()
+    if _global_ctx is not None:
+        if config is not None:
+            raise TileDBError("Global context already initialized!")
+    else:
+        _global_ctx = Ctx(config)
+
     return _global_ctx
 
 def initialize_ctx(config = None):
