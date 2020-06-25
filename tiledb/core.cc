@@ -188,6 +188,7 @@ private:
   shared_ptr<tiledb::Query> query_;
   std::vector<std::string> attrs_;
   map<string, BufferInfo> buffers_;
+  vector<string> buffers_order_;
   bool include_coords_;
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
   uint64_t exp_alloc_max_bytes_ = DEFAULT_EXP_ALLOC_MAX_BYTES;
@@ -493,6 +494,7 @@ public:
       offsets_num = init_buffer_bytes_ / sizeof(uint64_t);
     }
 
+    buffers_order_.push_back(name);
     buffers_.insert({name, BufferInfo(name, buf_nbytes, type, cell_val_num,
                                       offsets_num, var)});
   }
@@ -553,8 +555,11 @@ public:
       }
     }
 
-    for (auto attr_pair : schema.attributes()) {
-      alloc_buffer(attr_pair.first);
+    // schema.attributes() is unordered, but we need to return ordered results
+    size_t attr_idx = 0;
+    for (size_t attr_idx = 0; attr_idx < schema.attribute_num(); attr_idx++) {
+      auto attr = schema.attribute(attr_idx);
+      alloc_buffer(attr.name());
     }
 
     set_buffers();
@@ -685,9 +690,10 @@ public:
 
   py::dict results() {
     py::dict results;
-    for (auto &bp : buffers_) {
-      results[py::str(bp.first)] =
-          py::make_tuple(bp.second.data, bp.second.offsets);
+    for (auto &buffer_name : buffers_order_) {
+      auto bp = buffers_.at(buffer_name);
+      results[py::str(buffer_name)] =
+          py::make_tuple(bp.data, bp.offsets);
     }
     return results;
   }
