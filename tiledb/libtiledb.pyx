@@ -4018,7 +4018,7 @@ cdef class DenseArrayImpl(Array):
         """Retrieve data cells for an item or region of the array.
 
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
-            specifiying the selected subarray region for each dimension of the DenseArray.
+            specifying the selected subarray region for each dimension of the DenseArray.
         :rtype: :py:class:`numpy.ndarray` or :py:class:`collections.OrderedDict`
         :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
                 is returned for that attribute.  If the array has multiple attributes, a \
