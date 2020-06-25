@@ -126,6 +126,8 @@ class MultiRangeIndexer(object):
             layout = 1
         elif order == 'G':
             layout = 2
+        elif order == 'U':
+            layout = 3
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
                              "'F' (TILEDB_COL_MAJOR), "\
