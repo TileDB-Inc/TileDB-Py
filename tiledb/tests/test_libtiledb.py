@@ -2754,7 +2754,7 @@ class VFS(DiskTestCase):
 
         path = self.path("test_vfs_dir_size")
         os.mkdir(path)
-        rand_sizes = [np.random.randint(100) for _ in range(4)]
+        rand_sizes = np.random.choice(100, size=4, replace=False)
         for size in rand_sizes:
             file_path = os.path.join(path, "f_" + str(size))
             with tiledb.FileIO(vfs, file_path, 'wb') as f:
