@@ -299,7 +299,7 @@ class TestMultiRange(DiskTestCase):
         with tiledb.open(path) as A:
             # stepped ranges are not supported
             with self.assertRaises(ValueError):
-                A.multi_index[ 1::2 ]
+                A.query(coords=True).multi_index[ 1::2 ]
 
             assert_array_equal(
                 orig_array[ [0,-1] ],
@@ -311,7 +311,7 @@ class TestMultiRange(DiskTestCase):
             )
             self.assertEqual(
                 -10,
-                A.multi_index[-10]['coords'].view('i8')
+                A.query(coords=True).multi_index[-10]['coords'].view('i8')
             )
             assert_array_equal(
                 orig_array[0:],
@@ -575,6 +575,14 @@ class TestMultiRange(DiskTestCase):
                     np.hstack([ d[0:3], d[-1] ]),
                     res[k]
                 )
+
+        with tiledb.open(path) as A:
+            Q = A.query(coords=False, attrs=["U"])
+            res = Q.multi_index[:]
+            self.assertTrue("U" in res)
+            self.assertTrue("V" not in res)
+            self.assertTrue("coords" not in res)
+            assert_array_equal(res["U"], data["U"])
 
     def test_multirange_1d_dense_vectorized(self):
         ctx = tiledb.Ctx()

@@ -467,7 +467,6 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             ned = A.nonempty_domain()[0]
             # TODO should support numpy scalar here
             res = A.multi_index[int(ned[0]):int(ned[1])]
-            res.pop('rows')
             df_bk = pd.DataFrame(res)
 
             tm.assert_frame_equal(df_bk, df)
