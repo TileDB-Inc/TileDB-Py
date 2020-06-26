@@ -51,8 +51,7 @@ def sel_to_subranges(dim_sel):
 
 class MultiRangeIndexer(object):
     """
-    Implements multi-range / outer / orthogonal indexing.
-
+    Implements multi-range indexing.
     """
 
     def __init__(self, array, query = None):
@@ -111,7 +110,6 @@ class MultiRangeIndexer(object):
         schema = self.schema
         dom = self.schema.domain
         attr_names = tuple(self.schema.attr(i)._internal_name for i in range(self.schema.nattr))
-
         coords = None
         order = 'C' # TILEDB_ROW_MAJOR
         if self.query is not None:

@@ -214,21 +214,22 @@ public:
     array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false),
                                             [](Array *p) {} /* no deleter*/);
 
+    bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
+
     query_ = std::shared_ptr<tiledb::Query>(
         new Query(ctx_, *array_, TILEDB_READ));
         //        [](Query* p){} /* note: no deleter*/);
 
     tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
-    if (array_->schema().array_type() == TILEDB_DENSE &&
-        layout == TILEDB_UNORDERED) {
+    if (issparse && layout == TILEDB_UNORDERED) {
           TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
     }
     query_->set_layout(layout);
 
-    if (coords.is(py::none())) {
-      include_coords_ = true;
-    } else {
+    if (!coords.is(py::none())) {
       include_coords_ = coords.cast<bool>();
+    } else {
+      include_coords_ = issparse;
     }
 
     for (auto a : attrs) {
@@ -553,10 +554,8 @@ public:
 
   void submit_read() {
     auto schema = array_->schema();
-    auto issparse = schema.array_type() == TILEDB_SPARSE;
-    auto need_dim_buffers = include_coords_ || issparse;
 
-    if (need_dim_buffers) {
+    if (include_coords_) {
       auto domain = schema.domain();
       for (auto dim : domain.dimensions()) {
         alloc_buffer(dim.name());
