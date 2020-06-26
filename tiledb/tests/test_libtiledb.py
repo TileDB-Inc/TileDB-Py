@@ -1131,6 +1131,7 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             T[:] = V
 
+        import tiledb.core as core
         with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
             R = T[:]
             assert_array_equal(V["ints"], R["ints"])
@@ -1155,6 +1156,16 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 T.query(attrs=("unknown"))[:]
 
+            # Ensure that query only returns specified attributes
+            q = core.PyQuery(ctx, T, ("ints",), False, 0)
+            q.set_ranges([[(0,1)]])
+            q.submit()
+            r = q.results()
+            self.assertTrue("ints" in r)
+            self.assertTrue("floats" not in r)
+            del q
+
+
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             # check error ncells length
             V["ints"] = V["ints"][1:2].copy()
@@ -1165,6 +1176,7 @@ class DenseArrayTest(DiskTestCase):
             V["foo"] = V["ints"].astype(np.int8)
             with self.assertRaises(tiledb.TileDBError):
                 T[:] = V
+
 
     def test_array_2d_s1(self):
         # This array is currently read back with dtype object
@@ -2835,7 +2847,6 @@ class RegTests(DiskTestCase):
             os.path.join(fragment_path, "_attr_.tdb"),
             os.path.join(fragment_path, "__attr.tdb")
         )
-
         with tiledb.open(path) as A:
             self.assertEqual(A.schema.attr(0).name, "")
             self.assertEqual(A.schema.attr(0)._internal_name, "__attr")
