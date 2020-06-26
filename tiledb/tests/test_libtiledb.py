@@ -2853,7 +2853,9 @@ class RegTests(DiskTestCase):
             self.assertEqual(A[0], 1)
             mres = A.multi_index[0]
             self.assertEqual(mres[''], 1)
-            self.assertEqual(mres['d'], 0)
+
+            qres = A.query(coords=True).multi_index[0]
+            self.assertEqual(qres['d'], 0)
 
 class MemoryTest(DiskTestCase):
     # sanity check that memory usage doesn't increase more than 2x when reading 40MB 100x
