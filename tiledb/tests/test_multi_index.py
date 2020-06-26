@@ -583,7 +583,7 @@ class TestMultiRange(DiskTestCase):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 999), tile=1000,
                                        dtype=np.uint32, ctx=ctx),
                             ctx=ctx)
-        attrs = tiledb.Attr(name="U", dtype=np.float64, ctx=ctx)
+        attrs = tiledb.Attr(name='', dtype=np.float64, ctx=ctx)
 
         schema = tiledb.ArraySchema(domain=dom, attrs=(attrs,), sparse=False, ctx=ctx)
         tiledb.DenseArray.create(path, schema)
@@ -600,7 +600,7 @@ class TestMultiRange(DiskTestCase):
                 res = A.multi_index[idxs]
                 assert_array_equal(
                     data[idxs],
-                    res['U']
+                    res['']
                 )
 
     def test_multirange_2d_dense_float(self):

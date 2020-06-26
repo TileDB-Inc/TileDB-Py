@@ -110,7 +110,7 @@ class MultiRangeIndexer(object):
 
         schema = self.schema
         dom = self.schema.domain
-        attr_names = tuple(self.schema.attr(i).name for i in range(self.schema.nattr))
+        attr_names = tuple(self.schema.attr(i)._internal_name for i in range(self.schema.nattr))
 
         coords = None
         order = 'C' # TILEDB_ROW_MAJOR
