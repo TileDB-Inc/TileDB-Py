@@ -566,6 +566,9 @@ public:
     // schema.attributes() is unordered, but we need to return ordered results
     for (size_t attr_idx = 0; attr_idx < schema.attribute_num(); attr_idx++) {
       auto attr = schema.attribute(attr_idx);
+      if (std::find(attrs_.begin(), attrs_.end(), attr.name()) == attrs_.end()) {
+        continue;
+      }
       alloc_buffer(attr.name());
     }
 
