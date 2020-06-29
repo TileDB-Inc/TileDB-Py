@@ -54,6 +54,16 @@ struct StatsInfo {
   std::map<std::string, TimerType> counters;
 };
 
+bool config_has_key(tiledb::Config config, std::string key) {
+  try {
+    config.get(key);
+  } catch (TileDBError &e) {
+    (void)e;
+    return false;
+  }
+  return true;
+}
+
 // global stats counters
 static std::unique_ptr<StatsInfo> g_stats;
 
@@ -252,27 +262,37 @@ public:
 
     // get config parameters
     std::string tmp_str;
-    try {
+    if (config_has_key(ctx_.config(), "py.init_buffer_bytes")) {
       tmp_str = ctx_.config().get("py.init_buffer_bytes");
-      init_buffer_bytes_ =
-        std::stoull(tmp_str);
-    } catch (const TileDBError &e) { /* pass, key not found */
-      (void)e;
-    } catch (const std::invalid_argument &e) {
-      (void)e;
-      throw TileDBError("Failed to convert 'py.init_buffer_bytes' to uint64_t ('" + tmp_str + "')");
+      try {
+        init_buffer_bytes_ =
+          std::stoull(tmp_str);
+      } catch (const std::invalid_argument &e) {
+        (void)e;
+        throw TileDBError("Failed to convert 'py.init_buffer_bytes' to uint64_t ('" + tmp_str + "')");
+      }
     }
 
-    try {
+    if (config_has_key(ctx_.config(), "py.exp_alloc_max_bytes")) {
       tmp_str = ctx_.config().get("py.exp_alloc_max_bytes");
-      exp_alloc_max_bytes_ =
-        std::stoull(tmp_str);
-    } catch (TileDBError &e) {
-      /* pass, key not found */
-      (void)e;
-    } catch (const std::invalid_argument &e) {
-      (void)e;
-      throw TileDBError("Failed to convert 'py.exp_alloc_max_bytes' to uint64_t ('" + tmp_str + "')");
+      try {
+        exp_alloc_max_bytes_ =
+          std::stoull(tmp_str);
+      } catch (const std::invalid_argument &e) {
+        (void)e;
+        throw TileDBError("Failed to convert 'py.exp_alloc_max_bytes' to uint64_t ('" + tmp_str + "')");
+      }
+    }
+
+    if (config_has_key(ctx_.config(), "py.deduplicate")) {
+      tmp_str = ctx_.config().get("py.deduplicate");
+      if (tmp_str == "true") {
+        deduplicate_ = true;
+      } else if (tmp_str == "false") {
+        deduplicate_ = false;
+      } else {
+        throw TileDBError("Failed to convert configuration 'py.deduplicate' to bool ('" + tmp_str + "')");
+      }
     }
   }
 
