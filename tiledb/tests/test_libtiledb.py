@@ -34,13 +34,16 @@ class VersionTest(unittest.TestCase):
         self.assertTrue(v[0] >= 1, "TileDB major version must be >= 1")
 
 
-class StatsTest(unittest.TestCase):
+class StatsTest(DiskTestCase):
 
     def test_stats(self):
         tiledb.libtiledb.stats_enable()
         tiledb.libtiledb.stats_reset()
         tiledb.libtiledb.stats_disable()
 
+        with tiledb.from_numpy(self.path("test_stats"), np.arange(10)) as T:
+            assert_array_equal(T,np.arange(10))
+            tiledb.stats_dump()
 
 class Config(DiskTestCase):
 

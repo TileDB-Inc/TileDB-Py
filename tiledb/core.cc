@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -45,6 +46,15 @@ public:
   }
 };
 
+using TimerType = std::chrono::duration<double>;
+struct StatsInfo {
+  std::map<std::string, TimerType> counters;
+};
+
+// global stats counters
+static std::unique_ptr<StatsInfo> g_stats;
+
+// forward declaration
 py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
 
 struct BufferInfo {
@@ -553,6 +563,8 @@ public:
   }
 
   void submit_read() {
+    auto start = std::chrono::high_resolution_clock::now();
+
     auto schema = array_->schema();
 
     if (include_coords_) {
@@ -629,10 +641,18 @@ public:
       buf.data.resize({buf.data_vals_read * buf.elem_nbytes});
       buf.offsets.resize({buf.offsets_read});
     }
+
+    if (g_stats) {
+      auto now = std::chrono::high_resolution_clock::now();
+      g_stats.get()->counters["py.read_query_time"] += now - start;
+    }
   }
 
   py::array unpack_buffer(std::string name,
       py::array buf, py::array_t<uint64_t> off) {
+
+    auto start = std::chrono::high_resolution_clock::now();
+
     if (buf.size() < 1)
       TPY_ERROR_LOC(std::string("Unexpected empty buffer array ('") + name + "')");
     if (off.size() < 1)
@@ -683,6 +703,11 @@ public:
       last = cur;
     }
 
+    if (g_stats) {
+      auto now = std::chrono::high_resolution_clock::now();
+      g_stats.get()->counters["py.unpack_results_time"] += now - start;
+    }
+
     return result_array;
   }
 
@@ -720,6 +745,27 @@ public:
   }
 };
 
+void init_stats() {
+  g_stats.reset(new StatsInfo());
+
+  auto stats_counters = g_stats.get()->counters;
+  stats_counters["py.read_query_time"] = TimerType();
+  stats_counters["py.write_query_time"] = TimerType();
+  stats_counters["py.unpack_results_time"] = TimerType();
+}
+
+void print_stats() {
+  if (!g_stats) {
+    TPY_ERROR_LOC("Stats counters are not unitialized!")
+  }
+
+  auto counters = g_stats.get()->counters;
+
+  std::cout << "==== Python ====" << std::endl <<
+               "- Read query time: " << counters["py.read_query_time"].count() << std::endl <<
+               "- Buffer conversion time: " << counters["py.unpack_results_time"].count() << std::endl;
+}
+
 PYBIND11_MODULE(core, m) {
   py::class_<PyQuery>(m, "PyQuery")
       .def(py::init<py::object, py::object, py::iterable, py::object, py::object>())
@@ -733,6 +779,9 @@ PYBIND11_MODULE(core, m) {
       .def("_test_err",
            [](py::object self, std::string s) { throw TileDBPyError(s); })
       .def_property_readonly("_test_init_buffer_bytes", &PyQuery::_test_init_buffer_bytes);
+
+  m.def("init_stats", &init_stats);
+  m.def("print_stats", &print_stats);
 
   /*
      We need to make sure C++ TileDBError is translated to a correctly-typed py

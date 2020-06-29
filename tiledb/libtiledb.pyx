@@ -473,6 +473,8 @@ def stats_enable():
     """Enable TileDB internal statistics."""
     tiledb_stats_enable()
 
+    import tiledb.core
+    tiledb.core.init_stats()
 
 def stats_disable():
     """Disable TileDB internal statistics."""
@@ -483,10 +485,15 @@ def stats_reset():
     """Reset all TileDB internal statistics to 0."""
     tiledb_stats_reset()
 
+    import tiledb.core
+    tiledb.core.init_stats()
 
 def stats_dump():
     """Prints all TileDB internal statistics values to standard output."""
     tiledb_stats_dump(stdout)
+
+    import tiledb.core
+    tiledb.core.print_stats()
 
 
 cpdef unicode ustring(object s):
