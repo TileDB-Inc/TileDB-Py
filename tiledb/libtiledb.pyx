@@ -5804,6 +5804,186 @@ class FileIO(io.RawIOBase):
         self._offset += nbytes
         return nbytes
 
+cdef class Buffer(object):
+    """TileDB Buffer class
+
+    Encapsulates the TileDB Buffer module instance.
+
+    :param tiledb.Ctx ctx: The TileDB Context
+
+    """
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_buffer_free(&self.ptr)
+
+    def __init__(self,
+                 dtype='uint8',
+                 Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        cdef tiledb_buffer_t* buffer_ptr = NULL
+        check_error(ctx,
+                    tiledb_buffer_alloc(ctx.ptr, &buffer_ptr))
+        self.ctx = ctx
+        self.ptr = buffer_ptr
+        self.last_n_bytes_read = 0
+
+        cdef np.dtype _dtype = np.dtype(dtype)
+        tiledb_dtype, ncells = array_type_ncells(_dtype)
+        cdef int rc = TILEDB_OK
+        rc = tiledb_buffer_set_type(ctx.ptr, buffer_ptr, tiledb_dtype)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(self.ctx.ptr, rc)
+
+    @property
+    def dtype(self):
+        """Return numpy dtype object representing the Buffer type
+
+        :rtype: numpy.dtype
+
+        """
+        cdef tiledb_datatype_t typ
+        check_error(self.ctx,
+                    tiledb_buffer_get_type(self.ctx.ptr, self.ptr, &typ))
+        return np.dtype(_numpy_dtype(typ))
+
+    @property
+    def last_num_bytes_read(self):
+        """Return number of bytes last call to tiledb_buffer_get_data
+        has returned
+
+        :rtype: int
+
+        """
+        return self.last_n_bytes_read
+
+    def set_data(self, buff):
+        """Sets the data pointer and size on the Buffer to the given Python
+        object that supports the byte buffer protocol
+
+        :param buff: a Python object that supports the byte buffer protocol
+        :raises TypeError: cannot convert buff to bytes
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes buffer = bytes(buff)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_buffer_t* buffer_ptr = self.ptr
+        cdef char* buff_ptr = PyBytes_AS_STRING(buff)
+        cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)
+        assert(_nbytes >= 0)
+        cdef int rc = TILEDB_OK
+        rc = tiledb_buffer_set_data(ctx_ptr,
+                                    buffer_ptr,
+                                    <void*> buff_ptr,
+                                    <uint64_t> _nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return
+
+    def get_data(self):
+        """Returns all bytes from the buffer
+
+        :rtype: :py:func:`bytes`
+        :return: read bytes
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef void* buff_ptr
+        cdef uint64_t nbytes
+
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_buffer_t* buffer_ptr = self.ptr
+
+        cdef int rc = TILEDB_OK
+        rc = tiledb_buffer_get_data(ctx_ptr,
+                                    buffer_ptr,
+                                    &buff_ptr,
+                                    &nbytes)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        self.last_n_bytes_read = nbytes
+        cdef bytes buff = PyBytes_FromStringAndSize(<char*>buff_ptr, nbytes)
+        return buff
+
+cdef class BufferList(object):
+    """TileDB BufferList class
+
+    Encapsulates the TileDB BufferList module instance.
+
+    :param tiledb.Ctx ctx: The TileDB Context
+
+    """
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_buffer_list_free(&self.ptr)
+
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        cdef tiledb_buffer_list_t* buffer_list_ptr = NULL
+        check_error(ctx,
+                    tiledb_buffer_list_alloc(ctx.ptr, &buffer_list_ptr))
+        self.ctx = ctx
+        self.ptr = buffer_list_ptr
+
+    def get_num_buffers(self):
+        """Create an object store bucket at the given URI
+
+        :param str uri: full URI of bucket resource to be created.
+        :rtype: str
+        :returns: created bucket URI
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        pass
+
+    def get_buffer(self, buffer_index):
+        """Create an object store bucket at the given URI
+
+        :param str uri: full URI of bucket resource to be created.
+        :rtype: str
+        :returns: created bucket URI
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        pass
+
+    def get_total_size(self):
+        """Create an object store bucket at the given URI
+
+        :param str uri: full URI of bucket resource to be created.
+        :rtype: str
+        :returns: created bucket URI
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        pass
+
+    def flatten(self):
+        """Create an object store bucket at the given URI
+
+        :param str uri: full URI of bucket resource to be created.
+        :rtype: str
+        :returns: created bucket URI
+        :raises TypeError: cannot convert `uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        pass
+
 def vacuum(array_uri, Config config=None, Ctx ctx=None):
     """
     Remove fragments. After consolidation, you may optionally
@@ -5852,3 +6032,80 @@ def vacuum(array_uri, Config config=None, Ctx ctx=None):
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
 
     tiledb_array_vacuum(ctx_ptr, uri_ptr, config_ptr)
+
+def serialize_array_schema(array_schema, serialization_type, client_side):
+    """Serialize array schema to a Buffer
+
+    :param ArraySchema array_schema: array schema object to be serialized
+    :param str serialization_type: 'json' for serializing to json, 'capnp' for serializing to cap'n proto
+    :param bool client_side: currently unused
+    :rtype: Buffer
+    :returns: a Buffer of serialized array schema data
+    :raises TypeError: error description
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    cdef int32_t c_client_side = 0
+    if
+    # var cClientSide C.int32_t
+	# if clientSide {
+	# 	cClientSide = 1
+	# } else {
+	# 	cClientSide = 0
+	# }
+    #
+	# buffer := Buffer{context: schema.context}
+	# // Set finalizer for free C pointer on gc
+	# runtime.SetFinalizer(&buffer, func(buffer *Buffer) {
+	# 	buffer.Free()
+	# })
+    #
+	# ret := C.tiledb_serialize_array_schema(schema.context.tiledbContext, schema.tiledbArraySchema, C.tiledb_serialization_type_t(serializationType), cClientSide, &buffer.tiledbBuffer)
+	# if ret != C.TILEDB_OK {
+	# 	return nil, fmt.Errorf("Error serializing array schema: %s", schema.context.LastError())
+	# }
+    #
+	# return &buffer, nil
+
+def deserialize_array_schema(buffer, serialization_type, client_side):
+    """Deserialize Buffer to ArraySchema
+
+    :param Buffer buffer: buffer object to be deserialized
+    :param str serialization_type: 'json' for serializing to json, 'capnp' for serializing to cap'n proto
+    :param bool client_side: currently unused
+    :rtype: ArraySchema
+    :returns: an ArraySchema object
+    :raises TypeError:  error description
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    pass
+
+def serialize_query(query, serialization_type, client_side):
+    """Serialize Query to BufferList
+
+    :param Query query: a TileDB Query object
+    :param str serialization_type: 'json' for serializing to json, 'capnp' for serializing to cap'n proto
+    :param bool client_side: currently unused
+    :rtype: BufferList
+    :returns: a BufferList of serialized query data
+    :raises TypeError: error description
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    pass
+
+def deserialize_query(query, buffer, serialization_type, client_side):
+    """Deserialize a Buffer to Query
+
+    :param Query query: a TileDB Query object
+    :param Buffer buffer: buffer object to be deserialized
+    :param str serialization_type: 'json' for serializing to json, 'capnp' for serializing to cap'n proto
+    :param bool client_side: currently unused
+    :rtype: Query
+    :returns: a Query object
+    :raises TypeError: error description
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    pass

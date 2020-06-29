@@ -126,6 +126,10 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_VFS_WRITE
         TILEDB_VFS_APPEND
 
+    ctypedef enum tiledb_serialization_type_t:
+        TILEDB_JSON
+        TILEDB_CAPNP
+
     # Types
     ctypedef struct tiledb_ctx_t:
         pass
@@ -154,6 +158,10 @@ cdef extern from "tiledb/tiledb.h":
     ctypedef struct tiledb_vfs_t:
         pass
     ctypedef struct tiledb_vfs_fh_t:
+        pass
+    ctypedef struct tiledb_buffer_t:
+        pass
+    ctypedef struct tiledb_buffer_list_t:
         pass
 
     # Config
@@ -1085,6 +1093,158 @@ cdef extern from "tiledb/tiledb.h":
         char* path_out,
         unsigned* path_length) nogil
 
+    # Buffer
+    int32_t tiledb_buffer_alloc(
+        tiledb_ctx_t* ctx,
+        tiledb_buffer_t** buffer)
+
+    void tiledb_buffer_free(
+        tiledb_buffer_t** buffer)
+
+    int32_t tiledb_buffer_set_type(
+        tiledb_ctx_t* ctx,
+        tiledb_buffer_t* buffer,
+        tiledb_datatype_t datatype)
+
+    int32_t tiledb_buffer_get_type(
+        tiledb_ctx_t* ctx,
+        const tiledb_buffer_t* buffer,
+        tiledb_datatype_t* datatype)
+
+    int32_t tiledb_buffer_set_data(
+        tiledb_ctx_t* ctx,
+        tiledb_buffer_t* buffer,
+        void* data,
+        uint64_t size)
+
+    int32_t tiledb_buffer_get_data(
+        tiledb_ctx_t* ctx,
+        const tiledb_buffer_t* buffer,
+        void** data,
+        uint64_t* num_bytes)
+
+    # BufferList
+    int32_t tiledb_buffer_list_alloc(
+        tiledb_ctx_t* ctx,
+        tiledb_buffer_list_t** buffer_list)
+
+    void tiledb_buffer_list_free(
+        tiledb_buffer_list_t** buffer_list)
+
+    int32_t tiledb_buffer_list_get_num_buffers(
+        tiledb_ctx_t* ctx,
+        const tiledb_buffer_list_t* buffer_list,
+        uint64_t* num_buffers)
+
+    int32_t tiledb_buffer_list_get_buffer(
+        tiledb_ctx_t* ctx,
+        const tiledb_buffer_list_t* buffer_list,
+        uint64_t buffer_idx,
+        tiledb_buffer_t** buffer)
+
+    int32_t tiledb_buffer_list_get_total_size(
+        tiledb_ctx_t* ctx,
+        const tiledb_buffer_list_t* buffer_list,
+        uint64_t* total_size)
+
+    int32_t tiledb_buffer_list_flatten(
+        tiledb_ctx_t* ctx,
+        const tiledb_buffer_list_t* buffer_list,
+        tiledb_buffer_t** buffer)
+
+    # (De)Serialization
+    int32_t tiledb_serialize_array_schema(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        tiledb_buffer_t** buffer)
+
+    int32_t tiledb_deserialize_array_schema(
+        tiledb_ctx_t* ctx,
+        const tiledb_buffer_t* buffer,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        tiledb_array_schema_t** array_schema)
+
+    int32_t tiledb_array_get_non_empty_domain(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        void* domain,
+        int32_t* is_empty)
+
+    int32_t tiledb_serialize_array_nonempty_domain(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_t* array,
+        const void* nonempty_domain,
+        int32_t is_empty,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        tiledb_buffer_t** buffer)
+
+    int32_t tiledb_deserialize_array_nonempty_domain(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_t* array,
+        const tiledb_buffer_t* buffer,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        void* nonempty_domain,
+        int32_t* is_empty)
+
+    int32_t tiledb_serialize_array_non_empty_domain_all_dimensions(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_t* array,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        tiledb_buffer_t** buffer)
+
+    int32_t tiledb_deserialize_array_non_empty_domain_all_dimensions(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const tiledb_buffer_t* buffer,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side)
+
+    int32_t tiledb_serialize_query(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        tiledb_buffer_list_t** buffer_list)
+
+    int32_t tiledb_deserialize_query(
+        tiledb_ctx_t* ctx,
+        const tiledb_buffer_t* buffer,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        tiledb_query_t* query)
+
+    int32_t tiledb_serialize_array_metadata(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_t* array,
+        tiledb_serialization_type_t serialize_type,
+        tiledb_buffer_t** buffer)
+
+    int32_t tiledb_deserialize_array_metadata(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        tiledb_serialization_type_t serialize_type,
+        const tiledb_buffer_t* buffer)
+
+    int32_t tiledb_serialize_query_est_result_sizes(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        tiledb_buffer_t** buffer)
+
+    int32_t tiledb_deserialize_query_est_result_sizes(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        tiledb_serialization_type_t serialize_type,
+        int32_t client_side,
+        const tiledb_buffer_t* buffer)
+
 # Free helper functions
 cpdef unicode ustring(object s)
 cpdef check_error(Ctx ctx, int rc)
@@ -1232,6 +1392,14 @@ cdef class Metadata(object):
 cdef class TileDBError(Exception):
     pass
 
+cdef class Buffer(object):
+    cdef Ctx ctx
+    cdef tiledb_buffer_t* ptr
+    cdef uint64_t last_n_bytes_read
+
+cdef class BufferList(object):
+    cdef Ctx ctx
+    cdef tiledb_buffer_list_t* ptr
 
 IF (not TILEDBPY_MODULAR):
     include "indexing.pxd"

@@ -2763,6 +2763,27 @@ class VFS(DiskTestCase):
 
         self.assertEqual(vfs.dir_size(path), sum(rand_sizes))
 
+class Buffer(DiskTestCase):
+
+    def test_get_default_type(self):
+        ctx = tiledb.Ctx()
+        buffer = tiledb.Buffer(ctx=ctx)
+        self.assertEqual(buffer.dtype, 'uint8')
+
+    def test_get_type(self):
+        ctx = tiledb.Ctx()
+        buffer = tiledb.Buffer(ctx=ctx, dtype='u8')
+        self.assertEqual(buffer.dtype, 'uint64')
+
+    def test_set_get_data(self):
+        ctx = tiledb.Ctx()
+        buffer = tiledb.Buffer(ctx=ctx)
+        buffer_data = b"bar"
+        buffer.set_data(buffer_data)
+        ret_buffer_data = buffer.get_data()
+        self.assertEqual(ret_buffer_data, b'bar')
+        self.assertEqual(buffer.last_num_bytes_read, 3)
+
 class ConsolidationTest(DiskTestCase):
 
     def test_array_vacuum(self):
