@@ -6045,27 +6045,7 @@ def serialize_array_schema(array_schema, serialization_type, client_side):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
-    cdef int32_t c_client_side = 0
-    if
-    # var cClientSide C.int32_t
-	# if clientSide {
-	# 	cClientSide = 1
-	# } else {
-	# 	cClientSide = 0
-	# }
-    #
-	# buffer := Buffer{context: schema.context}
-	# // Set finalizer for free C pointer on gc
-	# runtime.SetFinalizer(&buffer, func(buffer *Buffer) {
-	# 	buffer.Free()
-	# })
-    #
-	# ret := C.tiledb_serialize_array_schema(schema.context.tiledbContext, schema.tiledbArraySchema, C.tiledb_serialization_type_t(serializationType), cClientSide, &buffer.tiledbBuffer)
-	# if ret != C.TILEDB_OK {
-	# 	return nil, fmt.Errorf("Error serializing array schema: %s", schema.context.LastError())
-	# }
-    #
-	# return &buffer, nil
+    pass
 
 def deserialize_array_schema(buffer, serialization_type, client_side):
     """Deserialize Buffer to ArraySchema
