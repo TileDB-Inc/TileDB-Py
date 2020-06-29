@@ -17,6 +17,9 @@
 
 #include <tiledb/tiledb> // C++
 
+#include "deps/string_view.hpp"
+#include "deps/tsl/robin_map.h"
+
 #if !defined(NDEBUG)
 #include "debug.cc"
 #endif
@@ -200,6 +203,7 @@ private:
   map<string, BufferInfo> buffers_;
   vector<string> buffers_order_;
   bool include_coords_;
+  bool deduplicate_ = true;
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
   uint64_t exp_alloc_max_bytes_ = DEFAULT_EXP_ALLOC_MAX_BYTES;
 
@@ -665,10 +669,21 @@ public:
       dtype = py::dtype("O");
     }
 
+    // Hashmap for string deduplication
+    //fastest so far:
+    typedef tsl::robin_map<size_t, uint64_t> MapType;
+    MapType map;
+    std::vector<py::object> object_v;
+    if (is_unicode) {
+      map.reserve(size_t(off.size() / 10) + 1);
+    }
+
     auto result_array = py::array(py::dtype("O"), off.size());
+    auto result_p = (py::object*) result_array.mutable_data();
     uint64_t last = 0;
     uint64_t cur = 0;
-    ssize_t size = 0;
+    size_t size = 0;
+    uint64_t create = 0;
 
     auto off_data = off.data();
     last = off_data[0]; // initial should always be 0
@@ -687,7 +702,22 @@ public:
         if (data_ptr[0] == '\0' && size == 1) {
           o = py::str("");
         } else {
-          o = py::str(data_ptr, size);
+          if (!deduplicate_) {
+            o = py::str(data_ptr, size);
+          } else {
+            auto v = nonstd::string_view{data_ptr, size};
+            auto h = std::hash<nonstd::string_view>()(v);
+            auto needle = map.find(h);
+            if (needle == map.end()) {
+              o = py::str(data_ptr, size);
+              map.insert(needle, {h, create});
+              object_v.push_back(o);
+              create++;
+            } else {
+              auto idx = needle->second;
+              o = object_v[idx];
+            }
+          }
         }
       else if (is_str)
         if (data_ptr[0] == '\0' && size == 1) {
@@ -699,7 +729,8 @@ public:
         o = py::array(py::dtype("uint8"), size, data_ptr);
         o.attr("dtype") = dtype;
       }
-      result_array[py::int_(i - 1)] = o;
+
+      result_p[i-1] = o;
       last = cur;
     }
 
@@ -800,7 +831,7 @@ PYBIND11_MODULE(core, m) {
     } catch (const tiledb::TileDBError &e) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
     } catch (std::exception &e) {
-      auto tmp_errstr = std::string("pybind untranslated std::exception: '") + std::string(e.what()) + "'";
+      auto tmp_errstr = std::string("pybind untranslated std::exception: '") + std::string(e.what()) + "', '" + std::string(typeid(e).name()) + "'";
       PyErr_SetString(tiledb_py_error.ptr(), tmp_errstr.c_str());
     }
   });
