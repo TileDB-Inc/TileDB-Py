@@ -126,10 +126,6 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_VFS_WRITE
         TILEDB_VFS_APPEND
 
-    ctypedef enum tiledb_serialization_type_t:
-        TILEDB_JSON
-        TILEDB_CAPNP
-
     # Types
     ctypedef struct tiledb_ctx_t:
         pass
@@ -1151,6 +1147,12 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_buffer_list_t* buffer_list,
         tiledb_buffer_t** buffer)
+
+cdef extern from "tiledb/tiledb_serialization.h":
+    # Enums
+    ctypedef enum tiledb_serialization_type_t:
+        TILEDB_JSON
+        TILEDB_CAPNP
 
     # (De)Serialization
     int32_t tiledb_serialize_array_schema(

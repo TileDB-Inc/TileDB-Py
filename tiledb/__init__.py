@@ -63,7 +63,8 @@ from .libtiledb import (
      stats_disable,
      stats_reset,
      stats_dump,
-     vacuum
+     vacuum,
+     deserialize_array_schema,
 )
 
 from .array import DenseArray, SparseArray

@@ -580,6 +580,30 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertEqual(schema.domain.dim("str_index").dtype, np.bytes_)
         self.assertFalse(schema.domain.homogeneous)
 
+    def test_array_schema_serialization(self):
+        ctx = tiledb.Ctx()
+        domain = tiledb.Domain(
+            tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
+            tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx))
+        a1 = tiledb.Attr("val", ctx=ctx, dtype='f8')
+        schema = tiledb.ArraySchema(ctx=ctx, domain=domain, attrs=(a1,))
+
+        buffer = schema.serialize_array_schema()
+        ret_buffer_data = buffer.get_data()
+        self.assertEqual(ret_buffer_data, b'{"arrayType":"dense","attributes":[{"cellValNum":1,"name":"val","type":"FLOA'
+                                             b'T64","filterPipeline":{}}],"capacity":"10000","cellOrder":"row-major","coord'
+                                             b'sFilterPipeline":{"filters":[{"type":"ZSTD","data":{"int32":-1}}]},"domain":'
+                                             b'{"cellOrder":"row-major","dimensions":[{"name":"__dim_0","nullTileExtent":fa'
+                                             b'lse,"type":"UINT64","tileExtent":{"uint64":"2"},"domain":{"uint64":["1","8"]'
+                                             b'},"filterPipeline":{}},{"name":"__dim_1","nullTileExtent":false,"type":"UINT'
+                                             b'64","tileExtent":{"uint64":"2"},"domain":{"uint64":["1","8"]},"filterPipelin'
+                                             b'e":{}}],"tileOrder":"row-major","type":"UINT64"},"offsetFilterPipeline":{"fi'
+                                             b'lters":[{"type":"ZSTD","data":{"int32":-1}}]},"tileOrder":"row-major","uri":'
+                                             b'"","version":[5],"allowsDuplicates":false}\x00')
+        self.assertEqual(buffer.last_num_bytes_read, 727)
+        deserialized_schema = tiledb.deserialize_array_schema(buffer)
+        self.assertEqual(schema, deserialized_schema)
+
 class ArrayTest(DiskTestCase):
 
     def create_array_schema(self, ctx):

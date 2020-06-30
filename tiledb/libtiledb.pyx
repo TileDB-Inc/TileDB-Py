@@ -3345,6 +3345,47 @@ cdef class ArraySchema(object):
         print("\n")
         return
 
+    def serialize_array_schema(self, serialization_type='json', client_side=False):
+        """Serialize array schema to a Buffer
+
+        :param ArraySchema array_schema: array schema object to be serialized
+        :param str serialization_type: 'json' for serializing to json, 'capnp' for serializing to cap'n proto
+        :param bool client_side: currently unused
+        :rtype: Buffer
+        :returns: a Buffer of serialized array schema data
+        :raises ValueError: invalid serialization_type
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef int32_t c_client_side = 0
+        if client_side:
+            c_client_side = 1
+
+        cdef tiledb_serialization_type_t c_serialization_type
+        if serialization_type == "json":
+            c_serialization_type = TILEDB_JSON
+        elif serialization_type == "capnp":
+            c_serialization_type = TILEDB_CAPNP
+        else:
+            raise ValueError("invalid mode {0!r}".format(serialization_type))
+
+        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>self.ctx.ptr
+        cdef tiledb_array_schema_t* array_schema_ptr = \
+            <tiledb_array_schema_t*>self.ptr
+
+        buffer = Buffer(ctx=self.ctx)
+
+        cdef int rc = TILEDB_OK
+        rc = tiledb_serialize_array_schema(ctx_ptr,
+                                           array_schema_ptr,
+                                           c_serialization_type,
+                                           c_client_side,
+                                           &buffer.ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        return buffer
+
     def __repr__(self):
         # TODO support/use __qualname__
         output = StringIO()
@@ -6033,21 +6074,7 @@ def vacuum(array_uri, Config config=None, Ctx ctx=None):
 
     tiledb_array_vacuum(ctx_ptr, uri_ptr, config_ptr)
 
-def serialize_array_schema(array_schema, serialization_type, client_side):
-    """Serialize array schema to a Buffer
-
-    :param ArraySchema array_schema: array schema object to be serialized
-    :param str serialization_type: 'json' for serializing to json, 'capnp' for serializing to cap'n proto
-    :param bool client_side: currently unused
-    :rtype: Buffer
-    :returns: a Buffer of serialized array schema data
-    :raises TypeError: error description
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    pass
-
-def deserialize_array_schema(buffer, serialization_type, client_side):
+def deserialize_array_schema(Buffer buffer, serialization_type='json', client_side=False, Ctx ctx=None):
     """Deserialize Buffer to ArraySchema
 
     :param Buffer buffer: buffer object to be deserialized
@@ -6059,7 +6086,38 @@ def deserialize_array_schema(buffer, serialization_type, client_side):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
-    pass
+    if not ctx:
+        ctx = default_ctx()
+
+    cdef int32_t c_client_side = 0
+    if client_side:
+        c_client_side = 1
+
+    cdef tiledb_serialization_type_t c_serialization_type
+    if serialization_type == "json":
+        c_serialization_type = TILEDB_JSON
+    elif serialization_type == "capnp":
+        c_serialization_type = TILEDB_CAPNP
+    else:
+        raise ValueError("invalid mode {0!r}".format(serialization_type))
+
+    cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>ctx.ptr
+    cdef ArraySchema schema = ArraySchema.__new__(ArraySchema)
+    schema.ctx = ctx
+
+    cdef tiledb_buffer_t* buffer_ptr = \
+        <tiledb_buffer_t*>buffer.ptr
+
+    cdef int rc = TILEDB_OK
+    rc = tiledb_deserialize_array_schema(ctx_ptr,
+                                         buffer_ptr,
+                                         c_serialization_type,
+                                         c_client_side,
+                                         &schema.ptr)
+    if rc != TILEDB_OK:
+        _raise_ctx_err(ctx_ptr, rc)
+
+    return schema
 
 def serialize_query(query, serialization_type, client_side):
     """Serialize Query to BufferList
