@@ -291,7 +291,10 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     for i in range(nattr):
         if tiledb_array.schema.attr(i).isvar:
-            buffer, offsets = array_to_buffer(values[i])
+            try:
+                buffer, offsets = array_to_buffer(values[i])
+            except Exception as exc:
+                raise type(exc)(f"Failed to convert buffer for attribute: '{tiledb_array.schema.attr(i).name}'") from exc
             buffer_offsets_sizes[i] = offsets.nbytes
         else:
             buffer, offsets = values[i], None
