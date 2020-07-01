@@ -481,15 +481,19 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         os.mkdir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.to_csv(tmp_csv, index=False)
+        df.to_csv(tmp_csv, index=False, na_rep="NaN")
 
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(tmp_array, tmp_csv, fillna={'v': 0})
 
-        df['v'][4] = 0
         with tiledb.open(tmp_array) as A:
             res = A[:]
+            # check the value in the raw array
+            self.assertEqual(res['v'][4], 0)
+
             df_bk = pd.DataFrame(res)
             df_bk.pop('rows')
 
+            # update the value in the original dataframe to match what we expect on read-back
+            df['v'][4] = 0
             tm.assert_frame_equal(df_bk, df)
