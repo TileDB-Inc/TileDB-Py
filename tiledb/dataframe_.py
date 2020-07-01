@@ -30,7 +30,8 @@ TILEDB_KWARG_DEFAULTS = {
     'coords_filters': None,
     'full_domain': False,
     'tile': None,
-    'row_start_idx': None
+    'row_start_idx': None,
+    'fillna': None
 }
 
 def parse_tiledb_kwargs(kwargs):
@@ -56,7 +57,8 @@ def parse_tiledb_kwargs(kwargs):
         args['tile'] = kwargs.pop('tile')
     if 'row_start_idx' in kwargs:
         args['row_start_idx'] = kwargs.pop('row_start_idx')
-
+    if 'fillna' in kwargs:
+        args['fillna'] = kwargs.pop('fillna')
 
     return args
 
@@ -341,6 +343,7 @@ def from_pandas(uri, dataframe, **kwargs):
     tile = args.get('tile', None)
     nrows = args.get('nrows', None)
     row_start_idx = args.get('row_start_idx', None)
+    fillna = args.pop('fillna', None)
 
     write = True
     create_array = True
@@ -393,6 +396,10 @@ def from_pandas(uri, dataframe, **kwargs):
         )
 
         tiledb.Array.create(uri, schema, ctx=ctx)
+
+    # apply fill replacements for NA values if specified
+    if fillna is not None:
+        dataframe.fillna(fillna, inplace=True)
 
     if write:
         write_dict = {k: v.values for k,v in dataframe.to_dict(orient='series').items()}

@@ -470,3 +470,26 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_bk = pd.DataFrame(res)
 
             tm.assert_frame_equal(df_bk, df)
+
+    def test_csv_fillna(self):
+        col_size = 10
+        data = np.random.rand(10)
+        data[4] = np.nan
+        df = pd.DataFrame({'v': data})
+
+        tmp_dir = self.path("csv_fillna")
+        os.mkdir(tmp_dir)
+        tmp_csv = os.path.join(tmp_dir, "generated.csv")
+
+        df.to_csv(tmp_csv, index=False)
+
+        tmp_array = os.path.join(tmp_dir, "array")
+        tiledb.from_csv(tmp_array, tmp_csv, fillna={'v': 0})
+
+        df['v'][4] = 0
+        with tiledb.open(tmp_array) as A:
+            res = A[:]
+            df_bk = pd.DataFrame(res)
+            df_bk.pop('rows')
+
+            tm.assert_frame_equal(df_bk, df)
