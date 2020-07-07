@@ -4012,7 +4012,6 @@ cdef class Query(object):
     def multi_index(self):
         return self.multi_index
 
-
 # work around https://github.com/cython/cython/issues/2757
 def _create_densearray(cls, sta):
     rv = DenseArray.__new__(cls)
@@ -5952,79 +5951,6 @@ cdef class Buffer(object):
         cdef bytes buff = PyBytes_FromStringAndSize(<char*>buff_ptr, nbytes)
         return buff
 
-cdef class BufferList(object):
-    """TileDB BufferList class
-
-    Encapsulates the TileDB BufferList module instance.
-
-    :param tiledb.Ctx ctx: The TileDB Context
-
-    """
-
-    def __cinit__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr != NULL:
-            tiledb_buffer_list_free(&self.ptr)
-
-    def __init__(self, Ctx ctx=None):
-        if not ctx:
-            ctx = default_ctx()
-        cdef tiledb_buffer_list_t* buffer_list_ptr = NULL
-        check_error(ctx,
-                    tiledb_buffer_list_alloc(ctx.ptr, &buffer_list_ptr))
-        self.ctx = ctx
-        self.ptr = buffer_list_ptr
-
-    def get_num_buffers(self):
-        """Create an object store bucket at the given URI
-
-        :param str uri: full URI of bucket resource to be created.
-        :rtype: str
-        :returns: created bucket URI
-        :raises TypeError: cannot convert `uri` to unicode string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        pass
-
-    def get_buffer(self, buffer_index):
-        """Create an object store bucket at the given URI
-
-        :param str uri: full URI of bucket resource to be created.
-        :rtype: str
-        :returns: created bucket URI
-        :raises TypeError: cannot convert `uri` to unicode string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        pass
-
-    def get_total_size(self):
-        """Create an object store bucket at the given URI
-
-        :param str uri: full URI of bucket resource to be created.
-        :rtype: str
-        :returns: created bucket URI
-        :raises TypeError: cannot convert `uri` to unicode string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        pass
-
-    def flatten(self):
-        """Create an object store bucket at the given URI
-
-        :param str uri: full URI of bucket resource to be created.
-        :rtype: str
-        :returns: created bucket URI
-        :raises TypeError: cannot convert `uri` to unicode string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        pass
-
 def vacuum(array_uri, Config config=None, Ctx ctx=None):
     """
     Remove fragments. After consolidation, you may optionally
@@ -6118,32 +6044,3 @@ def deserialize_array_schema(Buffer buffer, serialization_type='json', client_si
         _raise_ctx_err(ctx_ptr, rc)
 
     return schema
-
-def serialize_query(query, serialization_type, client_side):
-    """Serialize Query to BufferList
-
-    :param Query query: a TileDB Query object
-    :param str serialization_type: 'json' for serializing to json, 'capnp' for serializing to cap'n proto
-    :param bool client_side: currently unused
-    :rtype: BufferList
-    :returns: a BufferList of serialized query data
-    :raises TypeError: error description
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    pass
-
-def deserialize_query(query, buffer, serialization_type, client_side):
-    """Deserialize a Buffer to Query
-
-    :param Query query: a TileDB Query object
-    :param Buffer buffer: buffer object to be deserialized
-    :param str serialization_type: 'json' for serializing to json, 'capnp' for serializing to cap'n proto
-    :param bool client_side: currently unused
-    :rtype: Query
-    :returns: a Query object
-    :raises TypeError: error description
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    pass
