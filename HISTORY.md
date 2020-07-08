@@ -1,3 +1,18 @@
+# TileDB-Py 0.6.4 Release Notes
+
+## API notes
+* Deprecated `initialize_ctx` in favor of `default_ctx(config: tiledb.Config)` [#351](https://github.com/TileDB-Inc/TileDB-Py/pull/351)
+
+## Improvements
+* Bump release target to [TileDB 2.0.6](https://github.com/TileDB-Inc/TileDB/releases/tag/2.0.6)
+* Improved error reporting for input data type mismatches [#359](https://github.com/TileDB-Inc/TileDB-Py/pull/359)
+* Added `tiledb.VFS.dir_size` [#343](https://github.com/TileDB-Inc/TileDB-Py/pull/343)
+* Added read and buffer conversion statistics for python to `tiledb.stats_dump` [#354](https://github.com/TileDB-Inc/TileDB-Py/pull/354)
+* Implemented string deduplication to reduce conversion time for string arrays [#357](https://github.com/TileDB-Inc/TileDB-Py/pull/357)
+
+## Bug fixes
+* Fixed argument order for `Array.consolidate` with a Config override parameter [#344](https://github.com/TileDB-Inc/TileDB-Py/pull/344)
+
 # TileDB-Py 0.6.3 Release Notes
 
 ## Improvements
