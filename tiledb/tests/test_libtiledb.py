@@ -10,6 +10,9 @@ from numpy.testing import assert_array_equal
 import tiledb
 from tiledb.tests.common import DiskTestCase, assert_subarrays_equal, rand_utf8, rand_ascii, rand_ascii_bytes
 
+import mmap
+from tiledb.core import PyQuery
+
 def safe_dump(obj):
     # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
     #      functions...
@@ -391,7 +394,7 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(len(attr.filters), 1)
 
 
-class ArraySchemaTest(unittest.TestCase):
+class ArraySchemaTest(DiskTestCase):
 
     def test_unique_attributes(self):
         ctx = tiledb.Ctx()
@@ -603,6 +606,59 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertEqual(buffer.last_num_bytes_read, 727)
         deserialized_schema = tiledb.deserialize_array_schema(buffer)
         self.assertEqual(schema, deserialized_schema)
+
+    def test_array_schema_deserialization(self):
+        # Create context
+        ctx = tiledb.Ctx()
+
+        # Create a new buffer object
+        buffer = tiledb.Buffer(ctx=ctx)
+
+        # Retrieve schema from serialized data
+        schema_fd = os.open('udf/schema', os.O_RDWR)
+        schema_size = os.path.getsize('udf/schema')
+        schema_mmap = mmap.mmap(schema_fd, schema_size)
+        buffer.set_data(schema_mmap.read(schema_size))
+        schema_mmap.close()
+        ret_buffer_data = buffer.get_data()
+        self.assertEqual(buffer.last_num_bytes_read, 768)
+        deserialized_schema = tiledb.deserialize_array_schema(buffer, "capnp")
+
+        # Validate schema
+        self.assertEqual(deserialized_schema.ndim, 2)
+        self.assertEqual(deserialized_schema.nattr, 1)
+        self.assertEqual(deserialized_schema.has_attr("a1"), True)
+        print(deserialized_schema)
+
+        A = np.arange(15000000).reshape((3000, 5000))
+
+        # Create proxy array
+        tiledb.DenseArray.create(self.path("foo"), deserialized_schema)
+
+        with tiledb.DenseArray(self.path("foo"), mode='r', ctx=ctx) as T:
+            # Validate array
+            self.assertEqual(len(A), len(T))
+            self.assertEqual(A.ndim, T.ndim)
+            self.assertEqual(A.shape, T.shape)
+
+            self.assertEqual(1, T.nattr)
+            self.assertEqual( np.int32, T.attr(0).dtype)
+            self.assertEqual(T.dim(T.schema.domain.dim(0).name), T.dim(0))
+            with self.assertRaises(ValueError): T.dim(1.0)
+
+            self.assertIsInstance(T.timestamp, int)
+            self.assertTrue(T.timestamp > 0)
+
+            # check that the non-empty domain is None
+            self.assertIsNone(T.nonempty_domain())
+
+            # Get Ordered dict from buffers
+            # OrderedDict([('a1', array([[0, 1, 2, 3], [0, 1, 2, 3]], dtype=int32))])
+            q = PyQuery(ctx, T, ("a1",), False, 0)
+            q.set_ranges([[(1, 2), (1, 4)]])
+            q.submit(True, '/Users/andreas/workspace/tiledb/TileDB-Py/tiledb/tests/udf/buffers/data/a1')
+            results = q.results()
+            print(results)
 
 class ArrayTest(DiskTestCase):
 

@@ -37,7 +37,6 @@ from .libtiledb import (
      TileDBError,
      VFS,
      Buffer,
-     BufferList,
      FileIO,
      FilterList,
      GzipFilter,

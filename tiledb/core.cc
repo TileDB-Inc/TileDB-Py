@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 
+#include <sys/mman.h>
+#include <fcntl.h>
+
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "numpy/arrayobject.h"
 #undef NPY_NO_DEPRECATED_API
@@ -56,6 +59,7 @@ struct BufferInfo {
 
     dtype = tiledb_dtype(data_type, cell_val_num);
     elem_nbytes = tiledb_datatype_size(type);
+    std::cout << "BufferInfo elem_nbytes: " << elem_nbytes << std::endl;
     data = py::array(py::dtype("uint8"), data_nbytes);
     offsets = py::array_t<uint64_t>(offsets_num);
   }
@@ -436,6 +440,7 @@ public:
       cell_val_num = schema.domain().dimension(name).cell_val_num();
     } else if (is_attribute(name)) {
       type = schema.attribute(name).type();
+      std::cout << "buffer_type type: " << type << std::endl;
       cell_val_num = schema.attribute(name).cell_val_num();
     } else {
       TPY_ERROR_LOC("Unknown buffer '" + name + "'");
@@ -475,7 +480,7 @@ public:
 
   bool is_sparse() { return array_->schema().array_type() == TILEDB_SPARSE; }
 
-  void alloc_buffer(std::string name) {
+  void alloc_buffer(std::string name, uint64_t buf_nbytes_ = 0, uint64_t offsets_num_ = 0) {
     auto schema = array_->schema();
 
     tiledb_datatype_t type;
@@ -495,7 +500,11 @@ public:
       buf_nbytes = size_pair.second;
       offsets_num = size_pair.first;
     } else {
-      buf_nbytes = query_->est_result_size(name);
+      if (buf_nbytes_ > 0) {
+        buf_nbytes = buf_nbytes_;
+      } else {
+        buf_nbytes = query_->est_result_size(name);
+      }
     }
 
     if ((var || is_sparse()) && (buf_nbytes < init_buffer_bytes_)) {
@@ -504,8 +513,14 @@ public:
     }
 
     buffers_order_.push_back(name);
+    std::cout << "alloc_buffer: " << name << std::endl;
     buffers_.insert({name, BufferInfo(name, buf_nbytes, type, cell_val_num,
                                       offsets_num, var)});
+    std::cout << "alloc_buffer buf_nbytes: " << buf_nbytes << std::endl;
+    std::cout << "alloc_buffer type: " << type << std::endl;
+    std::cout << "alloc_buffer cell_val_num: " << cell_val_num << std::endl;
+    std::cout << "alloc_buffer offsets_num: " << offsets_num << std::endl;
+    std::cout << "alloc_buffer var: " << var << std::endl;
   }
 
   void set_buffers() {
@@ -550,6 +565,65 @@ public:
       buf.data_vals_read += data_vals_num;
       buf.offsets_read += offset_elem_num;
     }
+  }
+
+  void submit_read_from_mmap_buffers(std::string buffers_path) {
+    int fd = open(buffers_path.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+    struct stat sb;
+
+    if (fstat(fd, &sb) == -1) {
+      std::cout << "Could not get file size" << std::endl;
+    }
+
+    printf("file size is %lld\n", sb.st_size);
+
+    char *file_in_memory = (char *)mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+    std::cout << "Printing file, as an array of characters..." << std::endl << std::endl;
+    for (int I=0; I< sb.st_size; I++) {
+      printf("%x", file_in_memory[I]);
+    }
+
+    std::cout << std::endl;
+
+    alloc_buffer("a1", sb.st_size);
+
+    for (auto bp : buffers_) {
+      auto name = bp.first;
+       std::cout << "submit_read_from_mmap_buffers attribute: " << name << std::endl;
+      const BufferInfo b = bp.second;
+//      void *data_ptr =
+//          (void *)((char *)b.data.data() + (b.data_vals_read * b.elem_nbytes));
+//      uint64_t data_nelem =
+//          (b.data.size() - (b.data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
+
+      if (b.isvar) {
+//        uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + b.offsets_read;
+//        query_->set_buffer(b.name, offsets_ptr,
+//                           b.offsets.size() - b.offsets_read,
+//                           data_ptr,
+//                           data_nelem);
+      } else {
+        std::cout << "submit_read_from_mmap_buffers Assigning file in memory to data field of BufferInfo" << std::endl;
+        memcpy((void *)((char *)b.data.data()), file_in_memory, sb.st_size);
+
+//        py::array x = py::array(b.dtype, (sb.st_size / b.elem_nbytes), file_in_memory);
+//
+//        int I = 0;
+//        x.mutate_at(I) = 1
+//        x[I] = 1;
+
+//        for (auto I=0; I< sb.st_size; I++) {
+//          auto y = x.get(I);
+//        }
+//        b.data[0] = x[0];
+//        query_->set_buffer(b.name, data_ptr, data_nelem);
+      }
+    }
+
+    munmap(file_in_memory, sb.st_size);
+
+    close(fd);
   }
 
   void submit_read() {
@@ -688,9 +762,13 @@ public:
 
   void submit_write() {}
 
-  void submit() {
-    if (array_->query_type() == TILEDB_READ)
-      submit_read();
+  void submit(bool read_from_mmap_buffers, std::string buffers_path) {
+    if (array_->query_type() == TILEDB_READ) {
+      if (read_from_mmap_buffers)
+        submit_read_from_mmap_buffers(buffers_path);
+      else
+        submit_read();
+    }
     else if (array_->query_type() == TILEDB_WRITE)
       submit_write();
     else
