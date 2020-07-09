@@ -21,8 +21,8 @@ ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 
 ###############################################
 # settings (B)
-ENV LIBTILEDB_VERSION 2.0.5
-ENV LIBTILEDB_SHA 681ddcdf208bf96f10b8a1a28d9ef829f6390d63
+ENV LIBTILEDB_VERSION 2.0.6
+ENV LIBTILEDB_SHA d6cdfe65f70d077ca0cc50767010353fb25591d3
 ENV TILEDBPY_VERSION 0.6.4
 ###############################################
 # 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
