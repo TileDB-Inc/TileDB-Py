@@ -120,6 +120,8 @@ cdef extern from "tiledb/tiledb.h":
     ctypedef enum tiledb_filesystem_t:
         TILEDB_HDFS
         TILEDB_S3
+        TILEDB_AZURE
+        TILEDB_GCS
 
     ctypedef enum tiledb_vfs_mode_t:
         TILEDB_VFS_READ

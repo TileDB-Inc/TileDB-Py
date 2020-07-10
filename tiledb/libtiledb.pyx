@@ -5655,6 +5655,14 @@ cdef class VFS(object):
             check_error(self.ctx,
                         tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_S3, &supports))
             return bool(supports)
+        elif scheme == "azure":
+            check_error(self.ctx,
+                        tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_AZURE, &supports))
+            return bool(supports)
+        elif scheme == "gcs":
+            check_error(self.ctx,
+                        tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_GCS, &supports))
+            return bool(supports)
         elif scheme == "hdfs":
             check_error(self.ctx,
                         tiledb_ctx_is_supported_fs(self.ctx.ptr, TILEDB_HDFS, &supports))
