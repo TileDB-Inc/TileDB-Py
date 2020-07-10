@@ -1,3 +1,15 @@
+# TileDB-Py 0.6.5 Release Notes
+
+We have added manylinux2010 wheels, corresponding to CentOS6 / glibc 2.12.
+
+We are deprecating support for manylinux1 (CentOS5 / glibc 2.0.7), which is not supported by
+the Google Cloud Storage SDK. We are planning to remove manylinux1 wheel support in the
+TileDB-Py 0.7 release.
+
+
+## Improvements
+* Enabled Google Cloud Storage support in macOS and linux (manylinux2010) wheels on PyPI ([#364](https://github.com/TileDB-Inc/TileDB-Py/pull/364))
+
 # TileDB-Py 0.6.4 Release Notes
 
 ## API notes
