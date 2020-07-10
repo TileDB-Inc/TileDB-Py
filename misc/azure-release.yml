@@ -142,3 +142,19 @@ stages:
         docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder build.sh
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}
+
+  - job: build1_linux_wheels_2010
+    strategy:
+      matrix:
+        wheels:
+          imageName: 'ubuntu-16.04'
+    pool:
+      vmImage: $(imageName)
+
+    steps:
+    - script: git tag $(TILEDBPY_VERSION)
+    - bash: |
+        docker build -f misc/pypi_linux/Dockerfile2010 . -t wheel_builder_2010
+        docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder_2010 build.sh
+    - task: PublishBuildArtifacts@1
+      inputs: {pathtoPublish: 'wheelhouse'}
