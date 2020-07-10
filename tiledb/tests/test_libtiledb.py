@@ -2567,6 +2567,8 @@ class VFS(DiskTestCase):
         self.assertTrue(vfs.supports("file"))
         self.assertIsInstance(vfs.supports("s3"), bool)
         self.assertIsInstance(vfs.supports("hdfs"), bool)
+        self.assertIsInstance(vfs.supports("gcs"), bool)
+        self.assertIsInstance(vfs.supports("azure"), bool)
 
         with self.assertRaises(ValueError):
             vfs.supports("invalid")
