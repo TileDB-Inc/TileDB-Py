@@ -492,7 +492,10 @@ def from_csv(uri, csv_file, **kwargs):
     """Create TileDB array at given URI from a CSV file
 
     :param uri: URI for new TileDB array
-    :param csv_file: input CSV file
+    :param csv_file: input CSV file or list of CSV files.
+                     Note: multi-file ingestion requires a `chunksize` argument. Files will
+                     be read in batches of at least `chunksize` rows before writing to the
+                     TileDB array.
     :param kwargs:
                 - Any pandas.read_csv supported keyword argument.
                 - TileDB-specific arguments:
@@ -521,12 +524,16 @@ def from_csv(uri, csv_file, **kwargs):
         raise
 
     tiledb_args = parse_tiledb_kwargs(kwargs)
+    multi_file = False
 
     if isinstance(csv_file, str) and not os.path.isfile(csv_file):
         # for non-local files, use TileDB VFS i/o
         ctx = tiledb_args.get('ctx', tiledb.default_ctx())
         vfs = tiledb.VFS(ctx=ctx)
         csv_file = tiledb.FileIO(vfs, csv_file, mode='rb')
+    elif isinstance(csv_file, (list, tuple)):
+        # TODO may be useful to support a callback here
+        multi_file = True
 
     mode = kwargs.pop('mode', None)
     if mode is not None:
@@ -541,7 +548,10 @@ def from_csv(uri, csv_file, **kwargs):
 
     chunksize = kwargs.get('chunksize', None)
 
-    if chunksize is not None:
+    if multi_file and not chunksize:
+        raise TileDBError("Multiple input CSV files requires a 'chunksize' argument")
+
+    if chunksize is not None or multi_file:
         if not 'nrows' in kwargs:
             full_domain = True
 
@@ -554,8 +564,41 @@ def from_csv(uri, csv_file, **kwargs):
         csv_kwargs = kwargs.copy()
         kwargs.update(tiledb_args)
 
+        if multi_file:
+            input_csv_list = csv_file
+            csv_kwargs.pop("chunksize")
+        else:
+            input_csv = csv_file
+
+        keep_reading = True
         rows_written = 0
-        for df in pandas.read_csv(csv_file, **csv_kwargs):
+        csv_idx = 0
+        df_iter = None
+
+        while keep_reading:
+            # if we have multiple files, read them until we hit row threshold
+            if multi_file:
+                rows_read = 0
+                input_dfs = list()
+                while rows_read < chunksize and keep_reading:
+                    input_csv = input_csv_list[csv_idx]
+                    df = pandas.read_csv(input_csv, **csv_kwargs)
+                    input_dfs.append(df)
+
+                    rows_read += len(df)
+                    csv_idx += 1
+                    keep_reading = csv_idx < len(input_csv_list)
+
+                df = pandas.concat(input_dfs)
+
+            else:
+                if not df_iter:
+                    df_iter = pandas.read_csv(input_csv, **csv_kwargs)
+                df = next(df_iter, None)
+
+            if df is None:
+                break
+
             kwargs['row_start_idx'] = rows_written
             kwargs['full_domain'] = True
             if array_created:
@@ -563,6 +606,7 @@ def from_csv(uri, csv_file, **kwargs):
             # after the first chunk, switch to append mode
             array_created = True
 
+            # now flush
             from_pandas(uri, df, **kwargs)
             rows_written += len(df)
 
