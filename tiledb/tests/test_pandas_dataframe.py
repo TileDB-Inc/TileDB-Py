@@ -497,3 +497,48 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             # update the value in the original dataframe to match what we expect on read-back
             df['v'][4] = 0
             tm.assert_frame_equal(df_bk, df)
+
+    def test_csv_multi_file(self):
+        col_size = 10
+
+        csv_dir = self.path("csv_multi_dir")
+        os.mkdir(csv_dir)
+
+        # Write a set of CSVs with 10 rows each
+        input_dfs = list()
+        for i in range(20):
+            df = make_dataframe_basic3(col_size)
+            output_path = os.path.join(csv_dir, "csv_{}.csv".format(i))
+            df.to_csv(output_path, index=False)
+            input_dfs.append(df)
+
+        tmp_dir = self.path("csv_multi_array_dir")
+        os.mkdir(tmp_dir)
+
+        # Create TileDB array with flush every 25 rows
+        csv_paths = glob.glob(csv_dir + "/*.csv")
+        tmp_array = os.path.join(tmp_dir, "array")
+        tiledb.from_csv(tmp_array, csv_paths,
+                        index_col=['time'],
+                        parse_dates=['time'],
+                        chunksize=25,
+                        sparse=True)
+
+        # Check number of fragments
+        # * should equal 7 based on chunksize=25
+        # * 20 files, 10 rows each:
+        # - first 6 reads flush at 30 rows (3 files * 10 rows)
+        # - final 20 rows flush to last fragment
+        fragments = glob.glob(tmp_array + "/*.ok")
+        self.assertEqual(len(fragments), 7)
+
+        # Check the returned data
+        # note: tiledb returns sorted values
+        df_orig = pd.concat(input_dfs, axis=0).set_index(["time"]).sort_values('time')
+
+        with tiledb.open(tmp_array) as A:
+            res = A[:]
+            df_bk = pd.DataFrame(res)
+            df_bk = df_bk.set_index(['time'])
+
+            tm.assert_frame_equal(df_bk, df_orig)
