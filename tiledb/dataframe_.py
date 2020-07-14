@@ -59,6 +59,8 @@ def parse_tiledb_kwargs(kwargs):
         args['row_start_idx'] = kwargs.pop('row_start_idx')
     if 'fillna' in kwargs:
         args['fillna'] = kwargs.pop('fillna')
+    if 'column_types' in kwargs:
+        args['column_types'] = kwargs.pop('column_types')
 
     return args
 
@@ -117,18 +119,30 @@ def dtype_from_column(col):
     )
 
 # TODO make this a staticmethod on Attr?
-def attrs_from_df(df, index_dims=None, filters=None, ctx=None):
+def attrs_from_df(df,
+                  index_dims=None, filters=None,
+                  column_types=None, ctx=None):
     attr_reprs = dict()
-
     if ctx is None:
         ctx = tiledb.default_ctx()
+
+    if column_types is None:
+        column_types = dict()
 
     attrs = list()
     for name, col in df.items():
         # ignore any column used as a dim/index
         if index_dims and name in index_dims:
             continue
-        attr_info = dtype_from_column(col)
+
+        if name in column_types:
+            spec_type = column_types[name]
+            # Handle ExtensionDtype
+            if hasattr(spec_type, 'type'):
+                spec_type = spec_type.type
+            attr_info = ColumnInfo(spec_type)
+        else:
+            attr_info = dtype_from_column(col)
         attrs.append(tiledb.Attr(name=name, dtype=attr_info.dtype, filters=filters))
 
         if attr_info.repr is not None:
@@ -344,6 +358,7 @@ def from_pandas(uri, dataframe, **kwargs):
     nrows = args.get('nrows', None)
     row_start_idx = args.get('row_start_idx', None)
     fillna = args.pop('fillna', None)
+    column_types = args.pop('column_types', None)
 
     write = True
     create_array = True
@@ -381,8 +396,10 @@ def from_pandas(uri, dataframe, **kwargs):
            ctx = ctx
         )
 
-        attrs, attr_metadata = attrs_from_df(dataframe, index_dims=index_dims,
-                                             filters=attrs_filters)
+        attrs, attr_metadata = attrs_from_df(dataframe,
+                                             index_dims=index_dims,
+                                             filters=attrs_filters,
+                                             column_types=column_types)
 
         # now create the ArraySchema
         schema = tiledb.ArraySchema(
