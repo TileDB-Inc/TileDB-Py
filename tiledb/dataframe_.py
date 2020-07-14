@@ -559,7 +559,7 @@ def from_csv(uri, csv_file, **kwargs):
     mode = kwargs.pop('mode', None)
     if mode is not None:
         tiledb_args['mode'] = mode
-        # For schema-only mode we need to pass a max read count into
+        # For schema_only mode we need to pass a max read count into
         #   pandas.read_csv
         # Note that 'nrows' is a pandas arg!
         if mode == 'schema_only' and not 'nrows' in kwargs:
@@ -634,6 +634,9 @@ def from_csv(uri, csv_file, **kwargs):
             # now flush
             from_pandas(uri, df, **kwargs)
             rows_written += len(df)
+
+            if mode == 'schema_only':
+                break
 
     else:
         df = pandas.read_csv(csv_file, **kwargs)
