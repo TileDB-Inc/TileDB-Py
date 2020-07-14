@@ -31,7 +31,8 @@ TILEDB_KWARG_DEFAULTS = {
     'full_domain': False,
     'tile': None,
     'row_start_idx': None,
-    'fillna': None
+    'fillna': None,
+    'debug': None
 }
 
 def parse_tiledb_kwargs(kwargs):
@@ -61,6 +62,8 @@ def parse_tiledb_kwargs(kwargs):
         args['fillna'] = kwargs.pop('fillna')
     if 'column_types' in kwargs:
         args['column_types'] = kwargs.pop('column_types')
+    if 'debug' in kwargs:
+        args['debug'] = kwargs.pop('debug')
 
     return args
 
@@ -542,6 +545,7 @@ def from_csv(uri, csv_file, **kwargs):
 
     tiledb_args = parse_tiledb_kwargs(kwargs)
     multi_file = False
+    debug = tiledb_args.get('debug', False)
 
     if isinstance(csv_file, str) and not os.path.isfile(csv_file):
         # for non-local files, use TileDB VFS i/o
@@ -622,6 +626,10 @@ def from_csv(uri, csv_file, **kwargs):
                 kwargs['mode'] = 'append'
             # after the first chunk, switch to append mode
             array_created = True
+
+            if debug:
+                print("`tiledb.read_csv` flushing '{}' rows ('{}' files)".format(
+                    len(df), csv_idx))
 
             # now flush
             from_pandas(uri, df, **kwargs)
