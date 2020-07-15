@@ -3941,6 +3941,11 @@ cdef class Array(object):
         return self._buffers
 
     def _set_buffers(self, object buffers):
+        """
+        Helper function to set external buffers in the form of
+            {'attr_name': (data_array, offsets_array)}
+        Buffers will be used to satisfy the next index/query request.
+        """
         self._buffers = buffers
 
 cdef class Query(object):
