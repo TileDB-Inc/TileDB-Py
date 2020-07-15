@@ -2149,7 +2149,7 @@ cdef class Attr(object):
 
         """
         internal_name = self._get_name()
-        # handle __attr names
+        # handle __attr names from arrays written with libtiledb < 2
         if internal_name == "__attr":
             return u""
         return internal_name
@@ -3935,6 +3935,13 @@ cdef class Array(object):
     @property
     def last_write_info(self):
         return self.last_fragment_info
+
+    @property
+    def _buffers(self):
+        return self._buffers
+
+    def _set_buffers(self, object buffers):
+        self._buffers = buffers
 
 cdef class Query(object):
     """

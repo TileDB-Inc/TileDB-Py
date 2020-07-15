@@ -136,7 +136,6 @@ class MultiRangeIndexer(object):
 
         q.set_ranges(ranges)
         q.submit()
-
         result_dict = OrderedDict(q.results())
 
         final_names = dict()

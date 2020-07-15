@@ -294,6 +294,23 @@ public:
         throw TileDBError("Failed to convert configuration 'py.deduplicate' to bool ('" + tmp_str + "')");
       }
     }
+
+    py::object pre_buffers = array.attr("_buffers");
+    if (!pre_buffers.is(py::none())) {
+      py::dict pre_buffers_dict = pre_buffers.cast<py::dict>();
+
+      // iterate over (key, value) pairs
+      for (std::pair<py::handle, py::handle> b: pre_buffers_dict) {
+        py::str name = b.first.cast<py::str>();
+
+        // unpack value tuple of (data, offsets)
+        auto bfrs = b.second.cast<std::pair<py::handle, py::handle>>();
+        auto data_array = bfrs.first.cast<py::array>();
+        auto offsets_array = bfrs.second.cast<py::array>();
+
+        import_buffer(name, data_array, offsets_array);
+      }
+    }
   }
 
   void add_dim_range(uint32_t dim_idx, py::tuple r) {
@@ -497,17 +514,31 @@ public:
     }
   }
 
-  void set_buffer(py::str name, py::object data) {
-    // set input data for an attribute or dimension buffer
-    if (is_attribute(name))
-      set_buffer(name, data);
-    else if (is_dimension(name))
-      set_buffer(name, data);
-    else
-      TPY_ERROR_LOC("Unknown attribute or dim '" + (string)name + "'")
-  }
-
   bool is_sparse() { return array_->schema().array_type() == TILEDB_SPARSE; }
+
+  void import_buffer(std::string name, py::array data, py::array offsets) {
+    auto schema = array_->schema();
+
+    tiledb_datatype_t type;
+    uint32_t cell_val_num;
+    std::tie(type, cell_val_num) = buffer_type(name);
+    uint64_t cell_nbytes = tiledb_datatype_size(type);
+    if (cell_val_num != TILEDB_VAR_NUM)
+      cell_nbytes *= cell_val_num;
+    auto dtype = tiledb_dtype(type, cell_val_num);
+    bool var = is_var(name);
+
+    uint64_t buf_nbytes = data.nbytes();
+    uint64_t offsets_num = 0;
+
+    if (!offsets.is(py::none())) {
+      offsets_num = offsets.size();
+    }
+
+    buffers_order_.push_back(name);
+    buffers_.insert({name, BufferInfo(name, buf_nbytes, type, cell_val_num,
+                                      offsets_num, var)});
+  }
 
   void alloc_buffer(std::string name) {
     auto schema = array_->schema();
@@ -588,6 +619,11 @@ public:
 
   void submit_read() {
     auto start = std::chrono::high_resolution_clock::now();
+
+    if (buffers_.size() != 0) {
+      // we have externally imported buffers
+      return;
+    }
 
     auto schema = array_->schema();
 
@@ -826,6 +862,7 @@ PYBIND11_MODULE(core, m) {
       .def("results", &PyQuery::results)
       .def("buffer_dtype", &PyQuery::buffer_dtype)
       .def("unpack_buffer", &PyQuery::unpack_buffer)
+      .def("import_buffer", &PyQuery::unpack_buffer)
       .def("_test_array", &PyQuery::_test_array)
       .def("_test_err",
            [](py::object self, std::string s) { throw TileDBPyError(s); })

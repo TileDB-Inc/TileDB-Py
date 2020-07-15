@@ -1188,6 +1188,7 @@ cdef class Array(object):
     cdef object view_attr # can be None
     cdef object key # can be None
     cdef object schema
+    cdef object _buffers
 
     cdef DomainIndexer domain_index
     cdef object multi_index
