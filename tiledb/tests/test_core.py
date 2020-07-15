@@ -72,3 +72,56 @@ class CoreCCTest(DiskTestCase):
         with tiledb.open(uri) as a:
             q = core.PyQuery(ctx, a, ("",), False, 0)
             self.assertEqual(q._test_init_buffer_bytes, intmax)
+
+    def test_import_buffer(self):
+        uri = self.path("test_import_buffer")
+
+        ctx = tiledb.Ctx()
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=1,
+                                       dtype=np.int64, ctx=ctx),
+                            tiledb.Dim(domain=(0, 3), tile=1,
+                                       dtype=np.int64, ctx=ctx),
+                            ctx=ctx)
+        attrs = [
+            tiledb.Attr(name='', dtype=np.float64, ctx=ctx),
+            tiledb.Attr(name='foo', dtype=np.int32, ctx=ctx)
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False, ctx=ctx)
+        tiledb.DenseArray.create(uri, schema)
+
+        data_orig = {
+            '': 2.5 * np.identity(4),
+            'foo': 8 * np.identity(4, dtype=np.int32)
+        }
+
+        with tiledb.open(uri, 'w') as A:
+           A[:] = data_orig
+
+        with tiledb.open(uri) as B:
+            assert_array_equal(B[:][''], data_orig[''])
+            assert_array_equal(B[:]['foo'], data_orig['foo'])
+
+        data_mod = {
+            '': 5 * np.identity(4, dtype=np.float64),
+            'foo': 32 * np.identity(4, dtype=np.int32)
+        }
+
+        data_mod_bfr = {
+            '': (data_mod[''].flatten().view(np.uint8).copy(),
+                 np.array([], dtype=np.uint64)),
+            'foo': (data_mod['foo'].flatten().view(np.uint8).copy(),
+                    np.array([], dtype=np.uint64))
+        }
+
+        with tiledb.open(uri) as C:
+            C._set_buffers(data_mod_bfr)
+            res = C.multi_index[0:3,0:3]
+            assert_array_equal(res[''], data_mod[''])
+            assert_array_equal(res['foo'], data_mod['foo'])
+
+        with tiledb.open(uri) as C:
+            C._set_buffers(data_mod_bfr)
+            res = C[:,:]
+            assert_array_equal(res[''], data_mod[''])
+            assert_array_equal(res['foo'], data_mod['foo'])
