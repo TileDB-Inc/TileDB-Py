@@ -33,7 +33,8 @@ TILEDB_KWARG_DEFAULTS = {
     'row_start_idx': None,
     'fillna': None,
     'column_types': None,
-    'debug': None
+    'debug': None,
+    'date_spec': None
 }
 
 def parse_tiledb_kwargs(kwargs):
@@ -323,6 +324,8 @@ def from_pandas(uri, dataframe, **kwargs):
                           mode, attrs_filters, coords_filters
     :return:
     """
+    import pandas as pd
+
     args = parse_tiledb_kwargs(kwargs)
 
     ctx = args.get('ctx', None)
@@ -339,6 +342,7 @@ def from_pandas(uri, dataframe, **kwargs):
     nrows = args.get('nrows', None)
     row_start_idx = args.get('row_start_idx', None)
     fillna = args.pop('fillna', None)
+    date_spec = args.pop('date_spec', None)
     column_types = args.pop('column_types', None)
 
     write = True
@@ -398,6 +402,15 @@ def from_pandas(uri, dataframe, **kwargs):
     # apply fill replacements for NA values if specified
     if fillna is not None:
         dataframe.fillna(fillna, inplace=True)
+
+    # apply custom datetime parsing to given {'column_name': format_spec} pairs
+    # format_spec should be provied using Python format codes:
+    #     https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
+    if date_spec is not None:
+        if type(date_spec) is not dict:
+            raise TypeError("Expected 'date_spec' to be a dict, got {}".format(type(date_spec)))
+        for name, spec in date_spec.items():
+            dataframe[name] = pd.to_datetime(dataframe[name], format=spec)
 
     if write:
         write_dict = {k: v.values for k,v in dataframe.to_dict(orient='series').items()}
@@ -506,6 +519,10 @@ def from_csv(uri, csv_file, **kwargs):
                     'coords_filters': FilterList to apply to all coordinates (Dimensions)
                     'sparse': (default True) Create sparse schema
                     'tile': Schema tiling (capacity)
+                    'date_spec': Dictionary of {'column_name': format_spec} to apply to date/time
+                        columns which are not correctly inferred by pandas 'parse_dates'.
+                        Format must be specified using the Python format codes:
+                        https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
     :return: None
 
     **Example:**
