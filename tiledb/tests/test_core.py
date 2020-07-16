@@ -1,9 +1,9 @@
-import unittest, os
+import unittest, os, sys, copy, random
 
 import tiledb
 from tiledb import TileDBError, core
-from tiledb.tests.common import DiskTestCase
-import sys
+from tiledb.tests.common import DiskTestCase, rand_ascii
+
 import numpy as np
 from numpy.testing import assert_array_equal
 
@@ -85,43 +85,64 @@ class CoreCCTest(DiskTestCase):
                             ctx=ctx)
         attrs = [
             tiledb.Attr(name='', dtype=np.float64, ctx=ctx),
-            tiledb.Attr(name='foo', dtype=np.int32, ctx=ctx)
+            tiledb.Attr(name='foo', dtype=np.int32, ctx=ctx),
+            tiledb.Attr(name='str', dtype=np.str, ctx=ctx)
         ]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False, ctx=ctx)
         tiledb.DenseArray.create(uri, schema)
 
         data_orig = {
-            '': 2.5 * np.identity(4),
-            'foo': 8 * np.identity(4, dtype=np.int32)
+            '': 2.5 * np.identity(4, dtype=np.float64),
+            'foo': 8 * np.identity(4, dtype=np.int32),
+            'str': np.array([rand_ascii(random.randint(0,5)) for _ in range(16)]).reshape(4,4)
         }
 
         with tiledb.open(uri, 'w') as A:
            A[:] = data_orig
 
         with tiledb.open(uri) as B:
-            assert_array_equal(B[:][''], data_orig[''])
+            assert_array_equal(B[:][''], data_orig['']),
             assert_array_equal(B[:]['foo'], data_orig['foo'])
 
         data_mod = {
             '': 5 * np.identity(4, dtype=np.float64),
-            'foo': 32 * np.identity(4, dtype=np.int32)
+            'foo': 32 * np.identity(4, dtype=np.int32),
+            'str': np.array([rand_ascii(random.randint(1,7))
+                             for _ in range(16)], dtype='U0').reshape(4,4)
         }
 
+        str_offsets = np.array([0] + [len(x) for x in
+                                      data_mod['str'].flatten()[:-1]],
+                               dtype=np.uint64)
+        str_offsets = np.cumsum(str_offsets)
+
+        str_raw = np.array([ord(c) for c in
+                            ''.join([x for x in data_mod['str'].flatten()])],
+                           dtype=np.uint8)
+
         data_mod_bfr = {
-            '': (data_mod[''].flatten().view(np.uint8).copy(),
+            '': (data_mod[''].flatten().view(np.uint8),
                  np.array([], dtype=np.uint64)),
-            'foo': (data_mod['foo'].flatten().view(np.uint8).copy(),
-                    np.array([], dtype=np.uint64))
+            'foo': (data_mod['foo'].flatten().view(np.uint8),
+                    np.array([], dtype=np.uint64)),
+            'str': (str_raw.flatten().view(np.uint8), str_offsets)
         }
 
         with tiledb.open(uri) as C:
-            C._set_buffers(data_mod_bfr)
+            res = C.multi_index[0:3,0:3]
+            assert_array_equal(res[''], data_orig[''])
+            assert_array_equal(res['foo'], data_orig['foo'])
+            assert_array_equal(res['str'], data_orig['str'])
+
+            C._set_buffers(copy.deepcopy(data_mod_bfr))
             res = C.multi_index[0:3,0:3]
             assert_array_equal(res[''], data_mod[''])
             assert_array_equal(res['foo'], data_mod['foo'])
+            assert_array_equal(res['str'], data_mod['str'])
 
-        with tiledb.open(uri) as C:
-            C._set_buffers(data_mod_bfr)
-            res = C[:,:]
+        with tiledb.open(uri) as D:
+            D._set_buffers(copy.deepcopy(data_mod_bfr))
+            res = D[:,:]
             assert_array_equal(res[''], data_mod[''])
             assert_array_equal(res['foo'], data_mod['foo'])
+            assert_array_equal(res['str'], data_mod['str'])
