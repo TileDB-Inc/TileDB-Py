@@ -443,16 +443,17 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         # Test sparse chunked
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(tmp_array, tmp_csv,
-                        index_col=['time', 'double_range'],
+                        index_col=['double_range'],
                         parse_dates=['time'],
+                        date_spec={'time': "%Y-%m-%dT%H:%M:%S.%f"},
                         chunksize=10)
 
         with tiledb.open(tmp_array) as A:
             res = A[:]
             df_bk = pd.DataFrame(res)
-            df_bk.set_index(['time','double_range'], inplace=True)
+            df_bk.set_index(['double_range'], inplace=True)
 
-            df_ck = df.set_index(['time','double_range'])
+            df_ck = df.set_index(['double_range'])
             tm.assert_frame_equal(df_bk, df_ck)
 
         # Test dense chunked
