@@ -32,38 +32,16 @@ TILEDB_KWARG_DEFAULTS = {
     'tile': None,
     'row_start_idx': None,
     'fillna': None,
+    'column_types': None,
     'debug': None
 }
 
 def parse_tiledb_kwargs(kwargs):
     args = dict(TILEDB_KWARG_DEFAULTS)
 
-    if 'ctx' in kwargs:
-        args['ctx'] = kwargs.pop('ctx')
-    if 'sparse' in kwargs:
-        args['sparse'] = kwargs.pop('sparse')
-    if 'index_dims' in kwargs:
-        args['index_dims'] = kwargs.pop('index_dims')
-    if 'allows_duplicates' in kwargs:
-        args['allows_duplicates'] = kwargs.pop('allows_duplicates')
-    if 'mode' in kwargs:
-        args['mode'] = kwargs.pop('mode')
-    if 'attrs_filters' in kwargs:
-        args['attrs_filters'] = kwargs.pop('attrs_filters')
-    if 'coords_filters' in kwargs:
-        args['coords_filters'] = kwargs.pop('coords_filters')
-    if 'full_domain' in kwargs:
-        args['full_domain'] = kwargs.pop('full_domain')
-    if 'tile' in kwargs:
-        args['tile'] = kwargs.pop('tile')
-    if 'row_start_idx' in kwargs:
-        args['row_start_idx'] = kwargs.pop('row_start_idx')
-    if 'fillna' in kwargs:
-        args['fillna'] = kwargs.pop('fillna')
-    if 'column_types' in kwargs:
-        args['column_types'] = kwargs.pop('column_types')
-    if 'debug' in kwargs:
-        args['debug'] = kwargs.pop('debug')
+    for key in TILEDB_KWARG_DEFAULTS.keys():
+        if key in kwargs:
+            args[key] = kwargs.pop(key)
 
     return args
 
