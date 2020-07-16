@@ -528,16 +528,12 @@ public:
     auto dtype = tiledb_dtype(type, cell_val_num);
     bool var = is_var(name);
 
-    uint64_t buf_nbytes = data.nbytes();
-    uint64_t offsets_num = 0;
-
-    if (!offsets.is(py::none())) {
-      offsets_num = offsets.size();
-    }
-
     buffers_order_.push_back(name);
-    buffers_.insert({name, BufferInfo(name, buf_nbytes, type, cell_val_num,
-                                      offsets_num, var)});
+    // set nbytes and noffsets=0 here to avoid allocation; buffers set below
+    auto buffer_info = BufferInfo(name, 0, type, cell_val_num, 0, var);
+    buffer_info.data = data;
+    buffer_info.offsets = offsets;
+    buffers_.insert({name, buffer_info});
   }
 
   void alloc_buffer(std::string name) {
