@@ -75,7 +75,8 @@ def empty_like(uri, arr, config=None, key=None, tile=None):
 
 def from_numpy(uri, array, ctx=None, **kw):
     """
-    Convenience method, see `tiledb.DenseArray.from_numpy`
+    Convenience method to create a TileDB array from a Numpy array.
+    See documentation of :func:`tiledb.DenseArray.from_numpy`.
     """
     if not ctx:
         ctx = default_ctx()
