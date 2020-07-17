@@ -319,10 +319,12 @@ def from_pandas(uri, dataframe, **kwargs):
     :param uri: URI for new TileDB array
     :param dataframe: pandas DataFrame
     :param mode: Creation mode, one of 'ingest' (default), 'schema_only', 'append'
-    :param kwargs: optional keyword arguments for Pandas and TileDB.
-        TileDB arguments: tile_order, cell_order, allows_duplicates, sparse,
-                          mode, attrs_filters, coords_filters
-    :return:
+
+    :Keyword Arguments: optional keyword arguments for TileDB, see ``tiledb.from_csv``.
+
+    :raises: :py:exc:`tiledb.TileDBError`
+    :return: None
+
     """
     import pandas as pd
 
@@ -500,29 +502,32 @@ def open_dataframe(uri):
 
 
 def from_csv(uri, csv_file, **kwargs):
-    """Create TileDB array at given URI from a CSV file
+    """
+    Create TileDB array at given URI from a CSV file or list of files
 
     :param uri: URI for new TileDB array
     :param csv_file: input CSV file or list of CSV files.
                      Note: multi-file ingestion requires a `chunksize` argument. Files will
                      be read in batches of at least `chunksize` rows before writing to the
                      TileDB array.
-    :param kwargs:
-                - Any pandas.read_csv supported keyword argument.
-                - TileDB-specific arguments:
-                    'allows_duplicates': Generated schema should allow duplicates
-                    'cell_order': Schema cell order
-                    'tile_order': Schema tile order
-                    'mode': (default 'ingest'), Ingestion mode: 'ingest', 'schema_only', 'append'
-                    'full_domain': Dimensions should be created with full range of the dtype
-                    'attrs_filters': FilterList to apply to all Attributes
-                    'coords_filters': FilterList to apply to all coordinates (Dimensions)
-                    'sparse': (default True) Create sparse schema
-                    'tile': Schema tiling (capacity)
-                    'date_spec': Dictionary of {'column_name': format_spec} to apply to date/time
-                        columns which are not correctly inferred by pandas 'parse_dates'.
-                        Format must be specified using the Python format codes:
-                        https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
+
+    :Keyword Arguments:
+        - Any ``pandas.read_csv`` supported keyword argument.
+        - TileDB-specific arguments:
+            * ``allows_duplicates``: Generated schema should allow duplicates
+            * ``cell_order``: Schema cell order
+            * ``tile_order``: Schema tile order
+            * ``mode``: (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``,
+              ``append``
+            * ``full_domain``: Dimensions should be created with full range of the dtype
+            * ``attrs_filters``: FilterList to apply to all Attributes
+            * ``coords_filters``: FilterList to apply to all coordinates (Dimensions)
+            * ``sparse``: (default True) Create sparse schema
+            * ``tile``: Schema tiling (capacity)
+            * ``date_spec``: Dictionary of {``column_name``: format_spec} to apply to date/time
+              columns which are not correctly inferred by pandas 'parse_dates'.
+              Format must be specified using the Python format codes:
+              https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
     :return: None
 
     **Example:**

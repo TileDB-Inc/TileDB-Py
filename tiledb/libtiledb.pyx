@@ -136,11 +136,15 @@ def regularize_tiling(tile, ndim):
 def schema_like(*args, shape=None, dtype=None, ctx=None, **kw):
     """
     Return an ArraySchema corresponding to a NumPy-like object or
-    a `shape` and `dtype`. Users are encouraged to pass 'tile' and
-    'capacity' keyword arguments as appropriate for a given
+    `shape` and `dtype` kwargs. Users are encouraged to pass 'tile'
+    and 'capacity' keyword arguments as appropriate for a given
     application.
 
-    :param T: NumPy array or TileDB URI
+    :param A: NumPy array-like object, or TileDB reference URI, optional
+    :param tuple shape: array shape, optional
+    :param dtype: array dtype, optional
+    :param Ctx ctx: TileDB Ctx
+    :param kwargs: additional keyword arguments to pass through, optional
     :return: tiledb.ArraySchema
     """
     if not ctx:
@@ -186,6 +190,9 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kw):
     return schema
 
 def schema_like_numpy(array, ctx=None, **kw):
+    """create array schema from Numpy array-like object
+    internal function. tiledb.schema_like is exported and recommended
+    """
     if not ctx:
         ctx = default_ctx()
     # create an ArraySchema from the numpy array object
@@ -492,7 +499,7 @@ def stats_reset():
     tiledb.core.init_stats()
 
 def stats_dump():
-    """Prints all TileDB internal statistics values to standard output."""
+    """Print all TileDB internal statistics values to standard output."""
     tiledb_stats_dump(stdout)
 
     import tiledb.core
@@ -519,12 +526,16 @@ cdef bytes unicode_path(object path):
 
 
 def safe_repr(obj):
+    """repr an object, without raising exception. Return placeholder string on failure"""
+
     try:
         return repr(obj)
     except:
         return "<repr failed>"
 
 def dtype_range(np.dtype dtype):
+    """Return the range of a Numpy dtype"""
+
     if np.issubdtype(dtype, np.integer):
         info = np.iinfo(dtype)
         dtype_min, dtype_max = info.min, info.max
@@ -968,15 +979,14 @@ cdef class Ctx(object):
         self._set_default_tags()
 
     def config(self):
-        """Returns the Config instance associated with the Ctx
-        """
+        """Returns the Config instance associated with the Ctx."""
         cdef tiledb_config_t* config_ptr = NULL
         check_error(self,
                     tiledb_ctx_get_config(self.ptr, &config_ptr))
         return Config.from_ptr(config_ptr)
 
     def set_tag(self, key, value):
-        """Sets a string:string "tag" on the Ctx"""
+        """Sets a (string, string) "tag" on the Ctx (internal)."""
         cdef tiledb_ctx_t* ctx_ptr = self.ptr
         bkey = key.encode('UTF-8')
         bvalue = value.encode('UTF-8')
@@ -1024,7 +1034,10 @@ cdef bint _tiledb_type_is_datetime(tiledb_datatype_t tiledb_type) except? False:
 
 
 def _tiledb_type_to_datetime(tiledb_datatype_t tiledb_type):
-    """Return a datetime64 with appropriate unit for the given tiledb_datetype_t enum value"""
+    """
+    Return a datetime64 with appropriate unit for the given
+    tiledb_datetype_t enum value
+    """
     if tiledb_type == TILEDB_DATETIME_YEAR:
         return np.datetime64('', 'Y')
     elif tiledb_type == TILEDB_DATETIME_MONTH:
@@ -1053,7 +1066,6 @@ def _tiledb_type_to_datetime(tiledb_datatype_t tiledb_type):
         return np.datetime64('', 'as')
     else:
         raise TypeError("tiledb type is not a datetime {0!r}".format(tiledb_type))
-
 
 cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DATETIME_YEAR:
     """Return tiledb_datetype_t enum value for a given np.datetime64 dtype"""
@@ -1093,9 +1105,7 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
 
 
 def _tiledb_cast_tile_extent(tile_extent, dtype):
-    """
-    Given a tile extent value, cast it to np.array of the given numpy dtype.
-    """
+    """Given a tile extent value, cast it to np.array of the given numpy dtype."""
     # Special handling for datetime domains
     if dtype.kind == 'M':
         date_unit = np.datetime_data(dtype)[0]
@@ -1113,9 +1123,7 @@ def _tiledb_cast_tile_extent(tile_extent, dtype):
 
 
 cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
-    """
-    Return a numpy type num (int) given a tiledb_datatype_t enum value
-    """
+    """Return a numpy type num (int) given a tiledb_datatype_t enum value."""
     if tiledb_dtype == TILEDB_INT32:
         return np.NPY_INT32
     elif tiledb_dtype == TILEDB_UINT32:
@@ -1146,9 +1154,7 @@ cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
         return np.NPY_NOTYPE
 
 cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
-    """
-    Return a numpy type given a tiledb_datatype_t enum value
-    """
+    """Return a numpy type given a tiledb_datatype_t enum value."""
     cdef base_dtype
     cdef uint32_t cell_val_num = cell_size
 
@@ -1221,9 +1227,7 @@ cdef _numpy_scalar(tiledb_datatype_t typ, void* data, uint64_t nbytes):
 """
 
 cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
-    """
-    Return the tiledb_layout_t enum value given a layout string label
-    """
+    """Return the tiledb_layout_t enum value given a layout string label."""
     if order == "row-major" or order == 'C':
         return TILEDB_ROW_MAJOR
     elif order == "col-major" or order == 'F':
@@ -1293,9 +1297,11 @@ cdef class Filter(object):
         return True
 
 cdef class CompressionFilter(Filter):
-    """Base class for filters performing compression.
+    """
+    Base class for filters performing compression.
 
-    All compression filters support a compression level option, although some (such as RLE) ignore it.
+    All compression filters support a compression level option, although
+    some (such as RLE) ignore it.
 
     **Example:**
 
@@ -1343,9 +1349,7 @@ cdef class CompressionFilter(Filter):
 
 
 cdef class NoOpFilter(Filter):
-    """
-    A filter that does nothing.
-    """
+    """A filter that does nothing."""
 
     @staticmethod
     cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
@@ -1367,7 +1371,8 @@ cdef class NoOpFilter(Filter):
         return {}
 
 cdef class GzipFilter(CompressionFilter):
-    """Filter that compresses using gzip.
+    """
+    Filter that compresses using gzip.
 
     :param ctx: TileDB Ctx
     :type ctx: tiledb.Ctx
@@ -1406,7 +1411,8 @@ cdef class GzipFilter(CompressionFilter):
         return {'level': self.level}
 
 cdef class ZstdFilter(CompressionFilter):
-    """Filter that compresses using zstd.
+    """
+    Filter that compresses using zstd.
 
     :param ctx: TileDB Ctx
     :type ctx: tiledb.Ctx
@@ -1445,7 +1451,8 @@ cdef class ZstdFilter(CompressionFilter):
         return {'level': self.level}
 
 cdef class LZ4Filter(CompressionFilter):
-    """Filter that compresses using lz4.
+    """
+    Filter that compresses using lz4.
 
     :param ctx: TileDB Ctx
     :type ctx: tiledb.Ctx
@@ -1484,7 +1491,8 @@ cdef class LZ4Filter(CompressionFilter):
         return {'level': self.level}
 
 cdef class Bzip2Filter(CompressionFilter):
-    """Filter that compresses using bzip2.
+    """
+    Filter that compresses using bzip2.
 
     :param level: (default None) If not None set the compressor level
     :type level: int
@@ -1521,7 +1529,8 @@ cdef class Bzip2Filter(CompressionFilter):
         return {'level': self.level}
 
 cdef class RleFilter(CompressionFilter):
-    """Filter that compresses using run-length encoding (RLE).
+    """
+    Filter that compresses using run-length encoding (RLE).
 
     **Example:**
 
@@ -1555,7 +1564,8 @@ cdef class RleFilter(CompressionFilter):
         return {}
 
 cdef class DoubleDeltaFilter(CompressionFilter):
-    """Filter that performs double-delta encoding.
+    """
+    Filter that performs double-delta encoding.
 
     **Example:**
 
@@ -1589,7 +1599,8 @@ cdef class DoubleDeltaFilter(CompressionFilter):
         return {}
 
 cdef class BitShuffleFilter(Filter):
-    """Filter that performs a bit shuffle transformation.
+    """
+    Filter that performs a bit shuffle transformation.
 
     **Example:**
 
@@ -1623,7 +1634,8 @@ cdef class BitShuffleFilter(Filter):
         return {}
 
 cdef class ByteShuffleFilter(Filter):
-    """Filter that performs a byte shuffle transformation.
+    """
+    Filter that performs a byte shuffle transformation.
 
     **Example:**
 
@@ -1721,7 +1733,8 @@ cdef class BitWidthReductionFilter(Filter):
 
 
 cdef class PositiveDeltaFilter(Filter):
-    """Filter that performs positive-delta encoding.
+    """
+    Filter that performs positive-delta encoding.
 
     :param ctx: A TileDB Context
     :type ctx: tiledb.Ctx
@@ -1783,7 +1796,11 @@ cdef class PositiveDeltaFilter(Filter):
             _raise_ctx_err(ctx_ptr, rc)
         return int(cwindow)
 
-cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type, tiledb_filter_t* filter_ptr):
+cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type,
+                                       tiledb_filter_t* filter_ptr):
+    """
+    Return a filter instance for the given type.
+    """
     if filter_type == TILEDB_FILTER_NONE:
         return NoOpFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_GZIP:
@@ -1811,7 +1828,8 @@ cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type
 
 
 cdef class FilterList(object):
-    """An ordered list of Filter objects for filtering TileDB data.
+    """
+    An ordered list of Filter objects for filtering TileDB data.
 
     FilterLists contain zero or more Filters, used for filtering attribute data, the array coordinate data, etc.
 
@@ -1839,25 +1857,6 @@ cdef class FilterList(object):
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
-
-    def __cint__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr != NULL:
-            tiledb_filter_list_free(&self.ptr)
-
-    @staticmethod
-    cdef FilterList from_ptr(tiledb_filter_list_t* ptr, Ctx ctx=None):
-        if not ctx:
-            ctx = default_ctx()
-        assert(ptr != NULL)
-        cdef FilterList filter_list = FilterList.__new__(FilterList)
-        filter_list.ctx = ctx
-        # need to cast away the const
-        filter_list.ptr = <tiledb_filter_list_t*> ptr
-        return filter_list
-
     def __init__(self, filters=None, chunksize=None, Ctx ctx=None):
         if not ctx:
             ctx = default_ctx()
@@ -1896,6 +1895,24 @@ cdef class FilterList(object):
                 tiledb_filter_list_free(&filter_list_ptr)
         self.ctx = ctx
         self.ptr = filter_list_ptr
+
+    def __cint__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_filter_list_free(&self.ptr)
+
+    @staticmethod
+    cdef FilterList from_ptr(tiledb_filter_list_t* ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        assert(ptr != NULL)
+        cdef FilterList filter_list = FilterList.__new__(FilterList)
+        filter_list.ctx = ctx
+        # need to cast away the const
+        filter_list.ptr = <tiledb_filter_list_t*> ptr
+        return filter_list
 
     def __repr__(self):
         output = StringIO()
@@ -2624,6 +2641,10 @@ cdef class Domain(object):
         return (self.dim(i) for i in range(self.ndim))
 
     def __eq__(self, other):
+        """Returns true if Domain is equal to self.
+
+        :rtype: bool
+        """
         if not isinstance(other, Domain):
             return False
 
@@ -2763,7 +2784,10 @@ def index_as_tuple(idx):
 
 
 def replace_ellipsis(ndim: int, idx: tuple):
-    """Replace indexing ellipsis object with slice objects to match the number of dimensions"""
+    """
+    Replace indexing ellipsis object with slice objects to match the number
+    of dimensions.
+    """
     # count number of ellipsis
     n_ellip = sum(1 for i in idx if i is Ellipsis)
     if n_ellip > 1:
@@ -2928,77 +2952,24 @@ cdef class ArraySchema(object):
     """
     Schema class for TileDB dense / sparse array representations
 
-    :param attrs: one or more array attributes
+    :param domain: Domain of schema
     :type attrs: tuple(tiledb.Attr, ...)
     :param cell_order:  TileDB label for cell layout
-    :type cell_order: 'row-major' or 'C', 'col-major' or 'F'
+    :type cell_order: 'row-major' (default) or 'C', 'col-major' or 'F'
     :param tile_order:  TileDB label for tile layout
-    :type tile_order: 'row-major' or 'C', 'col-major' or 'F', 'unordered'
+    :type tile_order: 'row-major' (default) or 'C', 'col-major' or 'F'
     :param int capacity: tile cell capacity
     :param coords_filters: (default None) coordinate filter list
     :type coords_filters: tiledb.FilterList
     :param offsets_filters: (default None) offsets filter list
     :type offsets_filters: tiledb.FilterList
-    :param bool allow_duplicates: True if duplicates are allowed
+    :param bool allows_duplicates: True if duplicates are allowed
     :param bool sparse: True if schema is sparse, else False \
         (set by SparseArray and DenseArray derived classes)
-    :raises TypeError: cannot convert uri to unicode string
-    :raises: :py:exc:`tiledb.TileDBError`
     :param tiledb.Ctx ctx: A TileDB Context
+    :raises: :py:exc:`tiledb.TileDBError`
 
     """
-
-    def __cinit__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr != NULL:
-            tiledb_array_schema_free(&self.ptr)
-
-    @staticmethod
-    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=None):
-        """
-        Constructs a ArraySchema class instance from a
-        Ctx and tiledb_array_schema_t pointer
-        """
-        if not ctx:
-            ctx = default_ctx()
-        cdef ArraySchema schema = ArraySchema.__new__(ArraySchema)
-        schema.ctx = ctx
-        # cast away const
-        schema.ptr = <tiledb_array_schema_t*> schema_ptr
-        return schema
-
-    @staticmethod
-    def load(uri, Ctx ctx=None, key=None):
-        if not ctx:
-            ctx = default_ctx()
-        cdef bytes buri = uri.encode('UTF-8')
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        cdef tiledb_array_schema_t* array_schema_ptr = NULL
-        # encryption key
-        cdef bytes bkey
-        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        cdef void* key_ptr = NULL
-        cdef unsigned int key_len = 0
-        if key is not None:
-            if isinstance(key, str):
-                bkey = key.encode('ascii')
-            else:
-                bkey = bytes(key)
-            key_type = TILEDB_AES_256_GCM
-            key_ptr = <void *> PyBytes_AS_STRING(bkey)
-            #TODO: unsafe cast here ssize_t -> uint64_t
-            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_array_schema_load_with_key(
-                ctx_ptr, uri_ptr, key_type, key_ptr, key_len, &array_schema_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        return ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
-
     def __init__(self,
                  domain=None,
                  attrs=(),
@@ -3085,7 +3056,59 @@ cdef class ArraySchema(object):
         self.ctx = ctx
         self.ptr = schema_ptr
 
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_array_schema_free(&self.ptr)
+
+    @staticmethod
+    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=None):
+        """
+        Constructs a ArraySchema class instance from a
+        Ctx and tiledb_array_schema_t pointer
+        """
+        if not ctx:
+            ctx = default_ctx()
+        cdef ArraySchema schema = ArraySchema.__new__(ArraySchema)
+        schema.ctx = ctx
+        # cast away const
+        schema.ptr = <tiledb_array_schema_t*> schema_ptr
+        return schema
+
+    @staticmethod
+    def load(uri, Ctx ctx=None, key=None):
+        if not ctx:
+            ctx = default_ctx()
+        cdef bytes buri = uri.encode('UTF-8')
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_array_schema_t* array_schema_ptr = NULL
+        # encryption key
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_schema_load_with_key(
+                ctx_ptr, uri_ptr, key_type, key_ptr, key_len, &array_schema_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
+
     def __eq__(self, other):
+        """Instance is equal to another ArraySchema"""
         if not isinstance(other, ArraySchema):
             return False
         nattr = self.nattr
@@ -3396,6 +3419,7 @@ cdef class ArrayPtr(object):
     cdef tiledb_array_t* ptr
 
 cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=None):
+    """Open array URI without constructing specific type of Array object (internal)."""
     if not ctx:
         ctx = default_ctx()
     # ctx
@@ -3456,135 +3480,19 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=None):
 cdef class Array(object):
     """Base class for TileDB array objects.
 
-    Defines common properties/functionality for the different array types. When an Array instance is initialized,
-    the array is opened with the specified mode.
+    Defines common properties/functionality for the different array types. When
+    an Array instance is initialized, the array is opened with the specified mode.
 
     :param str uri: URI of array to open
     :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
     :param str key: (default None) If not None, encryption key to decrypt the array
     :param int timestamp: (default None) If not None, open the array at a given TileDB timestamp
+    :param str attr: (default None) open one attribute of the array; indexing a
+        dense array will return a Numpy ndarray directly rather than a dictionary.
     :param Ctx ctx: TileDB context
     """
-
-    def __cinit__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr != NULL:
-            tiledb_array_free(&self.ptr)
-
-    def __capsule__(self):
-        if self.ptr == NULL:
-            raise TileDBError("internal error: cannot create capsule for uninitialized Ctx!")
-        cdef const char* name = "ctx"
-        cap = PyCapsule_New(<void *>(self.ptr), name, NULL)
-        return cap
-
-    def _ctx_(self) -> Ctx:
-        """
-        Get Ctx object associated with the array. This method
-        exists primarily for serialization.
-
-        :return: Ctx object associated with array.
-        """
-        return self.ctx
-
-    @classmethod
-    def create(cls, uri, ArraySchema schema, key=None, Ctx ctx=None):
-        """Creates a persistent TileDB Array at the given URI
-
-        :param str uri: URI at which to create the new empty array.
-        :param ArraySchema schema: Schema for the array
-        :param str key: (default None) Encryption key to use for array
-        :param ctx Ctx: (default None) Optional TileDB Ctx used when creating the array,
-                        by default uses the ArraySchema's associated context.
-        """
-        if issubclass(cls, DenseArrayImpl) and schema.sparse:
-            raise ValueError("Array.create `schema` argument must be a dense schema for DenseArray and subclasses")
-        if issubclass(cls, SparseArrayImpl) and not schema.sparse:
-            raise ValueError("Array.create `schema` argument must be a sparse schema for SparseArray and subclasses")
-
-        cdef tiledb_ctx_t* ctx_ptr = schema.ctx.ptr
-        cdef bytes buri = unicode_path(uri)
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        cdef tiledb_array_schema_t* schema_ptr = schema.ptr
-
-        cdef bytes bkey
-        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        cdef void* key_ptr = NULL
-        cdef unsigned int key_len = 0
-
-        if key is not None:
-            if isinstance(key, str):
-                bkey = key.encode('ascii')
-            else:
-                bkey = bytes(key)
-            key_type = TILEDB_AES_256_GCM
-            key_ptr = <void *> PyBytes_AS_STRING(bkey)
-            #TODO: unsafe cast here ssize_t -> uint64_t
-            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-
-        if ctx is not None:
-            ctx_ptr = ctx.ptr
-
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_array_create_with_key(ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        return
-
-    @staticmethod
-    def load_typed(uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=None):
-        if not ctx:
-            ctx = default_ctx()
-        cdef int32_t rc = TILEDB_OK
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-        cdef tiledb_array_schema_t* schema_ptr = NULL
-        cdef tiledb_array_type_t array_type
-        cdef Array new_array
-        cdef object new_array_typed
-
-        # *** preload_array owns array_ptr until it returns ***
-        #     and will free array_ptr upon exception
-        cdef ArrayPtr tmp_array = preload_array(uri, mode, key, timestamp, ctx)
-        assert tmp_array.ptr != NULL, "Internal error, array loading return nullptr"
-        cdef tiledb_array_t* array_ptr = tmp_array.ptr
-        # *** now we own array_ptr -- free in the try..except clause ***
-        try:
-            rc = tiledb_array_get_schema(ctx_ptr, array_ptr, &schema_ptr)
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
-
-            rc = tiledb_array_schema_get_array_type(ctx_ptr, schema_ptr, &array_type)
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
-
-            if array_type == TILEDB_DENSE:
-                new_array_typed = DenseArray.__new__(DenseArray)
-            else:
-                new_array_typed = SparseArray.__new__(SparseArray)
-
-        except:
-            tiledb_array_free(&array_ptr)
-            raise
-
-        # *** this assignment must happen outside the try block ***
-        # *** because the array destructor will free array_ptr  ***
-        # note: must use the immediate form `(<cast>x).m()` here
-        #       do not assign a temporary Array object
-        if array_type == TILEDB_DENSE:
-            (<DenseArrayImpl>new_array_typed).ptr = array_ptr
-            (<DenseArrayImpl>new_array_typed)._isopen = True
-        else:
-            (<SparseArrayImpl>new_array_typed).ptr = array_ptr
-            (<SparseArrayImpl>new_array_typed)._isopen = True
-        # *** new_array_typed now owns array_ptr ***
-
-        new_array_typed.__init__(uri, mode=mode, key=key, timestamp=timestamp, attr=attr, ctx=ctx)
-        return new_array_typed
-
-    def __init__(self, uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=None):
+    def __init__(self, uri, mode='r', key=None, timestamp=None,
+                 attr=None, Ctx ctx=None):
         if not ctx:
             ctx = default_ctx()
         # ctx
@@ -3636,6 +3544,130 @@ cdef class Array(object):
         self.last_fragment_info = dict()
         self.meta = Metadata(self)
 
+
+
+    def __cinit__(self):
+        self.ptr = NULL
+
+    def __dealloc__(self):
+        if self.ptr != NULL:
+            tiledb_array_free(&self.ptr)
+
+    def __capsule__(self):
+        if self.ptr == NULL:
+            raise TileDBError("internal error: cannot create capsule for uninitialized Ctx!")
+        cdef const char* name = "ctx"
+        cap = PyCapsule_New(<void *>(self.ptr), name, NULL)
+        return cap
+
+    def _ctx_(self) -> Ctx:
+        """
+        Get Ctx object associated with the array (internal).
+        This method exists for serialization.
+
+        :return: Ctx object used to open the array.
+        :rtype: Ctx
+        """
+        return self.ctx
+
+    @classmethod
+    def create(cls, uri, ArraySchema schema, key=None, Ctx ctx=None):
+        """Creates a TileDB Array at the given URI
+
+        :param str uri: URI at which to create the new empty array.
+        :param ArraySchema schema: Schema for the array
+        :param str key: (default None) Encryption key to use for array
+        :param ctx Ctx: (default None) Optional TileDB Ctx used when creating the array,
+                        by default uses the ArraySchema's associated context
+                        (*not* necessarily ``tiledb.default_ctx``).
+
+        """
+        if issubclass(cls, DenseArrayImpl) and schema.sparse:
+            raise ValueError("Array.create `schema` argument must be a dense schema for DenseArray and subclasses")
+        if issubclass(cls, SparseArrayImpl) and not schema.sparse:
+            raise ValueError("Array.create `schema` argument must be a sparse schema for SparseArray and subclasses")
+
+        cdef tiledb_ctx_t* ctx_ptr = schema.ctx.ptr
+        cdef bytes buri = unicode_path(uri)
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_array_schema_t* schema_ptr = schema.ptr
+
+        cdef bytes bkey
+        cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        cdef void* key_ptr = NULL
+        cdef unsigned int key_len = 0
+
+        if key is not None:
+            if isinstance(key, str):
+                bkey = key.encode('ascii')
+            else:
+                bkey = bytes(key)
+            key_type = TILEDB_AES_256_GCM
+            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            #TODO: unsafe cast here ssize_t -> uint64_t
+            key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+
+        if ctx is not None:
+            ctx_ptr = ctx.ptr
+
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_array_create_with_key(ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return
+
+    @staticmethod
+    def load_typed(uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=None):
+        """Return a {Dense,Sparse}Array instance from a pre-opened Array (internal)"""
+        if not ctx:
+            ctx = default_ctx()
+        cdef int32_t rc = TILEDB_OK
+        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef tiledb_array_schema_t* schema_ptr = NULL
+        cdef tiledb_array_type_t array_type
+        cdef Array new_array
+        cdef object new_array_typed
+
+        # *** preload_array owns array_ptr until it returns ***
+        #     and will free array_ptr upon exception
+        cdef ArrayPtr tmp_array = preload_array(uri, mode, key, timestamp, ctx)
+        assert tmp_array.ptr != NULL, "Internal error, array loading return nullptr"
+        cdef tiledb_array_t* array_ptr = tmp_array.ptr
+        # *** now we own array_ptr -- free in the try..except clause ***
+        try:
+            rc = tiledb_array_get_schema(ctx_ptr, array_ptr, &schema_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_array_schema_get_array_type(ctx_ptr, schema_ptr, &array_type)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            if array_type == TILEDB_DENSE:
+                new_array_typed = DenseArray.__new__(DenseArray)
+            else:
+                new_array_typed = SparseArray.__new__(SparseArray)
+
+        except:
+            tiledb_array_free(&array_ptr)
+            raise
+
+        # *** this assignment must happen outside the try block ***
+        # *** because the array destructor will free array_ptr  ***
+        # note: must use the immediate form `(<cast>x).m()` here
+        #       do not assign a temporary Array object
+        if array_type == TILEDB_DENSE:
+            (<DenseArrayImpl>new_array_typed).ptr = array_ptr
+            (<DenseArrayImpl>new_array_typed)._isopen = True
+        else:
+            (<SparseArrayImpl>new_array_typed).ptr = array_ptr
+            (<SparseArrayImpl>new_array_typed)._isopen = True
+        # *** new_array_typed now owns array_ptr ***
+
+        new_array_typed.__init__(uri, mode=mode, key=key, timestamp=timestamp, attr=attr, ctx=ctx)
+        return new_array_typed
+
     def __enter__(self):
         return self
 
@@ -3655,11 +3687,13 @@ cdef class Array(object):
         return
 
     def reopen(self, timestamp=None):
-        """Reopens this array.
+        """
+        Reopens this array.
 
         This is useful when the array is updated after it was opened.
-        To sync-up with the updates, the user must either close the array and open again, or just use ``reopen()``
-        without closing. Reopening will be generally faster than the former alternative.
+        To sync-up with the updates, the user must either close the array and open again,
+        or just use ``reopen()`` without closing. ``reopen`` will be generally faster than
+        a close-then-open.
         """
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
@@ -3678,6 +3712,11 @@ cdef class Array(object):
 
     @property
     def meta(self):
+        """
+        Return array metadata instance
+
+        :rtype: tiledb.Metadata
+        """
         return self.meta
 
     @property
@@ -3797,6 +3836,7 @@ cdef class Array(object):
         return self.schema.domain.dim(dim_id)
 
     def _nonempty_domain_var(self):
+        """Return nonempty domain for a var-length attribute (internal)."""
         cdef list results = list()
         cdef Domain dom = self.schema.domain
 
@@ -3864,7 +3904,8 @@ cdef class Array(object):
         """Return the minimum bounding domain which encompasses nonempty values.
 
         :rtype: tuple(tuple(numpy scalar, numpy scalar), ...)
-        :return: A list of (inclusive) domain extent tuples, that contain all nonempty cells
+        :return: A list of (inclusive) domain extent tuples, that contain all
+            nonempty cells
 
         """
         cdef Domain dom = self.schema.domain
@@ -3900,7 +3941,10 @@ cdef class Array(object):
                          for i in range(dom.ndim))
 
     def consolidate(self, Config config=None, key=None):
-        """Consolidates fragments of an array object for increased read performance.
+        """
+        Consolidates fragments of an array object for increased read performance.
+
+        Overview: https://docs.tiledb.com/main/basic-concepts/consolidation
 
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
         :param key: (default None) encryption key to decrypt an encrypted array
@@ -3930,6 +3974,49 @@ cdef class Array(object):
 
     @property
     def multi_index(self):
+        """Retrieve data cells with multi-range, domain-inclusive indexing. Returns
+        the cross-product of the ranges.
+
+        :param list selection: Per dimension, a scalar, ``slice``, or list of scalars
+            or ``slice`` objects. Scalars and ``slice`` components should match the
+            type of the underlying Dimension.
+        :returns: dict of {'attribute': result}. Coords are included by default for
+            Sparse arrays only (use `Array.query(coords=<>)` to select).
+        :raises IndexError: invalid or unsupported index selection
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        ``multi_index[]`` accepts, for each dimension, a scalar, ``slice``, or list
+        of scalars or ``slice`` objects. Each item is interpreted as a point
+        (scalar) or range (``slice``) used to query the array on the corresponding
+        dimension.
+
+        Unlike NumPy array indexing, ``multi_index`` respects TileDB's range semantics:
+        slice ranges are *inclusive* of the start- and end-point, and negative ranges
+        do not wrap around (because a TileDB dimensions may have a negative domain).
+
+        See also: https://docs.tiledb.com/main/api-usage/reading-arrays/multi-range-subarrays
+
+        ** Example **
+
+        >>> import tiledb, tempfile, numpy as np
+        >>>
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...    A = tiledb.DenseArray.from_numpy(tmp, np.eye(4) * [1,2,3,4])
+        ...    A.multi_index[1]
+        ...    A.multi_index[1,1]
+        ...    # return row 0 and 2
+        ...    A.multi_index[[0,2]]
+        ...    # return rows 0 and 2 intersecting column 2
+        ...    A.multi_index[[0,2], 2]
+        ...    # return rows 0:2 intersecting columns 0:2
+        ...    A.multi_index[slice(0,2), slice(0,2)]
+        OrderedDict([('', array([[0., 2., 0., 0.]]))])
+        OrderedDict([('', array([[2.]]))])
+        OrderedDict([('', array([[1., 0., 0., 0.], [0., 0., 3., 0.]]))])
+        OrderedDict([('', array([[0.], [3.]]))])
+        OrderedDict([('', array([[1., 0., 0.], [0., 2., 0.], [0., 0., 3.]]))])
+
+        """
         return self.multi_index
 
     @property
@@ -3953,6 +4040,7 @@ cdef class Query(object):
     Proxy object returned by query() to index into original array
     on a subselection of attribution in a defined layout order
 
+    See documentation of Array.query
     """
 
     def __init__(self, array, attrs=None, coords=False, order='C'):
@@ -3975,22 +4063,31 @@ cdef class Query(object):
 
     @property
     def attrs(self):
+        """List of attributes to include in Query."""
         return self.attrs
 
     @property
     def coords(self):
+        """
+        True if query should include (return) coordinate values.
+
+        :rtype: bool
+        """
         return self.coords
 
     @property
     def order(self):
+        """Return underlying Array order."""
         return self.order
 
     @property
     def domain_index(self):
+        """Apply Array.domain_index with query parameters."""
         return self.domain_index
 
     @property
     def multi_index(self):
+        """Apply Array.multi_index with query parameters."""
         return self.multi_index
 
 
@@ -4022,10 +4119,10 @@ cdef class DenseArrayImpl(Array):
         :param str uri: URI for the TileDB array resource
         :param numpy.ndarray array: dense numpy array to persist
         :param tiledb.Ctx ctx: A TileDB Context
-        :param \*\*kw: additional arguments to pass to the DenseArray constructor
+        :param \*\*kwargs: additional arguments to pass to the DenseArray constructor
         :rtype: tiledb.DenseArray
-        :return: A DenseArray with a single anonymous attribute
-        :raises TypeError: cannot convert `uri` to unicode string
+        :return: An open DenseArray (read mode) with a single anonymous attribute
+        :raises TypeError: cannot convert ``uri`` to unicode string
         :raises: :py:exc:`tiledb.TileDBError`
 
         **Example:**
@@ -4390,6 +4487,11 @@ cdef class DenseArrayImpl(Array):
         return
 
     def __array__(self, dtype=None, **kw):
+        """Implementation of numpy __array__ protocol (internal).
+
+        :return: Numpy ndarray resulting from indexing the entire array.
+
+        """
         if self.view_attr is None and self.nattr > 1:
             raise ValueError("cannot create numpy array from TileDB array with more than one attribute")
         cdef unicode name
@@ -4564,7 +4666,7 @@ def index_domain_coords(dom: Domain, idx: tuple):
     return idx
 
 cdef class SparseArrayImpl(Array):
-    """Class representing a sparse TileDB array.
+    """Class representing a sparse TileDB array (internal).
 
     Inherits properties and methods of :py:class:`tiledb.Array`.
     """
@@ -4916,7 +5018,8 @@ def consolidate(uri, key=None, Config config=None, Ctx ctx=None):
 
 
 def group_create(uri, Ctx ctx=None):
-    """Create a TileDB Group object at the specified path (URI)
+    """
+    Create a TileDB Group object at the specified path (URI)
 
     :param str uri: URI of the TileDB Group to be created
     :rtype: str
@@ -5683,8 +5786,7 @@ cdef class VFS(object):
             raise ValueError("unsupported vfs scheme '{0!s}://'".format(scheme))
 
     def config(self):
-        """Returns the Config instance associated with the VFS
-        """
+        """Returns the Config instance associated with the VFS."""
         cdef tiledb_config_t* config_ptr = NULL
         check_error(self.ctx,
                     tiledb_vfs_get_config(self.ctx.ptr, self.ptr, &config_ptr))
@@ -5834,12 +5936,22 @@ class FileIO(io.RawIOBase):
         self._offset += nbytes
         return nbytes
 
-def vacuum(array_uri, Config config=None, Ctx ctx=None):
+def vacuum(uri, Config config=None, Ctx ctx=None):
     """
-    Remove fragments. After consolidation, you may optionally
-    remove the consolidated fragments with the "vacuum" step. This operation
-    of this function is controlled by the `sm.vacuum.mode` parameter, which
-    accepts the values `fragments`, `fragment_meta`, and `array_meta`.
+    Consolidate underlying array fragments after multiple writes.
+
+    :param str uri: URI of array to be vacuumed
+    :param config: Override the context configuration for vacuuming.
+        Defaults to None, inheriting the context parameters.
+    :param (ctx: tiledb.Ctx, optional): Context. Defaults to
+        `tiledb.default_ctx()`.
+    :raises TypeError: cannot convert `uri` to unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    After consolidation, you may optionally remove the consolidated fragments
+    with the "vacuum" step. This operation of this function is controlled by
+    the ``sm.vacuum.mode`` parameter, which accepts the values ``fragments``,
+    ``fragment_meta``, and ``array_meta``.
 
     **Example:**
 
@@ -5861,14 +5973,6 @@ def vacuum(array_uri, Config config=None, Ctx ctx=None):
     >>> len(paths) # should now be 5 (3 base files + 2 fragment+ok files)
     5
 
-
-    :param str array_uri: URI of array to be vacuumed
-    :param config: Override the context configuration for vacuuming.
-        Defaults to None, inheriting the context parameters.
-    :param (ctx: tiledb.Ctx, optional): Context. Defaults to
-        `tiledb.default_ctx()`.
-    :raises TypeError: cannot convert `uri` to unicode string
-    :raises: :py:exc:`tiledb.TileDBError`
     """
     cdef tiledb_ctx_t* ctx_ptr = NULL
     cdef tiledb_config_t* config_ptr = NULL
@@ -5878,7 +5982,7 @@ def vacuum(array_uri, Config config=None, Ctx ctx=None):
 
     ctx_ptr = ctx.ptr
     config_ptr = config.ptr if config is not None else NULL
-    cdef bytes buri = unicode_path(array_uri)
+    cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
 
     tiledb_array_vacuum(ctx_ptr, uri_ptr, config_ptr)

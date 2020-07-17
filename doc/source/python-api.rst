@@ -21,6 +21,19 @@ There is also a submodule ``libtiledb`` which contains the necessary bindings to
    import tiledb
    tiledb.libtiledb.version()  # Native TileDB library version number
 
+Data import helpers
+-------------------
+
+.. autofunction:: tiledb.from_numpy
+.. autofunction:: tiledb.from_csv
+.. autofunction:: tiledb.from_pandas
+
+Auxiliary high-level functions
+------------------------------
+
+.. autofunction:: tiledb.open
+.. autofunction:: tiledb.empty_like
+
 Exceptions
 ----------
 
@@ -98,6 +111,7 @@ Array
    :members:
 
 .. autofunction:: tiledb.consolidate
+.. autofunction:: tiledb.vacuum
 
 Dense Array
 -----------
@@ -107,6 +121,7 @@ Dense Array
    
    .. automethod:: __getitem__(selection)
    .. automethod:: __setitem__(selection, value)
+   .. automethod:: from_numpy(uri, array, ctx=None, **kwargs)
 
 Sparse Array
 ------------
@@ -120,6 +135,7 @@ Sparse Array
 Object Management
 -----------------
 
+.. autofunction:: tiledb.array_exists
 .. autofunction:: tiledb.group_create
 .. autofunction:: tiledb.object_type
 .. autofunction:: tiledb.remove
