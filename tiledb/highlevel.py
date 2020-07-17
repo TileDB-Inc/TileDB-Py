@@ -2,6 +2,7 @@ import tiledb
 from tiledb.libtiledb import *
 
 import numpy as np
+import warnings
 
 def open(uri, mode='r', key=None, attr=None, config=None, ctx=None):
     """
@@ -12,7 +13,7 @@ def open(uri, mode='r', key=None, attr=None, config=None, ctx=None):
     :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
     :param attr: attribute name to select from a multi-attribute array, str or None
     :param config: TileDB config dictionary, dict or None
-    :return:
+    :return: open TileDB {Sparse,Dense}Array object
     """
     if ctx and config:
       raise ValueError("Received extra Ctx or Config argument: either one may be provided, but not both")
@@ -47,21 +48,24 @@ def save(uri, array, config=None, **kw):
     return tiledb.from_numpy(uri, array, ctx=ctx)
 
 
-def empty_like(uri, arr, config=None, key=None, tile=None):
+def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None):
     """
     Create and return an empty, writeable DenseArray with schema based on
     a NumPy-array like object.
 
-    :param uri:
+    :param uri: array URI
     :param arr: NumPy ndarray, or shape tuple
-    :param ctx:
-    :param kw:
+    :param config: (optional, deprecated) configuration to apply to *new* Ctx
+    :param key: (optional) encryption key, if applicable
+    :param tile: (optional) tiling of generated array
+    :param ctx: (optional) TileDB Ctx
     :return:
     """
-    if config:
+    if config is not None:
+        warnings.warn(DeprecationWarning("'config' keyword argument is deprecated; use 'ctx'"))
         cfg = tiledb.Config(config)
         ctx = tiledb.Ctx(cfg)
-    else:
+    elif ctx is None:
         ctx = default_ctx()
 
     if arr is ArraySchema:

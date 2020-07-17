@@ -14,6 +14,10 @@ Typical usage of the Python interface to TileDB will use the top-level module ``
 
    import tiledb
 
+Arrays may be opened with the ``tiledb.open`` function:
+
+.. autofunction:: tiledb.open
+
 There is also a submodule ``libtiledb`` which contains the necessary bindings to the underlying TileDB native library. Most of the time you will not need to interact with ``tiledb.libtiledb`` unless you need native-library specific information, e.g. the version number:
 
 .. code-block:: python
@@ -27,12 +31,6 @@ Data import helpers
 .. autofunction:: tiledb.from_numpy
 .. autofunction:: tiledb.from_csv
 .. autofunction:: tiledb.from_pandas
-
-Auxiliary high-level functions
-------------------------------
-
-.. autofunction:: tiledb.open
-.. autofunction:: tiledb.empty_like
 
 Exceptions
 ----------
@@ -57,6 +55,8 @@ Array Schema
 
 .. autoclass:: tiledb.ArraySchema
    :members:
+
+.. autofunction:: tiledb.empty_like
 
 Attribute
 ---------
