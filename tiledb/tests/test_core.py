@@ -16,6 +16,10 @@ class CoreCCTest(DiskTestCase):
             pass
 
         with tiledb.open(uri) as a:
+            with self.assertRaises(ValueError):
+                testctx = tiledb.Ctx(config={'py.init_buffer_bytes': 'abcd'})
+                core.PyQuery(testctx, a, ("",), False, 0)
+
             q = core.PyQuery(ctx, a, ("",), False, 0)
 
             try:

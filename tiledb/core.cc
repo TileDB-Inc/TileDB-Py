@@ -269,7 +269,7 @@ public:
           std::stoull(tmp_str);
       } catch (const std::invalid_argument &e) {
         (void)e;
-        throw TileDBError("Failed to convert 'py.init_buffer_bytes' to uint64_t ('" + tmp_str + "')");
+        throw std::invalid_argument("Failed to convert 'py.init_buffer_bytes' to uint64_t ('" + tmp_str + "')");
       }
     }
 
@@ -280,7 +280,7 @@ public:
           std::stoull(tmp_str);
       } catch (const std::invalid_argument &e) {
         (void)e;
-        throw TileDBError("Failed to convert 'py.exp_alloc_max_bytes' to uint64_t ('" + tmp_str + "')");
+        throw std::invalid_argument("Failed to convert 'py.exp_alloc_max_bytes' to uint64_t ('" + tmp_str + "')");
       }
     }
 
@@ -291,7 +291,7 @@ public:
       } else if (tmp_str == "false") {
         deduplicate_ = false;
       } else {
-        throw TileDBError("Failed to convert configuration 'py.deduplicate' to bool ('" + tmp_str + "')");
+        throw std::invalid_argument("Failed to convert configuration 'py.deduplicate' to bool ('" + tmp_str + "')");
       }
     }
 
