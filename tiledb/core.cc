@@ -883,9 +883,8 @@ PYBIND11_MODULE(core, m) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
     } catch (const tiledb::TileDBError &e) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
-    } catch (std::exception &e) {
-      auto tmp_errstr = std::string("pybind untranslated std::exception: '") + std::string(e.what()) + "', '" + std::string(typeid(e).name()) + "'";
-      PyErr_SetString(tiledb_py_error.ptr(), tmp_errstr.c_str());
+    } catch (std::runtime_error &e) {
+      std::cout << "unexpected runtime_error: " << e.what() << std::endl;
     }
   });
 }
