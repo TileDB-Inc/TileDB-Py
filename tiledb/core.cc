@@ -35,7 +35,7 @@ using namespace pybind11::literals;
   throw TileDBPyError(std::string(m) + " (" + __FILE__ + ":" +                 \
                       std::to_string(__LINE__) + ")");
 
-const uint64_t DEFAULT_INIT_BUFFER_BYTES = 1310720 * 8;
+const uint64_t DEFAULT_INIT_BUFFER_BYTES = 13107200 * 8;
 const uint64_t DEFAULT_EXP_ALLOC_MAX_BYTES = uint64_t(4 * pow(2, 30));
 
 class TileDBPyError : std::runtime_error {
