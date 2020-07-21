@@ -1,11 +1,14 @@
 global-exclude .gitignore
 
 exclude MANIFEST.in
+exclude .dockerignore
 exclude .readthedocs.yml
 exclude .travis.yml
+exclude azure-pipelines.yml
+exclude misc/azure-*.yml
 exclude requirements_dev.txt
 exclude tox.ini
 
-include README.rst
+include README.md
 
 prune doc
