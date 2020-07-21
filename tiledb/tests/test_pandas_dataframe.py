@@ -212,7 +212,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         csv_array_uri = os.path.join(uri, "tiledb_csv")
         tiledb.from_csv(csv_array_uri, csv_uri, index_col = 0, parse_dates=[1], sparse=False)
 
-        df_from_array = tiledb.open_dataframe(csv_array_uri)
+        ctx = tiledb.default_ctx()
+        df_from_array = tiledb.open_dataframe(csv_array_uri, ctx=ctx)
         tm.assert_frame_equal(df_orig, df_from_array)
 
         # Test reading via TileDB VFS. The main goal is to support reading

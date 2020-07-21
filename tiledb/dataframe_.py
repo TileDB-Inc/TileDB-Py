@@ -442,7 +442,7 @@ def from_pandas(uri, dataframe, **kwargs):
             A.close()
 
 
-def open_dataframe(uri):
+def open_dataframe(uri, ctx=None):
     """Open TileDB array at given URI as a Pandas dataframe
 
     If the array was saved using tiledb.from_dataframe, then columns
@@ -464,9 +464,12 @@ def open_dataframe(uri):
 
     import pandas as pd
 
+    if ctx is None:
+        ctx = tiledb.default_ctx()
+
     # TODO support `distributed=True` option?
 
-    with tiledb.open(uri) as A:
+    with tiledb.open(uri, ctx=ctx) as A:
         #if not '__pandas_attribute_repr' in A.meta \
         #    and not '__pandas_repr' in A.meta:
         #    raise ValueError("Missing required keys to reload overloaded dataframe dtypes")
