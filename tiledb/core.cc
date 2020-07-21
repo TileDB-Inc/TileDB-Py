@@ -17,8 +17,8 @@
 
 #include <tiledb/tiledb> // C++
 
-#include "deps/string_view.hpp"
-#include "deps/tsl/robin_map.h"
+#include "../external/string_view.hpp"
+#include "../external/tsl/robin_map.h"
 
 #if !defined(NDEBUG)
 #include "debug.cc"
