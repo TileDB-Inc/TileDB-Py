@@ -1,3 +1,12 @@
+# TileDB-Py 0.6.6 Release Notes
+
+**Note that we will be removing wheel support for macOS 10.9-10.12 in TileDB-Py 0.7 (planned for release in August 2020).** This change is due to upstream (AWS SDK) minimum version requirements. The minimum supported version for macOS wheels on PyPI will be macOS 10.13.
+
+**Note that we will be removing support for [manylinux1](https://github.com/pypa/manylinux/tree/manylinux1) wheels in TileDB-Py 0.7 (planned for release in August 2020).** manylinux1 is based on CentOS5, which has been unsupported for several years. We now provide wheels built with [manylinux2010](https://www.python.org/dev/peps/pep-0571/), which is based on CentOS6 / glibc 2.12.
+
+## Improvements
+* Bump release target to [TileDB 2.0.7](https://github.com/TileDB-Inc/TileDB/releases/tag/2.0.7)
+
 # TileDB-Py 0.6.5 Release Notes
 
 We have added manylinux2010 wheels, corresponding to CentOS6 / glibc 2.12.
