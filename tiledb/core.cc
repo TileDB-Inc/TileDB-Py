@@ -670,15 +670,16 @@ public:
 
       update_read_elem_num();
 
-      for (auto bp : buffers_) {
+      for (auto &bp : buffers_) {
         auto buf = bp.second;
 
-        if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) > (buf.data.nbytes() + 1) / 2) {
+        // Check if values buffer should be resized
+        if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) > (buf.data.nbytes() + 1) / 2)
           buf.data.resize({buf.data.size() * 2}, false);
 
-          if (buf.isvar)
-            buf.offsets.resize({buf.offsets.size() * 2}, false);
-        }
+        // Check if offset buffer should be resized
+        if (buf.isvar && (int64_t)(buf.offsets_read * sizeof(uint64_t)) > (buf.offsets.nbytes() + 1) / 2)
+          buf.offsets.resize({buf.offsets.size() * 2}, false);
       }
 
       set_buffers();
