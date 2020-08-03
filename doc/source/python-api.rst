@@ -14,10 +14,6 @@ Typical usage of the Python interface to TileDB will use the top-level module ``
 
    import tiledb
 
-Arrays may be opened with the ``tiledb.open`` function:
-
-.. autofunction:: tiledb.open
-
 There is also a submodule ``libtiledb`` which contains the necessary bindings to the underlying TileDB native library. Most of the time you will not need to interact with ``tiledb.libtiledb`` unless you need native-library specific information, e.g. the version number:
 
 .. code-block:: python
@@ -25,18 +21,19 @@ There is also a submodule ``libtiledb`` which contains the necessary bindings to
    import tiledb
    tiledb.libtiledb.version()  # Native TileDB library version number
 
+Getting Started
+---------------
+
+Arrays may be opened with the ``tiledb.open`` function:
+
+.. autofunction:: tiledb.open
+
 Data import helpers
 -------------------
 
 .. autofunction:: tiledb.from_numpy
 .. autofunction:: tiledb.from_csv
 .. autofunction:: tiledb.from_pandas
-
-Exceptions
-----------
-
-.. autoexception:: tiledb.TileDBError
-   :members:
 
 Context
 -------
@@ -144,6 +141,13 @@ Object Management
 .. autofunction:: tiledb.move
 .. autofunction:: tiledb.ls
 .. autofunction:: tiledb.walk
+
+Exceptions
+----------
+
+.. autoexception:: tiledb.TileDBError
+   :members:
+
 
 VFS
 ---
