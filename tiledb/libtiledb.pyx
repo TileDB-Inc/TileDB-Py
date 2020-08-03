@@ -40,12 +40,17 @@ def default_ctx(config = None):
     """
     Returns, and optionally initializes, the default tiledb.Ctx object
 
+    Most functions in the Python API accept an optional `ctx` keyword
+    argument, but will default to the global ``default_ctx`` value if a
+    ``ctx`` is not specified.
+
     For initialization, this function must be called before any other
-    tiledb functions. Initialization allows to pass a `Config` object
+    tiledb functions. The initialization call accepts a `Config` object
     overriding defaults for process-global parameters such as the TBB
     thread count.
 
-    :param config (default None): Config object or dictionary with config parameters.
+    :param config (default None): :py:class:`tiledb.Config` object or
+        dictionary with config parameters.
     :return: Ctx
     """
     global _global_ctx
