@@ -44,6 +44,8 @@ Context
 .. autoclass:: tiledb.Ctx
    :members:
 
+.. autofunction:: tiledb.default_ctx
+
 Config
 ------
 
