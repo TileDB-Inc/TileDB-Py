@@ -91,7 +91,7 @@ def dtype_from_column(col):
 
         elif inferred_dtype == 'mixed':
             raise ValueError(
-                "Column '{}' has mixed value dtype and cannot yet be stored as a TileDB attribute"
+                "Column '{}' has mixed value dtype and cannot yet be stored as a TileDB attribute".format(col)
             )
 
     raise ValueError(
