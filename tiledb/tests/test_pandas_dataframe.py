@@ -163,7 +163,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         uri = self.path("dataframe_basic_rt1")
         df = make_dataframe_basic1()
 
-        tiledb.from_dataframe(uri, df, sparse=False)
+        ctx = tiledb.Ctx()
+        tiledb.from_dataframe(uri, df, sparse=False, ctx=ctx)
 
         # TODO tiledb.read_dataframe
         with tiledb.open(uri) as B:
