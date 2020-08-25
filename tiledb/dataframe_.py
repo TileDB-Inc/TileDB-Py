@@ -21,10 +21,10 @@ unicode_dtype = np.dtype(unicode_type)
 # - implement support for read CSV via TileDB VFS from any supported FS
 
 TILEDB_KWARG_DEFAULTS = {
-    'cell_order': 'row-major',
-    'tile_order': 'row-major',
-    'allows_duplicates': False,
+    'ctx': None,
     'sparse': True,
+    'index_dims': None,
+    'allows_duplicates': False,
     'mode': 'ingest',
     'attrs_filters': None,
     'coords_filters': None,
@@ -33,8 +33,10 @@ TILEDB_KWARG_DEFAULTS = {
     'row_start_idx': None,
     'fillna': None,
     'column_types': None,
+    'date_spec': None,
+    'cell_order': 'row-major',
+    'tile_order': 'row-major',
     'debug': None,
-    'date_spec': None
 }
 
 def parse_tiledb_kwargs(kwargs):
