@@ -1828,6 +1828,11 @@ class SparseArray(DiskTestCase):
             assert_array_equal(res[""], A[0:2])
             self.assertEqual(("coords" in res), False)
 
+            # empty sparse varlen result
+            res = T[1000]
+            assert_array_equal(res[''], np.array('', dtype='S1'))
+            assert_array_equal(res['x'], np.array([], dtype=np.int))
+
     def test_sparse_unicode(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -1855,6 +1860,11 @@ class SparseArray(DiskTestCase):
             res = T.query(coords=False)[40:61]
             assert_array_equal(res[""], A[5:7])
             self.assertEqual(("coords" in res), False)
+
+            # empty sparse varlen result
+            res = T[1000]
+            assert_array_equal(res[''], np.array('', dtype='U1'))
+            assert_array_equal(res['x'], np.array([], dtype=np.int))
 
     def test_sparse_fixes(self):
         uri = self.path("test_sparse_fixes")
