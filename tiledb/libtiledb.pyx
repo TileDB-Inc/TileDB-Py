@@ -4957,8 +4957,21 @@ cdef class SparseArrayImpl(Array):
         for i in range(nattr):
             name = attr_names[i]
             if self.schema._needs_var_buffer(name):
-                # for var arrays we create an object array
-                out[name] = q.unpack_buffer(name, results[name][0], results[name][1])
+                if len(results[name][1]) > 0:
+                    arr = q.unpack_buffer(name, results[name][0], results[name][1])
+                else:
+                    arr = results[name][0]
+                    final_dtype = self.schema.attr_or_dim_dtype(name)
+                    print((arr, len(arr), final_dtype))
+                    if (len(arr) < 1 and
+                            (np.issubdtype(final_dtype, np.bytes_) or
+                             np.issubdtype(final_dtype, np.unicode_))):
+                        # special handling to get correctly-typed empty array
+                        # (expression below changes itemsize from 0 to 1)
+                        arr.dtype = final_dtype.str + '1'
+                    else:
+                        arr.dtype = self.schema.attr_or_dim_dtype(name)
+                out[name] = arr
             else:
                 if self.schema.domain.has_dim(name):
                     el_dtype = self.schema.domain.dim(name).dtype
