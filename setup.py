@@ -302,12 +302,15 @@ def find_or_install_libtiledb(setuptools_cmd):
             do_copy(src, dest)
 
             # tbb
-            src = os.path.join(prefix_dir, "bin", "tbb.dll")
-            dest = os.path.join(dest_dir, "tbb.dll")
-            do_copy(src, dest)
-            src = os.path.join(prefix_dir, "lib", "tbb.lib")
-            dest = os.path.join(dest_dir, "tbb.lib")
-            do_copy(src, dest)
+            has_tbb = False
+            if os.path.isdir(os.path.join(prefix_dir, "bin", "tbb.dll")):
+                has_tbb = True
+                src = os.path.join(prefix_dir, "bin", "tbb.dll")
+                dest = os.path.join(dest_dir, "tbb.dll")
+                do_copy(src, dest)
+                src = os.path.join(prefix_dir, "lib", "tbb.lib")
+                dest = os.path.join(dest_dir, "tbb.lib")
+                do_copy(src, dest)
 
             #
             tiledb_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
@@ -342,7 +345,12 @@ def find_or_install_libtiledb(setuptools_cmd):
         if is_windows():
             libtiledb_objects.extend(
                 [os.path.join(native_subdir, libname) for libname in
-                              ["tiledb.lib", "tbb.dll", "tbb.lib"]])
+                              ["tiledb.lib"]])
+            if has_tbb:
+                libtiledb_objects.extend(
+                  [os.path.join(native_subdir, libname) for libname in
+                                 ["tbb.lib", "tbb.dll"]])
+
         print("\n-------------------")
         print("libtiledb_objects: ", libtiledb_objects)
         print("-------------------\n")
