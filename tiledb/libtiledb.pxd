@@ -103,6 +103,9 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_FILTER_BITSHUFFLE = 8
         TILEDB_FILTER_BYTESHUFFLE = 9
         TILEDB_FILTER_POSITIVE_DELTA = 10
+        # 11 is encryption, see tiledb_enum.h
+        TILEDB_FILTER_CHECKSUM_MD5 = 12
+        TILEDB_FILTER_CHECKSUM_SHA256 = 13
 
     ctypedef enum tiledb_filter_option_t:
         TILEDB_COMPRESSION_LEVEL = 0

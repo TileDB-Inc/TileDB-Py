@@ -1801,6 +1801,76 @@ cdef class PositiveDeltaFilter(Filter):
             _raise_ctx_err(ctx_ptr, rc)
         return int(cwindow)
 
+cdef class ChecksumMD5Filter(Filter):
+    """
+    MD5 checksum filter.
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.ChecksumMD5Filter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
+    ...     tiledb.DenseArray.create(tmp + "/array", schema)
+
+    """
+
+    @staticmethod
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        assert(filter_ptr != NULL)
+        cdef ChecksumMD5Filter filter_obj = ChecksumMD5Filter.__new__(ChecksumMD5Filter)
+        filter_obj.ctx = ctx
+        # need to cast away the const
+        filter_obj.ptr = <tiledb_filter_t*> filter_ptr
+        return filter_obj
+
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        super().__init__(TILEDB_FILTER_CHECKSUM_MD5, ctx=ctx)
+
+    def _attrs_(self):
+        return {}
+
+cdef class ChecksumSHA256Filter(Filter):
+    """
+    SHA256 checksum filter.
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.ChecksumSHA256Filter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
+    ...     tiledb.DenseArray.create(tmp + "/array", schema)
+
+    """
+
+    @staticmethod
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        assert(filter_ptr != NULL)
+        cdef ChecksumSHA256Filter filter_obj = ChecksumSHA256Filter.__new__(ChecksumSHA256Filter)
+        filter_obj.ctx = ctx
+        # need to cast away the const
+        filter_obj.ptr = <tiledb_filter_t*> filter_ptr
+        return filter_obj
+
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        super().__init__(TILEDB_FILTER_CHECKSUM_SHA256, ctx=ctx)
+
+    def _attrs_(self):
+        return {}
+
 cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type,
                                        tiledb_filter_t* filter_ptr):
     """
@@ -1828,6 +1898,10 @@ cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type
         return ByteShuffleFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_POSITIVE_DELTA:
         return PositiveDeltaFilter.from_ptr(filter_ptr, ctx=ctx)
+    elif filter_type == TILEDB_FILTER_CHECKSUM_MD5:
+        return ChecksumSHA256Filter.from_ptr(filter_ptr, ctx=ctx)
+    elif filter_type == TILEDB_FILTER_CHECKSUM_SHA256:
+        return ChecksumMD5Filter.from_ptr(filter_ptr, ctx=ctx)
     else:
         raise ValueError("unknown filter type tag: {:s}".format(filter_type))
 
