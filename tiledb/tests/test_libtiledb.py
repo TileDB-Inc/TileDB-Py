@@ -2266,11 +2266,28 @@ class FilterTest(unittest.TestCase):
             tiledb.ChecksumSHA256Filter(),
             tiledb.ChecksumMD5Filter()
         ]
-        # make sure that repr works
+        # make sure that repr works and round-trips correctly
         for f in filters:
-            repr(f)
             # some of these have attributes, so we just check the class name here
             self.assertTrue(type(f).__name__ in repr(f))
+
+            tmp_globals = dict()
+            setup = ("from tiledb import *")
+            exec(setup, tmp_globals)
+
+            filter_repr = repr(f)
+            new_filter = None
+            try:
+                new_filter = eval(filter_repr, tmp_globals)
+            except Exception as exc:
+                warn_str = """Exception during FilterTest filter repr eval""" + \
+                           """, filter repr string was:\n""" + \
+                           """'''""" + \
+                           """\n{}\n'''""".format(filter_repr)
+                warnings.warn(warn_str)
+                raise
+
+            self.assertEqual(new_filter, f)
 
 class DatetimeSlicing(DiskTestCase):
     def test_dense_datetime_vector(self):
