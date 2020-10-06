@@ -4161,7 +4161,7 @@ cdef class DenseArrayImpl(Array):
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifying the selected subarray region for each dimension of the DenseArray.
         :rtype: :py:class:`numpy.ndarray` or :py:class:`collections.OrderedDict`
-        :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
+        :returns: If the dense array has a single attribute then a Numpy array of corresponding shape/dtype \
                 is returned for that attribute.  If the array has multiple attributes, a \
                 :py:class:`collections.OrderedDict` is returned with dense Numpy subarrays \
                 for each attribute.
@@ -4259,7 +4259,7 @@ cdef class DenseArrayImpl(Array):
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
-        :returns: If the dense array has a single attribute than a Numpy array of corresponding shape/dtype \
+        :returns: If the dense array has a single attribute then a Numpy array of corresponding shape/dtype \
             is returned for that attribute.  If the array has multiple attributes, a \
             :py:class:`collections.OrderedDict` is returned with dense Numpy subarrays for each attribute.
         :raises IndexError: invalid or unsupported index selection
@@ -4393,7 +4393,7 @@ cdef class DenseArrayImpl(Array):
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifiying the selected subarray region for each dimension of the DenseArray.
         :param value: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
-            if the number of attributes is one, than a n-d numpy array is accepted.
+            if the number of attributes is one, then a n-d numpy array is accepted.
         :type value: dict or :py:class:`numpy.ndarray`
         :raises IndexError: invalid or unsupported index selection
         :raises ValueError: value / coordinate length mismatch
@@ -4692,7 +4692,7 @@ cdef class SparseArrayImpl(Array):
         :param tuple selection: N coordinate value arrays (dim0, dim1, ...) where N in the ndim of the SparseArray,
             The format follows numpy sparse (point) indexing semantics.
         :param value: a dictionary of nonempty array attribute values, values must able to be converted to 1-d numpy arrays.\
-            if the number of attributes is one, than a 1-d numpy array is accepted.
+            if the number of attributes is one, then a 1-d numpy array is accepted.
         :type value: dict or :py:class:`numpy.ndarray`
         :raises IndexError: invalid or unsupported index selection
         :raises ValueError: value / coordinate length mismatch
