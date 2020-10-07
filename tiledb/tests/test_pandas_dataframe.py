@@ -382,6 +382,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                         index_col=['time', 'double_range'],
                         parse_dates=['time'],
                         mode='schema_only',
+                        capacity=1001,
                         coords_filters=coords_filters)
 
         t0, t1 = df.time.min(), df.time.max()
@@ -399,6 +400,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                         coords_filters=coords_filters,
                         cell_order='row-major',
                         tile_order='row-major',
+                        capacity=1001,
                         sparse=True,
                         allows_duplicates=False)
                         # note: filters omitted

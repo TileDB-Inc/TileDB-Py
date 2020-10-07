@@ -33,6 +33,7 @@ TILEDB_KWARG_DEFAULTS = {
     'row_start_idx': None,
     'fillna': None,
     'column_types': None,
+    'capacity': None,
     'date_spec': None,
     'cell_order': 'row-major',
     'tile_order': 'row-major',
@@ -342,6 +343,7 @@ def from_pandas(uri, dataframe, **kwargs):
     attrs_filters = args.get('attrs_filters', None)
     coords_filters = args.get('coords_filters', None)
     full_domain = args.get('full_domain', False)
+    capacity = args.get('capacity', False)
     tile = args.get('tile', None)
     nrows = args.get('nrows', None)
     row_start_idx = args.get('row_start_idx', None)
@@ -358,6 +360,9 @@ def from_pandas(uri, dataframe, **kwargs):
             create_array = False
         elif mode != 'ingest':
             raise TileDBError("Invalid mode specified ('{}')".format(mode))
+
+    if capacity is None:
+        capacity = 0 # this will use the libtiledb internal default
 
     if ctx is None:
         ctx = tiledb.default_ctx()
@@ -398,6 +403,7 @@ def from_pandas(uri, dataframe, **kwargs):
             tile_order=tile_order,
             coords_filters=coords_filters,
             allows_duplicates=allows_duplicates,
+            capacity=capacity,
             sparse=sparse
         )
 
@@ -523,7 +529,7 @@ def from_csv(uri, csv_file, **kwargs):
             * ``attrs_filters``: FilterList to apply to all Attributes
             * ``coords_filters``: FilterList to apply to all coordinates (Dimensions)
             * ``sparse``: (default True) Create sparse schema
-            * ``tile``: Schema tiling (capacity)
+            * ``capacity``: Schema tiling (capacity)
             * ``date_spec``: Dictionary of {``column_name``: format_spec} to apply to date/time
               columns which are not correctly inferred by pandas 'parse_dates'.
               Format must be specified using the Python format codes:
