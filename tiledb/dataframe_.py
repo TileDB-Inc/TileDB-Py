@@ -242,6 +242,17 @@ def create_dims(ctx, dataframe, index_dims,
     index_dict = OrderedDict()
     index_dtype = None
 
+    per_dim_tile = False
+    if tile is not None:
+        if isinstance(tile, dict):
+            per_dim_tile = True
+
+        # input check, can't do until after per_dim_tile
+        if (per_dim_tile and not all(map(lambda x: isinstance(x,(int,float)), tile.values()))) or \
+           (per_dim_tile is False and not isinstance(tile, int)):
+            raise ValueError("Invalid tile kwarg: expected int or tuple of ints "
+                             "got '{}'".format(tile))
+
     if isinstance(index, pd.MultiIndex):
         for name in index.names:
             index_dict[name] = dataframe.index.get_level_values(name)
@@ -258,12 +269,22 @@ def create_dims(ctx, dataframe, index_dims,
     else:
         raise ValueError("Unhandled index type {}".format(type(index)))
 
-    dim_types = list(
-        dim_info_for_column(ctx, dataframe, values,
-                            tile=tile, full_domain=full_domain,
-                            index_dtype=index_dtype)
-        for values in index_dict.values()
-    )
+    # create list of dim types
+    # we need to know all the types in order to validate before creating Dims
+    dim_types = list()
+    for idx,(name, values) in enumerate(index_dict.items()):
+        if per_dim_tile and name in tile:
+            dim_tile = tile[name]
+        elif per_dim_tile:
+            # in this case we fall back to the default
+            dim_tile = None
+        else:
+            # in this case we use a scalar (type-checked earlier)
+            dim_tile = tile
+
+        dim_types.append(dim_info_for_column(ctx, dataframe, values,
+                         tile=dim_tile, full_domain=full_domain,
+                         index_dtype=index_dtype))
 
     if any([d.dtype in (np.bytes_, np.unicode_) for d in dim_types]):
         if sparse is False:
@@ -280,17 +301,34 @@ def create_dims(ctx, dataframe, index_dims,
 
     ndim = len(dim_types)
 
-    dims = list(
-        dim_for_column(ctx, name, dim_types[i], values,
-                       tile=tile, full_domain=full_domain, ndim=ndim)
-        for i, (name, values) in enumerate(index_dict.items())
-    )
+    dims = list()
+    for idx, (name, values) in enumerate(index_dict.items()):
+        if per_dim_tile and name in tile:
+            dim_tile = tile[name]
+        elif per_dim_tile:
+            # in this case we fall back to the default
+            dim_tile = None
+        else:
+            # in this case we use a scalar (type-checked earlier)
+            dim_tile = tile
+
+        dims.append(dim_for_column(ctx, name, dim_types[idx], values,
+                    tile=dim_tile, full_domain=full_domain, ndim=ndim))
 
     if index_dims:
         for name in index_dims:
+            if per_dim_tile and name in tile:
+                dim_tile = tile[name]
+            elif per_dim_tile:
+                # in this case we fall back to the default
+                dim_tile = None
+            else:
+                # in this case we use a scalar  (type-checked earlier)
+                dim_tile = tile
+
             col = dataframe[name]
             dims.append(
-                dim_for_column(ctx, dataframe, col.values, name)
+                dim_for_column(ctx, dataframe, col.values, name, tile=dim_tile)
             )
 
     return dims, sparse
@@ -529,7 +567,9 @@ def from_csv(uri, csv_file, **kwargs):
             * ``attrs_filters``: FilterList to apply to all Attributes
             * ``coords_filters``: FilterList to apply to all coordinates (Dimensions)
             * ``sparse``: (default True) Create sparse schema
-            * ``capacity``: Schema tiling (capacity)
+            * ``tile``: Dimension tiling: accepts either Int or a list of Tuple[Int] with per-dimension
+              'tile' arguments to apply to the generated ArraySchema.
+            * ``capacity``: Schema capacity
             * ``date_spec``: Dictionary of {``column_name``: format_spec} to apply to date/time
               columns which are not correctly inferred by pandas 'parse_dates'.
               Format must be specified using the Python format codes:
