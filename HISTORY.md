@@ -7,6 +7,7 @@
 * TileDB-Py 0.7 packages on PyPI support macOS 10.13+ and manylinux10 compatible systems only.
 
 ## Improvements
+* Added ".df[]" indexer tiledb.Array: directly returns a Pandas dataframe from a query (uses `multi_index` indexing behavior) [#390](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 * Added wrapping and support for TileDB checksumming filters: `ChecksumMD5Filter` and `ChecksumSHA256Filter` [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 
 * Removed TBB from default setup.py, corresponding to TileDB Embedded changes [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)

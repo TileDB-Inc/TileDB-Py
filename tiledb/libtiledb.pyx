@@ -3618,8 +3618,9 @@ cdef class Array(object):
         self.domain_index = DomainIndexer(self)
 
         # Delayed to avoid circular import
-        from .multirange_indexing import MultiRangeIndexer
+        from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
         self.multi_index = MultiRangeIndexer(self)
+        self.df = DataFrameIndexer(self)
         self.last_fragment_info = dict()
         self.meta = Metadata(self)
 
@@ -4097,6 +4098,49 @@ cdef class Array(object):
 
         """
         return self.multi_index
+
+    @property
+    def df(self):
+        """Retrieve data cells as a Pandas dataframe, with multi-range,
+        domain-inclusive indexing using ``multi_index``.
+
+        :param list selection: Per dimension, a scalar, ``slice``, or list of scalars
+            or ``slice`` objects. Scalars and ``slice`` components should match the
+            type of the underlying Dimension.
+        :returns: dict of {'attribute': result}. Coords are included by default for
+            Sparse arrays only (use `Array.query(coords=<>)` to select).
+        :raises IndexError: invalid or unsupported index selection
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        ``df[]`` accepts, for each dimension, a scalar, ``slice``, or list
+        of scalars or ``slice`` objects. Each item is interpreted as a point
+        (scalar) or range (``slice``) used to query the array on the corresponding
+        dimension.
+
+        ** Example **
+
+        >>> import tiledb, tempfile, numpy as np, pandas as pd
+        >>>
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...    data = {'col1_f': np.arange(0.0,1.0,step=0.1), 'col2_int': np.arange(10)}
+        ...    df = pd.DataFrame.from_dict(data)
+        ...    tiledb.from_dataframe(tmp, df)
+        ...    A = tiledb.open(tmp)
+        ...    A.df[1]
+        ...    A.df[1:5]
+           rows  col1_f  col2_int
+        0     1     0.1         1
+           rows  col1_f  col2_int
+        0     1     0.1         1
+        1     2     0.2         2
+        2     3     0.3         3
+        3     4     0.4         4
+        4     5     0.5         5
+
+        """
+
+        return self.df
+
 
     @property
     def last_write_info(self):

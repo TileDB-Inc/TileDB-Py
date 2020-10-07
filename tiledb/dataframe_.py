@@ -445,17 +445,13 @@ def from_pandas(uri, dataframe, **kwargs):
 
 def _tiledb_result_as_dataframe(readable_array, result_dict):
     import pandas as pd
-    #if not '__pandas_attribute_repr' in A.meta \
-    #    and not '__pandas_repr' in A.meta:
-    #    raise ValueError("Missing required keys to reload overloaded dataframe dtypes")
-
-    # TODO missing key should only be a warning, return best-effort?
+    # TODO missing key in the rep map should only be a warning, return best-effort?
     # TODO this should be generalized for round-tripping overloadable types
     #      for any array (e.g. np.uint8 <> bool)
     repr_meta = None
     index_dims = None
     if '__pandas_attribute_repr' in readable_array.meta:
-        # backwards compatibility... unsure if necessary at this point
+        # backwards compatibility
         repr_meta = json.loads(readable_array.meta['__pandas_attribute_repr'])
     if '__pandas_index_dims' in readable_array.meta:
         index_dims = json.loads(readable_array.meta['__pandas_index_dims'])
