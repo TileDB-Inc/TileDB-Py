@@ -249,7 +249,7 @@ def create_dims(ctx, dataframe, index_dims,
 
         # input check, can't do until after per_dim_tile
         if (per_dim_tile and not all(map(lambda x: isinstance(x,(int,float)), tile.values()))) or \
-           (per_dim_tile is False and not isinstance(tile, int)):
+           (per_dim_tile is False and not isinstance(tile, (int,float))):
             raise ValueError("Invalid tile kwarg: expected int or tuple of ints "
                              "got '{}'".format(tile))
 
