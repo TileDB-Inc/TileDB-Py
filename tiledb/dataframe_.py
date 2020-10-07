@@ -443,6 +443,39 @@ def from_pandas(uri, dataframe, **kwargs):
         finally:
             A.close()
 
+def _tiledb_result_as_dataframe(readable_array, result_dict):
+    import pandas as pd
+    #if not '__pandas_attribute_repr' in A.meta \
+    #    and not '__pandas_repr' in A.meta:
+    #    raise ValueError("Missing required keys to reload overloaded dataframe dtypes")
+
+    # TODO missing key should only be a warning, return best-effort?
+    # TODO this should be generalized for round-tripping overloadable types
+    #      for any array (e.g. np.uint8 <> bool)
+    repr_meta = None
+    index_dims = None
+    if '__pandas_attribute_repr' in readable_array.meta:
+        # backwards compatibility... unsure if necessary at this point
+        repr_meta = json.loads(readable_array.meta['__pandas_attribute_repr'])
+    if '__pandas_index_dims' in readable_array.meta:
+        index_dims = json.loads(readable_array.meta['__pandas_index_dims'])
+
+    indexes = list()
+
+    for col_name, col_val in result_dict.items():
+        if repr_meta and col_name in repr_meta:
+            new_col = pd.Series(col_val, dtype=repr_meta[col_name])
+            result_dict[col_name] = new_col
+        elif index_dims and col_name in index_dims:
+            new_col = pd.Series(col_val, dtype=index_dims[col_name])
+            result_dict[col_name] = new_col
+            indexes.append(col_name)
+
+    df = pd.DataFrame.from_dict(result_dict)
+    if len(indexes) > 0:
+        df.set_index(indexes, inplace=True)
+
+    return df
 
 def open_dataframe(uri, ctx=None):
     """Open TileDB array at given URI as a Pandas dataframe
@@ -464,47 +497,16 @@ def open_dataframe(uri, ctx=None):
     warnings.warn("open_dataframe is deprecated and will be removed in the next release",
                   DeprecationWarning)
 
-    import pandas as pd
-
     if ctx is None:
         ctx = tiledb.default_ctx()
 
     # TODO support `distributed=True` option?
 
     with tiledb.open(uri, ctx=ctx) as A:
-        #if not '__pandas_attribute_repr' in A.meta \
-        #    and not '__pandas_repr' in A.meta:
-        #    raise ValueError("Missing required keys to reload overloaded dataframe dtypes")
-
-        # TODO missing key should only be a warning, return best-effort?
-        # TODO this should be generalized for round-tripping overloadable types
-        #      for any array (e.g. np.uint8 <> bool)
-        repr_meta = None
-        index_dims = None
-        if '__pandas_attribute_repr' in A.meta:
-            # backwards compatibility... unsure if necessary at this point
-            repr_meta = json.loads(A.meta['__pandas_attribute_repr'])
-        if '__pandas_index_dims' in A.meta:
-            index_dims = json.loads(A.meta['__pandas_index_dims'])
-
         data = A[:]
-        indexes = list()
-
-        for col_name, col_val in data.items():
-            if repr_meta and col_name in repr_meta:
-                new_col = pd.Series(col_val, dtype=repr_meta[col_name])
-                data[col_name] = new_col
-            elif index_dims and col_name in index_dims:
-                new_col = pd.Series(col_val, dtype=index_dims[col_name])
-                data[col_name] = new_col
-                indexes.append(col_name)
-
-    new_df = pd.DataFrame.from_dict(data)
-    if len(indexes) > 0:
-        new_df.set_index(indexes, inplace=True)
+        new_df = _tiledb_result_as_dataframe(A, data)
 
     return new_df
-
 
 def from_csv(uri, csv_file, **kwargs):
     """
