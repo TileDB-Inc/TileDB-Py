@@ -490,9 +490,6 @@ def open_dataframe(uri, ctx=None):
     >>> tiledb.objec_type("iris.tldb")
     'array'
     """
-    warnings.warn("open_dataframe is deprecated and will be removed in the next release",
-                  DeprecationWarning)
-
     if ctx is None:
         ctx = tiledb.default_ctx()
 
