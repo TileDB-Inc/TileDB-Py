@@ -30,6 +30,7 @@ TILEDB_KWARG_DEFAULTS = {
     'coords_filters': None,
     'full_domain': False,
     'tile': None,
+    'capacity': None,
     'row_start_idx': None,
     'fillna': None,
     'column_types': None,
@@ -241,6 +242,23 @@ def create_dims(ctx, dataframe, index_dims,
     index_dict = OrderedDict()
     index_dtype = None
 
+    per_dim_tile = False
+    if tile is not None:
+        if isinstance(tile, tuple):
+            per_dim_tile = True
+        else:
+            # create identical per-dim tuple to simplify logic below
+            tile = (tile,) * len(index_dict)
+
+        # input check, can't do until after per_dim_tile
+        if (per_dim_tile and not all(map(lambda x: isinstance(x,int), tile))) or \
+           (per_dim_tile is False and not isinstance(tile, int)):
+            raise ValueError("Invalid tile kwarg: expected int or tuple of ints "
+                             "got '{}'".format(tile))
+    else:
+        index_dim_count = len(index_dims) if index_dims else 0
+        tile = (tile,) * (len(index_dict) + index_dim_count)
+
     if isinstance(index, pd.MultiIndex):
         for name in index.names:
             index_dict[name] = dataframe.index.get_level_values(name)
@@ -257,12 +275,13 @@ def create_dims(ctx, dataframe, index_dims,
     else:
         raise ValueError("Unhandled index type {}".format(type(index)))
 
-    dim_types = list(
-        dim_info_for_column(ctx, dataframe, values,
-                            tile=tile, full_domain=full_domain,
-                            index_dtype=index_dtype)
-        for values in index_dict.values()
-    )
+    # create list of dim types
+    # we need to know all the types in order to validate before creating Dims
+    dim_types = list()
+    for idx,values in enumerate(index_dict.values()):
+        dim_types.append(dim_info_for_column(ctx, dataframe, values,
+                         tile=tile[idx], full_domain=full_domain,
+                         index_dtype=index_dtype))
 
     if any([d.dtype in (np.bytes_, np.unicode_) for d in dim_types]):
         if sparse is False:
@@ -279,11 +298,10 @@ def create_dims(ctx, dataframe, index_dims,
 
     ndim = len(dim_types)
 
-    dims = list(
-        dim_for_column(ctx, name, dim_types[i], values,
-                       tile=tile, full_domain=full_domain, ndim=ndim)
-        for i, (name, values) in enumerate(index_dict.items())
-    )
+    dims = list()
+    for idx, (name, values) in enumerate(index_dict.items()):
+        dims.append(dim_for_column(ctx, name, dim_types[idx], values,
+                    tile=tile[idx], full_domain=full_domain, ndim=ndim))
 
     if index_dims:
         for name in index_dims:
@@ -358,6 +376,9 @@ def from_pandas(uri, dataframe, **kwargs):
             create_array = False
         elif mode != 'ingest':
             raise TileDBError("Invalid mode specified ('{}')".format(mode))
+
+    #if capacity is None:
+    #    capacity = 0 # this will use the libtiledb internal default
 
     if ctx is None:
         ctx = tiledb.default_ctx()
@@ -528,7 +549,9 @@ def from_csv(uri, csv_file, **kwargs):
             * ``attrs_filters``: FilterList to apply to all Attributes
             * ``coords_filters``: FilterList to apply to all coordinates (Dimensions)
             * ``sparse``: (default True) Create sparse schema
-            * ``tile``: Schema tiling (capacity)
+            * ``tile``: Dimension tiling: accepts either Int or a list of Tuple[Int] with per-dimension
+              'tile' arguments to apply to the generated ArraySchema.
+            * ``capacity``: Schema capacity
             * ``date_spec``: Dictionary of {``column_name``: format_spec} to apply to date/time
               columns which are not correctly inferred by pandas 'parse_dates'.
               Format must be specified using the Python format codes:

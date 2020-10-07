@@ -373,6 +373,14 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         #   the arg is correctly parsed/passed
         coords_filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 
+        tmp_assert_dir = os.path.join(tmp_dir, "array")
+        # this should raise an error
+        with self.assertRaises(ValueError):
+            tiledb.from_csv(tmp_assert_dir, tmp_csv, tile=1.0)
+
+        with self.assertRaises(ValueError):
+            tiledb.from_csv(tmp_assert_dir, tmp_csv, tile=(3,1.0))
+
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(tmp_array, tmp_csv,
                         index_col=['time', 'double_range'],
@@ -386,8 +394,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         ref_schema = tiledb.ArraySchema(
                         domain=tiledb.Domain(*[
                           tiledb.Dim(name='time', domain=(t0.to_datetime64(), t1.to_datetime64()),
-                                     tile=1000, dtype='datetime64[ns]'),
-                          tiledb.Dim(name='double_range', domain=(-1000.0, 1000.0), tile=1000, dtype='float64'),
+                                     tile=5, dtype='datetime64[ns]'),
+                          tiledb.Dim(name='double_range', domain=(-1000.0, 1000.0), tile=10, dtype='float64'),
                         ]),
                         attrs=[
                           tiledb.Attr(name='int_vals', dtype='int64', filters=attrs_filters),
