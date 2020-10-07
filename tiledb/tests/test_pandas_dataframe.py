@@ -361,7 +361,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             assert_array_equal(res['int_vals'], df.int_vals.values)
             assert_array_almost_equal(res['double_range'], df.double_range.values)
 
-    def test_csv_schema_only(self):
+    def test_dataframe_csv_schema_only(self):
         col_size = 10
         df = make_dataframe_basic3(col_size)
 
@@ -380,7 +380,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tmp_assert_dir = os.path.join(tmp_dir, "array")
         # this should raise an error
         with self.assertRaises(ValueError):
-            tiledb.from_csv(tmp_assert_dir, tmp_csv, tile=1.0)
+            tiledb.from_csv(tmp_assert_dir, tmp_csv, tile='abc')
 
         with self.assertRaises(ValueError):
             tiledb.from_csv(tmp_assert_dir, tmp_csv, tile=(3,1.0))
