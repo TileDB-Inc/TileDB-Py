@@ -7,7 +7,7 @@
     significantly reduces complications and bugs with python multiprocessing fork mode.
   - Support coalescing subarray ranges to give major performance boosts.
 
-## Packaging  Notes
+## Packaging Notes
 * TileDB-Py 0.7 packages on PyPI support macOS 10.13+ and manylinux10-compatible Linux distributions only.
   For now, wheels could be produced supporting older systems but without Google Cloud Support; if needed,
   please contact us to discuss.
@@ -17,6 +17,8 @@
 * Added wrapping and support for TileDB checksumming filters: `ChecksumMD5Filter` and `ChecksumSHA256Filter` [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 * Removed TBB install from default setup.py, corresponding to TileDB Embedded changes [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 * Add support for 'capacity' kwarg to `from_csv`/`from_pandas` [#391](https://github.com/TileDB-Inc/TileDB-Py/pull/391)
+* Add support for 'tile' kwarg to `from_csv`/`from_pandas` to customize Dim tile extent [#391](https://github.com/TileDB-Inc/TileDB-Py/pull/391)
+
 
 ## Misc Updates
 * Added round-trip tests for all filter `repr` objects [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
