@@ -1,3 +1,19 @@
+# TileDB-Py 0.7.0 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.7.0 includes [TileDB Embedded 2.1.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.0.6)
+
+## Packaging  Notes
+* TileDB-Py 0.7 packages on PyPI support macOS 10.13+ and manylinux10 compatible systems only.
+
+## Improvements
+* Added wrapping and support for TileDB checksumming filters: `ChecksumMD5Filter` and `ChecksumSHA256Filter` [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
+
+* Removed TBB from default setup.py, corresponding to TileDB Embedded changes [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
+
+## Misc Updates
+* Added round-trip tests for all filter `repr` objects [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
+
 # TileDB-Py 0.6.6 Release Notes
 
 **Note that we will be removing wheel support for macOS 10.9-10.12 in TileDB-Py 0.7 (planned for release in August 2020).** This change is due to upstream (AWS SDK) minimum version requirements. The minimum supported version for macOS wheels on PyPI will be macOS 10.13.
