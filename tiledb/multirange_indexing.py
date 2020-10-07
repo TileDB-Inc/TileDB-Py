@@ -168,3 +168,15 @@ class MultiRangeIndexer(object):
                 # TODO check/test layout
                 arr.shape = result_shape
             return result_dict
+
+class DataFrameIndexer(MultiRangeIndexer):
+    """
+    Implements `.df[]` indexing to directly return a dataframe
+    [] operator uses multi_index semantics.
+    """
+
+    def __getitem__(self, idx):
+        from .dataframe_ import _tiledb_result_as_dataframe
+
+        result_dict = super(DataFrameIndexer, self).__getitem__(idx)
+        return _tiledb_result_as_dataframe(self.array, result_dict)

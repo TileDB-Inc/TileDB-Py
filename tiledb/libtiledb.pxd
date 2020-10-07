@@ -1195,6 +1195,7 @@ cdef class Array(object):
 
     cdef DomainIndexer domain_index
     cdef object multi_index
+    cdef object df
     cdef Metadata meta
     cdef object last_fragment_info
 

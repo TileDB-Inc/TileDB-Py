@@ -263,7 +263,6 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                 nonempty = A.nonempty_domain()[0]
                 res = A.multi_index[nonempty[0]:nonempty[1]]
 
-                # TODO use tiledb.open_dataframe here
                 res_df = pd.DataFrame(res, index=res.pop(col))
                 tm.assert_frame_equal(new_df, res_df, check_like=True)
 
@@ -291,6 +290,11 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             assert_array_equal(
                 res['int_vals'], df.int_vals.values
             )
+
+            # test .df[] indexing
+            df_idx_res = A.df[slice(*ned_time), :]
+            tm.assert_frame_equal(df_idx_res, df)
+
 
     def test_csv_dense(self):
         col_size = 10
@@ -473,6 +477,10 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_bk = pd.DataFrame(res)
 
             tm.assert_frame_equal(df_bk, df)
+
+            # test .df[] indexing
+            df_idx_res = A.df[int(ned[0]):int(ned[1])]
+            tm.assert_frame_equal(df_idx_res, df)
 
     def test_csv_fillna(self):
         col_size = 10
