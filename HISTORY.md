@@ -1,16 +1,21 @@
 # TileDB-Py 0.7.0 Release Notes
 
 ## TileDB Embedded updates:
-* TileDB-Py 0.7.0 includes [TileDB Embedded 2.1.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.0.6)
+* TileDB-Py 0.7.0 includes [TileDB Embedded 2.1.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.0)
+  featuring a number of significant improvements, with major highlights including:
+  - no longer uses Intel TBB for parallelization by default. Along with many benefits to TileDB Embedded, this
+    significantly reduces complications and bugs with python multiprocessing fork mode.
+  - Support coalescing subarray ranges to give major performance boosts.
 
 ## Packaging  Notes
-* TileDB-Py 0.7 packages on PyPI support macOS 10.13+ and manylinux10 compatible systems only.
+* TileDB-Py 0.7 packages on PyPI support macOS 10.13+ and manylinux10-compatible Linux distributions only.
+  For now, wheels could be produced supporting older systems but without Google Cloud Support; if needed,
+  please contact us to discuss.
 
 ## Improvements
 * Added ".df[]" indexer tiledb.Array: directly returns a Pandas dataframe from a query (uses `multi_index` indexing behavior) [#390](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 * Added wrapping and support for TileDB checksumming filters: `ChecksumMD5Filter` and `ChecksumSHA256Filter` [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
-
-* Removed TBB from default setup.py, corresponding to TileDB Embedded changes [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
+* Removed TBB install from default setup.py, corresponding to TileDB Embedded changes [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 
 ## Misc Updates
 * Added round-trip tests for all filter `repr` objects [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
