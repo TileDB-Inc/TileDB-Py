@@ -103,6 +103,10 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_FILTER_BITSHUFFLE = 8
         TILEDB_FILTER_BYTESHUFFLE = 9
         TILEDB_FILTER_POSITIVE_DELTA = 10
+        # MD5 checksum filter. Starts at 12 because 11 is used for encryption
+        TILEDB_FILTER_CHECKSUM_MD5 = 12
+        TILEDB_FILTER_CHECKSUM_SHA256 = 13
+
 
     ctypedef enum tiledb_filter_option_t:
         TILEDB_COMPRESSION_LEVEL = 0

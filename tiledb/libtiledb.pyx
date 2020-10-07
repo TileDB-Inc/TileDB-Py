@@ -1801,6 +1801,50 @@ cdef class PositiveDeltaFilter(Filter):
             _raise_ctx_err(ctx_ptr, rc)
         return int(cwindow)
 
+cdef class MD5Filter(Filter):
+    """A filter that does nothing."""
+
+    @staticmethod
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        assert(filter_ptr != NULL)
+        cdef MD5Filter filter_obj = MD5Filter.__new__(MD5Filter)
+        filter_obj.ctx = ctx
+        # need to cast away the const
+        filter_obj.ptr = <tiledb_filter_t*> filter_ptr
+        return filter_obj
+
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        super().__init__(TILEDB_FILTER_NONE, ctx=ctx)
+
+    def _attrs_(self):
+        return {}
+
+cdef class SHA256Filter(Filter):
+    """A filter that does nothing."""
+
+    @staticmethod
+    cdef from_ptr(const tiledb_filter_t* filter_ptr, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        assert(filter_ptr != NULL)
+        cdef SHA256Filter filter_obj = SHA256Filter.__new__(SHA256Filter)
+        filter_obj.ctx = ctx
+        # need to cast away the const
+        filter_obj.ptr = <tiledb_filter_t*> filter_ptr
+        return filter_obj
+
+    def __init__(self, Ctx ctx=None):
+        if not ctx:
+            ctx = default_ctx()
+        super().__init__(TILEDB_FILTER_NONE, ctx=ctx)
+
+    def _attrs_(self):
+        return {}
+
 cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type,
                                        tiledb_filter_t* filter_ptr):
     """
@@ -1828,6 +1872,10 @@ cdef Filter _filter_type_ptr_to_filter(Ctx ctx, tiledb_filter_type_t filter_type
         return ByteShuffleFilter.from_ptr(filter_ptr, ctx=ctx)
     elif filter_type == TILEDB_FILTER_POSITIVE_DELTA:
         return PositiveDeltaFilter.from_ptr(filter_ptr, ctx=ctx)
+    elif filter_type == TILEDB_FILTER_CHECKSUM_MD5:
+        return MD5Filter.from_ptr(filter_ptr, ctx=ctx)
+    elif filter_type == TILEDB_FILTER_CHECKSUM_SHA256:
+        return SHA256Filter.from_ptr(filter_ptr, ctx=ctx)
     else:
         raise ValueError("unknown filter type tag: {:s}".format(filter_type))
 
