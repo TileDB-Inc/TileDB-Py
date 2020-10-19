@@ -178,7 +178,7 @@ class MetadataTest(DiskTestCase):
 
         # test expected number of fragments before consolidating
         self.assertEqual(
-            len( vfs.ls(os.path.join(path, "__meta")) ),
+            len( self.vfs.ls(os.path.join(path, "__meta")) ),
             302
             )
 
@@ -195,7 +195,7 @@ class MetadataTest(DiskTestCase):
 
         # should only have one fragment+'.ok' after vacuuming
         self.assertEqual(
-            len( vfs.ls(os.path.join(path, "__meta")) ),
+            len( self.vfs.ls(os.path.join(path, "__meta")) ),
             1
             )
 

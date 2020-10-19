@@ -13,13 +13,48 @@ from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
 
+def mock_ctx(base_config):
+  # note: this only mocks high-level calls to tiledb.Ctx and tiledb.default_ctx
+  #       we can't mock libtiledb.pyx:default_ctx
+  import tiledb
+  def mock(config=None):
+    new_config = base_config.copy()
+    if config is not None:
+      new_config.update(config)
+    return tiledb.libtiledb.Ctx(new_config)
+
+  tiledb.default_ctx = mock
+  tiledb.Ctx = mock
+  return
 
 class DiskTestCase(TestCase):
     pathmap = dict()
+    prefix = 's3://pytest' + str(random.randint(0,10e8)) + '/'
+    vfs = None
 
     def setUp(self):
-        prefix = 'tiledb-' + self.__class__.__name__
-        self.rootdir = tempfile.mkdtemp(prefix=prefix)
+        import tiledb
+        ctx_orig = tiledb.libtiledb.Ctx
+        base = self.prefix + 'tiledb-' + self.__class__.__name__
+        if self.prefix is not None:
+            config = {
+              'vfs.s3.endpoint_override': 'localhost:9999',
+              'vfs.s3.aws_access_key_id': 'minio',
+              'vfs.s3.aws_secret_access_key': 'miniosecretkey',
+              'vfs.s3.scheme': 'https',
+              'vfs.s3.verify_ssl': False,
+              'vfs.s3.use_virtual_addressing': False,
+            }
+            mock_ctx(config)
+            ctx = tiledb.Ctx()
+            self.vfs = tiledb.VFS(ctx=ctx)
+            if not self.vfs.is_bucket(self.prefix):
+              self.vfs.create_bucket(self.prefix)
+            self.vfs.create_dir(base)
+            self.rootdir = base+str(random.randint(0,10e10))
+            self.vfs.create_dir(self.rootdir)
+        else:
+            self.rootdir = tempfile.mkdtemp(prefix=base)
 
     def tearDown(self):
         # Remove every directory starting with rootdir
@@ -35,7 +70,11 @@ class DiskTestCase(TestCase):
                 raise exc
 
     def path(self, path):
-        out = os.path.abspath(os.path.join(self.rootdir, path))
+        if self.prefix:
+            out = os.path.join(self.rootdir, path)
+            self.vfs.create_dir(out)
+        else:
+            out = os.path.abspath(os.path.join(self.rootdir, path))
         frame = traceback.extract_stack(limit=2)[-2][2]
         self.pathmap[out] = frame
         return out

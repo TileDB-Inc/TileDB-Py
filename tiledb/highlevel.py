@@ -23,7 +23,7 @@ def open(uri, mode='r', key=None, attr=None, config=None, ctx=None):
         ctx = tiledb.Ctx(cfg)
 
     if ctx is None:
-        ctx = default_ctx()
+        ctx = tiledb.default_ctx()
 
     return tiledb.Array.load_typed(uri, mode, key, None, attr, ctx)
 
@@ -43,7 +43,7 @@ def save(uri, array, config=None, **kw):
         cfg = Config(config)
         ctx = tiledb.Ctx(cfg)
     else:
-        ctx = default_ctx()
+        ctx = tiledb.default_ctx()
 
     return tiledb.from_numpy(uri, array, ctx=ctx)
 
@@ -66,7 +66,7 @@ def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None):
         cfg = tiledb.Config(config)
         ctx = tiledb.Ctx(cfg)
     elif ctx is None:
-        ctx = default_ctx()
+        ctx = tiledb.default_ctx()
 
     if arr is ArraySchema:
         schema = arr
@@ -83,7 +83,7 @@ def from_numpy(uri, array, ctx=None, **kw):
     See documentation of :func:`tiledb.DenseArray.from_numpy`.
     """
     if not ctx:
-        ctx = default_ctx()
+        ctx = tiledb.default_ctx()
     if not isinstance(array, np.ndarray):
         raise Exception("from_numpy is only currently supported for numpy.ndarray")
 

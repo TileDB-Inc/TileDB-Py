@@ -103,7 +103,6 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             super(PandasDataFrameRoundtrip, self).setUp()
 
     def test_dataframe_basic_rt1_manual(self):
-
         uri = self.path("dataframe_basic_rt1_manual")
 
         ctx = tiledb.Ctx()
@@ -185,14 +184,13 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
     def test_dataframe_csv_rt1(self):
         def rand_dtype(dtype, size):
-            import os
             nbytes = size * np.dtype(dtype).itemsize
 
             randbytes = os.urandom(nbytes)
             return np.frombuffer(randbytes, dtype=dtype)
 
         uri = self.path("dataframe_csv_rt1")
-        os.mkdir(uri)
+        self.vfs.create_dir(uri)
         col_size=15
         data_dict = {
             'dates': np.array(

@@ -26,7 +26,7 @@ def make_1d_dense(ctx, path, attr_name=''):
     schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
     tiledb.DenseArray.create(path, schema)
 
-    with tiledb.DenseArray(path, 'w') as A:
+    with tiledb.DenseArray(path, 'w', ctx=ctx) as A:
         A[:] = a_orig
 
 
@@ -40,7 +40,7 @@ def make_2d_dense(ctx, path, attr_name=''):
     schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
     tiledb.DenseArray.create(path, schema)
 
-    with tiledb.DenseArray(path, 'w') as A:
+    with tiledb.DenseArray(path, 'w', ctx=ctx) as A:
         A[:] = a_orig
 
 class TestMultiRange(DiskTestCase):
@@ -56,7 +56,7 @@ class TestMultiRange(DiskTestCase):
                              dtype=np.uint64)
 
 
-        with tiledb.DenseArray(path) as A:
+        with tiledb.DenseArray(path, ctx=ctx) as A:
             ranges = ( ((0, 0),), )
             expected = np.array([0], dtype=np.int64)
             a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
@@ -89,7 +89,7 @@ class TestMultiRange(DiskTestCase):
             ( (0, 0), (5,8), ),
         )
 
-        with tiledb.DenseArray(path) as A:
+        with tiledb.DenseArray(path, ctx=ctx) as A:
             a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
 
             assert_array_equal(a, expected)
@@ -112,7 +112,7 @@ class TestMultiRange(DiskTestCase):
             ( (0,3), )
         )
 
-        with tiledb.DenseArray(path) as A:
+        with tiledb.DenseArray(path, ctx=ctx) as A:
             a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
             assert_array_equal(a, expected)
 
@@ -293,10 +293,10 @@ class TestMultiRange(DiskTestCase):
         tiledb.DenseArray.create(path, schema)
 
         orig_array = np.random.rand(schema.domain.dim(0).size).astype(np.float32)
-        with tiledb.open(path, 'w') as A:
+        with tiledb.open(path, 'w', ctx=ctx) as A:
             A[:] = orig_array
 
-        with tiledb.open(path) as A:
+        with tiledb.open(path, ctx=ctx) as A:
             # stepped ranges are not supported
             with self.assertRaises(ValueError):
                 A.query(coords=True).multi_index[ 1::2 ]
@@ -342,10 +342,10 @@ class TestMultiRange(DiskTestCase):
         coords = np.linspace(0,30, num=31)
         orig_array = np.random.rand(coords.size)
 
-        with tiledb.open(path, 'w') as A:
+        with tiledb.open(path, 'w', ctx=ctx) as A:
             A[coords] = orig_array
 
-        with tiledb.open(path) as A:
+        with tiledb.open(path, ctx=ctx) as A:
             assert_array_equal(
                 orig_array[ [0] ],
                 A.multi_index[ [0] ][attr_name]
@@ -394,10 +394,10 @@ class TestMultiRange(DiskTestCase):
 
             coords = intspace(min, max, num=100, dtype=dtype)
 
-            with tiledb.open(path, 'w') as A:
+            with tiledb.open(path, 'w', ctx=ctx) as A:
                 A[coords] = coords
 
-            with tiledb.open(path) as A:
+            with tiledb.open(path, ctx=ctx) as A:
 
                 res = A.multi_index[slice(coords[0], coords[-1])]
                 assert_array_equal(
@@ -460,10 +460,10 @@ class TestMultiRange(DiskTestCase):
         d2 = np.linspace(0, 10, num=11, dtype=np.float32)
         coords_d1,coords_d2 = np.meshgrid(d1,d2,indexing='ij')
 
-        with tiledb.open(path, 'w') as A:
+        with tiledb.open(path, 'w', ctx=ctx) as A:
             A[coords_d1.flatten(),coords_d2.flatten()] = orig_array
 
-        with tiledb.open(path) as A:
+        with tiledb.open(path, ctx=ctx) as A:
             res = A.multi_index[[0], :]
             assert_array_equal(
                 orig_array[[0], :].squeeze(),
@@ -544,7 +544,7 @@ class TestMultiRange(DiskTestCase):
         data = {'U':  U,
                 'V':  V}
 
-        with tiledb.open(path, 'w') as A:
+        with tiledb.open(path, 'w', ctx=ctx) as A:
             A[coords] = data
 
         with tiledb.open(path) as A:
@@ -576,7 +576,7 @@ class TestMultiRange(DiskTestCase):
                     res[k]
                 )
 
-        with tiledb.open(path) as A:
+        with tiledb.open(path, ctx=ctx) as A:
             Q = A.query(coords=False, attrs=["U"])
             res = Q.multi_index[:]
             self.assertTrue("U" in res)
@@ -597,13 +597,13 @@ class TestMultiRange(DiskTestCase):
         tiledb.DenseArray.create(path, schema)
 
         data = np.random.rand(1000)
-        with tiledb.DenseArray(path, 'w') as A:
+        with tiledb.DenseArray(path, 'w', ctx=ctx) as A:
             A[0] = data[0]
             A[-1] = data[-1]
             A[:] = data
 
         for _ in range(0,50):
-            with tiledb.DenseArray(path) as A:
+            with tiledb.DenseArray(path, ctx=ctx) as A:
                 idxs = random.sample(range(0, 999), k=100)
                 res = A.multi_index[idxs]
                 assert_array_equal(
@@ -627,10 +627,10 @@ class TestMultiRange(DiskTestCase):
 
         orig_array = np.random.rand(11,11)
 
-        with tiledb.open(path, 'w') as A:
+        with tiledb.open(path, 'w', ctx=ctx) as A:
             A[:] = orig_array
 
-        with tiledb.open(path) as A:
+        with tiledb.open(path, ctx=ctx) as A:
             assert_array_equal(
                 orig_array[[0], :],
                 A.multi_index[[0], :][attr_name]
