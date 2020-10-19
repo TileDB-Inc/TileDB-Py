@@ -1,7 +1,18 @@
 FROM quay.io/pypa/manylinux2010_x86_64
 
 ###############################################
-# settings (A)
+# version args
+ARG LIBTILEDB_VERSION=2.0.7
+ENV LIBTILEDB_VERSION=$LIBTILEDB_VERSION
+
+ARG LIBTILEDB_SHA=2058d3de138d6b11446c485fcfd0da70bfd6d038
+ENV LIBTILEDB_SHA=$LIBTILEDB_SHA
+
+ARG TILEDBPY_VERSION=0.6.6
+ENV TILEDBPY_VERSION=$TILEDBPY_VERSION
+
+###############################################
+# python settings
 # NOTE: MUST USE the 'mu' variant here to be compatible
 #       with "most" linux distros (see manylinux README)
 ENV PYTHON_BASE /opt/python/cp27-cp27mu/bin/
@@ -15,11 +26,6 @@ RUN  $PYTHON_BASE/pip install cmake==3.17.3 auditwheel
 
 ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
 
-###############################################
-# settings (B)
-ENV LIBTILEDB_VERSION 2.0.7
-ENV LIBTILEDB_SHA 2058d3de138d6b11446c485fcfd0da70bfd6d038
-ENV TILEDBPY_VERSION 0.6.6
 ###############################################
 # 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
 # 2) adding -lrt as a work-around for now because python2.7 doesn't link it, but it

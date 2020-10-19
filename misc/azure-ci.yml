@@ -1,6 +1,6 @@
 stages:
 - stage: CI
-  condition: not(or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-')))
+  condition: not(or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-')))
   jobs:
   - job:
     pool:

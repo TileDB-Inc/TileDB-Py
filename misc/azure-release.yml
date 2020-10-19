@@ -1,15 +1,15 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.6.6
-    LIBTILEDB_VERSION: 2.0.7
-    LIBTILEDB_SHA: 2058d3de138d6b11446c485fcfd0da70bfd6d038
+    TILEDBPY_VERSION: 0.6.7
+    LIBTILEDB_VERSION: 2.1.0-rc3
+    LIBTILEDB_SHA: c361b418575473c053ee137ef737fb43be2ff40c
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
     TILEDB_INSTALL: '$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)'
-    MACOSX_DEPLOYMENT_TARGET: 10.9
-  condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), contains(variables['Build.SourceBranchName'], 'release-'))
+    MACOSX_DEPLOYMENT_TARGET: 10.13
+  condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'))
 
   jobs:
   - job: build1_libtiledb
@@ -44,7 +44,7 @@ stages:
       vmImage: $(imageName)
 
     steps:
-    - script: git tag $(TILEDBPY_VERSION)
+    - script: git tag -f $(TILEDBPY_VERSION)
     - task: DownloadPipelineArtifact@2
       displayName: 'Download libtiledb artifact'
       inputs:
@@ -136,9 +136,9 @@ stages:
       vmImage: $(imageName)
 
     steps:
-    - script: git tag $(TILEDBPY_VERSION)
+    - script: git tag -f $(TILEDBPY_VERSION)
     - bash: |
-        docker build -f misc/pypi_linux/Dockerfile . -t wheel_builder
+        docker build --build-arg LIBTILEDB_VERSION --build-arg LIBTILEDB_SHA --build-arg TILEDBPY_VERSION -f misc/pypi_linux/Dockerfile . -t wheel_builder
         docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder build.sh
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}
@@ -152,9 +152,9 @@ stages:
       vmImage: $(imageName)
 
     steps:
-    - script: git tag $(TILEDBPY_VERSION)
+    - script: git tag -f $(TILEDBPY_VERSION)
     - bash: |
-        docker build -f misc/pypi_linux/Dockerfile2010 . -t wheel_builder_2010
+        docker build --build-arg LIBTILEDB_VERSION --build-arg LIBTILEDB_SHA --build-arg TILEDBPY_VERSION -f misc/pypi_linux/Dockerfile2010 . -t wheel_builder_2010
         docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder_2010 build.sh
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}
