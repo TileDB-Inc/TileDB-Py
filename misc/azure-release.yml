@@ -1,9 +1,9 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.6.7
-    LIBTILEDB_VERSION: 2.1.0-rc3
-    LIBTILEDB_SHA: c361b418575473c053ee137ef737fb43be2ff40c
+    TILEDBPY_VERSION: 0.7.0
+    LIBTILEDB_VERSION: 2.1.1
+    LIBTILEDB_SHA: db1139950fd075a05ee742b94360542ae04507f1
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
