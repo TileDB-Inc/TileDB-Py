@@ -24,7 +24,7 @@ TILEDB_KWARG_DEFAULTS = {
     'ctx': None,
     'sparse': True,
     'index_dims': None,
-    'allows_duplicates': False,
+    'allows_duplicates': True,
     'mode': 'ingest',
     'attrs_filters': None,
     'coords_filters': None,
@@ -374,7 +374,7 @@ def from_pandas(uri, dataframe, **kwargs):
     ctx = args.get('ctx', None)
     tile_order = args['tile_order']
     cell_order = args['cell_order']
-    allows_duplicates = args.get('allows_duplicates', False)
+    allows_duplicates = args.get('allows_duplicates', True)
     sparse = args['sparse']
     index_dims = args.get('index_dims', None)
     mode = args.get('mode', 'ingest')
