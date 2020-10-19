@@ -349,7 +349,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         # try once and make sure error is raised because of duplicate value
         with self.assertRaisesRegex(tiledb.TileDBError, "Duplicate coordinates \\(.*\\) are not allowed"):
-            tiledb.from_csv(tmp_array2a, tmp_csv2, index_col=['int_vals'], sparse=True)
+            tiledb.from_csv(tmp_array2a, tmp_csv2, index_col=['int_vals'], sparse=True, allows_duplicates=False)
 
         # try again, check from_csv(allows_duplicates=True, sparse=True)
         tiledb.from_csv(tmp_array2b, tmp_csv2, index_col=['int_vals'],
