@@ -41,13 +41,13 @@ TILEDB_KWARG_DEFAULTS = {
 }
 
 def parse_tiledb_kwargs(kwargs):
-    args = dict(TILEDB_KWARG_DEFAULTS)
+    parsed_args = dict(TILEDB_KWARG_DEFAULTS)
 
     for key in TILEDB_KWARG_DEFAULTS.keys():
         if key in kwargs:
-            args[key] = kwargs.pop(key)
+            parsed_args[key] = kwargs.pop(key)
 
-    return args
+    return parsed_args
 
 class ColumnInfo:
     def __init__(self, dtype, repr=None):
@@ -395,7 +395,7 @@ def from_pandas(uri, dataframe, **kwargs):
     allows_duplicates = args.get('allows_duplicates', True)
     sparse = args['sparse']
     index_dims = args.get('index_dims', None)
-    mode = args.get('mode', 'ingest')
+    mode = args.pop('mode', 'ingest')
     attrs_filters = args.get('attrs_filters', None)
     coords_filters = args.get('coords_filters', None)
     full_domain = args.get('full_domain', False)
@@ -478,6 +478,7 @@ def from_pandas(uri, dataframe, **kwargs):
         for name, spec in date_spec.items():
             dataframe[name] = pd.to_datetime(dataframe[name], format=spec)
 
+    print("write is: ", write)
     if write:
         write_dict = dataframe_to_np_arrays(dataframe, fillna=fillna)
 
@@ -618,12 +619,13 @@ def from_csv(uri, csv_file, **kwargs):
         vfs = tiledb.VFS(ctx=ctx)
         csv_file = tiledb.FileIO(vfs, csv_file, mode='rb')
     elif isinstance(csv_file, (list, tuple)):
-        # TODO may be useful to support a callback here
+        # TODO may be useful to support a filter callback here
         multi_file = True
 
-    mode = kwargs.pop('mode', None)
+    mode = tiledb_args.pop('mode', None)
     if mode is not None:
-        tiledb_args['mode'] = mode
+        # put back for from_pandas
+        kwargs['mode'] = mode
         # For schema_only mode we need to pass a max read count into
         #   pandas.read_csv
         # Note that 'nrows' is a pandas arg!
@@ -632,29 +634,35 @@ def from_csv(uri, csv_file, **kwargs):
         elif mode not in ['ingest', 'append']:
             raise TileDBError("Invalid mode specified ('{}')".format(mode))
 
+    # this is a pandas pass-through argument, do not pop!
     chunksize = kwargs.get('chunksize', None)
 
-    if multi_file and not chunksize:
+    if multi_file and not (chunksize or mode == 'schema_only'):
         raise TileDBError("Multiple input CSV files requires a 'chunksize' argument")
+
+    if multi_file:
+        input_csv_list = csv_file
+    else:
+        input_csv = csv_file
+
+    if mode:
+        kwargs.pop('mode', None)
 
     if chunksize is not None or multi_file:
         if not 'nrows' in kwargs:
             full_domain = True
 
         array_created = False
-        if mode == 'schema_only':
-            raise TileDBError("schema_only ingestion not supported for chunked read")
-        elif mode == 'append':
+        if mode == 'append':
             array_created = True
 
         csv_kwargs = kwargs.copy()
         kwargs.update(tiledb_args)
 
         if multi_file:
-            input_csv_list = csv_file
             csv_kwargs.pop("chunksize")
-        else:
-            input_csv = csv_file
+        if mode:
+            csv_kwargs.pop('mode', None)
 
         keep_reading = True
         rows_written = 0
