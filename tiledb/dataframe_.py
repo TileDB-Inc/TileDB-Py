@@ -1,12 +1,15 @@
-import tiledb, numpy as np
 import json
 import sys
 import os
 import io
+import copy
 from collections import OrderedDict
 import warnings
 
+import numpy as np
+import tiledb
 from tiledb import TileDBError
+#from tiledb.tests.common import xprint
 
 if sys.version_info >= (3,3):
     unicode_type = str
@@ -17,8 +20,6 @@ unicode_dtype = np.dtype(unicode_type)
 # TODO
 # - handle missing values
 # - handle extended datatypes
-# - implement distributed CSV import
-# - implement support for read CSV via TileDB VFS from any supported FS
 
 TILEDB_KWARG_DEFAULTS = {
     'ctx': None,
@@ -387,25 +388,28 @@ def from_pandas(uri, dataframe, **kwargs):
     """
     import pandas as pd
 
-    args = parse_tiledb_kwargs(kwargs)
+    if 'tiledb_args' in kwargs:
+        tiledb_args = kwargs.pop('tiledb_args')
+    else:
+        tiledb_args = parse_tiledb_kwargs(kwargs)
 
-    ctx = args.get('ctx', None)
-    tile_order = args['tile_order']
-    cell_order = args['cell_order']
-    allows_duplicates = args.get('allows_duplicates', True)
-    sparse = args['sparse']
-    index_dims = args.get('index_dims', None)
-    mode = args.pop('mode', 'ingest')
-    attrs_filters = args.get('attrs_filters', None)
-    coords_filters = args.get('coords_filters', None)
-    full_domain = args.get('full_domain', False)
-    capacity = args.get('capacity', False)
-    tile = args.get('tile', None)
-    nrows = args.get('nrows', None)
-    row_start_idx = args.get('row_start_idx', None)
-    fillna = args.pop('fillna', None)
-    date_spec = args.pop('date_spec', None)
-    column_types = args.pop('column_types', None)
+    ctx = tiledb_args.get('ctx', None)
+    tile_order = tiledb_args['tile_order']
+    cell_order = tiledb_args['cell_order']
+    allows_duplicates = tiledb_args.get('allows_duplicates', False)
+    sparse = tiledb_args['sparse']
+    index_dims = tiledb_args.get('index_dims', None)
+    mode = tiledb_args.get('mode', 'ingest')
+    attrs_filters = tiledb_args.get('attrs_filters', None)
+    coords_filters = tiledb_args.get('coords_filters', None)
+    full_domain = tiledb_args.get('full_domain', False)
+    capacity = tiledb_args.get('capacity', False)
+    tile = tiledb_args.get('tile', None)
+    nrows = tiledb_args.get('nrows', None)
+    row_start_idx = tiledb_args.get('row_start_idx', None)
+    fillna = tiledb_args.pop('fillna', None)
+    date_spec = tiledb_args.pop('date_spec', None)
+    column_types = tiledb_args.pop('column_types', None)
 
     write = True
     create_array = True
@@ -465,6 +469,8 @@ def from_pandas(uri, dataframe, **kwargs):
 
         tiledb.Array.create(uri, schema, ctx=ctx)
 
+        tiledb_args['mode'] = 'append'
+
     # apply fill replacements for NA values if specified
     if fillna is not None:
         dataframe.fillna(fillna, inplace=True)
@@ -478,7 +484,12 @@ def from_pandas(uri, dataframe, **kwargs):
         for name, spec in date_spec.items():
             dataframe[name] = pd.to_datetime(dataframe[name], format=spec)
 
-    print("write is: ", write)
+    # write the metadata so we can reconstruct dataframe
+    if create_array:
+        index_metadata = get_index_metadata(dataframe)
+        with tiledb.open(uri, 'w', ctx=ctx) as A:
+            write_array_metadata(A, attr_metadata, index_metadata)
+
     if write:
         write_dict = dataframe_to_np_arrays(dataframe, fillna=fillna)
 
@@ -502,8 +513,6 @@ def from_pandas(uri, dataframe, **kwargs):
                 row_end_idx = row_start_idx + len(dataframe)
                 A[row_start_idx:row_end_idx] = write_dict
 
-            if create_array:
-                write_array_metadata(A, attr_metadata, index_metadata)
         finally:
             A.close()
 
@@ -551,7 +560,7 @@ def open_dataframe(uri, ctx=None):
 
     >>> import tiledb
     >>> df = tiledb.open_dataframe("iris.tldb")
-    >>> tiledb.objec_type("iris.tldb")
+    >>> tiledb.object_type("iris.tldb")
     'array'
     """
     if ctx is None:
@@ -564,6 +573,53 @@ def open_dataframe(uri, ctx=None):
         new_df = _tiledb_result_as_dataframe(A, data)
 
     return new_df
+
+class CSVIterator():
+    """Iterate over a list of CSV files. Uses pandas.read_csv with pandas_args and returns
+    a list of dataframe(s) for each iteration, up to the specified 'chunksize' argument in
+    'pandas_args'
+    """
+
+    def __init__(file_list, pandas_args):
+        csv_iterator = pandas.read_csv(input_csv, **pandas_args)
+
+def _iterate_csvs_pandas(csv_list, pandas_args):
+    """Iterate over a list of CSV files. Uses pandas.read_csv with pandas_args and returns
+    a list of dataframe(s) for each iteration, up to the specified 'chunksize' argument in
+    'pandas_args'
+    """
+    import pandas as pd
+
+    assert('chunksize' in pandas_args)
+    chunksize = pandas_args['chunksize']
+
+    rows_read = 0
+    result_list = list()
+
+    file_iter = iter(csv_list)
+    next_file = next(file_iter, None)
+    while next_file is not None:
+        df_iter = pd.read_csv(next_file, **pandas_args)
+        df_iter.chunksize = chunksize - rows_read
+
+        df = next(df_iter, None)
+        while df is not None:
+            result_list.append(df)
+            rows_read += len(df)
+            df_iter.chunksize = chunksize - rows_read
+
+            if rows_read == chunksize:
+                yield result_list
+                # start over
+                rows_read = 0
+                df_iter.chunksize = chunksize
+                result_list = list()
+
+            df = next(df_iter, None)
+
+        next_file = next(file_iter, None)
+        if next_file is None and len(result_list) > 0:
+            yield result_list
 
 def from_csv(uri, csv_file, **kwargs):
     """
@@ -609,10 +665,19 @@ def from_csv(uri, csv_file, **kwargs):
         print("tiledb.from_csv requires pandas")
         raise
 
-    tiledb_args = parse_tiledb_kwargs(kwargs)
+    if 'tiledb_args' in kwargs:
+        tiledb_args = kwargs.get('tiledb_args')
+    else:
+        tiledb_args = parse_tiledb_kwargs(kwargs)
+
     multi_file = False
     debug = tiledb_args.get('debug', False)
 
+    pandas_args = copy.deepcopy(kwargs)
+
+    ##########################################################################
+    # set up common arguments
+    ##########################################################################
     if isinstance(csv_file, str) and not os.path.isfile(csv_file):
         # for non-local files, use TileDB VFS i/o
         ctx = tiledb_args.get('ctx', tiledb.default_ctx())
@@ -622,15 +687,13 @@ def from_csv(uri, csv_file, **kwargs):
         # TODO may be useful to support a filter callback here
         multi_file = True
 
-    mode = tiledb_args.pop('mode', None)
+    mode = tiledb_args.get('mode', None)
     if mode is not None:
-        # put back for from_pandas
-        kwargs['mode'] = mode
         # For schema_only mode we need to pass a max read count into
         #   pandas.read_csv
         # Note that 'nrows' is a pandas arg!
         if mode == 'schema_only' and not 'nrows' in kwargs:
-            kwargs['nrows'] = 500
+            pandas_args['nrows'] = 500
         elif mode not in ['ingest', 'append']:
             raise TileDBError("Invalid mode specified ('{}')".format(mode))
 
@@ -645,71 +708,57 @@ def from_csv(uri, csv_file, **kwargs):
     else:
         input_csv = csv_file
 
-    if mode:
-        kwargs.pop('mode', None)
-
-    if chunksize is not None or multi_file:
+    ##########################################################################
+    # handle multi_file and chunked arguments
+    ##########################################################################
+    # we need to use full-domain for multi or chunked reads, because we
+    # won't get a chance to see the full range during schema creation
+    if multi_file or chunksize is not None:
         if not 'nrows' in kwargs:
-            full_domain = True
+            tiledb_args['full_domain'] = True
 
+    ##########################################################################
+    # read path
+    ##########################################################################
+    if multi_file:
         array_created = False
         if mode == 'append':
             array_created = True
 
-        csv_kwargs = kwargs.copy()
-        kwargs.update(tiledb_args)
-
-        if multi_file:
-            csv_kwargs.pop("chunksize")
-        if mode:
-            csv_kwargs.pop('mode', None)
-
-        keep_reading = True
         rows_written = 0
-        csv_idx = 0
-        df_iter = None
 
-        while keep_reading:
-            # if we have multiple files, read them until we hit row threshold
-            if multi_file:
-                rows_read = 0
-                input_dfs = list()
-                while rows_read < chunksize and keep_reading:
-                    input_csv = input_csv_list[csv_idx]
-                    df = pandas.read_csv(input_csv, **csv_kwargs)
-                    input_dfs.append(df)
+        # multi-file or chunked always writes to full domain
+        # TODO: allow specifying dimension range for schema creation
+        tiledb_args['full_domain'] = True
 
-                    rows_read += len(df)
-                    csv_idx += 1
-                    keep_reading = csv_idx < len(input_csv_list)
-
-                df = pandas.concat(input_dfs)
-
-            else:
-                if not df_iter:
-                    df_iter = pandas.read_csv(input_csv, **csv_kwargs)
-                df = next(df_iter, None)
-
-            if df is None:
+        for df_list in _iterate_csvs_pandas(input_csv_list, pandas_args):
+            if df_list is None:
                 break
+            df = pandas.concat(df_list)
+            tiledb_args['row_start_idx'] = rows_written
 
-            kwargs['row_start_idx'] = rows_written
-            kwargs['full_domain'] = True
-            if array_created:
-                kwargs['mode'] = 'append'
-            # after the first chunk, switch to append mode
-            array_created = True
+            from_pandas(uri, df, tiledb_args=tiledb_args, pandas_args=pandas_args)
 
-            if debug:
-                print("`tiledb.read_csv` flushing '{}' rows ('{}' files)".format(
-                    len(df), csv_idx))
-
-            # now flush
-            from_pandas(uri, df, **kwargs)
             rows_written += len(df)
 
             if mode == 'schema_only':
                 break
+
+    elif chunksize is not None:
+        rows_written = 0
+        # for chunked reads, we need to iterate over chunks
+        df_iter = pandas.read_csv(input_csv, **pandas_args)
+        df = next(df_iter, None)
+        while df is not None:
+            # tell from_pandas what row to start the next write
+            tiledb_args['row_start_idx'] = rows_written
+
+            from_pandas(uri, df, tiledb_args=tiledb_args, pandas_args=pandas_args)
+
+            tiledb_args['mode'] = 'append'
+            rows_written += len(df)
+
+            df = next(df_iter, None)
 
     else:
         df = pandas.read_csv(csv_file, **kwargs)

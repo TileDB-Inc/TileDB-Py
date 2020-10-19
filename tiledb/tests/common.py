@@ -61,11 +61,13 @@ if sys.hexversion >= 0x3000000:
 else:
     getchr = unichr
 
+# exclude whitespace: if we generate unquoted newline then pandas will be confused
+_ws_set = set("\n\t\r")
 def gen_chr(max, printable=False):
     while True:
         # TODO we exclude 0x0 here because the key API does not embedded NULL
         s = getchr(random.randrange(1, max))
-        if printable and not s.isprintable():
+        if printable and (not s.isprintable()) or (s in _ws_set):
             continue
         if len(s) > 0:
             break
@@ -169,3 +171,9 @@ def intspace(start, stop, num=50, dtype=np.int64):
 
     rval[-1] = stop
     return rval
+
+import pprint as _pprint
+pp = _pprint.PrettyPrinter(indent=4)
+def xprint(*x):
+    for xp in x:
+        pp.pprint(xp)

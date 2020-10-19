@@ -446,7 +446,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_combined.sort_index(level='time', inplace=True)
             tm.assert_frame_equal(df_bk, df_combined)
 
-    def test_csv_chunked(self):
+    def test_dataframe_csv_chunked(self):
         col_size = 200
         df = make_dataframe_basic3(col_size)
 
@@ -561,12 +561,10 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                         sparse=True)
 
         # Check number of fragments
-        # * should equal 7 based on chunksize=25
-        # * 20 files, 10 rows each:
-        # - first 6 reads flush at 30 rows (3 files * 10 rows)
-        # - final 20 rows flush to last fragment
+        # * should equal 8 based on chunksize=25
+        # * 20 files, 10 rows each, 200 rows == 8 writes:
         fragments = glob.glob(tmp_array + "/*.ok")
-        self.assertEqual(len(fragments), 7)
+        self.assertEqual(len(fragments), 8)
 
         # Check the returned data
         # note: tiledb returns sorted values
