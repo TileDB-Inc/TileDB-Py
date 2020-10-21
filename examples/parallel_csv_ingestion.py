@@ -43,7 +43,9 @@ def from_csv_mp(csv_path, array_path, list_step_size=5, chunksize=100, max_worke
                 index_col=None,
                 parse_dates=None,
                 attr_types=None,
-                debug=False):
+                sparse=True,
+                debug=False,
+                **kwargs):
     """
     Multi-process ingestion wrapper around tiledb.from_csv
 
@@ -61,26 +63,20 @@ def from_csv_mp(csv_path, array_path, list_step_size=5, chunksize=100, max_worke
     if len(csvs) < 1:
         raise ValueError("Cannot ingest empty CSV list!")
 
-    # set fill values for string column if applicable
-    fillna = dict()
-    for name, dtype in attr_types.items():
-        if dtype == np.str:
-            fillna[name] = ''
-
-    # first step: create the array. we read the first N csvs as check for
-    #             inconsistency before starting the full run.
+    # first step: create the array. we read the first N csvs to create schema
+    #             and as check for inconsistency before starting the full run.
     tiledb.from_csv(array_path, csvs[:initial_file_count],
                 chunksize=chunksize, # must set chunksize here even though schema_only
                 index_col = index_col,
                 parse_dates=parse_dates,
                 dtype=attr_types,
                 column_types=attr_types,
-                fillna=fillna,
                 engine='c',
                 debug=debug,
                 allows_duplicates=True,
-                sparse=True,
-                mode='schema_only')
+                sparse=sparse,
+                mode='schema_only',
+                **kwargs)
 
     print("Finished array schema creation")
 
@@ -96,7 +92,6 @@ def from_csv_mp(csv_path, array_path, list_step_size=5, chunksize=100, max_worke
 
     # high level ingestion timing
     start = time.time()
-
     # ingest the data in parallel
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         for first in range(0, len(csvs)+1, list_step_size):
@@ -110,10 +105,10 @@ def from_csv_mp(csv_path, array_path, list_step_size=5, chunksize=100, max_worke
                        parse_dates=parse_dates,
                        dtype=attr_types,
                        column_types=attr_types,
-                       fillna=fillna,
                        engine='c',
                        debug=debug,
                        allows_duplicates=True),
+                **kwargs,
                 mode='append')
             tasks.append(task)
 
@@ -220,5 +215,3 @@ def test_parallel_csv_ingestion():
                 tm.assert_frame_equal(df_direct, df_tiledb)
 
     print("Writing output array to: ", array_path)
-
-    #from_csv_mp(csvs_path, array_path, list_step_size=5)
