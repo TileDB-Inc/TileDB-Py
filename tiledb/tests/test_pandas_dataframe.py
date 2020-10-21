@@ -10,7 +10,7 @@ except ImportError:
 
 import unittest, os
 import warnings
-import string, random
+import string, random, copy
 import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 
@@ -495,7 +495,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
     def test_csv_fillna(self):
         col_size = 10
-        data = np.random.rand(10)
+        data = np.random.rand(10) * 100 # make some integers for the 2nd test
         data[4] = np.nan
         df = pd.DataFrame({'v': data})
 
@@ -508,17 +508,31 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(tmp_array, tmp_csv, fillna={'v': 0})
 
-        with tiledb.open(tmp_array) as A:
-            res = A[:]
-            # check the value in the raw array
-            self.assertEqual(res['v'][4], 0)
+        def check_array(path, df):
+            with tiledb.open(path) as A:
+                res = A[:]
+                # check the value in the raw array
+                self.assertEqual(res['v'][4], 0)
 
-            df_bk = pd.DataFrame(res)
-            df_bk.pop('rows')
+                df_bk = pd.DataFrame(res)
+                df_bk.pop('rows')
 
-            # update the value in the original dataframe to match what we expect on read-back
-            df['v'][4] = 0
-            tm.assert_frame_equal(df_bk, df)
+                # update the value in the original dataframe to match what we expect on read-back
+                df['v'][4] = 0
+                tm.assert_frame_equal(df_bk, df)
+
+        check_array(tmp_array, copy.deepcopy(df))
+
+        if hasattr(pd, 'StringDtype'):
+            tmp_array2 = os.path.join(tmp_dir, "array2")
+            tiledb.from_csv(tmp_array2,
+                            tmp_csv,
+                            fillna={'v': 0},
+                            column_types={'v': pd.Int64Dtype})
+            df_to_check = copy.deepcopy(df)
+            df_to_check['v'][4] = 0
+            df_to_check = df_to_check.astype({'v': np.int64})
+            check_array(tmp_array2, df_to_check)
 
     def test_csv_multi_file(self):
         col_size = 10
