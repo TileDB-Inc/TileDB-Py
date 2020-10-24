@@ -47,6 +47,8 @@ TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
 # Use `setup.py [] --debug` for a debug build of libtiledb
 TILEDB_DEBUG_BUILD = False
+# Use `setup.py [] --release-symbols` for a release build with symbols libtiledb
+TILEDB_SYMBOLS_BUILD = False
 
 # Use `setup.py [] --modular` for a modular build of libtiledb_py
 #   Each .pyx file will be built as a separate shared library for faster
@@ -193,6 +195,8 @@ def build_libtiledb(src_dir):
 
     if TILEDB_DEBUG_BUILD:
         build_type = "Debug"
+    elif TILEDB_SYMBOLS_BUILD:
+        build_type = "RelWithDebInfo"
     else:
         build_type = "Release"
 
@@ -514,6 +518,9 @@ for arg in args:
     if arg.find('--debug') == 0:
         TILEDB_DEBUG_BUILD = True
         sys.argv.remove(arg)
+    if arg.find('--release-symbols') == 0:
+        TILEDB_SYMBOLS_BUILD = True
+        sys.argv.remove(arg)
     if arg.find('--modular') == 0:
         TILEDBPY_MODULAR = True
         sys.argv.remove(arg)
@@ -528,6 +535,8 @@ if not is_windows():
     CXXFLAGS.append("-g")
     CXXFLAGS.append("-O0")
     CXXFLAGS.append("-UNDEBUG") # defined by distutils
+  if TILEDB_SYMBOLS_BUILD:
+    CXXFLAGS.append("-g")
 LFLAGS = os.environ.get("LFLAGS", "").split()
 
 if TILEDB_PATH != '' and TILEDB_PATH != 'source':
