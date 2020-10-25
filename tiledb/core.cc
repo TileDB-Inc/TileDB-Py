@@ -859,7 +859,6 @@ PYBIND11_MODULE(core, m) {
       .def("results", &PyQuery::results)
       .def("buffer_dtype", &PyQuery::buffer_dtype)
       .def("unpack_buffer", &PyQuery::unpack_buffer)
-      .def("import_buffer", &PyQuery::unpack_buffer)
       .def("_test_array", &PyQuery::_test_array)
       .def("_test_err",
            [](py::object self, std::string s) { throw TileDBPyError(s); })
