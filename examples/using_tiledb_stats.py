@@ -41,11 +41,18 @@ array_name = "stats_array"
 
 
 def create_array(row_tile_extent, col_tile_extent):
-    dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(1, 12000), tile=row_tile_extent, dtype=np.int32),
-                        tiledb.Dim(name="cols", domain=(1, 12000), tile=col_tile_extent, dtype=np.int32))
+    dom = tiledb.Domain(
+        tiledb.Dim(
+            name="rows", domain=(1, 12000), tile=row_tile_extent, dtype=np.int32
+        ),
+        tiledb.Dim(
+            name="cols", domain=(1, 12000), tile=col_tile_extent, dtype=np.int32
+        ),
+    )
 
-    schema = tiledb.ArraySchema(domain=dom, sparse=False,
-                                attrs=[tiledb.Attr(name="a", dtype=np.int32)])
+    schema = tiledb.ArraySchema(
+        domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype=np.int32)]
+    )
 
     # Create the (empty) array on disk.
     tiledb.DenseArray.create(array_name, schema)
@@ -53,14 +60,14 @@ def create_array(row_tile_extent, col_tile_extent):
 
 def write_array():
     # Open the array and write to it.
-    with tiledb.DenseArray(array_name, mode='w') as A:
+    with tiledb.DenseArray(array_name, mode="w") as A:
         data = np.arange(12000 * 12000)
         A[:] = data
 
 
 def read_array():
     # Open the array and read from it.
-    with tiledb.DenseArray(array_name, mode='r') as A:
+    with tiledb.DenseArray(array_name, mode="r") as A:
         # Read a slice of 3,000 rows.
         # Enable the stats for the read query, and print the report.
         tiledb.stats_enable()

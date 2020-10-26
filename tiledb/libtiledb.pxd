@@ -31,7 +31,9 @@ cdef extern from "tiledb/tiledb.h":
     void tiledb_stats_enable()
     void tiledb_stats_disable()
     void tiledb_stats_reset()
-    void tiledb_stats_dump(FILE* out)
+    int32_t tiledb_stats_dump(FILE* out)
+    int32_t tiledb_stats_dump_str(char** out)
+    int32_t tiledb_stats_free_str(char** out)
 
     # Enums
     ctypedef enum tiledb_object_t:
