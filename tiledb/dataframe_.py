@@ -574,15 +574,6 @@ def open_dataframe(uri, ctx=None):
 
     return new_df
 
-class CSVIterator():
-    """Iterate over a list of CSV files. Uses pandas.read_csv with pandas_args and returns
-    a list of dataframe(s) for each iteration, up to the specified 'chunksize' argument in
-    'pandas_args'
-    """
-
-    def __init__(file_list, pandas_args):
-        csv_iterator = pandas.read_csv(input_csv, **pandas_args)
-
 def _iterate_csvs_pandas(csv_list, pandas_args):
     """Iterate over a list of CSV files. Uses pandas.read_csv with pandas_args and returns
     a list of dataframe(s) for each iteration, up to the specified 'chunksize' argument in
