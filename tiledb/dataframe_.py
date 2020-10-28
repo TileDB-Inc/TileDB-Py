@@ -409,9 +409,9 @@ def from_pandas(uri, dataframe, **kwargs):
     tile = tiledb_args.get('tile', None)
     nrows = tiledb_args.get('nrows', None)
     row_start_idx = tiledb_args.get('row_start_idx', None)
-    fillna = tiledb_args.pop('fillna', None)
-    date_spec = tiledb_args.pop('date_spec', None)
-    column_types = tiledb_args.pop('column_types', None)
+    fillna = tiledb_args.get('fillna', None)
+    date_spec = tiledb_args.get('date_spec', None)
+    column_types = tiledb_args.get('column_types', None)
 
     write = True
     create_array = True
