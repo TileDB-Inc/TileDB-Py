@@ -18,7 +18,7 @@
 * Removed TBB install from default setup.py, corresponding to TileDB Embedded changes [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 * Add support for 'capacity' kwarg to `from_csv`/`from_pandas` [#391](https://github.com/TileDB-Inc/TileDB-Py/pull/391)
 * Add support for 'tile' kwarg to `from_csv`/`from_pandas` to customize Dim tile extent [#391](https://github.com/TileDB-Inc/TileDB-Py/pull/391)
-
+* Added '--release-symbols' option for building in release optimization with debug symbols [#402](https://github.com/TileDB-Inc/TileDB-Py/pull/402)
 
 ## Misc Updates
 * Added round-trip tests for all filter `repr` objects [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
