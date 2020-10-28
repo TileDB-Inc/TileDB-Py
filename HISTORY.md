@@ -23,6 +23,10 @@
 ## Misc Updates
 * Added round-trip tests for all filter `repr` objects [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 
+
+## Bug fixes
+* Fixed bug indexing anonymous attributes of sparse arrays using `A[]` (did not affect dense or multi_index) [#404](https://github.com/TileDB-Inc/TileDB-Py/pull/404)
+
 # TileDB-Py 0.6.6 Release Notes
 
 **Note that we will be removing wheel support for macOS 10.9-10.12 in TileDB-Py 0.7 (planned for release in August 2020).** This change is due to upstream (AWS SDK) minimum version requirements. The minimum supported version for macOS wheels on PyPI will be macOS 10.13.
