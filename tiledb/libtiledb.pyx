@@ -5042,9 +5042,9 @@ cdef class SparseArrayImpl(Array):
         attr_names = list()
 
         if attrs is None:
-            attr_names.extend(self.schema.attr(i).name for i in range(self.schema.nattr))
+            attr_names.extend(self.schema.attr(i)._internal_name for i in range(self.schema.nattr))
         else:
-            attr_names.extend(self.schema.attr(a).name for a in attrs)
+            attr_names.extend(self.schema.attr(a)._internal_name for a in attrs)
 
         if coords:
             attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
@@ -5073,7 +5073,9 @@ cdef class SparseArrayImpl(Array):
         # collect a list of dtypes for resulting to construct array
         dtypes = list()
         for i in range(nattr):
-            name = attr_names[i]
+            name, final_name = attr_names[i], attr_names[i]
+            if name == '__attr':
+                final_name = ''
             if self.schema._needs_var_buffer(name):
                 if len(results[name][1]) > 0:
                     arr = q.unpack_buffer(name, results[name][0], results[name][1])
@@ -5089,7 +5091,7 @@ cdef class SparseArrayImpl(Array):
                         arr.dtype = final_dtype.str + '1'
                     else:
                         arr.dtype = self.schema.attr_or_dim_dtype(name)
-                out[name] = arr
+                out[final_name] = arr
             else:
                 if self.schema.domain.has_dim(name):
                     el_dtype = self.schema.domain.dim(name).dtype
@@ -5099,12 +5101,12 @@ cdef class SparseArrayImpl(Array):
 
                 # this is a work-around for NumPy restrictions removed in 1.16
                 if el_dtype == np.dtype('S0'):
-                    out[name] = b''
+                    out[final_name] = b''
                 elif el_dtype == np.dtype('U0'):
-                    out[name] = u''
+                    out[final_name] = u''
                 else:
                     arr.dtype = el_dtype
-                    out[name] = arr
+                    out[final_name] = arr
 
         return out
 
