@@ -20,7 +20,7 @@ steps:
     mkdir -p $TILEDB_BUILD
     cd $TILEDB_BUILD
 
-    $TILEDB_SRC/bootstrap --force-build-all-deps --enable=s3,gcs,azure,serialization --enable-static-tiledb --disable-avx2 --disable-tests --prefix=$TILEDB_INSTALL
+    $TILEDB_SRC/bootstrap --force-build-all-deps --disable-werror --enable=s3,gcs,azure,serialization --enable-static-tiledb --disable-avx2 --disable-tests --prefix=$TILEDB_INSTALL
 
     cmake --build $TILEDB_BUILD --config Release -j3
     cmake --build $TILEDB_BUILD --target install-tiledb --config Release
