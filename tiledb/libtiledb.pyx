@@ -4878,8 +4878,9 @@ cdef class SparseArrayImpl(Array):
             sparse_attributes.append(attr._internal_name)
             sparse_values.append(attr_val)
 
-        assert len(sparse_attributes) == len(val.keys())
-        assert len(sparse_values) == len(val.values())
+        if (len(sparse_attributes) != len(val.keys())) \
+            or (len(sparse_values) != len(val.values())):
+            raise TileDBError("Sparse write input data count does not match number of attributes")
 
         _write_array(
             self.ctx.ptr, self.ptr, self,
