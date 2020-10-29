@@ -231,8 +231,11 @@ def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False, ndim=
 def get_index_metadata(dataframe):
     md = dict()
     for index in dataframe.index.names:
+        index_md_name = index
+        if index == None:
+            index_md_name = 'rows'
         # Note: this may be expensive.
-        md[index] = dtype_from_column(dataframe.index.get_level_values(index)).dtype
+        md[index_md_name] = dtype_from_column(dataframe.index.get_level_values(index)).dtype
 
     return md
 
@@ -343,7 +346,6 @@ def write_array_metadata(array, attr_metadata = None, index_metadata = None):
     if attr_metadata:
         attr_md_dict = {n: str(t) for n,t in attr_metadata.items()}
         array.meta['__pandas_attribute_repr'] = json.dumps(attr_md_dict)
-
     if index_metadata:
         index_md_dict = {n: str(t) for n,t in index_metadata.items()}
         array.meta['__pandas_index_dims'] = json.dumps(index_md_dict)
@@ -530,6 +532,7 @@ def _tiledb_result_as_dataframe(readable_array, result_dict):
         index_dims = json.loads(readable_array.meta['__pandas_index_dims'])
 
     indexes = list()
+    rename_cols = dict()
 
     for col_name, col_val in result_dict.items():
         if repr_meta and col_name in repr_meta:
@@ -538,7 +541,14 @@ def _tiledb_result_as_dataframe(readable_array, result_dict):
         elif index_dims and col_name in index_dims:
             new_col = pd.Series(col_val, dtype=index_dims[col_name])
             result_dict[col_name] = new_col
-            indexes.append(col_name)
+            if col_name == 'rows':
+                rename_cols['rows'] = None
+                indexes.append(None)
+            else:
+                indexes.append(col_name)
+
+    for col_key,col_name in rename_cols.items():
+        result_dict[col_name] = result_dict.pop(col_key)
 
     df = pd.DataFrame.from_dict(result_dict)
     if len(indexes) > 0:
