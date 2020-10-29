@@ -4128,14 +4128,14 @@ cdef class Array(object):
         ...    A = tiledb.open(tmp)
         ...    A.df[1]
         ...    A.df[1:5]
-           rows  col1_f  col2_int
-        0     1     0.1         1
-           rows  col1_f  col2_int
-        0     1     0.1         1
-        1     2     0.2         2
-        2     3     0.3         3
-        3     4     0.4         4
-        4     5     0.5         5
+              col1_f  col2_int
+           1     0.1         1
+              col1_f  col2_int
+           1     0.1         1
+           2     0.2         2
+           3     0.3         3
+           4     0.4         4
+           5     0.5         5
 
         """
 

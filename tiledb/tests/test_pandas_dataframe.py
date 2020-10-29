@@ -167,8 +167,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tiledb.from_dataframe(uri, df, sparse=False, ctx=ctx)
 
         # TODO tiledb.read_dataframe
-        with tiledb.open(uri) as B:
-            df_readback = pd.DataFrame.from_dict(B[:])
+        df_readback = tiledb.open_dataframe(uri)
 
         tm.assert_frame_equal(df, df_readback)
 
@@ -509,16 +508,11 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tiledb.from_csv(tmp_array, tmp_csv, fillna={'v': 0})
 
         def check_array(path, df):
+            # update the value in the original dataframe to match what we expect on read-back
+            df['v'][4] = 0
+
             with tiledb.open(path) as A:
-                res = A[:]
-                # check the value in the raw array
-                self.assertEqual(res['v'][4], 0)
-
-                df_bk = pd.DataFrame(res)
-                df_bk.pop('rows')
-
-                # update the value in the original dataframe to match what we expect on read-back
-                df['v'][4] = 0
+                df_bk = A.df[:] #pd.DataFrame.from_dict(res)
                 tm.assert_frame_equal(df_bk, df)
 
         check_array(tmp_array, copy.deepcopy(df))
