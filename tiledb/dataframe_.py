@@ -233,7 +233,7 @@ def get_index_metadata(dataframe):
     for index in dataframe.index.names:
         index_md_name = index
         if index == None:
-            index_md_name = 'rows'
+            index_md_name = '__tiledb_rows'
         # Note: this may be expensive.
         md[index_md_name] = dtype_from_column(dataframe.index.get_level_values(index)).dtype
 
@@ -266,7 +266,7 @@ def create_dims(ctx, dataframe, index_dims,
             name = index.name
         else:
             index_dtype = np.dtype('uint64')
-            name = 'rows'
+            name = '__tiledb_rows'
 
         index_dict[name] = index.values
 
@@ -541,8 +541,8 @@ def _tiledb_result_as_dataframe(readable_array, result_dict):
         elif index_dims and col_name in index_dims:
             new_col = pd.Series(col_val, dtype=index_dims[col_name])
             result_dict[col_name] = new_col
-            if col_name == 'rows':
-                rename_cols['rows'] = None
+            if col_name == '__tiledb_rows':
+                rename_cols['__tiledb_rows'] = None
                 indexes.append(None)
             else:
                 indexes.append(col_name)
