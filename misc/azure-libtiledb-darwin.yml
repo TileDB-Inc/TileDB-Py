@@ -1,7 +1,7 @@
 steps:
 - task: Cache@2
   inputs:
-    key: 'libtiledb | "$(Agent.OS)" | "$(imageName)" | "$(LIBTILEDB_SHA)" | v2'
+    key: 'libtiledb | "$(Agent.OS)" | "$(imageName)" | "$(LIBTILEDB_SHA)" | v0'
     path: $(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)
     cacheHitVar: LIBTILEDB_CACHE_RESTORED
 
@@ -20,6 +20,8 @@ steps:
     mkdir -p $TILEDB_BUILD
     cd $TILEDB_BUILD
 
+    export CXXFLAGS="-Wno-range-loop-analysis"
+    export CFLAGS="-Wno-range-loop-analysis"
     $TILEDB_SRC/bootstrap --force-build-all-deps --enable=s3,gcs,azure,serialization --enable-static-tiledb --disable-avx2 --disable-tests --prefix=$TILEDB_INSTALL
 
     cmake --build $TILEDB_BUILD --config Release -j3
