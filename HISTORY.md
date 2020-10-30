@@ -14,18 +14,22 @@
 
 ## Improvements
 * Added ".df[]" indexer tiledb.Array: directly returns a Pandas dataframe from a query (uses `multi_index` indexing behavior) [#390](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
+* Added parallel CSV ingestion example using Python multiprocessing with `tiledb.from_csv` [#397](https://github.com/TileDB-Inc/TileDB-Py/pull/397)
 * Added wrapping and support for TileDB checksumming filters: `ChecksumMD5Filter` and `ChecksumSHA256Filter` [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 * Removed TBB install from default setup.py, corresponding to TileDB Embedded changes [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 * Add support for 'capacity' kwarg to `from_csv`/`from_pandas` [#391](https://github.com/TileDB-Inc/TileDB-Py/pull/391)
 * Add support for 'tile' kwarg to `from_csv`/`from_pandas` to customize Dim tile extent [#391](https://github.com/TileDB-Inc/TileDB-Py/pull/391)
 * Added '--release-symbols' option for building in release optimization with debug symbols [#402](https://github.com/TileDB-Inc/TileDB-Py/pull/402)
-
-## Misc Updates
-* Added round-trip tests for all filter `repr` objects [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
-
+* Changed `allows_duplicates` default to `True` for `from_csv/from_pandas` [#394](https://github.com/TileDB-Inc/TileDB-Py/pull/394)
 
 ## Bug fixes
 * Fixed bug indexing anonymous attributes of sparse arrays using `A[]` (did not affect dense or multi_index) [#404](https://github.com/TileDB-Inc/TileDB-Py/pull/404)
+* Fixed rendering of column name in mixed dtype exception [#382](https://github.com/TileDB-Inc/TileDB-Py/pull/382)
+* Fixed forwarding of 'ctx' kwarg to from_csv/from_pandas [#383](https://github.com/TileDB-Inc/TileDB-Py/pull/383)
+* Fixed type of return values for empty results when indexing a sparse array [#384](https://github.com/TileDB-Inc/TileDB-Py/pull/384)
+
+## Misc Updates
+* Added round-trip tests for all filter `repr` objects [#389](https://github.com/TileDB-Inc/TileDB-Py/pull/389)
 
 # TileDB-Py 0.6.6 Release Notes
 
