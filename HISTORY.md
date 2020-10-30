@@ -1,7 +1,7 @@
 # TileDB-Py 0.7.0 Release Notes
 
 ## TileDB Embedded updates:
-* TileDB-Py 0.7.0 includes [TileDB Embedded 2.1.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.1)
+* TileDB-Py 0.7.0 includes [TileDB Embedded 2.1.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.2)
   featuring a number of significant improvements, with major highlights including:
   - no longer uses Intel TBB for parallelization by default. Along with many benefits to TileDB Embedded, this
     significantly reduces complications and bugs with python multiprocessing fork mode.
