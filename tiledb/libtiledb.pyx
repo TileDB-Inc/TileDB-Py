@@ -6124,4 +6124,4 @@ def vacuum(uri, Config config=None, Ctx ctx=None):
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
 
-    tiledb_array_vacuum(ctx_ptr, uri_ptr, config_ptr)
+    check_error(ctx, tiledb_array_vacuum(ctx_ptr, uri_ptr, config_ptr))
