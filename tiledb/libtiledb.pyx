@@ -10,7 +10,6 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPo
 include "common.pxi"
 from .array import DenseArray, SparseArray
 
-import sys
 from os.path import abspath
 from collections import OrderedDict
 import io
@@ -504,13 +503,23 @@ def stats_reset():
     tiledb.core.init_stats()
 
 def stats_dump():
-    """Print all TileDB internal statistics values to standard output."""
-    tiledb_stats_dump(stdout)
+    """Return TileDB internal statistics as a string."""
+    cdef char* stats_str_ptr = NULL;
+
+    if tiledb_stats_dump_str(&stats_str_ptr) == TILEDB_ERR:
+        raise TileDBError("Unable to dump stats to stats_str_ptr.")
+
+    stats_str = stats_str_ptr.decode("UTF-8", "strict")
+
+    if tiledb_stats_free_str(&stats_str_ptr) == TILEDB_ERR:
+        raise TileDBError("Unable to free stats_str_ptr.")
+
+    print(stats_str)
 
     import tiledb.core
-    tiledb.core.print_stats()
+    print(tiledb.core.python_internal_stats())
 
-
+        
 cpdef unicode ustring(object s):
     """Coerce a python object to a unicode string"""
 

@@ -838,16 +838,19 @@ void init_stats() {
   stats_counters["py.unpack_results_time"] = TimerType();
 }
 
-void print_stats() {
+std::string python_internal_stats() {
   if (!g_stats) {
-    TPY_ERROR_LOC("Stats counters are not unitialized!")
+    TPY_ERROR_LOC("Stats counters are not uninitialized!")
   }
 
   auto counters = g_stats.get()->counters;
 
-  std::cout << "==== Python ====" << std::endl <<
-               "- Read query time: " << counters["py.read_query_time"].count() << std::endl <<
-               "- Buffer conversion time: " << counters["py.unpack_results_time"].count() << std::endl;
+  std::ostringstream os;
+  os << "==== Python ====" << std::endl <<
+      "- Read query time: " << counters["py.read_query_time"].count() << std::endl <<
+      "- Buffer conversion time: " << counters["py.unpack_results_time"].count();
+
+  return os.str();
 }
 
 PYBIND11_MODULE(core, m) {
@@ -865,7 +868,7 @@ PYBIND11_MODULE(core, m) {
       .def_property_readonly("_test_init_buffer_bytes", &PyQuery::_test_init_buffer_bytes);
 
   m.def("init_stats", &init_stats);
-  m.def("print_stats", &print_stats);
+  m.def("python_internal_stats", &python_internal_stats);
 
   /*
      We need to make sure C++ TileDBError is translated to a correctly-typed py
