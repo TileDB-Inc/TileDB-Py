@@ -1,3 +1,7 @@
+# In progress
+## Improvements
+* Modified stats_dump() to return internal stats as string, allowing for output in Jupyter notebooks [#403](https://github.com/TileDB-Inc/TileDB-Py/pull/403)
+
 # TileDB-Py 0.7.0 Release Notes
 
 ## TileDB Embedded updates:
