@@ -441,8 +441,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             )
 
         # Test mode='append'
-        tiledb.from_csv(tmp_array, tmp_csv,
-                        index_col=['time', 'double_range'], mode='append')
+        tiledb.from_csv(tmp_array, tmp_csv, mode='append')
         df2 = make_dataframe_basic3(10, time_range=(t0, t1))
         df2.sort_values('time', inplace=True)
         df2.set_index(['time', 'double_range'], inplace=True)
