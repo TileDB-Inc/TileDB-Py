@@ -502,6 +502,17 @@ def from_pandas(uri, dataframe, **kwargs):
             A = tiledb.open(uri, 'w', ctx=ctx)
 
             if A.schema.sparse:
+                if not create_array:
+                    index_col_names = []
+                    for k in range(A.schema.ndim):
+                        name = A.schema.domain.dim(k).name
+                        if name not in dataframe.index.names:
+                            index_col_names.append(name)
+                            write_dict.pop(name, None)
+
+                    if index_col_names:
+                        dataframe.set_index(index_col_names, inplace=True, drop=True)
+
                 coords = []
                 for k in range(A.schema.ndim):
                     coords.append(dataframe.index.get_level_values(k))
