@@ -39,6 +39,7 @@ stages:
     - script: |
         # vcvarsall is necessary so that numpy uses the correct compiler
         call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+        python -c "import sys; print(sys.executable)"
         python setup.py build_ext --inplace
         python setup.py install
       displayName: 'Build TileDB and TileDB-Py extension (Windows)'
@@ -46,6 +47,7 @@ stages:
 
     - bash: |
         set -xeo pipefail
+        which python
         python setup.py build_ext --inplace
         python setup.py install
       displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
@@ -53,6 +55,7 @@ stages:
 
     - bash: |
         set -xeo pipefail
+        which python
         python -m unittest tiledb.tests.all.suite_test
 
         # Test wheel build, install, and run
