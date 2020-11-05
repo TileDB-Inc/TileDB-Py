@@ -58,6 +58,12 @@ stages:
       displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
       condition: ne(variables['Agent.OS'], 'Windows_NT')
 
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '$(python.version)'
+        architecture: 'x64'
+
+
     - bash: |
         env
         set -xeo pipefail
