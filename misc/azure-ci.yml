@@ -30,6 +30,7 @@ stages:
 
     - script: |
         printenv
+        pacman -Q
       displayName: 'Print env'
 
     - script: |
