@@ -33,6 +33,7 @@ stages:
       displayName: 'Print env'
 
     - script: |
+        python -c "import sys; print(sys.executable)"
         python -m pip install --upgrade -r requirements_dev.txt
       displayName: 'Install dependencies'
 
@@ -55,7 +56,9 @@ stages:
 
     - bash: |
         set -xeo pipefail
+        python -c "import sys; print(sys.executable)"
         which python
+        python -c "import sys; print(sys.executable)"
         python -m unittest tiledb.tests.all.suite_test
 
         # Test wheel build, install, and run
