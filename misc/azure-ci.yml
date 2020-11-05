@@ -34,6 +34,10 @@ stages:
 
     - bash: |
         env
+        echo "find --- mingw64/bin"
+        find /mingw64/bin
+        echo "find --- usr/bin"
+        find /usr/bin
         pacman -Q
       displayName: 'Print env'
 
