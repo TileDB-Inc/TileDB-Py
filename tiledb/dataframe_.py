@@ -420,8 +420,13 @@ def from_pandas(uri, dataframe, **kwargs):
             write = False
         elif mode == 'append':
             create_array = False
+            if not sparse and row_start_idx is None:
+                raise TileDBError("Cannot append to dense array without 'row_start_idx'")
         elif mode != 'ingest':
             raise TileDBError("Invalid mode specified ('{}')".format(mode))
+
+    if sparse == False and (index_dims is None or 'index_col' not in kwargs):
+        full_domain = True
 
     if capacity is None:
         capacity = 0 # this will use the libtiledb internal default
