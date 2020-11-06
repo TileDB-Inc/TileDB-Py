@@ -20,10 +20,10 @@ steps:
     mkdir -p $TILEDB_BUILD
     cd $TILEDB_BUILD
 
-    $TILEDB_SRC/bootstrap --force-build-all-deps --disable-werror --enable=s3,gcs,azure,serialization --enable-static-tiledb --disable-avx2 --disable-tests --prefix=$TILEDB_INSTALL
+    $TILEDB_SRC/bootstrap --force-build-all-deps --enable-debug --disable-werror --enable=s3,gcs,azure,serialization --enable-static-tiledb --disable-avx2 --disable-tests --prefix=$TILEDB_INSTALL
 
-    cmake --build $TILEDB_BUILD --config Release -j3
-    cmake --build $TILEDB_BUILD --target install-tiledb --config Release
+    cmake --build $TILEDB_BUILD --config Debug -j3
+    cmake --build $TILEDB_BUILD --target install-tiledb --config Debug
 
     cp $TILEDB_BUILD/externals/install/lib/libz.1.dylib $TILEDB_INSTALL/lib || true
 
