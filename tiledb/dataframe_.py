@@ -575,11 +575,10 @@ def open_dataframe(uri, ctx=None):
     """
     if ctx is None:
         ctx = tiledb.default_ctx()
-
     # TODO support `distributed=True` option?
-
     with tiledb.open(uri, ctx=ctx) as A:
-        data = A[:]
+        nonempty = A.nonempty_domain()
+        data = A.multi_index.__getitem__(tuple(slice(s1, s2) for s1,s2 in nonempty))
         new_df = _tiledb_result_as_dataframe(A, data)
 
     return new_df

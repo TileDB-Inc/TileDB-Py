@@ -166,9 +166,12 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         ctx = tiledb.Ctx()
         tiledb.from_dataframe(uri, df, sparse=False, ctx=ctx)
 
-        # TODO tiledb.read_dataframe
         df_readback = tiledb.open_dataframe(uri)
+        tm.assert_frame_equal(df, df_readback)
 
+        uri = self.path("dataframe_basic_rt1_unlimited")
+        tiledb.from_dataframe(uri, df, full_domain=True, sparse=False, ctx=ctx)
+        df_readback = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df, df_readback)
 
     def test_dataframe_basic2(self):
@@ -321,10 +324,6 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tmp_array2 = os.path.join(tmp_dir, "array2")
         tiledb.from_csv(tmp_array2, tmp_csv,
                         sparse=False)
-        with tiledb.open(tmp_array2) as A:
-            # with sparse=False and no index column, we expect to have unlimited domain
-            self.assertEqual(A.schema.domain.dim(0).domain[1], 18446744073709541615)
-
 
     def test_csv_col_to_sparse_dims(self):
         df = make_dataframe_basic3(20)
