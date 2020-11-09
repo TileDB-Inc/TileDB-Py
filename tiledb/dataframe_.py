@@ -510,7 +510,9 @@ def from_pandas(uri, dataframe, **kwargs):
                 coords = []
                 for k in range(A.schema.ndim):
                     dim_name = A.schema.domain.dim(k).name
-                    if not create_array and dim_name not in dataframe.index.names:
+                    if not create_array and \
+                        dim_name not in dataframe.index.names and \
+                        dim_name != "__tiledb_rows":
                         # this branch handles the situation where a user did not specify
                         # index_col and is using mode='append'. We would like to try writing
                         # with the columns corresponding to existing dimension name.
