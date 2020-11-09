@@ -12,7 +12,7 @@ def mr_dense_result_shape(ranges, base_shape = None):
     new_shape = list()
     for i,rr in enumerate(ranges):
         if rr != ():
-            m = list(map(lambda y: abs(y[1] - y[0]) + 1, rr))
+            m = list(map(lambda y: abs(np.uint64(y[1]) - np.uint64(y[0])) + np.uint64(1), rr))
             new_shape.append(np.sum(m))
         else:
             if base_shape is None:
