@@ -312,8 +312,19 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df.to_csv(tmp_csv)
 
         tmp_array = os.path.join(tmp_dir, "array")
-        tiledb.from_csv(tmp_array, tmp_csv, index_col=['index'],
+        tiledb.from_csv(tmp_array,
+                        tmp_csv,
+                        index_col=['index'],
+                        dtype={'index': np.uint64},
                         sparse=False)
+
+        tmp_array2 = os.path.join(tmp_dir, "array2")
+        tiledb.from_csv(tmp_array2, tmp_csv,
+                        sparse=False)
+        with tiledb.open(tmp_array2) as A:
+            # with sparse=False and no index column, we expect to have unlimited domain
+            self.assertEqual(A.schema.domain.dim(0).domain[1], 18446744073709541615)
+
 
     def test_csv_col_to_sparse_dims(self):
         df = make_dataframe_basic3(20)
@@ -480,6 +491,9 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                         chunksize=25)
 
         with tiledb.open(tmp_array_dense) as A:
+            # with sparse=False and no index column, we expect to have unlimited domain
+            self.assertEqual(A.schema.domain.dim(0).domain[1], 18446744073709541615)
+
             # chunked writes go to unlimited domain, so we must only read nonempty
             ned = A.nonempty_domain()[0]
             # TODO should support numpy scalar here
