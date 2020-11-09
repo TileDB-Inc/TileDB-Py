@@ -455,7 +455,7 @@ cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
     if ret != TILEDB_OK:
         tiledb_error_free(&err_ptr)
         if ret == TILEDB_OOM:
-            return MemoryError()
+            raise MemoryError()
         raise TileDBError("error retrieving error message")
     cdef unicode message_string
     try:
