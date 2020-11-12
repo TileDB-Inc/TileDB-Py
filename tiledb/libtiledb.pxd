@@ -1230,6 +1230,7 @@ cdef class Query(object):
     cdef object order
     cdef DomainIndexer domain_index
     cdef object multi_index
+    cdef object df
 
 cdef class ReadQuery(object):
     cdef object _buffers
