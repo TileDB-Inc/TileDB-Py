@@ -174,7 +174,6 @@ class DataFrameIndexer(MultiRangeIndexer):
     Implements `.df[]` indexing to directly return a dataframe
     [] operator uses multi_index semantics.
     """
-
     def __getitem__(self, idx):
         from .dataframe_ import _tiledb_result_as_dataframe
 

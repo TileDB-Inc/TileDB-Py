@@ -297,6 +297,9 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_idx_res = A.df[slice(*ned_time), :]
             tm.assert_frame_equal(df_idx_res, df)
 
+            # test .df[] indexing with query
+            df_idx_res = A.query(attrs=['int_vals']).df[slice(*ned_time), :]
+            tm.assert_frame_equal(df_idx_res, df)
 
     def test_csv_dense(self):
         col_size = 10
@@ -505,6 +508,17 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_idx_res = A.df[int(ned[0]):int(ned[1])]
             tm.assert_frame_equal(df_idx_res, df)
 
+            # test .df[] indexing with query
+            df_idx_res = A.query(attrs=['time']).df[int(ned[0]):int(ned[1])]
+            tm.assert_frame_equal(df_idx_res, df[['time']])
+
+            df_idx_res = A.query(attrs=['double_range']).df[int(ned[0]):int(ned[1])]
+            tm.assert_frame_equal(df_idx_res, df[['double_range']])
+
+            # disable coordinate dimension/index
+            df_idx_res = A.query(coords=False).df[int(ned[0]):int(ned[1])]
+            tm.assert_frame_equal(df_idx_res, df.reset_index(drop=True))
+
     def test_csv_fillna(self):
         col_size = 10
         data = np.random.rand(10) * 100 # make some integers for the 2nd test
@@ -525,7 +539,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df['v'][4] = 0
 
             with tiledb.open(path) as A:
-                df_bk = A.df[:] #pd.DataFrame.from_dict(res)
+                df_bk = A.df[:]
                 tm.assert_frame_equal(df_bk, df)
 
         check_array(tmp_array, copy.deepcopy(df))

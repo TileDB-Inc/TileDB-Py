@@ -519,7 +519,7 @@ def stats_dump():
     import tiledb.core
     print(tiledb.core.python_internal_stats())
 
-        
+
 cpdef unicode ustring(object s):
     """Coerce a python object to a unicode string"""
 
@@ -3633,8 +3633,6 @@ cdef class Array(object):
         self.last_fragment_info = dict()
         self.meta = Metadata(self)
 
-
-
     def __cinit__(self):
         self.ptr = NULL
 
@@ -4184,8 +4182,9 @@ cdef class Query(object):
         self.order = order
         self.domain_index = DomainIndexer(array, query=self)
         # Delayed to avoid circular import
-        from .multirange_indexing import MultiRangeIndexer
+        from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
         self.multi_index = MultiRangeIndexer(array, query=self)
+        self.df = DataFrameIndexer(array, query=self)
 
     def __getitem__(self, object selection):
         return self.array.subarray(selection,
@@ -4221,6 +4220,12 @@ cdef class Query(object):
     def multi_index(self):
         """Apply Array.multi_index with query parameters."""
         return self.multi_index
+
+    @property
+    def df(self):
+        """Apply Array.multi_index with query parameters and return result
+           as a Pandas dataframe."""
+        return self.df
 
 
 # work around https://github.com/cython/cython/issues/2757
