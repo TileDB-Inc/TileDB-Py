@@ -2,6 +2,7 @@
 ## Improvements
 * Modified `stats_dump` to return internal stats as string, allowing for output in Jupyter notebooks [#403](https://github.com/TileDB-Inc/TileDB-Py/pull/403)
 * `open_dataframe` now uses the underlying Array's `nonempty_domain` [#409](https://github.com/TileDB-Inc/TileDB-Py/pull/409)
+* Added `__repr__` to `Array` and `Ctx` [#413](https://github.com/TileDB-Inc/TileDB-Py/pull/413)
 
 # TileDB-Py 0.7.0 Release Notes
 
