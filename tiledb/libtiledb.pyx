@@ -3397,10 +3397,6 @@ cdef class ArraySchema(object):
             raise ValueError(f"Requested name '{name}' is not an attribute or dimension")
 
     cdef _attr_name(self, name):
-        if name == "coords":
-            raise ValueError("'coords' attribute may not be accessed directly "
-                             "(use 'T.query(coords=True)')")
-
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
         check_error(self.ctx,
