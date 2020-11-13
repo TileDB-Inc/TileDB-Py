@@ -4918,8 +4918,7 @@ cdef class SparseArrayImpl(Array):
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifying the selected subarray region for each dimension of the SparseArray.
         :rtype: :py:class:`collections.OrderedDict`
-        :returns: An OrderedDict is returned with "coords" coordinate values being the first key. \
-            "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
+        :returns: An OrderedDict is returned with dimension and attribute names as keys. \
             Nonempty attribute values are returned as Numpy 1-d arrays.
         :raises IndexError: invalid or unsupported index selection
         :raises: :py:exc:`tiledb.TileDBError`
@@ -5003,7 +5002,7 @@ cdef class SparseArrayImpl(Array):
 
     def subarray(self, selection, coords=True, attrs=None, order=None):
         """
-        Retrieve coordinate and data cells for an item or region of the array.
+        Retrieve dimension and data cells for an item or region of the array.
 
         Optionally subselect over attributes, return sparse result coordinate values,
         and specify a layout a result layout / cell-order.
@@ -5014,8 +5013,7 @@ cdef class SparseArrayImpl(Array):
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
-        :returns: An OrderedDict is returned with "coords" coordinate values being the first key. \
-            "coords" is a Numpy record array representation of the coordinate values of non-empty attribute cells. \
+        :returns: An OrderedDict is returned with dimension and attribute names as keys. \
             Nonempty attribute values are returned as Numpy 1-d arrays.
 
         **Example:**
