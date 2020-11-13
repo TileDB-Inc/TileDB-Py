@@ -992,6 +992,9 @@ cdef class Ctx(object):
         self.ptr = ctx_ptr
         self._set_default_tags()
 
+    def __repr__(self):
+        return repr(self.config())
+
     def config(self):
         """Returns the Config instance associated with the Ctx."""
         cdef tiledb_config_t* config_ptr = NULL
@@ -3646,6 +3649,10 @@ cdef class Array(object):
         cdef const char* name = "ctx"
         cap = PyCapsule_New(<void *>(self.ptr), name, NULL)
         return cap
+
+    def __repr__(self):
+        return "Array(uri={0!r}, mode={1}, ndim={2})"\
+            .format(self.uri, self.mode, self.schema.ndim)
 
     def _ctx_(self) -> Ctx:
         """
