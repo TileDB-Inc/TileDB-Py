@@ -9,6 +9,7 @@ stages:
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
     TILEDB_INSTALL: '$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)'
     MACOSX_DEPLOYMENT_TARGET: 10.13
+    USE_CIBW_VERSION: 1.6.4
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'))
 
   jobs:
@@ -86,7 +87,7 @@ stages:
         git rev-parse HEAD
         python3 -m pip install --upgrade pip pytest cython
         python3 setup.py sdist --dist-dir wheelhouse
-        pip3 install cibuildwheel==1.4.1
+        pip3 install cibuildwheel==${USE_CIBW_VERSION}
         cibuildwheel --output-dir wheelhouse .
       displayName: "Build and test wheels (macOS)"
       condition: and(succeeded(), ne(variables['Agent.OS'], 'Windows_NT'))
@@ -107,7 +108,7 @@ stages:
         git rev-parse HEAD
         python -m pip install --upgrade pip pytest cython
         python setup.py sdist --dist-dir wheelhouse
-        pip install cibuildwheel==1.4.1
+        pip install cibuildwheel==%USE_CIBW_VERSION%
         cibuildwheel --output-dir wheelhouse .
       displayName: "Build and test wheels (Windows)"
       condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
