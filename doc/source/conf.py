@@ -84,7 +84,7 @@ pygments_style = 'friendly'
 # -- Options for HTML output -------------------------------------------------
 
 html_static_path = ['_static']
-html_logo = '_static/tileDB_uppercase_600_112.png'
+html_logo = '_static/tiledb-logo_color_no_margin_@4x.png'
 html_favicon = '_static/favicon.ico'
 
 if readthedocs:
