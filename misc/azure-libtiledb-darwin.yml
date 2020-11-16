@@ -14,6 +14,11 @@ steps:
     set -xe pipefail
     unset SYSTEM
 
+    if [[ "$AGENT_OS" == "Darwin" ]]; then
+      # avoid curl linkage to libidn2
+      brew uninstall --ignore-dependencies libidn2 brotli rtmpdump
+    fi
+
     git clone https://github.com/TileDB-Inc/TileDB $TILEDB_SRC
     git -C $(TILEDB_SRC) checkout $(LIBTILEDB_SHA)
 
