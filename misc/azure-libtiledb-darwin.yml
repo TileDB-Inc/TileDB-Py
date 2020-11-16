@@ -86,5 +86,8 @@ steps:
     if [[ "$libtiledb_sha_actual" != "$(LIBTILEDB_SHA)" ]]; then
       echo "variable LIBTILEDB_SHA ('$LIBTILEDB_SHA') does not match SHA of LIBTILEDB_VERSION checkout ('$libtiledb_sha_actual')";
     fi
+    echo "--- Printing libtiledb linkage ---"
+    otool -L `find $LIBTILEDB_INSTALL -name *libtiledb*`
+    echo "----------------------------------"
   displayName: "Print debug info"
   condition: always()
