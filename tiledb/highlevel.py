@@ -4,7 +4,7 @@ from tiledb.libtiledb import *
 import numpy as np
 import warnings
 
-def open(uri, mode='r', key=None, attr=None, config=None, ctx=None):
+def open(uri, mode='r', key=None, attr=None, config=None, timestamp=None, ctx=None):
     """
     Open a TileDB array at the given URI
 
@@ -25,7 +25,7 @@ def open(uri, mode='r', key=None, attr=None, config=None, ctx=None):
     if ctx is None:
         ctx = default_ctx()
 
-    return tiledb.Array.load_typed(uri, mode, key, None, attr, ctx)
+    return tiledb.Array.load_typed(uri, mode=mode, key=key, timestamp=timestamp, attr=attr, ctx=ctx)
 
 def save(uri, array, config=None, **kw):
     """
