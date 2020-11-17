@@ -2989,12 +2989,21 @@ except ImportError:
 class HighlevelTests(DiskTestCase):
     def test_open(self):
         uri = self.path("test_open")
-        with tiledb.from_numpy(uri, np.random.rand(10)) as A:
-            pass
+        array = np.random.rand(10)
+        schema = tiledb.schema_like(array)
+        tiledb.Array.create(uri, schema)
+        with tiledb.open(uri, 'w') as A:
+            A[:] = array * 10
+            A[:] = array
+            last_fragment_ts = list(A.last_write_info.items())[0][1][0]
 
         ctx = tiledb.Ctx()
         with tiledb.DenseArray(uri, ctx=ctx) as A:
             self.assertEqual(A._ctx_(), ctx)
+
+        # test `open` with timestamp
+        with tiledb.open(uri, timestamp=last_fragment_ts) as A:
+            assert_array_equal(A[:], array)
 
         with tiledb.open(uri, ctx=ctx) as A:
             self.assertEqual(A._ctx_(), ctx)
