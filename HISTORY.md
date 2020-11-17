@@ -1,9 +1,15 @@
 # In progress
 ## Improvements
+* Added support for `df[]` indexing via `tiledb.Array.query` [#411](https://github.com/TileDB-Inc/TileDB-Py/pull/411)
 * Modified `stats_dump` to return internal stats as string, allowing for output in Jupyter notebooks [#403](https://github.com/TileDB-Inc/TileDB-Py/pull/403)
-* `open_dataframe` now uses the underlying Array's `nonempty_domain` [#409](https://github.com/TileDB-Inc/TileDB-Py/pull/409)
 * Added `__repr__` to `Array` and `Ctx` [#413](https://github.com/TileDB-Inc/TileDB-Py/pull/413)
 * `tiledb.open` now supports `timestamp` keyword argument [#419](https://github.com/TileDB-Inc/TileDB-Py/pull/419)
+
+## Bug fixes
+* Fixed PyPI wheels load error on newer macOS due to overlinkage against system libraries in build process (curl -> libintl) [#418](https://github.com/TileDB-Inc/TileDB-Py/pull/418)
+* Fixed PyPI wheels load error on Windows due to building against TBB [#419](https://github.com/TileDB-Inc/TileDB-Py/pull/419)
+* Fixed indexing of attribute named 'coords' [#414](https://github.com/TileDB-Inc/TileDB-Py/pull/414)
+* `open_dataframe` now uses the underlying Array's `nonempty_domain` to avoid errors opening unlimited domain arrays [#409](https://github.com/TileDB-Inc/TileDB-Py/pull/409)
 
 # TileDB-Py 0.7.0 Release Notes
 
