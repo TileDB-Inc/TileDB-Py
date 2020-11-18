@@ -11,6 +11,9 @@ import tiledb
 from tiledb.tests.common import DiskTestCase, assert_subarrays_equal, rand_utf8, rand_ascii, rand_ascii_bytes
 
 def safe_dump(obj):
+    """
+    Helper to call obj.dump(), redirect stdout, and catch any exceptions
+    """
     # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
     #      functions...
     try:
@@ -214,10 +217,11 @@ class DimensionTest(unittest.TestCase):
         self.assertNotEqual(dim.tile, np.timedelta64(20, 'W')) # Sanity check unit
         self.assertTupleEqual(dim.domain, (np.datetime64('2010-01-01'), np.datetime64('2020-01-01')))
 
-        # No tile extent specified
-        with self.assertRaises(tiledb.TileDBError):
-            tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
-                       dtype=np.datetime64('', 'D'))
+        # No tile extent specified: this is not an error in 2.2
+        if tiledb.libtiledb.version() < (2,2):
+            with self.assertRaises(tiledb.TileDBError):
+                tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
+                           dtype=np.datetime64('', 'D'))
 
         # Integer tile extent is ok
         dim = tiledb.Dim(name="d1", ctx=ctx, domain=(np.datetime64('2010-01-01'), np.datetime64('2020-01-01')),
@@ -247,9 +251,10 @@ class DomainTest(unittest.TestCase):
 
     def test_domain(self):
         ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim("d1", (1, 4), 2, dtype='u8'),
-            tiledb.Dim("d2", (1, 4), 2, dtype='u8'))
+        dims = [tiledb.Dim("d1", (1, 4), 2, dtype='u8'),
+                tiledb.Dim("d2", (1, 4), 2, dtype='u8')]
+        dom = tiledb.Domain(*dims)
+        # check that dumping works
         safe_dump(dom)
         self.assertEqual(dom.ndim, 2)
         self.assertEqual(dom.dtype, np.dtype("uint64"))
@@ -262,6 +267,10 @@ class DomainTest(unittest.TestCase):
         # check that we can access dim by name
         dim_d1 = dom.dim("d1")
         self.assertEqual(dim_d1, dom.dim(0))
+
+        # check that we can construct directly from a List[Dim]
+        dom2 = tiledb.Domain(dims)
+        self.assertEqual(dom, dom2)
 
     def test_datetime_domain(self):
         ctx = tiledb.Ctx()
@@ -623,6 +632,11 @@ class ArrayTest(DiskTestCase):
                 self.assertTrue(array.isopen)
                 self.assertEqual(array.schema, schema)
                 self.assertEqual(array.mode, 'r')
+            with tiledb.open(self.path("foo"), mode='r', key=key, ctx=ctx) as array:
+                self.assertTrue(array.isopen)
+                self.assertEqual(array.schema, schema)
+                self.assertEqual(array.mode, 'r')
+
             tiledb.consolidate(uri=self.path("foo"), config=config, key=key, ctx=ctx)
 
         # check that opening the array with the wrong key fails:

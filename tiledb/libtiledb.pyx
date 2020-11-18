@@ -2691,6 +2691,11 @@ cdef class Domain(object):
     def __init__(self, *dims, Ctx ctx=None):
         if not ctx:
             ctx = default_ctx()
+
+        # support passing a list of dims without splatting
+        if len(dims) == 1 and isinstance(dims[0], list):
+            dims = dims[0]
+
         cdef Py_ssize_t ndim = len(dims)
         if ndim == 0:
             raise TileDBError("Domain must have ndim >= 1")
