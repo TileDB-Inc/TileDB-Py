@@ -1,4 +1,7 @@
 # In progress
+
+# TileDB-Py 0.7.1 Release Notes
+
 ## Improvements
 * Added support for `df[]` indexing via `tiledb.Array.query` [#411](https://github.com/TileDB-Inc/TileDB-Py/pull/411)
 * Modified `stats_dump` to return internal stats as string, allowing for output in Jupyter notebooks [#403](https://github.com/TileDB-Inc/TileDB-Py/pull/403)
