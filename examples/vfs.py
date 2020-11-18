@@ -36,8 +36,10 @@ import struct
 import tiledb
 import os
 
+
 def path(p):
     return os.path.join(os.getcwd(), p)
+
 
 def dirs_files():
     # Create TileDB VFS

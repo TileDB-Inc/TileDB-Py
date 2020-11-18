@@ -42,22 +42,33 @@ path = "sparse_mixed_demo"
 
 ctx = tiledb.Ctx()
 
-dom = tiledb.Domain(*[
-    tiledb.Dim(name="str_dim", domain=(None,None), dtype=np.bytes_, ctx=ctx),
-    tiledb.Dim(name="int64_dim", domain=(0, 100), tile=10, dtype=np.int64, ctx=ctx),
-    tiledb.Dim(name="float64_dim", domain=(-100.0,100.0), tile=10, dtype=np.float64, ctx=ctx)],
-                    ctx=ctx)
+dom = tiledb.Domain(
+    *[
+        tiledb.Dim(name="str_dim", domain=(None, None), dtype=np.bytes_, ctx=ctx),
+        tiledb.Dim(name="int64_dim", domain=(0, 100), tile=10, dtype=np.int64, ctx=ctx),
+        tiledb.Dim(
+            name="float64_dim",
+            domain=(-100.0, 100.0),
+            tile=10,
+            dtype=np.float64,
+            ctx=ctx,
+        ),
+    ],
+    ctx=ctx
+)
 
 att = tiledb.Attr(name="a", ctx=ctx, dtype=np.int64)
-schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), sparse=True, capacity=10000)
+schema = tiledb.ArraySchema(
+    ctx=ctx, domain=dom, attrs=(att,), sparse=True, capacity=10000
+)
 tiledb.SparseArray.create(path, schema)
 
-data = [1,2,3,4]
-c_str = [b"aa",b"bbb", b"c", b"dddd"]
-c_int64 = [0,10,20,30]
+data = [1, 2, 3, 4]
+c_str = [b"aa", b"bbb", b"c", b"dddd"]
+c_int64 = [0, 10, 20, 30]
 c_float64 = [-95.0, -61.5, 1.3, 42.7]
 
-with tiledb.open(path, 'w') as A:
+with tiledb.open(path, "w") as A:
     A[c_str, c_int64, c_float64] = data
 
 with tiledb.open(path) as A:
@@ -65,13 +76,13 @@ with tiledb.open(path) as A:
     print(A[:])
 
     print("\n\nRead string slice A['c':'dddd']:\n")
-    print(A['c':'dddd'])
+    print(A["c":"dddd"])
 
     print("\n\nRead A[:, 10]: \n")
-    print(A['aa':'bbb'])
+    print(A["aa":"bbb"])
 
     print("\n\nRead A.multi_index['aa':'c', 0:10]\n")
-    print(A.multi_index['aa':'c', 0:10])
+    print(A.multi_index["aa":"c", 0:10])
 
     print("\n\nRead A.multi_index['aa':'bbb', :, -95.0:-61.5]\n")
-    print(A.multi_index['aa':'bbb', :, -95.0:-61.5])
+    print(A.multi_index["aa":"bbb", :, -95.0:-61.5])

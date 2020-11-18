@@ -43,12 +43,15 @@ array_name = "writing_sparse_multiple"
 
 def create_array():
     # The array will be 4x4 with dimensions "rows" and "cols", with domain [1,4].
-    dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(1, 4), tile=4, dtype=np.int32),
-                        tiledb.Dim(name="cols", domain=(1, 4), tile=4, dtype=np.int32))
+    dom = tiledb.Domain(
+        tiledb.Dim(name="rows", domain=(1, 4), tile=4, dtype=np.int32),
+        tiledb.Dim(name="cols", domain=(1, 4), tile=4, dtype=np.int32),
+    )
 
     # The array will be sparse with a single attribute "a" so each (i,j) cell can store an integer.
-    schema = tiledb.ArraySchema(domain=dom, sparse=True,
-                                attrs=[tiledb.Attr(name="a", dtype=np.int32)])
+    schema = tiledb.ArraySchema(
+        domain=dom, sparse=True, attrs=[tiledb.Attr(name="a", dtype=np.int32)]
+    )
 
     # Create the (empty) array on disk.
     tiledb.SparseArray.create(array_name, schema)
@@ -56,7 +59,7 @@ def create_array():
 
 def write_array():
     # Open the array and write to it.
-    with tiledb.SparseArray(array_name, mode='w') as A:
+    with tiledb.SparseArray(array_name, mode="w") as A:
         # First write
         I, J = [1, 2, 2], [1, 4, 3]
         data = np.array(([1, 2, 3]))
@@ -67,9 +70,10 @@ def write_array():
         data = np.array(([4, 20]))
         A[I, J] = data
 
+
 def read_array():
     # Open the array and read from it.
-    with tiledb.SparseArray(array_name, mode='r') as A:
+    with tiledb.SparseArray(array_name, mode="r") as A:
         # Slice entire array
         data = A[1:5, 1:5]
         a_vals = data["a"]
