@@ -75,6 +75,16 @@ auditwheel repair dist/*.whl
 /opt/python/cp38-cp38/bin/python3.8 -m pip install wheelhouse/*.whl
 cd tiledb/tests
 
+# build python39 wheel
+cd /home/tiledb
+git clone $TILEDB_PY_REPO TileDB-Py39
+git -C TileDB-Py39 checkout $TILEDBPY_VERSION
+
+cd /home/tiledb/TileDB-Py39
+/opt/python/cp39-cp39/bin/python3.9 setup.py build_ext bdist_wheel --tiledb=/usr/local
+auditwheel repair dist/*.whl
+/opt/python/cp39-cp39/bin/python3.9 -m pip install wheelhouse/*.whl
+cd tiledb/tests
 
 # copy build products out
 cp /home/tiledb/TileDB-Py27/wheelhouse/* /wheels
@@ -82,3 +92,4 @@ cp /home/tiledb/TileDB-Py35/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py36/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py37/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py38/wheelhouse/* /wheels
+cp /home/tiledb/TileDB-Py39/wheelhouse/* /wheels
