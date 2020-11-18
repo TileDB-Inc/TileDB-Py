@@ -26,8 +26,8 @@
 #
 # DESCRIPTION
 #
-# This is a part of the TileDB documentation:
-#  https://docs.tiledb.com/developer/api-usage/reading-arrays/multi-range-subarrays
+# Please see the TileDB documentation for more information:
+#  https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/reading-arrays/multi-range-subarrays
 #
 # When run, this program will create a simple 2D dense array with two
 # attributes, write some data to it, and read a slice of the data back on

@@ -4,7 +4,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2018 TileDB, Inc.
+# Copyright (c) 2020 TileDB, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,8 @@
 #
 # DESCRIPTION
 #
-# This is a part of the TileDB tutorial:
-#   https://docs.tiledb.io/en/latest/tutorials/writing-dense.html
+# Please see the TileDB documentation for more information:
+#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/writing-arrays/writing-in-dense-subarrays
 #
 # When run, this program will create a simple 2D dense array, write some data
 # to it with two write queries, and read the entire array data back.
