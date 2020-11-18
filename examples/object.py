@@ -4,7 +4,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2018 TileDB, Inc.
+# Copyright (c) 2020 TileDB, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,8 @@
 #
 # DESCRIPTION
 #
-# This is a part of the TileDB tutorial:
-#   https://docs.tiledb.io/en/latest/tutorials/object.html
+# Please see the TileDB documentation for more information:
+#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/object-management
 #
 # This program creates a hierarchy as shown below. Specifically, it creates
 # groups `dense_arrays` and `sparse_arrays` in a group `my_group`, and

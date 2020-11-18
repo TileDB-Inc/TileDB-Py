@@ -4,7 +4,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2018 TileDB, Inc.
+# Copyright (c) 2020 TileDB, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,9 @@
 #
 # DESCRIPTION
 #
-# This is a part of the TileDB quickstart tutorial:
-#   https://docs.tiledb.io/en/latest/tutorials/quickstart.html
+# Please refer to the TileDB and TileDB-Py documentation for more information:
+#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage
+#   https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/python-api.html
 #
 # When run, this program will create a simple 2D dense array, write some data
 # to it, and read a slice of the data back.

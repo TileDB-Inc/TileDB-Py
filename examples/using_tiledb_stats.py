@@ -4,7 +4,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2018 TileDB, Inc.
+# Copyright (c) 2020 TileDB, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,8 @@
 #
 # DESCRIPTION
 #
-# This is a part of the TileDB tutorial:
-#   https://docs.tiledb.io/en/latest/performance/using-tiledb-statistics.html
+# Please see the TileDB documentation for more information:
+#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/using-performance-statistics
 #
 # When run, this program will create a 0.5GB dense array, and enable the
 # TileDB statistics surrounding reads from the array.
