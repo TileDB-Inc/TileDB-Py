@@ -57,17 +57,22 @@ def create_array(array_name, sparse):
     if tiledb.object_type(array_name) == "array":
         return
 
-    dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(1, 4), tile=4, dtype=np.int32),
-                        tiledb.Dim(name="cols", domain=(1, 4), tile=4, dtype=np.int32))
-    schema = tiledb.ArraySchema(domain=dom, sparse=sparse,
-                                attrs=[tiledb.Attr(name="a", dtype=np.int32)])
+    dom = tiledb.Domain(
+        tiledb.Dim(name="rows", domain=(1, 4), tile=4, dtype=np.int32),
+        tiledb.Dim(name="cols", domain=(1, 4), tile=4, dtype=np.int32),
+    )
+    schema = tiledb.ArraySchema(
+        domain=dom, sparse=sparse, attrs=[tiledb.Attr(name="a", dtype=np.int32)]
+    )
     if sparse:
         tiledb.SparseArray.create(array_name, schema)
     else:
         tiledb.DenseArray.create(array_name, schema)
 
+
 def path(p):
     return os.path.join(os.getcwd(), p)
+
 
 def create_hierarchy():
     # Create groups
@@ -90,10 +95,14 @@ def list_obj(path):
 
     # Walk in a path with a pre- and post-order traversal
     print("\nPreorder traversal:")
-    tiledb.walk(path, lambda obj_path, obj_type: print(obj_path, obj_type))  # Default order is preorder
+    tiledb.walk(
+        path, lambda obj_path, obj_type: print(obj_path, obj_type)
+    )  # Default order is preorder
 
     print("\nPostorder traversal:")
-    tiledb.walk(path, lambda obj_path, obj_type: print(obj_path, obj_type), order="postorder")
+    tiledb.walk(
+        path, lambda obj_path, obj_type: print(obj_path, obj_type), order="postorder"
+    )
 
 
 def move_remove_obj():

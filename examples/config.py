@@ -63,7 +63,7 @@ def print_default():
     config = tiledb.Config()
     print("\nDefault settings:")
     for p in config.items():
-        print("\"%s\" : \"%s\"" % (p[0], p[1]))
+        print('"%s" : "%s"' % (p[0], p[1]))
 
 
 def iter_config_with_prefix():
@@ -71,7 +71,7 @@ def iter_config_with_prefix():
     # Print only the S3 settings.
     print("\nVFS S3 settings:")
     for p in config.items("vfs.s3."):
-        print("\"%s\" : \"%s\"" % (p[0], p[1]))
+        print('"%s" : "%s"' % (p[0], p[1]))
 
 
 def save_load_config():
@@ -82,7 +82,10 @@ def save_load_config():
 
     # Load from file
     config_load = tiledb.Config.load("tiledb_config.txt")
-    print("\nTile cache size after loading from file: %s" % str(config_load["sm.tile_cache_size"]))
+    print(
+        "\nTile cache size after loading from file: %s"
+        % str(config_load["sm.tile_cache_size"])
+    )
 
 
 set_get_config_ctx_vfs()

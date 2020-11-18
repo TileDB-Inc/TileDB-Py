@@ -48,13 +48,16 @@ def create_array():
     if tiledb.object_type(array_name) == "array":
         return
 
-    dom = tiledb.Domain(tiledb.Dim(name="x", domain=(1, 20), tile=4, dtype=np.int64),
-                        tiledb.Dim(name="y", domain=(1, 20), tile=4, dtype=np.int64))
+    dom = tiledb.Domain(
+        tiledb.Dim(name="x", domain=(1, 20), tile=4, dtype=np.int64),
+        tiledb.Dim(name="y", domain=(1, 20), tile=4, dtype=np.int64),
+    )
 
     # Add two attributes "a1" and "a2", so each (i,j) cell can store
     # a character on "a1" and a vector of two floats on "a2".
-    schema = tiledb.ArraySchema(domain=dom, sparse=False,
-                                attrs=[tiledb.Attr(name="a", dtype=np.float64)])
+    schema = tiledb.ArraySchema(
+        domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype=np.float64)]
+    )
 
     # Create the (empty) array on disk.
     tiledb.DenseArray.create(array_name, schema)
@@ -62,20 +65,21 @@ def create_array():
 
 def write_array():
     # Open the array and write to it.
-    with tiledb.DenseArray(array_name, mode='w') as A:
-        data_a = np.arange(400).reshape(20,20)
+    with tiledb.DenseArray(array_name, mode="w") as A:
+        data_a = np.arange(400).reshape(20, 20)
         A[:, :] = {"a": data_a}
 
 
 def read_array():
     # Open the array and read from it.
-    with tiledb.DenseArray(array_name, mode='r') as A:
+    with tiledb.DenseArray(array_name, mode="r") as A:
         # Slice only rows: (1,3) inclusive, and 5
         #            cols: 2, 5, 7
-        data = A.multi_index[ [(1,3), 5], [2,5,7] ]
+        data = A.multi_index[[(1, 3), 5], [2, 5, 7]]
         print("Reading attribute 'a', [ [1:3, 5], [2,5,7] ]")
-        a = data['a']
+        a = data["a"]
         print(a)
+
 
 create_array()
 write_array()

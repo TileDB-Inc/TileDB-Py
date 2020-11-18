@@ -41,22 +41,26 @@ from contextlib import contextmanager
 from tiledb.tests.common import rand_datetime64_array, rand_utf8
 
 # are we running as a test
-in_test = hasattr(sys, '_called_from_test')
+in_test = hasattr(sys, "_called_from_test")
+
 
 def generate_csvs(csv_folder, count=50, min_length=1, max_length=109):
     def make_dataframe(col_size):
         data = {
-            'idx_datetime': rand_datetime64_array(col_size),
-            'column_int64': np.random.randint(0,150000,size=col_size,dtype=np.int64),
-            'column_uint32': np.random.randint(0,150000,size=col_size,dtype=np.uint32),
-            'column_float64': np.random.rand(col_size),
-            'column_utf8': np.array([rand_utf8(np.random.randint(1, 100)) for _ in range(col_size)])
+            "idx_datetime": rand_datetime64_array(col_size),
+            "column_int64": np.random.randint(0, 150000, size=col_size, dtype=np.int64),
+            "column_uint32": np.random.randint(
+                0, 150000, size=col_size, dtype=np.uint32
+            ),
+            "column_float64": np.random.rand(col_size),
+            "column_utf8": np.array(
+                [rand_utf8(np.random.randint(1, 100)) for _ in range(col_size)]
+            ),
         }
         df = pd.DataFrame.from_dict(data)
 
-        df.set_index('idx_datetime', inplace=True)
+        df.set_index("idx_datetime", inplace=True)
         return df
-
 
     # create list of CSV row-counts to generate
     # (each file will have nrows from this list)
@@ -67,6 +71,7 @@ def generate_csvs(csv_folder, count=50, min_length=1, max_length=109):
 
         df = make_dataframe(target_length)
         df.to_csv(output_path)
+
 
 def log_process_errors(*args, **kwargs):
     try:
@@ -87,26 +92,31 @@ def log_process_errors(*args, **kwargs):
               {}
               ------------------------
               this message saved to file: {}
-              """.format(exc, args, kwargs, err_filename)
+              """.format(
+            exc, args, kwargs, err_filename
+        )
         print(err)
-        with open(err_filename, 'w') as f:
+        with open(err_filename, "w") as f:
             f.writelines(err)
         raise
 
-def from_csv_mp(csv_path,
-                array_path,
-                list_step_size=5,
-                chunksize=100,
-                max_workers=4,
-                engine='processpool',
-                initial_file_count=5,
-                index_col=None,
-                parse_dates=None,
-                attr_types=None,
-                sparse=True,
-                allows_duplicates=True,
-                debug=False,
-                **kwargs):
+
+def from_csv_mp(
+    csv_path,
+    array_path,
+    list_step_size=5,
+    chunksize=100,
+    max_workers=4,
+    engine="processpool",
+    initial_file_count=5,
+    index_col=None,
+    parse_dates=None,
+    attr_types=None,
+    sparse=True,
+    allows_duplicates=True,
+    debug=False,
+    **kwargs
+):
     """
     Multi-process ingestion wrapper around tiledb.from_csv
 
@@ -116,8 +126,8 @@ def from_csv_mp(csv_path,
     # Setting start method to 'spawn' is required before TileDB 2.1 to
     # avoid problems with TBB when spawning via fork.
     # NOTE: *must be inside __main__* or a function.
-    if multiprocessing.get_start_method(True) is not 'spawn':
-        multiprocessing.set_start_method('spawn', True)
+    if multiprocessing.get_start_method(True) is not "spawn":
+        multiprocessing.set_start_method("spawn", True)
 
     # Get a list of of CSVs from the target path
     csvs = glob.glob(csv_path + "/*.csv")
@@ -127,18 +137,21 @@ def from_csv_mp(csv_path,
 
     # first step: create the array. we read the first N csvs to create schema
     #             and as check for inconsistency before starting the full run.
-    tiledb.from_csv(array_path, csvs[:initial_file_count],
-                chunksize=chunksize, # must set chunksize here even though schema_only
-                index_col = index_col,
-                parse_dates=parse_dates,
-                dtype=attr_types,
-                column_types=attr_types,
-                engine='c',
-                debug=debug,
-                allows_duplicates=True,
-                sparse=sparse,
-                mode='schema_only',
-                **kwargs)
+    tiledb.from_csv(
+        array_path,
+        csvs[:initial_file_count],
+        chunksize=chunksize,  # must set chunksize here even though schema_only
+        index_col=index_col,
+        parse_dates=parse_dates,
+        dtype=attr_types,
+        column_types=attr_types,
+        engine="c",
+        debug=debug,
+        allows_duplicates=True,
+        sparse=sparse,
+        mode="schema_only",
+        **kwargs
+    )
 
     print("Finished array schema creation")
 
@@ -146,8 +159,10 @@ def from_csv_mp(csv_path,
     # depending on the makeup of the files, we may want to read a number of
     # files consecutively (up to chunksize) in order to write more optimal
     # fragments.
-    if (list_step_size > len(csvs)):
-        raise ValueError("Please choose a step size smaller than the number of CSV files")
+    if list_step_size > len(csvs):
+        raise ValueError(
+            "Please choose a step size smaller than the number of CSV files"
+        )
 
     tasks = []
     csv_chunks = []
@@ -156,7 +171,7 @@ def from_csv_mp(csv_path,
     start = time.time()
     # ingest the data in parallel
 
-    #with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    # with ThreadPoolExecutor(max_workers=max_workers) as executor:
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         for first in range(0, len(csvs), list_step_size):
             last = min(len(csvs), first + list_step_size)
@@ -164,21 +179,25 @@ def from_csv_mp(csv_path,
             task = executor.submit(
                 log_process_errors,
                 *(array_path, csvs[first:last]),
-                **dict(chunksize=chunksize,
-                       index_col=index_col,
-                       parse_dates=parse_dates,
-                       dtype=attr_types,
-                       column_types=attr_types,
-                       engine='c',
-                       debug=debug,
-                       allows_duplicates=allows_duplicates),
+                **dict(
+                    chunksize=chunksize,
+                    index_col=index_col,
+                    parse_dates=parse_dates,
+                    dtype=attr_types,
+                    column_types=attr_types,
+                    engine="c",
+                    debug=debug,
+                    allows_duplicates=allows_duplicates,
+                ),
                 **kwargs,
-                mode='append')
+                mode="append"
+            )
             tasks.append(task)
 
     print("Task results: ", [t.result() for t in tasks])
 
     print("Ingestion complete. Duration: ", time.time() - start)
+
 
 ##############################################################################
 # Usage example
@@ -194,14 +213,21 @@ def example():
 
     # Create Schema
     attr_types = {
-        'column_int64': np.int64,
-        'column_uint32': np.uint32,
-        'column_float64': np.float64,
-        'column_utf8': np.str
-        }
+        "column_int64": np.int64,
+        "column_uint32": np.uint32,
+        "column_float64": np.float64,
+        "column_utf8": np.str,
+    }
 
-    from_csv_mp(csv_path, array_path, chunksize=27, list_step_size=5,
-                max_workers=4, index_col=['idx_datetime'], attr_types=attr_types)
+    from_csv_mp(
+        csv_path,
+        array_path,
+        chunksize=27,
+        list_step_size=5,
+        max_workers=4,
+        index_col=["idx_datetime"],
+        attr_types=attr_types,
+    )
 
     print("Ingestion complete.")
     print("  Note: temp paths have undefined lifetime after exit.")
@@ -212,7 +238,8 @@ def example():
 
     return csv_path, array_path
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     example()
 
 
@@ -221,7 +248,7 @@ if __name__ == '__main__':
 # uses this example as a test of various input combinations
 ##############################################################################
 def df_from_csvs(path, **kwargs):
-    idx_column = kwargs.pop('tiledb_idx_column', None)
+    idx_column = kwargs.pop("tiledb_idx_column", None)
 
     csv_paths = glob.glob(path + "/*.csv")
     csv_df_list = [pd.read_csv(p, **kwargs) for p in csv_paths]
@@ -235,21 +262,23 @@ def df_from_csvs(path, **kwargs):
 
     return df
 
+
 def test_parallel_csv_ingestion():
     csv_path, array_path = example()
     import pandas._testing as tm
     from numpy.testing import assert_array_equal, assert_array_almost_equal
 
     attr_types = {
-        'column_int64': np.int64,
-        'column_uint32': np.uint32,
-        'column_float64': np.float64,
-        'column_utf8': np.str
-        }
+        "column_int64": np.int64,
+        "column_uint32": np.uint32,
+        "column_float64": np.float64,
+        "column_utf8": np.str,
+    }
 
     # read dataframe from CSV list, set index, and sort
-    df_direct = df_from_csvs(csv_path, dtype=attr_types,
-                             tiledb_idx_column='idx_datetime')
+    df_direct = df_from_csvs(
+        csv_path, dtype=attr_types, tiledb_idx_column="idx_datetime"
+    )
 
     # validate the array generated in example()
     if True:
@@ -258,22 +287,27 @@ def test_parallel_csv_ingestion():
         tm.assert_frame_equal(df_direct, df_tiledb)
 
     # ingest over several parameters
-    for nproc in [1, 5]: # note: already did 4 above
+    for nproc in [1, 5]:  # note: already did 4 above
         for csv_list_step in [5, 11]:
             for chunksize in [10, 100]:
                 array_tmp = tempfile.mkdtemp()
 
-                print("Running ingestion with nproc: '{}', step: '{}', chunksize: '{}'".format
-                      (nproc, csv_list_step, chunksize))
+                print(
+                    "Running ingestion with nproc: '{}', step: '{}', chunksize: '{}'".format(
+                        nproc, csv_list_step, chunksize
+                    )
+                )
                 print("Writing output array to: ", array_tmp)
 
-                from_csv_mp(csv_path, array_tmp,
-                            chunksize=chunksize,
-                            list_step_size=csv_list_step,
-                            max_workers=nproc,
-                            index_col=['idx_datetime'],
-                            attr_types=attr_types)
-
+                from_csv_mp(
+                    csv_path,
+                    array_tmp,
+                    chunksize=chunksize,
+                    list_step_size=csv_list_step,
+                    max_workers=nproc,
+                    index_col=["idx_datetime"],
+                    attr_types=attr_types,
+                )
 
                 df_tiledb = tiledb.open_dataframe(array_tmp)
                 tm.assert_frame_equal(df_direct, df_tiledb)

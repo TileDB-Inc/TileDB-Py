@@ -45,12 +45,15 @@ array_name = "reading_sparse_layouts"
 
 def create_array():
     # The array will be 4x4 with dimensions "rows" and "cols", with domain [1,4].
-    dom = tiledb.Domain(tiledb.Dim(name="rows", domain=(1, 4), tile=2, dtype=np.int32),
-                        tiledb.Dim(name="cols", domain=(1, 4), tile=2, dtype=np.int32))
+    dom = tiledb.Domain(
+        tiledb.Dim(name="rows", domain=(1, 4), tile=2, dtype=np.int32),
+        tiledb.Dim(name="cols", domain=(1, 4), tile=2, dtype=np.int32),
+    )
 
     # The array will be sparse with a single attribute "a" so each (i,j) cell can store an integer.
-    schema = tiledb.ArraySchema(domain=dom, sparse=True,
-                                attrs=[tiledb.Attr(name="a", dtype=np.int32)])
+    schema = tiledb.ArraySchema(
+        domain=dom, sparse=True, attrs=[tiledb.Attr(name="a", dtype=np.int32)]
+    )
 
     # Create the (empty) array on disk.
     tiledb.SparseArray.create(array_name, schema)
@@ -58,15 +61,16 @@ def create_array():
 
 def write_array():
     # Open the array and write to it.
-    with tiledb.SparseArray(array_name, mode='w') as A:
+    with tiledb.SparseArray(array_name, mode="w") as A:
         # To write, the coordinates must be split into two vectors, one per dimension
         I, J = [1, 1, 2, 1, 2, 2], [1, 2, 2, 4, 3, 4]
-        data = np.array(([1, 2, 3, 4, 5, 6]));
+        data = np.array(([1, 2, 3, 4, 5, 6]))
         A[I, J] = data
+
 
 def read_array(order):
     # Open the array and read from it.
-    with tiledb.SparseArray(array_name, mode='r') as A:
+    with tiledb.SparseArray(array_name, mode="r") as A:
         # Get non-empty domain
         print("Non-empty domain: {}".format(A.nonempty_domain()))
 
@@ -89,12 +93,12 @@ layout = ""
 if len(sys.argv) > 1:
     layout = sys.argv[1]
 
-order = 'C'
+order = "C"
 if layout == "col":
-    order = 'F'
+    order = "F"
 elif layout == "global":
-    order = 'G'
+    order = "G"
 else:
-    order = 'C'
+    order = "C"
 
 read_array(order)
