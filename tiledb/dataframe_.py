@@ -23,7 +23,7 @@ unicode_dtype = np.dtype(unicode_type)
 
 TILEDB_KWARG_DEFAULTS = {
     'ctx': None,
-    'sparse': True,
+    'sparse': False,
     'index_dims': None,
     'allows_duplicates': True,
     'mode': 'ingest',
