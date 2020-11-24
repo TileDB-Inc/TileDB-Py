@@ -276,7 +276,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df_dict = df.to_dict(orient='series')
         df.set_index(['time', 'double_range'], inplace=True)
 
-        tiledb.from_dataframe(uri, df)
+        tiledb.from_dataframe(uri, df, sparse=True)
 
         with tiledb.open(uri) as A:
             ned_time = A.nonempty_domain()[0]
@@ -341,7 +341,10 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df.set_index(['time', 'double_range'], inplace=True)
 
         tmp_array = os.path.join(tmp_dir, "array")
-        tiledb.from_csv(tmp_array, tmp_csv, index_col=['time', 'double_range'], parse_dates=['time'])
+        tiledb.from_csv(tmp_array, tmp_csv,
+                        sparse=True,
+                        index_col=['time', 'double_range'],
+                        parse_dates=['time'])
 
         df_bk = tiledb.open_dataframe(tmp_array)
 
@@ -364,8 +367,10 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             tiledb.from_csv(tmp_array2a, tmp_csv2, index_col=['int_vals'], sparse=True, allows_duplicates=False)
 
         # try again, check from_csv(allows_duplicates=True, sparse=True)
-        tiledb.from_csv(tmp_array2b, tmp_csv2, index_col=['int_vals'],
-                        sparse=True, allows_duplicates=True, float_precision='round-trip')
+        tiledb.from_csv(tmp_array2b, tmp_csv2,
+                        index_col=['int_vals'],
+                        sparse=True, allows_duplicates=True,
+                        float_precision='round-trip')
 
         with tiledb.open(tmp_array2b) as A:
             #self.assertTrue(A.schema.sparse)
@@ -403,6 +408,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                         parse_dates=['time'],
                         mode='schema_only',
                         capacity=1001,
+                        sparse=True,
                         tile={'time': 5},
                         coords_filters=coords_filters)
 
@@ -440,12 +446,14 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                 A.schema.attr(0).filters[0].level, attrs_filters[0].level
             )
 
-        # Test mode='append'
-        tiledb.from_csv(tmp_array, tmp_csv, mode='append')
+        # Test mode='append' for from_csv
+        tiledb.from_csv(tmp_array, tmp_csv, mode='append', row_start_idx=0)
         df2 = make_dataframe_basic3(10, time_range=(t0, t1))
         df2.sort_values('time', inplace=True)
         df2.set_index(['time', 'double_range'], inplace=True)
-        tiledb.from_dataframe(tmp_array, df2, mode='append')
+
+        # Test mode='append' for from_pandas
+        tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df2), mode='append')
 
         with tiledb.open(tmp_array) as A:
             res = A[:]
@@ -474,7 +482,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                         index_col=['double_range'],
                         parse_dates=['time'],
                         date_spec={'time': "%Y-%m-%dT%H:%M:%S.%f"},
-                        chunksize=10)
+                        chunksize=10,
+                        sparse=True)
 
         with tiledb.open(tmp_array) as A:
             res = A[:]
@@ -531,7 +540,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df.to_csv(tmp_csv, index=False, na_rep="NaN")
 
         tmp_array = os.path.join(tmp_dir, "array")
-        tiledb.from_csv(tmp_array, tmp_csv, fillna={'v': 0})
+        # TODO: test Dense too
+        tiledb.from_csv(tmp_array, tmp_csv, fillna={'v': 0}, sparse=True)
 
         def check_array(path, df):
             # update the value in the original dataframe to match what we expect on read-back
@@ -543,12 +553,14 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         check_array(tmp_array, copy.deepcopy(df))
 
+        # Test writing a StringDtype in newer pandas versions
         if hasattr(pd, 'StringDtype'):
             tmp_array2 = os.path.join(tmp_dir, "array2")
             tiledb.from_csv(tmp_array2,
                             tmp_csv,
                             fillna={'v': 0},
-                            column_types={'v': pd.Int64Dtype})
+                            column_types={'v': pd.Int64Dtype},
+                            sparse=True)
             df_to_check = copy.deepcopy(df)
             df_to_check['v'][4] = 0
             df_to_check = df_to_check.astype({'v': np.int64})

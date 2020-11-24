@@ -177,5 +177,8 @@ class DataFrameIndexer(MultiRangeIndexer):
     def __getitem__(self, idx):
         from .dataframe_ import _tiledb_result_as_dataframe
 
+        # we need to use a Query in order to get coords for a dense array
+        if not self.query:
+            self.query = tiledb.libtiledb.Query(self.array, coords=True)
         result_dict = super(DataFrameIndexer, self).__getitem__(idx)
         return _tiledb_result_as_dataframe(self.array, result_dict)
