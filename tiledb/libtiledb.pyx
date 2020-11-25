@@ -514,7 +514,11 @@ def stats_dump():
     if tiledb_stats_free_str(&stats_str_ptr) == TILEDB_ERR:
         raise TileDBError("Unable to free stats_str_ptr.")
 
-    print(stats_str)
+    # Note: .strip and extra print() here are to offset for core
+    # printing extra newlines between task output that may be empty.
+    # Remove eventually.
+    print(stats_str.strip())
+    print("")
 
     import tiledb.core
     print(tiledb.core.python_internal_stats())

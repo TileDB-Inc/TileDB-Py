@@ -868,9 +868,9 @@ std::string python_internal_stats() {
   auto counters = g_stats.get()->counters;
 
   std::ostringstream os;
-  os << "==== Python ====" << std::endl <<
-      "- Read query time: " << counters["py.read_query_time"].count() << std::endl <<
-      "- Buffer conversion time: " << counters["py.unpack_results_time"].count();
+  os << "==== Python Stats ====" << std::endl << std::endl <<
+      "- TileDB C++ core read query time: " << counters["py.read_query_time"].count() << std::endl <<
+      "- TileDB-Py buffer conversion time: " << counters["py.unpack_results_time"].count();
 
   return os.str();
 }
