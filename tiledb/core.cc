@@ -838,6 +838,28 @@ void init_stats() {
   stats_counters["py.unpack_results_time"] = TimerType();
 }
 
+void increment_stat(std::string key, double value) {
+  auto &stats_counters = g_stats.get()->counters;
+
+  if (stats_counters.count(key) == 0)
+    stats_counters[key] = TimerType();
+
+  auto &timer = stats_counters[key];
+  auto incr = std::chrono::duration<double>(value);
+  timer += incr;
+}
+
+py::object get_stats() {
+  auto &stats_counters = g_stats.get()->counters;
+
+  py::dict res;
+  for (auto iter = stats_counters.begin(); iter != stats_counters.end(); ++iter) {
+    auto val = std::chrono::duration<double>(iter->second);
+    res[py::str(iter->first)] = py::float_(val.count());
+  }
+  return res;
+}
+
 std::string python_internal_stats() {
   if (!g_stats) {
     TPY_ERROR_LOC("Stats counters are not uninitialized!")
@@ -869,6 +891,8 @@ PYBIND11_MODULE(core, m) {
 
   m.def("init_stats", &init_stats);
   m.def("python_internal_stats", &python_internal_stats);
+  m.def("increment_stat", &increment_stat);
+  m.def("get_stats", &get_stats);
 
   /*
      We need to make sure C++ TileDBError is translated to a correctly-typed py
