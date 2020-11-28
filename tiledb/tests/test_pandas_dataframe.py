@@ -374,14 +374,18 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         # try again, check from_csv(allows_duplicates=True, sparse=True)
         tiledb.from_csv(tmp_array2b, tmp_csv2,
                         index_col=['int_vals'],
+                        parse_dates=['time'],
                         sparse=True, allows_duplicates=True,
                         float_precision='round-trip')
 
         with tiledb.open(tmp_array2b) as A:
-            #self.assertTrue(A.schema.sparse)
-            res = A[:]
-            assert_array_equal(res['int_vals'], df.int_vals.values)
-            assert_array_almost_equal(res['double_range'], df.double_range.values)
+            self.assertTrue(A.schema.sparse)
+            res_df = A.df[:]
+            # the duplicate value is on the dimension and can be retrieved in arbitrary
+            # order. we need to re-sort in order to compare, to avoid spurious failures.
+            res_df.sort_values('time', inplace=True)
+            cmp_df = df.set_index('int_vals').sort_values(by='time')
+            tm.assert_frame_equal(res_df, cmp_df)
 
     def test_dataframe_csv_schema_only(self):
         col_size = 10
