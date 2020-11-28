@@ -916,7 +916,7 @@ public:
       TPY_ERROR_LOC("Cannot convert buffers unless Query is complete");
 
     tiledb::arrow::ArrowAdapter adapter(query_);
-    std::unique_ptr<PAPair> pa_pair(new PAPair()); // = std::make_shared<PAPair>();
+    std::unique_ptr<PAPair> pa_pair(new PAPair());
 
     adapter.export_buffer(name.c_str(), &(pa_pair->array_), &(pa_pair->schema_));
     pa_pair->exported_ = true;
