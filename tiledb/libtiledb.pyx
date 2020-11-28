@@ -2345,7 +2345,7 @@ cdef class Attr(object):
                 filters_str +=  repr(f) + ", "
             filters_str += "])"
 
-        return f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}'{filters_str})"""
+        return f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}', var={self.isvar!s}{filters_str})"""
 
 
 cdef class Dim(object):
