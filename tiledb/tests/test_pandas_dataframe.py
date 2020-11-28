@@ -619,3 +619,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_bk = df_bk.set_index(['time'])
 
             tm.assert_frame_equal(df_bk, df_orig)
+
+    def test_dataframe_misc(self):
+        uri = self.path("test_small_domain_range")
+        df = pd.DataFrame({'data': [2]}, index=[0])
+        tiledb.from_pandas(uri, df)
