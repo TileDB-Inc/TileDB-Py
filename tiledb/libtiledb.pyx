@@ -3667,8 +3667,11 @@ cdef class Array(object):
         return cap
 
     def __repr__(self):
-        return "Array(type={0}, uri={1!r}, mode={2}, ndim={3})"\
-            .format("Sparse" if self.schema.sparse else "Dense", self.uri, self.mode, self.schema.ndim)
+        if self.isopen:
+            return "Array(type={0}, uri={1!r}, mode={2}, ndim={3})"\
+                .format("Sparse" if self.schema.sparse else "Dense", self.uri, self.mode, self.schema.ndim)
+        else:
+            return "Array(uri={0!r}, mode=closed)"
 
     def _ctx_(self) -> Ctx:
         """
@@ -4361,8 +4364,11 @@ cdef class DenseArrayImpl(Array):
             return result
 
     def __repr__(self):
-        return "DenseArray(uri={0!r}, mode={1}, ndim={2})"\
-            .format(self.uri, self.mode, self.schema.ndim)
+        if self.isopen:
+            return "DenseArray(uri={0!r}, mode={1}, ndim={2})"\
+                .format(self.uri, self.mode, self.schema.ndim)
+        else:
+            return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 
     def query(self, attrs=None, coords=False, order='C', use_arrow=None):
         """
@@ -4978,8 +4984,11 @@ cdef class SparseArrayImpl(Array):
 
 
     def __repr__(self):
-        return "SparseArray(uri={0!r}, mode={1}, ndim={2})"\
-            .format(self.uri, self.mode, self.schema.ndim)
+        if self.isopen:
+            return "SparseArray(uri={0!r}, mode={1}, ndim={2})"\
+                .format(self.uri, self.mode, self.schema.ndim)
+        else:
+            return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
     def query(self, attrs=None, coords=True, order='C', use_arrow=None):
         """
