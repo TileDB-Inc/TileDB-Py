@@ -1131,7 +1131,7 @@ class DenseArrayTest(DiskTestCase):
                 T.query(attrs=("unknown"))[:]
 
             # Ensure that query only returns specified attributes
-            q = core.PyQuery(ctx, T, ("ints",), False, 0)
+            q = core.PyQuery(ctx, T, ("ints",), False, 0, False)
             q.set_ranges([[(0,1)]])
             q.submit()
             r = q.results()

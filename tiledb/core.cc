@@ -16,6 +16,7 @@
 #define TILEDB_DEPRECATED_EXPORT
 
 #include <tiledb/tiledb> // C++
+#include <tiledb/arrowio>
 
 #include "../external/string_view.hpp"
 #include "../external/tsl/robin_map.h"
@@ -63,6 +64,25 @@ bool config_has_key(tiledb::Config config, std::string key) {
   }
   return true;
 }
+
+struct PAPair {
+  int64_t get_array() {
+    if (!exported_) {
+      TPY_ERROR_LOC("Cannot export uninitialized array!");
+    }
+    return (int64_t)&array_;
+  };
+  int64_t get_schema() {
+    if (!exported_) {
+      TPY_ERROR_LOC("Cannot export uninitialized schema!");
+    }
+    return (int64_t)&schema_;
+  }
+
+  ArrowSchema schema_;
+  ArrowArray array_;
+  bool exported_ = false;
+};
 
 // global stats counters
 static std::unique_ptr<StatsInfo> g_stats;
@@ -214,6 +234,7 @@ private:
   vector<string> buffers_order_;
   bool include_coords_;
   bool deduplicate_ = true;
+  bool use_arrow_ = false;
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
   uint64_t exp_alloc_max_bytes_ = DEFAULT_EXP_ALLOC_MAX_BYTES;
 
@@ -225,7 +246,7 @@ public:
   PyQuery() = delete;
 
   PyQuery(py::object ctx, py::object array, py::iterable attrs,
-          py::object coords, py::object py_layout) {
+          py::object coords, py::object py_layout, py::object use_pa) {
 
     tiledb_ctx_t *c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
     if (c_ctx_ == nullptr)
@@ -293,6 +314,21 @@ public:
       } else {
         throw std::invalid_argument("Failed to convert configuration 'py.deduplicate' to bool ('" + tmp_str + "')");
       }
+    }
+
+    if (use_pa.is(py::none())) {
+      if (config_has_key(ctx_.config(), "py.use_arrow")) {
+        tmp_str = ctx_.config().get("py.use_arrow");
+        if (tmp_str == "True") {
+          use_arrow_ = true;
+        } else if (tmp_str == "False") {
+          use_arrow_ = false;
+        } else {
+          throw std::invalid_argument("Failed to convert configuration 'py.use_arrow' to bool ('" + tmp_str + "')");
+        }
+      }
+    } else {
+      use_arrow_ = py::cast<bool>(use_pa);
     }
 
     py::object pre_buffers = array.attr("_buffers");
@@ -579,9 +615,16 @@ public:
           (b.data.size() - (b.data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
 
       if (b.isvar) {
+        // if we are using arrow, then we must reserve the last (uint64)
+        // by not telling libtiledb about it.
+        // note: we always initialize at least 10MB per buffer by default
+        size_t arrow_offset_size = use_arrow_ ? 1 : 0;
+
+        size_t offsets_size = b.offsets.size() - b.offsets_read - arrow_offset_size;
+        assert(offsets_size > 0);
         uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + b.offsets_read;
         query_->set_buffer(b.name, offsets_ptr,
-                           b.offsets.size() - b.offsets_read,
+                           offsets_size,
                            data_ptr,
                            data_nelem);
       } else {
@@ -600,11 +643,14 @@ public:
 
       // update offsets due to incomplete resets
       auto offset_ptr = buf.offsets.mutable_data();
-      if (buf.isvar && (buf.offsets_read > 0) && (offset_ptr[buf.offsets_read] == 0)) {
-        auto last_offset = offset_ptr[buf.offsets_read - 1];
-        auto last_size = (buf.data_vals_read * buf.elem_nbytes) - last_offset;
-        for (uint64_t i = 0; i < offset_elem_num; i++) {
-          offset_ptr[buf.offsets_read + i] += last_offset + last_size;
+      if (buf.isvar && (buf.offsets_read > 0)) {
+        if (offset_ptr[buf.offsets_read] == 0) {
+          auto last_offset = offset_ptr[buf.offsets_read - 1];
+          auto last_size = (buf.data_vals_read * buf.elem_nbytes) - last_offset;
+
+          for (uint64_t i = 0; i < offset_elem_num; i++) {
+            offset_ptr[buf.offsets_read + i] += last_offset + last_size;
+          }
         }
       }
 
@@ -655,10 +701,15 @@ public:
       max_retries = 100;
     }
 
-    // TODO ideally only have one call to submit below
+    auto start_submit = std::chrono::high_resolution_clock::now();
     {
       py::gil_scoped_release release;
       query_->submit();
+    }
+
+    if (g_stats) {
+      auto now = std::chrono::high_resolution_clock::now();
+      g_stats.get()->counters["py.read_query_initial_submit_time"] += now - start_submit;
     }
 
     // TODO: would be nice to have a callback here for custom realloc strategy
@@ -668,35 +719,79 @@ public:
             "Exceeded maximum retries ('py.max_incomplete_retries': '" +
             std::to_string(max_retries) + "')");
 
+      // Track the time we spend inside of incomplete updates only
+      auto start_incomplete_update = std::chrono::high_resolution_clock::now();
+
       update_read_elem_num();
 
       for (auto &bp : buffers_) {
         auto buf = bp.second;
 
         // Check if values buffer should be resized
-        if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) > (buf.data.nbytes() + 1) / 2)
-          buf.data.resize({buf.data.size() * 2}, false);
+        if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) > (buf.data.nbytes() + 1) / 2) {
+          size_t new_size = buf.data.size() * 2;
+          buf.data.resize({new_size}, false);
+        }
 
         // Check if offset buffer should be resized
-        if (buf.isvar && (int64_t)(buf.offsets_read * sizeof(uint64_t)) > (buf.offsets.nbytes() + 1) / 2)
-          buf.offsets.resize({buf.offsets.size() * 2}, false);
+        if (buf.isvar && (int64_t)(buf.offsets_read * sizeof(uint64_t)) > (buf.offsets.nbytes() + 1) / 2) {
+          size_t new_offsets_size = buf.offsets.size() * 2;
+          buf.offsets.resize({new_offsets_size}, false);
+        }
       }
 
+      // note: this block confuses lldb. continues from here unless bp set after block.
       set_buffers();
+
+      if (g_stats) {
+        auto now = std::chrono::high_resolution_clock::now();
+        g_stats.get()->counters["py.read_incomplete_update_time"] += now - start_incomplete_update;
+      }
+
+      auto start_incomplete = std::chrono::high_resolution_clock::now();
       {
         py::gil_scoped_release release;
         query_->submit();
       }
+      if (g_stats) {
+        auto now = std::chrono::high_resolution_clock::now();
+        g_stats.get()->counters["py.read_query_incomplete_submit_time"] += now - start_incomplete;
+      }
     }
+
+    auto start_finalize = std::chrono::high_resolution_clock::now();
 
     update_read_elem_num();
 
     // resize the output buffers to match the final read total
-    for (auto bp : buffers_) {
+    size_t arrow_offset_size = use_arrow_ ? 1 : 0;
+    for (auto& bp : buffers_) {
       auto name = bp.first;
       auto &buf = bp.second;
+
       buf.data.resize({buf.data_vals_read * buf.elem_nbytes});
-      buf.offsets.resize({buf.offsets_read});
+      buf.offsets.resize({buf.offsets_read + arrow_offset_size});
+
+      // if we are using arrow, we need to reset the read counts
+      // calling set_buffers below.
+      if (use_arrow_) {
+        buf.data_vals_read = 0;
+        buf.offsets_read = 0;
+      }
+    }
+
+    if (use_arrow_) {
+      // this is a very light hack:
+      // call set_buffers here to reset the buffers to the *full*
+      // buffer in case there were incomplete queries. without this call,
+      // the active tiledb::Query only knows about the buffer ptr/size
+      // for the *last* submit loop, so we don't get full result set.
+      set_buffers();
+    }
+
+    if (g_stats) {
+      auto now = std::chrono::high_resolution_clock::now();
+      g_stats.get()->counters["py.finalize_buffers_time"] += now - start_finalize;
     }
 
     if (g_stats) {
@@ -789,7 +884,7 @@ public:
 
     if (g_stats) {
       auto now = std::chrono::high_resolution_clock::now();
-      g_stats.get()->counters["py.unpack_results_time"] += now - start;
+      g_stats.get()->counters["py.buffer_conversion_time"] += now - start;
     }
 
     return result_array;
@@ -816,6 +911,48 @@ public:
     return results;
   }
 
+  std::unique_ptr<PAPair> buffer_to_pa(std::string name) {
+    if (query_->query_status() != tiledb::Query::Status::COMPLETE)
+      TPY_ERROR_LOC("Cannot convert buffers unless Query is complete");
+
+    tiledb::arrow::ArrowAdapter adapter(query_);
+    std::unique_ptr<PAPair> pa_pair(new PAPair()); // = std::make_shared<PAPair>();
+
+    adapter.export_buffer(name.c_str(), &(pa_pair->array_), &(pa_pair->schema_));
+    pa_pair->exported_ = true;
+
+    return pa_pair;
+  }
+
+  py::object buffers_to_pa_table() {
+    using namespace pybind11::literals;
+
+    if (query_->query_status() != tiledb::Query::Status::COMPLETE)
+      TPY_ERROR_LOC("Query must be complete to convert buffers");
+
+    auto pa = py::module::import("pyarrow");
+    auto pa_array_import = pa.attr("Array").attr("_import_from_c");
+    tiledb::arrow::ArrowAdapter adapter(query_);
+
+    py::list names;
+    py::list results;
+    for (auto &buffer_name : buffers_order_) {
+      ArrowArray c_pa_array;
+      ArrowSchema c_pa_schema;
+      adapter.export_buffer(buffer_name.c_str(), static_cast<void*>(&c_pa_array),
+                                                 static_cast<void*>(&c_pa_schema));
+
+      py::object pa_array = pa_array_import(py::int_((ptrdiff_t)&c_pa_array),
+                                            py::int_((ptrdiff_t)&c_pa_schema));
+      results.append(pa_array);
+      names.append(buffer_name);
+    }
+
+    auto pa_table = pa.attr("Table").attr("from_arrays")(results, "names"_a=names);
+
+    return pa_table;
+  }
+
   py::array _test_array() {
     py::array_t<uint8_t> a;
     a.resize({10});
@@ -835,7 +972,13 @@ void init_stats() {
   auto stats_counters = g_stats.get()->counters;
   stats_counters["py.read_query_time"] = TimerType();
   stats_counters["py.write_query_time"] = TimerType();
-  stats_counters["py.unpack_results_time"] = TimerType();
+  stats_counters["py.buffer_conversion_time"] = TimerType();
+  stats_counters["py.read_query_initial_submit_time"] = TimerType();
+  stats_counters["py.read_incomplete_update_time"] = TimerType();
+}
+
+void disable_stats() {
+  g_stats.reset(nullptr);
 }
 
 void increment_stat(std::string key, double value) {
@@ -849,7 +992,15 @@ void increment_stat(std::string key, double value) {
   timer += incr;
 }
 
+bool use_stats() {
+  return (bool)g_stats;
+}
+
 py::object get_stats() {
+  if (!g_stats) {
+    TPY_ERROR_LOC("Stats counters are not uninitialized!")
+  }
+
   auto &stats_counters = g_stats.get()->counters;
 
   py::dict res;
@@ -868,31 +1019,54 @@ std::string python_internal_stats() {
   auto counters = g_stats.get()->counters;
 
   std::ostringstream os;
-  os << "==== Python Stats ====" << std::endl << std::endl <<
-      "- TileDB C++ core read query time: " << counters["py.read_query_time"].count() << std::endl <<
-      "- TileDB-Py buffer conversion time: " << counters["py.unpack_results_time"].count();
+  os << "==== Python Stats ====" << std::endl << std::endl;
+  os << "- TileDB-Py Indexing Time: " << counters["py.__getitem__time"].count() << std::endl;
+  os << "  * TileDB-Py query execution time: " << counters["py.read_query_time"].count() << std::endl;
+  os << "    > TileDB C++ Core initial query submit time: " <<
+    counters["py.read_query_initial_submit_time"].count() << std::endl;
+
+  std::string key1 = "py.read_query_incomplete_submit_time";
+  if (counters.count(key1) == 1) {
+      os << "    > TileDB C++ Core incomplete resubmit(s) time: " << counters[key1].count() << std::endl;
+      os << "    > TileDB-Py incomplete buffer updates: " <<
+        counters["py.read_incomplete_update_time"].count() << std::endl;
+  }
+
+  std::string key3 = "py.buffer_conversion_time";
+  if (counters.count(key3) == 1) {
+      os << "  * TileDB-Py buffer conversion time: " << counters[key3].count() << std::endl;
+  }
 
   return os.str();
 }
 
 PYBIND11_MODULE(core, m) {
   py::class_<PyQuery>(m, "PyQuery")
-      .def(py::init<py::object, py::object, py::iterable, py::object, py::object>())
+      .def(py::init<py::object, py::object, py::iterable, py::object, py::object, py::object>())
       .def("set_ranges", &PyQuery::set_ranges)
       .def("set_subarray", &PyQuery::set_subarray)
       .def("submit", &PyQuery::submit)
       .def("results", &PyQuery::results)
       .def("buffer_dtype", &PyQuery::buffer_dtype)
       .def("unpack_buffer", &PyQuery::unpack_buffer)
+      .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
+      .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
       .def("_test_array", &PyQuery::_test_array)
       .def("_test_err",
            [](py::object self, std::string s) { throw TileDBPyError(s); })
       .def_property_readonly("_test_init_buffer_bytes", &PyQuery::_test_init_buffer_bytes);
 
   m.def("init_stats", &init_stats);
+  m.def("disable_stats", &init_stats);
   m.def("python_internal_stats", &python_internal_stats);
   m.def("increment_stat", &increment_stat);
   m.def("get_stats", &get_stats);
+  m.def("use_stats", &use_stats);
+
+  py::class_<PAPair>(m, "PAPair")
+    .def(py::init())
+    .def("get_array", &PAPair::get_array)
+    .def("get_schema", &PAPair::get_schema);
 
   /*
      We need to make sure C++ TileDBError is translated to a correctly-typed py

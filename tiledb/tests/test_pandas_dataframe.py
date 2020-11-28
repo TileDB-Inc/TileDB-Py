@@ -300,6 +300,11 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             # test .df[] indexing with query
             df_idx_res = A.query(attrs=['int_vals']).df[slice(*ned_time), :]
             tm.assert_frame_equal(df_idx_res, df)
+            # test .df[] with Arrow
+            df_idx_res = A.query(use_arrow=True).df[slice(*ned_time), :]
+            tm.assert_frame_equal(df_idx_res, df)
+            df_idx_res = A.query(use_arrow=False).df[slice(*ned_time), :]
+            tm.assert_frame_equal(df_idx_res, df)
 
     def test_csv_dense(self):
         col_size = 10
@@ -514,13 +519,19 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
             # test .df[] indexing
             df_idx_res = A.df[int(ned[0]):int(ned[1])]
-            tm.assert_frame_equal(df_idx_res, df)
+            tm.assert_frame_equal(df_idx_res, df, check_index_type=False)
 
             # test .df[] indexing with query
             df_idx_res = A.query(attrs=['time']).df[int(ned[0]):int(ned[1])]
             tm.assert_frame_equal(df_idx_res, df[['time']])
 
             df_idx_res = A.query(attrs=['double_range']).df[int(ned[0]):int(ned[1])]
+            tm.assert_frame_equal(df_idx_res, df[['double_range']])
+
+            # test .df[] indexing with arrow
+            df_idx_res = A.query(use_arrow=True, attrs=['time']).df[int(ned[0]):int(ned[1])]
+            tm.assert_frame_equal(df_idx_res, df[['time']])
+            df_idx_res = A.query(use_arrow=True, attrs=['double_range']).df[int(ned[0]):int(ned[1])]
             tm.assert_frame_equal(df_idx_res, df[['double_range']])
 
             # disable coordinate dimension/index
@@ -549,7 +560,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
             with tiledb.open(path) as A:
                 df_bk = A.df[:]
-                tm.assert_frame_equal(df_bk, df)
+                tm.assert_frame_equal(df_bk, df, check_index_type=False)
 
         check_array(tmp_array, copy.deepcopy(df))
 
