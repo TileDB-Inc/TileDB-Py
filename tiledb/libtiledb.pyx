@@ -494,6 +494,8 @@ def stats_disable():
     """Disable TileDB internal statistics."""
     tiledb_stats_disable()
 
+    import tiledb.core
+    tiledb.core.disable_stats()
 
 def stats_reset():
     """Reset all TileDB internal statistics to 0."""
@@ -522,7 +524,6 @@ def stats_dump():
 
     import tiledb.core
     print(tiledb.core.python_internal_stats())
-
 
 cpdef unicode ustring(object s):
     """Coerce a python object to a unicode string"""
@@ -671,6 +672,24 @@ cdef class Config(object):
             _raise_tiledb_error(err_ptr)
         return
 
+    def get(self, object key, raise_keyerror = True):
+        key = unicode(key)
+        cdef bytes bparam = key.encode('UTF-8')
+        cdef const char* value_ptr = NULL
+        cdef tiledb_error_t* err_ptr = NULL
+        cdef int rc = tiledb_config_get(self.ptr, bparam, &value_ptr, &err_ptr)
+        if rc == TILEDB_OOM:
+            raise MemoryError()
+        elif rc == TILEDB_ERR:
+            _raise_tiledb_error(err_ptr)
+        if value_ptr == NULL:
+            if raise_keyerror:
+                raise KeyError(key)
+            else:
+                return None
+        cdef bytes value = PyBytes_FromString(value_ptr)
+        return value.decode('UTF-8')
+
     def __getitem__(self, object key):
         """Gets a config parameter value.
 
@@ -682,19 +701,7 @@ cdef class Config(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        key = unicode(key)
-        cdef bytes bparam = key.encode('UTF-8')
-        cdef const char* value_ptr = NULL
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_get(self.ptr, bparam, &value_ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        if value_ptr == NULL:
-            raise KeyError(key)
-        cdef bytes value = PyBytes_FromString(value_ptr)
-        return value.decode('UTF-8')
+        return self.get(key, True)
 
     def __delitem__(self, object key):
         """
@@ -3634,10 +3641,14 @@ cdef class Array(object):
         self.key = key
         self.domain_index = DomainIndexer(self)
 
+        use_pa = True
+        if ctx.config().get('py.use_arrow', False) != None:
+            use_pa = ctx.config()['py.use_arrow'] == 'True'
+
         # Delayed to avoid circular import
         from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
         self.multi_index = MultiRangeIndexer(self)
-        self.df = DataFrameIndexer(self)
+        self.df = DataFrameIndexer(self, use_pa = use_pa)
         self.last_fragment_info = dict()
         self.meta = Metadata(self)
 
@@ -4185,7 +4196,7 @@ cdef class Query(object):
     See documentation of Array.query
     """
 
-    def __init__(self, array, attrs=None, coords=False, order='C'):
+    def __init__(self, array, attrs=None, coords=False, order='C', use_arrow=None):
         if array.mode != 'r':
             raise ValueError("array mode must be read-only")
         self.array = array
@@ -4196,7 +4207,7 @@ cdef class Query(object):
         # Delayed to avoid circular import
         from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
         self.multi_index = MultiRangeIndexer(array, query=self)
-        self.df = DataFrameIndexer(array, query=self)
+        self.df = DataFrameIndexer(array, query=self, use_pa=use_arrow)
 
     def __getitem__(self, object selection):
         return self.array.subarray(selection,
@@ -4353,7 +4364,7 @@ cdef class DenseArrayImpl(Array):
         return "DenseArray(uri={0!r}, mode={1}, ndim={2})"\
             .format(self.uri, self.mode, self.schema.ndim)
 
-    def query(self, attrs=None, coords=False, order='C'):
+    def query(self, attrs=None, coords=False, order='C', use_arrow=None):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -4391,7 +4402,7 @@ cdef class DenseArrayImpl(Array):
         """
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
-        return Query(self, attrs=attrs, coords=coords, order=order)
+        return Query(self, attrs=attrs, coords=coords, order=order, use_arrow=use_arrow)
 
 
     def subarray(self, selection, attrs=None, coords=False, order=None):
@@ -4479,7 +4490,7 @@ cdef class DenseArrayImpl(Array):
                               tiledb_layout_t layout, bint include_coords):
 
         from tiledb.core import PyQuery
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), include_coords, <int32_t>layout)
+        q = PyQuery(self._ctx_(), self, tuple(attr_names), include_coords, <int32_t>layout, False)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 
@@ -4970,7 +4981,7 @@ cdef class SparseArrayImpl(Array):
         return "SparseArray(uri={0!r}, mode={1}, ndim={2})"\
             .format(self.uri, self.mode, self.schema.ndim)
 
-    def query(self, attrs=None, coords=True, order='C'):
+    def query(self, attrs=None, coords=True, order='C', use_arrow=None):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -5096,7 +5107,7 @@ cdef class SparseArrayImpl(Array):
         cdef Py_ssize_t nattr = len(attr_names)
 
         from tiledb.core import PyQuery
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), True, <int32_t>layout)
+        q = PyQuery(self._ctx_(), self, tuple(attr_names), True, <int32_t>layout, False)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 

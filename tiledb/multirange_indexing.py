@@ -1,7 +1,10 @@
 import tiledb
 from tiledb import Array, ArraySchema, TileDBError
+from tiledb.core import increment_stat, use_stats
+
 import os, numpy as np
-import sys, weakref
+import sys, time, weakref, warnings
+import json
 from collections import OrderedDict
 
 def mr_dense_result_shape(ranges, base_shape = None):
@@ -49,17 +52,32 @@ def sel_to_subranges(dim_sel):
     return tuple(subranges)
 
 
+try:
+    import pyarrow as pa
+    _have_pa = True
+except ImportError:
+    _have_pa = False
+
 class MultiRangeIndexer(object):
     """
     Implements multi-range indexing.
     """
+    debug=False
 
-    def __init__(self, array, query = None):
+    def __init__(self, array, query = None, use_pa = None):
         if not issubclass(type(array), tiledb.Array):
             raise ValueError("Internal error: MultiRangeIndexer expected tiledb.Array")
         self.array_ref = weakref.ref(array)
         self.schema = array.schema
         self.query = query
+        _use_pa = use_pa
+        if _use_pa == None:
+            # default on for .df
+            _use_pa = False
+        if use_pa and not _have_pa:
+            warnings.warn("'use_arrow' mode requires installation of pyarrow package")
+
+        self.use_pa = _have_pa and _use_pa
 
     @property
     def array(self):
@@ -132,10 +150,19 @@ class MultiRangeIndexer(object):
                              "or 'G' (TILEDB_GLOBAL_ORDER)")
 
         from tiledb.core import PyQuery
-        q = PyQuery(self.array._ctx_(), self.array, attr_names, coords, layout)
+        q = PyQuery(self.array._ctx_(),
+                    self.array,
+                    attr_names,
+                    coords,
+                    layout,
+                    self.use_pa)
 
         q.set_ranges(ranges)
         q.submit()
+
+        if isinstance(self, DataFrameIndexer) and self.use_pa:
+            return q
+
         result_dict = OrderedDict(q.results())
 
         final_names = dict()
@@ -177,8 +204,87 @@ class DataFrameIndexer(MultiRangeIndexer):
     def __getitem__(self, idx):
         from .dataframe_ import _tiledb_result_as_dataframe
 
+        idx_start = time.time()
+
         # we need to use a Query in order to get coords for a dense array
         if not self.query:
             self.query = tiledb.libtiledb.Query(self.array, coords=True)
-        result_dict = super(DataFrameIndexer, self).__getitem__(idx)
-        return _tiledb_result_as_dataframe(self.array, result_dict)
+
+        result = super(DataFrameIndexer, self).__getitem__(idx)
+
+        # return pre-converted result directly
+        if self.use_pa:
+            if use_stats():
+                pd_start = time.time()
+
+            df = self.pa_to_pandas(result)
+
+            if use_stats():
+                pd_duration = time.time() - pd_start
+                increment_stat("py.buffer_conversion_time", pd_duration)
+                idx_duration = time.time() - idx_start
+                increment_stat("py.__getitem__time", idx_duration)
+            return df
+        else:
+            if not isinstance(result, OrderedDict):
+                raise ValueError("Expected OrderedDict result, got '{}'".format(type(result)))
+
+            if use_stats():
+                pd_start = time.time()
+
+            df = _tiledb_result_as_dataframe(self.array, result)
+
+            if use_stats():
+                pd_duration = time.time() - pd_start
+                idx_duration = time.time() - idx_start
+                tiledb.core.increment_stat("py.buffer_conversion_time", pd_duration)
+                tiledb.core.increment_stat("py.__getitem__time", idx_duration)
+
+            return df
+
+    def pa_to_pandas(self, pyquery):
+        if not _have_pa:
+            raise TileDBError("Cannot convert to pandas via this path without pyarrow; please disable Arrow results")
+        try:
+            table = pyquery._buffers_to_pa_table()
+        except Exception as exc:
+            if MultiRangeIndexer.debug:
+                print("Exception during pa.Table conversion, returning pyquery: '{}'".format(exc))
+                return pyquery
+            raise
+        try:
+            res_df = table.to_pandas()
+        except Exception as exc:
+            if MultiRangeIndexer.debug:
+                print("Exception during Pandas conversion, returning (table,query): '{}'".format(exc))
+                return table,pyquery
+            raise
+
+        if use_stats():
+            pd_idx_start = time.time()
+
+        # x-ref write path in dataframe_.py
+        index_dims = None
+        if '__pandas_index_dims' in self.array.meta:
+            index_dims = json.loads(self.array.meta['__pandas_index_dims'])
+
+        indexes = list()
+        rename_cols = dict()
+        for col_name in res_df.columns.values:
+            if index_dims and col_name in index_dims:
+                if col_name == '__tiledb_rows':
+                    rename_cols['__tiledb_rows'] = None
+                    indexes.append(None)
+                else:
+                    indexes.append(col_name)
+
+        if len(rename_cols) > 0:
+            res_df.rename(columns=rename_cols, inplace=True)
+        if len(indexes) > 0:
+            res_df.set_index(indexes, inplace=True)
+
+        if use_stats():
+            pd_idx_duration = time.time() - pd_idx_start
+            tiledb.core.increment_stat("py.pandas_index_update_time", pd_idx_duration)
+
+        return res_df
