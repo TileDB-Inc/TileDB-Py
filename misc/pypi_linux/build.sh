@@ -83,7 +83,8 @@ git -C TileDB-Py39 checkout $TILEDBPY_VERSION
 cd /home/tiledb/TileDB-Py39
 /opt/python/cp39-cp39/bin/python3.9 setup.py build_ext bdist_wheel --tiledb=/usr/local
 auditwheel repair dist/*.whl
-/opt/python/cp38-cp38/bin/python3.9 -m pip install wheelhouse/*.whl
+/opt/python/cp39-cp39/bin/python3.9 -m pip install wheelhouse/*.whl
+
 cd tiledb/tests
 
 # copy build products out
