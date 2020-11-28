@@ -1,4 +1,15 @@
-# In progress
+# TileDB-Py 0.7.2 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.7.2 includes [TileDB Embedded 2.1.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.3)
+  Including a fix for issue [#409](https://github.com/TileDB-Inc/TileDB-Py/issues/409).
+
+## Improvements
+* Automatically determine column to dimension mapping for `tiledb.from_csv` append mode [#408](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
+
+## Bug fixes
+* Fixed `tiledb.from_csv/dataframe` error when ingesting single-row/index datasets [#422]()
+* Fixed intermittent `csv_sparse_col_to_dims` failure due to duplicate result ordering [#423](https://github.com/TileDB-Inc/TileDB-Py/pull/423)
 
 # TileDB-Py 0.7.1 Release Notes
 
