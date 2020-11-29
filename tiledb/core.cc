@@ -1008,7 +1008,7 @@ py::object get_stats() {
     auto val = std::chrono::duration<double>(iter->second);
     res[py::str(iter->first)] = py::float_(val.count());
   }
-  return res;
+  return std::move(res);
 }
 
 std::string python_internal_stats() {
