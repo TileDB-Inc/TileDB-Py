@@ -1847,7 +1847,7 @@ class SparseArray(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
         tiledb.SparseArray.create(uri, schema)
 
-        coords = np.random.rand(100) * 10000
+        coords = np.random.uniform(low=1, high=10000, size=100)
         data = np.random.rand(100)
 
         with tiledb.SparseArray(uri, mode='w', ctx=ctx) as T:
