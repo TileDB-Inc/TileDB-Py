@@ -627,3 +627,11 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         uri = self.path("test_small_domain_range")
         df = pd.DataFrame({'data': [2]}, index=[0])
         tiledb.from_pandas(uri, df)
+
+        data = {'data': np.array([1,2,3]), 'index': np.array(['a', 'b', 'c'], dtype=np.dtype('|S'))}
+        df = pd.DataFrame.from_dict(data)
+        df = df.set_index(['index'])
+        uri = self.path("test_string_index_infer")
+        tiledb.from_pandas(uri, df)
+        with tiledb.open(uri) as A:
+            self.assertTrue(A.schema.domain.dim(0).dtype == np.dtype('|S'))

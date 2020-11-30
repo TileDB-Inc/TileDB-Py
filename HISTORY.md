@@ -1,3 +1,8 @@
+# In Progress
+
+  ## Bug fixes
+  * Fix sparse dimension type selection when array type is not specified to from_pandas [#429](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
+
 # TileDB-Py 0.7.2 Release Notes
 
 ## TileDB Embedded updates:

@@ -44,9 +44,12 @@ def check_dataframe_deps():
 # - handle missing values
 # - handle extended datatypes
 
+# Note: 'None' is used to indicate optionality for many of these options
+#       For example, if the `sparse` argument is unspecified we will default
+#       to False (dense) unless the input has string or heterogenous indexes.
 TILEDB_KWARG_DEFAULTS = {
     'ctx': None,
-    'sparse': False,
+    'sparse': None,
     'index_dims': None,
     'allows_duplicates': True,
     'mode': 'ingest',
@@ -316,6 +319,7 @@ def create_dims(ctx, dataframe, index_dims,
                          tile=dim_tile, full_domain=full_domain,
                          index_dtype=index_dtype))
 
+
     if any([d.dtype in (np.bytes_, np.unicode_) for d in dim_types]):
         if sparse is False:
             raise TileDBError("Cannot create dense array with string-typed dimensions")
@@ -328,6 +332,10 @@ def create_dims(ctx, dataframe, index_dims,
             raise TileDBError("Cannot create dense array with heterogeneous dimension data types")
         elif sparse is None:
             sparse = True
+
+    # Fall back to default dense type if unspecified and not inferred from dimension types
+    if sparse is None:
+        sparse = False
 
     ndim = len(dim_types)
 
