@@ -53,10 +53,10 @@ def sel_to_subranges(dim_sel):
 
 
 try:
-    import pyarrow as pa
-    _have_pa = True
+    import pyarrow
+    _have_pyarrow = True
 except ImportError:
-    _have_pa = False
+    _have_pyarrow = False
 
 class MultiRangeIndexer(object):
     """
@@ -64,20 +64,18 @@ class MultiRangeIndexer(object):
     """
     debug=False
 
-    def __init__(self, array, query = None, use_pa = None):
+    def __init__(self, array, query = None, use_arrow = None):
         if not issubclass(type(array), tiledb.Array):
             raise ValueError("Internal error: MultiRangeIndexer expected tiledb.Array")
         self.array_ref = weakref.ref(array)
         self.schema = array.schema
         self.query = query
-        _use_pa = use_pa
-        if _use_pa == None:
-            # default on for .df
-            _use_pa = False
-        if use_pa and not _have_pa:
-            warnings.warn("'use_arrow' mode requires installation of pyarrow package")
 
-        self.use_pa = _have_pa and _use_pa
+        use_arrow_real = isinstance(self, DataFrameIndexer) and _have_pyarrow
+        if use_arrow != None:
+            use_arrow_real = use_arrow_real and use_arrow
+
+        self.use_arrow = use_arrow_real
 
     @property
     def array(self):
@@ -158,12 +156,12 @@ class MultiRangeIndexer(object):
                     attr_names,
                     coords,
                     layout,
-                    self.use_pa)
+                    self.use_arrow)
 
         q.set_ranges(ranges)
         q.submit()
 
-        if isinstance(self, DataFrameIndexer) and self.use_pa:
+        if isinstance(self, DataFrameIndexer) and self.use_arrow:
             return q
 
         result_dict = OrderedDict(q.results())
@@ -216,8 +214,7 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         result = super(DataFrameIndexer, self).__getitem__(idx)
 
-        # return pre-converted result directly
-        if self.use_pa:
+        if self.use_arrow:
             if use_stats():
                 pd_start = time.time()
 
@@ -247,7 +244,7 @@ class DataFrameIndexer(MultiRangeIndexer):
             return df
 
     def pa_to_pandas(self, pyquery):
-        if not _have_pa:
+        if not _have_pyarrow:
             raise TileDBError("Cannot convert to pandas via this path without pyarrow; please disable Arrow results")
         try:
             table = pyquery._buffers_to_pa_table()
