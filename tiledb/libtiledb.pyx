@@ -5078,14 +5078,14 @@ cdef class SparseArrayImpl(Array):
             raise TileDBError("SparseArray is not opened for reading")
 
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
-        if order is None or order == 'C':
+        if order is None or order == 'U':
+            layout = TILEDB_UNORDERED
+        elif order == 'C':
             layout = TILEDB_ROW_MAJOR
         elif order == 'F':
             layout = TILEDB_COL_MAJOR
         elif order == 'G':
             layout = TILEDB_GLOBAL_ORDER
-        elif order == 'U':
-            pass
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
                              "'F' (TILEDB_COL_MAJOR), "\
