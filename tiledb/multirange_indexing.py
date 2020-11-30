@@ -129,7 +129,9 @@ class MultiRangeIndexer(object):
         dom = self.schema.domain
         attr_names = tuple(self.schema.attr(i)._internal_name for i in range(self.schema.nattr))
         coords = None
-        order = 'C' # TILEDB_ROW_MAJOR
+
+        # default TILEDB_UNORDERED for sparse, TILEDB_ROW_MAJOR for dense
+        order = 'U' if self.schema.sparse else 'C'
         if self.query is not None:
             # if we are called via Query object, then we need to respect Query semantics
             attr_names = tuple(self.query.attrs) if self.query.attrs else attr_names # query.attrs might be None -> all
@@ -146,7 +148,8 @@ class MultiRangeIndexer(object):
             layout = 3
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
-                             "'F' (TILEDB_COL_MAJOR), "\
+                             "'F' (TILEDB_COL_MAJOR), "
+                             "'U' (TILEDB_UNORDERED),"
                              "or 'G' (TILEDB_GLOBAL_ORDER)")
 
         from tiledb.core import PyQuery

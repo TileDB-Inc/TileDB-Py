@@ -266,7 +266,7 @@ public:
         //        [](Query* p){} /* note: no deleter*/);
 
     tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
-    if (issparse && layout == TILEDB_UNORDERED) {
+    if (!issparse && layout == TILEDB_UNORDERED) {
           TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
     }
     query_->set_layout(layout);

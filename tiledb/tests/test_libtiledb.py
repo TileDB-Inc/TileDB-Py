@@ -1837,6 +1837,31 @@ class SparseArray(DiskTestCase):
             assert_array_equal(res[''], np.array('', dtype='U1'))
             assert_array_equal(res['x'], np.array([], dtype=np.int))
 
+    def test_sparse_query(self):
+        uri = self.path("test_sparse_query")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+                tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=np.float64, ctx=ctx), ctx=ctx)
+
+        att = tiledb.Attr("", dtype=float, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(uri, schema)
+
+        coords = np.random.rand(100) * 10000
+        data = np.random.rand(100)
+
+        with tiledb.SparseArray(uri, mode='w', ctx=ctx) as T:
+            T[coords] = data
+
+        # Test that TILEDB_UNORDERED works correctly
+        with tiledb.SparseArray(uri, mode='r', ctx=ctx) as A:
+            res = A[1:10000]['']
+            assert_array_equal(np.sort(res), np.sort(data))
+            res = A.multi_index[1:10000]['']
+            assert_array_equal(np.sort(res), np.sort(data))
+            res = A.query(order='U').multi_index[1:10000]['']
+            assert_array_equal(np.sort(res), np.sort(data))
+
     def test_sparse_fixes(self):
         uri = self.path("test_sparse_fixes")
         # indexing a 1 element item in a sparse array
