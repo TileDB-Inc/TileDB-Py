@@ -490,6 +490,9 @@ def from_pandas(uri, dataframe, **kwargs):
                                              filters=attrs_filters,
                                              column_types=column_types)
 
+        # don't set allows_duplicates=True for dense
+        allows_duplicates = allows_duplicates and sparse
+
         # now create the ArraySchema
         schema = tiledb.ArraySchema(
             domain=domain,
