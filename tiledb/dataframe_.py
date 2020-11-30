@@ -17,6 +17,29 @@ else:
     unicode_type = unicode
 unicode_dtype = np.dtype(unicode_type)
 
+def check_dataframe_deps():
+    pd_error = """Pandas version >= 1.0 required for dataframe functionality.
+                  Please `pip install pandas>=1.0` to proceed."""
+    pa_error = """PyArrow version >= 1.0 required for dataframe functionality.
+                  Please `pip install pyarrow>=1.0` to proceed."""
+
+    try:
+        import pandas as pd
+    except ImportError:
+        raise Exception(pd_error)
+
+    from distutils.version import LooseVersion
+    if LooseVersion(pd.__version__) < LooseVersion("1.0"):
+        raise Exception(pd_error)
+
+    try:
+        import pyarrow as pa
+    except ImportError:
+        raise Exception(pa_error)
+
+    if LooseVersion(pa.__version__) < LooseVersion("1.0"):
+        raise Exception(pa_error)
+
 # TODO
 # - handle missing values
 # - handle extended datatypes
@@ -391,6 +414,8 @@ def from_pandas(uri, dataframe, **kwargs):
     :return: None
 
     """
+    check_dataframe_deps()
+
     import pandas as pd
 
     if 'tiledb_args' in kwargs:
@@ -590,6 +615,8 @@ def open_dataframe(uri, ctx=None):
     >>> tiledb.object_type("iris.tldb")
     'array'
     """
+    check_dataframe_deps()
+
     if ctx is None:
         ctx = tiledb.default_ctx()
     # TODO support `distributed=True` option?
@@ -676,11 +703,8 @@ def from_csv(uri, csv_file, **kwargs):
     >>> tiledb.object_type("iris.tldb")
     'array'
     """
-    try:
-        import pandas
-    except ImportError as exc:
-        print("tiledb.from_csv requires pandas")
-        raise
+    check_dataframe_deps()
+    import pandas
 
     if 'tiledb_args' in kwargs:
         tiledb_args = kwargs.get('tiledb_args')

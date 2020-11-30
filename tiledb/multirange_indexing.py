@@ -202,7 +202,8 @@ class DataFrameIndexer(MultiRangeIndexer):
     [] operator uses multi_index semantics.
     """
     def __getitem__(self, idx):
-        from .dataframe_ import _tiledb_result_as_dataframe
+        from .dataframe_ import _tiledb_result_as_dataframe, check_dataframe_deps
+        check_dataframe_deps()
 
         idx_start = time.time()
 
