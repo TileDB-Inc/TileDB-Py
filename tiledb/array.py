@@ -1,4 +1,4 @@
-from .libtiledb import DenseArrayImpl, SparseArrayImpl
+from .libtiledb import Array, DenseArrayImpl, SparseArrayImpl
 
 # Extensible (pure Python) array class definitions inheriting from the
 # Cython implemention. The cloudarray mix-in adds optional functionality
@@ -11,6 +11,7 @@ from .libtiledb import DenseArrayImpl, SparseArrayImpl
 #       import meta-hooks instead.
 
 class DenseArray(DenseArrayImpl):
+    __doc__ = Array.__doc__
     _mixin_init = False
 
     def __new__(cls, *args, **kwargs):
@@ -21,7 +22,6 @@ class DenseArray(DenseArrayImpl):
             try:
                 from tiledb.cloud import cloudarray
                 DenseArray.__bases__ = DenseArray.__bases__ + (cloudarray.CloudArray,)
-                DenseArray.__doc__ = DenseArrayImpl.__doc__
             except ImportError:
                 pass
 
@@ -29,6 +29,7 @@ class DenseArray(DenseArrayImpl):
         return obj
 
 class SparseArray(SparseArrayImpl):
+    __doc__ = Array.__doc__
     _mixin_init = False
 
     def __new__(cls, *args, **kwargs):
@@ -37,7 +38,6 @@ class SparseArray(SparseArrayImpl):
             try:
                 from tiledb.cloud import cloudarray
                 SparseArray.__bases__ = SparseArray.__bases__ + (cloudarray.CloudArray,)
-                SparseArray.__doc__ = DenseArrayImpl.__doc__
             except ImportError:
                 pass
 

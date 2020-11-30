@@ -120,6 +120,7 @@ Dense Array
    
    .. automethod:: __getitem__(selection)
    .. automethod:: __setitem__(selection, value)
+   .. automethod:: query
    .. automethod:: from_numpy(uri, array, ctx=None, **kwargs)
 
 Sparse Array
@@ -130,6 +131,7 @@ Sparse Array
    
    .. automethod:: __getitem__(selection)
    .. automethod:: __setitem__(selection, value)
+   .. automethod:: query
 
 Object Management
 -----------------

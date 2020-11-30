@@ -37,16 +37,15 @@ def _get_global_ctx():
 
 def default_ctx(config = None):
     """
-    Returns, and optionally initializes, the default tiledb.Ctx object
+    Returns, and optionally initializes, the default `tiledb.Ctx` object.
 
     Most functions in the Python API accept an optional `ctx` keyword
     argument, but will default to the global ``default_ctx`` value if a
-    ``ctx`` is not specified.
+    `ctx` is not specified.
 
     For initialization, this function must be called before any other
-    tiledb functions. The initialization call accepts a `Config` object
-    overriding defaults for process-global parameters such as the TBB
-    thread count.
+    tiledb functions. The initialization call accepts a  :py:class:`tiledb.Config`
+    object to override the defaults for process-global parameters.
 
     :param config (default None): :py:class:`tiledb.Config` object or
         dictionary with config parameters.
@@ -5011,14 +5010,6 @@ cdef class SparseArrayImpl(Array):
         """
         return self.subarray(selection)
 
-
-    def __repr__(self):
-        if self.isopen:
-            return "SparseArray(uri={0!r}, mode={1}, ndim={2})"\
-                .format(self.uri, self.mode, self.schema.ndim)
-        else:
-            return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
-
     def query(self, attrs=None, coords=True, order='C', use_arrow=None):
         """
         Construct a proxy Query object for easy subarray queries of cells
@@ -5137,6 +5128,13 @@ cdef class SparseArrayImpl(Array):
         idx, drop_axes = replace_scalars_slice(dom, idx)
         subarray = index_domain_subarray(self, dom, idx)
         return self._read_sparse_subarray(subarray, attr_names, layout)
+
+    def __repr__(self):
+        if self.isopen:
+            return "SparseArray(uri={0!r}, mode={1}, ndim={2})"\
+                .format(self.uri, self.mode, self.schema.ndim)
+        else:
+            return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
     cdef _read_sparse_subarray(self, list subarray, list attr_names, tiledb_layout_t layout):
         cdef object out = OrderedDict()
