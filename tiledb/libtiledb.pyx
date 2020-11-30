@@ -580,7 +580,35 @@ def dtype_range(np.dtype dtype):
 cdef class Config(object):
     """TileDB Config class
 
-    See: https://docs.tiledb.io/en/stable/tutorials/config.html#summary-of-parameters
+    The Config object stores configuration parameters for both TileDB Embedded
+    and TileDB-Py.
+
+    For TileDB Embedded parameters, see:
+
+        https://docs.tiledb.io/en/stable/tutorials/config.html#summary-of-parameters
+
+    The following configuration options are supported by TileDB-Py:
+
+        - `py.init_buffer_bytes`:
+
+           Initial allocation size in bytes for attribute and dimensions buffers.
+           If result size exceed the pre-allocated buffer(s), then the query will return
+           incomplete and TileDB-Py will allocate larger buffers and resubmit.
+           Specifying a sufficiently large buffer size will often improve performance.
+           Default 10 MB (1024**2 * 10).
+
+        - `py.use_arrow`:
+
+           Use `pyarrow` from the Apache Arrow project to convert
+           query results into Pandas dataframe format when requested.
+           Default `True`.
+
+        - `py.deduplicate`:
+
+           Attempt to deduplicate Python objects during buffer
+           conversion to Python. Deduplication may reduce memory usage for datasets
+           with many identical strings, at the cost of some performance reduction
+           due to hash calculation/lookup for each object.
 
     Unknown parameters will be ignored!
 
