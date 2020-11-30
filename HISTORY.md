@@ -9,6 +9,9 @@
 * TileDB-Py 0.7.2 includes [TileDB Embedded 2.1.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.3)
   Including a fix for issue [#409](https://github.com/TileDB-Inc/TileDB-Py/issues/409).
 
+## Changes
+* The default array type for `from_pandas` and `from_csv` is now dense, if unspecified, except when passing a dataframe with string indexes to `from_pandas` [#424](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
+
 ## Improvements
 * Automatically determine column to dimension mapping for `tiledb.from_csv` append mode [#408](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
 
