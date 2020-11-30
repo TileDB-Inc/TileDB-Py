@@ -415,7 +415,6 @@ def from_pandas(uri, dataframe, **kwargs):
 
     """
     check_dataframe_deps()
-
     import pandas as pd
 
     if 'tiledb_args' in kwargs:
@@ -440,6 +439,9 @@ def from_pandas(uri, dataframe, **kwargs):
     fillna = tiledb_args.get('fillna', None)
     date_spec = tiledb_args.get('date_spec', None)
     column_types = tiledb_args.get('column_types', None)
+
+    if mode != 'append' and tiledb.array_exists(uri):
+        raise TileDBError("Array URI '{}' already exists!".format(uri))
 
     write = True
     create_array = True
@@ -740,6 +742,9 @@ def from_csv(uri, csv_file, **kwargs):
             pandas_args['nrows'] = 500
         elif mode not in ['ingest', 'append']:
             raise TileDBError("Invalid mode specified ('{}')".format(mode))
+
+    if mode != 'append' and tiledb.array_exists(uri):
+        raise TileDBError("Array URI '{}' already exists!".format(uri))
 
     # this is a pandas pass-through argument, do not pop!
     chunksize = kwargs.get('chunksize', None)
