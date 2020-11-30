@@ -155,9 +155,10 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             A[s_ichars, times, cccc] = df.to_dict(orient='series')
 
         with tiledb.SparseArray(uri) as A:
-            df1 = pd.DataFrame.from_dict(A[:])
+            df_res = pd.DataFrame.from_dict(A[:])
             for col in df.columns:
-                assert_array_equal(df[col], df1[col])
+                # TileDB default return is unordered, so must sort to compare
+                assert_array_equal(df[col].sort_values(), df_res[col].sort_values())
 
     def test_dataframe_basic1(self):
         uri = self.path("dataframe_basic_rt1")
@@ -465,9 +466,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df2), mode='append')
 
         with tiledb.open(tmp_array) as A:
-            res = A[:]
-            df_bk = pd.DataFrame(res)
-            df_bk.set_index(['time','double_range'], inplace=True)
+            df_bk = A.df[:]
 
             df.set_index(['time','double_range'], inplace=True)
             df_combined = pd.concat([df, df2])
@@ -618,9 +617,9 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df_orig = pd.concat(input_dfs, axis=0).set_index(["time"]).sort_values('time')
 
         with tiledb.open(tmp_array) as A:
-            res = A[:]
-            df_bk = pd.DataFrame(res)
-            df_bk = df_bk.set_index(['time'])
+            df_bk = A.df[:]
+            # TileDB default return is unordered, so sort to compare
+            df_bk = df_bk.sort_index()
 
             tm.assert_frame_equal(df_bk, df_orig)
 
