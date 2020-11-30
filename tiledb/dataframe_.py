@@ -20,25 +20,25 @@ unicode_dtype = np.dtype(unicode_type)
 def check_dataframe_deps():
     pd_error = """Pandas version >= 1.0 required for dataframe functionality.
                   Please `pip install pandas>=1.0` to proceed."""
-    pa_error = """PyArrow version >= 1.0 required for dataframe functionality.
-                  Please `pip install pyarrow>=1.0` to proceed."""
+    pa_error = """PyArrow version >= 1.0 is suggested for dataframe functionality.
+                  Please `pip install pyarrow>=1.0`."""
+
+    from distutils.version import LooseVersion
 
     try:
         import pandas as pd
     except ImportError:
         raise Exception(pd_error)
 
-    from distutils.version import LooseVersion
     if LooseVersion(pd.__version__) < LooseVersion("1.0"):
         raise Exception(pd_error)
 
     try:
         import pyarrow as pa
+        if LooseVersion(pa.__version__) < LooseVersion("1.0"):
+            warnings.warn(pa_error)
     except ImportError:
-        raise Exception(pa_error)
-
-    if LooseVersion(pa.__version__) < LooseVersion("1.0"):
-        raise Exception(pa_error)
+        warnings.warn(pa_error)
 
 # TODO
 # - handle missing values

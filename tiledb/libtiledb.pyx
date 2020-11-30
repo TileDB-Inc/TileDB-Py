@@ -3641,14 +3641,14 @@ cdef class Array(object):
         self.key = key
         self.domain_index = DomainIndexer(self)
 
-        use_pa = True
+        use_arrow = None
         if ctx.config().get('py.use_arrow', False) != None:
-            use_pa = ctx.config()['py.use_arrow'] == 'True'
+            use_arrow = ctx.config()['py.use_arrow'] == 'True'
 
         # Delayed to avoid circular import
         from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
         self.multi_index = MultiRangeIndexer(self)
-        self.df = DataFrameIndexer(self, use_pa = use_pa)
+        self.df = DataFrameIndexer(self, use_arrow=use_arrow)
         self.last_fragment_info = dict()
         self.meta = Metadata(self)
 
@@ -4194,12 +4194,13 @@ cdef class Array(object):
 cdef class Query(object):
     """
     Proxy object returned by query() to index into original array
-    on a subselection of attribution in a defined layout order
+    on a subselection of attribute in a defined layout order
 
     See documentation of Array.query
     """
 
-    def __init__(self, array, attrs=None, coords=False, order='C', use_arrow=None):
+    def __init__(self, array, attrs=None, coords=False,
+                 order='C', use_arrow=None):
         if array.mode != 'r':
             raise ValueError("array mode must be read-only")
         self.array = array
@@ -4210,7 +4211,7 @@ cdef class Query(object):
         # Delayed to avoid circular import
         from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
         self.multi_index = MultiRangeIndexer(array, query=self)
-        self.df = DataFrameIndexer(array, query=self, use_pa=use_arrow)
+        self.df = DataFrameIndexer(array, query=self, use_arrow=use_arrow)
 
     def __getitem__(self, object selection):
         return self.array.subarray(selection,

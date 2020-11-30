@@ -246,7 +246,7 @@ public:
   PyQuery() = delete;
 
   PyQuery(py::object ctx, py::object array, py::iterable attrs,
-          py::object coords, py::object py_layout, py::object use_pa) {
+          py::object coords, py::object py_layout, py::object use_arrow) {
 
     tiledb_ctx_t *c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
     if (c_ctx_ == nullptr)
@@ -316,7 +316,7 @@ public:
       }
     }
 
-    if (use_pa.is(py::none())) {
+    if (use_arrow.is(py::none())) {
       if (config_has_key(ctx_.config(), "py.use_arrow")) {
         tmp_str = ctx_.config().get("py.use_arrow");
         if (tmp_str == "True") {
@@ -328,7 +328,7 @@ public:
         }
       }
     } else {
-      use_arrow_ = py::cast<bool>(use_pa);
+      use_arrow_ = py::cast<bool>(use_arrow);
     }
 
     py::object pre_buffers = array.attr("_buffers");
