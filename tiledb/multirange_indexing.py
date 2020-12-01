@@ -161,6 +161,9 @@ class MultiRangeIndexer(object):
         q.set_ranges(ranges)
         q.submit()
 
+        if self.query is not None and self.query.return_arrow:
+            return q._buffers_to_pa_table()
+
         if isinstance(self, DataFrameIndexer) and self.use_arrow:
             return q
 
@@ -215,10 +218,15 @@ class DataFrameIndexer(MultiRangeIndexer):
         result = super(DataFrameIndexer, self).__getitem__(idx)
 
         if self.use_arrow:
+            import pyarrow as pa
             if use_stats():
                 pd_start = time.time()
 
-            df = self.pa_to_pandas(result)
+            if isinstance(result, pa.Table):
+                # support the `query(return_arrow=True)` mode and return Table untouched
+                df = result
+            else:
+                df = self.pa_to_pandas(result)
 
             if use_stats():
                 pd_duration = time.time() - pd_start

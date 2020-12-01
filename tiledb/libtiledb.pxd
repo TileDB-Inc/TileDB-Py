@@ -1228,6 +1228,7 @@ cdef class Query(object):
     cdef object attrs
     cdef object coords
     cdef object order
+    cdef object return_arrow
     cdef DomainIndexer domain_index
     cdef object multi_index
     cdef object df

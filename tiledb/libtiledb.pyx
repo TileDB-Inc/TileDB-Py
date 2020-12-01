@@ -4227,13 +4227,14 @@ cdef class Query(object):
     """
 
     def __init__(self, array, attrs=None, coords=False,
-                 order='C', use_arrow=None):
+                 order='C', use_arrow=None, return_arrow=False):
         if array.mode != 'r':
             raise ValueError("array mode must be read-only")
         self.array = array
         self.attrs = attrs
         self.coords = coords
         self.order = order
+        self.return_arrow = return_arrow
         self.domain_index = DomainIndexer(array, query=self)
         # Delayed to avoid circular import
         from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
@@ -4264,6 +4265,10 @@ cdef class Query(object):
     def order(self):
         """Return underlying Array order."""
         return self.order
+
+    @property
+    def return_arrow(self):
+        return self.return_arrow
 
     @property
     def domain_index(self):
@@ -4398,7 +4403,7 @@ cdef class DenseArrayImpl(Array):
         else:
             return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    def query(self, attrs=None, coords=False, order='C', use_arrow=None):
+    def query(self, attrs=None, coords=False, order='C', use_arrow=None, return_arrow=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -4410,6 +4415,8 @@ cdef class DenseArrayImpl(Array):
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
         :param coords: if True, return array of coodinate value (default False).
+        :param use_arrow: if True, return dataframes via PyArrow when possible.
+        :param return_arrow: if True, return results as a PyArrow Table.
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :return: A proxy Query object that can be used for indexing into the DenseArray
             over the defined attributes, in the given result layout (order).
@@ -4436,7 +4443,8 @@ cdef class DenseArrayImpl(Array):
         """
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
-        return Query(self, attrs=attrs, coords=coords, order=order, use_arrow=use_arrow)
+        return Query(self, attrs=attrs, coords=coords, order=order,
+                     use_arrow=use_arrow, return_arrow=return_arrow)
 
 
     def subarray(self, selection, attrs=None, coords=False, order=None):
