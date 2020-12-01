@@ -128,14 +128,23 @@ class MultiRangeIndexer(object):
         attr_names = tuple(self.schema.attr(i)._internal_name for i in range(self.schema.nattr))
         coords = None
 
-        # default TILEDB_UNORDERED for sparse, TILEDB_ROW_MAJOR for dense
-        order = 'U' if self.schema.sparse else 'C'
+        # set default order
+        # - TILEDB_UNORDERED for sparse
+        # - TILEDB_ROW_MAJOR for dense
+        if self.schema.sparse:
+            order = 'U'
+        else:
+            order = 'C'
+
+        # if this indexing operation is part of a query (A.query().df)
+        # then we need to respect the settings of the query
         if self.query is not None:
             # if we are called via Query object, then we need to respect Query semantics
             attr_names = tuple(self.query.attrs) if self.query.attrs else attr_names # query.attrs might be None -> all
             coords = self.query.coords
             order = self.query.order
 
+        # convert order to layout
         if order is None or order == 'C':
             layout = 0
         elif order == 'F':
@@ -150,6 +159,7 @@ class MultiRangeIndexer(object):
                              "'U' (TILEDB_UNORDERED),"
                              "or 'G' (TILEDB_GLOBAL_ORDER)")
 
+        # initialize the pybind11 query object
         from tiledb.core import PyQuery
         q = PyQuery(self.array._ctx_(),
                     self.array,

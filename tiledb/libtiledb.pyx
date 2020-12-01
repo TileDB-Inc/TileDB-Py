@@ -4227,14 +4227,22 @@ cdef class Query(object):
     """
 
     def __init__(self, array, attrs=None, coords=False,
-                 order='C', use_arrow=None, return_arrow=False):
+                 order=None, use_arrow=None, return_arrow=False):
         if array.mode != 'r':
             raise ValueError("array mode must be read-only")
         self.array = array
         self.attrs = attrs
         self.coords = coords
-        self.order = order
         self.return_arrow = return_arrow
+
+        if order == None:
+            if array.schema.sparse:
+                self.order = 'U'
+            else:
+                self.order = 'C'
+        else:
+            self.order = order
+
         self.domain_index = DomainIndexer(array, query=self)
         # Delayed to avoid circular import
         from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
@@ -5018,7 +5026,7 @@ cdef class SparseArrayImpl(Array):
         """
         return self.subarray(selection)
 
-    def query(self, attrs=None, coords=True, order='C', use_arrow=None):
+    def query(self, attrs=None, coords=True, order='U', use_arrow=None):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
