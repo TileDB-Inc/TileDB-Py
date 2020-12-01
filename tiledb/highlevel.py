@@ -9,6 +9,9 @@ def open(uri, mode='r', key=None, attr=None, config=None, timestamp=None, ctx=No
     Open a TileDB array at the given URI
 
     :param uri: any TileDB supported URI
+    :param timestamp: array timestamp to open, int or None.
+        See the TileDB `time traveling <https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/reading-arrays/time-traveling>`_
+        documentation for detailed functionality description.
     :param key: encryption key, str or None
     :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
     :param attr: attribute name to select from a multi-attribute array, str or None
