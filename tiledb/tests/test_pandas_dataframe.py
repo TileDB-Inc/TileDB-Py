@@ -471,6 +471,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df.set_index(['time','double_range'], inplace=True)
             df_combined = pd.concat([df, df2])
             df_combined.sort_index(level='time', inplace=True)
+            df_bk.sort_index(level='time', inplace=True)
             tm.assert_frame_equal(df_bk, df_combined)
 
     def test_dataframe_csv_chunked(self):

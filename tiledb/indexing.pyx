@@ -92,6 +92,8 @@ cdef class DomainIndexer(object):
             layout = TILEDB_COL_MAJOR
         elif order == 'G':
             layout = TILEDB_GLOBAL_ORDER
+        elif order == 'U':
+            layout = TILEDB_UNORDERED
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
 
