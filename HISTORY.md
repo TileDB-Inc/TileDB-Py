@@ -1,7 +1,13 @@
-# In Progress
+# TileDB-Py 0.7.3 Release Notes
 
-  ## Bug fixes
-  * Fix sparse dimension type selection when array type is not specified to from_pandas [#429](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
+## Improvements
+* The default result layout for indexing/querying sparse arrays is now TILEDB_UNORDERED [#428](https://github.com/TileDB-Inc/TileDB-Py/pull/428), [#431](https://github.com/TileDB-Inc/TileDB-Py/pull/431)
+* Added documentation for all TileDB-Py configuration parameters [#430](https://github.com/TileDB-Inc/TileDB-Py/pull/430)
+* Fixed documentation rendering for `Array.query` [#430](https://github.com/TileDB-Inc/TileDB-Py/pull/430)
+
+## Bug fixes
+* Fix sparse dimension type selection when array type is not specified to from_pandas [#429](https://github.com/TileDB-Inc/TileDB-Py/pull/429)
+* Don't pass allows_duplicates=True to dense array constructor (tiledb.from_csv) [#428](https://github.com/TileDB-Inc/TileDB-Py/pull/428)
 
 # TileDB-Py 0.7.2 Release Notes
 
