@@ -1041,6 +1041,44 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(T[1], 2)
             self.assertEqual(T[2], 0)
 
+    
+    def test_open_with_given_timestamp(self):
+        A = np.zeros(3)
+
+        path = self.path("foo")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3, dtype=np.int64), ctx=ctx)
+        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        tiledb.DenseArray.create(self.path("foo"), schema)
+
+        # write
+        with tiledb.DenseArray(path, mode='w', ctx=ctx, timestamp=1) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(path, mode='w', ctx=ctx, timestamp=2) as T:
+            T[0:1] = 1
+
+        with tiledb.DenseArray(path, mode='w', ctx=ctx, timestamp=3) as T:
+            T[1:2] = 2
+
+        # read
+        with tiledb.DenseArray(path, mode='r', ctx=ctx, timestamp=1) as T:
+            self.assertEqual(T[0], 0)
+            self.assertEqual(T[1], 0)
+            self.assertEqual(T[2], 0)
+
+        with tiledb.DenseArray(path, mode='r', ctx=ctx, timestamp=2) as T:
+            self.assertEqual(T[0], 1)
+            self.assertEqual(T[1], 0)
+            self.assertEqual(T[2], 0)
+
+        with tiledb.DenseArray(path, mode='r', ctx=ctx, timestamp=3) as T:
+            self.assertEqual(T[0], 1)
+            self.assertEqual(T[1], 2)
+            self.assertEqual(T[2], 0)
+
+
     def test_ncell_attributes(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 9), tile=10, dtype=int), ctx=ctx)
