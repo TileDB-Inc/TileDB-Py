@@ -4240,14 +4240,15 @@ cdef class Query(object):
         if dims is not None and coords == True:
             raise ValueError("Cannot pass both dims and coords=True to Query")
 
-        if dims is not None:
+        if dims is False:
+            self.dims = False
+        elif dims is not None:
             domain = array.schema.domain
-            dim_names = [domain.dim(i).name for i in range(domain.ndim)]
-            for dname in dim_names:
+            for dname in dims:
                 if not domain.has_dim(dname):
                     raise ValueError("Selected dimension does not exist: '{name}")
             self.dims = dims
-        elif coords == True:
+        elif coords is True:
             domain = array.schema.domain
             self.dims = [domain.dim(i).name for i in range(domain.ndim)]
 
@@ -4308,6 +4309,11 @@ cdef class Query(object):
     def order(self):
         """Return underlying Array order."""
         return self.order
+
+    @property
+    def index_col(self):
+        """List of columns to set as index for dataframe queries, or None."""
+        return self.index_col
 
     @property
     def return_arrow(self):
@@ -5064,7 +5070,8 @@ cdef class SparseArrayImpl(Array):
         """
         return self.subarray(selection)
 
-    def query(self, attrs=None, dims=None, coords=True, order='U', use_arrow=None, return_arrow=None):
+    def query(self, attrs=None, dims=None, index_col=True,
+              coords=None, order='U', use_arrow=None, return_arrow=None):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -5077,7 +5084,9 @@ cdef class SparseArrayImpl(Array):
             Array attributes can be defined by name or by positional index.
         :param dims: the SparseArray dimensions to subselect over. If dims is None (default)
             then all dimensions are returned, unless coords=False.
-        :param coords: (deprecated) if True, return array of coodinate value (default False).
+        :param index_col: For dataframe queries, override the saved index information,
+            and only set specified index(es) in the final dataframe, or None.
+        :param coords: (deprecated) if True, return array of coordinate value (default False).
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
@@ -5109,8 +5118,16 @@ cdef class SparseArrayImpl(Array):
         """
         if not self.isopen:
             raise TileDBError("SparseArray is not opened")
-        return Query(self, attrs=attrs, dims=dims, coords=coords, order=order,
-                     use_arrow=use_arrow, return_arrow=return_arrow)
+
+        # backwards compatibility
+        _coords = coords
+        if dims is False:
+            _coords = False
+        elif dims is None and coords is None:
+            _coords = True
+
+        return Query(self, attrs=attrs, dims=dims, coords=_coords, index_col=index_col,
+                     order=order, use_arrow=use_arrow, return_arrow=return_arrow)
 
     def subarray(self, selection, coords=True, attrs=None, order=None):
         """
