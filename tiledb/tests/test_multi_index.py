@@ -226,7 +226,9 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(res['idx'], idx)
 
         uri = self.path("multirange_behavior_dense")
-        tiledb.from_numpy(uri, data)
+        with tiledb.from_numpy(uri, data):
+            pass
+
         with tiledb.open(uri) as B:
             res = B.multi_index[0:9] # TODO: this should accept [:]
             # always return data
