@@ -129,7 +129,6 @@ class MultiRangeIndexer(object):
             dim_names = tuple(dom.dim(i).name for i in range(dom.ndim))
         else:
             dim_names = tuple()
-        coords = None
 
         # set default order
         # - TILEDB_UNORDERED for sparse
@@ -147,7 +146,10 @@ class MultiRangeIndexer(object):
                 attr_names = tuple(self.query.attrs)
             else:
                 pass # query.attrs might be None -> all
-            if self.query.dims is not None:
+
+            if self.query.dims is False:
+                dim_names = tuple()
+            elif self.query.dims is not None:
                 dim_names = tuple(self.query.dims)
             elif self.query.coords is False:
                 dim_names = tuple()
@@ -302,6 +304,8 @@ class DataFrameIndexer(MultiRangeIndexer):
         rename_cols = dict()
         for col_name in res_df.columns.values:
             if index_dims and col_name in index_dims:
+
+                # this is an auto-created column and should be unnamed
                 if col_name == '__tiledb_rows':
                     rename_cols['__tiledb_rows'] = None
                     indexes.append(None)
@@ -310,7 +314,19 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         if len(rename_cols) > 0:
             res_df.rename(columns=rename_cols, inplace=True)
-        if len(indexes) > 0:
+
+        if  self.query is not None:
+            # if we have a query with index_col set, then override any
+            # index information saved with the array.
+            if self.query.index_col is not True and self.query.index_col is not None:
+                res_df.set_index(self.query.index_col, inplace=True)
+            elif self.query.index_col is True and len(indexes) > 0:
+                # still need to set indexes here b/c df creates query every time
+                res_df.set_index(indexes, inplace=True)
+            else:
+                # don't convert any column to a dataframe index
+                pass
+        elif len(indexes) > 0:
             res_df.set_index(indexes, inplace=True)
 
         if use_stats():

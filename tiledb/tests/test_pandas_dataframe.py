@@ -636,3 +636,35 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tiledb.from_pandas(uri, df)
         with tiledb.open(uri) as A:
             self.assertTrue(A.schema.domain.dim(0).dtype == np.dtype('|S'))
+
+    def test_dataframe_query(self):
+        uri = self.path("df_query")
+
+        col_size = 10
+        df = make_dataframe_basic3(col_size)
+        df.set_index(['time'], inplace=True)
+
+        tiledb.from_dataframe(uri, df, sparse=True)
+
+        with tiledb.open(uri) as A:
+            res_df = A.query(dims=['time'], attrs=['int_vals']).df[:]
+            self.assertTrue('time' == res_df.index.name)
+            self.assertTrue('int_vals' in res_df)
+            self.assertTrue('double_range' not in res_df)
+
+            # try index_col alone: should have *only* the default RangeIndex column
+            res_df2 = A.query(index_col=None).df[:]
+            self.assertTrue(isinstance(res_df2.index, pd.RangeIndex))
+
+            # try no dims, index_col None: should only value cols and default index
+            res_df3 = A.query(dims=False, index_col=None).df[:]
+            self.assertTrue('time' not in res_df3)
+            self.assertTrue('int_vals' in res_df3)
+            self.assertTrue('double_range' in res_df3)
+            self.assertTrue(isinstance(res_df3.index, pd.RangeIndex))
+
+            # try attr as index_col:
+            res_df4 = A.query(dims=False, index_col=['int_vals']).df[:]
+            self.assertTrue('time' not in res_df4)
+            self.assertTrue('double_range' in res_df4)
+            self.assertTrue('int_vals' == res_df4.index.name)
