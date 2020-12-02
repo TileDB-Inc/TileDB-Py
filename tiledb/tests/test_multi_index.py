@@ -208,14 +208,28 @@ class TestMultiRangeAuxiliary(DiskTestCase):
 
 class TestMultiRange(DiskTestCase):
     def test_multirange_behavior(self):
-        import pandas as pd
         uri = self.path("multirange_behavior_sparse")
+
+        schema = tiledb.ArraySchema(
+          domain=tiledb.Domain(*[
+            tiledb.Dim(name='idx', domain=(-1.0, 0.7999999999999996), tile=2.0, dtype='float64'),
+          ]),
+          attrs=[
+            tiledb.Attr(name='data', dtype='float64', var=False),
+          ],
+          cell_order='row-major',
+          tile_order='row-major',
+          capacity=10000,
+          sparse=True,
+          allows_duplicates=True
+        )
+        tiledb.SparseArray.create(uri, schema)
         data = np.random.rand(10)
         idx = np.arange(-1,1,.2)
-        df = pd.DataFrame({'data': data, 'idx': idx})
-        df.set_index(['idx'], inplace=True)
 
-        tiledb.from_dataframe(uri, df, sparse=True)
+        with tiledb.open(uri, 'w') as A:
+            A[idx] = {'data': data}
+
         with tiledb.open(uri) as A:
             res = A.multi_index[:]
             # always return data
