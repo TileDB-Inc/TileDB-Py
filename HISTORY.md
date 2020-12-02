@@ -1,3 +1,8 @@
+# In Progress
+
+## Improvements
+* Support selecting subset of dimensions in Array.query via new keyword argument `dims: List[String]`. The `coords=True` kwarg is still supported for compatibility, and continues to return all dimensions [#433](https://github.com/TileDB-Inc/TileDB-Py/pull/433)
+
 # TileDB-Py 0.7.3 Release Notes
 
 ## Improvements

@@ -4231,14 +4231,32 @@ cdef class Query(object):
     See documentation of Array.query
     """
 
-    def __init__(self, array, attrs=None, coords=False,
+    def __init__(self, array, attrs=None, dims=None,
+                 coords=False, index_col=True,
                  order=None, use_arrow=None, return_arrow=False):
         if array.mode != 'r':
             raise ValueError("array mode must be read-only")
-        self.array = array
+
+        if dims is not None and coords == True:
+            raise ValueError("Cannot pass both dims and coords=True to Query")
+
+        if dims is not None:
+            domain = array.schema.domain
+            dim_names = [domain.dim(i).name for i in range(domain.ndim)]
+            for dname in dim_names:
+                if not domain.has_dim(dname):
+                    raise ValueError("Selected dimension does not exist: '{name}")
+            self.dims = dims
+        elif coords == True:
+            domain = array.schema.domain
+            self.dims = [domain.dim(i).name for i in range(domain.ndim)]
+
+        if attrs is not None:
+            attr_names = [array.schema.attr(i).name for i in range(array.schema.nattr)]
+            for name in attr_names:
+                if not array.schema.has_attr(name):
+                    raise ValueError(f"Selected attribute does not exist: '{name}'")
         self.attrs = attrs
-        self.coords = coords
-        self.return_arrow = return_arrow
 
         if order == None:
             if array.schema.sparse:
@@ -4248,7 +4266,14 @@ cdef class Query(object):
         else:
             self.order = order
 
+        # reference to the array we are querying
+        self.array = array
+        self.coords = coords
+        self.index_col = index_col
+        self.return_arrow = return_arrow
+
         self.domain_index = DomainIndexer(array, query=self)
+
         # Delayed to avoid circular import
         from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
         self.multi_index = MultiRangeIndexer(array, query=self)
@@ -4264,6 +4289,11 @@ cdef class Query(object):
     def attrs(self):
         """List of attributes to include in Query."""
         return self.attrs
+
+    @property
+    def dims(self):
+        """List of dimensions to include in Query."""
+        return self.dims
 
     @property
     def coords(self):
@@ -4416,7 +4446,8 @@ cdef class DenseArrayImpl(Array):
         else:
             return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    def query(self, attrs=None, coords=False, order='C', use_arrow=None, return_arrow=False):
+    def query(self, attrs=None, dims=None, coords=False, order='C',
+              use_arrow=None, return_arrow=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -4427,6 +4458,8 @@ cdef class DenseArrayImpl(Array):
         :param attrs: the DenseArray attributes to subselect over.
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
+        :param dims: the DenseArray dimensions to subselect over. If dims is None (default)
+            then no dimensions are returned, unless coords=True.
         :param coords: if True, return array of coodinate value (default False).
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
@@ -4456,7 +4489,7 @@ cdef class DenseArrayImpl(Array):
         """
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
-        return Query(self, attrs=attrs, coords=coords, order=order,
+        return Query(self, attrs=attrs, dims=dims, coords=coords, order=order,
                      use_arrow=use_arrow, return_arrow=return_arrow)
 
 
@@ -4545,7 +4578,7 @@ cdef class DenseArrayImpl(Array):
                               tiledb_layout_t layout, bint include_coords):
 
         from tiledb.core import PyQuery
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), include_coords, <int32_t>layout, False)
+        q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 
@@ -5031,7 +5064,7 @@ cdef class SparseArrayImpl(Array):
         """
         return self.subarray(selection)
 
-    def query(self, attrs=None, coords=True, order='U', use_arrow=None, return_arrow=None):
+    def query(self, attrs=None, dims=None, coords=True, order='U', use_arrow=None, return_arrow=None):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -5042,7 +5075,9 @@ cdef class SparseArrayImpl(Array):
         :param attrs: the SparseArray attributes to subselect over.
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
-        :param coords: if True, return array of coodinate value (default False).
+        :param dims: the SparseArray dimensions to subselect over. If dims is None (default)
+            then all dimensions are returned, unless coords=False.
+        :param coords: (deprecated) if True, return array of coodinate value (default False).
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
@@ -5074,7 +5109,7 @@ cdef class SparseArrayImpl(Array):
         """
         if not self.isopen:
             raise TileDBError("SparseArray is not opened")
-        return Query(self, attrs=attrs, coords=coords, order=order,
+        return Query(self, attrs=attrs, dims=dims, coords=coords, order=order,
                      use_arrow=use_arrow, return_arrow=return_arrow)
 
     def subarray(self, selection, coords=True, attrs=None, order=None):
@@ -5160,14 +5195,15 @@ cdef class SparseArrayImpl(Array):
         else:
             return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    cdef _read_sparse_subarray(self, list subarray, list attr_names, tiledb_layout_t layout):
+    cdef _read_sparse_subarray(self, list subarray, list attr_names,
+                               tiledb_layout_t layout):
         cdef object out = OrderedDict()
         # all results are 1-d vectors
         cdef np.npy_intp dims[1]
         cdef Py_ssize_t nattr = len(attr_names)
 
         from tiledb.core import PyQuery
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), True, <int32_t>layout, False)
+        q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 

@@ -18,9 +18,9 @@ class CoreCCTest(DiskTestCase):
         with tiledb.open(uri) as a:
             with self.assertRaises(ValueError):
                 testctx = tiledb.Ctx(config={'py.init_buffer_bytes': 'abcd'})
-                core.PyQuery(testctx, a, ("",), False, 0, False)
+                core.PyQuery(testctx, a, ("",), (), 0, False)
 
-            q = core.PyQuery(ctx, a, ("",), False, 0, False)
+            q = core.PyQuery(ctx, a, ("",), (), 0, False)
 
             try:
                 q._test_err("bad foo happened")
@@ -53,7 +53,7 @@ class CoreCCTest(DiskTestCase):
                     q.set_ranges([[("aa", "bbbb")]])
 
         with tiledb.open(uri) as a:
-            q2 = core.PyQuery(ctx, a, ("",), False, 0, False)
+            q2 = core.PyQuery(ctx, a, ("",), (), 0, False)
 
             q2.set_ranges([[(0,3)]])
             q2.submit()
@@ -74,7 +74,7 @@ class CoreCCTest(DiskTestCase):
             pass
 
         with tiledb.open(uri) as a:
-            q = core.PyQuery(ctx, a, ("",), False, 0, False)
+            q = core.PyQuery(ctx, a, ("",), (), 0, False)
             self.assertEqual(q._test_init_buffer_bytes, intmax)
 
     def test_import_buffer(self):
@@ -150,3 +150,13 @@ class CoreCCTest(DiskTestCase):
             assert_array_equal(res[''], data_mod[''])
             assert_array_equal(res['foo'], data_mod['foo'])
             assert_array_equal(res['str'], data_mod['str'])
+
+        with tiledb.DenseArray(uri, mode='r') as E:
+             # Ensure that query only returns specified attributes
+            q = core.PyQuery(ctx, E, ("foo",), (), 0, False)
+            q.set_ranges([[(0,1)]])
+            q.submit()
+            r = q.results()
+            self.assertTrue("foo" in r)
+            self.assertTrue("str" not in r)
+            del q

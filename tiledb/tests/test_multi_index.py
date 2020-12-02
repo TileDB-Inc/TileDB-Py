@@ -248,12 +248,12 @@ class TestMultiRange(DiskTestCase):
         with tiledb.DenseArray(path) as A:
             ranges = ( ((0, 0),), )
             expected = np.array([0], dtype=np.int64)
-            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
+            res = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)
+            a = res[attr_name]
             assert_array_equal(a, expected)
             self.assertEqual(a.dtype, expected.dtype)
+            self.assertEqual(len(res.keys()), 2)
 
-            #===
-        #with tiledb.DenseArray(path) as A:
             ranges2 = ( ((1, 1), (5,8)), )
             expected2 = np.array([1,5,6,7,8], dtype=np.int64)
             a2 = tiledb.libtiledb.multi_index(A, (attr_name,), ranges2)[attr_name]

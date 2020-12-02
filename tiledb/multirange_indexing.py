@@ -122,10 +122,13 @@ class MultiRangeIndexer(object):
     def __getitem__(self, idx):
         # implements multi-range / outer / orthogonal indexing
         ranges = self.getitem_ranges(idx)
-
         schema = self.schema
         dom = self.schema.domain
         attr_names = tuple(self.schema.attr(i)._internal_name for i in range(self.schema.nattr))
+        if schema.sparse:
+            dim_names = tuple(dom.dim(i).name for i in range(dom.ndim))
+        else:
+            dim_names = tuple()
         coords = None
 
         # set default order
@@ -140,8 +143,16 @@ class MultiRangeIndexer(object):
         # then we need to respect the settings of the query
         if self.query is not None:
             # if we are called via Query object, then we need to respect Query semantics
-            attr_names = tuple(self.query.attrs) if self.query.attrs else attr_names # query.attrs might be None -> all
-            coords = self.query.coords
+            if self.query.attrs is not None:
+                attr_names = tuple(self.query.attrs)
+            else:
+                pass # query.attrs might be None -> all
+            if self.query.dims is not None:
+                dim_names = tuple(self.query.dims)
+            elif self.query.coords is False:
+                dim_names = tuple()
+
+            # set query order
             order = self.query.order
 
         # convert order to layout
@@ -164,7 +175,7 @@ class MultiRangeIndexer(object):
         q = PyQuery(self.array._ctx_(),
                     self.array,
                     attr_names,
-                    coords,
+                    dim_names,
                     layout,
                     self.use_arrow)
 
