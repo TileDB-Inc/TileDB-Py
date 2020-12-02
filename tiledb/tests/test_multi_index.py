@@ -43,80 +43,7 @@ def make_2d_dense(ctx, path, attr_name=''):
     with tiledb.DenseArray(path, 'w') as A:
         A[:] = a_orig
 
-class TestMultiRange(DiskTestCase):
-
-    def test_multirange_1d_1dim_ranges(self):
-        path = self.path('test_multirange_1d_1dim_ranges')
-        attr_name = 'a'
-
-        ctx = tiledb.Ctx()
-        make_1d_dense(ctx, path, attr_name=attr_name)
-
-        expected = np. array([0],
-                             dtype=np.uint64)
-
-
-        with tiledb.DenseArray(path) as A:
-            ranges = ( ((0, 0),), )
-            expected = np.array([0], dtype=np.int64)
-            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
-            assert_array_equal(a, expected)
-            self.assertEqual(a.dtype, expected.dtype)
-
-            #===
-        #with tiledb.DenseArray(path) as A:
-            ranges2 = ( ((1, 1), (5,8)), )
-            expected2 = np.array([1,5,6,7,8], dtype=np.int64)
-            a2 = tiledb.libtiledb.multi_index(A, (attr_name,), ranges2)[attr_name]
-            assert_array_equal(a2, expected2)
-            self.assertEqual(a2.dtype, expected2.dtype)
-
-    def test_multirange_2d_1dim_ranges(self):
-        path = self.path('test_multirange_1dim_ranges')
-        attr_name = 'a'
-
-        ctx = tiledb.Ctx()
-        make_2d_dense(ctx, path, attr_name=attr_name)
-
-        expected = np. array([ 1,  2,  3,  4,
-                               21, 22, 23, 24,
-                               25, 26, 27, 28,
-                               29, 30, 31, 32, 33,
-                               34, 35, 36],
-                             dtype=np.uint64)
-
-        ranges = (
-            ( (0, 0), (5,8), ),
-        )
-
-        with tiledb.DenseArray(path) as A:
-            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
-
-            assert_array_equal(a, expected)
-
-    def test_multirange_2d_2dim_ranges(self):
-        ctx = tiledb.Ctx()
-        path = self.path('test_multirange_2dim_ranges')
-        attr_name = 'a'
-
-        make_2d_dense(ctx, path, attr_name=attr_name)
-
-        expected = np.array([1, 2, 3, 4,
-                             5, 6, 7, 8,
-                             9, 10, 11, 12,
-                             13, 14, 15, 16,
-                             17, 18, 19, 20])
-
-        ranges = (
-            ( (0,4), ),
-            ( (0,3), )
-        )
-
-        with tiledb.DenseArray(path) as A:
-            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
-            assert_array_equal(a, expected)
-
-
+class TestMultiRangeAuxiliary(DiskTestCase):
     def test_shape_funcs(self):
         #-----------
         range1el = ( ((1,1),), )
@@ -279,6 +206,77 @@ class TestMultiRange(DiskTestCase):
             )
         )
 
+class TestMultiRange(DiskTestCase):
+    def test_multirange_1d_1dim_ranges(self):
+        path = self.path('test_multirange_1d_1dim_ranges')
+        attr_name = 'a'
+
+        ctx = tiledb.Ctx()
+        make_1d_dense(ctx, path, attr_name=attr_name)
+
+        expected = np. array([0],
+                             dtype=np.uint64)
+
+
+        with tiledb.DenseArray(path) as A:
+            ranges = ( ((0, 0),), )
+            expected = np.array([0], dtype=np.int64)
+            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
+            assert_array_equal(a, expected)
+            self.assertEqual(a.dtype, expected.dtype)
+
+            #===
+        #with tiledb.DenseArray(path) as A:
+            ranges2 = ( ((1, 1), (5,8)), )
+            expected2 = np.array([1,5,6,7,8], dtype=np.int64)
+            a2 = tiledb.libtiledb.multi_index(A, (attr_name,), ranges2)[attr_name]
+            assert_array_equal(a2, expected2)
+            self.assertEqual(a2.dtype, expected2.dtype)
+
+    def test_multirange_2d_1dim_ranges(self):
+        path = self.path('test_multirange_1dim_ranges')
+        attr_name = 'a'
+
+        ctx = tiledb.Ctx()
+        make_2d_dense(ctx, path, attr_name=attr_name)
+
+        expected = np. array([ 1,  2,  3,  4,
+                               21, 22, 23, 24,
+                               25, 26, 27, 28,
+                               29, 30, 31, 32, 33,
+                               34, 35, 36],
+                             dtype=np.uint64)
+
+        ranges = (
+            ( (0, 0), (5,8), ),
+        )
+
+        with tiledb.DenseArray(path) as A:
+            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
+
+            assert_array_equal(a, expected)
+
+    def test_multirange_2d_2dim_ranges(self):
+        ctx = tiledb.Ctx()
+        path = self.path('test_multirange_2dim_ranges')
+        attr_name = 'a'
+
+        make_2d_dense(ctx, path, attr_name=attr_name)
+
+        expected = np.array([1, 2, 3, 4,
+                             5, 6, 7, 8,
+                             9, 10, 11, 12,
+                             13, 14, 15, 16,
+                             17, 18, 19, 20])
+
+        ranges = (
+            ( (0,4), ),
+            ( (0,3), )
+        )
+
+        with tiledb.DenseArray(path) as A:
+            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
+            assert_array_equal(a, expected)
 
     def test_multirange_1d_dense_int64(self):
         attr_name = ''
