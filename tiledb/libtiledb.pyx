@@ -503,14 +503,14 @@ def stats_reset():
     import tiledb.core
     tiledb.core.init_stats()
 
-def stats_dump():
+def stats_dump(print_out=True):
     """Return TileDB internal statistics as a string."""
     cdef char* stats_str_ptr = NULL;
 
     if tiledb_stats_dump_str(&stats_str_ptr) == TILEDB_ERR:
         raise TileDBError("Unable to dump stats to stats_str_ptr.")
 
-    stats_str = stats_str_ptr.decode("UTF-8", "strict")
+    stats_str = stats_str_ptr.decode("UTF-8", "strict").strip()
 
     if tiledb_stats_free_str(&stats_str_ptr) == TILEDB_ERR:
         raise TileDBError("Unable to free stats_str_ptr.")
@@ -518,11 +518,16 @@ def stats_dump():
     # Note: .strip and extra print() here are to offset for core
     # printing extra newlines between task output that may be empty.
     # Remove eventually.
-    print(stats_str.strip())
-    print("")
+    stats_str = stats_str.strip()
 
     import tiledb.core
-    print(tiledb.core.python_internal_stats())
+    stats_str += "\n"
+    stats_str += tiledb.core.python_internal_stats()
+
+    if print_out:
+        print(stats_str)
+    else:
+        return stats_str
 
 cpdef unicode ustring(object s):
     """Coerce a python object to a unicode string"""
@@ -4423,9 +4428,9 @@ cdef class DenseArrayImpl(Array):
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
         :param coords: if True, return array of coodinate value (default False).
-        :param use_arrow: if True, return dataframes via PyArrow when possible.
-        :param return_arrow: if True, return results as a PyArrow Table.
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param use_arrow: if True, return dataframes via PyArrow if applicable.
+        :param return_arrow: if True, return results as a PyArrow Table if applicable.
         :return: A proxy Query object that can be used for indexing into the DenseArray
             over the defined attributes, in the given result layout (order).
 
@@ -5026,7 +5031,7 @@ cdef class SparseArrayImpl(Array):
         """
         return self.subarray(selection)
 
-    def query(self, attrs=None, coords=True, order='U', use_arrow=None):
+    def query(self, attrs=None, coords=True, order='U', use_arrow=None, return_arrow=None):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -5039,6 +5044,8 @@ cdef class SparseArrayImpl(Array):
             Array attributes can be defined by name or by positional index.
         :param coords: if True, return array of coodinate value (default False).
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param use_arrow: if True, return dataframes via PyArrow if applicable.
+        :param return_arrow: if True, return results as a PyArrow Table if applicable.
         :return: A proxy Query object that can be used for indexing into the SparseArray
             over the defined attributes, in the given result layout (order).
 
@@ -5067,7 +5074,8 @@ cdef class SparseArrayImpl(Array):
         """
         if not self.isopen:
             raise TileDBError("SparseArray is not opened")
-        return Query(self, attrs=attrs, coords=coords, order=order)
+        return Query(self, attrs=attrs, coords=coords, order=order,
+                     use_arrow=use_arrow, return_arrow=return_arrow)
 
     def subarray(self, selection, coords=True, attrs=None, order=None):
         """

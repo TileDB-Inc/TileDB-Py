@@ -2,7 +2,8 @@
 
 from __future__ import absolute_import
 
-import sys, os, io, re, platform, unittest, random, warnings
+import sys, os, io, re, platform, contextlib
+import unittest, random, warnings
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -22,6 +23,7 @@ def safe_dump(obj):
         with io.StringIO() as buf, redirect_stdout(buf):
             obj.dump()
     except ImportError:
+        # fallback on python 2
         obj.dump()
     except Exception as exc:
         print("Exception occurred calling 'obj.dump()' with redirect.", exc,
@@ -47,6 +49,9 @@ class StatsTest(DiskTestCase):
         with tiledb.from_numpy(self.path("test_stats"), np.arange(10)) as T:
             assert_array_equal(T,np.arange(10))
             tiledb.stats_dump()
+            stats = tiledb.stats_dump(print_out=False)
+            self.assertTrue("==== READ ====")
+            self.assertTrue("==== Python Stats ====" in stats)
 
 class Config(DiskTestCase):
 
