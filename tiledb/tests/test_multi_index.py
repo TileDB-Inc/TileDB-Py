@@ -207,6 +207,33 @@ class TestMultiRangeAuxiliary(DiskTestCase):
         )
 
 class TestMultiRange(DiskTestCase):
+    def test_multirange_behavior(self):
+        import pandas as pd
+        uri = self.path("multirange_behavior_sparse")
+        data = np.random.rand(10)
+        idx = np.arange(-1,1,.2)
+        df = pd.DataFrame({'data': data, 'idx': idx})
+        df.set_index(['idx'], inplace=True)
+
+        tiledb.from_dataframe(uri, df, sparse=True)
+        with tiledb.open(uri) as A:
+            res = A.multi_index[:]
+            # always return data
+            self.assertTrue('data' in res)
+            # return coordinates for sparse
+            self.assertTrue('idx' in res)
+            assert_array_equal(res['data'], data)
+            assert_array_equal(res['idx'], idx)
+
+        uri = self.path("multirange_behavior_dense")
+        tiledb.from_numpy(uri, data)
+        with tiledb.open(uri) as B:
+            res = B.multi_index[0:9] # TODO: this should accept [:]
+            # always return data
+            self.assertTrue('' in res)
+            # don't return coordinates for dense
+            self.assertTrue('idx' not in res)
+
     def test_multirange_1d_1dim_ranges(self):
         path = self.path('test_multirange_1d_1dim_ranges')
         attr_name = 'a'
