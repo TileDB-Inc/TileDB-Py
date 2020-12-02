@@ -1173,16 +1173,6 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 T.query(attrs=("unknown"))[:]
 
-            # Ensure that query only returns specified attributes
-            q = core.PyQuery(ctx, T, ("ints",), False, 0, False)
-            q.set_ranges([[(0,1)]])
-            q.submit()
-            r = q.results()
-            self.assertTrue("ints" in r)
-            self.assertTrue("floats" not in r)
-            del q
-
-
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             # check error ncells length
             V["ints"] = V["ints"][1:2].copy()

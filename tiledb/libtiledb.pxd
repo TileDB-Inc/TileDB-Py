@@ -1226,8 +1226,10 @@ cdef class VFS(object):
 cdef class Query(object):
     cdef Array array
     cdef object attrs
-    cdef object coords
+    cdef object dims
     cdef object order
+    cdef object coords
+    cdef object index_col
     cdef object return_arrow
     cdef DomainIndexer domain_index
     cdef object multi_index

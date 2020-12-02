@@ -213,9 +213,9 @@ private:
   shared_ptr<tiledb::Array> array_;
   shared_ptr<tiledb::Query> query_;
   std::vector<std::string> attrs_;
+  std::vector<std::string> dims_;
   map<string, BufferInfo> buffers_;
   vector<string> buffers_order_;
-  bool include_coords_;
   bool deduplicate_ = true;
   bool use_arrow_ = false;
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
@@ -228,8 +228,12 @@ public:
 public:
   PyQuery() = delete;
 
-  PyQuery(py::object ctx, py::object array, py::iterable attrs,
-          py::object coords, py::object py_layout, py::object use_arrow) {
+  PyQuery(py::object ctx,
+          py::object array,
+          py::iterable attrs,
+          py::iterable dims,
+          py::object py_layout,
+          py::object use_arrow) {
 
     tiledb_ctx_t *c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
     if (c_ctx_ == nullptr)
@@ -254,14 +258,12 @@ public:
     }
     query_->set_layout(layout);
 
-    if (!coords.is(py::none())) {
-      include_coords_ = coords.cast<bool>();
-    } else {
-      include_coords_ = issparse;
-    }
-
     for (auto a : attrs) {
       attrs_.push_back(a.cast<string>());
+    }
+
+    for (auto d : dims) {
+      dims_.push_back(d.cast<string>());
     }
 
     // get config parameters
@@ -652,11 +654,16 @@ public:
 
     auto schema = array_->schema();
 
-    if (include_coords_) {
-      auto domain = schema.domain();
-      for (auto dim : domain.dimensions()) {
-        alloc_buffer(dim.name());
+    // return dims first, if any
+    auto domain = schema.domain();
+    for (size_t dim_idx = 0; dim_idx < domain.ndim(); dim_idx++) {
+      auto dim = domain.dimension(dim_idx);
+      if ((std::find(dims_.begin(), dims_.end(), dim.name()) == dims_.end()) &&
+          // we need to also check if this is an attr for backward-compatibility
+          (std::find(attrs_.begin(), attrs_.end(), dim.name()) == attrs_.end())) {
+        continue;
       }
+      alloc_buffer(dim.name());
     }
 
     // schema.attributes() is unordered, but we need to return ordered results
