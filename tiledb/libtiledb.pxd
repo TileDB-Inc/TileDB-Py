@@ -454,6 +454,16 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_dimension_t* dim,
         const void** tile_extent)
 
+    int tiledb_dimension_get_filter_list(
+        tiledb_ctx_t *ctx,
+        tiledb_dimension_t *dim,
+        tiledb_filter_list_t **filter_list)
+
+    int tiledb_dimension_set_filter_list(
+        tiledb_ctx_t *ctx,
+        tiledb_dimension_t *dim,
+        tiledb_filter_list_t *filter_list)
+
     # Array schema
     int tiledb_array_schema_alloc(
         tiledb_ctx_t* ctx,

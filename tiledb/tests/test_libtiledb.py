@@ -210,6 +210,19 @@ class DimensionTest(unittest.TestCase):
         self.assertEqual(dim.shape, (4,))
         self.assertEqual(dim.tile, 2)
 
+    def test_dimension_filter(self):
+        ctx = tiledb.default_ctx()
+        filters = [tiledb.GzipFilter(2)]
+        dim = tiledb.Dim(name="df", ctx=ctx, domain=(0,2), tile=1, filters=filters)
+        self.assertEqual(dim.filters, filters)
+
+        filter_list = tiledb.FilterList(filters)
+        dim = tiledb.Dim(name="df", ctx=ctx, domain=(0,2), tile=1, filters=filter_list)
+        self.assertEqual(dim.filters, filter_list)
+
+        with self.assertRaises(TypeError):
+            tiledb.Dim(name="df", ctx=ctx, domain=(0,2), tile=1, filters=1)
+
     def test_datetime_dimension(self):
         ctx = tiledb.Ctx()
 
