@@ -2123,6 +2123,40 @@ class SparseArray(DiskTestCase):
             # must check data ordered by coords
             assert_array_equal(res['val'], data[np.argsort(coords, kind='stable')])
 
+    def test_sparse_mixed_domain(self):
+        uri = self.path('sparse_mixed_domain')
+        ctx = tiledb.Ctx()
+        dims = [
+            tiledb.Dim(name="p", ctx=ctx, domain=(-100.0, 100.0), tile=10, dtype=np.float64),
+            tiledb.Dim(name="str", domain=(None,None), tile=None, dtype=np.bytes_)
+        ]
+        dom = tiledb.Domain(*dims)
+        attrs = [
+            tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)
+        ]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(uri, schema)
+
+        nrows = 5
+        idx_f64 = np.random.rand(nrows)
+        idx_str = [rand_ascii(5).encode('utf-8') for _ in range(nrows)]
+        data = np.random.rand(nrows)
+
+        with tiledb.SparseArray(uri, 'w') as A:
+            A[idx_f64, idx_str] = {'val': data}
+
+        # test heterogeneous dim nonempty_domain
+        ned_f64 = (np.array(np.min(idx_f64)), np.array(np.max(idx_f64)))
+        idx_str.sort()
+        ned_str = idx_str[0],idx_str[-1]
+
+        with tiledb.SparseArray(uri, 'r') as A:
+            self.assertEqual(
+                A.nonempty_domain(),
+                (ned_f64, ned_str)
+            )
+
 class DenseIndexing(DiskTestCase):
 
     def _test_index(self, A, T, idx):
