@@ -1059,7 +1059,7 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(T[1], 2)
             self.assertEqual(T[2], 0)
 
-    
+
     def test_open_with_given_timestamp(self):
         A = np.zeros(3)
 

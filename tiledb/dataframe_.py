@@ -54,6 +54,7 @@ TILEDB_KWARG_DEFAULTS = {
     'allows_duplicates': True,
     'mode': 'ingest',
     'attr_filters': None,
+    'dim_filters': None,
     'coords_filters': None,
     'full_domain': False,
     'tile': None,
@@ -143,6 +144,17 @@ def attrs_from_df(df,
 
     attrs = list()
     for name, col in df.items():
+        if isinstance(filters, dict):
+            if name in filters:
+                attr_filters = filters[name]
+            else:
+                attr_filters = None
+        elif filters is not None:
+            attr_filters = filters
+        else:
+            attr_filters = tiledb.FilterList(
+                [tiledb.ZstdFilter(1, ctx=ctx)])
+
         # ignore any column used as a dim/index
         if index_dims and name in index_dims:
             continue
@@ -155,7 +167,9 @@ def attrs_from_df(df,
             attr_info = ColumnInfo(spec_type)
         else:
             attr_info = dtype_from_column(col)
-        attrs.append(tiledb.Attr(name=name, dtype=attr_info.dtype, filters=filters))
+
+        attrs.append(tiledb.Attr(name=name, dtype=attr_info.dtype,
+                                 filters=attr_filters))
 
         if attr_info.repr is not None:
             attr_reprs[name] = attr_info.repr
@@ -186,7 +200,8 @@ def dim_info_for_column(ctx, df, col, tile=None, full_domain=False, index_dtype=
 
     return dim_info
 
-def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False, ndim=None):
+def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False,
+                   ndim=None, dim_filters=None):
     if isinstance(col, np.ndarray):
         col_values = col
     else:
@@ -252,7 +267,8 @@ def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False, ndim=
         name = name,
         domain = (dim_min, dim_max),
         dtype = dim_info.dtype,
-        tile = tile
+        tile = tile,
+        filters=dim_filters
     )
 
     return dim
@@ -269,7 +285,7 @@ def get_index_metadata(dataframe):
     return md
 
 def create_dims(ctx, dataframe, index_dims,
-                tile=None, full_domain=False, sparse=None):
+                tile=None, full_domain=False, sparse=None, filters=None):
     import pandas as pd
     index = dataframe.index
     index_dict = OrderedDict()
@@ -341,6 +357,17 @@ def create_dims(ctx, dataframe, index_dims,
 
     dims = list()
     for idx, (name, values) in enumerate(index_dict.items()):
+        # get the FilterList, if any
+        if isinstance(filters, dict):
+            if name in filters:
+                dim_filters = filters[name]
+            else:
+                dim_filters = None
+        elif filters is not None:
+            dim_filters = filters
+        else:
+            dim_filters = None
+
         if per_dim_tile and name in tile:
             dim_tile = tile[name]
         elif per_dim_tile:
@@ -351,7 +378,8 @@ def create_dims(ctx, dataframe, index_dims,
             dim_tile = tile
 
         dims.append(dim_for_column(ctx, name, dim_types[idx], values,
-                    tile=dim_tile, full_domain=full_domain, ndim=ndim))
+                    tile=dim_tile, full_domain=full_domain, ndim=ndim,
+                    dim_filters=dim_filters))
 
     if index_dims:
         for name in index_dims:
@@ -364,9 +392,18 @@ def create_dims(ctx, dataframe, index_dims,
                 # in this case we use a scalar  (type-checked earlier)
                 dim_tile = tile
 
+            # get the FilterList, if any
+            if isinstance(filters, dict) and name in filters:
+                dim_filters = filters[name]
+            elif filters is not None:
+                dim_filters = filters
+            else:
+                dim_filters = None
+
             col = dataframe[name]
             dims.append(
-                dim_for_column(ctx, dataframe, col.values, name, tile=dim_tile)
+                dim_for_column(ctx, dataframe, col.values, name,
+                               tile=dim_tile, dim_filters=dim_filters)
             )
 
     return dims, sparse
@@ -438,6 +475,7 @@ def from_pandas(uri, dataframe, **kwargs):
     index_dims = tiledb_args.get('index_dims', None)
     mode = tiledb_args.get('mode', 'ingest')
     attr_filters = tiledb_args.get('attr_filters', None)
+    dim_filters = tiledb_args.get('dim_filters', None)
     coords_filters = tiledb_args.get('coords_filters', None)
     full_domain = tiledb_args.get('full_domain', False)
     capacity = tiledb_args.get('capacity', False)
@@ -473,14 +511,6 @@ def from_pandas(uri, dataframe, **kwargs):
         ctx = tiledb.default_ctx()
 
     if create_array:
-        if attrs_filters is None:
-           attrs_filters = tiledb.FilterList(
-                [tiledb.ZstdFilter(1, ctx=ctx)])
-
-        if coords_filters is None:
-            coords_filters = tiledb.FilterList(
-                [tiledb.ZstdFilter(1, ctx=ctx)])
-
         if nrows:
             if full_domain is None:
                 full_domain = False
@@ -488,7 +518,7 @@ def from_pandas(uri, dataframe, **kwargs):
         # create the domain and attributes
         # if sparse==None then this function may return a default based on types
         dims, sparse = create_dims(ctx, dataframe, index_dims, sparse=sparse,
-                           tile=tile, full_domain=full_domain)
+                           tile=tile, full_domain=full_domain, filters=dim_filters)
 
         domain = tiledb.Domain(
            *dims,
@@ -697,7 +727,10 @@ def from_csv(uri, csv_file, **kwargs):
             * ``mode``: (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``,
               ``append``
             * ``full_domain``: Dimensions should be created with full range of the dtype
-            * ``attr_filters``: FilterList to apply to all Attributes
+            * ``attr_filters``: FilterList to apply to Attributes: FilterList or Dict[str -> FilterList]
+                for any attribute(s). Unspecified attributes will use default.
+            * ``dim_filters``: FilterList to apply to Dimensions: FilterList or Dict[str -> FilterList]
+                for any dimensions(s). Unspecified dimensions will use default.
             * ``coords_filters``: FilterList to apply to all coordinates (Dimensions)
             * ``sparse``: (default True) Create sparse schema
             * ``tile``: Dimension tiling: accepts either Int or a list of Tuple[Int] with per-dimension
