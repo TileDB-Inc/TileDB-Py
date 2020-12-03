@@ -3317,6 +3317,15 @@ cdef class ArraySchema(object):
         """Returns a generator object that iterates over the ArraySchema's Attribute objects"""
         return (self.attr(i) for i in range(self.nattr))
 
+    def check(self):
+        """Checks the correctness of the array schema
+
+        :rtype: None
+        :raises: :py:exc:`tiledb.TileDBError` if invalid
+        """
+        check_error(self.ctx,
+                    tiledb_array_schema_check(self.ctx.ptr, self.ptr))
+
     @property
     def sparse(self):
         """True if the array is a sparse array representation
@@ -3471,6 +3480,14 @@ cdef class ArraySchema(object):
         :raises TypeError: floating point (inexact) domain
         """
         return self.domain.shape
+
+    def _make_invalid(self):
+        """This is a helper function for testing schema.check: resets schema
+        in order to make the schema invalid."""
+        cdef tiledb_array_schema_t* schema_ptr = self.ptr
+        tiledb_array_schema_free(&schema_ptr)
+        check_error(self.ctx,
+                    tiledb_array_schema_alloc(self.ctx.ptr, TILEDB_DENSE, &self.ptr))
 
     def _needs_var_buffer(self, unicode name):
         """

@@ -380,7 +380,7 @@ class AttributeTest(unittest.TestCase):
 
 class ArraySchemaTest(unittest.TestCase):
 
-    def test_unique_attributes(self):
+    def test_schema_basic(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim("d1", (1, 4), 2, dtype='u8', ctx=ctx),
@@ -390,8 +390,17 @@ class ArraySchemaTest(unittest.TestCase):
         attr1 = tiledb.Attr("foo", ctx=ctx, dtype=float)
         attr2 = tiledb.Attr("foo", ctx=ctx, dtype=int)
 
+        # test unique attributes
         with self.assertRaises(tiledb.TileDBError):
             tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr1, attr2))
+
+        # test schema.check
+        schema = tiledb.ArraySchema(ctx=ctx,domain=dom, attrs=(attr1,))
+        # valid schema does not raise
+        schema.check()
+        with self.assertRaises(tiledb.TileDBError):
+            schema._make_invalid()
+            schema.check()
 
     def test_dense_array_schema(self):
         ctx = tiledb.Ctx()
