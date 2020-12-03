@@ -2388,6 +2388,8 @@ cdef class Dim(object):
     :type domain: tuple(int, int) or tuple(float, float)
     :param tile: Tile extent
     :type tile: int or float
+    :param filters: List of filters to apply
+    :type filters: FilterList
     :dtype: the Dim numpy dtype object, type object, or string \
         that can be corerced into a numpy dtype object
     :raises ValueError: invalid domain or tile extent
@@ -2415,7 +2417,8 @@ cdef class Dim(object):
         dim.ptr = <tiledb_dimension_t*> ptr
         return dim
 
-    def __init__(self, name=u"__dim_0", domain=None, tile=None, dtype=np.uint64, Ctx ctx=None):
+    def __init__(self, name=u"__dim_0", domain=None, tile=None,
+                 filters=None, dtype=np.uint64, Ctx ctx=None):
         if not ctx:
             ctx = default_ctx()
 
@@ -2472,21 +2475,43 @@ cdef class Dim(object):
                     raise ValueError("tile extent must be a scalar")
                 tile_size_ptr = np.PyArray_DATA(tile_size_array)
 
-        check_error(ctx,
-                    tiledb_dimension_alloc(ctx.ptr,
-                                           name_ptr,
-                                           dim_datatype,
-                                           domain_ptr,
-                                           tile_size_ptr,
-                                           &dim_ptr))
+        cdef FilterList filter_list
+        cdef tiledb_filter_list_t* filter_list_ptr = NULL
+        try:
+            check_error(ctx,
+                        tiledb_dimension_alloc(ctx.ptr,
+                                               name_ptr,
+                                               dim_datatype,
+                                               domain_ptr,
+                                               tile_size_ptr,
+                                               &dim_ptr))
 
-        assert(dim_ptr != NULL)
+            assert dim_ptr != NULL, "internal error: tiledb_dimension_alloc null dim_ptr"
+
+            if filters is not None:
+                if not isinstance(filters, FilterList):
+                    filters = FilterList(filters)
+                filter_list = filters
+                filter_list_ptr = filter_list.ptr
+                check_error(ctx,
+                    tiledb_dimension_set_filter_list(ctx.ptr, dim_ptr, filter_list_ptr))
+        except:
+            tiledb_dimension_free(&dim_ptr)
+            raise
+
         self.ctx = ctx
         self.ptr = dim_ptr
 
     def __repr__(self):
-        return "Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype='{3!s}')" \
-            .format(self.name, self.domain, self.tile, self.dtype)
+        filters_str = ""
+        if self.filters:
+            filters_str = ", filters=FilterList(["
+            for f in self.filters:
+                filters_str +=  repr(f) + ", "
+            filters_str += "])"
+
+        return "Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype='{3!s}'{4})" \
+            .format(self.name, self.domain, self.tile, self.dtype, filters_str)
 
     def __len__(self):
         return self.size
@@ -2557,6 +2582,21 @@ cdef class Dim(object):
         """
         name = self.name
         return name == u"" or name.startswith("__dim")
+
+    @property
+    def filters(self):
+        """FilterList of the TileDB dimension
+
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef tiledb_filter_list_t* filter_list_ptr = NULL
+        cdef int rc = TILEDB_OK
+        check_error(self.ctx,
+                    tiledb_dimension_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
+
+        return FilterList.from_ptr(filter_list_ptr, self.ctx)
 
     cdef unsigned int _cell_val_num(Dim self) except? 0:
         cdef unsigned int ncells = 0
@@ -3155,7 +3195,6 @@ cdef class ArraySchema(object):
         cdef FilterList filter_list
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         try:
-
             if offsets_filters is not None:
                 if not isinstance(offsets_filters, FilterList):
                     offsets_filters = FilterList(offsets_filters)
