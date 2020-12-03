@@ -53,7 +53,7 @@ TILEDB_KWARG_DEFAULTS = {
     'index_dims': None,
     'allows_duplicates': True,
     'mode': 'ingest',
-    'attrs_filters': None,
+    'attr_filters': None,
     'coords_filters': None,
     'full_domain': False,
     'tile': None,
@@ -437,7 +437,7 @@ def from_pandas(uri, dataframe, **kwargs):
     sparse = tiledb_args['sparse']
     index_dims = tiledb_args.get('index_dims', None)
     mode = tiledb_args.get('mode', 'ingest')
-    attrs_filters = tiledb_args.get('attrs_filters', None)
+    attr_filters = tiledb_args.get('attr_filters', None)
     coords_filters = tiledb_args.get('coords_filters', None)
     full_domain = tiledb_args.get('full_domain', False)
     capacity = tiledb_args.get('capacity', False)
@@ -497,7 +497,7 @@ def from_pandas(uri, dataframe, **kwargs):
 
         attrs, attr_metadata = attrs_from_df(dataframe,
                                              index_dims=index_dims,
-                                             filters=attrs_filters,
+                                             filters=attr_filters,
                                              column_types=column_types)
 
         # don't set allows_duplicates=True for dense
@@ -697,7 +697,7 @@ def from_csv(uri, csv_file, **kwargs):
             * ``mode``: (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``,
               ``append``
             * ``full_domain``: Dimensions should be created with full range of the dtype
-            * ``attrs_filters``: FilterList to apply to all Attributes
+            * ``attr_filters``: FilterList to apply to all Attributes
             * ``coords_filters``: FilterList to apply to all coordinates (Dimensions)
             * ``sparse``: (default True) Create sparse schema
             * ``tile``: Dimension tiling: accepts either Int or a list of Tuple[Int] with per-dimension
