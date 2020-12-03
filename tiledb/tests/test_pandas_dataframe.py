@@ -629,13 +629,38 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df = pd.DataFrame({'data': [2]}, index=[0])
         tiledb.from_pandas(uri, df)
 
-        data = {'data': np.array([1,2,3]), 'index': np.array(['a', 'b', 'c'], dtype=np.dtype('|S'))}
+        data = {'data': np.array([1,2,3]),
+                'raw': np.array([4,5,6]),
+                'index': np.array(['a', 'b', 'c'], dtype=np.dtype('|S')),
+                'indey': np.array([0.0,0.5,0.9])}
         df = pd.DataFrame.from_dict(data)
-        df = df.set_index(['index'])
+        df = df.set_index(['index', 'indey'])
         uri = self.path("test_string_index_infer")
         tiledb.from_pandas(uri, df)
         with tiledb.open(uri) as A:
             self.assertTrue(A.schema.domain.dim(0).dtype == np.dtype('|S'))
+
+        # test setting Attr and Dim filter list by override
+        uri = self.path("test_df_attrs_filters1")
+        bz_filter = [tiledb.Bzip2Filter(4)]
+        def_filter = [tiledb.GzipFilter(-1)]
+        tiledb.from_pandas(uri, df, attr_filters=bz_filter, dim_filters=bz_filter)
+        with tiledb.open(uri) as A:
+            self.assertTrue(A.schema.attr('data').filters == bz_filter)
+            self.assertTrue(A.schema.attr('raw').filters == bz_filter)
+            self.assertTrue(A.schema.domain.dim('index').filters == bz_filter)
+            self.assertTrue(A.schema.domain.dim('indey').filters == bz_filter)
+
+        # test setting Attr and Dim filter list by dict
+        uri = self.path("test_df_attrs_filters2")
+        tiledb.from_pandas(uri, df,
+                           attr_filters={'data': bz_filter},
+                           dim_filters={'index': bz_filter})
+        with tiledb.open(uri) as A:
+            self.assertTrue(A.schema.attr('data').filters == bz_filter)
+            self.assertTrue(A.schema.attr('raw').filters == tiledb.FilterList())
+            self.assertTrue(A.schema.domain.dim('index').filters == bz_filter)
+            self.assertTrue(A.schema.domain.dim('indey').filters == tiledb.FilterList())
 
     def test_dataframe_query(self):
         uri = self.path("df_query")

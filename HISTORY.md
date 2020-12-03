@@ -2,6 +2,13 @@
 
 ## Improvements
 * Support selecting subset of dimensions in Array.query via new keyword argument `dims: List[String]`. The `coords=True` kwarg is still supported for compatibility, and continues to return all dimensions [#433](https://github.com/TileDB-Inc/TileDB-Py/pull/433)
+* Support Dim(filters=FilterList) keyword argument to set filters on a per-Dim basis [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
+* Support tiledb.from_csv setting attribute and dimension filters by dictionary of {name: filter} [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
+
+## API Changes
+* tiledb.from_csv keyword arg `attrs_filters` renamed to `attr_filters` [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
+
+---
 
 # TileDB-Py 0.7.3 Release Notes
 
@@ -9,9 +16,6 @@
 * The default result layout for indexing/querying sparse arrays is now TILEDB_UNORDERED [#428](https://github.com/TileDB-Inc/TileDB-Py/pull/428), [#431](https://github.com/TileDB-Inc/TileDB-Py/pull/431)
 * Added documentation for all TileDB-Py configuration parameters [#430](https://github.com/TileDB-Inc/TileDB-Py/pull/430)
 * Fixed documentation rendering for `Array.query` [#430](https://github.com/TileDB-Inc/TileDB-Py/pull/430)
-
-## API Changes
-* tiledb.from_csv keyword arg `attrs_filters` renamed to `attr_filters` [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
 
 ## Bug fixes
 * Fix sparse dimension type selection when array type is not specified to from_pandas [#429](https://github.com/TileDB-Inc/TileDB-Py/pull/429)
