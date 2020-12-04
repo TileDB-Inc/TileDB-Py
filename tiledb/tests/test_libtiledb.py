@@ -46,11 +46,18 @@ class StatsTest(DiskTestCase):
         tiledb.libtiledb.stats_reset()
         tiledb.libtiledb.stats_disable()
 
+        tiledb.libtiledb.stats_enable()
         with tiledb.from_numpy(self.path("test_stats"), np.arange(10)) as T:
+            pass
+
+        # basic output check for read stats
+        tiledb.libtiledb.stats_reset()
+        with tiledb.open(self.path("test_stats")) as T:
+            tiledb.libtiledb.stats_enable()
             assert_array_equal(T,np.arange(10))
             tiledb.stats_dump()
             stats = tiledb.stats_dump(print_out=False)
-            self.assertTrue("==== READ ====")
+            self.assertTrue("==== READ ====" in stats)
             self.assertTrue("==== Python Stats ====" in stats)
 
 class Config(DiskTestCase):

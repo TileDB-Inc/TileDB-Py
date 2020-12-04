@@ -503,26 +503,40 @@ def stats_reset():
     import tiledb.core
     tiledb.core.init_stats()
 
-def stats_dump(print_out=True):
-    """Return TileDB internal statistics as a string."""
+def stats_dump(version=True, print_out=True, include_python=True):
+    """Return TileDB internal statistics as a string.
+
+    :param print_out: Print string to console (default True), or return as string
+    :param version: Include TileDB Embedded and TileDB-Py versions (default True)
+    :param include_python: Include TileDB-Py statistics
+
+    """
     cdef char* stats_str_ptr = NULL;
 
     if tiledb_stats_dump_str(&stats_str_ptr) == TILEDB_ERR:
         raise TileDBError("Unable to dump stats to stats_str_ptr.")
 
-    stats_str = stats_str_ptr.decode("UTF-8", "strict").strip()
+    stats_str_core = stats_str_ptr.decode("UTF-8", "strict").strip()
 
     if tiledb_stats_free_str(&stats_str_ptr) == TILEDB_ERR:
         raise TileDBError("Unable to free stats_str_ptr.")
 
+    stats_str = ""
+
+    if version:
+        import tiledb
+        stats_str += f"TileDB Embedded Version: {tiledb.libtiledb.version()}\n"
+        stats_str += f"TileDB-Py Version: {tiledb.version.version}\n"
+
     # Note: .strip and extra print() here are to offset for core
     # printing extra newlines between task output that may be empty.
     # Remove eventually.
-    stats_str = stats_str.strip()
+    # use a tmp here to avoid segfault (probably string optimization)
+    stats_str += stats_str_core
 
     import tiledb.core
-    stats_str += "\n"
-    stats_str += tiledb.core.python_internal_stats()
+    if include_python:
+        stats_str += tiledb.core.python_internal_stats()
 
     if print_out:
         print(stats_str)
