@@ -325,6 +325,27 @@ class AttributeTest(unittest.TestCase):
         #self.assertEqual(compressor, None, "default to no compression")
         #self.assertEqual(level, -1, "default compression level when none is specified")
 
+    def test_attribute_fill(self):
+        attr = tiledb.Attr("foo", dtype=np.float32, fill=0.5)
+        self.assertEqual(attr.fill, 0.5)
+
+        # single char string
+        attr = tiledb.Attr("foo", dtype=bytes, fill=b's')
+        self.assertEqual(attr.fill, b's')
+
+        # multi char string
+        attr = tiledb.Attr("foo", dtype=bytes, fill=b'stuv1111')
+        self.assertEqual(attr.fill, b'stuv1111')
+
+        # datetime with fill
+        attr = tiledb.Attr("foo", dtype=np.datetime64('','ns'), fill=np.timedelta64(1,'ns'))
+        self.assertEqual(attr.fill, np.timedelta64(1,'ns'))
+
+        # multi-cell attr
+        attr = tiledb.Attr("foo", dtype=[("",np.int32),("",np.int32),("", np.int32)],
+                           fill=(1,2,3))
+        self.assertEqual(attr.fill, np.array((1,2,3),dtype=attr.dtype))
+
     def test_full_attribute(self):
         ctx = tiledb.Ctx()
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10, ctx=ctx)], ctx=ctx)

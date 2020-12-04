@@ -337,6 +337,11 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_attribute_t* attr,
         tiledb_filter_list_t* filter_list)
 
+    int tiledb_attribute_set_fill_value(
+        tiledb_ctx_t *ctx,
+        tiledb_attribute_t *attr,
+        const void *value, uint64_t size)
+
     int tiledb_attribute_set_cell_val_num(
         tiledb_ctx_t* ctx,
         tiledb_attribute_t* attr,
@@ -356,6 +361,12 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_attribute_t* attr,
         tiledb_filter_list_t** filter_list)
+
+    int tiledb_attribute_get_fill_value(
+        tiledb_ctx_t *ctx,
+        tiledb_attribute_t *attr,
+        const void **value,
+        uint64_t *size)
 
     int tiledb_attribute_get_cell_val_num(
         tiledb_ctx_t* ctx,
@@ -1156,6 +1167,7 @@ cdef class Attr(object):
     cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx=*)
     cdef unicode _get_name(Attr self)
     cdef unsigned int _cell_val_num(Attr self) except? 0
+    cdef tiledb_datatype_t _get_type(Attr self) except? TILEDB_CHAR
 
 
 cdef class Dim(object):

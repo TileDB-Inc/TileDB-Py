@@ -2164,6 +2164,7 @@ cdef class Attr(object):
     :param str name: Attribute name, empty if anonymous
     :param dtype: Attribute value datatypes
     :type dtype: numpy.dtype object or type or string
+    :param fill: Fill value for unset cells.
     :param var: Attribute is variable-length (automatic for byte/string types)
     :type dtype: bool
     :param filters: List of filters to apply
@@ -2209,6 +2210,7 @@ cdef class Attr(object):
     def __init__(self,
                  name=u"",
                  dtype=np.float64,
+                 fill=None,
                  var=False,
                  filters=None,
                  Ctx ctx=None):
@@ -2259,6 +2261,21 @@ cdef class Attr(object):
             if rc != TILEDB_OK:
                 tiledb_attribute_free(&attr_ptr)
                 _raise_ctx_err(ctx.ptr, rc)
+
+        cdef void* fill_ptr
+        cdef uint64_t fill_nbytes
+        if fill is not None:
+            fill_array = np.array(fill, dtype=dtype)
+            fill_nbytes = fill_array.nbytes
+            fill_ptr = np.PyArray_DATA(fill_array)
+            rc = tiledb_attribute_set_fill_value(ctx.ptr,
+                                                 attr_ptr,
+                                                 fill_ptr,
+                                                 fill_nbytes)
+            if rc != TILEDB_OK:
+                tiledb_attribute_free(&attr_ptr)
+                _raise_ctx_err(ctx.ptr, rc)
+
         self.ctx = ctx
         self.ptr = attr_ptr
 
@@ -2269,6 +2286,12 @@ cdef class Attr(object):
             self.dtype != other.dtype):
             return False
         return True
+
+    cdef tiledb_datatype_t _get_type(Attr self) except? TILEDB_CHAR:
+        cdef tiledb_datatype_t typ
+        check_error(self.ctx,
+                    tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
+        return typ
 
     def dump(self):
         """Dumps a string representation of the Attr object to standard output (stdout)"""
@@ -2346,6 +2369,55 @@ cdef class Attr(object):
                     tiledb_attribute_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
 
         return FilterList.from_ptr(filter_list_ptr, self.ctx)
+
+    @property
+    def fill(self):
+        """Fill value for unset cells of this attribute
+
+        :rtype: depends on dtype
+        :raises: :py:exc:`tiledb.TileDBERror`
+        """
+        cdef const uint8_t* value_ptr = NULL
+        cdef uint64_t size
+        check_error(self.ctx,
+            tiledb_attribute_get_fill_value(
+                self.ctx.ptr, self.ptr, <const void**>&value_ptr, &size))
+
+        if value_ptr == NULL:
+            return None
+
+        if size == 0:
+            raise TileDBError("Unexpected zero-length non-null fill value")
+
+        cdef np.npy_intp shape[1]
+        shape[0] = <np.npy_intp> 1
+        cdef tiledb_datatype_t tiledb_type = self._get_type()
+        cdef int typeid = _numpy_typeid(tiledb_type)
+        assert(typeid != np.NPY_NOTYPE)
+        cdef np.ndarray fill_array
+
+        if np.issubdtype(self.dtype, np.bytes_):
+            return (<char*>value_ptr)[:size]
+        elif np.issubdtype(self.dtype, np.unicode_):
+            return (<char*>value_ptr)[:size].decode('utf-8')
+        else:
+            fill_array = np.empty(1, dtype=self.dtype)
+            memcpy(np.PyArray_DATA(fill_array), value_ptr, size)
+
+        if _tiledb_type_is_datetime(tiledb_type):
+            # Coerce to np.int64
+            fill_array.dtype = np.int64
+            datetime_dtype = _tiledb_type_to_datetime(tiledb_type).dtype
+            date_unit = np.datetime_data(datetime_dtype)[0]
+            tmp_val = None
+            if fill_array[0] == 0:
+                # undefined should span the whole dimension domain
+                tmp_val = int(self.shape[0])
+            else:
+                tmp_val = int(fill_array[0])
+            return np.timedelta64(tmp_val, date_unit)
+
+        return fill_array
 
     @property
     def isvar(self):
