@@ -1009,6 +1009,14 @@ std::string python_internal_stats() {
   auto counters = g_stats.get()->counters;
 
   std::ostringstream os;
+
+  // core.cc is only tracking read time right now; don't print if we
+  // have no query submission time
+  auto rq_time = counters["py.read_query_initial_submit_time"].count();
+  if (rq_time == 0)
+    return os.str();
+
+  os << std::endl;
   os << "==== Python Stats ====" << std::endl << std::endl;
   os << "- TileDB-Py Indexing Time: " << counters["py.__getitem__time"].count() << std::endl;
   os << "  * TileDB-Py query execution time: " << counters["py.read_query_time"].count() << std::endl;
