@@ -4376,17 +4376,16 @@ cdef class Query(object):
             domain = array.schema.domain
             for dname in dims:
                 if not domain.has_dim(dname):
-                    raise ValueError("Selected dimension does not exist: '{name}")
+                    raise TileDBError("Selected dimension does not exist: '{name}")
             self.dims = dims
         elif coords is True:
             domain = array.schema.domain
             self.dims = [domain.dim(i).name for i in range(domain.ndim)]
 
         if attrs is not None:
-            attr_names = [array.schema.attr(i).name for i in range(array.schema.nattr)]
-            for name in attr_names:
+            for name in attrs:
                 if not array.schema.has_attr(name):
-                    raise ValueError(f"Selected attribute does not exist: '{name}'")
+                    raise TileDBError(f"Selected attribute does not exist: '{name}'")
         self.attrs = attrs
 
         if order == None:

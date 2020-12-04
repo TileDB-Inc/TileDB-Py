@@ -1214,7 +1214,7 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(R["ints"].shape, (8,))
 
             with self.assertRaises(tiledb.TileDBError):
-                T.query(attrs=("unknown"))[:]
+                T.query(attrs=("unknown",))[:]
 
         with tiledb.DenseArray(self.path("foo"), mode='w', ctx=ctx) as T:
             # check error ncells length
