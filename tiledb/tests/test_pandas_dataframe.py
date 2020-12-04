@@ -672,6 +672,11 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tiledb.from_dataframe(uri, df, sparse=True)
 
         with tiledb.open(uri) as A:
+            with self.assertRaises(tiledb.TileDBError):
+                A.query(dims=['nodimnodim'])
+            with self.assertRaises(tiledb.TileDBError):
+                A.query(attrs=['noattrnoattr'])
+
             res_df = A.query(dims=['time'], attrs=['int_vals']).df[:]
             self.assertTrue('time' == res_df.index.name)
             self.assertTrue('int_vals' in res_df)
