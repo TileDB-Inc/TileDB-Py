@@ -71,10 +71,12 @@ stages:
 
         # Test wheel build, install, and run
         python setup.py bdist_wheel
-        whl_file=`pwd`/dist/`ls dist/*.whl`
-        pushd /tmp
-        echo "Installing wheel file: '$whl_file'"
-        pip install $whl_file
+        #whl_file=`pwd`/dist/`ls dist/*.whl`
+        mkdir /tmp/wheel_test
+        cp dist/*.whl /tmp/wheel_test
+        pushd /tmp/wheel_test
+        ls
+        pip install *.whl
         python -c "import tiledb ; tiledb.libtiledb.version()"
       displayName: 'Run tests'
 
