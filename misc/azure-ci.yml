@@ -28,6 +28,19 @@ stages:
         versionSpec: '$(python.version)'
         architecture: 'x64'
 
+    # Print python and pip version information for debugging.
+    # Azure pipelines windows images have been unstable or out of sync, causing
+    # build failures in the pip step below when the 'bash' task uses the wrong
+    # python or has issue that causes un-corrected cygwin-style paths to be
+    # passed to pip.
+    - bash: |
+        echo "==== Python information ===="
+        which python
+        which pip
+        python --version
+        echo "============================"
+      displayName: 'Print python version in bash task'
+
     - script: |
         printenv
       displayName: 'Print env'
@@ -53,6 +66,7 @@ stages:
 
     - bash: |
         set -xeo pipefail
+
         python -m unittest tiledb.tests.all.suite_test
 
         # Test wheel build, install, and run
