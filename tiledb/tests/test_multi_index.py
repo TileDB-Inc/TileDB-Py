@@ -105,6 +105,9 @@ class TestMultiRangeAuxiliary(DiskTestCase):
             arr.schema = Obj()
             arr.schema.domain = Obj()
             arr.schema.domain.ndim = ndim
+            arr.array = Obj()
+            # place-holder for attribute that is not used in these tests
+            arr.nonempty_domain = lambda: [()] * ndim
             return arr
 
         ibi = IBI()
@@ -124,8 +127,8 @@ class TestMultiRangeAuxiliary(DiskTestCase):
             (((1, 2),),)
         )
         self.assertEqual(
-            m.getitem_ranges( ibi[1:2, 3:5] ),
-            (((1, 2),), ((3, 5),),)
+            m.getitem_ranges( ibi[1:2] ),
+            (((1, 2),),)
         )
 
         # ndim = 2
@@ -141,8 +144,8 @@ class TestMultiRangeAuxiliary(DiskTestCase):
             (((1, 33),), ())
         )
         self.assertEqual(
-            m.getitem_ranges( ibi[ [1, 2], [1], slice(1, 3) ] ),
-            (((1, 1), (2, 2)), ((1, 1),), ((1, 3),))
+            m.getitem_ranges( ibi[ [1, 2], [[1], slice(1, 3)] ] ),
+            (((1, 1), (2, 2)), ((1, 1), (1, 3),))
         )
 
         # ndim = 3
@@ -366,6 +369,15 @@ class TestMultiRange(DiskTestCase):
                 orig_array[0:10],
                 A.multi_index[ -10:np.int64(-1) ][attr_name]
             )
+            assert_array_equal(
+                orig_array,
+                A.multi_index[:][attr_name]
+            )
+            ned = A.nonempty_domain()[0]
+            assert_array_equal(
+                A.multi_index[ned[0]:ned[1]][attr_name],
+                A.multi_index[:][attr_name]
+            )
 
 
     def test_multirange_1d_sparse_double(self):
@@ -403,6 +415,7 @@ class TestMultiRange(DiskTestCase):
                 orig_array[coords.size-3:coords.size],
                 A.multi_index[(28.0,30.0),][attr_name]
             )
+
             res = A.multi_index[ slice(0,5) ]
             assert_array_equal(
                 orig_array[0:6],
@@ -413,6 +426,19 @@ class TestMultiRange(DiskTestCase):
                 res['coords'].astype(np.float64)
             )
 
+            # test slice range indexing
+            ned = A.nonempty_domain()
+            res = A.multi_index[:ned[0][1]]
+            assert_array_equal(
+                coords,
+                res['coords'].astype(np.float64)
+            )
+
+            res = A.multi_index[ned[0][0]:coords[15]]
+            assert_array_equal(
+                coords[:16],
+                res['coords'].astype(np.float64)
+            )
 
     def test_multirange_2d_sparse_domain_utypes(self):
         attr_name = 'foo'
@@ -591,21 +617,24 @@ class TestMultiRange(DiskTestCase):
         with tiledb.open(path) as A:
             for k,d in data.items():
                 Q = A.query(attrs=k)
+
                 res = Q.multi_index[[-10]]
                 assert_array_equal(
                     d[[0]],
                     res[k]
                 )
+
                 assert_array_equal(
                     coords[[0]],
                     res['coords'].view('f4')
                 )
 
-                res = A.multi_index[10, :]
+                res = A.multi_index[10]
                 assert_array_equal(
                     d[[-1]].squeeze(),
                     res[k]
                 )
+
                 assert_array_equal(
                     coords[[-1]],
                     res['coords'].view('f4')
@@ -616,6 +645,21 @@ class TestMultiRange(DiskTestCase):
                     np.hstack([ d[0:3], d[-1] ]),
                     res[k]
                 )
+
+                # make sure full slice indexing works on query
+                res = Q.multi_index[:]
+                assert_array_equal(
+                    coords,
+                    res['coords']
+                )
+
+                # TODO: this should be an error
+                #res = A.multi_index[10, :]
+                #assert_array_equal(
+                #    d[[-1]].squeeze(),
+                #    res[k]
+                #)
+
 
         with tiledb.open(path) as A:
             Q = A.query(coords=False, attrs=["U"])
@@ -676,7 +720,6 @@ class TestMultiRange(DiskTestCase):
                 orig_array[[0], :],
                 A.multi_index[[0], :][attr_name]
             )
-
             assert_array_equal(
                 orig_array[[-1,-1], :],
                 A.multi_index[[10,10], :][attr_name]
@@ -684,6 +727,11 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(
                 orig_array[0:4,7:10],
                 A.multi_index[[(0,3)], slice(7,9)][attr_name]
+            )
+            assert_array_equal(
+                orig_array[:,:],
+                A.multi_index[:,:][attr_name]
+
             )
             # TODO this should be an error to match NumPy 1.12 semantics
             #assert_array_equal(
