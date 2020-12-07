@@ -28,19 +28,18 @@ def mr_dense_result_shape(ranges, base_shape = None):
 def mr_dense_result_numel(ranges):
     return np.prod(mr_dense_result_shape(ranges))
 
-def sel_to_subranges(dim_sel):
+def sel_to_subranges(dim_sel, nonempty_domain):
     subranges = list()
-    for range in dim_sel:
+    for idx,range in enumerate(dim_sel):
         if np.isscalar(range):
             subranges.append( (range, range) )
         elif isinstance(range, slice):
             if range.step is not None:
                 raise ValueError("Stepped slice ranges are not supported")
-            elif range.start is None and range.stop is None:
-                # ':' full slice
-                pass
             else:
-                subranges.append( (range.start, range.stop) )
+                rstart = range.start if range.start else nonempty_domain[0]
+                rend = range.stop if range.stop else nonempty_domain[1]
+                subranges.append( (rstart,rend) )
         elif isinstance(range, tuple):
             subranges.extend((range,))
         elif isinstance(range, list):
@@ -48,7 +47,6 @@ def sel_to_subranges(dim_sel):
                 subranges.append( (el, el) )
         else:
             raise TypeError("Unsupported selection ")
-
     return tuple(subranges)
 
 
@@ -99,6 +97,7 @@ class MultiRangeIndexer(object):
     def getitem_ranges(self, idx):
         dom = self.schema.domain
         ndim = dom.ndim
+        ned = self.array.nonempty_domain()
 
         if isinstance(idx, tuple):
             idx = list(idx)
@@ -109,7 +108,8 @@ class MultiRangeIndexer(object):
         for i,sel in enumerate(idx):
             if not isinstance(sel, list):
                 sel = [sel]
-            subranges = sel_to_subranges(sel)
+            subranges = sel_to_subranges(sel, ned[i])
+
             ranges.append(subranges)
 
         # extend the list to ndim
