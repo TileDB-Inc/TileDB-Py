@@ -9,6 +9,7 @@
 
 
 ## API Changes
+* Addition of FragmentInfo API [#426](https://github.com/TileDB-Inc/TileDB-Py/pull/426)
 * tiledb.from_csv keyword arg `attrs_filters` renamed to `attr_filters` [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
 
 ---
