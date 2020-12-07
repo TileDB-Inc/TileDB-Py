@@ -64,8 +64,9 @@ public:
         return fi_->fragment_uri(fid);
     }
 
-    py::tuple get_non_empty_domain(uint32_t fid, uint32_t did, py::dtype type) const {   
-        py::dtype array_type = type.kind() == 'M' ? py::dtype::of<uint64_t>() : type;
+    template <typename T>
+    py::tuple get_non_empty_domain(uint32_t fid, T did, py::dtype type) const {
+        py::dtype array_type = type.kind() == 'M' ? pybind11::dtype::of<uint64_t>() : type;
         py::array domain = py::array(array_type, 2);
         py::buffer_info buffer = domain.request();
         fi_->get_non_empty_domain(fid, did, buffer.ptr);
@@ -83,31 +84,9 @@ public:
         return domain;
     }
 
-    py::tuple get_non_empty_domain(uint32_t fid, const string& dim_name, py::dtype type) const {
-        py::dtype array_type = type.kind() == 'M' ? pybind11::dtype::of<uint64_t>() : type;
-        py::array domain = py::array(array_type, 2);
-        py::buffer_info buffer = domain.request();
-        fi_->get_non_empty_domain(fid, dim_name, buffer.ptr);
-
-        if(type.kind() == 'M'){
-            auto np = py::module::import("numpy");
-            auto datetime64 = np.attr("datetime64");
-            auto datetime_data = np.attr("datetime_data");
-
-            uint64_t* dates = static_cast<uint64_t*>(buffer.ptr);
-            domain = py::make_tuple(datetime64(dates[0], datetime_data(type)), 
-                                    datetime64(dates[1], datetime_data(type)));
-        }
-
-        return domain;
-    }
-
-    pair<string, string> non_empty_domain_var(uint32_t fid, uint32_t did) const {
+    template <typename T>
+    pair<string, string> non_empty_domain_var(uint32_t fid, T did) const {
         return fi_->non_empty_domain_var(fid, did);
-    }
-
-    pair<string, string> non_empty_domain_var(uint32_t fid, const string& dim_name) const {
-        return fi_->non_empty_domain_var(fid, dim_name);
     }
 
     pair<uint64_t, uint64_t> timestamp_range(uint32_t fid) const {
