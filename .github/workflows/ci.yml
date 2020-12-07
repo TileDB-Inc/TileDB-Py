@@ -1,0 +1,88 @@
+name: TileDB Python CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [2.7, 3.7, 3.8]
+        exclude:
+        - os: windows-latest
+          python-version: 2.7
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    # Print python and pip version information for debugging.
+    - name: 'Print python version in bash task'
+      run: |
+        echo '==== Python information ===='
+        which python
+        which pip
+        python --version
+        echo '============================'
+      shell: bash
+      
+    - name: 'Print env'
+      run: printenv
+      shell: bash
+      
+    - name: 'Install dependencies'
+      run: python -m pip install --upgrade -r requirements_dev.txt
+      shell: bash
+
+    - name: 'Build TileDB and TileDB-Py extension (Windows)'
+      run: |
+        python setup.py build_ext --inplace
+        python setup.py install
+      shell: bash
+      if: matrix.os == 'windows-latest'
+
+    - name: 'Build TileDB and TileDB-Py extension (POSIX)'
+      run: |
+        set -xeo pipefail
+        python setup.py build_ext --inplace
+        python setup.py install
+      shell: bash
+      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+
+    - name: 'Run tests'
+      run: |
+        set -xeo pipefail
+
+        python -m unittest tiledb.tests.all.suite_test
+
+        # Test wheel build, install, and run
+        python setup.py bdist_wheel
+        #whl_file=`pwd`/dist/`ls dist/*.whl`
+        mkdir /tmp/wheel_test
+        cp dist/*.whl /tmp/wheel_test
+        pushd /tmp/wheel_test
+        ls
+        pip install *.whl
+        python -c 'import tiledb ; tiledb.libtiledb.version()'
+      shell: bash
+
+    - name: 'Print log files (failed build only)'
+      run: |
+        set -xeo pipefail
+        # Display log files if the build failed
+        echo 'Dumping log files for failed build'
+        echo '----------------------------------'
+        for f in $(find $BUILD_REPOSITORY_LOCALPATH/build -name *.log);
+          do echo '------'
+             echo $f
+             echo '======'
+             cat $f
+          done;
+      shell: bash
+      if: ${{ failure() }} # only run this job if the build step failed
+      
