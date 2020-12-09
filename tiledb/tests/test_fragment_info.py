@@ -138,16 +138,32 @@ class FragmentInfoTest(DiskTestCase):
         x_dt = schema.domain.dim(0).dtype
         y_dt = schema.domain.dim(1).dtype
 
-        self.assertEqual(fragment_info.get_non_empty_domain(0, 0, x_dt), (1, 4))
-        self.assertEqual(fragment_info.get_non_empty_domain(0, 1, y_dt), (-1, 2))
-        self.assertEqual(fragment_info.get_non_empty_domain(1, 0, x_dt), (1, 3))
-        self.assertEqual(fragment_info.get_non_empty_domain(1, 1, y_dt), (-1.5, -1.25))
-
-        self.assertEqual(fragment_info.get_non_empty_domain(0, "x", x_dt), (1, 4))
-        self.assertEqual(fragment_info.get_non_empty_domain(0, "y", y_dt), (-1, 2))
-        self.assertEqual(fragment_info.get_non_empty_domain(1, "x", x_dt), (1, 3))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 0), (1, 4))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 1), (-1.0, 2.0))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, 0), (1, 3))
         self.assertEqual(
-            fragment_info.get_non_empty_domain(1, "y", y_dt), (-1.5, -1.25)
+            fragment_info.get_non_empty_domain(schema, 1, 1), (-1.5, -1.25)
+        )
+
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, "x"), (1, 4))
+        self.assertEqual(
+            fragment_info.get_non_empty_domain(schema, 0, "y"), (-1.0, 2.0)
+        )
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, "x"), (1, 3))
+        self.assertEqual(
+            fragment_info.get_non_empty_domain(schema, 1, "y"), (-1.5, -1.25)
+        )
+
+        self.assertEqual(
+            fragment_info.get_non_empty_domain(schema, 0), ((1, 4), (-1.0, 2.0))
+        )
+        self.assertEqual(
+            fragment_info.get_non_empty_domain(schema, 1), ((1, 3), (-1.5, -1.25))
+        )
+
+        self.assertEqual(
+            fragment_info.get_non_empty_domain(schema),
+            (((1, 4), (-1.0, 2.0)), ((1, 3), (-1.5, -1.25))),
         )
 
     def test_non_empty_domain_date(self):
@@ -184,21 +200,41 @@ class FragmentInfoTest(DiskTestCase):
         fragment_info.load()
 
         self.assertEqual(
-            fragment_info.get_non_empty_domain(0, 0, schema.domain.dtype),
+            fragment_info.get_non_empty_domain(schema, 0, 0),
             (np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),
         )
         self.assertEqual(
-            fragment_info.get_non_empty_domain(1, 0, schema.domain.dtype),
+            fragment_info.get_non_empty_domain(schema, 1, 0),
             (np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),
         )
 
         self.assertEqual(
-            fragment_info.get_non_empty_domain(0, "day", schema.domain.dtype),
+            fragment_info.get_non_empty_domain(schema, 0, "day"),
             (np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),
         )
         self.assertEqual(
-            fragment_info.get_non_empty_domain(1, "day", schema.domain.dtype),
+            fragment_info.get_non_empty_domain(schema, 1, "day"),
             (np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),
+        )
+
+        print(fragment_info.get_non_empty_domain(schema, 0))
+
+        self.assertEqual(
+            fragment_info.get_non_empty_domain(schema, 0),
+            ((np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),),
+        )
+        self.assertEqual(
+            fragment_info.get_non_empty_domain(schema, 1),
+            ((np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),),
+        )
+
+
+        self.assertEqual(
+            fragment_info.get_non_empty_domain(schema),
+            (
+                ((np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),),
+                ((np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),),
+            ),
         )
 
     def test_non_empty_domain_strings(self):
@@ -227,15 +263,27 @@ class FragmentInfoTest(DiskTestCase):
         fragment_info = fragment.info(ctx, uri)
         fragment_info.load()
 
-        self.assertEqual(fragment_info.non_empty_domain_var(0, 0), ("a", "d"))
-        self.assertEqual(fragment_info.non_empty_domain_var(0, 1), ("e", "h"))
-        self.assertEqual(fragment_info.non_empty_domain_var(1, 0), ("a", "b"))
-        self.assertEqual(fragment_info.non_empty_domain_var(1, 1), ("e", "f"))
+        self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, 0), ("a", "d"))
+        self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, 1), ("e", "h"))
+        self.assertEqual(fragment_info.non_empty_domain_var(schema, 1, 0), ("a", "b"))
+        self.assertEqual(fragment_info.non_empty_domain_var(schema, 1, 1), ("e", "f"))
 
-        self.assertEqual(fragment_info.non_empty_domain_var(0, "x"), ("a", "d"))
-        self.assertEqual(fragment_info.non_empty_domain_var(0, "y"), ("e", "h"))
-        self.assertEqual(fragment_info.non_empty_domain_var(1, "x"), ("a", "b"))
-        self.assertEqual(fragment_info.non_empty_domain_var(1, "y"), ("e", "f"))
+        self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, "x"), ("a", "d"))
+        self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, "y"), ("e", "h"))
+        self.assertEqual(fragment_info.non_empty_domain_var(schema, 1, "x"), ("a", "b"))
+        self.assertEqual(fragment_info.non_empty_domain_var(schema, 1, "y"), ("e", "f"))
+
+        self.assertEqual(
+            fragment_info.non_empty_domain_var(schema, 0), (("a", "d"), ("e", "h"))
+        )
+        self.assertEqual(
+            fragment_info.non_empty_domain_var(schema, 1), (("a", "b"), ("e", "f"))
+        )
+
+        self.assertEqual(
+            fragment_info.non_empty_domain_var(schema),
+            ((("a", "d"), ("e", "h")), (("a", "b"), ("e", "f"))),
+        )
 
     def test_cell_num(self):
         uri = self.path("test_cell_num")
