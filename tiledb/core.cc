@@ -574,8 +574,8 @@ public:
 
     if (var) {
       auto size_pair = query_->est_result_size_var(name);
-      buf_nbytes = size_pair.second;
-      offsets_num = size_pair.first;
+      buf_nbytes = size_pair[0];
+      offsets_num = size_pair[1];
     } else {
       buf_nbytes = query_->est_result_size(name);
     }
