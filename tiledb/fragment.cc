@@ -47,7 +47,9 @@ public:
     py::object for_all_fid(T(FragmentInfo::*fn)(uint32_t) const) const
     {
         py::list l;
-        for(uint32_t i = 0; i < this->fragment_num(); ++i)
+        uint32_t nfrag = fragment_num();
+
+        for(uint32_t i = 0; i < nfrag; ++i)
             l.append((fi_.get()->*fn)(i));
         return py::tuple(l);
     }

@@ -38,6 +38,7 @@ class FragmentInfoTest(DiskTestCase):
 
             self.assertEqual(fragment_info.fragment_num(), fragment_idx + 1)
 
+        all_expected_uris = []
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
 
@@ -51,6 +52,8 @@ class FragmentInfoTest(DiskTestCase):
             expected_uri = "file://{uri}/__{ts}_{ts}".format(uri=uri, ts=timestamp)
             actual_uri = fragment_info.fragment_uri(fragment_idx)
 
+            all_expected_uris.append(expected_uri)
+
             self.assertTrue(actual_uri.startswith(expected_uri))
             self.assertTrue(
                 actual_uri.endswith(str(fragment_info.version(fragment_idx)))
@@ -58,6 +61,19 @@ class FragmentInfoTest(DiskTestCase):
 
             self.assertTrue(fragment_info.dense(fragment_idx))
             self.assertFalse(fragment_info.sparse(fragment_idx))
+        
+        all_actual_uris = fragment_info.fragment_uri()
+        for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
+            self.assertTrue(actual_uri.startswith(expected_uri))
+            self.assertTrue(
+                actual_uri.endswith(str(fragment_info.version(fragment_idx)))
+            )
+
+        self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
+        self.assertEqual(fragment_info.dense(), (True, True, True))
+        self.assertEqual(fragment_info.sparse(), (False, False, False))
+        self.assertEqual(fragment_info.version(), (7, 7, 7))
+
 
     def test_sparse_fragments(self):
         fragments = 3
@@ -85,6 +101,7 @@ class FragmentInfoTest(DiskTestCase):
 
             self.assertEqual(fragment_info.fragment_num(), fragment_idx + 1)
 
+        all_expected_uris = []
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
 
@@ -98,6 +115,8 @@ class FragmentInfoTest(DiskTestCase):
             expected_uri = "file://{uri}/__{ts}_{ts}".format(uri=uri, ts=timestamp)
             actual_uri = fragment_info.fragment_uri(fragment_idx)
 
+            all_expected_uris.append(expected_uri)
+
             self.assertTrue(actual_uri.startswith(expected_uri))
             self.assertTrue(
                 actual_uri.endswith(str(fragment_info.version(fragment_idx)))
@@ -105,6 +124,18 @@ class FragmentInfoTest(DiskTestCase):
 
             self.assertFalse(fragment_info.dense(fragment_idx))
             self.assertTrue(fragment_info.sparse(fragment_idx))
+
+        all_actual_uris = fragment_info.fragment_uri()
+        for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
+            self.assertTrue(actual_uri.startswith(expected_uri))
+            self.assertTrue(
+                actual_uri.endswith(str(fragment_info.version(fragment_idx)))
+            )
+        
+        self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
+        self.assertEqual(fragment_info.dense(), (False, False, False))
+        self.assertEqual(fragment_info.sparse(), (True, True, True))
+        self.assertEqual(fragment_info.version(), (7, 7, 7))
 
     def test_non_empty_domain(self):
         uri = self.path("test_non_empty_domain")
@@ -217,8 +248,6 @@ class FragmentInfoTest(DiskTestCase):
             (np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),
         )
 
-        print(fragment_info.get_non_empty_domain(schema, 0))
-
         self.assertEqual(
             fragment_info.get_non_empty_domain(schema, 0),
             ((np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),),
@@ -227,7 +256,6 @@ class FragmentInfoTest(DiskTestCase):
             fragment_info.get_non_empty_domain(schema, 1),
             ((np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),),
         )
-
 
         self.assertEqual(
             fragment_info.get_non_empty_domain(schema),
@@ -309,6 +337,7 @@ class FragmentInfoTest(DiskTestCase):
 
         self.assertEqual(fragment_info.cell_num(0), len(a))
         self.assertEqual(fragment_info.cell_num(1), len(b))
+        self.assertEqual(fragment_info.cell_num(), (len(a), len(b)))
 
     def test_consolidated_fragment_metadata(self):
         fragments = 3
@@ -335,6 +364,8 @@ class FragmentInfoTest(DiskTestCase):
         for fragment_idx in range(fragments):
             self.assertFalse(fragment_info.has_consolidated_metadata(fragment_idx))
 
+        self.assertEqual(fragment_info.has_consolidated_metadata(), (False, False, False))
+
         tiledb.consolidate(
             uri,
             config=tiledb.Config(params={"sm.consolidation.mode": "fragment_meta"}),
@@ -346,6 +377,8 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.unconsolidated_metadata_num(), 0)
         for fragment_idx in range(fragments):
             self.assertTrue(fragment_info.has_consolidated_metadata(fragment_idx))
+        
+        self.assertEqual(fragment_info.has_consolidated_metadata(), (True, True, True))
 
     def test_fragments_to_vacuum(self):
         fragments = 3
@@ -378,6 +411,7 @@ class FragmentInfoTest(DiskTestCase):
 
         self.assertEqual(fragment_info.to_vacuum_num(), 3)
         self.assertEqual(fragment_info.to_vacuum_uri(0), expected_vacuum_uri)
+        self.assertEqual(fragment_info.to_vacuum_uri(), (expected_vacuum_uri,))
 
         tiledb.vacuum(uri, ctx=ctx)
 
