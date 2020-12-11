@@ -1,5 +1,7 @@
 # In Progress
 
+# TileDB-Py 0.7.4 Release Notes
+
 ## Improvements
 * Support selecting subset of dimensions in Array.query via new keyword argument `dims: List[String]`. The `coords=True` kwarg is still supported for compatibility, and continues to return all dimensions [#433](https://github.com/TileDB-Inc/TileDB-Py/pull/433)
 * Support Dim(filters=FilterList) keyword argument to set filters on a per-Dim basis [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
@@ -7,12 +9,11 @@
 * Add ArraySchema.check wrapping `tiledb_array_schema_check` [#435](https://github.com/TileDB-Inc/TileDB-Py/pull/435)
 * Add support for attribute fill values `tiledb.Attr(fill=...)` and `Attr.fill` getter [#437](https://github.com/TileDB-Inc/TileDB-Py/pull/437)
 
-
 ## API Changes
-* Addition of FragmentInfo API [#426](https://github.com/TileDB-Inc/TileDB-Py/pull/426)
 * tiledb.from_csv keyword arg `attrs_filters` renamed to `attr_filters` [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
 
----
+## Bug fixes
+* Fix bug in `multi_index` slicing of dense arrays [#438](https://github.com/TileDB-Inc/TileDB-Py/pull/438)
 
 # TileDB-Py 0.7.3 Release Notes
 
