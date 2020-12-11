@@ -41,7 +41,7 @@ from sys import version_info as ver
 print("setup.py sys.argv is: ", sys.argv)
 
 # Target branch
-TILEDB_VERSION = "dev"
+TILEDB_VERSION = "2.1.3"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
@@ -254,12 +254,9 @@ def find_or_install_libtiledb(setuptools_cmd):
             tiledb_ext = ext
         elif ext.name == "tiledb.core":
             core_ext = ext
-        elif ext.name == "tiledb.fragment":
-            fragment_ext = ext
 
     print("tiledb_ext: ", tiledb_ext)
     print("core_ext: ", core_ext)
-    print("fragment_ext: ", fragment_ext)
     print("tiledb_ext.library_dirs: ", tiledb_ext.library_dirs)
     wheel_build = getattr(tiledb_ext, 'tiledb_wheel_build', False)
     from_source = getattr(tiledb_ext, 'tiledb_from_source', False)
@@ -322,15 +319,12 @@ def find_or_install_libtiledb(setuptools_cmd):
             #
             tiledb_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
             core_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
-            fragment_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
 
         # Update the TileDB Extension instance with correct build-time paths.
         tiledb_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
         tiledb_ext.include_dirs += [os.path.join(prefix_dir, "include")]
         core_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
         core_ext.include_dirs += [os.path.join(prefix_dir, "include")]
-        fragment_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
-        fragment_ext.include_dirs += [os.path.join(prefix_dir, "include")]
 
         # Update package_data so the shared object gets installed with the Python module.
         libtiledb_objects = [os.path.join(native_subdir, libname)
@@ -598,20 +592,7 @@ __extensions = [
     libraries=LIBS,
     extra_link_args=LFLAGS,
     extra_compile_args=CXXFLAGS,
-    ),
-  Extension(
-    "tiledb.fragment",
-    ["tiledb/fragment.cc"],
-    include_dirs = INC_DIRS + [
-        get_pybind_include(),
-        get_pybind_include(user=True)
-    ],
-    language="c++",
-    library_dirs=LIB_DIRS,
-    libraries=LIBS,
-    extra_link_args=LFLAGS,
-    extra_compile_args=CXXFLAGS,
-    ),
+    )
 ]
 
 if TILEDBPY_MODULAR:
