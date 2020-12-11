@@ -738,3 +738,41 @@ class TestMultiRange(DiskTestCase):
             #    orig_array[0:4,7:10],
             #    A.multi_index[[(np.float64(0),np.float64(3.0))], slice(7,9)][attr_name]
             #)
+
+    def test_multirange_1d_sparse_datetime64(self):
+        ctx = tiledb.Ctx()
+        path = self.path("multirange_1d_sparse_datetime64")
+
+        dom = tiledb.Domain(
+                tiledb.Dim(
+                    ctx=ctx,
+                    domain=(np.datetime64("2019"), np.datetime64("2020")),
+                    dtype="datetime64[D]",
+                ),
+                ctx=ctx,
+            )
+
+        attr_name = ""
+        att = tiledb.Attr(name=attr_name, dtype=np.float64, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(path, schema)
+
+        with tiledb.SparseArray(path, mode="w", ctx=ctx) as T:
+            dates = np.array(
+                ["2019-10-02", "2019-10-03", "2019-10-04"],
+                dtype="datetime64[D]",
+            )
+            T[dates] = np.array(range(3))
+
+        with tiledb.open(path) as A:
+            oct_2_np = np.datetime64("2019-10-02").astype("int64")
+            oct_4_np = np.datetime64("2019-10-04").astype("int64")
+
+            oct_2_int = oct_2_np.item()
+            oct_4_int = oct_4_np.item()
+
+            self.assertEqual(oct_2_np, oct_2_int)
+            self.assertEqual(oct_4_np, oct_4_int)
+
+            assert_array_equal((A.multi_index[oct_2_np:oct_4_np][attr_name]),
+                                A.multi_index[oct_2_int:oct_4_int][attr_name])

@@ -425,13 +425,22 @@ public:
       case TILEDB_DATETIME_PS:
       case TILEDB_DATETIME_FS:
       case TILEDB_DATETIME_AS: {
-        py::dtype dtype = tiledb_dtype(tiledb_type, 1);
-        auto dt0 = r0.attr("astype")(dtype);
-        auto dt1 = r1.attr("astype")(dtype);
+        py::dtype dtype = tiledb_dtype(tiledb_type, 1); 
+        auto dt0 = py::isinstance<py::int_>(r0) ? r0: r0.attr("astype")(dtype);
+        auto dt1 = py::isinstance<py::int_>(r1) ? r1: r1.attr("astype")(dtype);
+        
         // TODO, this is suboptimal, should define pybind converter
-        auto darray = py::array(py::make_tuple(dt0, dt1));
-        query_->add_range(dim_idx, *(int64_t *)darray.data(0),
-                          *(int64_t *)darray.data(1));
+        if(py::isinstance<py::int_>(dt0) && py::isinstance<py::int_>(dt1))
+        {
+          query_->add_range(dim_idx, py::cast<int64_t>(dt0), py::cast<int64_t>(dt1));
+        }
+        else
+        {
+          auto darray = py::array(py::make_tuple(dt0, dt1));
+          query_->add_range(dim_idx, *(int64_t *)darray.data(0),
+                            *(int64_t *)darray.data(1));
+        }
+
         break;
       }
       default:
