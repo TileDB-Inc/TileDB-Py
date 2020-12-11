@@ -2584,7 +2584,6 @@ cdef class Dim(object):
                 check_error(ctx,
                     tiledb_dimension_set_filter_list(ctx.ptr, dim_ptr, filter_list_ptr))
         except:
-            tiledb_dimension_free(&dim_ptr)
             raise
 
         self.ctx = ctx
