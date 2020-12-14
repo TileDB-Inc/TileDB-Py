@@ -2707,7 +2707,7 @@ cdef class Dim(object):
     cdef _shape(self):
         domain = self.domain
         if self._datetime_domain():
-            return (_tiledb_datetime_extent(domain[0].item(), domain[1].item()),)
+            return (_tiledb_datetime_extent(domain[0], domain[1]),)
         else:
             return ((domain[1].item() -
                      domain[0].item() + 1),)

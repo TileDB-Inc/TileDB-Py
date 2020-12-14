@@ -241,6 +241,7 @@ class DimensionTest(unittest.TestCase):
         self.assertNotEqual(dim.tile, np.timedelta64(21, 'D'))
         self.assertNotEqual(dim.tile, np.timedelta64(20, 'W')) # Sanity check unit
         self.assertTupleEqual(dim.domain, (np.datetime64('2010-01-01'), np.datetime64('2020-01-01')))
+        self.assertEqual(dim.shape, (3653,))
 
         # No tile extent specified: this is not an error in 2.2
         if tiledb.libtiledb.version() < (2,2):
@@ -1938,8 +1939,7 @@ class SparseArray(DiskTestCase):
 
         # Test that TILEDB_UNORDERED works correctly
         with tiledb.SparseArray(uri, mode='r', ctx=ctx) as A:
-            res = A[1:10000]['']
-            assert_array_equal(np.sort(res), np.sort(data))
+            res = A[1:10001][''] # index past the end here to ensure inclusive result
             res = A.multi_index[1:10000]['']
             assert_array_equal(np.sort(res), np.sort(data))
             res = A.query(order='U').multi_index[1:10000]['']
@@ -2501,6 +2501,21 @@ class DatetimeSlicing(DiskTestCase):
             read_ndays = int( (np.datetime64('2011-01-01') - np.datetime64('2010-01-01') + 1) / np.timedelta64(1, 'D') )
             expected = a1_vals[read_offset: read_offset + read_ndays]
             assert_array_equal(actual, expected)
+
+        # Slice open spans
+        with tiledb.DenseArray(uri, 'r', attr='a1', ctx=ctx) as T:
+
+            # Convert datetime interval to integer offset/length into original array
+            read_offset = int( (np.datetime64('2010-01-01') - start) / np.timedelta64(1, 'D') )
+            read_ndays = int( (np.datetime64('2011-01-31') - np.datetime64('2010-01-01') + 1) / np.timedelta64(1, 'D') )
+            expected = a1_vals[read_offset: read_offset + read_ndays]
+
+            # note we only wrote first two years
+            actual = T.multi_index[np.datetime64('2010-01-01'):]['a1'][:read_ndays]
+            assert_array_equal(actual, expected)
+
+            actual2 = T[np.datetime64('2010-01-01'):][:read_ndays]
+            assert_array_equal(actual2, expected)
 
     def test_sparse_datetime_vector(self):
         ctx = tiledb.Ctx()
