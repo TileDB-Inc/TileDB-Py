@@ -2532,6 +2532,14 @@ class DatetimeSlicing(DiskTestCase):
             vals = T[start: start + np.timedelta64(10000, 'ns')]['a1']
             assert_array_equal(vals, a1_vals[0: 11])
 
+            # Test open ended ranges multi_index
+            vals2 = T.multi_index[start:]['a1']
+            assert_array_equal(vals2, a1_vals)
+
+            stop = np.datetime64(int(np.iinfo(np.int64).max) - 1000000000, 'ns')
+            vals3 = T.multi_index[:stop]['a1']
+            assert_array_equal(vals3, a1_vals)
+
     def test_datetime_types(self):
         ctx = tiledb.Ctx()
 
