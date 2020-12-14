@@ -1,5 +1,8 @@
 # In Progress
 
+## Bug fixes
+* Fix `Dim.shape` for dense array with datetime dimension [#448](https://github.com/TileDB-Inc/TileDB-Py/pull/448)
+
 # TileDB-Py 0.7.4 Release Notes
 
 ## Improvements
