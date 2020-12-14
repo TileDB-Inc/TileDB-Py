@@ -26,7 +26,7 @@ class PyFragmentInfo {
 
 private:
     Context ctx_;
-    shared_ptr<tiledb::FragmentInfo> fi_;
+    shared_ptr<FragmentInfo> fi_;
 
 public:
     tiledb_ctx_t *c_ctx_;
@@ -41,6 +41,17 @@ public:
         ctx_ = Context(c_ctx_, false);
 
         fi_ = shared_ptr<tiledb::FragmentInfo>(new FragmentInfo(ctx_, uri));
+    }
+
+    template <typename T>
+    py::object for_all_fid(T(FragmentInfo::*fn)(uint32_t) const) const
+    {
+        py::list l;
+        uint32_t nfrag = fragment_num();
+
+        for(uint32_t i = 0; i < nfrag; ++i)
+            l.append((fi_.get()->*fn)(i));
+        return py::tuple(l);
     }
 
     void load() const {
@@ -60,15 +71,39 @@ public:
         }
     }
 
-    string fragment_uri(uint32_t fid) const {
-        return fi_->fragment_uri(fid);
+    py::object fragment_uri(py::object fid) const {
+        return fid.is(py::none()) ? 
+               for_all_fid(&FragmentInfo::fragment_uri) :
+               py::str(fi_->fragment_uri(py::cast<uint32_t>(fid)));
+    }
+
+    py::tuple get_non_empty_domain(py::object schema) const {
+        py::list all_frags;
+        uint32_t nfrag = fragment_num();
+        
+        for(uint32_t fid = 0; fid < nfrag; ++fid)
+            all_frags.append(get_non_empty_domain(schema, fid));
+
+        return all_frags;
+    }
+
+    py::tuple get_non_empty_domain(py::object schema, uint32_t fid) const {
+        py::list all_dims;
+        int ndim = (schema.attr("domain").attr("ndim")).cast<int>();
+
+        for(int did = 0; did < ndim; ++did)
+            all_dims.append(get_non_empty_domain(schema, fid, did));
+
+        return all_dims;
     }
 
     template <typename T>
-    py::tuple get_non_empty_domain(uint32_t fid, T did, py::dtype type) const {
+    py::tuple get_non_empty_domain(py::object schema, uint32_t fid, T did) const {
+        py::dtype type = get_dim_type(schema.attr("domain"), did);
         py::dtype array_type = type.kind() == 'M' ? pybind11::dtype::of<uint64_t>() : type;
-        py::array domain = py::array(array_type, 2);
-        py::buffer_info buffer = domain.request();
+
+        py::array limits = py::array(array_type, 2);
+        py::buffer_info buffer = limits.request();
         fi_->get_non_empty_domain(fid, did, buffer.ptr);
 
         if(type.kind() == 'M'){
@@ -77,44 +112,93 @@ public:
             auto datetime_data = np.attr("datetime_data");
 
             uint64_t* dates = static_cast<uint64_t*>(buffer.ptr);
-            domain = py::make_tuple(datetime64(dates[0], datetime_data(type)), 
+            limits = py::make_tuple(datetime64(dates[0], datetime_data(type)), 
                                     datetime64(dates[1], datetime_data(type)));
         }
 
-        return domain;
+        return limits;
+    }
+
+    py::dtype get_dim_type(py::object dom, uint32_t did) const
+    {
+        // passing templated type "did" to Python function dom.attr("dim") 
+        // does not work
+        return (dom.attr("dim")(did).attr("dtype")).cast<py::dtype>();
+    }
+
+    py::dtype get_dim_type(py::object dom, string did) const
+    {
+        // passing templated type "did" to Python function dom.attr("dim") 
+        // does not work
+        return (dom.attr("dim")(did).attr("dtype")).cast<py::dtype>();
+    }
+
+    py::tuple non_empty_domain_var(py::object schema) const {
+        py::list all_frags;
+        uint32_t nfrag = fragment_num();
+        
+        for(uint32_t fid = 0; fid < nfrag; ++fid)
+            all_frags.append(non_empty_domain_var(schema, fid));
+
+        return all_frags;
+    }
+
+    py::tuple non_empty_domain_var(py::object schema, uint32_t fid) const {
+        py::list all_dims;
+        int ndim = (schema.attr("domain").attr("ndim")).cast<int>();
+
+        for(int did = 0; did < ndim; ++did)
+            all_dims.append(non_empty_domain_var(schema, fid, did));
+        
+        return all_dims;
     }
 
     template <typename T>
-    pair<string, string> non_empty_domain_var(uint32_t fid, T did) const {
-        return fi_->non_empty_domain_var(fid, did);
+    py::tuple non_empty_domain_var(py::object schema, uint32_t fid, T did) const {
+        pair<string, string> lims = fi_->non_empty_domain_var(fid, did);
+        return py::make_tuple(lims.first, lims.second);
     }
 
-    pair<uint64_t, uint64_t> timestamp_range(uint32_t fid) const {
-        return fi_->timestamp_range(fid);
+    py::object timestamp_range(py::object fid) const {
+        if(fid.is(py::none())) 
+            return for_all_fid(&FragmentInfo::timestamp_range);
+
+        auto p = fi_->timestamp_range(py::cast<uint32_t>(fid));
+        return py::make_tuple(p.first, p.second);
     }
 
     uint32_t fragment_num() const {
         return fi_->fragment_num();
     }
 
-    bool dense(uint32_t fid) const {
-        return fi_->dense(fid);
+    py::object dense(py::object fid) const {
+        return fid.is(py::none()) ? 
+               for_all_fid(&FragmentInfo::dense) :
+               py::bool_(fi_->dense(py::cast<uint32_t>(fid)));
     }
 
-    bool sparse(uint32_t fid) const {
-        return fi_->sparse(fid);
+    py::object sparse(py::object fid) const {
+        return fid.is(py::none()) ?
+               for_all_fid(&FragmentInfo::sparse) :
+               py::bool_(fi_->sparse(py::cast<uint32_t>(fid)));
     }
 
-    uint64_t cell_num(uint32_t fid) const {
-        return fi_->cell_num(fid);
+    py::object cell_num(py::object fid) const {
+        return fid.is(py::none()) ?
+               for_all_fid(&FragmentInfo::cell_num) :
+               py::int_(fi_->cell_num(py::cast<uint32_t>(fid)));
     }
 
-    uint32_t version(uint32_t fid) const {
-        return fi_->version(fid);
+    py::object version(py::object fid) const {
+        return fid.is(py::none()) ?
+               for_all_fid(&FragmentInfo::version) :
+               py::int_(fi_->version(py::cast<uint32_t>(fid)));
     }
 
-    bool has_consolidated_metadata(uint32_t fid) const {
-        return fi_->has_consolidated_metadata(fid);
+    py::object has_consolidated_metadata(py::object fid) const {
+        return fid.is(py::none()) ?
+               for_all_fid(&FragmentInfo::has_consolidated_metadata) :
+               py::bool_(fi_->has_consolidated_metadata(py::cast<uint32_t>(fid)));
     }
 
     uint32_t unconsolidated_metadata_num() const {
@@ -125,48 +209,68 @@ public:
         return fi_->to_vacuum_num();
     }
 
-    string to_vacuum_uri(uint32_t fid) const {
-        return fi_->to_vacuum_uri(fid);
+    py::object to_vacuum_uri(py::object fid) const {
+        return fid.is(py::none()) ?
+               for_all_fid(&FragmentInfo::to_vacuum_uri) :
+               py::str(fi_->to_vacuum_uri(py::cast<uint32_t>(fid)));
     }
 
-    void dump(FILE* out = nullptr) const {
-        return fi_->dump(out);
+    void dump() const {
+        return fi_->dump(stdout);
     }
 };
 
 PYBIND11_MODULE(fragment, m) {
     py::class_<PyFragmentInfo>(m, "info")
         .def(py::init<py::object, const string&>())
+
         .def("load", static_cast<void (PyFragmentInfo::*)() const>(&PyFragmentInfo::load))
         .def("load", 
             static_cast<void (PyFragmentInfo::*)(
                 tiledb_encryption_type_t, const string&) const>
             (&PyFragmentInfo::load))
+
         .def("get_non_empty_domain", 
-            static_cast<py::tuple (PyFragmentInfo::*)(uint32_t, uint32_t, py::dtype) const>
+            static_cast<py::tuple (PyFragmentInfo::*)(py::object) const>
                 (&PyFragmentInfo::get_non_empty_domain))
         .def("get_non_empty_domain", 
-            static_cast<py::tuple (PyFragmentInfo::*)(uint32_t, const string&, py::dtype) const>
+            static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t) const>
                 (&PyFragmentInfo::get_non_empty_domain))
+        .def("get_non_empty_domain", 
+            static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t, uint32_t) const>
+                (&PyFragmentInfo::get_non_empty_domain))
+        .def("get_non_empty_domain", 
+            static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t, const string&) const>
+                (&PyFragmentInfo::get_non_empty_domain))
+
         .def("non_empty_domain_var", 
-            static_cast<pair<string, string> (PyFragmentInfo::*)(
-                    uint32_t, uint32_t) const>
+            static_cast<py::tuple (PyFragmentInfo::*)(py::object) const>
                 (&PyFragmentInfo::non_empty_domain_var))
         .def("non_empty_domain_var", 
-            static_cast<pair<string, string> (PyFragmentInfo::*)(
-                uint32_t, const string&) const>
-            (&PyFragmentInfo::non_empty_domain_var))
-        .def("fragment_uri", &PyFragmentInfo::fragment_uri)
-        .def("timestamp_range", &PyFragmentInfo::timestamp_range)
+            static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t) const>
+                (&PyFragmentInfo::non_empty_domain_var))
+        .def("non_empty_domain_var", 
+            static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t, uint32_t) const>
+                (&PyFragmentInfo::non_empty_domain_var))
+        .def("non_empty_domain_var", 
+            static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t, const string&) const>
+                (&PyFragmentInfo::non_empty_domain_var))
+
+        .def("fragment_uri", &PyFragmentInfo::fragment_uri, py::arg("fid")=py::none())
+        .def("timestamp_range", &PyFragmentInfo::timestamp_range, py::arg("fid")=py::none())
         .def("fragment_num", &PyFragmentInfo::fragment_num)
-        .def("dense", &PyFragmentInfo::dense)
-        .def("sparse", &PyFragmentInfo::sparse)
-        .def("cell_num", &PyFragmentInfo::cell_num)
-        .def("version", &PyFragmentInfo::version)
-        .def("has_consolidated_metadata", &PyFragmentInfo::has_consolidated_metadata)
+        .def("dense", &PyFragmentInfo::dense, py::arg("fid")=py::none())
+        .def("sparse", &PyFragmentInfo::sparse, py::arg("fid")=py::none())
+        .def("cell_num", &PyFragmentInfo::cell_num, py::arg("fid")=py::none())
+        .def("version", &PyFragmentInfo::version, py::arg("fid")=py::none())
+        .def("has_consolidated_metadata", 
+             &PyFragmentInfo::has_consolidated_metadata,
+             py::arg("fid")=py::none())
         .def("unconsolidated_metadata_num", &PyFragmentInfo::unconsolidated_metadata_num)
         .def("to_vacuum_num", &PyFragmentInfo::to_vacuum_num)
-        .def("to_vacuum_uri", &PyFragmentInfo::to_vacuum_uri)
+        .def("to_vacuum_uri", 
+             &PyFragmentInfo::to_vacuum_uri, 
+             py::arg("fid")=py::none())
         .def("dump", &PyFragmentInfo::dump);
 
     /*
