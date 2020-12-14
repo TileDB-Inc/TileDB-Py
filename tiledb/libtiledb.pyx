@@ -1050,7 +1050,7 @@ cdef class Ctx(object):
         self._set_default_tags()
 
     def __repr__(self):
-        return "tiledb.Ctx() [see Ctx.confg() for configuration]"
+        return "tiledb.Ctx() [see Ctx.config() for configuration]"
 
     def config(self):
         """Returns the Config instance associated with the Ctx."""
