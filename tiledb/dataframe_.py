@@ -735,7 +735,8 @@ def from_csv(uri, csv_file, **kwargs):
             * ``sparse``: (default True) Create sparse schema
             * ``tile``: Dimension tiling: accepts either Int or a list of Tuple[Int] with per-dimension
               'tile' arguments to apply to the generated ArraySchema.
-            * ``capacity``: Schema capacity
+            * ``capacity``: Schema capacity.
+            * ``row_start_idx``: Start index to start new write (for row-indexed ingestions).
             * ``date_spec``: Dictionary of {``column_name``: format_spec} to apply to date/time
               columns which are not correctly inferred by pandas 'parse_dates'.
               Format must be specified using the Python format codes:
