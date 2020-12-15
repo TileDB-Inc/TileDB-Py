@@ -65,6 +65,7 @@ TILEDB_KWARG_DEFAULTS = {
     'date_spec': None,
     'cell_order': 'row-major',
     'tile_order': 'row-major',
+    'timestamp': None,
     'debug': None,
 }
 
@@ -574,8 +575,10 @@ def from_pandas(uri, dataframe, **kwargs):
         if tiledb_args.get('debug', True):
             print("`tiledb.read_pandas` writing '{}' rows".format(len(dataframe)))
 
+        timestamp = tiledb_args.get('timestamp', None)
+
         try:
-            A = tiledb.open(uri, 'w', ctx=ctx)
+            A = tiledb.open(uri, 'w', timestamp=timestamp, ctx=ctx)
 
             if A.schema.sparse:
                 coords = []
@@ -736,6 +739,7 @@ def from_csv(uri, csv_file, **kwargs):
             * ``tile``: Dimension tiling: accepts either Int or a list of Tuple[Int] with per-dimension
               'tile' arguments to apply to the generated ArraySchema.
             * ``capacity``: Schema capacity.
+            * ``timestamp``: Write TileDB array at specific timestamp.
             * ``row_start_idx``: Start index to start new write (for row-indexed ingestions).
             * ``date_spec``: Dictionary of {``column_name``: format_spec} to apply to date/time
               columns which are not correctly inferred by pandas 'parse_dates'.

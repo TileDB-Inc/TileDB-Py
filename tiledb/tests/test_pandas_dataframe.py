@@ -230,6 +230,18 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_from_array2 = tiledb.open_dataframe(csv_array_uri2)
             tm.assert_frame_equal(df_orig, df_from_array2)
 
+        # test timestamp write
+        uri2 = self.path("dataframe_csv_timestamp")
+        timestamp = random.randint(0, np.iinfo(np.int64).max)
+        tiledb.from_csv(uri2, csv_uri, timestamp=0, index_col=0)
+        tiledb.from_pandas(uri2, df_orig, timestamp=timestamp,
+                           mode='append', row_start_idx=0, index_col=0)
+
+        with tiledb.open(uri2, timestamp=0) as A:
+            self.assertEqual(A.timestamp, 0)
+        with tiledb.open(uri2, timestamp=timestamp) as A:
+            self.assertEqual(A.timestamp, timestamp)
+
     def test_dataframe_index_to_sparse_dims(self):
         # This test
         # - loops over all of the columns from make_basic_dataframe,
