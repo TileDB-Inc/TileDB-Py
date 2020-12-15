@@ -1,5 +1,8 @@
 # In Progress
 
+## Improvements
+* Add `from_csv/pandas` support for `timestamp` keyword argument to specify write timestamp [#450](https://github.com/TileDB-Inc/TileDB-Py/pull/450)
+
 ## Bug fixes
 * Fix `Dim.shape` for dense array with datetime dimension [#448](https://github.com/TileDB-Inc/TileDB-Py/pull/448)
 
