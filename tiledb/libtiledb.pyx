@@ -503,7 +503,7 @@ def stats_reset():
     import tiledb.core
     tiledb.core.init_stats()
 
-def stats_dump(version=True, print_out=True, include_python=True):
+def stats_dump(version=True, print_out=True, include_python=True, verbose=False):
     """Return TileDB internal statistics as a string.
 
     :param print_out: Print string to console (default True), or return as string
@@ -513,10 +513,18 @@ def stats_dump(version=True, print_out=True, include_python=True):
     """
     cdef char* stats_str_ptr = NULL;
 
-    if tiledb_stats_dump_str(&stats_str_ptr) == TILEDB_ERR:
-        raise TileDBError("Unable to dump stats to stats_str_ptr.")
+    if not verbose:
+        if tiledb_stats_raw_dump_str(&stats_str_ptr) == TILEDB_ERR:
+            raise TileDBError("Unable to dump stats to stats_str_ptr.") 
+    else:
+        if tiledb_stats_dump_str(&stats_str_ptr) == TILEDB_ERR:
+            raise TileDBError("Unable to dump stats to stats_str_ptr.")  
 
     stats_str_core = stats_str_ptr.decode("UTF-8", "strict").strip()
+
+    if not verbose:
+        import json
+        stats_json_core = json.loads(stats_str_core)
 
     if tiledb_stats_free_str(&stats_str_ptr) == TILEDB_ERR:
         raise TileDBError("Unable to free stats_str_ptr.")
@@ -528,11 +536,22 @@ def stats_dump(version=True, print_out=True, include_python=True):
         stats_str += f"TileDB Embedded Version: {tiledb.libtiledb.version()}\n"
         stats_str += f"TileDB-Py Version: {tiledb.version.version}\n"
 
-    # Note: .strip and extra print() here are to offset for core
-    # printing extra newlines between task output that may be empty.
-    # Remove eventually.
-    # use a tmp here to avoid segfault (probably string optimization)
-    stats_str += stats_str_core
+    if not verbose:
+        stats_str += "\n==== READ ====\n\n"
+        stats_str += "- Number of read queries: {}\n".format(
+            stats_json_core["READ_NUM"])
+        stats_str += "- Number of attributes read: {}\n".format(
+            stats_json_core["READ_ATTR_FIXED_NUM"] 
+            + stats_json_core["READ_ATTR_VAR_NUM"])
+        stats_str += "- Time to compute estimated result size: {}\n".format(
+            stats_json_core["READ_COMPUTE_EST_RESULT_SIZE"])
+        stats_str += "- Read time: {}\n".format(stats_json_core["READ"])
+        stats_str += "- Total read query time (array open + init state + read): {}\n".format(
+            stats_json_core["READ"] + stats_json_core["READ_INIT_STATE"])
+    else:
+        stats_str += "\n"
+        stats_str += stats_str_core
+        stats_str += "\n"
 
     import tiledb.core
     if include_python:
