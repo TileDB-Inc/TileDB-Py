@@ -1,7 +1,10 @@
 # In Progress
 
 ## Improvements
+* FragmentInfo API by default returns information from all fragments and dimensions [#444](https://github.com/TileDB-Inc/TileDB-Py/pull/444)
+* Add integer multi-indexing for NumPy datetime64 dimensions [#447](https://github.com/TileDB-Inc/TileDB-Py/pull/447) 
 * Add `from_csv/pandas` support for `timestamp` keyword argument to specify write timestamp [#450](https://github.com/TileDB-Inc/TileDB-Py/pull/450)
+* Add verbosity flag to `stats_dump()` [#452](https://github.com/TileDB-Inc/TileDB-Py/pull/452)
 
 ## Bug fixes
 * Fix `Dim.shape` for dense array with datetime dimension [#448](https://github.com/TileDB-Inc/TileDB-Py/pull/448)
