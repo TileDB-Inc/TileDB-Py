@@ -5429,17 +5429,22 @@ cdef class SparseArrayImpl(Array):
         return out
     
     def unique_dim_values(self, dim=None):
-        if dim and not self.domain.has_dim(dim):
+        if dim is not None and not isinstance(dim, str):
+            raise ValueError("Given Dimension {} is not a string.".format(dim))
+
+        if dim is not None and not self.domain.has_dim(dim):
             raise ValueError("Array does not contain Dimension '{}'.".format(dim))
 
         query = self.query(attrs=[])[:]
 
         if dim:
-            dim_values = np.unique(query[dim])
-        else:
-            dim_values = [tuple(np.unique(values)) for values in query.values()]
+            dim_values = tuple(np.unique(query[dim]))
+        else: 
+            dim_values = OrderedDict()
+            for dim in query:
+                dim_values[dim] = tuple(np.unique(query[dim]))
 
-        return tuple(dim_values)
+        return dim_values
 
 def consolidate(uri, key=None, Config config=None, Ctx ctx=None):
     """Consolidates TileDB array fragments for improved read performance

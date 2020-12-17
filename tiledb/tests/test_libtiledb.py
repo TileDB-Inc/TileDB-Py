@@ -2201,10 +2201,16 @@ class SparseArray(DiskTestCase):
             A["a3", 0.25] = 4
 
         with tiledb.open(uri, "r") as A:
+            from collections import OrderedDict 
             self.assertEqual(A.unique_dim_values(), 
-                             ((b'a1', b'a2', b'a3'), (0, 0.25, 0.5)))
+                             OrderedDict([('dim1', (b'a1', b'a2', b'a3')), 
+                                          ('dim2', (0.0, 0.25, 0.5))]))
+
             self.assertEqual(A.unique_dim_values("dim1"), (b'a1', b'a2', b'a3'))
             self.assertEqual(A.unique_dim_values("dim2"), (0, 0.25, 0.5))
+
+            with self.assertRaises(ValueError):
+                A.unique_dim_values(0)
 
             with self.assertRaises(ValueError):
                 A.unique_dim_values("dim3")
