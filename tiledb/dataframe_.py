@@ -233,7 +233,12 @@ def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False,
                 date_unit = np.datetime_data(dtype)[0]
                 dim_min = np.datetime64(dtype_min + 1, date_unit)
                 tile_max = np.iinfo(np.uint64).max - tile
-                if np.abs(np.uint64(dtype_max) - np.uint64(dtype_min)) > tile_max:
+
+                # modular arithmetic gives misleading overflow warning.
+                with np.errstate(over="ignore"):
+                    dtype_range = np.uint64(dtype_max) - np.uint64(dtype_min)
+
+                if np.abs(dtype_range) > tile_max:
                     dim_max = np.datetime64(dtype_max - tile, date_unit)
             elif dtype is np.int64:
                 dim_min = dtype_min + 1
