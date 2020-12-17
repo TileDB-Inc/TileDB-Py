@@ -28,7 +28,7 @@ def mr_dense_result_shape(ranges, base_shape = None):
 def mr_dense_result_numel(ranges):
     return np.prod(mr_dense_result_shape(ranges))
 
-def sel_to_subranges(dim_sel, nonempty_domain):
+def sel_to_subranges(dim_sel, nonempty_domain=None):
     subranges = list()
     for idx,range in enumerate(dim_sel):
         if np.isscalar(range):
@@ -36,10 +36,18 @@ def sel_to_subranges(dim_sel, nonempty_domain):
         elif isinstance(range, slice):
             if range.step is not None:
                 raise ValueError("Stepped slice ranges are not supported")
+            elif range.start and range.stop:
+                # we have both endpoints, use them
+                rstart = range.start
+                rend = range.stop
             else:
+                # we are missing one or both endpoints, maybe use nonempty_domain
+                if nonempty_domain is None:
+                    raise TileDBError("Open-ended slicing requires a valid nonempty_domain")
                 rstart = range.start if range.start else nonempty_domain[0]
                 rend = range.stop if range.stop else nonempty_domain[1]
-                subranges.append( (rstart,rend) )
+
+            subranges.append( (rstart,rend) )
         elif isinstance(range, tuple):
             subranges.extend((range,))
         elif isinstance(range, list):
@@ -108,7 +116,9 @@ class MultiRangeIndexer(object):
         for i,sel in enumerate(idx):
             if not isinstance(sel, list):
                 sel = [sel]
-            subranges = sel_to_subranges(sel, ned[i])
+            # don't try to index nonempty_domain if None
+            ned_arg = ned[i] if ned else None
+            subranges = sel_to_subranges(sel, ned_arg)
 
             ranges.append(subranges)
 
