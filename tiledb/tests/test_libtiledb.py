@@ -2185,6 +2185,31 @@ class SparseArray(DiskTestCase):
                 (ned_f64, ned_str)
             )
 
+    def test_sparse_get_unique_dim_values(self):
+        uri = self.path("get_non_empty_coords")
+        dim1 = tiledb.Dim(name="dim1", domain=(None, None), tile=None, dtype=np.bytes_)
+        dim2 = tiledb.Dim(name="dim2", domain=(0, 1), tile=None, dtype=np.float)
+        attr = tiledb.Attr(name="attr", dtype=np.float32)
+        dom = tiledb.Domain(dim1, dim2)
+        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=[attr])
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            A["a1", 0] = 1
+            A["a1", 0.25] = 2
+            A["a2", 0.5] = 3
+            A["a3", 0.25] = 4
+
+        with tiledb.open(uri, "r") as A:
+            self.assertEqual(A.unique_dim_values(), 
+                             ((b'a1', b'a2', b'a3'), (0, 0.25, 0.5)))
+            self.assertEqual(A.unique_dim_values("dim1"), (b'a1', b'a2', b'a3'))
+            self.assertEqual(A.unique_dim_values("dim2"), (0, 0.25, 0.5))
+
+            with self.assertRaises(ValueError):
+                A.unique_dim_values("dim3")
+    
+
 class DenseIndexing(DiskTestCase):
 
     def _test_index(self, A, T, idx):
