@@ -4409,7 +4409,7 @@ cdef class Query(object):
             for dname in dims:
                 if not domain.has_dim(dname):
                     raise TileDBError("Selected dimension does not exist: '{name}")
-            self.dims = dims
+            self.dims = [unicode(dname) for dname in dims]
         elif coords is True:
             domain = array.schema.domain
             self.dims = [domain.dim(i).name for i in range(domain.ndim)]
