@@ -1830,6 +1830,76 @@ class SparseArray(DiskTestCase):
             self.assertTrue(
                 'coords' not in T.query(coords=False).domain_index[-10.0: 5.0]
             )
+        
+    def test_sparse_query_specified_dim_coords(self):
+        uri = self.path("sparse_query_specified_dim_coords")
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+                tiledb.Dim("i", domain=(1, 10), tile=1, dtype=int, ctx=ctx),
+                tiledb.Dim("j", domain=(11, 20), tile=1, dtype=int, ctx=ctx),
+                ctx=ctx)
+        att = tiledb.Attr("", dtype=int, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(uri, schema)
+
+        i = np.array([1, 1, 1, 2, 3, 3, 3, 4])
+        j = np.array([11, 12, 14, 13, 11, 16, 17, 15])
+
+        with tiledb.SparseArray(uri, mode='w', ctx=ctx) as A:
+            A[i, j] = np.array([0, 1, 2, 3, 4, 6, 7, 5])
+
+        with tiledb.SparseArray(uri, mode='r', ctx=ctx) as A:
+            Ai = A.query(dims=["i"])[:]
+            self.assertTrue("i" in Ai)
+            self.assertFalse("j" in Ai)
+            assert_array_equal(Ai["i"], i)
+
+            Aj = A.query(dims=["j"])[:]
+            self.assertFalse("i" in Aj)
+            self.assertTrue("j" in Aj)
+            assert_array_equal(Aj["j"], j)
+
+            Aij = A.query(dims=["i", "j"])[:]
+            self.assertTrue("i" in Aij)
+            self.assertTrue("j" in Aij)
+            assert_array_equal(Aij["i"], i)
+            assert_array_equal(Aij["j"], j)
+
+    def test_dense_query_specified_dim_coords(self):
+        uri = self.path("dense_query_specified_dim_coords")
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+                tiledb.Dim("i", domain=(1, 3), tile=1, dtype=int, ctx=ctx),
+                tiledb.Dim("j", domain=(4, 6), tile=1, dtype=int, ctx=ctx),
+                ctx=ctx)
+        att = tiledb.Attr("", dtype=int, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode='w', ctx=ctx) as A:
+            A[:, :] = np.arange(9)
+
+        with tiledb.DenseArray(uri, mode='r', ctx=ctx) as A:
+            i = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]])
+            j = np.array([[4, 5, 6], [4, 5, 6], [4, 5, 6]])
+
+            Ai = A.query(dims=["i"])[:]
+            self.assertTrue("i" in Ai)
+            self.assertFalse("j" in Ai)
+            assert_array_equal(Ai["i"], i)
+
+            Aj = A.query(dims=["j"])[:]
+            self.assertFalse("i" in Aj)
+            self.assertTrue("j" in Aj)
+            assert_array_equal(Aj["j"], j)
+
+            Aij = A.query(dims=["i", "j"])[:]
+            self.assertTrue("i" in Aij)
+            self.assertTrue("j" in Aij)
+            assert_array_equal(Aij["i"], i)
+            assert_array_equal(Aij["j"], j)
 
     def test_subarray(self):
         ctx = tiledb.Ctx()

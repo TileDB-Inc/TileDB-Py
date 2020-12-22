@@ -4409,7 +4409,7 @@ cdef class Query(object):
             for dname in dims:
                 if not domain.has_dim(dname):
                     raise TileDBError("Selected dimension does not exist: '{name}")
-            self.dims = dims
+            self.dims = [unicode(dname) for dname in dims]
         elif coords is True:
             domain = array.schema.domain
             self.dims = [domain.dim(i).name for i in range(domain.ndim)]
@@ -4444,7 +4444,7 @@ cdef class Query(object):
     def __getitem__(self, object selection):
         return self.array.subarray(selection,
                                    attrs=self.attrs,
-                                   coords=self.coords,
+                                   coords=self.coords if self.coords else self.dims,
                                    order=self.order)
 
     @property
@@ -4711,8 +4711,11 @@ cdef class DenseArrayImpl(Array):
                              "'G' (TILEDB_GLOBAL_ORDER), "\
                              "or 'U' (TILEDB_UNORDERED)")
         attr_names = list()
-        if coords:
+        if coords == True:
             attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
+        elif coords:
+            attr_names.extend(coords)
+
         if attrs is None:
             attr_names.extend(
                 self.schema.attr(i)._internal_name for i in range(self.schema.nattr)
@@ -5356,8 +5359,10 @@ cdef class SparseArrayImpl(Array):
         else:
             attr_names.extend(self.schema.attr(a)._internal_name for a in attrs)
 
-        if coords:
+        if coords == True:
             attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
+        elif coords:
+            attr_names.extend(coords)
 
         dom = self.schema.domain
         idx = index_as_tuple(selection)
