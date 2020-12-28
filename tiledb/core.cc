@@ -4,13 +4,16 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "numpy/arrayobject.h"
 #undef NPY_NO_DEPRECATED_API
 
-#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/pytypes.h>
+#include "npbuffer.h"
 #include "util.h"
 
 #define TILEDB_DEPRECATED
@@ -425,10 +428,10 @@ public:
       case TILEDB_DATETIME_PS:
       case TILEDB_DATETIME_FS:
       case TILEDB_DATETIME_AS: {
-        py::dtype dtype = tiledb_dtype(tiledb_type, 1); 
+        py::dtype dtype = tiledb_dtype(tiledb_type, 1);
         auto dt0 = py::isinstance<py::int_>(r0) ? r0: r0.attr("astype")(dtype);
         auto dt1 = py::isinstance<py::int_>(r1) ? r1: r1.attr("astype")(dtype);
-        
+
         // TODO, this is suboptimal, should define pybind converter
         if(py::isinstance<py::int_>(dt0) && py::isinstance<py::int_>(dt1))
         {
@@ -970,6 +973,13 @@ public:
   }
 };
 
+py::tuple a2b_cython(py::array input_array) {
+  auto tiledb_m = py::module::import("tiledb");
+  auto libtiledb_m = tiledb_m.attr("libtiledb");
+  py::tuple res = libtiledb_m.attr("array_to_buffer")(input_array);
+  return res;
+}
+
 void init_stats() {
   g_stats.reset(new StatsInfo());
 
@@ -1068,6 +1078,8 @@ PYBIND11_MODULE(core, m) {
            [](py::object self, std::string s) { throw TileDBPyError(s); })
       .def_property_readonly("_test_init_buffer_bytes", &PyQuery::_test_init_buffer_bytes);
 
+  m.def("array_to_buffer", &convert_np);
+
   m.def("init_stats", &init_stats);
   m.def("disable_stats", &init_stats);
   m.def("python_internal_stats", &python_internal_stats);
@@ -1096,8 +1108,11 @@ PYBIND11_MODULE(core, m) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
     } catch (const tiledb::TileDBError &e) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
-    } catch (std::runtime_error &e) {
-      std::cout << "unexpected runtime_error: " << e.what() << std::endl;
+    } catch (py::builtin_exception &e) {
+      // just forward the error
+      throw;
+    //} catch (std::runtime_error &e) {
+    //  std::cout << "unexpected runtime_error: " << e.what() << std::endl;
     }
   });
 }

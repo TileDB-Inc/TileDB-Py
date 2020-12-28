@@ -72,7 +72,7 @@ public:
     }
 
     py::object fragment_uri(py::object fid) const {
-        return fid.is(py::none()) ? 
+        return fid.is(py::none()) ?
                for_all_fid(&FragmentInfo::fragment_uri) :
                py::str(fi_->fragment_uri(py::cast<uint32_t>(fid)));
     }
@@ -80,7 +80,7 @@ public:
     py::tuple get_non_empty_domain(py::object schema) const {
         py::list all_frags;
         uint32_t nfrag = fragment_num();
-        
+
         for(uint32_t fid = 0; fid < nfrag; ++fid)
             all_frags.append(get_non_empty_domain(schema, fid));
 
@@ -112,7 +112,7 @@ public:
             auto datetime_data = np.attr("datetime_data");
 
             uint64_t* dates = static_cast<uint64_t*>(buffer.ptr);
-            limits = py::make_tuple(datetime64(dates[0], datetime_data(type)), 
+            limits = py::make_tuple(datetime64(dates[0], datetime_data(type)),
                                     datetime64(dates[1], datetime_data(type)));
         }
 
@@ -121,14 +121,14 @@ public:
 
     py::dtype get_dim_type(py::object dom, uint32_t did) const
     {
-        // passing templated type "did" to Python function dom.attr("dim") 
+        // passing templated type "did" to Python function dom.attr("dim")
         // does not work
         return (dom.attr("dim")(did).attr("dtype")).cast<py::dtype>();
     }
 
     py::dtype get_dim_type(py::object dom, string did) const
     {
-        // passing templated type "did" to Python function dom.attr("dim") 
+        // passing templated type "did" to Python function dom.attr("dim")
         // does not work
         return (dom.attr("dim")(did).attr("dtype")).cast<py::dtype>();
     }
@@ -136,7 +136,7 @@ public:
     py::tuple non_empty_domain_var(py::object schema) const {
         py::list all_frags;
         uint32_t nfrag = fragment_num();
-        
+
         for(uint32_t fid = 0; fid < nfrag; ++fid)
             all_frags.append(non_empty_domain_var(schema, fid));
 
@@ -149,7 +149,7 @@ public:
 
         for(int did = 0; did < ndim; ++did)
             all_dims.append(non_empty_domain_var(schema, fid, did));
-        
+
         return all_dims;
     }
 
@@ -160,7 +160,7 @@ public:
     }
 
     py::object timestamp_range(py::object fid) const {
-        if(fid.is(py::none())) 
+        if(fid.is(py::none()))
             return for_all_fid(&FragmentInfo::timestamp_range);
 
         auto p = fi_->timestamp_range(py::cast<uint32_t>(fid));
@@ -172,7 +172,7 @@ public:
     }
 
     py::object dense(py::object fid) const {
-        return fid.is(py::none()) ? 
+        return fid.is(py::none()) ?
                for_all_fid(&FragmentInfo::dense) :
                py::bool_(fi_->dense(py::cast<uint32_t>(fid)));
     }
@@ -204,7 +204,7 @@ public:
     uint32_t unconsolidated_metadata_num() const {
         return fi_->unconsolidated_metadata_num();
     }
-    
+
     uint32_t to_vacuum_num() const {
         return fi_->to_vacuum_num();
     }
@@ -225,34 +225,34 @@ PYBIND11_MODULE(fragment, m) {
         .def(py::init<py::object, const string&>())
 
         .def("load", static_cast<void (PyFragmentInfo::*)() const>(&PyFragmentInfo::load))
-        .def("load", 
+        .def("load",
             static_cast<void (PyFragmentInfo::*)(
                 tiledb_encryption_type_t, const string&) const>
             (&PyFragmentInfo::load))
 
-        .def("get_non_empty_domain", 
+        .def("get_non_empty_domain",
             static_cast<py::tuple (PyFragmentInfo::*)(py::object) const>
                 (&PyFragmentInfo::get_non_empty_domain))
-        .def("get_non_empty_domain", 
+        .def("get_non_empty_domain",
             static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t) const>
                 (&PyFragmentInfo::get_non_empty_domain))
-        .def("get_non_empty_domain", 
+        .def("get_non_empty_domain",
             static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t, uint32_t) const>
                 (&PyFragmentInfo::get_non_empty_domain))
-        .def("get_non_empty_domain", 
+        .def("get_non_empty_domain",
             static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t, const string&) const>
                 (&PyFragmentInfo::get_non_empty_domain))
 
-        .def("non_empty_domain_var", 
+        .def("non_empty_domain_var",
             static_cast<py::tuple (PyFragmentInfo::*)(py::object) const>
                 (&PyFragmentInfo::non_empty_domain_var))
-        .def("non_empty_domain_var", 
+        .def("non_empty_domain_var",
             static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t) const>
                 (&PyFragmentInfo::non_empty_domain_var))
-        .def("non_empty_domain_var", 
+        .def("non_empty_domain_var",
             static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t, uint32_t) const>
                 (&PyFragmentInfo::non_empty_domain_var))
-        .def("non_empty_domain_var", 
+        .def("non_empty_domain_var",
             static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t, const string&) const>
                 (&PyFragmentInfo::non_empty_domain_var))
 
@@ -263,13 +263,13 @@ PYBIND11_MODULE(fragment, m) {
         .def("sparse", &PyFragmentInfo::sparse, py::arg("fid")=py::none())
         .def("cell_num", &PyFragmentInfo::cell_num, py::arg("fid")=py::none())
         .def("version", &PyFragmentInfo::version, py::arg("fid")=py::none())
-        .def("has_consolidated_metadata", 
+        .def("has_consolidated_metadata",
              &PyFragmentInfo::has_consolidated_metadata,
              py::arg("fid")=py::none())
         .def("unconsolidated_metadata_num", &PyFragmentInfo::unconsolidated_metadata_num)
         .def("to_vacuum_num", &PyFragmentInfo::to_vacuum_num)
-        .def("to_vacuum_uri", 
-             &PyFragmentInfo::to_vacuum_uri, 
+        .def("to_vacuum_uri",
+             &PyFragmentInfo::to_vacuum_uri,
              py::arg("fid")=py::none())
         .def("dump", &PyFragmentInfo::dump);
 
@@ -278,6 +278,7 @@ PYBIND11_MODULE(fragment, m) {
     error. Note that using py::exception(..., "TileDBError") creates a new
     exception in the *readquery* module, so we must import to reference.
     */
+    /*
     static auto tiledb_py_error =
         (py::object)py::module::import("tiledb").attr("TileDBError");
 
@@ -293,6 +294,7 @@ PYBIND11_MODULE(fragment, m) {
             std::cout << "unexpected runtime_error: " << e.what() << std::endl;
         }
     });
+    */
 }
 
 }; // namespace tiledbpy
