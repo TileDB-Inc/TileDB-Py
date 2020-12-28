@@ -4,6 +4,11 @@
 const uint64_t DEFAULT_INIT_BUFFER_BYTES = 1310720 * 8;
 const uint64_t DEFAULT_EXP_ALLOC_MAX_BYTES = uint64_t(4 * pow(2, 30));
 
+#define TPY_ERROR_STR(m)                                            \
+    [](auto m) -> std::string {                                     \
+      return std::string(m) + " (" + __FILE__ + ":" +               \
+             std::to_string(__LINE__) + ")"); }();
+
 #define TPY_ERROR_LOC(m)                                                       \
     throw TileDBPyError(std::string(m) + " (" + __FILE__ + ":" +               \
                         std::to_string(__LINE__) + ")");

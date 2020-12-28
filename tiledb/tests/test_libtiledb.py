@@ -1021,7 +1021,7 @@ class DenseArrayTest(DiskTestCase):
 
     def test_fixed_string(self):
         ctx = tiledb.Ctx()
-        a = np.array(['ab', 'cd', 'ef', 'gh', 'ij', 'kl'], dtype='|S2')
+        a = np.array(['ab', 'cd', 'ef', 'gh', 'ij', 'kl', '', 'op'], dtype='|S2')
         with tiledb.from_numpy(self.path('fixed_string'), a) as T:
             with tiledb.open(self.path('fixed_string')) as R:
                 self.assertEqual(T.dtype, R.dtype)
@@ -1584,7 +1584,7 @@ class DenseVarlen(DiskTestCase):
 
     def test_varlen_write_fixedunicode(self):
         A = np.array([u'aa',u'bbb',u'ccccc',u'ddddddddddddddddddddd',u'ee',
-                      u'ffffff',u'g',u'hhhhhhhhhh'], dtype=np.dtype('U'))
+                      u'ffffff',u'', u'g',u'hhhhhhhhhh'], dtype=np.dtype('U'))
 
         # basic write
         ctx = tiledb.Ctx()
@@ -1830,7 +1830,7 @@ class SparseArray(DiskTestCase):
             self.assertTrue(
                 'coords' not in T.query(coords=False).domain_index[-10.0: 5.0]
             )
-        
+
     def test_sparse_query_specified_dim_coords(self):
         uri = self.path("sparse_query_specified_dim_coords")
 
@@ -2271,9 +2271,9 @@ class SparseArray(DiskTestCase):
             A["a3", 0.25] = 4
 
         with tiledb.open(uri, "r") as A:
-            from collections import OrderedDict 
-            self.assertEqual(A.unique_dim_values(), 
-                             OrderedDict([('dim1', (b'a1', b'a2', b'a3')), 
+            from collections import OrderedDict
+            self.assertEqual(A.unique_dim_values(),
+                             OrderedDict([('dim1', (b'a1', b'a2', b'a3')),
                                           ('dim2', (0.0, 0.25, 0.5))]))
 
             self.assertEqual(A.unique_dim_values("dim1"), (b'a1', b'a2', b'a3'))
@@ -2284,7 +2284,7 @@ class SparseArray(DiskTestCase):
 
             with self.assertRaises(ValueError):
                 A.unique_dim_values("dim3")
-    
+
 
 class DenseIndexing(DiskTestCase):
 
@@ -2850,7 +2850,7 @@ class NumpyToArray(DiskTestCase):
 
     def test_unicode_to_array1d(self):
         np_array = np.array(['1234545lkjalsdfj', 'mnopqrs', 'ijkl', 'gh', 'abcdef',
-                             'aαbββcγγγdδδδδ', '"aαbββc', '', 'γγγdδδδδ'], dtype=object)
+                             'aαbββcγγγdδδδδ', '', '"aαbββc', '', 'γγγdδδδδ'], dtype=object)
         with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 

@@ -6,8 +6,15 @@ extern "C" {
 namespace py = pybind11;
 using namespace pybind11::literals;
 
+// __attribute__((used)) to make the linker keep the symbol
 __attribute__((used)) static void pyprint(pybind11::object o) {
   pybind11::print(o);
+}
+
+// TODO need version for py::handle
+__attribute__((used)) static std::string pyrepr(py::object o) {
+  auto locals = py::dict("_v"_a = o);
+  return py::cast<std::string>(py::eval("repr(_v)", py::globals(), locals));
 }
 
 __attribute__((used)) static void pycall1(const char *expr,
@@ -47,5 +54,11 @@ __attribute__((used)) static void pycall1(const char *expr,
 __attribute__((used)) static void pycall(const char *expr) {
   pycall1(expr, py::none());
 }
+
+__attribute__((used)) static void pyerror() {
+  // print the last py error, if any
+
+}
+
 }
 };

@@ -78,7 +78,7 @@ def initialize_ctx(config = None):
 ###############################################################################
 
 IF TILEDBPY_MODULAR:
-    from .np2buf import array_to_buffer, array_type_ncells, dtype_to_tiledb
+    from .np2buf import array_type_ncells, dtype_to_tiledb
     from .indexing import DomainIndexer
     from .libmetadata import get_metadata, put_metadata, load_metadata
 ELSE:
@@ -298,11 +298,11 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     cdef np.ndarray buffer_offsets_sizes = np.zeros((nattr_alloc,),  dtype=np.uint64)
     output_values = list()
     output_offsets = list()
-
+    import tiledb.core
     for i in range(nattr):
         if tiledb_array.schema.attr(i).isvar:
             try:
-                buffer, offsets = array_to_buffer(values[i])
+                buffer, offsets = tiledb.core.array_to_buffer(values[i], True)
             except Exception as exc:
                 raise type(exc)(f"Failed to convert buffer for attribute: '{tiledb_array.schema.attr(i).name}'") from exc
             buffer_offsets_sizes[i] = offsets.nbytes
@@ -331,13 +331,14 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     cdef tiledb_layout_t layout = TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR
 
+    import tiledb.core
     # Set coordinate buffer size and name, and layout for sparse writes
     if issparse:
         for dim_idx in range(tiledb_array.schema.ndim):
             name = tiledb_array.schema.domain.dim(dim_idx).name
             val = coords_or_subarray[dim_idx]
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
-                buffer, offsets = array_to_buffer(val)
+                buffer, offsets = tiledb.core.array_to_buffer(val, True)
                 buffer_sizes[nattr + dim_idx] = buffer.nbytes
                 buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
             else:
@@ -515,10 +516,10 @@ def stats_dump(version=True, print_out=True, include_python=True, verbose=False)
 
     if not verbose:
         if tiledb_stats_raw_dump_str(&stats_str_ptr) == TILEDB_ERR:
-            raise TileDBError("Unable to dump stats to stats_str_ptr.") 
+            raise TileDBError("Unable to dump stats to stats_str_ptr.")
     else:
         if tiledb_stats_dump_str(&stats_str_ptr) == TILEDB_ERR:
-            raise TileDBError("Unable to dump stats to stats_str_ptr.")  
+            raise TileDBError("Unable to dump stats to stats_str_ptr.")
 
     stats_str_core = stats_str_ptr.decode("UTF-8", "strict").strip()
 
@@ -541,7 +542,7 @@ def stats_dump(version=True, print_out=True, include_python=True, verbose=False)
         stats_str += "- Number of read queries: {}\n".format(
             stats_json_core["READ_NUM"])
         stats_str += "- Number of attributes read: {}\n".format(
-            stats_json_core["READ_ATTR_FIXED_NUM"] 
+            stats_json_core["READ_ATTR_FIXED_NUM"]
             + stats_json_core["READ_ATTR_VAR_NUM"])
         stats_str += "- Time to compute estimated result size: {}\n".format(
             stats_json_core["READ_COMPUTE_EST_RESULT_SIZE"])

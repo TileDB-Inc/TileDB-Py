@@ -588,7 +588,7 @@ __extensions = [
     ),
   Extension(
     "tiledb.core",
-    ["tiledb/core.cc"],
+    ["tiledb/core.cc", "tiledb/npbuffer.cc"],
     include_dirs = INC_DIRS + [
         get_pybind_include(),
         get_pybind_include(user=True)
