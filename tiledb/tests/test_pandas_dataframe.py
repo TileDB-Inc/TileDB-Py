@@ -278,7 +278,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                 nonempty = A.nonempty_domain()[0]
                 res = A.multi_index[nonempty[0]:nonempty[1]]
 
-                res_df = pd.DataFrame(res, index=res.pop(col))
+                index = pd.Index(res.pop(col), name=col)
+                res_df = pd.DataFrame(res, index=index)
                 tm.assert_frame_equal(new_df, res_df, check_like=True)
 
     def test_dataframe_multiindex_dims(self):
@@ -389,7 +390,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                         index_col=['int_vals'],
                         parse_dates=['time'],
                         sparse=True, allows_duplicates=True,
-                        float_precision='round-trip')
+                        float_precision='round_trip')
 
         with tiledb.open(tmp_array2b) as A:
             self.assertTrue(A.schema.sparse)

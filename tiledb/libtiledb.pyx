@@ -302,7 +302,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     for i in range(nattr):
         if tiledb_array.schema.attr(i).isvar:
             try:
-                buffer, offsets = tiledb.core.array_to_buffer(values[i], True)
+                buffer, offsets = tiledb.core.array_to_buffer(values[i], True, False)
             except Exception as exc:
                 raise type(exc)(f"Failed to convert buffer for attribute: '{tiledb_array.schema.attr(i).name}'") from exc
             buffer_offsets_sizes[i] = offsets.nbytes
@@ -338,7 +338,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             name = tiledb_array.schema.domain.dim(dim_idx).name
             val = coords_or_subarray[dim_idx]
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
-                buffer, offsets = tiledb.core.array_to_buffer(val, True)
+                buffer, offsets = tiledb.core.array_to_buffer(val, True, False)
                 buffer_sizes[nattr + dim_idx] = buffer.nbytes
                 buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
             else:
@@ -4327,6 +4327,7 @@ cdef class Array(object):
         """
         return self.multi_index
 
+    # TODO remove the doctest SKIP after python 2 disabled
     @property
     def df(self):
         """Retrieve data cells as a Pandas dataframe, with multi-range,
@@ -4349,7 +4350,7 @@ cdef class Array(object):
 
         >>> import tiledb, tempfile, numpy as np, pandas as pd
         >>>
-        >>> with tempfile.TemporaryDirectory() as tmp:
+        >>> with tempfile.TemporaryDirectory() as tmp: # doctest: +SKIP
         ...    data = {'col1_f': np.arange(0.0,1.0,step=0.1), 'col2_int': np.arange(10)}
         ...    df = pd.DataFrame.from_dict(data)
         ...    tiledb.from_dataframe(tmp, df)
@@ -4915,7 +4916,7 @@ cdef class DenseArrayImpl(Array):
 
         """
         if self.view_attr is None and self.nattr > 1:
-            raise ValueError("cannot create numpy array from TileDB array with more than one attribute")
+            raise ValueError("cannot call __array__ for TileDB array with more than one attribute")
         cdef unicode name
         if self.view_attr:
             name = self.view_attr
@@ -5433,7 +5434,7 @@ cdef class SparseArrayImpl(Array):
                     out[final_name] = arr
 
         return out
-    
+
     def unique_dim_values(self, dim=None):
         if dim is not None and not isinstance(dim, str):
             raise ValueError("Given Dimension {} is not a string.".format(dim))
@@ -5445,7 +5446,7 @@ cdef class SparseArrayImpl(Array):
 
         if dim:
             dim_values = tuple(np.unique(query[dim]))
-        else: 
+        else:
             dim_values = OrderedDict()
             for dim in query:
                 dim_values[dim] = tuple(np.unique(query[dim]))
