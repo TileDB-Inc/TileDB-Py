@@ -8,6 +8,6 @@ namespace tiledbpy {
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-py::tuple convert_np(py::array input, bool allow_unicode);
+py::tuple convert_np(py::array input, bool allow_unicode = true, bool use_fallback = false);
 
 }

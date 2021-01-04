@@ -973,13 +973,6 @@ public:
   }
 };
 
-py::tuple a2b_cython(py::array input_array) {
-  auto tiledb_m = py::module::import("tiledb");
-  auto libtiledb_m = tiledb_m.attr("libtiledb");
-  py::tuple res = libtiledb_m.attr("array_to_buffer")(input_array);
-  return res;
-}
-
 void init_stats() {
   g_stats.reset(new StatsInfo());
 
