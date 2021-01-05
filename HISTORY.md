@@ -1,4 +1,10 @@
-# In Progress
+# TileDB-Py 0.7.5 Release Notes
+
+## Packaging Notes
+* TileDB-Py 0.7.x will be the last version of TileDB-Py supporting Python 2.
+
+## TileDB Embedded updates:
+* TileDB-Py 0.7.5 includes [TileDB Embedded 2.1.6](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.6)
 
 ## Improvements
 * FragmentInfo API by default returns information from all fragments and dimensions [#444](https://github.com/TileDB-Inc/TileDB-Py/pull/444)
@@ -7,6 +13,7 @@
 * Add verbosity option to `stats_dump()` [#452](https://github.com/TileDB-Inc/TileDB-Py/pull/452)
 * Add `unique_dim_values()` to return unique dimension values for a given `SparseArray` [#454](https://github.com/TileDB-Inc/TileDB-Py/pull/454)
 * Add support to `query()` for returning subsets of specified dimensions [#458](https://github.com/TileDB-Inc/TileDB-Py/pull/458)
+* Optimize string array writes [#459](https://github.com/TileDB-Inc/TileDB-Py/pull/459)
 
 ## Bug fixes
 * Fix `Dim.shape` for dense array with datetime dimension [#448](https://github.com/TileDB-Inc/TileDB-Py/pull/448)
