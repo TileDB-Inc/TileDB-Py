@@ -748,6 +748,7 @@ class TestMultiRange(DiskTestCase):
                     ctx=ctx,
                     domain=(np.datetime64("2019"), np.datetime64("2020")),
                     dtype="datetime64[D]",
+                    tile=1
                 ),
                 ctx=ctx,
             )
