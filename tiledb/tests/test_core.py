@@ -82,9 +82,13 @@ class CoreCCTest(DiskTestCase):
 
         ctx = tiledb.Ctx()
 
-        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=1,
+        def_tile = 1
+        if tiledb.libtiledb.version() < (2,2):
+          def_tile = 2
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=def_tile,
                                        dtype=np.int64, ctx=ctx),
-                            tiledb.Dim(domain=(0, 3), tile=1,
+                            tiledb.Dim(domain=(0, 3), tile=def_tile,
                                        dtype=np.int64, ctx=ctx),
                             ctx=ctx)
         attrs = [
