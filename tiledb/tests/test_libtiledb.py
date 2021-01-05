@@ -2258,7 +2258,7 @@ class SparseArray(DiskTestCase):
     def test_sparse_get_unique_dim_values(self):
         uri = self.path("get_non_empty_coords")
         dim1 = tiledb.Dim(name="dim1", domain=(None, None), tile=None, dtype=np.bytes_)
-        dim2 = tiledb.Dim(name="dim2", domain=(0, 1), tile=None, dtype=np.float)
+        dim2 = tiledb.Dim(name="dim2", domain=(0, 1), tile=1, dtype=np.float)
         attr = tiledb.Attr(name="attr", dtype=np.float32)
         dom = tiledb.Domain(dim1, dim2)
         schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=[attr])
