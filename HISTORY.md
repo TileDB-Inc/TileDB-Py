@@ -1,3 +1,9 @@
+# In Progress
+
+## Improvements
+
+## Bug fixes
+
 # TileDB-Py 0.7.5 Release Notes
 
 ## Packaging Notes
