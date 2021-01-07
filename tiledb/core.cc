@@ -922,7 +922,7 @@ public:
     if (query_->query_status() != tiledb::Query::Status::COMPLETE)
       TPY_ERROR_LOC("Cannot convert buffers unless Query is complete");
 
-    tiledb::arrow::ArrowAdapter adapter(query_);
+    tiledb::arrow::ArrowAdapter adapter(&ctx_, query_.get());
     std::unique_ptr<PAPair> pa_pair(new PAPair());
 
     adapter.export_buffer(name.c_str(), &(pa_pair->array_), &(pa_pair->schema_));
@@ -939,7 +939,7 @@ public:
 
     auto pa = py::module::import("pyarrow");
     auto pa_array_import = pa.attr("Array").attr("_import_from_c");
-    tiledb::arrow::ArrowAdapter adapter(query_);
+    tiledb::arrow::ArrowAdapter adapter(&ctx_, query_.get());
 
     py::list names;
     py::list results;
