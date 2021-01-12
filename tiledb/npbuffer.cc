@@ -114,15 +114,14 @@ class NumpyConvert {
     // loop over array objects and write to output buffer
     size_t idx = 0;
     for (auto u : input_) {
-      py::handle u_encoded = u;
-
       // don't encode if we already have bytes
       if (PyUnicode_Check(u.ptr())) {
         // TODO see if we can do this with PyUnicode_AsUTF8String
-        u_encoded = npstrencode(u);
+        py::object u_encoded = npstrencode(u);
+        PyBytes_AsStringAndSize(u_encoded.ptr(), const_cast<char**>(&input_p), &sz);
+      } else {
+        PyBytes_AsStringAndSize(u.ptr(), const_cast<char**>(&input_p), &sz);
       }
-
-      PyBytes_AsStringAndSize(u_encoded.ptr(), const_cast<char**>(&input_p), &sz);
 
       // record the offset (equal to the current bytes written)
       offset_buf_->data()[idx] = data_nbytes_;
