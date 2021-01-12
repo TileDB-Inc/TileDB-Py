@@ -854,7 +854,7 @@ public:
       py::object o;
       auto data_ptr = (char*)buf.data() + last;
       if (is_unicode)
-        if (data_ptr[0] == '\0' && size == 1) {
+        if (size == 0 || (data_ptr[0] == '\0' && size == 1)) {
           o = py::str("");
         } else {
           if (!deduplicate_) {
@@ -875,7 +875,7 @@ public:
           }
         }
       else if (is_str)
-        if (data_ptr[0] == '\0' && size == 1) {
+        if (size == 0 || (data_ptr[0] == '\0' && size == 1)) {
           o = py::bytes("");
         } else {
           o = py::bytes(data_ptr, size);
