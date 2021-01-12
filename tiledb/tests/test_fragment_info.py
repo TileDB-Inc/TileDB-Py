@@ -1,12 +1,17 @@
 import tiledb
-from tiledb import fragment
 from tiledb.tests.common import DiskTestCase
-
 import itertools
 import numpy as np
 
+if tiledb.libtiledb.version() >= (2,2):
+    from tiledb import fragment
 
 class FragmentInfoTest(DiskTestCase):
+    def setUp(self):
+        super(FragmentInfoTest, self).setUp()
+        if not tiledb.libtiledb.version() >= (2,2):
+            self.skipTest("Only run FragmentInfo test with TileDB>=2.2")
+
     def test_uri_dne(self):
         fragment_info = fragment.info(tiledb.default_ctx(), "does_not_exist")
         with self.assertRaises(tiledb.TileDBError):
@@ -61,7 +66,7 @@ class FragmentInfoTest(DiskTestCase):
 
             self.assertTrue(fragment_info.dense(fragment_idx))
             self.assertFalse(fragment_info.sparse(fragment_idx))
-        
+
         all_actual_uris = fragment_info.fragment_uri()
         for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
             self.assertTrue(actual_uri.startswith(expected_uri))
@@ -131,7 +136,7 @@ class FragmentInfoTest(DiskTestCase):
             self.assertTrue(
                 actual_uri.endswith(str(fragment_info.version(fragment_idx)))
             )
-        
+
         self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
         self.assertEqual(fragment_info.dense(), (False, False, False))
         self.assertEqual(fragment_info.sparse(), (True, True, True))
@@ -377,7 +382,7 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.unconsolidated_metadata_num(), 0)
         for fragment_idx in range(fragments):
             self.assertTrue(fragment_info.has_consolidated_metadata(fragment_idx))
-        
+
         self.assertEqual(fragment_info.has_consolidated_metadata(), (True, True, True))
 
     def test_fragments_to_vacuum(self):

@@ -1,3 +1,4 @@
+
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/numpy.h>
@@ -10,6 +11,8 @@
 
 #include <tiledb/tiledb> // C++
 #include "util.h"
+
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 2
 
 #if !defined(NDEBUG)
 #include "debug.cc"
@@ -298,3 +301,5 @@ PYBIND11_MODULE(fragment, m) {
 }
 
 }; // namespace tiledbpy
+
+#endif
