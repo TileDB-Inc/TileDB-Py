@@ -11,7 +11,15 @@ __attribute__((used)) static void pyprint(pybind11::object o) {
   pybind11::print(o);
 }
 
-// TODO need version for py::handle
+__attribute__((used)) static void pyprint(pybind11::handle h) {
+  pybind11::print(h);
+}
+
+__attribute__((used)) static std::string pyrepr(py::handle h) {
+  auto locals = py::dict("_v"_a = h);
+  return py::cast<std::string>(py::eval("repr(_v)", py::globals(), locals));
+}
+
 __attribute__((used)) static std::string pyrepr(py::object o) {
   auto locals = py::dict("_v"_a = o);
   return py::cast<std::string>(py::eval("repr(_v)", py::globals(), locals));
