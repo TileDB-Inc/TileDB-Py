@@ -257,7 +257,7 @@ def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False,
         dim_max = np.max(col_values)
 
     if not dim_info.dtype in (np.bytes_, np.unicode):
-        if np.issubdtype(dtype, np.integer):
+        if np.issubdtype(dtype, np.integer) or dtype.kind == 'M':
             dim_range = np.uint64(np.abs(np.uint64(dim_max) - np.uint64(dim_min)))
             # we can't make a tile larger than the dimension range
             if dim_range < tile:
