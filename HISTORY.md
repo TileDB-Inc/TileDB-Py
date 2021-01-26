@@ -4,6 +4,15 @@
 
 ## Bug fixes
 
+# TileDB-Py 0.7.6 Release Notes
+
+## Packaging Notes
+* TileDB-Py 0.7.x will be the last version of TileDB-Py supporting Python 2.
+
+## Bug fixes
+* Fix read compatibility for empty strings written with 2.1 or 2.2 [#462](https://github.com/TileDB-Inc/TileDB-Py/pull/462)
+* Fix #457: make sure to fit automatic tile extent to dim range for date type [#464](https://github.com/TileDB-Inc/TileDB-Py/pull/464)
+
 # TileDB-Py 0.7.5 Release Notes
 
 ## Packaging Notes
