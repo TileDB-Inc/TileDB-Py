@@ -9,10 +9,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [2.7, 3.7, 3.8]
-        exclude:
-        - os: windows-latest
-          python-version: 2.7
+        python-version: [3.7, 3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v2
@@ -85,4 +82,4 @@ jobs:
           done;
       shell: bash
       if: ${{ failure() }} # only run this job if the build step failed
-      
+
