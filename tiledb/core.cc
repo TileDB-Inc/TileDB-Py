@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <future>
 #include <cstring>
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -227,6 +228,7 @@ private:
 public:
   tiledb_ctx_t *c_ctx_;
   tiledb_array_t *c_array_;
+  bool preload_metadata_ = false;
 
 public:
   PyQuery() = delete;
@@ -669,6 +671,17 @@ public:
       return;
     }
 
+    // Initiate a metadata API request to make libtiledb fetch the
+    // metadata. For example: dataframe path where we always check
+    // metadata. This can save noticeable time for remote arrays.
+    std::future<uint64_t> metadata_num_preload;
+    if (preload_metadata_) {
+      metadata_num_preload = std::async(
+        std::launch::async,
+        [this]() { return array_->metadata_num(); }
+      );
+    }
+
     auto schema = array_->schema();
 
     // return dims first, if any
@@ -712,6 +725,11 @@ public:
     {
       py::gil_scoped_release release;
       query_->submit();
+    }
+
+    // fetch the md_num to make sure the metadata get completed
+    if (preload_metadata_) {
+      metadata_num_preload.get();
     }
 
     if (g_stats) {
@@ -1074,6 +1092,7 @@ PYBIND11_MODULE(core, m) {
       .def("results", &PyQuery::results)
       .def("buffer_dtype", &PyQuery::buffer_dtype)
       .def("unpack_buffer", &PyQuery::unpack_buffer)
+      .def_readwrite("_preload_metadata", &PyQuery::preload_metadata_)
       .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
       .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
       .def("_test_array", &PyQuery::_test_array)
