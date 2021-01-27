@@ -158,31 +158,31 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     case TILEDB_CHAR:
       return py::dtype("S1");
     case TILEDB_DATETIME_YEAR:
-      return datetime64("", "Y");
+      return py::dtype("M8[Y]");
     case TILEDB_DATETIME_MONTH:
-      return datetime64("", "M");
+      return py::dtype("M8[M]");
     case TILEDB_DATETIME_WEEK:
-      return datetime64("", "W");
+      return py::dtype("M8[W]");
     case TILEDB_DATETIME_DAY:
-      return datetime64("", "D");
+      return py::dtype("M8[D]");
     case TILEDB_DATETIME_HR:
-      return datetime64("", "h");
+      return py::dtype("M8[h]");
     case TILEDB_DATETIME_MIN:
-      return datetime64("", "m");
+      return py::dtype("M8[m]");
     case TILEDB_DATETIME_SEC:
-      return datetime64("", "s");
+      return py::dtype("M8[s]");
     case TILEDB_DATETIME_MS:
-      return datetime64("", "ms");
+      return py::dtype("M8[ms]");
     case TILEDB_DATETIME_US:
-      return datetime64("", "us");
+      return py::dtype("M8[us]");
     case TILEDB_DATETIME_NS:
-      return datetime64("", "ns");
+      return py::dtype("M8[ns]");
     case TILEDB_DATETIME_PS:
-      return datetime64("", "ps");
+      return py::dtype("M8[ps]");
     case TILEDB_DATETIME_FS:
-      return datetime64("", "fs");
+      return py::dtype("M8[fs]");
     case TILEDB_DATETIME_AS:
-      return datetime64("", "as");
+      return py::dtype("M8[as]");
     case TILEDB_ANY:
       break;
     }
