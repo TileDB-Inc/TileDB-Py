@@ -85,6 +85,7 @@ class MultiRangeIndexer(object):
             use_arrow_real = use_arrow_real and use_arrow
 
         self.use_arrow = use_arrow_real
+        self._preload_metadata : bool = False
 
     @property
     def array(self):
@@ -194,6 +195,7 @@ class MultiRangeIndexer(object):
                     layout,
                     self.use_arrow)
 
+        q._preload_metadata = self._preload_metadata
         q.set_ranges(ranges)
         q.submit()
 
@@ -250,6 +252,8 @@ class DataFrameIndexer(MultiRangeIndexer):
         # we need to use a Query in order to get coords for a dense array
         if not self.query:
             self.query = tiledb.libtiledb.Query(self.array, coords=True)
+
+        self._preload_metadata = True
 
         result = super(DataFrameIndexer, self).__getitem__(idx)
 
