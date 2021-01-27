@@ -15,6 +15,10 @@
 #include <pybind11/pytypes.h>
 #include "util.h"
 
+#if !defined(NDEBUG)
+#include "debug.cc"
+#endif
+
 #define TILEDB_DEPRECATED
 #define TILEDB_DEPRECATED_EXPORT
 
@@ -216,7 +220,7 @@ class NumpyConvert {
     const char* input_p = nullptr;
 
     auto input_size = input_.size();
-    py::dtype first_dtype = py::none();
+    py::dtype first_dtype;
 
     // first pass: calculate final buffer length and cache UTF-8 representations
     for (int64_t idx = 0; idx < input_size; idx++) {
@@ -225,12 +229,17 @@ class NumpyConvert {
       PyObject* o = input_unchecked.data(idx)->ptr();
       assert(o != nullptr);
 
+      // NOTE: every branch below *must* initialize first_dtype
+
       if (PyUnicode_Check(o)) {
         if (!allow_unicode_) {
           // TODO TPY_ERROR_LOC
           auto errmsg = std::string("Unexpected unicode object for TILEDB_STRING_ASCII attribute");
           throw std::runtime_error(errmsg);
         }
+
+        if (idx < 1)
+          first_dtype = py::dtype("unicode");
 
         // this will cache a utf-8 representation owned by the PyObject
         input_p = PyUnicode_AsUTF8AndSize(o, &sz);
@@ -240,6 +249,9 @@ class NumpyConvert {
       } else if (PyBytes_Check(o)) {
         // ASCII only
         auto res = PyBytes_AsStringAndSize(o, const_cast<char**>(&input_p), &sz);
+
+        if (idx < 1)
+          first_dtype = py::dtype("bytes");
 
         if (res == -1) {
           // TODO TPY_ERROR_LOC
@@ -319,7 +331,7 @@ class NumpyConvert {
 
     size_t idx = 0;
 
-    py::dtype first_dtype = py::none();
+    py::dtype first_dtype;
 
     for (auto obj_h : iter) {
       if (idx < 1) {
