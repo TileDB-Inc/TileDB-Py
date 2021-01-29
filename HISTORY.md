@@ -1,8 +1,20 @@
-# In Progress
+# TileDB-Py 0.8.0 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.8.0 includes TileDB Embedded 2.2.2 featuring a number of significant
+  improvements in core storage engine functionality. See release notes for
+  [TileDB 2.2.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.1) and
+  [TileDB 2.2.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.2).
+
+## Packaging Notes
+* TileDB-Py 0.8 does not support Python 2.
 
 ## Improvements
+* Add initial `tiledb.from_parquet` functionality (beta) [[a90d5d9b1b](https://github.com/TileDB-Inc/TileDB-Py/commit/a90d5d9b1b6a39b48090592297fe98a7f33338fb)]
+* Preload metadata in .df query path to reduce read latency for remote arrays [[79ab12fcf0](https://github.com/TileDB-Inc/TileDB-Py/commit/79ab12fcf0ede0cbac822392a30ee7640595e93c)]
 
 ## Bug fixes
+* Update py::dtype usage for compatibility with pybind11 2.6.2 [[9d3d3d3c43](https://github.com/TileDB-Inc/TileDB-Py/commit/9d3d3d3c430fbc058d04773f03ddc63bd47f79e3)]
 
 # TileDB-Py 0.7.6 Release Notes
 
