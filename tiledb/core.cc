@@ -691,13 +691,16 @@ public:
     }
 
     // Initiate a metadata API request to make libtiledb fetch the
-    // metadata. For example: dataframe path where we always check
-    // metadata. This can save noticeable time for remote arrays.
+    // metadata ahead of time. In some queries we know we will always
+    // access metadata, so initiating this call saves time when loading
+    // from remote arrays because metadata i/o is lazy in core.
     std::future<uint64_t> metadata_num_preload;
     if (preload_metadata_) {
       metadata_num_preload = std::async(
         std::launch::async,
-        [this]() { return array_->metadata_num(); }
+        [this]() {
+          return array_->metadata_num();
+        }
       );
     }
 
