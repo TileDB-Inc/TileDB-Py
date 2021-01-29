@@ -175,6 +175,10 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df_readback = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df, df_readback)
 
+        with tiledb.open(uri) as A:
+            df_arrow = A.query(use_arrow=True).df[:]
+        tm.assert_frame_equal(df, df_arrow)
+
     def test_dataframe_basic2(self):
         uri = self.path("dataframe_basic_rt2")
 

@@ -1310,8 +1310,11 @@ class DenseArrayTest(DiskTestCase):
             res_idx = A[:]
             assert_array_equal(res_idx, data)
 
+            df = A.df[:]
+            assert_array_equal(df[""], data)
+
     def test_incomplete_dense_varlen(self):
-        ncells = 100
+        ncells = 10
 
         path = self.path("incomplete_dense_varlen")
         str_data = [rand_utf8(random.randint(0, n)) for n in range(ncells)]
@@ -1338,7 +1341,7 @@ class DenseArrayTest(DiskTestCase):
         init_buffer_bytes = 1024**2
         config = tiledb.Config({'sm.memory_budget': ncells,
                                 'sm.memory_budget_var': ncells,
-                                'py.init_buffer_bytes': init_buffer_bytes })
+                                'py.init_buffer_bytes': init_buffer_bytes})
 
         ctx2 = tiledb.Ctx(config=config)
         self.assertEqual(
@@ -1347,8 +1350,8 @@ class DenseArrayTest(DiskTestCase):
         )
 
         with tiledb.DenseArray(path, mode='r', ctx=ctx2) as T2:
-            assert_array_equal(data, T2[:])
-
+            df = T2.query(attrs=[""]).df[:]
+            assert_array_equal(df[""], data)
     def test_incomplete_sparse_varlen(self):
         ncells = 100
 
