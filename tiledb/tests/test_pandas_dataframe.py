@@ -13,6 +13,7 @@ import warnings
 import string, random, copy
 import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
+from pathlib import Path
 
 import tiledb
 from tiledb.tests.common import *
@@ -42,7 +43,7 @@ def make_dataframe_basic1(col_size=10):
 
         'r': np.array([rand_ascii_bytes(np.random.randint(1, 100)) for _ in range(col_size)]),
         's': np.array([rand_ascii() for _ in range(col_size)]),
-        'u': np.array([rand_ascii_bytes() for _ in range(col_size)]),
+        'u': np.array([rand_ascii_bytes().decode() for _ in range(col_size)]),
         'v': np.array([rand_ascii_bytes() for _ in range(col_size)]),
 
         'vals_int64': np.random.randint(dtype_max(np.int64), size=col_size, dtype=np.int64),
@@ -132,7 +133,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             tiledb.Attr(name="vals_int64", dtype=np.int64, filters=compression, ctx=ctx),
             tiledb.Attr(name="vals_float64", dtype=np.float64, filters=compression, ctx=ctx),
             tiledb.Attr(name="t", dtype='U', filters=compression, ctx=ctx),
-            tiledb.Attr(name="u", dtype='S', filters=compression, ctx=ctx),
+            tiledb.Attr(name="u", dtype='U', filters=compression, ctx=ctx),
             tiledb.Attr(name="v", dtype='S', filters=compression, ctx=ctx),
         ]
         schema = tiledb.ArraySchema(domain=dom, sparse=True,
@@ -186,9 +187,11 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         tiledb.from_dataframe(uri, df, sparse=False)
 
+        df_readback = tiledb.open_dataframe(uri)
+        tm.assert_frame_equal(df, df_readback)
+
         with tiledb.open(uri) as B:
-            df_readback = tiledb.open_dataframe(uri)
-            tm.assert_frame_equal(df, df_readback)
+            tm.assert_frame_equal(df, B.df[:], check_index_type=False)
 
     def test_dataframe_csv_rt1(self):
         def rand_dtype(dtype, size):
@@ -715,3 +718,28 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             self.assertTrue('time' not in res_df4)
             self.assertTrue('double_range' in res_df4)
             self.assertTrue('int_vals' == res_df4.index.name)
+
+    def test_read_parquet(self):
+        uri = Path(self.path("test_read_parquet"))
+        os.mkdir(uri)
+
+        def try_rt(name, df, pq_args={}):
+            tdb_uri = str(uri.joinpath(f"{name}.tdb"))
+            pq_uri = str(uri.joinpath(f"{name}.pq"))
+
+            df.to_parquet(pq_uri,
+                          use_deprecated_int96_timestamps=True,
+                          **pq_args)
+
+            tiledb.from_parquet(str(tdb_uri), str(pq_uri))
+
+            with tiledb.open(tdb_uri) as T:
+                tm.assert_frame_equal(df, T.df[:], check_index_type=False)
+
+        basic1 = make_dataframe_basic1()
+        try_rt("basic1", basic1)
+
+        try_rt("basic2", make_dataframe_basic2())
+
+        basic3 = make_dataframe_basic3()
+        try_rt("basic3", basic3)
