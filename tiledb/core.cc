@@ -88,6 +88,8 @@ struct BufferInfo {
     elem_nbytes = tiledb_datatype_size(type);
     data = py::array(py::dtype("uint8"), data_nbytes);
     offsets = py::array_t<uint64_t>(offsets_num);
+
+    // TODO use memset here for zero'd buffers in debug mode
   }
 
   string name;
@@ -253,16 +255,6 @@ public:
 
     bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
 
-    query_ = std::shared_ptr<tiledb::Query>(
-        new Query(ctx_, *array_, TILEDB_READ));
-        //        [](Query* p){} /* note: no deleter*/);
-
-    tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
-    if (!issparse && layout == TILEDB_UNORDERED) {
-          TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
-    }
-    query_->set_layout(layout);
-
     for (auto a : attrs) {
       attrs_.push_back(a.cast<string>());
     }
@@ -337,6 +329,28 @@ public:
         import_buffer(name, data_array, offsets_array);
       }
     }
+
+    query_ = std::shared_ptr<tiledb::Query>(
+        new Query(ctx_, *array_, TILEDB_READ));
+        //        [](Query* p){} /* note: no deleter*/);
+
+    tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
+    if (!issparse && layout == TILEDB_UNORDERED) {
+          TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
+    }
+    query_->set_layout(layout);
+
+    #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
+    if (use_arrow_) {
+      // enable arrow mode in the Query
+      auto tmp_config = ctx_.config();
+      tmp_config.set("sm.var_offsets.bitsize", "64");
+      tmp_config.set("sm.var_offsets.mode", "elements");
+      tmp_config.set("sm.var_offsets.extra_element", "true");
+      ctx_.handle_error(
+        tiledb_query_set_config(ctx_.ptr().get(), query_->ptr().get(), tmp_config.ptr().get()));
+    }
+    #endif
   }
 
   void add_dim_range(uint32_t dim_idx, py::tuple r) {
@@ -619,15 +633,12 @@ public:
           (b.data.size() - (b.data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
 
       if (b.isvar) {
-        // if we are using arrow, then we must reserve the last (uint64)
-        // by not telling libtiledb about it.
-        // note: we always initialize at least 10MB per buffer by default
-        size_t arrow_offset_size = use_arrow_ ? 1 : 0;
-
-        size_t offsets_size = b.offsets.size() - b.offsets_read - arrow_offset_size;
+        size_t offsets_size = b.offsets.size() - b.offsets_read;
         assert(offsets_size > 0);
-        uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + b.offsets_read;
-        query_->set_buffer(b.name, offsets_ptr,
+        uint64_t* offsets_ptr = (uint64_t*)b.offsets.data() + b.offsets_read;
+
+        query_->set_buffer(b.name,
+                           (uint64_t*)(offsets_ptr),
                            offsets_size,
                            data_ptr,
                            data_nelem);
@@ -645,15 +656,23 @@ public:
 
       BufferInfo &buf = buffers_.at(name);
 
-      // update offsets due to incomplete resets
+      // TODO if we ever support per-attribute read offset bitsize
+      // then need to handle here. Currently this is hard-coded to
+      // 64-bit to match query config.
       auto offset_ptr = buf.offsets.mutable_data();
-      if (buf.isvar && (buf.offsets_read > 0)) {
-        if (offset_ptr[buf.offsets_read] == 0) {
-          auto last_offset = offset_ptr[buf.offsets_read - 1];
-          auto last_size = (buf.data_vals_read * buf.elem_nbytes) - last_offset;
 
-          for (uint64_t i = 0; i < offset_elem_num; i++) {
-            offset_ptr[buf.offsets_read + i] += last_offset + last_size;
+      if (buf.isvar) {
+
+        // account for 'sm.var_offsets.extra_element'
+        offset_elem_num -= (use_arrow_) ? 1 : 0;
+
+        if (buf.offsets_read > 0) {
+          if (offset_ptr[buf.offsets_read] == 0) {
+            auto last_size = (buf.data_vals_read * buf.elem_nbytes);
+
+            for (uint64_t i = 0; i < offset_elem_num; i++) {
+              offset_ptr[buf.offsets_read + i] += last_size;
+            }
           }
         }
       }
@@ -794,23 +813,34 @@ public:
       auto name = bp.first;
       auto &buf = bp.second;
 
-      buf.data.resize({buf.data_vals_read * buf.elem_nbytes});
-      buf.offsets.resize({buf.offsets_read + arrow_offset_size});
+      auto final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
+      auto final_offsets_count = buf.offsets_read + arrow_offset_size;
+
+      buf.data.resize({final_data_nbytes});
+      buf.offsets.resize({final_offsets_count});
 
       // if we are using arrow, we need to reset the read counts
-      // calling set_buffers below.
+      // before calling set_buffers below.
       if (use_arrow_) {
+        if (retries > 0) {
+          // we need to rewrite the final size to the final offset slot
+          // because core doesn't track size between incomplete submits
+          buf.offsets.mutable_data()[buf.offsets_read] = final_data_nbytes;
+        }
+
+        // reset these so that set_buffers uses actual buffer size
         buf.data_vals_read = 0;
         buf.offsets_read = 0;
       }
     }
 
-    if (use_arrow_) {
+    if (use_arrow_ && retries > 0) {
       // this is a very light hack:
       // call set_buffers here to reset the buffers to the *full*
       // buffer in case there were incomplete queries. without this call,
       // the active tiledb::Query only knows about the buffer ptr/size
       // for the *last* submit loop, so we don't get full result set.
+      // ArrowAdapter gets the buffer sizes from tiledb::Query.
       set_buffers();
     }
 
@@ -976,6 +1006,8 @@ public:
       ArrowSchema c_pa_schema;
       adapter.export_buffer(buffer_name.c_str(), static_cast<void*>(&c_pa_array),
                                                  static_cast<void*>(&c_pa_schema));
+
+      // TODO null the metadata?
 
       py::object pa_array = pa_array_import(py::int_((ptrdiff_t)&c_pa_array),
                                             py::int_((ptrdiff_t)&c_pa_schema));
