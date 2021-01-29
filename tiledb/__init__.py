@@ -90,6 +90,7 @@ from .highlevel import (
 
 # TODO restricted imports
 from .dataframe_ import from_csv, from_pandas, from_dataframe, open_dataframe
+from .parquet_ import from_parquet
 
 from .version import version as __version__
 

@@ -312,10 +312,15 @@ class DataFrameIndexer(MultiRangeIndexer):
         if use_stats():
             pd_idx_start = time.time()
 
-        # x-ref write path in dataframe_.py
+        # see also: write path in dataframe_.py
         index_dims = None
         if '__pandas_index_dims' in self.array.meta:
             index_dims = json.loads(self.array.meta['__pandas_index_dims'])
+
+        # see also: write path in dataframe_.py
+        attr_reprs = None
+        if '__pandas_attribute_repr' in self.array.meta:
+            attr_reprs = json.loads(self.array.meta['__pandas_attribute_repr' ])
 
         indexes = list()
         rename_cols = dict()
@@ -345,6 +350,10 @@ class DataFrameIndexer(MultiRangeIndexer):
                 pass
         elif len(indexes) > 0:
             res_df.set_index(indexes, inplace=True)
+
+        # apply type translation from TileDB-Py write path
+        if attr_reprs:
+            res_df = res_df.astype(attr_reprs)
 
         if use_stats():
             pd_idx_duration = time.time() - pd_idx_start
