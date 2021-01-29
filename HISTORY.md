@@ -1,3 +1,8 @@
+# TileDB-Py 0.7.7 Release Notes
+
+## Bug fixes
+* Cherry-pick commit 9d3d3d3c43 to ix runtime bug in conda packages built against pybind11 2.6.2 [9d3d3d3c430f](https://github.com/TileDB-Inc/TileDB-Py/commit/9d3d3d3c430fbc058d04773f03ddc63bd47f79e3)
+
 # TileDB-Py 0.7.6 Release Notes
 
 ## Packaging Notes
