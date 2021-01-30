@@ -77,7 +77,7 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
         self.assertEqual(fragment_info.dense(), (True, True, True))
         self.assertEqual(fragment_info.sparse(), (False, False, False))
-        self.assertEqual(fragment_info.version(), (7, 7, 7))
+        self.assertEqual(fragment_info.version(), (8, 8, 8))
 
 
     def test_sparse_fragments(self):
@@ -140,7 +140,7 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
         self.assertEqual(fragment_info.dense(), (False, False, False))
         self.assertEqual(fragment_info.sparse(), (True, True, True))
-        self.assertEqual(fragment_info.version(), (7, 7, 7))
+        self.assertEqual(fragment_info.version(), (8, 8, 8))
 
     def test_non_empty_domain(self):
         uri = self.path("test_non_empty_domain")
