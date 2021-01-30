@@ -728,6 +728,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             pq_uri = str(uri.joinpath(f"{name}.pq"))
 
             df.to_parquet(pq_uri,
+                          # this is required to losslessly serialize timestamps
+                          # until Parquet 2.0 is default.
                           use_deprecated_int96_timestamps=True,
                           **pq_args)
 
