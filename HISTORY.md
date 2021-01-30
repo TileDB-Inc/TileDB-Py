@@ -1,3 +1,11 @@
+# TileDB-Py 0.8.1 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.8.1 includes TileDB Embedded [TileDB 2.2.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.3)
+
+## Packaging Notes
+* TileDB-Py 0.8 does not support Python 2.
+
 # TileDB-Py 0.8.0 Release Notes
 
 ## TileDB Embedded updates:
