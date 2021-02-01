@@ -224,7 +224,7 @@ def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False,
     dtype = dim_info.dtype
 
     if full_domain:
-        if not dim_info.dtype in (np.bytes_, np.unicode):
+        if not dim_info.dtype in (np.bytes_, np.unicode_):
             # Use the full type domain, deferring to the constructor
             (dtype_min, dtype_max) = tiledb.libtiledb.dtype_range(dim_info.dtype)
 
@@ -256,7 +256,7 @@ def dim_for_column(ctx, name, dim_info, col, tile=None, full_domain=False,
         dim_min = np.min(col_values)
         dim_max = np.max(col_values)
 
-    if not dim_info.dtype in (np.bytes_, np.unicode):
+    if not dim_info.dtype in (np.bytes_, np.unicode_):
         if np.issubdtype(dtype, np.integer) or dtype.kind == 'M':
             dim_range = np.uint64(np.abs(np.uint64(dim_max) - np.uint64(dim_min)))
             # we can't make a tile larger than the dimension range
