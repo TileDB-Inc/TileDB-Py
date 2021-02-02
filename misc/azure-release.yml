@@ -36,7 +36,7 @@ stages:
       matrix:
         macOS_py:
           imageName: 'macOS-10.15'
-          CIBW_SKIP: 'cp35-* pp*'
+          CIBW_SKIP: 'cp27-* cp35-* pp*'
           SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
         windows_py:
           imageName: 'vs2017-win2016'

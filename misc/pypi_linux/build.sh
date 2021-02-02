@@ -14,18 +14,6 @@ set -ex
 
 export TILEDB_PY_REPO="/opt/TileDB-Py"
 
-# build python27 wheel
-cd /home/tiledb
-git clone $TILEDB_PY_REPO TileDB-Py27
-git -C TileDB-Py27 checkout $TILEDBPY_VERSION
-
-cd /home/tiledb/TileDB-Py27
-/opt/python/cp27-cp27mu/bin/python2.7 setup.py build_ext bdist_wheel --tiledb=/usr/local
-auditwheel repair dist/*.whl
-/opt/python/cp27-cp27mu/bin/python2.7 -m pip install wheelhouse/*.whl
-cd tiledb/tests
-#/opt/python/cp27-cp27mu/bin/python2.7 -m unittest
-
 # build python35 wheel
 cd /home/tiledb
 git clone $TILEDB_PY_REPO TileDB-Py35
@@ -88,7 +76,6 @@ auditwheel repair dist/*.whl
 cd tiledb/tests
 
 # copy build products out
-cp /home/tiledb/TileDB-Py27/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py35/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py36/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py37/wheelhouse/* /wheels
