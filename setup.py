@@ -481,14 +481,14 @@ def cmake_available():
     except:
         return False
 
-numpy_required_version = 'numpy>=1.16'
 def setup_requires():
-    req = ['cython>=0.27',
-           numpy_required_version,
-           'setuptools>=18.0',
-           'setuptools_scm>=1.5.4',
-           'wheel>=0.30',
-           'pybind11']
+    req = ["cython>=0.27",
+           "numpy==1.16.5 ; python_version < '3.9'",
+           "numpy ; python_version >= '3.9'",
+           "setuptools>=18.0",
+           "setuptools_scm>=1.5.4",
+           "wheel>=0.30",
+           "pybind11>=2.6.2"]
     # Add cmake requirement if libtiledb is not found and cmake is not available.
     if not libtiledb_exists(LIB_DIRS) and not cmake_available():
         req.append('cmake>=3.11.0')
@@ -695,7 +695,7 @@ setup(
     ext_modules=__extensions,
     setup_requires=setup_requires(),
     install_requires=[
-        numpy_required_version,
+        'numpy>=1.16.5',
         'wheel>=0.30'
     ],
     tests_require=TESTS_REQUIRE,
