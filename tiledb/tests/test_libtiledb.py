@@ -710,6 +710,10 @@ class ArrayTest(DiskTestCase):
             tiledb.consolidate(self.path("foo"), config=config,
                                key=b"0123456789abcdeF0123456789abcde", ctx=ctx)
 
+    # needs core fix in 2.2.4
+    @unittest.skipIf((platform.system() == 'Windows' and
+                     libtiledb.version() == (2,2,3)),
+                     "")
     def test_array_doesnt_exist(self):
         ctx = tiledb.Ctx()
         with self.assertRaises(tiledb.TileDBError):
