@@ -712,7 +712,7 @@ class ArrayTest(DiskTestCase):
 
     # needs core fix in 2.2.4
     @unittest.skipIf((platform.system() == 'Windows' and
-                     libtiledb.version() == (2,2,3)),
+                     tiledb.libtiledb.version() == (2,2,3)),
                      "")
     def test_array_doesnt_exist(self):
         ctx = tiledb.Ctx()
