@@ -5,7 +5,7 @@ exclude .dockerignore
 exclude .readthedocs.yml
 exclude .travis.yml
 exclude azure-pipelines.yml
-exclude misc/azure-*.yml
+exclude misc/*
 exclude requirements_dev.txt
 exclude tox.ini
 
