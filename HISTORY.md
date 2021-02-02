@@ -1,3 +1,8 @@
+# TileDB-Py 0.8.2 Release Notes
+
+## Packaging Notes
+* This is a version bump to fix numpy compatibility pinning in the wheel build system.
+
 # TileDB-Py 0.8.1 Release Notes
 
 ## TileDB Embedded updates:
