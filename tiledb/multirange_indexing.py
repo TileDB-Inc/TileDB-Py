@@ -47,8 +47,8 @@ def sel_to_subranges(dim_sel, nonempty_domain=None):
                 # we are missing one or both endpoints, maybe use nonempty_domain
                 if nonempty_domain is None:
                     raise TileDBError("Open-ended slicing requires a valid nonempty_domain")
-                rstart = range.start if range.start else nonempty_domain[0]
-                rend = range.stop if range.stop else nonempty_domain[1]
+                rstart =  nonempty_domain[0] if range.start is None else range.start
+                rend =  nonempty_domain[1] if range.stop is None else range.stop
 
             subranges.append( (rstart,rend) )
         elif isinstance(range, tuple):

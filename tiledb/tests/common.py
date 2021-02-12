@@ -13,6 +13,10 @@ from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
 
+def assert_tail_equal(a, *rest, **kwargs):
+    """Assert that all arrays in target equal first array"""
+    for target in rest:
+        assert_array_equal(a, target, **kwargs)
 
 class DiskTestCase(TestCase):
     pathmap = dict()
