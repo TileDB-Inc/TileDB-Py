@@ -309,11 +309,7 @@ class TestMultiRange(DiskTestCase):
 
         make_2d_dense(ctx, path, attr_name=attr_name)
 
-        expected = np.array([1, 2, 3, 4,
-                             5, 6, 7, 8,
-                             9, 10, 11, 12,
-                             13, 14, 15, 16,
-                             17, 18, 19, 20])
+        expected = np.arange(1,21)
 
         ranges = (
             ( (0,4), ),
@@ -323,6 +319,44 @@ class TestMultiRange(DiskTestCase):
         with tiledb.DenseArray(path) as A:
             a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
             assert_array_equal(a, expected)
+
+            # test slicing start=end on 1st dim at 0 (bug fix)
+            assert_tail_equal(
+                np.array([[1, 2, 3, 4]]),
+                A.multi_index[:0][attr_name],
+                A.multi_index[0:0][attr_name],
+            )
+
+            # test slicing start=end on 2nd dim at 0 (bug fix)
+            assert_tail_equal(
+                np.arange(1,34,4).reshape((9,1)),
+                A.multi_index[:,:0][attr_name],
+                A.multi_index[:,0:0][attr_name],
+            )
+
+            # test slicing start=end on 1st dim at 1
+            assert_array_equal(
+                np.array([[5,6,7,8]]),
+                A.multi_index[1:1][attr_name]
+            )
+
+            # test slicing start=end on 2nd dim at 1
+            assert_array_equal(
+                np.arange(2,35,4).reshape((9,1)),
+                A.multi_index[:,1:1][attr_name]
+            )
+
+            # test slicing start=end on 1st dim at max range
+            assert_array_equal(
+                np.array([[33, 34, 35, 36]]),
+                A.multi_index[8:8][attr_name]
+            )
+
+            # test slicing start=end on 2nd dim at max range
+            assert_tail_equal(
+                np.arange(4,37,4).reshape((9,1)),
+                A.multi_index[:,3:3][attr_name],
+            )
 
     def test_multirange_1d_dense_int64(self):
         attr_name = ''

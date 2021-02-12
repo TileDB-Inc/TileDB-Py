@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug fixes
+* Fix bug in Array.multi_index with slice range including 0 (incorrectly used the nonempty domain as endpoint) [#473](https://github.com/TileDB-Inc/TileDB-Py/pull/473)
+
 # TileDB-Py 0.8.2 Release Notes
 
 ## Packaging Notes
