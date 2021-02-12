@@ -602,12 +602,12 @@ public:
 
     if (var) {
       auto size_pair = query_->est_result_size_var(name);
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR == 2
-      buf_nbytes = size_pair[0];
-      offsets_num = size_pair[1];
-#else
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
       buf_nbytes = size_pair.first;
       offsets_num = size_pair.second;
+#else
+      buf_nbytes = size_pair[0];
+      offsets_num = size_pair[1];
 #endif
     } else {
       buf_nbytes = query_->est_result_size(name);
