@@ -321,6 +321,8 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(attr.name, u"")
         self.assertEqual(attr.dtype, np.float_)
         #self.assertEqual(attr.compressor, (None, -1))
+        self.assertFalse(attr.isvar)
+        self.assertFalse(attr.isnullable)
 
     def test_attribute(self):
         ctx = tiledb.Ctx()
@@ -400,6 +402,11 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(attr.dtype, np.dtype(np.bytes_))
         self.assertTrue(attr.isvar)
 
+    def test_nullable_attribute(self):
+        ctx = tiledb.Ctx()
+        attr = tiledb.Attr("nullable", nullable=True, dtype=np.int32, ctx=ctx)
+        self.assertEqual(attr.dtype, np.dtype(np.int32))
+        self.assertTrue(attr.isnullable)
     def test_datetime_attribute(self):
         ctx = tiledb.Ctx()
         attr = tiledb.Attr("foo", ctx=ctx, dtype=np.datetime64('', 'D'))

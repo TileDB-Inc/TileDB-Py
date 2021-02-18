@@ -2198,6 +2198,8 @@ cdef class Attr(object):
     :param str name: Attribute name, empty if anonymous
     :param dtype: Attribute value datatypes
     :type dtype: numpy.dtype object or type or string
+    :param nullable: Attribute is nullable
+    :type bool:
     :param fill: Fill value for unset cells.
     :param var: Attribute is variable-length (automatic for byte/string types)
     :type dtype: bool
@@ -2246,6 +2248,7 @@ cdef class Attr(object):
                  dtype=np.float64,
                  fill=None,
                  var=False,
+                 nullable=False,
                  filters=None,
                  Ctx ctx=None):
         if not ctx:
@@ -2287,6 +2290,12 @@ cdef class Attr(object):
         if rc != TILEDB_OK:
             tiledb_attribute_free(&attr_ptr)
             _raise_ctx_err(ctx.ptr, rc)
+
+        if nullable:
+            rc = tiledb_attribute_set_nullable(ctx.ptr, attr_ptr, 1)
+            if rc != TILEDB_OK:
+                tiledb_attribute_free(&attr_ptr)
+                _raise_ctx_err(ctx.ptr, rc)
 
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         if filters is not None:
@@ -2452,6 +2461,22 @@ cdef class Attr(object):
             return np.timedelta64(tmp_val, date_unit)
 
         return fill_array
+
+    @property
+    def isnullable(self):
+        """True if the attribute is nullable
+
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef uint8_t nullable = 0
+        cdef int rc = TILEDB_OK
+        check_error(
+            self.ctx,
+            tiledb_attribute_get_nullable(self.ctx.ptr, self.ptr, &nullable))
+
+        return <bint>nullable
 
     @property
     def isvar(self):
