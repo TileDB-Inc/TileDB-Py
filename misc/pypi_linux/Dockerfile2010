@@ -15,7 +15,7 @@ ENV TILEDBPY_VERSION=$TILEDBPY_VERSION
 # python settings
 # NOTE: MUST USE the 'mu' variant here to be compatible
 #       with "most" linux distros (see manylinux README)
-ENV PYTHON_BASE /opt/python/cp27-cp27mu/bin/
+ENV PYTHON_BASE /opt/python/cp38-cp38/bin/
 
 RUN useradd tiledb
 ENV HOME /home/tiledb
@@ -24,7 +24,7 @@ ENV HOME /home/tiledb
 # - cmake (need recent) and auditwheel from pip
 RUN  $PYTHON_BASE/pip install cmake==3.17.3 auditwheel
 
-ENV CMAKE /opt/python/cp27-cp27mu/bin/cmake
+ENV CMAKE $PYTHON_BASE/cmake
 
 ###############################################
 # 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
