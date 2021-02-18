@@ -373,6 +373,16 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_attribute_t* attr,
         unsigned int* cell_val_num)
 
+    int tiledb_attribute_set_nullable(
+        tiledb_ctx_t* ctx,
+        const tiledb_attribute_t* attr,
+        uint8_t nullable)
+
+    int tiledb_attribute_get_nullable(
+        tiledb_ctx_t* ctx,
+        const tiledb_attribute_t* attr,
+        uint8_t* nullable)
+
     int tiledb_attribute_dump(
         tiledb_ctx_t* ctx,
         const tiledb_attribute_t* attr,
