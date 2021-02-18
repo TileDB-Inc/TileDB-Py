@@ -2510,7 +2510,10 @@ cdef class Attr(object):
                 filters_str +=  repr(f) + ", "
             filters_str += "])"
 
-        return f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}', var={self.isvar!s}{filters_str})"""
+        # filters_str must be last with no spaces
+        return (f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}', """
+                f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
+                f"""{filters_str})""")
 
 
 cdef class Dim(object):

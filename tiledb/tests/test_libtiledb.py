@@ -3415,7 +3415,7 @@ class ReprTest(unittest.TestCase):
     def test_attr_repr(self):
         attr = tiledb.Attr(name="itsanattr", dtype=np.float64)
         self.assertTrue(
-            re.match(r"Attr\(name=[u]?'itsanattr', dtype='float64', var=False\)",
+            re.match(r"Attr\(name=[u]?'itsanattr', dtype='float64', var=False, nullable=False\)",
                      repr(attr))
         )
 
