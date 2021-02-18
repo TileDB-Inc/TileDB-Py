@@ -3,6 +3,9 @@
 ## TileDB Embedded updates:
 * TileDB-Py 0.8.3 includes TileDB Embedded [TileDB 2.2.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.4)
 
+## Improvements
+* Added `nullable` keyword argument to `Attr` constructor [#XYZ](https://github.com/TileDB-Inc/TileDB-Py/pull/XYZ)
+
 ## Bug fixes
 * Fix bug in Array.multi_index with slice range including 0 (incorrectly used the nonempty domain as endpoint) [#473](https://github.com/TileDB-Inc/TileDB-Py/pull/473)
 
