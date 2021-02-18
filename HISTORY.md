@@ -1,4 +1,7 @@
-# In Progress
+# TileDB-Py 0.8.2 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.8.3 includes TileDB Embedded [TileDB 2.2.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.4)
 
 ## Bug fixes
 * Fix bug in Array.multi_index with slice range including 0 (incorrectly used the nonempty domain as endpoint) [#473](https://github.com/TileDB-Inc/TileDB-Py/pull/473)
