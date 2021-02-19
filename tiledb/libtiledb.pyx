@@ -5402,12 +5402,11 @@ cdef class SparseArrayImpl(Array):
             if name == '__attr':
                 final_name = ''
             if self.schema._needs_var_buffer(name):
-                if len(results[name][1]) > 0:
+                if len(results[name][1]) > 0: # note: len(offsets) > 0
                     arr = q.unpack_buffer(name, results[name][0], results[name][1])
                 else:
                     arr = results[name][0]
                     final_dtype = self.schema.attr_or_dim_dtype(name)
-                    print((arr, len(arr), final_dtype))
                     if (len(arr) < 1 and
                             (np.issubdtype(final_dtype, np.bytes_) or
                              np.issubdtype(final_dtype, np.unicode_))):

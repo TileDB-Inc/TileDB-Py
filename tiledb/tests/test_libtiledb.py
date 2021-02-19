@@ -1467,6 +1467,33 @@ class DenseVarlen(DiskTestCase):
 
             assert_array_equal(A, T.multi_index[1:len(A)][''])
 
+    def test_varlen_sparse_all_empty_strings(self):
+        # this test addresses a fix for specific need for reads on a
+        # large existing array, see
+        #   https://github.com/TileDB-Inc/TileDB-Py/pull/475
+        # we currently have to write a placeholder at the end to
+        # avoid zero-length cell error
+        # TODO: follow-up with improved testing for empty var-length/strings
+        A = np.array(['','','','','','\x00'], dtype=object)
+        dim_len = len(A)
+        uri = self.path("varlen_all_empty_strings")
+
+        ctx = tiledb.Ctx()
+
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1, dim_len), tile=dim_len), ctx=ctx)
+        att = tiledb.Attr(name="a1", dtype=np.str_, var=True, ctx=ctx)
+
+        schema = tiledb.ArraySchema(dom, (att,), sparse=True, ctx=ctx)
+
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, mode='w', ctx=ctx) as T:
+            T[np.arange(1,dim_len+1)] = {'a1' : A}
+
+        with tiledb.open(uri, mode='r', ctx=ctx) as T:
+            # check interior range
+            assert_array_equal(A[1:-1], T[2:-1]['a1'])
+            assert_array_equal(A[1:-1], T.multi_index[2:dim_len-1]['a1'])
 
     def test_varlen_write_unicode(self):
         A = np.array(['aa','bbb',

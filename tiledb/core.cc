@@ -863,8 +863,6 @@ public:
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    if (buf.size() < 1)
-      TPY_ERROR_LOC(std::string("Unexpected empty buffer array ('") + name + "')");
     if (off.size() < 1)
       TPY_ERROR_LOC(std::string("Unexpected empty offsets array ('") + name + "')");
 
