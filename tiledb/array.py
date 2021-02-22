@@ -10,6 +10,7 @@ from .libtiledb import Array, DenseArrayImpl, SparseArrayImpl
 #       TODO: might be possible to work-around/simplify by using
 #       import meta-hooks instead.
 
+
 class DenseArray(DenseArrayImpl):
     __doc__ = Array.__doc__
     _mixin_init = False
@@ -21,12 +22,14 @@ class DenseArray(DenseArrayImpl):
             cls._mixin_init = True
             try:
                 from tiledb.cloud import cloudarray
+
                 DenseArray.__bases__ = DenseArray.__bases__ + (cloudarray.CloudArray,)
             except ImportError:
                 pass
 
         obj = super(DenseArray, cls).__new__(cls, *args, **kwargs)
         return obj
+
 
 class SparseArray(SparseArrayImpl):
     __doc__ = Array.__doc__
@@ -37,6 +40,7 @@ class SparseArray(SparseArrayImpl):
             cls._mixin_init = True
             try:
                 from tiledb.cloud import cloudarray
+
                 SparseArray.__bases__ = SparseArray.__bases__ + (cloudarray.CloudArray,)
             except ImportError:
                 pass

@@ -4,7 +4,8 @@ from tiledb.libtiledb import *
 import numpy as np
 import warnings
 
-def open(uri, mode='r', key=None, attr=None, config=None, timestamp=None, ctx=None):
+
+def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=None):
     """
     Open a TileDB array at the given URI
 
@@ -19,7 +20,9 @@ def open(uri, mode='r', key=None, attr=None, config=None, timestamp=None, ctx=No
     :return: open TileDB {Sparse,Dense}Array object
     """
     if ctx and config:
-      raise ValueError("Received extra Ctx or Config argument: either one may be provided, but not both")
+        raise ValueError(
+            "Received extra Ctx or Config argument: either one may be provided, but not both"
+        )
 
     if config:
         cfg = tiledb.Config(config)
@@ -28,7 +31,10 @@ def open(uri, mode='r', key=None, attr=None, config=None, timestamp=None, ctx=No
     if ctx is None:
         ctx = default_ctx()
 
-    return tiledb.Array.load_typed(uri, mode=mode, key=key, timestamp=timestamp, attr=attr, ctx=ctx)
+    return tiledb.Array.load_typed(
+        uri, mode=mode, key=key, timestamp=timestamp, attr=attr, ctx=ctx
+    )
+
 
 def save(uri, array, config=None, **kw):
     """
@@ -65,7 +71,9 @@ def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None):
     :return:
     """
     if config is not None:
-        warnings.warn(DeprecationWarning("'config' keyword argument is deprecated; use 'ctx'"))
+        warnings.warn(
+            DeprecationWarning("'config' keyword argument is deprecated; use 'ctx'")
+        )
         cfg = tiledb.Config(config)
         ctx = tiledb.Ctx(cfg)
     elif ctx is None:
@@ -77,7 +85,7 @@ def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None):
         schema = schema_like(arr, tile=tile, ctx=ctx)
 
     tiledb.DenseArray.create(uri, key=key, schema=schema)
-    return tiledb.DenseArray(uri, mode='w', key=key, ctx=ctx)
+    return tiledb.DenseArray(uri, mode="w", key=key, ctx=ctx)
 
 
 def from_numpy(uri, array, ctx=None, **kw):
@@ -91,6 +99,7 @@ def from_numpy(uri, array, ctx=None, **kw):
         raise Exception("from_numpy is only currently supported for numpy.ndarray")
 
     return DenseArray.from_numpy(uri, array, ctx=ctx, **kw)
+
 
 def array_exists(uri, isdense=False, issparse=False):
     """
