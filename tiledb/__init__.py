@@ -7,11 +7,11 @@ import sys
 # un-comment this section to fix Cython backtrace line-numbers in
 # IPython/Jupyter. see https://bugs.python.org/issue32797#msg323167
 # ---
-#try:
+# try:
 #    from importlib.machinery import ExtensionFileLoader
-#except ImportError:
+# except ImportError:
 #    pass  # Python 2
-#else:
+# else:
 #    del ExtensionFileLoader.get_source
 # ---
 
@@ -38,55 +38,49 @@ except:
         ctypes.CDLL(lib_name)
 
 from .libtiledb import (
-     Array,
-     Ctx,
-     Config,
-     Dim,
-     Domain,
-     Attr,
-     ArraySchema,
-     TileDBError,
-     VFS,
-     FileIO,
-     FilterList,
-     NoOpFilter,
-     GzipFilter,
-     ZstdFilter,
-     LZ4Filter,
-     Bzip2Filter,
-     RleFilter,
-     DoubleDeltaFilter,
-     BitShuffleFilter,
-     ByteShuffleFilter,
-     BitWidthReductionFilter,
-     PositiveDeltaFilter,
-     ChecksumMD5Filter,
-     ChecksumSHA256Filter,
-     consolidate,
-     default_ctx,
-     group_create,
-     object_type,
-     ls,
-     walk,
-     remove,
-     move,
-     schema_like,
-     stats_enable,
-     stats_disable,
-     stats_reset,
-     stats_dump,
-     vacuum
+    Array,
+    Ctx,
+    Config,
+    Dim,
+    Domain,
+    Attr,
+    ArraySchema,
+    TileDBError,
+    VFS,
+    FileIO,
+    FilterList,
+    NoOpFilter,
+    GzipFilter,
+    ZstdFilter,
+    LZ4Filter,
+    Bzip2Filter,
+    RleFilter,
+    DoubleDeltaFilter,
+    BitShuffleFilter,
+    ByteShuffleFilter,
+    BitWidthReductionFilter,
+    PositiveDeltaFilter,
+    ChecksumMD5Filter,
+    ChecksumSHA256Filter,
+    consolidate,
+    default_ctx,
+    group_create,
+    object_type,
+    ls,
+    walk,
+    remove,
+    move,
+    schema_like,
+    stats_enable,
+    stats_disable,
+    stats_reset,
+    stats_dump,
+    vacuum,
 )
 
 from .array import DenseArray, SparseArray
 
-from .highlevel import (
-     open,
-     save,
-     from_numpy,
-     empty_like,
-     array_exists
-)
+from .highlevel import open, save, from_numpy, empty_like, array_exists
 
 # TODO restricted imports
 from .dataframe_ import from_csv, from_pandas, from_dataframe, open_dataframe
@@ -104,4 +98,4 @@ from .version import version as __version__
 #   2) https://stackoverflow.com/a/53486554
 #
 # Note: 'pip -e' in particular will not work without this declaration:
-__path__ = __import__('pkgutil').extend_path(__path__, __name__)
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)

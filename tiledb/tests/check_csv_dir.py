@@ -17,7 +17,7 @@ from glob import glob
 
 def check_csv_roundtrip(input_csv):
     basename = os.path.basename(input_csv)
-    tmp = tempfile.mktemp(prefix="csvtest-"+basename)
+    tmp = tempfile.mktemp(prefix="csvtest-" + basename)
     os.mkdir(tmp)
 
     array_uri = os.path.join(tmp, "tiledb_from_csv")
@@ -36,7 +36,8 @@ def check_csv_dir(path):
 
     assert len(res) == len(files), "Failed to check all files!"
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("expected one argument: path to CSV directory")
 

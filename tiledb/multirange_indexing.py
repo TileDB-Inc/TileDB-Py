@@ -7,35 +7,45 @@ import sys, time, weakref, warnings
 import json
 from collections import OrderedDict
 
-def mr_dense_result_shape(ranges, base_shape = None):
+
+def mr_dense_result_shape(ranges, base_shape=None):
     # assumptions: len(ranges) matches number of dims
     if base_shape is not None:
         assert len(ranges) == len(base_shape), "internal error: mismatched shapes"
 
     new_shape = list()
-    for i,rr in enumerate(ranges):
+    for i, rr in enumerate(ranges):
         if rr != ():
             # modular arithmetic gives misleading overflow warning.
             with np.errstate(over="ignore"):
-                m = list(map(lambda y: abs(np.uint64(y[1]) - np.uint64(y[0])) + np.uint64(1), rr))
+                m = list(
+                    map(
+                        lambda y: abs(np.uint64(y[1]) - np.uint64(y[0])) + np.uint64(1),
+                        rr,
+                    )
+                )
 
             new_shape.append(np.sum(m))
         else:
             if base_shape is None:
-                raise ValueError("Missing required base_shape for whole-dimension slices")
+                raise ValueError(
+                    "Missing required base_shape for whole-dimension slices"
+                )
             # empty range covers dimension
             new_shape.append(base_shape[i])
 
     return tuple(new_shape)
 
+
 def mr_dense_result_numel(ranges):
     return np.prod(mr_dense_result_shape(ranges))
 
+
 def sel_to_subranges(dim_sel, nonempty_domain=None):
     subranges = list()
-    for idx,range in enumerate(dim_sel):
+    for idx, range in enumerate(dim_sel):
         if np.isscalar(range):
-            subranges.append( (range, range) )
+            subranges.append((range, range))
         elif isinstance(range, slice):
             if range.step is not None:
                 raise ValueError("Stepped slice ranges are not supported")
@@ -46,16 +56,18 @@ def sel_to_subranges(dim_sel, nonempty_domain=None):
             else:
                 # we are missing one or both endpoints, maybe use nonempty_domain
                 if nonempty_domain is None:
-                    raise TileDBError("Open-ended slicing requires a valid nonempty_domain")
-                rstart =  nonempty_domain[0] if range.start is None else range.start
-                rend =  nonempty_domain[1] if range.stop is None else range.stop
+                    raise TileDBError(
+                        "Open-ended slicing requires a valid nonempty_domain"
+                    )
+                rstart = nonempty_domain[0] if range.start is None else range.start
+                rend = nonempty_domain[1] if range.stop is None else range.stop
 
-            subranges.append( (rstart,rend) )
+            subranges.append((rstart, rend))
         elif isinstance(range, tuple):
             subranges.extend((range,))
         elif isinstance(range, list):
             for el in range:
-                subranges.append( (el, el) )
+                subranges.append((el, el))
         else:
             raise TypeError("Unsupported selection ")
     return tuple(subranges)
@@ -63,17 +75,20 @@ def sel_to_subranges(dim_sel, nonempty_domain=None):
 
 try:
     import pyarrow
+
     _have_pyarrow = True
 except ImportError:
     _have_pyarrow = False
+
 
 class MultiRangeIndexer(object):
     """
     Implements multi-range indexing.
     """
-    debug=False
 
-    def __init__(self, array, query = None, use_arrow = None):
+    debug = False
+
+    def __init__(self, array, query=None, use_arrow=None):
         if not issubclass(type(array), tiledb.Array):
             raise ValueError("Internal error: MultiRangeIndexer expected tiledb.Array")
         self.array_ref = weakref.ref(array)
@@ -85,12 +100,13 @@ class MultiRangeIndexer(object):
             use_arrow_real = use_arrow_real and use_arrow
 
         self.use_arrow = use_arrow_real
-        self._preload_metadata : bool = False
+        self._preload_metadata: bool = False
 
     @property
     def array(self):
-        assert self.array_ref() is not None, \
-            "Internal error: invariant violation (indexing call w/ dead array_ref)"
+        assert (
+            self.array_ref() is not None
+        ), "Internal error: invariant violation (indexing call w/ dead array_ref)"
         return self.array_ref()
 
     @classmethod
@@ -117,7 +133,7 @@ class MultiRangeIndexer(object):
             idx = [idx]
 
         ranges = list()
-        for i,sel in enumerate(idx):
+        for i, sel in enumerate(idx):
             if not isinstance(sel, list):
                 sel = [sel]
             # don't try to index nonempty_domain if None
@@ -128,7 +144,7 @@ class MultiRangeIndexer(object):
 
         # extend the list to ndim
         if len(ranges) < ndim:
-            ranges.extend([ tuple() for _ in range(ndim-len(ranges))])
+            ranges.extend([tuple() for _ in range(ndim - len(ranges))])
 
         rval = tuple(ranges)
         return rval
@@ -138,7 +154,9 @@ class MultiRangeIndexer(object):
         ranges = self.getitem_ranges(idx)
         schema = self.schema
         dom = self.schema.domain
-        attr_names = tuple(self.schema.attr(i)._internal_name for i in range(self.schema.nattr))
+        attr_names = tuple(
+            self.schema.attr(i)._internal_name for i in range(self.schema.nattr)
+        )
         if schema.sparse:
             dim_names = tuple(dom.dim(i).name for i in range(dom.ndim))
         else:
@@ -148,9 +166,9 @@ class MultiRangeIndexer(object):
         # - TILEDB_UNORDERED for sparse
         # - TILEDB_ROW_MAJOR for dense
         if self.schema.sparse:
-            order = 'U'
+            order = "U"
         else:
-            order = 'C'
+            order = "C"
 
         # if this indexing operation is part of a query (A.query().df)
         # then we need to respect the settings of the query
@@ -159,7 +177,7 @@ class MultiRangeIndexer(object):
             if self.query.attrs is not None:
                 attr_names = tuple(self.query.attrs)
             else:
-                pass # query.attrs might be None -> all
+                pass  # query.attrs might be None -> all
 
             if self.query.dims is False:
                 dim_names = tuple()
@@ -172,28 +190,33 @@ class MultiRangeIndexer(object):
             order = self.query.order
 
         # convert order to layout
-        if order is None or order == 'C':
+        if order is None or order == "C":
             layout = 0
-        elif order == 'F':
+        elif order == "F":
             layout = 1
-        elif order == 'G':
+        elif order == "G":
             layout = 2
-        elif order == 'U':
+        elif order == "U":
             layout = 3
         else:
-            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
-                             "'F' (TILEDB_COL_MAJOR), "
-                             "'U' (TILEDB_UNORDERED),"
-                             "or 'G' (TILEDB_GLOBAL_ORDER)")
+            raise ValueError(
+                "order must be 'C' (TILEDB_ROW_MAJOR), "
+                "'F' (TILEDB_COL_MAJOR), "
+                "'U' (TILEDB_UNORDERED),"
+                "or 'G' (TILEDB_GLOBAL_ORDER)"
+            )
 
         # initialize the pybind11 query object
         from tiledb.core import PyQuery
-        q = PyQuery(self.array._ctx_(),
-                    self.array,
-                    attr_names,
-                    dim_names,
-                    layout,
-                    self.use_arrow)
+
+        q = PyQuery(
+            self.array._ctx_(),
+            self.array,
+            attr_names,
+            dim_names,
+            layout,
+            self.use_arrow,
+        )
 
         q._preload_metadata = self._preload_metadata
         q.set_ranges(ranges)
@@ -214,16 +237,17 @@ class MultiRangeIndexer(object):
             else:
                 arr = item[0]
                 final_dtype = schema.attr_or_dim_dtype(name)
-                if (len(arr) < 1 and
-                        (np.issubdtype(final_dtype, np.bytes_) or
-                         np.issubdtype(final_dtype, np.unicode_))):
+                if len(arr) < 1 and (
+                    np.issubdtype(final_dtype, np.bytes_)
+                    or np.issubdtype(final_dtype, np.unicode_)
+                ):
                     # special handling to get correctly-typed empty array
                     # (expression below changes itemsize from 0 to 1)
-                    arr.dtype = final_dtype.str + '1'
+                    arr.dtype = final_dtype.str + "1"
                 else:
                     arr.dtype = schema.attr_or_dim_dtype(name)
-            if name == '__attr':
-                final_names[name] = ''
+            if name == "__attr":
+                final_names[name] = ""
             result_dict[name] = arr
 
         for name, replacement in final_names.items():
@@ -238,13 +262,16 @@ class MultiRangeIndexer(object):
                 arr.shape = result_shape
             return result_dict
 
+
 class DataFrameIndexer(MultiRangeIndexer):
     """
     Implements `.df[]` indexing to directly return a dataframe
     [] operator uses multi_index semantics.
     """
+
     def __getitem__(self, idx):
         from .dataframe_ import _tiledb_result_as_dataframe, check_dataframe_deps
+
         check_dataframe_deps()
 
         idx_start = time.time()
@@ -259,6 +286,7 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         if self.use_arrow:
             import pyarrow as pa
+
             if use_stats():
                 pd_start = time.time()
 
@@ -276,7 +304,9 @@ class DataFrameIndexer(MultiRangeIndexer):
             return df
         else:
             if not isinstance(result, OrderedDict):
-                raise ValueError("Expected OrderedDict result, got '{}'".format(type(result)))
+                raise ValueError(
+                    "Expected OrderedDict result, got '{}'".format(type(result))
+                )
 
             if use_stats():
                 pd_start = time.time()
@@ -293,20 +323,30 @@ class DataFrameIndexer(MultiRangeIndexer):
 
     def pa_to_pandas(self, pyquery):
         if not _have_pyarrow:
-            raise TileDBError("Cannot convert to pandas via this path without pyarrow; please disable Arrow results")
+            raise TileDBError(
+                "Cannot convert to pandas via this path without pyarrow; please disable Arrow results"
+            )
         try:
             table = pyquery._buffers_to_pa_table()
         except Exception as exc:
             if MultiRangeIndexer.debug:
-                print("Exception during pa.Table conversion, returning pyquery: '{}'".format(exc))
+                print(
+                    "Exception during pa.Table conversion, returning pyquery: '{}'".format(
+                        exc
+                    )
+                )
                 return pyquery
             raise
         try:
             res_df = table.to_pandas()
         except Exception as exc:
             if MultiRangeIndexer.debug:
-                print("Exception during Pandas conversion, returning (table,query): '{}'".format(exc))
-                return table,pyquery
+                print(
+                    "Exception during Pandas conversion, returning (table,query): '{}'".format(
+                        exc
+                    )
+                )
+                return table, pyquery
             raise
 
         if use_stats():
@@ -314,13 +354,13 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         # see also: write path in dataframe_.py
         index_dims = None
-        if '__pandas_index_dims' in self.array.meta:
-            index_dims = json.loads(self.array.meta['__pandas_index_dims'])
+        if "__pandas_index_dims" in self.array.meta:
+            index_dims = json.loads(self.array.meta["__pandas_index_dims"])
 
         # see also: write path in dataframe_.py
         attr_reprs = None
-        if '__pandas_attribute_repr' in self.array.meta:
-            attr_reprs = json.loads(self.array.meta['__pandas_attribute_repr' ])
+        if "__pandas_attribute_repr" in self.array.meta:
+            attr_reprs = json.loads(self.array.meta["__pandas_attribute_repr"])
 
         indexes = list()
         rename_cols = dict()
@@ -328,8 +368,8 @@ class DataFrameIndexer(MultiRangeIndexer):
             if index_dims and col_name in index_dims:
 
                 # this is an auto-created column and should be unnamed
-                if col_name == '__tiledb_rows':
-                    rename_cols['__tiledb_rows'] = None
+                if col_name == "__tiledb_rows":
+                    rename_cols["__tiledb_rows"] = None
                     indexes.append(None)
                 else:
                     indexes.append(col_name)
@@ -337,7 +377,7 @@ class DataFrameIndexer(MultiRangeIndexer):
         if len(rename_cols) > 0:
             res_df.rename(columns=rename_cols, inplace=True)
 
-        if  self.query is not None:
+        if self.query is not None:
             # if we have a query with index_col set, then override any
             # index information saved with the array.
             if self.query.index_col is not True and self.query.index_col is not None:

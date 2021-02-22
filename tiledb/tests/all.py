@@ -9,9 +9,7 @@ import unittest
 
 def suite():
     test_dir = os.path.dirname(__file__)
-    return unittest.TestLoader().discover(
-        start_dir=test_dir, pattern="test_*.py"
-    )
+    return unittest.TestLoader().discover(start_dir=test_dir, pattern="test_*.py")
 
 
 def suite_test():
@@ -25,5 +23,5 @@ def suite_test():
     sys.exit(not ret.wasSuccessful())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.TextTestRunner().run(suite())

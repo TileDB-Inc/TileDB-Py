@@ -13,16 +13,18 @@ from unittest import TestCase
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal
 
+
 def assert_tail_equal(a, *rest, **kwargs):
     """Assert that all arrays in target equal first array"""
     for target in rest:
         assert_array_equal(a, target, **kwargs)
 
+
 class DiskTestCase(TestCase):
     pathmap = dict()
 
     def setUp(self):
-        prefix = 'tiledb-' + self.__class__.__name__
+        prefix = "tiledb-" + self.__class__.__name__
         self.rootdir = tempfile.mkdtemp(prefix=prefix)
 
     def tearDown(self):
@@ -31,11 +33,14 @@ class DiskTestCase(TestCase):
             try:
                 shutil.rmtree(dirpath)
             except OSError as exc:
-                print("test '{}' error deleting '{}'".format(self.__class__.__name__,
-                                                             dirpath))
+                print(
+                    "test '{}' error deleting '{}'".format(
+                        self.__class__.__name__, dirpath
+                    )
+                )
                 print("registered paths and originating functions:")
-                for path,frame in self.pathmap.items():
-                    print("  '{}' <- '{}'".format(path,frame))
+                for path, frame in self.pathmap.items():
+                    print("  '{}' <- '{}'".format(path, frame))
                 raise exc
 
     def path(self, path):
@@ -51,13 +56,14 @@ def assert_subarrays_equal(a, b):
     for a_el, b_el in zip(a.flat, b.flat):
         assert_array_equal(a_el, b_el)
 
+
 def assert_all_arrays_equal(*arrays):
     # TODO this should display raise in the calling location if possible
-    assert len(arrays) % 2 == 0, \
-           "Expected even number of arrays"
+    assert len(arrays) % 2 == 0, "Expected even number of arrays"
 
-    for a1,a2 in zip(arrays[0::2], arrays[1::2]):
+    for a1, a2 in zip(arrays[0::2], arrays[1::2]):
         assert_array_equal(a1, a2)
+
 
 # python 2 vs 3 compatibility
 if sys.hexversion >= 0x3000000:
@@ -67,6 +73,8 @@ else:
 
 # exclude whitespace: if we generate unquoted newline then pandas will be confused
 _ws_set = set("\n\t\r")
+
+
 def gen_chr(max, printable=False):
     while True:
         # TODO we exclude 0x0 here because the key API does not embedded NULL
@@ -77,14 +85,18 @@ def gen_chr(max, printable=False):
             break
     return s
 
+
 def rand_utf8(size=5):
-    return u''.join([gen_chr(0xD7FF) for _ in range(0, size)])
+    return u"".join([gen_chr(0xD7FF) for _ in range(0, size)])
+
 
 def rand_ascii(size=5, printable=False):
-    return u''.join([gen_chr(127, printable) for _ in range(0,size)])
+    return u"".join([gen_chr(127, printable) for _ in range(0, size)])
+
 
 def rand_ascii_bytes(size=5, printable=False):
-    return b''.join([gen_chr(127, printable).encode('utf-8') for _ in range(0,size)])
+    return b"".join([gen_chr(127, printable).encode("utf-8") for _ in range(0, size)])
+
 
 def dtype_max(dtype):
     if not np.issubdtype(dtype, np.generic):
@@ -103,6 +115,7 @@ def dtype_max(dtype):
 
     raise "Unknown dtype for dtype_max '{}'".format(str(dtype))
 
+
 def dtype_min(dtype):
     if not np.issubdtype(dtype, np.generic):
         raise TypeError("expected numpy dtype!")
@@ -120,15 +133,17 @@ def dtype_min(dtype):
 
     raise "Unknown dtype for dtype_min '{dtype}'".format(str(dtype))
 
+
 def rand_int_sequential(size, dtype=np.uint64):
     arr = np.random.randint(
         dtype_min(dtype), high=dtype_max(dtype), size=size, dtype=dtype
     )
     return np.sort(arr)
 
+
 def rand_datetime64_array(size, start=None, stop=None, dtype=None):
     if not dtype:
-        dtype = np.dtype('M8[ns]')
+        dtype = np.dtype("M8[ns]")
 
     # generate randint inbounds on the range of the dtype
     units = np.datetime_data(dtype)[0]
@@ -144,12 +159,15 @@ def rand_datetime64_array(size, start=None, stop=None, dtype=None):
         stop = np.datetime64(stop)
 
     arr = np.random.randint(
-        start.astype(dtype).astype(np.int64), stop.astype(dtype).astype(np.int64),
-        size=size, dtype=np.int64
+        start.astype(dtype).astype(np.int64),
+        stop.astype(dtype).astype(np.int64),
+        size=size,
+        dtype=np.int64,
     )
     arr.sort()
 
     return arr.astype(dtype)
+
 
 def intspace(start, stop, num=50, dtype=np.int64):
     """
@@ -162,12 +180,13 @@ def intspace(start, stop, num=50, dtype=np.int64):
     :return:
     """
     rval = np.zeros(num, dtype=dtype)
-    step = (stop-start) // num
+    step = (stop - start) // num
     nextval = start
 
     if np.issubdtype(dtype, np.integer) and step < 1:
-      raise ValueError("Cannot use non-integral step value '{}' for integer dtype!".format(
-                      step))
+        raise ValueError(
+            "Cannot use non-integral step value '{}' for integer dtype!".format(step)
+        )
 
     for i in range(num):
         rval[i] = nextval
@@ -176,8 +195,12 @@ def intspace(start, stop, num=50, dtype=np.int64):
     rval[-1] = stop
     return rval
 
+
 import pprint as _pprint
+
 pp = _pprint.PrettyPrinter(indent=4)
+
+
 def xprint(*x):
     for xp in x:
         pp.pprint(xp)

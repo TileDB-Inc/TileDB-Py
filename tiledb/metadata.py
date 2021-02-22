@@ -5,8 +5,8 @@ import array as cparray
 from tiledb import libtiledb as libmetadata
 from tiledb.libtiledb import ustring
 
-class Metadata(object):
 
+class Metadata(object):
     def __init__(self, array):
         self.array = array
 
@@ -28,8 +28,9 @@ class Metadata(object):
         :return:
         """
         if not (isinstance(key, str) or isinstance(key, unicode)):
-            raise ValueError("Unexpected key type '{}': expected str "
-                             "type".format(type(key)))
+            raise ValueError(
+                "Unexpected key type '{}': expected str " "type".format(type(key))
+            )
 
         # `get_metadata` expects unicode
         key = ustring(key)
@@ -110,7 +111,7 @@ class Metadata(object):
     def items(self):
         # TODO this should be an iterator
         data = libmetadata.load_metadata(self.array, unpack=True)
-        return tuple( (k, data[k]) for k in data.keys() )
+        return tuple((k, data[k]) for k in data.keys())
 
     def _set_numpy(self, key, value):
         """

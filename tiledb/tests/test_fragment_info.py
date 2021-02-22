@@ -3,13 +3,14 @@ from tiledb.tests.common import DiskTestCase
 import itertools
 import numpy as np
 
-if tiledb.libtiledb.version() >= (2,2):
+if tiledb.libtiledb.version() >= (2, 2):
     from tiledb import fragment
+
 
 class FragmentInfoTest(DiskTestCase):
     def setUp(self):
         super(FragmentInfoTest, self).setUp()
-        if not tiledb.libtiledb.version() >= (2,2):
+        if not tiledb.libtiledb.version() >= (2, 2):
             self.skipTest("Only run FragmentInfo test with TileDB>=2.2")
 
     def test_uri_dne(self):
@@ -77,13 +78,10 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
         self.assertEqual(fragment_info.dense(), (True, True, True))
         self.assertEqual(fragment_info.sparse(), (False, False, False))
-        if tiledb.libtiledb.version() < (2,2,3):
-            self.assertEqual(fragment_info.version(), (7,7,7))
+        if tiledb.libtiledb.version() < (2, 2, 3):
+            self.assertEqual(fragment_info.version(), (7, 7, 7))
         else:
-            self.assertEqual(fragment_info.version(), (8,8,8))
-
-
-
+            self.assertEqual(fragment_info.version(), (8, 8, 8))
 
     def test_sparse_fragments(self):
         fragments = 3
@@ -145,10 +143,10 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
         self.assertEqual(fragment_info.dense(), (False, False, False))
         self.assertEqual(fragment_info.sparse(), (True, True, True))
-        if tiledb.libtiledb.version() < (2,2,3):
-            self.assertEqual(fragment_info.version(), (7,7,7))
+        if tiledb.libtiledb.version() < (2, 2, 3):
+            self.assertEqual(fragment_info.version(), (7, 7, 7))
         else:
-            self.assertEqual(fragment_info.version(), (8,8,8))
+            self.assertEqual(fragment_info.version(), (8, 8, 8))
 
     def test_non_empty_domain(self):
         uri = self.path("test_non_empty_domain")
@@ -377,7 +375,9 @@ class FragmentInfoTest(DiskTestCase):
         for fragment_idx in range(fragments):
             self.assertFalse(fragment_info.has_consolidated_metadata(fragment_idx))
 
-        self.assertEqual(fragment_info.has_consolidated_metadata(), (False, False, False))
+        self.assertEqual(
+            fragment_info.has_consolidated_metadata(), (False, False, False)
+        )
 
         tiledb.consolidate(
             uri,
