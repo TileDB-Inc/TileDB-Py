@@ -1,19 +1,19 @@
 #include <chrono>
+#include <cstring>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <cstring>
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "numpy/arrayobject.h"
 #undef NPY_NO_DEPRECATED_API
 
-#include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
-#include <pybind11/pytypes.h>
 #include "util.h"
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/pytypes.h>
 
 #if !defined(NDEBUG)
 #include "debug.cc"
@@ -22,9 +22,7 @@
 #define TILEDB_DEPRECATED
 #define TILEDB_DEPRECATED_EXPORT
 
-
 #include <tiledb/tiledb> // C++
-
 
 // anonymous namespace for helper functions
 namespace {
@@ -39,29 +37,27 @@ bool issubdtype(py::dtype t1, py::dtype t2) {
   return py::cast<bool>(npsubdtype(t1, t2));
 }
 
-template <typename T>
-py::dtype get_dtype(T obj) {
-  auto& api = py::detail::npy_api::get();
+template <typename T> py::dtype get_dtype(T obj) {
+  auto &api = py::detail::npy_api::get();
 
   if (api.PyArray_Check_(obj.ptr())) {
     return py::cast<py::array>(obj).dtype();
   }
 
   return py::reinterpret_steal<py::dtype>(
-    api.PyArray_DescrFromScalar_(obj.ptr()));
+      api.PyArray_DescrFromScalar_(obj.ptr()));
 }
 
 // check whether dtypes are equivalent from numpy perspective
 // note: d1::dtype.is(d2) checks *object identity* which is
 //       not what we want.
 bool dtype_equal(py::dtype d1, py::dtype d2) {
-  auto& api = py::detail::npy_api::get();
+  auto &api = py::detail::npy_api::get();
 
-  return api.PyArray_EquivTypes_(
-      d1.ptr(), d2.ptr());
+  return api.PyArray_EquivTypes_(d1.ptr(), d2.ptr());
 }
 
-};
+}; // namespace
 
 namespace tiledbpy {
 
@@ -72,23 +68,24 @@ using namespace pybind11::literals;
 
 #if PY_MAJOR_VERSION >= 3
 class NumpyConvert {
-  private:
-    bool use_iter_ = false;
-    bool allow_unicode_ = true;
-    size_t data_nbytes_ = 0;
-    size_t input_len_ = 0;
+private:
+  bool use_iter_ = false;
+  bool allow_unicode_ = true;
+  size_t data_nbytes_ = 0;
+  size_t input_len_ = 0;
 
-    py::array input_;
-    // we are using vector as a buffer here because they are grown in some situations
-    std::vector<uint8_t>* data_buf_;
-    std::vector<uint64_t>* offset_buf_;
+  py::array input_;
+  // we are using vector as a buffer here because they are grown in some
+  // situations
+  std::vector<uint8_t> *data_buf_;
+  std::vector<uint64_t> *offset_buf_;
 
   void convert_unicode() {
     // Convert array of strings to UTF-8 buffer+offsets
 
     // NOTE: NumPy fixed-length string arrays *do not support* embedded nulls.
-    //       There is no string size stored, so string end is demarcated by \0 and the
-    //       slot is filled to the next boundary with \0.
+    //       There is no string size stored, so string end is demarcated by \0
+    //       and the slot is filled to the next boundary with \0.
     // For consistency and to avoid complications in other APIs, we are storing
     // all string arrays as var-length.
 
@@ -104,15 +101,16 @@ class NumpyConvert {
     // size (bytes) of current object data
     Py_ssize_t sz = 0;
     // object data (string or bytes)
-    const char* input_p = nullptr;
+    const char *input_p = nullptr;
 
-    unsigned char* output_p = nullptr;
+    unsigned char *output_p = nullptr;
     output_p = data_buf_->data();
 
     // avoid one interpreter roundtrip
     auto npstrencode = py::module::import("numpy").attr("str").attr("encode");
 
-    // TODO: ideally we would encode directly here without the intermediate unicode object
+    // TODO: ideally we would encode directly here without the intermediate
+    // unicode object
     // TODO add test for different memory orderings
 
     // loop over array objects and write to output buffer
@@ -122,9 +120,10 @@ class NumpyConvert {
       if (PyUnicode_Check(u.ptr())) {
         // TODO see if we can do this with PyUnicode_AsUTF8String
         py::object u_encoded = npstrencode(u);
-        PyBytes_AsStringAndSize(u_encoded.ptr(), const_cast<char**>(&input_p), &sz);
+        PyBytes_AsStringAndSize(u_encoded.ptr(), const_cast<char **>(&input_p),
+                                &sz);
       } else {
-        PyBytes_AsStringAndSize(u.ptr(), const_cast<char**>(&input_p), &sz);
+        PyBytes_AsStringAndSize(u.ptr(), const_cast<char **>(&input_p), &sz);
       }
 
       // record the offset (equal to the current bytes written)
@@ -142,7 +141,6 @@ class NumpyConvert {
       output_p += sz;
       idx++;
     }
-
   }
 
   void convert_bytes() {
@@ -160,15 +158,17 @@ class NumpyConvert {
     // size (bytes) of current object data
     Py_ssize_t sz = 0;
     // object data (string or bytes)
-    const char* input_p = nullptr;
+    const char *input_p = nullptr;
 
-    unsigned char* output_p = nullptr;
+    unsigned char *output_p = nullptr;
     output_p = data_buf_->data();
 
     // avoid one interpreter roundtrip
-    //auto npstrencode = py::module::import("numpy").attr("str").attr("encode");
+    // auto npstrencode =
+    // py::module::import("numpy").attr("str").attr("encode");
 
-    // TODO: ideally we would encode directly here without the intermediate unicode object
+    // TODO: ideally we would encode directly here without the intermediate
+    // unicode object
     // TODO add test for different memory orderings
 
     // loop over array objects and write to output buffer
@@ -184,7 +184,7 @@ class NumpyConvert {
       }
       */
 
-      PyBytes_AsStringAndSize(o, const_cast<char**>(&input_p), &sz);
+      PyBytes_AsStringAndSize(o, const_cast<char **>(&input_p), &sz);
 
       // record the offset (equal to the current bytes written)
       offset_buf_->data()[idx] = data_nbytes_;
@@ -201,14 +201,12 @@ class NumpyConvert {
       output_p += sz;
       idx++;
     }
-
-
   }
 
   void convert_object() {
     // Convert np.dtype("O") array of objects to buffer+offsets
 
-    auto& api = py::detail::npy_api::get();
+    auto &api = py::detail::npy_api::get();
 
     offset_buf_->resize(input_len_);
 
@@ -217,7 +215,7 @@ class NumpyConvert {
     // size (bytes) of current object data
     Py_ssize_t sz = 0;
     // current data
-    const char* input_p = nullptr;
+    const char *input_p = nullptr;
 
     auto input_size = input_.size();
     py::dtype first_dtype;
@@ -226,7 +224,7 @@ class NumpyConvert {
     for (int64_t idx = 0; idx < input_size; idx++) {
       offset_buf_->data()[idx] = data_nbytes_;
 
-      PyObject* o = input_unchecked.data(idx)->ptr();
+      PyObject *o = input_unchecked.data(idx)->ptr();
       assert(o != nullptr);
 
       // NOTE: every branch below *must* initialize first_dtype
@@ -234,7 +232,8 @@ class NumpyConvert {
       if (PyUnicode_Check(o)) {
         if (!allow_unicode_) {
           // TODO TPY_ERROR_LOC
-          auto errmsg = std::string("Unexpected unicode object for TILEDB_STRING_ASCII attribute");
+          auto errmsg = std::string(
+              "Unexpected unicode object for TILEDB_STRING_ASCII attribute");
           throw std::runtime_error(errmsg);
         }
 
@@ -248,14 +247,16 @@ class NumpyConvert {
         }
       } else if (PyBytes_Check(o)) {
         // ASCII only
-        auto res = PyBytes_AsStringAndSize(o, const_cast<char**>(&input_p), &sz);
+        auto res =
+            PyBytes_AsStringAndSize(o, const_cast<char **>(&input_p), &sz);
 
         if (idx < 1)
           first_dtype = py::dtype("bytes");
 
         if (res == -1) {
           // TODO TPY_ERROR_LOC
-          throw std::runtime_error("Internal error: failed to get char* from bytes object");
+          throw std::runtime_error(
+              "Internal error: failed to get char* from bytes object");
         }
       } else if (api.PyArray_Check_(o)) {
         auto a = py::cast<py::array>(o);
@@ -263,15 +264,17 @@ class NumpyConvert {
         if (idx < 1) {
           first_dtype = get_dtype(a);
         } else if (!dtype_equal(get_dtype(a), first_dtype)) {
-          throw py::type_error("Mismatched dtype in object array to buffer conversion!");
+          throw py::type_error(
+              "Mismatched dtype in object array to buffer conversion!");
         }
 
         sz = a.nbytes();
       } else {
         // TODO write the type in the error here
-        //auto o_h = py::reinterpret_borrow<py::object>(o);
-        //auto o_t = py::type::of(o);
-        auto errmsg = std::string("Unexpected object type in string conversion");
+        // auto o_h = py::reinterpret_borrow<py::object>(o);
+        // auto o_t = py::type::of(o);
+        auto errmsg =
+            std::string("Unexpected object type in string conversion");
         TPY_ERROR_LOC(errmsg);
       }
 
@@ -281,11 +284,11 @@ class NumpyConvert {
     data_buf_->resize(data_nbytes_);
 
     // second pass: copy the data to output buffer
-    unsigned char* output_p = data_buf_->data();
+    unsigned char *output_p = data_buf_->data();
 
     // copy data to output buffers
     for (int64_t idx = 0; idx < input_size; idx++) {
-      PyObject* pyobj_p = input_unchecked.data(idx)->ptr();
+      PyObject *pyobj_p = input_unchecked.data(idx)->ptr();
 
       assert(pyobj_p != nullptr);
 
@@ -294,12 +297,12 @@ class NumpyConvert {
         assert(input_p != nullptr);
       } else if (PyBytes_Check(pyobj_p)) {
         // TODO error check?
-        PyBytes_AsStringAndSize(pyobj_p, const_cast<char**>(&input_p), &sz);
+        PyBytes_AsStringAndSize(pyobj_p, const_cast<char **>(&input_p), &sz);
       } else if (api.PyArray_Check_(pyobj_p)) {
-        auto pao = (PyArrayObject*)pyobj_p;
+        auto pao = (PyArrayObject *)pyobj_p;
         auto arr = py::cast<py::array>(pyobj_p);
         sz = arr.nbytes();
-        input_p = (const char*)arr.data();
+        input_p = (const char *)arr.data();
       } else {
         // TODO add object type
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
@@ -317,8 +320,7 @@ class NumpyConvert {
     // For non-contiguous arrays (such as views) we must iterate rather
     // than indexing directly.
 
-
-    auto& npy_api = py::detail::npy_api::get();
+    auto &npy_api = py::detail::npy_api::get();
 
     offset_buf_->resize(input_.size());
 
@@ -327,7 +329,7 @@ class NumpyConvert {
     // size (bytes) of current object data
     Py_ssize_t sz = 0;
     // current data
-    const char* input_p = nullptr;
+    const char *input_p = nullptr;
 
     size_t idx = 0;
 
@@ -340,12 +342,13 @@ class NumpyConvert {
       }
       offset_buf_->data()[idx] = data_nbytes_;
 
-      PyObject* obj_p = obj_h.ptr();
+      PyObject *obj_p = obj_h.ptr();
 
       // we must check each dtype because object arrays are not guaranteed to
       // be homogenous
       auto cur_dtype = get_dtype(obj_h);
-      auto err_str = std::string("Mismatched element type in buffer conversion!");
+      auto err_str =
+          std::string("Mismatched element type in buffer conversion!");
       if ((first_dtype.kind() == cur_dtype.kind()) ||
           (first_dtype.kind() == cur_dtype.kind())) {
         // pass
@@ -356,7 +359,8 @@ class NumpyConvert {
       if (PyUnicode_Check(obj_p)) {
         if (!allow_unicode_) {
           // TODO TPY_ERROR_LOC
-          auto errmsg = std::string("Unexpected unicode object for TILEDB_STRING_ASCII attribute");
+          auto errmsg = std::string(
+              "Unexpected unicode object for TILEDB_STRING_ASCII attribute");
           throw std::runtime_error(errmsg);
         }
 
@@ -367,17 +371,20 @@ class NumpyConvert {
         }
       } else if (PyBytes_Check(obj_p)) {
         // ASCII only
-        auto res = PyBytes_AsStringAndSize(obj_p, const_cast<char**>(&input_p), &sz);
+        auto res =
+            PyBytes_AsStringAndSize(obj_p, const_cast<char **>(&input_p), &sz);
 
         if (res == -1) {
           // TODO TPY_ERROR_LOC
-          throw std::runtime_error("Internal error: failed to get char* from bytes object");
+          throw std::runtime_error(
+              "Internal error: failed to get char* from bytes object");
         }
       } else if (npy_api.PyArray_Check_(obj_p)) {
         // handle (potentially) var-len embedded arrays
         sz = py::cast<py::array>(obj_p).nbytes();
       } else {
-        auto errmsg = std::string("Unexpected object type in string conversion");
+        auto errmsg =
+            std::string("Unexpected object type in string conversion");
         TPY_ERROR_LOC(errmsg);
       }
       data_nbytes_ += sz;
@@ -386,28 +393,28 @@ class NumpyConvert {
 
     data_buf_->resize(data_nbytes_);
     // second pass: write the data to output buffer
-    unsigned char* output_p = data_buf_->data();
+    unsigned char *output_p = data_buf_->data();
 
     // reset the iterator
     iter = input_.attr("flat");
 
     // copy data to output buffers
     for (auto obj_h : iter) {
-        auto obj_p = obj_h.ptr();
+      auto obj_p = obj_h.ptr();
 
       if (PyUnicode_Check(obj_p)) {
         input_p = PyUnicode_AsUTF8AndSize(obj_p, &sz);
         assert(input_p != nullptr);
       } else if (PyBytes_Check(obj_p)) {
         // TODO error check?
-        PyBytes_AsStringAndSize(obj_p, const_cast<char**>(&input_p), &sz);
+        PyBytes_AsStringAndSize(obj_p, const_cast<char **>(&input_p), &sz);
       } else if (npy_api.PyArray_Check_(obj_p)) {
-        //auto pao = (PyArrayObject*)o;
-        //input_p = (const char*)PyArray_DATA(pao);
-        //sz = PyArray_NBYTES(pao);
+        // auto pao = (PyArrayObject*)o;
+        // input_p = (const char*)PyArray_DATA(pao);
+        // sz = PyArray_NBYTES(pao);
         auto o_a = py::cast<py::array>(obj_h);
         sz = o_a.nbytes();
-        input_p = (const char*)o_a.data();
+        input_p = (const char *)o_a.data();
       } else {
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
       }
@@ -418,8 +425,7 @@ class NumpyConvert {
     }
   }
 
-  public:
-
+public:
   /*
     Initialize the converter
   */
@@ -462,12 +468,8 @@ class NumpyConvert {
   /*
     Set allow_unicode_ flag
   */
-  bool allow_unicode() {
-    return allow_unicode_;
-  }
-  void allow_unicode(bool allow_unicode) {
-    allow_unicode_ = allow_unicode;
-  }
+  bool allow_unicode() { return allow_unicode_; }
+  void allow_unicode(bool allow_unicode) { allow_unicode_ = allow_unicode; }
 
   /*
     Returns a tuple of py::array containing
@@ -486,7 +488,7 @@ class NumpyConvert {
         throw std::runtime_error("Unexpected fixed-length unicode array");
       }
     } else if (issubdtype(input_dtype, py::dtype("bytes"))) {
-        convert_bytes();
+      convert_bytes();
     } else if (!input_dtype.is(py::dtype("O"))) {
       // TODO TPY_ERROR_LOC
       throw std::runtime_error("expected object array");
@@ -495,25 +497,29 @@ class NumpyConvert {
     }
 
     auto tmp_data_buf_p = data_buf_;
-    auto data_ref = py::capsule(data_buf_,
-                             [](void *v) { delete reinterpret_cast<std::vector<uint8_t>*>(v); });
+    auto data_ref = py::capsule(data_buf_, [](void *v) {
+      delete reinterpret_cast<std::vector<uint8_t> *>(v);
+    });
     data_buf_ = nullptr; // disown: capsule owns it
 
     auto tmp_offset_buf_p = offset_buf_;
-    auto offset_ref = py::capsule(offset_buf_,
-                             [](void *v) { delete reinterpret_cast<std::vector<uint64_t>*>(v); });
+    auto offset_ref = py::capsule(offset_buf_, [](void *v) {
+      delete reinterpret_cast<std::vector<uint64_t> *>(v);
+    });
     offset_buf_ = nullptr; // disown: capsule owns it now
 
-    auto data_np = py::array_t<uint8_t>(tmp_data_buf_p->size(), tmp_data_buf_p->data(), data_ref);
-    auto offset_np = py::array_t<uint64_t>(tmp_offset_buf_p->size(), tmp_offset_buf_p->data(), offset_ref);
+    auto data_np = py::array_t<uint8_t>(tmp_data_buf_p->size(),
+                                        tmp_data_buf_p->data(), data_ref);
+    auto offset_np = py::array_t<uint64_t>(
+        tmp_offset_buf_p->size(), tmp_offset_buf_p->data(), offset_ref);
 
     return py::make_tuple(data_np, offset_np);
   }
-
 };
 #endif
 
-py::tuple convert_np(py::array input, bool allow_unicode, bool use_fallback = false) {
+py::tuple convert_np(py::array input, bool allow_unicode,
+                     bool use_fallback = false) {
 #if PY_MAJOR_VERSION >= 3
   if (use_fallback) {
 #endif
