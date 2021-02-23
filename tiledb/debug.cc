@@ -28,7 +28,7 @@ __attribute__((used)) static std::string pyrepr(py::object o) {
 __attribute__((used)) static void pycall1(const char *expr,
                                           pybind11::object o = py::none()) {
   // this doesn't work in lldb
-  //py::scoped_interpreter guard{};
+  // py::scoped_interpreter guard{};
 
   /*
    * NOTE: the catch statements below do not work in lldb, because exceptions
@@ -65,8 +65,6 @@ __attribute__((used)) static void pycall(const char *expr) {
 
 __attribute__((used)) static void pyerror() {
   // print the last py error, if any
-
 }
-
 }
-};
+}; // namespace
