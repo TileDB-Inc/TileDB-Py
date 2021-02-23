@@ -1,10 +1,8 @@
 import tiledb
 from tiledb.tests.common import DiskTestCase
+
 import itertools
 import numpy as np
-
-if tiledb.libtiledb.version() >= (2, 2):
-    from tiledb import fragment
 
 
 class FragmentInfoTest(DiskTestCase):
@@ -14,7 +12,7 @@ class FragmentInfoTest(DiskTestCase):
             self.skipTest("Only run FragmentInfo test with TileDB>=2.2")
 
     def test_uri_dne(self):
-        fragment_info = fragment.info(tiledb.default_ctx(), "does_not_exist")
+        fragment_info = tiledb.fragment_info("does_not_exist")
         with self.assertRaises(tiledb.TileDBError):
             fragment_info.load()
 
@@ -33,7 +31,7 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri)
 
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
@@ -98,7 +96,7 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.SparseArray.create(uri, schema)
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri)
 
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
@@ -174,7 +172,7 @@ class FragmentInfoTest(DiskTestCase):
             y = [-1.5, -1.25]
             T[x, y] = np.array(range(2))
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri, ctx)
         fragment_info.load()
 
         x_dt = schema.domain.dim(0).dtype
@@ -238,7 +236,7 @@ class FragmentInfoTest(DiskTestCase):
             )
             T[dates] = np.array(range(3))
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri, ctx)
         fragment_info.load()
 
         self.assertEqual(
@@ -299,7 +297,7 @@ class FragmentInfoTest(DiskTestCase):
             y_dims = [b"e", b"f"]
             T[x_dims, y_dims] = np.array([1, 2])
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri, ctx)
         fragment_info.load()
 
         self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, 0), ("a", "d"))
@@ -333,7 +331,7 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.SparseArray.create(uri, schema)
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri, ctx)
 
         with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
             a = np.array([1, 2, 3, 4])
@@ -343,7 +341,7 @@ class FragmentInfoTest(DiskTestCase):
             b = np.array([1, 2])
             T[b] = b
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri, ctx)
         fragment_info.load()
 
         self.assertEqual(fragment_info.cell_num(0), len(a))
@@ -363,7 +361,7 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri, ctx)
 
         for fragment_idx in range(fragments):
             with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
@@ -406,7 +404,7 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-        fragment_info = fragment.info(ctx, uri)
+        fragment_info = tiledb.fragment_info(uri, ctx)
 
         for fragment_idx in range(fragments):
             with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:

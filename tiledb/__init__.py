@@ -80,6 +80,8 @@ from .libtiledb import (
 
 from .array import DenseArray, SparseArray
 
+from ._fragment import info as fragment_info
+
 from .highlevel import open, save, from_numpy, empty_like, array_exists
 
 # TODO restricted imports
