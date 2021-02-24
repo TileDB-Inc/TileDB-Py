@@ -3,6 +3,9 @@
 ## Improvements
 * Added support for `from_pandas`/`df[]` round-trip of Pandas nullable integer and bool types [#480](https://github.com/TileDB-Inc/TileDB-Py/pull/480)
 
+## Bug fixes
+* Fix bug in Array.multi_index slicing bug for sparse array with dimension range including 0 [#482](https://github.com/TileDB-Inc/TileDB-Py/pull/482)
+
 # TileDB-Py 0.8.3 Release Notes
 
 ## TileDB Embedded updates:

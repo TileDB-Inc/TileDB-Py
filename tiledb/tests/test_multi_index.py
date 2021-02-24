@@ -369,7 +369,9 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(orig_array[-1], A.multi_index[30.0][attr_name])
             assert_array_equal(
                 orig_array[coords.size - 3 : coords.size],
-                A.multi_index[(28.0, 30.0),][attr_name],
+                A.multi_index[
+                    (28.0, 30.0),
+                ][attr_name],
             )
 
             res = A.multi_index[slice(0, 5)]
@@ -646,4 +648,42 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(
                 (A.multi_index[oct_2_np:oct_4_np][attr_name]),
                 A.multi_index[oct_2_int:oct_4_int][attr_name],
+            )
+
+    def test_fix_473_sparse_index_bug(self):
+        # test of fix for issue raised in
+        # https://github.com/TileDB-Inc/TileDB-Py/pull/473#issuecomment-784675012
+
+        uri = self.path("test_fix_473_sparse_index_bug")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="x", domain=(0, 2 ** 64 - 2), tile=1, dtype=np.uint64)
+        )
+        schema = tiledb.ArraySchema(
+            domain=dom, sparse=True, attrs=[tiledb.Attr(name="a", dtype=np.uint64)]
+        )
+
+        tiledb.SparseArray.create(uri, schema)
+
+        slice_index = slice(0, 4, None)
+
+        with tiledb.SparseArray(uri, mode="r") as A:
+            data = A.multi_index[slice_index]
+
+            assert_array_equal(data["a"], np.array([], dtype=np.uint64))
+
+            with self.assertRaises(TileDBError):
+                A.multi_index[:]
+
+        with tiledb.open(uri, mode="w") as A:
+            A[[10]] = {"a": [10]}
+
+        with tiledb.open(uri) as A:
+            assert_tail_equal(
+                A.multi_index[slice_index]["a"],
+                A.multi_index[:],
+                A.multi_index[0:],
+                A.multi_index[1:],
+                A.multi_index[:10],
+                A.multi_index[:11],
+                np.array([], dtype=np.uint64),
             )
