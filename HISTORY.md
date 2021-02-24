@@ -1,4 +1,9 @@
-# TileDB-Py 0.8.2 Release Notes
+# TileDB-Py 0.8.4 Release Notes
+
+## Improvements
+* Added support for `from_pandas`/`df[]` round-trip of Pandas nullable integer and bool types [#480](https://github.com/TileDB-Inc/TileDB-Py/pull/480)
+
+# TileDB-Py 0.8.3 Release Notes
 
 ## TileDB Embedded updates:
 * TileDB-Py 0.8.3 includes TileDB Embedded [TileDB 2.2.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.4)
