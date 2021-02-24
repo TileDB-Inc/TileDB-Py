@@ -109,16 +109,19 @@ def dtype_from_column(col):
     ):
         return ColumnInfo(col_dtype)
 
-    if isinstance(col_dtype, (
-        pd.Int64Dtype,
-        pd.Int32Dtype,
-        pd.Int16Dtype,
-        pd.Int8Dtype,
-        pd.UInt64Dtype,
-        pd.UInt32Dtype,
-        pd.UInt16Dtype,
-        pd.UInt8Dtype,
-    )):
+    if isinstance(
+        col_dtype,
+        (
+            pd.Int64Dtype,
+            pd.Int32Dtype,
+            pd.Int16Dtype,
+            pd.Int8Dtype,
+            pd.UInt64Dtype,
+            pd.UInt32Dtype,
+            pd.UInt16Dtype,
+            pd.UInt8Dtype,
+        ),
+    ):
         return ColumnInfo(col_dtype.numpy_dtype, repr=str(col_dtype), nullable=True)
 
     if isinstance(col_dtype, pd.BooleanDtype):
