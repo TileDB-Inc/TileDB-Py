@@ -1,7 +1,7 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.8.3
+    TILEDBPY_VERSION: 0.8.4
     LIBTILEDB_VERSION: 2.2.4
     LIBTILEDB_SHA: 2f138f915794765b061f5ca87029bd09a2cb939b
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
