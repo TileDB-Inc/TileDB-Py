@@ -282,7 +282,11 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   list coords_or_subarray,
                   list attributes,
                   list values,
+                  dict nullmaps,
                   dict fragment_info):
+
+    # used for buffer conversion (local import to avoid circularity)
+    import tiledb.core
 
     cdef bint issparse = tiledb_array.schema.sparse
     cdef bint isfortran = False
@@ -294,11 +298,12 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         nattr_alloc += tiledb_array.schema.ndim
 
     # Set up buffers
-    cdef np.ndarray buffer_sizes = np.zeros((nattr_alloc,),  dtype=np.uint64)
+    cdef np.ndarray buffer_sizes = np.zeros((nattr_alloc,), dtype=np.uint64)
     cdef np.ndarray buffer_offsets_sizes = np.zeros((nattr_alloc,),  dtype=np.uint64)
+    cdef np.ndarray nullmaps_sizes = np.zeros((nattr_alloc,), dtype=np.uint64)
     output_values = list()
     output_offsets = list()
-    import tiledb.core
+
     for i in range(nattr):
         if tiledb_array.schema.attr(i).isvar:
             try:
@@ -322,6 +327,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
                 raise ValueError("mixed C and Fortran array layouts")
 
+    #### Allocate and fill query ####
 
     cdef tiledb_query_t* query_ptr = NULL
     cdef int rc = TILEDB_OK
@@ -331,7 +337,6 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     cdef tiledb_layout_t layout = TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR
 
-    import tiledb.core
     # Set coordinate buffer size and name, and layout for sparse writes
     if issparse:
         for dim_idx in range(tiledb_array.schema.ndim):
@@ -351,16 +356,22 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         nattr += tiledb_array.schema.ndim
         layout = TILEDB_UNORDERED
 
+    # Create nullmaps sizes array if necessary
+
+    # Set layout
     rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
     if rc != TILEDB_OK:
         tiledb_query_free(&query_ptr)
         _raise_ctx_err(ctx_ptr, rc)
 
     cdef void* buffer_ptr = NULL
+    cdef uint8_t* nulmap_buffer_ptr = NULL
+    cdef uint
     cdef bytes battr_name
     cdef uint64_t* offsets_buffer_ptr = NULL
     cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
     cdef uint64_t* offsets_buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_offsets_sizes)
+    cdef uint64_t* nullmaps_sizes_ptr = <uint64_t*> np.PyArray_DATA(nullmaps_sizes)
 
     # set subarray (ranges)
     cdef np.ndarray s_start
@@ -405,11 +416,26 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
                                                  offsets_buffer_ptr, &(offsets_buffer_sizes_ptr[i]),
                                                  buffer_ptr, &(buffer_sizes_ptr[i]))
+            elif attributes[i] in nullmaps:
+                # NOTE: validity map is owned *by the caller*
+                nulmap = nullmaps[attributes[i]]
+                nullmaps_sizes[i] = len(nulmap)
+                nulmap_buffer_ptr = <uint8_t*>np.PyArray_DATA(nulmap)
+                rc = tiledb_query_set_buffer_nullable(
+                    ctx_ptr,
+                    query_ptr,
+                    battr_name,
+                    buffer_ptr,
+                    &(buffer_sizes_ptr[i]),
+                    nulmap_buffer_ptr,
+                    &(nullmaps_sizes_ptr[i])
+                )
             else:
                 rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
                                              buffer_ptr, &(buffer_sizes_ptr[i]))
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
+
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
         if rc != TILEDB_OK:
@@ -4432,15 +4458,17 @@ cdef class Query(object):
         if dims is not None and coords == True:
             raise ValueError("Cannot pass both dims and coords=True to Query")
 
+        cdef list dims_to_set = list()
+
         if dims is False:
             self.dims = False
-        elif dims is not None:
+        elif dims != None and dims != True:
             domain = array.schema.domain
             for dname in dims:
                 if not domain.has_dim(dname):
                     raise TileDBError("Selected dimension does not exist: '{name}")
             self.dims = [unicode(dname) for dname in dims]
-        elif coords is True:
+        elif coords == True or dims == True:
             domain = array.schema.domain
             self.dims = [domain.dim(i).name for i in range(domain.ndim)]
 
@@ -4872,6 +4900,10 @@ cdef class DenseArrayImpl(Array):
         ...                        "a2": np.array(([1, 2], [3, 4]))}
 
         """
+        self._setitem_impl(selection, val, dict())
+
+    def _setitem_impl(self, object selection, object val, dict nullmaps):
+        """Implementation for setitem with optional support for validity bitmaps."""
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
         cdef Domain domain = self.domain
@@ -4934,7 +4966,28 @@ cdef class DenseArrayImpl(Array):
                              "(use a dict({'attr': val}) to "
                              "assign multiple attributes)")
 
-        _write_array(self.ctx.ptr, self.ptr, self, subarray, attributes, values, self.last_fragment_info)
+        if nullmaps:
+            for key,val in nullmaps.items():
+                if not self.schema.has_attr(key):
+                    raise TileDBError("Cannot set validity for non-existent attribute.")
+                if not self.schema.attr(key).isnullable:
+                    raise ValueError("Cannot set validity map for non-nullable attribute.")
+                if self.schema.attr(key).isvar:
+                    raise TileDBError("<todo> Var-length nullable arrays are unimplemented in TileDB-Py")
+                if not isinstance(val, np.ndarray):
+                    raise TypeError(f"Expected NumPy array for attribute '{key}' "
+                                    f"validity bitmap, got {type(val)}")
+                if val.dtype != np.uint8:
+                    raise TypeError(f"Expected NumPy uint8 array for attribute '{key}' "
+                                    f"validity bitmap, got {val.dtype}")
+
+        _write_array(self.ctx.ptr,
+                     self.ptr, self,
+                     subarray,
+                     attributes,
+                     values,
+                     nullmaps,
+                     self.last_fragment_info)
         return
 
     def __array__(self, dtype=None, **kw):
@@ -5164,6 +5217,9 @@ cdef class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
 
         """
+        self._setitem_impl(selection, val, dict())
+
+    def _setitem_impl(self, selection, val, dict nullmaps):
         if not self.isopen or self.mode != 'w':
             raise TileDBError("SparseArray is not opened for writing")
         idx = index_as_tuple(selection)
@@ -5215,6 +5271,7 @@ cdef class SparseArrayImpl(Array):
             sparse_coords,
             sparse_attributes,
             sparse_values,
+            nullmaps,
             self.last_fragment_info
         )
         return
