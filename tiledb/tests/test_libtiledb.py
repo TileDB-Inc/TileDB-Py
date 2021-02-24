@@ -3800,6 +3800,28 @@ class ReprTest(unittest.TestCase):
             self.assertEqual(new_schema, orig_schema)
 
 
+class NullableIOTest(DiskTestCase):
+    def test_nullable_write(self):
+        uri = self.path("nullable_write_test")
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                *[
+                    tiledb.Dim(name="__dim_0", domain=(0, 3), tile=4, dtype="uint64"),
+                ]
+            ),
+            attrs=[
+                tiledb.Attr(name="", dtype="int64", var=False, nullable=True),
+            ],
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            A._setitem_impl(
+                slice(0, 4), np.ones(4), {"": np.array([0, 1, 0, 1], dtype=np.uint8)}
+            )
+
+
 # if __name__ == '__main__':
 #    # run a single example for in-process debugging
 #    # better to use `pytest --gdb` if available

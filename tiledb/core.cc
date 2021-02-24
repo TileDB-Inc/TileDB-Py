@@ -80,14 +80,17 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
 struct BufferInfo {
 
   BufferInfo(std::string name, size_t data_nbytes, tiledb_datatype_t data_type,
-             uint32_t cell_val_num, size_t offsets_num, bool isvar = false)
+             uint32_t cell_val_num, size_t offsets_num, size_t validity_num,
+             bool isvar = false, bool isnullable = false)
 
-      : name(name), type(data_type), cell_val_num(cell_val_num), isvar(isvar) {
+      : name(name), type(data_type), cell_val_num(cell_val_num), isvar(isvar),
+        isnullable(isnullable) {
 
     dtype = tiledb_dtype(data_type, cell_val_num);
     elem_nbytes = tiledb_datatype_size(type);
     data = py::array(py::dtype("uint8"), data_nbytes);
     offsets = py::array_t<uint64_t>(offsets_num);
+    validity = py::array_t<uint8_t>(validity_num);
 
     // TODO use memset here for zero'd buffers in debug mode
   }
@@ -99,10 +102,13 @@ struct BufferInfo {
   uint64_t data_vals_read = 0;
   uint32_t cell_val_num;
   uint64_t offsets_read = 0;
+  uint64_t validity_vals_read = 0;
   bool isvar;
+  bool isnullable;
 
   py::array data;
   py::array_t<uint64_t> offsets;
+  py::array_t<uint8_t> validity;
 };
 
 py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
@@ -210,6 +216,22 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
   TPY_ERROR_LOC("tiledb datatype not understood ('" +
                 tiledb::impl::type_to_str(type) +
                 "', cell_val_num: " + std::to_string(cell_val_num) + ")");
+}
+
+py::array_t<uint8_t>
+uint8_bool_to_uint8_bitmap(py::array_t<uint8_t> validity_array) {
+  // TODO profile, probably replace; avoid inplace reassignment
+  auto np = py::module::import("numpy");
+  auto packbits = np.attr("packbits");
+  auto tmp = packbits(validity_array, "bitorder"_a = "little");
+  return tmp;
+}
+
+uint64_t count_zeros(py::array_t<uint8_t> a) {
+  uint64_t count = 0;
+  for (size_t idx = 0; idx < a.size(); idx++)
+    count += (a.data()[idx] == 0) ? 1 : 0;
+  return count;
 }
 
 class PyQuery {
@@ -527,6 +549,15 @@ public:
     }
   }
 
+  bool is_nullable(std::string name) {
+    if (is_dimension(name)) {
+      return false;
+    }
+
+    auto attr = array_->schema().attribute(name);
+    return attr.nullable();
+  }
+
   std::pair<tiledb_datatype_t, uint32_t> buffer_type(std::string name) {
     auto schema = array_->schema();
     tiledb_datatype_t type;
@@ -575,11 +606,12 @@ public:
     if (cell_val_num != TILEDB_VAR_NUM)
       cell_nbytes *= cell_val_num;
     auto dtype = tiledb_dtype(type, cell_val_num);
-    bool var = is_var(name);
 
     buffers_order_.push_back(name);
     // set nbytes and noffsets=0 here to avoid allocation; buffers set below
-    auto buffer_info = BufferInfo(name, 0, type, cell_val_num, 0, var);
+    auto buffer_info = BufferInfo(name, 0, type, cell_val_num, 0,
+                                  0, // TODO
+                                  is_var(name), is_nullable(name));
     buffer_info.data = data;
     buffer_info.offsets = offsets;
     buffers_.insert({name, buffer_info});
@@ -598,9 +630,18 @@ public:
 
     uint64_t buf_nbytes = 0;
     uint64_t offsets_num = 0;
-    bool var = is_var(name);
+    uint64_t validity_num = 0;
 
-    if (var) {
+    bool var = is_var(name);
+    bool nullable = is_nullable(name);
+
+    if (nullable) {
+      auto sizes = query_->est_result_size_nullable(name);
+      buf_nbytes = sizes[0];
+      validity_num = sizes[1] / sizeof(uint8_t);
+    } else if (nullable && var) {
+      throw TileDBPyError("<todo> nullable var unimplemented");
+    } else if (var) {
       auto size_pair = query_->est_result_size_var(name);
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
       buf_nbytes = size_pair.first;
@@ -619,8 +660,9 @@ public:
     }
 
     buffers_order_.push_back(name);
-    buffers_.insert({name, BufferInfo(name, buf_nbytes, type, cell_val_num,
-                                      offsets_num, var)});
+    buffers_.insert(
+        {name, BufferInfo(name, buf_nbytes, type, cell_val_num, offsets_num,
+                          validity_num, var, nullable)});
   }
 
   void set_buffers() {
@@ -639,6 +681,14 @@ public:
 
         query_->set_buffer(b.name, (uint64_t *)(offsets_ptr), offsets_size,
                            data_ptr, data_nelem);
+      } else if (b.isnullable) {
+        uint64_t validity_size = b.validity.size() - b.validity_vals_read;
+        assert(validity_size > 0);
+
+        uint8_t *validity_ptr =
+            (uint8_t *)b.validity.data() + b.validity_vals_read;
+        query_->set_buffer_nullable(b.name, data_ptr, data_nelem, validity_ptr,
+                                    validity_size);
       } else {
         query_->set_buffer(b.name, data_ptr, data_nelem);
       }
@@ -1013,7 +1063,16 @@ public:
                             static_cast<void *>(&c_pa_array),
                             static_cast<void *>(&c_pa_schema));
 
-      // TODO null the metadata?
+      if (is_nullable(buffer_name)) {
+        BufferInfo &buffer_info = buffers_.at(buffer_name);
+        // count zeros before converting to bitmap
+        c_pa_array.null_count = count_zeros(buffer_info.validity);
+        // convert to bitmap
+        buffer_info.validity = uint8_bool_to_uint8_bitmap(buffer_info.validity);
+        c_pa_array.buffers[0] = buffer_info.validity.data();
+        c_pa_array.n_buffers = 2;
+        c_pa_schema.flags |= ARROW_FLAG_NULLABLE;
+      }
 
       py::object pa_array = pa_array_import(py::int_((ptrdiff_t)&c_pa_array),
                                             py::int_((ptrdiff_t)&c_pa_schema));
