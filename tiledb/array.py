@@ -12,7 +12,13 @@ from .libtiledb import Array, DenseArrayImpl, SparseArrayImpl
 
 
 class DenseArray(DenseArrayImpl):
-    __doc__ = Array.__doc__
+    """Class representing a dense TileDB array.
+
+    Inherits properties and methods of :py:class:`tiledb.Array` and
+    implements `__setitem__` and `__getitem__` for dense array indexing
+    and assignment.
+    """
+
     _mixin_init = False
 
     def __new__(cls, *args, **kwargs):
@@ -32,7 +38,13 @@ class DenseArray(DenseArrayImpl):
 
 
 class SparseArray(SparseArrayImpl):
-    __doc__ = Array.__doc__
+    """Class representing a sparse TileDB array.
+
+    Inherits properties and methods of :py:class:`tiledb.Array` and
+    implements `__setitem__` and `__getitem__` for sparse array indexing
+    and assignment.
+    """
+
     _mixin_init = False
 
     def __new__(cls, *args, **kwargs):
