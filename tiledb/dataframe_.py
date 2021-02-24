@@ -6,7 +6,10 @@ import copy
 from collections import OrderedDict
 import warnings
 
+from typing import Optional
+
 import numpy as np
+from pandas.core.arrays.integer import UInt16Dtype, UInt32Dtype, UInt64Dtype, UInt8Dtype
 import tiledb
 from tiledb import TileDBError
 
@@ -85,16 +88,16 @@ def parse_tiledb_kwargs(kwargs):
 
 
 class ColumnInfo:
-    def __init__(self, dtype, repr=None):
+    def __init__(self, dtype, repr: Optional[str] = None, nullable: bool = False):
         self.dtype = dtype
         self.repr = repr
+        self.nullable = nullable
 
 
 def dtype_from_column(col):
     import pandas as pd
 
     col_dtype = col.dtype
-    # TODO add more basic types here
     if col_dtype in (
         np.int32,
         np.int64,
@@ -105,6 +108,21 @@ def dtype_from_column(col):
         np.uint8,
     ):
         return ColumnInfo(col_dtype)
+
+    if isinstance(col_dtype, (
+        pd.Int64Dtype,
+        pd.Int32Dtype,
+        pd.Int16Dtype,
+        pd.Int8Dtype,
+        pd.UInt64Dtype,
+        pd.UInt32Dtype,
+        pd.UInt16Dtype,
+        pd.UInt8Dtype,
+    )):
+        return ColumnInfo(col_dtype.numpy_dtype, repr=str(col_dtype), nullable=True)
+
+    if isinstance(col_dtype, pd.BooleanDtype):
+        return ColumnInfo(np.uint8, repr=pd.BooleanDtype(), nullable=True)
 
     # TODO this seems kind of brittle
     if col_dtype.base == np.dtype("M8[ns]"):
@@ -182,7 +200,12 @@ def attrs_from_df(df, index_dims=None, filters=None, column_types=None, ctx=None
             attr_info = dtype_from_column(col)
 
         attrs.append(
-            tiledb.Attr(name=name, dtype=attr_info.dtype, filters=attr_filters)
+            tiledb.Attr(
+                name=name,
+                dtype=attr_info.dtype,
+                filters=attr_filters,
+                nullable=attr_info.nullable,
+            )
         )
 
         if attr_info.repr is not None:
@@ -488,22 +511,27 @@ def dataframe_to_np_arrays(dataframe, fillna=None):
     if hasattr(pd, "StringDtype"):
         # version > 1.0. StringDtype introduced in pandas 1.0
         ret = dict()
+        nullmaps = dict()
         for k, v in dataframe.to_dict(orient="series").items():
             if pd.api.types.is_extension_array_dtype(v):
-                if fillna is None or not k in fillna:
-                    raise ValueError(
-                        "Missing 'fillna' value for column '{}' with pandas extension dtype".format(
-                            k
-                        )
+                #
+                if fillna is not None and k in fillna:
+                    # raise ValueError("Missing 'fillna' value for column '{}' with pandas extension dtype".format(k))
+                    ret[k] = v.to_numpy(na_value=fillna[k])
+                else:
+                    # use default 0/empty for the dtype
+                    ret[k] = v.to_numpy(
+                        dtype=v.dtype.numpy_dtype, na_value=v.dtype.type()
                     )
-                ret[k] = v.to_numpy(na_value=fillna[k])
+                    nullmaps[k] = (~v.isna()).to_numpy(dtype="uint8")
             else:
                 ret[k] = v.to_numpy()
     else:
         # version < 1.0
+        nullmaps = dict()
         ret = {k: v.values for k, v in dataframe.to_dict(orient="series").items()}
 
-    return ret
+    return ret, nullmaps
 
 
 def from_dataframe(uri, dataframe, **kwargs):
@@ -649,7 +677,7 @@ def from_pandas(uri, dataframe, **kwargs):
             write_array_metadata(A, attr_metadata, index_metadata)
 
     if write:
-        write_dict = dataframe_to_np_arrays(dataframe, fillna=fillna)
+        write_dict, nullmaps = dataframe_to_np_arrays(dataframe, fillna=fillna)
 
         if tiledb_args.get("debug", True):
             print("`tiledb.read_pandas` writing '{}' rows".format(len(dataframe)))
@@ -676,14 +704,13 @@ def from_pandas(uri, dataframe, **kwargs):
                         coords.append(dataframe.index.get_level_values(k))
 
                 # TODO ensure correct col/dim ordering
-                A[tuple(coords)] = write_dict
+                A._setitem_impl(tuple(coords), write_dict, nullmaps)
 
             else:
                 if row_start_idx is None:
                     row_start_idx = 0
                 row_end_idx = row_start_idx + len(dataframe)
-                A[row_start_idx:row_end_idx] = write_dict
-
+                A._setitem_impl(slice(row_start_idx, row_end_idx), write_dict, nullmaps)
         finally:
             A.close()
 

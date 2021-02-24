@@ -500,7 +500,9 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                     ),
                 ]
             ),
-            attrs=[tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters)],
+            attrs=[
+                tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters),
+            ],
             coords_filters=coords_filters,
             cell_order="row-major",
             tile_order="row-major",
@@ -804,3 +806,52 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         basic3 = make_dataframe_basic3()
         try_rt("basic3", basic3)
+
+    def test_nullable_integers(self):
+        nullable_int_dtypes = (
+            pd.Int64Dtype(),
+            pd.Int32Dtype(),
+            pd.Int16Dtype(),
+            pd.Int8Dtype(),
+            pd.UInt64Dtype(),
+            pd.UInt32Dtype(),
+            pd.UInt16Dtype(),
+            pd.UInt8Dtype(),
+        )
+
+        col_size = 100
+        null_count = 20
+        for pdtype in nullable_int_dtypes:
+            uri = self.path(f"test_nullable_{str(pdtype)}")
+            nptype = pdtype.numpy_dtype
+
+            data = np.random.randint(
+                dtype_max(nptype), size=col_size, dtype=nptype
+            ).astype("O")
+            null_idxs = np.random.randint(col_size, size=null_count)
+            data[null_idxs] = None
+
+            series = pd.Series(data, dtype=pdtype)
+            df = pd.DataFrame({"data": series})
+
+            tiledb.from_pandas(uri, df)
+
+            with tiledb.open(uri) as A:
+                tm.assert_frame_equal(df, A.df[:], check_index_type=False)
+
+    def test_nullable_bool(self):
+        uri = self.path("test_nullable_bool")
+        col_size = 100
+        null_count = 20
+
+        data = np.random.randint(2, size=col_size, dtype=np.uint8).astype("O")
+        null_idxs = np.random.randint(col_size, size=null_count)
+        data[null_idxs] = None
+
+        series = pd.Series(data, dtype="boolean")
+        df = pd.DataFrame({"data": series})
+
+        tiledb.from_pandas(uri, df)
+
+        with tiledb.open(uri) as A:
+            tm.assert_frame_equal(df, A.df[:], check_index_type=False)
