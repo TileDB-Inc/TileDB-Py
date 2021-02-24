@@ -49,7 +49,7 @@ def sel_to_subranges(dim_sel, nonempty_domain=None):
         elif isinstance(range, slice):
             if range.step is not None:
                 raise ValueError("Stepped slice ranges are not supported")
-            elif range.start and range.stop:
+            elif range.start is not None and range.stop is not None:
                 # we have both endpoints, use them
                 rstart = range.start
                 rend = range.stop
