@@ -37,10 +37,18 @@ public:
 public:
   PyFragmentInfo() = delete;
 
-  PyFragmentInfo(py::object ctx, const string &uri) {
+  PyFragmentInfo(const string &uri, py::object ctx) {
+    if (ctx.is(py::none())) {
+      auto tiledblib = py::module::import("tiledb");
+      auto default_ctx = tiledblib.attr("default_ctx");
+      ctx = default_ctx();
+    }
+
     tiledb_ctx_t *c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
+
     if (c_ctx_ == nullptr)
       TPY_ERROR_LOC("Invalid context pointer!");
+
     ctx_ = Context(c_ctx_, false);
 
     fi_ = shared_ptr<tiledb::FragmentInfo>(new FragmentInfo(ctx_, uri));
@@ -213,9 +221,10 @@ public:
   void dump() const { return fi_->dump(stdout); }
 };
 
-PYBIND11_MODULE(fragment, m) {
+PYBIND11_MODULE(_fragment, m) {
   py::class_<PyFragmentInfo>(m, "info")
-      .def(py::init<py::object, const string &>())
+      .def(py::init<const string &, py::object>(), py::arg("uri"),
+           py::arg("ctx") = py::none())
 
       .def("load",
            static_cast<void (PyFragmentInfo::*)() const>(&PyFragmentInfo::load))
@@ -269,29 +278,6 @@ PYBIND11_MODULE(fragment, m) {
       .def("to_vacuum_uri", &PyFragmentInfo::to_vacuum_uri,
            py::arg("fid") = py::none())
       .def("dump", &PyFragmentInfo::dump);
-
-  /*
-  We need to make sure C++ TileDBError is translated to a correctly-typed py
-  error. Note that using py::exception(..., "TileDBError") creates a new
-  exception in the *readquery* module, so we must import to reference.
-  */
-  /*
-  static auto tiledb_py_error =
-      (py::object)py::module::import("tiledb").attr("TileDBError");
-
-  py::register_exception_translator([](std::exception_ptr p) {
-      try {
-          if (p)
-          std::rethrow_exception(p);
-      } catch (const TileDBPyError &e) {
-          PyErr_SetString(tiledb_py_error.ptr(), e.what());
-      } catch (const tiledb::TileDBError &e) {
-          PyErr_SetString(tiledb_py_error.ptr(), e.what());
-      } catch (std::runtime_error &e) {
-          std::cout << "unexpected runtime_error: " << e.what() << std::endl;
-      }
-  });
-  */
 }
 
 }; // namespace tiledbpy

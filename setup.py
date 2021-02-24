@@ -278,7 +278,7 @@ def find_or_install_libtiledb(setuptools_cmd):
             tiledb_ext = ext
         elif ext.name == "tiledb.core":
             core_ext = ext
-        elif ext.name == "tiledb.fragment":
+        elif ext.name == "tiledb._fragment":
             fragment_ext = ext
 
     print("tiledb_ext: ", tiledb_ext)
@@ -627,7 +627,7 @@ __extensions = [
         extra_compile_args=CXXFLAGS,
     ),
     Extension(
-        "tiledb.fragment",
+        "tiledb._fragment",
         ["tiledb/fragment.cc"],
         include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
         language="c++",
