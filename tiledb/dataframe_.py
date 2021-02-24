@@ -9,7 +9,6 @@ import warnings
 from typing import Optional
 
 import numpy as np
-from pandas.core.arrays.integer import UInt16Dtype, UInt32Dtype, UInt64Dtype, UInt8Dtype
 import tiledb
 from tiledb import TileDBError
 
