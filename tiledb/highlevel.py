@@ -90,8 +90,26 @@ def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None):
 
 def from_numpy(uri, array, ctx=None, **kw):
     """
-    Convenience method to create a TileDB array from a Numpy array.
-    See documentation of :func:`tiledb.DenseArray.from_numpy`.
+    Write a NumPy array into a TileDB DenseArray,
+    returning a readonly DenseArray instance.
+
+    :param str uri: URI for the TileDB array (any supported TileDB URI)
+    :param numpy.ndarray array: dense numpy array to persist
+    :param tiledb.Ctx ctx: A TileDB Context
+    :param \*\*kwargs: additional arguments to pass to the DenseArray constructor
+    :rtype: tiledb.DenseArray
+    :return: An open DenseArray (read mode) with a single anonymous attribute
+    :raises TypeError: cannot convert ``uri`` to unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     # Creates array 'array' on disk.
+    ...     with tiledb.DenseArray.from_numpy(tmp + "/array",  np.array([1.0, 2.0, 3.0])) as A:
+    ...         pass
+
     """
     if not ctx:
         ctx = default_ctx()
