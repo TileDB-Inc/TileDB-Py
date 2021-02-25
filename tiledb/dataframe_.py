@@ -547,13 +547,17 @@ def from_dataframe(uri, dataframe, **kwargs):
 
 
 def from_pandas(uri, dataframe, **kwargs):
-    """Create TileDB array at given URI from pandas dataframe
+    """Create TileDB array at given URI from a Pandas dataframe
+
+    Supports most Pandas series types, including nullable integers and
+    bools.
 
     :param uri: URI for new TileDB array
     :param dataframe: pandas DataFrame
     :param mode: Creation mode, one of 'ingest' (default), 'schema_only', 'append'
 
-    :Keyword Arguments: optional keyword arguments for TileDB, see ``tiledb.from_csv``.
+    :Keyword Arguments: optional keyword arguments for TileDB conversion, see
+    ``tiledb.from_csv`` for additional details.
 
     :raises: :py:exc:`tiledb.TileDBError`
     :return: None
