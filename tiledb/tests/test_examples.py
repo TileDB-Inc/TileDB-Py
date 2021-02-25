@@ -3,6 +3,12 @@ import subprocess
 
 
 def run_checked(args):
+    # run example script
+    # - in a separate process
+    # - in tmpdir so we don't pollute the source tree
+    # - with exit status checking (should fail tests if example fails)
+    # - also remove the tmp tree, which can catch windows errors
+
     tmp = tempfile.mkdtemp()
     cmd = [sys.executable] + args
     proc = subprocess.Popen(
@@ -23,18 +29,18 @@ def run_checked(args):
 
 
 class ExamplesTest(unittest.TestCase):
+    """Test runnability of scripts in examples/"""
+
     def test_examples(self):
+        # construct the abspath to the examples directory
         examples_path = os.path.abspath(
             os.path.join(os.path.split(__file__)[0], "../../examples")
         )
         for ex in glob.glob(examples_path + "/*.py"):
-            # TMP
-            if "ingest" in ex:
-                continue
             args = [ex]
             run_checked(args)
 
-    # some of the doctests are missing a clean-up step on windows
+    # TODO some of the doctests are missing a clean-up step on windows
     @unittest.skipIf(platform.system() == "Windows", "")
     def test_docs(self):
         if sys.version_info >= (3, 6):
