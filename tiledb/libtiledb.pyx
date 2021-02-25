@@ -37,11 +37,12 @@ def _get_global_ctx():
 
 def default_ctx(config = None):
     """
-    Returns, and optionally initializes, the default `tiledb.Ctx` object.
+    Returns, and optionally initializes, the global default `tiledb.Ctx` object.
 
-    Most functions in the Python API accept an optional `ctx` keyword
-    argument, but will default to the global ``default_ctx`` value if a
-    `ctx` is not specified.
+    This Ctx object is used by Python API functions when no `ctx` keyword argument
+    is provided. Most API functions accept an optional `ctx` kwarg, but that
+    is typically only necessary in advanced usage with multiple contexts per
+    program.
 
     For initialization, this function must be called before any other
     tiledb functions. The initialization call accepts a  :py:class:`tiledb.Config`
