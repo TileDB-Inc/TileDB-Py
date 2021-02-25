@@ -23,7 +23,6 @@ def run_checked(args):
 
 
 class ExamplesTest(unittest.TestCase):
-    @unittest.skipIf("TRAVIS" in os.environ, "Don't run examples/ unittests on travis")
     def test_examples(self):
         examples_path = os.path.abspath(
             os.path.join(os.path.split(__file__)[0], "../../examples")
