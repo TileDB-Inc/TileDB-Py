@@ -46,10 +46,6 @@ def check_dataframe_deps():
         warnings.warn(pa_error)
 
 
-# TODO
-# - handle missing values
-# - handle extended datatypes
-
 # Note: 'None' is used to indicate optionality for many of these options
 #       For example, if the `sparse` argument is unspecified we will default
 #       to False (dense) unless the input has string or heterogenous indexes.
@@ -510,28 +506,25 @@ def write_array_metadata(array, attr_metadata=None, index_metadata=None):
 def dataframe_to_np_arrays(dataframe, fillna=None):
     import pandas as pd
 
-    if hasattr(pd, "StringDtype"):
-        # version > 1.0. StringDtype introduced in pandas 1.0
-        ret = dict()
-        nullmaps = dict()
-        for k, v in dataframe.to_dict(orient="series").items():
-            if pd.api.types.is_extension_array_dtype(v):
-                #
-                if fillna is not None and k in fillna:
-                    # raise ValueError("Missing 'fillna' value for column '{}' with pandas extension dtype".format(k))
-                    ret[k] = v.to_numpy(na_value=fillna[k])
-                else:
-                    # use default 0/empty for the dtype
-                    ret[k] = v.to_numpy(
-                        dtype=v.dtype.numpy_dtype, na_value=v.dtype.type()
-                    )
-                    nullmaps[k] = (~v.isna()).to_numpy(dtype="uint8")
+    if not hasattr(pd, "StringDtype"):
+        raise Exception("Unexpectedly found pandas versoin < 1.0; please install >= 1.0 for dataframe functionality.")
+
+    ret = dict()
+    nullmaps = dict()
+    for k, v in dataframe.to_dict(orient="series").items():
+        if pd.api.types.is_extension_array_dtype(v):
+            #
+            if fillna is not None and k in fillna:
+                # raise ValueError("Missing 'fillna' value for column '{}' with pandas extension dtype".format(k))
+                ret[k] = v.to_numpy(na_value=fillna[k])
             else:
-                ret[k] = v.to_numpy()
-    else:
-        # version < 1.0
-        nullmaps = dict()
-        ret = {k: v.values for k, v in dataframe.to_dict(orient="series").items()}
+                # use default 0/empty for the dtype
+                ret[k] = v.to_numpy(
+                    dtype=v.dtype.numpy_dtype, na_value=v.dtype.type()
+                )
+                nullmaps[k] = (~v.isna()).to_numpy(dtype="uint8")
+        else:
+            ret[k] = v.to_numpy()
 
     return ret, nullmaps
 
