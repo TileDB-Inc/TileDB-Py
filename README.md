@@ -18,15 +18,15 @@
 
 # Quick Installation
 
-TileDB-Py can be installed from either [conda-forge](https://anaconda.org/conda-forge/tiledb-py) with
-[conda](https://conda.io/docs/) (recommended):
-
-```
-conda install -c conda-forge tiledb-py
-```
-
-or from [PyPI](https://pypi.org/project/tiledb/) with ``pip``:
+TileDB-Py is available from either [PyPI](https://pypi.org/project/tiledb/) with ``pip``:
 
 ```
 pip install tiledb
+```
+
+or from [conda-forge](https://anaconda.org/conda-forge/tiledb-py) with
+[conda](https://conda.io/docs/) or [mamba](https://github.com/mamba-org/mamba#installation):
+
+```
+conda install -c conda-forge tiledb-py
 ```
