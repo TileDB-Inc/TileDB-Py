@@ -1,6 +1,8 @@
 import os, sys, glob, unittest, tempfile, shutil, platform
 import subprocess
 
+run_env = os.environ.copy()
+run_env.update({'IN_TEST': '1'})
 
 def run_checked(args):
     # run example script
@@ -12,7 +14,7 @@ def run_checked(args):
     tmp = tempfile.mkdtemp()
     cmd = [sys.executable] + args
     proc = subprocess.Popen(
-        cmd, cwd=tmp, stderr=subprocess.PIPE, stdout=subprocess.PIPE
+        cmd, cwd=tmp, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=run_env
     )
     out, err = proc.communicate()
     status = proc.returncode
