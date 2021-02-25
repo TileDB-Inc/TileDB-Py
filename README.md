@@ -12,6 +12,7 @@
 # Quick Links
 
 * [Installation](https://docs.tiledb.com/developer/installation/quick-install)
+* [Build Instructions](https://docs.tiledb.com/main/solutions/tiledb-embedded/installation/building-from-source/python)
 * [TileDB Documentation](https://docs.tiledb.com/main/)
 * [Python API reference](https://tiledb-inc-tiledb-py.readthedocs-hosted.com/en/stable)
 * [Full developer documentation for all APIs and integrations](https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage)
