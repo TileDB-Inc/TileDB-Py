@@ -1,3 +1,8 @@
+# In Progress
+
+## Documentation Updates
+* Added example reading/writing RGB (multi-component) array [#487](https://github.com/TileDB-Inc/TileDB-Py/pull/487)
+
 # TileDB-Py 0.8.4 Release Notes
 
 ## Improvements
