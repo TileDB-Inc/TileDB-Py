@@ -128,22 +128,6 @@ stages:
       displayName: "List all the files"
       condition: always()
 
-  - job: build1_linux_wheels
-    strategy:
-      matrix:
-        wheels:
-          imageName: 'ubuntu-16.04'
-    pool:
-      vmImage: $(imageName)
-
-    steps:
-    - script: git tag -f $(TILEDBPY_VERSION)
-    - bash: |
-        docker build --build-arg LIBTILEDB_VERSION --build-arg LIBTILEDB_SHA --build-arg TILEDBPY_VERSION -f misc/pypi_linux/Dockerfile . -t wheel_builder
-        docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder build.sh
-    - task: PublishBuildArtifacts@1
-      inputs: {pathtoPublish: 'wheelhouse'}
-
   - job: build1_linux_wheels_2010
     strategy:
       matrix:
