@@ -517,7 +517,7 @@ def cmake_available():
 def setup_requires():
     req = [
         "cython>=0.27",
-        "numpy==1.16.* ; python_version < '3.9'",
+        "numpy>=1.16.* ; python_version < '3.9'",
         "numpy ; python_version >= '3.9'",
         "setuptools>=18.0",
         "setuptools_scm>=1.5.4",
