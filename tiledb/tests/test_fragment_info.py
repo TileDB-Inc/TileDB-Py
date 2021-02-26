@@ -17,7 +17,7 @@ class FragmentInfoTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             fragment_info.load()
 
-    def test_fragments_info(self):
+    def test_array_fragments(self):
         fragments = 3
 
         A = np.zeros(fragments)
@@ -37,9 +37,9 @@ class FragmentInfoTest(DiskTestCase):
             with tiledb.DenseArray(uri, mode="w", timestamp=timestamp, ctx=ctx) as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
-        fragments_info = tiledb.FragmentsInfo(uri, ctx)
+        fragments_info = tiledb.array_fragments(uri, ctx)
 
-        self.assertEqual(fragments_info.nums, 3)
+        self.assertEqual(len(fragments_info), 3)
         self.assertEqual(fragments_info.unconsolidated_metadata_num, 3)
 
         self.assertEqual(fragments_info.cell_num, (3, 3, 3))

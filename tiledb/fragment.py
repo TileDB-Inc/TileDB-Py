@@ -22,7 +22,7 @@ class FragmentsInfo:
         fi.load()
 
         self.uri = fi.fragment_uri()
-        self.nums = fi.fragment_num()
+        self.__nums = fi.fragment_num()
         self.version = fi.version()
         self.non_empty_domain = fi.get_non_empty_domain(schema)
         self.cell_num = fi.cell_num()
@@ -47,7 +47,7 @@ class FragmentsInfo:
             raise TypeError("Invalid argument type.")
 
     def __len__(self):
-        return self.nums
+        return self.__nums
 
     def __repr__(self):
         return pprint.PrettyPrinter().pformat(self.__dict__)
@@ -63,7 +63,7 @@ class FragmentsInfoIterator:
         self._index = 0
 
     def __next__(self):
-        if self._index < self._fragments.nums:
+        if self._index < len(self._fragments):
             fi = FragmentInfo(self._fragments, self._index)
             self._index += 1
             return fi
@@ -75,7 +75,7 @@ class FragmentInfo:
     Class representing a single fragment info object.
     """
 
-    def __init__(self, fragments, num):
+    def __init__(self, fragments: FragmentsInfo, num):
         self.uri = fragments.uri[num]
         self.version = fragments.version[num]
         self.non_empty_domain = fragments.non_empty_domain[num]

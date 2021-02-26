@@ -121,3 +121,10 @@ def array_exists(uri, isdense=False, issparse=False):
 
     a.close()
     return rval
+
+
+def array_fragments(uri, ctx=None):
+    if not ctx:
+        ctx = default_ctx()
+
+    return tiledb.FragmentsInfo(uri, ctx)

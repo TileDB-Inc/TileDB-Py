@@ -70,11 +70,11 @@ if tiledb.object_type(array_name) != "array":
     write_array_2()
     write_array_3()
 
-fragments_info = tiledb.FragmentsInfo(array_name)
+fragments_info = tiledb.array_fragments(array_name)
 
 print("====== FRAGMENTS  INFO ======")
 print("array uri: {}".format(fragments_info.array_uri))
-print("number of fragments: {}".format(fragments_info.nums))
+print("number of fragments: {}".format(len(fragments_info)))
 
 for fragment_num, fragment in enumerate(fragments_info, start=1):
     print()
