@@ -70,27 +70,27 @@ if tiledb.object_type(array_name) != "array":
     write_array_2()
     write_array_3()
 
-fi = tiledb.fragment_info(array_name)
+fragments_info = tiledb.FragmentsInfo(array_name)
 
-# Note that load() needs to be called each time the array is written to in
-# order to get updated fragment information.
-fi.load()
+print("====== FRAGMENTS  INFO ======")
+print("array uri: {}".format(fragments_info.array_uri))
+print("number of fragments: {}".format(fragments_info.nums))
 
-schema = tiledb.ArraySchema.load(array_name)
-
-for fragment_num in range(fi.fragment_num()):
-    print("Fragment number: {}".format(fragment_num))
+for fragment_num, fragment in enumerate(fragments_info, start=1):
+    print()
+    print("===== FRAGMENT NUMBER {} =====".format(fragment_num))
+    print("fragment uri: {}".format(fragment.uri))
+    print("is dense: {}".format(fragment.dense))
+    print("is sparse: {}".format(fragment.sparse))
+    print("cell num: {}".format(fragment.cell_num))
+    print("has consolidated metadata: {}".format(fragment.has_consolidated_metadata))
+    print("non empty domain: {}".format(fragment.non_empty_domain))
+    print("timestamp range: {}".format(fragment.timestamp_range))
+    print("number of fragments to vacuum: {}".format(fragment.to_vacuum_num))
+    print("uri of fragments to vacuum: {}".format(fragment.to_vacuum_uri))
     print(
-        "\t> Non-Empty Domain: {}".format(fi.get_non_empty_domain(schema, fragment_num))
-    )
-    print("\t> URI: {}".format(fi.fragment_uri(fragment_num)))
-    print("\t> Fragment Version: {}".format(fi.version(fragment_num)))
-    print("\t> Timestamp Range: {}".format(fi.timestamp_range(fragment_num)))
-    print("\t> Is DenseArray: {}".format(fi.dense(fragment_num)))
-    print("\t> Is SparseArray: {}".format(fi.sparse(fragment_num)))
-    print(
-        "\t> Has Consolidated Metadata: {}".format(
-            fi.has_consolidated_metadata(fragment_num)
+        "number of unconsolidated metadata: {}".format(
+            fragment.unconsolidated_metadata_num
         )
     )
-    print()
+    print("version: {}".format(fragment.version))
