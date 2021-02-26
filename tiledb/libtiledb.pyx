@@ -650,7 +650,7 @@ cdef class Config(object):
 
     For TileDB Embedded parameters, see:
 
-        https://docs.tiledb.io/en/stable/tutorials/config.html#summary-of-parameters
+        https://docs.tiledb.com/main/solutions/tiledb-embedded/configuration-parameters
 
     The following configuration options are supported by TileDB-Py:
 
