@@ -507,7 +507,9 @@ def dataframe_to_np_arrays(dataframe, fillna=None):
     import pandas as pd
 
     if not hasattr(pd, "StringDtype"):
-        raise Exception("Unexpectedly found pandas versoin < 1.0; please install >= 1.0 for dataframe functionality.")
+        raise Exception(
+            "Unexpectedly found pandas versoin < 1.0; please install >= 1.0 for dataframe functionality."
+        )
 
     ret = dict()
     nullmaps = dict()
@@ -519,9 +521,7 @@ def dataframe_to_np_arrays(dataframe, fillna=None):
                 ret[k] = v.to_numpy(na_value=fillna[k])
             else:
                 # use default 0/empty for the dtype
-                ret[k] = v.to_numpy(
-                    dtype=v.dtype.numpy_dtype, na_value=v.dtype.type()
-                )
+                ret[k] = v.to_numpy(dtype=v.dtype.numpy_dtype, na_value=v.dtype.type())
                 nullmaps[k] = (~v.isna()).to_numpy(dtype="uint8")
         else:
             ret[k] = v.to_numpy()

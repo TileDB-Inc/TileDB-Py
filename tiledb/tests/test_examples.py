@@ -2,7 +2,8 @@ import os, sys, glob, unittest, tempfile, shutil, platform
 import subprocess
 
 run_env = os.environ.copy()
-run_env.update({'IN_TEST': '1'})
+run_env.update({"IN_TEST": "1"})
+
 
 def run_checked(args):
     # run example script
