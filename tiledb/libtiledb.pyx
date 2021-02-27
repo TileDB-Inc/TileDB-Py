@@ -531,13 +531,13 @@ def stats_reset():
     import tiledb.core
     tiledb.core.init_stats()
 
-def stats_dump(version=True, print_out=True, include_python=True, verbose=False):
+def stats_dump(version=True, print_out=True, include_python=True, verbose=True):
     """Return TileDB internal statistics as a string.
 
-    :param print_out: Print string to console (default True), or return as string
-    :param version: Include TileDB Embedded and TileDB-Py versions (default True)
     :param include_python: Include TileDB-Py statistics
-
+    :param print_out: Print string to console (default True), or return as string
+    :param version: Include TileDB Embedded and TileDB-Py versions (default: True)
+    :param verbose: Print extended internal statistics (default: True)
     """
     cdef char* stats_str_ptr = NULL;
 

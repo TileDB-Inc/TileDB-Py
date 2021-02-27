@@ -66,9 +66,12 @@ class StatsTest(DiskTestCase):
             tiledb.libtiledb.stats_enable()
             assert_array_equal(T, np.arange(10))
             tiledb.stats_dump()
-            stats = tiledb.stats_dump(print_out=False)
-            self.assertTrue("==== READ ====" in stats)
-            self.assertTrue("==== Python Stats ====" in stats)
+            stats_v = tiledb.stats_dump(print_out=False)
+            self.assertTrue("==== READ ====" in stats_v)
+            self.assertTrue("==== Python Stats ====" in stats_v)
+
+            stats_quiet = tiledb.stats_dump(print_out=False, verbose=False)
+            self.assertTrue("Time to load array schema" not in stats_quiet)
 
 
 class Config(DiskTestCase):
