@@ -3,6 +3,9 @@
 ## Documentation Updates
 * Added example reading/writing RGB (multi-component) array [#487](https://github.com/TileDB-Inc/TileDB-Py/pull/487)
 
+## Improvements
+* Restore `tiledb.stats_dump` default to `verbose=True` [#491](https://github.com/TileDB-Inc/TileDB-Py/pull/491)
+
 # TileDB-Py 0.8.4 Release Notes
 
 ## Improvements
