@@ -81,6 +81,7 @@ class FragmentInfo:
     """
 
     def __init__(self, fragments: FragmentsInfo, num):
+        self.num = num
         self.uri = fragments.uri[num]
         self.version = fragments.version[num]
         self.non_empty_domain = fragments.non_empty_domain[num]

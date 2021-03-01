@@ -78,7 +78,7 @@ print("number of fragments: {}".format(len(fragments_info)))
 
 for fragment_num, fragment in enumerate(fragments_info, start=1):
     print()
-    print("===== FRAGMENT NUMBER {} =====".format(fragment_num))
+    print("===== FRAGMENT NUMBER {} =====".format(fragment.num))
     print("fragment uri: {}".format(fragment.uri))
     print("is dense: {}".format(fragment.dense))
     print("is sparse: {}".format(fragment.sparse))
