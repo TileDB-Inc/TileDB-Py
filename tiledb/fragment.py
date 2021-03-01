@@ -50,7 +50,12 @@ class FragmentsInfo:
         return self.__nums
 
     def __repr__(self):
-        return pprint.PrettyPrinter().pformat(self.__dict__)
+        public_attrs = {
+            key: value
+            for (key, value) in self.__dict__.items()
+            if not key.startswith("_")
+        }
+        return pprint.PrettyPrinter().pformat(public_attrs)
 
 
 class FragmentsInfoIterator:
