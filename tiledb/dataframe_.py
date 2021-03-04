@@ -355,8 +355,8 @@ def create_dims(
             and not all(map(lambda x: isinstance(x, (int, float)), tile.values()))
         ) or (per_dim_tile is False and not isinstance(tile, (int, float))):
             raise ValueError(
-                "Invalid tile kwarg: expected int or tuple of ints "
-                "got '{}'".format(tile)
+                "Invalid tile kwarg: expected int or dict of column names mapped to ints. "
+                "Got '{}'".format(tile)
             )
 
     if isinstance(index, pd.MultiIndex):
@@ -508,7 +508,7 @@ def dataframe_to_np_arrays(dataframe, fillna=None):
 
     if not hasattr(pd, "StringDtype"):
         raise Exception(
-            "Unexpectedly found pandas versoin < 1.0; please install >= 1.0 for dataframe functionality."
+            "Unexpectedly found pandas version < 1.0; please install >= 1.0 for dataframe functionality."
         )
 
     ret = dict()
@@ -848,8 +848,8 @@ def from_csv(uri, csv_file, **kwargs):
                 for any dimensions(s). Unspecified dimensions will use default.
             * ``coords_filters``: FilterList to apply to all coordinates (Dimensions)
             * ``sparse``: (default True) Create sparse schema
-            * ``tile``: Dimension tiling: accepts either Int or a list of Tuple[Int] with per-dimension
-              'tile' arguments to apply to the generated ArraySchema.
+            * ``tile``: Dimension tiling: accepts either an int that applies the tiling to all dimensions
+                or a dict("dim_name": int) to specifically assign tiling to a given dimension
             * ``capacity``: Schema capacity.
             * ``timestamp``: Write TileDB array at specific timestamp.
             * ``row_start_idx``: Start index to start new write (for row-indexed ingestions).
