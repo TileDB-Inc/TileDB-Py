@@ -194,11 +194,15 @@ def array_type_ncells(np.dtype dtype):
             ncells = checked_dtype.itemsize
 
     elif np.issubdtype(checked_dtype, np.unicode_):
+        np_unicode_size = np.dtype("U1").itemsize
+
+        # TODO depending on np_unicode_size, tdb_type may be UTF16 or UTF32
         tdb_type = TILEDB_STRING_UTF8
+
         if checked_dtype.itemsize == 0:
             ncells = TILEDB_VAR_NUM
-        else:
-            ncells = checked_dtype.itemsize
+        else:    
+            ncells = checked_dtype.itemsize // np_unicode_size
 
     elif np.issubdtype(checked_dtype, np.complexfloating):
         # handle complex dtypes

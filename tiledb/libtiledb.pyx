@@ -2288,7 +2288,8 @@ cdef class Attr(object):
 
         tiledb_dtype, ncells = array_type_ncells(_dtype)
 
-        if var or (_dtype.kind in ('U', 'S') and _dtype.itemsize == 0):
+        # ensure that all unicode strings are var-length
+        if var or _dtype.kind == 'U' or (_dtype.kind == 'S' and _dtype.itemsize == 0):
             var = True
             ncells = TILEDB_VAR_NUM
 
