@@ -6,10 +6,10 @@
 # TileDB-Py 0.8.4 Release Notes
 
 ## Improvements
+* Addition of high-level function `array_fragments()` that returns a `FragmentsInfo` object [#488](https://github.com/TileDB-Inc/TileDB-Py/pull/488)
 * Added support for `from_pandas`/`df[]` round-trip of Pandas nullable integer and bool types [#480](https://github.com/TileDB-Inc/TileDB-Py/pull/480)
 * Fragment info API example usage now provided at `examples/fragment_info.py` [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
-* `fragment_info()` is now exposed to the user and no longer has to be imported explicitly [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
-* `fragment_info()` parameters have been rearranged to match the rest of the TileDB Python API such that the `uri` is provided first and `context`, an optional parameter that defaults to `tiledb.default_ctx()`, is provided second [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
+* Fragment info API parameters have been rearranged to match the rest of the TileDB Python API such that the `uri` is provided first and `context`, an optional parameter that defaults to `tiledb.default_ctx()`, is provided second [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
 
 ## Bug fixes
 * Fix bug in Array.multi_index slicing bug for sparse array with dimension range including 0 [#482](https://github.com/TileDB-Inc/TileDB-Py/pull/482)
