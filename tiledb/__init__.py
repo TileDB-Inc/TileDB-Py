@@ -80,9 +80,9 @@ from .libtiledb import (
 
 from .array import DenseArray, SparseArray
 
-from ._fragment import info as fragment_info
+from .fragment import FragmentsInfo
 
-from .highlevel import open, save, from_numpy, empty_like, array_exists
+from .highlevel import open, save, from_numpy, empty_like, array_exists, array_fragments
 
 # TODO restricted imports
 from .dataframe_ import from_csv, from_pandas, from_dataframe, open_dataframe
