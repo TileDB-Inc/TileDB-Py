@@ -12,6 +12,7 @@
 * Fragment info API parameters have been rearranged to match the rest of the TileDB Python API such that the `uri` is provided first and `context`, an optional parameter that defaults to `tiledb.default_ctx()`, is provided second [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
 
 ## Bug fixes
+* Fix bug in `Attr` to ensure that all Unicode strings are automatically set to `var=True` [#495]https://github.com/TileDB-Inc/TileDB-Py/pull/495
 * Fix bug in Array.multi_index slicing bug for sparse array with dimension range including 0 [#482](https://github.com/TileDB-Inc/TileDB-Py/pull/482)
 
 # TileDB-Py 0.8.3 Release Notes
