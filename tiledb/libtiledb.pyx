@@ -213,7 +213,7 @@ def schema_like_numpy(array, ctx=None, **kw):
         dims.append(Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
 
     var = False
-    if array.dtype == np.object:
+    if array.dtype == object:
         # for object arrays, we use the dtype of the first element
         # consistency check should be done later, if needed
         el0 = array.flat[0]
@@ -4326,7 +4326,7 @@ cdef class Array(object):
     cdef _ndarray_is_varlen(self, np.ndarray array):
         return  (np.issubdtype(array.dtype, np.bytes_) or
                  np.issubdtype(array.dtype, np.unicode_) or
-                 array.dtype == np.object)
+                 array.dtype == object)
 
     @property
     def domain_index(self):
@@ -4588,7 +4588,7 @@ cdef class DenseArrayImpl(Array):
 
         with DenseArray(uri, mode='w', ctx=ctx) as arr:
             # <TODO> probably need better typecheck here
-            if array.dtype == np.object:
+            if array.dtype == object:
                 arr[:] = array
             else:
                 arr.write_direct(np.ascontiguousarray(array))
@@ -4817,7 +4817,7 @@ cdef class DenseArrayImpl(Array):
             name = attr_names[i]
             if not self.schema.domain.has_dim(name) and self.schema.attr(name).isvar:
                 # for var arrays we create an object array
-                dtype = np.object
+                dtype = object
                 out[name] = q.unpack_buffer(name, results[name][0], results[name][1]).reshape(output_shape)
             else:
                 dtype = q.buffer_dtype(name)
