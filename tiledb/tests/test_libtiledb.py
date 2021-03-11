@@ -1702,7 +1702,7 @@ class DenseVarlen(DiskTestCase):
     def test_varlen_write_floats(self):
         # Generates 8 variable-length float64 subarrays (subarray len and content are randomized)
         A = np.array(
-            [np.random.rand(x) for x in np.random.randint(1, 12, 8)], dtype=np.object
+            [np.random.rand(x) for x in np.random.randint(1, 12, 8)], dtype=object
         )
 
         # basic write
@@ -1722,12 +1722,12 @@ class DenseVarlen(DiskTestCase):
             assert_array_equal(A[0], T[1][()])
             assert_array_equal(A[-1], T[-1][()])
             self.assertEqual(len(A), len(T_))
-            # can't use assert_array_equal w/ np.object array
+            # can't use assert_array_equal w/ object array
             self.assertTrue(all(np.array_equal(x, A[i]) for i, x in enumerate(T_)))
 
     def test_varlen_write_floats_2d(self):
         A = np.array(
-            [np.random.rand(x) for x in np.arange(1, 10)], dtype=np.object
+            [np.random.rand(x) for x in np.arange(1, 10)], dtype=object
         ).reshape(3, 3)
 
         # basic write
@@ -1748,7 +1748,7 @@ class DenseVarlen(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
             T_ = T[:]
             self.assertEqual(len(A), len(T_))
-            # can't use assert_array_equal w/ np.object array
+            # can't use assert_array_equal w/ object array
             self.assertTrue(
                 np.all(
                     [np.array_equal(A.flat[i], T[:].flat[i]) for i in np.arange(0, 9)]
@@ -1873,7 +1873,7 @@ class DenseVarlen(DiskTestCase):
                 np.uint64(np.random.randint(0, pow(10, 6), x))
                 for x in np.random.randint(1, 12, 8)
             ],
-            dtype=np.object,
+            dtype=object,
         )
 
         print("random sub-length test array: {}".format(A))
@@ -1894,7 +1894,7 @@ class DenseVarlen(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
             T_ = T[:]
             self.assertEqual(len(A), len(T))
-            # can't use assert_array_equal w/ np.object array
+            # can't use assert_array_equal w/ object array
             self.assertTrue(all(np.array_equal(x, A[i]) for i, x in enumerate(T_)))
 
     def test_varlen_wrong_domain(self):
@@ -1930,7 +1930,7 @@ class DenseVarlen(DiskTestCase):
                 b"cccc",
                 np.uint64([1, 3, 4]),
             ],
-            dtype=np.object,
+            dtype=object,
         )
 
         ctx = tiledb.Ctx()
