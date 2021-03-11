@@ -531,17 +531,18 @@ def stats_reset():
     import tiledb.core
     tiledb.core.init_stats()
 
-def stats_dump(version=True, print_out=True, include_python=True, verbose=True):
+def stats_dump(version=True, print_out=True, include_python=True, json=False, verbose=True):
     """Return TileDB internal statistics as a string.
 
     :param include_python: Include TileDB-Py statistics
     :param print_out: Print string to console (default True), or return as string
     :param version: Include TileDB Embedded and TileDB-Py versions (default: True)
+    :param json: Return stats JSON object (default: False)
     :param verbose: Print extended internal statistics (default: True)
     """
     cdef char* stats_str_ptr = NULL;
 
-    if not verbose:
+    if json or not verbose:
         if tiledb_stats_raw_dump_str(&stats_str_ptr) == TILEDB_ERR:
             raise TileDBError("Unable to dump stats to stats_str_ptr.")
     else:
@@ -550,9 +551,12 @@ def stats_dump(version=True, print_out=True, include_python=True, verbose=True):
 
     stats_str_core = stats_str_ptr.decode("UTF-8", "strict").strip()
 
-    if not verbose:
+    if json or not verbose:
         import json
         stats_json_core = json.loads(stats_str_core)
+
+        if json:
+            return stats_json_core
 
     if tiledb_stats_free_str(&stats_str_ptr) == TILEDB_ERR:
         raise TileDBError("Unable to free stats_str_ptr.")
