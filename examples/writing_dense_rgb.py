@@ -53,7 +53,7 @@ def create_array():
         ),
     )
 
-    # create multi-component attribute with four int32 components
+    # create multi-component attribute with three int32 components
     attr = tiledb.Attr(dtype=np.dtype("i4, i4, i4"))
 
     schema = tiledb.ArraySchema(domain=domain, sparse=False, attrs=[attr])
