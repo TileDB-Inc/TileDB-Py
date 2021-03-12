@@ -73,6 +73,10 @@ class StatsTest(DiskTestCase):
             stats_quiet = tiledb.stats_dump(print_out=False, verbose=False)
             self.assertTrue("Time to load array schema" not in stats_quiet)
 
+            stats_json = tiledb.stats_dump(json=True)
+            self.assertTrue(isinstance(stats_json, dict))
+            self.assertTrue("CONSOLIDATE_COPY_ARRAY" in stats_json)
+
 
 class Config(DiskTestCase):
     def test_config(self):
