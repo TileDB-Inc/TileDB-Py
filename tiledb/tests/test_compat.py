@@ -3,6 +3,9 @@ from __future__ import absolute_import
 import sys, os, io, re, platform, unittest, random, warnings
 
 import numpy as np
+import tarfile, base64
+from io import BytesIO
+
 from numpy.testing import assert_array_equal
 
 import tiledb
@@ -17,35 +20,37 @@ from tiledb.tests.common import (
 
 class BackwardCompatibilityTests(DiskTestCase):
     def test_compat_tiledb_py_0_5_anon_attr_dense(self):
-        # Test that anonymous attributes internally stored as "__attr" are presented as ""
-        # Normally, we can't actually write an attribute named "__attr" anymore, so we
-        # restore a schema written by a patched libtiledb, and rename the attr file.
-
-        schema_data = b"\x05\x00\x00\x00]\x00\x00\x00\x00\x00\x00\x00q\x00\x00\x00\x00\x00\x00\x00\x04\x01\x00\x00\x00\x00\x00\x00\x00\x00\x12\x00\x00\x00\x00\x00\x01\x00\x01\x00\x00\x00\x01\x05\x00\x00\x00\x01\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00q\x00\x00\x009\x00\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00q\x00\x00\x009\x00\x00\x00x\x01ce\x80\x00\x01u(\x83\x81\x11\x08\x19\x18\x98XA\xc4\x7f `\xc0\x10\x01\xc9\x83p\n\x1b\x88\x84\xb0\x81\x8a\xc1l\x88\x00H\x9c\r\x88\xe3\xe3\x13KJ\x8aP\x94\x01\x00\xa2c\x0bD"
-
-        path = self.path("tiledb_py_0_6_anon_attr")
+        # array written with the following script:
+        """
+        import tiledb, numpy as np
         ctx = tiledb.default_ctx()
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 0), tile=1, dtype=np.uint8))
         attrs = (tiledb.Attr(name="_attr_", dtype=np.uint8, ctx=ctx),)
-
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False, ctx=ctx)
+        path = "py0.5.9-test"
         tiledb.DenseArray.create(path, schema, ctx=ctx)
-
         with tiledb.open(path, "w") as A:
             A[0] = 1
+        """
+        # save and print tgz of array directory:
+        # f = open("/tmp/py0.5.9-testa2.tgz",'rb').read()
+        # s = base64.encodebytes(f)
+        # print(f"{s.decode():>32}")
 
-        fragment_name = os.path.split(list(A.last_write_info.keys())[0])[-1]
-        fragment_path = os.path.join(path, fragment_name)
+        array_tgz = b"""H4sIADjvS2AAA+2YzW4TMRCA7fIX0SJVFdz9AAg8XtubvbR9AF6gEpLjJg4FmgRttwJuReKAuFFe
+                        oUcO9A165NJ7jxWPwBOwXq3RZgnNtmkiBPNJ2bEnY89uRjMZrzGgQal2ArFUXNZm0sa8D7GL2tpJ
+                        SKIk6XIFTiVxlIg4UY9JEzjnMeeskFoVkpfzAAPJhYh1LLVmXIDgQJhqtPuM7O9lNs1v5flwlGaj
+                        4R/tXu84t3vBPuMPxa79PueEmS3+xvRT+2zghpkZuMz2bGYfZb3tcR9T4g8AuhZ/paOYML6IH+A/
+                        j//N/KPL8b2go+HbteJKiVfQW/5SjCr23mK1nNOK7g3t9jqd86Vtzfr59JCseU+hXoQVTT15++Wa
+                        p6DznjbzFYwsoYtLuPi1Y2X8gFzMi1KelpKXCz/TSdbI38/M9d9mWfp7yR9j6v+/ULX6H4GUWP8X
+                        Aa1IWtMh/z55AqepfWv2ujtuMKF3uw6m5b+AWv6DiiTH/F8EvhPYKsdPg65hs+Ht/Rmt2mwEXd5s
+                        WHKD7rdOT05a71dWnnxh3zdWOx+/vrt/8Oruh9twdtBeXz8+Omo9vPPJdQj58W15Y47PiUzGmN1R
+                        9+V88j5w6fM/RFoIzP9FYIpze7P3OFflCvGHSOL7HwRBEARBEARBEARBEARBkFn4CRFQSoEAKAAA"""
 
-        # fix up the array the override schema
-        with open(os.path.join(path, "__array_schema.tdb"), "wb") as f:
-            f.write(schema_data)
-        import shutil
+        path = self.path("tiledb_py_0_6_anon_attr")
+        with tarfile.open(fileobj=BytesIO(base64.b64decode(array_tgz))) as tf:
+            tf.extractall(path)
 
-        shutil.move(
-            os.path.join(fragment_path, "_attr_.tdb"),
-            os.path.join(fragment_path, "__attr.tdb"),
-        )
         with tiledb.open(path) as A:
             self.assertEqual(A.schema.attr(0).name, "")
             self.assertEqual(A.schema.attr(0)._internal_name, "__attr")
