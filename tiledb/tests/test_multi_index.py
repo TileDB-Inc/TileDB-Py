@@ -687,3 +687,75 @@ class TestMultiRange(DiskTestCase):
                 A.multi_index[:11],
                 np.array([], dtype=np.uint64),
             )
+
+    def test_fixed_multi_attr_df(self):
+        uri = self.path("test_fixed_multi_attr_df")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="dim", domain=(0, 0), tile=None, dtype=np.int32),
+        )
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            sparse=True,
+            attrs=[
+                tiledb.Attr(
+                    name="111",
+                    dtype=[("", np.int32), ("", np.int32), ("", np.int32)],
+                )
+            ],
+        )
+
+        tiledb.SparseArray.create(uri, schema)
+
+        data_111 = np.array(
+            [(1, 1, 1)], dtype=[("", np.int32), ("", np.int32), ("", np.int32)]
+        )
+        with tiledb.SparseArray(uri, mode="w") as A:
+            A[0] = data_111
+
+        with tiledb.SparseArray(uri, mode="r") as A:
+            result = A.query(attrs=["111"])[0]
+            assert_array_equal(result["111"], data_111)
+
+            with self.assertRaises(tiledb.TileDBError):
+                result = A.query(attrs=["111"]).df[0]
+
+            result = A.query(attrs=["111"], use_arrow=False)
+            assert_array_equal(result.df[0]["111"], data_111)
+
+    def test_var_multi_attr_df(self):
+        uri = self.path("test_var_multi_attr_df")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="dim", domain=(0, 2), tile=None, dtype=np.int32),
+        )
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            sparse=True,
+            attrs=[tiledb.Attr(name="1s", dtype=np.int32, var=True)],
+        )
+
+        tiledb.SparseArray.create(uri, schema)
+
+        data = np.array(
+            [
+                np.array([1], dtype=np.int32),
+                np.array([1, 1], dtype=np.int32),
+                np.array([1, 1, 1], dtype=np.int32),
+            ],
+            dtype="O",
+        )
+        with tiledb.SparseArray(uri, mode="w") as A:
+            A[[0, 1, 2]] = data
+
+        with tiledb.SparseArray(uri, mode="r") as A:
+            result = A.query(attrs=["1s"])
+            assert_array_equal(result[0]["1s"][0], data[0])
+            assert_array_equal(result[1]["1s"][0], data[1])
+            assert_array_equal(result[2]["1s"][0], data[2])
+
+            with self.assertRaises(tiledb.TileDBError):
+                result = A.query(attrs=["1s"]).df[0]
+
+            result = A.query(attrs=["1s"], use_arrow=False)
+            assert_array_equal(result.df[0]["1s"][0], data[0])
+            assert_array_equal(result.df[1]["1s"][0], data[1])
+            assert_array_equal(result.df[2]["1s"][0], data[2])
