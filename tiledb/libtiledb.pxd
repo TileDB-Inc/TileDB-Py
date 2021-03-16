@@ -1089,6 +1089,18 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_vfs_t* vfs,
         const char* old_uri,
         const char* new_uri) nogil
+    
+    int tiledb_vfs_copy_file(
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* old_uri,
+        const char* new_uri) nogil
+
+    int tiledb_vfs_copy_dir(
+        tiledb_ctx_t* ctx,
+        tiledb_vfs_t* vfs,
+        const char* old_uri,
+        const char* new_uri) nogil
 
     int tiledb_vfs_open(
         tiledb_ctx_t* ctx,

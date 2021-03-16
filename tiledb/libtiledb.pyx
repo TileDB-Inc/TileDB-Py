@@ -6141,6 +6141,56 @@ cdef class VFS(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return new_uri
+    
+    def copy_file(self, old_uri, new_uri):
+        """ Copiies a VFS file from old URI to new URI
+
+        :param str old_uri: Existing VFS file or directory resource URI
+        :param str new_uri: URI to copy existing VFS resource to
+        :param bool force: if VFS resource at `new_uri` exists, delete the resource and overwrite
+        :rtype: str
+        :return: new URI of VFS resource
+        :raises TypeError: cannot convert `old_uri`/`new_uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes bold_uri = unicode_path(old_uri)
+        cdef bytes bnew_uri = unicode_path(new_uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* old_uri_ptr = PyBytes_AS_STRING(bold_uri)
+        cdef const char* new_uri_ptr = PyBytes_AS_STRING(bnew_uri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_copy_file(ctx_ptr, vfs_ptr, old_uri_ptr, new_uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return new_uri
+
+    def copy_dir(self, old_uri, new_uri):
+        """ Copiies a VFS dir from old URI to new URI
+
+        :param str old_uri: Existing VFS file or directory resource URI
+        :param str new_uri: URI to copy existing VFS resource to
+        :param bool force: if VFS resource at `new_uri` exists, delete the resource and overwrite
+        :rtype: str
+        :return: new URI of VFS resource
+        :raises TypeError: cannot convert `old_uri`/`new_uri` to unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        cdef bytes bold_uri = unicode_path(old_uri)
+        cdef bytes bnew_uri = unicode_path(new_uri)
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = self.ptr
+        cdef const char* old_uri_ptr = PyBytes_AS_STRING(bold_uri)
+        cdef const char* new_uri_ptr = PyBytes_AS_STRING(bnew_uri)
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_copy_dir(ctx_ptr, vfs_ptr, old_uri_ptr, new_uri_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return new_uri
 
     def open(self, uri, mode='rb'):
         """Opens a VFS file resource for reading / writing / appends at URI

@@ -1316,28 +1316,8 @@ class DenseArrayTest(DiskTestCase):
         schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr_int, attr_float))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        V_ints = np.array(
-            [
-                [
-                    0,
-                    1,
-                    2,
-                    3,
-                ],
-                [4, 6, 7, 5],
-            ]
-        )
-        V_floats = np.array(
-            [
-                [
-                    0.0,
-                    1.0,
-                    2.0,
-                    3.0,
-                ],
-                [4.0, 6.0, 7.0, 5.0],
-            ]
-        )
+        V_ints = np.array([[0, 1, 2, 3], [4, 6, 7, 5]])
+        V_floats = np.array([[0.0, 1.0, 2.0, 3.0], [4.0, 6.0, 7.0, 5.0]])
 
         V = {"ints": V_ints, "floats": V_floats}
         with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
@@ -1927,15 +1907,7 @@ class DenseVarlen(DiskTestCase):
 
     def test_array_varlen_mismatched(self):
         # Test that we raise a TypeError when passing a heterogeneous object array.
-        A = np.array(
-            [
-                b"aa",
-                b"bbb",
-                b"cccc",
-                np.uint64([1, 3, 4]),
-            ],
-            dtype=object,
-        )
+        A = np.array([b"aa", b"bbb", b"cccc", np.uint64([1, 3, 4])], dtype=object)
 
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, ctx=ctx), ctx=ctx)
@@ -2078,13 +2050,7 @@ class SparseArray(DiskTestCase):
         attr_int = tiledb.Attr("ints", dtype=int, ctx=ctx)
         attr_float = tiledb.Attr("floats", dtype="float", ctx=ctx)
         schema = tiledb.ArraySchema(
-            domain=dom,
-            attrs=(
-                attr_int,
-                attr_float,
-            ),
-            sparse=True,
-            ctx=ctx,
+            domain=dom, attrs=(attr_int, attr_float), sparse=True, ctx=ctx
         )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
@@ -2398,9 +2364,7 @@ class SparseArray(DiskTestCase):
         ctx = tiledb.Ctx({"sm.check_coord_dups": False})
         schema = tiledb.ArraySchema(
             domain=Domain(
-                *[
-                    Dim(name="id", domain=(1, 5000), tile=25, dtype="int32", ctx=ctx),
-                ]
+                *[Dim(name="id", domain=(1, 5000), tile=25, dtype="int32", ctx=ctx)]
             ),
             attrs=[
                 Attr(name="a1", dtype="datetime64[s]", ctx=ctx),
@@ -2549,9 +2513,7 @@ class SparseArray(DiskTestCase):
     def test_sparse_string_domain2(self):
         path = self.path("sparse_string_domain2")
         ctx = tiledb.Ctx()
-        dims = [
-            tiledb.Dim(name="str", domain=(None, None), tile=None, dtype=np.bytes_),
-        ]
+        dims = [tiledb.Dim(name="str", domain=(None, None), tile=None, dtype=np.bytes_)]
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)]
 
@@ -2707,14 +2669,7 @@ class DenseIndexing(DiskTestCase):
         # slice(-1, 0, -1),
     ]
 
-    bad_index_1d = [
-        2.3,
-        "foo",
-        b"xxx",
-        None,
-        (0, 0),
-        (slice(None), slice(None)),
-    ]
+    bad_index_1d = [2.3, "foo", b"xxx", None, (0, 0), (slice(None), slice(None))]
 
     def test_index_1d(self):
         A = np.arange(1050, dtype=int)
@@ -3378,6 +3333,29 @@ class VFS(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             vfs.move_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
 
+    def test_copy(self):
+        ctx = tiledb.Ctx()
+        vfs = tiledb.VFS(ctx=ctx)
+
+        vfs.create_dir(self.path("foo"))
+        vfs.create_dir(self.path("bar"))
+        vfs.touch(self.path("foo/baz"))
+
+        self.assertTrue(vfs.is_file(self.path("foo/baz")))
+
+        vfs.copy_file(self.path("foo/baz"), self.path("bar/baz"))
+
+        self.assertTrue(vfs.is_file(self.path("foo/baz")))
+        self.assertTrue(vfs.is_file(self.path("bar/baz")))
+
+        vfs.copy_dir(self.path("foo"), self.path("baz"))
+
+        self.assertTrue(vfs.is_file(self.path("baz/baz")))
+
+        # copying to invalid dir should raise an error
+        with self.assertRaises(tiledb.TileDBError):
+            vfs.copy_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
+
     def test_write_read(self):
         ctx = tiledb.Ctx()
         vfs = tiledb.VFS(ctx=ctx)
@@ -3733,9 +3711,7 @@ class HighlevelTests(DiskTestCase):
         # This test checks that contexts are destroyed correctly.
         # It creates new contexts repeatedly, in-process, and
         # checks that the total number of threads stays stable.
-        config = {
-            "sm.num_reader_threads": 128,
-        }
+        config = {"sm.num_reader_threads": 128}
         ll = list()
         uri = self.path("test_ctx_thread_cleanup")
         with tiledb.from_numpy(uri, np.random.rand(100)) as A:
@@ -3860,13 +3836,9 @@ class NullableIOTest(DiskTestCase):
 
         schema = tiledb.ArraySchema(
             domain=tiledb.Domain(
-                *[
-                    tiledb.Dim(name="__dim_0", domain=(0, 3), tile=4, dtype="uint64"),
-                ]
+                *[tiledb.Dim(name="__dim_0", domain=(0, 3), tile=4, dtype="uint64")]
             ),
-            attrs=[
-                tiledb.Attr(name="", dtype="int64", var=False, nullable=True),
-            ],
+            attrs=[tiledb.Attr(name="", dtype="int64", var=False, nullable=True)],
         )
         tiledb.Array.create(uri, schema)
 
