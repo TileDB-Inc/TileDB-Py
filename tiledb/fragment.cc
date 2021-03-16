@@ -111,7 +111,7 @@ public:
   py::tuple get_non_empty_domain(py::object schema, uint32_t fid, T did) const {
     py::bool_ isvar = get_dim_isvar(schema.attr("domain"), did);
 
-    if(isvar) {
+    if (isvar) {
       pair<string, string> lims = fi_->non_empty_domain_var(fid, did);
       return py::make_tuple(lims.first, lims.second);
     }

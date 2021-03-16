@@ -500,9 +500,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                     ),
                 ]
             ),
-            attrs=[
-                tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters),
-            ],
+            attrs=[tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters)],
             coords_filters=coords_filters,
             cell_order="row-major",
             tile_order="row-major",

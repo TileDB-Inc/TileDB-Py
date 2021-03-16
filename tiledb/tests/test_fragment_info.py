@@ -82,7 +82,7 @@ class FragmentInfoTest(DiskTestCase):
 
         uri = self.path("test_array_fragments_var")
         dom = tiledb.Domain(
-            tiledb.Dim(name="dim", domain=(None, None), tile=None, dtype=np.bytes_),
+            tiledb.Dim(name="dim", domain=(None, None), tile=None, dtype=np.bytes_)
         )
         schema = tiledb.ArraySchema(
             domain=dom,
