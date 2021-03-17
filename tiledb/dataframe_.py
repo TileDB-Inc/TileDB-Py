@@ -82,6 +82,24 @@ def parse_tiledb_kwargs(kwargs):
     return parsed_args
 
 
+def is_nullable_extension_type(t):
+    import pandas as pd
+
+    return isinstance(
+        t,
+        (
+            pd.Int64Dtype,
+            pd.Int32Dtype,
+            pd.Int16Dtype,
+            pd.Int8Dtype,
+            pd.UInt64Dtype,
+            pd.UInt32Dtype,
+            pd.UInt16Dtype,
+            pd.UInt8Dtype,
+        ),
+    )
+
+
 class ColumnInfo:
     def __init__(self, dtype, repr: Optional[str] = None, nullable: bool = False):
         self.dtype = dtype
@@ -104,19 +122,7 @@ def dtype_from_column(col):
     ):
         return ColumnInfo(col_dtype)
 
-    if isinstance(
-        col_dtype,
-        (
-            pd.Int64Dtype,
-            pd.Int32Dtype,
-            pd.Int16Dtype,
-            pd.Int8Dtype,
-            pd.UInt64Dtype,
-            pd.UInt32Dtype,
-            pd.UInt16Dtype,
-            pd.UInt8Dtype,
-        ),
-    ):
+    if is_nullable_extension_type(col_dtype):
         return ColumnInfo(col_dtype.numpy_dtype, repr=str(col_dtype), nullable=True)
 
     if isinstance(col_dtype, pd.BooleanDtype):
@@ -187,13 +193,15 @@ def attrs_from_df(df, index_dims=None, filters=None, column_types=None, ctx=None
         # ignore any column used as a dim/index
         if index_dims and name in index_dims:
             continue
-
         if name in column_types:
             spec_type = column_types[name]
+            nullable = is_nullable_extension_type(spec_type)
+
+            actual_type = spec_type
             # Handle ExtensionDtype
             if hasattr(spec_type, "type"):
-                spec_type = spec_type.type
-            attr_info = ColumnInfo(spec_type)
+                actual_type = spec_type.type
+            attr_info = ColumnInfo(actual_type, repr=str(spec_type), nullable=nullable)
         else:
             attr_info = dtype_from_column(col)
 
@@ -513,10 +521,12 @@ def dataframe_to_np_arrays(dataframe, fillna=None):
 
     ret = dict()
     nullmaps = dict()
+
     for k, v in dataframe.to_dict(orient="series").items():
         if pd.api.types.is_extension_array_dtype(v):
-            #
-            if fillna is not None and k in fillna:
+            if (fillna is not None and k in fillna) and not is_nullable_extension_type(
+                v.dtype
+            ):
                 # raise ValueError("Missing 'fillna' value for column '{}' with pandas extension dtype".format(k))
                 ret[k] = v.to_numpy(na_value=fillna[k])
             else:

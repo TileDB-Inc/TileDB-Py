@@ -613,6 +613,15 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             tm.assert_frame_equal(df_idx_res, df.reset_index(drop=True))
 
     def test_csv_fillna(self):
+        def check_array(path, df):
+            # update the value in the original dataframe to match what we expect on read-back
+            df["v"][4] = 0
+
+            with tiledb.open(path) as A:
+                df_bk = A.df[:]
+                tm.assert_frame_equal(df_bk, df, check_index_type=False)
+
+        ### Test 1
         col_size = 10
         data = np.random.rand(10) * 100  # make some integers for the 2nd test
         data[4] = np.nan
@@ -627,30 +636,25 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tmp_array = os.path.join(tmp_dir, "array")
         # TODO: test Dense too
         tiledb.from_csv(tmp_array, tmp_csv, fillna={"v": 0}, sparse=True)
-
-        def check_array(path, df):
-            # update the value in the original dataframe to match what we expect on read-back
-            df["v"][4] = 0
-
-            with tiledb.open(path) as A:
-                df_bk = A.df[:]
-                tm.assert_frame_equal(df_bk, df, check_index_type=False)
-
         check_array(tmp_array, copy.deepcopy(df))
 
-        # Test writing a StringDtype in newer pandas versions
-        if hasattr(pd, "StringDtype"):
+        ### Test 2
+        # Test roundtrip a Int64Dtype in newer pandas versions
+        tmp_csv2 = os.path.join(tmp_dir, "generated.csv")
+        df2 = pd.DataFrame({"v": pd.Series(np.int64(df["v"]), dtype=pd.Int64Dtype())})
+        df2["v"][4] = None
+        df2.to_csv(tmp_csv2, index=False)
+        if hasattr(pd, "Int64Dtype"):
             tmp_array2 = os.path.join(tmp_dir, "array2")
             tiledb.from_csv(
                 tmp_array2,
-                tmp_csv,
+                tmp_csv2,
                 fillna={"v": 0},
-                column_types={"v": pd.Int64Dtype},
+                dtype={"v": pd.Int64Dtype()},
+                column_types={"v": pd.Int64Dtype()},
                 sparse=True,
             )
-            df_to_check = copy.deepcopy(df)
-            df_to_check["v"][4] = 0
-            df_to_check = df_to_check.astype({"v": np.int64})
+            df_to_check = copy.deepcopy(df2)
             check_array(tmp_array2, df_to_check)
 
     def test_csv_multi_file(self):
