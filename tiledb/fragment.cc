@@ -109,6 +109,13 @@ public:
 
   template <typename T>
   py::tuple get_non_empty_domain(py::object schema, uint32_t fid, T did) const {
+    py::bool_ isvar = get_dim_isvar(schema.attr("domain"), did);
+
+    if (isvar) {
+      pair<string, string> lims = fi_->non_empty_domain_var(fid, did);
+      return py::make_tuple(lims.first, lims.second);
+    }
+
     py::dtype type = get_dim_type(schema.attr("domain"), did);
     py::dtype array_type =
         type.kind() == 'M' ? pybind11::dtype::of<uint64_t>() : type;
@@ -130,6 +137,18 @@ public:
     return limits;
   }
 
+  py::bool_ get_dim_isvar(py::object dom, uint32_t did) const {
+    // passing templated type "did" to Python function dom.attr("dim")
+    // does not work
+    return (dom.attr("dim")(did).attr("isvar")).cast<py::bool_>();
+  }
+
+  py::bool_ get_dim_isvar(py::object dom, string did) const {
+    // passing templated type "did" to Python function dom.attr("dim")
+    // does not work
+    return (dom.attr("dim")(did).attr("isvar")).cast<py::bool_>();
+  }
+
   py::dtype get_dim_type(py::object dom, uint32_t did) const {
     // passing templated type "did" to Python function dom.attr("dim")
     // does not work
@@ -140,32 +159,6 @@ public:
     // passing templated type "did" to Python function dom.attr("dim")
     // does not work
     return (dom.attr("dim")(did).attr("dtype")).cast<py::dtype>();
-  }
-
-  py::tuple non_empty_domain_var(py::object schema) const {
-    py::list all_frags;
-    uint32_t nfrag = fragment_num();
-
-    for (uint32_t fid = 0; fid < nfrag; ++fid)
-      all_frags.append(non_empty_domain_var(schema, fid));
-
-    return all_frags;
-  }
-
-  py::tuple non_empty_domain_var(py::object schema, uint32_t fid) const {
-    py::list all_dims;
-    int ndim = (schema.attr("domain").attr("ndim")).cast<int>();
-
-    for (int did = 0; did < ndim; ++did)
-      all_dims.append(non_empty_domain_var(schema, fid, did));
-
-    return all_dims;
-  }
-
-  template <typename T>
-  py::tuple non_empty_domain_var(py::object schema, uint32_t fid, T did) const {
-    pair<string, string> lims = fi_->non_empty_domain_var(fid, did);
-    return py::make_tuple(lims.first, lims.second);
   }
 
   py::object timestamp_range(py::object fid) const {
@@ -245,20 +238,6 @@ PYBIND11_MODULE(_fragment, m) {
            static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t,
                                                      const string &) const>(
                &PyFragmentInfo::get_non_empty_domain))
-
-      .def("non_empty_domain_var",
-           static_cast<py::tuple (PyFragmentInfo::*)(py::object) const>(
-               &PyFragmentInfo::non_empty_domain_var))
-      .def("non_empty_domain_var",
-           static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t)
-                           const>(&PyFragmentInfo::non_empty_domain_var))
-      .def("non_empty_domain_var", static_cast<py::tuple (PyFragmentInfo::*)(
-                                       py::object, uint32_t, uint32_t) const>(
-                                       &PyFragmentInfo::non_empty_domain_var))
-      .def("non_empty_domain_var",
-           static_cast<py::tuple (PyFragmentInfo::*)(py::object, uint32_t,
-                                                     const string &) const>(
-               &PyFragmentInfo::non_empty_domain_var))
 
       .def("fragment_uri", &PyFragmentInfo::fragment_uri,
            py::arg("fid") = py::none())

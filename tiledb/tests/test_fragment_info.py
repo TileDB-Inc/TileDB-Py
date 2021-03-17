@@ -57,8 +57,10 @@ class FragmentInfoTest(DiskTestCase):
 
         if tiledb.libtiledb.version() < (2, 2, 3):
             self.assertEqual(fragments_info.version, (7, 7, 7))
-        else:
+        elif tiledb.libtiledb.version() < (2, 3, 0):
             self.assertEqual(fragments_info.version, (8, 8, 8))
+        else:
+            self.assertEqual(fragments_info.version, (9, 9, 9))
 
         for idx, frag in enumerate(fragments_info):
             self.assertEqual(frag.cell_num, 3)
@@ -70,8 +72,50 @@ class FragmentInfoTest(DiskTestCase):
 
             if tiledb.libtiledb.version() < (2, 2, 3):
                 self.assertEqual(frag.version, 7)
-            else:
+            elif tiledb.libtiledb.version() < (2, 3, 0):
                 self.assertEqual(frag.version, 8)
+            else:
+                self.assertEqual(frag.version, 9)
+
+    def test_array_fragments_var(self):
+        fragments = 3
+
+        uri = self.path("test_array_fragments_var")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="dim", domain=(None, None), tile=None, dtype=np.bytes_)
+        )
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            sparse=True,
+            attrs=[tiledb.Attr(name="1s", dtype=np.int32, var=True)],
+        )
+
+        tiledb.SparseArray.create(uri, schema)
+
+        for fragment_idx in range(fragments):
+            timestamp = fragment_idx + 1
+
+            data = np.array(
+                [
+                    np.array([timestamp] * 1, dtype=np.int32),
+                    np.array([timestamp] * 2, dtype=np.int32),
+                    np.array([timestamp] * 3, dtype=np.int32),
+                ],
+                dtype="O",
+            )
+
+            with tiledb.SparseArray(uri, mode="w", timestamp=timestamp) as T:
+                T[["zero", "one", "two"]] = data
+
+        fragments_info = tiledb.array_fragments(uri)
+
+        self.assertEqual(
+            fragments_info.non_empty_domain,
+            ((("one", "zero"),), (("one", "zero"),), (("one", "zero"),)),
+        )
+
+        for frag in fragments_info:
+            self.assertEqual(frag.non_empty_domain, (("one", "zero"),))
 
     def test_dense_fragments(self):
         fragments = 3
@@ -135,8 +179,10 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.sparse(), (False, False, False))
         if tiledb.libtiledb.version() < (2, 2, 3):
             self.assertEqual(fragment_info.version(), (7, 7, 7))
-        else:
+        elif tiledb.libtiledb.version() < (2, 3, 0):
             self.assertEqual(fragment_info.version(), (8, 8, 8))
+        else:
+            self.assertEqual(fragment_info.version(), (9, 9, 9))
 
     def test_sparse_fragments(self):
         fragments = 3
@@ -200,8 +246,10 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.sparse(), (True, True, True))
         if tiledb.libtiledb.version() < (2, 2, 3):
             self.assertEqual(fragment_info.version(), (7, 7, 7))
-        else:
+        elif tiledb.libtiledb.version() < (2, 3, 0):
             self.assertEqual(fragment_info.version(), (8, 8, 8))
+        else:
+            self.assertEqual(fragment_info.version(), (9, 9, 9))
 
     def test_non_empty_domain(self):
         uri = self.path("test_non_empty_domain")
@@ -357,25 +405,25 @@ class FragmentInfoTest(DiskTestCase):
         fragment_info = _fragment.info(uri, ctx)
         fragment_info.load()
 
-        self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, 0), ("a", "d"))
-        self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, 1), ("e", "h"))
-        self.assertEqual(fragment_info.non_empty_domain_var(schema, 1, 0), ("a", "b"))
-        self.assertEqual(fragment_info.non_empty_domain_var(schema, 1, 1), ("e", "f"))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 0), ("a", "d"))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 1), ("e", "h"))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, 0), ("a", "b"))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, 1), ("e", "f"))
 
-        self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, "x"), ("a", "d"))
-        self.assertEqual(fragment_info.non_empty_domain_var(schema, 0, "y"), ("e", "h"))
-        self.assertEqual(fragment_info.non_empty_domain_var(schema, 1, "x"), ("a", "b"))
-        self.assertEqual(fragment_info.non_empty_domain_var(schema, 1, "y"), ("e", "f"))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, "x"), ("a", "d"))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, "y"), ("e", "h"))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, "x"), ("a", "b"))
+        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, "y"), ("e", "f"))
 
         self.assertEqual(
-            fragment_info.non_empty_domain_var(schema, 0), (("a", "d"), ("e", "h"))
+            fragment_info.get_non_empty_domain(schema, 0), (("a", "d"), ("e", "h"))
         )
         self.assertEqual(
-            fragment_info.non_empty_domain_var(schema, 1), (("a", "b"), ("e", "f"))
+            fragment_info.get_non_empty_domain(schema, 1), (("a", "b"), ("e", "f"))
         )
 
         self.assertEqual(
-            fragment_info.non_empty_domain_var(schema),
+            fragment_info.get_non_empty_domain(schema),
             ((("a", "d"), ("e", "h")), (("a", "b"), ("e", "f"))),
         )
 
