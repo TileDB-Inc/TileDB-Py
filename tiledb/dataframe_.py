@@ -154,40 +154,27 @@ def dtype_from_column(arr_or_dtype):
 
 # TODO make this a staticmethod on Attr?
 def attrs_from_df(df, index_dims=None, filters=None, column_types=None, ctx=None):
-    attr_reprs = dict()
+    attr_reprs = {}
     if ctx is None:
         ctx = tiledb.default_ctx()
 
     if column_types is None:
-        column_types = dict()
+        column_types = {}
 
-    attrs = list()
+    attrs = []
     for name, col in df.items():
+        # ignore any column used as a dim/index
+        if index_dims and name in index_dims:
+            continue
+
         if isinstance(filters, dict):
-            if name in filters:
-                attr_filters = filters[name]
-            else:
-                attr_filters = None
+            attr_filters = filters.get(name)
         elif filters is not None:
             attr_filters = filters
         else:
             attr_filters = tiledb.FilterList([tiledb.ZstdFilter(1, ctx=ctx)])
 
-        # ignore any column used as a dim/index
-        if index_dims and name in index_dims:
-            continue
-        if name in column_types:
-            spec_type = column_types[name]
-            nullable = is_nullable_extension_type(spec_type)
-
-            actual_type = spec_type
-            # Handle ExtensionDtype
-            if hasattr(spec_type, "type"):
-                actual_type = spec_type.type
-            attr_info = ColumnInfo(actual_type, repr=str(spec_type), nullable=nullable)
-        else:
-            attr_info = dtype_from_column(col)
-
+        attr_info = dtype_from_column(column_types.get(name, col))
         attrs.append(
             tiledb.Attr(
                 name=name,
