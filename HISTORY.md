@@ -5,6 +5,7 @@
 
 ## Improvements
 * Restore `tiledb.stats_dump` default to `verbose=True` [#491](https://github.com/TileDB-Inc/TileDB-Py/pull/491)
+* Remove `non_empty_domain_var()` Fragment Info PyBind11 Function and only use `get_non_empty_domain()` for both fixed and var-length domains [#505](https://github.com/TileDB-Inc/TileDB-Py/pull/505)
 
 # TileDB-Py 0.8.4 Release Notes
 
