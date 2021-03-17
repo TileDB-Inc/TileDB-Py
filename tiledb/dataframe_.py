@@ -72,24 +72,6 @@ def parse_tiledb_kwargs(kwargs):
     return parsed_args
 
 
-def is_nullable_extension_type(t):
-    import pandas as pd
-
-    return isinstance(
-        t,
-        (
-            pd.Int64Dtype,
-            pd.Int32Dtype,
-            pd.Int16Dtype,
-            pd.Int8Dtype,
-            pd.UInt64Dtype,
-            pd.UInt32Dtype,
-            pd.UInt16Dtype,
-            pd.UInt8Dtype,
-        ),
-    )
-
-
 @dataclass(init=False, frozen=True)
 class ColumnInfo:
 
@@ -442,27 +424,16 @@ def write_array_metadata(array, attr_metadata=None, index_metadata=None):
 
 
 def dataframe_to_np_arrays(dataframe, fillna=None):
-    import pandas as pd
-
-    if not hasattr(pd, "StringDtype"):
-        raise Exception(
-            "Unexpectedly found pandas version < 1.0; please install >= 1.0 for dataframe functionality."
-        )
-
-    ret = dict()
-    nullmaps = dict()
-
+    ret = {}
+    nullmaps = {}
     for k, v in dataframe.to_dict(orient="series").items():
-        if pd.api.types.is_extension_array_dtype(v):
-            if (fillna is not None and k in fillna) and not is_nullable_extension_type(
-                v.dtype
-            ):
-                # raise ValueError("Missing 'fillna' value for column '{}' with pandas extension dtype".format(k))
-                ret[k] = v.to_numpy(na_value=fillna[k])
-            else:
-                # use default 0/empty for the dtype
-                ret[k] = v.to_numpy(dtype=v.dtype.numpy_dtype, na_value=v.dtype.type())
-                nullmaps[k] = (~v.isna()).to_numpy(dtype="uint8")
+        v_info = ColumnInfo(v)
+        if v_info.nullable:
+            # use default 0/empty for the dtype
+            ret[k] = v.to_numpy(dtype=v_info.dtype, na_value=v.dtype.type())
+            nullmaps[k] = (~v.isna()).to_numpy(dtype=np.uint8)
+        elif fillna is not None and k in fillna:
+            ret[k] = v.to_numpy(na_value=fillna[k])
         else:
             ret[k] = v.to_numpy()
 
