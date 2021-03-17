@@ -1,7 +1,6 @@
 import json
 import os
 import copy
-from collections import OrderedDict
 import warnings
 
 from typing import Optional
@@ -204,35 +203,6 @@ def attrs_from_df(df, index_dims=None, filters=None, column_types=None, ctx=None
     return attrs, attr_reprs
 
 
-def dim_info_for_column(ctx, df, col, tile=None, full_domain=False, index_dtype=None):
-
-    if isinstance(col, np.ndarray):
-        col_values = col
-    else:
-        col_values = col.values
-
-    if len(col_values) < 1:
-        raise ValueError(
-            "Empty column '{}' cannot be used for dimension!".format(col_name)
-        )
-
-    if index_dtype is not None:
-        dim_info = ColumnInfo(index_dtype)
-    elif col_values.dtype is np.dtype("O"):
-        col_val0_type = type(col_values[0])
-        if col_val0_type in (bytes, str):
-            # TODO... core only supports TILEDB_ASCII right now
-            dim_info = ColumnInfo(np.bytes_)
-        else:
-            raise TypeError(
-                "Unknown column type not yet supported ('{}')".format(col_val0_type)
-            )
-    else:
-        dim_info = dtype_from_column(col_values)
-
-    return dim_info
-
-
 def dim_for_column(
     ctx, name, dim_info, col, tile=None, full_domain=False, ndim=None, dim_filters=None
 ):
@@ -333,10 +303,6 @@ def create_dims(
 ):
     import pandas as pd
 
-    index = dataframe.index
-    index_dict = OrderedDict()
-    index_dtype = None
-
     per_dim_tile = False
     if tile is not None:
         if isinstance(tile, dict):
@@ -352,47 +318,29 @@ def create_dims(
                 "Got '{}'".format(tile)
             )
 
+    index = dataframe.index
+    index_name_values = []
+    dim_types = []
+
     if isinstance(index, pd.MultiIndex):
         for name in index.names:
-            index_dict[name] = dataframe.index.get_level_values(name)
+            values = index.get_level_values(name)
+            index_name_values.append((name, values))
+            dim_types.append(dtype_from_column(values))
 
     elif isinstance(index, (pd.Index, pd.RangeIndex, pd.Int64Index)):
-        if hasattr(index, "name") and index.name is not None:
-            name = index.name
-        else:
-            index_dtype = np.dtype("uint64")
+        values = index.values
+        name = getattr(index, "name", None)
+        if name is None:
             name = "__tiledb_rows"
-
-        index_dict[name] = index.values
-
-    else:
-        raise ValueError("Unhandled index type {}".format(type(index)))
-
-    # create list of dim types
-    # we need to know all the types in order to validate before creating Dims
-    dim_types = list()
-    for idx, (name, values) in enumerate(index_dict.items()):
-        if per_dim_tile and name in tile:
-            dim_tile = tile[name]
-        elif per_dim_tile:
-            # in this case we fall back to the default
-            dim_tile = None
+            dim_types.append(dtype_from_column(np.uint64))
         else:
-            # in this case we use a scalar (type-checked earlier)
-            dim_tile = tile
+            dim_types.append(dtype_from_column(values))
+        index_name_values.append((name, values))
+    else:
+        raise ValueError(f"Unhandled index type {type(index)}")
 
-        dim_types.append(
-            dim_info_for_column(
-                ctx,
-                dataframe,
-                values,
-                tile=dim_tile,
-                full_domain=full_domain,
-                index_dtype=index_dtype,
-            )
-        )
-
-    if any([d.dtype in (np.bytes_, np.unicode_) for d in dim_types]):
+    if any(d.dtype in (np.bytes_, np.unicode_) for d in dim_types):
         if sparse is False:
             raise TileDBError("Cannot create dense array with string-typed dimensions")
         elif sparse is None:
@@ -414,7 +362,10 @@ def create_dims(
     ndim = len(dim_types)
 
     dims = list()
-    for idx, (name, values) in enumerate(index_dict.items()):
+    for idx, (name, values) in enumerate(index_name_values):
+        if len(values) < 1:
+            raise ValueError(f"Empty column '{name}' cannot be used as dimension")
+
         # get the FilterList, if any
         if isinstance(filters, dict):
             if name in filters:
