@@ -1,7 +1,5 @@
 import json
-import sys
 import os
-import io
 import copy
 from collections import OrderedDict
 import warnings
@@ -11,14 +9,6 @@ from typing import Optional
 import numpy as np
 import tiledb
 from tiledb import TileDBError
-
-# from tiledb.tests.common import xprint
-
-if sys.version_info >= (3, 3):
-    unicode_type = str
-else:
-    unicode_type = unicode
-unicode_dtype = np.dtype(unicode_type)
 
 
 def check_dataframe_deps():
@@ -102,71 +92,65 @@ def is_nullable_extension_type(t):
 
 class ColumnInfo:
     def __init__(self, dtype, repr: Optional[str] = None, nullable: bool = False):
-        self.dtype = dtype
+        self.dtype = np.dtype(dtype)
         self.repr = repr
         self.nullable = nullable
 
 
-def dtype_from_column(col):
+def dtype_from_column(arr_or_dtype):
     import pandas as pd
 
-    col_dtype = col.dtype
-    if col_dtype in (
-        np.int32,
-        np.int64,
-        np.uint32,
-        np.uint64,
-        np.float,
-        np.double,
-        np.uint8,
-    ):
-        return ColumnInfo(col_dtype)
+    if pd.api.types.is_list_like(arr_or_dtype):
+        dtype = arr_or_dtype.dtype
+    else:
+        dtype = arr_or_dtype
 
-    if is_nullable_extension_type(col_dtype):
-        return ColumnInfo(col_dtype.numpy_dtype, repr=str(col_dtype), nullable=True)
+    # Note: be careful if you rearrange the order of the following checks
 
-    if isinstance(col_dtype, pd.BooleanDtype):
-        return ColumnInfo(np.uint8, repr=pd.BooleanDtype(), nullable=True)
+    # bool or boolean types
+    if pd.api.types.is_bool_dtype(dtype):
+        return ColumnInfo(
+            np.uint8, repr=str(dtype), nullable=hasattr(dtype, "na_value")
+        )
 
-    # TODO this seems kind of brittle
-    if col_dtype.base == np.dtype("M8[ns]"):
-        if col_dtype == np.dtype("datetime64[ns]"):
-            return ColumnInfo(col_dtype)
-        elif hasattr(col_dtype, "tz"):
-            raise ValueError("datetime with tz not yet supported")
-        else:
-            raise ValueError(
-                "unsupported datetime subtype ({})".format(type(col_dtype))
-            )
+    # extension types
+    if pd.api.types.is_extension_array_dtype(dtype):
+        return ColumnInfo(dtype.type, repr=str(dtype), nullable=True)
 
-    # Pandas 1.0 has StringDtype extension type
-    if col_dtype.name == "string":
-        return ColumnInfo(unicode_dtype)
+    # complex types
+    if pd.api.types.is_complex_dtype(dtype):
+        raise NotImplementedError("complex dtype not supported")
 
-    if col_dtype == "bool":
-        return ColumnInfo(np.uint8, repr=np.dtype("bool"))
+    # numeric (excluding bool and complex)
+    if pd.api.types.is_numeric_dtype(dtype):
+        return ColumnInfo(dtype)
 
-    if col_dtype == np.dtype("O"):
+    # datetime types
+    if pd.api.types.is_datetime64_any_dtype(dtype):
+        if dtype == "datetime64[ns]":
+            return ColumnInfo(dtype)
+        raise NotImplementedError("Only 'datetime64[ns]' datetime dtype is supported")
+
+    # string (including pd.StringDtype) types
+    # don't use pd.api.types.is_string_dtype() because it includes object types too
+    if dtype.type in (np.bytes_, np.str_, str):
+        return ColumnInfo(dtype)
+
+    # object types
+    if pd.api.types.is_object_dtype(dtype):
         # Note: this does a full scan of the column... not sure what else to do here
         #       because Pandas allows mixed string column types (and actually has
         #       problems w/ allowing non-string types in object columns)
-        inferred_dtype = pd.api.types.infer_dtype(col)
-
+        values = arr_or_dtype if pd.api.types.is_list_like(arr_or_dtype) else []
+        inferred_dtype = pd.api.types.infer_dtype(values)
         if inferred_dtype == "bytes":
             return ColumnInfo(np.bytes_)
-
-        elif inferred_dtype == "string":
+        if inferred_dtype == "string":
             # TODO we need to make sure this is actually convertible
-            return ColumnInfo(unicode_dtype)
+            return ColumnInfo(np.str_)
+        raise NotImplementedError(f"{inferred_dtype} inferred dtype not supported")
 
-        elif inferred_dtype == "mixed":
-            raise ValueError(
-                "Column '{}' has mixed value dtype and cannot yet be stored as a TileDB attribute".format(
-                    col.name
-                )
-            )
-
-    raise ValueError("Unhandled column type: '{}'".format(col_dtype))
+    raise NotImplementedError(f"{dtype} dtype not supported")
 
 
 # TODO make this a staticmethod on Attr?
@@ -236,7 +220,7 @@ def dim_info_for_column(ctx, df, col, tile=None, full_domain=False, index_dtype=
         dim_info = ColumnInfo(index_dtype)
     elif col_values.dtype is np.dtype("O"):
         col_val0_type = type(col_values[0])
-        if col_val0_type in (bytes, unicode_type):
+        if col_val0_type in (bytes, str):
             # TODO... core only supports TILEDB_ASCII right now
             dim_info = ColumnInfo(np.bytes_)
         else:
@@ -321,7 +305,8 @@ def dim_for_column(
     dim = tiledb.Dim(
         name=name,
         domain=(dim_min, dim_max),
-        dtype=dim_info.dtype,
+        # FIXME
+        dtype=dim_info.dtype if dim_info.dtype != "S" else np.bytes_,
         tile=tile,
         filters=dim_filters,
     )
