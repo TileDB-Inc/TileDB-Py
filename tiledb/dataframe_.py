@@ -82,16 +82,15 @@ class ColumnInfo:
     def __init__(self, arr_or_dtype):
         import pandas as pd
 
-        if pd.api.types.is_list_like(arr_or_dtype):
-            dtype = arr_or_dtype.dtype
-        else:
-            dtype = arr_or_dtype
+        dtype = pd.core.dtypes.common.get_dtype(arr_or_dtype)
 
         # Note: be careful if you rearrange the order of the following checks
 
         # bool or boolean types
         if pd.api.types.is_bool_dtype(dtype):
-            self.__set_attrs(np.uint8, repr=str(dtype), nullable=hasattr(dtype, "na_value"))
+            self.__set_attrs(
+                np.uint8, repr=str(dtype), nullable=hasattr(dtype, "na_value")
+            )
 
         # extension types
         elif pd.api.types.is_extension_array_dtype(dtype):
@@ -101,8 +100,12 @@ class ColumnInfo:
         elif pd.api.types.is_complex_dtype(dtype):
             raise NotImplementedError("complex dtype not supported")
 
-        # numeric (excluding bool and complex)
+        # remaining numeric types
         elif pd.api.types.is_numeric_dtype(dtype):
+            if dtype in ("float16", "float128"):
+                raise NotImplementedError(
+                    "Only single and double precision float dtypes are supported"
+                )
             self.__set_attrs(dtype)
 
         # datetime types
@@ -110,15 +113,18 @@ class ColumnInfo:
             if dtype == "datetime64[ns]":
                 self.__set_attrs(dtype)
             else:
-                raise NotImplementedError("Only 'datetime64[ns]' datetime dtype is supported")
+                raise NotImplementedError(
+                    "Only 'datetime64[ns]' datetime dtype is supported"
+                )
 
-        # string (including pd.StringDtype) types
+        # string types
         # don't use pd.api.types.is_string_dtype() because it includes object types too
-        elif dtype.type in (np.bytes_, np.str_, str):
+        elif dtype.type in (np.bytes_, np.str_):
             self.__set_attrs(dtype)
 
         # object types
-        elif pd.api.types.is_object_dtype(dtype):
+        else:
+            assert pd.api.types.is_object_dtype(dtype), dtype
             # Note: this does a full scan of the column... not sure what else to do here
             #       because Pandas allows mixed string column types (and actually has
             #       problems w/ allowing non-string types in object columns)
@@ -130,10 +136,9 @@ class ColumnInfo:
                 # TODO we need to make sure this is actually convertible
                 self.__set_attrs(np.str_)
             else:
-                raise NotImplementedError(f"{inferred_dtype} inferred dtype not supported")
-
-        else:
-            raise NotImplementedError(f"{dtype} dtype not supported")
+                raise NotImplementedError(
+                    f"{inferred_dtype} inferred dtype not supported"
+                )
 
     def __set_attrs(self, dtype, repr=None, nullable=False):
         object.__setattr__(self, "dtype", np.dtype(dtype))
@@ -267,9 +272,7 @@ def get_index_metadata(dataframe):
         if index == None:
             index_md_name = "__tiledb_rows"
         # Note: this may be expensive.
-        md[index_md_name] = ColumnInfo(
-            dataframe.index.get_level_values(index)
-        ).dtype
+        md[index_md_name] = ColumnInfo(dataframe.index.get_level_values(index)).dtype
 
     return md
 
