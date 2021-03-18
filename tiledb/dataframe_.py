@@ -256,8 +256,7 @@ def dim_for_column(
     dim = tiledb.Dim(
         name=name,
         domain=(dim_min, dim_max),
-        # FIXME
-        dtype=dim_info.dtype if dim_info.dtype != "S" else np.bytes_,
+        dtype=dim_info.dtype,
         tile=tile,
         filters=dim_filters,
     )

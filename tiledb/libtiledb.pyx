@@ -2602,7 +2602,7 @@ cdef class Dim(object):
         cdef void* tile_size_ptr = NULL
         cdef np.dtype domain_dtype
 
-        if dtype is np.bytes_:
+        if dtype == np.bytes_:
             # Handle var-len domain type
             #  (currently only TILEDB_STRING_ASCII)
             # The dimension's domain is implicitly formed as
