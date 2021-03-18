@@ -1,2 +1,3 @@
 numpy>=1.16.*
 setuptools
+dataclasses ;python_version<"3.7"
