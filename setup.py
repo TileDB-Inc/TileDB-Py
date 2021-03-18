@@ -719,7 +719,11 @@ setup(
     },
     ext_modules=__extensions,
     setup_requires=setup_requires(),
-    install_requires=["numpy>=1.16", "wheel>=0.30"],
+    install_requires=[
+        "numpy>=1.16",
+        "wheel>=0.30",
+        "dataclasses ;python_version<'3.7'",
+    ],
     tests_require=TESTS_REQUIRE,
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
