@@ -18,8 +18,7 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.dataframe_ import ColumnInfo
-
-from .common import (
+from tiledb.tests.common import (
     DiskTestCase,
     dtype_max,
     rand_ascii,
