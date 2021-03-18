@@ -9,4 +9,5 @@ dask
 pandas ; python_version > '3.5'
 psutil
 pyarrow
+pytest
 -r requirements.txt
