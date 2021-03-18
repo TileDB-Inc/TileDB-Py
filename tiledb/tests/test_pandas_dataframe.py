@@ -174,31 +174,32 @@ class TestColumnInfo:
         for s in ["hello", b"world"], ["hello", 1], [b"hello", 1]:
             pytest.raises(NotImplementedError, ColumnInfo, pd.Series(s))
 
-    @pytest.mark.parametrize(
-        "type_specs",
+    unsupported_type_specs = [
+        [np.float16, "f2"],
+        [np.complex64, "c8"],
+        [np.complex128, "c16"],
+        [np.datetime64, "<M8", "datetime64"],
         [
-            [np.float16, "f2"],
-            [np.float128, "f16"],
-            [np.complex64, "c8"],
-            [np.complex128, "c16"],
-            [np.complex256, "c32"],
-            [np.datetime64, "<M8", "datetime64"],
-            [
-                "<M8[Y]",
-                "<M8[M]",
-                "<M8[W]",
-                "<M8[D]",
-                "<M8[h]",
-                "<M8[m]",
-                "<M8[s]",
-                "<M8[ms]",
-                "<M8[us]",
-                "<M8[ps]",
-                "<M8[fs]",
-                "<M8[as]",
-            ],
+            "<M8[Y]",
+            "<M8[M]",
+            "<M8[W]",
+            "<M8[D]",
+            "<M8[h]",
+            "<M8[m]",
+            "<M8[s]",
+            "<M8[ms]",
+            "<M8[us]",
+            "<M8[ps]",
+            "<M8[fs]",
+            "<M8[as]",
         ],
-    )
+    ]
+    if hasattr(np, "float128"):
+        unsupported_type_specs.append([np.float128, "f16"])
+    if hasattr(np, "complex256"):
+        unsupported_type_specs.append([np.complex256, "c32"])
+
+    @pytest.mark.parametrize("type_specs", unsupported_type_specs)
     def test_not_implemented(self, type_specs):
         for type_spec in type_specs:
             pytest.raises(NotImplementedError, ColumnInfo, type_spec)

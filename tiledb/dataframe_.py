@@ -102,7 +102,7 @@ class ColumnInfo:
 
         # remaining numeric types
         elif pd.api.types.is_numeric_dtype(dtype):
-            if dtype in ("float16", "float128"):
+            if dtype == np.float16 or hasattr(np, "float128") and dtype == np.float128:
                 raise NotImplementedError(
                     "Only single and double precision float dtypes are supported"
                 )
