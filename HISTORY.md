@@ -1,5 +1,8 @@
 # TileDB-Py 0.8.5 Release Notes
 
+## TileDB Embedded updates:
+* TileDB-Py 0.8.5 includes TileDB Embedded [TileDB 2.2.6](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.6)
+
 ## Documentation Updates
 * Added example reading/writing RGB (multi-component) array [#487](https://github.com/TileDB-Inc/TileDB-Py/pull/487)
 
