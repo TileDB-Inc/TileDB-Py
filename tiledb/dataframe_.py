@@ -1,24 +1,14 @@
 import json
-import sys
 import os
-import io
 import copy
-from collections import OrderedDict
 import warnings
+from dataclasses import dataclass
 
 from typing import Optional
 
 import numpy as np
 import tiledb
 from tiledb import TileDBError
-
-# from tiledb.tests.common import xprint
-
-if sys.version_info >= (3, 3):
-    unicode_type = str
-else:
-    unicode_type = unicode
-unicode_dtype = np.dtype(unicode_type)
 
 
 def check_dataframe_deps():
@@ -82,129 +72,103 @@ def parse_tiledb_kwargs(kwargs):
     return parsed_args
 
 
-def is_nullable_extension_type(t):
-    import pandas as pd
-
-    return isinstance(
-        t,
-        (
-            pd.Int64Dtype,
-            pd.Int32Dtype,
-            pd.Int16Dtype,
-            pd.Int8Dtype,
-            pd.UInt64Dtype,
-            pd.UInt32Dtype,
-            pd.UInt16Dtype,
-            pd.UInt8Dtype,
-        ),
-    )
-
-
+@dataclass(init=False, frozen=True)
 class ColumnInfo:
-    def __init__(self, dtype, repr: Optional[str] = None, nullable: bool = False):
-        self.dtype = dtype
-        self.repr = repr
-        self.nullable = nullable
 
+    dtype: np.dtype
+    repr: Optional[str]
+    nullable: bool
 
-def dtype_from_column(col):
-    import pandas as pd
+    def __init__(self, arr_or_dtype):
+        import pandas as pd
 
-    col_dtype = col.dtype
-    if col_dtype in (
-        np.int32,
-        np.int64,
-        np.uint32,
-        np.uint64,
-        np.float,
-        np.double,
-        np.uint8,
-    ):
-        return ColumnInfo(col_dtype)
+        dtype = pd.core.dtypes.common.get_dtype(arr_or_dtype)
 
-    if is_nullable_extension_type(col_dtype):
-        return ColumnInfo(col_dtype.numpy_dtype, repr=str(col_dtype), nullable=True)
+        # Note: be careful if you rearrange the order of the following checks
 
-    if isinstance(col_dtype, pd.BooleanDtype):
-        return ColumnInfo(np.uint8, repr=pd.BooleanDtype(), nullable=True)
-
-    # TODO this seems kind of brittle
-    if col_dtype.base == np.dtype("M8[ns]"):
-        if col_dtype == np.dtype("datetime64[ns]"):
-            return ColumnInfo(col_dtype)
-        elif hasattr(col_dtype, "tz"):
-            raise ValueError("datetime with tz not yet supported")
-        else:
-            raise ValueError(
-                "unsupported datetime subtype ({})".format(type(col_dtype))
+        # bool or boolean types
+        if pd.api.types.is_bool_dtype(dtype):
+            self.__set_attrs(
+                np.uint8, repr=str(dtype), nullable=hasattr(dtype, "na_value")
             )
 
-    # Pandas 1.0 has StringDtype extension type
-    if col_dtype.name == "string":
-        return ColumnInfo(unicode_dtype)
+        # extension types
+        elif pd.api.types.is_extension_array_dtype(dtype):
+            self.__set_attrs(dtype.type, repr=str(dtype), nullable=True)
 
-    if col_dtype == "bool":
-        return ColumnInfo(np.uint8, repr=np.dtype("bool"))
+        # complex types
+        elif pd.api.types.is_complex_dtype(dtype):
+            raise NotImplementedError("complex dtype not supported")
 
-    if col_dtype == np.dtype("O"):
-        # Note: this does a full scan of the column... not sure what else to do here
-        #       because Pandas allows mixed string column types (and actually has
-        #       problems w/ allowing non-string types in object columns)
-        inferred_dtype = pd.api.types.infer_dtype(col)
-
-        if inferred_dtype == "bytes":
-            return ColumnInfo(np.bytes_)
-
-        elif inferred_dtype == "string":
-            # TODO we need to make sure this is actually convertible
-            return ColumnInfo(unicode_dtype)
-
-        elif inferred_dtype == "mixed":
-            raise ValueError(
-                "Column '{}' has mixed value dtype and cannot yet be stored as a TileDB attribute".format(
-                    col.name
+        # remaining numeric types
+        elif pd.api.types.is_numeric_dtype(dtype):
+            if dtype == np.float16 or hasattr(np, "float128") and dtype == np.float128:
+                raise NotImplementedError(
+                    "Only single and double precision float dtypes are supported"
                 )
-            )
+            self.__set_attrs(dtype)
 
-    raise ValueError("Unhandled column type: '{}'".format(col_dtype))
+        # datetime types
+        elif pd.api.types.is_datetime64_any_dtype(dtype):
+            if dtype == "datetime64[ns]":
+                self.__set_attrs(dtype)
+            else:
+                raise NotImplementedError(
+                    "Only 'datetime64[ns]' datetime dtype is supported"
+                )
+
+        # string types
+        # don't use pd.api.types.is_string_dtype() because it includes object types too
+        elif dtype.type in (np.bytes_, np.str_):
+            self.__set_attrs(dtype)
+
+        # object types
+        else:
+            assert pd.api.types.is_object_dtype(dtype), dtype
+            # Note: this does a full scan of the column... not sure what else to do here
+            #       because Pandas allows mixed string column types (and actually has
+            #       problems w/ allowing non-string types in object columns)
+            values = arr_or_dtype if pd.api.types.is_list_like(arr_or_dtype) else []
+            inferred_dtype = pd.api.types.infer_dtype(values)
+            if inferred_dtype == "bytes":
+                self.__set_attrs(np.bytes_)
+            elif inferred_dtype == "string":
+                # TODO we need to make sure this is actually convertible
+                self.__set_attrs(np.str_)
+            else:
+                raise NotImplementedError(
+                    f"{inferred_dtype} inferred dtype not supported"
+                )
+
+    def __set_attrs(self, dtype, repr=None, nullable=False):
+        object.__setattr__(self, "dtype", np.dtype(dtype))
+        object.__setattr__(self, "repr", repr)
+        object.__setattr__(self, "nullable", nullable)
 
 
 # TODO make this a staticmethod on Attr?
 def attrs_from_df(df, index_dims=None, filters=None, column_types=None, ctx=None):
-    attr_reprs = dict()
+    attr_reprs = {}
     if ctx is None:
         ctx = tiledb.default_ctx()
 
     if column_types is None:
-        column_types = dict()
+        column_types = {}
 
-    attrs = list()
+    attrs = []
     for name, col in df.items():
+        # ignore any column used as a dim/index
+        if index_dims and name in index_dims:
+            continue
+
         if isinstance(filters, dict):
-            if name in filters:
-                attr_filters = filters[name]
-            else:
-                attr_filters = None
+            attr_filters = filters.get(name)
         elif filters is not None:
             attr_filters = filters
         else:
             attr_filters = tiledb.FilterList([tiledb.ZstdFilter(1, ctx=ctx)])
 
-        # ignore any column used as a dim/index
-        if index_dims and name in index_dims:
-            continue
-        if name in column_types:
-            spec_type = column_types[name]
-            nullable = is_nullable_extension_type(spec_type)
-
-            actual_type = spec_type
-            # Handle ExtensionDtype
-            if hasattr(spec_type, "type"):
-                actual_type = spec_type.type
-            attr_info = ColumnInfo(actual_type, repr=str(spec_type), nullable=nullable)
-        else:
-            attr_info = dtype_from_column(col)
-
+        attr_info = ColumnInfo(column_types.get(name, col))
         attrs.append(
             tiledb.Attr(
                 name=name,
@@ -218,35 +182,6 @@ def attrs_from_df(df, index_dims=None, filters=None, column_types=None, ctx=None
             attr_reprs[name] = attr_info.repr
 
     return attrs, attr_reprs
-
-
-def dim_info_for_column(ctx, df, col, tile=None, full_domain=False, index_dtype=None):
-
-    if isinstance(col, np.ndarray):
-        col_values = col
-    else:
-        col_values = col.values
-
-    if len(col_values) < 1:
-        raise ValueError(
-            "Empty column '{}' cannot be used for dimension!".format(col_name)
-        )
-
-    if index_dtype is not None:
-        dim_info = ColumnInfo(index_dtype)
-    elif col_values.dtype is np.dtype("O"):
-        col_val0_type = type(col_values[0])
-        if col_val0_type in (bytes, unicode_type):
-            # TODO... core only supports TILEDB_ASCII right now
-            dim_info = ColumnInfo(np.bytes_)
-        else:
-            raise TypeError(
-                "Unknown column type not yet supported ('{}')".format(col_val0_type)
-            )
-    else:
-        dim_info = dtype_from_column(col_values)
-
-    return dim_info
 
 
 def dim_for_column(
@@ -336,9 +271,7 @@ def get_index_metadata(dataframe):
         if index == None:
             index_md_name = "__tiledb_rows"
         # Note: this may be expensive.
-        md[index_md_name] = dtype_from_column(
-            dataframe.index.get_level_values(index)
-        ).dtype
+        md[index_md_name] = ColumnInfo(dataframe.index.get_level_values(index)).dtype
 
     return md
 
@@ -347,10 +280,6 @@ def create_dims(
     ctx, dataframe, index_dims, tile=None, full_domain=False, sparse=None, filters=None
 ):
     import pandas as pd
-
-    index = dataframe.index
-    index_dict = OrderedDict()
-    index_dtype = None
 
     per_dim_tile = False
     if tile is not None:
@@ -367,47 +296,29 @@ def create_dims(
                 "Got '{}'".format(tile)
             )
 
+    index = dataframe.index
+    index_name_values = []
+    dim_types = []
+
     if isinstance(index, pd.MultiIndex):
         for name in index.names:
-            index_dict[name] = dataframe.index.get_level_values(name)
+            values = index.get_level_values(name)
+            index_name_values.append((name, values))
+            dim_types.append(ColumnInfo(values))
 
     elif isinstance(index, (pd.Index, pd.RangeIndex, pd.Int64Index)):
-        if hasattr(index, "name") and index.name is not None:
-            name = index.name
-        else:
-            index_dtype = np.dtype("uint64")
+        values = index.values
+        name = getattr(index, "name", None)
+        if name is None:
             name = "__tiledb_rows"
-
-        index_dict[name] = index.values
-
-    else:
-        raise ValueError("Unhandled index type {}".format(type(index)))
-
-    # create list of dim types
-    # we need to know all the types in order to validate before creating Dims
-    dim_types = list()
-    for idx, (name, values) in enumerate(index_dict.items()):
-        if per_dim_tile and name in tile:
-            dim_tile = tile[name]
-        elif per_dim_tile:
-            # in this case we fall back to the default
-            dim_tile = None
+            dim_types.append(ColumnInfo(np.uint64))
         else:
-            # in this case we use a scalar (type-checked earlier)
-            dim_tile = tile
+            dim_types.append(ColumnInfo(values))
+        index_name_values.append((name, values))
+    else:
+        raise ValueError(f"Unhandled index type {type(index)}")
 
-        dim_types.append(
-            dim_info_for_column(
-                ctx,
-                dataframe,
-                values,
-                tile=dim_tile,
-                full_domain=full_domain,
-                index_dtype=index_dtype,
-            )
-        )
-
-    if any([d.dtype in (np.bytes_, np.unicode_) for d in dim_types]):
+    if any(d.dtype in (np.bytes_, np.unicode_) for d in dim_types):
         if sparse is False:
             raise TileDBError("Cannot create dense array with string-typed dimensions")
         elif sparse is None:
@@ -429,7 +340,10 @@ def create_dims(
     ndim = len(dim_types)
 
     dims = list()
-    for idx, (name, values) in enumerate(index_dict.items()):
+    for idx, (name, values) in enumerate(index_name_values):
+        if len(values) < 1:
+            raise ValueError(f"Empty column '{name}' cannot be used as dimension")
+
         # get the FilterList, if any
         if isinstance(filters, dict):
             if name in filters:
@@ -512,27 +426,16 @@ def write_array_metadata(array, attr_metadata=None, index_metadata=None):
 
 
 def dataframe_to_np_arrays(dataframe, fillna=None):
-    import pandas as pd
-
-    if not hasattr(pd, "StringDtype"):
-        raise Exception(
-            "Unexpectedly found pandas version < 1.0; please install >= 1.0 for dataframe functionality."
-        )
-
-    ret = dict()
-    nullmaps = dict()
-
+    ret = {}
+    nullmaps = {}
     for k, v in dataframe.to_dict(orient="series").items():
-        if pd.api.types.is_extension_array_dtype(v):
-            if (fillna is not None and k in fillna) and not is_nullable_extension_type(
-                v.dtype
-            ):
-                # raise ValueError("Missing 'fillna' value for column '{}' with pandas extension dtype".format(k))
-                ret[k] = v.to_numpy(na_value=fillna[k])
-            else:
-                # use default 0/empty for the dtype
-                ret[k] = v.to_numpy(dtype=v.dtype.numpy_dtype, na_value=v.dtype.type())
-                nullmaps[k] = (~v.isna()).to_numpy(dtype="uint8")
+        v_info = ColumnInfo(v)
+        if v_info.nullable:
+            # use default 0/empty for the dtype
+            ret[k] = v.to_numpy(dtype=v_info.dtype, na_value=v.dtype.type())
+            nullmaps[k] = (~v.isna()).to_numpy(dtype=np.uint8)
+        elif fillna is not None and k in fillna:
+            ret[k] = v.to_numpy(na_value=fillna[k])
         else:
             ret[k] = v.to_numpy()
 

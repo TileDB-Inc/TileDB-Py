@@ -3,25 +3,29 @@ from __future__ import absolute_import
 try:
     import pandas as pd
     import pandas._testing as tm
-
-    import_failed = False
 except ImportError:
-    import_failed = True
+    pd = tm = None
 
-import unittest, os
-import warnings
-import string, random, copy
-import numpy as np
-from numpy.testing import assert_array_equal, assert_array_almost_equal
+import copy
+import glob
+import os
+import random
 from pathlib import Path
 
-import tiledb
-from tiledb.tests.common import *
+import numpy as np
+import pytest
+from numpy.testing import assert_array_equal
 
-if sys.version_info > (3, 0):
-    str_type = str
-else:
-    str_type = unicode
+import tiledb
+from tiledb.dataframe_ import ColumnInfo
+from tiledb.tests.common import (
+    DiskTestCase,
+    dtype_max,
+    rand_ascii,
+    rand_ascii_bytes,
+    rand_datetime64_array,
+    rand_utf8,
+)
 
 
 def make_dataframe_basic1(col_size=10):
@@ -64,9 +68,6 @@ def make_dataframe_basic2():
     #   https://github.com/pandas-dev/pandas/blob/master/pandas/tests/io/test_feather.py
     # (available under BSD 3-clause license
     #   https://github.com/pandas-dev/pandas/blob/master/LICENSE
-
-    import pandas as pd
-
     df = pd.DataFrame(
         {
             "string": list("abc"),
@@ -105,9 +106,115 @@ def make_dataframe_basic3(col_size=10, time_range=(None, None)):
     return df
 
 
+class TestColumnInfo:
+    def assertColumnInfo(self, obj, info_dtype, info_repr, info_nullable):
+        info = ColumnInfo(obj)
+
+        assert isinstance(info.dtype, np.dtype)
+        assert info.dtype == info_dtype
+
+        assert info.repr is None or isinstance(info.repr, str)
+        assert info.repr == info_repr
+
+        assert isinstance(info.nullable, bool)
+        assert info.nullable == info_nullable
+
+    @pytest.mark.parametrize(
+        "type_specs, info_dtype, info_repr, info_nullable",
+        [
+            # bool types
+            ([bool, "b1"], np.dtype("uint8"), "bool", False),
+            ([pd.BooleanDtype()], np.dtype("uint8"), "boolean", True),
+            # numeric types
+            ([np.uint8, "u1"], np.dtype("uint8"), None, False),
+            ([np.uint16, "u2"], np.dtype("uint16"), None, False),
+            ([np.uint32, "u4"], np.dtype("uint32"), None, False),
+            ([np.uint64, "u8"], np.dtype("uint64"), None, False),
+            ([np.int8, "i1"], np.dtype("int8"), None, False),
+            ([np.int16, "i2"], np.dtype("int16"), None, False),
+            ([np.int32, "i4"], np.dtype("int32"), None, False),
+            ([np.int64, "i8", int], np.dtype("int64"), None, False),
+            ([np.float32, "f4"], np.dtype("float32"), None, False),
+            ([np.float64, "f8", float], np.dtype("float64"), None, False),
+            # nullable int types
+            ([pd.UInt8Dtype(), "UInt8"], np.dtype("uint8"), "UInt8", True),
+            ([pd.UInt16Dtype(), "UInt16"], np.dtype("uint16"), "UInt16", True),
+            ([pd.UInt32Dtype(), "UInt32"], np.dtype("uint32"), "UInt32", True),
+            ([pd.UInt64Dtype(), "UInt64"], np.dtype("uint64"), "UInt64", True),
+            ([pd.Int8Dtype(), "Int8"], np.dtype("int8"), "Int8", True),
+            ([pd.Int16Dtype(), "Int16"], np.dtype("int16"), "Int16", True),
+            ([pd.Int32Dtype(), "Int32"], np.dtype("int32"), "Int32", True),
+            ([pd.Int64Dtype(), "Int64"], np.dtype("int64"), "Int64", True),
+            # datetime types
+            (["datetime64[ns]"], np.dtype("<M8[ns]"), None, False),
+            # string types
+            ([np.str_, str], np.dtype("<U"), None, False),
+            ([np.bytes_, bytes], np.dtype("S"), None, False),
+            ([pd.StringDtype()], np.dtype("<U"), "string", True),
+        ],
+    )
+    def test_implemented(self, type_specs, info_dtype, info_repr, info_nullable):
+        assert isinstance(info_dtype, np.dtype)
+        assert info_repr is None or isinstance(info_repr, str)
+        assert isinstance(info_nullable, bool)
+        for type_spec in type_specs:
+            self.assertColumnInfo(type_spec, info_dtype, info_repr, info_nullable)
+
+            series = pd.Series([], dtype=type_spec)
+            if series.dtype == type_spec:
+                self.assertColumnInfo(series, info_dtype, info_repr, info_nullable)
+
+    def test_object_dtype(self):
+        self.assertColumnInfo(
+            pd.Series(["hello", "world"]), np.dtype("<U"), None, False
+        )
+        self.assertColumnInfo(
+            pd.Series([b"hello", b"world"]), np.dtype("S"), None, False
+        )
+        for s in ["hello", b"world"], ["hello", 1], [b"hello", 1]:
+            pytest.raises(NotImplementedError, ColumnInfo, pd.Series(s))
+
+    unsupported_type_specs = [
+        [np.float16, "f2"],
+        [np.complex64, "c8"],
+        [np.complex128, "c16"],
+        [np.datetime64, "<M8", "datetime64"],
+        [
+            "<M8[Y]",
+            "<M8[M]",
+            "<M8[W]",
+            "<M8[D]",
+            "<M8[h]",
+            "<M8[m]",
+            "<M8[s]",
+            "<M8[ms]",
+            "<M8[us]",
+            "<M8[ps]",
+            "<M8[fs]",
+            "<M8[as]",
+        ],
+    ]
+    if hasattr(np, "float128"):
+        unsupported_type_specs.append([np.float128, "f16"])
+    if hasattr(np, "complex256"):
+        unsupported_type_specs.append([np.complex256, "c32"])
+
+    @pytest.mark.parametrize("type_specs", unsupported_type_specs)
+    def test_not_implemented(self, type_specs):
+        for type_spec in type_specs:
+            pytest.raises(NotImplementedError, ColumnInfo, type_spec)
+            try:
+                series = pd.Series([], dtype=type_spec)
+            except (ValueError, TypeError):
+                pass
+            else:
+                if series.dtype == type_spec:
+                    pytest.raises(NotImplementedError, ColumnInfo, series)
+
+
 class PandasDataFrameRoundtrip(DiskTestCase):
     def setUp(self):
-        if import_failed:
+        if pd is None:
             self.skipTest("Pandas not available")
         else:
             super(PandasDataFrameRoundtrip, self).setUp()
@@ -295,7 +402,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
                 # also ensure that string columns are converted to bytes
                 # b/c only TILEDB_ASCII supported for string dimension
-                if type(df[col][0]) == str_type:
+                if type(df[col][0]) is str:
                     df[col] = [x.encode("UTF-8") for x in df[col]]
 
             new_df = df.drop_duplicates(subset=col)
