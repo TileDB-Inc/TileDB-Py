@@ -72,78 +72,84 @@ def parse_tiledb_kwargs(kwargs):
     return parsed_args
 
 
-@dataclass(init=False, frozen=True)
+@dataclass(frozen=True)
 class ColumnInfo:
 
     dtype: np.dtype
-    repr: Optional[str]
-    nullable: bool
+    repr: Optional[str] = None
+    nullable: bool = False
 
-    def __init__(self, arr_or_dtype):
-        import pandas as pd
+    @classmethod
+    def from_values(cls, array_like):
+        from pandas.api import types as pd_types
 
-        dtype = pd.core.dtypes.common.get_dtype(arr_or_dtype)
+        if pd_types.is_object_dtype(array_like):
+            # Note: this does a full scan of the column... not sure what else to do here
+            #       because Pandas allows mixed string column types (and actually has
+            #       problems w/ allowing non-string types in object columns)
+            inferred_dtype = pd_types.infer_dtype(array_like)
+            if inferred_dtype == "bytes":
+                return cls.from_dtype(np.bytes_)
+            elif inferred_dtype == "string":
+                # TODO we need to make sure this is actually convertible
+                return cls.from_dtype(np.str_)
+            else:
+                raise NotImplementedError(
+                    f"{inferred_dtype} inferred dtype not supported"
+                )
+        else:
+            if not hasattr(array_like, "dtype"):
+                array_like = np.asanyarray(array_like)
+            return cls.from_dtype(array_like.dtype)
 
+    @classmethod
+    def from_dtype(cls, dtype):
+        from pandas.api import types as pd_types
+
+        dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
 
-        # bool or boolean types
-        if pd.api.types.is_bool_dtype(dtype):
-            self.__set_attrs(
-                np.uint8, repr=str(dtype), nullable=hasattr(dtype, "na_value")
+        # extension types
+        if pd_types.is_extension_array_dtype(dtype):
+            np_type = np.uint8 if pd_types.is_bool_dtype(dtype) else dtype.type
+            return cls(
+                np.dtype(np_type),
+                repr=str(dtype),
+                # all pandas extension types are currently nullable
+                nullable=True,
             )
 
-        # extension types
-        elif pd.api.types.is_extension_array_dtype(dtype):
-            self.__set_attrs(dtype.type, repr=str(dtype), nullable=True)
+        # bool type
+        if pd_types.is_bool_dtype(dtype):
+            return cls(np.dtype("uint8"), repr="bool")
 
         # complex types
-        elif pd.api.types.is_complex_dtype(dtype):
+        if pd_types.is_complex_dtype(dtype):
             raise NotImplementedError("complex dtype not supported")
 
         # remaining numeric types
-        elif pd.api.types.is_numeric_dtype(dtype):
+        if pd_types.is_numeric_dtype(dtype):
             if dtype == np.float16 or hasattr(np, "float128") and dtype == np.float128:
                 raise NotImplementedError(
                     "Only single and double precision float dtypes are supported"
                 )
-            self.__set_attrs(dtype)
+            return cls(dtype)
 
         # datetime types
-        elif pd.api.types.is_datetime64_any_dtype(dtype):
+        if pd_types.is_datetime64_any_dtype(dtype):
             if dtype == "datetime64[ns]":
-                self.__set_attrs(dtype)
+                return cls(dtype)
             else:
                 raise NotImplementedError(
                     "Only 'datetime64[ns]' datetime dtype is supported"
                 )
 
         # string types
-        # don't use pd.api.types.is_string_dtype() because it includes object types too
-        elif dtype.type in (np.bytes_, np.str_):
-            self.__set_attrs(dtype)
+        # don't use pd_types.is_string_dtype() because it includes object types too
+        if dtype.type in (np.bytes_, np.str_):
+            return cls(dtype)
 
-        # object types
-        else:
-            assert pd.api.types.is_object_dtype(dtype), dtype
-            # Note: this does a full scan of the column... not sure what else to do here
-            #       because Pandas allows mixed string column types (and actually has
-            #       problems w/ allowing non-string types in object columns)
-            values = arr_or_dtype if pd.api.types.is_list_like(arr_or_dtype) else []
-            inferred_dtype = pd.api.types.infer_dtype(values)
-            if inferred_dtype == "bytes":
-                self.__set_attrs(np.bytes_)
-            elif inferred_dtype == "string":
-                # TODO we need to make sure this is actually convertible
-                self.__set_attrs(np.str_)
-            else:
-                raise NotImplementedError(
-                    f"{inferred_dtype} inferred dtype not supported"
-                )
-
-    def __set_attrs(self, dtype, repr=None, nullable=False):
-        object.__setattr__(self, "dtype", np.dtype(dtype))
-        object.__setattr__(self, "repr", repr)
-        object.__setattr__(self, "nullable", nullable)
+        raise NotImplementedError(f"{dtype} dtype not supported")
 
 
 # TODO make this a staticmethod on Attr?
@@ -168,7 +174,11 @@ def attrs_from_df(df, index_dims=None, filters=None, column_types=None, ctx=None
         else:
             attr_filters = tiledb.FilterList([tiledb.ZstdFilter(1, ctx=ctx)])
 
-        attr_info = ColumnInfo(column_types.get(name, col))
+        if name in column_types:
+            attr_info = ColumnInfo.from_dtype(column_types[name])
+        else:
+            attr_info = ColumnInfo.from_values(col)
+
         attrs.append(
             tiledb.Attr(
                 name=name,
@@ -271,7 +281,8 @@ def get_index_metadata(dataframe):
         if index == None:
             index_md_name = "__tiledb_rows"
         # Note: this may be expensive.
-        md[index_md_name] = ColumnInfo(dataframe.index.get_level_values(index)).dtype
+        values = dataframe.index.get_level_values(index)
+        md[index_md_name] = ColumnInfo.from_values(values).dtype
 
     return md
 
@@ -304,16 +315,16 @@ def create_dims(
         for name in index.names:
             values = index.get_level_values(name)
             index_name_values.append((name, values))
-            dim_types.append(ColumnInfo(values))
+            dim_types.append(ColumnInfo.from_values(values))
 
     elif isinstance(index, (pd.Index, pd.RangeIndex, pd.Int64Index)):
         values = index.values
         name = getattr(index, "name", None)
         if name is None:
             name = "__tiledb_rows"
-            dim_types.append(ColumnInfo(np.uint64))
+            dim_types.append(ColumnInfo.from_dtype(np.dtype("uint64")))
         else:
-            dim_types.append(ColumnInfo(values))
+            dim_types.append(ColumnInfo.from_values(values))
         index_name_values.append((name, values))
     else:
         raise ValueError(f"Unhandled index type {type(index)}")
@@ -425,14 +436,14 @@ def write_array_metadata(array, attr_metadata=None, index_metadata=None):
         array.meta["__pandas_index_dims"] = json.dumps(index_md_dict)
 
 
-def dataframe_to_np_arrays(dataframe, fillna=None):
+def dataframe_to_np_arrays(dataframe, fillna):
     ret = {}
     nullmaps = {}
-    for k, v in dataframe.to_dict(orient="series").items():
-        v_info = ColumnInfo(v)
+    for k, v in dataframe.items():
+        v_info = ColumnInfo.from_values(v)
         if v_info.nullable:
             # use default 0/empty for the dtype
-            ret[k] = v.to_numpy(dtype=v_info.dtype, na_value=v.dtype.type())
+            ret[k] = v.to_numpy(dtype=v_info.dtype, na_value=v_info.dtype.type())
             nullmaps[k] = (~v.isna()).to_numpy(dtype=np.uint8)
         elif fillna is not None and k in fillna:
             ret[k] = v.to_numpy(na_value=fillna[k])
@@ -589,7 +600,7 @@ def from_pandas(uri, dataframe, **kwargs):
             write_array_metadata(A, attr_metadata, index_metadata)
 
     if write:
-        write_dict, nullmaps = dataframe_to_np_arrays(dataframe, fillna=fillna)
+        write_dict, nullmaps = dataframe_to_np_arrays(dataframe, fillna)
 
         if tiledb_args.get("debug", True):
             print("`tiledb.read_pandas` writing '{}' rows".format(len(dataframe)))
