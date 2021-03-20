@@ -761,7 +761,6 @@ class PandasDataFrameRoundtrip(DiskTestCase):
                 tmp_array2,
                 tmp_csv2,
                 fillna={"v": 0},
-                dtype={"v": pd.Int64Dtype()},
                 column_types={"v": pd.Int64Dtype()},
                 sparse=True,
             )
