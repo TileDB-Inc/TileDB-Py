@@ -152,44 +152,40 @@ class ColumnInfo:
         raise NotImplementedError(f"{dtype} dtype not supported")
 
 
-# TODO make this a staticmethod on Attr?
-def attrs_from_df(df, index_dims=None, filters=None, column_types=None, ctx=None):
-    attr_reprs = {}
-    if ctx is None:
-        ctx = tiledb.default_ctx()
+def _get_column_infos(df, column_types):
+    column_infos = {}
+    for name, column in df.items():
+        if column_types and name in column_types:
+            column_infos[name] = ColumnInfo.from_dtype(column_types[name])
+        else:
+            column_infos[name] = ColumnInfo.from_values(column)
+    return column_infos
 
-    if column_types is None:
-        column_types = {}
 
+def _get_attrs(names, column_infos, attr_filters, ctx=None):
     attrs = []
-    for name, col in df.items():
-        # ignore any column used as a dim/index
-        if index_dims and name in index_dims:
-            continue
-
-        if isinstance(filters, dict):
-            attr_filters = filters.get(name)
-        elif filters is not None:
-            attr_filters = filters
+    attr_reprs = {}
+    for name in names:
+        if isinstance(attr_filters, dict):
+            filters = attr_filters.get(name)
+        elif attr_filters is not None:
+            filters = attr_filters
         else:
-            attr_filters = tiledb.FilterList([tiledb.ZstdFilter(1, ctx=ctx)])
+            filters = tiledb.FilterList([tiledb.ZstdFilter(1, ctx=ctx)], ctx=ctx)
 
-        if name in column_types:
-            attr_info = ColumnInfo.from_dtype(column_types[name])
-        else:
-            attr_info = ColumnInfo.from_values(col)
-
+        column_info = column_infos[name]
         attrs.append(
             tiledb.Attr(
                 name=name,
-                dtype=attr_info.dtype,
-                filters=attr_filters,
-                nullable=attr_info.nullable,
+                filters=filters,
+                dtype=column_info.dtype,
+                nullable=column_info.nullable,
+                ctx=ctx,
             )
         )
 
-        if attr_info.repr is not None:
-            attr_reprs[name] = attr_info.repr
+        if column_info.repr is not None:
+            attr_reprs[name] = column_info.repr
 
     return attrs, attr_reprs
 
@@ -436,19 +432,19 @@ def write_array_metadata(array, attr_metadata=None, index_metadata=None):
         array.meta["__pandas_index_dims"] = json.dumps(index_md_dict)
 
 
-def dataframe_to_np_arrays(dataframe, fillna):
+def _df_to_np_arrays(df, column_infos, fillna):
     ret = {}
     nullmaps = {}
-    for k, v in dataframe.items():
-        v_info = ColumnInfo.from_values(v)
-        if v_info.nullable:
+    for name, column in df.items():
+        column_info = column_infos[name]
+        to_numpy_kwargs = dict(dtype=column_info.dtype)
+        if column_info.nullable:
             # use default 0/empty for the dtype
-            ret[k] = v.to_numpy(dtype=v_info.dtype, na_value=v_info.dtype.type())
-            nullmaps[k] = (~v.isna()).to_numpy(dtype=np.uint8)
-        elif fillna is not None and k in fillna:
-            ret[k] = v.to_numpy(na_value=fillna[k])
-        else:
-            ret[k] = v.to_numpy()
+            to_numpy_kwargs.update(na_value=column_info.dtype.type())
+            nullmaps[name] = (~column.isna()).to_numpy(dtype=np.uint8)
+        elif fillna is not None and name in fillna:
+            to_numpy_kwargs.update(na_value=fillna[name])
+        ret[name] = column.to_numpy(**to_numpy_kwargs)
 
     return ret, nullmaps
 
@@ -533,6 +529,8 @@ def from_pandas(uri, dataframe, **kwargs):
     if ctx is None:
         ctx = tiledb.default_ctx()
 
+    column_infos = _get_column_infos(dataframe, column_types)
+
     if create_array:
         if nrows:
             if full_domain is None:
@@ -552,11 +550,13 @@ def from_pandas(uri, dataframe, **kwargs):
 
         domain = tiledb.Domain(*dims, ctx=ctx)
 
-        attrs, attr_metadata = attrs_from_df(
-            dataframe,
-            index_dims=index_dims,
-            filters=attr_filters,
-            column_types=column_types,
+        attr_names = dataframe.columns
+        # ignore any column used as a dim/index
+        if index_dims:
+            attr_names = (name for name in attr_names if name not in index_dims)
+
+        attrs, attr_metadata = _get_attrs(
+            attr_names, column_infos, attr_filters, ctx=ctx
         )
 
         # don't set allows_duplicates=True for dense
@@ -600,7 +600,7 @@ def from_pandas(uri, dataframe, **kwargs):
             write_array_metadata(A, attr_metadata, index_metadata)
 
     if write:
-        write_dict, nullmaps = dataframe_to_np_arrays(dataframe, fillna)
+        write_dict, nullmaps = _df_to_np_arrays(dataframe, column_infos, fillna)
 
         if tiledb_args.get("debug", True):
             print("`tiledb.read_pandas` writing '{}' rows".format(len(dataframe)))
