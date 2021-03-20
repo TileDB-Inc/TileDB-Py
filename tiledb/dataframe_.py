@@ -670,7 +670,7 @@ def _tiledb_result_as_dataframe(readable_array, result_dict):
 def open_dataframe(uri, ctx=None):
     """Open TileDB array at given URI as a Pandas dataframe
 
-    If the array was saved using tiledb.from_dataframe, then columns
+    If the array was saved using tiledb.from_pandas, then columns
     will be interpreted as non-primitive pandas or numpy types when
     available.
 

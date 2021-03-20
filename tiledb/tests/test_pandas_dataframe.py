@@ -286,13 +286,13 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df = make_dataframe_basic1()
 
         ctx = tiledb.Ctx()
-        tiledb.from_dataframe(uri, df, sparse=False, ctx=ctx)
+        tiledb.from_pandas(uri, df, sparse=False, ctx=ctx)
 
         df_readback = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df, df_readback)
 
         uri = self.path("dataframe_basic_rt1_unlimited")
-        tiledb.from_dataframe(uri, df, full_domain=True, sparse=False, ctx=ctx)
+        tiledb.from_pandas(uri, df, full_domain=True, sparse=False, ctx=ctx)
         df_readback = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df, df_readback)
 
@@ -305,7 +305,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         df = make_dataframe_basic2()
 
-        tiledb.from_dataframe(uri, df, sparse=False)
+        tiledb.from_pandas(uri, df, sparse=False)
 
         df_readback = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df, df_readback)
@@ -408,7 +408,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             new_df = df.drop_duplicates(subset=col)
             new_df.set_index(col, inplace=True)
 
-            tiledb.from_dataframe(uri, new_df, sparse=True)
+            tiledb.from_pandas(uri, new_df, sparse=True)
 
             with tiledb.open(uri) as A:
                 self.assertEqual(A.domain.dim(0).name, col)
@@ -428,7 +428,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df_dict = df.to_dict(orient="series")
         df.set_index(["time", "double_range"], inplace=True)
 
-        tiledb.from_dataframe(uri, df, sparse=True)
+        tiledb.from_pandas(uri, df, sparse=True)
 
         with tiledb.open(uri) as A:
             ned_time = A.nonempty_domain()[0]
@@ -561,7 +561,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df.to_csv(tmp_csv, index=False)
 
         attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(1)])
-        # from_dataframe default is 1, so use 7 here to check
+        # from_pandas default is 1, so use 7 here to check
         #   the arg is correctly parsed/passed
         coords_filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 
@@ -857,7 +857,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         df = make_dataframe_basic3(col_size)
         df.set_index(["time"], inplace=True)
 
-        tiledb.from_dataframe(uri, df, sparse=True)
+        tiledb.from_pandas(uri, df, sparse=True)
 
         with tiledb.open(uri) as A:
             with self.assertRaises(tiledb.TileDBError):
