@@ -4413,7 +4413,7 @@ cdef class Array(object):
         >>> with tempfile.TemporaryDirectory() as tmp: # doctest: +SKIP
         ...    data = {'col1_f': np.arange(0.0,1.0,step=0.1), 'col2_int': np.arange(10)}
         ...    df = pd.DataFrame.from_dict(data)
-        ...    tiledb.from_dataframe(tmp, df)
+        ...    tiledb.from_pandas(tmp, df)
         ...    A = tiledb.open(tmp)
         ...    A.df[1]
         ...    A.df[1:5]
