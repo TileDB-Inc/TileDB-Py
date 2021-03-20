@@ -107,9 +107,7 @@ def make_dataframe_basic3(col_size=10, time_range=(None, None)):
 
 
 class TestColumnInfo:
-    def assertColumnInfo(self, obj, info_dtype, info_repr, info_nullable):
-        info = ColumnInfo(obj)
-
+    def assertColumnInfo(self, info, info_dtype, info_repr=None, info_nullable=False):
         assert isinstance(info.dtype, np.dtype)
         assert info.dtype == info_dtype
 
@@ -158,21 +156,27 @@ class TestColumnInfo:
         assert info_repr is None or isinstance(info_repr, str)
         assert isinstance(info_nullable, bool)
         for type_spec in type_specs:
-            self.assertColumnInfo(type_spec, info_dtype, info_repr, info_nullable)
+            self.assertColumnInfo(
+                ColumnInfo.from_dtype(type_spec), info_dtype, info_repr, info_nullable
+            )
 
             series = pd.Series([], dtype=type_spec)
             if series.dtype == type_spec:
-                self.assertColumnInfo(series, info_dtype, info_repr, info_nullable)
+                self.assertColumnInfo(
+                    ColumnInfo.from_values(series), info_dtype, info_repr, info_nullable
+                )
 
     def test_object_dtype(self):
         self.assertColumnInfo(
-            pd.Series(["hello", "world"]), np.dtype("<U"), None, False
+            ColumnInfo.from_values(pd.Series(["hello", "world"])),
+            np.dtype("<U"),
         )
         self.assertColumnInfo(
-            pd.Series([b"hello", b"world"]), np.dtype("S"), None, False
+            ColumnInfo.from_values(pd.Series([b"hello", b"world"])),
+            np.dtype("S"),
         )
         for s in ["hello", b"world"], ["hello", 1], [b"hello", 1]:
-            pytest.raises(NotImplementedError, ColumnInfo, pd.Series(s))
+            pytest.raises(NotImplementedError, ColumnInfo.from_values, pd.Series(s))
 
     unsupported_type_specs = [
         [np.float16, "f2"],
@@ -202,14 +206,14 @@ class TestColumnInfo:
     @pytest.mark.parametrize("type_specs", unsupported_type_specs)
     def test_not_implemented(self, type_specs):
         for type_spec in type_specs:
-            pytest.raises(NotImplementedError, ColumnInfo, type_spec)
+            pytest.raises(NotImplementedError, ColumnInfo.from_dtype, type_spec)
             try:
                 series = pd.Series([], dtype=type_spec)
             except (ValueError, TypeError):
                 pass
             else:
                 if series.dtype == type_spec:
-                    pytest.raises(NotImplementedError, ColumnInfo, series)
+                    pytest.raises(NotImplementedError, ColumnInfo.from_values, series)
 
 
 class PandasDataFrameRoundtrip(DiskTestCase):
