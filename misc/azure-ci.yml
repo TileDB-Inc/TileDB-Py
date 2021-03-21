@@ -16,7 +16,7 @@ stages:
           python.version: '3.7'
         linux_py3:
           imageName: 'ubuntu-16.04'
-          python.version: '3.6'
+          python.version: '3.7'
       maxParallel: 4
 
     steps:
