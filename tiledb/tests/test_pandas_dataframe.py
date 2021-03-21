@@ -1004,3 +1004,34 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         with tiledb.open(uri) as A:
             tm.assert_frame_equal(df, A.df[:], check_index_type=False)
+
+    def test_var_length(self):
+        from tiledb.tests.datatypes import RaggedDtype
+
+        dtype = np.dtype("uint16")
+        data = np.empty(100, dtype="O")
+        data[:] = [
+            np.random.randint(1000, size=np.random.randint(1, 10), dtype=dtype)
+            for _ in range(len(data))
+        ]
+
+        df = pd.DataFrame({"data": data})
+
+        uri = self.path("test_var_length")
+        data_dtype = RaggedDtype(dtype)
+        tiledb.from_pandas(
+            uri, df, column_types={"data": data_dtype}, varlen_types={data_dtype}
+        )
+
+        with tiledb.open(uri) as A:
+            # TODO: update the test when we support Arrow lists
+            import pyarrow
+
+            with pytest.raises(pyarrow.lib.ArrowInvalid):
+                A.df[:]
+
+            df2 = A.query(use_arrow=False).df[:]
+            tm.assert_frame_equal(df, df2, check_dtype=False)
+            for array1, array2 in zip(df["data"].values, df2["data"].values):
+                self.assertEqual(array1.dtype, array2.dtype)
+                np.testing.assert_array_equal(array1, array2)

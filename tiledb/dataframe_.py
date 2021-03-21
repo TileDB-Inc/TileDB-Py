@@ -53,6 +53,7 @@ TILEDB_KWARG_DEFAULTS = {
     "row_start_idx": None,
     "fillna": None,
     "column_types": None,
+    "varlen_types": None,
     "capacity": None,
     "date_spec": None,
     "cell_order": "row-major",
@@ -78,9 +79,10 @@ class ColumnInfo:
     dtype: np.dtype
     repr: Optional[str] = None
     nullable: bool = False
+    var: bool = False
 
     @classmethod
-    def from_values(cls, array_like):
+    def from_values(cls, array_like, varlen_types=()):
         from pandas.api import types as pd_types
 
         if pd_types.is_object_dtype(array_like):
@@ -100,10 +102,10 @@ class ColumnInfo:
         else:
             if not hasattr(array_like, "dtype"):
                 array_like = np.asanyarray(array_like)
-            return cls.from_dtype(array_like.dtype)
+            return cls.from_dtype(array_like.dtype, varlen_types)
 
     @classmethod
-    def from_dtype(cls, dtype):
+    def from_dtype(cls, dtype, varlen_types=()):
         from pandas.api import types as pd_types
 
         dtype = pd_types.pandas_dtype(dtype)
@@ -111,12 +113,28 @@ class ColumnInfo:
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
-            np_type = np.uint8 if pd_types.is_bool_dtype(dtype) else dtype.type
+            if pd_types.is_bool_dtype(dtype):
+                np_type = np.uint8
+            else:
+                # XXX Parametrized dtypes such as "foo[int32]") sometimes have a "subtype"
+                # property that holds the "int32". If it exists use this, otherwise use
+                # the standard type property
+                np_type = getattr(dtype, "subtype", dtype.type)
+
+            var = bool(varlen_types and dtype in varlen_types)
+            if var:
+                # currently TileDB-py doesn't support nullable var-length attributes
+                nullable = False
+            else:
+                # currently nullability is a (private) property of ExtensionArray
+                # see https://github.com/pandas-dev/pandas/issues/40574
+                nullable = bool(dtype.construct_array_type()._can_hold_na)
+
             return cls(
                 np.dtype(np_type),
-                repr=str(dtype),
-                # all pandas extension types are currently nullable
-                nullable=True,
+                repr=dtype.name,
+                nullable=nullable,
+                var=var,
             )
 
         # bool type
@@ -152,13 +170,13 @@ class ColumnInfo:
         raise NotImplementedError(f"{dtype} dtype not supported")
 
 
-def _get_column_infos(df, column_types):
+def _get_column_infos(df, column_types, varlen_types):
     column_infos = {}
     for name, column in df.items():
         if column_types and name in column_types:
-            column_infos[name] = ColumnInfo.from_dtype(column_types[name])
+            column_infos[name] = ColumnInfo.from_dtype(column_types[name], varlen_types)
         else:
-            column_infos[name] = ColumnInfo.from_values(column)
+            column_infos[name] = ColumnInfo.from_values(column, varlen_types)
     return column_infos
 
 
@@ -180,6 +198,7 @@ def _get_attrs(names, column_infos, attr_filters, ctx=None):
                 filters=filters,
                 dtype=column_info.dtype,
                 nullable=column_info.nullable,
+                var=column_info.var,
                 ctx=ctx,
             )
         )
@@ -441,7 +460,10 @@ def _df_to_np_arrays(df, column_infos, fillna):
         if fillna is not None and name in fillna:
             column = column.fillna(fillna[name])
 
-        to_numpy_kwargs = dict(dtype=column_info.dtype)
+        to_numpy_kwargs = {}
+        if not column_info.var:
+            to_numpy_kwargs.update(dtype=column_info.dtype)
+
         if column_info.nullable:
             # use default 0/empty for the dtype
             to_numpy_kwargs.update(na_value=column_info.dtype.type())
@@ -505,6 +527,7 @@ def from_pandas(uri, dataframe, **kwargs):
     fillna = tiledb_args.get("fillna", None)
     date_spec = tiledb_args.get("date_spec", None)
     column_types = tiledb_args.get("column_types", None)
+    varlen_types = tiledb_args.get("varlen_types", None)
 
     if mode != "append" and tiledb.array_exists(uri):
         raise TileDBError("Array URI '{}' already exists!".format(uri))
@@ -540,7 +563,7 @@ def from_pandas(uri, dataframe, **kwargs):
             }
         )
 
-    column_infos = _get_column_infos(dataframe, column_types)
+    column_infos = _get_column_infos(dataframe, column_types, varlen_types)
 
     if create_array:
         if nrows:
