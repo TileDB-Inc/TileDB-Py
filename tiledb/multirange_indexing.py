@@ -282,15 +282,11 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         self._preload_metadata = True
 
-        result = super(DataFrameIndexer, self).__getitem__(idx)
-
+        # TODO currently there is lack of support for Arrow list types. this
+        # prevents multi-value attributes, asides from strings, from being
+        # queried properly. until list attributes are supported in core,
+        # error with a clear message to pass use_arrow=False.
         if self.use_arrow:
-            import pyarrow as pa
-
-            # TODO currently there is lack of support for Arrow list types. this
-            # prevents multi-value attributes, asides from strings, from being
-            # queried properly. until list attributes are supported in core,
-            # error with a clear message to pass use_arrow=False.
             if self.query.attrs is None:
                 check_attrs = [self.schema.attr(n) for n in range(self.schema.nattr)]
             else:
@@ -311,6 +307,11 @@ class DataFrameIndexer(MultiRangeIndexer):
                     "attributes and fixed-length attributes with more than one value. "
                     "Use `query(use_arrow=False)`."
                 )
+
+        result = super(DataFrameIndexer, self).__getitem__(idx)
+
+        if self.use_arrow:
+            import pyarrow as pa
 
             if use_stats():
                 pd_start = time.time()
