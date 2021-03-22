@@ -3333,6 +3333,10 @@ class VFS(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             vfs.move_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
 
+    @unittest.skipIf(
+        os.name == "nt",
+        reason="VFS copy commands from core are not supported on Windows",
+    )
     def test_copy(self):
         ctx = tiledb.Ctx()
         vfs = tiledb.VFS(ctx=ctx)
