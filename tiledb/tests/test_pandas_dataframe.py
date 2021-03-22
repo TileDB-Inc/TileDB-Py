@@ -474,6 +474,25 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_bk = A.df[:]
             tm.assert_frame_equal(df_bk, df, check_index_type=False)
 
+    def test_dataframe_date_spec(self):
+        date_fmt = "%d/%m/%Y"
+        df = make_dataframe_basic3()
+        df["date"] = df["time"].dt.strftime(date_fmt)
+
+        df_copy = df.copy()
+
+        uri = self.path("df_date_spec")
+        tiledb.from_pandas(uri, df, date_spec={"date": date_fmt})
+
+        # check that original df has not changed
+        tm.assert_frame_equal(df, df_copy)
+
+        # update the column in the original dataframe to match what we expect on read-back
+        df["date"] = pd.to_datetime(df["date"], format=date_fmt)
+        with tiledb.open(uri) as A:
+            df_bk = A.df[:]
+            tm.assert_frame_equal(df_bk, df, check_index_type=False)
+
     def test_csv_dense(self):
         col_size = 10
         df_data = {

@@ -532,6 +532,14 @@ def from_pandas(uri, dataframe, **kwargs):
     if ctx is None:
         ctx = tiledb.default_ctx()
 
+    if date_spec:
+        dataframe = dataframe.assign(
+            **{
+                name: pd.to_datetime(dataframe[name], format=format)
+                for name, format in date_spec.items()
+            }
+        )
+
     column_infos = _get_column_infos(dataframe, column_types)
 
     if create_array:
@@ -581,19 +589,7 @@ def from_pandas(uri, dataframe, **kwargs):
 
         tiledb_args["mode"] = "append"
 
-    # apply custom datetime parsing to given {'column_name': format_spec} pairs
-    # format_spec should be provied using Python format codes:
-    #     https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
-    if date_spec is not None:
-        if type(date_spec) is not dict:
-            raise TypeError(
-                "Expected 'date_spec' to be a dict, got {}".format(type(date_spec))
-            )
-        for name, spec in date_spec.items():
-            dataframe[name] = pd.to_datetime(dataframe[name], format=spec)
-
-    # write the metadata so we can reconstruct dataframe
-    if create_array:
+        # write the metadata so we can reconstruct dataframe
         index_metadata = get_index_metadata(dataframe)
         with tiledb.open(uri, "w", ctx=ctx) as A:
             write_array_metadata(A, attr_metadata, index_metadata)
