@@ -282,6 +282,32 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         self._preload_metadata = True
 
+        # TODO currently there is lack of support for Arrow list types. this
+        # prevents multi-value attributes, asides from strings, from being
+        # queried properly. until list attributes are supported in core,
+        # error with a clear message to pass use_arrow=False.
+        if self.use_arrow:
+            if self.query.attrs is None:
+                check_attrs = [self.schema.attr(n) for n in range(self.schema.nattr)]
+            else:
+                check_attrs = [self.schema.attr(name) for name in self.query.attrs]
+
+            if self.query.attrs is not None and any(
+                [
+                    (
+                        (attr.isvar or len(attr.dtype) > 1)
+                        and not attr.dtype == np.unicode_
+                    )
+                    for attr in check_attrs
+                ]
+            ):
+                raise TileDBError(
+                    "Multi-value attributes are not currently "
+                    "supported when use_arrow=True. This includes all variable-length "
+                    "attributes and fixed-length attributes with more than one value. "
+                    "Use `query(use_arrow=False)`."
+                )
+
         result = super(DataFrameIndexer, self).__getitem__(idx)
 
         if self.use_arrow:
