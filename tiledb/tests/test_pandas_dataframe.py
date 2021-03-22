@@ -456,6 +456,24 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_idx_res = A.query(use_arrow=False).df[slice(*ned_time), :]
             tm.assert_frame_equal(df_idx_res, df)
 
+    def test_dataframe_fillna(self):
+        data = pd.Series(np.arange(10), dtype=pd.Int64Dtype())
+        data[4] = None
+        df = pd.DataFrame({"v": data})
+        df_copy = df.copy()
+
+        uri = self.path("df_fillna")
+        tiledb.from_pandas(uri, df, fillna={"v": -1})
+
+        # check that original df has not changed
+        tm.assert_frame_equal(df, df_copy)
+
+        # update the value in the original dataframe to match what we expect on read-back
+        df["v"][4] = -1
+        with tiledb.open(uri) as A:
+            df_bk = A.df[:]
+            tm.assert_frame_equal(df_bk, df, check_index_type=False)
+
     def test_csv_dense(self):
         col_size = 10
         df_data = {
