@@ -82,7 +82,14 @@ class ColumnInfo:
     def __init__(self, arr_or_dtype):
         import pandas as pd
 
-        dtype = pd.core.dtypes.common.get_dtype(arr_or_dtype)
+        # compatibility for pandas < 1.2
+        get_dtype = getattr(
+            pd.core.dtypes.common,
+            "get_dtype"
+            if hasattr(pd.core.dtypes.common, "get_dtype")
+            else "_get_dtype",
+        )
+        dtype = get_dtype(arr_or_dtype)
 
         # Note: be careful if you rearrange the order of the following checks
 
