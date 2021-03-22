@@ -437,13 +437,16 @@ def _df_to_np_arrays(df, column_infos, fillna):
     nullmaps = {}
     for name, column in df.items():
         column_info = column_infos[name]
+
+        if fillna is not None and name in fillna:
+            column = column.fillna(fillna[name])
+
         to_numpy_kwargs = dict(dtype=column_info.dtype)
         if column_info.nullable:
             # use default 0/empty for the dtype
             to_numpy_kwargs.update(na_value=column_info.dtype.type())
             nullmaps[name] = (~column.isna()).to_numpy(dtype=np.uint8)
-        elif fillna is not None and name in fillna:
-            to_numpy_kwargs.update(na_value=fillna[name])
+
         ret[name] = column.to_numpy(**to_numpy_kwargs)
 
     return ret, nullmaps
@@ -577,10 +580,6 @@ def from_pandas(uri, dataframe, **kwargs):
         tiledb.Array.create(uri, schema, ctx=ctx)
 
         tiledb_args["mode"] = "append"
-
-    # apply fill replacements for NA values if specified
-    if fillna is not None:
-        dataframe.fillna(fillna, inplace=True)
 
     # apply custom datetime parsing to given {'column_name': format_spec} pairs
     # format_spec should be provied using Python format codes:
