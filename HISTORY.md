@@ -1,3 +1,11 @@
+# TileDB-Py 0.8.6 Release Notes
+
+## Improvements
+* Addition of `VFS()` functions `copy_file()` and `copy_dir()` [#507](https://github.com/TileDB-Inc/TileDB-Py/pull/507)
+
+## Bug fixes
+* Multi-length attributes, regardless of fixed or var-length, do not work query properly with PyArrow enabled due to lack of Arrow List support. When using `.df[]` with PyArrow enabled, we are returning a clear message to the user to use `query(use_pyarrow=False)` [#513](https://github.com/TileDB-Inc/TileDB-Py/pull/513)
+
 # TileDB-Py 0.8.5 Release Notes
 
 ## TileDB Embedded updates:
@@ -9,10 +17,6 @@
 ## Improvements
 * Restore `tiledb.stats_dump` default to `verbose=True` [#491](https://github.com/TileDB-Inc/TileDB-Py/pull/491)
 * Remove `non_empty_domain_var()` Fragment Info PyBind11 Function and only use `get_non_empty_domain()` for both fixed and var-length domains [#505](https://github.com/TileDB-Inc/TileDB-Py/pull/505)
-* Addition of `VFS()` functions `copy_file()` and `copy_dir()` [#507](https://github.com/TileDB-Inc/TileDB-Py/pull/507)
-
-## Bug fixes
-* Multi-length attributes, regardless of fixed or var-length, do not work query properly with PyArrow enabled due to lack of Arrow List support. When using `.df[]` with PyArrow enabled, we are returning a clear message to the user to use `query(use_pyarrow=False)` [#513](https://github.com/TileDB-Inc/TileDB-Py/pull/513)
 
 # TileDB-Py 0.8.4 Release Notes
 
