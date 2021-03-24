@@ -670,9 +670,7 @@ def _tiledb_result_as_dataframe(readable_array, result_dict):
     if "__pandas_index_dims" in readable_array.meta:
         index_dims = json.loads(readable_array.meta["__pandas_index_dims"])
 
-    indexes = list()
     rename_cols = dict()
-
     for col_name, col_val in result_dict.items():
         if repr_meta and col_name in repr_meta:
             new_col = pd.Series(col_val, dtype=repr_meta[col_name])
@@ -682,16 +680,20 @@ def _tiledb_result_as_dataframe(readable_array, result_dict):
             result_dict[col_name] = new_col
             if col_name == "__tiledb_rows":
                 rename_cols["__tiledb_rows"] = None
-                indexes.append(None)
-            else:
-                indexes.append(col_name)
 
     for col_key, col_name in rename_cols.items():
         result_dict[col_name] = result_dict.pop(col_key)
 
     df = pd.DataFrame.from_dict(result_dict)
-    if len(indexes) > 0:
-        df.set_index(indexes, inplace=True)
+
+    if index_dims:
+        index_names = [name for name in index_dims.keys() if name in result_dict]
+        if index_names:
+            df.set_index(index_names, inplace=True)
+        elif len(index_dims) == 1:
+            index_name = next(iter(index_dims))
+            if index_name != "__tiledb_rows":
+                df.index.rename(index_name, inplace=True)
 
     return df
 
