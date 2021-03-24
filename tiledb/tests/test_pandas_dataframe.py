@@ -456,6 +456,17 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df_idx_res = A.query(use_arrow=False).df[slice(*ned_time), :]
             tm.assert_frame_equal(df_idx_res, df)
 
+    def test_dataframe_index_name(self):
+        uri = self.path("df_index_name")
+
+        df = make_dataframe_basic1(10)
+        df.index.name = "range_idx"
+
+        tiledb.from_pandas(uri, df)
+
+        df_readback = tiledb.open_dataframe(uri)
+        tm.assert_frame_equal(df, df_readback)
+
     def test_dataframe_fillna(self):
         data = pd.Series(np.arange(10), dtype=pd.Int64Dtype())
         data[4] = None
