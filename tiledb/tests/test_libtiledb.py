@@ -379,7 +379,7 @@ class AttributeTest(unittest.TestCase):
         ctx = tiledb.Ctx()
         attr = tiledb.Attr(ctx=ctx)
         self.assertTrue(attr.isanon)
-        self.assertEqual(attr.name, u"")
+        self.assertEqual(attr.name, "")
         self.assertEqual(attr.dtype, np.float_)
         # self.assertEqual(attr.compressor, (None, -1))
         self.assertFalse(attr.isvar)
@@ -1396,6 +1396,14 @@ class DenseArrayTest(DiskTestCase):
             res = T.multi_index[(0, 1), (0, 1)]["a"]
             assert_array_equal(A, res)
 
+    def test_nd_roundtrip(self):
+        dim_set = np.int64([3 + x % 2 for x in range(2, 12)])
+        for i, last in enumerate(range(2, len(dim_set))):
+            dims = dim_set[:last]
+            data = np.random.rand(*dims).astype("int32")
+            with tiledb.from_numpy(self.path(f"nd_roundtrip{i}"), data) as A:
+                assert_array_equal(data, A[:])
+
     def test_array_2d_s3_mixed(self):
         # This array is currently read back with dtype object
         A = np.array([["AAA", "B"], ["AB", "C"]], dtype="S3")
@@ -1822,15 +1830,15 @@ class DenseVarlen(DiskTestCase):
     def test_varlen_write_fixedunicode(self):
         A = np.array(
             [
-                u"aa",
-                u"bbb",
-                u"ccccc",
-                u"ddddddddddddddddddddd",
-                u"ee",
-                u"ffffff",
-                u"",
-                u"g",
-                u"hhhhhhhhhh",
+                "aa",
+                "bbb",
+                "ccccc",
+                "ddddddddddddddddddddd",
+                "ee",
+                "ffffff",
+                "",
+                "g",
+                "hhhhhhhhhh",
             ],
             dtype=np.dtype("U"),
         )
@@ -2259,15 +2267,15 @@ class SparseArray(DiskTestCase):
 
         A = np_array = np.array(
             [
-                u"1234545lkjalsdfj",
-                u"mnopqrs",
-                u"ijkl",
-                u"gh",
-                u"abcdef",
-                u"aαbββcγγγdδδδδ",
-                u"aαbββc",
-                u"",
-                u"γγγdδδδδ",
+                "1234545lkjalsdfj",
+                "mnopqrs",
+                "ijkl",
+                "gh",
+                "abcdef",
+                "aαbββcγγγdδδδδ",
+                "aαbββc",
+                "",
+                "γγγdδδδδ",
             ],
             dtype=object,
         )
