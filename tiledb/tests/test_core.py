@@ -91,7 +91,7 @@ class CoreCCTest(DiskTestCase):
         attrs = [
             tiledb.Attr(name="", dtype=np.float64, ctx=ctx),
             tiledb.Attr(name="foo", dtype=np.int32, ctx=ctx),
-            tiledb.Attr(name="str", dtype=np.str, ctx=ctx),
+            tiledb.Attr(name="str", dtype=str, ctx=ctx),
         ]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False, ctx=ctx)
         tiledb.DenseArray.create(uri, schema)
