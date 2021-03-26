@@ -8,14 +8,14 @@ TODO
 - implement oindex...
 """
 
-import tiledb
-from tiledb.multirange_indexing import *
-import os, numpy as np
-import sys
+import random
 
+import numpy as np
 from numpy.testing import assert_array_equal
-import unittest
-from tiledb.tests.common import *
+
+import tiledb
+from tiledb.multirange_indexing import getitem_ranges, mr_dense_result_shape
+from tiledb.tests.common import DiskTestCase, assert_tail_equal, intspace
 
 
 def make_1d_dense(ctx, path, attr_name=""):
@@ -50,29 +50,21 @@ def make_2d_dense(ctx, path, attr_name=""):
 
 class TestMultiRangeAuxiliary(DiskTestCase):
     def test_shape_funcs(self):
-        # -----------
         range1el = (((1, 1),),)
         self.assertEqual(mr_dense_result_shape(range1el), (1,))
-        self.assertEqual(mr_dense_result_numel(range1el), 1)
 
-        # -----------
         range1d = tuple([((1, 2), (4, 4))])
         self.assertEqual(mr_dense_result_shape(range1d), (3,))
-        self.assertEqual(mr_dense_result_numel(range1d), 3)
 
-        # -----------
         range2d1 = (((3, 6), (7, 7), (10, 12)), ((5, 7),))
-
         self.assertEqual(mr_dense_result_shape(range2d1), (8, 3))
-        self.assertEqual(mr_dense_result_numel(range2d1), 24)
 
-        # -----------
-        range2d2 = ([(3, 6), (7, 7), (10, 12)], [(5, 7), (10, 10)])
+        # range2d2 = ([(3, 6), (7, 7), (10, 12)], [(5, 7), (10, 10)])
 
-    def test_3d(self):
-        range3d1 = (((2, 4),), ((3, 6),), ((1, 4), (5, 9)))
-
-        # self.assertEqual()
+    # def test_3d(self):
+    #     range3d1 = (((2, 4),), ((3, 6),), ((1, 4), (5, 9)))
+    #
+    #     # self.assertEqual()
 
     def test_sel_to_ranges(self):
         class Obj(object):
@@ -95,47 +87,44 @@ class TestMultiRangeAuxiliary(DiskTestCase):
         ibi = IBI()
         # ndim = 1
         arr = make_arr(1)
-        m = MultiRangeIndexer.__test_init__(arr)
-        self.assertEqual(m.getitem_ranges(ibi[[1]]), (((1, 1),),))
-        self.assertEqual(m.getitem_ranges(ibi[[1, 2]]), (((1, 1), (2, 2)),))
-        self.assertEqual(m.getitem_ranges(ibi[slice(1, 2)]), (((1, 2),),))
-        self.assertEqual(m.getitem_ranges(ibi[1:2]), (((1, 2),),))
+        self.assertEqual(getitem_ranges(arr, ibi[[1]]), (((1, 1),),))
+        self.assertEqual(getitem_ranges(arr, ibi[[1, 2]]), (((1, 1), (2, 2)),))
+        self.assertEqual(getitem_ranges(arr, ibi[slice(1, 2)]), (((1, 2),),))
+        self.assertEqual(getitem_ranges(arr, ibi[1:2]), (((1, 2),),))
 
         # ndim = 2
         arr2 = make_arr(2)
-        m = MultiRangeIndexer.__test_init__(arr2)
-
-        self.assertEqual(m.getitem_ranges(ibi[[1]]), (((1, 1),), ()))
-        self.assertEqual(m.getitem_ranges(ibi[slice(1, 33)]), (((1, 33),), ()))
+        self.assertEqual(getitem_ranges(arr2, ibi[[1]]), (((1, 1),), ()))
+        self.assertEqual(getitem_ranges(arr2, ibi[slice(1, 33)]), (((1, 33),), ()))
         self.assertEqual(
-            m.getitem_ranges(ibi[[1, 2], [[1], slice(1, 3)]]),
+            getitem_ranges(arr2, ibi[[1, 2], [[1], slice(1, 3)]]),
             (((1, 1), (2, 2)), ((1, 1), (1, 3))),
         )
 
         # ndim = 3
         arr3 = make_arr(3)
-        m = MultiRangeIndexer.__test_init__(arr3)
-
         self.assertEqual(
-            m.getitem_ranges(ibi[1, 2, 3]), (((1, 1),), ((2, 2),), ((3, 3),))
+            getitem_ranges(arr3, ibi[1, 2, 3]), (((1, 1),), ((2, 2),), ((3, 3),))
         )
-        self.assertEqual(m.getitem_ranges(ibi[1, 2]), ((((1, 1),), ((2, 2),), ())))
-        self.assertEqual(m.getitem_ranges(ibi[1:2, 3:4]), (((1, 2),), ((3, 4),), ()))
+        self.assertEqual(getitem_ranges(arr3, ibi[1, 2]), ((((1, 1),), ((2, 2),), ())))
         self.assertEqual(
-            m.getitem_ranges(ibi[1:2, 3:4, 5:6]), (((1, 2),), ((3, 4),), ((5, 6),))
+            getitem_ranges(arr3, ibi[1:2, 3:4]), (((1, 2),), ((3, 4),), ())
         )
         self.assertEqual(
-            m.getitem_ranges(ibi[[1], [2], [5, 6]]),
+            getitem_ranges(arr3, ibi[1:2, 3:4, 5:6]), (((1, 2),), ((3, 4),), ((5, 6),))
+        )
+        self.assertEqual(
+            getitem_ranges(arr3, ibi[[1], [2], [5, 6]]),
             (((1, 1),), ((2, 2),), ((5, 5), (6, 6))),
         )
         self.assertEqual(
-            m.getitem_ranges(ibi[1, [slice(3, 6), 8], slice(4, 6)]),
+            getitem_ranges(arr3, ibi[1, [slice(3, 6), 8], slice(4, 6)]),
             (((1, 1),), ((3, 6), (8, 8)), ((4, 6),)),
         )
-        self.assertEqual(m.getitem_ranges(ibi[(1, 2)]), (((1, 1),), ((2, 2),), ()))
-        self.assertEqual(m.getitem_ranges(ibi[[(1, 2)]]), (((1, 2),), (), ()))
+        self.assertEqual(getitem_ranges(arr3, ibi[(1, 2)]), (((1, 1),), ((2, 2),), ()))
+        self.assertEqual(getitem_ranges(arr3, ibi[[(1, 2)]]), (((1, 2),), (), ()))
         self.assertEqual(
-            m.getitem_ranges(ibi[[(1, 2), 4], [slice(1, 4)]]),
+            getitem_ranges(arr3, ibi[[(1, 2), 4], [slice(1, 4)]]),
             (((1, 2), (4, 4)), ((1, 4),), ()),
         )
 
@@ -671,7 +660,7 @@ class TestMultiRange(DiskTestCase):
 
             assert_array_equal(data["a"], np.array([], dtype=np.uint64))
 
-            with self.assertRaises(TileDBError):
+            with self.assertRaises(tiledb.TileDBError):
                 A.multi_index[:]
 
         with tiledb.open(uri, mode="w") as A:
