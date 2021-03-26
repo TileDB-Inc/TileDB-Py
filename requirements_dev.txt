@@ -5,7 +5,6 @@ pybind11
 wheel
 setuptools-scm
 tox
-dask
 pandas ; python_version > '3.5'
 psutil
 pyarrow
