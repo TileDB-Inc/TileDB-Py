@@ -1,5 +1,8 @@
 # TileDB-Py 0.8.6 Release Notes
 
+## TileDB Embedded updates:
+* TileDB-Py 0.8.6 includes TileDB Embedded [TileDB 2.2.7](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.7)
+
 ## Improvements
 * Addition of `VFS()` functions `copy_file()` and `copy_dir()` [#507](https://github.com/TileDB-Inc/TileDB-Py/pull/507)
 * Add support in `from_pandas` for storing Pandas extension types as variable-length attributes [#515](https://github.com/TileDB-Inc/TileDB-Py/pull/515)
