@@ -698,7 +698,7 @@ def _tiledb_result_as_dataframe(readable_array, result_dict):
     return df
 
 
-def open_dataframe(uri, ctx=None):
+def open_dataframe(uri, *, attrs=None, use_arrow=None, ctx=None):
     """Open TileDB array at given URI as a Pandas dataframe
 
     If the array was saved using tiledb.from_pandas, then columns
@@ -717,15 +717,14 @@ def open_dataframe(uri, ctx=None):
     """
     check_dataframe_deps()
 
-    if ctx is None:
-        ctx = tiledb.default_ctx()
     # TODO support `distributed=True` option?
     with tiledb.open(uri, ctx=ctx) as A:
-        nonempty = A.nonempty_domain()
-        data = A.multi_index.__getitem__(tuple(slice(s1, s2) for s1, s2 in nonempty))
-        new_df = _tiledb_result_as_dataframe(A, data)
+        df = A.query(attrs=attrs, use_arrow=use_arrow).df[:]
 
-    return new_df
+    if attrs and list(df.columns) != list(attrs):
+        df = df[attrs]
+
+    return df
 
 
 def _iterate_csvs_pandas(csv_list, pandas_args):

@@ -297,12 +297,14 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         uri = self.path("dataframe_basic_rt1_unlimited")
         tiledb.from_pandas(uri, df, full_domain=True, sparse=False, ctx=ctx)
-        df_readback = tiledb.open_dataframe(uri)
-        tm.assert_frame_equal(df, df_readback)
 
-        with tiledb.open(uri) as A:
-            df_arrow = A.query(use_arrow=True).df[:]
-        tm.assert_frame_equal(df, df_arrow)
+        for use_arrow in None, False, True:
+            df_readback = tiledb.open_dataframe(uri, use_arrow=use_arrow)
+            tm.assert_frame_equal(df, df_readback)
+
+            attrs = ["s", "q", "t"]
+            df_arrow = tiledb.open_dataframe(uri, attrs=attrs, use_arrow=use_arrow)
+            tm.assert_frame_equal(df[attrs], df_arrow)
 
     def test_dataframe_basic2(self):
         uri = self.path("dataframe_basic_rt2")
@@ -464,8 +466,12 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         tiledb.from_pandas(uri, df)
 
-        df_readback = tiledb.open_dataframe(uri)
+        df_readback = tiledb.open_dataframe(uri, use_arrow=False)
         tm.assert_frame_equal(df, df_readback)
+
+        # TODO: fix index name when using pyarrow
+        # df_readback = tiledb.open_dataframe(uri, use_arrow=True)
+        # tm.assert_frame_equal(df, df_readback)
 
     def test_dataframe_fillna(self):
         data = pd.Series(np.arange(10), dtype=pd.Int64Dtype())
@@ -481,9 +487,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         # update the value in the original dataframe to match what we expect on read-back
         df["v"][4] = -1
-        with tiledb.open(uri) as A:
-            df_bk = A.df[:]
-            tm.assert_frame_equal(df_bk, df, check_index_type=False)
+        df_bk = tiledb.open_dataframe(uri)
+        tm.assert_frame_equal(df_bk, df)
 
     def test_dataframe_date_spec(self):
         date_fmt = "%d/%m/%Y"
@@ -500,9 +505,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         # update the column in the original dataframe to match what we expect on read-back
         df["date"] = pd.to_datetime(df["date"], format=date_fmt)
-        with tiledb.open(uri) as A:
-            df_bk = A.df[:]
-            tm.assert_frame_equal(df_bk, df, check_index_type=False)
+        df_bk = tiledb.open_dataframe(uri)
+        tm.assert_frame_equal(df_bk, df)
 
     def test_csv_dense(self):
         col_size = 10
@@ -776,9 +780,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             # update the value in the original dataframe to match what we expect on read-back
             df["v"][4] = 0
 
-            with tiledb.open(path) as A:
-                df_bk = A.df[:]
-                tm.assert_frame_equal(df_bk, df, check_index_type=False)
+            df_bk = tiledb.open_dataframe(path)
+            tm.assert_frame_equal(df_bk, df, check_index_type=False)
 
         ### Test 1
         col_size = 10
@@ -955,9 +958,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             )
 
             tiledb.from_parquet(str(tdb_uri), str(pq_uri))
-
-            with tiledb.open(tdb_uri) as T:
-                tm.assert_frame_equal(df, T.df[:], check_index_type=False)
+            df_bk = tiledb.open_dataframe(tdb_uri)
+            tm.assert_frame_equal(df, df_bk)
 
         basic1 = make_dataframe_basic1()
         try_rt("basic1", basic1)
@@ -996,8 +998,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
             tiledb.from_pandas(uri, df)
 
-            with tiledb.open(uri) as A:
-                tm.assert_frame_equal(df, A.df[:], check_index_type=False)
+            df_bk = tiledb.open_dataframe(uri)
+            tm.assert_frame_equal(df, df_bk)
 
     def test_nullable_bool(self):
         uri = self.path("test_nullable_bool")
@@ -1013,8 +1015,8 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
         tiledb.from_pandas(uri, df)
 
-        with tiledb.open(uri) as A:
-            tm.assert_frame_equal(df, A.df[:], check_index_type=False)
+        df_bk = tiledb.open_dataframe(uri)
+        tm.assert_frame_equal(df, df_bk)
 
     def test_var_length(self):
         from tiledb.tests.datatypes import RaggedDtype
