@@ -70,6 +70,7 @@ if tiledb.object_type(array_name) != "array":
     write_array_2()
     write_array_3()
 
+# tiledb.array_fragments() requires TileDB-Py version > 0.8.5
 fragments_info = tiledb.array_fragments(array_name)
 
 print("====== FRAGMENTS  INFO ======")
