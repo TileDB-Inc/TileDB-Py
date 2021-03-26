@@ -93,17 +93,17 @@ class MultiRangeIndexer(object):
         if not isinstance(array, Array):
             raise TypeError("Internal error: MultiRangeIndexer expected tiledb.Array")
         self.array_ref = weakref.ref(array)
-        self.schema = array.schema
         self.query = query
         self.use_arrow = use_arrow
-        self._preload_metadata = False
 
     @property
     def array(self):
-        assert (
-            self.array_ref() is not None
-        ), "Internal error: invariant violation (indexing call w/ dead array_ref)"
-        return self.array_ref()
+        array = self.array_ref()
+        if array is None:
+            raise RuntimeError(
+                "Internal error: invariant violation (indexing call w/ dead array_ref)"
+            )
+        return array
 
     @classmethod
     def __test_init__(cls, array):
@@ -114,14 +114,13 @@ class MultiRangeIndexer(object):
         """
         m = cls.__new__(cls)
         m.array_ref = weakref.ref(array)
-        m.schema = array.schema
         m.query = None
         return m
 
     def getitem_ranges(self, idx):
-        dom = self.schema.domain
-        ndim = dom.ndim
-        ned = self.array.nonempty_domain()
+        array = self.array
+        ndim = array.schema.domain.ndim
+        ned = array.nonempty_domain()
 
         if isinstance(idx, tuple):
             idx = list(idx)
@@ -146,13 +145,15 @@ class MultiRangeIndexer(object):
         return rval
 
     def __getitem__(self, idx):
+        return self._run_query(self.query, idx, preload_metadata=False)
+
+    def _run_query(self, query, idx, *, preload_metadata):
         # implements multi-range / outer / orthogonal indexing
         ranges = self.getitem_ranges(idx)
-        schema = self.schema
-        dom = self.schema.domain
-        attr_names = tuple(
-            self.schema.attr(i)._internal_name for i in range(self.schema.nattr)
-        )
+        array = self.array
+        schema = array.schema
+        dom = schema.domain
+        attr_names = tuple(schema.attr(i)._internal_name for i in range(schema.nattr))
         if schema.sparse:
             dim_names = tuple(dom.dim(i).name for i in range(dom.ndim))
         else:
@@ -161,29 +162,26 @@ class MultiRangeIndexer(object):
         # set default order
         # - TILEDB_UNORDERED for sparse
         # - TILEDB_ROW_MAJOR for dense
-        if self.schema.sparse:
-            order = "U"
-        else:
-            order = "C"
+        order = "U" if schema.sparse else "C"
 
         # if this indexing operation is part of a query (A.query().df)
         # then we need to respect the settings of the query
-        if self.query is not None:
+        if query is not None:
             # if we are called via Query object, then we need to respect Query semantics
-            if self.query.attrs is not None:
-                attr_names = tuple(self.query.attrs)
+            if query.attrs is not None:
+                attr_names = tuple(query.attrs)
             else:
                 pass  # query.attrs might be None -> all
 
-            if self.query.dims is False:
+            if query.dims is False:
                 dim_names = tuple()
-            elif self.query.dims is not None:
-                dim_names = tuple(self.query.dims)
-            elif self.query.coords is False:
+            elif query.dims is not None:
+                dim_names = tuple(query.dims)
+            elif query.coords is False:
                 dim_names = tuple()
 
             # set query order
-            order = self.query.order
+            order = query.order
 
         # convert order to layout
         if order is None or order == "C":
@@ -204,19 +202,19 @@ class MultiRangeIndexer(object):
 
         # initialize the pybind11 query object
         q = PyQuery(
-            self.array._ctx_(),
-            self.array,
+            array._ctx_(),
+            array,
             attr_names,
             dim_names,
             layout,
             self.use_arrow,
         )
 
-        q._preload_metadata = self._preload_metadata
+        q._preload_metadata = preload_metadata
         q.set_ranges(ranges)
         q.submit()
 
-        if self.query is not None and self.query.return_arrow:
+        if query is not None and query.return_arrow:
             return q._buffers_to_pa_table()
 
         if isinstance(self, DataFrameIndexer) and self.use_arrow:
@@ -247,10 +245,10 @@ class MultiRangeIndexer(object):
         for name, replacement in final_names.items():
             result_dict[replacement] = result_dict.pop(name)
 
-        if self.schema.sparse:
+        if schema.sparse:
             return result_dict
         else:
-            result_shape = mr_dense_result_shape(ranges, self.schema.shape)
+            result_shape = mr_dense_result_shape(ranges, schema.shape)
             for arr in result_dict.values():
                 # TODO check/test layout
                 arr.shape = result_shape
@@ -276,19 +274,15 @@ class DataFrameIndexer(MultiRangeIndexer):
         idx_start = time.time()
 
         # we need to use a Query in order to get coords for a dense array
-        if not self.query:
-            self.query = Query(self.array, coords=True)
-
-        self._preload_metadata = True
-
-        result = super().__getitem__(idx)
+        query = self.query or Query(self.array, coords=True)
+        result = self._run_query(query, idx, preload_metadata=True)
 
         pd_start = time.time()
 
         if not self.use_arrow:
             df = _tiledb_result_as_dataframe(self.array, result)
         elif isinstance(result, PyQuery):
-            df = self._pa_to_pandas(result)
+            df = self._pa_to_pandas(result, query)
         elif isinstance(result, pyarrow.Table):
             # support the `query(return_arrow=True)` mode and return Table untouched
             df = result
@@ -302,14 +296,15 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         return df
 
-    def _pa_to_pandas(self, pyquery):
+    def _pa_to_pandas(self, pyquery, query):
+        array = self.array
         # TODO currently there is lack of support for Arrow list types.
         # This prevents multi-value attributes, asides from strings, from being
         # queried properly. Until list attributes are supported in core,
         # error with a clear message to pass use_arrow=False.
-        if self.query.attrs is not None and any(
+        if query.attrs is not None and any(
             (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
-            for attr in map(self.schema.attr, self.query.attrs)
+            for attr in map(array.schema.attr, query.attrs)
         ):
             raise TileDBError(
                 "Multi-value attributes are not currently supported when use_arrow=True. "
@@ -339,15 +334,16 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         pd_idx_start = time.time()
 
+        meta = array.meta
         # see also: write path in dataframe_.py
         index_dims = None
-        if "__pandas_index_dims" in self.array.meta:
-            index_dims = json.loads(self.array.meta["__pandas_index_dims"])
+        if "__pandas_index_dims" in meta:
+            index_dims = json.loads(meta["__pandas_index_dims"])
 
         # see also: write path in dataframe_.py
         attr_reprs = None
-        if "__pandas_attribute_repr" in self.array.meta:
-            attr_reprs = json.loads(self.array.meta["__pandas_attribute_repr"])
+        if "__pandas_attribute_repr" in meta:
+            attr_reprs = json.loads(meta["__pandas_attribute_repr"])
 
         indexes = list()
         rename_cols = dict()
@@ -364,12 +360,12 @@ class DataFrameIndexer(MultiRangeIndexer):
         if len(rename_cols) > 0:
             res_df.rename(columns=rename_cols, inplace=True)
 
-        if self.query is not None:
+        if query is not None:
             # if we have a query with index_col set, then override any
             # index information saved with the array.
-            if self.query.index_col is not True and self.query.index_col is not None:
-                res_df.set_index(self.query.index_col, inplace=True)
-            elif self.query.index_col is True and len(indexes) > 0:
+            if query.index_col is not True and query.index_col is not None:
+                res_df.set_index(query.index_col, inplace=True)
+            elif query.index_col is True and len(indexes) > 0:
                 # still need to set indexes here b/c df creates query every time
                 res_df.set_index(indexes, inplace=True)
             else:
