@@ -1,11 +1,20 @@
-import tiledb
-from tiledb import Array, ArraySchema, TileDBError
-from tiledb.core import increment_stat, use_stats
-
-import os, numpy as np
-import sys, time, weakref, warnings
 import json
+import time
+import weakref
 from collections import OrderedDict
+
+import numpy as np
+
+from tiledb import Array, TileDBError
+from tiledb.core import PyQuery, increment_stat, use_stats
+from tiledb.libtiledb import Query
+
+from .dataframe_ import _tiledb_result_as_dataframe, check_dataframe_deps
+
+try:
+    import pyarrow
+except ImportError:
+    pyarrow = None
 
 
 def mr_dense_result_shape(ranges, base_shape=None):
@@ -73,14 +82,6 @@ def sel_to_subranges(dim_sel, nonempty_domain=None):
     return tuple(subranges)
 
 
-try:
-    import pyarrow
-
-    _have_pyarrow = True
-except ImportError:
-    _have_pyarrow = False
-
-
 class MultiRangeIndexer(object):
     """
     Implements multi-range indexing.
@@ -88,19 +89,14 @@ class MultiRangeIndexer(object):
 
     debug = False
 
-    def __init__(self, array, query=None, use_arrow=None):
-        if not issubclass(type(array), tiledb.Array):
-            raise ValueError("Internal error: MultiRangeIndexer expected tiledb.Array")
+    def __init__(self, array, query=None, use_arrow=False):
+        if not isinstance(array, Array):
+            raise TypeError("Internal error: MultiRangeIndexer expected tiledb.Array")
         self.array_ref = weakref.ref(array)
         self.schema = array.schema
         self.query = query
-
-        use_arrow_real = isinstance(self, DataFrameIndexer) and _have_pyarrow
-        if use_arrow != None:
-            use_arrow_real = use_arrow_real and use_arrow
-
-        self.use_arrow = use_arrow_real
-        self._preload_metadata: bool = False
+        self.use_arrow = use_arrow
+        self._preload_metadata = False
 
     @property
     def array(self):
@@ -207,8 +203,6 @@ class MultiRangeIndexer(object):
             )
 
         # initialize the pybind11 query object
-        from tiledb.core import PyQuery
-
         q = PyQuery(
             self.array._ctx_(),
             self.array,
@@ -269,114 +263,81 @@ class DataFrameIndexer(MultiRangeIndexer):
     [] operator uses multi_index semantics.
     """
 
-    def __getitem__(self, idx):
-        from .dataframe_ import _tiledb_result_as_dataframe, check_dataframe_deps
+    def __init__(self, array, query=None, use_arrow=None):
+        if use_arrow is None:
+            use_arrow = True
+        super().__init__(
+            array, query, use_arrow=bool(use_arrow and pyarrow is not None)
+        )
 
+    def __getitem__(self, idx):
         check_dataframe_deps()
 
         idx_start = time.time()
 
         # we need to use a Query in order to get coords for a dense array
         if not self.query:
-            self.query = tiledb.libtiledb.Query(self.array, coords=True)
+            self.query = Query(self.array, coords=True)
 
         self._preload_metadata = True
 
-        # TODO currently there is lack of support for Arrow list types. this
-        # prevents multi-value attributes, asides from strings, from being
-        # queried properly. until list attributes are supported in core,
-        # error with a clear message to pass use_arrow=False.
-        if self.use_arrow:
-            if self.query.attrs is None:
-                check_attrs = [self.schema.attr(n) for n in range(self.schema.nattr)]
-            else:
-                check_attrs = [self.schema.attr(name) for name in self.query.attrs]
+        result = super().__getitem__(idx)
 
-            if self.query.attrs is not None and any(
-                [
-                    (
-                        (attr.isvar or len(attr.dtype) > 1)
-                        and not attr.dtype == np.unicode_
-                    )
-                    for attr in check_attrs
-                ]
-            ):
-                raise TileDBError(
-                    "Multi-value attributes are not currently "
-                    "supported when use_arrow=True. This includes all variable-length "
-                    "attributes and fixed-length attributes with more than one value. "
-                    "Use `query(use_arrow=False)`."
-                )
+        pd_start = time.time()
 
-        result = super(DataFrameIndexer, self).__getitem__(idx)
-
-        if self.use_arrow:
-            import pyarrow as pa
-
-            if use_stats():
-                pd_start = time.time()
-
-            if isinstance(result, pa.Table):
-                # support the `query(return_arrow=True)` mode and return Table untouched
-                df = result
-            else:
-                df = self.pa_to_pandas(result)
-
-            if use_stats():
-                pd_duration = time.time() - pd_start
-                increment_stat("py.buffer_conversion_time", pd_duration)
-                idx_duration = time.time() - idx_start
-                increment_stat("py.__getitem__time", idx_duration)
-            return df
-        else:
-            if not isinstance(result, OrderedDict):
-                raise ValueError(
-                    "Expected OrderedDict result, got '{}'".format(type(result))
-                )
-
-            if use_stats():
-                pd_start = time.time()
-
+        if not self.use_arrow:
             df = _tiledb_result_as_dataframe(self.array, result)
+        elif isinstance(result, PyQuery):
+            df = self._pa_to_pandas(result)
+        elif isinstance(result, pyarrow.Table):
+            # support the `query(return_arrow=True)` mode and return Table untouched
+            df = result
+        else:
+            raise TypeError(f"Unhandled result type {type(result)}")
 
-            if use_stats():
-                pd_duration = time.time() - pd_start
-                idx_duration = time.time() - idx_start
-                tiledb.core.increment_stat("py.buffer_conversion_time", pd_duration)
-                tiledb.core.increment_stat("py.__getitem__time", idx_duration)
+        if use_stats():
+            end = time.time()
+            increment_stat("py.buffer_conversion_time", end - pd_start)
+            increment_stat("py.__getitem__time", end - idx_start)
 
-            return df
+        return df
 
-    def pa_to_pandas(self, pyquery):
-        if not _have_pyarrow:
+    def _pa_to_pandas(self, pyquery):
+        # TODO currently there is lack of support for Arrow list types.
+        # This prevents multi-value attributes, asides from strings, from being
+        # queried properly. Until list attributes are supported in core,
+        # error with a clear message to pass use_arrow=False.
+        if self.query.attrs is not None and any(
+            (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
+            for attr in map(self.schema.attr, self.query.attrs)
+        ):
             raise TileDBError(
-                "Cannot convert to pandas via this path without pyarrow; please disable Arrow results"
+                "Multi-value attributes are not currently supported when use_arrow=True. "
+                "This includes all variable-length attributes and fixed-length "
+                "attributes with more than one value. Use `query(use_arrow=False)`."
             )
+
         try:
             table = pyquery._buffers_to_pa_table()
         except Exception as exc:
-            if MultiRangeIndexer.debug:
+            if self.debug:
                 print(
-                    "Exception during pa.Table conversion, returning pyquery: '{}'".format(
-                        exc
-                    )
+                    f"Exception during pa.Table conversion, returning pyquery: '{exc}'"
                 )
                 return pyquery
             raise
+
         try:
             res_df = table.to_pandas()
         except Exception as exc:
-            if MultiRangeIndexer.debug:
+            if self.debug:
                 print(
-                    "Exception during Pandas conversion, returning (table,query): '{}'".format(
-                        exc
-                    )
+                    f"Exception during Pandas conversion, returning (table,query): '{exc}'"
                 )
                 return table, pyquery
             raise
 
-        if use_stats():
-            pd_idx_start = time.time()
+        pd_idx_start = time.time()
 
         # see also: write path in dataframe_.py
         index_dims = None
@@ -423,6 +384,6 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         if use_stats():
             pd_idx_duration = time.time() - pd_idx_start
-            tiledb.core.increment_stat("py.pandas_index_update_time", pd_idx_duration)
+            increment_stat("py.pandas_index_update_time", pd_idx_duration)
 
         return res_df
