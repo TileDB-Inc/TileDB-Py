@@ -9,7 +9,7 @@ from tiledb import Array, TileDBError
 from tiledb.core import PyQuery, increment_stat, use_stats
 from tiledb.libtiledb import Query
 
-from .dataframe_ import _tiledb_result_as_dataframe, check_dataframe_deps
+from .dataframe_ import check_dataframe_deps
 
 try:
     import pyarrow
@@ -140,7 +140,7 @@ class DataFrameIndexer(MultiRangeIndexer):
         pd_start = time.time()
 
         if isinstance(result, dict):
-            df = _tiledb_result_as_dataframe(array, result)
+            df = _tiledb_result_as_dataframe(result, array.meta)
         elif isinstance(result, PyQuery):
             df = _pyarrow_to_pandas(array, result, query)
         elif isinstance(result, pyarrow.Table):
@@ -244,6 +244,36 @@ def _get_pyquery_results(pyquery, schema):
     return result_dict
 
 
+def _tiledb_result_as_dataframe(result_dict, array_meta):
+    import pandas as pd
+
+    df = pd.DataFrame.from_dict(result_dict)
+
+    col_dtypes = {}
+    if "__pandas_attribute_repr" in array_meta:
+        col_dtypes.update(json.loads(array_meta["__pandas_attribute_repr"]))
+
+    index_names = []
+    if "__pandas_index_dims" in array_meta:
+        index_dtypes = json.loads(array_meta["__pandas_index_dims"])
+        index_names.extend(index_dtypes.keys())
+        for name in index_names:
+            if name in df:
+                col_dtypes[name] = index_dtypes[name]
+
+    if col_dtypes:
+        df = df.astype(col_dtypes)
+
+    if index_names:
+        index_cols = [name for name in index_names if name in df]
+        if index_cols:
+            df.set_index(index_cols, inplace=True)
+        elif len(index_names) == 1 and index_names[0] != "__tiledb_rows":
+            df.index.rename(index_names[0], inplace=True)
+
+    return df
+
+
 def _pyarrow_to_pandas(array, pyquery, query, debug=False):
     # TODO currently there is lack of support for Arrow list types.
     # This prevents multi-value attributes, asides from strings, from being
@@ -306,7 +336,7 @@ def _pyarrow_to_pandas(array, pyquery, query, debug=False):
         elif query.index_col is True and len(indexes) > 0:
             # still need to set indexes here b/c df creates query every time
             res_df.set_index(indexes, inplace=True)
-        #else don't convert any column to a dataframe index
+        # else don't convert any column to a dataframe index
     elif indexes:
         res_df.set_index(indexes, inplace=True)
 

@@ -1,15 +1,14 @@
+import copy
 import json
 import os
-import copy
 import warnings
 from dataclasses import dataclass
-
 from typing import Optional
 
 import numpy as np
+
 import tiledb
-from tiledb import libtiledb
-from tiledb import TileDBError
+from tiledb import TileDBError, libtiledb
 
 
 def check_dataframe_deps():
@@ -659,48 +658,6 @@ def from_pandas(uri, dataframe, **kwargs):
                 A._setitem_impl(slice(row_start_idx, row_end_idx), write_dict, nullmaps)
         finally:
             A.close()
-
-
-def _tiledb_result_as_dataframe(readable_array, result_dict):
-    import pandas as pd
-
-    # TODO missing key in the rep map should only be a warning, return best-effort?
-    # TODO this should be generalized for round-tripping overloadable types
-    #      for any array (e.g. np.uint8 <> bool)
-    repr_meta = None
-    index_dims = None
-    if "__pandas_attribute_repr" in readable_array.meta:
-        # backwards compatibility
-        repr_meta = json.loads(readable_array.meta["__pandas_attribute_repr"])
-    if "__pandas_index_dims" in readable_array.meta:
-        index_dims = json.loads(readable_array.meta["__pandas_index_dims"])
-
-    rename_cols = dict()
-    for col_name, col_val in result_dict.items():
-        if repr_meta and col_name in repr_meta:
-            new_col = pd.Series(col_val, dtype=repr_meta[col_name])
-            result_dict[col_name] = new_col
-        elif index_dims and col_name in index_dims:
-            new_col = pd.Series(col_val, dtype=index_dims[col_name])
-            result_dict[col_name] = new_col
-            if col_name == "__tiledb_rows":
-                rename_cols["__tiledb_rows"] = None
-
-    for col_key, col_name in rename_cols.items():
-        result_dict[col_name] = result_dict.pop(col_key)
-
-    df = pd.DataFrame.from_dict(result_dict)
-
-    if index_dims:
-        index_names = [name for name in index_dims.keys() if name in result_dict]
-        if index_names:
-            df.set_index(index_names, inplace=True)
-        elif len(index_dims) == 1:
-            index_name = next(iter(index_dims))
-            if index_name != "__tiledb_rows":
-                df.index.rename(index_name, inplace=True)
-
-    return df
 
 
 def open_dataframe(uri, *, attrs=None, use_arrow=None, ctx=None):
