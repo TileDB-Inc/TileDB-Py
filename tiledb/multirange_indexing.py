@@ -16,6 +16,11 @@ try:
 except ImportError:
     pyarrow = None
 
+try:
+    from pandas import DataFrame
+except ImportError:
+    DataFrame = None
+
 
 def mr_dense_result_shape(ranges, base_shape=None):
     # assumptions: len(ranges) matches number of dims
@@ -140,7 +145,7 @@ class DataFrameIndexer(MultiRangeIndexer):
         pd_start = time.time()
 
         if isinstance(result, dict):
-            df = _tiledb_result_as_dataframe(result, array.meta)
+            df = DataFrame.from_dict(result)
         elif isinstance(result, PyQuery):
             df = _pyarrow_to_pandas(array, result, query)
         elif isinstance(result, pyarrow.Table):
@@ -148,6 +153,9 @@ class DataFrameIndexer(MultiRangeIndexer):
             df = result
         else:
             raise TypeError(f"Unhandled result type {type(result)}")
+
+        if isinstance(df, DataFrame):
+            df = _update_df_from_meta(df, array.meta, query.index_col)
 
         if use_stats():
             end = time.time()
@@ -244,10 +252,8 @@ def _get_pyquery_results(pyquery, schema):
     return result_dict
 
 
-def _tiledb_result_as_dataframe(result_dict, array_meta):
-    import pandas as pd
-
-    df = pd.DataFrame.from_dict(result_dict)
+def _update_df_from_meta(df, array_meta, index_col=True):
+    start = time.time()
 
     col_dtypes = {}
     if "__pandas_attribute_repr" in array_meta:
@@ -264,12 +270,28 @@ def _tiledb_result_as_dataframe(result_dict, array_meta):
     if col_dtypes:
         df = df.astype(col_dtypes)
 
-    if index_names:
-        index_cols = [name for name in index_names if name in df]
-        if index_cols:
-            df.set_index(index_cols, inplace=True)
-        elif len(index_names) == 1 and index_names[0] != "__tiledb_rows":
-            df.index.rename(index_names[0], inplace=True)
+    if index_col:
+        if index_col is not True:
+            # if we have a query with index_col set, then override any
+            # index information saved with the array.
+            df.set_index(index_col, inplace=True)
+        elif index_names:
+            # set index the index names that exist as columns
+            index_names_df = [name for name in index_names if name in df]
+            if index_names_df:
+                df.set_index(index_names_df, inplace=True)
+
+            # for single index column, ensure that the index name is preserved
+            # or renamed from __tiledb_rows to None
+            if len(index_names) == 1:
+                index_name = index_names[0]
+                if index_name == "__tiledb_rows":
+                    index_name = None
+                if df.index.name != index_name:
+                    df.index.rename(index_name, inplace=True)
+
+    if use_stats():
+        increment_stat("py.pandas_index_update_time", time.time() - start)
 
     return df
 
@@ -298,56 +320,11 @@ def _pyarrow_to_pandas(array, pyquery, query, debug=False):
         raise
 
     try:
-        res_df = table.to_pandas()
+        df = table.to_pandas()
     except Exception as exc:
         if debug:
             print(f"Exception during Pandas conversion: '{exc}'")
             return table, pyquery
         raise
 
-    pd_idx_start = time.time()
-
-    meta = array.meta
-    # see also: write path in dataframe_.py
-    if "__pandas_index_dims" in meta:
-        index_dims = json.loads(meta["__pandas_index_dims"])
-    else:
-        index_dims = {}
-
-    indexes = []
-    rename_cols = {}
-    for col_name in res_df.columns.values:
-        if col_name in index_dims:
-            # this is an auto-created column and should be unnamed
-            if col_name == "__tiledb_rows":
-                rename_cols["__tiledb_rows"] = None
-                indexes.append(None)
-            else:
-                indexes.append(col_name)
-
-    if rename_cols:
-        res_df.rename(columns=rename_cols, inplace=True)
-
-    if query is not None:
-        # if we have a query with index_col set, then override any
-        # index information saved with the array.
-        if query.index_col is not True and query.index_col is not None:
-            res_df.set_index(query.index_col, inplace=True)
-        elif query.index_col is True and len(indexes) > 0:
-            # still need to set indexes here b/c df creates query every time
-            res_df.set_index(indexes, inplace=True)
-        # else don't convert any column to a dataframe index
-    elif indexes:
-        res_df.set_index(indexes, inplace=True)
-
-    # apply type translation from TileDB-Py write path
-    if "__pandas_attribute_repr" in meta:
-        attr_reprs = json.loads(meta["__pandas_attribute_repr"])
-        if attr_reprs:
-            res_df = res_df.astype(attr_reprs)
-
-    if use_stats():
-        pd_idx_duration = time.time() - pd_idx_start
-        increment_stat("py.pandas_index_update_time", pd_idx_duration)
-
-    return res_df
+    return df
