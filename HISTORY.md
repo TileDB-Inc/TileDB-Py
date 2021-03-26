@@ -6,6 +6,7 @@
 ## Improvements
 * Addition of `VFS()` functions `copy_file()` and `copy_dir()` [#507](https://github.com/TileDB-Inc/TileDB-Py/pull/507)
 * Add support in `from_pandas` for storing Pandas extension types as variable-length attributes [#515](https://github.com/TileDB-Inc/TileDB-Py/pull/515)
+* Add support for sparse writes to dense arrays [#521](https://github.com/TileDB-Inc/TileDB-Py/pull/521)
 
 ## Bug fixes
 * Multi-length attributes, regardless of fixed or var-length, do not work query properly with PyArrow enabled due to lack of Arrow List support. When using `.df[]` with PyArrow enabled, we are returning a clear message to the user to use `query(use_pyarrow=False)` [#513](https://github.com/TileDB-Inc/TileDB-Py/pull/513)
