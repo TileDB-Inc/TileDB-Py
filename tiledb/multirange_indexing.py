@@ -46,10 +46,6 @@ def mr_dense_result_shape(ranges, base_shape=None):
     return tuple(new_shape)
 
 
-def mr_dense_result_numel(ranges):
-    return np.prod(mr_dense_result_shape(ranges))
-
-
 def sel_to_subranges(dim_sel, nonempty_domain=None):
     subranges = list()
     for idx, range in enumerate(dim_sel):
@@ -82,6 +78,17 @@ def sel_to_subranges(dim_sel, nonempty_domain=None):
     return tuple(subranges)
 
 
+def getitem_ranges(array, idx):
+    ranges = [()] * array.schema.domain.ndim
+    ned = array.nonempty_domain()
+    for i, sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
+        if not isinstance(sel, list):
+            sel = [sel]
+        # don't try to index nonempty_domain if None
+        ranges[i] = sel_to_subranges(sel, nonempty_domain=ned[i] if ned else None)
+    return tuple(ranges)
+
+
 class MultiRangeIndexer(object):
     """
     Implements multi-range indexing.
@@ -103,51 +110,11 @@ class MultiRangeIndexer(object):
             )
         return array
 
-    @classmethod
-    def __test_init__(cls, array):
-        """
-        Internal helper method for testing getitem range calculation.
-        :param array:
-        :return:
-        """
-        m = cls.__new__(cls)
-        m.array_ref = weakref.ref(array)
-        m.query = None
-        return m
-
-    def getitem_ranges(self, idx):
-        array = self.array
-        ndim = array.schema.domain.ndim
-        ned = array.nonempty_domain()
-
-        if isinstance(idx, tuple):
-            idx = list(idx)
-        else:
-            idx = [idx]
-
-        ranges = list()
-        for i, sel in enumerate(idx):
-            if not isinstance(sel, list):
-                sel = [sel]
-            # don't try to index nonempty_domain if None
-            ned_arg = ned[i] if ned else None
-            subranges = sel_to_subranges(sel, ned_arg)
-
-            ranges.append(subranges)
-
-        # extend the list to ndim
-        if len(ranges) < ndim:
-            ranges.extend([tuple() for _ in range(ndim - len(ranges))])
-
-        rval = tuple(ranges)
-        return rval
-
     def __getitem__(self, idx):
         return self._run_query(self.query, idx, preload_metadata=False)
 
     def _run_query(self, query, idx, *, preload_metadata):
         # implements multi-range / outer / orthogonal indexing
-        ranges = self.getitem_ranges(idx)
         array = self.array
         schema = array.schema
         dom = schema.domain
@@ -209,6 +176,7 @@ class MultiRangeIndexer(object):
         )
 
         q._preload_metadata = preload_metadata
+        ranges = getitem_ranges(array, idx)
         q.set_ranges(ranges)
         q.submit()
 
