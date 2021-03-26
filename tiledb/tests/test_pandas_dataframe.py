@@ -343,7 +343,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
         tm.assert_frame_equal(df, df_readback)
 
         with tiledb.open(uri) as B:
-            tm.assert_frame_equal(df, B.df[:], check_index_type=False)
+            tm.assert_frame_equal(df, B.df[:])
 
     def test_dataframe_csv_rt1(self):
         def rand_dtype(dtype, size):
@@ -778,7 +778,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
 
             # test .df[] indexing
             df_idx_res = A.df[int(ned[0]) : int(ned[1])]
-            tm.assert_frame_equal(df_idx_res, df, check_index_type=False)
+            tm.assert_frame_equal(df_idx_res, df)
 
             # test .df[] indexing with query
             df_idx_res = A.query(attrs=["time"]).df[int(ned[0]) : int(ned[1])]
@@ -807,7 +807,7 @@ class PandasDataFrameRoundtrip(DiskTestCase):
             df["v"][4] = 0
 
             df_bk = tiledb.open_dataframe(path)
-            tm.assert_frame_equal(df_bk, df, check_index_type=False)
+            tm.assert_frame_equal(df_bk, df)
 
         ### Test 1
         col_size = 10
