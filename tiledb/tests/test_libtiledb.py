@@ -1594,6 +1594,39 @@ class DenseArrayTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.DenseArray(uri)
 
+    def test_sparse_write_to_dense(self):
+        class AssignAndCheck:
+            def __init__(self, outer, *shape):
+                self.outer = outer
+                self.shape = shape
+
+            def __setitem__(self, s, v):
+                A = np.random.rand(*self.shape)
+
+                uri = self.outer.path(
+                    f"sparse_write_to_dense{random.randint(0,np.uint64(-1))}"
+                )
+
+                tiledb.from_numpy(uri, A).close()
+                with tiledb.open(uri, "w") as B:
+                    B[s] = v
+
+                A[s] = v
+                with tiledb.open(uri) as B:
+                    assert_array_equal(A, B[:])
+
+        D = AssignAndCheck(self, 5, 5)
+        D[np.array([1, 2]), np.array([0, 0])] = np.array([0, 2])
+
+        d1 = np.array([3, 1, 2, 3, 4])
+        d2 = np.array([0, 1, 1, 2, 4])
+        data = np.array([99, 10, 20, 30, 40])
+        D[d1, d2] = data
+
+        # TODO fix broadcast assignment, expand coverage
+        # D[1, d2] = data
+        # D[d1, 1]
+
 
 class DenseVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):

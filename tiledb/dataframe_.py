@@ -8,6 +8,7 @@ from typing import Optional
 
 import numpy as np
 import tiledb
+from tiledb import libtiledb
 from tiledb import TileDBError
 
 
@@ -645,7 +646,7 @@ def from_pandas(uri, dataframe, **kwargs):
                         coords.append(dataframe.index.get_level_values(k))
 
                 # TODO ensure correct col/dim ordering
-                A._setitem_impl(tuple(coords), write_dict, nullmaps)
+                libtiledb._setitem_impl_sparse(A, tuple(coords), write_dict, nullmaps)
 
             else:
                 if row_start_idx is None:
