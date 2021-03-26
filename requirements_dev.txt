@@ -6,6 +6,7 @@ wheel
 setuptools-scm
 tox
 dask
+distributed
 pandas ; python_version > '3.5'
 psutil
 pyarrow
