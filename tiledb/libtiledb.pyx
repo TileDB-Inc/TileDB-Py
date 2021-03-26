@@ -284,12 +284,12 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   list attributes,
                   list values,
                   dict nullmaps,
-                  dict fragment_info):
+                  dict fragment_info,
+                  bint issparse):
 
     # used for buffer conversion (local import to avoid circularity)
     import tiledb.core
 
-    cdef bint issparse = tiledb_array.schema.sparse
     cdef bint isfortran = False
     cdef Py_ssize_t nattr = len(attributes)
     cdef Py_ssize_t nattr_alloc = nattr
@@ -4887,12 +4887,18 @@ cdef class DenseArrayImpl(Array):
         ...                        "a2": np.array(([1, 2], [3, 4]))}
 
         """
+        selection_tuple = (selection,) if not isinstance(selection, tuple) else selection
+        if any(isinstance(s, np.ndarray) for s in selection_tuple):
+            _setitem_impl_sparse(self, selection, val, dict())
+            return
+
         self._setitem_impl(selection, val, dict())
 
     def _setitem_impl(self, object selection, object val, dict nullmaps):
         """Implementation for setitem with optional support for validity bitmaps."""
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
+
         cdef Domain domain = self.domain
         cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))
         idx,_drop = replace_scalars_slice(domain, idx)
@@ -4974,7 +4980,8 @@ cdef class DenseArrayImpl(Array):
                      attributes,
                      values,
                      nullmaps,
-                     self.last_fragment_info)
+                     self.last_fragment_info,
+                     False)
         return
 
     def __array__(self, dtype=None, **kw):
@@ -5156,6 +5163,64 @@ def index_domain_coords(dom: Domain, idx: tuple):
             raise IndexError("sparse index dimension dtype mismatch")
     return idx
 
+def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
+    if not self.isopen or self.mode != 'w':
+        raise TileDBError("SparseArray is not opened for writing")
+    idx = index_as_tuple(selection)
+    sparse_coords = list(index_domain_coords(self.schema.domain, idx))
+    dim0_dtype = self.schema.domain.dim(0).dtype
+    ncells = sparse_coords[0].shape[0]
+
+    sparse_attributes = list()
+    sparse_values = list()
+
+    if not isinstance(val, dict):
+        if self.nattr > 1:
+            raise ValueError("Expected dict-like object {name: value} for multi-attribute "
+                             "array.")
+        val = dict({self.attr(0).name: val})
+
+    # must iterate in Attr order to ensure that value order matches
+    for attr_idx in range(self.schema.nattr):
+        attr = self.attr(attr_idx)
+        name = attr.name
+        attr_val = val[name]
+
+        try:
+            if attr.isvar:
+                # ensure that the value is array-convertible, for example: pandas.Series
+                attr_val = np.asarray(attr_val)
+            else:
+                if (np.issubdtype(attr.dtype, np.string_) and not
+                    (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
+                    raise ValueError("Cannot write a string value to non-string "
+                                     "typed attribute '{}'!".format(name))
+
+                attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+        except Exception as exc:
+            raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
+
+        if attr_val.size != ncells:
+           raise ValueError("value length ({}) does not match "
+                             "coordinate length ({})".format(attr_val.size, ncells))
+        sparse_attributes.append(attr._internal_name)
+        sparse_values.append(attr_val)
+
+    if (len(sparse_attributes) != len(val.keys())) \
+        or (len(sparse_values) != len(val.values())):
+        raise TileDBError("Sparse write input data count does not match number of attributes")
+
+    _write_array(
+        self.ctx.ptr, self.ptr, self,
+        sparse_coords,
+        sparse_attributes,
+        sparse_values,
+        nullmaps,
+        self.last_fragment_info,
+        True
+    )
+    return
+
 cdef class SparseArrayImpl(Array):
     """Class representing a sparse TileDB array (internal).
 
@@ -5204,64 +5269,7 @@ cdef class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
 
         """
-        self._setitem_impl(selection, val, dict())
-
-    def _setitem_impl(self, selection, val, dict nullmaps):
-        if not self.isopen or self.mode != 'w':
-            raise TileDBError("SparseArray is not opened for writing")
-        idx = index_as_tuple(selection)
-        sparse_coords = list(index_domain_coords(self.schema.domain, idx))
-        dim0_dtype = self.schema.domain.dim(0).dtype
-        ncells = sparse_coords[0].shape[0]
-
-        sparse_attributes = list()
-        sparse_values = list()
-
-        if not isinstance(val, dict):
-            if self.nattr > 1:
-                raise ValueError("Expected dict-like object {name: value} for multi-attribute "
-                                 "array.")
-            val = dict({self.attr(0).name: val})
-
-        # must iterate in Attr order to ensure that value order matches
-        for attr_idx in range(self.schema.nattr):
-            attr = self.attr(attr_idx)
-            name = attr.name
-            attr_val = val[name]
-
-            try:
-                if attr.isvar:
-                    # ensure that the value is array-convertible, for example: pandas.Series
-                    attr_val = np.asarray(attr_val)
-                else:
-                    if (np.issubdtype(attr.dtype, np.string_) and not
-                        (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
-                        raise ValueError("Cannot write a string value to non-string "
-                                         "typed attribute '{}'!".format(name))
-
-                    attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
-            except Exception as exc:
-                raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
-
-            if attr_val.size != ncells:
-               raise ValueError("value length ({}) does not match "
-                                 "coordinate length ({})".format(attr_val.size, ncells))
-            sparse_attributes.append(attr._internal_name)
-            sparse_values.append(attr_val)
-
-        if (len(sparse_attributes) != len(val.keys())) \
-            or (len(sparse_values) != len(val.values())):
-            raise TileDBError("Sparse write input data count does not match number of attributes")
-
-        _write_array(
-            self.ctx.ptr, self.ptr, self,
-            sparse_coords,
-            sparse_attributes,
-            sparse_values,
-            nullmaps,
-            self.last_fragment_info
-        )
-        return
+        _setitem_impl_sparse(self, selection, val, dict())
 
     def __getitem__(self, object selection):
         """Retrieve nonempty cell data for an item or region of the array
@@ -6141,7 +6149,7 @@ cdef class VFS(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return new_uri
-    
+
     def copy_file(self, old_uri, new_uri):
         """ Copiies a VFS file from old URI to new URI
 
