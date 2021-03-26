@@ -87,8 +87,6 @@ class MultiRangeIndexer(object):
     Implements multi-range indexing.
     """
 
-    debug = False
-
     def __init__(self, array, query=None, use_arrow=False):
         if not isinstance(array, Array):
             raise TypeError("Internal error: MultiRangeIndexer expected tiledb.Array")
@@ -282,7 +280,7 @@ class DataFrameIndexer(MultiRangeIndexer):
         if not self.use_arrow:
             df = _tiledb_result_as_dataframe(self.array, result)
         elif isinstance(result, PyQuery):
-            df = self._pa_to_pandas(result, query)
+            df = _pyarrow_to_pandas(self.array, result, query)
         elif isinstance(result, pyarrow.Table):
             # support the `query(return_arrow=True)` mode and return Table untouched
             df = result
@@ -296,90 +294,81 @@ class DataFrameIndexer(MultiRangeIndexer):
 
         return df
 
-    def _pa_to_pandas(self, pyquery, query):
-        array = self.array
-        # TODO currently there is lack of support for Arrow list types.
-        # This prevents multi-value attributes, asides from strings, from being
-        # queried properly. Until list attributes are supported in core,
-        # error with a clear message to pass use_arrow=False.
-        if query.attrs is not None and any(
-            (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
-            for attr in map(array.schema.attr, query.attrs)
-        ):
-            raise TileDBError(
-                "Multi-value attributes are not currently supported when use_arrow=True. "
-                "This includes all variable-length attributes and fixed-length "
-                "attributes with more than one value. Use `query(use_arrow=False)`."
-            )
 
-        try:
-            table = pyquery._buffers_to_pa_table()
-        except Exception as exc:
-            if self.debug:
-                print(
-                    f"Exception during pa.Table conversion, returning pyquery: '{exc}'"
-                )
-                return pyquery
-            raise
+def _pyarrow_to_pandas(array, pyquery, query, debug=False):
+    # TODO currently there is lack of support for Arrow list types.
+    # This prevents multi-value attributes, asides from strings, from being
+    # queried properly. Until list attributes are supported in core,
+    # error with a clear message to pass use_arrow=False.
+    if query.attrs is not None and any(
+        (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
+        for attr in map(array.schema.attr, query.attrs)
+    ):
+        raise TileDBError(
+            "Multi-value attributes are not currently supported when use_arrow=True. "
+            "This includes all variable-length attributes and fixed-length "
+            "attributes with more than one value. Use `query(use_arrow=False)`."
+        )
 
-        try:
-            res_df = table.to_pandas()
-        except Exception as exc:
-            if self.debug:
-                print(
-                    f"Exception during Pandas conversion, returning (table,query): '{exc}'"
-                )
-                return table, pyquery
-            raise
+    try:
+        table = pyquery._buffers_to_pa_table()
+    except Exception as exc:
+        if debug:
+            print(f"Exception during pa.Table conversion: '{exc}'")
+            return pyquery
+        raise
 
-        pd_idx_start = time.time()
+    try:
+        res_df = table.to_pandas()
+    except Exception as exc:
+        if debug:
+            print(f"Exception during Pandas conversion: '{exc}'")
+            return table, pyquery
+        raise
 
-        meta = array.meta
-        # see also: write path in dataframe_.py
-        index_dims = None
-        if "__pandas_index_dims" in meta:
-            index_dims = json.loads(meta["__pandas_index_dims"])
+    pd_idx_start = time.time()
 
-        # see also: write path in dataframe_.py
-        attr_reprs = None
-        if "__pandas_attribute_repr" in meta:
-            attr_reprs = json.loads(meta["__pandas_attribute_repr"])
+    meta = array.meta
+    # see also: write path in dataframe_.py
+    if "__pandas_index_dims" in meta:
+        index_dims = json.loads(meta["__pandas_index_dims"])
+    else:
+        index_dims = {}
 
-        indexes = list()
-        rename_cols = dict()
-        for col_name in res_df.columns.values:
-            if index_dims and col_name in index_dims:
-
-                # this is an auto-created column and should be unnamed
-                if col_name == "__tiledb_rows":
-                    rename_cols["__tiledb_rows"] = None
-                    indexes.append(None)
-                else:
-                    indexes.append(col_name)
-
-        if len(rename_cols) > 0:
-            res_df.rename(columns=rename_cols, inplace=True)
-
-        if query is not None:
-            # if we have a query with index_col set, then override any
-            # index information saved with the array.
-            if query.index_col is not True and query.index_col is not None:
-                res_df.set_index(query.index_col, inplace=True)
-            elif query.index_col is True and len(indexes) > 0:
-                # still need to set indexes here b/c df creates query every time
-                res_df.set_index(indexes, inplace=True)
+    indexes = []
+    rename_cols = {}
+    for col_name in res_df.columns.values:
+        if col_name in index_dims:
+            # this is an auto-created column and should be unnamed
+            if col_name == "__tiledb_rows":
+                rename_cols["__tiledb_rows"] = None
+                indexes.append(None)
             else:
-                # don't convert any column to a dataframe index
-                pass
-        elif len(indexes) > 0:
-            res_df.set_index(indexes, inplace=True)
+                indexes.append(col_name)
 
-        # apply type translation from TileDB-Py write path
+    if rename_cols:
+        res_df.rename(columns=rename_cols, inplace=True)
+
+    if query is not None:
+        # if we have a query with index_col set, then override any
+        # index information saved with the array.
+        if query.index_col is not True and query.index_col is not None:
+            res_df.set_index(query.index_col, inplace=True)
+        elif query.index_col is True and len(indexes) > 0:
+            # still need to set indexes here b/c df creates query every time
+            res_df.set_index(indexes, inplace=True)
+        #else don't convert any column to a dataframe index
+    elif indexes:
+        res_df.set_index(indexes, inplace=True)
+
+    # apply type translation from TileDB-Py write path
+    if "__pandas_attribute_repr" in meta:
+        attr_reprs = json.loads(meta["__pandas_attribute_repr"])
         if attr_reprs:
             res_df = res_df.astype(attr_reprs)
 
-        if use_stats():
-            pd_idx_duration = time.time() - pd_idx_start
-            increment_stat("py.pandas_index_update_time", pd_idx_duration)
+    if use_stats():
+        pd_idx_duration = time.time() - pd_idx_start
+        increment_stat("py.pandas_index_update_time", pd_idx_duration)
 
-        return res_df
+    return res_df
