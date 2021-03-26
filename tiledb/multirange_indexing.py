@@ -23,74 +23,73 @@ except ImportError:
 
 
 def mr_dense_result_shape(ranges, base_shape=None):
-    # assumptions: len(ranges) matches number of dims
     if base_shape is not None:
         assert len(ranges) == len(base_shape), "internal error: mismatched shapes"
 
-    new_shape = list()
-    for i, rr in enumerate(ranges):
-        if rr != ():
-            # modular arithmetic gives misleading overflow warning.
-            with np.errstate(over="ignore"):
-                m = list(
-                    map(
-                        lambda y: abs(np.uint64(y[1]) - np.uint64(y[0])) + np.uint64(1),
-                        rr,
-                    )
-                )
-
-            new_shape.append(np.sum(m))
-        else:
-            if base_shape is None:
-                raise ValueError(
-                    "Missing required base_shape for whole-dimension slices"
-                )
+    new_shape = []
+    for i, subranges in enumerate(ranges):
+        if subranges:
+            total_length = np.sum(abs(stop - start) + 1 for start, stop in subranges)
+            new_shape.append(np.uint64(total_length))
+        elif base_shape is not None:
             # empty range covers dimension
             new_shape.append(base_shape[i])
+        else:
+            raise ValueError("Missing required base_shape for whole-dimension slices")
 
     return tuple(new_shape)
 
 
-def sel_to_subranges(dim_sel, nonempty_domain=None):
-    subranges = list()
-    for idx, range in enumerate(dim_sel):
-        if np.isscalar(range):
-            subranges.append((range, range))
-        elif isinstance(range, slice):
-            if range.step is not None:
-                raise ValueError("Stepped slice ranges are not supported")
-            elif range.start is not None and range.stop is not None:
-                # we have both endpoints, use them
-                rstart = range.start
-                rend = range.stop
-            else:
-                # we are missing one or both endpoints, maybe use nonempty_domain
-                if nonempty_domain is None:
-                    raise TileDBError(
-                        "Open-ended slicing requires a valid nonempty_domain"
-                    )
-                rstart = nonempty_domain[0] if range.start is None else range.start
-                rend = nonempty_domain[1] if range.stop is None else range.stop
+def to_scalar(obj):
+    if np.isscalar(obj):
+        return obj
+    if isinstance(obj, np.ndarray) and obj.ndim == 0:
+        return obj[()]
+    raise ValueError(f"Cannot convert {type(obj)} to scalar")
 
-            subranges.append((rstart, rend))
-        elif isinstance(range, tuple):
-            subranges.extend((range,))
-        elif isinstance(range, list):
-            for el in range:
-                subranges.append((el, el))
-        else:
-            raise TypeError("Unsupported selection ")
-    return tuple(subranges)
+
+def iter_ranges(sel, nonempty_domain=None):
+    if isinstance(sel, slice):
+        if sel.step is not None:
+            raise ValueError("Stepped slice ranges are not supported")
+
+        rstart = sel.start
+        if rstart is None and nonempty_domain:
+            rstart = nonempty_domain[0]
+
+        rend = sel.stop
+        if rend is None and nonempty_domain:
+            rend = nonempty_domain[1]
+
+        if rstart is None or rend is None:
+            raise TileDBError("Open-ended slicing requires a valid nonempty_domain")
+
+        yield to_scalar(rstart), to_scalar(rend)
+
+    elif isinstance(sel, tuple):
+        assert len(sel) == 2
+        yield to_scalar(sel[0]), to_scalar(sel[1])
+
+    elif isinstance(sel, list):
+        for scalar in map(to_scalar, sel):
+            yield scalar, scalar
+
+    else:
+        scalar = to_scalar(sel)
+        yield scalar, scalar
 
 
 def getitem_ranges(array, idx):
     ranges = [()] * array.schema.domain.ndim
     ned = array.nonempty_domain()
-    for i, sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
-        if not isinstance(sel, list):
-            sel = [sel]
+    for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
         # don't try to index nonempty_domain if None
-        ranges[i] = sel_to_subranges(sel, nonempty_domain=ned[i] if ned else None)
+        nonempty_domain = ned[i] if ned else None
+        if not isinstance(dim_sel, list):
+            dim_sel = [dim_sel]
+        ranges[i] = tuple(
+            rng for sel in dim_sel for rng in iter_ranges(sel, nonempty_domain)
+        )
     return tuple(ranges)
 
 
