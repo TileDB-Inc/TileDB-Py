@@ -71,9 +71,7 @@ def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None):
     :return:
     """
     if config is not None:
-        warnings.warn(
-            DeprecationWarning("'config' keyword argument is deprecated; use 'ctx'")
-        )
+        # note: this path is used in dask upstream tiledb support
         cfg = tiledb.Config(config)
         ctx = tiledb.Ctx(cfg)
     elif ctx is None:
