@@ -131,7 +131,7 @@ class TestColumnInfo:
             ([np.int8, "i1"], np.dtype("int8"), None, False),
             ([np.int16, "i2"], np.dtype("int16"), None, False),
             ([np.int32, "i4"], np.dtype("int32"), None, False),
-            ([np.int64, "i8", int], np.dtype("int64"), None, False),
+            ([np.int64, "i8"], np.dtype("int64"), None, False),
             ([np.float32, "f4"], np.dtype("float32"), None, False),
             ([np.float64, "f8", float], np.dtype("float64"), None, False),
             # nullable int types
