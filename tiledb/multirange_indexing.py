@@ -2,6 +2,7 @@ import json
 import time
 import weakref
 from collections import OrderedDict
+from contextlib import contextmanager
 
 import numpy as np
 
@@ -20,6 +21,18 @@ try:
     from pandas import DataFrame
 except ImportError:
     DataFrame = None
+
+
+@contextmanager
+def timing(key):
+    if not use_stats():
+        yield
+    else:
+        start = time.time()
+        try:
+            yield
+        finally:
+            increment_stat(key, time.time() - start)
 
 
 def mr_dense_result_shape(ranges, base_shape=None):
@@ -132,34 +145,29 @@ class DataFrameIndexer(MultiRangeIndexer):
     def __getitem__(self, idx):
         check_dataframe_deps()
 
-        idx_start = time.time()
-        array = self.array
+        with timing("py.__getitem__time"):
+            array = self.array
 
-        # we need to use a Query in order to get coords for a dense array
-        query = self.query or Query(array, coords=True)
-        result = _run_query(
-            idx, array, query, use_arrow=self.use_arrow, preload_metadata=True
-        )
+            # we need to use a Query in order to get coords for a dense array
+            query = self.query or Query(array, coords=True)
+            result = _run_query(
+                idx, array, query, use_arrow=self.use_arrow, preload_metadata=True
+            )
 
-        pd_start = time.time()
+            with timing("py.buffer_conversion_time"):
+                if isinstance(result, dict):
+                    df = DataFrame.from_dict(result)
+                elif isinstance(result, PyQuery):
+                    df = _pyarrow_to_pandas(array, result, query)
+                elif isinstance(result, pyarrow.Table):
+                    # support the `query(return_arrow=True)` mode and return Table untouched
+                    df = result
+                else:
+                    raise TypeError(f"Unhandled result type {type(result)}")
 
-        if isinstance(result, dict):
-            df = DataFrame.from_dict(result)
-        elif isinstance(result, PyQuery):
-            df = _pyarrow_to_pandas(array, result, query)
-        elif isinstance(result, pyarrow.Table):
-            # support the `query(return_arrow=True)` mode and return Table untouched
-            df = result
-        else:
-            raise TypeError(f"Unhandled result type {type(result)}")
-
-        if isinstance(df, DataFrame):
-            df = _update_df_from_meta(df, array.meta, query.index_col)
-
-        if use_stats():
-            end = time.time()
-            increment_stat("py.buffer_conversion_time", end - pd_start)
-            increment_stat("py.__getitem__time", end - idx_start)
+                if isinstance(df, DataFrame):
+                    with timing("py.pandas_index_update_time"):
+                        df = _update_df_from_meta(df, array.meta, query.index_col)
 
         return df
 
@@ -252,8 +260,6 @@ def _get_pyquery_results(pyquery, schema):
 
 
 def _update_df_from_meta(df, array_meta, index_col=True):
-    start = time.time()
-
     col_dtypes = {}
     if "__pandas_attribute_repr" in array_meta:
         col_dtypes.update(json.loads(array_meta["__pandas_attribute_repr"]))
@@ -288,9 +294,6 @@ def _update_df_from_meta(df, array_meta, index_col=True):
                     index_name = None
                 if df.index.name != index_name:
                     df.index.rename(index_name, inplace=True)
-
-    if use_stats():
-        increment_stat("py.pandas_index_update_time", time.time() - start)
 
     return df
 
