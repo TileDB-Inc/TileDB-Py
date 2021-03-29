@@ -3,19 +3,23 @@ import time
 import weakref
 from collections import OrderedDict
 from contextlib import contextmanager
+from numbers import Real
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 
 from tiledb import Array, TileDBError
 from tiledb.core import PyQuery, increment_stat, use_stats
-from tiledb.libtiledb import Query
+from tiledb.libtiledb import ArraySchema, Metadata, Query
 
 from .dataframe_ import check_dataframe_deps
 
 try:
     import pyarrow
+
+    Table = Union[pyarrow.Table]
 except ImportError:
-    pyarrow = None
+    pyarrow = Table = None
 
 try:
     from pandas import DataFrame
@@ -23,8 +27,13 @@ except ImportError:
     DataFrame = None
 
 
+# TODO: expand with more accepted scalar types
+Scalar = Real
+Range = Tuple[Scalar, Scalar]
+
+
 @contextmanager
-def timing(key):
+def timing(key: str) -> Iterator[None]:
     if not use_stats():
         yield
     else:
@@ -35,7 +44,10 @@ def timing(key):
             increment_stat(key, time.time() - start)
 
 
-def mr_dense_result_shape(ranges, base_shape=None):
+def mr_dense_result_shape(
+    ranges: Sequence[Sequence[Range]],
+    base_shape: Optional[Tuple[int, ...]] = None,
+) -> Tuple[int, ...]:
     if base_shape is not None:
         assert len(ranges) == len(base_shape), "internal error: mismatched shapes"
 
@@ -53,15 +65,18 @@ def mr_dense_result_shape(ranges, base_shape=None):
     return tuple(new_shape)
 
 
-def to_scalar(obj):
+def to_scalar(obj: Any) -> Scalar:
     if np.isscalar(obj):
-        return obj
+        return cast(Scalar, obj)
     if isinstance(obj, np.ndarray) and obj.ndim == 0:
-        return obj[()]
+        return cast(Scalar, obj[()])
     raise ValueError(f"Cannot convert {type(obj)} to scalar")
 
 
-def iter_ranges(sel, nonempty_domain=None):
+def iter_ranges(
+    sel: Union[Scalar, slice, Range, List[Scalar]],
+    nonempty_domain: Optional[Range] = None,
+) -> Iterator[Range]:
     if isinstance(sel, slice):
         if sel.step is not None:
             raise ValueError("Stepped slice ranges are not supported")
@@ -92,8 +107,8 @@ def iter_ranges(sel, nonempty_domain=None):
         yield scalar, scalar
 
 
-def getitem_ranges(array, idx):
-    ranges = [()] * array.schema.domain.ndim
+def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
+    ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
     ned = array.nonempty_domain()
     for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
         # don't try to index nonempty_domain if None
@@ -111,14 +126,14 @@ class MultiRangeIndexer(object):
     Implements multi-range indexing.
     """
 
-    def __init__(self, array, query=None):
+    def __init__(self, array: Array, query: Optional[Query] = None) -> None:
         if not isinstance(array, Array):
             raise TypeError("Internal error: MultiRangeIndexer expected tiledb.Array")
         self.array_ref = weakref.ref(array)
         self.query = query
 
     @property
-    def array(self):
+    def array(self) -> Array:
         array = self.array_ref()
         if array is None:
             raise RuntimeError(
@@ -126,7 +141,7 @@ class MultiRangeIndexer(object):
             )
         return array
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
         return _run_query(idx, self.array, self.query)
 
 
@@ -136,13 +151,18 @@ class DataFrameIndexer(MultiRangeIndexer):
     [] operator uses multi_index semantics.
     """
 
-    def __init__(self, array, query=None, use_arrow=None):
+    def __init__(
+        self,
+        array: Array,
+        query: Optional[Query] = None,
+        use_arrow: Optional[bool] = None,
+    ) -> None:
         super().__init__(array, query)
         if use_arrow is None:
             use_arrow = True
         self.use_arrow = bool(use_arrow and pyarrow is not None)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: Any) -> DataFrame:
         check_dataframe_deps()
 
         with timing("py.__getitem__time"):
@@ -160,7 +180,7 @@ class DataFrameIndexer(MultiRangeIndexer):
                 elif isinstance(result, PyQuery):
                     df = _pyarrow_to_pandas(array, result, query)
                 elif isinstance(result, pyarrow.Table):
-                    # support the `query(return_arrow=True)` mode and return Table untouched
+                    # support `query(return_arrow=True)` mode and return Table untouched
                     df = result
                 else:
                     raise TypeError(f"Unhandled result type {type(result)}")
@@ -172,7 +192,14 @@ class DataFrameIndexer(MultiRangeIndexer):
         return df
 
 
-def _run_query(idx, array, query, *, use_arrow=False, preload_metadata=False):
+def _run_query(
+    idx: Any,
+    array: Array,
+    query: Optional[Query],
+    *,
+    use_arrow: bool = False,
+    preload_metadata: bool = False,
+) -> Union[Dict[str, np.ndarray], PyQuery, Table]:
     pyquery = _get_pyquery(array, query, use_arrow)
     pyquery._preload_metadata = preload_metadata
     ranges = getitem_ranges(array, idx)
@@ -195,7 +222,7 @@ def _run_query(idx, array, query, *, use_arrow=False, preload_metadata=False):
     return result_dict
 
 
-def _get_pyquery(array, query, use_arrow):
+def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQuery:
     schema = array.schema
     attr_names = tuple(schema.attr(i)._internal_name for i in range(schema.nattr))
     if schema.sparse:
@@ -238,7 +265,9 @@ def _get_pyquery(array, query, use_arrow):
     )
 
 
-def _get_pyquery_results(pyquery, schema):
+def _get_pyquery_results(
+    pyquery: PyQuery, schema: ArraySchema
+) -> Dict[str, np.ndarray]:
     result_dict = OrderedDict()
     for name, item in pyquery.results().items():
         if len(item[1]) > 0:
@@ -259,7 +288,9 @@ def _get_pyquery_results(pyquery, schema):
     return result_dict
 
 
-def _update_df_from_meta(df, array_meta, index_col=True):
+def _update_df_from_meta(
+    df: DataFrame, array_meta: Metadata, index_col: Union[List[str], bool, None] = True
+) -> DataFrame:
     col_dtypes = {}
     if "__pandas_attribute_repr" in array_meta:
         col_dtypes.update(json.loads(array_meta["__pandas_attribute_repr"]))
@@ -298,7 +329,9 @@ def _update_df_from_meta(df, array_meta, index_col=True):
     return df
 
 
-def _pyarrow_to_pandas(array, pyquery, query, debug=False):
+def _pyarrow_to_pandas(
+    array: Array, pyquery: PyQuery, query: Query, debug: bool = False
+) -> DataFrame:
     # TODO currently there is lack of support for Arrow list types.
     # This prevents multi-value attributes, asides from strings, from being
     # queried properly. Until list attributes are supported in core,
