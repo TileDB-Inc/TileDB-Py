@@ -8,9 +8,9 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, 
 
 import numpy as np
 
-from tiledb import Array, TileDBError
+from tiledb import Array, ArraySchema, TileDBError
 from tiledb.core import PyQuery, increment_stat, use_stats
-from tiledb.libtiledb import ArraySchema, Metadata, Query
+from tiledb.libtiledb import Metadata, Query
 
 from .dataframe_ import check_dataframe_deps
 
@@ -142,7 +142,7 @@ class MultiRangeIndexer(object):
         return array
 
     def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
-        return _run_query(idx, self.array, self.query)
+        return _run_query(self.array, getitem_ranges(self.array, idx), query=self.query)
 
 
 class DataFrameIndexer(MultiRangeIndexer):
@@ -160,59 +160,65 @@ class DataFrameIndexer(MultiRangeIndexer):
         super().__init__(array, query)
         if use_arrow is None:
             use_arrow = True
-        self.use_arrow = bool(use_arrow and pyarrow is not None)
+        self.use_arrow = use_arrow
 
-    def __getitem__(self, idx: Any) -> DataFrame:
+    def __getitem__(self, idx: Any) -> Union[DataFrame, Table]:
         check_dataframe_deps()
-
         with timing("py.__getitem__time"):
             array = self.array
 
             # we need to use a Query in order to get coords for a dense array
             query = self.query or Query(array, coords=True)
             result = _run_query(
-                idx, array, query, use_arrow=self.use_arrow, preload_metadata=True
+                array,
+                getitem_ranges(array, idx),
+                query=query,
+                use_arrow=bool(
+                    pyarrow is not None and (self.use_arrow or query.return_arrow)
+                ),
+                preload_metadata=True,
             )
-
-            with timing("py.buffer_conversion_time"):
-                if isinstance(result, dict):
-                    df = DataFrame.from_dict(result)
-                elif isinstance(result, PyQuery):
-                    df = _pyarrow_to_pandas(array, result, query)
-                elif isinstance(result, pyarrow.Table):
-                    # support `query(return_arrow=True)` mode and return Table untouched
-                    df = result
-                else:
-                    raise TypeError(f"Unhandled result type {type(result)}")
-
-                if isinstance(df, DataFrame):
-                    with timing("py.pandas_index_update_time"):
-                        df = _update_df_from_meta(df, array.meta, query.index_col)
-
-        return df
+            if not isinstance(result, pyarrow.Table):
+                if not isinstance(result, DataFrame):
+                    result = DataFrame.from_dict(result)
+                with timing("py.pandas_index_update_time"):
+                    result = _update_df_from_meta(result, array.meta, query.index_col)
+            return result
 
 
 def _run_query(
-    idx: Any,
     array: Array,
-    query: Optional[Query],
+    ranges: Sequence[Sequence[Range]],
     *,
+    query: Optional[Query] = None,
     use_arrow: bool = False,
     preload_metadata: bool = False,
-) -> Union[Dict[str, np.ndarray], PyQuery, Table]:
+) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
     pyquery = _get_pyquery(array, query, use_arrow)
     pyquery._preload_metadata = preload_metadata
-    ranges = getitem_ranges(array, idx)
     pyquery.set_ranges(ranges)
     pyquery.submit()
 
-    if query is not None and query.return_arrow:
-        return pyquery._buffers_to_pa_table()
-
-    if use_arrow:
-        return pyquery
-
     schema = array.schema
+    if query is not None and use_arrow:
+        # TODO currently there is lack of support for Arrow list types.
+        # This prevents multi-value attributes, asides from strings, from being
+        # queried properly. Until list attributes are supported in core,
+        # error with a clear message to pass use_arrow=False.
+        attrs = map(schema.attr, query.attrs or ())
+        if any(
+            (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
+            for attr in attrs
+        ):
+            raise TileDBError(
+                "Multi-value attributes are not currently supported when use_arrow=True. "
+                "This includes all variable-length attributes and fixed-length "
+                "attributes with more than one value. Use `query(use_arrow=False)`."
+            )
+        with timing("py.buffer_conversion_time"):
+            table = pyquery._buffers_to_pa_table()
+            return table if query.return_arrow else table.to_pandas()
+
     result_dict = _get_pyquery_results(pyquery, schema)
     if not schema.sparse:
         result_shape = mr_dense_result_shape(ranges, schema.shape)
@@ -325,41 +331,5 @@ def _update_df_from_meta(
                     index_name = None
                 if df.index.name != index_name:
                     df.index.rename(index_name, inplace=True)
-
-    return df
-
-
-def _pyarrow_to_pandas(
-    array: Array, pyquery: PyQuery, query: Query, debug: bool = False
-) -> DataFrame:
-    # TODO currently there is lack of support for Arrow list types.
-    # This prevents multi-value attributes, asides from strings, from being
-    # queried properly. Until list attributes are supported in core,
-    # error with a clear message to pass use_arrow=False.
-    if query.attrs is not None and any(
-        (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
-        for attr in map(array.schema.attr, query.attrs)
-    ):
-        raise TileDBError(
-            "Multi-value attributes are not currently supported when use_arrow=True. "
-            "This includes all variable-length attributes and fixed-length "
-            "attributes with more than one value. Use `query(use_arrow=False)`."
-        )
-
-    try:
-        table = pyquery._buffers_to_pa_table()
-    except Exception as exc:
-        if debug:
-            print(f"Exception during pa.Table conversion: '{exc}'")
-            return pyquery
-        raise
-
-    try:
-        df = table.to_pandas()
-    except Exception as exc:
-        if debug:
-            print(f"Exception during Pandas conversion: '{exc}'")
-            return table, pyquery
-        raise
 
     return df
