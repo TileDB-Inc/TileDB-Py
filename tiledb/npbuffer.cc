@@ -113,6 +113,8 @@ private:
     // unicode object
     // TODO add test for different memory orderings
 
+    int rc;
+
     // loop over array objects and write to output buffer
     size_t idx = 0;
     for (auto u : input_) {
@@ -120,10 +122,14 @@ private:
       if (PyUnicode_Check(u.ptr())) {
         // TODO see if we can do this with PyUnicode_AsUTF8String
         py::object u_encoded = npstrencode(u);
-        PyBytes_AsStringAndSize(u_encoded.ptr(), const_cast<char **>(&input_p),
+        rc = PyBytes_AsStringAndSize(u_encoded.ptr(), const_cast<char **>(&input_p),
                                 &sz);
       } else {
-        PyBytes_AsStringAndSize(u.ptr(), const_cast<char **>(&input_p), &sz);
+        rc = PyBytes_AsStringAndSize(u.ptr(), const_cast<char **>(&input_p), &sz);
+      }
+
+      if (rc == -1) {
+        throw std::runtime_error("PyBytes_AsStringAndSize failed to encode string");
       }
 
       // record the offset (equal to the current bytes written)
@@ -163,6 +169,8 @@ private:
     unsigned char *output_p = nullptr;
     output_p = data_buf_->data();
 
+    int rc;
+
     // avoid one interpreter roundtrip
     // auto npstrencode =
     // py::module::import("numpy").attr("str").attr("encode");
@@ -184,7 +192,10 @@ private:
       }
       */
 
-      PyBytes_AsStringAndSize(o, const_cast<char **>(&input_p), &sz);
+      rc = PyBytes_AsStringAndSize(o, const_cast<char **>(&input_p), &sz);
+      if (rc == -1) {
+        throw std::runtime_error("PyBytes_AsStringAndSize failed to encode string");
+      }
 
       // record the offset (equal to the current bytes written)
       offset_buf_->data()[idx] = data_nbytes_;
