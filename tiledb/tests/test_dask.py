@@ -5,7 +5,7 @@ try:
 except ImportError:
     import_failed = True
 
-import unittest
+import unittest, os
 
 import tiledb
 from tiledb.tests.common import DiskTestCase
@@ -18,6 +18,8 @@ class DaskSupport(DiskTestCase):
     def setUp(self):
         if import_failed:
             self.skipTest("Dask not available")
+        elif os.name == "nt":
+            self.skipTest("Skipping tests on Windows")
         else:
             super().setUp()
 
