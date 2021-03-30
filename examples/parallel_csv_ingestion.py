@@ -78,27 +78,30 @@ def log_process_errors(*args, **kwargs):
         tiledb.from_csv(*args, **kwargs)
     except Exception as exc:
         # print log to file. randomize just in case
-        err_id = np.random.randint(np.iinfo(np.int64).max)
-        err_filename = "ingest-err-PID_{}_{}.log".format(os.getpid(), err_id)
-        err = """              ------------------------
+        err_id = np.random.randint(np.iinfo(np.int64).max - 1)
+        err_filename = f"ingest-err-PID_{os.getpid()}_{err_id}.log"
+        print("err_filename: ", err_filename)
+        err = f"""              ------------------------
               Caught exception:
               ------------------------
-              {}
+              {exc}
               ------------------------
               with args:
               ------------------------
-              {}
+              {args}
               ------------------------
-              {}
+              with kwargs:
               ------------------------
-              this message saved to file: {}
-              """.format(
-            exc, args, kwargs, err_filename
-        )
+              {kwargs}
+              ------------------------
+              this message saved to file: {err_filename}
+              """
         print(err)
+
         with open(err_filename, "w") as f:
             f.writelines(err)
-        raise
+
+        raise exc
 
 
 def from_csv_mp(
@@ -114,7 +117,7 @@ def from_csv_mp(
     sparse=True,
     allows_duplicates=True,
     debug=False,
-    **kwargs
+    **kwargs,
 ):
     """
     Multi-process ingestion wrapper around tiledb.from_csv
@@ -149,7 +152,7 @@ def from_csv_mp(
         allows_duplicates=True,
         sparse=sparse,
         mode="schema_only",
-        **kwargs
+        **kwargs,
     )
 
     print("Finished array schema creation")
@@ -165,11 +168,13 @@ def from_csv_mp(
 
     tasks = []
     csv_chunks = []
-
     # high level ingestion timing
     start = time.time()
+
     # ingest the data in parallel
 
+    # note: use ThreadPoolExecutor for debugging
+    #       use ProcessPoolExecutor in general
     # with ThreadPoolExecutor(max_workers=max_workers) as executor:
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         for first in range(0, len(csvs), list_step_size):
@@ -189,7 +194,7 @@ def from_csv_mp(
                     allows_duplicates=allows_duplicates,
                 ),
                 **kwargs,
-                mode="append"
+                mode="append",
             )
             tasks.append(task)
 
@@ -238,7 +243,7 @@ def example():
     return csv_path, array_path
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not in_test:
     example()
 
 
@@ -254,10 +259,10 @@ def df_from_csvs(path, **kwargs):
 
     df = pd.concat(csv_df_list)
 
-    # tiledb returns sorted values
     if idx_column is not None:
         df.sort_values(idx_column, inplace=True)
         df.set_index(idx_column, inplace=True)
+        df.index = df.index.astype("datetime64[ns]")
 
     return df
 
@@ -280,10 +285,8 @@ def test_parallel_csv_ingestion():
     )
 
     # validate the array generated in example()
-    if True:
-        df_tiledb = tiledb.open_dataframe(array_path)
-
-        tm.assert_frame_equal(df_direct, df_tiledb)
+    df_tiledb = tiledb.open_dataframe(array_path)
+    tm.assert_frame_equal(df_direct, df_tiledb.sort_values("idx_datetime"))
 
     # ingest over several parameters
     for nproc in [1, 5]:  # note: already did 4 above
@@ -309,6 +312,10 @@ def test_parallel_csv_ingestion():
                 )
 
                 df_tiledb = tiledb.open_dataframe(array_tmp)
-                tm.assert_frame_equal(df_direct, df_tiledb)
+                tm.assert_frame_equal(df_direct, df_tiledb.sort_values("idx_datetime"))
 
     print("Writing output array to: ", array_path)
+
+
+if __name__ == "__main__":
+    test_parallel_csv_ingestion()
