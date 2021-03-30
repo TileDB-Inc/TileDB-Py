@@ -94,7 +94,7 @@ def from_numpy(uri, array, ctx=None, **kw):
     :param str uri: URI for the TileDB array (any supported TileDB URI)
     :param numpy.ndarray array: dense numpy array to persist
     :param tiledb.Ctx ctx: A TileDB Context
-    :param \*\*kwargs: additional arguments to pass to the DenseArray constructor
+    :param kwargs: additional arguments to pass to the DenseArray constructor
     :rtype: tiledb.DenseArray
     :return: An open DenseArray (read mode) with a single anonymous attribute
     :raises TypeError: cannot convert ``uri`` to unicode string
