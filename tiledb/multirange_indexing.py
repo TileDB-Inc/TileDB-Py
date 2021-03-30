@@ -299,15 +299,18 @@ def _update_df_from_meta(
 ) -> DataFrame:
     col_dtypes = {}
     if "__pandas_attribute_repr" in array_meta:
-        col_dtypes.update(json.loads(array_meta["__pandas_attribute_repr"]))
+        attr_dtypes = json.loads(array_meta["__pandas_attribute_repr"])
+        for name, dtype in attr_dtypes.items():
+            if name in df:
+                col_dtypes[name] = dtype
 
     index_names = []
     if "__pandas_index_dims" in array_meta:
         index_dtypes = json.loads(array_meta["__pandas_index_dims"])
         index_names.extend(index_dtypes.keys())
-        for name in index_names:
+        for name, dtype in index_dtypes.items():
             if name in df:
-                col_dtypes[name] = index_dtypes[name]
+                col_dtypes[name] = dtype
 
     if col_dtypes:
         df = df.astype(col_dtypes)
