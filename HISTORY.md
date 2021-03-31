@@ -1,3 +1,9 @@
+# TileDB-Py 0.8.7 Release Notes
+
+## Bug fixes
+* Fixed regression in `from_pandas` with string-valued index dimensions [#526](https://github.com/TileDB-Inc/TileDB-Py/pull/526)
+* Fixed GC lifetime bug in string buffer conversion  [#525](https://github.com/TileDB-Inc/TileDB-Py/pull/526)
+
 # TileDB-Py 0.8.6 Release Notes
 
 ## TileDB Embedded updates:
