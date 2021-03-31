@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import datetime
 import traceback
+import pytest
 from unittest import TestCase
 
 import numpy as np
@@ -21,14 +22,20 @@ def assert_tail_equal(a, *rest, **kwargs):
 
 
 class DiskTestCase(TestCase):
-    pathmap = dict()
+    """Helper class to store paths and associated allocation frames. This is both
+    a cleanup step and a test of resource management. Some platforms will
+    refuse to delete an open file, indicating a potentially leaked resource.
+    """
 
     def setUp(self):
         prefix = "tiledb-" + self.__class__.__name__
         self.rootdir = tempfile.mkdtemp(prefix=prefix)
+        self.pathmap = dict()
 
     def tearDown(self):
         # Remove every directory starting with rootdir
+        # This is both a clean-up step and an implicit test
+        # of proper resource deallocation (see notes below)
         for dirpath in glob.glob(self.rootdir + "*"):
             try:
                 shutil.rmtree(dirpath)
@@ -43,11 +50,39 @@ class DiskTestCase(TestCase):
                     print("  '{}' <- '{}'".format(path, frame))
                 raise exc
 
-    def path(self, path):
-        out = os.path.abspath(os.path.join(self.rootdir, path))
+    def path(self, basename=None):
+        if basename is not None:
+            # Note: this must be `is not None` because we need to match empty string
+            out = os.path.abspath(os.path.join(self.rootdir, basename))
+        else:
+            out = tempfile.mkdtemp(dir=self.rootdir)
+
+        # We have had issues in both py and libtiledb in the past
+        # where files were not released (eg: destructor not called)
+        # Often this is invisible on POSIX platforms, but will
+        # cause errors on Windows because two processes cannot access
+        # the same file at once.
+        # In order to debug this issue, we save the caller where
+        # this path was allocated so that we can determine what
+        # test created an unreleased file
         frame = traceback.extract_stack(limit=2)[-2][2]
         self.pathmap[out] = frame
+
         return out
+
+
+# fixture wrapper to use with pytest: mark.parametrize does not
+#   work with DiskTestCase subclasses (unittest.TestCase methods
+#   cannot take arguments)
+@pytest.fixture(scope="class")
+def checked_path():
+    dtc = DiskTestCase()
+
+    dtc.setUp()
+
+    yield dtc
+
+    dtc.tearDown()
 
 
 def assert_subarrays_equal(a, b):
