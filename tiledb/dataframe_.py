@@ -279,10 +279,14 @@ def dim_for_column(
             if dim_range < tile:
                 tile = np.ceil(dim_range)
 
+    # libtiledb only supports TILEDB_ASCII dimensions, so we must use
+    # nb.bytes_ which will force encoding on write
+    dim_dtype = np.bytes_ if dim_info.dtype == np.dtype("U") else dim_info.dtype
+
     dim = tiledb.Dim(
         name=name,
         domain=(dim_min, dim_max),
-        dtype=dim_info.dtype,
+        dtype=dim_dtype,
         tile=tile,
         filters=dim_filters,
     )
@@ -427,9 +431,9 @@ def create_dims(
             dims.append(
                 dim_for_column(
                     ctx,
+                    name,
                     dataframe,
                     col.values,
-                    name,
                     tile=dim_tile,
                     dim_filters=dim_filters,
                 )

@@ -14,12 +14,13 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, temppath
 
 import tiledb
 from tiledb.dataframe_ import ColumnInfo
 from tiledb.tests.common import (
     DiskTestCase,
+    checked_path,
     dtype_max,
     rand_ascii,
     rand_ascii_bytes,
@@ -214,6 +215,31 @@ class TestColumnInfo:
             else:
                 if series.dtype == type_spec:
                     pytest.raises(NotImplementedError, ColumnInfo.from_values, series)
+
+
+class TestDimType:
+    @pytest.mark.parametrize(
+        ["df", "expected", "kwargs"],
+        [
+            (
+                pd.DataFrame(
+                    {"data": np.array(["a"], dtype=np.str_)},
+                    index=pd.Index(np.array(["b"], dtype=np.str_), name="str_dim"),
+                ),
+                np.bytes_,
+                {},
+            )
+        ],
+    )
+    def test_schema_dim(self, checked_path, df, expected, kwargs):
+        assert isinstance(df, pd.DataFrame)
+
+        uri = checked_path.path()
+        tiledb.from_pandas(uri, df, **kwargs)
+
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == expected
+            assert A.schema.domain.dim(0).name == df.index.name
 
 
 class PandasDataFrameRoundtrip(DiskTestCase):
