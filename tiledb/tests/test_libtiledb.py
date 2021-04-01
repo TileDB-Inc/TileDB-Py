@@ -2153,6 +2153,81 @@ class SparseArray(DiskTestCase):
                 "coords" not in T.query(coords=False).multi_index[-10.0:5.0]
             )
 
+    def test_query_real_exact(self):
+        """
+        Test and demo of querying at floating point representable boundaries
+
+        Concise representation of expected behavior:
+
+        c0,c1,c2 = [3.0100000000000002, 3.0100000000000007, 3.010000000000001]
+        values = [1,2,3]
+
+        [c0:c0] -> [1]
+        [c1:c1] -> [2]
+        [c2:c2] -> [3]
+
+        [c0:c1] -> [1,2]
+        [c0:c2] -> [1,2,3]
+
+        [c0 - nextafter(c0,0) : c0] -> [1]
+        [c0 - nextafter(c0,0) : c0 - nextafter(c0,0)] -> []
+
+        [c2:c2+nextafter(c2)] -> [3]
+        [c2+nextafter(c2) : c2+nextafter(c2)] -> []
+
+        """
+        uri = self.path()
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float, ctx=ctx),
+            ctx=ctx,
+        )
+        attr = tiledb.Attr("", dtype=np.float32, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True, ctx=ctx)
+        tiledb.SparseArray.create(uri, schema)
+
+        c0 = np.nextafter(3.01, 4)  # smaller
+        c1 = np.nextafter(c0, 4)
+        c2 = np.nextafter(c1, 4)  # larger
+
+        # for debugging use:
+        # np.set_printoptions(precision=16, floatmode='maxprec')
+        # print(c0,c1,c2)
+
+        values = np.array([1, 2, 3])
+        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+            T[[c0, c1, c2]] = values
+
+        with tiledb.SparseArray(uri, mode="r", ctx=ctx) as T:
+            for i, c in enumerate([c0, c1, c2]):
+                assert_array_equal(
+                    T.query(coords=True).multi_index[c:c][""],
+                    values[i],
+                )
+            # test (coord, coord + nextafter)
+            c0_prev = np.nextafter(c0, 0)
+            c2_next = np.nextafter(c2, 4)
+            assert_array_equal(T.query(coords=True).multi_index[c0:c1][""], [1, 2])
+            assert_array_equal(T.query(coords=True).multi_index[c0:c2][""], [1, 2, 3])
+            assert_array_equal(T.query(coords=True).multi_index[c2:c2_next][""], 3)
+            assert_array_equal(T.query(coords=True).multi_index[c0_prev:c0][""], 1)
+            assert_array_equal(
+                T.query(coords=True).multi_index[c0_prev:c0_prev][""], []
+            )
+            # test (coord + nextafter, coord + nextafter)
+            assert_array_equal(
+                T.query(coords=True).multi_index[c2_next:c2_next][""], np.array([])
+            )
+            # test (coord - nextafter, coord)
+            assert_array_equal(
+                T.query(coords=True).multi_index[c0:c1][""], values[[0, 1]]
+            )
+            # test (coord - nextafter, coord + nextafter)
+            assert_array_equal(
+                T.query(coords=True).multi_index[c0:c2][""], values[[0, 1, 2]]
+            )
+
     def test_sparse_query_specified_dim_coords(self):
         uri = self.path("sparse_query_specified_dim_coords")
 
