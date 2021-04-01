@@ -2121,8 +2121,8 @@ class SparseArray(DiskTestCase):
             with self.assertRaises(AttributeError):
                 T[I, J] = V
 
-    def test_query_fp_domain_index(self):
-        uri = self.path("query_fp_domain_index")
+    def test_query_real_multi_index(self):
+        uri = self.path("query_real_multi_index")
 
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -2138,19 +2138,19 @@ class SparseArray(DiskTestCase):
             T[[2.5, 4.2]] = values
         with tiledb.SparseArray(uri, mode="r", ctx=ctx) as T:
             assert_array_equal(
-                T.query(coords=True).domain_index[-10.0 : np.nextafter(4.2, 0)]["a"],
+                T.query(coords=True).multi_index[-10.0 : np.nextafter(4.2, 0)]["a"],
                 np.float32(3.3),
             )
             assert_array_equal(
-                T.query(coords=True).domain_index[-10.0 : np.nextafter(4.2, 0)]["x"],
+                T.query(coords=True).multi_index[-10.0 : np.nextafter(4.2, 0)]["x"],
                 np.float32([2.5]),
             )
             assert_array_equal(
-                T.query(coords=False).domain_index[-10.0:5.0]["a"],
+                T.query(coords=False).multi_index[-10.0:5.0]["a"],
                 np.float32([3.3, 2.7]),
             )
             self.assertTrue(
-                "coords" not in T.query(coords=False).domain_index[-10.0:5.0]
+                "coords" not in T.query(coords=False).multi_index[-10.0:5.0]
             )
 
     def test_sparse_query_specified_dim_coords(self):
