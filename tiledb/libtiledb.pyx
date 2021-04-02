@@ -2114,8 +2114,9 @@ cdef class FilterList(object):
         return filter_list
 
     def __repr__(self):
-        output = StringIO()
-        output.write("FilterList([")
+        filters = ",\n       ".join(
+            [repr(self._getfilter(i)) for i in range(self.nfilters)])
+        return "FilterList([{0!s}])".format(filters)
 
     def __eq__(self, other):
         if other is None:
@@ -3758,13 +3759,7 @@ cdef class ArraySchema(object):
             output.write(f"  allows_duplicates={self.allows_duplicates},\n")
 
         if self.coords_filters is not None:
-            output.write(f"  coords_filters=FilterList([")
-            for i,f in enumerate(self.coords_filters):
-                output.write(f"{repr(f)}")
-                if i < len(self.coords_filters):
-                    output.write(", ")
-
-            output.write(f"])\n")
+            output.write(f"  coords_filters={self.coords_filters},\n")
 
         output.write(")\n")
 
