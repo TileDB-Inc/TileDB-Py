@@ -3724,11 +3724,17 @@ cdef class ArraySchema(object):
 
     def attr_or_dim_dtype(self, unicode name):
         if self.has_attr(name):
-            return self.attr(name).dtype
+            dtype = self.attr(name).dtype
         elif self.domain.has_dim(name):
-            return self.domain.dim(name).dtype
+            dtype = self.domain.dim(name).dtype
         else:
             raise TileDBError(f"Unknown attribute or dimension ('{name}')")
+
+        if dtype.itemsize == 0:
+            # special handling for flexible numpy dtypes: change itemsize from 0 to 1
+            dtype = np.dtype((dtype, 1))
+        return dtype
+
 
     def dump(self):
         """Dumps a string representation of the array object to standard output (stdout)"""
@@ -5481,15 +5487,7 @@ cdef class SparseArrayImpl(Array):
                     arr = q.unpack_buffer(name, results[name][0], results[name][1])
                 else:
                     arr = results[name][0]
-                    final_dtype = self.schema.attr_or_dim_dtype(name)
-                    if (len(arr) < 1 and
-                            (np.issubdtype(final_dtype, np.bytes_) or
-                             np.issubdtype(final_dtype, np.unicode_))):
-                        # special handling to get correctly-typed empty array
-                        # (expression below changes itemsize from 0 to 1)
-                        arr.dtype = final_dtype.str + '1'
-                    else:
-                        arr.dtype = self.schema.attr_or_dim_dtype(name)
+                    arr.dtype = self.schema.attr_or_dim_dtype(name)
                 out[final_name] = arr
             else:
                 if self.schema.domain.has_dim(name):
