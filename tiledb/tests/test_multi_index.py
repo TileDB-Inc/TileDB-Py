@@ -18,13 +18,13 @@ from tiledb.multirange_indexing import getitem_ranges, mr_dense_result_shape
 from tiledb.tests.common import DiskTestCase, assert_tail_equal, intspace
 
 
-def make_1d_dense(ctx, path, attr_name=""):
+def make_1d_dense(ctx, path, attr_name="", attr_dtype=np.int64):
     a_orig = np.arange(36)
 
     dom = tiledb.Domain(
         tiledb.Dim(domain=(0, 35), tile=35, dtype=np.uint64, ctx=ctx), ctx=ctx
     )
-    att = tiledb.Attr(name=attr_name, dtype=np.int64, ctx=ctx)
+    att = tiledb.Attr(name=attr_name, dtype=attr_dtype, ctx=ctx)
     schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
     tiledb.DenseArray.create(path, schema)
 
@@ -32,7 +32,7 @@ def make_1d_dense(ctx, path, attr_name=""):
         A[:] = a_orig
 
 
-def make_2d_dense(ctx, path, attr_name=""):
+def make_2d_dense(ctx, path, attr_name="", attr_dtype=np.int64):
     a_orig = np.arange(1, 37).reshape(9, 4)
 
     dom = tiledb.Domain(
@@ -40,7 +40,7 @@ def make_2d_dense(ctx, path, attr_name=""):
         tiledb.Dim(domain=(0, 3), tile=4, dtype=np.uint64, ctx=ctx),
         ctx=ctx,
     )
-    att = tiledb.Attr(name=attr_name, dtype=np.int64, ctx=ctx)
+    att = tiledb.Attr(name=attr_name, dtype=attr_dtype, ctx=ctx)
     schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
     tiledb.DenseArray.create(path, schema)
 
@@ -177,6 +177,23 @@ class TestMultiRange(DiskTestCase):
             self.assertTrue("" in res)
             # don't return coordinates for dense
             self.assertTrue("idx" not in res)
+
+    def test_multirange_empty(self):
+        ctx = tiledb.Ctx()
+
+        path1 = self.path("test_multirange_empty_1d")
+        make_1d_dense(ctx, path1, attr_dtype=np.uint16)
+        with tiledb.open(path1) as A:
+            res = A.multi_index[tiledb.EmptyRange]
+            assert res[""].dtype == np.uint16
+            assert res[""].shape == (0,)
+
+        path2 = self.path("test_multirange_empty_2d")
+        make_2d_dense(ctx, path2, attr_dtype=np.float32)
+        with tiledb.open(path2) as A:
+            res = A.multi_index[tiledb.EmptyRange]
+            assert res[""].dtype == np.float32
+            assert res[""].shape == (0,)
 
     def test_multirange_1d_1dim_ranges(self):
         path = self.path("test_multirange_1d_1dim_ranges")

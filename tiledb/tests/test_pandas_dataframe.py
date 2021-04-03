@@ -527,6 +527,19 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df_bk = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df_bk, df)
 
+    def test_dataframe_empty(self):
+        dfs = [
+            make_dataframe_basic1(),
+            make_dataframe_basic2(),
+            make_dataframe_basic3(),
+        ]
+        for i, df in enumerate(dfs, start=1):
+            for sparse in False, True:
+                uri = self.path(f"dataframe_empty_{i}_{sparse}")
+                tiledb.from_pandas(uri, df, sparse=sparse)
+                with tiledb.open(uri) as A:
+                    tm.assert_frame_equal(df.iloc[:0], A.df[tiledb.EmptyRange])
+
     def test_csv_dense(self):
         col_size = 10
         df_data = {
