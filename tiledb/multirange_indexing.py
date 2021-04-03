@@ -27,6 +27,9 @@ except ImportError:
     DataFrame = None
 
 
+# sentinel value to denote selecting an empty range
+EmptyRange = object()
+
 # TODO: expand with more accepted scalar types
 Scalar = Real
 Range = Tuple[Scalar, Scalar]
@@ -142,7 +145,13 @@ class MultiRangeIndexer(object):
         return array
 
     def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
-        return _run_query(self.array, getitem_ranges(self.array, idx), query=self.query)
+        if idx is EmptyRange:
+            results = _get_empty_results(self.array.schema, self.query)
+        else:
+            results = _run_query(
+                self.array, getitem_ranges(self.array, idx), self.query
+            )
+        return results
 
 
 class DataFrameIndexer(MultiRangeIndexer):
@@ -166,18 +175,20 @@ class DataFrameIndexer(MultiRangeIndexer):
         check_dataframe_deps()
         with timing("py.__getitem__time"):
             array = self.array
-
             # we need to use a Query in order to get coords for a dense array
             query = self.query or Query(array, coords=True)
-            result = _run_query(
-                array,
-                getitem_ranges(array, idx),
-                query=query,
-                use_arrow=bool(
-                    pyarrow is not None and (self.use_arrow or query.return_arrow)
-                ),
-                preload_metadata=True,
-            )
+            if idx is EmptyRange:
+                result = _get_empty_results(array.schema, query)
+            else:
+                result = _run_query(
+                    array,
+                    getitem_ranges(array, idx),
+                    query,
+                    use_arrow=bool(
+                        pyarrow is not None and (self.use_arrow or query.return_arrow)
+                    ),
+                    preload_metadata=True,
+                )
             if not isinstance(result, pyarrow.Table):
                 if not isinstance(result, DataFrame):
                     result = DataFrame.from_dict(result)
@@ -189,7 +200,6 @@ class DataFrameIndexer(MultiRangeIndexer):
 def _run_query(
     array: Array,
     ranges: Sequence[Sequence[Range]],
-    *,
     query: Optional[Query] = None,
     use_arrow: bool = False,
     preload_metadata: bool = False,
@@ -230,24 +240,7 @@ def _run_query(
 
 def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQuery:
     schema = array.schema
-    attr_names = tuple(schema.attr(i)._internal_name for i in range(schema.nattr))
-    if schema.sparse:
-        dom = schema.domain
-        dim_names = tuple(dom.dim(i).name for i in range(dom.ndim))
-    else:
-        dim_names = ()
-
-    # if this indexing operation is part of a query (A.query().df)
-    # then we need to respect the settings of the query
     if query is not None:
-        if query.attrs is not None:
-            attr_names = tuple(query.attrs)
-
-        if query.dims is not None:
-            dim_names = tuple(query.dims or ())
-        elif query.coords is False:
-            dim_names = ()
-
         order = query.order
     else:
         # set default order:  TILEDB_UNORDERED for sparse,  TILEDB_ROW_MAJOR for dense
@@ -264,11 +257,33 @@ def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQue
     return PyQuery(
         array._ctx_(),
         array,
-        attr_names,
-        dim_names,
+        tuple(_iter_attr_names(schema, query)),
+        tuple(_iter_dim_names(schema, query)),
         layout,
         use_arrow,
     )
+
+
+def _iter_attr_names(
+    schema: ArraySchema, query: Optional[Query] = None
+) -> Iterator[str]:
+    if query is not None and query.attrs is not None:
+        return iter(query.attrs)
+    return (schema.attr(i)._internal_name for i in range(schema.nattr))
+
+
+def _iter_dim_names(
+    schema: ArraySchema, query: Optional[Query] = None
+) -> Iterator[str]:
+    if query is not None:
+        if query.dims is not None:
+            return iter(query.dims or ())
+        if query.coords is False:
+            return iter(())
+    if not schema.sparse:
+        return iter(())
+    dom = schema.domain
+    return (dom.dim(i).name for i in range(dom.ndim))
 
 
 def _get_pyquery_results(
@@ -281,6 +296,33 @@ def _get_pyquery_results(
         else:
             arr = item[0]
             arr.dtype = schema.attr_or_dim_dtype(name)
+        result_dict[name if name != "__attr" else ""] = arr
+    return result_dict
+
+
+def _get_empty_results(
+    schema: ArraySchema, query: Optional[Query] = None
+) -> Dict[str, np.ndarray]:
+    names = []
+    query_dims = frozenset(_iter_dim_names(schema, query))
+    query_attrs = frozenset(_iter_attr_names(schema, query))
+
+    # return dims first, if any
+    dom = schema.domain
+    for i in range(dom.ndim):
+        dim = dom.dim(i).name
+        # we need to also check if this is an attr for backward-compatibility
+        if dim in query_dims or dim in query_attrs:
+            names.append(dim)
+
+    for i in range(schema.nattr):
+        attr = schema.attr(i)._internal_name
+        if attr in query_attrs:
+            names.append(attr)
+
+    result_dict = OrderedDict()
+    for name in names:
+        arr = np.array([], schema.attr_or_dim_dtype(name))
         result_dict[name if name != "__attr" else ""] = arr
     return result_dict
 

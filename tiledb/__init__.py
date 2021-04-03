@@ -82,6 +82,7 @@ from .highlevel import open, save, from_numpy, empty_like, array_exists, array_f
 
 # TODO restricted imports
 from .dataframe_ import from_csv, from_pandas, from_dataframe, open_dataframe
+from .multirange_indexing import EmptyRange
 from .parquet_ import from_parquet
 
 from .version import version as __version__
