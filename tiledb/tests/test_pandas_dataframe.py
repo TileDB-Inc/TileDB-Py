@@ -317,8 +317,13 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             tm.assert_frame_equal(df, df_readback)
 
             attrs = ["s", "q", "t"]
-            df_arrow = tiledb.open_dataframe(uri, attrs=attrs, use_arrow=use_arrow)
-            tm.assert_frame_equal(df[attrs], df_arrow)
+            df_readback = tiledb.open_dataframe(uri, attrs=attrs, use_arrow=use_arrow)
+            tm.assert_frame_equal(df[attrs], df_readback)
+
+            df_readback = tiledb.open_dataframe(
+                uri, idx=slice(2, 4), use_arrow=use_arrow
+            )
+            tm.assert_frame_equal(df[2:5], df_readback)
 
     def test_dataframe_basic2(self):
         uri = self.path("dataframe_basic_rt2")

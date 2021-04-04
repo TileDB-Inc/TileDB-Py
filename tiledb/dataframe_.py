@@ -660,7 +660,7 @@ def from_pandas(uri, dataframe, **kwargs):
             A.close()
 
 
-def open_dataframe(uri, *, attrs=None, use_arrow=None, ctx=None):
+def open_dataframe(uri, *, attrs=None, use_arrow=None, idx=slice(None), ctx=None):
     """Open TileDB array at given URI as a Pandas dataframe
 
     If the array was saved using tiledb.from_pandas, then columns
@@ -681,7 +681,7 @@ def open_dataframe(uri, *, attrs=None, use_arrow=None, ctx=None):
 
     # TODO support `distributed=True` option?
     with tiledb.open(uri, ctx=ctx) as A:
-        df = A.query(attrs=attrs, use_arrow=use_arrow).df[:]
+        df = A.query(attrs=attrs, use_arrow=use_arrow, coords=True).df[idx]
 
     if attrs and list(df.columns) != list(attrs):
         df = df[attrs]
