@@ -36,6 +36,21 @@ def _direct_query_ranges(array: SparseArray, ranges):
     return res
 
 
+# Compound strategies to build valid inputs for multi_index
+tuple_indexer = st.one_of(
+    st.none(),
+    st.integers(),
+)
+subindex_obj = st.one_of(
+    st.none(),
+    st.integers(),
+    ranged_slices(),
+    tuple_indexer,
+)
+
+index_obj = st.one_of(st.tuples(subindex_obj), st.tuples(st.lists(subindex_obj)))
+
+
 class TestMultiIndexPropertySparse:
     dmin, dmax = -100, 100
 
@@ -93,3 +108,59 @@ class TestMultiIndexPropertySparse:
                 # TODO these should all be IndexError
                 assume(False)
             raise
+
+    @given(index_obj)
+    def test_multi_index_inputs(self, sparse_array_1d, ind):
+
+        # TODO
+        # currently we don't have a comparison target/mockup to check
+        # as there is no direct numpy equivalent for this indexing mode
+        # but we could still assert more details about the result
+        # - coordinates are inbounds
+        # - values are within known attribute range from write
+        # another option for indirect testing
+        # - densify slices and ranges and compare to numpy
+        #   numpy vectorized indexing result
+
+        uri = sparse_array_1d
+
+        try:
+            with tiledb.open(uri) as A:
+                r1 = A.multi_index[ind]
+                r1_array = r1["a"]
+                r1_coords = r1["__dim_0"]
+
+                assert isinstance(r1_array, np.ndarray)
+                assert isinstance(r1_coords, np.ndarray)
+
+                # some results may be empty
+                if len(r1_array):
+                    # assertions based on input data
+                    assert r1_array.min() >= self.dmin
+                    assert r1_array.max() <= self.dmax
+                    assert r1_coords.min() >= self.dmin
+                    assert r1_coords.max() <= self.dmax
+        except tiledb.TileDBError as exc:
+            # bounds errors are not failures
+            if is_boundserror(exc):
+                assume(False)
+            elif "Failed to cast dim range" in str(exc):
+                # TODO this should be IndexError
+                assume(False)
+            else:
+                raise
+        except ValueError as exc:
+            if "Stepped slice ranges are not supported" in str(exc):
+                # stepped slice errors are ok
+                assume(False)
+            elif "Cannot convert <class 'NoneType'> to scalar" in str(exc):
+                assume(False)
+            else:
+                raise
+        except TypeError as exc:
+            if "Unsupported selection" in str(exc):
+                # mostly ok but warn for cross-check
+                warnings.warn(str(exc))
+                assume(False)
+            else:
+                raise
