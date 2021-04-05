@@ -14,3 +14,13 @@ def bounded_ntuple(draw, *, length=1, min_value=0, max_value=10):
     return draw(
         st.tuples(st.integers(min_value, max_value), st.integers(min_value, max_value))
     )
+
+
+@composite
+def ranged_slices(draw, min_value=0, max_value=10):
+    bdd = st.one_of(st.none(), st.integers(min_value=min_value, max_value=max_value))
+    start = draw(bdd)
+    stop = draw(bdd)
+    step = draw(bdd)
+
+    return slice(start, stop, step)
