@@ -9,4 +9,6 @@ pandas ; python_version > '3.5'
 psutil
 pyarrow
 pytest
+hypothesis
+hypothesis[numpy]
 -r requirements.txt
