@@ -92,6 +92,7 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_COL_MAJOR
         TILEDB_GLOBAL_ORDER
         TILEDB_UNORDERED
+        TILEDB_HILBERT
 
     ctypedef enum tiledb_filter_type_t:
         TILEDB_FILTER_NONE = 0

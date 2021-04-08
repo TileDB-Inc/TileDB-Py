@@ -1359,8 +1359,11 @@ cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
         return TILEDB_COL_MAJOR
     elif order == "global":
         return TILEDB_GLOBAL_ORDER
+    elif order == "hilbert" or order == 'H':
+        return TILEDB_HILBERT
     elif order == None or order == "unordered" or order == 'U':
         return TILEDB_UNORDERED
+
     raise ValueError("unknown tiledb layout: {0!r}".format(order))
 
 
@@ -1376,7 +1379,10 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
         return u"global"
     elif order == TILEDB_UNORDERED:
         return u"unordered"
+    elif order == TILEDB_HILBERT:
+        return u"hilbert"
 
+    raise ValueError("unknown tiledb order: {0!r}".format(order))
 
 cdef class Filter(object):
     """Base class for all TileDB filters."""
