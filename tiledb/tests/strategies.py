@@ -1,3 +1,4 @@
+from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
@@ -11,9 +12,7 @@ def bounded_ntuple(draw, *, length=1, min_value=0, max_value=10):
     within the range (min_value, max_value)
     """
 
-    return draw(
-        st.tuples(st.integers(min_value, max_value), st.integers(min_value, max_value))
-    )
+    return draw(st.tuples(*[st.integers(min_value, max_value) for _ in range(length)]))
 
 
 @composite
