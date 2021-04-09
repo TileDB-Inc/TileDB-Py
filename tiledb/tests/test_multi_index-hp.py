@@ -7,12 +7,11 @@ from tiledb import SparseArray
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from pathlib import Path
 import warnings
 
 import pytest
 from tiledb.tests.common import checked_path
-from tiledb.tests.common import bounded_ntuple, ranged_slices
+from tiledb.tests.strategies import bounded_ntuple, ranged_slices
 
 from hypothesis import given, assume, settings
 from hypothesis import strategies as st
@@ -37,18 +36,12 @@ def _direct_query_ranges(array: SparseArray, ranges):
 
 
 # Compound strategies to build valid inputs for multi_index
-tuple_indexer = st.one_of(
-    st.none(),
-    st.integers(),
-)
 subindex_obj = st.one_of(
-    st.none(),
     st.integers(),
     ranged_slices(),
-    tuple_indexer,
 )
 
-index_obj = st.one_of(st.tuples(subindex_obj), st.tuples(st.lists(subindex_obj)))
+index_obj = st.one_of(subindex_obj, st.tuples(st.lists(subindex_obj)))
 
 
 class TestMultiIndexPropertySparse:
@@ -102,8 +95,7 @@ class TestMultiIndexPropertySparse:
 
                 assert_array_equal(r1, r2)
         except tiledb.TileDBError as exc:
-            exc_str = str(exc)
-            if is_boundserror(exc_str):
+            if is_boundserror(exc):
                 # out of bounds, this is ok so we tell hypothesis to ignore
                 # TODO these should all be IndexError
                 assume(False)
