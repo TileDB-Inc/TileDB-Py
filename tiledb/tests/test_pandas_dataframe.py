@@ -242,7 +242,7 @@ class TestDimType:
             assert A.schema.domain.dim(0).name == df.index.name
 
 
-class PandasDataFrameRoundtrip(DiskTestCase):
+class TestPandasDataFrameRoundtrip(DiskTestCase):
     def setUp(self):
         if pd is None:
             self.skipTest("Pandas not available")

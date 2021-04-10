@@ -9,10 +9,10 @@ import tempfile
 import datetime
 import traceback
 import pytest
-from unittest import TestCase
+import contextlib
 
 import numpy as np
-from numpy.testing import assert_equal, assert_array_equal
+from numpy.testing import assert_almost_equal, assert_equal, assert_array_equal
 
 
 def assert_tail_equal(a, *rest, **kwargs):
@@ -21,18 +21,20 @@ def assert_tail_equal(a, *rest, **kwargs):
         assert_array_equal(a, target, **kwargs)
 
 
-class DiskTestCase(TestCase):
+class DiskTestCase:
     """Helper class to store paths and associated allocation frames. This is both
     a cleanup step and a test of resource management. Some platforms will
     refuse to delete an open file, indicating a potentially leaked resource.
     """
 
-    def setUp(self):
+    @classmethod
+    def setup_method(self):
         prefix = "tiledb-" + self.__class__.__name__
         self.rootdir = tempfile.mkdtemp(prefix=prefix)
         self.pathmap = dict()
 
-    def tearDown(self):
+    @classmethod
+    def teardown_method(self):
         # Remove every directory starting with rootdir
         # This is both a clean-up step and an implicit test
         # of proper resource deallocation (see notes below)
@@ -70,6 +72,47 @@ class DiskTestCase(TestCase):
 
         return out
 
+    def assertRaises(self, *args):
+        return pytest.raises(*args)
+
+    def assertRaisesRegex(self, e, m):
+        return pytest.raises(e, match=m)
+
+    @contextlib.contextmanager
+    def assertEqual(self, *args):
+        if not len(args) == 2:
+            raise Exception("Unexpected input len > 2 to assertEquals")
+        assert args[0] == args[1]
+
+    @contextlib.contextmanager
+    def assertTrue(self, a):
+        assert a == True
+
+    @contextlib.contextmanager
+    def assertFalse(self, a):
+        assert a == False
+
+    @contextlib.contextmanager
+    def assertIsInstance(self, v, t):
+        assert isinstance(v, t)
+
+    @contextlib.contextmanager
+    def assertSetEqual(self, s1, s2):
+        assert all(isinstance(x, set) for x in (s1, s2))
+        assert s1 == s2
+
+    @contextlib.contextmanager
+    def assertIsNone(self, a1):
+        assert a1 is None
+
+    @contextlib.contextmanager
+    def assertTupleEqual(self, a1, a2):
+        assert a1 == a2
+
+    @contextlib.contextmanager
+    def assertAlmostEqual(self, a1, a2):
+        assert_almost_equal(a1, a2)
+
 
 # fixture wrapper to use with pytest: mark.parametrize does not
 #   work with DiskTestCase subclasses (unittest.TestCase methods
@@ -78,11 +121,11 @@ class DiskTestCase(TestCase):
 def checked_path():
     dtc = DiskTestCase()
 
-    dtc.setUp()
+    dtc.setup_method()
 
     yield dtc
 
-    dtc.tearDown()
+    dtc.teardown_method()
 
 
 def assert_subarrays_equal(a, b):

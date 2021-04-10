@@ -3,7 +3,7 @@
 from __future__ import absolute_import
 
 import sys, os, io, re, platform, contextlib
-import unittest, random, warnings
+import pytest, unittest, random, warnings
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -42,7 +42,7 @@ def safe_dump(obj):
         obj.dump()
 
 
-class VersionTest(unittest.TestCase):
+class VersionTest(DiskTestCase):
     def test_version(self):
         v = tiledb.libtiledb.version()
         self.assertIsInstance(v, tuple)
@@ -78,7 +78,7 @@ class StatsTest(DiskTestCase):
             self.assertTrue("CONSOLIDATE_COPY_ARRAY" in stats_json)
 
 
-class Config(DiskTestCase):
+class TestConfig(DiskTestCase):
     def test_config(self):
         config = tiledb.Config()
         config["sm.tile_cache_size"] = 100
@@ -150,8 +150,8 @@ class Config(DiskTestCase):
 
 
 class GroupTestCase(DiskTestCase):
-    def setUp(self):
-        super(GroupTestCase, self).setUp()
+    def setup_method(self):
+        super(GroupTestCase, self).setup_method()
 
         ctx = tiledb.Ctx()
         self.group1 = self.path("group1")
@@ -171,7 +171,7 @@ class GroupTestCase(DiskTestCase):
 class GroupTest(GroupTestCase):
     def test_is_group(self):
         ctx = tiledb.Ctx()
-        self.assertTrue((ctx, self.group1))
+        self.assertTrue(self.is_group(ctx, self.group1))
         self.assertTrue(self.is_group(ctx, self.group2))
         self.assertTrue(self.is_group(ctx, self.group3))
         self.assertTrue(self.is_group(ctx, self.group4))
@@ -1370,7 +1370,7 @@ class DenseArrayTest(DiskTestCase):
         # This array is currently read back with dtype object
         A = np.array([["A", "B"], ["C", ""]], dtype="S")
 
-        uri = self.path("varlen_2d_s1")
+        uri = self.path()
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim(name="rows", domain=(0, 1), tile=2, dtype=np.int64),
@@ -1408,7 +1408,7 @@ class DenseArrayTest(DiskTestCase):
         # This array is currently read back with dtype object
         A = np.array([["AAA", "B"], ["AB", "C"]], dtype="S3")
 
-        uri = self.path("varlen_2d_s1")
+        uri = self.path()
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim(name="rows", domain=(0, 1), tile=2, dtype=np.int64),
@@ -1507,7 +1507,7 @@ class DenseArrayTest(DiskTestCase):
     def test_incomplete_sparse_varlen(self):
         ncells = 100
 
-        path = self.path("incomplete_dense_varlen")
+        path = self.path("incomplete_sparse_varlen")
         str_data = [rand_utf8(random.randint(0, n)) for n in range(ncells)]
         data = np.array(str_data, dtype=np.unicode_)
         coords = np.arange(ncells)
@@ -1628,7 +1628,7 @@ class DenseArrayTest(DiskTestCase):
         # D[d1, 1]
 
 
-class DenseVarlen(DiskTestCase):
+class TestDenseVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
         A = np.array(
             [
@@ -1990,8 +1990,8 @@ class DenseVarlen(DiskTestCase):
             assert_array_equal(A, T)
 
 
-class SparseArray(DiskTestCase):
-    @unittest.expectedFailure
+class TestSparseArray(DiskTestCase):
+    @pytest.mark.xfail
     def test_simple_1d_sparse_vector(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -2008,7 +2008,7 @@ class SparseArray(DiskTestCase):
         with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
             assert_array_equal(T[[1, 2]], values)
 
-    @unittest.expectedFailure
+    @pytest.mark.xfail
     def test_simple_2d_sparse_vector(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -2027,7 +2027,7 @@ class SparseArray(DiskTestCase):
         with tiledb.SparseArray(ctx, self.path("foo"), mode="r") as T:
             assert_array_equal(T[[1, 2], [1, 2]], values)
 
-    @unittest.expectedFailure
+    @pytest.mark.xfail
     def test_simple3d_sparse_vector(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -2047,7 +2047,7 @@ class SparseArray(DiskTestCase):
         with tiledb.SparseArray(ctx, self.path("foo"), mode="r") as T:
             assert_array_equal(T[[1, 2], [1, 2], [1, 2]], values)
 
-    @unittest.expectedFailure
+    @pytest.mark.xfail
     def test_sparse_ordered_fp_domain(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -2064,7 +2064,7 @@ class SparseArray(DiskTestCase):
         with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
             assert_array_equal(T[[2.5, 4.2]], values)
 
-    @unittest.expectedFailure
+    @pytest.mark.xfail
     def test_sparse_unordered_fp_domain(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -2080,9 +2080,11 @@ class SparseArray(DiskTestCase):
         with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
             assert_array_equal(T[[2.5, 4.2]], values[::-1])
 
-    @unittest.expectedFailure
+    @pytest.mark.xfail
     def test_multiple_attributes(self):
         ctx = tiledb.Ctx()
+        uri = self.path()
+
         dom = tiledb.Domain(
             tiledb.Dim(domain=(1, 10), tile=10, dtype=int, ctx=ctx),
             tiledb.Dim(domain=(1, 10), tile=10, dtype=int, ctx=ctx),
@@ -2102,16 +2104,16 @@ class SparseArray(DiskTestCase):
         V_floats = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 5.0])
 
         V = {"ints": V_ints, "floats": V_floats}
-        with tiledb.SparseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
             T[I, J] = V
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="r", ctx=ctx) as T:
             R = T[I, J]
         assert_array_equal(V["ints"], R["ints"])
         assert_array_equal(V["floats"], R["floats"])
 
         # check error attribute does not exist
         # TODO: should this be an attribute error?
-        with tiledb.SparseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
             V["foo"] = V["ints"].astype(np.int8)
             with self.assertRaises(tiledb.TileDBError):
                 T[I, J] = V
@@ -2715,7 +2717,7 @@ class SparseArray(DiskTestCase):
                 A.unique_dim_values("dim3")
 
 
-class DenseIndexing(DiskTestCase):
+class TestDenseIndexing(DiskTestCase):
     def _test_index(self, A, T, idx):
         expected = A[idx]
         actual = T[idx]
@@ -2881,7 +2883,7 @@ class DenseIndexing(DiskTestCase):
                     T[idx]
 
 
-class FilterTest(unittest.TestCase):
+class TestFilterTest(unittest.TestCase):
     def test_filter(self):
         ctx = tiledb.Ctx()
         gzip_filter = tiledb.libtiledb.GzipFilter(ctx=ctx, level=10)
@@ -2966,7 +2968,7 @@ class FilterTest(unittest.TestCase):
             self.assertEqual(new_filter, f)
 
 
-class DatetimeSlicing(DiskTestCase):
+class TestDatetimeSlicing(DiskTestCase):
     def test_dense_datetime_vector(self):
         ctx = tiledb.Ctx()
         uri = self.path("foo_datetime_vector")
@@ -3277,7 +3279,7 @@ class RWTest(DiskTestCase):
             assert_array_equal(arr.read_direct(), np_array)
 
 
-class NumpyToArray(DiskTestCase):
+class TestNumpyToArray(DiskTestCase):
     def test_to_array0d(self):
         # Cannot create 0-dim arrays in TileDB
         ctx = tiledb.Ctx()
@@ -3372,7 +3374,7 @@ class NumpyToArray(DiskTestCase):
             assert_array_equal(arr[:]["a"], np_array)
 
 
-class VFS(DiskTestCase):
+class TestVFS(DiskTestCase):
     def test_supports(self):
         ctx = tiledb.Ctx()
         vfs = tiledb.VFS(ctx=ctx)
@@ -3793,7 +3795,7 @@ except ImportError:
     pass
 
 
-class HighlevelTests(DiskTestCase):
+class TestHighlevel(DiskTestCase):
     def test_open(self):
         uri = self.path("test_open")
         array = np.random.rand(10)
