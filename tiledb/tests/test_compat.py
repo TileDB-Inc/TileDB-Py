@@ -1,7 +1,5 @@
 from __future__ import absolute_import
 
-import sys, os, io, re, platform, unittest, random, warnings
-
 import numpy as np
 import tarfile, base64
 from io import BytesIO
@@ -11,14 +9,10 @@ from numpy.testing import assert_array_equal
 import tiledb
 from tiledb.tests.common import (
     DiskTestCase,
-    assert_subarrays_equal,
-    rand_utf8,
-    rand_ascii,
-    rand_ascii_bytes,
 )
 
 
-class BackwardCompatibilityTests(DiskTestCase):
+class TestBackwardCompatibility(DiskTestCase):
     def test_compat_tiledb_py_0_5_anon_attr_dense(self):
         # array written with the following script:
         """

@@ -3,19 +3,12 @@
 
 import tiledb
 from tiledb import *
-from tiledb.libtiledb import index_as_tuple, replace_ellipsis
 from tiledb.tests.common import DiskTestCase
 
 import numpy as np
 from numpy.testing import (
-    assert_equal,
-    assert_approx_equal,
     assert_array_equal,
-    assert_raises,
 )
-
-import unittest
-from unittest import TestCase
 
 
 class UtilTest(DiskTestCase):

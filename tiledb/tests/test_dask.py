@@ -5,7 +5,7 @@ try:
 except ImportError:
     import_failed = True
 
-import unittest, os
+import os
 
 import tiledb
 from tiledb.tests.common import DiskTestCase
@@ -14,7 +14,7 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_approx_equal
 
 
-class DaskSupport(DiskTestCase):
+class TestDaskSupport(DiskTestCase):
     def setUp(self):
         if import_failed:
             self.skipTest("Dask not available")

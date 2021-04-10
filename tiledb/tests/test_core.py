@@ -62,7 +62,7 @@ class CoreCCTest(DiskTestCase):
             assert_array_equal(res, a[:])
 
     def test_pyquery_init(self):
-        uri = self.path("test_pyquery_basic")
+        uri = self.path("test_pyquery_init")
         intmax = np.iinfo(np.int64).max
         config_dict = {"sm.tile_cache_size": "100", "py.init_buffer_bytes": str(intmax)}
         ctx = tiledb.Ctx(config=config_dict)
