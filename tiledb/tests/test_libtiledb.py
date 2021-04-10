@@ -3,7 +3,8 @@
 from __future__ import absolute_import
 
 import sys, os, io, re, platform, contextlib
-import pytest, unittest, random, warnings
+import unittest, random, warnings
+import pytest
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -12,10 +13,14 @@ import tiledb
 from tiledb.tests.common import (
     DiskTestCase,
     assert_subarrays_equal,
+    assert_unordered_equal,
     rand_utf8,
     rand_ascii,
     rand_ascii_bytes,
 )
+from tiledb.tests.fixtures import (
+    sparse_cell_order,
+)  # pyright: reportUnusedVariable=warning
 
 
 def safe_dump(obj):
@@ -537,6 +542,14 @@ class ArraySchemaTest(unittest.TestCase):
         # test iteration over attributes
         self.assertEqual(list(schema), [a1])
 
+        with self.assertRaisesRegex(
+            tiledb.TileDBError,
+            "Cannot set cell order; Hilbert order is only applicable to sparse arrays",
+        ):
+            tiledb.ArraySchema(
+                domain=domain, attrs=(a1,), sparse=False, cell_order="hilbert", ctx=ctx
+            )
+
     def test_dense_array_schema_fp_domain_error(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -618,6 +631,14 @@ class ArraySchemaTest(unittest.TestCase):
 
         # test iteration over attributes
         self.assertEqual(list(schema), [a1, a2])
+
+        with self.assertRaisesRegex(
+            tiledb.TileDBError,
+            "Cannot set tile order; Hilbert order is not applicable to tiles",
+        ):
+            tiledb.ArraySchema(
+                domain=domain, attrs=(a1,), sparse=True, tile_order="hilbert", ctx=ctx
+            )
 
     def test_sparse_schema_filter_list(self):
         ctx = tiledb.Ctx()
@@ -2123,7 +2144,7 @@ class TestSparseArray(DiskTestCase):
             with self.assertRaises(AttributeError):
                 T[I, J] = V
 
-    def test_query_real_multi_index(self):
+    def test_query_real_multi_index(self, cell_order):
         uri = self.path("query_real_multi_index")
 
         ctx = tiledb.Ctx()
@@ -2155,7 +2176,7 @@ class TestSparseArray(DiskTestCase):
                 "coords" not in T.query(coords=False).multi_index[-10.0:5.0]
             )
 
-    def test_query_real_exact(self):
+    def test_query_real_exact(self, sparse_cell_order):
         """
         Test and demo of querying at floating point representable boundaries
 
@@ -2186,7 +2207,13 @@ class TestSparseArray(DiskTestCase):
             ctx=ctx,
         )
         attr = tiledb.Attr("", dtype=np.float32, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            attrs=(attr,),
+            sparse=True,
+            cell_order=sparse_cell_order,
+            ctx=ctx,
+        )
         tiledb.SparseArray.create(uri, schema)
 
         c0 = np.nextafter(3.01, 4)  # smaller
@@ -2203,10 +2230,7 @@ class TestSparseArray(DiskTestCase):
 
         with tiledb.SparseArray(uri, mode="r", ctx=ctx) as T:
             for i, c in enumerate([c0, c1, c2]):
-                assert_array_equal(
-                    T.query(coords=True).multi_index[c:c][""],
-                    values[i],
-                )
+                assert_array_equal(T.query(coords=True).multi_index[c:c][""], values[i])
             # test (coord, coord + nextafter)
             c0_prev = np.nextafter(c0, 0)
             c2_next = np.nextafter(c2, 4)
@@ -2230,7 +2254,7 @@ class TestSparseArray(DiskTestCase):
                 T.query(coords=True).multi_index[c0:c2][""], values[[0, 1, 2]]
             )
 
-    def test_sparse_query_specified_dim_coords(self):
+    def test_sparse_query_specified_dim_coords(self, sparse_cell_order):
         uri = self.path("sparse_query_specified_dim_coords")
 
         ctx = tiledb.Ctx()
@@ -2240,7 +2264,9 @@ class TestSparseArray(DiskTestCase):
             ctx=ctx,
         )
         att = tiledb.Attr("", dtype=int, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
         tiledb.SparseArray.create(uri, schema)
 
         i = np.array([1, 1, 1, 2, 3, 3, 3, 4])
@@ -2249,22 +2275,23 @@ class TestSparseArray(DiskTestCase):
         with tiledb.SparseArray(uri, mode="w", ctx=ctx) as A:
             A[i, j] = np.array([0, 1, 2, 3, 4, 6, 7, 5])
 
+        # data is returned in Hilbert order, so we need to check sorted
         with tiledb.SparseArray(uri, mode="r", ctx=ctx) as A:
             Ai = A.query(dims=["i"])[:]
             self.assertTrue("i" in Ai)
             self.assertFalse("j" in Ai)
-            assert_array_equal(Ai["i"], i)
+            assert_unordered_equal(Ai["i"], i, sparse_cell_order == "hilbert")
 
             Aj = A.query(dims=["j"])[:]
             self.assertFalse("i" in Aj)
             self.assertTrue("j" in Aj)
-            assert_array_equal(Aj["j"], j)
+            assert_unordered_equal(Aj["j"], j, sparse_cell_order == "hilbert")
 
             Aij = A.query(dims=["i", "j"])[:]
             self.assertTrue("i" in Aij)
             self.assertTrue("j" in Aij)
-            assert_array_equal(Aij["i"], i)
-            assert_array_equal(Aij["j"], j)
+            assert_unordered_equal(Aij["i"], i, sparse_cell_order == "hilbert")
+            assert_unordered_equal(Aij["j"], j, sparse_cell_order == "hilbert")
 
     def test_dense_query_specified_dim_coords(self):
         uri = self.path("dense_query_specified_dim_coords")
@@ -2302,13 +2329,15 @@ class TestSparseArray(DiskTestCase):
             assert_array_equal(Aij["i"], i)
             assert_array_equal(Aij["j"], j)
 
-    def test_subarray(self):
+    def test_subarray(self, sparse_cell_order):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx
         )
         att = tiledb.Attr("", dtype=float, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
@@ -2328,13 +2357,15 @@ class TestSparseArray(DiskTestCase):
             assert_array_equal(res[""], [1.0, 2.0])
             self.assertEqual(("coords" in res), False)
 
-    def test_sparse_bytes(self):
+    def test_sparse_bytes(self, sparse_cell_order):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx
         )
         att = tiledb.Attr("", var=True, dtype=np.bytes_, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
@@ -2363,13 +2394,15 @@ class TestSparseArray(DiskTestCase):
             assert_array_equal(res[""], np.array("", dtype="S1"))
             assert_array_equal(res["x"], np.array([], dtype=np.int))
 
-    def test_sparse_unicode(self):
+    def test_sparse_unicode(self, sparse_cell_order):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx
         )
         att = tiledb.Attr("", var=True, dtype=np.unicode_, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
@@ -2409,7 +2442,7 @@ class TestSparseArray(DiskTestCase):
             assert_array_equal(res[""], np.array("", dtype="U1"))
             assert_array_equal(res["x"], np.array([], dtype=np.int))
 
-    def test_sparse_query(self):
+    def test_sparse_query(self, sparse_cell_order):
         uri = self.path("test_sparse_query")
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -2418,7 +2451,9 @@ class TestSparseArray(DiskTestCase):
         )
 
         att = tiledb.Attr("", dtype=float, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
         tiledb.SparseArray.create(uri, schema)
 
         coords = np.random.uniform(low=1, high=10000, size=100)
@@ -2435,7 +2470,7 @@ class TestSparseArray(DiskTestCase):
             res = A.query(order="U").multi_index[1:10000][""]
             assert_array_equal(np.sort(res), np.sort(data))
 
-    def test_sparse_fixes(self):
+    def test_sparse_fixes(self, sparse_cell_order):
         uri = self.path("test_sparse_fixes")
         # indexing a 1 element item in a sparse array
         # (issue directly reported)
@@ -2448,7 +2483,9 @@ class TestSparseArray(DiskTestCase):
         )
         dom = tiledb.Domain(*dims, ctx=ctx)
         att = tiledb.Attr(name="strattr", ctx=ctx, dtype="S1")
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), sparse=True)
+        schema = tiledb.ArraySchema(
+            ctx=ctx, domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order
+        )
         tiledb.SparseArray.create(uri, schema)
         with tiledb.SparseArray(uri) as T:
             T[:]
@@ -2473,7 +2510,7 @@ class TestSparseArray(DiskTestCase):
                     "Cannot write a string value to non-string typed attribute 'strattr'!",
                 )
 
-    def test_sparse_fixes_ch1560(self):
+    def test_sparse_fixes_ch1560(self, sparse_cell_order):
         from tiledb import Domain, Attr, Dim
         from collections import OrderedDict
         from numpy import array
@@ -2492,7 +2529,7 @@ class TestSparseArray(DiskTestCase):
                 Attr(name="a5", dtype="int8", ctx=ctx),
                 Attr(name="a6", dtype="int32", ctx=ctx),
             ],
-            cell_order="row-major",
+            cell_order=sparse_cell_order,
             tile_order="row-major",
             sparse=True,
         )
@@ -2533,7 +2570,7 @@ class TestSparseArray(DiskTestCase):
                 else:
                     self.assertEqual(res[k], data[k])
 
-    def test_sparse_2d_varlen_int(self):
+    def test_sparse_2d_varlen_int(self, sparse_cell_order):
         path = self.path("test_sparse_2d_varlen_int")
         dtype = np.int32
         ctx = tiledb.Ctx()
@@ -2543,7 +2580,9 @@ class TestSparseArray(DiskTestCase):
             ctx=ctx,
         )
         att = tiledb.Attr(dtype=dtype, var=True, ctx=ctx)
-        schema = tiledb.ArraySchema(dom, (att,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            dom, (att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
 
         tiledb.SparseArray.create(path, schema)
 
@@ -2569,7 +2608,7 @@ class TestSparseArray(DiskTestCase):
             assert_array_equal(res["__dim_0"], c1)
             assert_array_equal(res["__dim_1"], c2)
 
-    def test_sparse_mixed_domain_uint_float64(self):
+    def test_sparse_mixed_domain_uint_float64(self, sparse_cell_order):
         path = self.path("mixed_domain_uint_float64")
         ctx = tiledb.Ctx()
         dims = [
@@ -2581,7 +2620,9 @@ class TestSparseArray(DiskTestCase):
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)]
 
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
         tiledb.SparseArray.create(path, schema, ctx=ctx)
 
         data = np.random.rand(50, 63)
@@ -2598,12 +2639,16 @@ class TestSparseArray(DiskTestCase):
 
         with tiledb.open(path) as A:
             res = A[:]
-            assert_subarrays_equal(data[coords1[sidx], coords2_idx[sidx]], res["val"])
+            assert_subarrays_equal(
+                data[coords1[sidx], coords2_idx[sidx]],
+                res["val"],
+                sparse_cell_order != "hilbert",
+            )
             a_nonempty = A.nonempty_domain()
             self.assertEqual(a_nonempty[0], (0, 49))
             self.assertEqual(a_nonempty[1], (-100.0, 100.0))
 
-    def test_sparse_string_domain(self):
+    def test_sparse_string_domain(self, sparse_cell_order):
         path = self.path("sparse_string_domain")
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -2611,7 +2656,12 @@ class TestSparseArray(DiskTestCase):
         )
         att = tiledb.Attr(name="a", ctx=ctx, dtype=np.int64)
         schema = tiledb.ArraySchema(
-            ctx=ctx, domain=dom, attrs=(att,), sparse=True, capacity=10000
+            ctx=ctx,
+            domain=dom,
+            attrs=(att,),
+            sparse=True,
+            cell_order=sparse_cell_order,
+            capacity=10000,
         )
         tiledb.SparseArray.create(path, schema)
 
@@ -2628,14 +2678,16 @@ class TestSparseArray(DiskTestCase):
             self.assertEqual(set(res["d"]), set(coords))
             self.assertEqual(A.nonempty_domain(), ((b"aa", b"dddd"),))
 
-    def test_sparse_string_domain2(self):
+    def test_sparse_string_domain2(self, sparse_cell_order):
         path = self.path("sparse_string_domain2")
         ctx = tiledb.Ctx()
         dims = [tiledb.Dim(name="str", domain=(None, None), tile=None, dtype=np.bytes_)]
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)]
 
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
         tiledb.SparseArray.create(path, schema, ctx=ctx)
 
         data = np.random.rand(10)
@@ -2651,7 +2703,7 @@ class TestSparseArray(DiskTestCase):
             # must check data ordered by coords
             assert_array_equal(res["val"], data[np.argsort(coords, kind="stable")])
 
-    def test_sparse_mixed_domain(self):
+    def test_sparse_mixed_domain(self, sparse_cell_order):
         uri = self.path("sparse_mixed_domain")
         ctx = tiledb.Ctx()
         dims = [
@@ -2663,7 +2715,9 @@ class TestSparseArray(DiskTestCase):
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)]
 
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order, ctx=ctx
+        )
         tiledb.SparseArray.create(uri, schema)
 
         nrows = 5
@@ -2682,13 +2736,15 @@ class TestSparseArray(DiskTestCase):
         with tiledb.SparseArray(uri, "r") as A:
             self.assertEqual(A.nonempty_domain(), (ned_f64, ned_str))
 
-    def test_sparse_get_unique_dim_values(self):
+    def test_sparse_get_unique_dim_values(self, sparse_cell_order):
         uri = self.path("get_non_empty_coords")
         dim1 = tiledb.Dim(name="dim1", domain=(None, None), tile=None, dtype=np.bytes_)
         dim2 = tiledb.Dim(name="dim2", domain=(0, 1), tile=1, dtype=np.float)
         attr = tiledb.Attr(name="attr", dtype=np.float32)
         dom = tiledb.Domain(dim1, dim2)
-        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=[attr])
+        schema = tiledb.ArraySchema(
+            domain=dom, sparse=True, cell_order=sparse_cell_order, attrs=[attr]
+        )
         tiledb.Array.create(uri, schema)
 
         with tiledb.open(uri, "w") as A:
@@ -3060,7 +3116,7 @@ class TestDatetimeSlicing(DiskTestCase):
             actual2 = T[np.datetime64("2010-01-01") :][:read_ndays]
             assert_array_equal(actual2, expected)
 
-    def test_sparse_datetime_vector(self):
+    def test_sparse_datetime_vector(self, sparse_cell_order):
         ctx = tiledb.Ctx()
         uri = self.path("foo_datetime_sparse_vector")
 
@@ -3081,6 +3137,7 @@ class TestDatetimeSlicing(DiskTestCase):
             ctx=ctx,
             domain=dom,
             sparse=True,
+            cell_order=sparse_cell_order,
             attrs=(tiledb.Attr("a1", dtype=np.float64),),
         )
         tiledb.Array.create(uri, schema)
@@ -3109,7 +3166,7 @@ class TestDatetimeSlicing(DiskTestCase):
             vals3 = T.multi_index[:stop]["a1"]
             assert_array_equal(vals3, a1_vals)
 
-    def test_datetime_types(self):
+    def test_datetime_types(self, sparse_cell_order):
         ctx = tiledb.Ctx()
 
         units = ["h", "m", "s", "ms", "us", "ns", "ps", "fs"]
@@ -3132,6 +3189,7 @@ class TestDatetimeSlicing(DiskTestCase):
                 ctx=ctx,
                 domain=dom,
                 sparse=True,
+                cell_order=sparse_cell_order,
                 attrs=(tiledb.Attr("a1", dtype=np.float64),),
             )
 
