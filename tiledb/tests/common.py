@@ -272,8 +272,12 @@ def assert_unordered_equal(a1, a2, unordered=True):
     assert_array_equal(a1, a2)
 
 
-def assert_subarrays_equal(a, b):
+def assert_subarrays_equal(a, b, ordered=True):
     assert_equal(a.shape, b.shape)
+
+    if not ordered:
+        a = np.sort(a)
+        b = np.sort(b)
 
     for a_el, b_el in zip(a.flat, b.flat):
         assert_array_equal(a_el, b_el)
