@@ -128,27 +128,6 @@ def checked_path():
     dtc.teardown_method()
 
 
-def assert_subarrays_equal(a, b):
-    assert_equal(a.shape, b.shape)
-
-    for a_el, b_el in zip(a.flat, b.flat):
-        assert_array_equal(a_el, b_el)
-
-
-def assert_all_arrays_equal(*arrays):
-    # TODO this should display raise in the calling location if possible
-    assert len(arrays) % 2 == 0, "Expected even number of arrays"
-
-    for a1, a2 in zip(arrays[0::2], arrays[1::2]):
-        assert_array_equal(a1, a2)
-
-
-# python 2 vs 3 compatibility
-if sys.hexversion >= 0x3000000:
-    getchr = chr
-else:
-    getchr = unichr
-
 # exclude whitespace: if we generate unquoted newline then pandas will be confused
 _ws_set = set("\n\t\r")
 
@@ -156,7 +135,7 @@ _ws_set = set("\n\t\r")
 def gen_chr(max, printable=False):
     while True:
         # TODO we exclude 0x0 here because the key API does not embedded NULL
-        s = getchr(random.randrange(1, max))
+        s = chr(random.randrange(1, max))
         if printable and (not s.isprintable()) or (s in _ws_set):
             continue
         if len(s) > 0:
@@ -282,3 +261,27 @@ pp = _pprint.PrettyPrinter(indent=4)
 def xprint(*x):
     for xp in x:
         pp.pprint(xp)
+
+
+def assert_unordered_equal(a1, a2, unordered=True):
+    """Assert that arrays are equal after sorting if
+    `unordered==True`"""
+    if unordered:
+        a1 = np.sort(a1)
+        a2 = np.sort(a2)
+    assert_array_equal(a1, a2)
+
+
+def assert_subarrays_equal(a, b):
+    assert_equal(a.shape, b.shape)
+
+    for a_el, b_el in zip(a.flat, b.flat):
+        assert_array_equal(a_el, b_el)
+
+
+def assert_all_arrays_equal(*arrays):
+    # TODO this should display raise in the calling location if possible
+    assert len(arrays) % 2 == 0, "Expected even number of arrays"
+
+    for a1, a2 in zip(arrays[0::2], arrays[1::2]):
+        assert_array_equal(a1, a2)
