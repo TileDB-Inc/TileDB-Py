@@ -3308,7 +3308,7 @@ cdef class ArraySchema(object):
     :param domain: Domain of schema
     :type attrs: tuple(tiledb.Attr, ...)
     :param cell_order:  TileDB label for cell layout
-    :type cell_order: 'row-major' (default) or 'C', 'col-major' or 'F'
+    :type cell_order: 'row-major' (default) or 'C', 'col-major' or 'F' or 'hilbert'
     :param tile_order:  TileDB label for tile layout
     :type tile_order: 'row-major' (default) or 'C', 'col-major' or 'F'
     :param int capacity: tile cell capacity
