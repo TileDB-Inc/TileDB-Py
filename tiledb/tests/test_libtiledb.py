@@ -2144,7 +2144,7 @@ class TestSparseArray(DiskTestCase):
             with self.assertRaises(AttributeError):
                 T[I, J] = V
 
-    def test_query_real_multi_index(self, cell_order):
+    def test_query_real_multi_index(self, sparse_cell_order):
         uri = self.path("query_real_multi_index")
 
         ctx = tiledb.Ctx()
@@ -2153,7 +2153,13 @@ class TestSparseArray(DiskTestCase):
             ctx=ctx,
         )
         attr = tiledb.Attr("a", dtype=np.float32, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            attrs=(attr,),
+            sparse=True,
+            cell_order=sparse_cell_order,
+            ctx=ctx,
+        )
         tiledb.SparseArray.create(uri, schema)
 
         values = np.array([3.3, 2.7])
