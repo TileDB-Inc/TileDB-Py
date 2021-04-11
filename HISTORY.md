@@ -1,5 +1,8 @@
 # TileDB-Py 0.8.7 Release Notes
 
+## Improvements
+* ArraySchema support for `cell_order="hilbert"` [#535](https://github.com/TileDB-Inc/TileDB-Py/pull/535)
+
 ## Bug fixes
 * Fixed regression in `from_pandas` with string-valued index dimensions [#526](https://github.com/TileDB-Inc/TileDB-Py/pull/526)
 * Fixed GC lifetime bug in string buffer conversion  [#525](https://github.com/TileDB-Inc/TileDB-Py/pull/526)
@@ -108,7 +111,7 @@
 
 ## Improvements
 * FragmentInfo API by default returns information from all fragments and dimensions [#444](https://github.com/TileDB-Inc/TileDB-Py/pull/444)
-* Add integer multi-indexing for NumPy datetime64 dimensions [#447](https://github.com/TileDB-Inc/TileDB-Py/pull/447) 
+* Add integer multi-indexing for NumPy datetime64 dimensions [#447](https://github.com/TileDB-Inc/TileDB-Py/pull/447)
 * Add `from_csv/pandas` support for `timestamp` keyword argument to specify write timestamp [#450](https://github.com/TileDB-Inc/TileDB-Py/pull/450)
 * Add verbosity option to `stats_dump()` [#452](https://github.com/TileDB-Inc/TileDB-Py/pull/452)
 * Add `unique_dim_values()` to return unique dimension values for a given `SparseArray` [#454](https://github.com/TileDB-Inc/TileDB-Py/pull/454)
