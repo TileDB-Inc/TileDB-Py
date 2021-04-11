@@ -85,8 +85,11 @@ class DiskTestCase:
         assert args[0] == args[1]
 
     @contextlib.contextmanager
-    def assertTrue(self, a):
-        assert a == True
+    def assertTrue(self, a, msg=None):
+        if msg:
+            assert a == True, msg
+        else:
+            assert a == True
 
     @contextlib.contextmanager
     def assertFalse(self, a):
