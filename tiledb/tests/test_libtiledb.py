@@ -844,8 +844,9 @@ class ArrayTest(DiskTestCase):
             )
 
     # needs core fix in 2.2.4
-    @unittest.skipIf(
-        (platform.system() == "Windows" and tiledb.libtiledb.version() == (2, 2, 3)), ""
+    @pytest.mark.skipif(
+        (sys.platform == "win32" and tiledb.libtiledb.version() == (2, 2, 3)),
+        reason="Skip array_doesnt_exist test on Win32 / libtiledb 2.2.3",
     )
     def test_array_doesnt_exist(self):
         ctx = tiledb.Ctx()
@@ -3515,8 +3516,8 @@ class TestVFS(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             vfs.move_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
 
-    @unittest.skipIf(
-        os.name == "nt",
+    @pytest.mark.skipif(
+        sys.platform == "win32",
         reason="VFS copy commands from core are not supported on Windows",
     )
     def test_copy(self):
@@ -3775,9 +3776,7 @@ class RegTests(DiskTestCase):
             self.assertEqual(qres["d"], 0)
 
 
-pytest.mark.skipif(sys.platform == "win32", reason="Only run MemoryTest on linux")
-
-
+@pytest.mark.skipif(sys.platform == "win32", reason="Only run MemoryTest on linux")
 class MemoryTest(DiskTestCase):
     # sanity check that memory usage doesn't increase more than 2x when reading 40MB 100x
     # https://github.com/TileDB-Inc/TileDB-Py/issues/150
@@ -3885,7 +3884,7 @@ class TestHighlevel(DiskTestCase):
             # https://github.com/TileDB-Inc/TileDB-Py/issues/277
             tiledb.open(uri, "r", attr="the-missing-attr")
 
-    @unittest.skipIf(not has_psutil or sys.version_info < (3, 2), "")
+    @pytest.mark.skipif(not has_psutil, reason="Thread cleanup test requires psutil")
     def test_ctx_thread_cleanup(self):
         import warnings
 
