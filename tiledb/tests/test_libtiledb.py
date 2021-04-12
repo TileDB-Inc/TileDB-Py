@@ -3775,17 +3775,12 @@ class RegTests(DiskTestCase):
             self.assertEqual(qres["d"], 0)
 
 
+pytest.mark.skipif(sys.platform == "win32", reason="Only run MemoryTest on linux")
+
+
 class MemoryTest(DiskTestCase):
     # sanity check that memory usage doesn't increase more than 2x when reading 40MB 100x
     # https://github.com/TileDB-Inc/TileDB-Py/issues/150
-
-    def setUp(self):
-        super(MemoryTest, self).setUp()
-        import sys
-
-        if not sys.platform.startswith("linux"):
-            self.skipTest("Only run MemoryTest on linux")
-
     @staticmethod
     def use_many_buffers(path):
         import psutil, os

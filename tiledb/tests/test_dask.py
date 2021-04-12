@@ -1,12 +1,8 @@
-try:
-    import dask, dask.array as da
+import pytest
 
-    import_failed = False
-except ImportError:
-    import_failed = True
+da = pytest.importorskip("dask.array")
 
-import os
-
+import sys
 import tiledb
 from tiledb.tests.common import DiskTestCase
 
@@ -14,15 +10,8 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_approx_equal
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
 class TestDaskSupport(DiskTestCase):
-    def setUp(self):
-        if import_failed:
-            self.skipTest("Dask not available")
-        elif os.name == "nt":
-            self.skipTest("Skipping tests on Windows")
-        else:
-            super().setUp()
-
     def test_dask_from_numpy_1d(self):
         uri = self.path("np_1attr")
         A = np.random.randn(50, 50)
