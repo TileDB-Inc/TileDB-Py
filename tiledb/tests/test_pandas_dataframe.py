@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 
-try:
-    import pandas as pd
-    import pandas._testing as tm
-except ImportError:
-    pd = tm = None
+import pytest
+
+pd = pytest.importorskip("pandas")
+
+import pandas._testing as tm
 
 import copy
 import glob
@@ -13,7 +13,6 @@ import random
 from pathlib import Path
 
 import numpy as np
-import pytest
 from numpy.testing import assert_array_equal, temppath
 
 import tiledb
@@ -241,12 +240,6 @@ class TestDimType:
 
 
 class TestPandasDataFrameRoundtrip(DiskTestCase):
-    def setUp(self):
-        if pd is None:
-            self.skipTest("Pandas not available")
-        else:
-            super(PandasDataFrameRoundtrip, self).setUp()
-
     def test_dataframe_basic_rt1_manual(self):
 
         uri = self.path("dataframe_basic_rt1_manual")

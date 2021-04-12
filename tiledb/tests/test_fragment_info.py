@@ -1,3 +1,5 @@
+import pytest
+
 import tiledb
 from tiledb import _fragment
 from tiledb.tests.common import DiskTestCase
@@ -10,7 +12,7 @@ class FragmentInfoTest(DiskTestCase):
     def setUp(self):
         super(FragmentInfoTest, self).setUp()
         if not tiledb.libtiledb.version() >= (2, 2):
-            self.skipTest("Only run FragmentInfo test with TileDB>=2.2")
+            pytest.skip("Only run FragmentInfo test with TileDB>=2.2")
 
     def test_uri_dne(self):
         fragment_info = _fragment.info("does_not_exist")
