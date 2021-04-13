@@ -11,6 +11,9 @@ ENV LIBTILEDB_SHA=$LIBTILEDB_SHA
 ARG TILEDBPY_VERSION=0.6.6
 ENV TILEDBPY_VERSION=$TILEDBPY_VERSION
 
+ARG LIBTILEDB_REPO=https://github.com/TileDB-Inc/TileDB
+ENV LIBTILEDB_REPO=$LIBTILEDB_REPO
+
 ###############################################
 # python settings
 # NOTE: MUST USE the 'mu' variant here to be compatible
@@ -44,7 +47,7 @@ ENV CFLAGS -Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1
 #       system path, and then use it to build wheels for all of the python
 #       versions.
 RUN cd /home/tiledb/ && \
-  git clone https://github.com/TileDB-Inc/TileDB && \
+  git clone ${LIBTILEDB_REPO} && \
   git -C TileDB checkout $LIBTILEDB_SHA && \
   mkdir build && \
   cd build && \

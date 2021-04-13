@@ -4,6 +4,7 @@ stages:
     TILEDBPY_VERSION: 0.8.7
     LIBTILEDB_VERSION: 2.2.7
     LIBTILEDB_SHA: a788ce55bee4b2576671f8b7d15d7a8b7497f5e6
+    LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
@@ -139,7 +140,7 @@ stages:
     steps:
     - script: git tag -f $(TILEDBPY_VERSION)
     - bash: |
-        docker build --build-arg LIBTILEDB_VERSION --build-arg LIBTILEDB_SHA --build-arg TILEDBPY_VERSION -f misc/pypi_linux/Dockerfile2010 . -t wheel_builder_2010
+        docker build --build-arg LIBTILEDB_VERSION --build-arg LIBTILEDB_SHA --build-arg LIBTILEDB_REPO --build-arg TILEDBPY_VERSION -f misc/pypi_linux/Dockerfile2010 . -t wheel_builder_2010
         docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder_2010 build.sh
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}

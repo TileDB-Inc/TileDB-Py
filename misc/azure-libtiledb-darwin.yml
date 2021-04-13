@@ -19,7 +19,7 @@ steps:
       brew uninstall --ignore-dependencies libidn2 brotli rtmpdump
     fi
 
-    git clone https://github.com/TileDB-Inc/TileDB $TILEDB_SRC
+    git clone ${LIBTILEDB_REPO} $TILEDB_SRC
     git -C $(TILEDB_SRC) checkout $(LIBTILEDB_SHA)
 
     mkdir -p $TILEDB_BUILD
@@ -41,7 +41,7 @@ steps:
 - script: |
     call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
     echo ON
-    git clone https://github.com/TileDB-Inc/TileDB $(TILEDB_SRC)
+    git clone $(LIBTILEDB_REPO) $(TILEDB_SRC)
     git -C $(TILEDB_SRC) checkout $(LIBTILEDB_SHA)
 
     mkdir $(TILEDB_INSTALL)
