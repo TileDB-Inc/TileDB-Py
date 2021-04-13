@@ -3,8 +3,8 @@ stages:
   variables:
     TILEDBPY_VERSION: 0.8.7
     LIBTILEDB_VERSION: 2.2.7
-    LIBTILEDB_SHA: a788ce55bee4b2576671f8b7d15d7a8b7497f5e6
-    LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
+    LIBTILEDB_SHA: fbb3b8eeb5cbeaa9ff0de7cbe305e1f35771e550
+    LIBTILEDB_REPO: https://github.com/ihnorton/TileDB
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
