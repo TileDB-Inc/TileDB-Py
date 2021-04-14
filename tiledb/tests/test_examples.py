@@ -1,3 +1,4 @@
+import doctest
 import glob
 import os
 import shutil
@@ -57,5 +58,12 @@ class ExamplesTest:
     @pytest.mark.parametrize(
         "path", [os.path.join(PROJECT_DIR, "tiledb", "libtiledb.pyx")]
     )
-    def test_docs(self, path):
-        run_checked("-m", "doctest", "-o", "NORMALIZE_WHITESPACE", "-f", path)
+    def test_docs(self, path, capsys):
+        failures, _ = doctest.testfile(
+            path,
+            module_relative=False,
+            verbose=False,
+            optionflags=doctest.NORMALIZE_WHITESPACE,
+        )
+        if failures:
+            pytest.fail(capsys.readouterr().out)
