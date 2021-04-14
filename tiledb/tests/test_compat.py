@@ -1,15 +1,12 @@
-from __future__ import absolute_import
+import base64
+import io
+import tarfile
 
 import numpy as np
-import tarfile, base64
-from io import BytesIO
-
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import (
-    DiskTestCase,
-)
+from tiledb.tests.common import DiskTestCase
 
 
 class TestBackwardCompatibility(DiskTestCase):
@@ -42,7 +39,7 @@ class TestBackwardCompatibility(DiskTestCase):
                         9+V88j5w6fM/RFoIzP9FYIpze7P3OFflCvGHSOL7HwRBEARBEARBEARBEARBkFn4CRFQSoEAKAAA"""
 
         path = self.path("tiledb_py_0_6_anon_attr")
-        with tarfile.open(fileobj=BytesIO(base64.b64decode(array_tgz))) as tf:
+        with tarfile.open(fileobj=io.BytesIO(base64.b64decode(array_tgz))) as tf:
             tf.extractall(path)
 
         with tiledb.open(path) as A:
@@ -56,9 +53,6 @@ class TestBackwardCompatibility(DiskTestCase):
             self.assertEqual(qres["d"], 0)
 
     def test_compat_py_0_5_anon_attr_sparse(self):
-        import tarfile, base64
-        from io import BytesIO
-
         # This array was written with TileDB-Py 0.5.9:
         # - using the invocation below, followed by
         """
@@ -84,7 +78,7 @@ class TestBackwardCompatibility(DiskTestCase):
                          hB6kdpUUdHTz4cWspAAAAAAAAAAAAAAA4IzzG7vsp0oAKAAA"""
 
         path = self.path("test_tiledb_py_0_5_anon_attr_sparse")
-        with tarfile.open(fileobj=BytesIO(base64.b64decode(test_array))) as tf:
+        with tarfile.open(fileobj=io.BytesIO(base64.b64decode(test_array))) as tf:
             tf.extractall(path)
         with tiledb.open(path) as A:
             assert_array_equal(A[:][""], np.array([1.0, 2.0, 5.0]))

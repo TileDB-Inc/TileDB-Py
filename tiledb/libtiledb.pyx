@@ -2,22 +2,15 @@
 #cython: embedsignature=True
 #cython: auto_pickle=False
 
-from __future__ import absolute_import
-
 from cpython.version cimport PY_MAJOR_VERSION
 from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPointer
 
 include "common.pxi"
-from .array import DenseArray, SparseArray
-
-from os.path import abspath
-from collections import OrderedDict
 import io
-try:
-    # Python 2
-    from StringIO import StringIO
-except:
-    from io import StringIO
+import sys
+from collections import OrderedDict
+
+from .array import DenseArray, SparseArray
 
 ###############################################################################
 #     Numpy initialization code (critical)                                    #
@@ -79,9 +72,9 @@ def initialize_ctx(config = None):
 ###############################################################################
 
 IF TILEDBPY_MODULAR:
-    from .np2buf import array_type_ncells, dtype_to_tiledb
     from .indexing import DomainIndexer
-    from .libmetadata import get_metadata, put_metadata, load_metadata
+    from .libmetadata import get_metadata, load_metadata, put_metadata
+    from .np2buf import array_type_ncells, dtype_to_tiledb
 ELSE:
     include "indexing.pyx"
     include "np2buf.pyx"
@@ -100,6 +93,9 @@ _MAX_QUERY_RETRIES = 3
 
 # The native int type for this platform
 IntType = np.dtype(np.int_)
+
+# Integer types supported by Python / System
+_inttypes = (int, np.integer)
 
 # Numpy initialization code (critical)
 # https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
@@ -1408,7 +1404,7 @@ cdef class Filter(object):
         return
 
     def __repr__(self):
-        output = StringIO()
+        output = io.StringIO()
         output.write(f"{type(self).__name__}(")
         if hasattr(self, '_attrs_'):
             for f in self._attrs_():
@@ -3751,7 +3747,7 @@ cdef class ArraySchema(object):
 
     def __repr__(self):
         # TODO support/use __qualname__
-        output = StringIO()
+        output = io.StringIO()
         output.write("ArraySchema(\n")
         output.write("  domain=Domain(*[\n")
         for i in range(self.domain.ndim):
@@ -3908,7 +3904,7 @@ cdef class Array(object):
             use_arrow = ctx.config()['py.use_arrow'] == 'True'
 
         # Delayed to avoid circular import
-        from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
+        from .multirange_indexing import DataFrameIndexer, MultiRangeIndexer
         self.multi_index = MultiRangeIndexer(self)
         self.df = DataFrameIndexer(self, use_arrow=use_arrow)
         self.last_fragment_info = dict()
@@ -4394,7 +4390,6 @@ cdef class Array(object):
         """
         return self.multi_index
 
-    # TODO remove the doctest SKIP after python 2 disabled
     @property
     def df(self):
         """Retrieve data cells as a Pandas dataframe, with multi-range,
@@ -4417,7 +4412,7 @@ cdef class Array(object):
 
         >>> import tiledb, tempfile, numpy as np, pandas as pd
         >>>
-        >>> with tempfile.TemporaryDirectory() as tmp: # doctest: +SKIP
+        >>> with tempfile.TemporaryDirectory() as tmp:
         ...    data = {'col1_f': np.arange(0.0,1.0,step=0.1), 'col2_int': np.arange(10)}
         ...    df = pd.DataFrame.from_dict(data)
         ...    tiledb.from_pandas(tmp, df)
@@ -4508,7 +4503,7 @@ cdef class Query(object):
         self.domain_index = DomainIndexer(array, query=self)
 
         # Delayed to avoid circular import
-        from .multirange_indexing import MultiRangeIndexer, DataFrameIndexer
+        from .multirange_indexing import DataFrameIndexer, MultiRangeIndexer
         self.multi_index = MultiRangeIndexer(array, query=self)
         self.df = DataFrameIndexer(array, query=self, use_arrow=use_arrow)
 
@@ -4567,12 +4562,6 @@ cdef class Query(object):
            as a Pandas dataframe."""
         return self.df
 
-
-# work around https://github.com/cython/cython/issues/2757
-def _create_densearray(cls, sta):
-    rv = DenseArray.__new__(cls)
-    rv.__setstate__(sta)
-    return rv
 
 cdef class DenseArrayImpl(Array):
     """Class representing a dense TileDB array.
@@ -5108,10 +5097,6 @@ cdef class DenseArrayImpl(Array):
         subarray = index_domain_subarray(self, domain, idx)
         out = self._read_dense_subarray(subarray, [attr_name,], cell_layout, False)
         return out[attr_name]
-
-    # this is necessary for python 2
-    def __reduce__(self):
-        return (_create_densearray, (type(self), self.__getstate__()))
 
     # pickling support: this is a lightweight pickle for distributed use.
     #   simply treat as wrapper around URI, not actual data.

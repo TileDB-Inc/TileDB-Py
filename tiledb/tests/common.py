@@ -1,18 +1,15 @@
-from __future__ import absolute_import
-
+import contextlib
+import datetime
 import glob
 import os
-import sys
 import random
 import shutil
 import tempfile
-import datetime
 import traceback
-import pytest
-import contextlib
 
 import numpy as np
-from numpy.testing import assert_almost_equal, assert_equal, assert_array_equal
+import pytest
+from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
 
 
 def assert_tail_equal(a, *rest, **kwargs):

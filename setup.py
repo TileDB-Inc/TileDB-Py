@@ -1,45 +1,19 @@
-from __future__ import absolute_import, print_function
-
 import ctypes
+import io
 import multiprocessing
 import os
-import sys
-import urllib
+import platform
 import shutil
 import subprocess
+import sys
 import zipfile
-import platform
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
+from urllib.error import URLError
+from urllib.request import urlopen
 
-
-try:
-    # For Python 3
-    from urllib.request import urlopen
-    import io
-
-    def get_zipfile(url):
-        """Returns a ZipFile constructed from the file at the given URL."""
-        r = urlopen(url)
-        return zipfile.ZipFile(io.BytesIO(r.read()))
-
-
-except ImportError:
-    # Python 2
-    from urllib2 import urlopen
-    import StringIO
-
-    def get_zipfile(url):
-        """Returns a ZipFile constructed from the file at the given URL."""
-        r = urlopen(url)
-        return zipfile.ZipFile(StringIO.StringIO(r.read()))
-
-
-from setuptools import setup, Extension, find_packages
 from pkg_resources import resource_filename
-
-import sys
-from sys import version_info as ver
+from setuptools import Extension, find_packages, setup
 
 print("setup.py sys.argv is: ", sys.argv)
 
@@ -165,9 +139,9 @@ def download_libtiledb():
         )
         print("Downloading TileDB package from {}...".format(TILEDB_VERSION))
         try:
-            with get_zipfile(url) as z:
+            with zipfile.ZipFile(io.BytesIO(urlopen(url).read())) as z:
                 z.extractall(BUILD_DIR)
-        except urllib.error.URLError:
+        except URLError:
             # try falling back to wget, maybe SSL is broken
             subprocess.check_call(["wget", url], shell=True)
             with zipfile.ZipFile("{}.zip".format(TILEDB_VERSION)) as z:
@@ -404,14 +378,14 @@ class LazyCommandClass(dict):
     """
 
     def __contains__(self, key):
-        return key in ["build_ext", "bdist_wheel", "bdist_egg"] or super(
-            LazyCommandClass, self
-        ).__contains__(key)
+        if key in ("build_ext", "bdist_wheel", "bdist_egg"):
+            return True
+        return super().__contains__(key)
 
     def __setitem__(self, key, value):
         if key == "build_ext":
             raise AssertionError("build_ext overridden!")
-        super(LazyCommandClass, self).__setitem__(key, value)
+        super().__setitem__(key, value)
 
     def __getitem__(self, key):
         if key == "build_ext":
@@ -421,7 +395,7 @@ class LazyCommandClass(dict):
         elif key == "bdist_egg":
             return self.make_bdist_egg_cmd()
         else:
-            return super(LazyCommandClass, self).__getitem__(key)
+            return super().__getitem__(key)
 
     def make_build_ext_cmd(self):
         """
@@ -449,11 +423,7 @@ class LazyCommandClass(dict):
 
                 find_or_install_libtiledb(self)
 
-                # This explicitly calls the superclass method rather than the
-                # usual super() invocation because distutils' build_class, of
-                # which Cython's build_ext is a subclass, is an old-style class
-                # in Python 2, which doesn't support `super`.
-                cython_build_ext.build_extensions(self)
+                super().build_extensions()
 
         return build_ext
 
@@ -529,10 +499,6 @@ def setup_requires():
         req.append("cmake>=3.11.0")
     return req
 
-
-TESTS_REQUIRE = []
-if ver < (3,):
-    TESTS_REQUIRE.extend(["unittest2", "mock"])
 
 # Allow setting (lib) TileDB directory if it is installed on the system
 TILEDB_PATH = os.environ.get("TILEDB_PATH", "")
@@ -664,10 +630,7 @@ else:
 # Helper to set Extension attributes correctly based on python version
 def ext_attr_update(attr, value):
     for x in __extensions:
-        if sys.version_info < (3, 0):
-            x.__dict__[attr] = value
-        else:
-            x.__setattr__(attr, value)
+        setattr(x, attr, value)
 
 
 # Monkey patches to be forwarded to cythonize
@@ -724,7 +687,6 @@ setup(
         "wheel>=0.30",
         "dataclasses ;python_version<'3.7'",
     ],
-    tests_require=TESTS_REQUIRE,
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
     zip_safe=False,

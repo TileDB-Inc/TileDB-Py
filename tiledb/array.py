@@ -1,4 +1,4 @@
-from .libtiledb import Array, DenseArrayImpl, SparseArrayImpl
+from .libtiledb import DenseArrayImpl, SparseArrayImpl
 
 # Extensible (pure Python) array class definitions inheriting from the
 # Cython implemention. The cloudarray mix-in adds optional functionality
@@ -33,8 +33,7 @@ class DenseArray(DenseArrayImpl):
             except ImportError:
                 pass
 
-        obj = super(DenseArray, cls).__new__(cls, *args, **kwargs)
-        return obj
+        return super().__new__(cls, *args, **kwargs)
 
 
 class SparseArray(SparseArrayImpl):
@@ -57,5 +56,4 @@ class SparseArray(SparseArrayImpl):
             except ImportError:
                 pass
 
-        obj = super(SparseArray, cls).__new__(cls, *args, **kwargs)
-        return obj
+        return super().__new__(cls, *args, **kwargs)

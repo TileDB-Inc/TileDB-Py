@@ -43,14 +43,12 @@
 #
 # The program then shows how to list this hierarchy, as well as
 # move/remove TileDB objects.
-#
 
-# For print() in Python 2
-from __future__ import print_function
+import os
 
 import numpy as np
+
 import tiledb
-import os
 
 
 def create_array(array_name, sparse):

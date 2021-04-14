@@ -1,9 +1,5 @@
-from __future__ import absolute_import
-
-import sys
-import array as cparray
-from tiledb import libtiledb as libmetadata
-from tiledb.libtiledb import ustring
+from . import TileDBError
+from . import libtiledb as libmetadata
 
 
 class Metadata(object):
@@ -27,13 +23,11 @@ class Metadata(object):
         :param key:
         :return:
         """
-        if not (isinstance(key, str) or isinstance(key, unicode)):
-            raise ValueError(
-                "Unexpected key type '{}': expected str " "type".format(type(key))
-            )
+        if not isinstance(key, str):
+            raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
         # `get_metadata` expects unicode
-        key = ustring(key)
+        key = libmetadata.ustring(key)
         v = libmetadata.get_metadata(self.array, key)
 
         if v is None:

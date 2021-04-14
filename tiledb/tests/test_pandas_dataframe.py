@@ -1,10 +1,7 @@
-from __future__ import absolute_import
-
 import pytest
 
 pd = pytest.importorskip("pandas")
-
-import pandas._testing as tm
+tm = pd._testing
 
 import copy
 import glob
@@ -13,7 +10,7 @@ import random
 from pathlib import Path
 
 import numpy as np
-from numpy.testing import assert_array_equal, temppath
+from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.dataframe_ import ColumnInfo
