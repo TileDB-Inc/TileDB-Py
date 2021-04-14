@@ -32,16 +32,15 @@
 
 import tiledb
 import numpy as np, pandas as pd
-import sys, os, tempfile, time, glob
+import os, tempfile, time, glob
 import multiprocessing
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from contextlib import contextmanager
+from concurrent.futures import ProcessPoolExecutor
 
 # helper functions to generate data
 from tiledb.tests.common import rand_datetime64_array, rand_utf8
 
 # are we running as a test
-in_test = hasattr(sys, "_called_from_test") or "IN_TEST" in os.environ
+in_test = "PYTEST_CURRENT_TEST" in os.environ
 
 
 def generate_csvs(csv_folder, count=50, min_length=1, max_length=109):
@@ -270,7 +269,6 @@ def df_from_csvs(path, **kwargs):
 def test_parallel_csv_ingestion():
     csv_path, array_path = example()
     import pandas._testing as tm
-    from numpy.testing import assert_array_equal, assert_array_almost_equal
 
     attr_types = {
         "column_int64": np.int64,
