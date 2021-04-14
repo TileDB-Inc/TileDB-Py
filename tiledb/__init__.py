@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import ctypes
 import os
 import sys
@@ -9,8 +7,6 @@ import sys
 # ---
 # try:
 #    from importlib.machinery import ExtensionFileLoader
-# except ImportError:
-#    pass  # Python 2
 # else:
 #    del ExtensionFileLoader.get_source
 # ---

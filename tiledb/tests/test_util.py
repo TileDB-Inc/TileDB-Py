@@ -1,14 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+import numpy as np
+from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb import *
 from tiledb.tests.common import DiskTestCase
-
-import numpy as np
-from numpy.testing import (
-    assert_array_equal,
-)
 
 
 class UtilTest(DiskTestCase):
@@ -22,14 +16,14 @@ class UtilTest(DiskTestCase):
             self.assertEqual(s.domain.dim(1).shape, (10,))
 
         with self.assertRaises(ValueError):
-            schema_like("", None)
+            tiledb.schema_like("", None)
 
-        schema = schema_like(arr, tile=1)
-        self.assertIsInstance(schema, ArraySchema)
+        schema = tiledb.schema_like(arr, tile=1)
+        self.assertIsInstance(schema, tiledb.ArraySchema)
         check_schema(self, schema)
 
         uri = self.path("empty_like")
-        T = empty_like(uri, arr)
+        T = tiledb.empty_like(uri, arr)
         check_schema(self, T.schema)
         self.assertEqual(T.shape, arr.shape)
         self.assertEqual(T.dtype, arr.dtype)
@@ -42,18 +36,18 @@ class UtilTest(DiskTestCase):
                 self.dtype = dtype
 
         fake = FakeArray((3, 3), np.int16)
-        schema2 = empty_like(self.path("fake_like"), fake)
-        self.assertIsInstance(schema2, Array)
+        schema2 = tiledb.empty_like(self.path("fake_like"), fake)
+        self.assertIsInstance(schema2, tiledb.Array)
         self.assertEqual(schema2.shape, fake.shape)
         self.assertEqual(schema2.dtype, fake.dtype)
         self.assertEqual(schema2.ndim, fake.ndim)
 
         # test passing shape and dtype directly
-        schema3 = schema_like(shape=(4, 4), dtype=np.float32)
-        self.assertIsInstance(schema3, ArraySchema)
+        schema3 = tiledb.schema_like(shape=(4, 4), dtype=np.float32)
+        self.assertIsInstance(schema3, tiledb.ArraySchema)
         self.assertEqual(schema3.attr(0).dtype, np.float32)
         self.assertEqual(schema3.domain.dim(0).tile, 4)
-        schema3 = schema_like(shape=(4, 4), dtype=np.float32, tile=1)
+        schema3 = tiledb.schema_like(shape=(4, 4), dtype=np.float32, tile=1)
         self.assertEqual(schema3.domain.dim(0).tile, 1)
 
     def test_open(self):

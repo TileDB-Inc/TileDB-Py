@@ -1,16 +1,16 @@
+import itertools
+
+import numpy as np
 import pytest
 
 import tiledb
 from tiledb import _fragment
 from tiledb.tests.common import DiskTestCase
 
-import itertools
-import numpy as np
-
 
 class FragmentInfoTest(DiskTestCase):
     def setUp(self):
-        super(FragmentInfoTest, self).setUp()
+        super().setUp()
         if not tiledb.libtiledb.version() >= (2, 2):
             pytest.skip("Only run FragmentInfo test with TileDB>=2.2")
 

@@ -1,12 +1,21 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import absolute_import
-
-import sys, os, io, re, platform, contextlib
-import unittest, random, warnings
-import pytest
+import gc
+import io
+import os
+import pickle
+import random
+import re
+import shutil
+import subprocess
+import sys
+import time
+import unittest
+import warnings
+from collections import OrderedDict
+from contextlib import redirect_stdout
 
 import numpy as np
+import psutil
+import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
@@ -14,9 +23,9 @@ from tiledb.tests.common import (
     DiskTestCase,
     assert_subarrays_equal,
     assert_unordered_equal,
-    rand_utf8,
     rand_ascii,
     rand_ascii_bytes,
+    rand_utf8,
 )
 from tiledb.tests.fixtures import (
     sparse_cell_order,
@@ -30,14 +39,8 @@ def safe_dump(obj):
     # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
     #      functions...
     try:
-        import io
-        from contextlib import redirect_stdout
-
         with io.StringIO() as buf, redirect_stdout(buf):
             obj.dump()
-    except ImportError:
-        # fallback on python 2
-        obj.dump()
     except Exception as exc:
         print(
             "Exception occurred calling 'obj.dump()' with redirect.",
@@ -156,7 +159,7 @@ class TestConfig(DiskTestCase):
 
 class GroupTestCase(DiskTestCase):
     def setup_method(self):
-        super(GroupTestCase, self).setup_method()
+        super().setup_method()
 
         ctx = tiledb.Ctx()
         self.group1 = self.path("group1")
@@ -1180,8 +1183,6 @@ class DenseArrayTest(DiskTestCase):
                 assert_array_equal(T, R.multi_index[0:2][""])
 
     def test_open_with_timestamp(self):
-        import time
-
         A = np.zeros(3)
 
         ctx = tiledb.Ctx()
@@ -1350,8 +1351,6 @@ class DenseArrayTest(DiskTestCase):
         V2 = {"floats": V_floats, "ints": V_ints}
         with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
             T[:] = V
-
-        import tiledb.core as core
 
         with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
             R = T[:]
@@ -2511,30 +2510,29 @@ class TestSparseArray(DiskTestCase):
             except ValueError as e:
                 save_exc.append(e)
             exc = save_exc.pop()
-            if sys.version_info > (3, 3):
-                self.assertEqual(
-                    str(exc.__context__),
-                    "Cannot write a string value to non-string typed attribute 'strattr'!",
-                )
+            self.assertEqual(
+                str(exc.__context__),
+                "Cannot write a string value to non-string typed attribute 'strattr'!",
+            )
 
     def test_sparse_fixes_ch1560(self, sparse_cell_order):
-        from tiledb import Domain, Attr, Dim
-        from collections import OrderedDict
-        from numpy import array
-
         uri = self.path("sparse_fixes_ch1560")
         ctx = tiledb.Ctx({"sm.check_coord_dups": False})
         schema = tiledb.ArraySchema(
-            domain=Domain(
-                *[Dim(name="id", domain=(1, 5000), tile=25, dtype="int32", ctx=ctx)]
+            domain=tiledb.Domain(
+                *[
+                    tiledb.Dim(
+                        name="id", domain=(1, 5000), tile=25, dtype="int32", ctx=ctx
+                    )
+                ]
             ),
             attrs=[
-                Attr(name="a1", dtype="datetime64[s]", ctx=ctx),
-                Attr(name="a2", dtype="|S0", ctx=ctx),
-                Attr(name="a3", dtype="|S0", ctx=ctx),
-                Attr(name="a4", dtype="int32", ctx=ctx),
-                Attr(name="a5", dtype="int8", ctx=ctx),
-                Attr(name="a6", dtype="int32", ctx=ctx),
+                tiledb.Attr(name="a1", dtype="datetime64[s]", ctx=ctx),
+                tiledb.Attr(name="a2", dtype="|S0", ctx=ctx),
+                tiledb.Attr(name="a3", dtype="|S0", ctx=ctx),
+                tiledb.Attr(name="a4", dtype="int32", ctx=ctx),
+                tiledb.Attr(name="a5", dtype="int8", ctx=ctx),
+                tiledb.Attr(name="a6", dtype="int32", ctx=ctx),
             ],
             cell_order=sparse_cell_order,
             tile_order="row-major",
@@ -2547,7 +2545,7 @@ class TestSparseArray(DiskTestCase):
             [
                 (
                     "a1",
-                    array(
+                    np.array(
                         [
                             "2017-04-01T04:00:00",
                             "2019-10-01T00:00:00",
@@ -2559,9 +2557,9 @@ class TestSparseArray(DiskTestCase):
                 ),
                 ("a2", [b"Bus", b"The RIDE", b"The RIDE", b"The RIDE"]),
                 ("a3", [b"Bus", b"The RIDE", b"The RIDE", b"The RIDE"]),
-                ("a4", array([6911721, 138048, 138048, 138048], dtype="int32")),
-                ("a5", array([20, 23, 23, 23], dtype="int8")),
-                ("a6", array([345586, 6002, 6002, 6002], dtype="int32")),
+                ("a4", np.array([6911721, 138048, 138048, 138048], dtype="int32")),
+                ("a5", np.array([20, 23, 23, 23], dtype="int8")),
+                ("a6", np.array([345586, 6002, 6002, 6002], dtype="int32")),
             ]
         )
 
@@ -2761,8 +2759,6 @@ class TestSparseArray(DiskTestCase):
             A["a3", 0.25] = 4
 
         with tiledb.open(uri, "r") as A:
-            from collections import OrderedDict
-
             self.assertEqual(
                 A.unique_dim_values(),
                 OrderedDict(
@@ -3226,8 +3222,6 @@ class PickleTest(DiskTestCase):
     # note that the current pickling is by URI and attributes (it is
     #     not, and likely should not be, a way to serialize array data)
     def test_pickle_roundtrip(self):
-        import io, pickle
-
         ctx = tiledb.Ctx()
         uri = self.path("foo")
         with tiledb.DenseArray.from_numpy(uri, np.random.rand(5), ctx=ctx) as T:
@@ -3245,8 +3239,6 @@ class PickleTest(DiskTestCase):
                     assert_array_equal(V, V2)
 
     def test_pickle_with_config(self):
-        import io, pickle
-
         opts = dict()
         opts["vfs.s3.region"] = "kuyper-belt-1"
         opts["vfs.max_parallel_ops"] = 1
@@ -3273,8 +3265,6 @@ class PickleTest(DiskTestCase):
 
 class ArrayViewTest(DiskTestCase):
     def test_view_multiattr(self):
-        import io, pickle
-
         ctx = tiledb.Ctx()
         uri = self.path("foo_multiattr")
         dom = tiledb.Domain(
@@ -3643,8 +3633,6 @@ class TestVFS(DiskTestCase):
             self.assertEqual(txtio.readlines(), lines)
 
     def test_ls(self):
-        import os
-
         basepath = self.path("test_vfs_ls")
         os.mkdir(basepath)
         for id in (1, 2, 3):
@@ -3664,8 +3652,6 @@ class TestVFS(DiskTestCase):
         )
 
     def test_dir_size(self):
-        import os
-
         vfs = tiledb.VFS(ctx=tiledb.Ctx())
 
         path = self.path("test_vfs_dir_size")
@@ -3759,7 +3745,6 @@ class RegTests(DiskTestCase):
         # fix up the array the override schema
         with open(os.path.join(path, "__array_schema.tdb"), "wb") as f:
             f.write(schema_data)
-        import shutil
 
         shutil.move(
             os.path.join(fragment_path, "_attr_.tdb"),
@@ -3782,8 +3767,6 @@ class MemoryTest(DiskTestCase):
     # https://github.com/TileDB-Inc/TileDB-Py/issues/150
     @staticmethod
     def use_many_buffers(path):
-        import psutil, os
-
         # https://stackoverflow.com/questions/938733/total-memory-used-by-python-process
         process = psutil.Process(os.getpid())
 
@@ -3822,9 +3805,6 @@ class MemoryTest(DiskTestCase):
         return initial
 
     def test_memory_cleanup(self):
-        import tiledb, numpy as np
-        import psutil, os
-
         # run function which reads 100x from a 40MB test array
         # TODO: RSS is too loose to do this end-to-end, so should use instrumentation.
         print("Starting TileDB-Py memory test:")
@@ -3834,23 +3814,12 @@ class MemoryTest(DiskTestCase):
         final = process.memory_info().rss
         print("  final RSS: {}".format(round(final / (10 ** 6)), 2))
 
-        import gc
-
         gc.collect()
 
         final_gc = process.memory_info().rss
         print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
 
         self.assertTrue(final < (2 * initial))
-
-
-has_psutil = False
-try:
-    import psutil
-
-    has_psutil = True
-except ImportError:
-    pass
 
 
 class TestHighlevel(DiskTestCase):
@@ -3884,10 +3853,7 @@ class TestHighlevel(DiskTestCase):
             # https://github.com/TileDB-Inc/TileDB-Py/issues/277
             tiledb.open(uri, "r", attr="the-missing-attr")
 
-    @pytest.mark.skipif(not has_psutil, reason="Thread cleanup test requires psutil")
     def test_ctx_thread_cleanup(self):
-        import warnings
-
         # This test checks that contexts are destroyed correctly.
         # It creates new contexts repeatedly, in-process, and
         # checks that the total number of threads stays stable.
@@ -3931,8 +3897,6 @@ class TestHighlevel(DiskTestCase):
 # init is correct. Necessary because multiprocess.get_context is only available in Python 3.4+,
 # and the multiprocessing method may be set to fork by other tests (e.g. dask).
 def init_test_wrapper(cfg=None):
-    import subprocess, os
-
     python_exe = sys.executable
     cmd = "from test_libtiledb import *; init_test_helper({})".format(cfg)
     test_path = os.path.dirname(os.path.abspath(__file__))
@@ -3942,8 +3906,6 @@ def init_test_wrapper(cfg=None):
 
 
 def init_test_helper(cfg=None):
-    import tiledb
-
     tiledb.libtiledb.initialize_ctx(cfg)
     num_tbb_threads = tiledb.default_ctx().config()["sm.num_tbb_threads"]
     print(int(num_tbb_threads))

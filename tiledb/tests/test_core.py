@@ -1,11 +1,15 @@
-import unittest, os, sys, copy, random
+import copy
+import os
+import random
+import sys
+import unittest
+
+import numpy as np
+from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb import TileDBError, core
 from tiledb.tests.common import DiskTestCase, rand_ascii
-
-import numpy as np
-from numpy.testing import assert_array_equal
 
 
 class CoreCCTest(DiskTestCase):
@@ -38,19 +42,17 @@ class CoreCCTest(DiskTestCase):
             with self.assertRaises(TileDBError):
                 q.set_ranges([[(3, "a")]])
 
-            if sys.hexversion >= 0x3000000:
-                # assertRaisesRegex is not available in 2.7
-                with self.assertRaisesRegex(
-                    TileDBError,
-                    "Failed to cast dim range '\\(1.2344, 5.6789\\)' to dim type UINT64.*$",
-                ):
-                    q.set_ranges([[(1.2344, 5.6789)]])
+            with self.assertRaisesRegex(
+                TileDBError,
+                "Failed to cast dim range '\\(1.2344, 5.6789\\)' to dim type UINT64.*$",
+            ):
+                q.set_ranges([[(1.2344, 5.6789)]])
 
-                with self.assertRaisesRegex(
-                    TileDBError,
-                    "Failed to cast dim range '\\('aa', 'bbbb'\\)' to dim type UINT64.*$",
-                ):
-                    q.set_ranges([[("aa", "bbbb")]])
+            with self.assertRaisesRegex(
+                TileDBError,
+                "Failed to cast dim range '\\('aa', 'bbbb'\\)' to dim type UINT64.*$",
+            ):
+                q.set_ranges([[("aa", "bbbb")]])
 
         with tiledb.open(uri) as a:
             q2 = core.PyQuery(ctx, a, ("",), (), 0, False)

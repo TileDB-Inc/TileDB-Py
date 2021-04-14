@@ -35,7 +35,7 @@ class ExamplesTest:
                 pytest.fail(ex.stderr, pytrace=False)
 
     @pytest.mark.skipif(
-        sys.platform == "win32" or sys.version_info < (3, 6),
+        sys.platform == "win32",
         reason="Some doctests are missing a clean-up step on windows",
     )
     @pytest.mark.parametrize(
