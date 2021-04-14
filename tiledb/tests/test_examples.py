@@ -1,11 +1,17 @@
-import os, sys, glob, unittest, tempfile, shutil, platform
+import glob
+import os
+import shutil
 import subprocess
+import sys
+import tempfile
+
+import pytest
 
 run_env = os.environ.copy()
 run_env.update({"IN_TEST": "1"})
 
 
-def run_checked(args):
+def run_checked(*args):
     # run example script
     # - in a separate process
     # - in tmpdir so we don't pollute the source tree
@@ -13,13 +19,15 @@ def run_checked(args):
     # - also remove the tmp tree, which can catch windows errors
 
     tmp = tempfile.mkdtemp()
-    cmd = [sys.executable] + args
     proc = subprocess.Popen(
-        cmd, cwd=tmp, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=run_env
+        [sys.executable, *args],
+        cwd=tmp,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        env=run_env,
     )
     out, err = proc.communicate()
     status = proc.returncode
-
     if status != 0:
         print("Call failed: {}".format(args))
         print("--- stdout:")
@@ -31,28 +39,23 @@ def run_checked(args):
     shutil.rmtree(tmp)
 
 
-class ExamplesTest(unittest.TestCase):
+class ExamplesTest:
     """Test runnability of scripts in examples/"""
 
-    def test_examples(self):
-        # construct the abspath to the examples directory
-        examples_path = os.path.abspath(
-            os.path.join(os.path.split(__file__)[0], "../../examples")
-        )
-        for ex in glob.glob(examples_path + "/*.py"):
-            args = [ex]
-            run_checked(args)
+    PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 
-    # TODO some of the doctests are missing a clean-up step on windows
-    @unittest.skipIf(platform.system() == "Windows", "")
-    def test_docs(self):
-        if sys.version_info >= (3, 6):
-            doctest_args = [
-                "-m",
-                "doctest",
-                "-o",
-                "NORMALIZE_WHITESPACE",
-                "-f",
-                os.path.abspath(os.path.join(__file__, "../../", "libtiledb.pyx")),
-            ]
-            run_checked(doctest_args)
+    @pytest.mark.parametrize(
+        "path", glob.glob(os.path.join(PROJECT_DIR, "examples", "*.py"))
+    )
+    def test_examples(self, path):
+        run_checked(path)
+
+    @pytest.mark.skipif(
+        sys.platform == "win32" or sys.version_info < (3, 6),
+        reason="Some doctests are missing a clean-up step on windows",
+    )
+    @pytest.mark.parametrize(
+        "path", [os.path.join(PROJECT_DIR, "tiledb", "libtiledb.pyx")]
+    )
+    def test_docs(self, path):
+        run_checked("-m", "doctest", "-o", "NORMALIZE_WHITESPACE", "-f", path)
