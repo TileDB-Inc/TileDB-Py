@@ -1,43 +1,11 @@
 import doctest
 import glob
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 
 import pytest
-
-run_env = os.environ.copy()
-run_env.update({"IN_TEST": "1"})
-
-
-def run_checked(*args):
-    # run example script
-    # - in a separate process
-    # - in tmpdir so we don't pollute the source tree
-    # - with exit status checking (should fail tests if example fails)
-    # - also remove the tmp tree, which can catch windows errors
-
-    tmp = tempfile.mkdtemp()
-    proc = subprocess.Popen(
-        [sys.executable, *args],
-        cwd=tmp,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        env=run_env,
-    )
-    out, err = proc.communicate()
-    status = proc.returncode
-    if status != 0:
-        print("Call failed: {}".format(args))
-        print("--- stdout:")
-        print(out.decode())
-        print("--- stderr:")
-        print(err.decode())
-        sys.exit(1)
-
-    shutil.rmtree(tmp)
 
 
 class ExamplesTest:
@@ -49,7 +17,22 @@ class ExamplesTest:
         "path", glob.glob(os.path.join(PROJECT_DIR, "examples", "*.py"))
     )
     def test_examples(self, path):
-        run_checked(path)
+        # run example script
+        # - in a separate process
+        # - in tmpdir so we don't pollute the source tree
+        # - with exit status checking (should fail tests if example fails)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
+                subprocess.run(
+                    [sys.executable, path],
+                    cwd=tmpdir,
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    encoding="utf8",
+                )
+            except subprocess.CalledProcessError as ex:
+                pytest.fail(ex.stderr, pytrace=False)
 
     @pytest.mark.skipif(
         sys.platform == "win32" or sys.version_info < (3, 6),

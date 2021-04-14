@@ -55,7 +55,7 @@ jobs:
       run: |
         set -xeo pipefail
 
-        python -m unittest tiledb.tests.all.suite_test
+        pytest -v
 
         # Test wheel build, install, and run
         python setup.py bdist_wheel
