@@ -233,21 +233,16 @@ def dim_for_column(
     dtype = dim_info.dtype
 
     if full_domain:
-        if not dim_info.dtype in (np.bytes_, np.unicode_):
+        if dim_info.dtype not in (np.bytes_, np.unicode_):
             # Use the full type domain, deferring to the constructor
-            (dtype_min, dtype_max) = tiledb.libtiledb.dtype_range(dim_info.dtype)
+            dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dim_info.dtype)
 
             dim_max = dtype_max
             if dtype.kind == "M":
                 date_unit = np.datetime_data(dtype)[0]
                 dim_min = np.datetime64(dtype_min + 1, date_unit)
                 tile_max = np.iinfo(np.uint64).max - tile
-
-                # modular arithmetic gives misleading overflow warning.
-                with np.errstate(over="ignore"):
-                    dtype_range = np.uint64(dtype_max) - np.uint64(dtype_min)
-
-                if np.abs(dtype_range) > tile_max:
+                if np.uint64(dtype_max - dtype_min) > tile_max:
                     dim_max = np.datetime64(dtype_max - tile, date_unit)
             elif dtype is np.int64:
                 dim_min = dtype_min + 1
@@ -256,7 +251,7 @@ def dim_for_column(
 
             if dtype.kind != "M" and np.issubdtype(dtype, np.integer):
                 tile_max = np.iinfo(np.uint64).max - tile
-                if np.abs(np.uint64(dtype_max) - np.uint64(dtype_min)) > tile_max:
+                if np.uint64(dtype_max - dtype_min) > tile_max:
                     dim_max = dtype_max - tile
         else:
             dim_min, dim_max = (None, None)
@@ -265,16 +260,15 @@ def dim_for_column(
         dim_min = np.min(col_values)
         dim_max = np.max(col_values)
 
-    if not dim_info.dtype in (np.bytes_, np.unicode_):
+    if dim_info.dtype not in (np.bytes_, np.unicode_):
         if np.issubdtype(dtype, np.integer) or dtype.kind == "M":
-            dim_range = np.uint64(np.abs(np.uint64(dim_max) - np.uint64(dim_min)))
-            # we can't make a tile larger than the dimension range
-            if dim_range < tile:
-                tile = dim_range
-            if tile < 1:
-                tile = 1
+            dim_range = np.uint64(dim_max - dim_min)
+            # we can't make a tile larger than the dimension range or lower than 1
+            tile = max(1, min(tile, dim_range))
         elif np.issubdtype(dtype, np.float64):
-            dim_range = dim_max - dim_min
+            # this difference can be inf
+            with np.errstate(over="ignore"):
+                dim_range = dim_max - dim_min
             if dim_range < tile:
                 tile = np.ceil(dim_range)
 

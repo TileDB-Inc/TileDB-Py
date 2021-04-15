@@ -107,7 +107,7 @@ private:
     output_p = data_buf_->data();
 
     // avoid one interpreter roundtrip
-    auto npstrencode = py::module::import("numpy").attr("str").attr("encode");
+    auto npstrencode = py::module::import("numpy").attr("str_").attr("encode");
 
     // return status
     int rc;
@@ -177,7 +177,7 @@ private:
 
     // avoid one interpreter roundtrip
     // auto npstrencode =
-    // py::module::import("numpy").attr("str").attr("encode");
+    // py::module::import("numpy").attr("str_").attr("encode");
 
     // TODO: ideally we would encode directly here without the intermediate
     // unicode object

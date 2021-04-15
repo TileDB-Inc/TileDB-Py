@@ -55,7 +55,7 @@ jobs:
       run: |
         set -xeo pipefail
 
-        pytest -v
+        pytest -Werror -Wdefault::pytest.PytestWarning -v
 
         # Test wheel build, install, and run
         python setup.py bdist_wheel

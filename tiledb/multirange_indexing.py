@@ -57,7 +57,7 @@ def mr_dense_result_shape(
     new_shape = []
     for i, subranges in enumerate(ranges):
         if subranges:
-            total_length = np.sum(abs(stop - start) + 1 for start, stop in subranges)
+            total_length = sum(abs(stop - start) + 1 for start, stop in subranges)
             new_shape.append(np.uint64(total_length))
         elif base_shape is not None:
             # empty range covers dimension
