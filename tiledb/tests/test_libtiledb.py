@@ -2398,7 +2398,7 @@ class TestSparseArray(DiskTestCase):
             # empty sparse varlen result
             res = T[1000]
             assert_array_equal(res[""], np.array("", dtype="S1"))
-            assert_array_equal(res["x"], np.array([], dtype=np.int))
+            assert_array_equal(res["x"], np.array([], dtype=np.int64))
 
     def test_sparse_unicode(self, sparse_cell_order):
         ctx = tiledb.Ctx()
@@ -2446,7 +2446,7 @@ class TestSparseArray(DiskTestCase):
             # empty sparse varlen result
             res = T[1000]
             assert_array_equal(res[""], np.array("", dtype="U1"))
-            assert_array_equal(res["x"], np.array([], dtype=np.int))
+            assert_array_equal(res["x"], np.array([], dtype=np.int64))
 
     def test_sparse_query(self, sparse_cell_order):
         uri = self.path("test_sparse_query")
@@ -2744,7 +2744,7 @@ class TestSparseArray(DiskTestCase):
     def test_sparse_get_unique_dim_values(self, sparse_cell_order):
         uri = self.path("get_non_empty_coords")
         dim1 = tiledb.Dim(name="dim1", domain=(None, None), tile=None, dtype=np.bytes_)
-        dim2 = tiledb.Dim(name="dim2", domain=(0, 1), tile=1, dtype=np.float)
+        dim2 = tiledb.Dim(name="dim2", domain=(0, 1), tile=1, dtype=np.float64)
         attr = tiledb.Attr(name="attr", dtype=np.float32)
         dom = tiledb.Domain(dim1, dim2)
         schema = tiledb.ArraySchema(

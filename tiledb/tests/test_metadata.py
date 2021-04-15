@@ -93,7 +93,7 @@ class MetadataTest(DiskTestCase):
                 self.assertEqual(tupleize(v), tupleize(test_vals[k]))
 
         # test a 1 MB blob
-        blob = np.random.rand(int((1024 ** 2) / 8)).tostring()
+        blob = np.random.rand(int((1024 ** 2) / 8)).tobytes()
         with tiledb.Array(path, "w") as A:
             A.meta["bigblob"] = blob
 

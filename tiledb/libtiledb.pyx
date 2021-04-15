@@ -2605,7 +2605,7 @@ cdef class Dim(object):
         cdef void* tile_size_ptr = NULL
         cdef np.dtype domain_dtype
 
-        if dtype == np.bytes_:
+        if dtype == np.dtype('S'):
             # Handle var-len domain type
             #  (currently only TILEDB_STRING_ASCII)
             # The dimension's domain is implicitly formed as
@@ -2868,8 +2868,8 @@ cdef class Dim(object):
         :rtype: tuple(numpy scalar, numpy scalar)
 
         """
-        if self.dtype == np.bytes_:
-            return (None, None)
+        if self.dtype == np.dtype('S'):
+            return None, None
         cdef const void* domain_ptr = NULL
         check_error(self.ctx,
                     tiledb_dimension_get_domain(self.ctx.ptr,
