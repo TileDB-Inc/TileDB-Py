@@ -133,20 +133,10 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
     raise NotImplementedError("unimplemented type")
 
 
-def put_metadata(Array array, key, value):
+cdef put_metadata(Array array, key, value):
     cdef:
-        tiledb_array_t* array_ptr = array.ptr
-        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
-        int rc = TILEDB_OK
-        bytes key_utf8
-        const char* key_ptr
-        tiledb_datatype_t ret_type
         tiledb_datatype_t ttype
         PackedBuffer packed_buf
-        const void* data_ptr
-
-    key_utf8 = key.encode('UTF-8')
-    key_ptr = PyBytes_AS_STRING(key_utf8)
 
     if isinstance(value, (bytes, str, tuple)) and len(value) == 0:
         # special case for empty values
@@ -162,60 +152,49 @@ def put_metadata(Array array, key, value):
         if len(packed_buf.data) < 1:
             raise ValueError("Unsupported zero-length metadata value")
 
-    cdef bytes data = packed_buf.data
-    cdef const unsigned char[:] data_view = data
-
-    if packed_buf.value_num == 0:
-        data_ptr = NULL
-    else:
+    cdef const unsigned char[:] data_view = packed_buf.data
+    cdef const void* data_ptr = NULL
+    if packed_buf.value_num > 0:
         data_ptr = <void*>&data_view[0]
 
-    rc = tiledb_array_put_metadata(
-            ctx_ptr,
-            array_ptr,
-            key_ptr,
-            packed_buf.tdbtype,
-            packed_buf.value_num,
-            data_ptr)
-
+    cdef int rc = tiledb_array_put_metadata(
+        array.ctx.ptr,
+        array.ptr,
+        PyBytes_AS_STRING(key.encode('UTF-8')),
+        packed_buf.tdbtype,
+        packed_buf.value_num,
+        data_ptr,
+    )
     if rc != TILEDB_OK:
-        _raise_ctx_err(ctx_ptr, rc)
+        _raise_ctx_err(array.ctx.ptr, rc)
 
-    return None
 
 cdef object get_metadata(array: Array, key: str):
     cdef:
-        tiledb_array_t* array_ptr = array.ptr
-        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
-        int32_t rc
-        object key_utf8
-        const char* key_ptr
-        uint32_t key_len
         tiledb_datatype_t value_type
         uint32_t value_num = 0
         const char* value = NULL
-        bint has_key
 
-    key_utf8 = key.encode('UTF-8')
-    key_ptr = <const char*>key_utf8
-
-    rc = tiledb_array_get_metadata(
-            ctx_ptr, array_ptr,
-            key_ptr,
-            &value_type, &value_num, <const void**>&value)
-
+    cdef bytes key_utf8 = key.encode('UTF-8')
+    cdef int32_t rc = tiledb_array_get_metadata(
+        array.ctx.ptr,
+        array.ptr,
+        <const char*>key_utf8,
+        &value_type,
+        &value_num,
+        <const void**>&value,
+    )
     if rc != TILEDB_OK:
-        _raise_ctx_err(ctx_ptr, rc)
+        _raise_ctx_err(array.ctx.ptr, rc)
 
     if value == NULL:
         if value_num == 1:
             # in this case, the key exists with empty value
             if value_type == TILEDB_CHAR:
                 return b''
-            elif value_type == TILEDB_STRING_UTF8:
+            if value_type == TILEDB_STRING_UTF8:
                 return u''
-            else:
-                return ()
+            return ()
         raise KeyError(key)
 
     return unpack_metadata_val(value_type, value_num, value)
@@ -239,24 +218,27 @@ cdef object load_metadata(Array array, unpack=True):
         tiledb_datatype_t value_type
         uint32_t value_num
         const char* value = NULL
-        object new_obj
 
-    rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
+    cdef int32_t rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
 
     if unpack:
-        ret_val = dict()
+        ret_val = {}
     else:
-        ret_val = list()
+        ret_val = []
 
     for i in range(metadata_num):
         rc = tiledb_array_get_metadata_from_index(
-            ctx_ptr, array_ptr,
+            ctx_ptr,
+            array_ptr,
             i,
-            &key_ptr, &key_len,
-            &value_type, &value_num, <const void**>&value)
-
+            &key_ptr,
+            &key_len,
+            &value_type,
+            &value_num,
+            <const void**>&value,
+        )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -266,7 +248,7 @@ cdef object load_metadata(Array array, unpack=True):
             ret_val.append(key)
         else:
             # in this case, the key might exist with empty value
-            if (value == NULL) and (value_num == 1):
+            if value == NULL and value_num == 1:
                    # in this case, the key exists with empty value
                    if value_type == TILEDB_CHAR:
                        unpacked_val = b''
@@ -430,7 +412,6 @@ cdef class Metadata(object):
                 key_ptr,
                 key_len,
                 NULL)
-
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -449,13 +430,10 @@ cdef class Metadata(object):
         cdef:
             tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
             tiledb_array_t* array_ptr = (<Array>self.array).ptr
-            const char* key_ptr
-            object key_utf8
-            int32_t rc
 
         key_utf8 = key.encode('UTF-8')
-        key_ptr = <const char*>key_utf8
-        rc = tiledb_array_delete_metadata(ctx_ptr, array_ptr, key_ptr)
+        cdef int32_t rc = tiledb_array_delete_metadata(ctx_ptr, array_ptr,
+                                                       <const char*>key_utf8)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -463,10 +441,9 @@ cdef class Metadata(object):
         cdef:
             tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
             tiledb_array_t* array_ptr = (<Array>self.array).ptr
-            int32_t rc
             uint64_t num
 
-        rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &num)
+        cdef int32_t rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &num)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -540,6 +517,5 @@ cdef class Metadata(object):
                 tiledb_type,
                 value_num,
                 data_ptr)
-
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
