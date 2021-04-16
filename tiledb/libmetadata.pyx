@@ -86,10 +86,13 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
         raise TileDBError("internal error: unexpected value_num==0")
 
     if value_type == TILEDB_STRING_UTF8:
-        return value_ptr[:value_num].decode('UTF-8')
+        return value_ptr[:value_num].decode('UTF-8')  if value_ptr != NULL else ''
 
     if value_type == TILEDB_CHAR:
-        return value_ptr[:value_num]
+        return value_ptr[:value_num] if value_ptr != NULL else b''
+
+    if value_ptr == NULL:
+        return ()
 
     cdef uint64_t itemsize
     if value_num > 1:
@@ -187,14 +190,7 @@ cdef object get_metadata(array: Array, key: str):
     if rc != TILEDB_OK:
         _raise_ctx_err(array.ctx.ptr, rc)
 
-    if value == NULL:
-        if value_num == 1:
-            # in this case, the key exists with empty value
-            if value_type == TILEDB_CHAR:
-                return b''
-            if value_type == TILEDB_STRING_UTF8:
-                return u''
-            return ()
+    if value == NULL and value_num != 1:
         raise KeyError(key)
 
     return unpack_metadata_val(value_type, value_num, value)
@@ -246,23 +242,10 @@ cdef object load_metadata(Array array, unpack=True):
 
         if not unpack:
             ret_val.append(key)
+        elif value != NULL or value_num == 1:
+            ret_val[key] = unpack_metadata_val(value_type, value_num, value)
         else:
-            # in this case, the key might exist with empty value
-            if value == NULL and value_num == 1:
-                   # in this case, the key exists with empty value
-                   if value_type == TILEDB_CHAR:
-                       unpacked_val = b''
-                   elif value_type == TILEDB_STRING_UTF8:
-                       unpacked_val = u''
-                   else:
-                       unpacked_val = ()
-            else:
-                unpacked_val = unpack_metadata_val(value_type, value_num, value)
-
-            if unpacked_val is None:
-                raise TileDBError("internal error: no unpackable value for ", key)
-
-            ret_val[key] = unpacked_val
+            raise KeyError(key)
 
     return ret_val
 
