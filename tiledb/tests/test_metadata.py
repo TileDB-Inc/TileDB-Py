@@ -67,9 +67,7 @@ class MetadataTest(DiskTestCase):
         }
 
         def tupleize(v):
-            if isinstance(v, list):
-                v = tuple(v)
-            return v
+            return tuple(v) if isinstance(v, list) else v
 
         with tiledb.Array(path, mode="w") as A:
             for k, v in test_vals.items():
@@ -79,18 +77,20 @@ class MetadataTest(DiskTestCase):
             for k, v in test_vals.items():
                 # metadata only has one iterable type: tuple, so we cannot
                 # perfectly round-trip the input type.
-
                 self.assertEqual(A.meta[k], tupleize(v))
 
-        # test dict-like functionality
-        with tiledb.Array(path) as A:
+            # test dict-like functionality
             self.assertSetEqual(set(A.meta.keys()), set(test_vals.keys()))
             self.assertFalse("gnokey" in A.meta)
             self.assertEqual(len(A.meta), len(test_vals))
 
+            self.assertSetEqual(
+                set(A.meta.values()), set(map(tupleize, test_vals.values()))
+            )
+
             for k, v in A.meta.items():
                 self.assertTrue(k in test_vals.keys())
-                self.assertEqual(tupleize(v), tupleize(test_vals[k]))
+                self.assertEqual(v, tupleize(test_vals[k]))
 
         # test a 1 MB blob
         blob = np.random.rand(int((1024 ** 2) / 8)).tobytes()

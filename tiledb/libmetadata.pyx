@@ -376,9 +376,13 @@ cdef class Metadata(object):
         return load_metadata(self.array, unpack=False)
 
     def values(self):
+        """
+        Return metadata values as list.
+
+        :return: List of values
+        """
         # TODO this should be an iterator
-        data = load_metadata(self.array, unpack=False)
-        return data.values()
+        return list(load_metadata(self.array, unpack=True).values())
 
     def pop(self, key, default=None):
         raise NotImplementedError("dict.pop requires read-write access to array")
