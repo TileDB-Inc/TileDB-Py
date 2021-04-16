@@ -187,14 +187,12 @@ cdef object get_metadata(array: Array, key: str):
     return unpack_metadata_val(value_type, value_num, value)
 
 
-cdef object load_metadata(Array array, unpack=True):
+def iter_metadata(Array array, bint values=False):
     """
-    Load array metadata dict or keys
+    Iterate over array metadata keys or (key, value) tuples
 
     :param array: tiledb_array_t
-    :param unpack: unpack the values into dictionary (True)
-
-    :return: dict(k: v) if unpack, else list
+    :param values: whether to yield just keys (False) or values too (True)
     """
     cdef:
         tiledb_ctx_t* ctx_ptr = array.ctx.ptr
@@ -209,11 +207,6 @@ cdef object load_metadata(Array array, unpack=True):
     cdef int32_t rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
-
-    if unpack:
-        ret_val = {}
-    else:
-        ret_val = []
 
     for i in range(metadata_num):
         rc = tiledb_array_get_metadata_from_index(
@@ -231,14 +224,12 @@ cdef object load_metadata(Array array, unpack=True):
 
         key = key_ptr[:key_len].decode('UTF-8')
 
-        if not unpack:
-            ret_val.append(key)
+        if not values:
+            yield key
         elif value != NULL or value_num == 1:
-            ret_val[key] = unpack_metadata_val(value_type, value_num, value)
+            yield key, unpack_metadata_val(value_type, value_num, value)
         else:
             raise KeyError(key)
-
-    return ret_val
 
 
 cdef class Metadata(object):
@@ -367,13 +358,16 @@ cdef class Metadata(object):
 
         return <int>num
 
+    def __iter__(self):
+        return iter_metadata(self.array)
+
     def keys(self):
         """
         Return metadata keys as list.
 
         :return: List of keys
         """
-        return load_metadata(self.array, unpack=False)
+        return list(self)
 
     def values(self):
         """
@@ -382,15 +376,14 @@ cdef class Metadata(object):
         :return: List of values
         """
         # TODO this should be an iterator
-        return list(load_metadata(self.array, unpack=True).values())
+        return [v for k, v in iter_metadata(self.array, values=True)]
 
     def pop(self, key, default=None):
         raise NotImplementedError("dict.pop requires read-write access to array")
 
     def items(self):
         # TODO this should be an iterator
-        data = load_metadata(self.array, unpack=True)
-        return tuple((k, data[k]) for k in data.keys())
+        return tuple(iter_metadata(self.array, values=True))
 
     def _set_numpy(self, key, np.ndarray arr, datatype = None):
         """
