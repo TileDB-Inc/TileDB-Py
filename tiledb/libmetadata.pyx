@@ -6,37 +6,31 @@ IF TILEDBPY_MODULAR:
 import weakref
 
 from cython.operator cimport dereference as deref
-from cpython.long cimport PyLong_AsLongLong
-from cpython.float cimport PyFloat_AsDouble
-from libc.string cimport memcpy
-from libcpp.memory cimport unique_ptr, make_unique
+from libcpp.memory cimport unique_ptr
 from libcpp.vector cimport vector
 from libcpp.limits cimport numeric_limits
 
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[vector[char]] move(unique_ptr[vector[char]])
-    #cdef unique_ptr[vector[char]] make_unique(vector[char])
 
 cdef class PackedBuffer:
     cdef bytes data
     cdef tiledb_datatype_t tdbtype
     cdef uint32_t value_num
 
-    def __init__(self, data,tdbtype,value_num):
+    def __init__(self, data, tdbtype, value_num):
         self.data = data
         self.tdbtype = tdbtype
         self.value_num = value_num
 
 cdef PackedBuffer pack_metadata_val(value):
-
-    cdef tiledb_datatype_t tiledb_type
-
-    if isinstance(value, (str, bytes, unicode)):
+    if isinstance(value, (str, bytes)):
         pass
     elif not isinstance(value, (list, tuple)):
         value = (value,)
 
     cdef:
+        tiledb_datatype_t tiledb_type
         char[:] char_ptr
         double[:] double_buf
         int64_t[:] int64_buf
@@ -49,9 +43,8 @@ cdef PackedBuffer pack_metadata_val(value):
         char[:] buf_view
         object value_item
 
-
     # NOTE: string types must not check val0: it is a char
-    if isinstance(value, unicode):
+    if isinstance(value, str):
         value = value.encode('UTF-8')
         tiledb_type = TILEDB_STRING_UTF8
     elif isinstance(value, bytes):
@@ -60,8 +53,6 @@ cdef PackedBuffer pack_metadata_val(value):
         val0 = value[0]
         if isinstance(val0, int):
             tiledb_type = TILEDB_INT64
-        elif isinstance(val0, long):
-            tiledb_type = TILEDB_INT64
         elif isinstance(val0, float):
             # Note: all python floats are doubles
             tiledb_type = TILEDB_FLOAT64
@@ -69,7 +60,7 @@ cdef PackedBuffer pack_metadata_val(value):
             # TODO support np.array as metadata with type tag
             raise ValueError("Unsupported type: numpy array")
         else:
-            raise ValueError("Unsupported item type '{}'".format(type(value)))
+            raise ValueError(f"Unsupported item type '{type(value)}'")
 
     value_len = len(value)
     itemsize = tiledb_datatype_size(tiledb_type)
@@ -81,7 +72,7 @@ cdef PackedBuffer pack_metadata_val(value):
         int64_ptr = <int64_t*>&buf_view[0]
         for value_item in value:
             # TODO ideally we would support numpy scalars here
-            if not isinstance(value_item, (int, long)):
+            if not isinstance(value_item, int):
                 raise TypeError(f"Inconsistent type in 'int' list ('{type(value_item)}')")
             int64_ptr[pack_idx] = int(value_item)
             pack_idx += 1
@@ -110,7 +101,6 @@ cdef PackedBuffer pack_metadata_val(value):
 cdef object unpack_metadata_val(tiledb_datatype_t value_type,
                                 uint32_t value_num,
                                 const char* value_ptr):
-
     cdef:
         double o_float64
         int64_t o_int64
@@ -173,36 +163,33 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
         raise NotImplementedError("unimplemented type")
 
 
-def put_metadata(Array array,
-                 key, value):
-
-    cdef tiledb_array_t* array_ptr = array.ptr
-    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
-
-    cdef int rc = TILEDB_OK
-    cdef bytes key_utf8
-    cdef const char* key_ptr
-    cdef tiledb_datatype_t ret_type
-    cdef tiledb_datatype_t ttype
-    cdef PackedBuffer packed_buf
-    cdef const void* data_ptr
+def put_metadata(Array array, key, value):
+    cdef:
+        tiledb_array_t* array_ptr = array.ptr
+        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
+        int rc = TILEDB_OK
+        bytes key_utf8
+        const char* key_ptr
+        tiledb_datatype_t ret_type
+        tiledb_datatype_t ttype
+        PackedBuffer packed_buf
+        const void* data_ptr
 
     key_utf8 = key.encode('UTF-8')
     key_ptr = PyBytes_AS_STRING(key_utf8)
 
-    if (isinstance(value, (bytes, unicode)) or isinstance(value, tuple))\
-            and len(value) == 0:
+    if isinstance(value, (bytes, str, tuple)) and len(value) == 0:
         # special case for empty values
         if isinstance(value, bytes):
             ttype = TILEDB_CHAR
-        elif isinstance(value, unicode):
+        elif isinstance(value, str):
             ttype = TILEDB_STRING_UTF8
         else:
             ttype = TILEDB_INT32
         packed_buf = PackedBuffer(b'', ttype, 0)
     else:
         packed_buf = pack_metadata_val(value)
-        if (len(packed_buf.data) < 1):
+        if len(packed_buf.data) < 1:
             raise ValueError("Unsupported zero-length metadata value")
 
     cdef bytes data = packed_buf.data
@@ -226,13 +213,10 @@ def put_metadata(Array array,
 
     return None
 
-cdef object get_metadata(array: Array,
-                         key: unicode):
-
-    cdef tiledb_array_t* array_ptr = array.ptr
-    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
-
+cdef object get_metadata(array: Array, key: str):
     cdef:
+        tiledb_array_t* array_ptr = array.ptr
+        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
         int32_t rc
         object key_utf8
         const char* key_ptr
@@ -253,7 +237,7 @@ cdef object get_metadata(array: Array,
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
 
-    if (value == NULL):
+    if value == NULL:
         if value_num == 1:
             # in this case, the key exists with empty value
             if value_type == TILEDB_CHAR:
@@ -271,29 +255,25 @@ cdef object load_metadata(Array array, unpack=True):
     """
     Load array metadata dict or keys
 
-    :param ctx: tiledb_ctx_t
     :param array: tiledb_array_t
     :param unpack: unpack the values into dictionary (True)
 
     :return: dict(k: v) if unpack, else list
     """
-
-    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
-    cdef tiledb_array_t* array_ptr = array.ptr
-    cdef uint64_t metadata_num
-
-    rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
-    if rc != TILEDB_OK:
-        _raise_ctx_err(ctx_ptr, rc)
-
     cdef:
+        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
+        tiledb_array_t* array_ptr = array.ptr
+        uint64_t metadata_num
         const char* key_ptr = NULL
         uint32_t key_len
         tiledb_datatype_t value_type
         uint32_t value_num
         const char* value = NULL
-    cdef:
         object new_obj
+
+    rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
+    if rc != TILEDB_OK:
+        _raise_ctx_err(ctx_ptr, rc)
 
     if unpack:
         ret_val = dict()
@@ -339,11 +319,7 @@ def len_metadata(Array array):
         int32_t rc
         uint64_t num
 
-    rc = tiledb_array_get_metadata_num(
-            array.ctx.ptr,
-            array.ptr,
-            &num)
-
+    rc = tiledb_array_get_metadata_num(array.ctx.ptr, array.ptr, &num)
     if rc != TILEDB_OK:
         _raise_ctx_err(array.ctx.ptr, rc)
 
@@ -365,37 +341,34 @@ def del_metadata(Array array, key):
 
 
 def consolidate_metadata(Array array):
+    cdef:
+        uint32_t rc = 0
+        tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        void* key_ptr = NULL
+        uint32_t key_len = 0
+        bytes bkey
+        bytes buri = unicode_path(array.uri)
 
-        cdef uint32_t rc = 0
+    if array.key is not None:
+        if isinstance(array.key, str):
+            bkey = array.key.encode('ascii')
+        else:
+            bkey = bytes(array.key)
+        key_type = TILEDB_AES_256_GCM
+        key_ptr = <void *> PyBytes_AS_STRING(bkey)
+        #TODO: unsafe cast here ssize_t -> uint64_t
+        key_len = <uint32_t> PyBytes_GET_SIZE(bkey)
 
-        cdef:
-            tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-            void* key_ptr = NULL
-            uint32_t key_len = 0
+    rc = tiledb_array_consolidate_metadata_with_key(
+            array.ctx.ptr,
+            buri,
+            key_type,
+            key_ptr,
+            key_len,
+            NULL)
 
-        cdef bytes bkey
-        cdef bytes buri = unicode_path(array.uri)
-
-        if array.key is not None:
-            if isinstance(array.key, str):
-                bkey = array.key.encode('ascii')
-            else:
-                bkey = bytes(array.key)
-            key_type = TILEDB_AES_256_GCM
-            key_ptr = <void *> PyBytes_AS_STRING(bkey)
-            #TODO: unsafe cast here ssize_t -> uint64_t
-            key_len = <uint32_t> PyBytes_GET_SIZE(bkey)
-
-        rc = tiledb_array_consolidate_metadata_with_key(
-                array.ctx.ptr,
-                buri,
-                key_type,
-                key_ptr,
-                key_len,
-                NULL)
-
-        if rc != TILEDB_OK:
-            _raise_ctx_err(array.ctx.ptr, rc)
+    if rc != TILEDB_OK:
+        _raise_ctx_err(array.ctx.ptr, rc)
 
 
 cdef class Metadata(object):
@@ -416,9 +389,8 @@ cdef class Metadata(object):
         :param value: corresponding value
         :return: None
         """
-        if not (isinstance(key, str) or isinstance(key, unicode)):
-            raise ValueError("Unexpected key type '{}': expected str "
-                             "type".format(type(key)))
+        if not isinstance(key, str):
+            raise ValueError(f"Unexpected key type '{type(key)}': expected str")
 
         put_metadata(self.array, key, value)
 
@@ -428,16 +400,15 @@ cdef class Metadata(object):
         :param key:
         :return:
         """
-        if not (isinstance(key, str) or isinstance(key, unicode)):
-            raise ValueError("Unexpected key type '{}': expected str "
-                             "type".format(type(key)))
+        if not isinstance(key, str):
+            raise ValueError(f"Unexpected key type '{type(key)}': expected str")
 
-        # `get_metadata` expects unicode
+        # `get_metadata` expects str
         key = ustring(key)
         v = get_metadata(self.array, key)
 
         if v is None:
-            raise TileDBError("Failed to unpack value for key: '{}'".format(key))
+            raise TileDBError(f"Failed to unpack value for key: '{key}'")
 
         return v
 
@@ -449,13 +420,11 @@ cdef class Metadata(object):
         :param key: Target key to check against self.
         :return:
         """
-
         try:
             self[key]
+            return True
         except KeyError:
             return False
-
-        return True
 
     def consolidate(self):
         """
@@ -463,19 +432,17 @@ cdef class Metadata(object):
 
         :return:
         """
-
         # TODO: ensure that the array is not x-locked?
-
-        cdef uint32_t rc = 0
-        cdef tiledb_ctx_t* ctx_ptr = (<Array?>self.array).ctx.ptr
         cdef:
+            uint32_t rc = 0
+            tiledb_ctx_t* ctx_ptr = (<Array?> self.array).ctx.ptr
             tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
             void* key_ptr = NULL
             uint32_t key_len = 0
-        cdef bytes bkey
+            bytes bkey
+            bytes buri = unicode_path(self.array.uri)
+            str key = (<Array?>self.array).key
 
-        cdef bytes buri = unicode_path(self.array.uri)
-        cdef unicode key = (<Array?>self.array).key
         if key is not None:
             if isinstance(key, str):
                 bkey = key.encode('ascii')
@@ -509,28 +476,27 @@ cdef class Metadata(object):
         :param key:
         :return:
         """
-        cdef tiledb_ctx_t*  ctx_ptr = (<Array>self.array).ctx.ptr
-        cdef tiledb_array_t*  array_ptr = (<Array>self.array).ptr
-        cdef const char* key_ptr
-        cdef object key_utf8
-        cdef int32_t rc
+        cdef:
+            tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
+            tiledb_array_t* array_ptr = (<Array>self.array).ptr
+            const char* key_ptr
+            object key_utf8
+            int32_t rc
 
         key_utf8 = key.encode('UTF-8')
         key_ptr = <const char*>key_utf8
-
         rc = tiledb_array_delete_metadata(ctx_ptr, array_ptr, key_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
     def __len__(self):
-        cdef tiledb_ctx_t*  ctx_ptr = (<Array>self.array).ctx.ptr
-        cdef tiledb_array_t*  array_ptr = (<Array>self.array).ptr
-        cdef int32_t rc
-        cdef uint64_t num
+        cdef:
+            tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
+            tiledb_array_t* array_ptr = (<Array>self.array).ptr
+            int32_t rc
+            uint64_t num
 
-        rc = tiledb_array_get_metadata_num(
-                ctx_ptr, array_ptr, &num)
-
+        rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &num)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -555,7 +521,7 @@ cdef class Metadata(object):
     def items(self):
         # TODO this should be an iterator
         data = load_metadata(self.array, unpack=True)
-        return tuple( (k, data[k]) for k in data.keys() )
+        return tuple((k, data[k]) for k in data.keys())
 
     def _set_numpy(self, key, np.ndarray arr, datatype = None):
         """
@@ -567,19 +533,17 @@ cdef class Metadata(object):
         :param arr: 1d NumPy ndarray
         :return:
         """
-        cdef tiledb_ctx_t*  ctx_ptr = (<Array>self.array).ctx.ptr
-        cdef tiledb_array_t*  array_ptr = (<Array>self.array).ptr
-
         cdef:
+            tiledb_ctx_t* ctx_ptr = (<Array> self.array).ctx.ptr
+            tiledb_array_t* array_ptr = (<Array> self.array).ptr
             int32_t rc = TILEDB_OK
             const char* key_ptr = NULL
             bytes key_utf8
             tiledb_datatype_t tiledb_type
             uint32_t value_num = 0
 
-        if not (isinstance(key, str) or isinstance(key, unicode)):
-            raise ValueError("Unexpected key type '{}': expected str "
-                             "type".format(type(key)))
+        if not isinstance(key, str):
+            raise ValueError(f"Unexpected key type '{type(key)}': expected str")
 
         if not arr.ndim == 1:
             raise ValueError("Expected 1d NumPy array")
