@@ -31,14 +31,18 @@ cdef PackedBuffer pack_metadata_val(value):
         value = value.encode('UTF-8')
         return PackedBuffer(value, TILEDB_STRING_UTF8, len(value))
 
+    if not isinstance(value, (list, tuple)):
+        value = (value,)
+
+    if not value:
+        # special case for empty values
+        return PackedBuffer(b'', TILEDB_INT32, 0)
+
     cdef:
         tiledb_datatype_t tiledb_type
         double* double_ptr
         int64_t* int64_ptr
         object value_item
-
-    if not isinstance(value, (list, tuple)):
-        value = (value,)
 
     val0 = value[0]
     if isinstance(val0, int):
@@ -137,26 +141,10 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
 
 
 cdef put_metadata(Array array, key, value):
-    cdef:
-        tiledb_datatype_t ttype
-        PackedBuffer packed_buf
-
-    if isinstance(value, (bytes, str, tuple)) and len(value) == 0:
-        # special case for empty values
-        if isinstance(value, bytes):
-            ttype = TILEDB_CHAR
-        elif isinstance(value, str):
-            ttype = TILEDB_STRING_UTF8
-        else:
-            ttype = TILEDB_INT32
-        packed_buf = PackedBuffer(b'', ttype, 0)
-    else:
-        packed_buf = pack_metadata_val(value)
-        if len(packed_buf.data) < 1:
-            raise ValueError("Unsupported zero-length metadata value")
-
+    cdef PackedBuffer packed_buf = pack_metadata_val(value)
     cdef const unsigned char[:] data_view = packed_buf.data
     cdef const void* data_ptr = NULL
+
     if packed_buf.value_num > 0:
         data_ptr = <void*>&data_view[0]
 
