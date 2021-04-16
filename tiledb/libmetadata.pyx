@@ -10,8 +10,10 @@ from libcpp.memory cimport unique_ptr
 from libcpp.vector cimport vector
 from libcpp.limits cimport numeric_limits
 
+
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[vector[char]] move(unique_ptr[vector[char]])
+
 
 cdef class PackedBuffer:
     cdef bytes data
@@ -22,6 +24,7 @@ cdef class PackedBuffer:
         self.data = data
         self.tdbtype = tdbtype
         self.value_num = value_num
+
 
 cdef PackedBuffer pack_metadata_val(value):
     if isinstance(value, bytes):
@@ -236,62 +239,6 @@ cdef object load_metadata(Array array, unpack=True):
             raise KeyError(key)
 
     return ret_val
-
-def len_metadata(Array array):
-    cdef:
-        int32_t rc
-        uint64_t num
-
-    rc = tiledb_array_get_metadata_num(array.ctx.ptr, array.ptr, &num)
-    if rc != TILEDB_OK:
-        _raise_ctx_err(array.ctx.ptr, rc)
-
-    return <int>num
-
-def del_metadata(Array array, key):
-    cdef:
-        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
-        const char* key_ptr
-        object key_utf8
-        int32_t rc
-
-    key_utf8 = key.encode('UTF-8')
-    key_ptr = <const char*>key_utf8
-
-    rc = tiledb_array_delete_metadata(array.ctx.ptr, array.ptr, key_ptr)
-    if rc != TILEDB_OK:
-        _raise_ctx_err(ctx_ptr, rc)
-
-
-def consolidate_metadata(Array array):
-    cdef:
-        uint32_t rc = 0
-        tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        void* key_ptr = NULL
-        uint32_t key_len = 0
-        bytes bkey
-        bytes buri = unicode_path(array.uri)
-
-    if array.key is not None:
-        if isinstance(array.key, str):
-            bkey = array.key.encode('ascii')
-        else:
-            bkey = bytes(array.key)
-        key_type = TILEDB_AES_256_GCM
-        key_ptr = <void *> PyBytes_AS_STRING(bkey)
-        #TODO: unsafe cast here ssize_t -> uint64_t
-        key_len = <uint32_t> PyBytes_GET_SIZE(bkey)
-
-    rc = tiledb_array_consolidate_metadata_with_key(
-            array.ctx.ptr,
-            buri,
-            key_type,
-            key_ptr,
-            key_len,
-            NULL)
-
-    if rc != TILEDB_OK:
-        _raise_ctx_err(array.ctx.ptr, rc)
 
 
 cdef class Metadata(object):
