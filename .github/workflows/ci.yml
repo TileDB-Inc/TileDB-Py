@@ -57,7 +57,7 @@ jobs:
 
         for i in {0..1000}
         do
-        pytest -k test_dataframe_query tiledb/tests/test_pandas_dataframe.py
+        pytest -k -v -s test_dataframe_query tiledb/tests/test_pandas_dataframe.py
         done
 
         #pytest -v -k test_dataframe_query
