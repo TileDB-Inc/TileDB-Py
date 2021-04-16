@@ -83,6 +83,7 @@ class MetadataTest(DiskTestCase):
             self.assertSetEqual(set(A.meta.keys()), set(test_vals.keys()))
             self.assertFalse("gnokey" in A.meta)
             self.assertEqual(len(A.meta), len(test_vals))
+            self.assertEqual(list(A.meta), A.meta.keys())
 
             self.assertSetEqual(
                 set(A.meta.values()), set(map(tupleize, test_vals.values()))
