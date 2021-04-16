@@ -24,61 +24,47 @@ cdef class PackedBuffer:
         self.value_num = value_num
 
 cdef PackedBuffer pack_metadata_val(value):
-    if isinstance(value, (str, bytes)):
-        pass
-    elif not isinstance(value, (list, tuple)):
-        value = (value,)
+    if isinstance(value, bytes):
+        return PackedBuffer(value, TILEDB_CHAR, len(value))
+
+    if isinstance(value, str):
+        value = value.encode('UTF-8')
+        return PackedBuffer(value, TILEDB_STRING_UTF8, len(value))
 
     cdef:
         tiledb_datatype_t tiledb_type
-        char[:] char_ptr
-        double[:] double_buf
-        int64_t[:] int64_buf
         double* double_ptr
         int64_t* int64_ptr
-        Py_ssize_t pack_idx = 0
-        Py_ssize_t value_len = 0
-        uint64_t itemsize = 0
-        bytearray data
-        char[:] buf_view
         object value_item
 
-    # NOTE: string types must not check val0: it is a char
-    if isinstance(value, str):
-        value = value.encode('UTF-8')
-        tiledb_type = TILEDB_STRING_UTF8
-    elif isinstance(value, bytes):
-        tiledb_type = TILEDB_CHAR
-    else:
-        val0 = value[0]
-        if isinstance(val0, int):
-            tiledb_type = TILEDB_INT64
-        elif isinstance(val0, float):
-            # Note: all python floats are doubles
-            tiledb_type = TILEDB_FLOAT64
-        elif isinstance(value, np.ndarray):
-            # TODO support np.array as metadata with type tag
-            raise ValueError("Unsupported type: numpy array")
-        else:
-            raise ValueError(f"Unsupported item type '{type(value)}'")
+    if not isinstance(value, (list, tuple)):
+        value = (value,)
 
-    value_len = len(value)
-    itemsize = tiledb_datatype_size(tiledb_type)
-    data = bytearray(itemsize * len(value))
-    pack_idx = 0
+    val0 = value[0]
+    if isinstance(val0, int):
+        tiledb_type = TILEDB_INT64
+    elif isinstance(val0, float):
+        tiledb_type = TILEDB_FLOAT64
+    elif isinstance(value, np.ndarray):
+        # TODO support np.array as metadata with type tag
+        raise ValueError("Unsupported type: numpy array")
+    else:
+        raise ValueError(f"Unsupported item type '{type(value)}'")
+
+    cdef bytearray data = bytearray(tiledb_datatype_size(tiledb_type) * len(value))
+    cdef char[:] buf_view = data
+    cdef Py_ssize_t pack_idx = 0
 
     if tiledb_type == TILEDB_INT64:
-        buf_view = data
         int64_ptr = <int64_t*>&buf_view[0]
         for value_item in value:
             # TODO ideally we would support numpy scalars here
             if not isinstance(value_item, int):
                 raise TypeError(f"Inconsistent type in 'int' list ('{type(value_item)}')")
-            int64_ptr[pack_idx] = int(value_item)
+            int64_ptr[pack_idx] = value_item
             pack_idx += 1
 
     elif tiledb_type == TILEDB_FLOAT64:
-        buf_view = data
         double_ptr = <double*>&buf_view[0]
         for value_item in value:
             # TODO ideally we would support numpy scalars here
@@ -87,80 +73,64 @@ cdef PackedBuffer pack_metadata_val(value):
             double_ptr[pack_idx] = value_item
             pack_idx += 1
 
-    elif tiledb_type == TILEDB_CHAR:
-        # already bytes
-        data = bytearray(value)
-    elif tiledb_type == TILEDB_STRING_UTF8:
-        # already bytes
-        data = bytearray(value)
     else:
         assert False, "internal error: unhandled type in pack routine!"
 
     return PackedBuffer(bytes(data), tiledb_type, len(value))
 
+
 cdef object unpack_metadata_val(tiledb_datatype_t value_type,
                                 uint32_t value_num,
                                 const char* value_ptr):
-    cdef:
-        double o_float64
-        int64_t o_int64
-
     if value_num == 0:
         raise TileDBError("internal error: unexpected value_num==0")
 
-    elif value_type == TILEDB_STRING_UTF8:
-        new_obj = value_ptr[:value_num].decode('UTF-8')
-        return new_obj
+    if value_type == TILEDB_STRING_UTF8:
+        return value_ptr[:value_num].decode('UTF-8')
 
-    elif value_type == TILEDB_CHAR:
-        new_obj = bytes(value_ptr[:value_num])
-        return new_obj
+    if value_type == TILEDB_CHAR:
+        return value_ptr[:value_num]
 
-    elif value_num > 1:
+    cdef uint64_t itemsize
+    if value_num > 1:
+        itemsize = tiledb_datatype_size(value_type)
+        unpacked = [None] * value_num
+        for i in range(value_num):
+            unpacked[i] = unpack_metadata_val(value_type, 1, value_ptr)
+            value_ptr += itemsize
+        return tuple(unpacked)
 
-        # unpack sequence
-        # should this return tuple instead of list?
-        new_obj = list()
-        for i in range(0, value_num):
-            item = unpack_metadata_val(value_type, 1, value_ptr)
-            new_obj.append(item)
-            value_ptr += tiledb_datatype_size(value_type)
-
-        new_obj = tuple(new_obj)
-        return new_obj
-
-    elif value_type == TILEDB_INT64:
+    if value_type == TILEDB_INT64:
         return deref(<int64_t*>value_ptr)
 
-    elif value_type == TILEDB_FLOAT64:
+    if value_type == TILEDB_FLOAT64:
         return deref(<double*>value_ptr)
 
-    elif value_type == TILEDB_FLOAT32:
+    if value_type == TILEDB_FLOAT32:
         return deref(<float*>value_ptr)
 
-    elif value_type == TILEDB_INT32:
+    if value_type == TILEDB_INT32:
         return deref(<int32_t*>value_ptr)
 
-    elif value_type == TILEDB_UINT32:
+    if value_type == TILEDB_UINT32:
         return deref(<uint32_t*>value_ptr)
 
-    elif value_type == TILEDB_UINT64:
+    if value_type == TILEDB_UINT64:
         return deref(<uint64_t*>value_ptr)
 
-    elif value_type == TILEDB_INT8:
+    if value_type == TILEDB_INT8:
         return deref(<int8_t*>value_ptr)
 
-    elif value_type == TILEDB_UINT8:
+    if value_type == TILEDB_UINT8:
         return deref(<uint8_t*>value_ptr)
 
-    elif value_type == TILEDB_INT16:
+    if value_type == TILEDB_INT16:
         return deref(<int16_t*>value_ptr)
 
-    elif value_type == TILEDB_UINT16:
+    if value_type == TILEDB_UINT16:
         return deref(<uint16_t*>value_ptr)
 
-    else:
-        raise NotImplementedError("unimplemented type")
+    raise NotImplementedError("unimplemented type")
 
 
 def put_metadata(Array array, key, value):
