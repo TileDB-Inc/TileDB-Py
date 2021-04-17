@@ -4,6 +4,7 @@ import time
 import tiledb
 import numpy as np
 from hypothesis import given, settings, strategies as st
+from hypothesis.extra import numpy as st_np
 
 from tiledb.tests.common import DiskTestCase, rand_utf8
 
@@ -24,11 +25,26 @@ st_metadata = st.fixed_dictionaries(
         "tuple_float": st.lists(st_float).map(tuple),
     }
 )
+st_ndarray = st_np.arrays(
+    dtype=st.one_of(
+        st_np.integer_dtypes(endianness="<"),
+        st_np.unsigned_integer_dtypes(endianness="<"),
+        st_np.floating_dtypes(endianness="<", sizes=(32, 64)),
+        st_np.byte_string_dtypes(max_len=1),
+        st_np.unicode_string_dtypes(endianness="<", max_len=1),
+        st_np.datetime64_dtypes(endianness="<"),
+    ),
+    shape=st_np.array_shapes(min_dims=0, max_dims=3, min_side=0, max_side=10),
+)
 
 
 class MetadataTest(DiskTestCase):
     def assert_equal_md_values(self, written_value, read_value):
-        if not isinstance(written_value, (list, tuple)):
+        if isinstance(written_value, np.ndarray):
+            self.assertIsInstance(read_value, np.ndarray)
+            self.assertEqual(read_value.dtype, written_value.dtype)
+            np.testing.assert_array_equal(read_value, written_value)
+        elif not isinstance(written_value, (list, tuple)):
             self.assertEqual(read_value, written_value)
         # we don't round-trip perfectly sequences
         elif len(written_value) == 1:
@@ -167,6 +183,53 @@ class MetadataTest(DiskTestCase):
         with tiledb.Array(path) as A:
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
+    @given(st_metadata, st_ndarray)
+    @settings(deadline=None)
+    def test_numpy(self, test_vals, ndarray):
+        test_vals["ndarray"] = ndarray
+
+        path = self.path()
+        with tiledb.from_numpy(path, np.ones((5,), np.float64)):
+            pass
+
+        with tiledb.Array(path, mode="w") as A:
+            A.meta.update(test_vals)
+
+        with tiledb.Array(path) as A:
+            self.assert_metadata_roundtrip(A.meta, test_vals)
+
+        # test resetting a key with a ndarray value to a non-ndarray value
+        with tiledb.Array(path, "w") as A:
+            A.meta["ndarray"] = 42
+            test_vals["ndarray"] = 42
+
+        with tiledb.Array(path) as A:
+            self.assert_metadata_roundtrip(A.meta, test_vals)
+
+        # test resetting a key with a non-ndarray value to a ndarray value
+        with tiledb.Array(path, "w") as A:
+            A.meta["bytes"] = ndarray
+            test_vals["bytes"] = ndarray
+
+        with tiledb.Array(path) as A:
+            self.assert_metadata_roundtrip(A.meta, test_vals)
+
+        # test del ndarray key
+        with tiledb.Array(path, "w") as A:
+            del A.meta["ndarray"]
+            del test_vals["ndarray"]
+
+        with tiledb.Array(path) as A:
+            self.assert_metadata_roundtrip(A.meta, test_vals)
+
+        # test update
+        with tiledb.Array(path, mode="w") as A:
+            test_vals.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
+            A.meta.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
+
+        with tiledb.Array(path) as A:
+            self.assert_metadata_roundtrip(A.meta, test_vals)
+
     def test_consecutive(self):
         ctx = tiledb.Ctx(
             {"sm.vacuum.mode": "array_meta", "sm.consolidation.mode": "array_meta"}
@@ -235,29 +298,3 @@ class MetadataTest(DiskTestCase):
                 key_int = randutf8s[i] + u"{}".format(randints[i])
                 self.assertEqual(A.meta[key_int], randints[i])
                 self.assertEqual(A.meta[randutf8s[i]], randutf8s[i])
-
-    def test_metadata_small_dtypes(self):
-        path = self.path("test_md_small_dtypes")
-
-        with tiledb.from_numpy(path, np.arange(1)) as A:
-            pass
-
-        test_vals = {
-            "np.int8": np.array((-1,), dtype=np.int8),
-            "np.uint8": np.array((2,), dtype=np.uint8),
-            "np.int16": np.array((-3,), dtype=np.int16),
-            "np.uint16": np.array((4,), dtype=np.uint16),
-            "np.int32": np.array((-5,), dtype=np.int32),
-            "np.uint32": np.array((6,), dtype=np.uint32),
-            "np.float32": np.array((-7.0,), dtype=np.float32),
-        }
-
-        with tiledb.Array(path, "w") as A:
-            for k, v in test_vals.items():
-                A.meta._set_numpy(k, v)
-
-        # note: the goal here is to test read-back of these datatypes,
-        #       which is currently done as int for all types
-        with tiledb.Array(path) as A:
-            for k, v in test_vals.items():
-                self.assertEqual(A.meta[k], int(v))

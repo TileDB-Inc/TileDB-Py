@@ -7,7 +7,15 @@ import weakref
 from collections.abc import MutableMapping
 
 from cython.operator cimport dereference as deref
-from libcpp.limits cimport numeric_limits
+
+
+_NP_DATA_PREFIX = "__np_flat_"
+_NP_SHAPE_PREFIX = "__np_shape_"
+
+
+cdef extern from "Python.h":
+    int PyBUF_READ
+    object PyMemoryView_FromMemory(char*, Py_ssize_t, int)
 
 
 cdef class PackedBuffer:
@@ -52,7 +60,6 @@ cdef PackedBuffer pack_metadata_val(value):
     if tiledb_type == TILEDB_INT64:
         int64_ptr = <int64_t*>&data_view[0]
         while pack_idx < value_num:
-            # TODO ideally we would support numpy scalars here
             value_item = value[pack_idx]
             if not isinstance(value_item, int):
                 raise TypeError(f"Mixed-type sequences are not supported: {value}")
@@ -61,7 +68,6 @@ cdef PackedBuffer pack_metadata_val(value):
     else:
         double_ptr = <double*>&data_view[0]
         while pack_idx < value_num:
-            # TODO ideally we would support numpy scalars here
             value_item = value[pack_idx]
             if not isinstance(value_item, float):
                 raise TypeError(f"Mixed-type sequences are not supported: {value}")
@@ -116,27 +122,77 @@ cdef object unpack_metadata_val(
     return unpacked[0] if value_num == 1 else tuple(unpacked)
 
 
-cdef put_metadata(Array array, key, value):
-    cdef PackedBuffer packed_buf = pack_metadata_val(value)
-    cdef const unsigned char[:] data_view = packed_buf.data
-    cdef const void* data_ptr = NULL
+cdef np.ndarray unpack_metadata_ndarray(
+        tiledb_datatype_t value_type, uint32_t value_num, const char* value_ptr
+    ):
+    cdef np.dtype dtype = np.dtype(_numpy_dtype(value_type))
+    if value_ptr == NULL:
+        return np.array((), dtype=dtype)
 
-    if packed_buf.value_num > 0:
-        data_ptr = <void*>&data_view[0]
+    # special case for TILEDB_STRING_UTF8: TileDB assumes size=1
+    if value_type != TILEDB_STRING_UTF8:
+        value_num *= dtype.itemsize
+
+    return np.frombuffer(PyMemoryView_FromMemory(<char*>value_ptr, value_num, PyBUF_READ),
+                         dtype=dtype).copy()
+
+
+cdef object unpack_metadata(
+        bint is_ndarray,
+        tiledb_datatype_t value_type,
+        uint32_t value_num,
+        const char * value_ptr
+    ):
+    if value_ptr == NULL and value_num != 1:
+        raise KeyError
+
+    if is_ndarray:
+        return unpack_metadata_ndarray(value_type, value_num, value_ptr)
+    else:
+        return unpack_metadata_val(value_type, value_num, value_ptr)
+
+
+cdef put_metadata(Array array, key, value):
+    cdef:
+        PackedBuffer packed_buf
+        tiledb_datatype_t tiledb_type
+        uint32_t value_num
+        cdef const unsigned char[:] data_view
+        cdef const void* data_ptr
+
+    if isinstance(value, np.ndarray):
+        if value.ndim != 1:
+            raise TypeError(f"Only 1D Numpy arrays can be stored as metadata")
+
+        tiledb_type, ncells = array_type_ncells(value.dtype)
+        if ncells != 1:
+            raise TypeError(f"Unsupported dtype '{value.dtype}'")
+
+        value_num = len(value)
+        # special case for TILEDB_STRING_UTF8: TileDB assumes size=1
+        if tiledb_type == TILEDB_STRING_UTF8:
+            value_num *= value.itemsize
+        data_ptr = np.PyArray_DATA(value)
+    else:
+        packed_buf = pack_metadata_val(value)
+        tiledb_type = packed_buf.tdbtype
+        value_num = packed_buf.value_num
+        data_view = packed_buf.data
+        data_ptr = &data_view[0] if value_num > 0 else NULL
 
     cdef int rc = tiledb_array_put_metadata(
         array.ctx.ptr,
         array.ptr,
         PyBytes_AS_STRING(key.encode('UTF-8')),
-        packed_buf.tdbtype,
-        packed_buf.value_num,
+        tiledb_type,
+        value_num,
         data_ptr,
     )
     if rc != TILEDB_OK:
         _raise_ctx_err(array.ctx.ptr, rc)
 
 
-cdef object get_metadata(Array array, key):
+cdef object get_metadata(Array array, key, is_ndarray=False):
     cdef:
         tiledb_datatype_t value_type
         uint32_t value_num = 0
@@ -154,10 +210,8 @@ cdef object get_metadata(Array array, key):
     if rc != TILEDB_OK:
         _raise_ctx_err(array.ctx.ptr, rc)
 
-    if value_ptr == NULL and value_num != 1:
-        raise KeyError(key)
+    return unpack_metadata(is_ndarray, value_type, value_num, value_ptr)
 
-    return unpack_metadata_val(value_type, value_num, value_ptr)
 
 def iter_metadata(Array array, keys_only):
     """
@@ -198,10 +252,10 @@ def iter_metadata(Array array, keys_only):
 
         if keys_only:
             yield key
-        elif value_ptr != NULL or value_num == 1:
-            yield key, unpack_metadata_val(value_type, value_num, value_ptr)
         else:
-            raise KeyError(key)
+            value = unpack_metadata(key.startswith(_NP_DATA_PREFIX),
+                                    value_type, value_num, value_ptr)
+            yield key, value
 
 
 cdef class Metadata:
@@ -215,28 +269,56 @@ cdef class Metadata:
         return self.array_ref()
 
     def __setitem__(self, key, value):
-        """
-        Implementation of [key] <- val (dict item assignment)
-
-        :param key: key to set
-        :param value: corresponding value
-        :return: None
-        """
         if not isinstance(key, str):
             raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
-        put_metadata(self.array, key, value)
+        # ensure previous key(s) are deleted (e.g. in case of replacing a
+        # non-numpy value with a numpy value or vice versa)
+        del self[key]
+
+        if isinstance(value, np.ndarray):
+            flat_value = value.ravel()
+            put_metadata(self.array, _NP_DATA_PREFIX + key, flat_value)
+            if value.shape != flat_value.shape:
+                put_metadata(self.array, _NP_SHAPE_PREFIX + key, value.shape)
+        else:
+            put_metadata(self.array, key, value)
 
     def __getitem__(self, key):
-        """
-        Implementation of [key] -> val (dict item retrieval)
-        :param key:
-        :return:
-        """
         if not isinstance(key, str):
             raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
-        return get_metadata(self.array, key)
+        array = self.array
+        try:
+            return get_metadata(array, key)
+        except KeyError as ex:
+            try:
+                np_array = get_metadata(array, _NP_DATA_PREFIX + key, is_ndarray=True)
+            except KeyError:
+                raise KeyError(key) from None
+
+            try:
+                shape = get_metadata(array, _NP_SHAPE_PREFIX + key)
+            except KeyError:
+                return np_array
+            else:
+                return np_array.reshape(shape)
+
+    def __delitem__(self, key):
+        if not isinstance(key, str):
+            raise TypeError(f"Unexpected key type '{type(key)}': expected str")
+
+        cdef:
+            tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
+            tiledb_array_t* array_ptr = (<Array>self.array).ptr
+            int32_t rc
+
+        # key may be stored as is or it may be prefixed (for numpy values)
+        # we don't know this here so delete all potential internal keys
+        for k in key, _NP_DATA_PREFIX + key, _NP_SHAPE_PREFIX + key:
+            rc = tiledb_array_delete_metadata(ctx_ptr, array_ptr, k.encode('UTF-8'))
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
 
     def __contains__(self, key):
         if not isinstance(key, str):
@@ -258,6 +340,10 @@ cdef class Metadata:
         )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+
+        # if key doesn't exist, check the _NP_DATA_PREFIX prefixed key
+        if not has_key and not key.startswith(_NP_DATA_PREFIX):
+            has_key = self.__contains__(_NP_DATA_PREFIX + key)
 
         return bool(has_key)
 
@@ -298,28 +384,6 @@ cdef class Metadata:
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
-    def __delitem__(self, key):
-        """
-        Remove key from metadata.
-
-        **Example:**
-
-        >>> # given A = tiledb.open(uri, ...)
-        >>> del A.meta['key']
-
-        :param key:
-        :return:
-        """
-        cdef:
-            tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
-            tiledb_array_t* array_ptr = (<Array>self.array).ptr
-
-        key_utf8 = key.encode('UTF-8')
-        cdef int32_t rc = tiledb_array_delete_metadata(ctx_ptr, array_ptr,
-                                                       <const char*>key_utf8)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-
     get = MutableMapping.get
     update = MutableMapping.update
 
@@ -345,10 +409,21 @@ cdef class Metadata:
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
-        return <int>num
+        # subtract the _NP_SHAPE_PREFIX prefixed keys
+        for key in iter_metadata(self.array, keys_only=True):
+            if key.startswith(_NP_SHAPE_PREFIX):
+                num -= 1
+
+        return num
 
     def __iter__(self):
-        return iter_metadata(self.array, keys_only=True)
+        np_data_prefix_len = len(_NP_DATA_PREFIX)
+        for key in iter_metadata(self.array, keys_only=True):
+            if key.startswith(_NP_DATA_PREFIX):
+                yield key[np_data_prefix_len:]
+            elif not key.startswith(_NP_SHAPE_PREFIX):
+                yield key
+            # else: ignore the shape keys
 
     def keys(self):
         """
@@ -365,59 +440,32 @@ cdef class Metadata:
 
         :return: List of values
         """
-        # TODO this should be an iterator
-        return [v for k, v in iter_metadata(self.array, keys_only=False)]
+        # TODO this should be an iterator/view
+        return [v for k, v in self._iteritems()]
 
     def items(self):
-        # TODO this should be an iterator
-        return tuple(iter_metadata(self.array, keys_only=False))
+        # TODO this should be an iterator/view
+        return tuple(self._iteritems())
 
-    def _set_numpy(self, key, np.ndarray arr, datatype = None):
-        """
-        Escape hatch to directly set meta key-value from a NumPy array.
-        Key type and array dimensionality are checked, but no other type-checking
-        is done. Not intended for routine use.
+    def _iteritems(self):
+        np_data_prefix_len = len(_NP_DATA_PREFIX)
+        np_shape_prefix_len = len(_NP_SHAPE_PREFIX)
+        ndarray_items = []
+        np_shape_map = {}
 
-        :param key: key
-        :param arr: 1d NumPy ndarray
-        :return:
-        """
-        cdef:
-            tiledb_ctx_t* ctx_ptr = (<Array> self.array).ctx.ptr
-            tiledb_array_t* array_ptr = (<Array> self.array).ptr
-            int32_t rc = TILEDB_OK
-            const char* key_ptr = NULL
-            bytes key_utf8
-            tiledb_datatype_t tiledb_type
-            uint32_t value_num = 0
+        # 1. yield all non-ndarray (key, value) pairs and keep track of
+        # the ndarray data and shape to assemble them later
+        for key, value in iter_metadata(self.array, keys_only=False):
+            if key.startswith(_NP_DATA_PREFIX):
+                ndarray_items.append((key[np_data_prefix_len:], value))
+            elif key.startswith(_NP_SHAPE_PREFIX):
+                np_shape_map[key[np_shape_prefix_len:]] = value
+            else:
+                yield key, value
 
-        if not isinstance(key, str):
-            raise ValueError(f"Unexpected key type '{type(key)}': expected str")
-
-        if not arr.ndim == 1:
-            raise ValueError("Expected 1d NumPy array")
-
-        if arr.nbytes > numeric_limits[uint32_t].max():
-            raise ValueError("Byte count exceeds capacity of uint32_t")
-
-        if datatype is None:
-            tiledb_type = dtype_to_tiledb(arr.dtype)
-            value_num = len(arr)
-        else:
-            tiledb_type = datatype
-            value_num = int(arr.nbytes / tiledb_datatype_size(tiledb_type))
-
-        key_utf8 = key.encode('UTF-8')
-        key_cstr = PyBytes_AS_STRING(key_utf8)
-
-        cdef const char* data_ptr = <const char*>np.PyArray_DATA(arr)
-
-        rc = tiledb_array_put_metadata(
-                ctx_ptr,
-                array_ptr,
-                key_cstr,
-                tiledb_type,
-                value_num,
-                data_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
+        # 2. yield all ndarray (key, value) pairs after reshaping (if necessary)
+        for key, value in ndarray_items:
+            shape = np_shape_map.get(key)
+            if shape is not None:
+                value = value.reshape(shape)
+            yield key, value
