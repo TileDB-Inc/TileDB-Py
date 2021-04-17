@@ -35,7 +35,7 @@ class MetadataTest(DiskTestCase):
         # test invalid input
         with tiledb.Array(path, "w") as A:
             # keys must be strings
-            with self.assertRaises(ValueError):
+            with self.assertRaises(TypeError):
                 A.meta[123] = 1
 
             # can't write an int > typemax(Int64)
@@ -51,8 +51,8 @@ class MetadataTest(DiskTestCase):
                 A.meta["mixed_list"] = (0, 3.1)
 
             # can't write objects
-            with self.assertRaises(ValueError):
-                A.meta["object"] = object
+            with self.assertRaises(TypeError):
+                A.meta["object"] = object()
 
         test_vals = {
             "int": 10,
