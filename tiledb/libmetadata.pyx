@@ -6,13 +6,7 @@ IF TILEDBPY_MODULAR:
 import weakref
 
 from cython.operator cimport dereference as deref
-from libcpp.memory cimport unique_ptr
-from libcpp.vector cimport vector
 from libcpp.limits cimport numeric_limits
-
-
-cdef extern from "<utility>" namespace "std" nogil:
-    cdef unique_ptr[vector[char]] move(unique_ptr[vector[char]])
 
 
 cdef class PackedBuffer:
@@ -41,56 +35,45 @@ cdef PackedBuffer pack_metadata_val(value):
         # special case for empty values
         return PackedBuffer(b'', TILEDB_INT32, 0)
 
-    cdef:
-        tiledb_datatype_t tiledb_type
-        double* double_ptr
-        int64_t* int64_ptr
-        object value_item
-
     val0 = value[0]
-    if isinstance(val0, int):
-        tiledb_type = TILEDB_INT64
-    elif isinstance(val0, float):
-        tiledb_type = TILEDB_FLOAT64
-    elif isinstance(value, np.ndarray):
-        # TODO support np.array as metadata with type tag
-        raise ValueError("Unsupported type: numpy array")
-    else:
-        raise ValueError(f"Unsupported item type '{type(value)}'")
+    if not isinstance(val0, (int, float)):
+        raise TypeError(f"Unsupported item type '{type(value)}'")
 
-    cdef bytearray data = bytearray(tiledb_datatype_size(tiledb_type) * len(value))
-    cdef char[:] buf_view = data
-    cdef Py_ssize_t pack_idx = 0
+    cdef:
+        uint32_t value_num = len(value)
+        tiledb_datatype_t tiledb_type = TILEDB_INT64 if isinstance(val0, int) else TILEDB_FLOAT64
+        bytearray data = bytearray(value_num * tiledb_datatype_size(tiledb_type))
+        char[:] data_view = data
+        Py_ssize_t pack_idx = 0
+        double * double_ptr
+        int64_t * int64_ptr
 
     if tiledb_type == TILEDB_INT64:
-        int64_ptr = <int64_t*>&buf_view[0]
-        for value_item in value:
+        int64_ptr = <int64_t*>&data_view[0]
+        while pack_idx < value_num:
             # TODO ideally we would support numpy scalars here
+            value_item = value[pack_idx]
             if not isinstance(value_item, int):
-                raise TypeError(f"Inconsistent type in 'int' list ('{type(value_item)}')")
+                raise TypeError(f"Mixed-type sequences are not supported: {value}")
             int64_ptr[pack_idx] = value_item
             pack_idx += 1
-
-    elif tiledb_type == TILEDB_FLOAT64:
-        double_ptr = <double*>&buf_view[0]
-        for value_item in value:
+    else:
+        double_ptr = <double*>&data_view[0]
+        while pack_idx < value_num:
             # TODO ideally we would support numpy scalars here
+            value_item = value[pack_idx]
             if not isinstance(value_item, float):
-                raise TypeError(f"Inconsistent type in 'float' list ('{type(value_item)}')")
+                raise TypeError(f"Mixed-type sequences are not supported: {value}")
             double_ptr[pack_idx] = value_item
             pack_idx += 1
 
-    else:
-        assert False, "internal error: unhandled type in pack routine!"
-
-    return PackedBuffer(bytes(data), tiledb_type, len(value))
+    return PackedBuffer(bytes(data), tiledb_type, value_num)
 
 
-cdef object unpack_metadata_val(tiledb_datatype_t value_type,
-                                uint32_t value_num,
-                                const char* value_ptr):
-    if value_num == 0:
-        raise TileDBError("internal error: unexpected value_num==0")
+cdef object unpack_metadata_val(
+        tiledb_datatype_t value_type, uint32_t value_num, const char* value_ptr
+    ):
+    assert value_num != 0, "internal error: unexpected value_num==0"
 
     if value_type == TILEDB_STRING_UTF8:
         return value_ptr[:value_num].decode('UTF-8')  if value_ptr != NULL else ''
@@ -140,7 +123,7 @@ cdef object unpack_metadata_val(tiledb_datatype_t value_type,
     if value_type == TILEDB_UINT16:
         return deref(<uint16_t*>value_ptr)
 
-    raise NotImplementedError("unimplemented type")
+    raise NotImplementedError(f"TileDB datatype '{value_type}' not supported")
 
 
 cdef put_metadata(Array array, key, value):
@@ -163,36 +146,35 @@ cdef put_metadata(Array array, key, value):
         _raise_ctx_err(array.ctx.ptr, rc)
 
 
-cdef object get_metadata(array: Array, key: str):
+cdef object get_metadata(Array array, key):
     cdef:
         tiledb_datatype_t value_type
         uint32_t value_num = 0
-        const char* value = NULL
+        const char* value_ptr = NULL
+        bytes key_utf8 = key.encode('UTF-8')
 
-    cdef bytes key_utf8 = key.encode('UTF-8')
     cdef int32_t rc = tiledb_array_get_metadata(
         array.ctx.ptr,
         array.ptr,
         <const char*>key_utf8,
         &value_type,
         &value_num,
-        <const void**>&value,
+        <const void**>&value_ptr,
     )
     if rc != TILEDB_OK:
         _raise_ctx_err(array.ctx.ptr, rc)
 
-    if value == NULL and value_num != 1:
+    if value_ptr == NULL and value_num != 1:
         raise KeyError(key)
 
-    return unpack_metadata_val(value_type, value_num, value)
+    return unpack_metadata_val(value_type, value_num, value_ptr)
 
-
-def iter_metadata(Array array, bint values=False):
+def iter_metadata(Array array, keys_only):
     """
     Iterate over array metadata keys or (key, value) tuples
 
     :param array: tiledb_array_t
-    :param values: whether to yield just keys (False) or values too (True)
+    :param keys_only: whether to yield just keys or values too
     """
     cdef:
         tiledb_ctx_t* ctx_ptr = array.ctx.ptr
@@ -202,7 +184,7 @@ def iter_metadata(Array array, bint values=False):
         uint32_t key_len
         tiledb_datatype_t value_type
         uint32_t value_num
-        const char* value = NULL
+        const char* value_ptr = NULL
 
     cdef int32_t rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
     if rc != TILEDB_OK:
@@ -217,17 +199,17 @@ def iter_metadata(Array array, bint values=False):
             &key_len,
             &value_type,
             &value_num,
-            <const void**>&value,
+            <const void**>&value_ptr,
         )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
         key = key_ptr[:key_len].decode('UTF-8')
 
-        if not values:
+        if keys_only:
             yield key
-        elif value != NULL or value_num == 1:
-            yield key, unpack_metadata_val(value_type, value_num, value)
+        elif value_ptr != NULL or value_num == 1:
+            yield key, unpack_metadata_val(value_type, value_num, value_ptr)
         else:
             raise KeyError(key)
 
@@ -251,7 +233,7 @@ cdef class Metadata(object):
         :return: None
         """
         if not isinstance(key, str):
-            raise ValueError(f"Unexpected key type '{type(key)}': expected str")
+            raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
         put_metadata(self.array, key, value)
 
@@ -262,16 +244,9 @@ cdef class Metadata(object):
         :return:
         """
         if not isinstance(key, str):
-            raise ValueError(f"Unexpected key type '{type(key)}': expected str")
+            raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
-        # `get_metadata` expects str
-        key = ustring(key)
-        v = get_metadata(self.array, key)
-
-        if v is None:
-            raise TileDBError(f"Failed to unpack value for key: '{key}'")
-
-        return v
+        return get_metadata(self.array, key)
 
     def __contains__(self, key):
         """
@@ -346,6 +321,9 @@ cdef class Metadata(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
+    def pop(self, key, default=None):
+        raise NotImplementedError("dict.pop requires read-write access to array")
+
     def __len__(self):
         cdef:
             tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
@@ -359,7 +337,7 @@ cdef class Metadata(object):
         return <int>num
 
     def __iter__(self):
-        return iter_metadata(self.array)
+        return iter_metadata(self.array, keys_only=True)
 
     def keys(self):
         """
@@ -367,6 +345,7 @@ cdef class Metadata(object):
 
         :return: List of keys
         """
+        # TODO this should be an iterator/view
         return list(self)
 
     def values(self):
@@ -376,14 +355,11 @@ cdef class Metadata(object):
         :return: List of values
         """
         # TODO this should be an iterator
-        return [v for k, v in iter_metadata(self.array, values=True)]
-
-    def pop(self, key, default=None):
-        raise NotImplementedError("dict.pop requires read-write access to array")
+        return [v for k, v in iter_metadata(self.array, keys_only=False)]
 
     def items(self):
         # TODO this should be an iterator
-        return tuple(iter_metadata(self.array, values=True))
+        return tuple(iter_metadata(self.array, keys_only=False))
 
     def _set_numpy(self, key, np.ndarray arr, datatype = None):
         """
