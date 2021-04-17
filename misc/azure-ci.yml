@@ -64,7 +64,7 @@ stages:
     - bash: |
         set -xeo pipefail
 
-        pytest -Werror -Wdefault::pytest.PytestWarning -v
+        pytest -v
 
         # Test wheel build, install, and run
         python setup.py bdist_wheel
