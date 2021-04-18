@@ -638,6 +638,13 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_array_t* array,
         const char* key)
 
+    int tiledb_array_has_metadata_key(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const char* key,
+        tiledb_datatype_t* value_type,
+        int32_t* has_key)
+
     int tiledb_array_get_metadata(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
