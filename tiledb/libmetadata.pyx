@@ -249,18 +249,27 @@ cdef class Metadata(object):
         return get_metadata(self.array, key)
 
     def __contains__(self, key):
-        """
-        Returns True if 'key' is found in metadata store.
-        Provides support for python 'in' syntax ('k in A.meta')
+        if not isinstance(key, str):
+            raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
-        :param key: Target key to check against self.
-        :return:
-        """
-        try:
-            self[key]
-            return True
-        except KeyError:
-            return False
+        cdef:
+            tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
+            tiledb_array_t* array_ptr = (<Array>self.array).ptr
+            bytes key_utf8 = key.encode('UTF-8')
+            tiledb_datatype_t value_type
+            int32_t has_key
+
+        cdef int32_t rc = tiledb_array_has_metadata_key(
+            ctx_ptr,
+            array_ptr,
+            <const char*>key_utf8,
+            &value_type,
+            &has_key,
+        )
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        return bool(has_key)
 
     def consolidate(self):
         """
