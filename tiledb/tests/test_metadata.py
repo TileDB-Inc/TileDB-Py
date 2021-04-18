@@ -1,25 +1,82 @@
-#%%
+import os
+import time
 
 import tiledb
-from tiledb.libtiledb import ustring
 import numpy as np
+from hypothesis import given, settings, strategies as st
 
-import unittest, os, time
-from tiledb.tests.common import *
+from tiledb.tests.common import DiskTestCase, rand_utf8
+
+
+MIN_INT = np.iinfo(np.int64).min
+MAX_INT = np.iinfo(np.int64).max
+st_int = st.integers(min_value=MIN_INT, max_value=MAX_INT)
+st_float = st.floats(allow_nan=False)
+st_metadata = st.fixed_dictionaries(
+    {
+        "int": st_int,
+        "double": st_float,
+        "bytes": st.binary(),
+        "str": st.text(),
+        "list_int": st.lists(st_int),
+        "tuple_int": st.lists(st_int).map(tuple),
+        "list_float": st.lists(st_float),
+        "tuple_float": st.lists(st_float).map(tuple),
+    }
+)
 
 
 class MetadataTest(DiskTestCase):
-    def test_metadata_basic(self):
-        path = self.path("test_md_basic")
+    def assert_equal_md_values(self, written_value, read_value):
+        if not isinstance(written_value, (list, tuple)):
+            self.assertEqual(read_value, written_value)
+        # we don't round-trip perfectly sequences
+        elif len(written_value) == 1:
+            # sequences of length 1 are read as a single scalar element
+            self.assertEqual(read_value, written_value[0])
+        else:
+            # sequences of length != 1 are read as tuples
+            self.assertEqual(read_value, tuple(written_value))
 
-        with tiledb.from_numpy(path, np.ones((5,), np.float64)) as A:
+    def assert_metadata_roundtrip(self, tdb_meta, dict_meta):
+        for k, v in dict_meta.items():
+            # test __contains__
+            self.assertTrue(k in tdb_meta)
+            # test __getitem__
+            self.assert_equal_md_values(v, tdb_meta[k])
+
+        # test __contains__, __getitem__ for non-key
+        non_key = str(object())
+        self.assertFalse(non_key in tdb_meta)
+        with self.assertRaises(KeyError):
+            tdb_meta[non_key]
+
+        # test __len__
+        self.assertEqual(len(tdb_meta), len(dict_meta))
+
+        # test __iter__() is consistent with keys()
+        self.assertEqual(list(tdb_meta), tdb_meta.keys())
+
+        # test keys()
+        self.assertSetEqual(set(tdb_meta.keys()), set(dict_meta.keys()))
+
+        # test values() and items()
+        read_values = tdb_meta.values()
+        read_items = tdb_meta.items()
+        self.assertEqual(len(read_values), len(read_items))
+        for (item_key, item_value), value in zip(read_items, read_values):
+            self.assertTrue(item_key in dict_meta)
+            self.assert_equal_md_values(dict_meta[item_key], item_value)
+            self.assert_equal_md_values(dict_meta[item_key], value)
+
+    def test_errors(self):
+        path = self.path("test_md_errors")
+        with tiledb.from_numpy(path, np.ones((5,), np.float64)):
             pass
 
-        # sanity checks
+        # can't read from a closed array
         A = tiledb.open(path)
         A.close()
-
-        # can't read from a closed array
         with self.assertRaises(tiledb.TileDBError):
             A.meta["x"]
 
@@ -40,7 +97,7 @@ class MetadataTest(DiskTestCase):
 
             # can't write an int > typemax(Int64)
             with self.assertRaises(OverflowError):
-                A.meta["bigint"] = np.iinfo(np.int64).max + 1
+                A.meta["bigint"] = MAX_INT + 1
 
             # can't write mixed-type list
             with self.assertRaises(TypeError):
@@ -54,79 +111,43 @@ class MetadataTest(DiskTestCase):
             with self.assertRaises(TypeError):
                 A.meta["object"] = object()
 
-        test_vals = {
-            "int": 10,
-            "double": 1.000001212,
-            "bytes": b"0123456789abcdeF0123456789abcdeF",
-            "str": "abcdefghijklmnopqrstuvwxyz",
-            "emptystr": "",
-            "tuple_int": (1, 2, 3, 2, 1, int(np.random.randint(0, 10000, 1)[0])),
-            "list_int": [1, 2, 3, 2, 1, int(np.random.randint(0, 10000, 1)[0])],
-            "tuple_float": (10.0, 11.0, float(np.random.rand(1)[0])),
-            "list_float": [10.0, 11.0, float(np.random.rand(1)[0])],
-        }
-
-        def tupleize(v):
-            return tuple(v) if isinstance(v, list) else v
+    @given(st_metadata)
+    @settings(deadline=None)
+    def test_basic(self, test_vals):
+        path = self.path()
+        with tiledb.from_numpy(path, np.ones((5,), np.float64)):
+            pass
 
         with tiledb.Array(path, mode="w") as A:
             for k, v in test_vals.items():
                 A.meta[k] = v
 
         with tiledb.Array(path) as A:
-            for k, v in test_vals.items():
-                # metadata only has one iterable type: tuple, so we cannot
-                # perfectly round-trip the input type.
-                self.assertEqual(A.meta[k], tupleize(v))
-
-            # test dict-like functionality
-            self.assertSetEqual(set(A.meta.keys()), set(test_vals.keys()))
-            self.assertFalse("gnokey" in A.meta)
-            self.assertEqual(len(A.meta), len(test_vals))
-            self.assertEqual(list(A.meta), A.meta.keys())
-
-            self.assertSetEqual(
-                set(A.meta.values()), set(map(tupleize, test_vals.values()))
-            )
-
-            for k, v in A.meta.items():
-                self.assertTrue(k in test_vals.keys())
-                self.assertEqual(v, tupleize(test_vals[k]))
+            self.assert_metadata_roundtrip(A.meta, test_vals)
 
         # test a 1 MB blob
         blob = np.random.rand(int((1024 ** 2) / 8)).tobytes()
         with tiledb.Array(path, "w") as A:
+            test_vals["bigblob"] = blob
             A.meta["bigblob"] = blob
 
         with tiledb.Array(path) as A:
-            self.assertEqual(A.meta["bigblob"], blob)
-            self.assertEqual(len(A.meta), len(test_vals) + 1)
+            self.assert_metadata_roundtrip(A.meta, test_vals)
 
         # test del key
         with tiledb.Array(path, "w") as A:
+            del test_vals["bigblob"]
             del A.meta["bigblob"]
 
         with tiledb.Array(path) as A:
-            self.assertTrue("bigblob" not in A.meta)
-            self.assertEqual(len(A.meta), len(test_vals))
-            with self.assertRaises(KeyError):
-                A.meta["bigblob"]
+            self.assert_metadata_roundtrip(A.meta, test_vals)
 
         # test pop NotImplementedError
         with tiledb.Array(path, "w") as A:
             with self.assertRaises(NotImplementedError):
                 A.meta.pop("nokey", "hello!")
 
-        # Note: this requires a work-around to check all keys
-        # test empty value
-        with tiledb.Array(path, "w") as A:
-            A.meta["empty_val"] = ()
-
-        with tiledb.Array(path) as A:
-            self.assertTrue("empty_val" in A.meta)
-            self.assertEqual(A.meta["empty_val"], ())
-
-    def test_metadata_consecutive(self):
+    def test_consecutive(self):
         ctx = tiledb.Ctx(
             {"sm.vacuum.mode": "array_meta", "sm.consolidation.mode": "array_meta"}
         )
@@ -138,9 +159,7 @@ class MetadataTest(DiskTestCase):
         with tiledb.from_numpy(path, np.ones((5,), np.float64), ctx=ctx) as A:
             pass
 
-        randints = np.random.randint(
-            0, int(np.iinfo(np.int64).max) - 1, size=write_count, dtype=np.int64
-        )
+        randints = np.random.randint(0, MAX_INT - 1, size=write_count, dtype=np.int64)
         randutf8s = [rand_utf8(i) for i in np.random.randint(1, 30, size=write_count)]
 
         # write 100 times, then consolidate
