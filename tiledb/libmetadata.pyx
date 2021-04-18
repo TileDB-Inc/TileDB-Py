@@ -4,6 +4,7 @@ IF TILEDBPY_MODULAR:
     from .libtiledb cimport *
 
 import weakref
+from collections.abc import MutableMapping
 
 from cython.operator cimport dereference as deref
 from libcpp.limits cimport numeric_limits
@@ -214,7 +215,7 @@ def iter_metadata(Array array, keys_only):
             raise KeyError(key)
 
 
-cdef class Metadata(object):
+cdef class Metadata:
     def __init__(self, array):
         self.array_ref = weakref.ref(array)
 
@@ -330,8 +331,20 @@ cdef class Metadata(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
+    get = MutableMapping.get
+    update = MutableMapping.update
+
+    def setdefault(self, key, default=None):
+        raise NotImplementedError("Metadata.setdefault requires read-write access to array")
+
     def pop(self, key, default=None):
-        raise NotImplementedError("dict.pop requires read-write access to array")
+        raise NotImplementedError("Metadata.pop requires read-write access to array")
+
+    def popitem(self):
+        raise NotImplementedError("Metadata.popitem requires read-write access to array")
+
+    def clear(self):
+        raise NotImplementedError("Metadata.clear requires read-write access to array")
 
     def __len__(self):
         cdef:
