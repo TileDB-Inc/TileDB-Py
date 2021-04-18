@@ -44,12 +44,16 @@ class MetadataTest(DiskTestCase):
             self.assertTrue(k in tdb_meta)
             # test __getitem__
             self.assert_equal_md_values(v, tdb_meta[k])
+            # test get
+            self.assert_equal_md_values(v, tdb_meta.get(k))
 
-        # test __contains__, __getitem__ for non-key
+        # test __contains__, __getitem__, get for non-key
         non_key = str(object())
         self.assertFalse(non_key in tdb_meta)
         with self.assertRaises(KeyError):
             tdb_meta[non_key]
+        self.assertIsNone(tdb_meta.get(non_key))
+        self.assertEqual(tdb_meta.get(non_key, 42), 42)
 
         # test __len__
         self.assertEqual(len(tdb_meta), len(dict_meta))
@@ -68,6 +72,16 @@ class MetadataTest(DiskTestCase):
             self.assertTrue(item_key in dict_meta)
             self.assert_equal_md_values(dict_meta[item_key], item_value)
             self.assert_equal_md_values(dict_meta[item_key], value)
+
+    def assert_not_implemented_methods(self, tdb_meta):
+        with self.assertRaises(NotImplementedError):
+            tdb_meta.setdefault("nokey", "hello!")
+        with self.assertRaises(NotImplementedError):
+            tdb_meta.pop("nokey", "hello!")
+        with self.assertRaises(NotImplementedError):
+            tdb_meta.popitem()
+        with self.assertRaises(NotImplementedError):
+            tdb_meta.clear()
 
     def test_errors(self):
         path = self.path("test_md_errors")
@@ -88,6 +102,8 @@ class MetadataTest(DiskTestCase):
             # missing key raises KeyError
             with self.assertRaises(KeyError):
                 A.meta["xyz123nokey"]
+
+            self.assert_not_implemented_methods(A.meta)
 
         # test invalid input
         with tiledb.Array(path, "w") as A:
@@ -111,6 +127,8 @@ class MetadataTest(DiskTestCase):
             with self.assertRaises(TypeError):
                 A.meta["object"] = object()
 
+            self.assert_not_implemented_methods(A.meta)
+
     @given(st_metadata)
     @settings(deadline=None)
     def test_basic(self, test_vals):
@@ -119,8 +137,7 @@ class MetadataTest(DiskTestCase):
             pass
 
         with tiledb.Array(path, mode="w") as A:
-            for k, v in test_vals.items():
-                A.meta[k] = v
+            A.meta.update(test_vals)
 
         with tiledb.Array(path) as A:
             self.assert_metadata_roundtrip(A.meta, test_vals)
@@ -142,10 +159,13 @@ class MetadataTest(DiskTestCase):
         with tiledb.Array(path) as A:
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
-        # test pop NotImplementedError
-        with tiledb.Array(path, "w") as A:
-            with self.assertRaises(NotImplementedError):
-                A.meta.pop("nokey", "hello!")
+        # test update
+        with tiledb.Array(path, mode="w") as A:
+            test_vals.update(foo="bar", double=3.14)
+            A.meta.update(foo="bar", double=3.14)
+
+        with tiledb.Array(path) as A:
+            self.assert_metadata_roundtrip(A.meta, test_vals)
 
     def test_consecutive(self):
         ctx = tiledb.Ctx(
