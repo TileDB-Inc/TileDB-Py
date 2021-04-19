@@ -85,46 +85,35 @@ cdef object unpack_metadata_val(
     if value_ptr == NULL:
         return ()
 
-    cdef uint64_t itemsize
-    if value_num > 1:
-        itemsize = tiledb_datatype_size(value_type)
-        unpacked = [None] * value_num
-        for i in range(value_num):
-            unpacked[i] = unpack_metadata_val(value_type, 1, value_ptr)
-            value_ptr += itemsize
-        return tuple(unpacked)
+    unpacked = [None] * value_num
+    cdef uint64_t itemsize = tiledb_datatype_size(value_type)
+    for i in range(value_num):
+        if value_type == TILEDB_INT64:
+            unpacked[i] = deref(<int64_t *> value_ptr)
+        elif value_type == TILEDB_FLOAT64:
+            unpacked[i] = deref(<double *> value_ptr)
+        elif value_type == TILEDB_FLOAT32:
+            unpacked[i] = deref(<float *> value_ptr)
+        elif value_type == TILEDB_INT32:
+            unpacked[i] = deref(<int32_t *> value_ptr)
+        elif value_type == TILEDB_UINT32:
+            unpacked[i] = deref(<uint32_t *> value_ptr)
+        elif value_type == TILEDB_UINT64:
+            unpacked[i] = deref(<uint64_t *> value_ptr)
+        elif value_type == TILEDB_INT8:
+            unpacked[i] = deref(<int8_t *> value_ptr)
+        elif value_type == TILEDB_UINT8:
+            unpacked[i] = deref(<uint8_t *> value_ptr)
+        elif value_type == TILEDB_INT16:
+            unpacked[i] = deref(<int16_t *> value_ptr)
+        elif value_type == TILEDB_UINT16:
+            unpacked[i] = deref(<uint16_t *> value_ptr)
+        else:
+            raise NotImplementedError(f"TileDB datatype '{value_type}' not supported")
+        value_ptr += itemsize
 
-    if value_type == TILEDB_INT64:
-        return deref(<int64_t*>value_ptr)
-
-    if value_type == TILEDB_FLOAT64:
-        return deref(<double*>value_ptr)
-
-    if value_type == TILEDB_FLOAT32:
-        return deref(<float*>value_ptr)
-
-    if value_type == TILEDB_INT32:
-        return deref(<int32_t*>value_ptr)
-
-    if value_type == TILEDB_UINT32:
-        return deref(<uint32_t*>value_ptr)
-
-    if value_type == TILEDB_UINT64:
-        return deref(<uint64_t*>value_ptr)
-
-    if value_type == TILEDB_INT8:
-        return deref(<int8_t*>value_ptr)
-
-    if value_type == TILEDB_UINT8:
-        return deref(<uint8_t*>value_ptr)
-
-    if value_type == TILEDB_INT16:
-        return deref(<int16_t*>value_ptr)
-
-    if value_type == TILEDB_UINT16:
-        return deref(<uint16_t*>value_ptr)
-
-    raise NotImplementedError(f"TileDB datatype '{value_type}' not supported")
+    # we don't differentiate between length-1 sequences and scalars
+    return unpacked[0] if value_num == 1 else tuple(unpacked)
 
 
 cdef put_metadata(Array array, key, value):
