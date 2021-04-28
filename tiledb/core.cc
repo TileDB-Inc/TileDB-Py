@@ -1169,6 +1169,27 @@ public:
     return py::cast<bool>(query_->query_status() == tiledb::Query::Status::INCOMPLETE);
   }
 
+  py::object estimated_result_sizes() {
+    py::dict results;
+    for (auto const bp : buffers_) {
+      auto name = bp.first;
+      auto buf = bp.second;
+
+      size_t est_offsets = 0, est_data_bytes = 0;
+
+      if (is_var(name)) {
+        query_->est_result_size_var(name);
+        std::tie(est_offsets, est_data_bytes) = query_->est_result_size_var(name);
+        est_offsets = est_offsets;
+      } else {
+        est_data_bytes = query_->est_result_size(name);
+      }
+      results[py::str(name)] = py::make_tuple(est_offsets, est_data_bytes);
+    }
+
+    return results;
+  }
+
   py::array _test_array() {
     py::array_t<uint8_t> a;
     a.resize({10});
@@ -1276,6 +1297,7 @@ PYBIND11_MODULE(core, m) {
       .def("set_subarray", &PyQuery::set_subarray)
       .def("submit", &PyQuery::submit)
       .def("unpack_buffer", &PyQuery::unpack_buffer)
+      .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)
       .def("_get_buffers", &PyQuery::get_buffers)
       .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
       .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)

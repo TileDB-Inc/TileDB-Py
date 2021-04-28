@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import time
 import weakref
@@ -5,6 +6,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from numbers import Real
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -33,6 +35,12 @@ EmptyRange = object()
 # TODO: expand with more accepted scalar types
 Scalar = Real
 Range = Tuple[Scalar, Scalar]
+
+
+@dataclass
+class EstimatedResultSize:
+    offsets_bytes: int
+    data_bytes: int
 
 
 @contextmanager
