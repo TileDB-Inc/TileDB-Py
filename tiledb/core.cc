@@ -337,7 +337,7 @@ public:
   }
 
   void init_config() {
-     // get config parameters
+    // get config parameters
     std::string tmp_str;
     if (config_has_key(ctx_.config(), "py.init_buffer_bytes")) {
       tmp_str = ctx_.config().get("py.init_buffer_bytes");
@@ -377,15 +377,15 @@ public:
     }
 
     if (config_has_key(ctx_.config(), "py.exact_init_buffer_bytes")) {
-      tmp_str = ctx_.config().get( "py.exact_init_buffer_bytes");
+      tmp_str = ctx_.config().get("py.exact_init_buffer_bytes");
       if (tmp_str == "true") {
         exact_init_bytes_ = true;
       } else if (tmp_str == "false") {
         exact_init_bytes_ = false;
       } else {
-        throw std::invalid_argument(
-            "Failed to convert configuration 'py.exact_init_buffer_bytes' to bool ('" +
-            tmp_str + "')");
+        throw std::invalid_argument("Failed to convert configuration "
+                                    "'py.exact_init_buffer_bytes' to bool ('" +
+                                    tmp_str + "')");
       }
     }
 
@@ -899,7 +899,8 @@ public:
     }
 
     // allocate buffers for attributes
-    //   - schema.attributes() is unordered, but we need to return ordered results
+    //   - schema.attributes() is unordered, but we need to return ordered
+    //   results
     for (size_t attr_idx = 0; attr_idx < schema.attribute_num(); attr_idx++) {
       auto attr = schema.attribute(attr_idx);
       if (std::find(attrs_.begin(), attrs_.end(), attr.name()) ==
@@ -911,12 +912,13 @@ public:
   }
 
   void submit_read() {
-    if (retries_ > 0 && query_->query_status() == tiledb::Query::Status::INCOMPLETE) {
+    if (retries_ > 0 &&
+        query_->query_status() == tiledb::Query::Status::INCOMPLETE) {
       buffers_.clear();
       assert(buffers_.size() == 0);
 
       buffers_order_.clear();
-      //reset_read_elem_num();
+      // reset_read_elem_num();
     } else if (buffers_.size() != 0) {
       // we have externally imported buffers
       return;
@@ -964,7 +966,8 @@ public:
     }
 
     // TODO: would be nice to have a callback here for custom realloc strategy
-    while (!return_incomplete_ && query_->query_status() == Query::Status::INCOMPLETE) {
+    while (!return_incomplete_ &&
+           query_->query_status() == Query::Status::INCOMPLETE) {
       if (++retries_ > max_retries)
         TPY_ERROR_LOC(
             "Exceeded maximum retries ('py.max_incomplete_retries': '" +
@@ -1149,7 +1152,6 @@ public:
         c_pa_array.n_buffers = 2;
       }
 
-
       py::object pa_array = pa_array_import(py::int_((ptrdiff_t)&c_pa_array),
                                             py::int_((ptrdiff_t)&c_pa_schema));
 
@@ -1166,7 +1168,8 @@ public:
     if (!query_) {
       throw TileDBPyError("Internal error: PyQuery not initialized!");
     }
-    return py::cast<bool>(query_->query_status() == tiledb::Query::Status::INCOMPLETE);
+    return py::cast<bool>(query_->query_status() ==
+                          tiledb::Query::Status::INCOMPLETE);
   }
 
   py::object estimated_result_sizes() {
@@ -1179,7 +1182,8 @@ public:
 
       if (is_var(name)) {
         query_->est_result_size_var(name);
-        std::tie(est_offsets, est_data_bytes) = query_->est_result_size_var(name);
+        std::tie(est_offsets, est_data_bytes) =
+            query_->est_result_size_var(name);
         est_offsets = est_offsets;
       } else {
         est_data_bytes = query_->est_result_size(name);
@@ -1288,30 +1292,30 @@ std::string python_internal_stats() {
 }
 
 PYBIND11_MODULE(core, m) {
-  auto pq = py::class_<PyQuery>(m, "PyQuery")
-      .def(py::init<py::object, py::object, py::iterable, py::object,
-                    py::object, py::object>())
-      .def("buffer_dtype", &PyQuery::buffer_dtype)
-      .def("results", &PyQuery::results)
-      .def("set_ranges", &PyQuery::set_ranges)
-      .def("set_subarray", &PyQuery::set_subarray)
-      .def("submit", &PyQuery::submit)
-      .def("unpack_buffer", &PyQuery::unpack_buffer)
-      .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)
-      .def("_get_buffers", &PyQuery::get_buffers)
-      .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
-      .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
-      .def("_test_array", &PyQuery::_test_array)
-      .def("_test_err",
-           [](py::object self, std::string s) { throw TileDBPyError(s); })
-      .def_readwrite("_preload_metadata", &PyQuery::preload_metadata_)
-      .def_readwrite("_return_incomplete", &PyQuery::return_incomplete_)
-      // properties
-      .def_property_readonly("is_incomplete", &PyQuery::is_incomplete)
-      .def_property_readonly("_test_init_buffer_bytes",
-                             &PyQuery::_test_init_buffer_bytes)
-      .def_readonly("retries", &PyQuery::retries_);
-
+  auto pq =
+      py::class_<PyQuery>(m, "PyQuery")
+          .def(py::init<py::object, py::object, py::iterable, py::object,
+                        py::object, py::object>())
+          .def("buffer_dtype", &PyQuery::buffer_dtype)
+          .def("results", &PyQuery::results)
+          .def("set_ranges", &PyQuery::set_ranges)
+          .def("set_subarray", &PyQuery::set_subarray)
+          .def("submit", &PyQuery::submit)
+          .def("unpack_buffer", &PyQuery::unpack_buffer)
+          .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)
+          .def("_get_buffers", &PyQuery::get_buffers)
+          .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
+          .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
+          .def("_test_array", &PyQuery::_test_array)
+          .def("_test_err",
+               [](py::object self, std::string s) { throw TileDBPyError(s); })
+          .def_readwrite("_preload_metadata", &PyQuery::preload_metadata_)
+          .def_readwrite("_return_incomplete", &PyQuery::return_incomplete_)
+          // properties
+          .def_property_readonly("is_incomplete", &PyQuery::is_incomplete)
+          .def_property_readonly("_test_init_buffer_bytes",
+                                 &PyQuery::_test_init_buffer_bytes)
+          .def_readonly("retries", &PyQuery::retries_);
 
   m.def("array_to_buffer", &convert_np);
 
