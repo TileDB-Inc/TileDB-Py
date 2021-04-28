@@ -286,13 +286,42 @@ public:
 
     bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
 
+    // initialize the dims that we are asked to read
+    for (auto d : dims) {
+      dims_.push_back(d.cast<string>());
+    }
+
+    // initialize the attrs that we are asked to read
     for (auto a : attrs) {
       attrs_.push_back(a.cast<string>());
     }
 
-    for (auto d : dims) {
-      dims_.push_back(d.cast<string>());
+    py::object pre_buffers = array.attr("_buffers");
+    if (!pre_buffers.is(py::none())) {
+      py::dict pre_buffers_dict = pre_buffers.cast<py::dict>();
+
+      // iterate over (key, value) pairs
+      for (std::pair<py::handle, py::handle> b : pre_buffers_dict) {
+        py::str name = b.first.cast<py::str>();
+
+        // unpack value tuple of (data, offsets)
+        auto bfrs = b.second.cast<std::pair<py::handle, py::handle>>();
+        auto data_array = bfrs.first.cast<py::array>();
+        auto offsets_array = bfrs.second.cast<py::array>();
+
+        import_buffer(name, data_array, offsets_array);
+      }
     }
+
+    query_ =
+        std::shared_ptr<tiledb::Query>(new Query(ctx_, *array_, TILEDB_READ));
+    //        [](Query* p){} /* note: no deleter*/);
+
+    tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
+    if (!issparse && layout == TILEDB_UNORDERED) {
+      TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
+    }
+    query_->set_layout(layout);
 
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
     if (use_arrow_) {
@@ -632,26 +661,31 @@ public:
     bool var = is_var(name);
     bool nullable = is_nullable(name);
 
-    if (nullable) {
-      auto sizes = query_->est_result_size_nullable(name);
-      buf_nbytes = sizes[0];
-      validity_num = sizes[1] / sizeof(uint8_t);
-    } else if (nullable && var) {
-      throw TileDBPyError("<todo> nullable var unimplemented");
-    } else if (var) {
-      auto size_pair = query_->est_result_size_var(name);
+    if (retries_ < 1) {
+      // we must not call
+      if (nullable) {
+        auto sizes = query_->est_result_size_nullable(name);
+        buf_nbytes = sizes[0];
+        validity_num = sizes[1] / sizeof(uint8_t);
+      } else if (nullable && var) {
+        throw TileDBPyError("<todo> nullable var unimplemented");
+      } else if (var) {
+        auto size_pair = query_->est_result_size_var(name);
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-      buf_nbytes = size_pair.first;
-      offsets_num = size_pair.second;
+        buf_nbytes = size_pair.first;
+        offsets_num = size_pair.second;
 #else
-      buf_nbytes = size_pair[0];
-      offsets_num = size_pair[1];
+        buf_nbytes = size_pair[0];
+        offsets_num = size_pair[1];
 #endif
-    } else {
-      buf_nbytes = query_->est_result_size(name);
+      } else {
+        buf_nbytes = query_->est_result_size(name);
+      }
     }
-
-    if ((var || is_sparse()) && (buf_nbytes < init_buffer_bytes_)) {
+    // use init_buffer_bytes configuration option if the
+    // estimate is smaller
+    if ((var || is_sparse()) &&
+        (buf_nbytes < init_buffer_bytes_ || exact_init_bytes_)) {
       buf_nbytes = init_buffer_bytes_;
       offsets_num = init_buffer_bytes_ / sizeof(uint64_t);
     }
@@ -676,24 +710,29 @@ public:
     for (auto bp : buffers_) {
       auto name = bp.first;
       const BufferInfo b = bp.second;
+
+      size_t offsets_read = b.offsets_read;
+      size_t data_vals_read = b.data_vals_read;
+      size_t validity_vals_read = b.validity_vals_read;
+
       void *data_ptr =
-          (void *)((char *)b.data.data() + (b.data_vals_read * b.elem_nbytes));
+          (void *)((char *)b.data.data() + (data_vals_read * b.elem_nbytes));
       uint64_t data_nelem =
-          (b.data.size() - (b.data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
+          (b.data.size() - (data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
 
       if (b.isvar) {
-        size_t offsets_size = b.offsets.size() - b.offsets_read;
+        size_t offsets_size = b.offsets.size() - offsets_read;
         assert(offsets_size > 0);
-        uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + b.offsets_read;
+        uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + offsets_read;
 
         query_->set_buffer(b.name, (uint64_t *)(offsets_ptr), offsets_size,
                            data_ptr, data_nelem);
       } else if (b.isnullable) {
-        uint64_t validity_size = b.validity.size() - b.validity_vals_read;
+        uint64_t validity_size = b.validity.size() - validity_vals_read;
         assert(validity_size > 0);
 
         uint8_t *validity_ptr =
-            (uint8_t *)b.validity.data() + b.validity_vals_read;
+            (uint8_t *)b.validity.data() + validity_vals_read;
         query_->set_buffer_nullable(b.name, data_ptr, data_nelem, validity_ptr,
                                     validity_size);
       } else {
@@ -705,7 +744,7 @@ public:
   void update_read_elem_num() {
     for (const auto &read_info : query_->result_buffer_elements()) {
       auto name = read_info.first;
-      uint64_t offset_elem_num, data_vals_num;
+      uint64_t offset_elem_num = 0, data_vals_num = 0, validity_vals_num = 0;
       std::tie(offset_elem_num, data_vals_num) = read_info.second;
 
       BufferInfo &buf = buffers_.at(name);
@@ -736,53 +775,20 @@ public:
     }
   }
 
-  void submit_read() {
-    auto start = std::chrono::high_resolution_clock::now();
+  void reset_read_elem_num() {
+    for (auto &bp : buffers_) {
+      auto &buf = bp.second;
 
-    if (buffers_.size() != 0) {
-      // we have externally imported buffers
-      return;
+      buf.offsets_read = 0;
+      buf.data_vals_read = 0;
+      buf.validity_vals_read = 0;
     }
+  }
 
-    // Initiate a metadata API request to make libtiledb fetch the
-    // metadata ahead of time. In some queries we know we will always
-    // access metadata, so initiating this call saves time when loading
-    // from remote arrays because metadata i/o is lazy in core.
-    std::future<uint64_t> metadata_num_preload;
-    if (preload_metadata_) {
-      metadata_num_preload = std::async(
-          std::launch::async, [this]() { return array_->metadata_num(); });
-    }
-
-    auto schema = array_->schema();
-
-    // return dims first, if any
-    auto domain = schema.domain();
-    for (size_t dim_idx = 0; dim_idx < domain.ndim(); dim_idx++) {
-      auto dim = domain.dimension(dim_idx);
-      if ((std::find(dims_.begin(), dims_.end(), dim.name()) == dims_.end()) &&
-          // we need to also check if this is an attr for backward-compatibility
-          (std::find(attrs_.begin(), attrs_.end(), dim.name()) ==
-           attrs_.end())) {
-        continue;
-      }
-      alloc_buffer(dim.name());
-    }
-
-    // schema.attributes() is unordered, but we need to return ordered results
-    for (size_t attr_idx = 0; attr_idx < schema.attribute_num(); attr_idx++) {
-      auto attr = schema.attribute(attr_idx);
-      if (std::find(attrs_.begin(), attrs_.end(), attr.name()) ==
-          attrs_.end()) {
-        continue;
-      }
-      alloc_buffer(attr.name());
-    }
-
-    set_buffers();
-
-    size_t max_retries = 0, retries = 0;
+  uint64_t get_max_retries() {
+    // should make this a templated getter for any key w/ default
     std::string tmp_str;
+    size_t max_retries;
     try {
       tmp_str = ctx_.config().get("py.max_incomplete_retries");
       max_retries = std::stoull(tmp_str);
@@ -795,82 +801,50 @@ public:
       (void)e;
       max_retries = 100;
     }
+    return max_retries;
+  }
 
-    auto start_submit = std::chrono::high_resolution_clock::now();
+  void resubmit_read() {
+    for (auto &bp : buffers_) {
+      auto &buf = bp.second;
+
+      // Check if values buffer should be resized
+      if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) >
+          (buf.data.nbytes() + 1) / 2) {
+        size_t new_size = buf.data.size() * 2;
+        buf.data.resize({new_size}, false);
+      }
+
+      // Check if offset buffer should be resized
+      if (buf.isvar && (int64_t)(buf.offsets_read * sizeof(uint64_t)) >
+                           (buf.offsets.nbytes() + 1) / 2) {
+        size_t new_offsets_size = buf.offsets.size() * 2;
+        buf.offsets.resize({new_offsets_size}, false);
+      }
+    }
+
+    // note: this block confuses lldb. continues from here unless bp set after
+    // block.
+    set_buffers();
+
+    auto start_incomplete = std::chrono::high_resolution_clock::now();
     {
       py::gil_scoped_release release;
       query_->submit();
     }
-
-    // fetch the md_num to make sure the metadata get completed
-    if (preload_metadata_) {
-      metadata_num_preload.get();
-    }
-
-    if (g_stats) {
-      auto now = std::chrono::high_resolution_clock::now();
-      g_stats.get()->counters["py.read_query_initial_submit_time"] +=
-          now - start_submit;
-    }
-
-    // TODO: would be nice to have a callback here for custom realloc strategy
-    while (query_->query_status() == Query::Status::INCOMPLETE) {
-      if (++retries > max_retries)
-        TPY_ERROR_LOC(
-            "Exceeded maximum retries ('py.max_incomplete_retries': '" +
-            std::to_string(max_retries) + "')");
-
-      // Track the time we spend inside of incomplete updates only
-      auto start_incomplete_update = std::chrono::high_resolution_clock::now();
-
-      update_read_elem_num();
-
-      for (auto &bp : buffers_) {
-        auto buf = bp.second;
-
-        // Check if values buffer should be resized
-        if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) >
-            (buf.data.nbytes() + 1) / 2) {
-          size_t new_size = buf.data.size() * 2;
-          buf.data.resize({new_size}, false);
-        }
-
-        // Check if offset buffer should be resized
-        if (buf.isvar && (int64_t)(buf.offsets_read * sizeof(uint64_t)) >
-                             (buf.offsets.nbytes() + 1) / 2) {
-          size_t new_offsets_size = buf.offsets.size() * 2;
-          buf.offsets.resize({new_offsets_size}, false);
-        }
-      }
-
-      // note: this block confuses lldb. continues from here unless bp set after
-      // block.
-      set_buffers();
-
-      if (g_stats) {
-        auto now = std::chrono::high_resolution_clock::now();
-        g_stats.get()->counters["py.read_incomplete_update_time"] +=
-            now - start_incomplete_update;
-      }
-
-      auto start_incomplete = std::chrono::high_resolution_clock::now();
-      {
-        py::gil_scoped_release release;
-        query_->submit();
-      }
-      if (g_stats) {
-        auto now = std::chrono::high_resolution_clock::now();
-        g_stats.get()->counters["py.read_query_incomplete_submit_time"] +=
-            now - start_incomplete;
-      }
-    }
-
-    auto start_finalize = std::chrono::high_resolution_clock::now();
-
     update_read_elem_num();
 
+    return;
+  }
+
+  void resize_output_buffers() {
     // resize the output buffers to match the final read total
+    // the higher level code uses the size of the buffers to
+    // determine how much to unpack, but we may have over-allocated
+
+    // account for the extra element at the end of offsets in arrow mode
     size_t arrow_offset_size = use_arrow_ ? 1 : 0;
+
     for (auto &bp : buffers_) {
       auto name = bp.first;
       auto &buf = bp.second;
@@ -878,25 +852,25 @@ public:
       auto final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
       auto final_offsets_count = buf.offsets_read + arrow_offset_size;
 
+      assert(final_data_nbytes <= buf.data.size());
+      assert(final_offsets_count <= buf.offsets.size() + arrow_offset_size);
+
       buf.data.resize({final_data_nbytes});
       buf.offsets.resize({final_offsets_count});
 
-      // if we are using arrow, we need to reset the read counts
-      // before calling set_buffers below.
       if (use_arrow_) {
-        if (retries > 0) {
-          // we need to rewrite the final size to the final offset slot
+        if (retries_ > 0) {
+          // we need to write the final size to the final offset slot
           // because core doesn't track size between incomplete submits
           buf.offsets.mutable_data()[buf.offsets_read] = final_data_nbytes;
         }
 
-        // reset these so that set_buffers uses actual buffer size
+        // reset bytes-read so that set_buffers uses the full buffer size
         buf.data_vals_read = 0;
         buf.offsets_read = 0;
       }
     }
-
-    if (use_arrow_ && retries > 0) {
+    if (use_arrow_) {
       // this is a very light hack:
       // call set_buffers here to reset the buffers to the *full*
       // buffer in case there were incomplete queries. without this call,
@@ -905,13 +879,107 @@ public:
       // ArrowAdapter gets the buffer sizes from tiledb::Query.
       set_buffers();
     }
+  }
+
+  void allocate_buffers() {
+    auto schema = array_->schema();
+
+    // allocate buffers for dims
+    //   - we want to return dims first, if any requested
+    auto domain = schema.domain();
+    for (size_t dim_idx = 0; dim_idx < domain.ndim(); dim_idx++) {
+      auto dim = domain.dimension(dim_idx);
+      if ((std::find(dims_.begin(), dims_.end(), dim.name()) == dims_.end()) &&
+          // we need to also check if this is an attr for backward-compatibility
+          (std::find(attrs_.begin(), attrs_.end(), dim.name()) ==
+           attrs_.end())) {
+        continue;
+      }
+      alloc_buffer(dim.name());
+    }
+
+    // allocate buffers for attributes
+    //   - schema.attributes() is unordered, but we need to return ordered results
+    for (size_t attr_idx = 0; attr_idx < schema.attribute_num(); attr_idx++) {
+      auto attr = schema.attribute(attr_idx);
+      if (std::find(attrs_.begin(), attrs_.end(), attr.name()) ==
+          attrs_.end()) {
+        continue;
+      }
+      alloc_buffer(attr.name());
+    }
+  }
+
+  void submit_read() {
+    if (retries_ > 0 && query_->query_status() == tiledb::Query::Status::INCOMPLETE) {
+      buffers_.clear();
+      assert(buffers_.size() == 0);
+
+      buffers_order_.clear();
+      //reset_read_elem_num();
+    } else if (buffers_.size() != 0) {
+      // we have externally imported buffers
+      return;
+    }
+
+    // start time
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // Initiate a metadata API request to make libtiledb fetch the
+    // metadata ahead of time. In some queries we know we will always
+    // access metadata, so initiating this call saves time when loading
+    // from remote arrays because metadata i/o is lazy in core.
+    std::future<uint64_t> metadata_num_preload;
+    if (preload_metadata_) {
+      metadata_num_preload = std::async(
+          std::launch::async, [this]() { return array_->metadata_num(); });
+    }
+
+    allocate_buffers();
+
+    // set the buffers on the Query
+    set_buffers();
+
+    size_t max_retries = get_max_retries();
+
+    auto start_submit = std::chrono::high_resolution_clock::now();
+    {
+      py::gil_scoped_release release;
+      query_->submit();
+    }
 
     if (g_stats) {
       auto now = std::chrono::high_resolution_clock::now();
-      g_stats.get()->counters["py.finalize_buffers_time"] +=
-          now - start_finalize;
+      g_stats.get()->counters["py.read_query_initial_submit_time"] +=
+          now - start_submit;
     }
 
+    // update the BufferInfo read-counts to match the query results read
+    update_read_elem_num();
+
+    // fetch the result of the metadata get task
+    // this will block if not yet completed
+    if (preload_metadata_) {
+      metadata_num_preload.get();
+    }
+
+    // TODO: would be nice to have a callback here for custom realloc strategy
+    while (!return_incomplete_ && query_->query_status() == Query::Status::INCOMPLETE) {
+      if (++retries_ > max_retries)
+        TPY_ERROR_LOC(
+            "Exceeded maximum retries ('py.max_incomplete_retries': '" +
+            std::to_string(max_retries) + "')");
+      resubmit_read();
+    }
+
+    resize_output_buffers();
+
+    if (return_incomplete_) {
+      // increment in case we submit again
+      retries_++;
+    }
+
+    // update TileDB-Py stat counter
     if (g_stats) {
       auto now = std::chrono::high_resolution_clock::now();
       g_stats.get()->counters["py.read_query_time"] += now - start;
@@ -1079,17 +1147,21 @@ public:
         c_pa_array.buffers[0] = buffer_info.validity.data();
         c_pa_array.n_buffers = 2;
         c_pa_schema.flags |= ARROW_FLAG_NULLABLE;
+      } else if (!is_var(buffer_name)) {
+        // reset the number of buffers for non-nullable data
+        c_pa_array.n_buffers = 2;
       }
+
 
       py::object pa_array = pa_array_import(py::int_((ptrdiff_t)&c_pa_array),
                                             py::int_((ptrdiff_t)&c_pa_schema));
+
       results.append(pa_array);
       names.append(buffer_name);
     }
 
     auto pa_table =
         pa.attr("Table").attr("from_arrays")(results, "names"_a = names);
-
     return pa_table;
   }
 
@@ -1108,7 +1180,10 @@ public:
     return std::move(a);
   }
 
-  uint64_t _test_init_buffer_bytes() { return init_buffer_bytes_; }
+  uint64_t _test_init_buffer_bytes() {
+    // test helper to get the configured init_buffer_bytes
+    return init_buffer_bytes_;
+  }
 };
 
 void init_stats() {
@@ -1195,25 +1270,29 @@ std::string python_internal_stats() {
 }
 
 PYBIND11_MODULE(core, m) {
-  py::class_<PyQuery>(m, "PyQuery")
+  auto pq = py::class_<PyQuery>(m, "PyQuery")
       .def(py::init<py::object, py::object, py::iterable, py::object,
                     py::object, py::object>())
+      .def("buffer_dtype", &PyQuery::buffer_dtype)
+      .def("results", &PyQuery::results)
       .def("set_ranges", &PyQuery::set_ranges)
       .def("set_subarray", &PyQuery::set_subarray)
       .def("submit", &PyQuery::submit)
-      .def("results", &PyQuery::results)
-      .def("buffer_dtype", &PyQuery::buffer_dtype)
       .def("unpack_buffer", &PyQuery::unpack_buffer)
-      .def_readwrite("_preload_metadata", &PyQuery::preload_metadata_)
       .def("_get_buffers", &PyQuery::get_buffers)
       .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
       .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
       .def("_test_array", &PyQuery::_test_array)
       .def("_test_err",
            [](py::object self, std::string s) { throw TileDBPyError(s); })
+      .def_readwrite("_preload_metadata", &PyQuery::preload_metadata_)
+      .def_readwrite("_return_incomplete", &PyQuery::return_incomplete_)
+      // properties
       .def_property_readonly("is_incomplete", &PyQuery::is_incomplete)
       .def_property_readonly("_test_init_buffer_bytes",
-                             &PyQuery::_test_init_buffer_bytes);
+                             &PyQuery::_test_init_buffer_bytes)
+      .def_readonly("retries", &PyQuery::retries_);
+
 
   m.def("array_to_buffer", &convert_np);
 
@@ -1252,6 +1331,6 @@ PYBIND11_MODULE(core, m) {
       //  std::cout << "unexpected runtime_error: " << e.what() << std::endl;
     }
   });
-}
+};
 
 }; // namespace tiledbpy
