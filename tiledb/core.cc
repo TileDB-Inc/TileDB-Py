@@ -1117,9 +1117,6 @@ public:
   py::object buffers_to_pa_table() {
     using namespace pybind11::literals;
 
-    if (query_->query_status() != tiledb::Query::Status::COMPLETE)
-      TPY_ERROR_LOC("Query must be complete to convert buffers");
-
     auto pa = py::module::import("pyarrow");
     auto pa_array_import = pa.attr("Array").attr("_import_from_c");
 
