@@ -244,8 +244,12 @@ private:
   std::vector<std::string> dims_;
   map<string, BufferInfo> buffers_;
   vector<string> buffers_order_;
+
   bool deduplicate_ = true;
   bool use_arrow_ = false;
+  // initialize the query buffers with exactly `init_buffer_bytes`
+  // rather than the estimated result size. for incomplete testing.
+  bool exact_init_bytes_ = false;
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
   uint64_t exp_alloc_max_bytes_ = DEFAULT_EXP_ALLOC_MAX_BYTES;
 
@@ -253,6 +257,8 @@ public:
   tiledb_ctx_t *c_ctx_;
   tiledb_array_t *c_array_;
   bool preload_metadata_ = false;
+  bool return_incomplete_ = false;
+  size_t retries_ = 0;
 
 public:
   PyQuery() = delete;
@@ -264,6 +270,13 @@ public:
     if (c_ctx_ == nullptr)
       TPY_ERROR_LOC("Invalid context pointer!")
     ctx_ = Context(c_ctx_, false);
+
+    init_config();
+    // initialize arrow argument from user, if provided
+    // call after init_config
+    if (!use_arrow.is(py::none())) {
+      use_arrow_ = py::cast<bool>(use_arrow);
+    }
 
     tiledb_array_t *c_array_ = (py::capsule)array.attr("__capsule__")();
 
@@ -281,7 +294,21 @@ public:
       dims_.push_back(d.cast<string>());
     }
 
-    // get config parameters
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
+    if (use_arrow_) {
+      // enable arrow mode in the Query
+      auto tmp_config = ctx_.config();
+      tmp_config.set("sm.var_offsets.bitsize", "64");
+      tmp_config.set("sm.var_offsets.mode", "elements");
+      tmp_config.set("sm.var_offsets.extra_element", "true");
+      ctx_.handle_error(tiledb_query_set_config(
+          ctx_.ptr().get(), query_->ptr().get(), tmp_config.ptr().get()));
+    }
+#endif
+  }
+
+  void init_config() {
+     // get config parameters
     std::string tmp_str;
     if (config_has_key(ctx_.config(), "py.init_buffer_bytes")) {
       tmp_str = ctx_.config().get("py.init_buffer_bytes");
@@ -320,61 +347,31 @@ public:
       }
     }
 
-    if (use_arrow.is(py::none())) {
-      if (config_has_key(ctx_.config(), "py.use_arrow")) {
-        tmp_str = ctx_.config().get("py.use_arrow");
-        if (tmp_str == "True") {
-          use_arrow_ = true;
-        } else if (tmp_str == "False") {
-          use_arrow_ = false;
-        } else {
-          throw std::invalid_argument(
-              "Failed to convert configuration 'py.use_arrow' to bool ('" +
-              tmp_str + "')");
-        }
-      }
-    } else {
-      use_arrow_ = py::cast<bool>(use_arrow);
-    }
-
-    py::object pre_buffers = array.attr("_buffers");
-    if (!pre_buffers.is(py::none())) {
-      py::dict pre_buffers_dict = pre_buffers.cast<py::dict>();
-
-      // iterate over (key, value) pairs
-      for (std::pair<py::handle, py::handle> b : pre_buffers_dict) {
-        py::str name = b.first.cast<py::str>();
-
-        // unpack value tuple of (data, offsets)
-        auto bfrs = b.second.cast<std::pair<py::handle, py::handle>>();
-        auto data_array = bfrs.first.cast<py::array>();
-        auto offsets_array = bfrs.second.cast<py::array>();
-
-        import_buffer(name, data_array, offsets_array);
+    if (config_has_key(ctx_.config(), "py.exact_init_buffer_bytes")) {
+      tmp_str = ctx_.config().get( "py.exact_init_buffer_bytes");
+      if (tmp_str == "true") {
+        exact_init_bytes_ = true;
+      } else if (tmp_str == "false") {
+        exact_init_bytes_ = false;
+      } else {
+        throw std::invalid_argument(
+            "Failed to convert configuration 'py.exact_init_buffer_bytes' to bool ('" +
+            tmp_str + "')");
       }
     }
 
-    query_ =
-        std::shared_ptr<tiledb::Query>(new Query(ctx_, *array_, TILEDB_READ));
-    //        [](Query* p){} /* note: no deleter*/);
-
-    tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
-    if (!issparse && layout == TILEDB_UNORDERED) {
-      TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
+    if (config_has_key(ctx_.config(), "py.use_arrow")) {
+      tmp_str = ctx_.config().get("py.use_arrow");
+      if (tmp_str == "True") {
+        use_arrow_ = true;
+      } else if (tmp_str == "False") {
+        use_arrow_ = false;
+      } else {
+        throw std::invalid_argument(
+            "Failed to convert configuration 'py.use_arrow' to bool ('" +
+            tmp_str + "')");
+      }
     }
-    query_->set_layout(layout);
-
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
-    if (use_arrow_) {
-      // enable arrow mode in the Query
-      auto tmp_config = ctx_.config();
-      tmp_config.set("sm.var_offsets.bitsize", "64");
-      tmp_config.set("sm.var_offsets.mode", "elements");
-      tmp_config.set("sm.var_offsets.extra_element", "true");
-      ctx_.handle_error(tiledb_query_set_config(
-          ctx_.ptr().get(), query_->ptr().get(), tmp_config.ptr().get()));
-    }
-#endif
   }
 
   void add_dim_range(uint32_t dim_idx, py::tuple r) {
