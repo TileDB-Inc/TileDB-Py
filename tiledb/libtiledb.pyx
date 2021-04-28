@@ -4683,6 +4683,10 @@ cdef class DenseArrayImpl(Array):
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
+        :param return_incomplete: if True, initialize and return a query which will return
+            iterable objects over the indexed range. See usage example in 'examples/incomplete_iteration.py'.
+            If False (default False), queries will be internally run to completion by resizing buffers and
+            resubmitting until query is complete.
         :return: A proxy Query object that can be used for indexing into the DenseArray
             over the defined attributes, in the given result layout (order).
 
