@@ -29,6 +29,7 @@ from tiledb.tests.common import (
 )
 from tiledb.tests.fixtures import (
     sparse_cell_order,
+    test_incomplete_return_array,
 )  # pyright: reportUnusedVariable=warning
 
 
@@ -3989,6 +3990,67 @@ class IncompleteTest(DiskTestCase):
             assert_array_equal(
                 T2.multi_index[101:105][""], np.array([], dtype=np.dtype("<U"))
             )
+
+    @pytest.mark.parametrize(
+        "return_arrow, indexer", [(True, "df"), (False, "df"), (False, "multi_index")]
+    )
+    def test_incomplete_return(
+        self, test_incomplete_return_array, return_arrow, indexer
+    ):
+        import pyarrow as pa
+        import pandas as pd
+        from tiledb.multirange_indexing import EstimatedResultSize
+
+        path = test_incomplete_return_array
+
+        init_buffer_bytes = 200
+        cfg = tiledb.Config(
+            {
+                "py.init_buffer_bytes": init_buffer_bytes,
+                "py.exact_init_buffer_bytes": "true",
+            }
+        )
+
+        with tiledb.open(path) as A:
+            full_data = A[:][""]
+
+        # count number of elements retrieved so that we can slice the comparison array
+        idx = 0
+        with tiledb.open(path, ctx=tiledb.Ctx(cfg)) as A:
+            query = A.query(return_incomplete=True, return_arrow=return_arrow)
+            iterable = getattr(query, indexer)
+
+            for result in iterable[:]:
+
+                est_results = iterable.estimated_result_sizes()
+                assert isinstance(est_results[""], EstimatedResultSize)
+                assert isinstance(est_results["__dim_0"], EstimatedResultSize)
+                assert est_results["__dim_0"].offsets_bytes == 0
+                assert est_results["__dim_0"].data_bytes > 0
+                assert est_results[""].offsets_bytes > 0
+                assert est_results[""].data_bytes > 0
+
+                if return_arrow:
+                    assert isinstance(result, pa.Table)
+                    df = result.to_pandas()
+                else:
+                    if indexer == "df":
+                        assert isinstance(result, pd.DataFrame)
+                        df = result
+                    else:
+                        assert isinstance(result, OrderedDict)
+                        df = pd.DataFrame(result)
+
+                to_slice = slice(idx, idx + len(df))
+                chunk = full_data[to_slice]
+
+                assert np.all(chunk == df[""].values)
+                assert np.all(df["__dim_0"] == np.arange(idx, idx + len(df)))
+                # update the current read count
+                idx += len(df)
+
+        assert idx == len(full_data)
+
 
 # if __name__ == '__main__':
 #    # run a single example for in-process debugging
