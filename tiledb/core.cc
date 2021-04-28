@@ -1083,6 +1083,13 @@ public:
     return pa_table;
   }
 
+  py::object is_incomplete() {
+    if (!query_) {
+      throw TileDBPyError("Internal error: PyQuery not initialized!");
+    }
+    return py::cast<bool>(query_->query_status() == tiledb::Query::Status::INCOMPLETE);
+  }
+
   py::array _test_array() {
     py::array_t<uint8_t> a;
     a.resize({10});
@@ -1193,6 +1200,7 @@ PYBIND11_MODULE(core, m) {
       .def("_test_array", &PyQuery::_test_array)
       .def("_test_err",
            [](py::object self, std::string s) { throw TileDBPyError(s); })
+      .def_property_readonly("is_incomplete", &PyQuery::is_incomplete)
       .def_property_readonly("_test_init_buffer_bytes",
                              &PyQuery::_test_init_buffer_bytes);
 
