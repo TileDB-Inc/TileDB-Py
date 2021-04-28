@@ -662,6 +662,16 @@ public:
                           validity_num, var, nullable)});
   }
 
+  py::object get_buffers() {
+    py::list result;
+    for (auto &bp : buffers_) {
+      const BufferInfo b = bp.second;
+      result.append(b.data);
+      result.append(b.offsets);
+    }
+    return result;
+  }
+
   void set_buffers() {
     for (auto bp : buffers_) {
       auto name = bp.first;
@@ -1195,6 +1205,7 @@ PYBIND11_MODULE(core, m) {
       .def("buffer_dtype", &PyQuery::buffer_dtype)
       .def("unpack_buffer", &PyQuery::unpack_buffer)
       .def_readwrite("_preload_metadata", &PyQuery::preload_metadata_)
+      .def("_get_buffers", &PyQuery::get_buffers)
       .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
       .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
       .def("_test_array", &PyQuery::_test_array)
