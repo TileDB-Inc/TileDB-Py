@@ -1182,8 +1182,9 @@ public:
 
       if (is_var(name)) {
         query_->est_result_size_var(name);
-        std::tie(est_offsets, est_data_bytes) =
-            query_->est_result_size_var(name);
+        auto est_sizes = query_->est_result_size_var(name);
+        est_offsets = std::get<0>(est_sizes);
+        est_data_bytes = std::get<1>(est_sizes);
         est_offsets = est_offsets;
       } else {
         est_data_bytes = query_->est_result_size(name);
