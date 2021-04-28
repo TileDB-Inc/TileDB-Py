@@ -48,8 +48,7 @@ def timing(key: str) -> Iterator[None]:
 
 
 def mr_dense_result_shape(
-    ranges: Sequence[Sequence[Range]],
-    base_shape: Optional[Tuple[int, ...]] = None,
+    ranges: Sequence[Sequence[Range]], base_shape: Optional[Tuple[int, ...]] = None
 ) -> Tuple[int, ...]:
     if base_shape is not None:
         assert len(ranges) == len(base_shape), "internal error: mismatched shapes"
@@ -134,6 +133,8 @@ class MultiRangeIndexer(object):
             raise TypeError("Internal error: MultiRangeIndexer expected tiledb.Array")
         self.array_ref = weakref.ref(array)
         self.query = query
+        self.pyquery = None
+        self.use_arrow = None
 
     @property
     def array(self) -> Array:
@@ -146,12 +147,91 @@ class MultiRangeIndexer(object):
 
     def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
         if idx is EmptyRange:
-            results = _get_empty_results(self.array.schema, self.query)
-        else:
-            results = _run_query(
-                self.array, getitem_ranges(self.array, idx), self.query
+            return _get_empty_results(self.array.schema, self.query)
+
+        self.ranges = getitem_ranges(self.array, idx)
+
+        if self.query and self.query.return_incomplete:
+            return self
+
+        return self._run_query(self.query)
+
+    def _run_query(
+        self, query: Optional[Query] = None, preload_metadata: bool = False
+    ) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
+
+        if self.pyquery is None or not self.pyquery.is_incomplete:
+            self.pyquery = _get_pyquery(self.array, query, self.use_arrow)
+            self.pyquery._preload_metadata = preload_metadata
+            self.pyquery.set_ranges(self.ranges)
+            self.pyquery._return_incomplete = (
+                self.query and self.query.return_incomplete
             )
+
+        self.pyquery.submit()
+
+        schema = self.array.schema
+        if query is not None and self.use_arrow:
+            # TODO currently there is lack of support for Arrow list types.
+            # This prevents multi-value attributes, asides from strings, from being
+            # queried properly. Until list attributes are supported in core,
+            # error with a clear message to pass use_arrow=False.
+            attrs = map(schema.attr, query.attrs or ())
+            if any(
+                (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
+                for attr in attrs
+            ):
+                raise TileDBError(
+                    "Multi-value attributes are not currently supported when use_arrow=True. "
+                    "This includes all variable-length attributes and fixed-length "
+                    "attributes with more than one value. Use `query(use_arrow=False)`."
+                )
+            with timing("py.buffer_conversion_time"):
+                table = self.pyquery._buffers_to_pa_table()
+                return table if query.return_arrow else table.to_pandas()
+
+        result_dict = _get_pyquery_results(self.pyquery, schema)
+        if not schema.sparse:
+            result_shape = mr_dense_result_shape(self.ranges, schema.shape)
+            for arr in result_dict.values():
+                # TODO check/test layout
+                arr.shape = result_shape
+        return result_dict
+
+    def estimated_result_sizes(self):
+        """
+        Get the estimated result buffer sizes for a TileDB Query
+
+        Sizes are returned in bytes as an EstimatedResultSize dataclass
+        with two fields: `offset_bytes` and `data_bytes`, with buffer
+        name as the OrderedDict key.
+        See the corresponding TileDB Embedded API documentation for
+        additional details:
+
+        https://tiledb-inc-tiledb.readthedocs-hosted.com/en/stable/c++-api.html#query
+
+        :return: OrderedDict of key -> EstimatedResultSize dataclass
+        """
+        results = {}
+        if not self.pyquery:
+            raise TileDBError("Query not initialized")
+        tmp = self.pyquery.estimated_result_sizes()
+        for name, val in tmp.items():
+            results[name] = EstimatedResultSize(val[0], val[1])
+
         return results
+
+    def __iter__(self):
+        if not self.query.return_incomplete:
+            raise TileDBError(
+                "Cannot iterate unless query is initialized with return_incomplete=True"
+            )
+        return self
+
+    def __next__(self):
+        if self.pyquery and not self.pyquery.is_incomplete:
+            raise StopIteration()
+        return self._run_query(self.query)
 
 
 class DataFrameIndexer(MultiRangeIndexer):
@@ -167,75 +247,30 @@ class DataFrameIndexer(MultiRangeIndexer):
         use_arrow: Optional[bool] = None,
     ) -> None:
         super().__init__(array, query)
-        if use_arrow is None:
+        if pyarrow and use_arrow is None:
             use_arrow = True
         self.use_arrow = use_arrow
 
     def __getitem__(self, idx: Any) -> Union[DataFrame, Table]:
         check_dataframe_deps()
-        with timing("py.__getitem__time"):
-            array = self.array
-            # we need to use a Query in order to get coords for a dense array
-            query = self.query or Query(array, coords=True)
-            if idx is EmptyRange:
-                result = _get_empty_results(array.schema, query)
-            else:
-                result = _run_query(
-                    array,
-                    getitem_ranges(array, idx),
-                    query,
-                    use_arrow=bool(
-                        pyarrow is not None and (self.use_arrow or query.return_arrow)
-                    ),
-                    preload_metadata=True,
-                )
-            if not isinstance(result, pyarrow.Table):
-                if not isinstance(result, DataFrame):
-                    result = DataFrame.from_dict(result)
-                with timing("py.pandas_index_update_time"):
-                    result = _update_df_from_meta(result, array.meta, query.index_col)
-            return result
+        array = self.array
+        # we need to use a Query in order to get coords for a dense array
+        query = self.query if self.query else Query(array, coords=True)
+        if idx is EmptyRange:
+            result = _get_empty_results(array.schema, query)
+        else:
+            self.ranges = getitem_ranges(self.array, idx)
 
+            if self.query and self.query.return_incomplete:
+                return self
 
-def _run_query(
-    array: Array,
-    ranges: Sequence[Sequence[Range]],
-    query: Optional[Query] = None,
-    use_arrow: bool = False,
-    preload_metadata: bool = False,
-) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
-    pyquery = _get_pyquery(array, query, use_arrow)
-    pyquery._preload_metadata = preload_metadata
-    pyquery.set_ranges(ranges)
-    pyquery.submit()
-
-    schema = array.schema
-    if query is not None and use_arrow:
-        # TODO currently there is lack of support for Arrow list types.
-        # This prevents multi-value attributes, asides from strings, from being
-        # queried properly. Until list attributes are supported in core,
-        # error with a clear message to pass use_arrow=False.
-        attrs = map(schema.attr, query.attrs or ())
-        if any(
-            (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
-            for attr in attrs
-        ):
-            raise TileDBError(
-                "Multi-value attributes are not currently supported when use_arrow=True. "
-                "This includes all variable-length attributes and fixed-length "
-                "attributes with more than one value. Use `query(use_arrow=False)`."
-            )
-        with timing("py.buffer_conversion_time"):
-            table = pyquery._buffers_to_pa_table()
-            return table if query.return_arrow else table.to_pandas()
-
-    result_dict = _get_pyquery_results(pyquery, schema)
-    if not schema.sparse:
-        result_shape = mr_dense_result_shape(ranges, schema.shape)
-        for arr in result_dict.values():
-            # TODO check/test layout
-            arr.shape = result_shape
-    return result_dict
+            result = self._run_query(query, preload_metadata=True)
+        if not isinstance(result, pyarrow.Table):
+            if not isinstance(result, DataFrame):
+                result = DataFrame.from_dict(result)
+            with timing("py.pandas_index_update_time"):
+                result = _update_df_from_meta(result, array.meta, query.index_col)
+        return result
 
 
 def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQuery:

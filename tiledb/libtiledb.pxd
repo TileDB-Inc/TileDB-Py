@@ -1097,7 +1097,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_vfs_t* vfs,
         const char* old_uri,
         const char* new_uri) nogil
-    
+
     int tiledb_vfs_copy_file(
         tiledb_ctx_t* ctx,
         tiledb_vfs_t* vfs,
@@ -1302,7 +1302,9 @@ cdef class Query(object):
     cdef object order
     cdef object coords
     cdef object index_col
+    cdef object use_arrow
     cdef object return_arrow
+    cdef object return_incomplete
     cdef DomainIndexer domain_index
     cdef object multi_index
     cdef object df

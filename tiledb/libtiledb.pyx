@@ -3899,14 +3899,10 @@ cdef class Array(object):
         self.key = key
         self.domain_index = DomainIndexer(self)
 
-        use_arrow = None
-        if ctx.config().get('py.use_arrow', False) != None:
-            use_arrow = ctx.config()['py.use_arrow'] == 'True'
-
         # Delayed to avoid circular import
         from .multirange_indexing import DataFrameIndexer, MultiRangeIndexer
         self.multi_index = MultiRangeIndexer(self)
-        self.df = DataFrameIndexer(self, use_arrow=use_arrow)
+        self.df = DataFrameIndexer(self, use_arrow=None)
         self.last_fragment_info = dict()
         self.meta = Metadata(self)
 
@@ -4459,7 +4455,8 @@ cdef class Query(object):
 
     def __init__(self, array, attrs=None, dims=None,
                  coords=False, index_col=True,
-                 order=None, use_arrow=None, return_arrow=False):
+                 order=None, use_arrow=None, return_arrow=False,
+                 return_incomplete=False):
         if array.mode != 'r':
             raise ValueError("array mode must be read-only")
 
@@ -4499,13 +4496,15 @@ cdef class Query(object):
         self.coords = coords
         self.index_col = index_col
         self.return_arrow = return_arrow
+        if return_arrow:
+            if use_arrow is None:
+                use_arrow = True
+            if not use_arrow:
+                raise TileDBError("Cannot initialize return_arrow with use_arrow=False")
+        self.use_arrow = use_arrow
+        self.return_incomplete = return_incomplete
 
         self.domain_index = DomainIndexer(array, query=self)
-
-        # Delayed to avoid circular import
-        from .multirange_indexing import DataFrameIndexer, MultiRangeIndexer
-        self.multi_index = MultiRangeIndexer(array, query=self)
-        self.df = DataFrameIndexer(array, query=self, use_arrow=use_arrow)
 
     def __getitem__(self, object selection):
         return self.array.subarray(selection,
@@ -4543,8 +4542,16 @@ cdef class Query(object):
         return self.index_col
 
     @property
+    def use_arrow(self):
+        return self.use_arrow
+
+    @property
     def return_arrow(self):
         return self.return_arrow
+
+    @property
+    def return_incomplete(self):
+        return self.return_incomplete
 
     @property
     def domain_index(self):
@@ -4554,13 +4561,17 @@ cdef class Query(object):
     @property
     def multi_index(self):
         """Apply Array.multi_index with query parameters."""
-        return self.multi_index
+        # Delayed to avoid circular import
+        from .multirange_indexing import MultiRangeIndexer
+        return MultiRangeIndexer(self.array, query=self)
 
     @property
     def df(self):
         """Apply Array.multi_index with query parameters and return result
            as a Pandas dataframe."""
-        return self.df
+        # Delayed to avoid circular import
+        from .multirange_indexing import DataFrameIndexer
+        return DataFrameIndexer(self.array, query=self, use_arrow=self.use_arrow)
 
 
 cdef class DenseArrayImpl(Array):
@@ -4655,7 +4666,7 @@ cdef class DenseArrayImpl(Array):
             return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 
     def query(self, attrs=None, dims=None, coords=False, order='C',
-              use_arrow=None, return_arrow=False):
+              use_arrow=None, return_arrow=False, return_incomplete=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -4698,7 +4709,8 @@ cdef class DenseArrayImpl(Array):
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
         return Query(self, attrs=attrs, dims=dims, coords=coords, order=order,
-                     use_arrow=use_arrow, return_arrow=return_arrow)
+                     use_arrow=use_arrow, return_arrow=return_arrow,
+                     return_incomplete=return_incomplete)
 
 
     def subarray(self, selection, attrs=None, coords=False, order=None):
@@ -5309,7 +5321,7 @@ cdef class SparseArrayImpl(Array):
         return self.subarray(selection)
 
     def query(self, attrs=None, dims=None, index_col=True,
-              coords=None, order='U', use_arrow=None, return_arrow=None):
+              coords=None, order='U', use_arrow=None, return_arrow=None, return_incomplete=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -5365,7 +5377,8 @@ cdef class SparseArrayImpl(Array):
             _coords = True
 
         return Query(self, attrs=attrs, dims=dims, coords=_coords, index_col=index_col,
-                     order=order, use_arrow=use_arrow, return_arrow=return_arrow)
+                     order=order, use_arrow=use_arrow, return_arrow=return_arrow,
+                     return_incomplete=return_incomplete)
 
     def subarray(self, selection, coords=True, attrs=None, order=None):
         """
