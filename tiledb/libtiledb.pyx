@@ -4315,7 +4315,7 @@ cdef class Array(object):
         """
         Consolidates fragments of an array object for increased read performance.
 
-        Overview: https://docs.tiledb.com/main/basic-concepts/consolidation
+        Overview: https://docs.tiledb.com/main/solutions/tiledb-embedded/internal-mechanics/consolidation
 
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
         :param key: (default None) encryption key to decrypt an encrypted array
