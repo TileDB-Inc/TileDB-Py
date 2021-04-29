@@ -140,7 +140,18 @@ def array_exists(uri, isdense=False, issparse=False):
 
 
 def array_fragments(uri, ctx=None):
+    """
+    Creates a FragmentInfoList object, which is an ordered list of FragmentInfo
+    objects, representing all fragments in the array at the URI.
+
+    FragmentInfo objects contain fragment metadata such as the fragment URI,
+    whether it is sparse or dense, timestamp, number of cells, etc.
+
+    :param str uri: URI for the TileDB array (any supported TileDB URI)
+    :param ctx: (optional) TileDB Ctx
+    :return: FragmentsInfo object
+    """
     if not ctx:
         ctx = default_ctx()
 
-    return tiledb.FragmentsInfo(uri, ctx)
+    return tiledb.FragmentInfoList(uri, ctx)

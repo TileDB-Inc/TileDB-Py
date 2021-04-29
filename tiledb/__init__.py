@@ -76,7 +76,7 @@ from .libtiledb import (
 
 from .array import DenseArray, SparseArray
 
-from .fragment import FragmentsInfo
+from .fragment import FragmentInfoList, FragmentInfo
 
 from .highlevel import open, save, from_numpy, empty_like, array_exists, array_fragments
 

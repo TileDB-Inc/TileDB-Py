@@ -8,9 +8,9 @@ A high level wrapper around the Pybind11 fragment.cc implementation to ease usab
 """
 
 
-class FragmentsInfo:
+class FragmentInfoList:
     """
-    Class representing a container of fragment info objects.
+    Class representing an ordered list of FragmentInfo objects.
     """
 
     def __init__(self, array_uri, ctx=None):
@@ -60,7 +60,7 @@ class FragmentsInfo:
 
 class FragmentsInfoIterator:
     """
-    Interator class for the FragmentsInfo container.
+    Iterator class for the FragmentsInfo container.
     """
 
     def __init__(self, fragments):
@@ -77,10 +77,11 @@ class FragmentsInfoIterator:
 
 class FragmentInfo:
     """
-    Class representing a single fragment info object.
+    Class representing the metadata for a single fragment such as the fragment
+    URI, whether it is sparse or dense, timestamp, number of cells, etc.
     """
 
-    def __init__(self, fragments: FragmentsInfo, num):
+    def __init__(self, fragments: FragmentInfoList, num):
         self.num = num
         self.uri = fragments.uri[num]
         self.version = fragments.version[num]
