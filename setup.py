@@ -18,7 +18,7 @@ from setuptools import Extension, find_packages, setup
 print("setup.py sys.argv is: ", sys.argv)
 
 # Target branch
-TILEDB_VERSION = "2.2.7"
+TILEDB_VERSION = "2.2.8"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
