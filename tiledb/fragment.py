@@ -1,7 +1,8 @@
+import pprint
+import warnings
+
 import tiledb
 from tiledb import _fragment
-
-import pprint
 
 """
 A high level wrapper around the Pybind11 fragment.cc implementation to ease usability of retrieving information from all fragments for a given array.
@@ -99,3 +100,18 @@ class FragmentInfo:
 
     def __repr__(self):
         return pprint.PrettyPrinter().pformat(self.__dict__)
+
+
+def FragmentsInfo(array_uri, ctx=None):
+    """
+    Deprecated in 0.8.8.
+
+    Renamed to FragmentInfoList to make name more distinguishable from FragmentInfo.
+    """
+
+    warnings.warn(
+        "FragmentsInfo is deprecated; please use FragmentInfoList",
+        DeprecationWarning,
+    )
+
+    return FragmentInfoList(array_uri, ctx)
