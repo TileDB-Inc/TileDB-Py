@@ -218,7 +218,7 @@ class MultiRangeIndexer(object):
 
         https://tiledb-inc-tiledb.readthedocs-hosted.com/en/stable/c++-api.html#query
 
-        :return: OrderedDict of key -> EstimatedResultSize dataclass
+        :return: OrderedDict of key: str -> EstimatedResultSize
         """
         results = {}
         if not self.pyquery:
