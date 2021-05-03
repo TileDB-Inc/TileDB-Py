@@ -809,15 +809,17 @@ public:
       auto &buf = bp.second;
 
       // Check if values buffer should be resized
-      if ((int64_t)(buf.data_vals_read * buf.elem_nbytes) >
-          (buf.data.nbytes() + 1) / 2) {
+      if ((buf.data_vals_read == 0) ||
+          (int64_t)(buf.data_vals_read * buf.elem_nbytes) >
+              (buf.data.nbytes() + 1) / 2) {
         size_t new_size = buf.data.size() * 2;
         buf.data.resize({new_size}, false);
       }
 
       // Check if offset buffer should be resized
-      if (buf.isvar && (int64_t)(buf.offsets_read * sizeof(uint64_t)) >
-                           (buf.offsets.nbytes() + 1) / 2) {
+      if ((buf.isvar && buf.offsets_read == 0) ||
+          ((int64_t)(buf.offsets_read * sizeof(uint64_t)) >
+           (buf.offsets.nbytes() + 1) / 2)) {
         size_t new_offsets_size = buf.offsets.size() * 2;
         buf.offsets.resize({new_offsets_size}, false);
       }
