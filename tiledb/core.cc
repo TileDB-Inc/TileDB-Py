@@ -1270,7 +1270,7 @@ std::string python_internal_stats() {
 
   os << std::endl;
   os << "==== Python Stats ====" << std::endl << std::endl;
-  os << "- TileDB-Py Indexing Time: " << counters["py.__getitem__time"].count()
+  os << "- TileDB-Py Indexing Time: " << counters["py.getitem_time"].count()
      << std::endl;
   os << "  * TileDB-Py query execution time: "
      << counters["py.read_query_time"].count() << std::endl;
