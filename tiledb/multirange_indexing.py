@@ -154,15 +154,16 @@ class MultiRangeIndexer(object):
         return array
 
     def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
-        if idx is EmptyRange:
-            return _get_empty_results(self.array.schema, self.query)
+        with timing("py.getitem_time"):
+            if idx is EmptyRange:
+                return _get_empty_results(self.array.schema, self.query)
 
-        self.ranges = getitem_ranges(self.array, idx)
+            self.ranges = getitem_ranges(self.array, idx)
 
-        if self.query and self.query.return_incomplete:
-            return self
+            if self.query and self.query.return_incomplete:
+                return self
 
-        return self._run_query(self.query)
+            return self._run_query(self.query)
 
     def _run_query(
         self, query: Optional[Query] = None, preload_metadata: bool = False
@@ -260,25 +261,26 @@ class DataFrameIndexer(MultiRangeIndexer):
         self.use_arrow = use_arrow
 
     def __getitem__(self, idx: Any) -> Union[DataFrame, Table]:
-        check_dataframe_deps()
-        array = self.array
-        # we need to use a Query in order to get coords for a dense array
-        query = self.query if self.query else Query(array, coords=True)
-        if idx is EmptyRange:
-            result = _get_empty_results(array.schema, query)
-        else:
-            self.ranges = getitem_ranges(self.array, idx)
+        with timing("py.getitem_time"):
+            check_dataframe_deps()
+            array = self.array
+            # we need to use a Query in order to get coords for a dense array
+            query = self.query if self.query else Query(array, coords=True)
+            if idx is EmptyRange:
+                result = _get_empty_results(array.schema, query)
+            else:
+                self.ranges = getitem_ranges(self.array, idx)
 
-            if self.query and self.query.return_incomplete:
-                return self
+                if self.query and self.query.return_incomplete:
+                    return self
 
-            result = self._run_query(query, preload_metadata=True)
-        if not isinstance(result, pyarrow.Table):
-            if not isinstance(result, DataFrame):
-                result = DataFrame.from_dict(result)
-            with timing("py.pandas_index_update_time"):
-                result = _update_df_from_meta(result, array.meta, query.index_col)
-        return result
+                result = self._run_query(query, preload_metadata=True)
+            if not isinstance(result, pyarrow.Table):
+                if not isinstance(result, DataFrame):
+                    result = DataFrame.from_dict(result)
+                with timing("py.pandas_index_update_time"):
+                    result = _update_df_from_meta(result, array.meta, query.index_col)
+            return result
 
 
 def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQuery:
