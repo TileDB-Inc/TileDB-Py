@@ -6,7 +6,9 @@
     rather than the the default behavior of resizing buffers and resubmitting to completion.
     Usage example: `examples/incomplete_iteration.py`
     (along with test in: `test_libtiledb.py:test_incomplete_return`)
+* Rename FragmentsInfo to FragmentInfoList [#551](https://github.com/TileDB-Inc/TileDB-Py/pull/551)
 * Dataframe creation uses Zstd default compression level (-1) [#552](https://github.com/TileDB-Inc/TileDB-Py/pull/552)
+* Rename Fragment Info API's non_empty_domain attribute to nonempty_domain [#553](https://github.com/TileDB-Inc/TileDB-Py/pull/553)
 
 ## Bug fixes
 * Fixed incorrected error raised in .df[] indexer when pyarrow not installed [#554](https://github.com/TileDB-Inc/TileDB-Py/pull/554)

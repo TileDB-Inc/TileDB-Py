@@ -25,7 +25,7 @@ class FragmentInfoList:
         self.uri = fi.fragment_uri()
         self.__nums = fi.fragment_num()
         self.version = fi.version()
-        self.non_empty_domain = fi.get_non_empty_domain(schema)
+        self.nonempty_domain = fi.get_non_empty_domain(schema)
         self.cell_num = fi.cell_num()
         self.timestamp_range = fi.timestamp_range()
         self.dense = fi.dense()
@@ -34,6 +34,15 @@ class FragmentInfoList:
         self.unconsolidated_metadata_num = fi.unconsolidated_metadata_num()
         self.to_vacuum_num = fi.to_vacuum_num()
         self.to_vacuum_uri = fi.to_vacuum_uri() if self.to_vacuum_num > 0 else []
+
+    @property
+    def non_empty_domain(self):
+        warnings.warn(
+            "FragmentInfoList.non_empty_domain is deprecated; "
+            "please use FragmentInfoList.nonempty_domain",
+            DeprecationWarning,
+        )
+        return self.nonempty_domain
 
     def __iter__(self):
         return FragmentsInfoIterator(self)
@@ -86,7 +95,7 @@ class FragmentInfo:
         self.num = num
         self.uri = fragments.uri[num]
         self.version = fragments.version[num]
-        self.non_empty_domain = fragments.non_empty_domain[num]
+        self.nonempty_domain = fragments.nonempty_domain[num]
         self.cell_num = fragments.cell_num[num]
         self.timestamp_range = fragments.timestamp_range[num]
         self.dense = fragments.dense[num]
@@ -100,6 +109,15 @@ class FragmentInfo:
 
     def __repr__(self):
         return pprint.PrettyPrinter().pformat(self.__dict__)
+
+    @property
+    def non_empty_domain(self):
+        warnings.warn(
+            "FragmentInfo.non_empty_domain is deprecated; "
+            "please use FragmentInfo.nonempty_domain",
+            DeprecationWarning,
+        )
+        return self.nonempty_domain
 
 
 def FragmentsInfo(array_uri, ctx=None):

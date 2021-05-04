@@ -85,7 +85,7 @@ for fragment_num, fragment in enumerate(fragments_info, start=1):
     print("is sparse: {}".format(fragment.sparse))
     print("cell num: {}".format(fragment.cell_num))
     print("has consolidated metadata: {}".format(fragment.has_consolidated_metadata))
-    print("non empty domain: {}".format(fragment.non_empty_domain))
+    print("nonempty domain: {}".format(fragment.nonempty_domain))
     print("timestamp range: {}".format(fragment.timestamp_range))
     print("number of fragments to vacuum: {}".format(fragment.to_vacuum_num))
     print("uri of fragments to vacuum: {}".format(fragment.to_vacuum_uri))
