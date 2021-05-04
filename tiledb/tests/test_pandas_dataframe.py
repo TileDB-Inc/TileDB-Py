@@ -648,7 +648,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df.sort_values("time", inplace=True)
         df.to_csv(tmp_csv, index=False)
 
-        attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(1)])
+        attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(-1)])
         # from_pandas default is 1, so use 7 here to check
         #   the arg is correctly parsed/passed
         coords_filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
