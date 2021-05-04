@@ -275,7 +275,7 @@ class DataFrameIndexer(MultiRangeIndexer):
                     return self
 
                 result = self._run_query(query, preload_metadata=True)
-            if not isinstance(result, pyarrow.Table):
+            if not (pyarrow and isinstance(result, pyarrow.Table)):
                 if not isinstance(result, DataFrame):
                     result = DataFrame.from_dict(result)
                 with timing("py.pandas_index_update_time"):

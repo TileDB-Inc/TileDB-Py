@@ -8,6 +8,9 @@
     (along with test in: `test_libtiledb.py:test_incomplete_return`)
 * Dataframe creation uses Zstd default compression level (-1) [#552](https://github.com/TileDB-Inc/TileDB-Py/pull/552)
 
+## Bug fixes
+* Fixed incorrected error raised in .df[] indexer when pyarrow not installed [#554](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
+
 # TileDB-Py 0.8.8 Release Notes
 
 ## TileDB Embedded updates:
