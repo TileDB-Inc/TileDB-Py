@@ -1,6 +1,11 @@
 # TileDB-Py 0.8.9 Release Notes
 
 ## Improvements
+* Support for iterating over incomplete query results [#548](https://github.com/TileDB-Inc/TileDB-Py/pull/548)
+  - This feature provides the capability to consume partial query results with a fixed maximum buffer size
+    rather than the the default behavior of resizing buffers and resubmitting to completion.
+    Usage example: `examples/incomplete_iteration.py`
+    (along with test in: `test_libtiledb.py:test_incomplete_return`)
 * Dataframe creation uses Zstd default compression level (-1) [#552](https://github.com/TileDB-Inc/TileDB-Py/pull/552)
 
 # TileDB-Py 0.8.8 Release Notes
