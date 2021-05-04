@@ -130,12 +130,7 @@ class ColumnInfo:
                 # see https://github.com/pandas-dev/pandas/issues/40574
                 nullable = bool(dtype.construct_array_type()._can_hold_na)
 
-            return cls(
-                np.dtype(np_type),
-                repr=dtype.name,
-                nullable=nullable,
-                var=var,
-            )
+            return cls(np.dtype(np_type), repr=dtype.name, nullable=nullable, var=var)
 
         # bool type
         if pd_types.is_bool_dtype(dtype):
@@ -189,7 +184,7 @@ def _get_attrs(names, column_infos, attr_filters, ctx=None):
         elif attr_filters is not None:
             filters = attr_filters
         else:
-            filters = tiledb.FilterList([tiledb.ZstdFilter(1, ctx=ctx)], ctx=ctx)
+            filters = tiledb.FilterList([tiledb.ZstdFilter(-1, ctx=ctx)], ctx=ctx)
 
         column_info = column_infos[name]
         attrs.append(

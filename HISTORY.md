@@ -1,3 +1,8 @@
+# TileDB-Py 0.8.9 Release Notes
+
+## Improvements
+* Dataframe creation uses Zstd default compression level (-1) [#552](https://github.com/TileDB-Inc/TileDB-Py/pull/552)
+
 # TileDB-Py 0.8.8 Release Notes
 
 ## TileDB Embedded updates:
