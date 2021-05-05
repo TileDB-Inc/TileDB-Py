@@ -50,7 +50,7 @@ class FragmentInfoTest(DiskTestCase):
             fragments_info.has_consolidated_metadata, (False, False, False)
         )
         self.assertEqual(
-            fragments_info.non_empty_domain, (((0, 0),), ((1, 1),), ((2, 2),))
+            fragments_info.nonempty_domain, (((0, 0),), ((1, 1),), ((2, 2),))
         )
         self.assertEqual(fragments_info.sparse, (False, False, False))
         self.assertEqual(fragments_info.timestamp_range, ((1, 1), (2, 2), (3, 3)))
@@ -68,7 +68,7 @@ class FragmentInfoTest(DiskTestCase):
             self.assertEqual(frag.cell_num, 3)
             self.assertEqual(frag.dense, True)
             self.assertEqual(frag.has_consolidated_metadata, False)
-            self.assertEqual(frag.non_empty_domain, ((idx, idx),))
+            self.assertEqual(frag.nonempty_domain, ((idx, idx),))
             self.assertEqual(frag.sparse, False)
             self.assertEqual(frag.timestamp_range, (idx + 1, idx + 1))
 
@@ -112,12 +112,12 @@ class FragmentInfoTest(DiskTestCase):
         fragments_info = tiledb.array_fragments(uri)
 
         self.assertEqual(
-            fragments_info.non_empty_domain,
+            fragments_info.nonempty_domain,
             ((("one", "zero"),), (("one", "zero"),), (("one", "zero"),)),
         )
 
         for frag in fragments_info:
-            self.assertEqual(frag.non_empty_domain, (("one", "zero"),))
+            self.assertEqual(frag.nonempty_domain, (("one", "zero"),))
 
     def test_dense_fragments(self):
         fragments = 3
@@ -253,8 +253,8 @@ class FragmentInfoTest(DiskTestCase):
         else:
             self.assertEqual(fragment_info.version(), (9, 9, 9))
 
-    def test_non_empty_domain(self):
-        uri = self.path("test_non_empty_domain")
+    def test_nonempty_domain(self):
+        uri = self.path("test_nonempty_domain")
         ctx = tiledb.default_ctx()
         dom = tiledb.Domain(
             tiledb.Dim(name="x", ctx=ctx, domain=(1, 4)),
@@ -313,8 +313,8 @@ class FragmentInfoTest(DiskTestCase):
             (((1, 4), (-1.0, 2.0)), ((1, 3), (-1.5, -1.25))),
         )
 
-    def test_non_empty_domain_date(self):
-        uri = self.path("test_non_empty_domain")
+    def test_nonempty_domain_date(self):
+        uri = self.path("test_nonempty_domain")
         ctx = tiledb.default_ctx()
         dom = tiledb.Domain(
             tiledb.Dim(
@@ -381,8 +381,8 @@ class FragmentInfoTest(DiskTestCase):
             ),
         )
 
-    def test_non_empty_domain_strings(self):
-        uri = self.path("test_non_empty_domain_strings")
+    def test_nonempty_domain_strings(self):
+        uri = self.path("test_nonempty_domain_strings")
         ctx = tiledb.default_ctx()
         dom = tiledb.Domain(
             tiledb.Dim(name="x", ctx=ctx, domain=(None, None), dtype=np.bytes_),
