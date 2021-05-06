@@ -629,11 +629,11 @@ def dtype_range(np.dtype dtype):
     elif dtype.kind == 'M':
         info = np.iinfo(np.int64)
         date_unit = np.datetime_data(dtype)[0]
+        # +1 to exclude NaT
         dtype_min = np.datetime64(info.min + 1, date_unit)
         dtype_max = np.datetime64(info.max, date_unit)
     else:
         raise TypeError("invalid Dim dtype {0!r}".format(dtype))
-
     return (dtype_min, dtype_max)
 
 ###############################################################################

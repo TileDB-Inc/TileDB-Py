@@ -86,12 +86,15 @@ struct BufferInfo {
       : name(name), type(data_type), cell_val_num(cell_val_num), isvar(isvar),
         isnullable(isnullable) {
 
-    dtype = tiledb_dtype(data_type, cell_val_num);
-    elem_nbytes = tiledb_datatype_size(type);
-    data = py::array(py::dtype("uint8"), data_nbytes);
-    offsets = py::array_t<uint64_t>(offsets_num);
-    validity = py::array_t<uint8_t>(validity_num);
-
+    try {
+      dtype = tiledb_dtype(data_type, cell_val_num);
+      elem_nbytes = tiledb_datatype_size(type);
+      data = py::array(py::dtype("uint8"), data_nbytes);
+      offsets = py::array_t<uint64_t>(offsets_num);
+      validity = py::array_t<uint8_t>(validity_num);
+    } catch (py::error_already_set &e) {
+      TPY_ERROR_LOC(e.what())
+    }
     // TODO use memset here for zero'd buffers in debug mode
   }
 
