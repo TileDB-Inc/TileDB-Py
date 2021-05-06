@@ -235,12 +235,10 @@ def dim_for_column(
             dim_max = dtype_max
             if dtype.kind == "M":
                 date_unit = np.datetime_data(dtype)[0]
-                dim_min = np.datetime64(dtype_min + 1, date_unit)
+                dim_min = np.datetime64(dtype_min, date_unit)
                 tile_max = np.iinfo(np.uint64).max - tile
                 if np.uint64(dtype_max - dtype_min) > tile_max:
                     dim_max = np.datetime64(dtype_max - tile, date_unit)
-            elif dtype is np.int64:
-                dim_min = dtype_min + 1
             else:
                 dim_min = dtype_min
 
