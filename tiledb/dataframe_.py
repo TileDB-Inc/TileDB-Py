@@ -260,7 +260,7 @@ def dim_for_column(
             dim_range = np.uint64(dim_max - dim_min)
             # we can't make a tile larger than the dimension range or lower than 1
             tile = max(1, min(tile, dim_range))
-        elif np.issubdtype(dtype, np.float64):
+        elif np.issubdtype(dtype, np.floating):
             # this difference can be inf
             with np.errstate(over="ignore"):
                 dim_range = dim_max - dim_min
