@@ -66,7 +66,11 @@ class CoreCCTest(DiskTestCase):
     def test_pyquery_init(self):
         uri = self.path("test_pyquery_init")
         intmax = np.iinfo(np.int64).max
-        config_dict = {"sm.tile_cache_size": "100", "py.init_buffer_bytes": str(intmax)}
+        config_dict = {
+            "sm.tile_cache_size": "100",
+            "py.init_buffer_bytes": str(intmax),
+            "py.alloc_max_bytes": str(intmax),
+        }
         ctx = tiledb.Ctx(config=config_dict)
 
         with tiledb.from_numpy(uri, np.random.rand(4)) as A:
@@ -75,6 +79,7 @@ class CoreCCTest(DiskTestCase):
         with tiledb.open(uri) as a:
             q = core.PyQuery(ctx, a, ("",), (), 0, False)
             self.assertEqual(q._test_init_buffer_bytes, intmax)
+            self.assertEqual(q._test_alloc_max_bytes, intmax)
 
     def test_import_buffer(self):
         uri = self.path("test_import_buffer")
