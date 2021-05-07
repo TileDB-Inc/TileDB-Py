@@ -35,7 +35,7 @@ def make_dataframe_basic1(col_size=10):
         chars.append(next)
 
     data_dict = {
-        "time": rand_datetime64_array(col_size),
+        "time": rand_datetime64_array(col_size, include_extremes=False),
         "x": np.array([rand_ascii(4).encode("UTF-8") for _ in range(col_size)]),
         "chars": np.array(chars),
         "cccc": np.arange(0, col_size),
@@ -92,7 +92,7 @@ def make_dataframe_basic2():
 def make_dataframe_basic3(col_size=10, time_range=(None, None)):
     df_dict = {
         "time": rand_datetime64_array(
-            col_size, start=time_range[0], stop=time_range[1]
+            col_size, start=time_range[0], stop=time_range[1], include_extremes=False
         ),
         "double_range": np.linspace(-1000, 1000, col_size),
         "int_vals": np.random.randint(

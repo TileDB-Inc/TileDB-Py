@@ -12,10 +12,20 @@ import random
 
 import numpy as np
 from numpy.testing import assert_array_equal
+import pytest
 
 import tiledb
 from tiledb.multirange_indexing import getitem_ranges, mr_dense_result_shape
-from tiledb.tests.common import DiskTestCase, assert_tail_equal, intspace
+from tiledb.tests.common import (
+    DiskTestCase,
+    assert_tail_equal,
+    intspace,
+    SUPPORTED_DATETIME64_DTYPES,
+    rand_datetime64_array,
+    assert_all_arrays_equal,
+)
+
+import hypothesis.extra.numpy as npst
 
 
 def make_1d_dense(path, attr_name="", attr_dtype=np.int64):
@@ -301,7 +311,7 @@ class TestMultiRange(DiskTestCase):
         path = self.path("multi_index_1d")
 
         dom = tiledb.Domain(
-            tiledb.Dim(name="coords", domain=(-10, 10), tile=9, dtype=np.int64),
+            tiledb.Dim(name="coords", domain=(-10, 10), tile=9, dtype=np.int64)
         )
         att = tiledb.Attr(name=attr_name, dtype=np.float32)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
@@ -339,7 +349,7 @@ class TestMultiRange(DiskTestCase):
         path = self.path("mr_1d_sparse_double")
 
         dom = tiledb.Domain(
-            tiledb.Dim(name="coords", domain=(0, 30), tile=10, dtype=np.float64),
+            tiledb.Dim(name="coords", domain=(0, 30), tile=10, dtype=np.float64)
         )
         att = tiledb.Attr(name=attr_name, dtype=np.float64)
         schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=(att,))
@@ -476,7 +486,7 @@ class TestMultiRange(DiskTestCase):
         path = self.path("mr_1d_sparse_query")
 
         dom = tiledb.Domain(
-            tiledb.Dim(name="coords", domain=(-100, 100), tile=1, dtype=np.float32),
+            tiledb.Dim(name="coords", domain=(-100, 100), tile=1, dtype=np.float32)
         )
         attrs = [
             tiledb.Attr(name="U", dtype=np.float64),
@@ -584,42 +594,36 @@ class TestMultiRange(DiskTestCase):
             #    A.multi_index[[(np.float64(0),np.float64(3.0))], slice(7,9)][attr_name]
             # )
 
-    def test_multirange_1d_sparse_datetime64(self):
+    @pytest.mark.parametrize("dtype", SUPPORTED_DATETIME64_DTYPES)
+    def test_multirange_1d_sparse_datetime64(self, dtype):
         path = self.path("multirange_1d_sparse_datetime64")
 
+        dates = rand_datetime64_array(10, dtype=dtype)
         dom = tiledb.Domain(
-            tiledb.Dim(
-                domain=(np.datetime64("2019"), np.datetime64("2020")),
-                dtype="datetime64[D]",
-                tile=1,
-            ),
+            tiledb.Dim(domain=(dates.min(), dates.max()), dtype=dtype, tile=1)
         )
 
         attr_name = ""
-        att = tiledb.Attr(name=attr_name, dtype=np.float64)
+        att = tiledb.Attr(name=attr_name, dtype=dtype)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
         tiledb.SparseArray.create(path, schema)
 
         with tiledb.SparseArray(path, mode="w") as T:
-            dates = np.array(
-                ["2019-10-02", "2019-10-03", "2019-10-04"], dtype="datetime64[D]"
-            )
-            T[dates] = np.array(range(3))
+            T[dates] = dates
 
         with tiledb.open(path) as A:
-            oct_2_np = np.datetime64("2019-10-02").astype("int64")
-            oct_4_np = np.datetime64("2019-10-04").astype("int64")
+            res = A.multi_index[:]
+            # check full range
+            assert_tail_equal(dates, res[""], res["__dim_0"])
 
-            oct_2_int = oct_2_np.item()
-            oct_4_int = oct_4_np.item()
-
-            self.assertEqual(oct_2_np, oct_2_int)
-            self.assertEqual(oct_4_np, oct_4_int)
-
-            assert_array_equal(
-                (A.multi_index[oct_2_np:oct_4_np][attr_name]),
-                A.multi_index[oct_2_int:oct_4_int][attr_name],
-            )
+            # check range pairs
+            for i in range(len(dates) - 1):
+                start, stop = dates[i : i + 2]
+                assert_tail_equal(
+                    dates[i : i + 2],
+                    A.multi_index[start:stop][""],
+                    A.multi_index[start:stop]["__dim_0"],
+                )
 
     def test_fix_473_sparse_index_bug(self):
         # test of fix for issue raised in
@@ -660,15 +664,14 @@ class TestMultiRange(DiskTestCase):
     def test_fixed_multi_attr_df(self):
         uri = self.path("test_fixed_multi_attr_df")
         dom = tiledb.Domain(
-            tiledb.Dim(name="dim", domain=(0, 0), tile=None, dtype=np.int32),
+            tiledb.Dim(name="dim", domain=(0, 0), tile=None, dtype=np.int32)
         )
         schema = tiledb.ArraySchema(
             domain=dom,
             sparse=True,
             attrs=[
                 tiledb.Attr(
-                    name="111",
-                    dtype=[("", np.int32), ("", np.int32), ("", np.int32)],
+                    name="111", dtype=[("", np.int32), ("", np.int32), ("", np.int32)]
                 )
             ],
         )
@@ -694,7 +697,7 @@ class TestMultiRange(DiskTestCase):
     def test_var_multi_attr_df(self):
         uri = self.path("test_var_multi_attr_df")
         dom = tiledb.Domain(
-            tiledb.Dim(name="dim", domain=(0, 2), tile=None, dtype=np.int32),
+            tiledb.Dim(name="dim", domain=(0, 2), tile=None, dtype=np.int32)
         )
         schema = tiledb.ArraySchema(
             domain=dom,
@@ -736,9 +739,7 @@ class TestMultiRange(DiskTestCase):
             tiledb.Dim(name="dstr", domain=(None, None), tile=None, dtype=np.bytes_),
         )
         schema = tiledb.ArraySchema(
-            domain=dom,
-            sparse=True,
-            attrs=[tiledb.Attr(name="", dtype=np.int32)],
+            domain=dom, sparse=True, attrs=[tiledb.Attr(name="", dtype=np.int32)]
         )
 
         tiledb.Array.create(uri, schema)
