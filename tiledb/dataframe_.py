@@ -235,12 +235,10 @@ def dim_for_column(
             dim_max = dtype_max
             if dtype.kind == "M":
                 date_unit = np.datetime_data(dtype)[0]
-                dim_min = np.datetime64(dtype_min + 1, date_unit)
+                dim_min = np.datetime64(dtype_min, date_unit)
                 tile_max = np.iinfo(np.uint64).max - tile
                 if np.uint64(dtype_max - dtype_min) > tile_max:
                     dim_max = np.datetime64(dtype_max - tile, date_unit)
-            elif dtype is np.int64:
-                dim_min = dtype_min + 1
             else:
                 dim_min = dtype_min
 
@@ -260,7 +258,7 @@ def dim_for_column(
             dim_range = np.uint64(dim_max - dim_min)
             # we can't make a tile larger than the dimension range or lower than 1
             tile = max(1, min(tile, dim_range))
-        elif np.issubdtype(dtype, np.float64):
+        elif np.issubdtype(dtype, np.floating):
             # this difference can be inf
             with np.errstate(over="ignore"):
                 dim_range = dim_max - dim_min

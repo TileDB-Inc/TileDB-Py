@@ -312,6 +312,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         uri = self.path("dataframe_basic_rt1_unlimited")
         tiledb.from_pandas(uri, df, full_domain=True, sparse=False, ctx=ctx)
 
+        with tiledb.open(uri) as A:
+            dim = A.schema.domain.dim(0)
+            assert dim.domain[0] == 0
+            assert dim.domain[1] == dtype_max(np.uint64) - dim.tile
+
         for use_arrow in None, False, True:
             df_readback = tiledb.open_dataframe(uri, use_arrow=use_arrow)
             tm.assert_frame_equal(df, df_readback)
