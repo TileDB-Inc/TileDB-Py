@@ -254,7 +254,7 @@ private:
   // rather than the estimated result size. for incomplete testing.
   bool exact_init_bytes_ = false;
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
-  uint64_t exp_alloc_max_bytes_ = DEFAULT_EXP_ALLOC_MAX_BYTES;
+  uint64_t alloc_max_bytes_ = DEFAULT_ALLOC_MAX_BYTES;
 
 public:
   tiledb_ctx_t *c_ctx_;
@@ -354,15 +354,15 @@ public:
       }
     }
 
-    if (config_has_key(ctx_.config(), "py.exp_alloc_max_bytes")) {
-      tmp_str = ctx_.config().get("py.exp_alloc_max_bytes");
+    if (config_has_key(ctx_.config(), "py.alloc_max_bytes")) {
+      tmp_str = ctx_.config().get("py.alloc_max_bytes");
       try {
-        exp_alloc_max_bytes_ = std::stoull(tmp_str);
+        alloc_max_bytes_ = std::stoull(tmp_str);
       } catch (const std::invalid_argument &e) {
         (void)e;
         throw std::invalid_argument(
-            "Failed to convert 'py.exp_alloc_max_bytes' to uint64_t ('" +
-            tmp_str + "')");
+            "Failed to convert 'py.alloc_max_bytes' to uint64_t ('" + tmp_str +
+            "')");
       }
     }
 
@@ -685,6 +685,18 @@ public:
         buf_nbytes = query_->est_result_size(name);
       }
     }
+
+    // don't try to allocate more than alloc_max_bytes_
+    if (buf_nbytes > alloc_max_bytes_) {
+      buf_nbytes = alloc_max_bytes_;
+    }
+    if (validity_num * sizeof(uint8_t) > alloc_max_bytes_) {
+      validity_num = buf_nbytes / sizeof(uint8_t);
+    }
+    if (offsets_num * sizeof(uint64_t) > alloc_max_bytes_) {
+      offsets_num = buf_nbytes / sizeof(uint64_t);
+    }
+
     // use init_buffer_bytes configuration option if the
     // estimate is smaller
     if ((var || is_sparse()) &&
@@ -1212,6 +1224,10 @@ public:
     // test helper to get the configured init_buffer_bytes
     return init_buffer_bytes_;
   }
+  uint64_t _test_alloc_max_bytes() {
+    // test helper to get the configured init_buffer_bytes
+    return alloc_max_bytes_;
+  }
 };
 
 void init_stats() {
@@ -1321,6 +1337,8 @@ PYBIND11_MODULE(core, m) {
           .def_property_readonly("is_incomplete", &PyQuery::is_incomplete)
           .def_property_readonly("_test_init_buffer_bytes",
                                  &PyQuery::_test_init_buffer_bytes)
+          .def_property_readonly("_test_alloc_max_bytes",
+                                 &PyQuery::_test_alloc_max_bytes)
           .def_readonly("retries", &PyQuery::retries_);
 
   m.def("array_to_buffer", &convert_np);
