@@ -1,3 +1,4 @@
+import tiledb
 import contextlib
 import datetime
 import glob
@@ -14,6 +15,10 @@ import uuid
 import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
+
+SUPPORTED_DATETIME64_DTYPES = tuple(
+    np.dtype(f"M8[{res}]") for res in "Y M W D h m s ms us ns".split()
+)
 
 
 def assert_tail_equal(a, *rest, **kwargs):
@@ -238,13 +243,14 @@ def dtype_min(dtype):
 
 
 def rand_int_sequential(size, dtype=np.uint64):
-    arr = np.random.randint(
-        dtype_min(dtype), high=dtype_max(dtype), size=size, dtype=dtype
-    )
+    dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dtype)
+    arr = np.random.randint(dtype_min, high=dtype_max, size=size, dtype=dtype)
     return np.sort(arr)
 
 
-def rand_datetime64_array(size, start=None, stop=None, dtype=None):
+def rand_datetime64_array(
+    size, start=None, stop=None, include_extremes=True, dtype=None
+):
     if not dtype:
         dtype = np.dtype("M8[ns]")
 
@@ -267,9 +273,16 @@ def rand_datetime64_array(size, start=None, stop=None, dtype=None):
         size=size,
         dtype=np.int64,
     )
-    arr.sort()
 
-    return arr.astype(dtype)
+    arr.sort()
+    arr = arr.astype(dtype)
+
+    # enable after fix for core issue: ch 7192
+    if include_extremes:
+        arr[0] = start
+        arr[-1] = stop
+
+    return arr
 
 
 def intspace(start, stop, num=50, dtype=np.int64):

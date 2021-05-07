@@ -46,7 +46,7 @@ in_test = "PYTEST_CURRENT_TEST" in os.environ
 def generate_csvs(csv_folder, count=50, min_length=1, max_length=109):
     def make_dataframe(col_size):
         data = {
-            "idx_datetime": rand_datetime64_array(col_size),
+            "idx_datetime": rand_datetime64_array(col_size, include_extremes=False),
             "column_int64": np.random.randint(0, 150000, size=col_size, dtype=np.int64),
             "column_uint32": np.random.randint(
                 0, 150000, size=col_size, dtype=np.uint32
