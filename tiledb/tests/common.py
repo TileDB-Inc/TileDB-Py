@@ -4,6 +4,7 @@ import glob
 import os
 import random
 import shutil
+import subprocess
 import tempfile
 import traceback
 
@@ -49,12 +50,17 @@ class DiskTestCase:
                     print("  '{}' <- '{}'".format(path, frame))
                 raise exc
 
-    def path(self, basename=None):
+    def path(self, basename=None, shared=False):
         if basename is not None:
             # Note: this must be `is not None` because we need to match empty string
             out = os.path.abspath(os.path.join(self.rootdir, basename))
         else:
             out = tempfile.mkdtemp(dir=self.rootdir)
+
+        if os.name == "nt" and shared:
+            subprocess.run(
+                f'cmd //c "net share tiledb-shared={out}"', shell=True, check=True
+            )
 
         # We have had issues in both py and libtiledb in the past
         # where files were not released (eg: destructor not called)
@@ -144,11 +150,11 @@ def gen_chr(max, printable=False):
 
 
 def rand_utf8(size=5):
-    return u"".join([gen_chr(0xD7FF) for _ in range(0, size)])
+    return "".join([gen_chr(0xD7FF) for _ in range(0, size)])
 
 
 def rand_ascii(size=5, printable=False):
-    return u"".join([gen_chr(127, printable) for _ in range(0, size)])
+    return "".join([gen_chr(127, printable) for _ in range(0, size)])
 
 
 def rand_ascii_bytes(size=5, printable=False):
