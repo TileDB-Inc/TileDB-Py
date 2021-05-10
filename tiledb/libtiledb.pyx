@@ -2674,7 +2674,7 @@ cdef class Dim(object):
                 filters_str +=  repr(f) + ", "
             filters_str += "])"
 
-        return "Dim(name={0!r}, domain={1!s}, tile={2!s}, dtype='{3!s}'{4})" \
+        return "Dim(name={0!r}, domain={1!s}, tile='{2!s}', dtype='{3!s}'{4})" \
             .format(self.name, self.domain, self.tile, self.dtype, filters_str)
 
     def __len__(self):
