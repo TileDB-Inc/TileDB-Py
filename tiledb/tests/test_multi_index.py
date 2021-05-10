@@ -18,30 +18,27 @@ from tiledb.multirange_indexing import getitem_ranges, mr_dense_result_shape
 from tiledb.tests.common import DiskTestCase, assert_tail_equal, intspace
 
 
-def make_1d_dense(ctx, path, attr_name="", attr_dtype=np.int64):
+def make_1d_dense(path, attr_name="", attr_dtype=np.int64):
     a_orig = np.arange(36)
 
-    dom = tiledb.Domain(
-        tiledb.Dim(domain=(0, 35), tile=35, dtype=np.uint64, ctx=ctx), ctx=ctx
-    )
-    att = tiledb.Attr(name=attr_name, dtype=attr_dtype, ctx=ctx)
-    schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
+    dom = tiledb.Domain(tiledb.Dim(domain=(0, 35), tile=35, dtype=np.uint64))
+    att = tiledb.Attr(name=attr_name, dtype=attr_dtype)
+    schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False)
     tiledb.DenseArray.create(path, schema)
 
     with tiledb.DenseArray(path, "w") as A:
         A[:] = a_orig
 
 
-def make_2d_dense(ctx, path, attr_name="", attr_dtype=np.int64):
+def make_2d_dense(path, attr_name="", attr_dtype=np.int64):
     a_orig = np.arange(1, 37).reshape(9, 4)
 
     dom = tiledb.Domain(
-        tiledb.Dim(domain=(0, 8), tile=9, dtype=np.uint64, ctx=ctx),
-        tiledb.Dim(domain=(0, 3), tile=4, dtype=np.uint64, ctx=ctx),
-        ctx=ctx,
+        tiledb.Dim(domain=(0, 8), tile=9, dtype=np.uint64),
+        tiledb.Dim(domain=(0, 3), tile=4, dtype=np.uint64),
     )
-    att = tiledb.Attr(name=attr_name, dtype=attr_dtype, ctx=ctx)
-    schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
+    att = tiledb.Attr(name=attr_name, dtype=attr_dtype)
+    schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False)
     tiledb.DenseArray.create(path, schema)
 
     with tiledb.DenseArray(path, "w") as A:
@@ -179,17 +176,15 @@ class TestMultiRange(DiskTestCase):
             self.assertTrue("idx" not in res)
 
     def test_multirange_empty(self):
-        ctx = tiledb.Ctx()
-
         path1 = self.path("test_multirange_empty_1d")
-        make_1d_dense(ctx, path1, attr_dtype=np.uint16)
+        make_1d_dense(path1, attr_dtype=np.uint16)
         with tiledb.open(path1) as A:
             res = A.multi_index[tiledb.EmptyRange]
             assert res[""].dtype == np.uint16
             assert res[""].shape == (0,)
 
         path2 = self.path("test_multirange_empty_2d")
-        make_2d_dense(ctx, path2, attr_dtype=np.float32)
+        make_2d_dense(path2, attr_dtype=np.float32)
         with tiledb.open(path2) as A:
             res = A.multi_index[tiledb.EmptyRange]
             assert res[""].dtype == np.float32
@@ -199,10 +194,7 @@ class TestMultiRange(DiskTestCase):
         path = self.path("test_multirange_1d_1dim_ranges")
         attr_name = "a"
 
-        ctx = tiledb.Ctx()
-        make_1d_dense(ctx, path, attr_name=attr_name)
-
-        expected = np.array([0], dtype=np.uint64)
+        make_1d_dense(path, attr_name=attr_name)
 
         with tiledb.DenseArray(path) as A:
             ranges = (((0, 0),),)
@@ -223,8 +215,7 @@ class TestMultiRange(DiskTestCase):
         path = self.path("test_multirange_1dim_ranges")
         attr_name = "a"
 
-        ctx = tiledb.Ctx()
-        make_2d_dense(ctx, path, attr_name=attr_name)
+        make_2d_dense(path, attr_name=attr_name)
 
         expected = np.array(
             [
@@ -260,11 +251,10 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(a, expected)
 
     def test_multirange_2d_2dim_ranges(self):
-        ctx = tiledb.Ctx()
         path = self.path("test_multirange_2dim_ranges")
         attr_name = "a"
 
-        make_2d_dense(ctx, path, attr_name=attr_name)
+        make_2d_dense(path, attr_name=attr_name)
 
         expected = np.arange(1, 21)
 
@@ -308,17 +298,13 @@ class TestMultiRange(DiskTestCase):
 
     def test_multirange_1d_dense_int64(self):
         attr_name = ""
-        ctx = tiledb.Ctx()
         path = self.path("multi_index_1d")
 
         dom = tiledb.Domain(
-            tiledb.Dim(
-                name="coords", domain=(-10, 10), tile=9, dtype=np.int64, ctx=ctx
-            ),
-            ctx=ctx,
+            tiledb.Dim(name="coords", domain=(-10, 10), tile=9, dtype=np.int64),
         )
-        att = tiledb.Attr(name=attr_name, dtype=np.float32, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), ctx=ctx)
+        att = tiledb.Attr(name=attr_name, dtype=np.float32)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(path, schema)
 
         orig_array = np.random.rand(schema.domain.dim(0).size).astype(np.float32)
@@ -350,17 +336,13 @@ class TestMultiRange(DiskTestCase):
 
     def test_multirange_1d_sparse_double(self):
         attr_name = ""
-        ctx = tiledb.Ctx()
         path = self.path("mr_1d_sparse_double")
 
         dom = tiledb.Domain(
-            tiledb.Dim(
-                name="coords", domain=(0, 30), tile=10, dtype=np.float64, ctx=ctx
-            ),
-            ctx=ctx,
+            tiledb.Dim(name="coords", domain=(0, 30), tile=10, dtype=np.float64),
         )
-        att = tiledb.Attr(name=attr_name, dtype=np.float64, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=(att,), ctx=ctx)
+        att = tiledb.Attr(name=attr_name, dtype=np.float64)
+        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=(att,))
         tiledb.SparseArray.create(path, schema)
 
         coords = np.linspace(0, 30, num=31)
@@ -394,7 +376,6 @@ class TestMultiRange(DiskTestCase):
 
     def test_multirange_2d_sparse_domain_utypes(self):
         attr_name = "foo"
-        ctx = tiledb.Ctx()
 
         types = (np.uint8, np.uint16, np.uint32, np.uint64)
 
@@ -403,12 +384,10 @@ class TestMultiRange(DiskTestCase):
             max = int(np.iinfo(dtype).max) - 1
             path = self.path("multi_index_2d_sparse_" + str(dtype.__name__))
 
-            dom = tiledb.Domain(
-                tiledb.Dim(domain=(min, max), tile=1, dtype=dtype, ctx=ctx), ctx=ctx
-            )
+            dom = tiledb.Domain(tiledb.Dim(domain=(min, max), tile=1, dtype=dtype))
 
-            att = tiledb.Attr(name=attr_name, dtype=dtype, ctx=ctx)
-            schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=(att,), ctx=ctx)
+            att = tiledb.Attr(name=attr_name, dtype=dtype)
+            schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=(att,))
             tiledb.SparseArray.create(path, schema)
 
             coords = intspace(min, max, num=100, dtype=dtype)
@@ -442,16 +421,14 @@ class TestMultiRange(DiskTestCase):
 
     def test_multirange_2d_sparse_float(self):
         attr_name = ""
-        ctx = tiledb.Ctx()
         path = self.path("mr_2d_sparse_float")
 
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 10), tile=1, dtype=np.float32, ctx=ctx),
-            tiledb.Dim(domain=(0, 10), tile=1, dtype=np.float32, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(domain=(0, 10), tile=1, dtype=np.float32),
+            tiledb.Dim(domain=(0, 10), tile=1, dtype=np.float32),
         )
-        att = tiledb.Attr(name=attr_name, dtype=np.float64, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        att = tiledb.Attr(name=attr_name, dtype=np.float64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
         tiledb.SparseArray.create(path, schema)
 
         orig_array = np.random.rand(11, 11)
@@ -496,21 +473,17 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(coords_d2[0:3, 2:6].flatten(), res["__dim_1"])
 
     def test_multirange_1d_sparse_query(self):
-        ctx = tiledb.Ctx()
         path = self.path("mr_1d_sparse_query")
 
         dom = tiledb.Domain(
-            tiledb.Dim(
-                name="coords", domain=(-100, 100), tile=1, dtype=np.float32, ctx=ctx
-            ),
-            ctx=ctx,
+            tiledb.Dim(name="coords", domain=(-100, 100), tile=1, dtype=np.float32),
         )
         attrs = [
-            tiledb.Attr(name="U", dtype=np.float64, ctx=ctx),
-            tiledb.Attr(name="V", dtype=np.uint32, ctx=ctx),
+            tiledb.Attr(name="U", dtype=np.float64),
+            tiledb.Attr(name="V", dtype=np.uint32),
         ]
 
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.SparseArray.create(path, schema)
 
         U = np.random.rand(11)
@@ -559,15 +532,12 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(res["U"], data["U"])
 
     def test_multirange_1d_dense_vectorized(self):
-        ctx = tiledb.Ctx()
         path = self.path("mr_1d_dense_vectorized")
 
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 999), tile=1000, dtype=np.uint32, ctx=ctx), ctx=ctx
-        )
-        attrs = tiledb.Attr(name="", dtype=np.float64, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 999), tile=1000, dtype=np.uint32))
+        attrs = tiledb.Attr(name="", dtype=np.float64)
 
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attrs,), sparse=False, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attrs,), sparse=False)
         tiledb.DenseArray.create(path, schema)
 
         data = np.random.rand(1000)
@@ -584,16 +554,14 @@ class TestMultiRange(DiskTestCase):
 
     def test_multirange_2d_dense_float(self):
         attr_name = ""
-        ctx = tiledb.Ctx()
         path = self.path("multirange_2d_dense_float")
 
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 10), tile=1, dtype=np.int64, ctx=ctx),
-            tiledb.Dim(domain=(0, 10), tile=1, dtype=np.int64, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(domain=(0, 10), tile=1, dtype=np.int64),
+            tiledb.Dim(domain=(0, 10), tile=1, dtype=np.int64),
         )
-        att = tiledb.Attr(name=attr_name, dtype=np.float64, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
+        att = tiledb.Attr(name=attr_name, dtype=np.float64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False)
         tiledb.DenseArray.create(path, schema)
 
         orig_array = np.random.rand(11, 11)
@@ -617,25 +585,22 @@ class TestMultiRange(DiskTestCase):
             # )
 
     def test_multirange_1d_sparse_datetime64(self):
-        ctx = tiledb.Ctx()
         path = self.path("multirange_1d_sparse_datetime64")
 
         dom = tiledb.Domain(
             tiledb.Dim(
-                ctx=ctx,
                 domain=(np.datetime64("2019"), np.datetime64("2020")),
                 dtype="datetime64[D]",
                 tile=1,
             ),
-            ctx=ctx,
         )
 
         attr_name = ""
-        att = tiledb.Attr(name=attr_name, dtype=np.float64, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        att = tiledb.Attr(name=attr_name, dtype=np.float64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
         tiledb.SparseArray.create(path, schema)
 
-        with tiledb.SparseArray(path, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(path, mode="w") as T:
             dates = np.array(
                 ["2019-10-02", "2019-10-03", "2019-10-04"], dtype="datetime64[D]"
             )

@@ -44,22 +44,19 @@ array_name = "variable_length_array"
 
 
 def create_array():
-    ctx = tiledb.Ctx()
-
     dom = tiledb.Domain(
         tiledb.Dim(name="rows", domain=(1, 4), tile=4, dtype=np.int64),
         tiledb.Dim(name="cols", domain=(1, 4), tile=4, dtype=np.int64),
-        ctx=ctx,
     )
 
     attrs = [
-        tiledb.Attr(name="a1", var=True, dtype="U", ctx=ctx),
-        tiledb.Attr(name="a2", var=True, dtype=np.int64, ctx=ctx),
+        tiledb.Attr(name="a1", var=True, dtype="U"),
+        tiledb.Attr(name="a2", var=True, dtype=np.int64),
     ]
 
-    schema = tiledb.ArraySchema(domain=dom, sparse=False, attrs=attrs, ctx=ctx)
+    schema = tiledb.ArraySchema(domain=dom, sparse=False, attrs=attrs)
 
-    tiledb.Array.create(array_name, schema, ctx=ctx)
+    tiledb.Array.create(array_name, schema)
 
     return schema
 
@@ -124,18 +121,13 @@ def generate_data():
 
 
 def write_array(data_dict):
-    ctx = tiledb.Ctx()
-
     # open array for writing, and write data
-    with tiledb.open(array_name, "w", ctx=ctx) as array:
+    with tiledb.open(array_name, "w") as array:
         array[:] = data_dict
 
 
 def test_output_subarrays(test_dict):
-    from numpy.testing import assert_array_equal
-
-    ctx = tiledb.Ctx()
-    with tiledb.open(array_name, ctx=ctx) as A:
+    with tiledb.open(array_name) as A:
         rt_dict = A[:]
         assert_subarrays_equal(test_dict["a2"], rt_dict["a2"])
 

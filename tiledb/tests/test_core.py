@@ -1,8 +1,5 @@
 import copy
-import os
 import random
-import sys
-import unittest
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -14,7 +11,7 @@ from tiledb.tests.common import DiskTestCase, rand_ascii
 
 class CoreCCTest(DiskTestCase):
     def test_pyquery_basic(self):
-        ctx = tiledb.default_ctx()
+        ctx = tiledb.Ctx()
         uri = self.path("test_pyquery_basic")
         with tiledb.from_numpy(uri, np.random.rand(4)) as A:
             pass
@@ -84,23 +81,20 @@ class CoreCCTest(DiskTestCase):
     def test_import_buffer(self):
         uri = self.path("test_import_buffer")
 
-        ctx = tiledb.Ctx()
-
         def_tile = 1
         if tiledb.libtiledb.version() < (2, 2):
             def_tile = 2
 
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 3), tile=def_tile, dtype=np.int64, ctx=ctx),
-            tiledb.Dim(domain=(0, 3), tile=def_tile, dtype=np.int64, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(domain=(0, 3), tile=def_tile, dtype=np.int64),
+            tiledb.Dim(domain=(0, 3), tile=def_tile, dtype=np.int64),
         )
         attrs = [
-            tiledb.Attr(name="", dtype=np.float64, ctx=ctx),
-            tiledb.Attr(name="foo", dtype=np.int32, ctx=ctx),
-            tiledb.Attr(name="str", dtype=str, ctx=ctx),
+            tiledb.Attr(name="", dtype=np.float64),
+            tiledb.Attr(name="foo", dtype=np.int32),
+            tiledb.Attr(name="str", dtype=str),
         ]
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
         tiledb.DenseArray.create(uri, schema)
 
         data_orig = {
@@ -166,6 +160,7 @@ class CoreCCTest(DiskTestCase):
 
         with tiledb.DenseArray(uri, mode="r") as E:
             # Ensure that query only returns specified attributes
+            ctx = tiledb.Ctx()
             q = core.PyQuery(ctx, E, ("foo",), (), 0, False)
             q.set_ranges([[(0, 1)]])
             q.submit()

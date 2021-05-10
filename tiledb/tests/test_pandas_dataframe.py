@@ -238,10 +238,7 @@ class TestDimType:
 
 class TestPandasDataFrameRoundtrip(DiskTestCase):
     def test_dataframe_basic_rt1_manual(self):
-
         uri = self.path("dataframe_basic_rt1_manual")
-
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim(name="i_chars", domain=(0, 10000), tile=10, dtype=np.uint64),
             tiledb.Dim(
@@ -256,27 +253,22 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 tile=dtype_max(np.uint64),
                 dtype=np.uint64,
             ),
-            ctx=ctx,
         )
 
         compression = tiledb.FilterList([tiledb.ZstdFilter(level=-1)])
         attrs = [
-            tiledb.Attr(name="x", dtype="S", filters=compression, ctx=ctx),
-            tiledb.Attr(name="chars", dtype="|S2", filters=compression, ctx=ctx),
-            tiledb.Attr(name="q", dtype="U", filters=compression, ctx=ctx),
-            tiledb.Attr(name="r", dtype="S", filters=compression, ctx=ctx),
-            tiledb.Attr(name="s", dtype="U", filters=compression, ctx=ctx),
-            tiledb.Attr(
-                name="vals_int64", dtype=np.int64, filters=compression, ctx=ctx
-            ),
-            tiledb.Attr(
-                name="vals_float64", dtype=np.float64, filters=compression, ctx=ctx
-            ),
-            tiledb.Attr(name="t", dtype="U", filters=compression, ctx=ctx),
-            tiledb.Attr(name="u", dtype="U", filters=compression, ctx=ctx),
-            tiledb.Attr(name="v", dtype="S", filters=compression, ctx=ctx),
+            tiledb.Attr(name="x", dtype="S", filters=compression),
+            tiledb.Attr(name="chars", dtype="|S2", filters=compression),
+            tiledb.Attr(name="q", dtype="U", filters=compression),
+            tiledb.Attr(name="r", dtype="S", filters=compression),
+            tiledb.Attr(name="s", dtype="U", filters=compression),
+            tiledb.Attr(name="vals_int64", dtype=np.int64, filters=compression),
+            tiledb.Attr(name="vals_float64", dtype=np.float64, filters=compression),
+            tiledb.Attr(name="t", dtype="U", filters=compression),
+            tiledb.Attr(name="u", dtype="U", filters=compression),
+            tiledb.Attr(name="v", dtype="S", filters=compression),
         ]
-        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=attrs, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=attrs)
         tiledb.SparseArray.create(uri, schema)
 
         df = make_dataframe_basic1()
@@ -303,14 +295,13 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         uri = self.path("dataframe_basic_rt1")
         df = make_dataframe_basic1()
 
-        ctx = tiledb.Ctx()
-        tiledb.from_pandas(uri, df, sparse=False, ctx=ctx)
+        tiledb.from_pandas(uri, df, sparse=False)
 
         df_readback = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df, df_readback)
 
         uri = self.path("dataframe_basic_rt1_unlimited")
-        tiledb.from_pandas(uri, df, full_domain=True, sparse=False, ctx=ctx)
+        tiledb.from_pandas(uri, df, full_domain=True, sparse=False)
 
         with tiledb.open(uri) as A:
             dim = A.schema.domain.dim(0)
@@ -376,8 +367,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             csv_array_uri, csv_uri, index_col=0, parse_dates=[1], sparse=False
         )
 
-        ctx = tiledb.default_ctx()
-        df_from_array = tiledb.open_dataframe(csv_array_uri, ctx=ctx)
+        df_from_array = tiledb.open_dataframe(csv_array_uri)
         tm.assert_frame_equal(df_orig, df_from_array)
 
         # Test reading via TileDB VFS. The main goal is to support reading

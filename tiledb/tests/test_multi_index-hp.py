@@ -13,7 +13,7 @@ import pytest
 from tiledb.tests.common import checked_path
 from tiledb.tests.strategies import bounded_ntuple, ranged_slices
 
-from hypothesis import given, assume, settings
+from hypothesis import given, assume
 from hypothesis import strategies as st
 
 
@@ -26,7 +26,7 @@ def is_boundserror(exc: Exception):
 
 
 def _direct_query_ranges(array: SparseArray, ranges):
-    ctx = tiledb.default_ctx()
+    ctx = tiledb.Ctx()
     q = tiledb.core.PyQuery(ctx, array, ("a",), (), 0, False)
     q.set_ranges(ranges)
     q.submit()
