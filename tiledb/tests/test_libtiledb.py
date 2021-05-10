@@ -97,7 +97,7 @@ class TestConfig(DiskTestCase):
         config = tiledb.Config()
         config["sm.tile_cache_size"] = 100
         assert repr(config) is not None
-        ctx = tiledb.Ctx(config)
+        tiledb.Ctx(config)
 
     def test_ctx_config(self):
         ctx = tiledb.Ctx({"sm.tile_cache_size": 100})
@@ -167,38 +167,34 @@ class GroupTestCase(DiskTestCase):
     def setup_method(self):
         super().setup_method()
 
-        ctx = tiledb.Ctx()
         self.group1 = self.path("group1")
         self.group2 = self.path("group1/group2")
         self.group3 = self.path("group1/group3")
         self.group4 = self.path("group1/group3/group4")
 
-        tiledb.group_create(self.group1, ctx=ctx)
-        tiledb.group_create(self.group2, ctx=ctx)
-        tiledb.group_create(self.group3, ctx=ctx)
-        tiledb.group_create(self.group4, ctx=ctx)
+        tiledb.group_create(self.group1)
+        tiledb.group_create(self.group2)
+        tiledb.group_create(self.group3)
+        tiledb.group_create(self.group4)
 
-    def is_group(self, ctx, uri):
-        return tiledb.object_type(uri, ctx=ctx) == "group"
+    def is_group(self, uri):
+        return tiledb.object_type(uri) == "group"
 
 
 class GroupTest(GroupTestCase):
     def test_is_group(self):
-        ctx = tiledb.Ctx()
-        self.assertTrue(self.is_group(ctx, self.group1))
-        self.assertTrue(self.is_group(ctx, self.group2))
-        self.assertTrue(self.is_group(ctx, self.group3))
-        self.assertTrue(self.is_group(ctx, self.group4))
+        self.assertTrue(self.is_group(self.group1))
+        self.assertTrue(self.is_group(self.group2))
+        self.assertTrue(self.is_group(self.group3))
+        self.assertTrue(self.is_group(self.group4))
 
     def test_walk_group(self):
-        ctx = tiledb.Ctx()
-
         groups = []
 
         def append_to_groups(path, obj):
             groups.append((os.path.normpath(path), obj))
 
-        tiledb.walk(self.path(""), append_to_groups, order="preorder", ctx=ctx)
+        tiledb.walk(self.path(""), append_to_groups, order="preorder")
 
         groups.sort()
 
@@ -209,7 +205,7 @@ class GroupTest(GroupTestCase):
 
         groups = []
 
-        tiledb.walk(self.path(""), append_to_groups, order="postorder", ctx=ctx)
+        tiledb.walk(self.path(""), append_to_groups, order="postorder")
 
         self.assertTrue(groups[0][0].endswith(self.group2) and groups[0][1] == "group")
         self.assertTrue(groups[1][0].endswith(self.group4) and groups[1][1] == "group")
@@ -217,57 +213,47 @@ class GroupTest(GroupTestCase):
         self.assertTrue(groups[3][0].endswith(self.group1) and groups[3][1] == "group")
 
     def test_remove_group(self):
-        ctx = tiledb.Ctx()
+        tiledb.remove(self.group3)
 
-        tiledb.remove(self.group3, ctx=ctx)
-
-        self.assertFalse(self.is_group(ctx, self.group3))
-        self.assertFalse(self.is_group(ctx, self.group4))
+        self.assertFalse(self.is_group(self.group3))
+        self.assertFalse(self.is_group(self.group4))
 
     def test_move_group(self):
-        ctx = tiledb.Ctx()
-
-        self.assertTrue(self.is_group(ctx, self.group2))
-        tiledb.move(self.group2, self.group2 + "_moved", ctx=ctx)
-        self.assertFalse(self.is_group(ctx, self.group2))
-        self.assertTrue(self.is_group(ctx, self.group2 + "_moved"))
+        self.assertTrue(self.is_group(self.group2))
+        tiledb.move(self.group2, self.group2 + "_moved")
+        self.assertFalse(self.is_group(self.group2))
+        self.assertTrue(self.is_group(self.group2 + "_moved"))
 
 
 class DimensionTest(unittest.TestCase):
     def test_minimal_dimension(self):
-        ctx = tiledb.Ctx()
-        dim = tiledb.Dim(domain=(0, 4), tile=5, ctx=ctx)
+        dim = tiledb.Dim(domain=(0, 4), tile=5)
         self.assertEqual(dim.name, "__dim_0", "automatic dimension name is incorrect")
         self.assertEqual(dim.shape, (5,))
         self.assertEqual(dim.tile, 5)
 
     def test_dimension(self):
-        ctx = tiledb.Ctx()
-        dim = tiledb.Dim(name="d1", ctx=ctx, domain=(0, 3), tile=2)
+        dim = tiledb.Dim(name="d1", domain=(0, 3), tile=2)
         self.assertEqual(dim.name, "d1")
         self.assertEqual(dim.shape, (4,))
         self.assertEqual(dim.tile, 2)
 
     def test_dimension_filter(self):
-        ctx = tiledb.default_ctx()
         filters = [tiledb.GzipFilter(2)]
-        dim = tiledb.Dim(name="df", ctx=ctx, domain=(0, 2), tile=1, filters=filters)
+        dim = tiledb.Dim(name="df", domain=(0, 2), tile=1, filters=filters)
         self.assertEqual(dim.filters, filters)
 
         filter_list = tiledb.FilterList(filters)
-        dim = tiledb.Dim(name="df", ctx=ctx, domain=(0, 2), tile=1, filters=filter_list)
+        dim = tiledb.Dim(name="df", domain=(0, 2), tile=1, filters=filter_list)
         self.assertEqual(dim.filters, filter_list)
 
         with self.assertRaises(TypeError):
-            tiledb.Dim(name="df", ctx=ctx, domain=(0, 2), tile=1, filters=1)
+            tiledb.Dim(name="df", domain=(0, 2), tile=1, filters=1)
 
     def test_datetime_dimension(self):
-        ctx = tiledb.Ctx()
-
         # Regular usage
         dim = tiledb.Dim(
             name="d1",
-            ctx=ctx,
             domain=(np.datetime64("2010-01-01"), np.datetime64("2020-01-01")),
             tile=np.timedelta64(20, "D"),
             dtype=np.datetime64("", "D"),
@@ -286,7 +272,6 @@ class DimensionTest(unittest.TestCase):
             with self.assertRaises(tiledb.TileDBError):
                 tiledb.Dim(
                     name="d1",
-                    ctx=ctx,
                     domain=(np.datetime64("2010-01-01"), np.datetime64("2020-01-01")),
                     dtype=np.datetime64("", "D"),
                 )
@@ -294,7 +279,6 @@ class DimensionTest(unittest.TestCase):
         # Integer tile extent is ok
         dim = tiledb.Dim(
             name="d1",
-            ctx=ctx,
             domain=(np.datetime64("2010-01-01"), np.datetime64("2020-01-01")),
             tile=20,
             dtype=np.datetime64("", "D"),
@@ -305,7 +289,6 @@ class DimensionTest(unittest.TestCase):
         # Year resolution
         dim = tiledb.Dim(
             name="d1",
-            ctx=ctx,
             domain=(np.datetime64("2010"), np.datetime64("2020")),
             tile=5,
             dtype=np.datetime64("", "Y"),
@@ -319,7 +302,6 @@ class DimensionTest(unittest.TestCase):
         # End domain promoted to day resolution
         dim = tiledb.Dim(
             name="d1",
-            ctx=ctx,
             domain=(np.datetime64("2010-01-01"), np.datetime64("2020")),
             tile=2,
             dtype=np.datetime64("", "D"),
@@ -334,7 +316,6 @@ class DimensionTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             dim = tiledb.Dim(
                 name="d1",
-                ctx=ctx,
                 domain=(-10, 10),
                 tile=2,
                 dtype=np.datetime64("", "D"),
@@ -343,7 +324,6 @@ class DimensionTest(unittest.TestCase):
 
 class DomainTest(unittest.TestCase):
     def test_domain(self):
-        ctx = tiledb.Ctx()
         dims = [
             tiledb.Dim("d1", (1, 4), 2, dtype="u8"),
             tiledb.Dim("d2", (1, 4), 2, dtype="u8"),
@@ -368,10 +348,8 @@ class DomainTest(unittest.TestCase):
         self.assertEqual(dom, dom2)
 
     def test_datetime_domain(self):
-        ctx = tiledb.Ctx()
         dim = tiledb.Dim(
             name="d1",
-            ctx=ctx,
             domain=(np.datetime64("2010-01-01"), np.datetime64("2020-01-01")),
             tile=np.timedelta64(20, "D"),
             dtype=np.datetime64("", "D"),
@@ -380,7 +358,6 @@ class DomainTest(unittest.TestCase):
         self.assertEqual(dom.dtype, np.datetime64("", "D"))
 
     def test_domain_mixed_names_error(self):
-        ctx = tiledb.Ctx()
         with self.assertRaises(tiledb.TileDBError):
             tiledb.Domain(
                 tiledb.Dim("d1", (1, 4), 2, dtype="u8"),
@@ -390,8 +367,7 @@ class DomainTest(unittest.TestCase):
 
 class AttributeTest(unittest.TestCase):
     def test_minimal_attribute(self):
-        ctx = tiledb.Ctx()
-        attr = tiledb.Attr(ctx=ctx)
+        attr = tiledb.Attr()
         self.assertTrue(attr.isanon)
         self.assertEqual(attr.name, "")
         self.assertEqual(attr.dtype, np.float_)
@@ -400,8 +376,7 @@ class AttributeTest(unittest.TestCase):
         self.assertFalse(attr.isnullable)
 
     def test_attribute(self):
-        ctx = tiledb.Ctx()
-        attr = tiledb.Attr("foo", ctx=ctx)
+        attr = tiledb.Attr("foo")
         safe_dump(attr)
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.float64, "default attribute type is float64")
@@ -436,12 +411,9 @@ class AttributeTest(unittest.TestCase):
         self.assertEqual(attr.fill, np.array((1, 2, 3), dtype=attr.dtype))
 
     def test_full_attribute(self):
-        ctx = tiledb.Ctx()
-        filter_list = tiledb.FilterList([tiledb.ZstdFilter(10, ctx=ctx)], ctx=ctx)
-        attr = tiledb.Attr("foo", dtype=np.int64, filters=filter_list, ctx=ctx)
-        # attr = tiledb.Attr(ctx, "foo", dtype=np.int64, compressor=("zstd", 10))
-        filter_list = tiledb.FilterList([tiledb.ZstdFilter(10, ctx=ctx)], ctx=ctx)
-        attr = tiledb.Attr("foo", ctx=ctx, dtype=np.int64, filters=filter_list)
+        filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
+        filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
+        attr = tiledb.Attr("foo", dtype=np.int64, filters=filter_list)
         safe_dump(attr)
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.int64)
@@ -452,46 +424,39 @@ class AttributeTest(unittest.TestCase):
         # self.assertEqual(level, 10)
 
     def test_ncell_attribute(self):
-        ctx = tiledb.Ctx()
         dtype = np.dtype([("", np.int32), ("", np.int32), ("", np.int32)])
-        attr = tiledb.Attr("foo", ctx=ctx, dtype=dtype)
+        attr = tiledb.Attr("foo", dtype=dtype)
 
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 3)
 
         # dtype subarrays not supported
         with self.assertRaises(TypeError):
-            tiledb.Attr("foo", ctx=ctx, dtype=np.dtype((np.int32, 2)))
+            tiledb.Attr("foo", dtype=np.dtype((np.int32, 2)))
 
         # mixed type record arrays not supported
         with self.assertRaises(TypeError):
-            tiledb.Attr(
-                "foo", ctx=ctx, dtype=np.dtype([("", np.float32), ("", np.int32)])
-            )
+            tiledb.Attr("foo", dtype=np.dtype([("", np.float32), ("", np.int32)]))
 
     def test_ncell_bytes_attribute(self):
-        ctx = tiledb.Ctx()
         dtype = np.dtype((np.bytes_, 10))
-        attr = tiledb.Attr("foo", ctx=ctx, dtype=dtype)
+        attr = tiledb.Attr("foo", dtype=dtype)
 
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 10)
 
     def test_vararg_attribute(self):
-        ctx = tiledb.Ctx()
-        attr = tiledb.Attr("foo", ctx=ctx, dtype=np.bytes_)
+        attr = tiledb.Attr("foo", dtype=np.bytes_)
         self.assertEqual(attr.dtype, np.dtype(np.bytes_))
         self.assertTrue(attr.isvar)
 
     def test_nullable_attribute(self):
-        ctx = tiledb.Ctx()
-        attr = tiledb.Attr("nullable", nullable=True, dtype=np.int32, ctx=ctx)
+        attr = tiledb.Attr("nullable", nullable=True, dtype=np.int32)
         self.assertEqual(attr.dtype, np.dtype(np.int32))
         self.assertTrue(attr.isnullable)
 
     def test_datetime_attribute(self):
-        ctx = tiledb.Ctx()
-        attr = tiledb.Attr("foo", ctx=ctx, dtype=np.datetime64("", "D"))
+        attr = tiledb.Attr("foo", dtype=np.datetime64("", "D"))
         self.assertEqual(attr.dtype, np.dtype(np.datetime64("", "D")))
         self.assertNotEqual(attr.dtype, np.dtype(np.datetime64))
         self.assertNotEqual(attr.dtype, np.dtype(np.datetime64("", "Y")))
@@ -499,22 +464,20 @@ class AttributeTest(unittest.TestCase):
 
 class ArraySchemaTest(unittest.TestCase):
     def test_schema_basic(self):
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim("d1", (1, 4), 2, dtype="u8", ctx=ctx),
-            tiledb.Dim("d2", (1, 4), 2, dtype="u8", ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim("d1", (1, 4), 2, dtype="u8"),
+            tiledb.Dim("d2", (1, 4), 2, dtype="u8"),
         )
 
-        attr1 = tiledb.Attr("foo", ctx=ctx, dtype=float)
-        attr2 = tiledb.Attr("foo", ctx=ctx, dtype=int)
+        attr1 = tiledb.Attr("foo", dtype=float)
+        attr2 = tiledb.Attr("foo", dtype=int)
 
         # test unique attributes
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr1, attr2))
+            tiledb.ArraySchema(domain=dom, attrs=(attr1, attr2))
 
         # test schema.check
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr1,))
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr1,))
         # valid schema does not raise
         schema.check()
         with self.assertRaises(tiledb.TileDBError):
@@ -522,13 +485,12 @@ class ArraySchemaTest(unittest.TestCase):
             schema.check()
 
     def test_dense_array_schema(self):
-        ctx = tiledb.Ctx()
         domain = tiledb.Domain(
-            tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
-            tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
+            tiledb.Dim(domain=(1, 8), tile=2),
+            tiledb.Dim(domain=(1, 8), tile=2),
         )
-        a1 = tiledb.Attr("val", ctx=ctx, dtype="f8")
-        schema = tiledb.ArraySchema(ctx=ctx, domain=domain, attrs=(a1,))
+        a1 = tiledb.Attr("val", dtype="f8")
+        schema = tiledb.ArraySchema(domain=domain, attrs=(a1,))
         self.assertFalse(schema.sparse)
         self.assertEqual(schema.cell_order, "row-major")
         self.assertEqual(schema.tile_order, "row-major")
@@ -540,11 +502,9 @@ class ArraySchemaTest(unittest.TestCase):
         self.assertEqual(schema.attr(0), a1)
         self.assertTrue(schema.has_attr("val"))
         self.assertFalse(schema.has_attr("nononoattr"))
-        self.assertEqual(
-            schema, tiledb.ArraySchema(ctx=ctx, domain=domain, attrs=(a1,))
-        )
+        self.assertEqual(schema, tiledb.ArraySchema(domain=domain, attrs=(a1,)))
         self.assertNotEqual(
-            schema, tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=True, ctx=ctx)
+            schema, tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=True)
         )
         with self.assertRaises(tiledb.TileDBError):
             schema.allows_duplicates
@@ -556,41 +516,35 @@ class ArraySchemaTest(unittest.TestCase):
             "Cannot set cell order; Hilbert order is only applicable to sparse arrays",
         ):
             tiledb.ArraySchema(
-                domain=domain, attrs=(a1,), sparse=False, cell_order="hilbert", ctx=ctx
+                domain=domain, attrs=(a1,), sparse=False, cell_order="hilbert"
             )
 
     def test_dense_array_schema_fp_domain_error(self):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(1, 8), tile=2, dtype=np.float64), ctx=ctx
-        )
-        att = tiledb.Attr("val", ctx=ctx, dtype=np.float64)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2, dtype=np.float64))
+        att = tiledb.Attr("val", dtype=np.float64)
 
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+            tiledb.ArraySchema(domain=dom, attrs=(att,))
 
     def test_sparse_schema(self):
-        ctx = tiledb.Ctx()
-
         # create dimensions
-        d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64", ctx=ctx)
-        d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64", ctx=ctx)
+        d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
+        d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
 
         # create domain
-        domain = tiledb.Domain(d1, d2, ctx=ctx)
+        domain = tiledb.Domain(d1, d2)
 
         # create attributes
-        a1 = tiledb.Attr("a1", dtype="int32,int32,int32", ctx=ctx)
+        a1 = tiledb.Attr("a1", dtype="int32,int32,int32")
         a2 = tiledb.Attr(
             "a2",
-            filters=tiledb.FilterList([tiledb.GzipFilter(-1, ctx=ctx)], ctx=ctx),
+            filters=tiledb.FilterList([tiledb.GzipFilter(-1)]),
             dtype="float32",
-            ctx=ctx,
         )
 
         # create sparse array with schema
-        coords_filters = tiledb.FilterList([tiledb.ZstdFilter(4, ctx=ctx)], ctx=ctx)
-        offsets_filters = tiledb.FilterList([tiledb.LZ4Filter(5, ctx=ctx)], ctx=ctx)
+        coords_filters = tiledb.FilterList([tiledb.ZstdFilter(4)])
+        offsets_filters = tiledb.FilterList([tiledb.LZ4Filter(5)])
 
         schema = tiledb.ArraySchema(
             domain=domain,
@@ -602,7 +556,6 @@ class ArraySchemaTest(unittest.TestCase):
             sparse=True,
             coords_filters=coords_filters,
             offsets_filters=offsets_filters,
-            ctx=ctx,
         )
 
         safe_dump(schema)
@@ -634,7 +587,6 @@ class ArraySchemaTest(unittest.TestCase):
                 sparse=True,
                 coords_filters=coords_filters,
                 offsets_filters=offsets_filters,
-                ctx=ctx,
             ),
         )
 
@@ -646,33 +598,30 @@ class ArraySchemaTest(unittest.TestCase):
             "Cannot set tile order; Hilbert order is not applicable to tiles",
         ):
             tiledb.ArraySchema(
-                domain=domain, attrs=(a1,), sparse=True, tile_order="hilbert", ctx=ctx
+                domain=domain, attrs=(a1,), sparse=True, tile_order="hilbert"
             )
 
     def test_sparse_schema_filter_list(self):
-        ctx = tiledb.Ctx()
-
         # create dimensions
-        d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64", ctx=ctx)
-        d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64", ctx=ctx)
+        d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
+        d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
 
         # create domain
-        domain = tiledb.Domain(d1, d2, ctx=ctx)
+        domain = tiledb.Domain(d1, d2)
 
         # create attributes
-        a1 = tiledb.Attr("a1", dtype="int32,int32,int32", ctx=ctx)
-        # a2 = tiledb.Attr(ctx, "a2", compressor=("gzip", -1), dtype="float32")
-        filter_list = tiledb.FilterList([tiledb.GzipFilter(ctx=ctx)], ctx=ctx)
-        a2 = tiledb.Attr("a2", filters=filter_list, dtype="float32", ctx=ctx)
+        a1 = tiledb.Attr("a1", dtype="int32,int32,int32")
+        filter_list = tiledb.FilterList([tiledb.GzipFilter()])
+        a2 = tiledb.Attr("a2", filters=filter_list, dtype="float32")
 
-        off_filters_pylist = [tiledb.libtiledb.ZstdFilter(level=10, ctx=ctx)]
+        off_filters_pylist = [tiledb.libtiledb.ZstdFilter(level=10)]
         off_filters = tiledb.libtiledb.FilterList(
-            filters=off_filters_pylist, chunksize=2048, ctx=ctx
+            filters=off_filters_pylist, chunksize=2048
         )
 
-        coords_filters_pylist = [tiledb.libtiledb.Bzip2Filter(level=5, ctx=ctx)]
+        coords_filters_pylist = [tiledb.libtiledb.Bzip2Filter(level=5)]
         coords_filters = tiledb.libtiledb.FilterList(
-            filters=coords_filters_pylist, chunksize=4096, ctx=ctx
+            filters=coords_filters_pylist, chunksize=4096
         )
 
         # create sparse array with schema
@@ -685,7 +634,6 @@ class ArraySchemaTest(unittest.TestCase):
             coords_filters=coords_filters,
             offsets_filters=off_filters,
             sparse=True,
-            ctx=ctx,
         )
         safe_dump(schema)
         self.assertTrue(schema.sparse)
@@ -700,25 +648,21 @@ class ArraySchemaTest(unittest.TestCase):
             coords_filters=coords_filters_pylist,
             offsets_filters=off_filters,
             sparse=True,
-            ctx=ctx,
         )
         self.assertEqual(len(schema2.coords_filters), 1)
         self.assertEqual(len(schema2.offsets_filters), 1)
 
     def test_mixed_string_schema(self):
-        ctx = tiledb.Ctx()
         dims = [
-            tiledb.Dim(
-                name="dpos", ctx=ctx, domain=(-100.0, 100.0), tile=10, dtype=np.float64
-            ),
+            tiledb.Dim(name="dpos", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
             tiledb.Dim(
                 name="str_index", domain=(None, None), tile=None, dtype=np.bytes_
             ),
         ]
         dom = tiledb.Domain(*dims)
-        attrs = [tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)]
+        attrs = [tiledb.Attr(name="val", dtype=np.float64)]
 
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
 
         self.assertTrue(schema.domain.has_dim("str_index"))
         self.assertFalse(schema.domain.has_dim("nonono_str_index"))
@@ -730,33 +674,31 @@ class ArraySchemaTest(unittest.TestCase):
 
 
 class ArrayTest(DiskTestCase):
-    def create_array_schema(self, ctx):
+    def create_array_schema(self):
         domain = tiledb.Domain(
-            tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
-            tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(domain=(1, 8), tile=2),
+            tiledb.Dim(domain=(1, 8), tile=2),
         )
-        a1 = tiledb.Attr("val", dtype="f8", ctx=ctx)
-        return tiledb.ArraySchema(domain=domain, attrs=(a1,), ctx=ctx)
+        a1 = tiledb.Attr("val", dtype="f8")
+        return tiledb.ArraySchema(domain=domain, attrs=(a1,))
 
     def test_array_create(self):
         config = tiledb.Config()
         config["sm.consolidation.step_min_frag"] = 0
         config["sm.consolidation.steps"] = 1
-        ctx = tiledb.Ctx(config=config)
-        schema = self.create_array_schema(ctx)
+        schema = self.create_array_schema()
 
         # persist array schema
         tiledb.libtiledb.Array.create(self.path("foo"), schema)
 
         # these should be no-ops
         #   full signature
-        tiledb.consolidate(self.path("foo"), config=config, ctx=ctx)
+        tiledb.consolidate(self.path("foo"), config=config)
         #   kw signature
-        tiledb.consolidate(uri=self.path("foo"), ctx=ctx)
+        tiledb.consolidate(uri=self.path("foo"))
 
         # load array in readonly mode
-        array = tiledb.libtiledb.Array(self.path("foo"), mode="r", ctx=ctx)
+        array = tiledb.libtiledb.Array(self.path("foo"), mode="r")
         self.assertTrue(array.isopen)
         self.assertEqual(array.schema, schema)
         self.assertEqual(array.mode, "r")
@@ -784,11 +726,7 @@ class ArrayTest(DiskTestCase):
             array.reopen()
 
     def test_array_create_with_ctx(self):
-        config = tiledb.Config()
-        config["sm.consolidation.step_min_frag"] = 0
-        config["sm.consolidation.steps"] = 1
-        ctx = tiledb.Ctx(config=config)
-        schema = self.create_array_schema(ctx)
+        schema = self.create_array_schema()
 
         with self.assertRaises(TypeError):
             tiledb.libtiledb.Array.create(self.path("foo"), schema, ctx="foo")
@@ -801,18 +739,13 @@ class ArrayTest(DiskTestCase):
         reason="Shared network drive only on Win32",
     )
     def test_array_create_on_shared_drive(self):
-        config = tiledb.Config()
-        config["sm.consolidation.step_min_frag"] = 0
-        config["sm.consolidation.steps"] = 1
-
-        ctx = tiledb.Ctx(config=config)
-        schema = self.create_array_schema(ctx)
+        schema = self.create_array_schema()
         uri = self.path(basename="foo", shared=True)
 
         tiledb.libtiledb.Array.create(uri, schema)
 
         # load array in readonly mode
-        array = tiledb.libtiledb.Array(uri, mode="r", ctx=ctx)
+        array = tiledb.libtiledb.Array(uri, mode="r")
         self.assertTrue(array.isopen)
         self.assertEqual(array.schema, schema)
         self.assertEqual(array.mode, "r")
@@ -839,8 +772,7 @@ class ArrayTest(DiskTestCase):
         config = tiledb.Config()
         config["sm.consolidation.step_min_frags"] = 0
         config["sm.consolidation.steps"] = 1
-        ctx = tiledb.Ctx(config=config)
-        schema = self.create_array_schema(ctx)
+        schema = self.create_array_schema()
         # persist array schema
         tiledb.libtiledb.Array.create(
             self.path("foo"), schema, key=b"0123456789abcdeF0123456789abcdeF"
@@ -851,24 +783,21 @@ class ArrayTest(DiskTestCase):
             b"0123456789abcdeF0123456789abcdeF",
             "0123456789abcdeF0123456789abcdeF",
         ):
-            with tiledb.libtiledb.Array(
-                self.path("foo"), ctx=ctx, mode="r", key=key
-            ) as array:
+            with tiledb.libtiledb.Array(self.path("foo"), mode="r", key=key) as array:
                 self.assertTrue(array.isopen)
                 self.assertEqual(array.schema, schema)
                 self.assertEqual(array.mode, "r")
-            with tiledb.open(self.path("foo"), mode="r", key=key, ctx=ctx) as array:
+            with tiledb.open(self.path("foo"), mode="r", key=key) as array:
                 self.assertTrue(array.isopen)
                 self.assertEqual(array.schema, schema)
                 self.assertEqual(array.mode, "r")
 
-            tiledb.consolidate(uri=self.path("foo"), config=config, key=key, ctx=ctx)
+            tiledb.consolidate(uri=self.path("foo"), config=config, key=key)
 
         # check that opening the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
             tiledb.libtiledb.Array(
                 self.path("foo"),
-                ctx=ctx,
                 mode="r",
                 key=b"0123456789abcdeF0123456789abcdeX",
             )
@@ -877,7 +806,6 @@ class ArrayTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.libtiledb.Array(
                 self.path("foo"),
-                ctx=ctx,
                 mode="r",
                 key=b"0123456789abcdeF0123456789abcde",
             )
@@ -888,7 +816,6 @@ class ArrayTest(DiskTestCase):
                 self.path("foo"),
                 config=config,
                 key=b"0123456789abcdeF0123456789abcde",
-                ctx=ctx,
             )
 
     # needs core fix in 2.2.4
@@ -897,22 +824,20 @@ class ArrayTest(DiskTestCase):
         reason="Skip array_doesnt_exist test on Win32 / libtiledb 2.2.3",
     )
     def test_array_doesnt_exist(self):
-        ctx = tiledb.Ctx()
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.libtiledb.Array(self.path("foo"), mode="r", ctx=ctx)
+            tiledb.libtiledb.Array(self.path("foo"), mode="r")
 
     def test_create_schema_matches(self):
-        ctx = tiledb.Ctx()
-        dims = (tiledb.Dim(ctx=ctx, domain=(0, 6), tile=2),)
-        dom = tiledb.Domain(*dims, ctx=ctx)
-        att = tiledb.Attr(ctx=ctx, dtype=np.byte)
+        dims = (tiledb.Dim(domain=(0, 6), tile=2),)
+        dom = tiledb.Domain(*dims)
+        att = tiledb.Attr(dtype=np.byte)
 
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), sparse=True)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
         uri = self.path("s1")
         with self.assertRaises(ValueError):
             tiledb.DenseArray.create(uri, schema)
 
-        dense_schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dense_schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         uri = self.path("d1")
         with self.assertRaises(ValueError):
             tiledb.SparseArray.create(uri, dense_schema)
@@ -928,15 +853,12 @@ class DenseArrayTest(DiskTestCase):
     def test_array_1d(self):
         A = np.arange(1050)
 
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 1049), tile=100, dtype=np.int64, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 1049), tile=100, dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             self.assertEqual(len(A), len(T))
             self.assertEqual(A.ndim, T.ndim)
             self.assertEqual(A.shape, T.shape)
@@ -957,12 +879,12 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(A.dtype, B.dtype)
             self.assertIsNone(T.nonempty_domain())
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             # check set array
             T[:] = A
 
         read1_timestamp = -1
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             self.assertEqual(((0, 1049),), T.nonempty_domain())
 
             # check timestamp
@@ -1031,13 +953,13 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(IndexError):
                 T[..., 1:5, ...]
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             # check partial assignment
             B = np.arange(1e5, 2e5).astype(A.dtype)
             T[190:310] = B[190:310]
 
         read2_timestamp = -1
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A[:190], T[:190])
             assert_array_equal(B[190:310], T[190:310])
             assert_array_equal(A[310:], T[310:])
@@ -1049,17 +971,16 @@ class DenseArrayTest(DiskTestCase):
     def test_array_1d_set_scalar(self):
         A = np.zeros(50)
 
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 49), tile=50), ctx=ctx)
-        att = tiledb.Attr(dtype=A.dtype, ctx=ctx)
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 49), tile=50))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A, T[:])
 
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
@@ -1075,10 +996,10 @@ class DenseArrayTest(DiskTestCase):
                 T[5:25] = value
             with tiledb.DenseArray(self.path("foo"), mode="r") as T:
                 assert_array_equal(A, T[:])
-            with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+            with tiledb.DenseArray(self.path("foo"), mode="w") as T:
                 A[:] = value
                 T[:] = value
-            with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+            with tiledb.DenseArray(self.path("foo"), mode="r") as T:
                 assert_array_equal(A, T[:])
 
     def test_array_id_point_queries(self):
@@ -1088,18 +1009,16 @@ class DenseArrayTest(DiskTestCase):
     def test_array_2d(self):
         A = np.arange(10000).reshape((1000, 10))
 
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 999), tile=100, ctx=ctx),
-            tiledb.Dim(domain=(0, 9), tile=2, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(domain=(0, 999), tile=100),
+            tiledb.Dim(domain=(0, 9), tile=2),
         )
-        att = tiledb.Attr(dtype=A.dtype, ctx=ctx)
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             self.assertEqual(len(A), len(T))
             self.assertEqual(A.ndim, T.ndim)
             self.assertEqual(A.shape, T.shape)
@@ -1110,11 +1029,11 @@ class DenseArrayTest(DiskTestCase):
             # check that the non-empty domain is None
             self.assertIsNone(T.nonempty_domain())
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             # Set data
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A, T[:])
 
             # check the non-empty domain spans the whole domain
@@ -1197,12 +1116,12 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(IndexError):
                 T[..., ...]
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             # check partial assignment
             B = np.arange(10000, 20000).reshape((1000, 10))
             T[190:310, 3:7] = B[190:310, 3:7]
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A[:190], T[:190])
             assert_array_equal(A[:, :3], T[:, :3])
             assert_array_equal(B[190:310, 3:7], T[190:310, 3:7])
@@ -1216,18 +1135,17 @@ class DenseArrayTest(DiskTestCase):
     def test_array_1d_shared_drive(self):
         A = np.zeros(50)
 
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 49), tile=50), ctx=ctx)
-        att = tiledb.Attr(dtype=A.dtype, ctx=ctx)
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 49), tile=50))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(dom, (att,))
         uri = self.path("foo", shared=True)
 
         tiledb.DenseArray.create(uri, schema)
 
-        with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(uri, mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, mode="r") as T:
             assert_array_equal(A, T[:])
 
         with tiledb.DenseArray(uri, mode="w") as T:
@@ -1243,14 +1161,13 @@ class DenseArrayTest(DiskTestCase):
                 T[5:25] = value
             with tiledb.DenseArray(uri, mode="r") as T:
                 assert_array_equal(A, T[:])
-            with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+            with tiledb.DenseArray(uri, mode="w") as T:
                 A[:] = value
                 T[:] = value
-            with tiledb.DenseArray(uri, mode="r", ctx=ctx) as T:
+            with tiledb.DenseArray(uri, mode="r") as T:
                 assert_array_equal(A, T[:])
 
     def test_fixed_string(self):
-        ctx = tiledb.Ctx()
         a = np.array(["ab", "cd", "ef", "gh", "ij", "kl", "", "op"], dtype="|S2")
         with tiledb.from_numpy(self.path("fixed_string"), a) as T:
             with tiledb.open(self.path("fixed_string")) as R:
@@ -1270,20 +1187,17 @@ class DenseArrayTest(DiskTestCase):
     def test_open_with_timestamp(self):
         A = np.zeros(3)
 
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3, dtype=np.int64), ctx=ctx
-        )
-        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
         # write
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
         read1_timestamp = -1
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             read1_timestamp = T.timestamp
             self.assertEqual(T[0], 0)
             self.assertEqual(T[1], 0)
@@ -1291,27 +1205,27 @@ class DenseArrayTest(DiskTestCase):
 
         # sleep 200ms and write
         time.sleep(0.2)
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[0:1] = 1
 
         read2_timestamp = -1
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             read2_timestamp = T.timestamp
             self.assertTrue(read2_timestamp > read1_timestamp)
 
         # sleep 200ms and write
         time.sleep(0.2)
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[1:2] = 2
 
         read3_timestamp = -1
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             read3_timestamp = T.timestamp
             self.assertTrue(read3_timestamp > read2_timestamp > read1_timestamp)
 
         # read at first timestamp
         with tiledb.DenseArray(
-            self.path("foo"), timestamp=read1_timestamp, mode="r", ctx=ctx
+            self.path("foo"), timestamp=read1_timestamp, mode="r"
         ) as T:
             self.assertEqual(T[0], 0)
             self.assertEqual(T[1], 0)
@@ -1319,7 +1233,7 @@ class DenseArrayTest(DiskTestCase):
 
         # read at second timestamp
         with tiledb.DenseArray(
-            self.path("foo"), timestamp=read2_timestamp, mode="r", ctx=ctx
+            self.path("foo"), timestamp=read2_timestamp, mode="r"
         ) as T:
             self.assertEqual(T[0], 1)
             self.assertEqual(T[1], 0)
@@ -1327,7 +1241,7 @@ class DenseArrayTest(DiskTestCase):
 
         # read at third timestamp
         with tiledb.DenseArray(
-            self.path("foo"), timestamp=read3_timestamp, mode="r", ctx=ctx
+            self.path("foo"), timestamp=read3_timestamp, mode="r"
         ) as T:
             self.assertEqual(T[0], 1)
             self.assertEqual(T[1], 2)
@@ -1337,67 +1251,56 @@ class DenseArrayTest(DiskTestCase):
         A = np.zeros(3)
 
         path = self.path("foo")
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3, dtype=np.int64), ctx=ctx
-        )
-        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
         # write
-        with tiledb.DenseArray(path, mode="w", ctx=ctx, timestamp=1) as T:
+        with tiledb.DenseArray(path, mode="w", timestamp=1) as T:
             T[:] = A
 
-        with tiledb.DenseArray(path, mode="w", ctx=ctx, timestamp=2) as T:
+        with tiledb.DenseArray(path, mode="w", timestamp=2) as T:
             T[0:1] = 1
 
-        with tiledb.DenseArray(path, mode="w", ctx=ctx, timestamp=3) as T:
+        with tiledb.DenseArray(path, mode="w", timestamp=3) as T:
             T[1:2] = 2
 
         # read
-        with tiledb.DenseArray(path, mode="r", ctx=ctx, timestamp=1) as T:
+        with tiledb.DenseArray(path, mode="r", timestamp=1) as T:
             self.assertEqual(T[0], 0)
             self.assertEqual(T[1], 0)
             self.assertEqual(T[2], 0)
 
-        with tiledb.DenseArray(path, mode="r", ctx=ctx, timestamp=2) as T:
+        with tiledb.DenseArray(path, mode="r", timestamp=2) as T:
             self.assertEqual(T[0], 1)
             self.assertEqual(T[1], 0)
             self.assertEqual(T[2], 0)
 
-        with tiledb.DenseArray(path, mode="r", ctx=ctx, timestamp=3) as T:
+        with tiledb.DenseArray(path, mode="r", timestamp=3) as T:
             self.assertEqual(T[0], 1)
             self.assertEqual(T[1], 2)
             self.assertEqual(T[2], 0)
 
     def test_ncell_attributes(self):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 9), tile=10, dtype=int), ctx=ctx
-        )
-        attr = tiledb.Attr(
-            ctx=ctx, dtype=[("", np.int32), ("", np.int32), ("", np.int32)]
-        )
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=int))
+        attr = tiledb.Attr(dtype=[("", np.int32), ("", np.int32), ("", np.int32)])
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
         A = np.ones((10,), dtype=[("", np.int32), ("", np.int32), ("", np.int32)])
         self.assertEqual(A.dtype, attr.dtype)
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A, T[:])
             assert_array_equal(A[:5], T[:5])
 
     def test_complex_attributes(self):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 9), tile=10, dtype=int), ctx=ctx
-        )
-        attr = tiledb.Attr(ctx=ctx, dtype=np.complex64)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=int))
+        attr = tiledb.Attr(dtype=np.complex64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
         A = np.random.rand(20).astype(np.float32).view(dtype=np.complex64)
@@ -1405,39 +1308,37 @@ class DenseArrayTest(DiskTestCase):
         self.assertEqual(schema, tiledb.schema_like(A, dim_dtype=int))
         self.assertEqual(A.dtype, attr.dtype)
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A, T[:])
             assert_array_equal(A[:5], T[:5])
 
     def test_multiple_attributes(self):
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 1), tile=1, dtype=np.int64, ctx=ctx),
-            tiledb.Dim(domain=(0, 3), tile=4, dtype=np.int64, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(domain=(0, 1), tile=1, dtype=np.int64),
+            tiledb.Dim(domain=(0, 3), tile=4, dtype=np.int64),
         )
-        attr_int = tiledb.Attr("ints", dtype=int, ctx=ctx)
-        attr_float = tiledb.Attr("floats", dtype=float, ctx=ctx)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(attr_int, attr_float))
+        attr_int = tiledb.Attr("ints", dtype=int)
+        attr_float = tiledb.Attr("floats", dtype=float)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr_int, attr_float))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
         V_ints = np.array([[0, 1, 2, 3], [4, 6, 7, 5]])
         V_floats = np.array([[0.0, 1.0, 2.0, 3.0], [4.0, 6.0, 7.0, 5.0]])
 
         V = {"ints": V_ints, "floats": V_floats}
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = V
 
         # check setting attribute in different order from Attr definition
         #   https://github.com/TileDB-Inc/TileDB-Py/issues/299
         V2 = {"floats": V_floats, "ints": V_ints}
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = V
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             R = T[:]
             assert_array_equal(V["ints"], R["ints"])
             assert_array_equal(V["floats"], R["floats"])
@@ -1461,7 +1362,7 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 T.query(attrs=("unknown",))[:]
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             # check error ncells length
             V["ints"] = V["ints"][1:2].copy()
             with self.assertRaises(tiledb.TileDBError):
@@ -1477,23 +1378,20 @@ class DenseArrayTest(DiskTestCase):
         A = np.array([["A", "B"], ["C", ""]], dtype="S")
 
         uri = self.path()
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim(name="rows", domain=(0, 1), tile=2, dtype=np.int64),
             tiledb.Dim(name="cols", domain=(0, 1), tile=2, dtype=np.int64),
-            ctx=ctx,
         )
 
         schema = tiledb.ArraySchema(
             domain=dom,
             sparse=False,
-            attrs=[tiledb.Attr(name="a", dtype="S", ctx=ctx)],
-            ctx=ctx,
+            attrs=[tiledb.Attr(name="a", dtype="S")],
         )
 
         tiledb.DenseArray.create(uri, schema)
 
-        with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, mode="w") as T:
             T[...] = A
 
         with tiledb.DenseArray(uri) as T:
@@ -1515,23 +1413,20 @@ class DenseArrayTest(DiskTestCase):
         A = np.array([["AAA", "B"], ["AB", "C"]], dtype="S3")
 
         uri = self.path()
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim(name="rows", domain=(0, 1), tile=2, dtype=np.int64),
             tiledb.Dim(name="cols", domain=(0, 1), tile=2, dtype=np.int64),
-            ctx=ctx,
         )
 
         schema = tiledb.ArraySchema(
             domain=dom,
             sparse=False,
-            attrs=[tiledb.Attr(name="a", dtype="S3", ctx=ctx)],
-            ctx=ctx,
+            attrs=[tiledb.Attr(name="a", dtype="S3")],
         )
 
         tiledb.DenseArray.create(uri, schema)
 
-        with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, mode="w") as T:
             T[...] = A
 
         with tiledb.DenseArray(uri) as T:
@@ -1555,10 +1450,9 @@ class DenseArrayTest(DiskTestCase):
         config = tiledb.Config(
             {"sm.memory_budget": 2 * 1024 ** 2, "py.init_buffer_bytes": 1024 ** 2}
         )
-        ctx = tiledb.Ctx(config=config)
         self.assertEqual(config["py.init_buffer_bytes"], str(1024 ** 2))
         # TODO would be good to check repeat count here. Not currently exposed by retry loop.
-        with tiledb.DenseArray(path, ctx=ctx) as A:
+        with tiledb.DenseArray(path, ctx=tiledb.Ctx(config)) as A:
             res_mr = A.multi_index[slice(0, len(data) - 1)]
             assert_array_equal(res_mr[""], data)
             res_idx = A[:]
@@ -1570,15 +1464,12 @@ class DenseArrayTest(DiskTestCase):
     def test_written_fragment_info(self):
         uri = self.path("test_written_fragment_info")
 
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(ctx=ctx, dtype=np.int64)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(uri, schema)
 
-        with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, mode="w") as T:
             T[:] = np.arange(0, 10, dtype=np.int64)
 
             self.assertTrue(T.last_write_info is not None)
@@ -1591,15 +1482,12 @@ class DenseArrayTest(DiskTestCase):
     def test_missing_schema_error(self):
         uri = self.path("test_missing_schema_error")
 
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(ctx=ctx, dtype=np.int64)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(uri, schema)
 
-        with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, mode="w") as T:
             T[:] = np.arange(0, 10, dtype=np.int64)
 
         tiledb.VFS().remove_file(os.path.join(uri, "__array_schema.tdb"))
@@ -1658,19 +1546,16 @@ class TestVarlen(DiskTestCase):
         )
 
         # basic write
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(1, len(A)), tile=len(A)), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
+        att = tiledb.Attr(dtype=np.bytes_)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A[:], T[:])
 
             assert_array_equal(A, T.multi_index[1 : len(A)][""])
@@ -1686,21 +1571,17 @@ class TestVarlen(DiskTestCase):
         dim_len = len(A)
         uri = self.path("varlen_all_empty_strings")
 
-        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, dim_len), tile=dim_len))
+        att = tiledb.Attr(name="a1", dtype=np.str_, var=True)
 
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(1, dim_len), tile=dim_len), ctx=ctx
-        )
-        att = tiledb.Attr(name="a1", dtype=np.str_, var=True, ctx=ctx)
-
-        schema = tiledb.ArraySchema(dom, (att,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,), sparse=True)
 
         tiledb.Array.create(uri, schema)
 
-        with tiledb.open(uri, mode="w", ctx=ctx) as T:
+        with tiledb.open(uri, mode="w") as T:
             T[np.arange(1, dim_len + 1)] = {"a1": A}
 
-        with tiledb.open(uri, mode="r", ctx=ctx) as T:
+        with tiledb.open(uri, mode="r") as T:
             # check interior range
             assert_array_equal(A[1:-1], T[2:-1]["a1"])
             assert_array_equal(A[1:-1], T.multi_index[2 : dim_len - 1]["a1"])
@@ -1722,19 +1603,16 @@ class TestVarlen(DiskTestCase):
         )
 
         # basic write
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(1, len(A)), tile=len(A), ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=np.unicode_, var=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
+        att = tiledb.Attr(dtype=np.unicode_, var=True)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A[:], T[:])
 
     def test_varlen_write_floats(self):
@@ -1744,17 +1622,16 @@ class TestVarlen(DiskTestCase):
         )
 
         # basic write
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)), ctx=ctx)
-        att = tiledb.Attr(dtype=np.float64, var=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
+        att = tiledb.Attr(dtype=np.float64, var=True)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             T_ = T[:]
             # TODO/note: the return is a 0-element array.
             assert_array_equal(A[0], T[1][()])
@@ -1769,21 +1646,19 @@ class TestVarlen(DiskTestCase):
         ).reshape(3, 3)
 
         # basic write
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim(domain=(1, 3), tile=len(A)),
             tiledb.Dim(domain=(1, 3), tile=len(A)),
-            ctx=ctx,
         )
-        att = tiledb.Attr(dtype=np.float64, var=True, ctx=ctx)
+        att = tiledb.Attr(dtype=np.float64, var=True)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             T_ = T[:]
             self.assertEqual(len(A), len(T_))
             # can't use assert_array_equal w/ object array
@@ -1806,14 +1681,12 @@ class TestVarlen(DiskTestCase):
 
         uri = self.path("test_varlen_write_int_subarray")
 
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim(domain=(0, 3), tile=len(A)),
             tiledb.Dim(domain=(0, 3), tile=len(A)),
-            ctx=ctx,
         )
-        att = tiledb.Attr(dtype=np.uint64, var=True, ctx=ctx)
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        att = tiledb.Attr(dtype=np.uint64, var=True)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(uri, schema)
 
@@ -1858,19 +1731,16 @@ class TestVarlen(DiskTestCase):
         )
 
         # basic write
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(1, len(A)), tile=len(A)), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
+        att = tiledb.Attr(dtype=np.bytes_)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A[:], T[:])
 
     def test_varlen_write_fixedunicode(self):
@@ -1890,19 +1760,16 @@ class TestVarlen(DiskTestCase):
         )
 
         # basic write
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(1, len(A)), tile=len(A)), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=np.unicode_, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
+        att = tiledb.Attr(dtype=np.unicode_)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(A[:], T[:])
 
     def test_varlen_write_ints(self):
@@ -1917,19 +1784,16 @@ class TestVarlen(DiskTestCase):
         print("random sub-length test array: {}".format(A))
 
         # basic write
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(1, len(A)), tile=len(A), ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=np.int64, var=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
+        att = tiledb.Attr(dtype=np.int64, var=True)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             T_ = T[:]
             self.assertEqual(len(A), len(T))
             # can't use assert_array_equal w/ object array
@@ -1948,14 +1812,13 @@ class TestVarlen(DiskTestCase):
                 "hhhhhhhhhh",
             ]
         )
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3), ctx=ctx)
-        att = tiledb.Attr(dtype=np.bytes_, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3))
+        att = tiledb.Attr(dtype=np.bytes_)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             with self.assertRaises(tiledb.TileDBError):
                 T[:] = A
 
@@ -1963,11 +1826,10 @@ class TestVarlen(DiskTestCase):
         # Test that we raise a TypeError when passing a heterogeneous object array.
         A = np.array([b"aa", b"bbb", b"cccc", np.uint64([1, 3, 4])], dtype=object)
 
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, ctx=ctx), ctx=ctx)
-        att = tiledb.Attr(dtype=np.bytes_, var=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4))
+        att = tiledb.Attr(dtype=np.bytes_, var=True)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(self.path("foo"), schema)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
@@ -1980,23 +1842,20 @@ class TestVarlen(DiskTestCase):
         )
 
         uri = self.path("varlen_2d_s_fixed")
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             tiledb.Dim(name="rows", domain=(0, 1), tile=2, dtype=np.int64),
             tiledb.Dim(name="cols", domain=(0, 1), tile=2, dtype=np.int64),
-            ctx=ctx,
         )
 
         schema = tiledb.ArraySchema(
             domain=dom,
             sparse=False,
-            attrs=[tiledb.Attr(name="a", dtype="S", var=True, ctx=ctx)],
-            ctx=ctx,
+            attrs=[tiledb.Attr(name="a", dtype="S", var=True)],
         )
 
         tiledb.DenseArray.create(uri, schema)
 
-        with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, mode="w") as T:
             T[...] = A
 
         with tiledb.DenseArray(uri) as T:
@@ -2006,30 +1865,25 @@ class TestVarlen(DiskTestCase):
 class TestSparseArray(DiskTestCase):
     @pytest.mark.xfail
     def test_simple_1d_sparse_vector(self):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 3), tile=4, dtype=int, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=int, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, dtype=int))
+        att = tiledb.Attr(dtype=int)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         values = np.array([3, 4])
-        with tiledb.SparseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[1, 2]] = values
 
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(T[[1, 2]], values)
 
     @pytest.mark.xfail
     def test_simple_2d_sparse_vector(self):
-        ctx = tiledb.Ctx()
+        attr = tiledb.Attr(ctx, dtype=float)
         dom = tiledb.Domain(
-            ctx,
             tiledb.Dim(ctx, domain=(0, 3), tile=4, dtype=int),
             tiledb.Dim(ctx, domain=(0, 3), tile=4, dtype=int),
         )
-        attr = tiledb.Attr(ctx, dtype=float)
         schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(attr,), sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
@@ -2042,7 +1896,6 @@ class TestSparseArray(DiskTestCase):
 
     @pytest.mark.xfail
     def test_simple3d_sparse_vector(self):
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
             ctx,
             tiledb.Dim(ctx, "x", domain=(0, 3), tile=4, dtype=int),
@@ -2062,51 +1915,43 @@ class TestSparseArray(DiskTestCase):
 
     @pytest.mark.xfail
     def test_sparse_ordered_fp_domain(self):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(0.0, 10.0), tile=2.0, dtype=float, ctx=ctx), ctx=ctx
-        )
-        attr = tiledb.Attr(dtype=float, ctx=ctx)
-        attr = tiledb.Attr(dtype=float, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim("x", domain=(0.0, 10.0), tile=2.0, dtype=float))
+        attr = tiledb.Attr(dtype=float)
+        attr = tiledb.Attr(dtype=float)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         values = np.array([3.3, 2.7])
-        with tiledb.SparseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[2.5, 4.2]] = values
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(T[[2.5, 4.2]], values)
 
     @pytest.mark.xfail
     def test_sparse_unordered_fp_domain(self):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(0.0, 10.0), tile=2.0, dtype=float), ctx=ctx
-        )
-        attr = tiledb.Attr(dtype=float, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim("x", domain=(0.0, 10.0), tile=2.0, dtype=float))
+        attr = tiledb.Attr(dtype=float)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
         values = np.array([3.3, 2.7])
-        with tiledb.SparseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[4.2, 2.5]] = values
 
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(T[[2.5, 4.2]], values[::-1])
 
     @pytest.mark.xfail
     def test_multiple_attributes(self):
-        ctx = tiledb.Ctx()
         uri = self.path()
 
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(1, 10), tile=10, dtype=int, ctx=ctx),
-            tiledb.Dim(domain=(1, 10), tile=10, dtype=int, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(domain=(1, 10), tile=10, dtype=int),
+            tiledb.Dim(domain=(1, 10), tile=10, dtype=int),
         )
-        attr_int = tiledb.Attr("ints", dtype=int, ctx=ctx)
-        attr_float = tiledb.Attr("floats", dtype="float", ctx=ctx)
+        attr_int = tiledb.Attr("ints", dtype=int)
+        attr_float = tiledb.Attr("floats", dtype="float")
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=(attr_int, attr_float), sparse=True, ctx=ctx
+            domain=dom, attrs=(attr_int, attr_float), sparse=True
         )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
@@ -2117,16 +1962,16 @@ class TestSparseArray(DiskTestCase):
         V_floats = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 5.0])
 
         V = {"ints": V_ints, "floats": V_floats}
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             T[I, J] = V
-        with tiledb.SparseArray(uri, mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="r") as T:
             R = T[I, J]
         assert_array_equal(V["ints"], R["ints"])
         assert_array_equal(V["floats"], R["floats"])
 
         # check error attribute does not exist
         # TODO: should this be an attribute error?
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             V["foo"] = V["ints"].astype(np.int8)
             with self.assertRaises(tiledb.TileDBError):
                 T[I, J] = V
@@ -2139,25 +1984,22 @@ class TestSparseArray(DiskTestCase):
     def test_query_real_multi_index(self, sparse_cell_order):
         uri = self.path("query_real_multi_index")
 
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float),
         )
-        attr = tiledb.Attr("a", dtype=np.float32, ctx=ctx)
+        attr = tiledb.Attr("a", dtype=np.float32)
         schema = tiledb.ArraySchema(
             domain=dom,
             attrs=(attr,),
             sparse=True,
             cell_order=sparse_cell_order,
-            ctx=ctx,
         )
         tiledb.SparseArray.create(uri, schema)
 
         values = np.array([3.3, 2.7])
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             T[[2.5, 4.2]] = values
-        with tiledb.SparseArray(uri, mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="r") as T:
             assert_array_equal(
                 T.query(coords=True).multi_index[-10.0 : np.nextafter(4.2, 0)]["a"],
                 np.float32(3.3),
@@ -2199,18 +2041,15 @@ class TestSparseArray(DiskTestCase):
         """
         uri = self.path()
 
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float),
         )
-        attr = tiledb.Attr("", dtype=np.float32, ctx=ctx)
+        attr = tiledb.Attr("", dtype=np.float32)
         schema = tiledb.ArraySchema(
             domain=dom,
             attrs=(attr,),
             sparse=True,
             cell_order=sparse_cell_order,
-            ctx=ctx,
         )
         tiledb.SparseArray.create(uri, schema)
 
@@ -2223,10 +2062,10 @@ class TestSparseArray(DiskTestCase):
         # print(c0,c1,c2)
 
         values = np.array([1, 2, 3])
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             T[[c0, c1, c2]] = values
 
-        with tiledb.SparseArray(uri, mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="r") as T:
             for i, c in enumerate([c0, c1, c2]):
                 assert_array_equal(T.query(coords=True).multi_index[c:c][""], values[i])
             # test (coord, coord + nextafter)
@@ -2255,26 +2094,24 @@ class TestSparseArray(DiskTestCase):
     def test_sparse_query_specified_dim_coords(self, sparse_cell_order):
         uri = self.path("sparse_query_specified_dim_coords")
 
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim("i", domain=(1, 10), tile=1, dtype=int, ctx=ctx),
-            tiledb.Dim("j", domain=(11, 20), tile=1, dtype=int, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim("i", domain=(1, 10), tile=1, dtype=int),
+            tiledb.Dim("j", domain=(11, 20), tile=1, dtype=int),
         )
-        att = tiledb.Attr("", dtype=int, ctx=ctx)
+        att = tiledb.Attr("", dtype=int)
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(uri, schema)
 
         i = np.array([1, 1, 1, 2, 3, 3, 3, 4])
         j = np.array([11, 12, 14, 13, 11, 16, 17, 15])
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as A:
+        with tiledb.SparseArray(uri, mode="w") as A:
             A[i, j] = np.array([0, 1, 2, 3, 4, 6, 7, 5])
 
         # data is returned in Hilbert order, so we need to check sorted
-        with tiledb.SparseArray(uri, mode="r", ctx=ctx) as A:
+        with tiledb.SparseArray(uri, mode="r") as A:
             Ai = A.query(dims=["i"])[:]
             self.assertTrue("i" in Ai)
             self.assertFalse("j" in Ai)
@@ -2294,20 +2131,18 @@ class TestSparseArray(DiskTestCase):
     def test_dense_query_specified_dim_coords(self):
         uri = self.path("dense_query_specified_dim_coords")
 
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim("i", domain=(1, 3), tile=1, dtype=int, ctx=ctx),
-            tiledb.Dim("j", domain=(4, 6), tile=1, dtype=int, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim("i", domain=(1, 3), tile=1, dtype=int),
+            tiledb.Dim("j", domain=(4, 6), tile=1, dtype=int),
         )
-        att = tiledb.Attr("", dtype=int, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False, ctx=ctx)
+        att = tiledb.Attr("", dtype=int)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False)
         tiledb.DenseArray.create(uri, schema)
 
-        with tiledb.DenseArray(uri, mode="w", ctx=ctx) as A:
+        with tiledb.DenseArray(uri, mode="w") as A:
             A[:, :] = np.arange(9)
 
-        with tiledb.DenseArray(uri, mode="r", ctx=ctx) as A:
+        with tiledb.DenseArray(uri, mode="r") as A:
             i = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]])
             j = np.array([[4, 5, 6], [4, 5, 6], [4, 5, 6]])
 
@@ -2328,23 +2163,20 @@ class TestSparseArray(DiskTestCase):
             assert_array_equal(Aij["j"], j)
 
     def test_subarray(self, sparse_cell_order):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr("", dtype=float, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int))
+        att = tiledb.Attr("", dtype=float)
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             self.assertIsNone(T.nonempty_domain())
 
-        with tiledb.SparseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[50, 60, 100]] = [1.0, 2.0, 3.0]
 
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             self.assertEqual(((50, 100),), T.nonempty_domain())
 
             # retrieve just valid coordinates in subarray T[40:60]
@@ -2356,27 +2188,24 @@ class TestSparseArray(DiskTestCase):
             self.assertEqual(("coords" in res), False)
 
     def test_sparse_bytes(self, sparse_cell_order):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr("", var=True, dtype=np.bytes_, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int))
+        att = tiledb.Attr("", var=True, dtype=np.bytes_)
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             self.assertIsNone(T.nonempty_domain())
         A = np.array(
             [b"aaa", b"bbbbbbbbbbbbbbbbbbbb", b"ccccccccccccccccccccccccc"],
             dtype=np.bytes_,
         )
 
-        with tiledb.SparseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[50, 60, 100]] = A
 
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             self.assertEqual(((50, 100),), T.nonempty_domain())
 
             # retrieve just valid coordinates in subarray T[40:60]
@@ -2393,17 +2222,14 @@ class TestSparseArray(DiskTestCase):
             assert_array_equal(res["x"], np.array([], dtype=np.int64))
 
     def test_sparse_unicode(self, sparse_cell_order):
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr("", var=True, dtype=np.unicode_, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int))
+        att = tiledb.Attr("", var=True, dtype=np.unicode_)
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             self.assertIsNone(T.nonempty_domain())
 
         A = np_array = np.array(
@@ -2421,10 +2247,10 @@ class TestSparseArray(DiskTestCase):
             dtype=object,
         )
 
-        with tiledb.SparseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[3, 4, 5, 6, 7, 50, 60, 70, 100]] = A
 
-        with tiledb.SparseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             self.assertEqual(((3, 100),), T.nonempty_domain())
 
             # retrieve just valid coordinates in subarray T[40:60]
@@ -2442,26 +2268,24 @@ class TestSparseArray(DiskTestCase):
 
     def test_sparse_query(self, sparse_cell_order):
         uri = self.path("test_sparse_query")
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=np.float64, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=np.float64),
         )
 
-        att = tiledb.Attr("", dtype=float, ctx=ctx)
+        att = tiledb.Attr("", dtype=float)
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(uri, schema)
 
         coords = np.random.uniform(low=1, high=10000, size=100)
         data = np.random.rand(100)
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             T[coords] = data
 
         # Test that TILEDB_UNORDERED works correctly
-        with tiledb.SparseArray(uri, mode="r", ctx=ctx) as A:
+        with tiledb.SparseArray(uri, mode="r") as A:
             res = A[1:10001][""]  # index past the end here to ensure inclusive result
             res = A.multi_index[1:10000][""]
             assert_array_equal(np.sort(res), np.sort(data))
@@ -2473,16 +2297,15 @@ class TestSparseArray(DiskTestCase):
         # indexing a 1 element item in a sparse array
         # (issue directly reported)
         # the test here is that the indexing does not raise
-        ctx = tiledb.Ctx()
         dims = (
-            tiledb.Dim("foo", ctx=ctx, domain=(0, 6), tile=2),
-            tiledb.Dim("bar", ctx=ctx, domain=(0, 6), tile=1),
-            tiledb.Dim("baz", ctx=ctx, domain=(0, 100), tile=1),
+            tiledb.Dim("foo", domain=(0, 6), tile=2),
+            tiledb.Dim("bar", domain=(0, 6), tile=1),
+            tiledb.Dim("baz", domain=(0, 100), tile=1),
         )
-        dom = tiledb.Domain(*dims, ctx=ctx)
-        att = tiledb.Attr(name="strattr", ctx=ctx, dtype="S1")
+        dom = tiledb.Domain(*dims)
+        att = tiledb.Attr(name="strattr", dtype="S1")
         schema = tiledb.ArraySchema(
-            ctx=ctx, domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order
+            domain=dom, attrs=(att,), sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(uri, schema)
         with tiledb.SparseArray(uri) as T:
@@ -2570,15 +2393,13 @@ class TestSparseArray(DiskTestCase):
     def test_sparse_2d_varlen_int(self, sparse_cell_order):
         path = self.path("test_sparse_2d_varlen_int")
         dtype = np.int32
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(1, 4), tile=2, ctx=ctx),
-            tiledb.Dim(domain=(1, 4), tile=2, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(domain=(1, 4), tile=2),
+            tiledb.Dim(domain=(1, 4), tile=2),
         )
-        att = tiledb.Attr(dtype=dtype, var=True, ctx=ctx)
+        att = tiledb.Attr(dtype=dtype, var=True)
         schema = tiledb.ArraySchema(
-            dom, (att,), sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            dom, (att,), sparse=True, cell_order=sparse_cell_order
         )
 
         tiledb.SparseArray.create(path, schema)
@@ -2607,20 +2428,17 @@ class TestSparseArray(DiskTestCase):
 
     def test_sparse_mixed_domain_uint_float64(self, sparse_cell_order):
         path = self.path("mixed_domain_uint_float64")
-        ctx = tiledb.Ctx()
         dims = [
             tiledb.Dim(name="index", domain=(0, 51), tile=11, dtype=np.uint64),
-            tiledb.Dim(
-                name="dpos", ctx=ctx, domain=(-100.0, 100.0), tile=10, dtype=np.float64
-            ),
+            tiledb.Dim(name="dpos", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
         ]
         dom = tiledb.Domain(*dims)
-        attrs = [tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)]
+        attrs = [tiledb.Attr(name="val", dtype=np.float64)]
 
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order
         )
-        tiledb.SparseArray.create(path, schema, ctx=ctx)
+        tiledb.SparseArray.create(path, schema)
 
         data = np.random.rand(50, 63)
         coords1 = np.repeat(np.arange(0, 50), 63)
@@ -2647,13 +2465,9 @@ class TestSparseArray(DiskTestCase):
 
     def test_sparse_string_domain(self, sparse_cell_order):
         path = self.path("sparse_string_domain")
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(name="d", domain=(None, None), dtype=np.bytes_, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(name="a", ctx=ctx, dtype=np.int64)
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(None, None), dtype=np.bytes_))
+        att = tiledb.Attr(name="a", dtype=np.int64)
         schema = tiledb.ArraySchema(
-            ctx=ctx,
             domain=dom,
             attrs=(att,),
             sparse=True,
@@ -2677,15 +2491,14 @@ class TestSparseArray(DiskTestCase):
 
     def test_sparse_string_domain2(self, sparse_cell_order):
         path = self.path("sparse_string_domain2")
-        ctx = tiledb.Ctx()
         dims = [tiledb.Dim(name="str", domain=(None, None), tile=None, dtype=np.bytes_)]
         dom = tiledb.Domain(*dims)
-        attrs = [tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)]
+        attrs = [tiledb.Attr(name="val", dtype=np.float64)]
 
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order
         )
-        tiledb.SparseArray.create(path, schema, ctx=ctx)
+        tiledb.SparseArray.create(path, schema)
 
         data = np.random.rand(10)
         coords = [rand_ascii_bytes(random.randint(5, 50)) for _ in range(10)]
@@ -2702,18 +2515,15 @@ class TestSparseArray(DiskTestCase):
 
     def test_sparse_mixed_domain(self, sparse_cell_order):
         uri = self.path("sparse_mixed_domain")
-        ctx = tiledb.Ctx()
         dims = [
-            tiledb.Dim(
-                name="p", ctx=ctx, domain=(-100.0, 100.0), tile=10, dtype=np.float64
-            ),
+            tiledb.Dim(name="p", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
             tiledb.Dim(name="str", domain=(None, None), tile=None, dtype=np.bytes_),
         ]
         dom = tiledb.Domain(*dims)
-        attrs = [tiledb.Attr(name="val", dtype=np.float64, ctx=ctx)]
+        attrs = [tiledb.Attr(name="val", dtype=np.float64)]
 
         schema = tiledb.ArraySchema(
-            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order, ctx=ctx
+            domain=dom, attrs=attrs, sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(uri, schema)
 
@@ -2843,16 +2653,15 @@ class TestDenseIndexing(DiskTestCase):
     def test_index_1d(self):
         A = np.arange(1050, dtype=int)
 
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(tiledb.Dim(domain=(0, 1049), tile=100, ctx=ctx), ctx=ctx)
-        att = tiledb.Attr(ctx=ctx, dtype=int)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 1049), tile=100))
+        att = tiledb.Attr(dtype=int)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             for idx in self.good_index_1d:
                 self._test_index(A, T, idx)
 
@@ -2912,20 +2721,18 @@ class TestDenseIndexing(DiskTestCase):
     def test_index_2d(self):
         A = np.arange(10000).reshape((1000, 10))
 
-        ctx = tiledb.Ctx()
         dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 999), tile=100),
-            tiledb.Dim(ctx=ctx, domain=(0, 9), tile=2),
-            ctx=ctx,
+            tiledb.Dim(domain=(0, 999), tile=100),
+            tiledb.Dim(domain=(0, 9), tile=2),
         )
-        att = tiledb.Attr(dtype=A.dtype, ctx=ctx)
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(dom, (att,))
         tiledb.DenseArray.create(self.path("foo"), schema)
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             for idx in self.good_index_1d:
                 self._test_index(A, T, idx)
 
@@ -2936,17 +2743,16 @@ class TestDenseIndexing(DiskTestCase):
 
 class TestFilterTest(unittest.TestCase):
     def test_filter(self):
-        ctx = tiledb.Ctx()
-        gzip_filter = tiledb.libtiledb.GzipFilter(ctx=ctx, level=10)
+        gzip_filter = tiledb.libtiledb.GzipFilter(level=10)
         self.assertIsInstance(gzip_filter, tiledb.libtiledb.Filter)
         self.assertEqual(gzip_filter.level, 10)
 
-        bw_filter = tiledb.libtiledb.BitWidthReductionFilter(ctx=ctx, window=10)
+        bw_filter = tiledb.libtiledb.BitWidthReductionFilter(window=10)
         self.assertIsInstance(bw_filter, tiledb.libtiledb.Filter)
         self.assertEqual(bw_filter.window, 10)
 
         filter_list = tiledb.libtiledb.FilterList(
-            [gzip_filter, bw_filter], chunksize=1024, ctx=ctx
+            [gzip_filter, bw_filter], chunksize=1024
         )
         self.assertEqual(filter_list.chunksize, 1024)
         self.assertEqual(len(filter_list), 2)
@@ -2957,19 +2763,18 @@ class TestFilterTest(unittest.TestCase):
         self.assertEqual(len(list(filter_list)), 2)
 
         # test `filters` kwarg accepts python list of filters
-        tiledb.Attr("foo", ctx=ctx, dtype=np.int64, filters=[gzip_filter])
-        tiledb.Attr("foo", ctx=ctx, dtype=np.int64, filters=(gzip_filter,))
+        tiledb.Attr("foo", dtype=np.int64, filters=[gzip_filter])
+        tiledb.Attr("foo", dtype=np.int64, filters=(gzip_filter,))
 
-        attr = tiledb.Attr("foo", ctx=ctx, dtype=np.int64, filters=filter_list)
+        attr = tiledb.Attr("foo", dtype=np.int64, filters=filter_list)
 
         self.assertEqual(len(attr.filters), 2)
         self.assertEqual(attr.filters.chunksize, filter_list.chunksize)
 
     def test_filter_list(self):
-        ctx = tiledb.Ctx()
         # should be constructible without a `filters` keyword arg set
-        filter_list1 = tiledb.FilterList(ctx=ctx)
-        filter_list1.append(tiledb.GzipFilter(ctx=ctx))
+        filter_list1 = tiledb.FilterList()
+        filter_list1.append(tiledb.GzipFilter())
         self.assertEqual(len(filter_list1), 1)
 
         filter_list2 = [x for x in filter_list1]
@@ -3021,20 +2826,18 @@ class TestFilterTest(unittest.TestCase):
 
 class TestDatetimeSlicing(DiskTestCase):
     def test_dense_datetime_vector(self):
-        ctx = tiledb.Ctx()
         uri = self.path("foo_datetime_vector")
 
         # Domain is 10 years, day resolution, one tile per 365 days
         dim = tiledb.Dim(
             name="d1",
-            ctx=ctx,
             domain=(np.datetime64("2010-01-01"), np.datetime64("2020-01-01")),
             tile=np.timedelta64(365, "D"),
             dtype=np.datetime64("", "D").dtype,
         )
-        dom = tiledb.Domain(dim, ctx=ctx)
+        dom = tiledb.Domain(dim)
         schema = tiledb.ArraySchema(
-            ctx=ctx, domain=dom, attrs=(tiledb.Attr("a1", dtype=np.float64),)
+            domain=dom, attrs=(tiledb.Attr("a1", dtype=np.float64),)
         )
         tiledb.Array.create(uri, schema)
 
@@ -3044,15 +2847,15 @@ class TestDatetimeSlicing(DiskTestCase):
         start = np.datetime64("2010-01-01")
         # Datetime indexing is inclusive, so a delta of one less
         end = start + np.timedelta64(ndays - 1, "D")
-        with tiledb.DenseArray(uri, "w", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "w") as T:
             T[start:end] = {"a1": a1_vals}
 
         # Read back data
-        with tiledb.DenseArray(uri, "r", attr="a1", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "r", attr="a1") as T:
             assert_array_equal(T[start:end], a1_vals)
 
         # Check nonempty domain
-        with tiledb.DenseArray(uri, "r", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "r") as T:
             nonempty = T.nonempty_domain()
             d1_nonempty = nonempty[0]
             self.assertEqual(d1_nonempty[0].dtype, np.datetime64("", "D"))
@@ -3060,7 +2863,7 @@ class TestDatetimeSlicing(DiskTestCase):
             self.assertTupleEqual(d1_nonempty, (start, end))
 
         # Slice a few days from the middle using two datetimes
-        with tiledb.DenseArray(uri, "r", attr="a1", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "r", attr="a1") as T:
             # Slice using datetimes
             actual = T[np.datetime64("2010-11-01") : np.datetime64("2011-01-31")]
 
@@ -3077,7 +2880,7 @@ class TestDatetimeSlicing(DiskTestCase):
             assert_array_equal(actual, expected)
 
         # Slice the first year
-        with tiledb.DenseArray(uri, "r", attr="a1", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "r", attr="a1") as T:
             actual = T[np.datetime64("2010") : np.datetime64("2011")]
 
             # Convert datetime interval to integer offset/length into original array
@@ -3092,7 +2895,7 @@ class TestDatetimeSlicing(DiskTestCase):
             assert_array_equal(actual, expected)
 
         # Slice open spans
-        with tiledb.DenseArray(uri, "r", attr="a1", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "r", attr="a1") as T:
 
             # Convert datetime interval to integer offset/length into original array
             read_offset = int(
@@ -3112,13 +2915,11 @@ class TestDatetimeSlicing(DiskTestCase):
             assert_array_equal(actual2, expected)
 
     def test_sparse_datetime_vector(self, sparse_cell_order):
-        ctx = tiledb.Ctx()
         uri = self.path("foo_datetime_sparse_vector")
 
         # ns resolution, one tile per second, max domain possible
         dim = tiledb.Dim(
             name="d1",
-            ctx=ctx,
             domain=(
                 np.datetime64(0, "ns"),
                 np.datetime64(int(np.iinfo(np.int64).max) - 1000000000, "ns"),
@@ -3127,9 +2928,8 @@ class TestDatetimeSlicing(DiskTestCase):
             dtype=np.datetime64("", "ns").dtype,
         )
         self.assertEqual(dim.tile, np.timedelta64("1000000000", "ns"))
-        dom = tiledb.Domain(dim, ctx=ctx)
+        dom = tiledb.Domain(dim)
         schema = tiledb.ArraySchema(
-            ctx=ctx,
             domain=dom,
             sparse=True,
             cell_order=sparse_cell_order,
@@ -3140,15 +2940,15 @@ class TestDatetimeSlicing(DiskTestCase):
         # Write 10k cells every 1000 ns starting at time 0
         coords = np.datetime64(0, "ns") + np.arange(0, 10000 * 1000, 1000)
         a1_vals = np.random.rand(len(coords))
-        with tiledb.SparseArray(uri, "w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, "w") as T:
             T[coords] = {"a1": a1_vals}
 
         # Read all
-        with tiledb.SparseArray(uri, "r", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, "r") as T:
             assert_array_equal(T[:]["a1"], a1_vals)
 
         # Read back first 10 cells
-        with tiledb.SparseArray(uri, "r", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, "r") as T:
             start = np.datetime64(0, "ns")
             vals = T[start : start + np.timedelta64(10000, "ns")]["a1"]
             assert_array_equal(vals, a1_vals[0:11])
@@ -3162,8 +2962,6 @@ class TestDatetimeSlicing(DiskTestCase):
             assert_array_equal(vals3, a1_vals)
 
     def test_datetime_types(self, sparse_cell_order):
-        ctx = tiledb.Ctx()
-
         units = ["h", "m", "s", "ms", "us", "ns", "ps", "fs"]
 
         for res in units:
@@ -3174,14 +2972,12 @@ class TestDatetimeSlicing(DiskTestCase):
 
             dim = tiledb.Dim(
                 name="d1",
-                ctx=ctx,
                 domain=(None, None),
                 tile=tile,
                 dtype=np.datetime64("", res).dtype,
             )
-            dom = tiledb.Domain(dim, ctx=ctx)
+            dom = tiledb.Domain(dim)
             schema = tiledb.ArraySchema(
-                ctx=ctx,
                 domain=dom,
                 sparse=True,
                 cell_order=sparse_cell_order,
@@ -3195,15 +2991,15 @@ class TestDatetimeSlicing(DiskTestCase):
                 0, tmax, 10
             )  # np.arange(0, 10000 * 1000, 1000)
             a1_vals = np.random.rand(len(coords))
-            with tiledb.SparseArray(uri, "w", ctx=ctx) as T:
+            with tiledb.SparseArray(uri, "w") as T:
                 T[coords] = {"a1": a1_vals}
 
             # Read all
-            with tiledb.SparseArray(uri, "r", ctx=ctx) as T:
+            with tiledb.SparseArray(uri, "r") as T:
                 assert_array_equal(T[:]["a1"], a1_vals)
 
             # Read back first 10 cells
-            with tiledb.SparseArray(uri, "r", ctx=ctx) as T:
+            with tiledb.SparseArray(uri, "r") as T:
                 start = np.datetime64(0, res)
                 vals = T[start : start + np.timedelta64(int(tmax / 10), res)]["a1"]
                 assert_array_equal(vals, a1_vals[0:11])
@@ -3214,9 +3010,8 @@ class PickleTest(DiskTestCase):
     # note that the current pickling is by URI and attributes (it is
     #     not, and likely should not be, a way to serialize array data)
     def test_pickle_roundtrip(self):
-        ctx = tiledb.Ctx()
         uri = self.path("foo")
-        with tiledb.DenseArray.from_numpy(uri, np.random.rand(5), ctx=ctx) as T:
+        with tiledb.DenseArray.from_numpy(uri, np.random.rand(5)) as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
                 buf.seek(0)
@@ -3257,28 +3052,26 @@ class PickleTest(DiskTestCase):
 
 class ArrayViewTest(DiskTestCase):
     def test_view_multiattr(self):
-        ctx = tiledb.Ctx()
         uri = self.path("foo_multiattr")
         dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3),
-            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3),
-            ctx=ctx,
+            tiledb.Dim(domain=(0, 2), tile=3),
+            tiledb.Dim(domain=(0, 2), tile=3),
         )
         schema = tiledb.ArraySchema(
-            ctx=ctx, domain=dom, attrs=(tiledb.Attr(""), tiledb.Attr("named"))
+            domain=dom, attrs=(tiledb.Attr(""), tiledb.Attr("named"))
         )
         tiledb.libtiledb.Array.create(uri, schema)
 
         anon_ar = np.random.rand(3, 3)
         named_ar = np.random.rand(3, 3)
 
-        with tiledb.DenseArray(uri, "w", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "w") as T:
             T[:] = {"": anon_ar, "named": named_ar}
 
         with self.assertRaises(KeyError):
-            T = tiledb.DenseArray(uri, "r", attr="foo111", ctx=ctx)
+            T = tiledb.DenseArray(uri, "r", attr="foo111")
 
-        with tiledb.DenseArray(uri, "r", attr="named", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "r", attr="named") as T:
             assert_array_equal(T, named_ar)
             # make sure each attr view can pickle and round-trip
             with io.BytesIO() as buf:
@@ -3287,7 +3080,7 @@ class ArrayViewTest(DiskTestCase):
                 with pickle.load(buf) as T_rt:
                     assert_array_equal(T, T_rt)
 
-        with tiledb.DenseArray(uri, "r", attr="", ctx=ctx) as T:
+        with tiledb.DenseArray(uri, "r", attr="") as T:
             assert_array_equal(T, anon_ar)
 
             with io.BytesIO() as buf:
@@ -3298,28 +3091,26 @@ class ArrayViewTest(DiskTestCase):
 
         # set subarray on multi-attribute
         range_ar = np.arange(0, 9).reshape(3, 3)
-        with tiledb.DenseArray(uri, "w", attr="named", ctx=ctx) as V_named:
+        with tiledb.DenseArray(uri, "w", attr="named") as V_named:
             V_named[1:3, 1:3] = range_ar[1:3, 1:3]
 
-        with tiledb.DenseArray(uri, "r", attr="named", ctx=ctx) as V_named:
+        with tiledb.DenseArray(uri, "r", attr="named") as V_named:
             assert_array_equal(V_named[1:3, 1:3], range_ar[1:3, 1:3])
 
 
 class RWTest(DiskTestCase):
     def test_read_write(self):
-        ctx = tiledb.Ctx()
-
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3), ctx=ctx)
-        att = tiledb.Attr(ctx=ctx, dtype="int64")
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
+        att = tiledb.Attr(dtype="int64")
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.libtiledb.Array.create(self.path("foo"), schema)
 
         np_array = np.array([1, 2, 3], dtype="int64")
 
-        with tiledb.DenseArray(self.path("foo"), mode="w", ctx=ctx) as arr:
+        with tiledb.DenseArray(self.path("foo"), mode="w") as arr:
             arr.write_direct(np_array)
 
-        with tiledb.DenseArray(self.path("foo"), mode="r", ctx=ctx) as arr:
+        with tiledb.DenseArray(self.path("foo"), mode="r") as arr:
             safe_dump(arr)
             self.assertEqual(arr.nonempty_domain(), ((0, 2),))
             self.assertEqual(arr.ndim, np_array.ndim)
@@ -3329,28 +3120,24 @@ class RWTest(DiskTestCase):
 class TestNumpyToArray(DiskTestCase):
     def test_to_array0d(self):
         # Cannot create 0-dim arrays in TileDB
-        ctx = tiledb.Ctx()
         np_array = np.array(1)
         with self.assertRaises(tiledb.TileDBError):
-            with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as A:
+            with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as A:
                 pass
 
     def test_to_array1d(self):
-        ctx = tiledb.Ctx()
         np_array = np.array([1.0, 2.0, 3.0])
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_to_array2d(self):
-        ctx = tiledb.Ctx()
         np_array = np.ones((100, 100), dtype="i8")
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_to_array3d(self):
-        ctx = tiledb.Ctx()
         np_array = np.ones((1, 1, 1), dtype="i1")
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_bytes_to_array1d(self):
@@ -3388,43 +3175,37 @@ class TestNumpyToArray(DiskTestCase):
 
     def test_array_interface(self):
         # Tests that __array__ interface works
-        ctx = tiledb.Ctx()
         np_array1 = np.arange(1, 10)
-        with tiledb.DenseArray.from_numpy(
-            self.path("arr1"), np_array1, ctx=ctx
-        ) as arr1:
+        with tiledb.DenseArray.from_numpy(self.path("arr1"), np_array1) as arr1:
             assert_array_equal(np.array(arr1), np_array1)
 
         # Test that __array__ interface throws an error when number of attributes > 1
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), tile=3), ctx=ctx)
-        foo = tiledb.Attr("foo", dtype="i8", ctx=ctx)
-        bar = tiledb.Attr("bar", dtype="i8", ctx=ctx)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(foo, bar))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
+        foo = tiledb.Attr("foo", dtype="i8")
+        bar = tiledb.Attr("bar", dtype="i8")
+        schema = tiledb.ArraySchema(domain=dom, attrs=(foo, bar))
         tiledb.DenseArray.create(self.path("arr2"), schema)
         with self.assertRaises(ValueError):
-            with tiledb.DenseArray(self.path("arr2"), mode="r", ctx=ctx) as arr2:
+            with tiledb.DenseArray(self.path("arr2"), mode="r") as arr2:
                 np.array(arr2)
 
     def test_array_getindex(self):
         # Tests that __getindex__ interface works
-        ctx = tiledb.Ctx()
         np_array = np.arange(1, 10)
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array, ctx=ctx) as arr:
+        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[5:10], np_array[5:10])
 
     def test_to_array1d_attr_name(self):
-        ctx = tiledb.Ctx()
         np_array = np.array([1.0, 2.0, 3.0])
         with tiledb.DenseArray.from_numpy(
-            self.path("foo"), np_array, attr_name="a", ctx=ctx
+            self.path("foo"), np_array, attr_name="a"
         ) as arr:
             assert_array_equal(arr[:]["a"], np_array)
 
 
 class TestVFS(DiskTestCase):
     def test_supports(self):
-        ctx = tiledb.Ctx()
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
 
         self.assertTrue(vfs.supports("file"))
         self.assertIsInstance(vfs.supports("s3"), bool)
@@ -3436,8 +3217,7 @@ class TestVFS(DiskTestCase):
             vfs.supports("invalid")
 
     def test_dir(self):
-        ctx = tiledb.Ctx()
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
 
         dir = self.path("foo")
         self.assertFalse(vfs.is_dir(dir))
@@ -3460,8 +3240,7 @@ class TestVFS(DiskTestCase):
         self.assertTrue(vfs.is_dir(dir))
 
     def test_file(self):
-        ctx = tiledb.Ctx()
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
 
         file = self.path("foo")
         self.assertFalse(vfs.is_file(file))
@@ -3480,8 +3259,7 @@ class TestVFS(DiskTestCase):
             vfs.touch(file)
 
     def test_move(self):
-        ctx = tiledb.Ctx()
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
 
         vfs.create_dir(self.path("foo"))
         vfs.create_dir(self.path("bar"))
@@ -3503,8 +3281,7 @@ class TestVFS(DiskTestCase):
         reason="VFS copy commands from core are not supported on Windows",
     )
     def test_copy(self):
-        ctx = tiledb.Ctx()
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
 
         vfs.create_dir(self.path("foo"))
         vfs.create_dir(self.path("bar"))
@@ -3526,8 +3303,7 @@ class TestVFS(DiskTestCase):
             vfs.copy_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
 
     def test_write_read(self):
-        ctx = tiledb.Ctx()
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
 
         buffer = b"bar"
         fh = vfs.open(self.path("foo"), "wb")
@@ -3554,8 +3330,7 @@ class TestVFS(DiskTestCase):
             vfs.open(self.path("do_not_exist"), "rb")
 
     def test_io(self):
-        ctx = tiledb.Ctx()
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
 
         buffer = b"0123456789"
         fio = tiledb.FileIO(vfs, self.path("foo"), mode="wb")
@@ -3634,7 +3409,7 @@ class TestVFS(DiskTestCase):
             os.close(os.open(fname, os.O_CREAT | os.O_EXCL))
 
         expected = ("dir1", "dir2", "dir3", "file_1", "file_2", "file_3")
-        vfs = tiledb.VFS(ctx=tiledb.Ctx())
+        vfs = tiledb.VFS()
         self.assertSetEqual(
             set(
                 os.path.normpath("file://" + os.path.join(basepath, x))
@@ -3644,7 +3419,7 @@ class TestVFS(DiskTestCase):
         )
 
     def test_dir_size(self):
-        vfs = tiledb.VFS(ctx=tiledb.Ctx())
+        vfs = tiledb.VFS()
 
         path = self.path("test_vfs_dir_size")
         os.mkdir(path)
@@ -3660,17 +3435,16 @@ class TestVFS(DiskTestCase):
 
 class ConsolidationTest(DiskTestCase):
     def test_array_vacuum(self):
-        ctx = tiledb.Ctx()
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
         path = self.path("test_array_vacuum")
 
         dshape = (0, 19)
         num_writes = 10
 
         def create_array(target_path):
-            dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=dshape, tile=3), ctx=ctx)
-            att = tiledb.Attr(ctx=ctx, dtype="int64")
-            schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=3))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
             tiledb.libtiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path):
@@ -3683,8 +3457,8 @@ class ConsolidationTest(DiskTestCase):
         paths = vfs.ls(path)
         self.assertEqual(len(paths), 3 + 2 * num_writes)
 
-        tiledb.consolidate(path, ctx=ctx)
-        tiledb.vacuum(path, ctx=ctx)
+        tiledb.consolidate(path)
+        tiledb.vacuum(path)
 
         paths = vfs.ls(path)
         self.assertEqual(len(paths), 5)
@@ -3722,7 +3496,6 @@ class MemoryTest(DiskTestCase):
         process = psutil.Process(os.getpid())
 
         x = np.ones(10000000, dtype=np.float32)
-        ctx = tiledb.Ctx()
         d1 = tiledb.Dim(
             "test_domain", domain=(0, x.shape[0] - 1), tile=10000, dtype="uint32"
         )
@@ -3735,7 +3508,7 @@ class MemoryTest(DiskTestCase):
 
         A = tiledb.DenseArray.create(path, schema)
 
-        with tiledb.DenseArray(path, mode="w", ctx=ctx) as A:
+        with tiledb.DenseArray(path, mode="w") as A:
             A[:] = {"test_value": x}
 
         with tiledb.DenseArray(path, mode="r") as data:
@@ -3919,18 +3692,14 @@ class ReprTest(unittest.TestCase):
         self.assertEqual(eval(repr(attr), g), attr)
 
     def test_arrayschema_repr(self):
-        ctx = tiledb.default_ctx()
         filters = tiledb.FilterList([tiledb.ZstdFilter(-1)])
         for sparse in [False, True]:
             domain = tiledb.Domain(
-                tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
-                tiledb.Dim(domain=(1, 8), tile=2, ctx=ctx),
-                ctx=ctx,
+                tiledb.Dim(domain=(1, 8), tile=2),
+                tiledb.Dim(domain=(1, 8), tile=2),
             )
-            a1 = tiledb.Attr("val", dtype="f8", filters=filters, ctx=ctx)
-            orig_schema = tiledb.ArraySchema(
-                domain=domain, attrs=(a1,), sparse=sparse, ctx=ctx
-            )
+            a1 = tiledb.Attr("val", dtype="f8", filters=filters)
+            orig_schema = tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=sparse)
 
             schema_repr = repr(orig_schema)
             g = dict()
@@ -3979,19 +3748,16 @@ class IncompleteTest(DiskTestCase):
         data = np.array(str_data, dtype=np.unicode_)
 
         # basic write
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(1, len(data)), tile=len(data), ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=np.unicode_, var=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(data)), tile=len(data)))
+        att = tiledb.Attr(dtype=np.unicode_, var=True)
 
-        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,))
 
         tiledb.DenseArray.create(path, schema)
-        with tiledb.DenseArray(path, mode="w", ctx=ctx) as T:
+        with tiledb.DenseArray(path, mode="w") as T:
             T[:] = data
 
-        with tiledb.DenseArray(path, mode="r", ctx=ctx) as T:
+        with tiledb.DenseArray(path, mode="r") as T:
             assert_array_equal(data, T[:])
 
         # set the memory to the max length of a cell
@@ -4006,11 +3772,9 @@ class IncompleteTest(DiskTestCase):
                 "py.init_buffer_bytes": init_buffer_bytes,
             }
         )
-
-        ctx2 = tiledb.Ctx(config=config)
         self.assertEqual(config["py.init_buffer_bytes"], str(init_buffer_bytes))
 
-        with tiledb.DenseArray(path, mode="r", ctx=ctx2) as T2:
+        with tiledb.DenseArray(path, mode="r", ctx=tiledb.Ctx(config)) as T2:
             df = T2.query(attrs=[""]).df[:]
             assert_array_equal(df[""], data)
 
@@ -4023,19 +3787,16 @@ class IncompleteTest(DiskTestCase):
         coords = np.arange(ncells)
 
         # basic write
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, len(data) + 100), tile=len(data), ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=np.unicode_, var=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, len(data) + 100), tile=len(data)))
+        att = tiledb.Attr(dtype=np.unicode_, var=True)
 
-        schema = tiledb.ArraySchema(dom, (att,), sparse=True, ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,), sparse=True)
 
         tiledb.SparseArray.create(path, schema)
-        with tiledb.SparseArray(path, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(path, mode="w") as T:
             T[coords] = data
 
-        with tiledb.SparseArray(path, mode="r", ctx=ctx) as T:
+        with tiledb.SparseArray(path, mode="r") as T:
             assert_array_equal(data, T[:][""])
 
         # set the memory to the max length of a cell
@@ -4050,11 +3811,9 @@ class IncompleteTest(DiskTestCase):
                 "py.init_buffer_bytes": init_buffer_bytes,
             }
         )
-
-        ctx2 = tiledb.Ctx(config=config)
         self.assertEqual(config["py.init_buffer_bytes"], str(init_buffer_bytes))
 
-        with tiledb.SparseArray(path, mode="r", ctx=ctx2) as T2:
+        with tiledb.SparseArray(path, mode="r", ctx=tiledb.Ctx(config)) as T2:
             assert_array_equal(data, T2[:][""])
 
             assert_array_equal(data, T2.multi_index[0:ncells][""])

@@ -25,21 +25,18 @@ class FragmentInfoTest(DiskTestCase):
         A = np.zeros(fragments)
 
         uri = self.path("test_dense_fragments")
-        ctx = tiledb.default_ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=fragments, dtype=np.int64), ctx=ctx
-        )
-        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=fragments, dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
 
         tiledb.DenseArray.create(uri, schema)
 
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
-            with tiledb.DenseArray(uri, mode="w", timestamp=timestamp, ctx=ctx) as T:
+            with tiledb.DenseArray(uri, mode="w", timestamp=timestamp) as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
-        fragments_info = tiledb.array_fragments(uri, ctx)
+        fragments_info = tiledb.array_fragments(uri)
 
         self.assertEqual(len(fragments_info), 3)
         self.assertEqual(fragments_info.unconsolidated_metadata_num, 3)
@@ -125,12 +122,9 @@ class FragmentInfoTest(DiskTestCase):
         A = np.zeros(fragments)
 
         uri = self.path("test_dense_fragments")
-        ctx = tiledb.default_ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=fragments, dtype=np.int64), ctx=ctx
-        )
-        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=fragments, dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
 
         tiledb.DenseArray.create(uri, schema)
 
@@ -138,7 +132,7 @@ class FragmentInfoTest(DiskTestCase):
 
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
-            with tiledb.DenseArray(uri, mode="w", timestamp=timestamp, ctx=ctx) as T:
+            with tiledb.DenseArray(uri, mode="w", timestamp=timestamp) as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
             fragment_info.load()
@@ -192,12 +186,9 @@ class FragmentInfoTest(DiskTestCase):
         A = np.zeros(fragments)
 
         uri = self.path("test_sparse_fragments")
-        ctx = tiledb.default_ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(ctx=ctx, domain=(0, 2), tile=fragments, dtype=np.int64), ctx=ctx
-        )
-        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
-        schema = tiledb.ArraySchema(ctx=ctx, sparse=True, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=fragments, dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
 
         tiledb.SparseArray.create(uri, schema)
 
@@ -205,7 +196,7 @@ class FragmentInfoTest(DiskTestCase):
 
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
-            with tiledb.SparseArray(uri, mode="w", timestamp=timestamp, ctx=ctx) as T:
+            with tiledb.SparseArray(uri, mode="w", timestamp=timestamp) as T:
                 T[fragment_idx] = fragment_idx
 
             fragment_info.load()
@@ -255,18 +246,16 @@ class FragmentInfoTest(DiskTestCase):
 
     def test_nonempty_domain(self):
         uri = self.path("test_nonempty_domain")
-        ctx = tiledb.default_ctx()
         dom = tiledb.Domain(
-            tiledb.Dim(name="x", ctx=ctx, domain=(1, 4)),
-            tiledb.Dim(name="y", ctx=ctx, domain=(-2.0, 2.0), dtype=np.float32),
-            ctx=ctx,
+            tiledb.Dim(name="x", domain=(1, 4)),
+            tiledb.Dim(name="y", domain=(-2.0, 2.0), dtype=np.float32),
         )
-        att = tiledb.Attr(ctx=ctx)
-        schema = tiledb.ArraySchema(ctx=ctx, sparse=True, domain=dom, attrs=(att,))
+        att = tiledb.Attr()
+        schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
 
         tiledb.SparseArray.create(uri, schema)
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             coords = np.array(
                 list(itertools.product(np.arange(1, 5), np.arange(-1, 3)))
             )
@@ -274,12 +263,12 @@ class FragmentInfoTest(DiskTestCase):
             y = coords[:, 1]
             T[x, y] = np.array(range(16))
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             x = [1, 3]
             y = [-1.5, -1.25]
             T[x, y] = np.array(range(2))
 
-        fragment_info = _fragment.info(uri, ctx)
+        fragment_info = _fragment.info(uri)
         fragment_info.load()
 
         x_dt = schema.domain.dim(0).dtype
@@ -315,35 +304,32 @@ class FragmentInfoTest(DiskTestCase):
 
     def test_nonempty_domain_date(self):
         uri = self.path("test_nonempty_domain")
-        ctx = tiledb.default_ctx()
         dom = tiledb.Domain(
             tiledb.Dim(
                 name="day",
-                ctx=ctx,
                 domain=(np.datetime64("2010-01-01"), np.datetime64("2020")),
                 dtype="datetime64[D]",
             ),
-            ctx=ctx,
         )
-        att = tiledb.Attr(ctx=ctx)
-        schema = tiledb.ArraySchema(ctx=ctx, sparse=True, domain=dom, attrs=(att,))
+        att = tiledb.Attr()
+        schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
 
         tiledb.SparseArray.create(uri, schema)
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             dates = np.array(
                 ["2017-04-01", "2019-10-02", "2019-10-03", "2019-12-04"],
                 dtype="datetime64[D]",
             )
             T[dates] = np.array(range(4))
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             dates = np.array(
                 ["2010-01-01", "2013-10-02", "2014-10-03"], dtype="datetime64[D]"
             )
             T[dates] = np.array(range(3))
 
-        fragment_info = _fragment.info(uri, ctx)
+        fragment_info = _fragment.info(uri)
         fragment_info.load()
 
         self.assertEqual(
@@ -383,28 +369,26 @@ class FragmentInfoTest(DiskTestCase):
 
     def test_nonempty_domain_strings(self):
         uri = self.path("test_nonempty_domain_strings")
-        ctx = tiledb.default_ctx()
         dom = tiledb.Domain(
-            tiledb.Dim(name="x", ctx=ctx, domain=(None, None), dtype=np.bytes_),
-            tiledb.Dim(name="y", ctx=ctx, domain=(None, None), dtype=np.bytes_),
-            ctx=ctx,
+            tiledb.Dim(name="x", domain=(None, None), dtype=np.bytes_),
+            tiledb.Dim(name="y", domain=(None, None), dtype=np.bytes_),
         )
-        att = tiledb.Attr(ctx=ctx)
-        schema = tiledb.ArraySchema(ctx=ctx, sparse=True, domain=dom, attrs=(att,))
+        att = tiledb.Attr()
+        schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
 
         tiledb.SparseArray.create(uri, schema)
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             x_dims = [b"a", b"b", b"c", b"d"]
             y_dims = [b"e", b"f", b"g", b"h"]
             T[x_dims, y_dims] = np.array([1, 2, 3, 4])
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             x_dims = [b"a", b"b"]
             y_dims = [b"e", b"f"]
             T[x_dims, y_dims] = np.array([1, 2])
 
-        fragment_info = _fragment.info(uri, ctx)
+        fragment_info = _fragment.info(uri)
         fragment_info.load()
 
         self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 0), ("a", "d"))
@@ -431,24 +415,23 @@ class FragmentInfoTest(DiskTestCase):
 
     def test_cell_num(self):
         uri = self.path("test_cell_num")
-        ctx = tiledb.default_ctx()
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(1, 4)), ctx=ctx)
-        att = tiledb.Attr(ctx=ctx)
-        schema = tiledb.ArraySchema(ctx=ctx, sparse=True, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 4)))
+        att = tiledb.Attr()
+        schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
 
         tiledb.SparseArray.create(uri, schema)
 
-        fragment_info = _fragment.info(uri, ctx)
+        fragment_info = _fragment.info(uri)
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             a = np.array([1, 2, 3, 4])
             T[a] = a
 
-        with tiledb.SparseArray(uri, mode="w", ctx=ctx) as T:
+        with tiledb.SparseArray(uri, mode="w") as T:
             b = np.array([1, 2])
             T[b] = b
 
-        fragment_info = _fragment.info(uri, ctx)
+        fragment_info = _fragment.info(uri)
         fragment_info.load()
 
         self.assertEqual(fragment_info.cell_num(0), len(a))
@@ -461,17 +444,16 @@ class FragmentInfoTest(DiskTestCase):
         A = np.zeros(fragments)
 
         uri = self.path("test_consolidated_fragment_metadata")
-        ctx = tiledb.default_ctx()
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), dtype=np.int64), ctx=ctx)
-        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
 
         tiledb.DenseArray.create(uri, schema)
 
-        fragment_info = _fragment.info(uri, ctx)
+        fragment_info = _fragment.info(uri)
 
         for fragment_idx in range(fragments):
-            with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+            with tiledb.DenseArray(uri, mode="w") as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
         fragment_info.load()
@@ -487,7 +469,6 @@ class FragmentInfoTest(DiskTestCase):
         tiledb.consolidate(
             uri,
             config=tiledb.Config(params={"sm.consolidation.mode": "fragment_meta"}),
-            ctx=ctx,
         )
 
         fragment_info.load()
@@ -504,17 +485,16 @@ class FragmentInfoTest(DiskTestCase):
         A = np.zeros(fragments)
 
         uri = self.path("test_fragments_to_vacuum")
-        ctx = tiledb.default_ctx()
-        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 2), dtype=np.int64), ctx=ctx)
-        att = tiledb.Attr(ctx=ctx, dtype=A.dtype)
-        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
 
         tiledb.DenseArray.create(uri, schema)
 
-        fragment_info = _fragment.info(uri, ctx)
+        fragment_info = _fragment.info(uri)
 
         for fragment_idx in range(fragments):
-            with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+            with tiledb.DenseArray(uri, mode="w") as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
         fragment_info.load()
@@ -522,7 +502,7 @@ class FragmentInfoTest(DiskTestCase):
         expected_vacuum_uri = fragment_info.fragment_uri(0)
 
         tiledb.consolidate(
-            uri, config=tiledb.Config(params={"sm.vacuum.mode": "fragments"}), ctx=ctx
+            uri, config=tiledb.Config(params={"sm.vacuum.mode": "fragments"})
         )
 
         fragment_info.load()
@@ -531,7 +511,7 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragment_info.to_vacuum_uri(0), expected_vacuum_uri)
         self.assertEqual(fragment_info.to_vacuum_uri(), (expected_vacuum_uri,))
 
-        tiledb.vacuum(uri, ctx=ctx)
+        tiledb.vacuum(uri)
 
         fragment_info.load()
 

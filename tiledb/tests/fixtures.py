@@ -1,10 +1,8 @@
 import pytest
-import random
 
 import tiledb
 import numpy as np
 
-from numpy.testing import assert_array_equal
 from tiledb.tests.common import assert_subarrays_equal, rand_utf8
 
 
@@ -21,22 +19,18 @@ def test_incomplete_return_array(tmpdir_factory):
 
     data = np.array([rand_utf8(nvals - i % 2) for i in range(ncells)], dtype="O")
 
-    ctx = tiledb.default_ctx()
+    dom = tiledb.Domain(tiledb.Dim(domain=(0, len(data) - 1), tile=len(data)))
+    att = tiledb.Attr(dtype=str, var=True)
 
-    dom = tiledb.Domain(
-        tiledb.Dim(domain=(0, len(data) - 1), tile=len(data), ctx=ctx), ctx=ctx
-    )
-    att = tiledb.Attr(dtype=str, var=True, ctx=ctx)
-
-    schema = tiledb.ArraySchema(dom, (att,), sparse=True, ctx=ctx)
+    schema = tiledb.ArraySchema(dom, (att,), sparse=True)
 
     coords = np.arange(ncells)
 
     tiledb.SparseArray.create(tmp_path, schema)
-    with tiledb.SparseArray(tmp_path, mode="w", ctx=ctx) as T:
+    with tiledb.SparseArray(tmp_path, mode="w") as T:
         T[coords] = data
 
-    with tiledb.SparseArray(tmp_path, mode="r", ctx=ctx) as T:
+    with tiledb.SparseArray(tmp_path, mode="r") as T:
         assert_subarrays_equal(data, T[:][""])
 
     return tmp_path

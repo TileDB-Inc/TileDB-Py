@@ -77,12 +77,9 @@ class UtilTest(DiskTestCase):
             self.assertFalse(tiledb.array_exists(uri, issparse=True))
 
         uri = self.path("test_array_exists_sparse")
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 3), tile=4, dtype=int, ctx=ctx), ctx=ctx
-        )
-        att = tiledb.Attr(dtype=int, ctx=ctx)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, ctx=ctx)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, dtype=int))
+        att = tiledb.Attr(dtype=int)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
         tiledb.Array.create(uri, schema)
 
         with tiledb.SparseArray(uri, mode="w") as T:

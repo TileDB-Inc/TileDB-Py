@@ -117,9 +117,6 @@ def array_fragments(uri, ctx=None):
     :param ctx: (optional) TileDB Ctx
     :return: FragmentsInfo object
     """
-    if not ctx:
-        ctx = tiledb.default_ctx()
-
     return tiledb.FragmentInfoList(uri, ctx)
 
 

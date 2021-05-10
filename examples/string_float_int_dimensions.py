@@ -40,27 +40,21 @@ import random
 
 path = "sparse_mixed_demo"
 
-ctx = tiledb.Ctx()
-
 dom = tiledb.Domain(
     *[
-        tiledb.Dim(name="str_dim", domain=(None, None), dtype=np.bytes_, ctx=ctx),
-        tiledb.Dim(name="int64_dim", domain=(0, 100), tile=10, dtype=np.int64, ctx=ctx),
+        tiledb.Dim(name="str_dim", domain=(None, None), dtype=np.bytes_),
+        tiledb.Dim(name="int64_dim", domain=(0, 100), tile=10, dtype=np.int64),
         tiledb.Dim(
             name="float64_dim",
             domain=(-100.0, 100.0),
             tile=10,
             dtype=np.float64,
-            ctx=ctx,
         ),
     ],
-    ctx=ctx
 )
 
-att = tiledb.Attr(name="a", ctx=ctx, dtype=np.int64)
-schema = tiledb.ArraySchema(
-    ctx=ctx, domain=dom, attrs=(att,), sparse=True, capacity=10000
-)
+att = tiledb.Attr(name="a", dtype=np.int64)
+schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True, capacity=10000)
 tiledb.SparseArray.create(path, schema)
 
 data = [1, 2, 3, 4]

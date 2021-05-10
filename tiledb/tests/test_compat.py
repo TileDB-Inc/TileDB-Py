@@ -14,12 +14,11 @@ class TestBackwardCompatibility(DiskTestCase):
         # array written with the following script:
         """
         import tiledb, numpy as np
-        ctx = tiledb.default_ctx()
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 0), tile=1, dtype=np.uint8))
-        attrs = (tiledb.Attr(name="_attr_", dtype=np.uint8, ctx=ctx),)
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False, ctx=ctx)
+        attrs = (tiledb.Attr(name="_attr_", dtype=np.uint8),)
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
         path = "py0.5.9-test"
-        tiledb.DenseArray.create(path, schema, ctx=ctx)
+        tiledb.DenseArray.create(path, schema)
         with tiledb.open(path, "w") as A:
             A[0] = 1
         """
