@@ -791,6 +791,45 @@ class ArrayTest(DiskTestCase):
         # persist array schema
         tiledb.libtiledb.Array.create(self.path("foo"), schema, ctx=tiledb.Ctx())
 
+    @pytest.mark.skipif(
+        not (sys.platform == "win32" and tiledb.libtiledb.version() >= (2, 3, 0)),
+        reason="Shared network drive only on Win32",
+    )
+    def test_array_create_on_shared_drive(self):
+        config = tiledb.Config()
+        config["sm.consolidation.step_min_frag"] = 0
+        config["sm.consolidation.steps"] = 1
+
+        ctx = tiledb.Ctx(config=config)
+        schema = self.create_array_schema(ctx)
+        uri = self.path(basename="foo", shared=True)
+
+        tiledb.libtiledb.Array.create(uri, schema)
+
+        # load array in readonly mode
+        array = tiledb.libtiledb.Array(uri, mode="r", ctx=ctx)
+        self.assertTrue(array.isopen)
+        self.assertEqual(array.schema, schema)
+        self.assertEqual(array.mode, "r")
+        self.assertEqual(array.uri, uri)
+
+        # we have not written anything, so the array is empty
+        self.assertIsNone(array.nonempty_domain())
+
+        array.reopen()
+        self.assertTrue(array.isopen)
+
+        array.close()
+        self.assertEqual(array.isopen, False)
+
+        with self.assertRaises(tiledb.TileDBError):
+            # cannot get schema from closed array
+            array.schema
+
+        with self.assertRaises(tiledb.TileDBError):
+            # cannot re-open a closed array
+            array.reopen()
+
     def test_array_create_encrypted(self):
         config = tiledb.Config()
         config["sm.consolidation.step_min_frags"] = 0
@@ -1164,6 +1203,46 @@ class DenseArrayTest(DiskTestCase):
             assert_array_equal(B[190:310, 3:7], T[190:310, 3:7])
             assert_array_equal(A[310:], T[310:])
             assert_array_equal(A[:, 7:], T[:, 7:])
+
+    @pytest.mark.skipif(
+        not (sys.platform == "win32" and tiledb.libtiledb.version() >= (2, 3, 0)),
+        reason="Shared network drive only on Win32",
+    )
+    def test_array_1d_shared_drive(self):
+        A = np.zeros(50)
+
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(tiledb.Dim(ctx=ctx, domain=(0, 49), tile=50), ctx=ctx)
+        att = tiledb.Attr(dtype=A.dtype, ctx=ctx)
+        schema = tiledb.ArraySchema(dom, (att,), ctx=ctx)
+        uri = self.path("foo", shared=True)
+
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+            T[:] = A
+
+        with tiledb.DenseArray(uri, mode="r", ctx=ctx) as T:
+            assert_array_equal(A, T[:])
+
+        with tiledb.DenseArray(uri, mode="w") as T:
+            value = -1, 3, 10
+            A[0], A[1], A[3] = value
+            T[0], T[1], T[3] = value
+        with tiledb.DenseArray(uri, mode="r") as T:
+            assert_array_equal(A, T[:])
+
+        for value in (-1, 3, 10):
+            with tiledb.DenseArray(uri, mode="w") as T:
+                A[5:25] = value
+                T[5:25] = value
+            with tiledb.DenseArray(uri, mode="r") as T:
+                assert_array_equal(A, T[:])
+            with tiledb.DenseArray(uri, mode="w", ctx=ctx) as T:
+                A[:] = value
+                T[:] = value
+            with tiledb.DenseArray(uri, mode="r", ctx=ctx) as T:
+                assert_array_equal(A, T[:])
 
     def test_fixed_string(self):
         ctx = tiledb.Ctx()
