@@ -21,7 +21,7 @@ class CoreCCTest(DiskTestCase):
                 with self.assertRaises(ValueError):
                     core.PyQuery(testctx, a, ("",), (), 0, False)
 
-            q = core.PyQuery(ctx, a, ("",), (), 0, False)
+            q = core.PyQuery(ctx, a, ("",), tiledb.QueryCondition(), (), 0, False)
 
             try:
                 q._test_err("bad foo happened")
@@ -52,8 +52,7 @@ class CoreCCTest(DiskTestCase):
                 q.set_ranges([[("aa", "bbbb")]])
 
         with tiledb.open(uri) as a:
-            q2 = core.PyQuery(ctx, a, ("",), (), 0, False)
-
+            q2 = core.PyQuery(ctx, a, ("",), tiledb.QueryCondition(), (), 0, False)
             q2.set_ranges([[(0, 3)]])
             q2.submit()
             res = q2.results()[""][0]
@@ -158,7 +157,7 @@ class CoreCCTest(DiskTestCase):
 
         with tiledb.DenseArray(uri, mode="r") as E, tiledb.scope_ctx() as ctx:
             # Ensure that query only returns specified attributes
-            q = core.PyQuery(ctx, E, ("foo",), (), 0, False)
+            q = core.PyQuery(ctx, E, ("foo",), tiledb.QueryCondition(), (), 0, False)
             q.set_ranges([[(0, 1)]])
             q.submit()
             r = q.results()

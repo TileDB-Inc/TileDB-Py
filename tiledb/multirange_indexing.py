@@ -287,9 +287,11 @@ def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQue
     schema = array.schema
     if query is not None:
         order = query.order
+        attr_cond = query.attr_cond
     else:
         # set default order:  TILEDB_UNORDERED for sparse,  TILEDB_ROW_MAJOR for dense
         order = "U" if schema.sparse else "C"
+        attr_cond = None
 
     try:
         layout = "CFGU".index(order)
@@ -303,6 +305,7 @@ def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQue
         array._ctx_(),
         array,
         tuple(_iter_attr_names(schema, query)),
+        attr_cond,
         tuple(_iter_dim_names(schema, query)),
         layout,
         use_arrow,

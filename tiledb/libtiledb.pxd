@@ -1298,6 +1298,7 @@ cdef class VFS(object):
 cdef class Query(object):
     cdef Array array
     cdef object attrs
+    cdef object attr_cond
     cdef object dims
     cdef object order
     cdef object coords
