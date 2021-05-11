@@ -3,7 +3,7 @@ import json
 import os
 import warnings
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 
@@ -45,8 +45,8 @@ TILEDB_KWARG_DEFAULTS = {
     "index_dims": None,
     "allows_duplicates": True,
     "mode": "ingest",
-    "attr_filters": None,
-    "dim_filters": None,
+    "attr_filters": True,
+    "dim_filters": True,
     "coords_filters": None,
     "full_domain": False,
     "tile": None,
@@ -179,12 +179,20 @@ def _get_attrs(names, column_infos, attr_filters, ctx=None):
     attrs = []
     attr_reprs = {}
     for name in names:
-        if isinstance(attr_filters, dict):
-            filters = attr_filters.get(name)
-        elif attr_filters is not None:
-            filters = attr_filters
-        else:
+        if attr_filters is True:
+            # default case
             filters = tiledb.FilterList([tiledb.ZstdFilter(-1, ctx=ctx)], ctx=ctx)
+        elif isinstance(attr_filters, list):
+            filters = tiledb.FilterList(attr_filters)
+        elif isinstance(attr_filters, dict):
+            # support passing a dict of filters per-attribute
+            filters = attr_filters.get(name, None)
+        elif isinstance(attr_filters, tiledb.FilterList):
+            filters = attr_filters
+        elif attr_filters is None:
+            filters = None
+        else:
+            raise ValueError("Unknown FilterList type for 'attr_filters'")
 
         column_info = column_infos[name]
         attrs.append(
@@ -294,7 +302,13 @@ def get_index_metadata(dataframe):
 
 
 def create_dims(
-    ctx, dataframe, index_dims, tile=None, full_domain=False, sparse=None, filters=None
+    ctx,
+    dataframe,
+    index_dims,
+    tile=None,
+    full_domain=False,
+    sparse=None,
+    filters: Union[dict, "tiledb.FilterList", None] = None,
 ):
     import pandas as pd
 
@@ -363,14 +377,15 @@ def create_dims(
 
         # get the FilterList, if any
         if isinstance(filters, dict):
-            if name in filters:
-                dim_filters = filters[name]
-            else:
-                dim_filters = None
-        elif filters is not None:
+            dim_filters = filters.get(name, None)
+        elif isinstance(filters, list):
+            dim_filters = tiledb.FilterList(filters)
+        elif isinstance(filters, tiledb.FilterList):
             dim_filters = filters
-        else:
+        elif filters or filters is None:
             dim_filters = None
+        else:
+            raise ValueError("Unexpected argument for 'dim_filters'")
 
         if per_dim_tile and name in tile:
             dim_tile = tile[name]
@@ -507,8 +522,8 @@ def from_pandas(uri, dataframe, **kwargs):
     sparse = tiledb_args["sparse"]
     index_dims = tiledb_args.get("index_dims", None)
     mode = tiledb_args.get("mode", "ingest")
-    attr_filters = tiledb_args.get("attr_filters", None)
-    dim_filters = tiledb_args.get("dim_filters", None)
+    attr_filters = tiledb_args.get("attr_filters", True)
+    dim_filters = tiledb_args.get("dim_filters", True)
     coords_filters = tiledb_args.get("coords_filters", None)
     full_domain = tiledb_args.get("full_domain", False)
     capacity = tiledb_args.get("capacity", False)
