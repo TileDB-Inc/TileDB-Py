@@ -3893,16 +3893,31 @@ def init_test_wrapper(cfg=None):
 
 
 def init_test_helper(cfg=None):
-    tiledb.libtiledb.initialize_ctx(cfg)
+    tiledb.libtiledb.default_ctx(cfg)
     num_tbb_threads = tiledb.default_ctx().config()["sm.num_tbb_threads"]
     print(int(num_tbb_threads))
 
 
 class ContextTest(unittest.TestCase):
-    def test_default_context(self):
+    def test_default_ctx(self):
         ctx = tiledb.default_ctx()
         self.assertIsInstance(ctx, tiledb.Ctx)
         self.assertIsInstance(ctx.config(), tiledb.Config)
+
+    def test_scope_ctx(self):
+        key = "sm.tile_cache_size"
+        ctx0 = tiledb.default_ctx()
+        assert ctx0.config()[key] == "10000000"
+        with tiledb.scope_ctx({key: 42}) as ctx1:
+            assert ctx1 is tiledb.default_ctx()
+            assert ctx1.config()[key] == "42"
+            with tiledb.scope_ctx({key: 6712}) as ctx2:
+                assert ctx2 is tiledb.default_ctx()
+                assert ctx2.config()[key] == "6712"
+            assert ctx1 is tiledb.default_ctx()
+            assert ctx1.config()[key] == "42"
+        assert ctx0 is tiledb.default_ctx()
+        assert ctx0.config()[key] == "10000000"
 
     def test_init_config(self):
         self.assertEqual(-1, init_test_wrapper())

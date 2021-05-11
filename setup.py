@@ -685,6 +685,7 @@ setup(
     install_requires=[
         "numpy>=1.16",
         "wheel>=0.30",
+        "contextvars ;python_version<'3.7'",
         "dataclasses ;python_version<'3.7'",
     ],
     packages=find_packages(),

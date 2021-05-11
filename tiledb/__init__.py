@@ -33,6 +33,7 @@ except:
         # Otherwise try loading by name only.
         ctypes.CDLL(lib_name)
 
+from .ctx import default_ctx, scope_ctx
 from .libtiledb import (
     Array,
     Ctx,
@@ -59,7 +60,6 @@ from .libtiledb import (
     ChecksumMD5Filter,
     ChecksumSHA256Filter,
     consolidate,
-    default_ctx,
     group_create,
     object_type,
     ls,
