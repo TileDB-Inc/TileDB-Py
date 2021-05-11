@@ -11,6 +11,7 @@ import sys
 from collections import OrderedDict
 
 from .array import DenseArray, SparseArray
+from .ctx import default_ctx
 
 ###############################################################################
 #     Numpy initialization code (critical)                                    #
@@ -19,53 +20,6 @@ from .array import DenseArray, SparseArray
 # https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
 np.import_array()
 
-###############################################################################
-#     Global Ctx object                                                       #
-###############################################################################
-# Ctx used by default in all constructors
-# Users needing a specific context should pass their own context as kwarg.
-cdef Ctx _global_ctx = None
-def _get_global_ctx():
-    return _global_ctx
-
-def default_ctx(config = None):
-    """
-    Returns, and optionally initializes, the global default `tiledb.Ctx` object.
-
-    This Ctx object is used by Python API functions when no `ctx` keyword argument
-    is provided. Most API functions accept an optional `ctx` kwarg, but that
-    is typically only necessary in advanced usage with multiple contexts per
-    program.
-
-    For initialization, this function must be called before any other
-    tiledb functions. The initialization call accepts a  :py:class:`tiledb.Config`
-    object to override the defaults for process-global parameters.
-
-    :param config (default None): :py:class:`tiledb.Config` object or
-        dictionary with config parameters.
-    :return: Ctx
-    """
-    global _global_ctx
-    if _global_ctx is not None:
-        if config is not None:
-            raise TileDBError("Global context already initialized!")
-    else:
-        _global_ctx = Ctx(config)
-
-    return _global_ctx
-
-def initialize_ctx(config = None):
-    """
-    (deprecated) Please use `tiledb.default_ctx(config)`.
-
-    Initialize the TileDB-Py default Ctx. This function exists primarily to
-    allow configuration overrides for global per-process parameters, such as
-    the TBB thread count in particular.
-
-    :param config: Config object or dictionary with config parameters.
-    :return:  None
-    """
-    return default_ctx(config)
 
 ###############################################################################
 #    MODULAR IMPORTS                                                          #
