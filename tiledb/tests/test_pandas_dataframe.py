@@ -1085,3 +1085,52 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             for array1, array2 in zip(df["data"].values, df2["data"].values):
                 self.assertEqual(array1.dtype, array2.dtype)
                 np.testing.assert_array_equal(array1, array2)
+
+
+class TestFromPandasOptions(DiskTestCase):
+    def test_filters_options(self):
+        def filters_eq(left, right):
+            # helper to check equality:
+            # - None should produce empty FilterList
+            # - a dict should match the first and only key/None
+            if isinstance(left, dict):
+                assert len(left) == 1
+                left = list(left.values())[0]
+            if isinstance(right, dict):
+                assert len(right) == 1
+                right = list(right.values())[0]
+
+            if left is None:
+                left = tiledb.FilterList()
+            if right is None:
+                right = tiledb.FilterList()
+
+            return left == right
+
+        df = pd.DataFrame({"x": pd.Series([1, 2, 3])})
+        df.index.name = "d"
+
+        filters_to_check = [
+            [tiledb.ZstdFilter(2)],
+            None,
+            tiledb.FilterList(),
+            tiledb.FilterList([tiledb.ZstdFilter(2)]),
+            {"d": None},
+            {"d": tiledb.FilterList([tiledb.ZstdFilter(2)])},
+        ]
+
+        for f in filters_to_check:
+            uri = self.path()
+            tiledb.from_pandas(uri, df, dim_filters=f)
+            with tiledb.open(uri) as A:
+                assert filters_eq(A.schema.domain.dim(0).filters, f)
+
+        df.index.name = ""
+        for f in filters_to_check:
+            uri = self.path()
+            if isinstance(f, dict):
+                f = {"x": list(f.values())[0]}
+
+            tiledb.from_pandas(uri, df, attr_filters=f)
+            with tiledb.open(uri) as A:
+                assert filters_eq(A.schema.attr(0).filters, f)

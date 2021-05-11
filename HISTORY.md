@@ -8,11 +8,12 @@
     (along with test in: `test_libtiledb.py:test_incomplete_return`)
 * Rename FragmentsInfo to FragmentInfoList [#551](https://github.com/TileDB-Inc/TileDB-Py/pull/551)
 * Dataframe creation uses Zstd default compression level (-1) [#552](https://github.com/TileDB-Inc/TileDB-Py/pull/552)
-* Rename Fragment Info API's non_empty_domain attribute to nonempty_domain [#553](https://github.com/TileDB-Inc/TileDB-Py/pull/553)
-* Added configuration option 'py.alloc_max_bytes' to control maximum initial buffer allocation [#557](https://github.com/TileDB-Inc/TileDB-Py/pull/557)
+* Rename Fragment Info API's `non_empty_domain` attribute to `nonempty_domain` [#553](https://github.com/TileDB-Inc/TileDB-Py/pull/553)
+* Added configuration option `py.alloc_max_bytes` to control maximum initial buffer allocation [#557](https://github.com/TileDB-Inc/TileDB-Py/pull/557)
 
 ## Bug fixes
 * Fixed incorrected error raised in .df[] indexer when pyarrow not installed [#554](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
+* Fixed `from_pandas(attr_filters=None, dim_filters=None)` (previously used internal defaults) [#564](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
 
 # TileDB-Py 0.8.8 Release Notes
 
