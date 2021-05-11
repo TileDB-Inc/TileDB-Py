@@ -160,7 +160,8 @@ class ColumnInfo:
         # string types
         # don't use pd_types.is_string_dtype() because it includes object types too
         if dtype.type in (np.bytes_, np.str_):
-            return cls(dtype)
+            # str and bytes are always stored as var-length
+            return cls(dtype, var=True)
 
         raise NotImplementedError(f"{dtype} dtype not supported")
 
@@ -462,7 +463,6 @@ def _df_to_np_arrays(df, column_infos, fillna):
     nullmaps = {}
     for name, column in df.items():
         column_info = column_infos[name]
-
         if fillna is not None and name in fillna:
             column = column.fillna(fillna[name])
 
@@ -649,7 +649,6 @@ def from_pandas(uri, dataframe, **kwargs):
                         coords.append(write_dict.pop(dim_name))
                     else:
                         coords.append(dataframe.index.get_level_values(k))
-
                 # TODO ensure correct col/dim ordering
                 libtiledb._setitem_impl_sparse(A, tuple(coords), write_dict, nullmaps)
 
