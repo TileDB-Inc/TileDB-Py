@@ -3907,17 +3907,29 @@ class ContextTest(unittest.TestCase):
     def test_scope_ctx(self):
         key = "sm.tile_cache_size"
         ctx0 = tiledb.default_ctx()
-        assert ctx0.config()[key] == "10000000"
-        with tiledb.scope_ctx({key: 42}) as ctx1:
-            assert ctx1 is tiledb.default_ctx()
-            assert ctx1.config()[key] == "42"
-            with tiledb.scope_ctx({key: 6712}) as ctx2:
-                assert ctx2 is tiledb.default_ctx()
-                assert ctx2.config()[key] == "6712"
-            assert ctx1 is tiledb.default_ctx()
-            assert ctx1.config()[key] == "42"
-        assert ctx0 is tiledb.default_ctx()
-        assert ctx0.config()[key] == "10000000"
+        new_config_dict = {key: 42}
+        new_config = tiledb.Config({key: 78})
+        new_ctx = tiledb.Ctx({key: 61})
+
+        assert tiledb.default_ctx() is ctx0
+        assert tiledb.default_ctx().config()[key] == "10000000"
+
+        with tiledb.scope_ctx(new_config_dict) as ctx1:
+            assert tiledb.default_ctx() is ctx1
+            assert tiledb.default_ctx().config()[key] == "42"
+            with tiledb.scope_ctx(new_config) as ctx2:
+                assert tiledb.default_ctx() is ctx2
+                assert tiledb.default_ctx().config()[key] == "78"
+                with tiledb.scope_ctx(new_ctx) as ctx3:
+                    assert tiledb.default_ctx() is ctx3 is new_ctx
+                    assert tiledb.default_ctx().config()[key] == "61"
+                assert tiledb.default_ctx() is ctx2
+                assert tiledb.default_ctx().config()[key] == "78"
+            assert tiledb.default_ctx() is ctx1
+            assert tiledb.default_ctx().config()[key] == "42"
+
+        assert tiledb.default_ctx() is ctx0
+        assert tiledb.default_ctx().config()[key] == "10000000"
 
     def test_init_config(self):
         self.assertEqual(-1, init_test_wrapper())
