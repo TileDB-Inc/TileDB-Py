@@ -7,15 +7,20 @@ _ctx_var = ContextVar("ctx")
 
 
 @contextmanager
-def scope_ctx(config=None):
+def scope_ctx(ctx_or_config=None):
     """
     Context manager for setting the default `tiledb.Ctx` context variable when entering
     a block of code and restoring it to its previous value when exiting the block.
 
-    :param config: :py:class:`tiledb.Config` object or dictionary with config parameters.
+    :param ctx_or_config: :py:class:`tiledb.Ctx` or :py:class:`tiledb.Config` object
+        or dictionary with config parameters.
     :return: Ctx
     """
-    token = _ctx_var.set(tiledb.Ctx(config))
+    if not isinstance(ctx_or_config, tiledb.Ctx):
+        ctx = tiledb.Ctx(ctx_or_config)
+    else:
+        ctx = ctx_or_config
+    token = _ctx_var.set(ctx)
     try:
         yield _ctx_var.get()
     finally:
