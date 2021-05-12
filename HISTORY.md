@@ -15,6 +15,7 @@
 * Fixed incorrected error raised in .df[] indexer when pyarrow not installed [#554](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
 * Fixed `from_pandas(attr_filters=None, dim_filters=None)` (previously used internal defaults) [#564](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
 * Fixed `from_pandas` write bug due to incorrect classification of str/bytes columns [#562](https://github.com/TileDB-Inc/TileDB-Py/pull/562)
+* Fix segfault due to mismatched validity num and data buffer sizes [#567](https://github.com/TileDB-Inc/TileDB-Py/pull/567)
 
 # TileDB-Py 0.8.8 Release Notes
 

@@ -703,6 +703,7 @@ public:
         (buf_nbytes < init_buffer_bytes_ || exact_init_bytes_)) {
       buf_nbytes = init_buffer_bytes_;
       offsets_num = init_buffer_bytes_ / sizeof(uint64_t);
+      validity_num = init_buffer_bytes_ / cell_nbytes;
     }
 
     buffers_order_.push_back(name);
@@ -757,10 +758,25 @@ public:
   }
 
   void update_read_elem_num() {
-    for (const auto &read_info : query_->result_buffer_elements()) {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
+    // needs https://github.com/TileDB-Inc/TileDB/pull/2238
+    auto result_elements = query_->result_buffer_elements_nullable();
+#else
+    auto result_elements = query_->result_buffer_elements_nullable();
+    auto result_offsets_tmp = query_->result_buffer_elements();
+#endif
+
+    for (const auto &read_info : result_elements) {
       auto name = read_info.first;
-      uint64_t offset_elem_num = 0, data_vals_num = 0, validity_vals_num = 0;
-      std::tie(offset_elem_num, data_vals_num) = read_info.second;
+      uint64_t offset_elem_num = 0, data_vals_num = 0, validity_elem_num = 0;
+      std::tie(offset_elem_num, data_vals_num, validity_elem_num) =
+          read_info.second;
+
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR < 3
+      // we need to fix-up the offset count b/c incorrect before 2.3
+      // (https://github.com/TileDB-Inc/TileDB/pull/2238)
+      offset_elem_num = result_offsets_tmp[name].first;
+#endif
 
       BufferInfo &buf = buffers_.at(name);
 
@@ -787,6 +803,7 @@ public:
 
       buf.data_vals_read += data_vals_num;
       buf.offsets_read += offset_elem_num;
+      buf.validity_vals_read += validity_elem_num;
     }
   }
 
@@ -868,12 +885,14 @@ public:
 
       auto final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
       auto final_offsets_count = buf.offsets_read + arrow_offset_size;
+      auto final_validity_count = buf.validity_vals_read;
 
       assert(final_data_nbytes <= buf.data.size());
       assert(final_offsets_count <= buf.offsets.size() + arrow_offset_size);
 
       buf.data.resize({final_data_nbytes});
       buf.offsets.resize({final_offsets_count});
+      buf.validity.resize({final_validity_count});
 
       if (use_arrow_) {
         if (retries_ > 0) {
@@ -885,6 +904,7 @@ public:
         // reset bytes-read so that set_buffers uses the full buffer size
         buf.data_vals_read = 0;
         buf.offsets_read = 0;
+        buf.validity_vals_read = 0;
       }
     }
     if (use_arrow_) {
