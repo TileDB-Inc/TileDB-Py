@@ -200,7 +200,7 @@ def _get_attr_dim_filters(name, filters):
         return _get_schema_filters(filters)
 
 
-def _get_attrs(names, column_infos, attr_filters, ctx=None):
+def _get_attrs(names, column_infos, attr_filters):
     attrs = []
     attr_reprs = {}
     for name in names:
@@ -213,7 +213,6 @@ def _get_attrs(names, column_infos, attr_filters, ctx=None):
                 dtype=column_info.dtype,
                 nullable=column_info.nullable,
                 var=column_info.var,
-                ctx=ctx,
             )
         )
 
@@ -224,7 +223,7 @@ def _get_attrs(names, column_infos, attr_filters, ctx=None):
 
 
 def dim_for_column(
-    ctx, name, dim_info, col, tile=None, full_domain=False, ndim=None, dim_filters=None
+    name, dim_info, col, tile=None, full_domain=False, ndim=None, dim_filters=None
 ):
     if isinstance(col, np.ndarray):
         col_values = col
@@ -313,7 +312,6 @@ def get_index_metadata(dataframe):
 
 
 def create_dims(
-    ctx,
     dataframe,
     index_dims,
     tile=None,
@@ -400,7 +398,6 @@ def create_dims(
 
         dims.append(
             dim_for_column(
-                ctx,
                 name,
                 dim_types[idx],
                 values,
@@ -433,7 +430,6 @@ def create_dims(
             col = dataframe[name]
             dims.append(
                 dim_for_column(
-                    ctx,
                     name,
                     dataframe,
                     col.values,
@@ -516,29 +512,14 @@ def from_pandas(uri, dataframe, **kwargs):
     else:
         tiledb_args = parse_tiledb_kwargs(kwargs)
 
-    ctx = tiledb_args.get("ctx", None)
-    tile_order = tiledb_args["tile_order"]
-    cell_order = tiledb_args["cell_order"]
-    allows_duplicates = tiledb_args.get("allows_duplicates", False)
-    sparse = tiledb_args["sparse"]
-    index_dims = tiledb_args.get("index_dims", None)
     mode = tiledb_args.get("mode", "ingest")
-    attr_filters = tiledb_args.get("attr_filters", True)
-    dim_filters = tiledb_args.get("dim_filters", True)
-    coords_filters = tiledb_args.get("coords_filters", True)
-    offsets_filters = tiledb_args.get("offsets_filters", True)
-    full_domain = tiledb_args.get("full_domain", False)
-    capacity = tiledb_args.get("capacity", False)
-    tile = tiledb_args.get("tile", None)
-    nrows = tiledb_args.get("nrows", None)
-    row_start_idx = tiledb_args.get("row_start_idx", None)
-    fillna = tiledb_args.get("fillna", None)
-    date_spec = tiledb_args.get("date_spec", None)
-    column_types = tiledb_args.get("column_types", None)
-    varlen_types = tiledb_args.get("varlen_types", None)
 
     if mode != "append" and tiledb.array_exists(uri):
         raise TileDBError("Array URI '{}' already exists!".format(uri))
+
+    sparse = tiledb_args["sparse"]
+    index_dims = tiledb_args.get("index_dims")
+    row_start_idx = tiledb_args.get("row_start_idx")
 
     write = True
     create_array = True
@@ -554,15 +535,14 @@ def from_pandas(uri, dataframe, **kwargs):
         elif mode != "ingest":
             raise TileDBError("Invalid mode specified ('{}')".format(mode))
 
+    # TODO: disentangle the full_domain logic
+    full_domain = tiledb_args.get("full_domain", False)
     if sparse == False and (index_dims is None or "index_col" not in kwargs):
         full_domain = True
+    if full_domain is None and tiledb_args.get("nrows"):
+        full_domain = False
 
-    if capacity is None:
-        capacity = 0  # this will use the libtiledb internal default
-
-    if ctx is None:
-        ctx = tiledb.default_ctx()
-
+    date_spec = tiledb_args.get("date_spec")
     if date_spec:
         dataframe = dataframe.assign(
             **{
@@ -571,102 +551,110 @@ def from_pandas(uri, dataframe, **kwargs):
             }
         )
 
-    # handle coords/offsets filters
-    coords_filters = _get_schema_filters(coords_filters)
-    offsets_filters = _get_schema_filters(offsets_filters)
+    column_infos = _get_column_infos(
+        dataframe, tiledb_args.get("column_types"), tiledb_args.get("varlen_types")
+    )
 
-    # create column type <> Dim mappings
-    column_infos = _get_column_infos(dataframe, column_types, varlen_types)
+    with tiledb.scope_ctx(tiledb_args.get("ctx")):
+        if create_array:
+            _create_array(
+                uri,
+                dataframe,
+                sparse,
+                full_domain,
+                index_dims,
+                column_infos,
+                tiledb_args,
+            )
 
-    if create_array:
-        if nrows:
-            if full_domain is None:
-                full_domain = False
+        if write:
+            if tiledb_args.get("debug", True):
+                print(f"`tiledb.from_pandas` writing '{len(dataframe)}' rows")
 
-        # create the domain and attributes
-        # if sparse==None then this function may return a default based on types
-        dims, sparse = create_dims(
-            ctx,
-            dataframe,
-            index_dims,
-            sparse=sparse,
-            tile=tile,
-            full_domain=full_domain,
-            filters=dim_filters,
-        )
+            write_dict, nullmaps = _df_to_np_arrays(
+                dataframe, column_infos, tiledb_args.get("fillna")
+            )
+            _write_array(
+                uri,
+                dataframe,
+                write_dict,
+                nullmaps,
+                create_array,
+                row_start_idx,
+                timestamp=tiledb_args.get("timestamp"),
+            )
 
-        domain = tiledb.Domain(*dims, ctx=ctx)
 
-        attr_names = dataframe.columns
-        # ignore any column used as a dim/index
-        if index_dims:
-            attr_names = (name for name in attr_names if name not in index_dims)
+def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb_args):
+    # create the domain and attributes
+    # if sparse==None then this function may return a default based on types
+    dims, sparse = create_dims(
+        df,
+        index_dims,
+        sparse=sparse,
+        full_domain=full_domain,
+        tile=tiledb_args.get("tile"),
+        filters=tiledb_args.get("dim_filters", True),
+    )
 
-        attrs, attr_metadata = _get_attrs(
-            attr_names, column_infos, attr_filters, ctx=ctx
-        )
+    attr_names = df.columns
+    # ignore any column used as a dim/index
+    if index_dims:
+        attr_names = (name for name in attr_names if name not in index_dims)
 
+    attrs, attr_metadata = _get_attrs(
+        attr_names, column_infos, tiledb_args.get("attr_filters", True)
+    )
+
+    # create the ArraySchema
+    schema = tiledb.ArraySchema(
+        sparse=sparse,
+        domain=tiledb.Domain(*dims),
+        attrs=attrs,
+        cell_order=tiledb_args["cell_order"],
+        tile_order=tiledb_args["tile_order"],
+        coords_filters=_get_schema_filters(tiledb_args.get("coords_filters", True)),
+        offsets_filters=_get_schema_filters(tiledb_args.get("offsets_filters", True)),
+        # 0 will use the libtiledb internal default
+        capacity=tiledb_args.get("capacity") or 0,
         # don't set allows_duplicates=True for dense
-        allows_duplicates = allows_duplicates and sparse
+        allows_duplicates=sparse and tiledb_args.get("allows_duplicates", False),
+    )
 
-        # now create the ArraySchema
-        schema = tiledb.ArraySchema(
-            domain=domain,
-            attrs=attrs,
-            cell_order=cell_order,
-            tile_order=tile_order,
-            coords_filters=coords_filters,
-            offsets_filters=offsets_filters,
-            allows_duplicates=allows_duplicates,
-            capacity=capacity,
-            sparse=sparse,
-        )
+    tiledb.Array.create(uri, schema)
 
-        tiledb.Array.create(uri, schema, ctx=ctx)
+    # write the metadata so we can reconstruct df
+    with tiledb.open(uri, "w") as A:
+        write_array_metadata(A, attr_metadata, get_index_metadata(df))
 
-        tiledb_args["mode"] = "append"
 
-        # write the metadata so we can reconstruct dataframe
-        index_metadata = get_index_metadata(dataframe)
-        with tiledb.open(uri, "w", ctx=ctx) as A:
-            write_array_metadata(A, attr_metadata, index_metadata)
+def _write_array(
+    uri, df, write_dict, nullmaps, create_array, row_start_idx=None, timestamp=None
+):
+    with tiledb.open(uri, "w", timestamp=timestamp) as A:
+        if A.schema.sparse:
+            coords = []
+            for k in range(A.schema.ndim):
+                dim_name = A.schema.domain.dim(k).name
+                if (
+                    not create_array
+                    and dim_name not in df.index.names
+                    and dim_name != "__tiledb_rows"
+                ):
+                    # this branch handles the situation where a user did not specify
+                    # index_col and is using mode='append'. We would like to try writing
+                    # with the columns corresponding to existing dimension name.
+                    coords.append(write_dict.pop(dim_name))
+                else:
+                    coords.append(df.index.get_level_values(k))
+            # TODO ensure correct col/dim ordering
+            libtiledb._setitem_impl_sparse(A, tuple(coords), write_dict, nullmaps)
 
-    if write:
-        write_dict, nullmaps = _df_to_np_arrays(dataframe, column_infos, fillna)
-
-        if tiledb_args.get("debug", True):
-            print("`tiledb.read_pandas` writing '{}' rows".format(len(dataframe)))
-
-        timestamp = tiledb_args.get("timestamp", None)
-
-        try:
-            A = tiledb.open(uri, "w", timestamp=timestamp, ctx=ctx)
-
-            if A.schema.sparse:
-                coords = []
-                for k in range(A.schema.ndim):
-                    dim_name = A.schema.domain.dim(k).name
-                    if (
-                        not create_array
-                        and dim_name not in dataframe.index.names
-                        and dim_name != "__tiledb_rows"
-                    ):
-                        # this branch handles the situation where a user did not specify
-                        # index_col and is using mode='append'. We would like to try writing
-                        # with the columns corresponding to existing dimension name.
-                        coords.append(write_dict.pop(dim_name))
-                    else:
-                        coords.append(dataframe.index.get_level_values(k))
-                # TODO ensure correct col/dim ordering
-                libtiledb._setitem_impl_sparse(A, tuple(coords), write_dict, nullmaps)
-
-            else:
-                if row_start_idx is None:
-                    row_start_idx = 0
-                row_end_idx = row_start_idx + len(dataframe)
-                A._setitem_impl(slice(row_start_idx, row_end_idx), write_dict, nullmaps)
-        finally:
-            A.close()
+        else:
+            if row_start_idx is None:
+                row_start_idx = 0
+            row_end_idx = row_start_idx + len(df)
+            A._setitem_impl(slice(row_start_idx, row_end_idx), write_dict, nullmaps)
 
 
 def open_dataframe(uri, *, attrs=None, use_arrow=None, idx=slice(None), ctx=None):
@@ -789,8 +777,6 @@ def from_csv(uri, csv_file, **kwargs):
         tiledb_args = parse_tiledb_kwargs(kwargs)
 
     multi_file = False
-    debug = tiledb_args.get("debug", False)
-
     pandas_args = copy.deepcopy(kwargs)
 
     ##########################################################################
@@ -798,8 +784,7 @@ def from_csv(uri, csv_file, **kwargs):
     ##########################################################################
     if isinstance(csv_file, str) and not os.path.isfile(csv_file):
         # for non-local files, use TileDB VFS i/o
-        ctx = tiledb_args.get("ctx", tiledb.default_ctx())
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS(ctx=tiledb_args.get("ctx"))
         csv_file = tiledb.FileIO(vfs, csv_file, mode="rb")
     elif isinstance(csv_file, (list, tuple)):
         # TODO may be useful to support a filter callback here
@@ -860,6 +845,7 @@ def from_csv(uri, csv_file, **kwargs):
 
             from_pandas(uri, df, tiledb_args=tiledb_args, pandas_args=pandas_args)
 
+            tiledb_args["mode"] = "append"
             rows_written += len(df)
 
             if mode == "schema_only":
