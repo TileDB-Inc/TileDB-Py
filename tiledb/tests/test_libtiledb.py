@@ -2358,24 +2358,20 @@ class TestSparseArray(DiskTestCase):
                 "Cannot write a string value to non-string typed attribute 'strattr'!",
             )
 
+    @tiledb.scope_ctx({"sm.check_coord_dups": False})
     def test_sparse_fixes_ch1560(self, sparse_cell_order):
         uri = self.path("sparse_fixes_ch1560")
-        ctx = tiledb.Ctx({"sm.check_coord_dups": False})
         schema = tiledb.ArraySchema(
             domain=tiledb.Domain(
-                *[
-                    tiledb.Dim(
-                        name="id", domain=(1, 5000), tile=25, dtype="int32", ctx=ctx
-                    )
-                ]
+                *[tiledb.Dim(name="id", domain=(1, 5000), tile=25, dtype="int32")]
             ),
             attrs=[
-                tiledb.Attr(name="a1", dtype="datetime64[s]", ctx=ctx),
-                tiledb.Attr(name="a2", dtype="|S0", ctx=ctx),
-                tiledb.Attr(name="a3", dtype="|S0", ctx=ctx),
-                tiledb.Attr(name="a4", dtype="int32", ctx=ctx),
-                tiledb.Attr(name="a5", dtype="int8", ctx=ctx),
-                tiledb.Attr(name="a6", dtype="int32", ctx=ctx),
+                tiledb.Attr(name="a1", dtype="datetime64[s]"),
+                tiledb.Attr(name="a2", dtype="|S0"),
+                tiledb.Attr(name="a3", dtype="|S0"),
+                tiledb.Attr(name="a4", dtype="int32"),
+                tiledb.Attr(name="a5", dtype="int8"),
+                tiledb.Attr(name="a6", dtype="int32"),
             ],
             cell_order=sparse_cell_order,
             tile_order="row-major",
@@ -2406,10 +2402,10 @@ class TestSparseArray(DiskTestCase):
             ]
         )
 
-        with tiledb.open(uri, "w", ctx=ctx) as A:
+        with tiledb.open(uri, "w") as A:
             A[[1, 462, 462, 462]] = data
 
-        with tiledb.open(uri, ctx=ctx) as A:
+        with tiledb.open(uri) as A:
             res = A[:]
             res.pop("id")
             for k, v in res.items():
@@ -3057,16 +3053,10 @@ class PickleTest(DiskTestCase):
                     # make sure anonymous view pickles and round-trips
                     assert_array_equal(V, V2)
 
+    @tiledb.scope_ctx({"vfs.s3.region": "kuyper-belt-1", "vfs.max_parallel_ops": "1"})
     def test_pickle_with_config(self):
-        opts = dict()
-        opts["vfs.s3.region"] = "kuyper-belt-1"
-        opts["vfs.max_parallel_ops"] = 1
-
-        config = tiledb.Config(params=opts)
-        ctx = tiledb.Ctx(config)
-
         uri = self.path("pickle_config")
-        T = tiledb.DenseArray.from_numpy(uri, np.random.rand(3, 3), ctx=ctx)
+        T = tiledb.DenseArray.from_numpy(uri, np.random.rand(3, 3))
 
         with io.BytesIO() as buf:
             pickle.dump(T, buf)
@@ -3074,7 +3064,7 @@ class PickleTest(DiskTestCase):
             T2 = pickle.load(buf)
             assert_array_equal(T, T2)
             self.maxDiff = None
-            d1 = ctx.config().dict()
+            d1 = tiledb.default_ctx().config().dict()
             d2 = T2._ctx_().config().dict()
             self.assertEqual(d1["vfs.s3.region"], d2["vfs.s3.region"])
             self.assertEqual(d1["vfs.max_parallel_ops"], d2["vfs.max_parallel_ops"])

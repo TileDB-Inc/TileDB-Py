@@ -233,16 +233,16 @@ class MetadataTest(DiskTestCase):
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
     @pytest.mark.filterwarnings("ignore::UserWarning")
+    @tiledb.scope_ctx(
+        {"sm.vacuum.mode": "array_meta", "sm.consolidation.mode": "array_meta"}
+    )
     def test_consecutive(self):
-        ctx = tiledb.Ctx(
-            {"sm.vacuum.mode": "array_meta", "sm.consolidation.mode": "array_meta"}
-        )
-        vfs = tiledb.VFS(ctx=ctx)
+        vfs = tiledb.VFS()
         path = self.path("test_md_consecutive")
 
         write_count = 100
 
-        with tiledb.from_numpy(path, np.ones((5,), np.float64), ctx=ctx) as A:
+        with tiledb.from_numpy(path, np.ones((5,), np.float64)):
             pass
 
         randints = np.random.randint(0, MAX_INT - 1, size=write_count, dtype=np.int64)
@@ -250,18 +250,18 @@ class MetadataTest(DiskTestCase):
 
         # write 100 times, then consolidate
         for i in range(write_count):
-            with tiledb.Array(path, mode="w", ctx=ctx) as A:
+            with tiledb.Array(path, mode="w") as A:
                 A.meta["randint"] = int(randints[i])
                 A.meta["randutf8"] = randutf8s[i]
                 time.sleep(0.001)
 
         self.assertEqual(len(vfs.ls(os.path.join(path, "__meta"))), 100)
 
-        with tiledb.Array(path, ctx=ctx) as A:
+        with tiledb.Array(path) as A:
             self.assertEqual(A.meta["randint"], randints[-1])
             self.assertEqual(A.meta["randutf8"], randutf8s[-1])
 
-        with tiledb.Array(path, mode="w", ctx=ctx) as aw:
+        with tiledb.Array(path, mode="w") as aw:
             aw.meta.consolidate()
 
         try:
@@ -275,20 +275,20 @@ class MetadataTest(DiskTestCase):
             else:
                 raise
 
-        with tiledb.Array(path, ctx=ctx) as A:
+        with tiledb.Array(path) as A:
             self.assertEqual(A.meta["randint"], randints[-1])
             self.assertEqual(A.meta["randutf8"], randutf8s[-1])
 
         # use randutf8s as keys, then consolidate
         for _ in range(2):
             for i in range(write_count):
-                with tiledb.Array(path, mode="w", ctx=ctx) as A:
+                with tiledb.Array(path, mode="w") as A:
                     A.meta[randutf8s[i] + u"{}".format(randints[i])] = int(randints[i])
                     A.meta[randutf8s[i]] = randutf8s[i]
                     time.sleep(0.001)
 
         # test data
-        with tiledb.Array(path, ctx=ctx) as A:
+        with tiledb.Array(path) as A:
             for i in range(write_count):
                 key_int = randutf8s[i] + u"{}".format(randints[i])
                 self.assertEqual(A.meta[key_int], randints[i])
@@ -306,7 +306,7 @@ class MetadataTest(DiskTestCase):
             else:
                 raise
 
-        with tiledb.Array(path, mode="w", ctx=ctx) as A:
+        with tiledb.Array(path, mode="w") as A:
             A.meta.consolidate()
 
         # test expected number of fragments before vacuuming
@@ -321,7 +321,7 @@ class MetadataTest(DiskTestCase):
             else:
                 raise
 
-        tiledb.vacuum(path, ctx=ctx)
+        tiledb.vacuum(path)
 
         # should only have one fragment+'.ok' after vacuuming
         try:
@@ -336,7 +336,7 @@ class MetadataTest(DiskTestCase):
                 raise
 
         # test data again after consolidation
-        with tiledb.Array(path, ctx=ctx) as A:
+        with tiledb.Array(path) as A:
             for i in range(write_count):
                 key_int = randutf8s[i] + u"{}".format(randints[i])
                 self.assertEqual(A.meta[key_int], randints[i])

@@ -26,13 +26,11 @@ def is_boundserror(exc: Exception):
 
 
 def _direct_query_ranges(array: SparseArray, ranges):
-    ctx = tiledb.Ctx()
-    q = tiledb.core.PyQuery(ctx, array, ("a",), (), 0, False)
-    q.set_ranges(ranges)
-    q.submit()
-
-    res = {k: v[0].view(array.attr(0).dtype) for k, v in q.results().items()}
-    return res
+    with tiledb.scope_ctx() as ctx:
+        q = tiledb.core.PyQuery(ctx, array, ("a",), (), 0, False)
+        q.set_ranges(ranges)
+        q.submit()
+    return {k: v[0].view(array.attr(0).dtype) for k, v in q.results().items()}
 
 
 # Compound strategies to build valid inputs for multi_index
