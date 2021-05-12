@@ -17,9 +17,9 @@ class CoreCCTest(DiskTestCase):
             pass
 
         with tiledb.open(uri) as a:
-            with self.assertRaises(ValueError):
-                testctx = tiledb.Ctx(config={"py.init_buffer_bytes": "abcd"})
-                core.PyQuery(testctx, a, ("",), (), 0, False)
+            with tiledb.scope_ctx({"py.init_buffer_bytes": "abcd"}) as testctx:
+                with self.assertRaises(ValueError):
+                    core.PyQuery(testctx, a, ("",), (), 0, False)
 
             q = core.PyQuery(ctx, a, ("",), (), 0, False)
 
@@ -68,12 +68,10 @@ class CoreCCTest(DiskTestCase):
             "py.init_buffer_bytes": str(intmax),
             "py.alloc_max_bytes": str(intmax),
         }
-        ctx = tiledb.Ctx(config=config_dict)
-
-        with tiledb.from_numpy(uri, np.random.rand(4)) as A:
+        with tiledb.from_numpy(uri, np.random.rand(4)):
             pass
 
-        with tiledb.open(uri) as a:
+        with tiledb.open(uri) as a, tiledb.scope_ctx(config_dict) as ctx:
             q = core.PyQuery(ctx, a, ("",), (), 0, False)
             self.assertEqual(q._test_init_buffer_bytes, intmax)
             self.assertEqual(q._test_alloc_max_bytes, intmax)
@@ -158,9 +156,8 @@ class CoreCCTest(DiskTestCase):
             assert_array_equal(res["foo"], data_mod["foo"])
             assert_array_equal(res["str"], data_mod["str"])
 
-        with tiledb.DenseArray(uri, mode="r") as E:
+        with tiledb.DenseArray(uri, mode="r") as E, tiledb.scope_ctx() as ctx:
             # Ensure that query only returns specified attributes
-            ctx = tiledb.Ctx()
             q = core.PyQuery(ctx, E, ("foo",), (), 0, False)
             q.set_ranges([[(0, 1)]])
             q.submit()
