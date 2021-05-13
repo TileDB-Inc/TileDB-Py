@@ -653,7 +653,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df.sort_values("time", inplace=True)
         df.to_csv(tmp_csv, index=False)
 
-        attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(-1)])
+        attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(3)])
         # from_pandas default is 1, so use 7 here to check
         #   the arg is correctly parsed/passed
         coords_filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
@@ -677,6 +677,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             sparse=True,
             tile={"time": 5},
             coords_filters=coords_filters,
+            attr_filters=attrs_filters,
         )
 
         t0, t1 = df.time.min(), df.time.max()
@@ -1089,7 +1090,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
 class TestFromPandasOptions(DiskTestCase):
     def test_filters_options(self):
-        def filters_eq(left, right):
+        def assert_filters_eq(left, right):
             # helper to check equality:
             # - None should produce empty FilterList
             # - a dict should match the first and only key/None
@@ -1100,37 +1101,54 @@ class TestFromPandasOptions(DiskTestCase):
                 assert len(right) == 1
                 right = list(right.values())[0]
 
+            left = (
+                tiledb.FilterList([left]) if isinstance(left, tiledb.Filter) else left
+            )
+            right = (
+                tiledb.FilterList([right]) if isinstance(right, tiledb.Filter) else left
+            )
+
             if left is None:
                 left = tiledb.FilterList()
             if right is None:
-                right = tiledb.FilterList()
+                right = tiledb.FilterList([right])
 
-            return left == right
+            assert left == right
 
-        df = pd.DataFrame({"x": pd.Series([1, 2, 3])})
-        df.index.name = "d"
+        df_orig = pd.DataFrame({"x": pd.Series([1, 2, 3])})
+        df_orig.index.name = "d"
 
         filters_to_check = [
+            tiledb.ZstdFilter(2),
             [tiledb.ZstdFilter(2)],
             None,
             tiledb.FilterList(),
-            tiledb.FilterList([tiledb.ZstdFilter(2)]),
+            tiledb.FilterList([tiledb.ZstdFilter(2), tiledb.ZstdFilter(4)]),
             {"d": None},
-            {"d": tiledb.FilterList([tiledb.ZstdFilter(2)])},
+            {"d": tiledb.FilterList([tiledb.ZstdFilter(3), tiledb.ZstdFilter(5)])},
         ]
 
-        for f in filters_to_check:
-            uri = self.path()
-            tiledb.from_pandas(uri, df, dim_filters=f)
-            with tiledb.open(uri) as A:
-                assert filters_eq(A.schema.domain.dim(0).filters, f)
+        # mapping of options to getters for comparison on read-back
+        checks = [
+            ("dim_filters", lambda A: A.schema.domain.dim(0).filters),
+            ("attr_filters", lambda A: A.schema.attr(0).filters),
+            ("coords_filters", lambda A: A.schema.coords_filters),
+            ("offsets_filters", lambda A: A.schema.offsets_filters),
+        ]
 
-        df.index.name = ""
-        for f in filters_to_check:
-            uri = self.path()
-            if isinstance(f, dict):
-                f = {"x": list(f.values())[0]}
+        for opt, getter in checks:
+            df = df_orig
 
-            tiledb.from_pandas(uri, df, attr_filters=f)
-            with tiledb.open(uri) as A:
-                assert filters_eq(A.schema.attr(0).filters, f)
+            # change the names for attr test expectation
+            if opt == "attr_filters":
+                df.index.name = ""
+                df = df.rename(columns={"x": "d"})
+
+            for f in filters_to_check:
+                if opt in ("coords_filters", "offsets_filters") and isinstance(f, dict):
+                    continue
+
+                uri = self.path()
+                tiledb.from_pandas(uri, df, **{opt: f})
+                with tiledb.open(uri) as A:
+                    assert_filters_eq(getter(A), f)
