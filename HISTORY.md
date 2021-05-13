@@ -1,5 +1,8 @@
 # TileDB-Py 0.8.9 Release Notes
 
+## TileDB Embedded updates:
+* TileDB-Py 0.8.9 includes TileDB Embedded [TileDB 2.2.9](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.9)
+
 ## Improvements
 * Support for iterating over incomplete query results [#548](https://github.com/TileDB-Inc/TileDB-Py/pull/548)
   - This feature provides the capability to consume partial query results with a fixed maximum buffer size
