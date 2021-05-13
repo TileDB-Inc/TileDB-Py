@@ -47,7 +47,8 @@ TILEDB_KWARG_DEFAULTS = {
     "mode": "ingest",
     "attr_filters": True,
     "dim_filters": True,
-    "coords_filters": None,
+    "coords_filters": True,
+    "offsets_filters": True,
     "full_domain": False,
     "tile": None,
     "row_start_idx": None,
@@ -176,25 +177,34 @@ def _get_column_infos(df, column_types, varlen_types):
     return column_infos
 
 
+def _get_schema_filters(filters):
+    if filters is True:
+        # default case, unspecified: use libtiledb defaults
+        return None
+    elif filters is None:
+        # empty filter list (schema uses zstd by default if unspecified)
+        return tiledb.FilterList()
+    elif isinstance(filters, (list, tiledb.FilterList)):
+        return tiledb.FilterList(filters)
+    elif isinstance(filters, tiledb.libtiledb.Filter):
+        return tiledb.FilterList([filters])
+    else:
+        raise ValueError("Unknown FilterList type!")
+
+
+def _get_attr_dim_filters(name, filters):
+    if isinstance(filters, dict):
+        # support passing a dict of filters per-attribute
+        return _get_schema_filters(filters.get(name, True))
+    else:
+        return _get_schema_filters(filters)
+
+
 def _get_attrs(names, column_infos, attr_filters, ctx=None):
     attrs = []
     attr_reprs = {}
     for name in names:
-        if attr_filters is True:
-            # default case
-            filters = tiledb.FilterList([tiledb.ZstdFilter(-1, ctx=ctx)], ctx=ctx)
-        elif isinstance(attr_filters, list):
-            filters = tiledb.FilterList(attr_filters)
-        elif isinstance(attr_filters, dict):
-            # support passing a dict of filters per-attribute
-            filters = attr_filters.get(name, None)
-        elif isinstance(attr_filters, tiledb.FilterList):
-            filters = attr_filters
-        elif attr_filters is None:
-            filters = None
-        else:
-            raise ValueError("Unknown FilterList type for 'attr_filters'")
-
+        filters = _get_attr_dim_filters(name, attr_filters)
         column_info = column_infos[name]
         attrs.append(
             tiledb.Attr(
@@ -377,16 +387,7 @@ def create_dims(
             raise ValueError(f"Empty column '{name}' cannot be used as dimension")
 
         # get the FilterList, if any
-        if isinstance(filters, dict):
-            dim_filters = filters.get(name, None)
-        elif isinstance(filters, list):
-            dim_filters = tiledb.FilterList(filters)
-        elif isinstance(filters, tiledb.FilterList):
-            dim_filters = filters
-        elif filters or filters is None:
-            dim_filters = None
-        else:
-            raise ValueError("Unexpected argument for 'dim_filters'")
+        dim_filters = _get_attr_dim_filters(name, filters)
 
         if per_dim_tile and name in tile:
             dim_tile = tile[name]
@@ -524,7 +525,8 @@ def from_pandas(uri, dataframe, **kwargs):
     mode = tiledb_args.get("mode", "ingest")
     attr_filters = tiledb_args.get("attr_filters", True)
     dim_filters = tiledb_args.get("dim_filters", True)
-    coords_filters = tiledb_args.get("coords_filters", None)
+    coords_filters = tiledb_args.get("coords_filters", True)
+    offsets_filters = tiledb_args.get("offsets_filters", True)
     full_domain = tiledb_args.get("full_domain", False)
     capacity = tiledb_args.get("capacity", False)
     tile = tiledb_args.get("tile", None)
@@ -569,6 +571,11 @@ def from_pandas(uri, dataframe, **kwargs):
             }
         )
 
+    # handle coords/offsets filters
+    coords_filters = _get_schema_filters(coords_filters)
+    offsets_filters = _get_schema_filters(offsets_filters)
+
+    # create column type <> Dim mappings
     column_infos = _get_column_infos(dataframe, column_types, varlen_types)
 
     if create_array:
@@ -609,6 +616,7 @@ def from_pandas(uri, dataframe, **kwargs):
             cell_order=cell_order,
             tile_order=tile_order,
             coords_filters=coords_filters,
+            offsets_filters=offsets_filters,
             allows_duplicates=allows_duplicates,
             capacity=capacity,
             sparse=sparse,
