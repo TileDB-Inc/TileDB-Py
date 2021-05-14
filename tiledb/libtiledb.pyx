@@ -8,6 +8,7 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPo
 include "common.pxi"
 import io
 import sys
+import warnings
 from collections import OrderedDict
 
 from .array import DenseArray, SparseArray
@@ -4119,6 +4120,13 @@ cdef class Array(object):
         :returns: coord array record dtype
 
         """
+        # deprecated in 0.8.10
+        warnings.warn(
+            """`coords_dtype` is deprecated because combined coords have been removed from libtiledb.
+            Currently it returns a record array of each individual dimension dtype, but it will
+            be removed because that is not applicable to split dimensions.""",
+            DeprecationWarning,
+        )
         # returns the record array dtype of the coordinate array
         return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
 
