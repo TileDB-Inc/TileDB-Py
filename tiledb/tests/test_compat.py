@@ -82,3 +82,83 @@ class TestBackwardCompatibility(DiskTestCase):
             tf.extractall(path)
         with tiledb.open(path) as A:
             assert_array_equal(A[:][""], np.array([1.0, 2.0, 5.0]))
+
+    def test_tiledb_py_0_6_anon_attr(self):
+        # same creation steps as above for 0.5
+        tgz_sparse = b"""H4sIAJKNpWAAA+2aPW/TQBjHz2nTFlGJClUoAxIuA0ICpXf2vdhbGWBiYEIgihI7MRT1JVKairKh
+                         qgNfgA2kDnwFVga+ABtfgE8AEwsS5/ROTUzBjWpbKv3/JPexLxc/l/59zz3PJc1lUjqUUiWEO7Ty
+                         0GqsPbxgnArmUymk71LmUc6JK8ofGiE724Oor4fyYqvXH/S2/trv5VqSbPzjPuMfyi18nCXRXG61
+                         NpNBVOZjMIH+XEip9fc9xaB/FaT6b/Q6681BNy7Lh/5/SM4n0l8JPf9pWQMaBfq3on4/etXa7qwl
+                         m1EZz0Ge/p6X1V9wKaF/FdT1sWrOXxs77dhXLw//OiRtcNKuzvBspH+gjwVz7Yy07TqdhNTuzcw4
+                         OwtT0407qzM3Hi58vzZH7678cN99rl9f2ji40JZ77T0Wzb+JD/rdp8SZnfta2gcFx5LOfyY9xqXn
+                         ByoIVeYqDJMu44GOyGHCeRIGKuHCF1HsRRGLaacl8jOHifM/z2M+8r9KOL3+zd56jo8J1n+rPxcC
+                         8b8KjvRnvlSh8rJXcRJ2Euor7gne8XgsJdVPhAoSFXZFogrWX6//aqg/p9C/Ck6vf6Hx3+rPmEL8
+                         r4IC9G+1nvWj55vJ1mC4k9CNBpkqImf+a7VFRn8phI/5XwVpUh+Yc9fYk+b/af9FMp7/27Zd51vc
+                         brf3Y7c+e//BFeJ8IJfSG9hoYd9zUl9p/4sZX7ZN1xrdlXrquwYXcAEXx7s4ojbSOWXK2NtknBVy
+                         Mmxc/GKsZ2781tifxj4xjj8Zu2Qc79sBgKopYP3v5u0Z5uX/7I/8z6ce9n8rwYaAhj6ukvE4Yttu
+                         flz+5TbeE/JIt9vYUSO3Hs8Pwww4wxQw/3O/Msit/wXP1n9Sof6vhNH538i02ak+njyA/4kC9v+L
+                         rP/N/q8UmP/VgPofLuDiXLg4AvU/MBSw/hdZ/5v1XxcCDOt/FaD+P98UMP+LrP/t7z8Uxe8/KgH1
+                         PwAAAAAAAAAAAAAAAAAAAAAAAHD2+Q18oX51AFAAAA=="""
+
+        path = self.path("0_6_anon_sparse")
+        with tarfile.open(fileobj=io.BytesIO(base64.b64decode(tgz_sparse))) as tf:
+            tf.extractall(path)
+        with tiledb.open(path) as A:
+            if A.schema.sparse:
+                assert_array_equal(A[:][""], np.array([1.0, 2.0, 5.0]))
+
+        ###########################################################################################
+        # This test checks that anonymous attributes internally stored as "__attr" are presented
+        # as "".
+        # The following steps were run under TileDB-Py 0.6
+        # Normally, we can't actually write an attribute named "__attr" anymore, so
+        # restored a schema written by a patched libtiledb, and rename the attr file.
+
+        # schema_data = b"\x05\x00\x00\x00]\x00\x00\x00\x00\x00\x00\x00q\x00\x00\x00\x00\x00\x00\x00\x04\x01\x00\x00\x00\x00\x00\x00\x00\x00\x12\x00\x00\x00\x00\x00\x01\x00\x01\x00\x00\x00\x01\x05\x00\x00\x00\x01\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00q\x00\x00\x009\x00\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00q\x00\x00\x009\x00\x00\x00x\x01ce\x80\x00\x01u(\x83\x81\x11\x08\x19\x18\x98XA\xc4\x7f `\xc0\x10\x01\xc9\x83p\n\x1b\x88\x84\xb0\x81\x8a\xc1l\x88\x00H\x9c\r\x88\xe3\xe3\x13KJ\x8aP\x94\x01\x00\xa2c\x0bD"
+
+        # path = self.path("tiledb_py_0_6_anon_attr")
+        # ctx = tiledb.default_ctx()
+        # dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 0), tile=1, dtype=np.uint8))
+        # attrs = (tiledb.Attr(name="_attr_", dtype=np.uint8, ctx=ctx),)
+
+        # schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False, ctx=ctx)
+        # tiledb.DenseArray.create(path, schema, ctx=ctx)
+
+        # with tiledb.open(path, "w") as A:
+        #    A[0] = 1
+
+        # fragment_name = os.path.split(list(A.last_write_info.keys())[0])[-1]
+        # fragment_path = os.path.join(path, fragment_name)
+
+        ## fix up the array the override schema
+        # with open(os.path.join(path, "__array_schema.tdb"), "wb") as f:
+        #    f.write(schema_data)
+
+        # shutil.move(
+        #    os.path.join(fragment_path, "_attr_.tdb"),
+        #    os.path.join(fragment_path, "__attr.tdb"),
+        # )
+
+        tgz_dense = b"""H4sIAL6RpWAAA+2YPW/TQBjH71qQKiKkAEIqYvEIS3p3uRd5A4kB0QUxdUHm/AJFzQu4rlrUoa3K
+                        EFWMDB2Y+AQs7CAhJD5HPgBfgXNyRq4pdVNyHtDzk5z/3fni55y/L8+TdFaQcwghSghvonKqhkKn
+                        HcqJoF1KpOx6hDLCCfKE+6UhtLWZ6dQs5eVgmGbDwV/nba8nSe+M65y8KW/u63REZyUI+kmmXT4G
+                        s/vfZZKD/02Q+98bRhudLA5dxTCfh+R8Jv8VV8gjrhZUBvwPdJrqN8FmtJ70tYvnoM5/xmjFf8El
+                        A/+b4LI5ntr2a6uXcHH2+uQVo3wA51PxpFWa75ujbfu4NLaDo2Qf4a07hwfXlm4tH6/d/7bnPfvS
+                        xj8OX125PXr76eDoa2+EHn64OhqPb6w+Onr8HqOPUeuBy5sF/iDf/1QyymWXK6GYqvS4r3gcR2Gi
+                        lc9JSLTvKxVqbRK6r0jsB6Iz3KiJMfP3P2OCwf5vhH/3v75ynLn+Y4wRCvVfE8zB/yB4nuoX/WSQ
+                        TX5JxDqrVBE1+59RKSv+S8lh/zdCntSLHbxk9bz5P5/fQifzfzG2g8fhvtE11CqHKKaeN0T7lBDF
+                        mCkx4nvmHR5agBAQAkKcHuL3FUvtm+hiRFa/W71rL/jO6k+rTxam+tnq8uJUdxcvGBhwxFzyv86y
+                        9Iw/DmrrfyYq+Z9TTiH/NwEuKa6MAQAAAAAAAAAAAADwf/ALzPk2VwAoAAA="""
+
+        path = self.path("0_6_anon_dense")
+        with tarfile.open(fileobj=io.BytesIO(base64.b64decode(tgz_dense))) as tf:
+            tf.extractall(path)
+        with tiledb.open(path) as A:
+            self.assertEqual(A.schema.attr(0).name, "")
+            self.assertEqual(A.schema.attr(0)._internal_name, "__attr")
+            self.assertEqual(A[0], 1)
+            mres = A.multi_index[0]
+            self.assertEqual(mres[""], 1)
+
+            qres = A.query(coords=True).multi_index[0]
+            self.assertEqual(qres["d"], 0)
