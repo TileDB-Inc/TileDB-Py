@@ -252,12 +252,16 @@ class MetadataTest(DiskTestCase):
                 A.meta["randutf8"] = randutf8s[i]
                 time.sleep(0.001)
 
+        self.assertEqual(len(vfs.ls(os.path.join(path, "__meta"))), 100)
+
         with tiledb.Array(path) as A:
             self.assertEqual(A.meta["randint"], randints[-1])
             self.assertEqual(A.meta["randutf8"], randutf8s[-1])
 
         with tiledb.Array(path, mode="w", ctx=ctx) as aw:
             aw.meta.consolidate()
+
+        self.assertEqual(len(vfs.ls(os.path.join(path, "__meta"))), 102)
 
         with tiledb.Array(path) as A:
             self.assertEqual(A.meta["randint"], randints[-1])
