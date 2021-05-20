@@ -4636,7 +4636,7 @@ cdef class DenseArrayImpl(Array):
         :param dims: the DenseArray dimensions to subselect over. If dims is None (default)
             then no dimensions are returned, unless coords=True.
         :param coords: if True, return array of coodinate value (default False).
-        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param order: 'C', 'F', 'U', or 'G' (row-major, col-major, unordered, TileDB global order)
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
         :param return_incomplete: if True, initialize and return a query which will return
@@ -4684,7 +4684,7 @@ cdef class DenseArrayImpl(Array):
         :param attrs: the DenseArray attributes to subselect over.
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
-        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param order: 'C', 'F', 'U', or 'G' (row-major, col-major, unordered, TileDB global order)
         :returns: If the dense array has a single attribute then a Numpy array of corresponding shape/dtype \
             is returned for that attribute.  If the array has multiple attributes, a \
             :py:class:`collections.OrderedDict` is returned with dense Numpy subarrays for each attribute.
