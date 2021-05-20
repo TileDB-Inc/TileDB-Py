@@ -3853,8 +3853,8 @@ def init_test_wrapper(cfg=None):
 
 def init_test_helper(cfg=None):
     tiledb.libtiledb.default_ctx(cfg)
-    num_tbb_threads = tiledb.default_ctx().config()["sm.num_tbb_threads"]
-    print(int(num_tbb_threads))
+    concurrency_level = tiledb.default_ctx().config()["sm.io_concurrency_level"]
+    print(int(concurrency_level))
 
 
 class ContextTest(unittest.TestCase):
@@ -3891,9 +3891,12 @@ class ContextTest(unittest.TestCase):
         assert tiledb.default_ctx().config()[key] == "10000000"
 
     def test_init_config(self):
-        self.assertEqual(-1, init_test_wrapper())
+        self.assertEqual(
+            int(tiledb.default_ctx().config()["sm.io_concurrency_level"]),
+            init_test_wrapper(),
+        )
 
-        self.assertEqual(1, init_test_wrapper({"sm.num_tbb_threads": 1}))
+        self.assertEqual(3, init_test_wrapper({"sm.io_concurrency_level": 3}))
 
 
 class ReprTest(unittest.TestCase):
