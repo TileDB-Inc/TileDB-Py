@@ -30,7 +30,9 @@ from tiledb.tests.common import (
 from tiledb.tests.fixtures import (
     sparse_cell_order,
     test_incomplete_return_array,
+    INTEGER_DTYPES,
 )  # pyright: reportUnusedVariable=warning
+from tiledb.util import schema_from_dict
 
 
 def safe_dump(obj):
@@ -1084,6 +1086,15 @@ class DenseArrayTest(DiskTestCase):
     def test_array_id_point_queries(self):
         # TODO: handle queries like T[[2, 5, 10]] = ?
         pass
+
+    @pytest.mark.parametrize("dtype", INTEGER_DTYPES)
+    def test_dense_index_dtypes(self, dtype):
+        path = self.path()
+        data = np.arange(0, 3).astype(dtype)
+        with tiledb.from_numpy(path, data) as A:
+            pass
+        with tiledb.open(path) as B:
+            assert_array_equal(B[:], data)
 
     def test_array_2d(self):
         A = np.arange(10000).reshape((1000, 10))
@@ -2173,6 +2184,23 @@ class TestSparseArray(DiskTestCase):
             self.assertTrue(
                 "coords" not in T.query(coords=False).multi_index[-10.0:5.0]
             )
+
+    @pytest.mark.parametrize("dtype", INTEGER_DTYPES)
+    def test_sparse_index_dtypes(self, dtype):
+        path = self.path()
+        data = np.arange(0, 3).astype(dtype)
+
+        schema = schema_from_dict(attrs={"attr": data}, dims={"d0": data})
+        tiledb.SparseArray.create(path, schema)
+
+        with tiledb.open(path, "w") as A:
+            A[data] = data
+
+        with tiledb.open(path) as B:
+            assert_array_equal(B[:]["attr"], data)
+            assert B[data[0]]["attr"] == data[0]
+            assert B[data[1]]["attr"] == data[1]
+            assert B.multi_index[data[0]]["attr"] == data[0]
 
     def test_query_real_exact(self, sparse_cell_order):
         """
