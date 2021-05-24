@@ -2901,7 +2901,6 @@ cdef class Domain(object):
         cdef Py_ssize_t ndim = len(dims)
         if ndim == 0:
             raise TileDBError("Domain must have ndim >= 1")
-        cdef Dim dimension = dims[0]
 
         if (ndim > 1):
             if all(dim.name == '__dim_0' for dim in dims):
@@ -2915,7 +2914,12 @@ cdef class Domain(object):
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         assert(domain_ptr != NULL)
+
+        cdef Dim dimension
         for i in range(ndim):
+            if not isinstance(dims[i], Dim):
+                raise TypeError("Cannot create Domain with non-Dim value for 'dims' argument")
+
             dimension = dims[i]
             rc = tiledb_domain_add_dimension(
                 ctx.ptr, domain_ptr, dimension.ptr)
@@ -3340,8 +3344,12 @@ cdef class ArraySchema(object):
             tiledb_array_schema_free(&schema_ptr)
             _raise_ctx_err(ctx.ptr, rc)
         cdef tiledb_attribute_t* attr_ptr = NULL
+        cdef Attr attribute
         for attr in attrs:
-            attr_ptr = (<Attr> attr).ptr
+            if not isinstance(attr, Attr):
+                raise TypeError("Cannot create schema with non-Attr value for 'attrs' argument")
+            attribute = attr
+            attr_ptr = attribute.ptr
             rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
             if rc != TILEDB_OK:
                 tiledb_array_schema_free(&schema_ptr)
