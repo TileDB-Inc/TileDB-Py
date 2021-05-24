@@ -436,7 +436,7 @@ public:
         break;
       }
       case TILEDB_INT8: {
-        using T = uint8_t;
+        using T = int8_t;
         query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
