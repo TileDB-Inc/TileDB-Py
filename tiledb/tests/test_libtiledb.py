@@ -2611,8 +2611,12 @@ class TestSparseArray(DiskTestCase):
 
         tiledb.SparseArray.create(path, schema)
 
-        c1 = np.array([1, 2, 3, 4])
-        c2 = np.array([2, 1, 3, 4])
+        if tiledb.libtiledb.version() >= (2, 3) and sparse_cell_order == "hilbert":
+            c1 = np.array([2, 1, 3, 4])
+            c2 = np.array([1, 2, 3, 4])
+        else:
+            c1 = np.array([1, 2, 3, 4])
+            c2 = np.array([2, 1, 3, 4])
 
         data = np.array(
             [
@@ -2630,8 +2634,8 @@ class TestSparseArray(DiskTestCase):
         with tiledb.SparseArray(path) as A:
             res = A[:]
             assert_subarrays_equal(res[""], data)
-            assert_array_equal(res["__dim_0"], c1)
-            assert_array_equal(res["__dim_1"], c2)
+            assert_unordered_equal(res["__dim_0"], c1)
+            assert_unordered_equal(res["__dim_1"], c2)
 
     def test_sparse_mixed_domain_uint_float64(self, sparse_cell_order):
         path = self.path("mixed_domain_uint_float64")
