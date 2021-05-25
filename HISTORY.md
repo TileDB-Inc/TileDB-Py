@@ -1,3 +1,9 @@
+# TileDB-Py 0.8.10 Release Notes
+
+## Improvements
+* Disabled libtiledb Werror compilation argument for from-source builds via setup.py [#574](https://github.com/TileDB-Inc/TileDB-Py/pull/574)
+* Relaxed NumPy version requirements for from-source builds via setup.py [#575](https://github.com/TileDB-Inc/TileDB-Py/pull/575)
+
 # TileDB-Py 0.8.9 Release Notes
 
 ## TileDB Embedded updates:
