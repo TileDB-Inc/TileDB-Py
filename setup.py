@@ -161,12 +161,14 @@ def build_libtiledb(src_dir):
         os.makedirs(libtiledb_build_dir)
 
     print("Building libtiledb in directory {}...".format(libtiledb_build_dir))
+    werror = os.environ.get("TILEDB_WERROR", "OFF")
     cmake = os.environ.get("CMAKE", "cmake")
     cmake_cmd = [
         cmake,
         "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
         "-DTILEDB_TESTS=OFF",
         "-DTILEDB_S3=ON",
+        "-DTILEDB_WERROR={}".format(werror),
         "-DTILEDB_HDFS={}".format("ON" if os.name == "posix" else "OFF"),
         "-DTILEDB_INSTALL_LIBDIR=lib",
         "-DTILEDB_CPP_API=ON",
