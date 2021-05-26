@@ -15,7 +15,10 @@ class FragmentInfoList:
     """
 
     def __init__(self, array_uri, ctx=None):
-        schema = tiledb.ArraySchema.load(array_uri)
+        if ctx is None:
+            ctx = tiledb.default_ctx()
+
+        schema = tiledb.ArraySchema.load(array_uri, ctx=ctx)
 
         self.array_uri = array_uri
 
@@ -131,5 +134,8 @@ def FragmentsInfo(array_uri, ctx=None):
         "FragmentsInfo is deprecated; please use FragmentInfoList",
         DeprecationWarning,
     )
+
+    if ctx is None:
+        ctx = tiledb.default_ctx()
 
     return FragmentInfoList(array_uri, ctx)
