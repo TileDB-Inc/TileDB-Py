@@ -68,13 +68,20 @@ class CoreCCTest(DiskTestCase):
             "py.init_buffer_bytes": str(intmax),
             "py.alloc_max_bytes": str(intmax),
         }
-        with tiledb.from_numpy(uri, np.random.rand(4)):
-            pass
+        with tiledb.scope_ctx(config_dict) as ctx:
+            with tiledb.from_numpy(uri, np.random.rand(4)) as A:
+                pass
 
-        with tiledb.open(uri) as a, tiledb.scope_ctx(config_dict) as ctx:
-            q = core.PyQuery(ctx, a, ("",), (), 0, False)
-            self.assertEqual(q._test_init_buffer_bytes, intmax)
-            self.assertEqual(q._test_alloc_max_bytes, intmax)
+            with tiledb.open(uri) as a:
+                q = core.PyQuery(ctx, a, ("",), (), 0, False)
+                self.assertEqual(q._test_init_buffer_bytes, intmax)
+                self.assertEqual(q._test_alloc_max_bytes, intmax)
+
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "Invalid parameter: 'py.alloc_max_bytes' must be >= 1 MB ",
+                ), tiledb.scope_ctx({"py.alloc_max_bytes": 10}) as ctx2:
+                    q = core.PyQuery(ctx2, a, ("",), (), 0, False)
 
     def test_import_buffer(self):
         uri = self.path("test_import_buffer")
