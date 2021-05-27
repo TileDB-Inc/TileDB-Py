@@ -364,6 +364,10 @@ public:
             "Failed to convert 'py.alloc_max_bytes' to uint64_t ('" + tmp_str +
             "')");
       }
+      if (alloc_max_bytes_ < pow(1024, 2)) {
+        throw std::invalid_argument("Invalid parameter: 'py.alloc_max_bytes' "
+                                    "must be >= 1 MB (1024 ** 2 bytes)");
+      };
     }
 
     if (config_has_key(ctx_.config(), "py.deduplicate")) {
@@ -690,11 +694,13 @@ public:
     if (buf_nbytes > alloc_max_bytes_) {
       buf_nbytes = alloc_max_bytes_;
     }
-    if (validity_num * sizeof(uint8_t) > alloc_max_bytes_) {
-      validity_num = buf_nbytes / sizeof(uint8_t);
+    // use max to avoid overflowing to zero in the multiplication, in case the
+    //   estimate is too large
+    if (max(validity_num, validity_num * sizeof(uint8_t)) > alloc_max_bytes_) {
+      validity_num = alloc_max_bytes_ / sizeof(uint8_t);
     }
-    if (offsets_num * sizeof(uint64_t) > alloc_max_bytes_) {
-      offsets_num = buf_nbytes / sizeof(uint64_t);
+    if (max(offsets_num, offsets_num * sizeof(uint64_t)) > alloc_max_bytes_) {
+      offsets_num = alloc_max_bytes_ / sizeof(uint64_t);
     }
 
     // use init_buffer_bytes configuration option if the
