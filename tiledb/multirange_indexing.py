@@ -173,6 +173,8 @@ class MultiRangeIndexer(object):
             self.pyquery = _get_pyquery(self.array, query, self.use_arrow)
             self.pyquery._preload_metadata = preload_metadata
             self.pyquery.set_ranges(self.ranges)
+            if self.query is not None:
+                self.pyquery.set_attr_cond(query.attr_cond)
             self.pyquery._return_incomplete = (
                 self.query and self.query.return_incomplete
             )
@@ -287,11 +289,9 @@ def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQue
     schema = array.schema
     if query is not None:
         order = query.order
-        attr_cond = query.attr_cond
     else:
         # set default order:  TILEDB_UNORDERED for sparse,  TILEDB_ROW_MAJOR for dense
         order = "U" if schema.sparse else "C"
-        attr_cond = None
 
     try:
         layout = "CFGU".index(order)
@@ -305,7 +305,6 @@ def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQue
         array._ctx_(),
         array,
         tuple(_iter_attr_names(schema, query)),
-        attr_cond,
         tuple(_iter_dim_names(schema, query)),
         layout,
         use_arrow,

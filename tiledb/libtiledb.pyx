@@ -4777,7 +4777,7 @@ cdef class DenseArrayImpl(Array):
                               tiledb_layout_t layout, bint include_coords):
 
         from tiledb.core import PyQuery
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), None, tuple(), <int32_t>layout, False)
+        q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 
@@ -5451,8 +5451,7 @@ cdef class SparseArrayImpl(Array):
         cdef Py_ssize_t nattr = len(attr_names)
 
         from tiledb.core import PyQuery
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), None, tuple(), 
-                    <int32_t>layout, False)
+        q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 

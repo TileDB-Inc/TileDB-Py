@@ -18,10 +18,10 @@ class QueryCondition(ast.NodeVisitor):
 
     BNF
     ---
-    An expression is made up of one or more Boolean expressions. Multiple Boolean
-    expressions are chained together with Boolean operators.
+    A query condition is made up of one or more Boolean expressions. Multiple
+    Boolean expressions are chained together with Boolean operators.
 
-        exp ::= bool_expr | bool_expr bool_op exp
+        query_cond ::= bool_expr | bool_expr bool_op query_cond
 
     A Boolean expression contains a comparison operator. The operator works on a
     TileDB attribute name and value.
@@ -48,16 +48,20 @@ class QueryCondition(ast.NodeVisitor):
     Example
     -------
     with tiledb.open(uri, mode="r") as A:
-        # select cells where the attribute values for foo are less than 5,
-        # baz greater to or equal to 1.324, and bar equal to string asdf.
+        # select cells where the attribute values for foo are less than 5
+        # and bar equal to string asdf.
         qc = QueryCondition("foo > 5 and 'asdf' == bar")
         A.query(attrs_filter=qc)
     """
 
-    def __init__(self, expression=""):
+    def __init__(self, expression="", ctx=None):
+        if ctx is None:
+            ctx = tiledb.default_ctx()
+        self._ctx = ctx
+
         tree = ast.parse(expression)
         self.raw_str = expression
-        self._c_obj = self.visit(tree.body[0]) if tree.body else qc.qc()
+        self._c_obj = self.visit(tree.body[0]) if tree.body else qc.qc(self._ctx)
 
     def visit_Compare(self, node):
         AST_TO_TILEDB = {
@@ -106,7 +110,7 @@ class QueryCondition(ast.NodeVisitor):
         else:
             raise tiledb.TileDBError("Incorrect type for comparison value.")
 
-        return qc.qc(att, val, op)
+        return qc.qc(att, val, op, self._ctx)
 
     def visit_BoolOp(self, node):
         AST_TO_TILEDB = {ast.And: qc.TILEDB_AND}

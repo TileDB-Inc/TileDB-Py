@@ -34,18 +34,11 @@ private:
     ctx_ = Context(c_ctx, false);
   }
 
-  static tiledb_ctx_t *get_ctx(py::object ctx) {
-    if (ctx.is(py::none())) {
-      auto tiledblib = py::module::import("tiledb");
-      auto default_ctx = tiledblib.attr("default_ctx");
-      ctx = default_ctx();
-    }
-
+  void set_ctx(py::object ctx) {
     tiledb_ctx_t *c_ctx;
     if ((c_ctx = (py::capsule)ctx.attr("__capsule__")()) == nullptr)
-      TPY_ERROR_LOC("Invalid context pointer!");
-
-    return c_ctx;
+      TPY_ERROR_LOC("Invalid context pointer!")
+    ctx_ = Context(c_ctx, false);
   }
 
 public:
@@ -53,19 +46,17 @@ public:
 
   PyQueryCondition(py::object ctx) {
     try {
-      ctx_ = Context(get_ctx(ctx), false);
+      set_ctx(ctx);
       qc_ = shared_ptr<QueryCondition>(new QueryCondition(ctx_));
     } catch (TileDBError &e) {
       TPY_ERROR_LOC(e.what());
     }
   }
 
-  shared_ptr<QueryCondition> ptr() { return qc_; }
-
   PyQueryCondition(const string &attribute_name, const string &condition_value,
                    tiledb_query_condition_op_t op, py::object ctx) {
     try {
-      ctx_ = Context(get_ctx(ctx), false);
+      set_ctx(ctx);
       qc_ = shared_ptr<QueryCondition>(new QueryCondition(ctx_));
       qc_->init(attribute_name, condition_value, op);
     } catch (TileDBError &e) {
@@ -77,13 +68,15 @@ public:
   PyQueryCondition(const string &attribute_name, T condition_value,
                    tiledb_query_condition_op_t op, py::object ctx) {
     try {
-      ctx_ = Context(get_ctx(ctx), false);
+      set_ctx(ctx);
       qc_ = shared_ptr<QueryCondition>(new QueryCondition(ctx_));
       qc_->init(attribute_name, &condition_value, sizeof(condition_value), op);
     } catch (TileDBError &e) {
       TPY_ERROR_LOC(e.what());
     }
   }
+
+  shared_ptr<QueryCondition> ptr() { return qc_; }
 
   PyQueryCondition
   combine(PyQueryCondition rhs,

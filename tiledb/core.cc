@@ -269,8 +269,7 @@ public:
   PyQuery() = delete;
 
   PyQuery(py::object ctx, py::object array, py::iterable attrs,
-          py::object attr_cond, py::iterable dims, py::object py_layout,
-          py::object use_arrow) {
+          py::iterable dims, py::object py_layout, py::object use_arrow) {
 
     tiledb_ctx_t *c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
     if (c_ctx_ == nullptr)
@@ -328,12 +327,6 @@ public:
       TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
     }
     query_->set_layout(layout);
-
-    if (!attr_cond.is(py::none())) {
-      auto pyqc = (attr_cond.attr("_c_obj")).cast<PyQueryCondition>();
-      auto qc = pyqc.ptr().get();
-      query_->set_condition(*qc);
-    }
 
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
     if (use_arrow_) {
@@ -562,6 +555,14 @@ public:
       r1 = r[py::int_(1)];
 
       add_dim_range(dim_idx, py::make_tuple(r0, r1));
+    }
+  }
+
+  void set_attr_cond(py::object attr_cond) {
+    if (!attr_cond.is(py::none())) {
+      auto pyqc = (attr_cond.attr("_c_obj")).cast<PyQueryCondition>();
+      auto qc = pyqc.ptr().get();
+      query_->set_condition(*qc);
     }
   }
 
@@ -1345,12 +1346,13 @@ std::string python_internal_stats() {
 PYBIND11_MODULE(core, m) {
   auto pq =
       py::class_<PyQuery>(m, "PyQuery")
-          .def(py::init<py::object, py::object, py::iterable, py::object,
-                        py::iterable, py::object, py::object>())
+          .def(py::init<py::object, py::object, py::iterable, py::iterable,
+                        py::object, py::object>())
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
           .def("set_ranges", &PyQuery::set_ranges)
           .def("set_subarray", &PyQuery::set_subarray)
+          .def("set_attr_cond", &PyQuery::set_attr_cond)
           .def("submit", &PyQuery::submit)
           .def("unpack_buffer", &PyQuery::unpack_buffer)
           .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)

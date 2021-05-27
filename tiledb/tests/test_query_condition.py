@@ -42,8 +42,8 @@ class QueryConditionTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
         tiledb.SparseArray.create(path, schema)
 
-        U = np.arange(1, 11)
-        D = np.arange(1, 11) / 10
+        U = np.random.randint(1, 10, 10)
+        D = np.random.rand(10)
         S = np.array(list(string.ascii_lowercase[:10]), dtype="|S1")
 
         coords = np.linspace(1, 10, num=10, dtype=np.uint32)
@@ -55,15 +55,15 @@ class QueryConditionTest(DiskTestCase):
         with tiledb.open(path) as A:
             # bytestrings with PyArrow not yet support in TileDB-Py
             qc = tiledb.QueryCondition("U < 5")
-            result = A.query(attr_cond=qc, use_arrow=False).df[:]
-            assert_array_equal(result["U"], np.arange(1, 5))
+            result = A.query(attr_cond=qc, attrs=["U"]).df[:]
+            assert all(result["U"] < 5)
 
             qc = tiledb.QueryCondition("U >= 3 and 0.7 < D")
-            result = A.query(attr_cond=qc, use_arrow=False).df[:]
-            assert_array_equal(result["U"], np.arange(8, 11))
-            assert_array_equal(result["D"], np.arange(8, 11) / 10)
+            result = A.query(attr_cond=qc, attrs=["U", "D"]).df[:]
+            assert all(result["U"] >= 3)
+            assert all(0.7 < result["D"])
 
             qc = tiledb.QueryCondition("S == 'c'")
-            result = A.query(attr_cond=qc, use_arrow=False).df[:]
+            result = A.query(attr_cond=qc, attrs=["S"], use_arrow=False).df[:]
             assert len(result["S"]) == 1
             assert result["S"][0] == b"c"
