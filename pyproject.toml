@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+python_classes = "*Test*"
+python_files = "test_*.py"
+testpaths = ["tiledb/tests"]
+addopts = "--ignore=tiledb/tests/perf --ignore=tiledb/tests/__pycache__"
+filterwarnings = [
+    "error",
+    "default::pytest.PytestWarning",
+    "default::DeprecationWarning:distributed"
+]
