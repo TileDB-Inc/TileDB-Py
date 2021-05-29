@@ -7,16 +7,38 @@ import shutil
 import subprocess
 import tempfile
 import traceback
+import tiledb
+import uuid
 
 import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
+
+global path_scheme
+path_scheme = ""
 
 
 def assert_tail_equal(a, *rest, **kwargs):
     """Assert that all arrays in target equal first array"""
     for target in rest:
         assert_array_equal(a, target, **kwargs)
+
+
+def create_vfs_dir(path):
+    """Create a directory at the given scheme-prefixed path,
+    first creating the base bucket if needed."""
+
+    import urllib
+
+    split_uri = urllib.parse.urlsplit(path)
+    scheme = split_uri.scheme
+    bucket = split_uri.netloc
+    bucket_uri = scheme + "://" + bucket
+
+    vfs = tiledb.VFS()
+    if not vfs.is_bucket(bucket_uri):
+        vfs.create_bucket(bucket_uri)
+    vfs.create_dir(path)
 
 
 class DiskTestCase:
@@ -27,8 +49,17 @@ class DiskTestCase:
 
     @classmethod
     def setup_method(self):
-        prefix = "tiledb-" + self.__class__.__name__
-        self.rootdir = tempfile.mkdtemp(prefix=prefix)
+        # .lower: because bucket name must be all lowercase
+        prefix = "tiledb-" + self.__name__.lower()
+        if hasattr(pytest, "tiledb_vfs") and pytest.tiledb_vfs == "s3":
+            self.path_scheme = pytest.tiledb_vfs + "://"
+            self.rootdir = self.path_scheme + prefix + str(random.randint(0, 10e10))
+            create_vfs_dir(self.rootdir)
+        else:
+            self.path_scheme = ""
+            self.rootdir = tempfile.mkdtemp(prefix=prefix)
+
+        self.vfs = tiledb.VFS()
         self.pathmap = dict()
 
     @classmethod
@@ -51,11 +82,16 @@ class DiskTestCase:
                 raise exc
 
     def path(self, basename=None, shared=False):
-        if basename is not None:
-            # Note: this must be `is not None` because we need to match empty string
-            out = os.path.abspath(os.path.join(self.rootdir, basename))
+        if self.path_scheme:
+            basename = basename if basename else str(uuid.uuid4())
+            out = os.path.join(self.rootdir, basename)
+            self.vfs.create_dir(out)
         else:
-            out = tempfile.mkdtemp(dir=self.rootdir)
+            if basename is not None:
+                # Note: this must be `is not None` because we need to match empty string
+                out = os.path.abspath(os.path.join(self.rootdir, basename))
+            else:
+                out = tempfile.mkdtemp(dir=self.rootdir)
 
         if os.name == "nt" and shared:
             subprocess.run(
