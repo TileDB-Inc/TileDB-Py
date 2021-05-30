@@ -147,15 +147,13 @@ class FragmentInfoTest(DiskTestCase):
                 fragment_info.timestamp_range(fragment_idx), (timestamp, timestamp)
             )
 
-            if uri[0] != "/":
-                uri = "/" + uri.replace("\\", "/")
-
-            expected_uri = "file://{uri}/__{ts}_{ts}".format(uri=uri, ts=timestamp)
+            expected_uri = "__{ts}_{ts}".format(uri=uri, ts=timestamp)
             actual_uri = fragment_info.fragment_uri(fragment_idx)
 
             all_expected_uris.append(expected_uri)
 
-            self.assertTrue(actual_uri.startswith(expected_uri))
+            # use .contains because the protocol can vary
+            self.assertTrue(expected_uri in actual_uri)
             self.assertTrue(
                 actual_uri.endswith(str(fragment_info.version(fragment_idx)))
             )
@@ -165,7 +163,7 @@ class FragmentInfoTest(DiskTestCase):
 
         all_actual_uris = fragment_info.fragment_uri()
         for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
-            self.assertTrue(actual_uri.startswith(expected_uri))
+            self.assertTrue(expected_uri in actual_uri)
             self.assertTrue(
                 actual_uri.endswith(str(fragment_info.version(fragment_idx)))
             )
@@ -214,12 +212,12 @@ class FragmentInfoTest(DiskTestCase):
             if uri[0] != "/":
                 uri = "/" + uri.replace("\\", "/")
 
-            expected_uri = "file://{uri}/__{ts}_{ts}".format(uri=uri, ts=timestamp)
+            expected_uri = "/__{ts}_{ts}".format(uri=uri, ts=timestamp)
             actual_uri = fragment_info.fragment_uri(fragment_idx)
 
             all_expected_uris.append(expected_uri)
 
-            self.assertTrue(actual_uri.startswith(expected_uri))
+            self.assertTrue(expected_uri in actual_uri)
             self.assertTrue(
                 actual_uri.endswith(str(fragment_info.version(fragment_idx)))
             )
@@ -229,7 +227,7 @@ class FragmentInfoTest(DiskTestCase):
 
         all_actual_uris = fragment_info.fragment_uri()
         for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
-            self.assertTrue(actual_uri.startswith(expected_uri))
+            self.assertTrue(expected_uri in actual_uri)
             self.assertTrue(
                 actual_uri.endswith(str(fragment_info.version(fragment_idx)))
             )
@@ -309,7 +307,7 @@ class FragmentInfoTest(DiskTestCase):
                 name="day",
                 domain=(np.datetime64("2010-01-01"), np.datetime64("2020")),
                 dtype="datetime64[D]",
-            ),
+            )
         )
         att = tiledb.Attr()
         schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
@@ -467,8 +465,7 @@ class FragmentInfoTest(DiskTestCase):
         )
 
         tiledb.consolidate(
-            uri,
-            config=tiledb.Config(params={"sm.consolidation.mode": "fragment_meta"}),
+            uri, config=tiledb.Config(params={"sm.consolidation.mode": "fragment_meta"})
         )
 
         fragment_info.load()
