@@ -4,7 +4,7 @@ import os
 import pickle
 import random
 import re
-import shutil
+import urllib
 import subprocess
 import sys
 import time
@@ -94,6 +94,9 @@ class StatsTest(DiskTestCase):
                 self.assertTrue("CONSOLIDATE_COPY_ARRAY" in stats_json)
 
 
+@pytest.mark.skipif(
+    "pytest.tiledb_vfs == 's3'", reason="Test not yet supported with S3"
+)
 class TestConfig(DiskTestCase):
     def test_config(self):
         config = tiledb.Config()
@@ -144,15 +147,22 @@ class TestConfig(DiskTestCase):
         )
 
     def test_config_from_file(self):
+        # skip: beacuse Config.load doesn't support VFS-supported URIs?
+        if pytest.tiledb_vfs == "s3":
+            pytest.skip(
+                "TODO need more plumbing to make pandas use TileDB VFS to read CSV files"
+            )
+
         config_path = self.path("config")
-        with open(config_path, "w") as fh:
+        with tiledb.FileIO(self.vfs, config_path, "wb") as fh:
             fh.write("sm.tile_cache_size 100")
         config = tiledb.Config.load(config_path)
         self.assertEqual(config["sm.tile_cache_size"], "100")
 
     def test_ctx_config_from_file(self):
         config_path = self.path("config")
-        with open(config_path, "w") as fh:
+        vfs = tiledb.VFS()
+        with tiledb.FileIO(vfs, config_path, "wb") as fh:
             fh.write("sm.tile_cache_size 100")
         ctx = tiledb.Ctx(config=tiledb.Config.load(config_path))
         config = ctx.config()
@@ -161,7 +171,7 @@ class TestConfig(DiskTestCase):
     def test_ctx_config_dict(self):
         ctx = tiledb.Ctx(config={"sm.tile_cache_size": "100"})
         config = ctx.config()
-        self.assertIsInstance(config, tiledb.Config)
+        assert issubclass(type(config), tiledb.libtiledb.Config)
         self.assertEqual(config["sm.tile_cache_size"], "100")
 
 
@@ -191,6 +201,9 @@ class GroupTest(GroupTestCase):
         self.assertTrue(self.is_group(self.group4))
 
     def test_walk_group(self):
+        if pytest.tiledb_vfs == "s3":
+            pytest.skip("S3 does not have empty directories")
+
         groups = []
 
         def append_to_groups(path, obj):
@@ -1489,8 +1502,11 @@ class DenseArrayTest(DiskTestCase):
 
         tiledb.VFS().remove_file(os.path.join(uri, "__array_schema.tdb"))
 
-        with self.assertRaises(tiledb.TileDBError):
-            tiledb.DenseArray(uri)
+        # new ctx is required running against S3 because otherwise the schema
+        # will simply be read from the cache.
+        with tiledb.scope_ctx():
+            with self.assertRaises(tiledb.TileDBError):
+                tiledb.DenseArray(uri)
 
     def test_sparse_write_to_dense(self):
         class AssignAndCheck:
@@ -3245,7 +3261,8 @@ class TestVFS(DiskTestCase):
 
         # create
         vfs.create_dir(dir)
-        self.assertTrue(vfs.is_dir(dir))
+        if pytest.tiledb_vfs != "s3":
+            self.assertTrue(vfs.is_dir(dir))
 
         # remove
         vfs.remove_dir(dir)
@@ -3253,12 +3270,16 @@ class TestVFS(DiskTestCase):
 
         # create nested path
         dir = self.path("foo/bar")
-        with self.assertRaises(tiledb.TileDBError):
-            vfs.create_dir(dir)
+        if pytest.tiledb_vfs != "s3":
+            # this fails locally because "foo" base path does not exist
+            # this will not fail on s3 because there is no concept of directory
+            with self.assertRaises(tiledb.TileDBError):
+                vfs.create_dir(dir)
 
         vfs.create_dir(self.path("foo"))
         vfs.create_dir(self.path("foo/bar"))
-        self.assertTrue(vfs.is_dir(dir))
+        if pytest.tiledb_vfs != "s3":
+            self.assertTrue(vfs.is_dir(dir))
 
     def test_file(self):
         vfs = tiledb.VFS()
@@ -3276,8 +3297,11 @@ class TestVFS(DiskTestCase):
 
         # check nested path
         file = self.path("foo/bar")
-        with self.assertRaises(tiledb.TileDBError):
-            vfs.touch(file)
+        if pytest.tiledb_vfs != "s3":
+            # this fails locally because "foo" base path does not exist
+            # this will not fail on s3 because there is no concept of directory
+            with self.assertRaises(tiledb.TileDBError):
+                vfs.touch(file)
 
     def test_move(self):
         vfs = tiledb.VFS()
@@ -3294,8 +3318,11 @@ class TestVFS(DiskTestCase):
         self.assertTrue(vfs.is_file(self.path("foo/baz")))
 
         # moving to invalid dir should raise an error
-        with self.assertRaises(tiledb.TileDBError):
-            vfs.move_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
+        if pytest.tiledb_vfs != "s3":
+            # this fails locally because "foo" base path does not exist
+            # this will not fail on s3 because there is no concept of directory
+            with self.assertRaises(tiledb.TileDBError):
+                vfs.move_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -3320,8 +3347,11 @@ class TestVFS(DiskTestCase):
         self.assertTrue(vfs.is_file(self.path("baz/baz")))
 
         # copying to invalid dir should raise an error
-        with self.assertRaises(tiledb.TileDBError):
-            vfs.copy_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
+        if pytest.tiledb_vfs != "s3":
+            # this fails locally because "foo" base path does not exist
+            # this will not fail on s3 because there is no concept of directory
+            with self.assertRaises(tiledb.TileDBError):
+                vfs.copy_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
 
     def test_write_read(self):
         vfs = tiledb.VFS()
@@ -3354,14 +3384,14 @@ class TestVFS(DiskTestCase):
         vfs = tiledb.VFS()
 
         buffer = b"0123456789"
-        fio = tiledb.FileIO(vfs, self.path("foo"), mode="wb")
-        fio.write(buffer)
-        fio.flush()
-        self.assertEqual(fio.tell(), len(buffer))
+        with tiledb.FileIO(vfs, self.path("foo"), mode="wb") as fio:
+            fio.write(buffer)
+            fio.flush()
+            self.assertEqual(fio.tell(), len(buffer))
 
-        fio = tiledb.FileIO(vfs, self.path("foo"), mode="rb")
-        with self.assertRaises(IOError):
-            fio.write(b"foo")
+        with tiledb.FileIO(vfs, self.path("foo"), mode="rb") as fio:
+            with self.assertRaises(IOError):
+                fio.write(b"foo")
 
         self.assertEqual(vfs.file_size(self.path("foo")), len(buffer))
 
@@ -3422,28 +3452,38 @@ class TestVFS(DiskTestCase):
 
     def test_ls(self):
         basepath = self.path("test_vfs_ls")
-        os.mkdir(basepath)
+        self.vfs.create_dir(basepath)
         for id in (1, 2, 3):
             dir = os.path.join(basepath, "dir" + str(id))
-            os.mkdir(dir)
+            self.vfs.create_dir(dir)
             fname = os.path.join(basepath, "file_" + str(id))
-            os.close(os.open(fname, os.O_CREAT | os.O_EXCL))
+            with tiledb.FileIO(self.vfs, fname, "wb") as fio:
+                fio.write(b"")
 
-        expected = ("dir1", "dir2", "dir3", "file_1", "file_2", "file_3")
-        vfs = tiledb.VFS()
+        expected = ("file_1", "file_2", "file_3")
+        # empty directories do not "exist" on s3
+        if pytest.tiledb_vfs != "s3":
+            expected = expected + ("dir1", "dir2", "dir3")
+
         self.assertSetEqual(
             set(
-                os.path.normpath("file://" + os.path.join(basepath, x))
-                for x in expected
+                os.path.normpath(os.path.join(p.netloc, p.path))
+                for p in map(
+                    lambda x: urllib.parse.urlsplit(os.path.join(basepath, x)), expected
+                )
             ),
-            set(os.path.normpath(x) for x in vfs.ls(basepath)),
+            set(
+                # vfs.ls includes drive on Windows
+                os.path.normpath(os.path.join(p.netloc, os.path.splitdrive(p.path)[1]))
+                for p in map(urllib.parse.urlsplit, self.vfs.ls(basepath))
+            ),
         )
 
     def test_dir_size(self):
         vfs = tiledb.VFS()
 
         path = self.path("test_vfs_dir_size")
-        os.mkdir(path)
+        vfs.create_dir(path)
         rand_sizes = np.random.choice(100, size=4, replace=False)
         for size in rand_sizes:
             file_path = os.path.join(path, "f_" + str(size))
@@ -3473,16 +3513,20 @@ class ConsolidationTest(DiskTestCase):
                 with tiledb.open(target_path, "w") as A:
                     A[i : dshape[1]] = np.random.rand(dshape[1] - i)
 
+        # expected number of non-fragment directory entries
+        #   there is no ls result for empty __meta directory on s3
+        expected_extra = 2 if pytest.tiledb_vfs == "s3" else 3
+
         create_array(path)
         write_fragments(path)
         paths = vfs.ls(path)
-        self.assertEqual(len(paths), 3 + 2 * num_writes)
+        self.assertEqual(len(paths), expected_extra + (2 * num_writes))
 
         tiledb.consolidate(path)
         tiledb.vacuum(path)
 
         paths = vfs.ls(path)
-        self.assertEqual(len(paths), 5)
+        self.assertEqual(len(paths), expected_extra + 2)
 
         del path
 
@@ -3495,7 +3539,7 @@ class ConsolidationTest(DiskTestCase):
         tiledb.vacuum(path2, config=tiledb.Config({"sm.vacuum.mode": "fragment_meta"}))
         paths = vfs.ls(path2)
 
-        self.assertEqual(len(paths), 3 + 2 * num_writes + 1)
+        self.assertEqual(len(paths), expected_extra + 2 * num_writes + 1)
 
         path3 = self.path("test_array_vacuum2")
         create_array(path3)
@@ -3660,7 +3704,7 @@ class ContextTest(unittest.TestCase):
     def test_default_ctx(self):
         ctx = tiledb.default_ctx()
         self.assertIsInstance(ctx, tiledb.Ctx)
-        self.assertIsInstance(ctx.config(), tiledb.Config)
+        assert isinstance(ctx.config(), tiledb.libtiledb.Config)
 
     def test_scope_ctx(self):
         key = "sm.tile_cache_size"
@@ -3689,6 +3733,9 @@ class ContextTest(unittest.TestCase):
         assert tiledb.default_ctx() is ctx0
         assert tiledb.default_ctx().config()[key] == "10000000"
 
+    @pytest.mark.skipif(
+        "pytest.tiledb_vfs == 's3'", reason="Test not yet supported with S3"
+    )
     def test_init_config(self):
         self.assertEqual(
             int(tiledb.default_ctx().config()["sm.io_concurrency_level"]),

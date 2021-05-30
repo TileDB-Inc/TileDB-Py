@@ -14,9 +14,6 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
 
-global path_scheme
-path_scheme = ""
-
 
 def assert_tail_equal(a, *rest, **kwargs):
     """Assert that all arrays in target equal first array"""

@@ -5,10 +5,16 @@ import tarfile
 import numpy as np
 from numpy.testing import assert_array_equal
 
+import pytest
 import tiledb
 from tiledb.tests.common import DiskTestCase
 
 
+# This test writes to local filesystem, skip
+#   TODO: unskip if we support transparent file ops on a VFS
+@pytest.mark.skipif(
+    pytest.tiledb_vfs != "file", reason="Do not run compat test against non-file VFS"
+)
 class TestBackwardCompatibility(DiskTestCase):
     def test_compat_tiledb_py_0_5_anon_attr_dense(self):
         # array written with the following script:

@@ -344,7 +344,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             return np.frombuffer(randbytes, dtype=dtype)
 
         uri = self.path("dataframe_csv_rt1")
-        os.mkdir(uri)
+        self.vfs.create_dir(uri)
         col_size = 15
         data_dict = {
             "dates": np.array(
@@ -360,7 +360,8 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         # note: encoding must be specified to avoid printing the b'' bytes
         #       prefix, see https://github.com/pandas-dev/pandas/issues/9712
-        df_orig.to_csv(csv_uri, mode="w")
+        with tiledb.FileIO(self.vfs, csv_uri, "wb") as fio:
+            df_orig.to_csv(fio, mode="w")
 
         csv_array_uri = os.path.join(uri, "tiledb_csv")
         tiledb.from_csv(
@@ -373,10 +374,9 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # Test reading via TileDB VFS. The main goal is to support reading
         # from a remote VFS, using local with `file://` prefix as a test for now.
         with tiledb.FileIO(tiledb.VFS(), csv_uri, "rb") as fio:
-            csv_uri_unc = "file:///" + csv_uri
-            csv_array_uri2 = "file:///" + os.path.join(csv_array_uri + "_2")
+            csv_array_uri2 = os.path.join(csv_array_uri + "_2")
             tiledb.from_csv(
-                csv_array_uri2, csv_uri_unc, index_col=0, parse_dates=[1], sparse=False
+                csv_array_uri2, csv_uri, index_col=0, parse_dates=[1], sparse=False
             )
 
             df_from_array2 = tiledb.open_dataframe(csv_array_uri2)
@@ -572,10 +572,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         # Test 1: basic round-trip
         tmp_dir = self.path("csv_dense")
-        os.mkdir(tmp_dir)
+        self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.to_csv(tmp_csv)
+        with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
+            df.to_csv(fio)
 
         tmp_array = os.path.join(tmp_dir, "array")
         tiledb.from_csv(
@@ -594,11 +595,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         # Test 1: basic round-trip
         tmp_dir = self.path("csv_col_to_sparse_dims")
-        os.mkdir(tmp_dir)
+        self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
         df.sort_values("time", inplace=True)
-        df.to_csv(tmp_csv, index=False)
+        with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
+            df.to_csv(fio, index=False)
         df.set_index(["time", "double_range"], inplace=True)
 
         tmp_array = os.path.join(tmp_dir, "array")
@@ -624,7 +626,8 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df.loc[0, "int_vals"] = df.int_vals[1]
         df.sort_values("int_vals", inplace=True)
 
-        df.to_csv(tmp_csv2, index=False)
+        with tiledb.FileIO(self.vfs, tmp_csv2, "wb") as fio:
+            df.to_csv(fio, index=False)
 
         # try once and make sure error is raised because of duplicate value
         with self.assertRaisesRegex(
@@ -663,11 +666,13 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df = make_dataframe_basic3(col_size)
 
         tmp_dir = self.path("csv_schema_only")
-        os.mkdir(tmp_dir)
+        self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
         df.sort_values("time", inplace=True)
-        df.to_csv(tmp_csv, index=False)
+
+        with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
+            df.to_csv(fio, index=False)
 
         attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(3)])
         # from_pandas default is 1, so use 7 here to check
@@ -760,11 +765,13 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df = make_dataframe_basic3(col_size)
 
         tmp_dir = self.path("csv_chunked")
-        os.mkdir(tmp_dir)
+        self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
         df.sort_values("time", inplace=True)
-        df.to_csv(tmp_csv, index=False)
+
+        with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
+            df.to_csv(fio, index=False)
 
         # Test sparse chunked
         tmp_array = os.path.join(tmp_dir, "array")
@@ -830,6 +837,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             tm.assert_frame_equal(df_idx_res, df.reset_index(drop=True))
 
     def test_csv_fillna(self):
+        if pytest.tiledb_vfs == "s3":
+            pytest.skip(
+                "TODO need more plumbing to make pandas use TileDB VFS to read CSV files"
+            )
+
         def check_array(path, df):
             # update the value in the original dataframe to match what we expect on read-back
             df["v"][4] = 0
@@ -839,15 +851,16 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         ### Test 1
         col_size = 10
-        data = np.random.rand(10) * 100  # make some integers for the 2nd test
+        data = np.random.rand(col_size) * 100  # make some integers for the 2nd test
         data[4] = np.nan
         df = pd.DataFrame({"v": data})
 
         tmp_dir = self.path("csv_fillna")
-        os.mkdir(tmp_dir)
+        self.vfs.create_dir(tmp_dir)
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
-        df.to_csv(tmp_csv, index=False, na_rep="NaN")
+        with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
+            df.to_csv(fio, index=False, na_rep="NaN")
 
         tmp_array = os.path.join(tmp_dir, "array")
         # TODO: test Dense too
@@ -859,7 +872,10 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tmp_csv2 = os.path.join(tmp_dir, "generated.csv")
         df2 = pd.DataFrame({"v": pd.Series(np.int64(df["v"]), dtype=pd.Int64Dtype())})
         df2["v"][4] = None
-        df2.to_csv(tmp_csv2, index=False)
+
+        with tiledb.FileIO(self.vfs, tmp_csv2, "wb") as fio:
+            df2.to_csv(fio, index=False)
+
         if hasattr(pd, "Int64Dtype"):
             tmp_array2 = os.path.join(tmp_dir, "array2")
             tiledb.from_csv(
@@ -872,26 +888,30 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             df_to_check = copy.deepcopy(df2)
             check_array(tmp_array2, df_to_check)
 
-    def test_csv_multi_file(self):
         col_size = 10
 
         csv_dir = self.path("csv_multi_dir")
-        os.mkdir(csv_dir)
+        self.vfs.create_dir(csv_dir)
 
         # Write a set of CSVs with 10 rows each
         input_dfs = list()
         for i in range(20):
             df = make_dataframe_basic3(col_size)
             output_path = os.path.join(csv_dir, "csv_{}.csv".format(i))
-            df.to_csv(output_path, index=False)
+
+            with tiledb.FileIO(self.vfs, output_path, "wb") as fio:
+                df.to_csv(fio, index=False)
             input_dfs.append(df)
 
         tmp_dir = self.path("csv_multi_array_dir")
-        os.mkdir(tmp_dir)
+        self.vfs.create_dir(tmp_dir)
 
         # Create TileDB array with flush every 25 rows
-        csv_paths = glob.glob(csv_dir + "/*.csv")
+        csv_paths = list(filter(lambda x: x.endswith(".csv"), self.vfs.ls(csv_dir)))
         tmp_array = os.path.join(tmp_dir, "array")
+        # Note: this test is skipped when running on S3 because the from_csv call
+        #       below uses pandas to read the CSV, but we do not currently have a
+        #       hook in place for pandas to be able to read via TileDB VFS.
         tiledb.from_csv(
             tmp_array,
             csv_paths,
@@ -996,12 +1016,18 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             self.assertTrue("int_vals" == res_df4.index.name)
 
     def test_read_parquet(self):
-        uri = Path(self.path("test_read_parquet"))
-        os.mkdir(uri)
+        # skip: because to_parquet is erroring out with FileIO object
+        if pytest.tiledb_vfs == "s3":
+            pytest.skip(
+                "TODO need more plumbing to make pandas use TileDB VFS to read CSV files"
+            )
+
+        uri = self.path("test_read_parquet")
+        self.vfs.create_dir(uri)
 
         def try_rt(name, df, pq_args={}):
-            tdb_uri = str(uri.joinpath(f"{name}.tdb"))
-            pq_uri = str(uri.joinpath(f"{name}.pq"))
+            tdb_uri = os.path.join(uri, f"{name}.tdb")
+            pq_uri = os.path.join(uri, f"{name}.pq")
 
             df.to_parquet(
                 pq_uri,
