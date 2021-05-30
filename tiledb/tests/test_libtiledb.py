@@ -3904,6 +3904,13 @@ class IncompleteTest(DiskTestCase):
         assert idx == len(full_data)
 
 
+class TestTest(DiskTestCase):
+    def test_path(self, pytestconfig):
+        path = self.path("foo")
+        if pytestconfig.getoption("vfs") == "s3":
+            assert path.startswith("s3://")
+
+
 # if __name__ == '__main__':
 #    # run a single example for in-process debugging
 #    # better to use `pytest --gdb` if available
