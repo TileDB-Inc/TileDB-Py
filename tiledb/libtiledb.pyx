@@ -6546,6 +6546,8 @@ class FileIO(io.RawIOBase):
     def write(self, buff):
         if not self.writable():
             raise IOError("cannot write to read-only FileIO handle")
+        if isinstance(buff, str):
+            buff = buff.encode()
         nbytes = len(buff)
         self.vfs.write(self.fh, buff)
         self._nbytes += nbytes
