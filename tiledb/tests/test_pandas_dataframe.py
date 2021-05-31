@@ -1077,6 +1077,37 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 self.assertEqual(array1.dtype, array2.dtype)
                 np.testing.assert_array_equal(array1, array2)
 
+    def test_incomplete_df(self):
+        ncells = 1000
+        null_count = round(0.56 * ncells)
+
+        path = self.path("incomplete_sparse_varlen")
+
+        validity_idx = np.random.randint(ncells, size=null_count)
+        data = np.array(np.random.randint(0, 10e10, size=ncells), dtype="O")
+        data[validity_idx] = None
+
+        # TODO - not supported
+        # str_data = np.array([rand_utf8(random.randint(0, n)) for n in range(ncells)],
+        #                dtype=np.unicode_)
+        # str_data[validity_idx] = None
+
+        df = pd.DataFrame({"int64": pd.Series(data, dtype=pd.Int64Dtype())})
+
+        tiledb.from_pandas(path, df, sparse=True)
+
+        init_buffer_bytes = 512
+        config = tiledb.Config(
+            {
+                "py.init_buffer_bytes": init_buffer_bytes,
+                "py.exact_init_buffer_bytes": "true",
+            }
+        )
+        self.assertEqual(config["py.init_buffer_bytes"], str(init_buffer_bytes))
+
+        with tiledb.SparseArray(path, mode="r", ctx=tiledb.Ctx(config)) as T2:
+            tm.assert_frame_equal(df, T2.df[:])
+
 
 class TestFromPandasOptions(DiskTestCase):
     def test_filters_options(self):

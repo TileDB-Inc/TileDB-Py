@@ -669,7 +669,7 @@ public:
     bool nullable = is_nullable(name);
 
     if (retries_ < 1) {
-      // we must not call
+      // we must not call after submitting
       if (nullable) {
         auto sizes = query_->est_result_size_nullable(name);
         buf_nbytes = sizes[0];
@@ -860,6 +860,14 @@ public:
            (buf.offsets.nbytes() + 1) / 2)) {
         size_t new_offsets_size = buf.offsets.size() * 2;
         buf.offsets.resize({new_offsets_size}, false);
+      }
+
+      // Check if validity buffer should be resized
+      if ((buf.isnullable && buf.validity_vals_read == 0) ||
+          ((int64_t)(buf.validity_vals_read * sizeof(uint8_t)) >
+           (buf.validity.nbytes() + 1) / 2)) {
+        size_t new_validity_size = buf.validity.size() * 2;
+        buf.validity.resize({new_validity_size}, false);
       }
     }
 
