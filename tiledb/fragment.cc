@@ -94,7 +94,7 @@ public:
     for (uint32_t fid = 0; fid < nfrag; ++fid)
       all_frags.append(get_non_empty_domain(schema, fid));
 
-    return all_frags;
+    return std::move(all_frags);
   }
 
   py::tuple get_non_empty_domain(py::object schema, uint32_t fid) const {
@@ -104,7 +104,7 @@ public:
     for (int did = 0; did < ndim; ++did)
       all_dims.append(get_non_empty_domain(schema, fid, did));
 
-    return all_dims;
+    return std::move(all_dims);
   }
 
   template <typename T>
@@ -134,7 +134,7 @@ public:
                               datetime64(dates[1], datetime_data(type)));
     }
 
-    return limits;
+    return std::move(limits);
   }
 
   py::bool_ get_dim_isvar(py::object dom, uint32_t did) const {
