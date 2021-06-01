@@ -61,7 +61,7 @@ stages:
 
     - bash: |
         set -xeo pipefail
-        python setup.py build_ext --inplace
+        python setup.py build_ext --inplace --werror
         python setup.py install
       displayName: 'Build TileDB and TileDB-Py extension (POSIX)'
       condition: ne(variables['Agent.OS'], 'Windows_NT')
