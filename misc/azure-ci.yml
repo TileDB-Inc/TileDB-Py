@@ -69,7 +69,7 @@ stages:
     - bash: |
         set -xeo pipefail
 
-        pytest -v
+        pytest -vv
 
         # Test wheel build, install, and run
         python setup.py bdist_wheel

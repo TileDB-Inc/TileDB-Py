@@ -27,11 +27,11 @@ jobs:
         python --version
         echo '============================'
       shell: bash
-      
+
     - name: 'Print env'
       run: printenv
       shell: bash
-      
+
     - name: 'Install dependencies'
       run: python -m pip install --upgrade -r misc/requirements_ci.txt
       shell: bash
@@ -55,7 +55,7 @@ jobs:
       run: |
         set -xeo pipefail
 
-        pytest -v
+        pytest -vv
 
         # Test wheel build, install, and run
         python setup.py bdist_wheel
@@ -82,4 +82,3 @@ jobs:
           done;
       shell: bash
       if: ${{ failure() }} # only run this job if the build step failed
-
