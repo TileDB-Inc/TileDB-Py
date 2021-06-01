@@ -354,15 +354,21 @@ cdef class Metadata:
         :return:
         """
         # TODO: ensure that the array is not x-locked?
+        cdef Ctx ctx = (<Array?> self.array).ctx
+        cdef Config config = ctx.config()
         cdef:
             uint32_t rc = 0
-            tiledb_ctx_t* ctx_ptr = (<Array?> self.array).ctx.ptr
+            tiledb_ctx_t* ctx_ptr = ctx.ptr
+            tiledb_config_t* config_ptr = NULL
             tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
             void* key_ptr = NULL
             uint32_t key_len = 0
             bytes bkey
             bytes buri = unicode_path(self.array.uri)
             str key = (<Array?>self.array).key
+
+        if config:
+            config_ptr = config.ptr
 
         if key is not None:
             if isinstance(key, str):
@@ -380,7 +386,7 @@ cdef class Metadata:
                 key_type,
                 key_ptr,
                 key_len,
-                NULL)
+                config_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
