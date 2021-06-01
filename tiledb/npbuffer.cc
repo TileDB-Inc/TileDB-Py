@@ -85,8 +85,8 @@ private:
     // For consistency and to avoid complications in other APIs, we are storing
     // all string arrays as var-length.
 
-    size_t input_itemsize = input_.itemsize();
-    assert(input_itemsize > 0); // must have fixed-length array
+    // must have fixed-width element
+    assert(input_.itemsize() > 0);
 
     // we know exact offset count
     offset_buf_->resize(input_len_);
@@ -152,8 +152,7 @@ private:
   void convert_bytes() {
     // Convert array of bytes objects or ASCII strings to buffer+offsets
 
-    size_t input_itemsize = input_.itemsize();
-    assert(input_itemsize > 0); // must have fixed-length array
+    assert(input_.itemsize() > 0); // must have fixed-length array
 
     // we know exact offset count
     offset_buf_->resize(input_len_);
@@ -311,7 +310,6 @@ private:
         // TODO error check?
         PyBytes_AsStringAndSize(pyobj_p, const_cast<char **>(&input_p), &sz);
       } else if (api.PyArray_Check_(pyobj_p)) {
-        auto pao = (PyArrayObject *)pyobj_p;
         auto arr = py::cast<py::array>(pyobj_p);
         sz = arr.nbytes();
         input_p = (const char *)arr.data();

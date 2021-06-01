@@ -766,7 +766,7 @@ public:
       result.append(b.data);
       result.append(b.offsets);
     }
-    return result;
+    return std::move(result);
   }
 
   void set_buffers() {
@@ -1300,14 +1300,13 @@ public:
         auto est_sizes = query_->est_result_size_var(name);
         est_offsets = std::get<0>(est_sizes);
         est_data_bytes = std::get<1>(est_sizes);
-        est_offsets = est_offsets;
       } else {
         est_data_bytes = query_->est_result_size(name);
       }
       results[py::str(name)] = py::make_tuple(est_offsets, est_data_bytes);
     }
 
-    return results;
+    return std::move(results);
   }
 
   py::array _test_array() {
