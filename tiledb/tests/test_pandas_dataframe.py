@@ -1084,7 +1084,9 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         path = self.path("incomplete_sparse_varlen")
 
         validity_idx = np.random.randint(ncells, size=null_count)
-        data = np.array(np.random.randint(0, 10e10, size=ncells), dtype="O")
+        data = np.array(
+            np.random.randint(0, 10e10, size=ncells, dtype=np.int64), dtype="O"
+        )
         data[validity_idx] = None
 
         # TODO - not supported
