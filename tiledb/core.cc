@@ -179,6 +179,29 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
       return py::dtype("M8[fs]");
     case TILEDB_DATETIME_AS:
       return py::dtype("M8[as]");
+
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
+    /* duration types map to timedelta */
+    case TILEDB_TIME_HR:
+      return py::dtype("m8[h]");
+    case TILEDB_TIME_MIN:
+      return py::dtype("m8[m]");
+    case TILEDB_TIME_SEC:
+      return py::dtype("m8[s]");
+    case TILEDB_TIME_MS:
+      return py::dtype("m8[ms]");
+    case TILEDB_TIME_US:
+      return py::dtype("m8[us]");
+    case TILEDB_TIME_NS:
+      return py::dtype("m8[ns]");
+    case TILEDB_TIME_PS:
+      return py::dtype("m8[ps]");
+    case TILEDB_TIME_FS:
+      return py::dtype("m8[fs]");
+    case TILEDB_TIME_AS:
+      return py::dtype("m8[as]");
+#endif
+
     case TILEDB_ANY:
       break;
     }
@@ -503,6 +526,17 @@ public:
       case TILEDB_DATETIME_PS:
       case TILEDB_DATETIME_FS:
       case TILEDB_DATETIME_AS: {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
+      case TILEDB_TIME_HR:
+      case TILEDB_TIME_MIN:
+      case TILEDB_TIME_SEC:
+      case TILEDB_TIME_MS:
+      case TILEDB_TIME_US:
+      case TILEDB_TIME_NS:
+      case TILEDB_TIME_PS:
+      case TILEDB_TIME_FS:
+      case TILEDB_TIME_AS:
+#endif
         py::dtype dtype = tiledb_dtype(tiledb_type, 1);
         auto dt0 = py::isinstance<py::int_>(r0) ? r0 : r0.attr("astype")(dtype);
         auto dt1 = py::isinstance<py::int_>(r1) ? r1 : r1.attr("astype")(dtype);
