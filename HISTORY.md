@@ -1,3 +1,9 @@
+# TileDB-Py 0.9.0 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.9.0 includes TileDB Embedded [TileDB 2.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3) with a significant
+  number of new features and improvements.
+
 # TileDB-Py 0.8.11 Release Notes
 
 ## Bug fixes
