@@ -257,7 +257,7 @@ uint8_bool_to_uint8_bitmap(py::array_t<uint8_t> validity_array) {
 
 uint64_t count_zeros(py::array_t<uint8_t> a) {
   uint64_t count = 0;
-  for (size_t idx = 0; idx < a.size(); idx++)
+  for (ssize_t idx = 0; idx < a.size(); idx++)
     count += (a.data()[idx] == 0) ? 1 : 0;
   return count;
 }
