@@ -951,7 +951,8 @@ public:
       ssize_t final_validity_count = buf.validity_vals_read;
 
       assert(final_data_nbytes <= buf.data.size());
-      assert(final_offsets_count <= (ssize_t)(buf.offsets.size() + arrow_offset_size));
+      assert(final_offsets_count <=
+             (ssize_t)(buf.offsets.size() + arrow_offset_size));
 
       buf.data.resize({final_data_nbytes});
       buf.offsets.resize({final_offsets_count});

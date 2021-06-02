@@ -257,6 +257,33 @@ PYBIND11_MODULE(_fragment, m) {
       .def("to_vacuum_uri", &PyFragmentInfo::to_vacuum_uri,
            py::arg("fid") = py::none())
       .def("dump", &PyFragmentInfo::dump);
+
+  // TODO: DRY, centralize this. It is currently repeated in each translation
+  // unit
+  //       to avoid uncaught exceptions (typeid does not match)
+  /*
+     We need to make sure C++ TileDBError is translated to a correctly-typed py
+     error. Note that using py::exception(..., "TileDBError") creates a new
+     exception in the *readquery* module, so we must import to reference.
+  */
+  static auto tiledb_py_error =
+      (py::object)py::module::import("tiledb").attr("TileDBError");
+
+  py::register_exception_translator([](std::exception_ptr p) {
+    try {
+      if (p)
+        std::rethrow_exception(p);
+    } catch (const TileDBPyError &e) {
+      PyErr_SetString(tiledb_py_error.ptr(), e.what());
+    } catch (const tiledb::TileDBError &e) {
+      PyErr_SetString(tiledb_py_error.ptr(), e.what());
+    } catch (py::builtin_exception &e) {
+      // just forward the error
+      throw;
+      //} catch (std::runtime_error &e) {
+      //  std::cout << "unexpected runtime_error: " << e.what() << std::endl;
+    }
+  });
 }
 
 }; // namespace tiledbpy
