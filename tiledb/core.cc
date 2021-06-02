@@ -946,12 +946,12 @@ public:
       auto name = bp.first;
       auto &buf = bp.second;
 
-      auto final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
-      auto final_offsets_count = buf.offsets_read + arrow_offset_size;
-      auto final_validity_count = buf.validity_vals_read;
+      ssize_t final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
+      ssize_t final_offsets_count = buf.offsets_read + arrow_offset_size;
+      ssize_t final_validity_count = buf.validity_vals_read;
 
       assert(final_data_nbytes <= buf.data.size());
-      assert(final_offsets_count <= buf.offsets.size() + arrow_offset_size);
+      assert(final_offsets_count <= (ssize_t)(buf.offsets.size() + arrow_offset_size));
 
       buf.data.resize({final_data_nbytes});
       buf.offsets.resize({final_offsets_count});
