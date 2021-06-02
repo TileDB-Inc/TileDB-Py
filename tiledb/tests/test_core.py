@@ -53,7 +53,6 @@ class CoreCCTest(DiskTestCase):
 
         with tiledb.open(uri) as a:
             q2 = core.PyQuery(ctx, a, ("",), (), 0, False)
-
             q2.set_ranges([[(0, 3)]])
             q2.submit()
             res = q2.results()[""][0]

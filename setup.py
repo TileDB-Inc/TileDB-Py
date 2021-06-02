@@ -18,7 +18,7 @@ from setuptools import Extension, find_packages, setup
 print("setup.py sys.argv is: ", sys.argv)
 
 # Target branch
-TILEDB_VERSION = "2.2.9"
+TILEDB_VERSION = "dev"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
@@ -256,10 +256,13 @@ def find_or_install_libtiledb(setuptools_cmd):
             core_ext = ext
         elif ext.name == "tiledb._fragment":
             fragment_ext = ext
+        elif ext.name == "tiledb._query_condition":
+            query_condition_ext = ext
 
     print("tiledb_ext: ", tiledb_ext)
     print("core_ext: ", core_ext)
     print("fragment_ext: ", fragment_ext)
+    print("query_condition_ext: ", query_condition_ext)
     print("tiledb_ext.library_dirs: ", tiledb_ext.library_dirs)
     wheel_build = getattr(tiledb_ext, "tiledb_wheel_build", False)
     from_source = getattr(tiledb_ext, "tiledb_from_source", False)
@@ -323,6 +326,7 @@ def find_or_install_libtiledb(setuptools_cmd):
             tiledb_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
             core_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
             fragment_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
+            query_condition_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
 
         # Update the TileDB Extension instance with correct build-time paths.
         tiledb_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
@@ -331,6 +335,8 @@ def find_or_install_libtiledb(setuptools_cmd):
         core_ext.include_dirs += [os.path.join(prefix_dir, "include")]
         fragment_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
         fragment_ext.include_dirs += [os.path.join(prefix_dir, "include")]
+        query_condition_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
+        query_condition_ext.include_dirs += [os.path.join(prefix_dir, "include")]
 
         # Update package_data so the shared object gets installed with the Python module.
         libtiledb_objects = [
@@ -596,6 +602,16 @@ __extensions = [
     Extension(
         "tiledb._fragment",
         ["tiledb/fragment.cc"],
+        include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
+        language="c++",
+        library_dirs=LIB_DIRS,
+        libraries=LIBS,
+        extra_link_args=LFLAGS,
+        extra_compile_args=CXXFLAGS,
+    ),
+    Extension(
+        "tiledb._query_condition",
+        ["tiledb/query_condition.cc"],
         include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
         language="c++",
         library_dirs=LIB_DIRS,

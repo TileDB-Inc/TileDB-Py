@@ -70,6 +70,7 @@ cdef class DomainIndexer(object):
             subarray.append((subidx.start, subidx.stop))
 
         attr_names = list(schema.attr(i).name for i in range(schema.nattr))
+        attr_cond = None
 
         order = None
         # TODO make coords optional for array.domain_index. there are no kwargs in slicing[], so
@@ -81,6 +82,7 @@ cdef class DomainIndexer(object):
             # if we are called via Query object, then we need to respect Query semantics
             order = self.query.order
             attr_names = self.query.attrs if self.query.attrs else attr_names # query.attrs might be None -> all
+            attr_cond = self.query.attr_cond
             coords = self.query.coords
 
         if coords:

@@ -19,6 +19,7 @@
 * Dataframe creation uses Zstd default compression level (-1) [#552](https://github.com/TileDB-Inc/TileDB-Py/pull/552)
 * Rename Fragment Info API's `non_empty_domain` attribute to `nonempty_domain` [#553](https://github.com/TileDB-Inc/TileDB-Py/pull/553)
 * Added configuration option `py.alloc_max_bytes` to control maximum initial buffer allocation [#557](https://github.com/TileDB-Inc/TileDB-Py/pull/557)
+* Addition of `QueryCondition` API to filter query on attributes [#576](https://github.com/TileDB-Inc/TileDB-Py/pull/576)
 
 ## Bug fixes
 * Fixed incorrected error raised in .df[] indexer when pyarrow not installed [#554](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
