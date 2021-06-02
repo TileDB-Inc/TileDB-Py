@@ -605,7 +605,7 @@ __extensions = [
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
+        extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
     ),
     Extension(
         "tiledb._fragment",
@@ -615,7 +615,7 @@ __extensions = [
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
+        extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
     ),
     Extension(
         "tiledb._query_condition",
