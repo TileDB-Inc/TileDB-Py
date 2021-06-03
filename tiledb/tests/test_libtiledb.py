@@ -81,7 +81,7 @@ class StatsTest(DiskTestCase):
             if tiledb.libtiledb.version() < (2, 3):
                 self.assertTrue("==== READ ====" in stats_v)
             else:
-                self.assertTrue("--- Timers ---" in stats_v)
+                self.assertTrue('"timers": {' in stats_v)
             self.assertTrue("==== Python Stats ====" in stats_v)
 
             if tiledb.libtiledb.version() < (2, 3):
