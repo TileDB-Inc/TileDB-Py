@@ -75,6 +75,7 @@ stages:
         # cmd/cibw/python chain we end up losing the slashes entirely if we use a job-level variable.
         MPATH=$(python -c 'import os; print(os.environ["TILEDB_INSTALL"].replace("\\","/"))')
         export CIBW_ENVIRONMENT="TILEDB_PATH=${MPATH}"
+        export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt"
         echo "##vso[task.setvariable variable=CIBW_ENVIRONMENT]$CIBW_ENVIRONMENT"
       displayName: "Set CIBW_ENVIRONMENT"
       condition: succeeded()
@@ -96,6 +97,7 @@ stages:
     - script: |
         echo ON
         set "CIBW_BUILD_VERBOSITY=3"
+        set "CIBW_BEFORE_BUILD=python -m pip install -r misc/requirements_wheel.txt"
         set "TILEDB_WHEEL_BUILD=1"
         echo "cibw env: "
         echo "%CIBW_ENVIRONMENT%"
