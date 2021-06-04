@@ -843,6 +843,8 @@ public:
   }
 
   void resubmit_read() {
+    auto start_incomplete_buffer_update =
+        std::chrono::high_resolution_clock::now();
     for (auto &bp : buffers_) {
       auto &buf = bp.second;
 
@@ -874,6 +876,12 @@ public:
     // note: this block confuses lldb. continues from here unless bp set after
     // block.
     set_buffers();
+
+    if (g_stats) {
+      auto now = std::chrono::high_resolution_clock::now();
+      g_stats.get()->counters["py.read_query_incomplete_buffer_resize_time"] +=
+          now - start_incomplete_buffer_update;
+    }
 
     auto start_incomplete = std::chrono::high_resolution_clock::now();
     {
@@ -1003,7 +1011,7 @@ public:
 
     if (g_stats) {
       auto now = std::chrono::high_resolution_clock::now();
-      g_stats.get()->counters["py.read_query_initial_submit_time"] +=
+      g_stats.get()->counters["py.core_read_query_initial_submit_time"] +=
           now - start_submit;
     }
 
@@ -1016,6 +1024,8 @@ public:
       metadata_num_preload.get();
     }
 
+    auto incomplete_start = std::chrono::high_resolution_clock::now();
+
     // TODO: would be nice to have a callback here for custom realloc strategy
     while (!return_incomplete_ &&
            query_->query_status() == Query::Status::INCOMPLETE) {
@@ -1023,20 +1033,33 @@ public:
         TPY_ERROR_LOC(
             "Exceeded maximum retries ('py.max_incomplete_retries': '" +
             std::to_string(max_retries) + "')");
+
       resubmit_read();
     }
+
+    if (g_stats && retries_ > 0) {
+      auto now = std::chrono::high_resolution_clock::now();
+      g_stats.get()->counters["py.core_read_query_incomplete_retry_time"] +=
+          now - incomplete_start;
+    }
+
+    // update TileDB-Py stat counter
+    if (g_stats) {
+      auto now = std::chrono::high_resolution_clock::now();
+      g_stats.get()->counters["py.core_read_query_total_time"] += now - start;
+    }
+
+    if (g_stats) {
+      auto now = std::chrono::high_resolution_clock::now();
+      g_stats.get()->counters["py.query_retries_count"] += TimerType(retries_);
+    }
+    std::cout << "retries: " << retries_ << std::endl;
 
     resize_output_buffers();
 
     if (return_incomplete_) {
       // increment in case we submit again
       retries_++;
-    }
-
-    // update TileDB-Py stat counter
-    if (g_stats) {
-      auto now = std::chrono::high_resolution_clock::now();
-      g_stats.get()->counters["py.read_query_time"] += now - start;
     }
   }
 
@@ -1268,11 +1291,12 @@ void init_stats() {
   g_stats.reset(new StatsInfo());
 
   auto stats_counters = g_stats.get()->counters;
-  stats_counters["py.read_query_time"] = TimerType();
-  stats_counters["py.write_query_time"] = TimerType();
+  stats_counters["py.core_read_query_initial_submit_time"] = TimerType();
+  stats_counters["py.core_read_query_total_time"] = TimerType();
+  stats_counters["py.core_read_query_incomplete_retry_time"] = TimerType();
   stats_counters["py.buffer_conversion_time"] = TimerType();
-  stats_counters["py.read_query_initial_submit_time"] = TimerType();
-  stats_counters["py.read_incomplete_update_time"] = TimerType();
+  stats_counters["py.read_query_incomplete_buffer_resize_time"] = TimerType();
+  stats_counters["py.query_retries_count"] = TimerType();
 }
 
 void disable_stats() { g_stats.reset(nullptr); }
@@ -1317,30 +1341,31 @@ std::string python_internal_stats() {
 
   // core.cc is only tracking read time right now; don't print if we
   // have no query submission time
-  auto rq_time = counters["py.read_query_initial_submit_time"].count();
+  auto rq_time = counters["py.core_read_query_initial_submit_time"].count();
   if (rq_time == 0)
     return os.str();
 
   os << std::endl;
   os << "==== Python Stats ====" << std::endl << std::endl;
-  os << "- TileDB-Py Indexing Time: " << counters["py.getitem_time"].count()
-     << std::endl;
-  os << "  * TileDB-Py query execution time: "
-     << counters["py.read_query_time"].count() << std::endl;
-  os << "    > TileDB C++ Core initial query submit time: "
-     << counters["py.read_query_initial_submit_time"].count() << std::endl;
+  os << "* Total TileDB query time: "
+     << counters["py.core_read_query_total_time"].count() << std::endl;
+  os << "  > TileDB Core initial query submit time: "
+     << counters["py.core_read_query_initial_submit_time"].count() << std::endl;
 
-  std::string key1 = "py.read_query_incomplete_submit_time";
+  std::string key1 = "py.core_read_query_incomplete_retry_time";
   if (counters.count(key1) == 1) {
-    os << "    > TileDB C++ Core incomplete resubmit(s) time: "
-       << counters[key1].count() << std::endl;
-    os << "    > TileDB-Py incomplete buffer updates: "
-       << counters["py.read_incomplete_update_time"].count() << std::endl;
+    os << "  > TileDB Core incomplete retry time: " << counters[key1].count()
+       << std::endl;
+    os << "  > TileDB-Py buffer update time: "
+       << counters["py.read_query_incomplete_buffer_resize_time"].count()
+       << std::endl;
+    os << "  > TileDB-Py retry count: "
+       << (size_t)counters["py.query_retries_count"].count() << std::endl;
   }
 
   std::string key3 = "py.buffer_conversion_time";
   if (counters.count(key3) == 1) {
-    os << "  * TileDB-Py buffer conversion time: " << counters[key3].count()
+    os << "* TileDB-Py buffer conversion time: " << counters[key3].count()
        << std::endl;
   }
 
