@@ -4,6 +4,13 @@
 * Disabled libtiledb Werror compilation argument for from-source builds via setup.py [#574](https://github.com/TileDB-Inc/TileDB-Py/pull/574)
 * Relaxed NumPy version requirements for from-source builds via setup.py [#575](https://github.com/TileDB-Inc/TileDB-Py/pull/575)
 
+## Bug fixes
+* Fixed FragmentInfoList where context was not being passed to ArraySchema [#573](https://github.com/TileDB-Inc/TileDB-Py/pull/573)
+  * Fixed FragmentInfoList where context was not being passed to ArraySchema [#578](https://github.com/TileDB-Inc/TileDB-Py/pull/578)
+* Fixed read bug due to large estimated result size [#579](https://github.com/TileDB-Inc/TileDB-Py/pull/579)
+* Fixed bug reading nullable attributes due to missing buffer resize [#581](https://github.com/TileDB-Inc/TileDB-Py/pull/581)
+* Fixed Python output for `tiledb.stats_dump` [#586](https://github.com/TileDB-Inc/TileDB-Py/pull/586)
+
 # TileDB-Py 0.8.9 Release Notes
 
 ## TileDB Embedded updates:
@@ -25,7 +32,6 @@
 * Fixed `from_pandas(attr_filters=None, dim_filters=None)` (previously used internal defaults) [#564](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
 * Fixed `from_pandas` write bug due to incorrect classification of str/bytes columns [#562](https://github.com/TileDB-Inc/TileDB-Py/pull/562)
 * Fix segfault due to mismatched validity num and data buffer sizes [#567](https://github.com/TileDB-Inc/TileDB-Py/pull/567)
-* Fixed FragmentInfoList where context was not being passed to ArraySchema [#578](https://github.com/TileDB-Inc/TileDB-Py/pull/578)
 
 # TileDB-Py 0.8.8 Release Notes
 
