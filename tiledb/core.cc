@@ -924,7 +924,6 @@ public:
           now - start_incomplete_buffer_update;
     }
 
-    auto start_incomplete = std::chrono::high_resolution_clock::now();
     {
       py::gil_scoped_release release;
       query_->submit();
@@ -1092,7 +1091,6 @@ public:
     }
 
     if (g_stats) {
-      auto now = std::chrono::high_resolution_clock::now();
       g_stats.get()->counters["py.query_retries_count"] += TimerType(retries_);
     }
     std::cout << "retries: " << retries_ << std::endl;
