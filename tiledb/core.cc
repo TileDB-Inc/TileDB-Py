@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <future>
 #include <iostream>
@@ -6,10 +7,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include "numpy/arrayobject.h"
-#undef NPY_NO_DEPRECATED_API
 
 #include "npbuffer.h"
 #include "util.h"
@@ -179,6 +176,29 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
       return py::dtype("M8[fs]");
     case TILEDB_DATETIME_AS:
       return py::dtype("M8[as]");
+
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
+    /* duration types map to timedelta */
+    case TILEDB_TIME_HR:
+      return py::dtype("m8[h]");
+    case TILEDB_TIME_MIN:
+      return py::dtype("m8[m]");
+    case TILEDB_TIME_SEC:
+      return py::dtype("m8[s]");
+    case TILEDB_TIME_MS:
+      return py::dtype("m8[ms]");
+    case TILEDB_TIME_US:
+      return py::dtype("m8[us]");
+    case TILEDB_TIME_NS:
+      return py::dtype("m8[ns]");
+    case TILEDB_TIME_PS:
+      return py::dtype("m8[ps]");
+    case TILEDB_TIME_FS:
+      return py::dtype("m8[fs]");
+    case TILEDB_TIME_AS:
+      return py::dtype("m8[as]");
+#endif
+
     case TILEDB_ANY:
       break;
     }
@@ -234,7 +254,7 @@ uint8_bool_to_uint8_bitmap(py::array_t<uint8_t> validity_array) {
 
 uint64_t count_zeros(py::array_t<uint8_t> a) {
   uint64_t count = 0;
-  for (size_t idx = 0; idx < a.size(); idx++)
+  for (ssize_t idx = 0; idx < a.size(); idx++)
     count += (a.data()[idx] == 0) ? 1 : 0;
   return count;
 }
@@ -503,6 +523,17 @@ public:
       case TILEDB_DATETIME_PS:
       case TILEDB_DATETIME_FS:
       case TILEDB_DATETIME_AS: {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
+      case TILEDB_TIME_HR:
+      case TILEDB_TIME_MIN:
+      case TILEDB_TIME_SEC:
+      case TILEDB_TIME_MS:
+      case TILEDB_TIME_US:
+      case TILEDB_TIME_NS:
+      case TILEDB_TIME_PS:
+      case TILEDB_TIME_FS:
+      case TILEDB_TIME_AS:
+#endif
         py::dtype dtype = tiledb_dtype(tiledb_type, 1);
         auto dt0 = py::isinstance<py::int_>(r0) ? r0 : r0.attr("astype")(dtype);
         auto dt1 = py::isinstance<py::int_>(r1) ? r1 : r1.attr("astype")(dtype);
@@ -735,7 +766,7 @@ public:
       result.append(b.data);
       result.append(b.offsets);
     }
-    return result;
+    return std::move(result);
   }
 
   void set_buffers() {
@@ -893,7 +924,6 @@ public:
           now - start_incomplete_buffer_update;
     }
 
-    auto start_incomplete = std::chrono::high_resolution_clock::now();
     {
       py::gil_scoped_release release;
       query_->submit();
@@ -915,12 +945,13 @@ public:
       auto name = bp.first;
       auto &buf = bp.second;
 
-      auto final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
-      auto final_offsets_count = buf.offsets_read + arrow_offset_size;
-      auto final_validity_count = buf.validity_vals_read;
+      ssize_t final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
+      ssize_t final_offsets_count = buf.offsets_read + arrow_offset_size;
+      ssize_t final_validity_count = buf.validity_vals_read;
 
       assert(final_data_nbytes <= buf.data.size());
-      assert(final_offsets_count <= buf.offsets.size() + arrow_offset_size);
+      assert(final_offsets_count <=
+             (ssize_t)(buf.offsets.size() + arrow_offset_size));
 
       buf.data.resize({final_data_nbytes});
       buf.offsets.resize({final_offsets_count});
@@ -1060,7 +1091,6 @@ public:
     }
 
     if (g_stats) {
-      auto now = std::chrono::high_resolution_clock::now();
       g_stats.get()->counters["py.query_retries_count"] += TimerType(retries_);
     }
     std::cout << "retries: " << retries_ << std::endl;
@@ -1269,14 +1299,13 @@ public:
         auto est_sizes = query_->est_result_size_var(name);
         est_offsets = std::get<0>(est_sizes);
         est_data_bytes = std::get<1>(est_sizes);
-        est_offsets = est_offsets;
       } else {
         est_data_bytes = query_->est_result_size(name);
       }
       results[py::str(name)] = py::make_tuple(est_offsets, est_data_bytes);
     }
 
-    return results;
+    return std::move(results);
   }
 
   py::array _test_array() {

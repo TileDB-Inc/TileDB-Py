@@ -1,3 +1,5 @@
+#include <cmath>
+
 #ifndef TILEDB_PY_UTIL_H
 #define TILEDB_PY_UTIL_H
 

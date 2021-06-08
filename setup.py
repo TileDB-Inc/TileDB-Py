@@ -538,11 +538,17 @@ for arg in args:
     if arg.find("--modular") == 0:
         TILEDBPY_MODULAR = True
         sys.argv.remove(arg)
+    TILEDBPY_WERROR = False
+    if arg.find("--werror") == 0:
+        TILEDBPY_WERROR = True
+        sys.argv.remove(arg)
 
 # Global variables
 CXXFLAGS = os.environ.get("CXXFLAGS", "").split()
 if not is_windows():
     CXXFLAGS.append("-std=c++11")
+    if TILEDBPY_WERROR or TILEDB_DEBUG_BUILD:
+        CXXFLAGS.append("-Werror")
     if not TILEDB_DEBUG_BUILD:
         CXXFLAGS.append("-Wno-deprecated-declarations")
     elif TILEDB_DEBUG_BUILD:
@@ -586,7 +592,9 @@ __extensions = [
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
+        extra_compile_args=CXXFLAGS.copy().remove("-Werror")
+        if CXXFLAGS.count("-Werror")
+        else CXXFLAGS,
         language="c++",
     ),
     Extension(
@@ -597,7 +605,7 @@ __extensions = [
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
+        extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
     ),
     Extension(
         "tiledb._fragment",
@@ -607,7 +615,7 @@ __extensions = [
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
+        extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
     ),
     Extension(
         "tiledb._query_condition",

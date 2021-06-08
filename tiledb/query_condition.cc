@@ -92,8 +92,8 @@ public:
         ctx_.ptr().get(), qc_->ptr().get(), rhs.qc_->ptr().get(),
         combination_op, &combined_qc));
 
-    pyqc.qc_ = std::move(std::shared_ptr<QueryCondition>(
-        new QueryCondition(pyqc.ctx_, combined_qc)));
+    pyqc.qc_ = std::shared_ptr<QueryCondition>(
+        new QueryCondition(pyqc.ctx_, combined_qc));
 
     return pyqc;
   }
