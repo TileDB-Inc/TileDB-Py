@@ -222,34 +222,11 @@ def _get_attrs(names, column_infos, attr_filters):
     return attrs, attr_reprs
 
 
-def dim_for_column(
-    name, dim_info, col, tile=None, full_domain=False, ndim=None, dim_filters=None
-):
-    if isinstance(col, np.ndarray):
-        col_values = col
-    else:
-        col_values = col.values
-
-    if tile is None:
-        if ndim is None:
-            raise TileDBError("Unexpected Nonetype ndim")
-
-        if ndim == 1:
-            tile = 10000
-        elif ndim == 2:
-            tile = 1000
-        elif ndim == 3:
-            tile = 100
-        else:
-            tile = 10
-
-    dtype = dim_info.dtype
-
+def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=None):
     if full_domain:
-        if dim_info.dtype not in (np.bytes_, np.unicode_):
+        if dtype not in (np.bytes_, np.str_):
             # Use the full type domain, deferring to the constructor
-            dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dim_info.dtype)
-
+            dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dtype)
             dim_max = dtype_max
             if dtype.kind == "M":
                 date_unit = np.datetime_data(dtype)[0]
@@ -260,185 +237,121 @@ def dim_for_column(
             else:
                 dim_min = dtype_min
 
-            if dtype.kind != "M" and np.issubdtype(dtype, np.integer):
+            if np.issubdtype(dtype, np.integer):
                 tile_max = np.iinfo(np.uint64).max - tile
                 if np.uint64(dtype_max - dtype_min) > tile_max:
                     dim_max = dtype_max - tile
         else:
-            dim_min, dim_max = (None, None)
-
+            dim_min, dim_max = None, None
     else:
-        dim_min = np.min(col_values)
-        dim_max = np.max(col_values)
+        if not isinstance(values, np.ndarray):
+            values = values.values
+        dim_min = np.min(values)
+        dim_max = np.max(values)
 
-    if dim_info.dtype not in (np.bytes_, np.unicode_):
-        if np.issubdtype(dtype, np.integer) or dtype.kind == "M":
-            dim_range = np.uint64(dim_max - dim_min)
-            # we can't make a tile larger than the dimension range or lower than 1
-            tile = max(1, min(tile, dim_range))
-        elif np.issubdtype(dtype, np.floating):
-            # this difference can be inf
-            with np.errstate(over="ignore"):
-                dim_range = dim_max - dim_min
-            if dim_range < tile:
-                tile = np.ceil(dim_range)
+    if np.issubdtype(dtype, np.integer) or dtype.kind == "M":
+        # we can't make a tile larger than the dimension range or lower than 1
+        tile = max(1, min(tile, np.uint64(dim_max - dim_min)))
+    elif np.issubdtype(dtype, np.floating):
+        # this difference can be inf
+        with np.errstate(over="ignore"):
+            dim_range = dim_max - dim_min
+        if dim_range < tile:
+            tile = np.ceil(dim_range)
 
-    # libtiledb only supports TILEDB_ASCII dimensions, so we must use
-    # nb.bytes_ which will force encoding on write
-    dim_dtype = np.bytes_ if dim_info.dtype == np.dtype("U") else dim_info.dtype
-
-    dim = tiledb.Dim(
+    return tiledb.Dim(
         name=name,
         domain=(dim_min, dim_max),
-        dtype=dim_dtype,
+        # libtiledb only supports TILEDB_ASCII dimensions, so we must use
+        # nb.bytes_ which will force encoding on write
+        dtype=np.bytes_ if dtype == np.str_ else dtype,
         tile=tile,
         filters=dim_filters,
     )
 
-    return dim
 
-
-def get_index_metadata(dataframe):
-    md = dict()
-    for index in dataframe.index.names:
-        index_md_name = index
-        if index == None:
-            index_md_name = "__tiledb_rows"
-        # Note: this may be expensive.
-        values = dataframe.index.get_level_values(index)
-        md[index_md_name] = ColumnInfo.from_values(values).dtype
-
-    return md
-
-
-def create_dims(
-    dataframe,
-    index_dims,
-    tile=None,
-    full_domain=False,
-    sparse=None,
-    filters: Union[dict, "tiledb.FilterList", None] = None,
-):
-    import pandas as pd
-
-    per_dim_tile = False
-    if tile is not None:
-        if isinstance(tile, dict):
-            per_dim_tile = True
-
-        # input check, can't do until after per_dim_tile
-        if (
-            per_dim_tile
-            and not all(map(lambda x: isinstance(x, (int, float)), tile.values()))
-        ) or (per_dim_tile is False and not isinstance(tile, (int, float))):
-            raise ValueError(
-                "Invalid tile kwarg: expected int or dict of column names mapped to ints. "
-                "Got '{}'".format(tile)
-            )
-
-    index = dataframe.index
-    index_name_values = []
-    dim_types = []
-
-    if isinstance(index, pd.MultiIndex):
-        for name in index.names:
-            values = index.get_level_values(name)
-            index_name_values.append((name, values))
-            dim_types.append(ColumnInfo.from_values(values))
-
-    elif isinstance(index, (pd.Index, pd.RangeIndex, pd.Int64Index)):
-        values = index.values
-        name = getattr(index, "name", None)
-        if name is None:
-            name = "__tiledb_rows"
-            dim_types.append(ColumnInfo.from_dtype(np.dtype("uint64")))
-        else:
-            dim_types.append(ColumnInfo.from_values(values))
-        index_name_values.append((name, values))
-    else:
-        raise ValueError(f"Unhandled index type {type(index)}")
-
-    if any(d.dtype in (np.bytes_, np.unicode_) for d in dim_types):
+def _sparse_from_dtypes(dtypes, sparse=None):
+    if any(dtype in (np.bytes_, np.str_) for dtype in dtypes):
         if sparse is False:
             raise TileDBError("Cannot create dense array with string-typed dimensions")
-        elif sparse is None:
-            sparse = True
+        if sparse is None:
+            return True
 
-    d0 = dim_types[0]
-    if not all(d0.dtype == d.dtype for d in dim_types[1:]):
+    dtype0 = next(iter(dtypes))
+    if not all(dtype0 == dtype for dtype in dtypes):
         if sparse is False:
             raise TileDBError(
                 "Cannot create dense array with heterogeneous dimension data types"
             )
-        elif sparse is None:
-            sparse = True
+        if sparse is None:
+            return True
 
     # Fall back to default dense type if unspecified and not inferred from dimension types
-    if sparse is None:
-        sparse = False
+    return sparse if sparse is not None else False
 
-    ndim = len(dim_types)
 
-    dims = list()
-    for idx, (name, values) in enumerate(index_name_values):
-        if len(values) < 1:
-            raise ValueError(f"Empty column '{name}' cannot be used as dimension")
+def create_dims(
+    df,
+    index_dims,
+    tile=None,
+    full_domain=False,
+    filters=None,
+):
+    per_dim_tile = isinstance(tile, dict)
+    if tile is not None:
+        tile_values = tile.values() if per_dim_tile else (tile,)
+        if not all(isinstance(v, (int, float)) for v in tile_values):
+            raise ValueError(
+                "Invalid tile kwarg: expected int or dict of column names mapped to ints. "
+                f"Got '{tile!r}'"
+            )
 
-        # get the FilterList, if any
-        dim_filters = _get_attr_dim_filters(name, filters)
+    index = df.index
+    name_dtype_values = []
+    dim_metadata = {}
 
-        if per_dim_tile and name in tile:
-            dim_tile = tile[name]
-        elif per_dim_tile:
-            # in this case we fall back to the default
-            dim_tile = None
+    for name in index_dims or index.names:
+        if name in index.names:
+            values = index.get_level_values(name)
+        elif name in df.columns:
+            values = df[name]
         else:
-            # in this case we use a scalar (type-checked earlier)
-            dim_tile = tile
+            raise ValueError(f"Unknown column or index named {name!r}")
 
-        dims.append(
-            dim_for_column(
-                name,
-                dim_types[idx],
-                values,
-                tile=dim_tile,
-                full_domain=full_domain,
-                ndim=ndim,
-                dim_filters=dim_filters,
-            )
+        dtype = ColumnInfo.from_values(values).dtype
+        if name is None:
+            name = "__tiledb_rows"
+            # force unnamed index to to uint64
+            # TODO: this looks iffy, check if we should we keep doing this
+            internal_dtype = np.dtype("uint64")
+        else:
+            internal_dtype = dtype
+
+        dim_metadata[name] = dtype
+        name_dtype_values.append((name, internal_dtype, values))
+
+    ndim = len(name_dtype_values)
+    default_dim_tile = (
+        10000 if ndim == 1 else 1000 if ndim == 2 else 100 if ndim == 3 else 10
+    )
+
+    def get_dim_tile(name):
+        dim_tile = tile.get(name) if per_dim_tile else tile
+        return dim_tile if dim_tile is not None else default_dim_tile
+
+    dims = [
+        dim_for_column(
+            name,
+            values,
+            dtype,
+            tile=get_dim_tile(name),
+            full_domain=full_domain,
+            dim_filters=_get_attr_dim_filters(name, filters),
         )
+        for name, dtype, values in name_dtype_values
+    ]
 
-    if index_dims:
-        for name in index_dims:
-            if per_dim_tile and name in tile:
-                dim_tile = tile[name]
-            elif per_dim_tile:
-                # in this case we fall back to the default
-                dim_tile = None
-            else:
-                # in this case we use a scalar  (type-checked earlier)
-                dim_tile = tile
-
-            # get the FilterList, if any
-            if isinstance(filters, dict) and name in filters:
-                dim_filters = filters[name]
-            elif filters is not None:
-                dim_filters = filters
-            else:
-                dim_filters = None
-
-            col = dataframe[name]
-            dims.append(
-                dim_for_column(
-                    name,
-                    dataframe,
-                    col.values,
-                    tile=dim_tile,
-                    dim_filters=dim_filters,
-                )
-            )
-
-    return dims, sparse
+    return dims, dim_metadata
 
 
 def write_array_metadata(array, attr_metadata=None, index_metadata=None):
@@ -518,7 +431,7 @@ def from_pandas(uri, dataframe, **kwargs):
         raise TileDBError("Array URI '{}' already exists!".format(uri))
 
     sparse = tiledb_args["sparse"]
-    index_dims = tiledb_args.get("index_dims")
+    index_dims = tiledb_args.get("index_dims") or ()
     row_start_idx = tiledb_args.get("row_start_idx")
 
     write = True
@@ -537,7 +450,7 @@ def from_pandas(uri, dataframe, **kwargs):
 
     # TODO: disentangle the full_domain logic
     full_domain = tiledb_args.get("full_domain", False)
-    if sparse == False and (index_dims is None or "index_col" not in kwargs):
+    if sparse == False and (not index_dims or "index_col" not in kwargs):
         full_domain = True
     if full_domain is None and tiledb_args.get("nrows"):
         full_domain = False
@@ -580,28 +493,24 @@ def from_pandas(uri, dataframe, **kwargs):
                 write_dict,
                 nullmaps,
                 create_array,
+                index_dims,
                 row_start_idx,
                 timestamp=tiledb_args.get("timestamp"),
             )
 
 
 def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb_args):
-    # create the domain and attributes
-    # if sparse==None then this function may return a default based on types
-    dims, sparse = create_dims(
+    dims, dim_metadata = create_dims(
         df,
         index_dims,
-        sparse=sparse,
         full_domain=full_domain,
         tile=tiledb_args.get("tile"),
         filters=tiledb_args.get("dim_filters", True),
     )
+    sparse = _sparse_from_dtypes(dim_metadata.values(), sparse)
 
-    attr_names = df.columns
     # ignore any column used as a dim/index
-    if index_dims:
-        attr_names = (name for name in attr_names if name not in index_dims)
-
+    attr_names = [c for c in df.columns if c not in index_dims]
     attrs, attr_metadata = _get_attrs(
         attr_names, column_infos, tiledb_args.get("attr_filters", True)
     )
@@ -625,11 +534,18 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
 
     # write the metadata so we can reconstruct df
     with tiledb.open(uri, "w") as A:
-        write_array_metadata(A, attr_metadata, get_index_metadata(df))
+        write_array_metadata(A, attr_metadata, dim_metadata)
 
 
 def _write_array(
-    uri, df, write_dict, nullmaps, create_array, row_start_idx=None, timestamp=None
+    uri,
+    df,
+    write_dict,
+    nullmaps,
+    create_array,
+    index_dims,
+    row_start_idx=None,
+    timestamp=None,
 ):
     with tiledb.open(uri, "w", timestamp=timestamp) as A:
         if A.schema.sparse:
@@ -637,7 +553,7 @@ def _write_array(
             for k in range(A.schema.ndim):
                 dim_name = A.schema.domain.dim(k).name
                 if (
-                    not create_array
+                    (not create_array or dim_name in index_dims)
                     and dim_name not in df.index.names
                     and dim_name != "__tiledb_rows"
                 ):

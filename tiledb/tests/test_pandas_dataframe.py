@@ -440,6 +440,32 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 res_df = pd.DataFrame(res, index=index)
                 tm.assert_frame_equal(new_df, res_df, check_like=True)
 
+    def test_dataframe_set_index_dims(self):
+        uri = self.path("df_set_index_dims")
+
+        df = make_dataframe_basic3()
+        tiledb.from_pandas(uri, df, sparse=True, index_dims=["time"])
+
+        df_readback = tiledb.open_dataframe(uri)
+        df_reindexed = df.set_index("time")
+        tm.assert_frame_equal(df_reindexed, df_readback)
+
+        with tiledb.open(uri) as B:
+            tm.assert_frame_equal(df_reindexed, B.df[:])
+
+    def test_dataframe_append_index_dims(self):
+        uri = self.path("df_append_index_dims")
+
+        df = make_dataframe_basic3()
+        tiledb.from_pandas(uri, df, sparse=True, index_dims=[None, "time"])
+
+        df_readback = tiledb.open_dataframe(uri)
+        df_reindexed = df.set_index("time", append=True)
+        tm.assert_frame_equal(df_reindexed, df_readback)
+
+        with tiledb.open(uri) as B:
+            tm.assert_frame_equal(df_reindexed, B.df[:])
+
     def test_dataframe_multiindex_dims(self):
         uri = self.path("df_multiindex_dims")
 
