@@ -1,3 +1,8 @@
+# TileDB-Py 0.8.11 Release Notes
+
+## Bug fixes
+* Fixed incorrect NumPy ABI target in Linux wheels [#590](https://github.com/TileDB-Inc/TileDB-Py/pull/590)
+
 # TileDB-Py 0.8.10 Release Notes
 
 ## Improvements
