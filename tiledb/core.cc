@@ -1053,7 +1053,6 @@ public:
       auto now = std::chrono::high_resolution_clock::now();
       g_stats.get()->counters["py.query_retries_count"] += TimerType(retries_);
     }
-    std::cout << "retries: " << retries_ << std::endl;
 
     resize_output_buffers();
 
