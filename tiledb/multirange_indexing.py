@@ -384,10 +384,10 @@ def _update_df_from_meta(
             if name in df:
                 col_dtypes[name] = dtype
 
-    index_names = []
+    index_cols = []
     if "__pandas_index_dims" in array_meta:
         index_dtypes = json.loads(array_meta["__pandas_index_dims"])
-        index_names.extend(index_dtypes.keys())
+        index_cols.extend(col for col in index_dtypes.keys() if col in df)
         for name, dtype in index_dtypes.items():
             if name in df:
                 col_dtypes[name] = dtype
@@ -400,19 +400,16 @@ def _update_df_from_meta(
             # if we have a query with index_col set, then override any
             # index information saved with the array.
             df.set_index(index_col, inplace=True)
-        elif index_names:
+        elif index_cols:
             # set index the index names that exist as columns
-            index_names_df = [name for name in index_names if name in df]
-            if index_names_df:
-                df.set_index(index_names_df, inplace=True)
+            df.set_index(index_cols, inplace=True)
 
-            # for single index column, ensure that the index name is preserved
-            # or renamed from __tiledb_rows to None
-            if len(index_names) == 1:
-                index_name = index_names[0]
-                if index_name == "__tiledb_rows":
-                    index_name = None
-                if df.index.name != index_name:
-                    df.index.rename(index_name, inplace=True)
+            # rename __tiledb_rows to None
+            if "__tiledb_rows" in index_cols:
+                index_cols[index_cols.index("__tiledb_rows")] = None
+                if len(index_cols) == 1:
+                    df.index.rename(index_cols[0], inplace=True)
+                else:
+                    df.index.rename(index_cols, inplace=True)
 
     return df
