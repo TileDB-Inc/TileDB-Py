@@ -13,6 +13,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
+#include <pybind11/stl.h>
 
 #define TILEDB_DEPRECATED
 #define TILEDB_DEPRECATED_EXPORT
@@ -278,6 +279,8 @@ private:
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
   uint64_t alloc_max_bytes_ = DEFAULT_ALLOC_MAX_BYTES;
 
+  py::object pyschema_;
+
 public:
   tiledb_ctx_t *c_ctx_;
   tiledb_array_t *c_array_;
@@ -308,6 +311,8 @@ public:
     // we never own this pointer, pass own=false
     array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false),
                                             [](Array *p) {} /* no deleter*/);
+
+    pyschema_ = array.attr("schema");
 
     bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
 
@@ -595,6 +600,14 @@ public:
 
   void set_attr_cond(py::object attr_cond) {
     if (!attr_cond.is(py::none())) {
+      py::object init_pyqc = attr_cond.attr("init_query_condition");
+
+      try {
+        init_pyqc(pyschema_, attrs_);
+      } catch (py::error_already_set &e) {
+        TPY_ERROR_LOC(e.what());
+      }
+
       auto pyqc = (attr_cond.attr("_c_obj")).cast<PyQueryCondition>();
       auto qc = pyqc.ptr().get();
       query_->set_condition(*qc);
