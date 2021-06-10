@@ -1,3 +1,6 @@
+# project.toml: Forces build isolation and other problems; ecosystem still spotty.
+pyproject.toml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
