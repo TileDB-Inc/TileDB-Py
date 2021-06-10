@@ -1,5 +1,8 @@
 #include <pybind11/embed.h>
 
+#ifndef TILEDBPY_DEBUGCC
+#define TILEDBPY_DEBUGCC
+
 namespace {
 extern "C" {
 
@@ -68,3 +71,5 @@ __attribute__((used)) static void pyerror() {
 }
 }
 }; // namespace
+
+#endif
