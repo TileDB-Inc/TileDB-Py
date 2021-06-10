@@ -493,20 +493,10 @@ def cmake_available():
 
 
 def setup_requires():
-    req = [
-        "cython>=0.27",
-        "numpy==1.16.* ; python_version < '3.9' and 'arm' not in platform_machine",
-        "numpy ; python_version >= '3.9' and 'arm' not in platform_machine",
-        "numpy ; 'arm' in platform_machine",
-        "setuptools>=18.0",
-        "setuptools_scm>=1.5.4",
-        "wheel>=0.30",
-        "pybind11>=2.6.2",
-    ]
     # Add cmake requirement if libtiledb is not found and cmake is not available.
     if not libtiledb_exists(LIB_DIRS) and not cmake_available():
-        req.append("cmake>=3.11.0")
-    return req
+        return ["cmake>=3.11.0"]
+    return []
 
 
 # Allow setting (lib) TileDB directory if it is installed on the system
