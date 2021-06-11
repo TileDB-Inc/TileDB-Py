@@ -1,10 +1,13 @@
 # note: cmake 3.13 is the last manylinux1 release on pypi
 cmake >= 3.13
-cython
-pybind11
-wheel
-setuptools-scm
-tox
-# numpy 1.20 dropped python 3.6 support
-numpy<1.20 ; python_version < "3.7"
--r requirements.txt
+numpy >= 1.16.5
+
+# -------------------------------------
+# sync with misc/requirements_wheel.txt
+cython >= 0.27
+pybind11 >= 2.6.2
+setuptools >= 18.0
+setuptools_scm >= 1.5.4
+wheel >= 0.30
+contextvars ;python_version<"3.7"
+dataclasses ;python_version<"3.7"

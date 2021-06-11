@@ -65,6 +65,8 @@ if sys.platform == "darwin":
         if python_target < "10.9" and current_system >= "10.9":
             os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
 
+# Is this process building a wheel?
+WHEEL_BUILD = ("bdist_wheel" in sys.argv) or ("TILEDB_WHEEL_BUILD" in os.environ)
 
 def is_windows():
     return os.name == "nt"
@@ -487,25 +489,21 @@ def cmake_available():
     try:
         output = subprocess.check_output(["cmake", "--version"]).split()
         version = output[2].decode("utf-8").split(".")
-        return int(version[0]) >= 3 and int(version[1]) >= 3
+        return int(version[0]) >= CMAKE_MINIMUM_MAJOR and int(version[1]) >= CMAKE_MINIMUM_MINOR
     except:
         return False
 
+def parse_requirements(req_file):
+    with open(req_file) as f:
+        return f.read().strip().split("\n")
 
 def setup_requires():
-    req = [
-        "cython>=0.27",
-        "numpy==1.16.* ; python_version < '3.9' and 'arm' not in platform_machine",
-        "numpy ; python_version >= '3.9' and 'arm' not in platform_machine",
-        "numpy ; 'arm' in platform_machine",
-        "setuptools>=18.0",
-        "setuptools_scm>=1.5.4",
-        "wheel>=0.30",
-        "pybind11>=2.6.2",
-    ]
-    # Add cmake requirement if libtiledb is not found and cmake is not available.
-    if not libtiledb_exists(LIB_DIRS) and not cmake_available():
-        req.append("cmake>=3.11.0")
+    if WHEEL_BUILD:
+        req = parse_requirements("misc/requirements_wheel.txt")
+    else:
+        req = parse_requirements("requirements_dev.txt")
+        req = list(filter(lambda r: not r.startswith("-r"), req))
+
     return req
 
 
@@ -664,7 +662,7 @@ def ext_attr_update(attr, value):
 # some of these will error out if passed directly
 # to Extension(..) above
 
-if ("bdist_wheel" in sys.argv) or ("TILEDB_WHEEL_BUILD" in os.environ):
+if WHEEL_BUILD:
     ext_attr_update("tiledb_wheel_build", True)
 
 
@@ -709,12 +707,7 @@ setup(
     },
     ext_modules=__extensions,
     setup_requires=setup_requires(),
-    install_requires=[
-        "numpy>=1.16",
-        "wheel>=0.30",
-        "contextvars ;python_version<'3.7'",
-        "dataclasses ;python_version<'3.7'",
-    ],
+    install_requires=parse_requirements("requirements.txt"),
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
     zip_safe=False,
