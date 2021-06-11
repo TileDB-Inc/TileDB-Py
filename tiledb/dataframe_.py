@@ -290,13 +290,7 @@ def _sparse_from_dtypes(dtypes, sparse=None):
     return sparse if sparse is not None else False
 
 
-def create_dims(
-    df,
-    index_dims,
-    tile=None,
-    full_domain=False,
-    filters=None,
-):
+def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
     per_dim_tile = isinstance(tile, dict)
     if tile is not None:
         tile_values = tile.values() if per_dim_tile else (tile,)
@@ -441,7 +435,8 @@ def from_pandas(uri, dataframe, **kwargs):
             write = False
         elif mode == "append":
             create_array = False
-            if not sparse and row_start_idx is None:
+            schema = tiledb.ArraySchema.load(uri)
+            if not schema.sparse and row_start_idx is None:
                 raise TileDBError(
                     "Cannot append to dense array without 'row_start_idx'"
                 )
