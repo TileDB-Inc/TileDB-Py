@@ -487,6 +487,8 @@ def cmake_available():
     Checks whether CMake command is available and >= version 3.3.
     :return:
     """
+    CMAKE_MINIMUM_MAJOR = 3
+    CMAKE_MINIMUM_MINOR = 3
     try:
         output = subprocess.check_output(["cmake", "--version"]).split()
         version = output[2].decode("utf-8").split(".")
@@ -509,6 +511,10 @@ def setup_requires():
     else:
         req = parse_requirements("requirements_dev.txt")
         req = list(filter(lambda r: not r.startswith("-r"), req))
+
+    # Add cmake requirement if libtiledb is not found and cmake is not available.
+    if not libtiledb_exists(LIB_DIRS) and not cmake_available():
+        req.append("cmake>=3.11.0")
 
     return req
 
