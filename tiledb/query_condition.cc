@@ -153,8 +153,6 @@ PYBIND11_MODULE(_query_condition, m) {
 
       .def("combine", &PyQueryCondition::combine);
 
-  // .def("check_attrs", &PyQueryCondition::check_attrs);
-
   py::enum_<tiledb_query_condition_op_t>(m, "tiledb_query_condition_op_t",
                                          py::arithmetic())
       .value("TILEDB_LT", TILEDB_LT)

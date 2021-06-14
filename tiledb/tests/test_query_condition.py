@@ -122,3 +122,7 @@ class QueryConditionTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < 1")
                 A.query(attr_cond=qc, attrs=["D"]).df[:]
+
+            with self.assertRaises(tiledb.TileDBError):
+                qc = tiledb.QueryCondition("U < 10000000000000000000000.0")
+                A.query(attr_cond=qc, attrs=["U"]).df[:]

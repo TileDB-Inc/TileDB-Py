@@ -155,8 +155,18 @@ class QueryCondition(ast.NodeVisitor):
                 )
 
         c_obj = qc.qc(self._ctx)
+
+        if not hasattr(c_obj, f"init_{dtype_name}"):
+            raise tiledb.TileDBError(
+                f"PyQueryCondition's `init_{dtype_name}` not found."
+            )
+
         init_qc = getattr(c_obj, f"init_{dtype_name}")
-        init_qc(att, val, op)
+
+        try:
+            init_qc(att, val, op)
+        except tiledb.TileDBError as e:
+            raise tiledb.TileDBError(e)
 
         return c_obj
 
