@@ -56,7 +56,8 @@ setup_venv() {
   source "${venv_dir}/bin/activate" || die "could not activate virtualenv"
   pip install 'Sphinx==1.6.7' \
        'breathe' \
-       'sphinx_rtd_theme' || die "could not install doc dependencies"
+       'sphinx_rtd_theme' \
+       -r ../requirements_dev.txt || die "could not install doc dependencies"
 }
 
 build_ext() {
