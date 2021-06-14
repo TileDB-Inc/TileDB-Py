@@ -390,13 +390,13 @@ class AttributeTest(DiskTestCase):
             # (str, "defg"),
             (np.float32, np.float32(0.4023573667780681)),
             (np.float64, np.float64(0.0560602549760851)),
-            (np.datetime64("", "ns"), np.timedelta64(11, "ns")),
+            (np.dtype("M8[ns]"), np.timedelta64(11, "ns")),
             (np.dtype([("f0", "<i4"), ("f1", "<i4"), ("f2", "<i4")]), (1, 2, 3)),
         ],
     )
     def test_attribute_fill(self, dtype, fill):
         attr = tiledb.Attr("", dtype=dtype, fill=fill)
-        assert np.array(attr.fill).item() == fill
+        assert np.array(attr.fill, dtype=dtype) == np.array(fill, dtype=dtype)
 
         path = self.path()
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 0), tile=1, dtype=np.int64))
@@ -404,11 +404,11 @@ class AttributeTest(DiskTestCase):
         tiledb.DenseArray.create(path, schema)
 
         with tiledb.open(path) as R:
-            assert R.multi_index[0][""].item() == fill
-            assert R[0].item() == fill
+            assert R.multi_index[0][""] == np.array(fill, dtype=dtype)
+            assert R[0] == np.array(fill, dtype=dtype)
             if not hasattr(dtype, "fields"):
                 # record type unsupported for .df
-                assert R.df[0][""].values.item() == fill
+                assert R.df[0][""].values == np.array(fill, dtype=dtype)
 
     def test_full_attribute(self):
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
