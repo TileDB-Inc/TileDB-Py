@@ -384,16 +384,6 @@ def _df_to_np_arrays(df, column_infos, fillna):
     return ret, nullmaps
 
 
-def from_dataframe(uri, dataframe, **kwargs):
-    # deprecated in 0.6.3
-    warnings.warn(
-        "tiledb.from_dataframe is deprecated; please use .from_pandas",
-        DeprecationWarning,
-    )
-
-    from_pandas(uri, dataframe, **kwargs)
-
-
 def from_pandas(uri, dataframe, **kwargs):
     """Create TileDB array at given URI from a Pandas dataframe
 

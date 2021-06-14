@@ -7,6 +7,9 @@
 ## Improvements
 * Addition of `QueryCondition` API to filter query on attributes [#576](https://github.com/TileDB-Inc/TileDB-Py/pull/576)
 
+## API Changes
+* `from_dataframe` function has been removed; deprecated in TileDB-Py 0.6 and replaced by `from_pandas`.
+
 # TileDB-Py 0.8.11 Release Notes
 
 ## Bug fixes
