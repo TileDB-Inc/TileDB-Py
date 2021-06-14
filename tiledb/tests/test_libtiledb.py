@@ -317,10 +317,7 @@ class DimensionTest(unittest.TestCase):
         # Domain values can't be integral
         with self.assertRaises(TypeError):
             dim = tiledb.Dim(
-                name="d1",
-                domain=(-10, 10),
-                tile=2,
-                dtype=np.datetime64("", "D"),
+                name="d1", domain=(-10, 10), tile=2, dtype=np.datetime64("", "D")
             )
 
 
@@ -488,8 +485,7 @@ class ArraySchemaTest(unittest.TestCase):
 
     def test_dense_array_schema(self):
         domain = tiledb.Domain(
-            tiledb.Dim(domain=(1, 8), tile=2),
-            tiledb.Dim(domain=(1, 8), tile=2),
+            tiledb.Dim(domain=(1, 8), tile=2), tiledb.Dim(domain=(1, 8), tile=2)
         )
         a1 = tiledb.Attr("val", dtype="f8")
         schema = tiledb.ArraySchema(domain=domain, attrs=(a1,))
@@ -539,9 +535,7 @@ class ArraySchemaTest(unittest.TestCase):
         # create attributes
         a1 = tiledb.Attr("a1", dtype="int32,int32,int32")
         a2 = tiledb.Attr(
-            "a2",
-            filters=tiledb.FilterList([tiledb.GzipFilter(-1)]),
-            dtype="float32",
+            "a2", filters=tiledb.FilterList([tiledb.GzipFilter(-1)]), dtype="float32"
         )
 
         # create sparse array with schema
@@ -678,8 +672,7 @@ class ArraySchemaTest(unittest.TestCase):
 class ArrayTest(DiskTestCase):
     def create_array_schema(self):
         domain = tiledb.Domain(
-            tiledb.Dim(domain=(1, 8), tile=2),
-            tiledb.Dim(domain=(1, 8), tile=2),
+            tiledb.Dim(domain=(1, 8), tile=2), tiledb.Dim(domain=(1, 8), tile=2)
         )
         a1 = tiledb.Attr("val", dtype="f8")
         return tiledb.ArraySchema(domain=domain, attrs=(a1,))
@@ -799,25 +792,19 @@ class ArrayTest(DiskTestCase):
         # check that opening the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
             tiledb.libtiledb.Array(
-                self.path("foo"),
-                mode="r",
-                key=b"0123456789abcdeF0123456789abcdeX",
+                self.path("foo"), mode="r", key=b"0123456789abcdeF0123456789abcdeX"
             )
 
         # check that opening the array with the wrong key length fails:
         with self.assertRaises(tiledb.TileDBError):
             tiledb.libtiledb.Array(
-                self.path("foo"),
-                mode="r",
-                key=b"0123456789abcdeF0123456789abcde",
+                self.path("foo"), mode="r", key=b"0123456789abcdeF0123456789abcde"
             )
 
         # check that consolidating the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
             tiledb.consolidate(
-                self.path("foo"),
-                config=config,
-                key=b"0123456789abcdeF0123456789abcde",
+                self.path("foo"), config=config, key=b"0123456789abcdeF0123456789abcde"
             )
 
     # needs core fix in 2.2.4
@@ -1021,8 +1008,7 @@ class DenseArrayTest(DiskTestCase):
         A = np.arange(10000).reshape((1000, 10))
 
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 999), tile=100),
-            tiledb.Dim(domain=(0, 9), tile=2),
+            tiledb.Dim(domain=(0, 999), tile=100), tiledb.Dim(domain=(0, 9), tile=2)
         )
         att = tiledb.Attr(dtype=A.dtype)
         schema = tiledb.ArraySchema(dom, (att,))
@@ -1258,40 +1244,43 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(T[1], 2)
             self.assertEqual(T[2], 0)
 
-    def test_open_with_given_timestamp(self):
+    def test_open_timestamp_range(self):
         A = np.zeros(3)
+        path = self.path("open_timestamp_range")
 
-        path = self.path("foo")
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
         att = tiledb.Attr(dtype=A.dtype)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
-        tiledb.DenseArray.create(self.path("foo"), schema)
+        tiledb.DenseArray.create(path, schema)
 
         # write
-        with tiledb.DenseArray(path, mode="w", timestamp=1) as T:
-            T[:] = A
+        with tiledb.DenseArray(path, timestamp=1, mode="w") as T:
+            T[:] = A * 1
+        with tiledb.DenseArray(path, timestamp=2, mode="w") as T:
+            T[:] = A * 2
+        with tiledb.DenseArray(path, timestamp=3, mode="w") as T:
+            T[:] = A * 3
+        with tiledb.DenseArray(path, timestamp=4, mode="w") as T:
+            T[:] = A * 4
 
-        with tiledb.DenseArray(path, mode="w", timestamp=2) as T:
-            T[0:1] = 1
+        def assert_ts(timestamp, result):
+            with tiledb.DenseArray(path, mode="r", timestamp=timestamp) as T:
+                assert_array_equal(T, result)
 
-        with tiledb.DenseArray(path, mode="w", timestamp=3) as T:
-            T[1:2] = 2
-
-        # read
-        with tiledb.DenseArray(path, mode="r", timestamp=1) as T:
-            self.assertEqual(T[0], 0)
-            self.assertEqual(T[1], 0)
-            self.assertEqual(T[2], 0)
-
-        with tiledb.DenseArray(path, mode="r", timestamp=2) as T:
-            self.assertEqual(T[0], 1)
-            self.assertEqual(T[1], 0)
-            self.assertEqual(T[2], 0)
-
-        with tiledb.DenseArray(path, mode="r", timestamp=3) as T:
-            self.assertEqual(T[0], 1)
-            self.assertEqual(T[1], 2)
-            self.assertEqual(T[2], 0)
+        assert_ts(0, A * np.nan)
+        assert_ts(1, A * 1)
+        assert_ts(2, A * 2)
+        assert_ts(3, A * 3)
+        assert_ts((1, 2), A * 2)
+        assert_ts((0, 3), A * 3)
+        assert_ts((1, 3), A * 3)
+        assert_ts((2, 3), A * 3)
+        assert_ts((2, 4), A * 3)
+        assert_ts((None, 2), A * 2)
+        assert_ts((None, 3), A * 3)
+        assert_ts((2, None), A * 3)
+        assert_ts((3, None), A * 3)
+        assert_ts((3, None), A * 3)
 
     def test_ncell_attributes(self):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=int))
@@ -1395,9 +1384,7 @@ class DenseArrayTest(DiskTestCase):
         )
 
         schema = tiledb.ArraySchema(
-            domain=dom,
-            sparse=False,
-            attrs=[tiledb.Attr(name="a", dtype="S")],
+            domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype="S")]
         )
 
         tiledb.DenseArray.create(uri, schema)
@@ -1430,9 +1417,7 @@ class DenseArrayTest(DiskTestCase):
         )
 
         schema = tiledb.ArraySchema(
-            domain=dom,
-            sparse=False,
-            attrs=[tiledb.Attr(name="a", dtype="S3")],
+            domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype="S3")]
         )
 
         tiledb.DenseArray.create(uri, schema)
@@ -1859,9 +1844,7 @@ class TestVarlen(DiskTestCase):
         )
 
         schema = tiledb.ArraySchema(
-            domain=dom,
-            sparse=False,
-            attrs=[tiledb.Attr(name="a", dtype="S", var=True)],
+            domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype="S", var=True)]
         )
 
         tiledb.DenseArray.create(uri, schema)
@@ -1996,14 +1979,11 @@ class TestSparseArray(DiskTestCase):
         uri = self.path("query_real_multi_index")
 
         dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float),
+            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float)
         )
         attr = tiledb.Attr("a", dtype=np.float32)
         schema = tiledb.ArraySchema(
-            domain=dom,
-            attrs=(attr,),
-            sparse=True,
-            cell_order=sparse_cell_order,
+            domain=dom, attrs=(attr,), sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(uri, schema)
 
@@ -2070,14 +2050,11 @@ class TestSparseArray(DiskTestCase):
         uri = self.path()
 
         dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float),
+            tiledb.Dim("x", domain=(-10.0, 10.0), tile=2.0, dtype=float)
         )
         attr = tiledb.Attr("", dtype=np.float32)
         schema = tiledb.ArraySchema(
-            domain=dom,
-            attrs=(attr,),
-            sparse=True,
-            cell_order=sparse_cell_order,
+            domain=dom, attrs=(attr,), sparse=True, cell_order=sparse_cell_order
         )
         tiledb.SparseArray.create(uri, schema)
 
@@ -2297,7 +2274,7 @@ class TestSparseArray(DiskTestCase):
     def test_sparse_query(self, sparse_cell_order):
         uri = self.path("test_sparse_query")
         dom = tiledb.Domain(
-            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=np.float64),
+            tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=np.float64)
         )
 
         att = tiledb.Attr("", dtype=float)
@@ -2418,8 +2395,7 @@ class TestSparseArray(DiskTestCase):
         path = self.path("test_sparse_2d_varlen_int")
         dtype = np.int32
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(1, 4), tile=2),
-            tiledb.Dim(domain=(1, 4), tile=2),
+            tiledb.Dim(domain=(1, 4), tile=2), tiledb.Dim(domain=(1, 4), tile=2)
         )
         att = tiledb.Attr(dtype=dtype, var=True)
         schema = tiledb.ArraySchema(
@@ -2750,8 +2726,7 @@ class TestDenseIndexing(DiskTestCase):
         A = np.arange(10000).reshape((1000, 10))
 
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 999), tile=100),
-            tiledb.Dim(domain=(0, 9), tile=2),
+            tiledb.Dim(domain=(0, 999), tile=100), tiledb.Dim(domain=(0, 9), tile=2)
         )
         att = tiledb.Attr(dtype=A.dtype)
         schema = tiledb.ArraySchema(dom, (att,))
@@ -3076,8 +3051,7 @@ class ArrayViewTest(DiskTestCase):
     def test_view_multiattr(self):
         uri = self.path("foo_multiattr")
         dom = tiledb.Domain(
-            tiledb.Dim(domain=(0, 2), tile=3),
-            tiledb.Dim(domain=(0, 2), tile=3),
+            tiledb.Dim(domain=(0, 2), tile=3), tiledb.Dim(domain=(0, 2), tile=3)
         )
         schema = tiledb.ArraySchema(
             domain=dom, attrs=(tiledb.Attr(""), tiledb.Attr("named"))
@@ -3717,8 +3691,7 @@ class ReprTest(unittest.TestCase):
         filters = tiledb.FilterList([tiledb.ZstdFilter(-1)])
         for sparse in [False, True]:
             domain = tiledb.Domain(
-                tiledb.Dim(domain=(1, 8), tile=2),
-                tiledb.Dim(domain=(1, 8), tile=2),
+                tiledb.Dim(domain=(1, 8), tile=2), tiledb.Dim(domain=(1, 8), tile=2)
             )
             a1 = tiledb.Attr("val", dtype="f8", filters=filters)
             orig_schema = tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=sparse)

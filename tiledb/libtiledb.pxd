@@ -625,6 +625,26 @@ cdef extern from "tiledb/tiledb.h":
         const tiledb_array_schema_t* array_schema,
         FILE* out)
 
+    int tiledb_array_get_open_timestamp_start(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint64_t* timestamp_start)
+
+    int tiledb_array_get_open_timestamp_end(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint64_t* timestamp_end)
+
+    int tiledb_array_set_open_timestamp_start(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint64_t timestamp_start)
+
+    int tiledb_array_set_open_timestamp_end(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        uint64_t timestamp_end)
+
     int tiledb_array_put_metadata(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,

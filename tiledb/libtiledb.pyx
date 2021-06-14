@@ -3769,9 +3769,27 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=None):
         key_ptr = <void *> PyBytes_AS_STRING(bkey)
         #TODO: unsafe cast here ssize_t -> uint64_t
         key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-    cdef uint64_t _timestamp = 0
+    cdef uint64_t ts_start = 0
+    cdef uint64_t ts_end = 0
+    cdef bint set_start = False, set_end = False
+
     if timestamp is not None:
-        _timestamp = <uint64_t> timestamp
+        if isinstance(timestamp, tuple):
+            if len(timestamp) != 2:
+                raise ValueError("'timestamp' argument expects either int or tuple(start: int, end: int)")
+            if timestamp[0] is not None:
+                ts_start = <uint64_t>timestamp[0]
+                set_start = True
+            if timestamp[1] is not None:
+                ts_end = <uint64_t>timestamp[1]
+                set_end = True
+        elif isinstance(timestamp, int):
+            # handle the existing behavior for unary timestamp
+            # which is equivalent to endpoint of the range
+            ts_end = <uint64_t> timestamp
+            set_end = True
+        else:
+            raise TypeError("Unexpected argument type for 'timestamp' keyword argument")
 
     # allocate and then open the array
     cdef tiledb_array_t* array_ptr = NULL
@@ -3779,14 +3797,24 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=None):
     rc = tiledb_array_alloc(ctx_ptr, uri_ptr, &array_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
-    if timestamp is None:
-        with nogil:
-            rc = tiledb_array_open_with_key(
-                ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len)
-    else:
-        with nogil:
-            rc = tiledb_array_open_at_with_key(
-                ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len, _timestamp)
+
+    try:
+        if set_start:
+            check_error(ctx,
+                tiledb_array_set_open_timestamp_start(ctx_ptr, array_ptr, ts_start)
+            )
+        if set_end:
+            check_error(ctx,
+                tiledb_array_set_open_timestamp_end(ctx_ptr, array_ptr, ts_end)
+            )
+    except:
+        tiledb_array_free(&array_ptr)
+        raise
+
+    with nogil:
+       rc = tiledb_array_open_with_key(
+           ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len)
+
     if rc != TILEDB_OK:
         tiledb_array_free(&array_ptr)
         _raise_ctx_err(ctx_ptr, rc)
@@ -4481,7 +4509,7 @@ cdef class Query(object):
     def attrs(self):
         """List of attributes to include in Query."""
         return self.attrs
-    
+
     @property
     def attr_cond(self):
         """QueryCondition used to filter attributes in Query."""
@@ -4683,9 +4711,9 @@ cdef class DenseArrayImpl(Array):
         """
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
-        return Query(self, attrs=attrs, attr_cond=attr_cond, dims=dims, 
-                     coords=coords, order=order, use_arrow=use_arrow, 
-                     return_arrow=return_arrow, 
+        return Query(self, attrs=attrs, attr_cond=attr_cond, dims=dims,
+                     coords=coords, order=order, use_arrow=use_arrow,
+                     return_arrow=return_arrow,
                      return_incomplete=return_incomplete)
 
 
@@ -4773,7 +4801,7 @@ cdef class DenseArrayImpl(Array):
         return out
 
 
-    cdef _read_dense_subarray(self, list subarray, list attr_names, 
+    cdef _read_dense_subarray(self, list subarray, list attr_names,
                               tiledb_layout_t layout, bint include_coords):
 
         from tiledb.core import PyQuery
@@ -5353,8 +5381,8 @@ cdef class SparseArrayImpl(Array):
         elif dims is None and coords is None:
             _coords = True
 
-        return Query(self, attrs=attrs, attr_cond=attr_cond, dims=dims, 
-                     coords=_coords, index_col=index_col, order=order, 
+        return Query(self, attrs=attrs, attr_cond=attr_cond, dims=dims,
+                     coords=_coords, index_col=index_col, order=order,
                      use_arrow=use_arrow, return_arrow=return_arrow,
                      return_incomplete=return_incomplete)
 
