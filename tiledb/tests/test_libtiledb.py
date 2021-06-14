@@ -364,7 +364,7 @@ class DomainTest(unittest.TestCase):
             )
 
 
-class AttributeTest(unittest.TestCase):
+class AttributeTest(DiskTestCase):
     def test_minimal_attribute(self):
         attr = tiledb.Attr()
         self.assertTrue(attr.isanon)
@@ -377,37 +377,38 @@ class AttributeTest(unittest.TestCase):
     def test_attribute(self):
         attr = tiledb.Attr("foo")
         safe_dump(attr)
-        self.assertEqual(attr.name, "foo")
-        self.assertEqual(attr.dtype, np.float64, "default attribute type is float64")
+        assert attr.name == "foo"
+        assert attr.dtype == np.float64, "default attribute type is float64"
         # compressor, level = attr.compressor
         # self.assertEqual(compressor, None, "default to no compression")
         # self.assertEqual(level, -1, "default compression level when none is specified")
 
-    def test_attribute_fill(self):
-        attr = tiledb.Attr("foo", dtype=np.float32, fill=0.5)
-        self.assertEqual(attr.fill, 0.5)
+    @pytest.mark.parametrize(
+        "dtype, fill",
+        [
+            (np.dtype(bytes), b"abc"),
+            # (str, "defg"),
+            (np.float32, np.float32(0.4023573667780681)),
+            (np.float64, np.float64(0.0560602549760851)),
+            (np.datetime64("", "ns"), np.timedelta64(11, "ns")),
+            (np.dtype([("f0", "<i4"), ("f1", "<i4"), ("f2", "<i4")]), (1, 2, 3)),
+        ],
+    )
+    def test_attribute_fill(self, dtype, fill):
+        attr = tiledb.Attr("", dtype=dtype, fill=fill)
+        assert np.array(attr.fill).item() == fill
 
-        # single char string
-        attr = tiledb.Attr("foo", dtype=bytes, fill=b"s")
-        self.assertEqual(attr.fill, b"s")
+        path = self.path()
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 0), tile=1, dtype=np.int64))
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,))
+        tiledb.DenseArray.create(path, schema)
 
-        # multi char string
-        attr = tiledb.Attr("foo", dtype=bytes, fill=b"stuv1111")
-        self.assertEqual(attr.fill, b"stuv1111")
-
-        # datetime with fill
-        attr = tiledb.Attr(
-            "foo", dtype=np.datetime64("", "ns"), fill=np.timedelta64(1, "ns")
-        )
-        self.assertEqual(attr.fill, np.timedelta64(1, "ns"))
-
-        # multi-cell attr
-        attr = tiledb.Attr(
-            "foo",
-            dtype=[("", np.int32), ("", np.int32), ("", np.int32)],
-            fill=(1, 2, 3),
-        )
-        self.assertEqual(attr.fill, np.array((1, 2, 3), dtype=attr.dtype))
+        with tiledb.open(path) as R:
+            assert R.multi_index[0][""].item() == fill
+            assert R[0].item() == fill
+            if not hasattr(dtype, "fields"):
+                # record type unsupported for .df
+                assert R.df[0][""].values.item() == fill
 
     def test_full_attribute(self):
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
@@ -456,9 +457,9 @@ class AttributeTest(unittest.TestCase):
 
     def test_datetime_attribute(self):
         attr = tiledb.Attr("foo", dtype=np.datetime64("", "D"))
-        self.assertEqual(attr.dtype, np.dtype(np.datetime64("", "D")))
-        self.assertNotEqual(attr.dtype, np.dtype(np.datetime64))
-        self.assertNotEqual(attr.dtype, np.dtype(np.datetime64("", "Y")))
+        assert attr.dtype == np.dtype(np.datetime64("", "D"))
+        assert attr.dtype != np.dtype(np.datetime64("", "Y"))
+        assert attr.dtype != np.dtype(np.datetime64)
 
 
 class ArraySchemaTest(unittest.TestCase):
