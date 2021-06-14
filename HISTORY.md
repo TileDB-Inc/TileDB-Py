@@ -4,11 +4,20 @@
 * TileDB-Py 0.9.0 includes TileDB Embedded [TileDB 2.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3) with a significant
   number of new features and improvements.
 
+## Packaging Notes
+* Windows wheels are now built with TileDB Cloud REST support enabled [#541](https://github.com/TileDB-Inc/TileDB-Py/pull/541)
+
 ## Improvements
 * Addition of `QueryCondition` API to filter query on attributes [#576](https://github.com/TileDB-Inc/TileDB-Py/pull/576)
 
+## Bug Fixes
+* Fixed `from_pandas` append error for sparse arrayse: no need to specify 'row_start_idx' [#593](https://github.com/TileDB-Inc/TileDB-Py/pull/593)
+* Fixed 'index_dims' kwarg handling for `from_pandas` [#590](https://github.com/TileDB-Inc/TileDB-Py/pull/590)
+
 ## API Changes
 * `from_dataframe` function has been removed; deprecated in TileDB-Py 0.6 and replaced by `from_pandas`.
+
+---
 
 # TileDB-Py 0.8.11 Release Notes
 
