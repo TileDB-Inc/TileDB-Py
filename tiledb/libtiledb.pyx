@@ -4682,8 +4682,11 @@ cdef class DenseArrayImpl(Array):
         :param order: 'C', 'F', 'U', or 'G' (row-major, col-major, unordered, TileDB global order)
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
-        :param return_incomplete: if True, initialize and return a query which will return
-            iterable objects over the indexed range. See usage example in 'examples/incomplete_iteration.py'.
+        :param return_incomplete: if True, initialize and return an iterable Query object over the indexed range.
+            Consuming this iterable returns a result set for each TileDB incomplete query.
+            See usage example in 'examples/incomplete_iteration.py'.
+            To retrieve the estimated result sizes for the query ranges, use:
+                `A.query(..., return_incomplete=True)[...].est_result_size()`
             If False (default False), queries will be internally run to completion by resizing buffers and
             resubmitting until query is complete.
         :return: A proxy Query object that can be used for indexing into the DenseArray
