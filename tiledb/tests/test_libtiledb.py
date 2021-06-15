@@ -1525,6 +1525,30 @@ class DenseArrayTest(DiskTestCase):
         # D[1, d2] = data
         # D[d1, 1]
 
+    def test_reopen_dense_array(self):
+        uri = self.path("test_reopen_dense_array")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
+        tiledb.DenseArray.create(uri, schema)
+
+        data = np.arange(0, 10, dtype=np.int64)
+
+        with tiledb.DenseArray(uri, mode="w", timestamp=1) as T:
+            T[:] = data
+
+        with tiledb.DenseArray(uri, mode="w", timestamp=2) as T:
+            T[:] = data * 2
+
+        T = tiledb.DenseArray(uri, mode="r", timestamp=1)
+        assert_array_equal(T[:], data)
+
+        T.reopen()
+        assert_array_equal(T[:], data * 2)
+
+        T.close()
+
 
 class TestVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
