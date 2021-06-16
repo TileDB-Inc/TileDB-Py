@@ -173,8 +173,13 @@ class MultiRangeIndexer(object):
             self.pyquery = _get_pyquery(self.array, query, self.use_arrow)
             self.pyquery._preload_metadata = preload_metadata
             self.pyquery.set_ranges(self.ranges)
+
             if self.query is not None:
-                self.pyquery.set_attr_cond(query.attr_cond)
+                try:
+                    self.pyquery.set_attr_cond(query.attr_cond)
+                except TileDBError as e:
+                    raise TileDBError(e)
+
             self.pyquery._return_incomplete = (
                 self.query and self.query.return_incomplete
             )

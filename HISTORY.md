@@ -23,6 +23,10 @@
 
 ## Bug fixes
 * Fixed incorrect NumPy ABI target in Linux wheels [#590](https://github.com/TileDB-Inc/TileDB-Py/pull/590)
+* QueryCondition API will cast condition values to the datatype of the corresponding attribute [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
+* QueryCondition API errors out when there are mismatched attributes to `query`'s `attr_cond` and `attrs` arguments [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
+* QueryCondition API can now parse negative numbers [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
+
 
 # TileDB-Py 0.8.10 Release Notes
 

@@ -1,4 +1,5 @@
 import ast
+import numpy as np
 
 import tiledb
 from tiledb import _query_condition as qc
@@ -57,11 +58,31 @@ class QueryCondition(ast.NodeVisitor):
     def __init__(self, expression="", ctx=None):
         if ctx is None:
             ctx = tiledb.default_ctx()
-        self._ctx = ctx
 
-        tree = ast.parse(expression)
+        self._ctx = ctx
+        self._schema = None
+        self._query_attrs = None
+        self._c_obj = None
+
+        self.tree = ast.parse(expression)
+        if not self.tree.body:
+            raise tiledb.TileDBError(
+                "The query condition statement could not be parsed properly. "
+                "(Is this an empty expression?)"
+            )
+
         self.raw_str = expression
-        self._c_obj = self.visit(tree.body[0]) if tree.body else qc.qc(self._ctx)
+
+    def init_query_condition(self, schema, query_attrs):
+        self._schema = schema
+        self._query_attrs = query_attrs
+        self._c_obj = self.visit(self.tree.body[0])
+
+        if not isinstance(self._c_obj, tiledb._query_condition.qc):
+            raise tiledb.TileDBError(
+                "Malformed query condition statement. A query condition must "
+                "be made up of one or more Boolean expressions."
+            )
 
     def visit_Compare(self, node):
         AST_TO_TILEDB = {
@@ -100,17 +121,65 @@ class QueryCondition(ast.NodeVisitor):
             raise tiledb.TileDBError("Incorrect type for attribute name.")
 
         if isinstance(val, ast.Constant):
-            val = val.value
+            sign = val.sign if hasattr(val, "sign") else 1
+            val = val.value * sign
         elif isinstance(val, ast.Num):
             # deprecated in 3.8
-            val = val.n
+            sign = val.sign if hasattr(val, "sign") else 1
+            val = val.n * sign
         elif isinstance(val, ast.Str) or isinstance(val, ast.Bytes):
             # deprecated in 3.8
             val = val.s
         else:
-            raise tiledb.TileDBError("Incorrect type for comparison value.")
+            raise tiledb.TileDBError(
+                f"Incorrect type for comparison value: {ast.dump(val)}"
+            )
 
-        return qc.qc(att, val, op, self._ctx)
+        if not self._schema.has_attr(att):
+            raise tiledb.TileDBError(f"Attribute `{att}` found not in schema.")
+
+        if att not in self._query_attrs:
+            raise tiledb.TileDBError(
+                f"Attribute `{att}` given to filter in query's `attr_cond` "
+                "arg but not found in `attr` arg."
+            )
+
+        dtype = self._schema.attr(att).dtype
+
+        if dtype.kind in "SUa":
+            dtype_name = "string"
+        else:
+            try:
+                # this prevents numeric strings ("1", '123.32') from getting
+                # casted to numeric types
+                if isinstance(val, str):
+                    raise tiledb.TileDBError(
+                        f"Type mismatch between attribute `{att}` and value `{val}`."
+                    )
+
+                cast = getattr(np, dtype.name)
+                val = cast(val)
+                dtype_name = dtype.name
+            except ValueError:
+                raise tiledb.TileDBError(
+                    f"Type mismatch between attribute `{att}` and value `{val}`."
+                )
+
+        c_obj = qc.qc(self._ctx)
+
+        if not hasattr(c_obj, f"init_{dtype_name}"):
+            raise tiledb.TileDBError(
+                f"PyQueryCondition's `init_{dtype_name}` not found."
+            )
+
+        init_qc = getattr(c_obj, f"init_{dtype_name}")
+
+        try:
+            init_qc(att, val, op)
+        except tiledb.TileDBError as e:
+            raise tiledb.TileDBError(e)
+
+        return c_obj
 
     def visit_BoolOp(self, node):
         AST_TO_TILEDB = {ast.And: qc.TILEDB_AND}
@@ -133,6 +202,24 @@ class QueryCondition(ast.NodeVisitor):
 
     def visit_Constant(self, node):
         return node
+
+    def visit_UnaryOp(self, node):
+        if isinstance(node.op, ast.UAdd):
+            sign = 1
+        elif isinstance(node.op, ast.USub):
+            sign = -1
+        else:
+            raise tiledb.TileDBError(f"Unsupported UnaryOp type. Saw {ast.dump(node)}.")
+
+        if hasattr(node, "sign"):
+            node.operand.sign = node.sign * sign
+        else:
+            node.operand.sign = sign
+
+        if isinstance(node.operand, ast.UnaryOp):
+            return self.visit_UnaryOp(node.operand)
+        else:
+            return node.operand
 
     def visit_Num(self, node):
         # deprecated in 3.8
