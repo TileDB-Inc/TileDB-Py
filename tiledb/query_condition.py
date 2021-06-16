@@ -65,20 +65,24 @@ class QueryCondition(ast.NodeVisitor):
         self._c_obj = None
 
         self.tree = ast.parse(expression)
+        if not self.tree.body:
+            raise tiledb.TileDBError(
+                "The query condition statement could not be parsed properly. "
+                "(Is this an empty expression?)"
+            )
+
         self.raw_str = expression
 
     def init_query_condition(self, schema, query_attrs):
         self._schema = schema
         self._query_attrs = query_attrs
+        self._c_obj = self.visit(self.tree.body[0])
 
-        if self.tree.body:
-            self._c_obj = self.visit(self.tree.body[0])
-
-            if not isinstance(self._c_obj, tiledb._query_condition.qc):
-                raise tiledb.TileDBError(
-                    "Malformed query condition statement. A query condition must "
-                    "be made up of one or more Boolean expressions."
-                )
+        if not isinstance(self._c_obj, tiledb._query_condition.qc):
+            raise tiledb.TileDBError(
+                "Malformed query condition statement. A query condition must "
+                "be made up of one or more Boolean expressions."
+            )
 
     def visit_Compare(self, node):
         AST_TO_TILEDB = {
@@ -146,6 +150,11 @@ class QueryCondition(ast.NodeVisitor):
             dtype_name = "string"
         else:
             try:
+                # if isinstance(val, str):
+                #     raise tiledb.TileDBError(
+                #         f"Type mismatch between attribute `{att}` and value `{val}`."
+                #     )
+
                 cast = getattr(np, dtype.name)
                 val = cast(val)
                 dtype_name = dtype.name
