@@ -111,9 +111,9 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(attr_cond=qc, attrs=["U"]).df[:]
             assert all(result["U"] < 1.0)
 
-            qc = tiledb.QueryCondition("U < '1'")
-            result = A.query(attr_cond=qc, attrs=["U"]).df[:]
-            assert all(result["U"] < 1)
+            with self.assertRaises(tiledb.TileDBError):
+                qc = tiledb.QueryCondition("U < '1'")
+                A.query(attr_cond=qc, attrs=["U"]).df[:]
 
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < 'one'")

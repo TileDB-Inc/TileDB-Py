@@ -150,10 +150,12 @@ class QueryCondition(ast.NodeVisitor):
             dtype_name = "string"
         else:
             try:
-                # if isinstance(val, str):
-                #     raise tiledb.TileDBError(
-                #         f"Type mismatch between attribute `{att}` and value `{val}`."
-                #     )
+                # this prevents numeric strings ("1", '123.32') from getting
+                # casted to numeric types
+                if isinstance(val, str):
+                    raise tiledb.TileDBError(
+                        f"Type mismatch between attribute `{att}` and value `{val}`."
+                    )
 
                 cast = getattr(np, dtype.name)
                 val = cast(val)
