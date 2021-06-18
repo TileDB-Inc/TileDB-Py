@@ -4478,9 +4478,9 @@ cdef class Query(object):
 
         if order == None:
             if array.schema.sparse:
-                self.order = 'U'
+                self.order = 'U' # unordered
             else:
-                self.order = 'C'
+                self.order = 'C' # row-major
         else:
             self.order = order
 
