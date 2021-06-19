@@ -68,6 +68,9 @@ if sys.platform == "darwin":
 # Is this process building a wheel?
 WHEEL_BUILD = ("bdist_wheel" in sys.argv) or ("TILEDB_WHEEL_BUILD" in os.environ)
 
+# Is this being built under conda-forge?
+CONDA_FORGE_BUILD = "FEEDSTOCK_ROOT" in os.environ
+
 
 def is_windows():
     return os.name == "nt"
@@ -506,6 +509,9 @@ def parse_requirements(req_file):
 
 
 def setup_requires():
+    if CONDA_FORGE_BUILD:
+        return []
+
     if WHEEL_BUILD:
         req = parse_requirements("misc/requirements_wheel.txt")
     else:
