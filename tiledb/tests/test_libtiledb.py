@@ -45,7 +45,7 @@ class VersionTest(DiskTestCase):
 
 
 class StatsTest(DiskTestCase):
-    def test_stats(self):
+    def test_stats(self, capfd):
         tiledb.libtiledb.stats_enable()
         tiledb.libtiledb.stats_reset()
         tiledb.libtiledb.stats_disable()
@@ -59,7 +59,12 @@ class StatsTest(DiskTestCase):
         with tiledb.open(self.path("test_stats")) as T:
             tiledb.libtiledb.stats_enable()
             assert_array_equal(T, np.arange(10))
+
+            # test stdout version
             tiledb.stats_dump()
+            assert_captured(capfd, "TileDB Embedded Version:")
+
+            # test string version
             stats_v = tiledb.stats_dump(print_out=False)
             if tiledb.libtiledb.version() < (2, 3):
                 self.assertTrue("==== READ ====" in stats_v)
@@ -1480,7 +1485,6 @@ class DenseArrayTest(DiskTestCase):
 
             self.assertTrue(T.last_write_info is not None)
             self.assertTrue(len(T.last_write_info.keys()) == 1)
-            print(T.last_write_info.values())
             t_w1, t_w2 = list(T.last_write_info.values())[0]
             self.assertTrue(t_w1 > 0)
             self.assertTrue(t_w2 > 0)
@@ -1813,8 +1817,6 @@ class TestVarlen(DiskTestCase):
             ],
             dtype=object,
         )
-
-        print("random sub-length test array: {}".format(A))
 
         # basic write
         dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
@@ -3587,7 +3589,7 @@ class MemoryTest(DiskTestCase):
 
         return initial
 
-    def test_memory_cleanup(self):
+    def test_memory_cleanup(self, capfd):
         # run function which reads 100x from a 40MB test array
         # TODO: RSS is too loose to do this end-to-end, so should use instrumentation.
         print("Starting TileDB-Py memory test:")
@@ -3602,6 +3604,7 @@ class MemoryTest(DiskTestCase):
         final_gc = process.memory_info().rss
         print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
 
+        assert_captured(capfd, "final RSS")
         self.assertTrue(final < (2 * initial))
 
 

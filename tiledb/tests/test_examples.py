@@ -41,7 +41,7 @@ class ExamplesTest:
     @pytest.mark.parametrize(
         "path", [os.path.join(PROJECT_DIR, "tiledb", "libtiledb.pyx")]
     )
-    def test_docs(self, path, capsys):
+    def test_docs(self, path, capfd):
         failures, _ = doctest.testfile(
             path,
             module_relative=False,
@@ -49,4 +49,4 @@ class ExamplesTest:
             optionflags=doctest.NORMALIZE_WHITESPACE,
         )
         if failures:
-            pytest.fail(capsys.readouterr().out)
+            pytest.fail(capfd.readouterr().out)
