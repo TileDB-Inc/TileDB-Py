@@ -5,7 +5,6 @@ exclude .dockerignore
 exclude .readthedocs.yml
 exclude azure-pipelines.yml
 exclude misc/*
-exclude requirements_dev.txt
 
 include README.md
 
