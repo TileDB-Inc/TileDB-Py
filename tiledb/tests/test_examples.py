@@ -7,6 +7,11 @@ import tempfile
 
 import pytest
 
+# override locally to avoid conflict with capsys used below
+@pytest.fixture(scope="function", autouse=True)
+def no_output():
+    pass
+
 
 class ExamplesTest:
     """Test runnability of scripts in examples/"""
@@ -41,7 +46,7 @@ class ExamplesTest:
     @pytest.mark.parametrize(
         "path", [os.path.join(PROJECT_DIR, "tiledb", "libtiledb.pyx")]
     )
-    def test_docs(self, path, capfd):
+    def test_docs(self, path, capsys):
         failures, _ = doctest.testfile(
             path,
             module_relative=False,
@@ -49,4 +54,4 @@ class ExamplesTest:
             optionflags=doctest.NORMALIZE_WHITESPACE,
         )
         if failures:
-            pytest.fail(capfd.readouterr().out)
+            pytest.fail(capsys.readouterr().out)
