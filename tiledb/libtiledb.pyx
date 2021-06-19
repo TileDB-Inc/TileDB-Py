@@ -4299,7 +4299,7 @@ cdef class Array(object):
             return tuple((extents[i, 0].item(), extents[i, 1].item())
                          for i in range(dom.ndim))
 
-    def consolidate(self, Config config=None, key=None):
+    def consolidate(self, Config config=None, key=None, timestamp=None):
         """
         Consolidates fragments of an array object for increased read performance.
 
@@ -4308,12 +4308,20 @@ cdef class Array(object):
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
         :param key: (default None) encryption key to decrypt an encrypted array
         :type key: str or bytes
+        :param timestamp: (default None) If not None, vacuum the array using the 
+        given tuple(int, int) UNIX seconds range (inclusive)
+        :type timestamp: tuple (int, int) 
         :raises: :py:exc:`tiledb.TileDBError`
+
+        Rather than passing the timestamp into this function, it may be set with
+        the config parameters `"sm.vacuum.timestamp_start"`and 
+        `"sm.vacuum.timestamp_end"` which takes in a time in UNIX seconds. If both
+        are set then this function's `timestamp` argument will be used.
 
         """
         if self.mode == 'r':
             raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
-        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx)
+        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, timestamp=timestamp)
 
     def dump(self):
         self.schema.dump()
@@ -5538,22 +5546,43 @@ cdef class SparseArrayImpl(Array):
 
         return dim_values
 
-def consolidate(uri, key=None, Config config=None, Ctx ctx=None):
+def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None):
     """Consolidates TileDB array fragments for improved read performance
 
     :param str uri: URI to the TileDB Array
     :param str key: (default None) Key to decrypt array if the array is encrypted
     :param tiledb.Config config: The TileDB Config with consolidation parameters set
     :param tiledb.Ctx ctx: (default None) The TileDB Context
+    :param timestamp: (default None) If not None, vacuum the array using the given 
+    tuple(int, int) UNIX seconds range (inclusive)
     :rtype: str or bytes
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
+    Rather than passing the timestamp into this function, it may be set with
+    the config parameters `"sm.vacuum.timestamp_start"`and 
+    `"sm.vacuum.timestamp_end"` which takes in a time in UNIX seconds. If both
+    are set then this function's `timestamp` argument will be used.
+
     """
     if not ctx:
         ctx = default_ctx()
+
     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+
+    if timestamp:
+        if config is None:
+            config = Config()
+
+        if not isinstance(timestamp, tuple) and len(timestamp) != 2:
+            raise TypeError("'timestamp' argument expects tuple(start: int, end: int)")
+        
+        if timestamp[0] is not None:
+            config["sm.consolidation.timestamp_start"] = timestamp[0]
+        if timestamp[1] is not None:
+            config["sm.consolidation.timestamp_end"] = timestamp[1]
+
     cdef tiledb_config_t* config_ptr = NULL
     if config is not None:
         config_ptr = config.ptr
@@ -5575,6 +5604,7 @@ def consolidate(uri, key=None, Config config=None, Ctx ctx=None):
         key_ptr = <void *> PyBytes_AS_STRING(bkey)
         #TODO: unsafe cast here ssize_t -> uint64_t
         key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+    
     cdef int rc = TILEDB_OK
     with nogil:
         rc = tiledb_array_consolidate_with_key(ctx_ptr, uri_ptr, key_type, key_ptr, key_len, config_ptr)
@@ -6554,22 +6584,26 @@ class FileIO(io.RawIOBase):
         self._offset += nbytes
         return nbytes
 
-def vacuum(uri, Config config=None, Ctx ctx=None):
+def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
     """
-    Consolidate underlying array fragments after multiple writes.
+    Vacuum underlying array fragments after consolidation.
 
     :param str uri: URI of array to be vacuumed
     :param config: Override the context configuration for vacuuming.
         Defaults to None, inheriting the context parameters.
     :param (ctx: tiledb.Ctx, optional): Context. Defaults to
         `tiledb.default_ctx()`.
+    :param (int, int) timestamp: (default None) If not None, vacuum the array 
+        using the given range (inclusive)
     :raises TypeError: cannot convert `uri` to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
-    After consolidation, you may optionally remove the consolidated fragments
-    with the "vacuum" step. This operation of this function is controlled by
-    the ``sm.vacuum.mode`` parameter, which accepts the values ``fragments``,
-    ``fragment_meta``, and ``array_meta``.
+    This operation of this function is controlled by
+    the `"sm.vacuum.mode"` parameter, which accepts the values ``fragments``,
+    ``fragment_meta``, and ``array_meta``. Rather than passing the timestamp
+    into this function, it may be set by using `"sm.vacuum.timestamp_start"`and 
+    `"sm.vacuum.timestamp_end"` which takes in a time in UNIX seconds. If both
+    are set then this function's `timestamp` argument will be used.
 
     **Example:**
 
@@ -6597,6 +6631,18 @@ def vacuum(uri, Config config=None, Ctx ctx=None):
 
     if not ctx:
         ctx = default_ctx()
+
+    if timestamp:
+        if config is None:
+            config = Config()
+
+        if not isinstance(timestamp, tuple) and len(timestamp) != 2:
+            raise TypeError("'timestamp' argument expects tuple(start: int, end: int)")
+        
+        if timestamp[0] is not None:
+            config["sm.vacuum.timestamp_start"] = timestamp[0]
+        if timestamp[1] is not None:
+            config["sm.vacuum.timestamp_end"] = timestamp[1]
 
     ctx_ptr = ctx.ptr
     config_ptr = config.ptr if config is not None else NULL
