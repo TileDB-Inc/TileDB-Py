@@ -20,9 +20,10 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.tests.common import (
-    DiskTestCase,
+    assert_captured,
     assert_subarrays_equal,
     assert_unordered_equal,
+    DiskTestCase,
     rand_ascii,
     rand_ascii_bytes,
     rand_utf8,
@@ -33,24 +34,6 @@ from tiledb.tests.fixtures import (
     INTEGER_DTYPES,
 )  # pyright: reportUnusedVariable=warning
 from tiledb.util import schema_from_dict
-
-
-def safe_dump(obj):
-    """
-    Helper to call obj.dump(), redirect stdout, and catch any exceptions
-    """
-    # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
-    #      functions...
-    try:
-        with io.StringIO() as buf, redirect_stdout(buf):
-            obj.dump()
-    except Exception as exc:
-        print(
-            "Exception occurred calling 'obj.dump()' with redirect.",
-            exc,
-            "\nTrying 'obj.dump()' alone.",
-        )
-        obj.dump()
 
 
 class VersionTest(DiskTestCase):
@@ -334,15 +317,18 @@ class DimensionTest(unittest.TestCase):
             )
 
 
-class DomainTest(unittest.TestCase):
-    def test_domain(self):
+class DomainTest(DiskTestCase):
+    def test_domain(self, capfd):
         dims = [
             tiledb.Dim("d1", (1, 4), 2, dtype="u8"),
             tiledb.Dim("d2", (1, 4), 2, dtype="u8"),
         ]
         dom = tiledb.Domain(*dims)
+
         # check that dumping works
-        safe_dump(dom)
+        dom.dump()
+        assert_captured(capfd, "Name: d1")
+
         self.assertEqual(dom.ndim, 2)
         self.assertEqual(dom.dtype, np.dtype("uint64"))
         self.assertEqual(dom.shape, (4, 4))
@@ -387,9 +373,12 @@ class AttributeTest(DiskTestCase):
         self.assertFalse(attr.isvar)
         self.assertFalse(attr.isnullable)
 
-    def test_attribute(self):
+    def test_attribute(self, capfd):
         attr = tiledb.Attr("foo")
-        safe_dump(attr)
+
+        attr.dump()
+        assert_captured(capfd, "Name: foo")
+
         assert attr.name == "foo"
         assert attr.dtype == np.float64, "default attribute type is float64"
         # compressor, level = attr.compressor
@@ -423,11 +412,14 @@ class AttributeTest(DiskTestCase):
                 # record type unsupported for .df
                 assert R.df[0][""].values == np.array(fill, dtype=dtype)
 
-    def test_full_attribute(self):
+    def test_full_attribute(self, capfd):
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
         attr = tiledb.Attr("foo", dtype=np.int64, filters=filter_list)
-        safe_dump(attr)
+
+        attr.dump()
+        assert_captured(capfd, "Name: foo")
+
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.int64)
 
@@ -475,7 +467,7 @@ class AttributeTest(DiskTestCase):
         assert attr.dtype != np.dtype(np.datetime64)
 
 
-class ArraySchemaTest(unittest.TestCase):
+class ArraySchemaTest(DiskTestCase):
     def test_schema_basic(self):
         dom = tiledb.Domain(
             tiledb.Dim("d1", (1, 4), 2, dtype="u8"),
@@ -538,7 +530,7 @@ class ArraySchemaTest(unittest.TestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.ArraySchema(domain=dom, attrs=(att,))
 
-    def test_sparse_schema(self):
+    def test_sparse_schema(self, capfd):
         # create dimensions
         d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
         d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
@@ -568,7 +560,9 @@ class ArraySchemaTest(unittest.TestCase):
             offsets_filters=offsets_filters,
         )
 
-        safe_dump(schema)
+        schema.dump()
+        assert_captured(capfd, "Array type: sparse")
+
         self.assertTrue(schema.sparse)
         self.assertEqual(schema.capacity, 10)
         self.assertEqual(schema.cell_order, "col-major")
@@ -611,7 +605,7 @@ class ArraySchemaTest(unittest.TestCase):
                 domain=domain, attrs=(a1,), sparse=True, tile_order="hilbert"
             )
 
-    def test_sparse_schema_filter_list(self):
+    def test_sparse_schema_filter_list(self, capfd):
         # create dimensions
         d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
         d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
@@ -645,8 +639,10 @@ class ArraySchemaTest(unittest.TestCase):
             offsets_filters=off_filters,
             sparse=True,
         )
-        safe_dump(schema)
         self.assertTrue(schema.sparse)
+
+        schema.dump()
+        assert_captured(capfd, "Array type: sparse")
 
         # make sure we can construct ArraySchema with python lists of filters
         schema2 = tiledb.ArraySchema(
@@ -3136,7 +3132,7 @@ class ArrayViewTest(DiskTestCase):
 
 
 class RWTest(DiskTestCase):
-    def test_read_write(self):
+    def test_read_write(self, capfd):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
         att = tiledb.Attr(dtype="int64")
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
@@ -3148,7 +3144,9 @@ class RWTest(DiskTestCase):
             arr.write_direct(np_array)
 
         with tiledb.DenseArray(self.path("foo"), mode="r") as arr:
-            safe_dump(arr)
+            arr.dump()
+
+            assert_captured(capfd, "Array type: dense")
             self.assertEqual(arr.nonempty_domain(), ((0, 2),))
             self.assertEqual(arr.ndim, np_array.ndim)
             assert_array_equal(arr.read_direct(), np_array)
