@@ -121,6 +121,12 @@ class DiskTestCase:
         assert args[0] == args[1]
 
     @contextlib.contextmanager
+    def assertNotEqual(self, *args):
+        if not len(args) == 2:
+            raise Exception("Unexpected input len > 2 to assertEquals")
+        assert args[0] != args[1]
+
+    @contextlib.contextmanager
     def assertTrue(self, a, msg=None):
         if msg:
             assert a, msg
