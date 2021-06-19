@@ -334,3 +334,14 @@ def assert_all_arrays_equal(*arrays):
 
     for a1, a2 in zip(arrays[0::2], arrays[1::2]):
         assert_array_equal(a1, a2)
+
+
+def assert_captured(cap, expected):
+    import ctypes
+
+    libc = ctypes.CDLL(None)
+    libc.fflush(None)
+
+    out, err = cap.readouterr()
+    assert not err
+    assert expected in out
