@@ -3466,16 +3466,12 @@ class TestVFS(DiskTestCase):
             expected = expected + ("dir1", "dir2", "dir3")
 
         self.assertSetEqual(
+            set(expected),
             set(
-                os.path.normpath(os.path.join(p.netloc, p.path))
-                for p in map(
-                    lambda x: urllib.parse.urlsplit(os.path.join(basepath, x)), expected
+                map(
+                    lambda x: os.path.basename(x.split("test_vfs_ls")[1]),
+                    self.vfs.ls(basepath),
                 )
-            ),
-            set(
-                # vfs.ls includes drive on Windows
-                os.path.normpath(os.path.join(p.netloc, os.path.splitdrive(p.path)[1]))
-                for p in map(urllib.parse.urlsplit, self.vfs.ls(basepath))
             ),
         )
 
