@@ -5,6 +5,7 @@ import os
 import random
 import shutil
 import subprocess
+import sys
 import tempfile
 import traceback
 import tiledb
@@ -337,11 +338,14 @@ def assert_all_arrays_equal(*arrays):
 
 
 def assert_captured(cap, expected):
-    import ctypes
+    if sys.platform == "win32":
+        return
+    else:
+        import ctypes
 
-    libc = ctypes.CDLL(None)
-    libc.fflush(None)
+        libc = ctypes.CDLL(None)
+        libc.fflush(None)
 
-    out, err = cap.readouterr()
-    assert not err
-    assert expected in out
+        out, err = cap.readouterr()
+        assert not err
+        assert expected in out
