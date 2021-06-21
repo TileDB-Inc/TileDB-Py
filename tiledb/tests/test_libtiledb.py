@@ -3954,6 +3954,15 @@ class TestTest(DiskTestCase):
         if pytestconfig.getoption("vfs") == "s3":
             assert path.startswith("s3://")
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="no_output fixture disabled on Windows"
+    )
+    @pytest.mark.xfail(
+        True, reason="This test prints, and should fail because of no_output fixture!"
+    )
+    def test_no_output(self):
+        print("this test should fail")
+
 
 # if __name__ == '__main__':
 #    # run a single example for in-process debugging
