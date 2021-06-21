@@ -20,9 +20,10 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.tests.common import (
-    DiskTestCase,
+    assert_captured,
     assert_subarrays_equal,
     assert_unordered_equal,
+    DiskTestCase,
     rand_ascii,
     rand_ascii_bytes,
     rand_utf8,
@@ -35,24 +36,6 @@ from tiledb.tests.fixtures import (
 from tiledb.util import schema_from_dict
 
 
-def safe_dump(obj):
-    """
-    Helper to call obj.dump(), redirect stdout, and catch any exceptions
-    """
-    # TODO this doesn't actually redirect the C level stdout used by libtiledb dump
-    #      functions...
-    try:
-        with io.StringIO() as buf, redirect_stdout(buf):
-            obj.dump()
-    except Exception as exc:
-        print(
-            "Exception occurred calling 'obj.dump()' with redirect.",
-            exc,
-            "\nTrying 'obj.dump()' alone.",
-        )
-        obj.dump()
-
-
 class VersionTest(DiskTestCase):
     def test_version(self):
         v = tiledb.libtiledb.version()
@@ -62,7 +45,7 @@ class VersionTest(DiskTestCase):
 
 
 class StatsTest(DiskTestCase):
-    def test_stats(self):
+    def test_stats(self, capfd):
         tiledb.libtiledb.stats_enable()
         tiledb.libtiledb.stats_reset()
         tiledb.libtiledb.stats_disable()
@@ -76,7 +59,12 @@ class StatsTest(DiskTestCase):
         with tiledb.open(self.path("test_stats")) as T:
             tiledb.libtiledb.stats_enable()
             assert_array_equal(T, np.arange(10))
+
+            # test stdout version
             tiledb.stats_dump()
+            assert_captured(capfd, "TileDB Embedded Version:")
+
+            # test string version
             stats_v = tiledb.stats_dump(print_out=False)
             if tiledb.libtiledb.version() < (2, 3):
                 self.assertTrue("==== READ ====" in stats_v)
@@ -334,15 +322,18 @@ class DimensionTest(unittest.TestCase):
             )
 
 
-class DomainTest(unittest.TestCase):
-    def test_domain(self):
+class DomainTest(DiskTestCase):
+    def test_domain(self, capfd):
         dims = [
             tiledb.Dim("d1", (1, 4), 2, dtype="u8"),
             tiledb.Dim("d2", (1, 4), 2, dtype="u8"),
         ]
         dom = tiledb.Domain(*dims)
+
         # check that dumping works
-        safe_dump(dom)
+        dom.dump()
+        assert_captured(capfd, "Name: d1")
+
         self.assertEqual(dom.ndim, 2)
         self.assertEqual(dom.dtype, np.dtype("uint64"))
         self.assertEqual(dom.shape, (4, 4))
@@ -387,9 +378,12 @@ class AttributeTest(DiskTestCase):
         self.assertFalse(attr.isvar)
         self.assertFalse(attr.isnullable)
 
-    def test_attribute(self):
+    def test_attribute(self, capfd):
         attr = tiledb.Attr("foo")
-        safe_dump(attr)
+
+        attr.dump()
+        assert_captured(capfd, "Name: foo")
+
         assert attr.name == "foo"
         assert attr.dtype == np.float64, "default attribute type is float64"
         # compressor, level = attr.compressor
@@ -423,11 +417,14 @@ class AttributeTest(DiskTestCase):
                 # record type unsupported for .df
                 assert R.df[0][""].values == np.array(fill, dtype=dtype)
 
-    def test_full_attribute(self):
+    def test_full_attribute(self, capfd):
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
         attr = tiledb.Attr("foo", dtype=np.int64, filters=filter_list)
-        safe_dump(attr)
+
+        attr.dump()
+        assert_captured(capfd, "Name: foo")
+
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.int64)
 
@@ -475,7 +472,7 @@ class AttributeTest(DiskTestCase):
         assert attr.dtype != np.dtype(np.datetime64)
 
 
-class ArraySchemaTest(unittest.TestCase):
+class ArraySchemaTest(DiskTestCase):
     def test_schema_basic(self):
         dom = tiledb.Domain(
             tiledb.Dim("d1", (1, 4), 2, dtype="u8"),
@@ -538,7 +535,7 @@ class ArraySchemaTest(unittest.TestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.ArraySchema(domain=dom, attrs=(att,))
 
-    def test_sparse_schema(self):
+    def test_sparse_schema(self, capfd):
         # create dimensions
         d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
         d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
@@ -568,7 +565,9 @@ class ArraySchemaTest(unittest.TestCase):
             offsets_filters=offsets_filters,
         )
 
-        safe_dump(schema)
+        schema.dump()
+        assert_captured(capfd, "Array type: sparse")
+
         self.assertTrue(schema.sparse)
         self.assertEqual(schema.capacity, 10)
         self.assertEqual(schema.cell_order, "col-major")
@@ -611,7 +610,7 @@ class ArraySchemaTest(unittest.TestCase):
                 domain=domain, attrs=(a1,), sparse=True, tile_order="hilbert"
             )
 
-    def test_sparse_schema_filter_list(self):
+    def test_sparse_schema_filter_list(self, capfd):
         # create dimensions
         d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
         d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
@@ -645,8 +644,10 @@ class ArraySchemaTest(unittest.TestCase):
             offsets_filters=off_filters,
             sparse=True,
         )
-        safe_dump(schema)
         self.assertTrue(schema.sparse)
+
+        schema.dump()
+        assert_captured(capfd, "Array type: sparse")
 
         # make sure we can construct ArraySchema with python lists of filters
         schema2 = tiledb.ArraySchema(
@@ -1484,7 +1485,6 @@ class DenseArrayTest(DiskTestCase):
 
             self.assertTrue(T.last_write_info is not None)
             self.assertTrue(len(T.last_write_info.keys()) == 1)
-            print(T.last_write_info.values())
             t_w1, t_w2 = list(T.last_write_info.values())[0]
             self.assertTrue(t_w1 > 0)
             self.assertTrue(t_w2 > 0)
@@ -1817,8 +1817,6 @@ class TestVarlen(DiskTestCase):
             ],
             dtype=object,
         )
-
-        print("random sub-length test array: {}".format(A))
 
         # basic write
         dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
@@ -3136,7 +3134,7 @@ class ArrayViewTest(DiskTestCase):
 
 
 class RWTest(DiskTestCase):
-    def test_read_write(self):
+    def test_read_write(self, capfd):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
         att = tiledb.Attr(dtype="int64")
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
@@ -3148,7 +3146,9 @@ class RWTest(DiskTestCase):
             arr.write_direct(np_array)
 
         with tiledb.DenseArray(self.path("foo"), mode="r") as arr:
-            safe_dump(arr)
+            arr.dump()
+
+            assert_captured(capfd, "Array type: dense")
             self.assertEqual(arr.nonempty_domain(), ((0, 2),))
             self.assertEqual(arr.ndim, np_array.ndim)
             assert_array_equal(arr.read_direct(), np_array)
@@ -3589,7 +3589,7 @@ class MemoryTest(DiskTestCase):
 
         return initial
 
-    def test_memory_cleanup(self):
+    def test_memory_cleanup(self, capfd):
         # run function which reads 100x from a 40MB test array
         # TODO: RSS is too loose to do this end-to-end, so should use instrumentation.
         print("Starting TileDB-Py memory test:")
@@ -3604,6 +3604,7 @@ class MemoryTest(DiskTestCase):
         final_gc = process.memory_info().rss
         print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
 
+        assert_captured(capfd, "final RSS")
         self.assertTrue(final < (2 * initial))
 
 
@@ -3952,6 +3953,15 @@ class TestTest(DiskTestCase):
         path = self.path("foo")
         if pytestconfig.getoption("vfs") == "s3":
             assert path.startswith("s3://")
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="no_output fixture disabled on Windows"
+    )
+    @pytest.mark.xfail(
+        True, reason="This test prints, and should fail because of no_output fixture!"
+    )
+    def test_no_output(self):
+        print("this test should fail")
 
 
 # if __name__ == '__main__':

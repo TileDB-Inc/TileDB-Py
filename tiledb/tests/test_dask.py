@@ -9,6 +9,12 @@ from tiledb.tests.common import DiskTestCase
 import numpy as np
 from numpy.testing import assert_array_equal, assert_approx_equal
 
+# override the no_output fixture because it conflicts with these tests
+#   eg: "ResourceWarning: unclosed event loop"
+@pytest.fixture(scope="function", autouse=True)
+def no_output():
+    pass
+
 
 @pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
 class TestDaskSupport(DiskTestCase):

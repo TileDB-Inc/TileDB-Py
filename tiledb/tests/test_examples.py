@@ -7,6 +7,11 @@ import tempfile
 
 import pytest
 
+# override locally to avoid conflict with capsys used below
+@pytest.fixture(scope="function", autouse=True)
+def no_output():
+    pass
+
 
 class ExamplesTest:
     """Test runnability of scripts in examples/"""

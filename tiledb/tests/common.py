@@ -5,6 +5,7 @@ import os
 import random
 import shutil
 import subprocess
+import sys
 import tempfile
 import traceback
 import tiledb
@@ -119,6 +120,12 @@ class DiskTestCase:
         if not len(args) == 2:
             raise Exception("Unexpected input len > 2 to assertEquals")
         assert args[0] == args[1]
+
+    @contextlib.contextmanager
+    def assertNotEqual(self, *args):
+        if not len(args) == 2:
+            raise Exception("Unexpected input len > 2 to assertEquals")
+        assert args[0] != args[1]
 
     @contextlib.contextmanager
     def assertTrue(self, a, msg=None):
@@ -328,3 +335,17 @@ def assert_all_arrays_equal(*arrays):
 
     for a1, a2 in zip(arrays[0::2], arrays[1::2]):
         assert_array_equal(a1, a2)
+
+
+def assert_captured(cap, expected):
+    if sys.platform == "win32":
+        return
+    else:
+        import ctypes
+
+        libc = ctypes.CDLL(None)
+        libc.fflush(None)
+
+        out, err = cap.readouterr()
+        assert not err
+        assert expected in out
