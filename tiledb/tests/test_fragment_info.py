@@ -504,12 +504,11 @@ class FragmentInfoTest(DiskTestCase):
 
         fragment_info.load()
 
-        self.assertEqual(fragment_info.to_vacuum_num(), 3)
-        self.assertEqual(fragment_info.to_vacuum_uri(0), expected_vacuum_uri)
-        self.assertEqual(fragment_info.to_vacuum_uri(), (expected_vacuum_uri,))
+        assert fragment_info.to_vacuum_num() == 3
+        assert fragment_info.to_vacuum_uri(0) == expected_vacuum_uri
 
         tiledb.vacuum(uri)
 
         fragment_info.load()
 
-        self.assertEqual(fragment_info.to_vacuum_num(), 0)
+        assert fragment_info.to_vacuum_num() == 0
