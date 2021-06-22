@@ -5,6 +5,7 @@
 
 ## Bug Fixes
 * FragmentInfo API's to_vacuum_uri() function corrected to iterate through `to_vacuum_num` rather than `fragment_num`[#603](https://github.com/TileDB-Inc/TileDB-Py/pull/603)
+* Return "NA" For ArraySchema.tile_order if "Hilbert" [#605](https://github.com/TileDB-Inc/TileDB-Py/pull/605)
 
 # TileDB-Py 0.9.0 Release Notes
 
