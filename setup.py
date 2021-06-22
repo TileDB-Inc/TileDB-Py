@@ -69,7 +69,7 @@ if sys.platform == "darwin":
 WHEEL_BUILD = ("bdist_wheel" in sys.argv) or ("TILEDB_WHEEL_BUILD" in os.environ)
 
 # Is this being built under conda-forge?
-CONDA_FORGE_BUILD = "FEEDSTOCK_ROOT" in os.environ
+CONDA_FORGE_BUILD = os.environ.get("TILEDB_CONDA_BUILD") == 1
 
 
 def is_windows():
@@ -510,6 +510,7 @@ def parse_requirements(req_file):
 
 def setup_requires():
     if CONDA_FORGE_BUILD:
+        print("This is a conda-forge build")
         return []
 
     if WHEEL_BUILD:
@@ -523,6 +524,13 @@ def setup_requires():
         req.append("cmake>=3.11.0")
 
     return req
+
+
+def install_requires():
+    if CONDA_FORGE_BUILD:
+        return []
+
+    return parse_requirements("requirements.txt")
 
 
 # Allow setting (lib) TileDB directory if it is installed on the system
@@ -725,7 +733,7 @@ setup(
     },
     ext_modules=__extensions,
     setup_requires=setup_requires(),
-    install_requires=parse_requirements("requirements.txt"),
+    install_requires=install_requires(),
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
     zip_safe=False,
