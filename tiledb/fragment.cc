@@ -206,9 +206,16 @@ public:
   uint32_t to_vacuum_num() const { return fi_->to_vacuum_num(); }
 
   py::object to_vacuum_uri(py::object fid) const {
-    return fid.is(py::none())
-               ? for_all_fid(&FragmentInfo::to_vacuum_uri)
-               : py::str(fi_->to_vacuum_uri(py::cast<uint32_t>(fid)));
+    if (fid.is(py::none())) {
+      py::list l;
+      uint32_t nfrag = to_vacuum_num();
+
+      for (uint32_t i = 0; i < nfrag; ++i)
+        l.append((fi_->to_vacuum_uri(i)));
+      return py::tuple(l);
+    }
+
+    return py::str(fi_->to_vacuum_uri(py::cast<uint32_t>(fid)));
   }
 
   void dump() const { return fi_->dump(stdout); }

@@ -3546,6 +3546,52 @@ class ConsolidationTest(DiskTestCase):
 
         paths = vfs.ls(path2)
 
+    def test_array_consolidate_with_timestamp(self):
+        dshape = (1, 3)
+        num_writes = 10
+
+        def create_array(target_path, dshape):
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path, dshape, num_writes):
+            for i in range(1, num_writes + 1):
+                with tiledb.open(target_path, "w", timestamp=i) as A:
+                    A[[1, 2, 3]] = np.random.rand(dshape[1])
+
+        path = self.path("test_array_consolidate_with_timestamp")
+
+        create_array(path, dshape)
+        write_fragments(path, dshape, num_writes)
+        frags = tiledb.FragmentInfoList(path)
+        assert len(frags) == 10
+
+        tiledb.consolidate(path, timestamp=(1, 4))
+        frags = tiledb.FragmentInfoList(path)
+        assert len(frags) == 7
+        assert frags.to_vacuum_num == 4
+
+        tiledb.vacuum(path, timestamp=(1, 2))
+        frags = tiledb.FragmentInfoList(path)
+        assert frags.to_vacuum_num == 2
+
+        tiledb.vacuum(path)
+        frags = tiledb.FragmentInfoList(path)
+        assert frags.to_vacuum_num == 0
+
+        conf = tiledb.Config(
+            {
+                "sm.consolidation.timestamp_start": 5,
+                "sm.consolidation.timestamp_end": 9,
+            }
+        )
+        tiledb.consolidate(path, config=conf)
+        tiledb.vacuum(path)
+        frags = tiledb.FragmentInfoList(path)
+        assert len(frags.timestamp_range) == 3
+
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Only run MemoryTest on linux")
 class MemoryTest(DiskTestCase):

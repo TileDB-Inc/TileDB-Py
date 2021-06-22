@@ -1,3 +1,11 @@
+# TileDB-Py 0.9.1 Release Notes
+
+## Improvements
+* Support passing a timestamp range for consolidation and vacuuming [#603](https://github.com/TileDB-Inc/TileDB-Py/pull/603)
+
+## Bug Fixes
+* FragmentInfo API's to_vacuum_uri() function corrected to iterate through `to_vacuum_num` rather than `fragment_num`[#603](https://github.com/TileDB-Inc/TileDB-Py/pull/603)
+
 # TileDB-Py 0.9.0 Release Notes
 
 ## TileDB Embedded updates:
