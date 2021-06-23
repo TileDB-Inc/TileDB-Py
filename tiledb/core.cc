@@ -744,8 +744,9 @@ public:
       }
     }
 
-    // don't try to allocate more than alloc_max_bytes_
-    if (buf_nbytes > alloc_max_bytes_) {
+    // - for sparse arrays: don't try to allocate more than alloc_max_bytes_
+    // - for dense arrays: the estimate should be exact, so don't cap
+    if (is_sparse() && buf_nbytes > alloc_max_bytes_) {
       buf_nbytes = alloc_max_bytes_;
     }
     // use max to avoid overflowing to zero in the multiplication, in case the
