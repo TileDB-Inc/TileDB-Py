@@ -3831,6 +3831,16 @@ class ReprTest(unittest.TestCase):
 
             self.assertEqual(new_schema, orig_schema)
 
+    def test_arrayschema_repr_hilbert(self):
+        domain = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
+        a = tiledb.Attr("a", dtype="f8")
+        schema = tiledb.ArraySchema(
+            domain=domain, attrs=(a,), cell_order="hilbert", sparse=True
+        )
+
+        assert schema.cell_order == "hilbert"
+        assert schema.tile_order == "NA"
+
 
 class NullableIOTest(DiskTestCase):
     def test_nullable_write(self):

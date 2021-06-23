@@ -3513,7 +3513,12 @@ cdef class ArraySchema(object):
         """
         cdef tiledb_layout_t order = TILEDB_UNORDERED
         self._tile_order(&order)
-        return _tiledb_layout_string(order)
+        
+        layout_string = _tiledb_layout_string(order)
+        if self.cell_order == "hilbert":
+            layout_string = "NA"
+        
+        return layout_string
 
     @property
     def coords_compressor(self):
