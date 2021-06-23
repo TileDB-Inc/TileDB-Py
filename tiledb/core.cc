@@ -1436,6 +1436,7 @@ PYBIND11_MODULE(core, m) {
           .def("submit", &PyQuery::submit)
           .def("unpack_buffer", &PyQuery::unpack_buffer)
           .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)
+          .def("_allocate_buffers", &PyQuery::allocate_buffers)
           .def("_get_buffers", &PyQuery::get_buffers)
           .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
           .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
