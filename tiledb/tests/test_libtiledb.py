@@ -3582,10 +3582,7 @@ class ConsolidationTest(DiskTestCase):
         assert frags.to_vacuum_num == 0
 
         conf = tiledb.Config(
-            {
-                "sm.consolidation.timestamp_start": 5,
-                "sm.consolidation.timestamp_end": 9,
-            }
+            {"sm.consolidation.timestamp_start": 5, "sm.consolidation.timestamp_end": 9}
         )
         tiledb.consolidate(path, config=conf)
         tiledb.vacuum(path)
@@ -3788,7 +3785,7 @@ class ContextTest(unittest.TestCase):
         self.assertEqual(3, init_test_wrapper({"sm.io_concurrency_level": 3}))
 
 
-class ReprTest(unittest.TestCase):
+class ReprTest(DiskTestCase):
     def test_attr_repr(self):
         attr = tiledb.Attr(name="itsanattr", dtype=np.float64)
         self.assertTrue(
@@ -3802,14 +3799,17 @@ class ReprTest(unittest.TestCase):
         exec("from tiledb import Attr; from numpy import float64", g)
         self.assertEqual(eval(repr(attr), g), attr)
 
-    def test_arrayschema_repr(self):
+    def test_arrayschema_repr(self, sparse_cell_order):
         filters = tiledb.FilterList([tiledb.ZstdFilter(-1)])
         for sparse in [False, True]:
+            cell_order = sparse_cell_order if sparse else None
             domain = tiledb.Domain(
                 tiledb.Dim(domain=(1, 8), tile=2), tiledb.Dim(domain=(1, 8), tile=2)
             )
             a1 = tiledb.Attr("val", dtype="f8", filters=filters)
-            orig_schema = tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=sparse)
+            orig_schema = tiledb.ArraySchema(
+                domain=domain, attrs=(a1,), sparse=sparse, cell_order=cell_order
+            )
 
             schema_repr = repr(orig_schema)
             g = dict()
