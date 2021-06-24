@@ -3516,7 +3516,7 @@ cdef class ArraySchema(object):
         
         layout_string = _tiledb_layout_string(order)
         if self.cell_order == "hilbert":
-            layout_string = "NA"
+            layout_string = None
         
         return layout_string
 

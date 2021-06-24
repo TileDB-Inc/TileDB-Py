@@ -3839,7 +3839,7 @@ class ReprTest(unittest.TestCase):
         )
 
         assert schema.cell_order == "hilbert"
-        assert schema.tile_order == "NA"
+        assert schema.tile_order == None
 
 
 class NullableIOTest(DiskTestCase):
