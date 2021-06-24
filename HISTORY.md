@@ -1,5 +1,8 @@
 # TileDB-Py 0.9.1 Release Notes
 
+## TileDB Embedded updates:
+* TileDB-Py 0.9.1 includes TileDB Embedded [TileDB 2.3.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3.1)
+
 ## Improvements
 * Support passing a timestamp range for consolidation and vacuuming [#603](https://github.com/TileDB-Inc/TileDB-Py/pull/603)
 
