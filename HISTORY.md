@@ -1,5 +1,8 @@
 # TileDB-Py 0.9.2 Release Notes
 
+## Packaging Notes
+* Fixed release builder ordering issue which led to CRLF line endings in 0.9.1 source distribution.
+
 ## Improvements
 * Set `ArraySchema.tile_order=None` for Hilbert-ordered arrays [#609](https://github.com/TileDB-Inc/TileDB-Py/pull/609)
 
