@@ -3,7 +3,7 @@ stages:
   variables:
     TILEDBPY_VERSION: 0.9.1
     LIBTILEDB_VERSION: 2.3.1
-    LIBTILEDB_SHA: 6d36169de6cbae58da1691f047427fe7bea2d239 
+    LIBTILEDB_SHA: 6d36169de6cbae58da1691f047427fe7bea2d239
     LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
     SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
@@ -114,6 +114,10 @@ stages:
         python setup.py sdist --dist-dir wheelhouse
         pip install cibuildwheel==%USE_CIBW_VERSION%
         cibuildwheel --output-dir wheelhouse .
+        # delete the sdist because we *do not* want files with CRLF endings
+        # (if windows builds finish last then the windows sdist will be
+        #  overwrite any others in the artifact publishing step)
+        del /q wheelhouse\*.tar.gz
       displayName: "Build and test wheels (Windows)"
       condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
 
