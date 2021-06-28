@@ -1,0 +1,4 @@
+# note: cmake 3.13 is the last manylinux1 release on pypi
+cmake >= 3.13
+
+-r ../requirements_dev.txt

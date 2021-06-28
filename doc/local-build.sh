@@ -57,7 +57,7 @@ setup_venv() {
   pip install 'Sphinx==1.6.7' \
        'breathe' \
        'sphinx_rtd_theme' \
-       -r ../requirements_dev.txt || die "could not install doc dependencies"
+       -r requirements_doc.txt || die "could not install doc dependencies"
 }
 
 build_ext() {
