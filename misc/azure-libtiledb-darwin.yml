@@ -27,10 +27,15 @@ steps:
 
     $TILEDB_SRC/bootstrap --force-build-all-deps --disable-werror --enable=s3,gcs,azure,serialization --enable-static-tiledb --disable-avx2 --disable-tests --prefix=$TILEDB_INSTALL
 
+    export CXXFLAGS="-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
+    export CFLAGS="-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
+
     cmake --build $TILEDB_BUILD --config Release -j3
     cmake --build $TILEDB_BUILD --target install-tiledb --config Release
 
-    cp $TILEDB_BUILD/externals/install/lib/libz.1.dylib $TILEDB_INSTALL/lib || true
+    if [[ "$AGENT_OS" == "Darwin" ]]; then
+      cp $TILEDB_BUILD/externals/install/lib/libz.1.dylib $TILEDB_INSTALL/lib || true
+    fi
 
     if [[ "$AGENT_OS" == "Darwin" ]]; then
       otool -L ${TILEDB_INSTALL}/lib/libtiledb.dylib;
@@ -59,8 +64,11 @@ steps:
     set -xe
     if [[ "$AGENT_OS" == "Windows_NT" ]]; then
       7z a ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} ${TILEDB_INSTALL}/*
+    elif [[ "$AGENT_OS" == "Darwin" ]]; then
+      tar -czf ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -C ${TILEDB_INSTALL} . 
     else
-      tar -czf ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -C ${TILEDB_INSTALL} .
+      # ignores the file change warning: https://stackoverflow.com/a/49112839
+      tar -czf ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -C ${TILEDB_INSTALL} . || ( export ret=$?; [[ $ret -eq 1 ]] || exit "$ret" )
     fi
   displayName: "Archive build"
 

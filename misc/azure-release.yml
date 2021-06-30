@@ -27,14 +27,24 @@ stages:
     steps:
     - task: UsePythonVersion@0
     - template: azure-libtiledb-darwin.yml
+  
+  - job: build1_libtiledb_on_linux
+    container: quay.io/pypa/manylinux2010_x86_64:2021-06-07-00faba2
+
+    steps:
+    - task: UsePythonVersion@0
+    - template: azure-libtiledb-darwin.yml
 
   - job: build2_python
-    dependsOn: build1_libtiledb
+    dependsOn: [build1_libtiledb, build1_libtiledb_on_linux]
     condition: succeeded()
     variables:
       cibw_test_requires: "pytest"
     strategy:
       matrix:
+        linux_py:
+          imageName: 'ubuntu-20.04'
+          CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*' 
         macOS_py:
           imageName: 'macOS-10.15'
           CIBW_SKIP: 'cp27-* cp35-* pp*'
@@ -82,6 +92,24 @@ stages:
 
     - bash: |
         set -xe pipefail
+      
+        mv ${TILEDB_INSTALL} .libtiledb
+        export TILEDB_INSTALL=.libtiledb
+        export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL}"
+        export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt; cp -R .libtiledb/* /usr/local"
+        export CIBW_BUILD_VERBOSITY=3
+
+        python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
+        git rev-parse HEAD
+        python3 -m pip install --upgrade pip pytest cython
+        python3 setup.py sdist --dist-dir wheelhouse
+        pip3 install cibuildwheel==${USE_CIBW_VERSION}
+        cibuildwheel --output-dir wheelhouse .
+      displayName: "Build and test wheels (Linux)"
+      condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
+
+    - bash: |
+        set -xe pipefail
         export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt"
         export CIBW_BUILD_VERBOSITY=3
         export TILEDB_WHEEL_BUILD=1
@@ -93,7 +121,7 @@ stages:
         pip3 install cibuildwheel==${USE_CIBW_VERSION}
         cibuildwheel --output-dir wheelhouse .
       displayName: "Build and test wheels (macOS)"
-      condition: and(succeeded(), ne(variables['Agent.OS'], 'Windows_NT'))
+      condition: and(succeeded(), eq(variables['Agent.OS'], 'Darwin'))
 
     - script: |
         echo ON
@@ -135,19 +163,3 @@ stages:
         find $TILEDB_INSTALL || true
       displayName: "List all the files"
       condition: always()
-
-  - job: build1_linux_wheels_2010
-    strategy:
-      matrix:
-        wheels:
-          imageName: 'ubuntu-16.04'
-    pool:
-      vmImage: $(imageName)
-
-    steps:
-    - script: git tag -f $(TILEDBPY_VERSION)
-    - bash: |
-        docker build --build-arg LIBTILEDB_VERSION --build-arg LIBTILEDB_SHA --build-arg LIBTILEDB_REPO --build-arg TILEDBPY_VERSION -f misc/pypi_linux/Dockerfile2010 . -t wheel_builder_2010
-        docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder_2010 build.sh
-    - task: PublishBuildArtifacts@1
-      inputs: {pathtoPublish: 'wheelhouse'}
