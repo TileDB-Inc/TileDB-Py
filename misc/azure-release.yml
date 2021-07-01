@@ -45,13 +45,18 @@ stages:
         linux_py:
           imageName: 'ubuntu-20.04'
           CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*' 
+          CIBW_BUILD_VERBOSITY: 3
+          CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL:0 -D__BIONIC__=1"
+          CFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
         macOS_py:
           imageName: 'macOS-10.15'
           CIBW_SKIP: 'cp27-* cp35-* pp*'
           SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
+          CIBW_BUILD_VERBOSITY: 3
         windows_py:
           imageName: 'vs2017-win2016'
           CIBW_SKIP: 'cp27-* cp35-* cp36-* *-win32 pp*'
+          CIBW_BUILD_VERBOSITY: 3
     pool:
       vmImage: $(imageName)
 
@@ -88,7 +93,7 @@ stages:
         # !!! DO NOT PUT OTHER VARIABLES IN THIS SECTION - vars w/out expansions go below !!!"
         echo "##vso[task.setvariable variable=CIBW_ENVIRONMENT]$CIBW_ENVIRONMENT"
       displayName: "Set CIBW_ENVIRONMENT"
-      condition: succeeded()
+      condition: and(succeeded(), ne(variables['Agent.OS'], 'Linux'))
 
     - bash: |
         set -xe pipefail
@@ -97,7 +102,7 @@ stages:
         export TILEDB_INSTALL=.libtiledb
         export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL}"
         export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt; cp -R .libtiledb/* /usr/local"
-        export CIBW_BUILD_VERBOSITY=3
+        ls -lR "${TILEDB_INSTALL}"
 
         python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
         git rev-parse HEAD
@@ -110,10 +115,11 @@ stages:
 
     - bash: |
         set -xe pipefail
+
         export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt"
-        export CIBW_BUILD_VERBOSITY=3
         export TILEDB_WHEEL_BUILD=1
         echo "${TILEDB_INSTALL}"
+
         python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
         git rev-parse HEAD
         python3 -m pip install --upgrade pip pytest cython
@@ -125,13 +131,11 @@ stages:
 
     - script: |
         echo ON
-        set "CIBW_BUILD_VERBOSITY=3"
         set "CIBW_BEFORE_BUILD=python -m pip install -r misc/requirements_wheel.txt"
         set "TILEDB_WHEEL_BUILD=1"
         echo "cibw env: "
         echo "%CIBW_ENVIRONMENT%"
         echo "tiledb_install: "
-        echo "%TILEDB_INSTALL%"
         echo "%TILEDB_INSTALL%"
         python -c "import os; print(os.environ['CIBW_ENVIRONMENT'])"
         python -c "import platform; print('py compiler: ', platform.python_compiler())"
