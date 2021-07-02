@@ -5,6 +5,7 @@
 
 ## Improvements
 * Set `ArraySchema.tile_order=None` for Hilbert-ordered arrays [#609](https://github.com/TileDB-Inc/TileDB-Py/pull/609)
+* Use CIBW to build release wheels on Linux [#613](https://github.com/TileDB-Inc/TileDB-Py/pull/613)
 
 # TileDB-Py 0.9.1 Release Notes
 

@@ -27,21 +27,36 @@ stages:
     steps:
     - task: UsePythonVersion@0
     - template: azure-libtiledb-darwin.yml
+  
+  - job: build1_libtiledb_on_linux
+    container: quay.io/pypa/manylinux2010_x86_64:2021-06-07-00faba2
+
+    steps:
+    - task: UsePythonVersion@0
+    - template: azure-libtiledb-darwin.yml
 
   - job: build2_python
-    dependsOn: build1_libtiledb
+    dependsOn: [build1_libtiledb, build1_libtiledb_on_linux]
     condition: succeeded()
     variables:
       cibw_test_requires: "pytest"
     strategy:
       matrix:
+        linux_py:
+          imageName: 'ubuntu-20.04'
+          CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*' 
+          CIBW_BUILD_VERBOSITY: 3
+          CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL:0 -D__BIONIC__=1"
+          CFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
         macOS_py:
           imageName: 'macOS-10.15'
           CIBW_SKIP: 'cp27-* cp35-* pp*'
           SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
+          CIBW_BUILD_VERBOSITY: 3
         windows_py:
           imageName: 'vs2017-win2016'
           CIBW_SKIP: 'cp27-* cp35-* cp36-* *-win32 pp*'
+          CIBW_BUILD_VERBOSITY: 3
     pool:
       vmImage: $(imageName)
 
@@ -78,14 +93,33 @@ stages:
         # !!! DO NOT PUT OTHER VARIABLES IN THIS SECTION - vars w/out expansions go below !!!"
         echo "##vso[task.setvariable variable=CIBW_ENVIRONMENT]$CIBW_ENVIRONMENT"
       displayName: "Set CIBW_ENVIRONMENT"
-      condition: succeeded()
+      condition: and(succeeded(), ne(variables['Agent.OS'], 'Linux'))
 
     - bash: |
         set -xe pipefail
+      
+        mv ${TILEDB_INSTALL} .libtiledb
+        export TILEDB_INSTALL=.libtiledb
+        export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL}"
+        export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt; cp -R .libtiledb/* /usr/local"
+        ls -lR "${TILEDB_INSTALL}"
+
+        python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
+        git rev-parse HEAD
+        python3 -m pip install --upgrade pip pytest cython
+        python3 setup.py sdist --dist-dir wheelhouse
+        pip3 install cibuildwheel==${USE_CIBW_VERSION}
+        cibuildwheel --output-dir wheelhouse .
+      displayName: "Build and test wheels (Linux)"
+      condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
+
+    - bash: |
+        set -xe pipefail
+
         export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt"
-        export CIBW_BUILD_VERBOSITY=3
         export TILEDB_WHEEL_BUILD=1
         echo "${TILEDB_INSTALL}"
+
         python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
         git rev-parse HEAD
         python3 -m pip install --upgrade pip pytest cython
@@ -93,17 +127,15 @@ stages:
         pip3 install cibuildwheel==${USE_CIBW_VERSION}
         cibuildwheel --output-dir wheelhouse .
       displayName: "Build and test wheels (macOS)"
-      condition: and(succeeded(), ne(variables['Agent.OS'], 'Windows_NT'))
+      condition: and(succeeded(), eq(variables['Agent.OS'], 'Darwin'))
 
     - script: |
         echo ON
-        set "CIBW_BUILD_VERBOSITY=3"
         set "CIBW_BEFORE_BUILD=python -m pip install -r misc/requirements_wheel.txt"
         set "TILEDB_WHEEL_BUILD=1"
         echo "cibw env: "
         echo "%CIBW_ENVIRONMENT%"
         echo "tiledb_install: "
-        echo "%TILEDB_INSTALL%"
         echo "%TILEDB_INSTALL%"
         python -c "import os; print(os.environ['CIBW_ENVIRONMENT'])"
         python -c "import platform; print('py compiler: ', platform.python_compiler())"
@@ -135,19 +167,3 @@ stages:
         find $TILEDB_INSTALL || true
       displayName: "List all the files"
       condition: always()
-
-  - job: build1_linux_wheels_2010
-    strategy:
-      matrix:
-        wheels:
-          imageName: 'ubuntu-16.04'
-    pool:
-      vmImage: $(imageName)
-
-    steps:
-    - script: git tag -f $(TILEDBPY_VERSION)
-    - bash: |
-        docker build --build-arg LIBTILEDB_VERSION --build-arg LIBTILEDB_SHA --build-arg LIBTILEDB_REPO --build-arg TILEDBPY_VERSION -f misc/pypi_linux/Dockerfile2010 . -t wheel_builder_2010
-        docker run -v `pwd`/wheelhouse:/wheels -t wheel_builder_2010 build.sh
-    - task: PublishBuildArtifacts@1
-      inputs: {pathtoPublish: 'wheelhouse'}
