@@ -69,7 +69,7 @@ if sys.platform == "darwin":
 WHEEL_BUILD = ("bdist_wheel" in sys.argv) or ("TILEDB_WHEEL_BUILD" in os.environ)
 
 # Is this being built under conda-forge?
-CONDA_FORGE_BUILD = os.environ.get("TILEDB_CONDA_BUILD") == 1
+CONDA_FORGE_BUILD = os.environ.get("TILEDB_CONDA_BUILD") is not None
 
 
 def is_windows():
@@ -510,7 +510,6 @@ def parse_requirements(req_file):
 
 def setup_requires():
     if CONDA_FORGE_BUILD:
-        print("This is a conda-forge build")
         return []
 
     if WHEEL_BUILD:
