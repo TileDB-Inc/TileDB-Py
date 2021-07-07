@@ -5585,6 +5585,34 @@ cdef class SparseArrayImpl(Array):
                 dim_values[dim] = tuple(np.unique(query[dim]))
 
         return dim_values
+    
+    # pickling support: this is a lightweight pickle for distributed use.
+    #   simply treat as wrapper around URI, not actual data.
+    def __getstate__(self):
+        config_dict = self._ctx_().config().dict()
+        return (self.uri, self.mode, self.key, self.view_attr, self.timestamp, config_dict)
+
+    def __setstate__(self, state):
+        cdef:
+            unicode uri, mode
+            object view_attr = None
+            object timestamp = None
+            object key = None
+            dict config_dict = {}
+        uri, mode, key, view_attr, _timestamp, config_dict = state
+
+        if mode == 'r':
+            timestamp = _timestamp
+        if config_dict is not {}:
+            config_dict = state[5]
+            config = Config(params=config_dict)
+            ctx = Ctx(config)
+        else:
+            ctx = default_ctx()
+
+        self.__init__(uri, mode=mode, key=key, attr=view_attr,
+                      timestamp=timestamp, ctx=ctx)
+
 
 def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None):
     """Consolidates TileDB array fragments for improved read performance
