@@ -3837,7 +3837,8 @@ cdef class Array(object):
     :param str uri: URI of array to open
     :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
     :param str key: (default None) If not None, encryption key to decrypt the array
-    :param int timestamp: (default None) If not None, open the array at a given TileDB timestamp
+    :param tuple timestamp: (default None) If int, open the array at a given TileDB 
+        timestamp. If tuple, open at the given start and end TileDB timestamps.
     :param str attr: (default None) open one attribute of the array; indexing a
         dense array will return a Numpy ndarray directly rather than a dictionary.
     :param Ctx ctx: TileDB context
@@ -4135,15 +4136,24 @@ cdef class Array(object):
             return 1
         else:
            return self.schema.nattr
-
+    
     @property
     def timestamp(self):
-        """Returns the timestamp the array is opened at
+        """Deprecated in 0.9.2.
+        
+        Use `timestamp_range` 
+        
+        Returns the timestamp the array is opened at
 
         :rtype: int
         :returns: tiledb timestamp at which point the array was opened
 
         """
+        warnings.warn(
+            "timestamp is deprecated; please use timestamp_range",
+            DeprecationWarning,
+        )
+
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef uint64_t timestamp = 0
@@ -4152,6 +4162,31 @@ cdef class Array(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return int(timestamp)
+
+
+    @property
+    def timestamp_range(self):
+        """Returns the timestamp range the array is opened at
+
+        :rtype: tuple
+        :returns: tiledb timestamp range at which point the array was opened
+
+        """
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+        cdef uint64_t timestamp_start = 0
+        cdef uint64_t timestamp_end = 0
+        cdef int rc = TILEDB_OK
+        
+        rc = tiledb_array_get_open_timestamp_start(ctx_ptr, array_ptr, &timestamp_start)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_array_get_open_timestamp_end(ctx_ptr, array_ptr, &timestamp_end)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        return (int(timestamp_start), int(timestamp_end))
 
     @property
     def coords_dtype(self):
@@ -5134,7 +5169,7 @@ cdef class DenseArrayImpl(Array):
     #   simply treat as wrapper around URI, not actual data.
     def __getstate__(self):
         config_dict = self._ctx_().config().dict()
-        return (self.uri, self.mode, self.key, self.view_attr, self.timestamp, config_dict)
+        return (self.uri, self.mode, self.key, self.view_attr, self.timestamp_range, config_dict)
 
     def __setstate__(self, state):
         cdef:
@@ -5143,10 +5178,10 @@ cdef class DenseArrayImpl(Array):
             object timestamp = None
             object key = None
             dict config_dict = {}
-        uri, mode, key, view_attr, _timestamp, config_dict = state
+        uri, mode, key, view_attr, _timestamp_range, config_dict = state
 
         if mode == 'r':
-            timestamp = _timestamp
+            timestamp_range = _timestamp_range
         if config_dict is not {}:
             config_dict = state[5]
             config = Config(params=config_dict)
@@ -5155,7 +5190,7 @@ cdef class DenseArrayImpl(Array):
             ctx = default_ctx()
 
         self.__init__(uri, mode=mode, key=key, attr=view_attr,
-                      timestamp=timestamp, ctx=ctx)
+                      timestamp=timestamp_range, ctx=ctx)
 
 # point query index a tiledb array (zips) columnar index vectors
 def index_domain_coords(dom: Domain, idx: tuple):

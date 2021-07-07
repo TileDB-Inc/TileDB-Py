@@ -396,9 +396,9 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         )
 
         with tiledb.open(uri2, timestamp=0) as A:
-            self.assertEqual(A.timestamp, 0)
+            assert A.timestamp_range == (0, 0)
         with tiledb.open(uri2, timestamp=timestamp) as A:
-            self.assertEqual(A.timestamp, timestamp)
+            assert A.timestamp_range == (0, timestamp)
 
     def test_dataframe_index_to_sparse_dims(self):
         # This test
