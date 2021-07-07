@@ -4,7 +4,7 @@
 * Fixed release builder ordering issue which led to CRLF line endings in 0.9.1 source distribution.
 
 ## API Changes
-* Replace `Array.timestamp` with `Array.timestamp_range` [#616](https://github.com/TileDB-Inc/TileDB-Py/pull/616) 
+* Deprecate `Array.timestamp` and replace with `Array.timestamp_range` [#616](https://github.com/TileDB-Inc/TileDB-Py/pull/616) 
 
 ## Improvements
 * Set `ArraySchema.tile_order=None` for Hilbert-ordered arrays [#609](https://github.com/TileDB-Inc/TileDB-Py/pull/609)
