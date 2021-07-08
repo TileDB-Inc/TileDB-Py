@@ -70,11 +70,15 @@ class FragmentInfoTest(DiskTestCase):
             self.assertEqual(frag.timestamp_range, (idx + 1, idx + 1))
 
             if tiledb.libtiledb.version() < (2, 2, 3):
-                self.assertEqual(frag.version, 7)
+                assert frag.version == 7
             elif tiledb.libtiledb.version() < (2, 3, 0):
-                self.assertEqual(frag.version, 8)
+                assert frag.version == 8
             else:
-                self.assertEqual(frag.version, 9)
+                # make sure the version is within some reasonable bound
+                # but don't pin because that makes testing against dev
+                # more difficult
+                assert frag.version >= 9
+                assert frag.version < 12
 
     def test_array_fragments_var(self):
         fragments = 3
