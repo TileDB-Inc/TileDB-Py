@@ -12,6 +12,6 @@ python:
   version: 3.7
   install:
     # this order is important: we need to get cmake
-    - requirements: requirements_dev.txt
+    - requirements: doc/requirements_doc.txt
     - method: setuptools
       path: .
