@@ -46,7 +46,7 @@ jobs:
     - name: 'Build TileDB and TileDB-Py extension (POSIX)'
       run: |
         set -xeo pipefail
-        python setup.py build_ext --inplace
+        python setup.py build_ext --inplace --werror
         python setup.py install
       shell: bash
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
