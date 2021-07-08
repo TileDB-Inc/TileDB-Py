@@ -1301,7 +1301,7 @@ public:
 
   py::object estimated_result_sizes() {
     py::dict results;
-    for (auto const bp : buffers_) {
+    for (auto const &bp : buffers_) {
       auto name = bp.first;
       auto buf = bp.second;
 
