@@ -873,8 +873,8 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(ValueError):
                 T.dim(1.0)
 
-            self.assertIsInstance(T.timestamp, int)
-            self.assertTrue(T.timestamp > 0)
+            self.assertIsInstance(T.timestamp_range, tuple)
+            self.assertTrue(T.timestamp_range[1] > 0)
 
             # check empty array
             B = T[:]
@@ -892,8 +892,8 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(((0, 1049),), T.nonempty_domain())
 
             # check timestamp
-            read1_timestamp = T.timestamp
-            self.assertTrue(read1_timestamp > 0)
+            read1_timestamp = T.timestamp_range
+            self.assertTrue(read1_timestamp[1] > 0)
 
             # check slicing
             assert_array_equal(A, np.array(T))
@@ -969,7 +969,7 @@ class DenseArrayTest(DiskTestCase):
             assert_array_equal(A[310:], T[310:])
 
             # test timestamps are updated
-            read2_timestamp = T.timestamp
+            read2_timestamp = T.timestamp_range
             self.assertTrue(read2_timestamp > read1_timestamp)
 
     def test_array_1d_set_scalar(self):
@@ -1210,7 +1210,7 @@ class DenseArrayTest(DiskTestCase):
 
         read1_timestamp = -1
         with tiledb.DenseArray(self.path("foo"), mode="r") as T:
-            read1_timestamp = T.timestamp
+            read1_timestamp = T.timestamp_range
             self.assertEqual(T[0], 0)
             self.assertEqual(T[1], 0)
             self.assertEqual(T[2], 0)
@@ -1222,7 +1222,7 @@ class DenseArrayTest(DiskTestCase):
 
         read2_timestamp = -1
         with tiledb.DenseArray(self.path("foo"), mode="r") as T:
-            read2_timestamp = T.timestamp
+            read2_timestamp = T.timestamp_range
             self.assertTrue(read2_timestamp > read1_timestamp)
 
         # sleep 200ms and write
@@ -1232,7 +1232,7 @@ class DenseArrayTest(DiskTestCase):
 
         read3_timestamp = -1
         with tiledb.DenseArray(self.path("foo"), mode="r") as T:
-            read3_timestamp = T.timestamp
+            read3_timestamp = T.timestamp_range
             self.assertTrue(read3_timestamp > read2_timestamp > read1_timestamp)
 
         # read at first timestamp
@@ -3084,6 +3084,41 @@ class PickleTest(DiskTestCase):
             self.assertEqual(d1["vfs.max_parallel_ops"], d2["vfs.max_parallel_ops"])
         T.close()
         T2.close()
+
+    def test_pickle_with_tuple_timestamps(self):
+        A = np.zeros(3)
+        path = self.path("test_pickle_with_tuple_timestamps")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
+        tiledb.DenseArray.create(path, schema)
+
+        # write
+        with tiledb.DenseArray(path, timestamp=1, mode="w") as T:
+            T[:] = A * 1
+        with tiledb.DenseArray(path, timestamp=2, mode="w") as T:
+            T[:] = A * 2
+        with tiledb.DenseArray(path, timestamp=3, mode="w") as T:
+            T[:] = A * 3
+        with tiledb.DenseArray(path, timestamp=4, mode="w") as T:
+            T[:] = A * 4
+
+        with tiledb.DenseArray(path, timestamp=(2, 3), mode="r") as T:
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                with pickle.load(buf) as T2:
+                    assert_array_equal(T, T2)
+                    assert T2.timestamp_range == (2, 3)
+
+            with io.BytesIO() as buf, tiledb.DenseArray(path) as V:
+                pickle.dump(V, buf)
+                buf.seek(0)
+                with pickle.load(buf) as V2:
+                    # make sure anonymous view pickles and round-trips
+                    assert_array_equal(V, V2)
+                    assert T2.timestamp_range == (2, 3)
 
 
 class ArrayViewTest(DiskTestCase):
