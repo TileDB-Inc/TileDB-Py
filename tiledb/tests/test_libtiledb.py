@@ -1966,7 +1966,7 @@ class TestSparseArray(DiskTestCase):
         attr = tiledb.Attr(dtype=float)
         schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
-        values = np.array([3.3, 2.7]) 
+        values = np.array([3.3, 2.7])
         with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[4.2, 2.5]] = values
 
@@ -3066,7 +3066,7 @@ class PickleTest(DiskTestCase):
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
                     assert_array_equal(V, V2)
-    
+
     def test_pickle_roundtrip_sparse(self):
         uri = self.path("test_pickle_roundtrip_sparse")
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
@@ -3074,22 +3074,21 @@ class PickleTest(DiskTestCase):
         tiledb.libtiledb.Array.create(uri, schema)
 
         with tiledb.SparseArray(uri, "w") as T:
-            T[[0,1,2]] = np.random.randint(10, size=3)
+            T[[0, 1, 2]] = np.random.randint(10, size=3)
 
         with tiledb.SparseArray(uri, "r") as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
                 buf.seek(0)
                 with pickle.load(buf) as T2:
-                    assert_array_equal(T[:][''], T2[:][''])
+                    assert_array_equal(T[:][""], T2[:][""])
 
             with io.BytesIO() as buf, tiledb.SparseArray(uri) as V:
                 pickle.dump(V, buf)
                 buf.seek(0)
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
-                    assert_array_equal(V[:][''], V2[:][''])
-        
+                    assert_array_equal(V[:][""], V2[:][""])
 
     @tiledb.scope_ctx({"vfs.s3.region": "kuyper-belt-1", "vfs.max_parallel_ops": "1"})
     def test_pickle_with_config(self):
@@ -3118,10 +3117,10 @@ class PickleTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(path, schema)
 
-        for ts in range(1,5):
+        for ts in range(1, 5):
             with tiledb.DenseArray(path, timestamp=ts, mode="w") as T:
                 T[:] = A * ts
-        
+
         with tiledb.DenseArray(path, timestamp=(2, 3), mode="r") as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
@@ -3137,7 +3136,7 @@ class PickleTest(DiskTestCase):
                     # make sure anonymous view pickles and round-trips
                     assert_array_equal(V, V2)
                     assert T2.timestamp_range == (2, 3)
-    
+
     def test_pickle_with_tuple_timestamps_sparse(self):
         A = np.random.rand(3)
         path = self.path("test_pickle_with_tuple_timestamps_sparse")
@@ -3147,16 +3146,16 @@ class PickleTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
         tiledb.SparseArray.create(path, schema)
 
-        for ts in range(1,5):
+        for ts in range(1, 5):
             with tiledb.SparseArray(path, timestamp=ts, mode="w") as T:
-                T[[0,1,2]] = np.random.rand(3)
-        
+                T[[0, 1, 2]] = np.random.rand(3)
+
         with tiledb.SparseArray(path, timestamp=(2, 3), mode="r") as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
                 buf.seek(0)
                 with pickle.load(buf) as T2:
-                    assert_array_equal(T[:][''], T2[:][''])
+                    assert_array_equal(T[:][""], T2[:][""])
                     assert T2.timestamp_range == (2, 3)
 
             with io.BytesIO() as buf, tiledb.SparseArray(path) as V:
@@ -3164,7 +3163,7 @@ class PickleTest(DiskTestCase):
                 buf.seek(0)
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
-                    assert_array_equal(V[:][''], V2[:][''])
+                    assert_array_equal(V[:][""], V2[:][""])
                     assert T2.timestamp_range == (2, 3)
 
 
