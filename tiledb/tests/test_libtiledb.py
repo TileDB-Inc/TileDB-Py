@@ -1966,7 +1966,7 @@ class TestSparseArray(DiskTestCase):
         attr = tiledb.Attr(dtype=float)
         schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
-        values = np.array([3.3, 2.7])
+        values = np.array([3.3, 2.7]) 
         with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[4.2, 2.5]] = values
 
@@ -3051,8 +3051,8 @@ class PickleTest(DiskTestCase):
     # test that DenseArray and View can be pickled for multiprocess use
     # note that the current pickling is by URI and attributes (it is
     #     not, and likely should not be, a way to serialize array data)
-    def test_pickle_roundtrip(self):
-        uri = self.path("foo")
+    def test_pickle_roundtrip_dense(self):
+        uri = self.path("test_pickle_roundtrip_dense")
         with tiledb.DenseArray.from_numpy(uri, np.random.rand(5)) as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
@@ -3066,6 +3066,30 @@ class PickleTest(DiskTestCase):
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
                     assert_array_equal(V, V2)
+    
+    def test_pickle_roundtrip_sparse(self):
+        uri = self.path("test_pickle_roundtrip_sparse")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
+        schema = tiledb.ArraySchema(domain=dom, attrs=(tiledb.Attr(""),), sparse=True)
+        tiledb.libtiledb.Array.create(uri, schema)
+
+        with tiledb.SparseArray(uri, "w") as T:
+            T[[0,1,2]] = np.random.randint(10, size=3)
+
+        with tiledb.SparseArray(uri, "r") as T:
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                with pickle.load(buf) as T2:
+                    assert_array_equal(T[:][''], T2[:][''])
+
+            with io.BytesIO() as buf, tiledb.SparseArray(uri) as V:
+                pickle.dump(V, buf)
+                buf.seek(0)
+                with pickle.load(buf) as V2:
+                    # make sure anonymous view pickles and round-trips
+                    assert_array_equal(V[:][''], V2[:][''])
+        
 
     @tiledb.scope_ctx({"vfs.s3.region": "kuyper-belt-1", "vfs.max_parallel_ops": "1"})
     def test_pickle_with_config(self):
@@ -3085,25 +3109,19 @@ class PickleTest(DiskTestCase):
         T.close()
         T2.close()
 
-    def test_pickle_with_tuple_timestamps(self):
-        A = np.zeros(3)
-        path = self.path("test_pickle_with_tuple_timestamps")
+    def test_pickle_with_tuple_timestamps_dense(self):
+        A = np.random.randint(10, size=3)
+        path = self.path("test_pickle_with_tuple_timestamps_dense")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
         att = tiledb.Attr(dtype=A.dtype)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
         tiledb.DenseArray.create(path, schema)
 
-        # write
-        with tiledb.DenseArray(path, timestamp=1, mode="w") as T:
-            T[:] = A * 1
-        with tiledb.DenseArray(path, timestamp=2, mode="w") as T:
-            T[:] = A * 2
-        with tiledb.DenseArray(path, timestamp=3, mode="w") as T:
-            T[:] = A * 3
-        with tiledb.DenseArray(path, timestamp=4, mode="w") as T:
-            T[:] = A * 4
-
+        for ts in range(1,5):
+            with tiledb.DenseArray(path, timestamp=ts, mode="w") as T:
+                T[:] = A * ts
+        
         with tiledb.DenseArray(path, timestamp=(2, 3), mode="r") as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
@@ -3118,6 +3136,35 @@ class PickleTest(DiskTestCase):
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
                     assert_array_equal(V, V2)
+                    assert T2.timestamp_range == (2, 3)
+    
+    def test_pickle_with_tuple_timestamps_sparse(self):
+        A = np.random.rand(3)
+        path = self.path("test_pickle_with_tuple_timestamps_sparse")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
+        att = tiledb.Attr(dtype=A.dtype)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        tiledb.SparseArray.create(path, schema)
+
+        for ts in range(1,5):
+            with tiledb.SparseArray(path, timestamp=ts, mode="w") as T:
+                T[[0,1,2]] = np.random.rand(3)
+        
+        with tiledb.SparseArray(path, timestamp=(2, 3), mode="r") as T:
+            with io.BytesIO() as buf:
+                pickle.dump(T, buf)
+                buf.seek(0)
+                with pickle.load(buf) as T2:
+                    assert_array_equal(T[:][''], T2[:][''])
+                    assert T2.timestamp_range == (2, 3)
+
+            with io.BytesIO() as buf, tiledb.SparseArray(path) as V:
+                pickle.dump(V, buf)
+                buf.seek(0)
+                with pickle.load(buf) as V2:
+                    # make sure anonymous view pickles and round-trips
+                    assert_array_equal(V[:][''], V2[:][''])
                     assert T2.timestamp_range == (2, 3)
 
 
