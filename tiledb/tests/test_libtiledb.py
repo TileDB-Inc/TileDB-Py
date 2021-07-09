@@ -3051,21 +3051,33 @@ class PickleTest(DiskTestCase):
     # test that DenseArray and View can be pickled for multiprocess use
     # note that the current pickling is by URI and attributes (it is
     #     not, and likely should not be, a way to serialize array data)
-    def test_pickle_roundtrip(self):
-        uri = self.path("foo")
-        with tiledb.DenseArray.from_numpy(uri, np.random.rand(5)) as T:
+
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_pickle_roundtrip(self, sparse):
+        uri = self.path("test_pickle_roundtrip")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
+        schema = tiledb.ArraySchema(domain=dom, attrs=(tiledb.Attr(""),), sparse=sparse)
+        tiledb.libtiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as T:
+            if sparse:
+                T[[0, 1, 2]] = np.random.randint(10, size=3)
+            else:
+                T[:] = np.random.randint(10, size=3)
+
+        with tiledb.open(uri, "r") as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
                 buf.seek(0)
                 with pickle.load(buf) as T2:
-                    assert_array_equal(T, T2)
+                    assert_array_equal(T.df[:], T2.df[:])
 
-            with io.BytesIO() as buf, tiledb.DenseArray(uri) as V:
+            with io.BytesIO() as buf, tiledb.open(uri) as V:
                 pickle.dump(V, buf)
                 buf.seek(0)
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
-                    assert_array_equal(V, V2)
+                    assert_array_equal(V.df[:], V2.df[:])
 
     @tiledb.scope_ctx({"vfs.s3.region": "kuyper-belt-1", "vfs.max_parallel_ops": "1"})
     def test_pickle_with_config(self):
@@ -3085,40 +3097,38 @@ class PickleTest(DiskTestCase):
         T.close()
         T2.close()
 
-    def test_pickle_with_tuple_timestamps(self):
-        A = np.zeros(3)
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_pickle_with_tuple_timestamps(self, sparse):
+        A = np.random.randint(10, size=3)
         path = self.path("test_pickle_with_tuple_timestamps")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
         att = tiledb.Attr(dtype=A.dtype)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
-        tiledb.DenseArray.create(path, schema)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=sparse)
+        tiledb.libtiledb.Array.create(path, schema)
 
-        # write
-        with tiledb.DenseArray(path, timestamp=1, mode="w") as T:
-            T[:] = A * 1
-        with tiledb.DenseArray(path, timestamp=2, mode="w") as T:
-            T[:] = A * 2
-        with tiledb.DenseArray(path, timestamp=3, mode="w") as T:
-            T[:] = A * 3
-        with tiledb.DenseArray(path, timestamp=4, mode="w") as T:
-            T[:] = A * 4
+        for ts in range(1, 5):
+            with tiledb.open(path, timestamp=ts, mode="w") as T:
+                if sparse:
+                    T[[0, 1, 2]] = A * ts
+                else:
+                    T[:] = A * ts
 
-        with tiledb.DenseArray(path, timestamp=(2, 3), mode="r") as T:
+        with tiledb.open(path, timestamp=(2, 3), mode="r") as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
                 buf.seek(0)
                 with pickle.load(buf) as T2:
-                    assert_array_equal(T, T2)
+                    assert_array_equal(T.df[:], T2.df[:])
                     assert T2.timestamp_range == (2, 3)
 
-            with io.BytesIO() as buf, tiledb.DenseArray(path) as V:
+            with io.BytesIO() as buf, tiledb.open(path, timestamp=(2, 3)) as V:
                 pickle.dump(V, buf)
                 buf.seek(0)
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
-                    assert_array_equal(V, V2)
-                    assert T2.timestamp_range == (2, 3)
+                    assert_array_equal(V.df[:], V2.df[:])
+                    assert V2.timestamp_range == (2, 3)
 
 
 class ArrayViewTest(DiskTestCase):

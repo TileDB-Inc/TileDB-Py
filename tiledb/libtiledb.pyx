@@ -4484,6 +4484,33 @@ cdef class Array(object):
         Buffers will be used to satisfy the next index/query request.
         """
         self._buffers = buffers
+    
+    # pickling support: this is a lightweight pickle for distributed use.
+    #   simply treat as wrapper around URI, not actual data.
+    def __getstate__(self):
+        config_dict = self._ctx_().config().dict()
+        return (self.uri, self.mode, self.key, self.view_attr, self.timestamp_range, config_dict)
+
+    def __setstate__(self, state):
+        cdef:
+            unicode uri, mode
+            object view_attr = None
+            object timestamp_range = None
+            object key = None
+            dict config_dict = {}
+        uri, mode, key, view_attr, _timestamp_range, config_dict = state
+
+        if mode == 'r':
+            timestamp_range = _timestamp_range
+        if config_dict is not {}:
+            config_dict = state[5]
+            config = Config(params=config_dict)
+            ctx = Ctx(config)
+        else:
+            ctx = default_ctx()
+
+        self.__init__(uri, mode=mode, key=key, attr=view_attr,
+                      timestamp=timestamp_range, ctx=ctx)
 
 cdef class Query(object):
     """
@@ -5165,33 +5192,6 @@ cdef class DenseArrayImpl(Array):
         out = self._read_dense_subarray(subarray, [attr_name,], cell_layout, False)
         return out[attr_name]
 
-    # pickling support: this is a lightweight pickle for distributed use.
-    #   simply treat as wrapper around URI, not actual data.
-    def __getstate__(self):
-        config_dict = self._ctx_().config().dict()
-        return (self.uri, self.mode, self.key, self.view_attr, self.timestamp_range, config_dict)
-
-    def __setstate__(self, state):
-        cdef:
-            unicode uri, mode
-            object view_attr = None
-            object timestamp = None
-            object key = None
-            dict config_dict = {}
-        uri, mode, key, view_attr, _timestamp_range, config_dict = state
-
-        if mode == 'r':
-            timestamp_range = _timestamp_range
-        if config_dict is not {}:
-            config_dict = state[5]
-            config = Config(params=config_dict)
-            ctx = Ctx(config)
-        else:
-            ctx = default_ctx()
-
-        self.__init__(uri, mode=mode, key=key, attr=view_attr,
-                      timestamp=timestamp_range, ctx=ctx)
-
 # point query index a tiledb array (zips) columnar index vectors
 def index_domain_coords(dom: Domain, idx: tuple):
     """
@@ -5585,6 +5585,7 @@ cdef class SparseArrayImpl(Array):
                 dim_values[dim] = tuple(np.unique(query[dim]))
 
         return dim_values
+
 
 def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None):
     """Consolidates TileDB array fragments for improved read performance
