@@ -17,12 +17,8 @@ class RaggedDtype(ExtensionDtype):
     type = np.ndarray
     na_value = None
 
-    def __init__(self, dtype=np.float64):
-        self._dtype = np.dtype(dtype)
-
-    @property
-    def subtype(self):
-        return self._dtype
+    def __init__(self, subtype=np.float64):
+        self.subtype = np.dtype(subtype)
 
     @property
     def name(self):
@@ -43,14 +39,10 @@ class RaggedDtype(ExtensionDtype):
 
 
 class RaggedArray(ExtensionArray):
-    def __init__(self, arrays, dtype=None):
-        if isinstance(dtype, RaggedDtype):
-            self._dtype = dtype
-            dtype = dtype.subtype
-        else:
-            self._dtype = RaggedDtype(dtype)
-
-        self._flat_arrays = [np.asarray(array, dtype=dtype) for array in arrays]
+    def __init__(self, arrays, dtype):
+        assert isinstance(dtype, RaggedDtype)
+        self._dtype = dtype
+        self._flat_arrays = [np.asarray(array, dtype=dtype.subtype) for array in arrays]
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
@@ -65,3 +57,6 @@ class RaggedArray(ExtensionArray):
     @property
     def dtype(self):
         return self._dtype
+
+    def copy(self):
+        return type(self)(self._flat_arrays, self._dtype)
