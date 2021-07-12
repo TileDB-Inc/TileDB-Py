@@ -398,7 +398,7 @@ def _update_df_from_meta(
                 col_dtypes[name] = dtype
 
     if col_dtypes:
-        df = df.astype(col_dtypes)
+        df = df.astype(col_dtypes, copy=False)
 
     if index_col:
         if index_col is not True:
