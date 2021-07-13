@@ -54,17 +54,6 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragments_info.to_vacuum_num, 0)
         self.assertEqual(fragments_info.to_vacuum_uri, [])
 
-        if tiledb.libtiledb.version() < (2, 2, 3):
-            assert fragments_info.version(0) == 7
-        elif tiledb.libtiledb.version() < (2, 3, 0):
-            assert fragments_info.version(0) == 8
-        else:
-            # make sure the version is within some reasonable bound
-            # but don't pin because that makes testing against dev
-            # more difficult
-            assert fragments_info.version(0) >= 9
-            assert fragments_info.version(0) < 12
-
         for idx, frag in enumerate(fragments_info):
             self.assertEqual(frag.cell_num, 3)
             self.assertEqual(frag.dense, True)
