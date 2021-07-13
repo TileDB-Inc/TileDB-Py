@@ -1,0 +1,41 @@
+name: Daily Test Build TileDB-Py Against Core
+
+# on: [push]
+
+on:
+  schedule:
+    # runs every day at midnight UTC
+    - cron: "0 0 * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TILEDB_VERSION: dev
+
+    steps:
+    - name: Set up Python
+      uses: actions/setup-python@v2
+
+    - name: Print Python version
+      run: |
+        which python
+        which pip
+        python --version
+
+    - name: Print env
+      run: printenv
+
+    - name: Checkout TileDB-Py `dev`
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: python -m pip install --upgrade -r misc/requirements_ci.txt
+
+    - name: Build TileDB-Py
+      run: |
+        python setup.py build_ext --inplace --werror
+        python setup.py install
+
+    - name: Test TileDB-Py
+      run: pytest -vv
