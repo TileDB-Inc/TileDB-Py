@@ -1500,7 +1500,10 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(uri, mode="w") as T:
             T[:] = np.arange(0, 10, dtype=np.int64)
 
-        tiledb.VFS().remove_file(os.path.join(uri, "__array_schema.tdb"))
+        if tiledb.libtiledb.version() < (2, 4):
+            tiledb.VFS().remove_file(os.path.join(uri, "__array_schema.tdb"))
+        else:
+            tiledb.VFS().remove_dir(os.path.join(uri, "__schema"))
 
         # new ctx is required running against S3 because otherwise the schema
         # will simply be read from the cache.
