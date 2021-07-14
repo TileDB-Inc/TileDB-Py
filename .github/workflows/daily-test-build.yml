@@ -4,8 +4,8 @@ name: Daily Test Build TileDB-Py Against Core
 
 on:
   schedule:
-    # runs every day at midnight UTC
-    - cron: "0 0 * * *"
+    # runs every day at 5:00 UTC (1:00AM EST / Midnight CST)
+    - cron: "5 0 * * *"
 
 jobs:
   build:
