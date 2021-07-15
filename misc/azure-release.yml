@@ -30,7 +30,6 @@ stages:
   
   - job: build1_libtiledb_on_linux
     container: quay.io/pypa/manylinux2010_x86_64:2021-06-07-00faba2
-
     steps:
     - task: UsePythonVersion@0
     - template: azure-libtiledb-darwin.yml
@@ -46,8 +45,6 @@ stages:
           imageName: 'ubuntu-20.04'
           CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*' 
           CIBW_BUILD_VERBOSITY: 3
-          CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL:0 -D__BIONIC__=1"
-          CFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
         macOS_py:
           imageName: 'macOS-10.15'
           CIBW_SKIP: 'cp27-* cp35-* pp*'
