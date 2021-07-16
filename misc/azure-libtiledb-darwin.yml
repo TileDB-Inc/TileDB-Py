@@ -4,6 +4,7 @@ steps:
     key: 'libtiledb | "$(Agent.OS)" | "$(imageName)" | "$(LIBTILEDB_SHA)" | v2'
     path: $(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)
     cacheHitVar: LIBTILEDB_CACHE_RESTORED
+  condition: not(startsWith(variables['Build.SourceBranchName'], 'release-'))
 
 - bash: |
     find $PIPELINE_WORKSPACE/.libtiledb_dist/${LIBTILEDB_SHA}
@@ -65,7 +66,7 @@ steps:
     if [[ "$AGENT_OS" == "Windows_NT" ]]; then
       7z a ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} ${TILEDB_INSTALL}/*
     elif [[ "$AGENT_OS" == "Darwin" ]]; then
-      tar -czf ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -C ${TILEDB_INSTALL} . 
+      tar -czf ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -C ${TILEDB_INSTALL} .
     else
       tar -czf ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -C ${TILEDB_INSTALL} lib64 include
     fi

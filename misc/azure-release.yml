@@ -99,6 +99,8 @@ stages:
         export TILEDB_INSTALL=.libtiledb
         export TILEDB_WHEEL_BUILD=1
         export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL}"
+        # copy libtiledb into usr/local for audithweel to find
+        export CIBW_BEFORE_BUILD="cp -R .libtiledb/* /usr/local"
         ls -lR "${TILEDB_INSTALL}"
 
         python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
