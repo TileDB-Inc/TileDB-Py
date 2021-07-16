@@ -28,9 +28,6 @@ steps:
 
     $TILEDB_SRC/bootstrap --force-build-all-deps --disable-werror --enable=s3,gcs,azure,serialization --enable-static-tiledb --disable-avx2 --disable-tests --prefix=$TILEDB_INSTALL
 
-    export CXXFLAGS="-Wno-unused-parameter -lrt -DKJ_USE_EPOLL10 -D__BIONIC__=1"
-    export CFLAGS="-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
-
     cmake --build $TILEDB_BUILD --config Release -j3
     cmake --build $TILEDB_BUILD --target install-tiledb --config Release
 
