@@ -8,8 +8,10 @@ on:
     - cron: "5 0 * * *"
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     env:
       TILEDB_VERSION: dev
 
