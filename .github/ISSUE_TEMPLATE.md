@@ -1,5 +1,7 @@
 ---
 title: Nightly Build Fail on {{ date | date('ddd, MMMM Do YYYY') }}
+assignees: nguyenv, ihnorton
+labels: bug
 ---
 
 See run for more details:
