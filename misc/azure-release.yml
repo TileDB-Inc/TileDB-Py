@@ -27,7 +27,7 @@ stages:
     steps:
     - task: UsePythonVersion@0
     - template: azure-libtiledb-darwin.yml
-  
+
   - job: build1_libtiledb_on_linux
     container: quay.io/pypa/manylinux2010_x86_64:2021-06-07-00faba2
     steps:
@@ -43,7 +43,7 @@ stages:
       matrix:
         linux_py:
           imageName: 'ubuntu-20.04'
-          CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*' 
+          CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*'
           CIBW_BUILD_VERBOSITY: 3
         macOS_py:
           imageName: 'macOS-10.15'
@@ -94,11 +94,11 @@ stages:
 
     - bash: |
         set -xe pipefail
-      
+
         mv ${TILEDB_INSTALL} .libtiledb
         export TILEDB_INSTALL=.libtiledb
+        export TILEDB_WHEEL_BUILD=1
         export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL}"
-        export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt; cp -R .libtiledb/* /usr/local"
         ls -lR "${TILEDB_INSTALL}"
 
         python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
@@ -113,7 +113,6 @@ stages:
     - bash: |
         set -xe pipefail
 
-        export CIBW_BEFORE_BUILD="python -m pip install -r misc/requirements_wheel.txt"
         export TILEDB_WHEEL_BUILD=1
         echo "${TILEDB_INSTALL}"
 
@@ -128,7 +127,6 @@ stages:
 
     - script: |
         echo ON
-        set "CIBW_BEFORE_BUILD=python -m pip install -r misc/requirements_wheel.txt"
         set "TILEDB_WHEEL_BUILD=1"
         echo "cibw env: "
         echo "%CIBW_ENVIRONMENT%"
