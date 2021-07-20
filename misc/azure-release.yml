@@ -101,6 +101,7 @@ stages:
         mv ${TILEDB_INSTALL} .libtiledb
         export TILEDB_INSTALL=.libtiledb
         export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL} TILEDB_WHEEL_BUILD=1"
+        export CIBW_TEST_COMMAND="python -c 'import tiledb'"
         # copy libtiledb into usr/local for audithweel to find
         export CIBW_BEFORE_BUILD="cp -R .libtiledb/* /usr/local"
         ls -lR "${TILEDB_INSTALL}"
@@ -118,6 +119,7 @@ stages:
         set -xe pipefail
 
         export TILEDB_WHEEL_BUILD=1
+        export CIBW_TEST_COMMAND="python -c 'import tiledb'"
         echo "${TILEDB_INSTALL}"
 
         python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
@@ -132,6 +134,7 @@ stages:
     - script: |
         echo ON
         set "TILEDB_WHEEL_BUILD=1"
+        set "CIBW_TEST_COMMAND=python -c 'import tiledb'"
         echo "cibw env: "
         echo "%CIBW_ENVIRONMENT%"
         echo "tiledb_install: "
