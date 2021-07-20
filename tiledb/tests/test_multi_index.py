@@ -730,3 +730,33 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(result.df[0]["1s"][0], data[0])
             assert_array_equal(result.df[1]["1s"][0], data[1])
             assert_array_equal(result.df[2]["1s"][0], data[2])
+
+    def test_multi_index_with_implicit_full_string_range(self):
+        uri = self.path("test_multi_index_with_implicit_full_string_range")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="dint", domain=(0, 4), tile=5, dtype=np.int32),
+            tiledb.Dim(name="dstr", domain=(None, None), tile=None, dtype=np.bytes_),
+        )
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            sparse=True,
+            attrs=[tiledb.Attr(name="", dtype=np.int32)],
+        )
+
+        tiledb.Array.create(uri, schema)
+        with tiledb.open(uri, mode="w") as A:
+            d1 = np.concatenate((np.arange(5), np.arange(5)))
+            d2 = np.asarray(
+                ["a", "b", "ab", "ab", "c", "c", "c", "c", "d", "e"], dtype=np.bytes_
+            )
+            A[d1, d2] = np.array(np.random.randint(10, size=10), dtype=np.int32)
+
+        with tiledb.open(uri, mode="r") as A:
+            assert_array_equal(A[:][""], A.multi_index[:][""])
+            assert_array_equal(A.multi_index[:][""], A.multi_index[:, :][""])
+
+            assert_array_equal(A[1:4][""], A.multi_index[1:3][""])
+            assert_array_equal(A.multi_index[1:3][""], A.multi_index[1:3, :][""])
+
+            assert_array_equal(A[0][""], A.multi_index[0][""])
+            assert_array_equal(A.multi_index[0][""], A.multi_index[0, :][""])
