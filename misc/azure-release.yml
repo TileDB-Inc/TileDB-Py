@@ -20,7 +20,7 @@ stages:
           macOS_libtiledb:
             imageName: 'macOS-10.15'
           windows_libtiledb:
-            imageName: 'vs2017-win2016'
+            imageName: 'windows-latest'
     pool:
       vmImage: $(imageName)
 
@@ -45,7 +45,7 @@ stages:
     strategy:
       matrix:
         linux_py:
-          imageName: 'ubuntu-20.04'
+          imageName: 'ubuntu-latest'
           CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*'
           CIBW_BUILD_VERBOSITY: 3
         macOS_py:
@@ -54,7 +54,7 @@ stages:
           SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
           CIBW_BUILD_VERBOSITY: 3
         windows_py:
-          imageName: 'vs2017-win2016'
+          imageName: 'windows-latest'
           CIBW_SKIP: 'cp27-* cp35-* cp36-* *-win32 pp*'
           CIBW_BUILD_VERBOSITY: 3
     pool:
