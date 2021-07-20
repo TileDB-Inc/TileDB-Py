@@ -6,7 +6,7 @@
 # TileDB-Py 0.9.3 Release Notes
 
 ## Packaging Notes
-* Due to an unfixed bug released with 0.9.3, this section is intentionally left blank.
+* Due to a packaging issue released with 0.9.3, this section is intentionally left blank.
 
 # TileDB-Py 0.9.2 Release Notes
 
