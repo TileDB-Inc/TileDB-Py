@@ -1,3 +1,8 @@
+# TileDB-Py 0.9.4 Release Notes
+
+## Improvements
+* Support pickling for arrays in write-mode [#626](https://github.com/TileDB-Inc/TileDB-Py/pull/626)
+
 # TileDB-Py 0.9.2 Release Notes
 
 ## Packaging Notes
