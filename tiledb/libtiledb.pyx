@@ -4308,36 +4308,31 @@ cdef class Array(object):
 
         """
         cdef Domain dom = self.schema.domain
-        dom_dims = [dom.dim(idx) for idx in range(dom.ndim)]
-        dom_dtypes = [dim.dtype for dim in dom_dims]
 
-        if any(dim.isvar for dim in dom_dims) or \
-                dom_dims.count(dom_dims[0].dtype) != len(dom_dims):
-            return self._nonempty_domain_var()
+        extents = self._nonempty_domain_var()
 
-        cdef np.ndarray extents = np.zeros(shape=(dom.ndim, 2), dtype=dom.dtype)
+        if not extents:
+            return extents
 
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-        cdef tiledb_array_t* array_ptr = self.ptr
-        cdef void* extents_ptr = np.PyArray_DATA(extents)
-        cdef int empty = 0
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_array_get_non_empty_domain(ctx_ptr, array_ptr, extents_ptr, &empty)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        if empty > 0:
-            return None
+        nonempty_domain = []
+        for i, extent in enumerate(extents):
+            is_np_type = isinstance(extent[0], (np.ndarray, np.generic))
 
-        if dom.dtype.kind == 'M':
-            # Convert to np.datetime64
-            date_unit = np.datetime_data(dom.dtype)[0]
-            return tuple((np.datetime64(extents[i, 0].item(), date_unit),
-                          np.datetime64(extents[i, 1].item(), date_unit))
-                         for i in range(dom.ndim))
-        else:
-            return tuple((extents[i, 0].item(), extents[i, 1].item())
-                         for i in range(dom.ndim))
+            if is_np_type and np.issubdtype(extent[0].dtype, np.datetime64):
+                # Convert to np.datetime64
+                date_unit = np.datetime_data(dom.dim(i).dtype)[0]
+                ext_x = np.datetime64(extent[0].item(), date_unit)
+                ext_y = np.datetime64(extent[1].item(), date_unit)
+            elif is_np_type:
+                # Convert to scalar
+                ext_x, ext_y = extent[0].item(), extent[1].item()
+            else:
+                ext_x, ext_y = extent
+
+            nonempty_domain.append((ext_x, ext_y))
+
+        return tuple(nonempty_domain)
+
 
     def consolidate(self, Config config=None, key=None, timestamp=None):
         """

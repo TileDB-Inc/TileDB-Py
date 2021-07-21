@@ -2,6 +2,7 @@
 
 ## Improvements
 * Support pickling for arrays in write-mode [#626](https://github.com/TileDB-Inc/TileDB-Py/pull/626)
+* Get `nonempty_domain` directly from `_nonempty_domain_var` [#632](https://github.com/TileDB-Inc/TileDB-Py/pull/632)
 
 ## Bug Fixes
 * Fixed multi-range indexer to default to explicitly pass in the non-empty domain if dimensions are unspecified [#630](https://github.com/TileDB-Inc/TileDB-Py/pull/630) 
