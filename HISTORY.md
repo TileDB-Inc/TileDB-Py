@@ -1,7 +1,10 @@
 # TileDB-Py 0.9.4 Release Notes
 
+## Improvements
+* Support pickling for arrays in write-mode [#626](https://github.com/TileDB-Inc/TileDB-Py/pull/626)
+
 ## Bug Fixes
-* Fixed multi-range indexer to default to explicitly passing in the non-empty domain if dimensions are unspecified [#630](https://github.com/TileDB-Inc/TileDB-Py/pull/630) 
+* Fixed multi-range indexer to default to explicitly pass in the non-empty domain if dimensions are unspecified [#630](https://github.com/TileDB-Inc/TileDB-Py/pull/630) 
 
 # TileDB-Py 0.9.3 Release Notes
 

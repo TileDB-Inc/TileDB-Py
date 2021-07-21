@@ -4498,10 +4498,8 @@ cdef class Array(object):
             object timestamp_range = None
             object key = None
             dict config_dict = {}
-        uri, mode, key, view_attr, _timestamp_range, config_dict = state
+        uri, mode, key, view_attr, timestamp_range, config_dict = state
 
-        if mode == 'r':
-            timestamp_range = _timestamp_range
         if config_dict is not {}:
             config_dict = state[5]
             config = Config(params=config_dict)
