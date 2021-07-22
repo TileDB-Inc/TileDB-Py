@@ -138,7 +138,8 @@ stages:
     - script: |
         echo ON
         set "TILEDB_WHEEL_BUILD=1"
-        set "CIBW_TEST_COMMAND=python -c 'import tiledb'"
+        :: # Have not managed to get this working AZP quoting breaks the command
+        :: set CIBW_TEST_COMMAND=python -c \"import tiledb\""
         echo "cibw env: "
         echo "%CIBW_ENVIRONMENT%"
         echo "tiledb_install: "
@@ -152,9 +153,9 @@ stages:
         python setup.py sdist --dist-dir wheelhouse
         pip install cibuildwheel==%USE_CIBW_VERSION%
         cibuildwheel --output-dir wheelhouse .
-        # delete the sdist because we *do not* want files with CRLF endings
-        # (if windows builds finish last then the windows sdist will be
-        #  overwrite any others in the artifact publishing step)
+        :: delete the sdist because we *do not* want files with CRLF endings
+        :: (if windows builds finish last then the windows sdist will be
+        ::  overwrite any others in the artifact publishing step)
         del /q wheelhouse\*.tar.gz
       displayName: "Build and test wheels (Windows)"
       condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
