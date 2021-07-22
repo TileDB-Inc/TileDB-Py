@@ -4,12 +4,12 @@
 * Support pickling for arrays in write-mode [#626](https://github.com/TileDB-Inc/TileDB-Py/pull/626)
 
 ## Bug Fixes
-* Fixed multi-range indexer to default to explicitly pass in the non-empty domain if dimensions are unspecified [#630](https://github.com/TileDB-Inc/TileDB-Py/pull/630) 
+* Fixed multi-range indexer to default to explicitly pass in the non-empty domain if dimensions are unspecified [#630](https://github.com/TileDB-Inc/TileDB-Py/pull/630)
 
 # TileDB-Py 0.9.3 Release Notes
 
 ## Packaging Notes
-* Due to a packaging issue released with 0.9.3, this section is intentionally left blank.
+* Due to a packaging issue released with 0.9.3 (NumPy ABI compatibility with NumPy < 1.20 for Python 3.8), this section is intentionally left blank.
 
 # TileDB-Py 0.9.2 Release Notes
 
@@ -17,7 +17,7 @@
 * Fixed release builder ordering issue which led to CRLF line endings in 0.9.1 source distribution.
 
 ## API Changes
-* Deprecate `Array.timestamp` and replace with `Array.timestamp_range` [#616](https://github.com/TileDB-Inc/TileDB-Py/pull/616) 
+* Deprecate `Array.timestamp` and replace with `Array.timestamp_range` [#616](https://github.com/TileDB-Inc/TileDB-Py/pull/616)
 
 ## Improvements
 * Set `ArraySchema.tile_order=None` for Hilbert-ordered arrays [#609](https://github.com/TileDB-Inc/TileDB-Py/pull/609)

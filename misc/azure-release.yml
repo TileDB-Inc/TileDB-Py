@@ -1,7 +1,7 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.9.3
+    TILEDBPY_VERSION: 0.9.4
     LIBTILEDB_VERSION: 2.3.2
     LIBTILEDB_SHA: 4b563fed604496e2caffe4085dbd9bb004626fff
     LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
