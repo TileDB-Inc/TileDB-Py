@@ -572,7 +572,7 @@ for arg in args:
 CXXFLAGS = os.environ.get("CXXFLAGS", "").split()
 if not is_windows():
     CXXFLAGS.append("-std=c++11")
-    if TILEDBPY_WERROR or TILEDB_DEBUG_BUILD:
+    if TILEDBPY_WERROR:
         CXXFLAGS.append("-Werror")
     if not TILEDB_DEBUG_BUILD:
         CXXFLAGS.append("-Wno-deprecated-declarations")
