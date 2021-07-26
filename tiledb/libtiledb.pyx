@@ -4234,8 +4234,14 @@ cdef class Array(object):
         :raises TypeError: invalid key type"""
         return self.schema.domain.dim(dim_id)
 
-    def _nonempty_domain_var(self):
-        """Return nonempty domain for a var-length attribute (internal)."""
+    def nonempty_domain(self):
+        """Return the minimum bounding domain which encompasses nonempty values.
+
+        :rtype: tuple(tuple(numpy scalar, numpy scalar), ...)
+        :return: A list of (inclusive) domain extent tuples, that contain all
+            nonempty cells
+
+        """
         cdef list results = list()
         cdef Domain dom = self.schema.domain
 
@@ -4277,62 +4283,34 @@ cdef class Array(object):
                 start_buf_ptr = np.PyArray_DATA(start_buf)
 
             if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
-                    rc = tiledb_array_get_non_empty_domain_var_from_index(
-                             ctx_ptr, array_ptr, dim_idx, start_buf_ptr, end_buf_ptr, &is_empty
-                    )
-                    if rc != TILEDB_OK:
-                        _raise_ctx_err(ctx_ptr, rc)
-                    if is_empty:
-                        return None
-                    results.append((start_buf.item(0), end_buf.item(0)))
+                rc = tiledb_array_get_non_empty_domain_var_from_index(
+                            ctx_ptr, array_ptr, dim_idx, start_buf_ptr, end_buf_ptr, &is_empty
+                )
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+                if is_empty:
+                    return None
+                results.append((start_buf.item(0), end_buf.item(0)))
             else:
-                    rc = tiledb_array_get_non_empty_domain_from_index(
-                            ctx_ptr, array_ptr, dim_idx, start_buf_ptr, &is_empty
-                    )
-                    if rc != TILEDB_OK:
-                        _raise_ctx_err(ctx_ptr, rc)
-                    if is_empty:
-                        return None
-                    res_typed = (np.array(start_buf.item(0), dtype=dim_dtype),
-                                 np.array(start_buf.item(1), dtype=dim_dtype))
-                    results.append(res_typed)
+                rc = tiledb_array_get_non_empty_domain_from_index(
+                        ctx_ptr, array_ptr, dim_idx, start_buf_ptr, &is_empty
+                )
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+                if is_empty:
+                    return None
 
+                res_x, res_y = start_buf.item(0), start_buf.item(1)
+                
+                if np.issubdtype(dim_dtype, np.datetime64):
+                    # Convert to np.datetime64
+                    date_unit = np.datetime_data(dim_dtype)[0]
+                    res_x = np.datetime64(res_x, date_unit)
+                    res_y = np.datetime64(res_y, date_unit)
+                    
+                results.append((res_x, res_y))
+        
         return tuple(results)
-
-    def nonempty_domain(self):
-        """Return the minimum bounding domain which encompasses nonempty values.
-
-        :rtype: tuple(tuple(numpy scalar, numpy scalar), ...)
-        :return: A list of (inclusive) domain extent tuples, that contain all
-            nonempty cells
-
-        """
-        cdef Domain dom = self.schema.domain
-
-        extents = self._nonempty_domain_var()
-
-        if not extents:
-            return extents
-
-        nonempty_domain = []
-        for i, extent in enumerate(extents):
-            is_np_type = isinstance(extent[0], (np.ndarray, np.generic))
-
-            if is_np_type and np.issubdtype(extent[0].dtype, np.datetime64):
-                # Convert to np.datetime64
-                date_unit = np.datetime_data(dom.dim(i).dtype)[0]
-                ext_x = np.datetime64(extent[0].item(), date_unit)
-                ext_y = np.datetime64(extent[1].item(), date_unit)
-            elif is_np_type:
-                # Convert to scalar
-                ext_x, ext_y = extent[0].item(), extent[1].item()
-            else:
-                ext_x, ext_y = extent
-
-            nonempty_domain.append((ext_x, ext_y))
-
-        return tuple(nonempty_domain)
-
 
     def consolidate(self, Config config=None, key=None, timestamp=None):
         """
