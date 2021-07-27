@@ -24,6 +24,7 @@ class QueryConditionTest(DiskTestCase):
             tiledb.Attr(name="I", dtype=np.int64, ctx=ctx),
             tiledb.Attr(name="D", dtype=np.float64, ctx=ctx),
             tiledb.Attr(name="S", dtype=np.dtype("|S1"), var=False, ctx=ctx),
+            tiledb.Attr(name="A", dtype="ascii", var=True, ctx=ctx),
         ]
 
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
@@ -33,9 +34,10 @@ class QueryConditionTest(DiskTestCase):
         I = np.random.randint(-5, 5, 10)
         D = np.random.rand(10)
         S = np.array(list(string.ascii_lowercase[:10]), dtype="|S1")
+        A = np.array(list(string.ascii_lowercase[:10]), dtype="|S1")
 
         coords = np.linspace(1, 10, num=10, dtype=np.uint32)
-        data = {"U": U, "I": I, "D": D, "S": S}
+        data = {"U": U, "I": I, "D": D, "S": S, "A": A}
 
         with tiledb.open(path, "w") as A:
             A[coords] = data
@@ -139,6 +141,11 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(attr_cond=qc, attrs=["S"], use_arrow=False).df[:]
             assert len(result["S"]) == 1
             assert result["S"][0] == b"c"
+
+            qc = tiledb.QueryCondition("A == 'a'")
+            result = A.query(attr_cond=qc, attrs=["A"], use_arrow=False).df[:]
+            assert len(result["A"]) == 1
+            assert result["A"][0] == b"a"
 
     def test_combined_types(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:

@@ -2239,16 +2239,21 @@ cdef class Attr(object):
                  var=False,
                  nullable=False,
                  filters=None,
-                 Ctx ctx=None):
+                 Ctx ctx=None):        
         if not ctx:
             ctx = default_ctx()
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
-        cdef np.dtype _dtype = np.dtype(dtype)
+        cdef np.dtype _dtype 
         cdef tiledb_datatype_t tiledb_dtype
         cdef uint32_t ncells
 
-        tiledb_dtype, ncells = array_type_ncells(_dtype)
+        if isinstance(dtype, str) and dtype == "ascii":
+            tiledb_dtype = TILEDB_STRING_ASCII
+            ncells = TILEDB_VAR_NUM
+        else:
+            _dtype = np.dtype(dtype)
+            tiledb_dtype, ncells = array_type_ncells(_dtype)
 
         # ensure that all unicode strings are var-length
         if var or _dtype.kind == 'U' or (_dtype.kind == 'S' and _dtype.itemsize == 0):
