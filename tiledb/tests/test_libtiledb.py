@@ -852,6 +852,27 @@ class ArrayTest(DiskTestCase):
         with self.assertRaises(ValueError):
             MySparseArray.create(uri, dense_schema)
 
+    def test_nonempty_domain_scalar(self):
+        uri = self.path("test_nonempty_domain_scalar")
+        dims = tiledb.Dim(domain=(-10, 10), dtype=np.int64, tile=1)
+        schema = tiledb.ArraySchema(
+            tiledb.Domain(dims),
+            attrs=[tiledb.Attr(dtype=np.int32)],
+            sparse=True,
+        )
+
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            A[-1] = 10
+            A[1] = 11
+
+        with tiledb.open(uri, "r") as A:
+            ned = A.nonempty_domain()
+            assert_array_equal(ned, ((-1, 1),))
+            assert isinstance(ned[0][0], int)
+            assert isinstance(ned[0][1], int)
+
 
 class DenseArrayTest(DiskTestCase):
     def test_array_1d(self):
