@@ -202,7 +202,7 @@ class QueryCondition(ast.NodeVisitor):
             op = AST_TO_TILEDB[type(node.op)]
         except KeyError:
             raise tiledb.TileDBError(
-                "Unsupported binary operator. Only & is currently supported."
+                f"Unsupported binary operator: {ast.dump(node.op)}. Only & is currently supported."
             )
 
         result = self.visit(node.left)
@@ -219,7 +219,7 @@ class QueryCondition(ast.NodeVisitor):
             op = AST_TO_TILEDB[type(node.op)]
         except KeyError:
             raise tiledb.TileDBError(
-                'Unsupported Boolean operator. Only "and" is currently supported.'
+                f'Unsupported Boolean operator: {ast.dump(node.op)}. Only "and" is currently supported.'
             )
 
         result = self.visit(node.values[0])
