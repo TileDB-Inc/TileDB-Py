@@ -27,12 +27,12 @@ class QueryCondition(ast.NodeVisitor):
     A Boolean expression contains a comparison operator. The operator works on a
     TileDB attribute name and value.
 
-        bool_expr ::= attr compare_op val | val compare_op attr
+        bool_expr ::= attr compare_op val | val compare_op attr | val compare_op attr compare_op val
 
-    "and" is the only Boolean operator supported at the moment. We intend to
-    support "or" and "not" in future releases.
+    "and" and "&" are the only Boolean operators supported at the moment. We
+    intend to support "or" and "not" in future releases.
 
-        bool_op ::= and
+        bool_op ::= and | &
 
     All comparison operators are supported.
 
@@ -64,7 +64,13 @@ class QueryCondition(ast.NodeVisitor):
         self._query_attrs = None
         self._c_obj = None
 
-        self.tree = ast.parse(expression)
+        try:
+            self.tree = ast.parse(expression)
+        except:
+            raise tiledb.TileDBError(
+                f"Could not parse the given QueryCondition statement: {expression}"
+            )
+
         if not self.tree.body:
             raise tiledb.TileDBError(
                 "The query condition statement could not be parsed properly. "
@@ -85,6 +91,17 @@ class QueryCondition(ast.NodeVisitor):
             )
 
     def visit_Compare(self, node):
+        result = self.aux_visit_Compare(
+            self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
+        )
+        for lhs, op, rhs in zip(
+            node.comparators[:-1], node.ops[1:], node.comparators[1:]
+        ):
+            value = self.aux_visit_Compare(self.visit(lhs), op, self.visit(rhs))
+            result = result.combine(value, qc.TILEDB_AND)
+        return result
+
+    def aux_visit_Compare(self, att, op, val):
         AST_TO_TILEDB = {
             ast.Gt: qc.TILEDB_GT,
             ast.GtE: qc.TILEDB_GE,
@@ -95,12 +112,9 @@ class QueryCondition(ast.NodeVisitor):
         }
 
         try:
-            op = AST_TO_TILEDB[type(node.ops[0])]
+            op = AST_TO_TILEDB[type(op)]
         except KeyError:
             raise tiledb.TileDBError("Unsupported comparison operator.")
-
-        att = self.visit(node.left)
-        val = self.visit(node.comparators[0])
 
         if not isinstance(att, ast.Name):
             REVERSE_OP = {
@@ -165,21 +179,38 @@ class QueryCondition(ast.NodeVisitor):
                     f"Type mismatch between attribute `{att}` and value `{val}`."
                 )
 
-        c_obj = qc.qc(self._ctx)
+        result = qc.qc(self._ctx)
 
-        if not hasattr(c_obj, f"init_{dtype_name}"):
+        if not hasattr(result, f"init_{dtype_name}"):
             raise tiledb.TileDBError(
                 f"PyQueryCondition's `init_{dtype_name}` not found."
             )
 
-        init_qc = getattr(c_obj, f"init_{dtype_name}")
+        init_qc = getattr(result, f"init_{dtype_name}")
 
         try:
             init_qc(att, val, op)
         except tiledb.TileDBError as e:
             raise tiledb.TileDBError(e)
 
-        return c_obj
+        return result
+
+    def visit_BinOp(self, node):
+        AST_TO_TILEDB = {ast.BitAnd: qc.TILEDB_AND}
+
+        try:
+            op = AST_TO_TILEDB[type(node.op)]
+        except KeyError:
+            raise tiledb.TileDBError(
+                f"Unsupported binary operator: {ast.dump(node.op)}. Only & is currently supported."
+            )
+
+        result = self.visit(node.left)
+        rhs = node.right[1:] if isinstance(node.right, list) else [node.right]
+        for value in rhs:
+            result = result.combine(self.visit(value), op)
+
+        return result
 
     def visit_BoolOp(self, node):
         AST_TO_TILEDB = {ast.And: qc.TILEDB_AND}
@@ -188,7 +219,7 @@ class QueryCondition(ast.NodeVisitor):
             op = AST_TO_TILEDB[type(node.op)]
         except KeyError:
             raise tiledb.TileDBError(
-                'Unsupported Boolean operator. Only "and" is currently supported.'
+                f'Unsupported Boolean operator: {ast.dump(node.op)}. Only "and" is currently supported.'
             )
 
         result = self.visit(node.values[0])
