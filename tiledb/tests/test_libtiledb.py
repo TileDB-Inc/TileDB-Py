@@ -471,6 +471,26 @@ class AttributeTest(DiskTestCase):
         assert attr.dtype != np.dtype(np.datetime64("", "Y"))
         assert attr.dtype != np.dtype(np.datetime64)
 
+    def test_ascii_attribute(self):
+        path = self.path("test_ascii")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint32)
+        )
+        attrs = [tiledb.Attr(name="A", dtype="ascii", var=True)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        # U = np.random.randint(1, 10, 10)
+        # I = np.random.randint(-5, 5, 10)
+        # D = np.random.rand(10)
+        # S = np.array(list(string.ascii_lowercase[:10]), dtype="|S1")
+
+        # coords = np.linspace(1, 10, num=10, dtype=np.uint32)
+        # data = {"U": U, "I": I, "D": D, "S": S}
+
+        # with tiledb.open(path, "w") as A:
+        #     A[coords] = data
+
 
 class ArraySchemaTest(DiskTestCase):
     def test_schema_basic(self):
