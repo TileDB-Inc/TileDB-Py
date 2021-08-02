@@ -5235,6 +5235,13 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         except Exception as exc:
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
 
+        # if dtype is ASCII, ensure all characters are valid
+        if attr.dtype == "|S0":
+            try:
+                np.asarray(attr_val, dtype=np.bytes_)
+            except Exception as exc:
+                raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
+
         if attr_val.size != ncells:
            raise ValueError("value length ({}) does not match "
                              "coordinate length ({})".format(attr_val.size, ncells))

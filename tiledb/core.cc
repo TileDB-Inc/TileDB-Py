@@ -140,7 +140,7 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     case TILEDB_UINT64:
       return py::dtype("uint64");
     case TILEDB_STRING_ASCII:
-      return py::dtype("S1");
+      return py::dtype("S0");
     case TILEDB_STRING_UTF8:
       return py::dtype("U1");
     case TILEDB_STRING_UTF16:

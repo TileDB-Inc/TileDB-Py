@@ -36,11 +36,8 @@ class QueryConditionTest(DiskTestCase):
         S = np.array(list(string.ascii_lowercase[:10]), dtype="|S1")
         A = np.array(list(string.ascii_lowercase[:10]), dtype="|S1")
 
-        coords = np.linspace(1, 10, num=10, dtype=np.uint32)
-        data = {"U": U, "I": I, "D": D, "S": S, "A": A}
-
-        with tiledb.open(path, "w") as A:
-            A[coords] = data
+        with tiledb.open(path, "w") as arr:
+            arr[np.arange(1, 11)] = {"U": U, "I": I, "D": D, "S": S, "A": A}
 
         return path
 
