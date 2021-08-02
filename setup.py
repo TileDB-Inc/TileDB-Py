@@ -139,7 +139,8 @@ def download_libtiledb():
     """
     dest_name = "TileDB-{}".format(TILEDB_VERSION)
     dest = os.path.join(BUILD_DIR, dest_name)
-    if not os.path.exists(dest):
+    build_dir = os.path.join(BUILD_DIR, f"TileDB-{TILEDB_VERSION[:8]}")
+    if not os.path.exists(build_dir):
         url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(
             TILEDB_VERSION
         )
@@ -152,7 +153,9 @@ def download_libtiledb():
             subprocess.check_call(["wget", url], shell=True)
             with zipfile.ZipFile("{}.zip".format(TILEDB_VERSION)) as z:
                 z.extractall(BUILD_DIR)
-    return dest
+        shutil.move(dest, build_dir)
+
+    return build_dir
 
 
 def build_libtiledb(src_dir):
