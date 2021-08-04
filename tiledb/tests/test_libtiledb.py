@@ -490,7 +490,8 @@ class AttributeTest(DiskTestCase):
             A[np.arange(1, 5)] = ascii_data
 
         with tiledb.open(path, "r") as A:
-            assert A.schema.attr("A").dtype == np.dtype("|S0")
+            # print(A.schema)
+            assert A.schema.attr("A").dtype == np.bytes_
             assert_array_equal(A[:]["A"], np.asarray(ascii_data, dtype=np.bytes_))
 
 

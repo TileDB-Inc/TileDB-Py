@@ -1098,86 +1098,67 @@ def _tiledb_datetime_extent(begin, end):
 
 cdef bint _tiledb_type_is_datetime(tiledb_datatype_t tiledb_type) except? False:
     """Returns True if the tiledb type is a datetime type"""
-    if tiledb_type == TILEDB_DATETIME_YEAR or tiledb_type == TILEDB_DATETIME_MONTH \
-            or tiledb_type == TILEDB_DATETIME_WEEK or tiledb_type == TILEDB_DATETIME_DAY \
-            or tiledb_type == TILEDB_DATETIME_HR or tiledb_type == TILEDB_DATETIME_MIN \
-            or tiledb_type == TILEDB_DATETIME_SEC or tiledb_type == TILEDB_DATETIME_MS \
-            or tiledb_type == TILEDB_DATETIME_US or tiledb_type == TILEDB_DATETIME_NS \
-            or tiledb_type == TILEDB_DATETIME_PS or tiledb_type == TILEDB_DATETIME_FS \
-            or tiledb_type == TILEDB_DATETIME_AS:
-        return True
-    return False
-
+    return tiledb_type in (TILEDB_DATETIME_YEAR, TILEDB_DATETIME_MONTH, 
+        TILEDB_DATETIME_WEEK, TILEDB_DATETIME_DAY, TILEDB_DATETIME_HR, 
+        TILEDB_DATETIME_MIN, TILEDB_DATETIME_SEC, TILEDB_DATETIME_MS, 
+        TILEDB_DATETIME_US, TILEDB_DATETIME_NS, TILEDB_DATETIME_PS, 
+        TILEDB_DATETIME_FS, TILEDB_DATETIME_AS)
 
 def _tiledb_type_to_datetime(tiledb_datatype_t tiledb_type):
     """
     Return a datetime64 with appropriate unit for the given
     tiledb_datetype_t enum value
     """
-    if tiledb_type == TILEDB_DATETIME_YEAR:
-        return np.datetime64('', 'Y')
-    elif tiledb_type == TILEDB_DATETIME_MONTH:
-        return np.datetime64('', 'M')
-    elif tiledb_type == TILEDB_DATETIME_WEEK:
-        return np.datetime64('', 'W')
-    elif tiledb_type == TILEDB_DATETIME_DAY:
-        return np.datetime64('', 'D')
-    elif tiledb_type == TILEDB_DATETIME_HR:
-        return np.datetime64('', 'h')
-    elif tiledb_type == TILEDB_DATETIME_MIN:
-        return np.datetime64('', 'm')
-    elif tiledb_type == TILEDB_DATETIME_SEC:
-        return np.datetime64('', 's')
-    elif tiledb_type == TILEDB_DATETIME_MS:
-        return np.datetime64('', 'ms')
-    elif tiledb_type == TILEDB_DATETIME_US:
-        return np.datetime64('', 'us')
-    elif tiledb_type == TILEDB_DATETIME_NS:
-        return np.datetime64('', 'ns')
-    elif tiledb_type == TILEDB_DATETIME_PS:
-        return np.datetime64('', 'ps')
-    elif tiledb_type == TILEDB_DATETIME_FS:
-        return np.datetime64('', 'fs')
-    elif tiledb_type == TILEDB_DATETIME_AS:
-        return np.datetime64('', 'as')
-    else:
+    tiledb_type_to_datetime = {
+        TILEDB_DATETIME_YEAR: np.datetime64('', 'Y'),
+        TILEDB_DATETIME_MONTH: np.datetime64('', 'M'),
+        TILEDB_DATETIME_WEEK: np.datetime64('', 'W'),
+        TILEDB_DATETIME_DAY: np.datetime64('', 'D'),
+        TILEDB_DATETIME_HR: np.datetime64('', 'h'),
+        TILEDB_DATETIME_MIN: np.datetime64('', 'm'),
+        TILEDB_DATETIME_SEC: np.datetime64('', 's'),
+        TILEDB_DATETIME_MS: np.datetime64('', 'ms'),
+        TILEDB_DATETIME_US: np.datetime64('', 'us'),
+        TILEDB_DATETIME_NS: np.datetime64('', 'ns'),
+        TILEDB_DATETIME_PS: np.datetime64('', 'ps'),
+        TILEDB_DATETIME_FS: np.datetime64('', 'fs'),
+        TILEDB_DATETIME_AS: np.datetime64('', 'as')
+    }
+
+    if tiledb_type not in tiledb_type_to_datetime:
         raise TypeError("tiledb type is not a datetime {0!r}".format(tiledb_type))
+    
+    return tiledb_type_to_datetime[tiledb_type]
 
 cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DATETIME_YEAR:
     """Return tiledb_datetype_t enum value for a given np.datetime64 dtype"""
     if dtype.kind != 'M':
         raise TypeError("data type {0!r} not a datetime".format(dtype))
+
     date_unit = np.datetime_data(dtype)[0]
     if date_unit == 'generic':
         raise TypeError("datetime {0!r} does not specify a date unit".format(dtype))
-    elif date_unit == 'Y':
-        return TILEDB_DATETIME_YEAR
-    elif date_unit == 'M':
-        return TILEDB_DATETIME_MONTH
-    elif date_unit == 'W':
-        return TILEDB_DATETIME_WEEK
-    elif date_unit == 'D':
-        return TILEDB_DATETIME_DAY
-    elif date_unit == 'h':
-        return TILEDB_DATETIME_HR
-    elif date_unit == 'm':
-        return TILEDB_DATETIME_MIN
-    elif date_unit == 's':
-        return TILEDB_DATETIME_SEC
-    elif date_unit == 'ms':
-        return TILEDB_DATETIME_MS
-    elif date_unit == 'us':
-        return TILEDB_DATETIME_US
-    elif date_unit == 'ns':
-        return TILEDB_DATETIME_NS
-    elif date_unit == 'ps':
-        return TILEDB_DATETIME_PS
-    elif date_unit == 'fs':
-        return TILEDB_DATETIME_FS
-    elif date_unit == 'as':
-        return TILEDB_DATETIME_AS
-    else:
+
+    tiledb_dtype_datetime = {
+        'Y': TILEDB_DATETIME_YEAR,
+        'M': TILEDB_DATETIME_MONTH,
+        'W': TILEDB_DATETIME_WEEK,
+        'D': TILEDB_DATETIME_DAY,
+        'h': TILEDB_DATETIME_HR,
+        'm': TILEDB_DATETIME_MIN,
+        's': TILEDB_DATETIME_SEC,
+        'ms': TILEDB_DATETIME_MS,
+        'us': TILEDB_DATETIME_US,
+        'ns': TILEDB_DATETIME_NS,
+        'ps': TILEDB_DATETIME_PS,
+        'fs': TILEDB_DATETIME_FS,
+        'as': TILEDB_DATETIME_AS
+    }
+
+    if date_unit not in tiledb_dtype_datetime:
         raise TypeError("unhandled datetime data type {0!r}".format(dtype))
+    
+    return tiledb_dtype_datetime[date_unit]
 
 
 def _tiledb_cast_tile_extent(tile_extent, dtype):
@@ -1200,30 +1181,23 @@ def _tiledb_cast_tile_extent(tile_extent, dtype):
 
 cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     """Return a numpy type num (int) given a tiledb_datatype_t enum value."""
-    if tiledb_dtype == TILEDB_INT32:
-        return np.NPY_INT32
-    elif tiledb_dtype == TILEDB_UINT32:
-        return np.NPY_UINT32
-    elif tiledb_dtype == TILEDB_INT64:
-        return np.NPY_INT64
-    elif tiledb_dtype == TILEDB_UINT64:
-        return np.NPY_UINT64
-    elif tiledb_dtype == TILEDB_FLOAT32:
-        return np.NPY_FLOAT32
-    elif tiledb_dtype == TILEDB_FLOAT64:
-        return np.NPY_FLOAT64
-    elif tiledb_dtype == TILEDB_INT8:
-        return np.NPY_INT8
-    elif tiledb_dtype == TILEDB_UINT8:
-        return np.NPY_UINT8
-    elif tiledb_dtype == TILEDB_INT16:
-        return np.NPY_INT16
-    elif tiledb_dtype == TILEDB_UINT16:
-        return np.NPY_UINT16
-    elif tiledb_dtype == TILEDB_CHAR:
-        return np.NPY_STRING
-    elif tiledb_dtype == TILEDB_STRING_UTF8:
-        return np.NPY_UNICODE
+    tiledb_dtype_to_numpy_typeid ={
+        TILEDB_INT32: np.NPY_INT32,
+        TILEDB_UINT32: np.NPY_UINT32,
+        TILEDB_INT64: np.NPY_INT64,
+        TILEDB_UINT64: np.NPY_UINT64,
+        TILEDB_FLOAT32: np.NPY_FLOAT32,
+        TILEDB_FLOAT64: np.NPY_FLOAT64,
+        TILEDB_INT8: np.NPY_INT8,
+        TILEDB_UINT8: np.NPY_UINT8,
+        TILEDB_INT16: np.NPY_INT16,
+        TILEDB_UINT16: np.NPY_UINT16,
+        TILEDB_CHAR: np.NPY_STRING,
+        TILEDB_STRING_UTF8: np.NPY_UNICODE
+    }
+
+    if tiledb_dtype in tiledb_dtype_to_numpy_typeid:
+        return tiledb_dtype_to_numpy_typeid[tiledb_dtype]
     elif _tiledb_type_is_datetime(tiledb_dtype):
         return np.NPY_DATETIME
     else:
@@ -1235,32 +1209,23 @@ cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
     cdef uint32_t cell_val_num = cell_size
 
     if cell_val_num == 1:
-        if tiledb_dtype == TILEDB_INT32:
-            return np.int32
-        elif tiledb_dtype == TILEDB_UINT32:
-            return np.uint32
-        elif tiledb_dtype == TILEDB_INT64:
-            return np.int64
-        elif tiledb_dtype == TILEDB_UINT64:
-            return np.uint64
-        elif tiledb_dtype == TILEDB_FLOAT32:
-            return np.float32
-        elif tiledb_dtype == TILEDB_FLOAT64:
-            return np.float64
-        elif tiledb_dtype == TILEDB_INT8:
-            return np.int8
-        elif tiledb_dtype == TILEDB_UINT8:
-            return np.uint8
-        elif tiledb_dtype == TILEDB_INT16:
-            return np.int16
-        elif tiledb_dtype == TILEDB_UINT16:
-            return np.uint16
-        elif tiledb_dtype == TILEDB_CHAR:
-            return np.dtype('S1')
-        elif tiledb_dtype == TILEDB_STRING_ASCII:
-            return np.bytes_
-        elif tiledb_dtype == TILEDB_STRING_UTF8:
-            return np.dtype('U1')
+        tiledb_dtype_to_numpy_dtype = {
+            TILEDB_INT32: np.int32,
+            TILEDB_UINT32: np.uint32,
+            TILEDB_INT64: np.int64,
+            TILEDB_UINT64: np.uint64,
+            TILEDB_FLOAT32: np.float32,
+            TILEDB_FLOAT64: np.float64,
+            TILEDB_INT8: np.int8,
+            TILEDB_UINT8: np.uint8,
+            TILEDB_INT16: np.int16,
+            TILEDB_UINT16: np.uint16,
+            TILEDB_CHAR: np.dtype('S1'),
+            TILEDB_STRING_ASCII: np.bytes_,
+            TILEDB_STRING_UTF8: np.dtype('U1')
+        }
+        if tiledb_dtype in tiledb_dtype_to_numpy_dtype:
+            return tiledb_dtype_to_numpy_dtype[tiledb_dtype]
         elif _tiledb_type_is_datetime(tiledb_dtype):
             return _tiledb_type_to_datetime(tiledb_dtype)
 
@@ -1322,18 +1287,18 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
     """
     Return the unicode string label given a tiledb_layout_t enum value
     """
-    if order == TILEDB_ROW_MAJOR:
-        return u"row-major"
-    elif order == TILEDB_COL_MAJOR:
-        return u"col-major"
-    elif order == TILEDB_GLOBAL_ORDER:
-        return u"global"
-    elif order == TILEDB_UNORDERED:
-        return u"unordered"
-    elif order == TILEDB_HILBERT:
-        return u"hilbert"
+    tiledb_order_to_string ={
+        TILEDB_ROW_MAJOR: u"row-major",
+        TILEDB_COL_MAJOR: u"col-major",
+        TILEDB_GLOBAL_ORDER: u"global",
+        TILEDB_UNORDERED: u"unordered",
+        TILEDB_HILBERT: u"hilbert"
+    }
 
-    raise ValueError("unknown tiledb order: {0!r}".format(order))
+    if order not in tiledb_order_to_string:
+        raise ValueError("unknown tiledb order: {0!r}".format(order))
+    
+    return tiledb_order_to_string[order]
 
 cdef class Filter(object):
     """Base class for all TileDB filters."""
@@ -2239,7 +2204,7 @@ cdef class Attr(object):
                  var=False,
                  nullable=False,
                  filters=None,
-                 Ctx ctx=None):        
+                 Ctx ctx=None):
         if not ctx:
             ctx = default_ctx()
         cdef bytes bname = ustring(name).encode('UTF-8')
@@ -2505,8 +2470,10 @@ cdef class Attr(object):
                 filters_str +=  repr(f) + ", "
             filters_str += "])"
 
+        attr_dtype = self.dtype if (self._get_type() != TILEDB_STRING_ASCII) else "ascii"
+
         # filters_str must be last with no spaces
-        return (f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}', """
+        return (f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
                 f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
                 f"""{filters_str})""")
 
