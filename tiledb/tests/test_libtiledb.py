@@ -1646,6 +1646,23 @@ class DenseArrayTest(DiskTestCase):
 
         T.close()
 
+    @pytest.mark.parametrize("var", [True, False])
+    @pytest.mark.parametrize("nullable", [True, False])
+    def test_read_var_nullable_attrs_dense_array(self, var, nullable):
+        uri = self.path("test_read_var_nullable_attrs_dense_array")
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 4), tile=1, dtype=np.int64))
+        att = tiledb.Attr(dtype="|S0", var=var, nullable=nullable)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
+        tiledb.Array.create(uri, schema)
+
+        data = np.asarray(["a", "b", None if nullable else "c", "ABC"], dtype=np.bytes_)
+
+        with tiledb.open(uri, mode="w") as A:
+            A[np.arange(1, 5)] = data
+
+        with tiledb.open(uri, "r") as A:
+            assert_array_equal(A[:], data)
+
 
 class TestVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):

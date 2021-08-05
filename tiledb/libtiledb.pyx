@@ -331,11 +331,13 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             except Exception as exc:
                 raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
 
-        if tiledb_array.schema.attr(i).isvar:
+        attr = tiledb_array.schema.attr(i)
+
+        if attr.isvar:
             try:
                 buffer, offsets = tiledb.main.array_to_buffer(values[i], True, False)
             except Exception as exc:
-                raise type(exc)(f"Failed to convert buffer for attribute: '{tiledb_array.schema.attr(i).name}'") from exc
+                raise type(exc)(f"Failed to convert buffer for attribute: '{attr.name}'") from exc
             buffer_offsets_sizes[i] = offsets.nbytes
         else:
             buffer, offsets = values[i], None
@@ -436,17 +438,41 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             battr_name = attributes[i].encode('UTF-8')
             buffer_ptr = np.PyArray_DATA(output_values[i])
 
-            if output_offsets[i] is not None:
-                # VAR_NUM attribute
+            var = output_offsets[i] is not None
+            nullable = attributes[i] in nullmaps
+
+            if var and nullable:
                 offsets_buffer_ptr = <uint64_t*>np.PyArray_DATA(output_offsets[i])
-                rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
-                                                 offsets_buffer_ptr, &(offsets_buffer_sizes_ptr[i]),
-                                                 buffer_ptr, &(buffer_sizes_ptr[i]))
-            elif attributes[i] in nullmaps:
+
                 # NOTE: validity map is owned *by the caller*
                 nulmap = nullmaps[attributes[i]]
                 nullmaps_sizes[i] = len(nulmap)
                 nulmap_buffer_ptr = <uint8_t*>np.PyArray_DATA(nulmap)
+
+                rc = tiledb_query_set_buffer_var_nullable(
+                    ctx_ptr,
+                    query_ptr,
+                    battr_name,
+                    offsets_buffer_ptr,
+                    &(offsets_buffer_sizes_ptr[i]),
+                    buffer_ptr,
+                    &(buffer_sizes_ptr[i]),
+                    nulmap_buffer_ptr,
+                    &(nullmaps_sizes_ptr[i])
+                )
+            elif var and not nullable:
+                # VAR_NUM attribute
+                offsets_buffer_ptr = <uint64_t*>np.PyArray_DATA(output_offsets[i])
+
+                rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
+                                                 offsets_buffer_ptr, &(offsets_buffer_sizes_ptr[i]),
+                                                 buffer_ptr, &(buffer_sizes_ptr[i]))
+            elif not var and nullable:
+                # NOTE: validity map is owned *by the caller*
+                nulmap = nullmaps[attributes[i]]
+                nullmaps_sizes[i] = len(nulmap)
+                nulmap_buffer_ptr = <uint8_t*>np.PyArray_DATA(nulmap)
+
                 rc = tiledb_query_set_buffer_nullable(
                     ctx_ptr,
                     query_ptr,
@@ -456,7 +482,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                     nulmap_buffer_ptr,
                     &(nullmaps_sizes_ptr[i])
                 )
-            else:
+            else: # not var and not nullable
                 rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
                                              buffer_ptr, &(buffer_sizes_ptr[i]))
             if rc != TILEDB_OK:
@@ -1150,7 +1176,7 @@ cdef class Ctx(object):
         self.set_tag('x-tiledb-api-language', 'python')
         self.set_tag('x-tiledb-api-language-version', '{}.{}.{}'.format(*sys.version_info))
         self.set_tag('x-tiledb-api-sys-platform', sys.platform)
-    
+
     def get_stats(self):
         """Retrieves the stats from a TileDB context."""
         import json
@@ -4677,12 +4703,12 @@ cdef class Query(object):
         # Delayed to avoid circular import
         from .multirange_indexing import DataFrameIndexer
         return DataFrameIndexer(self.array, query=self, use_arrow=self.use_arrow)
-    
+
     def get_stats(self):
         """Retrieves the stats from a TileDB query."""
         pyquery = self.array.pyquery
         if pyquery is None:
-            return "" 
+            return ""
         return self.array.pyquery.get_stats()
 
 
@@ -5303,6 +5329,9 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                                      "typed attribute '{}'!".format(name))
 
                 attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+
+            if attr.isnullable and attr.name not in nullmaps:
+                nullmaps[attr.name] = np.array([int(v is None) for v in attr_val], dtype=np.uint8)
         except Exception as exc:
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
 
