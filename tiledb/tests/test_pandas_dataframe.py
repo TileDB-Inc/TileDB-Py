@@ -886,6 +886,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 sparse=True,
             )
             df_to_check = copy.deepcopy(df2)
+            tmp = tiledb.open_dataframe(tmp_array2)
             check_array(tmp_array2, df_to_check)
 
         col_size = 10
