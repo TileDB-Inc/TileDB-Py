@@ -144,6 +144,14 @@ Object Management
 .. autofunction:: tiledb.ls
 .. autofunction:: tiledb.walk
 
+Fragment Info
+-------------
+
+.. autoclass:: tiledb.FragmentInfoList
+   :members:
+.. autoclass:: tiledb.FragmentInfo
+   :members:
+
 Exceptions
 ----------
 
