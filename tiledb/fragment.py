@@ -12,6 +12,18 @@ A high level wrapper around the Pybind11 fragment.cc implementation to ease usab
 class FragmentInfoList:
     """
     Class representing an ordered list of FragmentInfo objects.
+
+    :param uri: URIs of fragments
+    :param version: Fragment version of each fragment
+    :param nonempty_domain: Non-empty domain of each fragment
+    :param cell_num: Number of cells in each fragment
+    :param timestamp_range: Timestamp range of when each fragment was written
+    :param dense: For each fragment, True if fragment is dense, else False
+    :param sparse: For each fragment, True if fragment is sparse, else False
+    :param has_consolidated_metadata: For each fragment, True if fragment has consolidated metadata, else False
+    :param unconsolidated_metadata_num: Number of unconsolidated metadata fragments
+    :param to_vacuum_num: Number of already consolidated fragments to vacuum
+    :param to_vacuum_uri: URIs of already consolidated fragments to vacuum
     """
 
     def __init__(self, array_uri, ctx=None):
@@ -90,8 +102,19 @@ class FragmentsInfoIterator:
 
 class FragmentInfo:
     """
-    Class representing the metadata for a single fragment such as the fragment
-    URI, whether it is sparse or dense, timestamp, number of cells, etc.
+    Class representing the metadata for a single fragment.
+
+    :param str uri: URIs of fragments
+    :param int version: Fragment version of each fragment
+    :param tuple(numpy scalar, numpy scalar) nonempty_domain: Non-empty domain of each fragment
+    :param int: Number of cells in each fragment
+    :param tuple(int, int) timestamp_range: Timestamp range of when each fragment was written
+    :param bool dense: For each fragment, True if fragment is dense, else False
+    :param bool sparse: For each fragment, True if fragment is sparse, else False
+    :param bool has_consolidated_metadata: For each fragment, True if fragment has consolidated metadata, else False
+    :param int unconsolidated_metadata_num: Number of unconsolidated metadata fragments
+    :param int to_vacuum_num: Number of already consolidated fragments to vacuum
+    :param str to_vacuum_uri: URIs of already consolidated fragments to vacuum
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
