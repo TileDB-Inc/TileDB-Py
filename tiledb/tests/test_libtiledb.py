@@ -472,7 +472,7 @@ class AttributeTest(DiskTestCase):
         assert attr.dtype != np.dtype(np.datetime64)
 
     @pytest.mark.parametrize("sparse", [True, False])
-    def test_ascii_attribute(self, sparse):
+    def test_ascii_attribute(self, sparse, capfd):
         path = self.path("test_ascii")
         dom = tiledb.Domain(
             tiledb.Dim(name="d", domain=(1, 4), tile=1, dtype=np.uint32)
@@ -490,7 +490,9 @@ class AttributeTest(DiskTestCase):
             A[np.arange(1, 5)] = ascii_data
 
         with tiledb.open(path, "r") as A:
-            # print(A.schema)
+            assert A.schema.nattr == 1
+            A.schema.dump()
+            assert_captured(capfd, "Type: STRING_ASCII")
             assert A.schema.attr("A").dtype == np.bytes_
             assert_array_equal(A[:]["A"], np.asarray(ascii_data, dtype=np.bytes_))
 

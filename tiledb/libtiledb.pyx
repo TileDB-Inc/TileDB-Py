@@ -56,6 +56,73 @@ _inttypes = (int, np.integer)
 # https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
 np.import_array()
 
+# Conversion from TileDB dtype to Numpy datetime
+_tiledb_dtype_to_datetime_convert = {
+    TILEDB_DATETIME_YEAR: np.datetime64('', 'Y'),
+    TILEDB_DATETIME_MONTH: np.datetime64('', 'M'),
+    TILEDB_DATETIME_WEEK: np.datetime64('', 'W'),
+    TILEDB_DATETIME_DAY: np.datetime64('', 'D'),
+    TILEDB_DATETIME_HR: np.datetime64('', 'h'),
+    TILEDB_DATETIME_MIN: np.datetime64('', 'm'),
+    TILEDB_DATETIME_SEC: np.datetime64('', 's'),
+    TILEDB_DATETIME_MS: np.datetime64('', 'ms'),
+    TILEDB_DATETIME_US: np.datetime64('', 'us'),
+    TILEDB_DATETIME_NS: np.datetime64('', 'ns'),
+    TILEDB_DATETIME_PS: np.datetime64('', 'ps'),
+    TILEDB_DATETIME_FS: np.datetime64('', 'fs'),
+    TILEDB_DATETIME_AS: np.datetime64('', 'as')
+}
+
+# Conversion from Numpy datetime to TileDB dtype
+_datetime_tiledb_dtype_convert = {
+    'Y': TILEDB_DATETIME_YEAR,
+    'M': TILEDB_DATETIME_MONTH,
+    'W': TILEDB_DATETIME_WEEK,
+    'D': TILEDB_DATETIME_DAY,
+    'h': TILEDB_DATETIME_HR,
+    'm': TILEDB_DATETIME_MIN,
+    's': TILEDB_DATETIME_SEC,
+    'ms': TILEDB_DATETIME_MS,
+    'us': TILEDB_DATETIME_US,
+    'ns': TILEDB_DATETIME_NS,
+    'ps': TILEDB_DATETIME_PS,
+    'fs': TILEDB_DATETIME_FS,
+    'as': TILEDB_DATETIME_AS
+}
+
+# Conversion from TileDB dtype to Numpy typeid 
+_tiledb_dtype_to_numpy_typeid_convert ={
+    TILEDB_INT32: np.NPY_INT32,
+    TILEDB_UINT32: np.NPY_UINT32,
+    TILEDB_INT64: np.NPY_INT64,
+    TILEDB_UINT64: np.NPY_UINT64,
+    TILEDB_FLOAT32: np.NPY_FLOAT32,
+    TILEDB_FLOAT64: np.NPY_FLOAT64,
+    TILEDB_INT8: np.NPY_INT8,
+    TILEDB_UINT8: np.NPY_UINT8,
+    TILEDB_INT16: np.NPY_INT16,
+    TILEDB_UINT16: np.NPY_UINT16,
+    TILEDB_CHAR: np.NPY_STRING,
+    TILEDB_STRING_UTF8: np.NPY_UNICODE
+}
+
+# Conversion from TileDB dtype to Numpy dtype
+_tiledb_dtype_to_numpy_dtype_convert = {
+    TILEDB_INT32: np.int32,
+    TILEDB_UINT32: np.uint32,
+    TILEDB_INT64: np.int64,
+    TILEDB_UINT64: np.uint64,
+    TILEDB_FLOAT32: np.float32,
+    TILEDB_FLOAT64: np.float64,
+    TILEDB_INT8: np.int8,
+    TILEDB_UINT8: np.uint8,
+    TILEDB_INT16: np.int16,
+    TILEDB_UINT16: np.uint16,
+    TILEDB_CHAR: np.dtype('S1'),
+    TILEDB_STRING_ASCII: np.bytes_,
+    TILEDB_STRING_UTF8: np.dtype('U1')
+}
+
 def version():
     """Return the version of the linked ``libtiledb`` shared library
 
@@ -1109,26 +1176,10 @@ def _tiledb_type_to_datetime(tiledb_datatype_t tiledb_type):
     Return a datetime64 with appropriate unit for the given
     tiledb_datetype_t enum value
     """
-    tiledb_type_to_datetime = {
-        TILEDB_DATETIME_YEAR: np.datetime64('', 'Y'),
-        TILEDB_DATETIME_MONTH: np.datetime64('', 'M'),
-        TILEDB_DATETIME_WEEK: np.datetime64('', 'W'),
-        TILEDB_DATETIME_DAY: np.datetime64('', 'D'),
-        TILEDB_DATETIME_HR: np.datetime64('', 'h'),
-        TILEDB_DATETIME_MIN: np.datetime64('', 'm'),
-        TILEDB_DATETIME_SEC: np.datetime64('', 's'),
-        TILEDB_DATETIME_MS: np.datetime64('', 'ms'),
-        TILEDB_DATETIME_US: np.datetime64('', 'us'),
-        TILEDB_DATETIME_NS: np.datetime64('', 'ns'),
-        TILEDB_DATETIME_PS: np.datetime64('', 'ps'),
-        TILEDB_DATETIME_FS: np.datetime64('', 'fs'),
-        TILEDB_DATETIME_AS: np.datetime64('', 'as')
-    }
-
-    if tiledb_type not in tiledb_type_to_datetime:
+    if tiledb_type not in _tiledb_dtype_to_datetime_convert:
         raise TypeError("tiledb type is not a datetime {0!r}".format(tiledb_type))
     
-    return tiledb_type_to_datetime[tiledb_type]
+    return _tiledb_dtype_to_datetime_convert[tiledb_type]
 
 cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DATETIME_YEAR:
     """Return tiledb_datetype_t enum value for a given np.datetime64 dtype"""
@@ -1139,26 +1190,10 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
     if date_unit == 'generic':
         raise TypeError("datetime {0!r} does not specify a date unit".format(dtype))
 
-    tiledb_dtype_datetime = {
-        'Y': TILEDB_DATETIME_YEAR,
-        'M': TILEDB_DATETIME_MONTH,
-        'W': TILEDB_DATETIME_WEEK,
-        'D': TILEDB_DATETIME_DAY,
-        'h': TILEDB_DATETIME_HR,
-        'm': TILEDB_DATETIME_MIN,
-        's': TILEDB_DATETIME_SEC,
-        'ms': TILEDB_DATETIME_MS,
-        'us': TILEDB_DATETIME_US,
-        'ns': TILEDB_DATETIME_NS,
-        'ps': TILEDB_DATETIME_PS,
-        'fs': TILEDB_DATETIME_FS,
-        'as': TILEDB_DATETIME_AS
-    }
-
-    if date_unit not in tiledb_dtype_datetime:
+    if date_unit not in _datetime_tiledb_dtype_convert:
         raise TypeError("unhandled datetime data type {0!r}".format(dtype))
     
-    return tiledb_dtype_datetime[date_unit]
+    return _datetime_tiledb_dtype_convert[date_unit]
 
 
 def _tiledb_cast_tile_extent(tile_extent, dtype):
@@ -1181,23 +1216,8 @@ def _tiledb_cast_tile_extent(tile_extent, dtype):
 
 cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     """Return a numpy type num (int) given a tiledb_datatype_t enum value."""
-    tiledb_dtype_to_numpy_typeid ={
-        TILEDB_INT32: np.NPY_INT32,
-        TILEDB_UINT32: np.NPY_UINT32,
-        TILEDB_INT64: np.NPY_INT64,
-        TILEDB_UINT64: np.NPY_UINT64,
-        TILEDB_FLOAT32: np.NPY_FLOAT32,
-        TILEDB_FLOAT64: np.NPY_FLOAT64,
-        TILEDB_INT8: np.NPY_INT8,
-        TILEDB_UINT8: np.NPY_UINT8,
-        TILEDB_INT16: np.NPY_INT16,
-        TILEDB_UINT16: np.NPY_UINT16,
-        TILEDB_CHAR: np.NPY_STRING,
-        TILEDB_STRING_UTF8: np.NPY_UNICODE
-    }
-
-    if tiledb_dtype in tiledb_dtype_to_numpy_typeid:
-        return tiledb_dtype_to_numpy_typeid[tiledb_dtype]
+    if tiledb_dtype in _tiledb_dtype_to_numpy_typeid_convert:
+        return _tiledb_dtype_to_numpy_typeid_convert[tiledb_dtype]
     elif _tiledb_type_is_datetime(tiledb_dtype):
         return np.NPY_DATETIME
     else:
@@ -1209,23 +1229,8 @@ cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
     cdef uint32_t cell_val_num = cell_size
 
     if cell_val_num == 1:
-        tiledb_dtype_to_numpy_dtype = {
-            TILEDB_INT32: np.int32,
-            TILEDB_UINT32: np.uint32,
-            TILEDB_INT64: np.int64,
-            TILEDB_UINT64: np.uint64,
-            TILEDB_FLOAT32: np.float32,
-            TILEDB_FLOAT64: np.float64,
-            TILEDB_INT8: np.int8,
-            TILEDB_UINT8: np.uint8,
-            TILEDB_INT16: np.int16,
-            TILEDB_UINT16: np.uint16,
-            TILEDB_CHAR: np.dtype('S1'),
-            TILEDB_STRING_ASCII: np.bytes_,
-            TILEDB_STRING_UTF8: np.dtype('U1')
-        }
-        if tiledb_dtype in tiledb_dtype_to_numpy_dtype:
-            return tiledb_dtype_to_numpy_dtype[tiledb_dtype]
+        if tiledb_dtype in _tiledb_dtype_to_numpy_dtype_convert:
+            return _tiledb_dtype_to_numpy_dtype_convert[tiledb_dtype]
         elif _tiledb_type_is_datetime(tiledb_dtype):
             return _tiledb_type_to_datetime(tiledb_dtype)
 
