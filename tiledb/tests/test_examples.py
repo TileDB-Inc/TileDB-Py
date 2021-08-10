@@ -44,7 +44,11 @@ class ExamplesTest:
         reason="Some doctests are missing a clean-up step on windows",
     )
     @pytest.mark.parametrize(
-        "path", [os.path.join(PROJECT_DIR, "tiledb", "libtiledb.pyx")]
+        "path",
+        [
+            os.path.join(PROJECT_DIR, "tiledb", "libtiledb.pyx"),
+            os.path.join(PROJECT_DIR, "tiledb", "fragment.py"),
+        ],
     )
     def test_docs(self, path, capsys):
         failures, _ = doctest.testfile(

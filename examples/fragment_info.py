@@ -76,6 +76,8 @@ fragments_info = tiledb.array_fragments(array_name)
 print("====== FRAGMENTS  INFO ======")
 print("array uri: {}".format(fragments_info.array_uri))
 print("number of fragments: {}".format(len(fragments_info)))
+print(fragments_info.nonempty_domain)
+print(fragments_info.sparse)
 
 for fragment_num, fragment in enumerate(fragments_info, start=1):
     print()
