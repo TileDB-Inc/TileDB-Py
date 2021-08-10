@@ -1176,10 +1176,10 @@ def _tiledb_type_to_datetime(tiledb_datatype_t tiledb_type):
     Return a datetime64 with appropriate unit for the given
     tiledb_datetype_t enum value
     """
-    if tiledb_type not in _tiledb_dtype_to_datetime_convert:
+    tdb_type = _tiledb_dtype_to_datetime_convert.get(tiledb_type, None)
+    if tdb_type is None:
         raise TypeError("tiledb type is not a datetime {0!r}".format(tiledb_type))
-    
-    return _tiledb_dtype_to_datetime_convert[tiledb_type]
+    return tdb_type
 
 cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DATETIME_YEAR:
     """Return tiledb_datetype_t enum value for a given np.datetime64 dtype"""
@@ -1189,12 +1189,11 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
     date_unit = np.datetime_data(dtype)[0]
     if date_unit == 'generic':
         raise TypeError("datetime {0!r} does not specify a date unit".format(dtype))
-
-    if date_unit not in _datetime_tiledb_dtype_convert:
-        raise TypeError("unhandled datetime data type {0!r}".format(dtype))
     
-    return _datetime_tiledb_dtype_convert[date_unit]
-
+    tdb_dt = _datetime_tiledb_dtype_convert.get(date_unit, None)
+    if tdb_dt is None:
+        raise TypeError("np type is not a datetime {0!r}".format(date_unit))
+    return tdb_dt
 
 def _tiledb_cast_tile_extent(tile_extent, dtype):
     """Given a tile extent value, cast it to np.array of the given numpy dtype."""
@@ -1216,12 +1215,10 @@ def _tiledb_cast_tile_extent(tile_extent, dtype):
 
 cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     """Return a numpy type num (int) given a tiledb_datatype_t enum value."""
-    if tiledb_dtype in _tiledb_dtype_to_numpy_typeid_convert:
-        return _tiledb_dtype_to_numpy_typeid_convert[tiledb_dtype]
-    elif _tiledb_type_is_datetime(tiledb_dtype):
-        return np.NPY_DATETIME
-    else:
-        return np.NPY_NOTYPE
+    np_id_type = _tiledb_dtype_to_numpy_typeid_convert.get(tiledb_dtype, None)
+    if np_id_type:
+        return np_id_type
+    return np.NPY_DATETIME if _tiledb_type_is_datetime(tiledb_dtype) else np.NPY_NOTYPE
 
 cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
     """Return a numpy type given a tiledb_datatype_t enum value."""
