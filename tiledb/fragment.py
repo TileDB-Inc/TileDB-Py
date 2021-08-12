@@ -12,6 +12,79 @@ A high level wrapper around the Pybind11 fragment.cc implementation to ease usab
 class FragmentInfoList:
     """
     Class representing an ordered list of FragmentInfo objects.
+
+    :param uri: URIs of fragments
+    :param version: Fragment version of each fragment
+    :param nonempty_domain: Non-empty domain of each fragment
+    :param cell_num: Number of cells in each fragment
+    :param timestamp_range: Timestamp range of when each fragment was written
+    :param dense: For each fragment, True if fragment is dense, else False
+    :param sparse: For each fragment, True if fragment is sparse, else False
+    :param has_consolidated_metadata: For each fragment, True if fragment has consolidated fragment metadata, else False
+    :param unconsolidated_metadata_num: Number of unconsolidated metadata fragments in each fragment
+    :param to_vacuum_num: Number of already consolidated fragments to vacuum
+    :param to_vacuum_uri: URIs of already consolidated fragments to vacuum
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     # The array will be 4x4 with dimensions "rows" and "cols", with domain [1,4] and space tiles 2x2
+    ...     dom = tiledb.Domain(
+    ...         tiledb.Dim(name="rows", domain=(1, 4), tile=2, dtype=np.int32),
+    ...         tiledb.Dim(name="cols", domain=(1, 4), tile=2, dtype=np.int32),
+    ...     )
+    ...     # The array will be dense with a single attribute "a" so each (i,j) cell can store an integer.
+    ...     schema = tiledb.ArraySchema(
+    ...         domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype=np.int32)]
+    ...     )
+    ...     # Set URI of the array
+    ...     uri = tmp + "/array"
+    ...     # Create the (empty) array on disk.
+    ...     tiledb.Array.create(uri, schema)
+    ...
+    ...     # Write three fragments to the array
+    ...     with tiledb.DenseArray(uri, mode="w") as A:
+    ...         A[1:3, 1:5] = np.array(([1, 2, 3, 4, 5, 6, 7, 8]))
+    ...     with tiledb.DenseArray(uri, mode="w") as A:
+    ...         A[2:4, 2:4] = np.array(([101, 102, 103, 104]))
+    ...     with tiledb.DenseArray(uri, mode="w") as A:
+    ...         A[3:4, 4:5] = np.array(([202]))
+    ...
+    ...     # tiledb.array_fragments() requires TileDB-Py version > 0.8.5
+    ...     fragments_info = tiledb.array_fragments(uri)
+    ...
+    ...     "====== FRAGMENTS  INFO ======"
+    ...     f"number of fragments: {len(fragments_info)}"
+    ...     f"nonempty domains: {fragments_info.nonempty_domain}"
+    ...     f"sparse fragments: {fragments_info.sparse}"
+    ...
+    ...     for fragment_num, fragment in enumerate(fragments_info, start=1):
+    ...         f"===== FRAGMENT NUMBER {fragment.num} ====="
+    ...         f"is dense: {fragment.dense}"
+    ...         f"cell num: {fragment.cell_num}"
+    ...         f"has consolidated metadata: {fragment.has_consolidated_metadata}"
+    ...         f"nonempty domain: {fragment.nonempty_domain}"
+    '====== FRAGMENTS  INFO ======'
+    'number of fragments: 3'
+    'nonempty domains: (((1, 2), (1, 4)), ((2, 3), (2, 3)), ((3, 3), (4, 4)))'
+    'sparse fragments: (False, False, False)'
+    '===== FRAGMENT NUMBER 0 ====='
+    'is dense: True'
+    'cell num: 8'
+    'has consolidated metadata: False'
+    'nonempty domain: ((1, 2), (1, 4))'
+    '===== FRAGMENT NUMBER 1 ====='
+    'is dense: True'
+    'cell num: 16'
+    'has consolidated metadata: False'
+    'nonempty domain: ((2, 3), (2, 3))'
+    '===== FRAGMENT NUMBER 2 ====='
+    'is dense: True'
+    'cell num: 4'
+    'has consolidated metadata: False'
+    'nonempty domain: ((3, 3), (4, 4))'
+
     """
 
     def __init__(self, array_uri, ctx=None):
@@ -90,8 +163,21 @@ class FragmentsInfoIterator:
 
 class FragmentInfo:
     """
-    Class representing the metadata for a single fragment such as the fragment
-    URI, whether it is sparse or dense, timestamp, number of cells, etc.
+    Class representing the metadata for a single fragment. See :py:class:`tiledb.FragmentInfoList` for example of usage.
+
+    :param str uri: URIs of fragments
+    :param int version: Fragment version of each fragment
+    :param nonempty_domain: Non-empty domain of each fragment
+    :type nonempty_domain: tuple(numpy scalar, numpy scalar)
+    :param int: Number of cells in each fragment
+    :param timestamp_range: Timestamp range of when each fragment was written
+    :type timestamp_range: tuple(int, int)
+    :param bool dense: For each fragment, True if fragment is dense, else False
+    :param bool sparse: For each fragment, True if fragment is sparse, else False
+    :param bool has_consolidated_metadata: For each fragment, True if fragment has consolidated metadata, else False
+    :param int unconsolidated_metadata_num: Number of unconsolidated metadata fragments
+    :param int to_vacuum_num: Number of already consolidated fragments to vacuum
+    :param str to_vacuum_uri: URIs of already consolidated fragments to vacuum
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
