@@ -19,7 +19,8 @@
 #define TILEDB_DEPRECATED_EXPORT
 
 #include <tiledb/arrowio>
-#include <tiledb/tiledb> // C++
+#include <tiledb/tiledb>                 // C++
+#include <tiledb/tiledb_serialization.h> // C
 
 #include "../external/string_view.hpp"
 #include "../external/tsl/robin_map.h"
@@ -596,6 +597,28 @@ public:
 
       add_dim_range(dim_idx, py::make_tuple(r0, r1));
     }
+  }
+
+  void set_serialized_query(py::buffer serialized_query) {
+    int rc;
+    tiledb_query_t *c_query;
+    tiledb_buffer_t *c_buffer;
+    tiledb_ctx_t *c_ctx = ctx_.ptr().get();
+
+    rc = tiledb_buffer_alloc(c_ctx, &c_buffer);
+    if (rc == TILEDB_ERR)
+      TPY_ERROR_LOC("Could not allocate c_buffer.");
+
+    py::buffer_info buffer_info = serialized_query.request();
+    rc = tiledb_buffer_set_data(c_ctx, c_buffer, buffer_info.ptr,
+                                buffer_info.shape[0]);
+    if (rc == TILEDB_ERR)
+      TPY_ERROR_LOC("Could not set c_buffer.");
+
+    c_query = query_.get()->ptr().get();
+    rc = tiledb_deserialize_query(c_ctx, c_buffer, TILEDB_CAPNP, 0, c_query);
+    if (rc == TILEDB_ERR)
+      TPY_ERROR_LOC("Could not deserialize query.");
   }
 
   void set_attr_cond(py::object attr_cond) {
@@ -1434,6 +1457,7 @@ PYBIND11_MODULE(core, m) {
           .def("set_ranges", &PyQuery::set_ranges)
           .def("set_subarray", &PyQuery::set_subarray)
           .def("set_attr_cond", &PyQuery::set_attr_cond)
+          .def("set_serialized_query", &PyQuery::set_serialized_query)
           .def("submit", &PyQuery::submit)
           .def("unpack_buffer", &PyQuery::unpack_buffer)
           .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)

@@ -4435,6 +4435,22 @@ cdef class Array(object):
         """
         self._buffers = buffers
     
+    def set_query(self, serialized_query):
+        from tiledb.core import PyQuery
+        q = PyQuery(self._ctx_(), self, ("",), (), 0, False)
+        q.set_serialized_query(serialized_query)
+        q.submit()
+
+        cdef object results = OrderedDict()
+        results = q.results()
+
+        out = OrderedDict()
+        for name in results.keys():
+            arr = results[name][0]
+            arr.dtype = q.buffer_dtype(name)
+            out[name] = arr
+        return out
+    
     # pickling support: this is a lightweight pickle for distributed use.
     #   simply treat as wrapper around URI, not actual data.
     def __getstate__(self):
@@ -4741,7 +4757,6 @@ cdef class DenseArrayImpl(Array):
                      coords=coords, order=order, use_arrow=use_arrow,
                      return_arrow=return_arrow,
                      return_incomplete=return_incomplete)
-
 
     def subarray(self, selection, attrs=None, attr_cond=None, coords=False, order=None):
         """Retrieve data cells for an item or region of the array.
