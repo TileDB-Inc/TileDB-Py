@@ -20,6 +20,8 @@ import psutil
 import pytest
 from numpy.testing import assert_array_equal
 
+pd = pytest.importorskip("pandas")
+
 import tiledb
 from tiledb.tests.common import (
     assert_captured,
@@ -1646,21 +1648,16 @@ class DenseArrayTest(DiskTestCase):
 
         T.close()
 
-    @pytest.mark.parametrize("var", [True, False])
-    @pytest.mark.parametrize("nullable", [True, False])
-    def test_read_var_nullable_attrs_dense_array(self, var, nullable):
-        uri = self.path("test_read_var_nullable_attrs_dense_array")
-        dom = tiledb.Domain(tiledb.Dim(domain=(1, 4), tile=1, dtype=np.int64))
-        att = tiledb.Attr(dtype="|S0", var=var, nullable=nullable)
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
-        tiledb.Array.create(uri, schema)
-
-        data = np.asarray(["a", "b", None if nullable else "c", "ABC"], dtype=np.bytes_)
-
-        with tiledb.open(uri, mode="w") as A:
-            A[np.arange(1, 5)] = data
+    def test_write_var_nullable_str(self):
+        uri = self.path("test_write_var_nullable_str")
+        data = np.array(["a", "b", None, "ABC"], dtype=object)
+        series = pd.Series(data, dtype=pd.StringDtype())
+        df = pd.DataFrame({"data": series})
+        tiledb.from_pandas(uri, df)
 
         with tiledb.open(uri, "r") as A:
+            assert A.schema.attr("data").isnullable
+            assert A.schema.attr("data").isvar
             assert_array_equal(A[:], data)
 
 
