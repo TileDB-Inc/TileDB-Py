@@ -5128,8 +5128,6 @@ cdef class DenseArrayImpl(Array):
                     raise TileDBError("Cannot set validity for non-existent attribute.")
                 if not self.schema.attr(key).isnullable:
                     raise ValueError("Cannot set validity map for non-nullable attribute.")
-                if self.schema.attr(key).isvar:
-                    raise TileDBError("<todo> Var-length nullable arrays are unimplemented in TileDB-Py")
                 if not isinstance(val, np.ndarray):
                     raise TypeError(f"Expected NumPy array for attribute '{key}' "
                                     f"validity bitmap, got {type(val)}")
@@ -5332,8 +5330,13 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
 
             if attr.isnullable and attr.name not in nullmaps:
                 nullmaps[attr.name] = np.array([int(v is None) for v in attr_val], dtype=np.uint8)
+
         except Exception as exc:
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
+
+        # set nullmap if nullable attribute does not have a nullmap already set
+        if attr.isnullable and attr.name not in nullmaps:
+            nullmaps[attr.name] = np.ones(attr_val.shape)
 
         # if dtype is ASCII, ensure all characters are valid
         if attr.isascii:
