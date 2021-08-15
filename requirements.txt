@@ -1,3 +1,5 @@
-numpy>=1.16.5
+numpy>=1.16.5 ; platform_machine != 'aarch64'
+numpy>=1.19.2 ; platform_machine == 'aarch64'
+
 contextvars ;python_version<"3.7"
 dataclasses ;python_version<"3.7"
