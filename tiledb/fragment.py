@@ -169,7 +169,7 @@ class FragmentInfo:
     :param int version: Fragment version of each fragment
     :param nonempty_domain: Non-empty domain of each fragment
     :type nonempty_domain: tuple(numpy scalar, numpy scalar)
-    :param int: Number of cells in each fragment
+    :param cell_num int: Number of cells in each fragment
     :param timestamp_range: Timestamp range of when each fragment was written
     :type timestamp_range: tuple(int, int)
     :param bool dense: For each fragment, True if fragment is dense, else False
