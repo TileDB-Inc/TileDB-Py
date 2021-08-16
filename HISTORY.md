@@ -1,10 +1,17 @@
+# TileDB-Py 0.9.5 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.9.5 includes TileDB Embedded [TileDB 2.3.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3.3)
+
+## Improvements
+* Consolidate `_nonempty_domain_var` into `nonempty_domain` [#632](https://github.com/TileDB-Inc/TileDB-Py/pull/632)
+* Support more valid Python syntax for `QueryCondition` statements [#636](https://github.com/TileDB-Inc/TileDB-Py/pull/636)
+* Addition of `ascii` dtype to `Attr` allows `QueryCondition` to support var-length strings [#637](https://github.com/TileDB-Inc/TileDB-Py/pull/637) 
+
 # TileDB-Py 0.9.4 Release Notes
 
 ## Improvements
 * Support pickling for arrays in write-mode [#626](https://github.com/TileDB-Inc/TileDB-Py/pull/626)
-* Consolidate `_nonempty_domain_var` into `nonempty_domain` [#632](https://github.com/TileDB-Inc/TileDB-Py/pull/632)
-* Support more valid Python syntax for `QueryCondition` statements [#636](https://github.com/TileDB-Inc/TileDB-Py/pull/636)
-* Addition of `ascii` dtype to `Attr` allows `QueryCondition` to support var-length strings [#637](https://github.com/TileDB-Inc/TileDB-Py/pull/637) 
 
 ## Bug Fixes
 * Fixed multi-range indexer to default to explicitly pass in the non-empty domain if dimensions are unspecified [#630](https://github.com/TileDB-Inc/TileDB-Py/pull/630)
