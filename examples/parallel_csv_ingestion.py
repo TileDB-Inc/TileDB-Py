@@ -274,7 +274,8 @@ def test_parallel_csv_ingestion():
         "column_int64": np.int64,
         "column_uint32": np.uint32,
         "column_float64": np.float64,
-        "column_utf8": np.str,
+        # Avoid this runtime warning: "DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`."
+        "column_utf8": str,
     }
 
     # read dataframe from CSV list, set index, and sort
