@@ -53,8 +53,7 @@ def create_array():
         tiledb.Dim(name="y", domain=(1, 20), tile=4, dtype=np.int64),
     )
 
-    # Add two attributes "a1" and "a2", so each (i,j) cell can store
-    # a character on "a1" and a vector of two floats on "a2".
+    # Add a single "a" float attribute
     schema = tiledb.ArraySchema(
         domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype=np.float64)]
     )
