@@ -5,7 +5,7 @@ import tiledb
 from tiledb import _fragment
 
 """
-A high level wrapper around the Pybind11 fragment.cc implementation to ease usability of retrieving information from all fragments for a given array.
+Retrieves information from all fragments for a given array.
 """
 
 
@@ -22,8 +22,7 @@ class FragmentInfoList:
     :param sparse: For each fragment, True if fragment is sparse, else False
     :param has_consolidated_metadata: For each fragment, True if fragment has consolidated fragment metadata, else False
     :param unconsolidated_metadata_num: Number of unconsolidated metadata fragments in each fragment
-    :param to_vacuum_num: Number of already consolidated fragments to vacuum
-    :param to_vacuum_uri: URIs of already consolidated fragments to vacuum
+    :param to_vacuum: URIs of already consolidated fragments to vacuum
 
     **Example:**
 
@@ -59,7 +58,7 @@ class FragmentInfoList:
     ...     f"nonempty domains: {fragments_info.nonempty_domain}"
     ...     f"sparse fragments: {fragments_info.sparse}"
     ...
-    ...     for fragment_num, fragment in enumerate(fragments_info, start=1):
+    ...     for fragment in fragments_info:
     ...         f"===== FRAGMENT NUMBER {fragment.num} ====="
     ...         f"is dense: {fragment.dense}"
     ...         f"cell num: {fragment.cell_num}"
@@ -108,8 +107,7 @@ class FragmentInfoList:
         self.sparse = fi.sparse()
         self.has_consolidated_metadata = fi.has_consolidated_metadata()
         self.unconsolidated_metadata_num = fi.unconsolidated_metadata_num()
-        self.to_vacuum_num = fi.to_vacuum_num()
-        self.to_vacuum_uri = fi.to_vacuum_uri() if self.to_vacuum_num > 0 else []
+        self.to_vacuum = fi.to_vacuum_uri()
 
     @property
     def non_empty_domain(self):
@@ -119,6 +117,24 @@ class FragmentInfoList:
             DeprecationWarning,
         )
         return self.nonempty_domain
+
+    @property
+    def to_vacuum_num(self):
+        warnings.warn(
+            "FragmentInfoList.to_vacuum_num is deprecated; "
+            "please use len(FragmentInfoList.to_vacuum)",
+            DeprecationWarning,
+        )
+        return len(self.to_vacuum)
+
+    @property
+    def to_vacuum_uri(self):
+        warnings.warn(
+            "FragmentInfoList.to_vacuum_uri is deprecated; "
+            "please use FragmentInfoList.to_vacuum",
+            DeprecationWarning,
+        )
+        return self.to_vacuum
 
     def __iter__(self):
         return FragmentsInfoIterator(self)
@@ -172,15 +188,14 @@ class FragmentInfo:
     :param cell_num int: Number of cells in each fragment
     :param timestamp_range: Timestamp range of when each fragment was written
     :type timestamp_range: tuple(int, int)
-    :param bool dense: For each fragment, True if fragment is dense, else False
-    :param bool sparse: For each fragment, True if fragment is sparse, else False
-    :param bool has_consolidated_metadata: For each fragment, True if fragment has consolidated metadata, else False
+    :param bool dense: True if fragment is dense, else False
+    :param bool sparse: True if fragment is sparse, else False
+    :param bool has_consolidated_metadata: True if fragment has consolidated metadata, else False
     :param int unconsolidated_metadata_num: Number of unconsolidated metadata fragments
-    :param int to_vacuum_num: Number of already consolidated fragments to vacuum
-    :param str to_vacuum_uri: URIs of already consolidated fragments to vacuum
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
+        self._frags = fragments
         self.num = num
         self.uri = fragments.uri[num]
         self.version = fragments.version[num]
@@ -191,10 +206,6 @@ class FragmentInfo:
         self.sparse = fragments.sparse[num]
         self.has_consolidated_metadata = fragments.has_consolidated_metadata[num]
         self.unconsolidated_metadata_num = fragments.unconsolidated_metadata_num
-        self.to_vacuum_num = fragments.to_vacuum_num
-        self.to_vacuum_uri = (
-            fragments.to_vacuum_uri[num] if self.to_vacuum_num > 0 else []
-        )
 
     def __repr__(self):
         return pprint.PrettyPrinter().pformat(self.__dict__)
@@ -207,6 +218,24 @@ class FragmentInfo:
             DeprecationWarning,
         )
         return self.nonempty_domain
+
+    @property
+    def to_vacuum_num(self):
+        warnings.warn(
+            "FragmentInfo.to_vacuum_num is deprecated; "
+            "please use len(FragmentInfoList.to_vacuum)",
+            DeprecationWarning,
+        )
+        return len(self._frags.to_vacuum)
+
+    @property
+    def to_vacuum_uri(self):
+        warnings.warn(
+            "FragmentInfo.to_vacuum_uri is deprecated; "
+            "please use FragmentInfoList.to_vacuum",
+            DeprecationWarning,
+        )
+        return self._frags.to_vacuum
 
 
 def FragmentsInfo(array_uri, ctx=None):

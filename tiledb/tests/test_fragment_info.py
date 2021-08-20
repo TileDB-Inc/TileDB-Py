@@ -51,8 +51,7 @@ class FragmentInfoTest(DiskTestCase):
         )
         self.assertEqual(fragments_info.sparse, (False, False, False))
         self.assertEqual(fragments_info.timestamp_range, ((1, 1), (2, 2), (3, 3)))
-        self.assertEqual(fragments_info.to_vacuum_num, 0)
-        self.assertEqual(fragments_info.to_vacuum_uri, [])
+        self.assertEqual(fragments_info.to_vacuum, ())
 
         for idx, frag in enumerate(fragments_info):
             self.assertEqual(frag.cell_num, 3)
