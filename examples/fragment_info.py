@@ -76,10 +76,15 @@ fragments_info = tiledb.array_fragments(array_name)
 print("====== FRAGMENTS  INFO ======")
 print("array uri: {}".format(fragments_info.array_uri))
 print("number of fragments: {}".format(len(fragments_info)))
+
+to_vac = fragments_info.to_vacuum
+print("number of consolidated fragments to vacuum: {}".format(len(to_vac)))
+print("uris of consolidated fragments to vacuum: {}".format(to_vac))
+
 print(fragments_info.nonempty_domain)
 print(fragments_info.sparse)
 
-for fragment_num, fragment in enumerate(fragments_info, start=1):
+for fragment in fragments_info:
     print()
     print("===== FRAGMENT NUMBER {} =====".format(fragment.num))
     print("fragment uri: {}".format(fragment.uri))
@@ -89,8 +94,6 @@ for fragment_num, fragment in enumerate(fragments_info, start=1):
     print("has consolidated metadata: {}".format(fragment.has_consolidated_metadata))
     print("nonempty domain: {}".format(fragment.nonempty_domain))
     print("timestamp range: {}".format(fragment.timestamp_range))
-    print("number of fragments to vacuum: {}".format(fragment.to_vacuum_num))
-    print("uri of fragments to vacuum: {}".format(fragment.to_vacuum_uri))
     print(
         "number of unconsolidated metadata: {}".format(
             fragment.unconsolidated_metadata_num

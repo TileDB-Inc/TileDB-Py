@@ -3665,15 +3665,15 @@ class ConsolidationTest(DiskTestCase):
         tiledb.consolidate(path, timestamp=(1, 4))
         frags = tiledb.FragmentInfoList(path)
         assert len(frags) == 7
-        assert frags.to_vacuum_num == 4
+        assert len(frags.to_vacuum) == 4
 
         tiledb.vacuum(path, timestamp=(1, 2))
         frags = tiledb.FragmentInfoList(path)
-        assert frags.to_vacuum_num == 2
+        assert len(frags.to_vacuum) == 2
 
         tiledb.vacuum(path)
         frags = tiledb.FragmentInfoList(path)
-        assert frags.to_vacuum_num == 0
+        assert len(frags.to_vacuum) == 0
 
         conf = tiledb.Config(
             {"sm.consolidation.timestamp_start": 5, "sm.consolidation.timestamp_end": 9}
