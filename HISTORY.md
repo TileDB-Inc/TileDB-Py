@@ -1,5 +1,8 @@
 # TileDB-Py 0.9.6 Release Notes
 
+## Improvements
+* Support numeric column names in `from_pandas` by casting to str dtype [#652](https://github.com/TileDB-Inc/TileDB-Py/pull/652)
+
 ## Bug Fixes
 * Correct listing of consolidated fragments to vacuum in the Fragment Info API by deprecating `FragmentInfoList.to_vacuum_uri`, `FragmentInfoList.to_vacuum_num`, `FragmentInfo.to_vacuum_uri`, and `FragmentInfo.to_vacuum_num` and replacing with `FragmentInfoList.to_vacuum` [#650](https://github.com/TileDB-Inc/TileDB-Py/pull/650)
 * Correct issue where appending `None` to `FilterList` causes segfault by checking the `filter` argument [#653](https://github.com/TileDB-Inc/TileDB-Py/pull/653)
