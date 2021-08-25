@@ -1162,6 +1162,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.SparseArray(path, mode="r", ctx=tiledb.Ctx(config)) as T2:
             tm.assert_frame_equal(df, T2.df[:])
 
+    def test_int_column_names(self):
+        uri = self.path("test_int_column_names")
+        data = np.random.rand(10_000, 100)
+        df = pd.DataFrame(data)
+        tiledb.from_pandas(uri, df)
+
 
 class TestFromPandasOptions(DiskTestCase):
     def test_filters_options(self):

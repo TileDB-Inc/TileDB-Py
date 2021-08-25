@@ -449,6 +449,7 @@ def from_pandas(uri, dataframe, **kwargs):
             }
         )
 
+    dataframe.columns = dataframe.columns.map(str)
     column_infos = _get_column_infos(
         dataframe, tiledb_args.get("column_types"), tiledb_args.get("varlen_types")
     )
