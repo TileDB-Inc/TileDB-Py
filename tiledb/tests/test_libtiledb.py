@@ -688,6 +688,14 @@ class ArraySchemaTest(DiskTestCase):
         self.assertEqual(len(schema2.coords_filters), 1)
         self.assertEqual(len(schema2.offsets_filters), 1)
 
+    def test_none_filter_list(self):
+        with self.assertRaises(ValueError):
+            tiledb.FilterList([None])
+
+        with self.assertRaises(ValueError):
+            fl = tiledb.FilterList()
+            fl.append(None)
+
     def test_mixed_string_schema(self):
         dims = [
             tiledb.Dim(name="dpos", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
