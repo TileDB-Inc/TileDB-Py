@@ -2139,6 +2139,9 @@ cdef class FilterList(object):
         cdef tiledb_filter_list_t* filter_list_ptr = self.ptr
         assert(filter_list_ptr != NULL)
 
+        if not isinstance(filter, Filter):
+            raise ValueError("filter argument must be a TileDB filter objects")
+
         cdef tiledb_filter_t* filter_ptr = filter.ptr
 
         cdef int rc = TILEDB_OK
