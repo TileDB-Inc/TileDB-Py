@@ -185,11 +185,11 @@ private:
 
       // don't encode if we already have bytes
       /*
-      if (PyUnicode_Check(u.ptr())) {
-        // TODO see if we can do this with PyUnicode_AsUTF8String
-        u_encoded = npstrencode(u);
-      }
-      */
+if (PyUnicode_Check(u.ptr())) {
+  // TODO see if we can do this with PyUnicode_AsUTF8String
+  u_encoded = npstrencode(u);
+}
+*/
 
       rc = PyBytes_AsStringAndSize(o, const_cast<char **>(&input_p), &sz);
       if (rc == -1) {
@@ -437,8 +437,8 @@ private:
 
 public:
   /*
-    Initialize the converter
-  */
+  Initialize the converter
+*/
   NumpyConvert(py::array input) {
     // require a flat buffer
     if (input.ndim() != 1) {
@@ -476,15 +476,15 @@ public:
   }
 
   /*
-    Set allow_unicode_ flag
-  */
+  Set allow_unicode_ flag
+*/
   bool allow_unicode() { return allow_unicode_; }
   void allow_unicode(bool allow_unicode) { allow_unicode_ = allow_unicode; }
 
   /*
-    Returns a tuple of py::array containing
-      (data:array_t<uint8>, offsets:array_t<uint64_t>)
-  */
+  Returns a tuple of py::array containing
+    (data:array_t<uint8>, offsets:array_t<uint64_t>)
+*/
   py::tuple get() {
     auto input_dtype = input_.dtype();
 
