@@ -95,8 +95,8 @@ private:
   }
 }; // namespace tiledbpy
 
-PYBIND11_MODULE(_query_condition, m) {
-  py::class_<PyQueryCondition>(m, "qc")
+void init_query_condition(py::module &m) {
+  py::class_<PyQueryCondition>(m, "PyQueryCondition")
       .def(py::init<py::object>(), py::arg("ctx") = py::none())
 
       /* TODO surely there's a better way to deal with templated PyBind11

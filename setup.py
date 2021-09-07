@@ -15,8 +15,6 @@ from urllib.request import urlopen
 from pkg_resources import resource_filename
 from setuptools import Extension, find_packages, setup
 
-print("setup.py sys.argv is: ", sys.argv)
-
 # Target branch
 TILEDB_VERSION = "2.3.3"
 # allow overriding w/ environment variable

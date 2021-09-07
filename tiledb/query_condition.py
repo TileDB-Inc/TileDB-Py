@@ -2,7 +2,8 @@ import ast
 import numpy as np
 
 import tiledb
-from tiledb.main import _query_condition as qc
+import tiledb.main as qc
+from tiledb.main import PyQueryCondition
 
 """
 A high level wrapper around the Pybind11 query_condition.cc implementation for
@@ -84,7 +85,7 @@ class QueryCondition(ast.NodeVisitor):
         self._query_attrs = query_attrs
         self._c_obj = self.visit(self.tree.body[0])
 
-        if not isinstance(self._c_obj, tiledb._query_condition.qc):
+        if not isinstance(self._c_obj, tiledb.main.PyQueryCondition):
             raise tiledb.TileDBError(
                 "Malformed query condition statement. A query condition must "
                 "be made up of one or more Boolean expressions."
@@ -179,7 +180,7 @@ class QueryCondition(ast.NodeVisitor):
                     f"Type mismatch between attribute `{att}` and value `{val}`."
                 )
 
-        result = qc.qc(self._ctx)
+        result = PyQueryCondition(self._ctx)
 
         if not hasattr(result, f"init_{dtype_name}"):
             raise tiledb.TileDBError(

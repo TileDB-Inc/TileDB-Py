@@ -37,7 +37,7 @@ class FixesTest(DiskTestCase):
             {"py.init_buffer_bytes": 2 * 1024 ** 2, "py.alloc_max_bytes": 1024 ** 2}
         ) as ctx3:
             with tiledb.open(uri) as b:
-                q = tiledb.core.PyQuery(ctx3, b, ("",), (), 0, False)
+                q = tiledb.main.PyQuery(ctx3, b, ("",), (), 0, False)
                 q._return_incomplete = True
                 q.set_ranges([[(0, max)]])
                 q._allocate_buffers()

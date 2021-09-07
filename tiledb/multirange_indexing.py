@@ -12,7 +12,7 @@ from itertools import zip_longest
 import numpy as np
 
 from tiledb import Array, ArraySchema, TileDBError
-from tiledb.core import PyQuery, increment_stat, use_stats
+from tiledb.main import PyQuery, increment_stat, use_stats
 from tiledb.libtiledb import Metadata, Query
 
 from .dataframe_ import check_dataframe_deps

@@ -70,7 +70,7 @@ public:
   }
 };
 
-PYBIND11_MODULE(_serialization, m) {
+void init_serialization(py::module &m) {
   py::class_<PySerialization>(m, "serialization")
       .def_static("deserialize_query", &PySerialization::deserialize_query);
 
