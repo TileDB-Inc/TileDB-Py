@@ -90,7 +90,7 @@ _datetime_tiledb_dtype_convert = {
     'as': TILEDB_DATETIME_AS
 }
 
-# Conversion from TileDB dtype to Numpy typeid 
+# Conversion from TileDB dtype to Numpy typeid
 _tiledb_dtype_to_numpy_typeid_convert ={
     TILEDB_INT32: np.NPY_INT32,
     TILEDB_UINT32: np.NPY_UINT32,
@@ -306,7 +306,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   bint issparse):
 
     # used for buffer conversion (local import to avoid circularity)
-    import tiledb.core
+    import tiledb.main
 
     cdef bint isfortran = False
     cdef Py_ssize_t nattr = len(attributes)
@@ -326,7 +326,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     for i in range(nattr):
         if tiledb_array.schema.attr(i).isvar:
             try:
-                buffer, offsets = tiledb.core.array_to_buffer(values[i], True, False)
+                buffer, offsets = tiledb.main.array_to_buffer(values[i], True, False)
             except Exception as exc:
                 raise type(exc)(f"Failed to convert buffer for attribute: '{tiledb_array.schema.attr(i).name}'") from exc
             buffer_offsets_sizes[i] = offsets.nbytes
@@ -362,7 +362,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             name = tiledb_array.schema.domain.dim(dim_idx).name
             val = coords_or_subarray[dim_idx]
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
-                buffer, offsets = tiledb.core.array_to_buffer(val, True, False)
+                buffer, offsets = tiledb.main.array_to_buffer(val, True, False)
                 buffer_sizes[nattr + dim_idx] = buffer.nbytes
                 buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
             else:
@@ -532,22 +532,22 @@ def stats_enable():
     """Enable TileDB internal statistics."""
     tiledb_stats_enable()
 
-    import tiledb.core
-    tiledb.core.init_stats()
+    import tiledb.main
+    tiledb.main.init_stats()
 
 def stats_disable():
     """Disable TileDB internal statistics."""
     tiledb_stats_disable()
 
-    import tiledb.core
-    tiledb.core.disable_stats()
+    import tiledb.main
+    tiledb.main.disable_stats()
 
 def stats_reset():
     """Reset all TileDB internal statistics to 0."""
     tiledb_stats_reset()
 
-    import tiledb.core
-    tiledb.core.init_stats()
+    import tiledb.main
+    tiledb.main.init_stats()
 
 def stats_dump(version=True, print_out=True, include_python=True, json=False, verbose=True):
     """Return TileDB internal statistics as a string.
@@ -603,9 +603,9 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
         stats_str += stats_str_core
         stats_str += "\n"
 
-    import tiledb.core
     if include_python:
-        stats_str += tiledb.core.python_internal_stats()
+        import tiledb.main
+        stats_str += tiledb.main.python_internal_stats()
 
     if print_out:
         print(stats_str)
@@ -1165,10 +1165,10 @@ def _tiledb_datetime_extent(begin, end):
 
 cdef bint _tiledb_type_is_datetime(tiledb_datatype_t tiledb_type) except? False:
     """Returns True if the tiledb type is a datetime type"""
-    return tiledb_type in (TILEDB_DATETIME_YEAR, TILEDB_DATETIME_MONTH, 
-        TILEDB_DATETIME_WEEK, TILEDB_DATETIME_DAY, TILEDB_DATETIME_HR, 
-        TILEDB_DATETIME_MIN, TILEDB_DATETIME_SEC, TILEDB_DATETIME_MS, 
-        TILEDB_DATETIME_US, TILEDB_DATETIME_NS, TILEDB_DATETIME_PS, 
+    return tiledb_type in (TILEDB_DATETIME_YEAR, TILEDB_DATETIME_MONTH,
+        TILEDB_DATETIME_WEEK, TILEDB_DATETIME_DAY, TILEDB_DATETIME_HR,
+        TILEDB_DATETIME_MIN, TILEDB_DATETIME_SEC, TILEDB_DATETIME_MS,
+        TILEDB_DATETIME_US, TILEDB_DATETIME_NS, TILEDB_DATETIME_PS,
         TILEDB_DATETIME_FS, TILEDB_DATETIME_AS)
 
 def _tiledb_type_to_datetime(tiledb_datatype_t tiledb_type):
@@ -1189,7 +1189,7 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
     date_unit = np.datetime_data(dtype)[0]
     if date_unit == 'generic':
         raise TypeError("datetime {0!r} does not specify a date unit".format(dtype))
-    
+
     tdb_dt = _datetime_tiledb_dtype_convert.get(date_unit, None)
     if tdb_dt is None:
         raise TypeError("np type is not a datetime {0!r}".format(date_unit))
@@ -1299,7 +1299,7 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
 
     if order not in tiledb_order_to_string:
         raise ValueError("unknown tiledb order: {0!r}".format(order))
-    
+
     return tiledb_order_to_string[order]
 
 cdef class Filter(object):
@@ -2214,7 +2214,7 @@ cdef class Attr(object):
             ctx = default_ctx()
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
-        cdef np.dtype _dtype 
+        cdef np.dtype _dtype
         cdef tiledb_datatype_t tiledb_dtype
         cdef uint32_t ncells
 
@@ -3814,7 +3814,7 @@ cdef class Array(object):
     :param str uri: URI of array to open
     :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
     :param str key: (default None) If not None, encryption key to decrypt the array
-    :param tuple timestamp: (default None) If int, open the array at a given TileDB 
+    :param tuple timestamp: (default None) If int, open the array at a given TileDB
         timestamp. If tuple, open at the given start and end TileDB timestamps.
     :param str attr: (default None) open one attribute of the array; indexing a
         dense array will return a Numpy ndarray directly rather than a dictionary.
@@ -4113,13 +4113,13 @@ cdef class Array(object):
             return 1
         else:
            return self.schema.nattr
-    
+
     @property
     def timestamp(self):
         """Deprecated in 0.9.2.
-        
-        Use `timestamp_range` 
-        
+
+        Use `timestamp_range`
+
         Returns the timestamp the array is opened at
 
         :rtype: int
@@ -4154,7 +4154,7 @@ cdef class Array(object):
         cdef uint64_t timestamp_start = 0
         cdef uint64_t timestamp_end = 0
         cdef int rc = TILEDB_OK
-        
+
         rc = tiledb_array_get_open_timestamp_start(ctx_ptr, array_ptr, &timestamp_start)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
@@ -4278,15 +4278,15 @@ cdef class Array(object):
                     return None
 
                 res_x, res_y = start_buf.item(0), start_buf.item(1)
-                
+
                 if np.issubdtype(dim_dtype, np.datetime64):
                     # Convert to np.datetime64
                     date_unit = np.datetime_data(dim_dtype)[0]
                     res_x = np.datetime64(res_x, date_unit)
                     res_y = np.datetime64(res_y, date_unit)
-                    
+
                 results.append((res_x, res_y))
-        
+
         return tuple(results)
 
     def consolidate(self, Config config=None, key=None, timestamp=None):
@@ -4434,9 +4434,9 @@ cdef class Array(object):
         Buffers will be used to satisfy the next index/query request.
         """
         self._buffers = buffers
-    
+
     def set_query(self, serialized_query):
-        from tiledb.core import PyQuery
+        from tiledb.main import PyQuery
         q = PyQuery(self._ctx_(), self, ("",), (), 0, False)
         q.set_serialized_query(serialized_query)
         q.submit()
@@ -4450,7 +4450,7 @@ cdef class Array(object):
             arr.dtype = q.buffer_dtype(name)
             out[name] = arr
         return out
-    
+
     # pickling support: this is a lightweight pickle for distributed use.
     #   simply treat as wrapper around URI, not actual data.
     def __getstate__(self):
@@ -4845,7 +4845,7 @@ cdef class DenseArrayImpl(Array):
     cdef _read_dense_subarray(self, list subarray, list attr_names,
                               tiledb_layout_t layout, bint include_coords):
 
-        from tiledb.core import PyQuery
+        from tiledb.main import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
@@ -5499,7 +5499,7 @@ cdef class SparseArrayImpl(Array):
         cdef np.npy_intp dims[1]
         cdef Py_ssize_t nattr = len(attr_names)
 
-        from tiledb.core import PyQuery
+        from tiledb.main import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()

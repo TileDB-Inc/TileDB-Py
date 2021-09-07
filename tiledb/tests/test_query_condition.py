@@ -5,7 +5,8 @@ from numpy.testing import assert_array_equal
 import string
 
 import tiledb
-from tiledb import _query_condition
+
+# from tiledb.main import PyQueryCondition
 from tiledb.tests.common import DiskTestCase
 
 

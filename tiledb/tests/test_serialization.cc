@@ -83,7 +83,7 @@ public:
   }
 };
 
-PYBIND11_MODULE(_test_serialization, m) {
+void init_test_serialization(py::module& m) {
   py::class_<PySerializationTest>(m, "test_serialization")
       .def_static("create_serialized_test_query",
                   &PySerializationTest::create_serialized_test_query);

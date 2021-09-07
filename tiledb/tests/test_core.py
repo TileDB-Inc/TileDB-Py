@@ -5,7 +5,8 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb import TileDBError, core
+from tiledb import TileDBError
+import tiledb.main as core
 from tiledb.tests.common import DiskTestCase, rand_ascii
 
 

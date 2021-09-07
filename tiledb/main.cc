@@ -4,20 +4,21 @@ namespace tiledbpy {
 
 namespace py = pybind11;
 
-void _core(py::module_ &);
-void _debug(py::module_ &);
-void _fragment(py::module_ &);
-void _npbuffer(py::module_ &);
-void _query_condition(py::module_ &);
-void _serialization(py::module_ &);
+void init_core(py::module &);
+// void _debug(py::module_ &);
+void init_fragment(py::module &);
+// void init_query_condition(py::module_ &);
+void init_serialization(py::module &);
+void init_test_serialization(py::module &);
 
 PYBIND11_MODULE(main, m) {
-  _core(m);
-  _debug(m);
-  _fragment(m);
-  _npbuffer(m);
-  _query_condition(m);
-  _serialization(m);
+
+  init_core(m);
+  //_debug(m);
+  init_fragment(m);
+  //_query_condition(m);
+  init_serialization(m);
+  init_test_serialization(m);
 }
 
 } // namespace tiledbpy

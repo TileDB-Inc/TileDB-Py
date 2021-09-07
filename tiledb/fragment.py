@@ -2,7 +2,7 @@ import pprint
 import warnings
 
 import tiledb
-from tiledb.main import _fragment
+from tiledb.main import PyFragmentInfo
 
 """
 Retrieves information from all fragments for a given array.
@@ -94,7 +94,7 @@ class FragmentInfoList:
 
         self.array_uri = array_uri
 
-        fi = _fragment.info(self.array_uri, ctx)
+        fi = PyFragmentInfo(self.array_uri, ctx)
         fi.load()
 
         self.uri = fi.fragment_uri()
@@ -246,8 +246,7 @@ def FragmentsInfo(array_uri, ctx=None):
     """
 
     warnings.warn(
-        "FragmentsInfo is deprecated; please use FragmentInfoList",
-        DeprecationWarning,
+        "FragmentsInfo is deprecated; please use FragmentInfoList", DeprecationWarning
     )
 
     if ctx is None:

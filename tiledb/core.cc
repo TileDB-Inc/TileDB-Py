@@ -1447,7 +1447,9 @@ std::string python_internal_stats() {
   return os.str();
 }
 
-PYBIND11_MODULE(core, m) {
+void init_core(py::module &m) {
+  init_query_condition(m);
+
   auto pq =
       py::class_<PyQuery>(m, "PyQuery")
           .def(py::init<py::object, py::object, py::iterable, py::iterable,

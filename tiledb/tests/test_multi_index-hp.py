@@ -27,17 +27,14 @@ def is_boundserror(exc: Exception):
 
 def _direct_query_ranges(array: SparseArray, ranges):
     with tiledb.scope_ctx() as ctx:
-        q = tiledb.core.PyQuery(ctx, array, ("a",), (), 0, False)
+        q = tiledb.main.PyQuery(ctx, array, ("a",), (), 0, False)
         q.set_ranges(ranges)
         q.submit()
     return {k: v[0].view(array.attr(0).dtype) for k, v in q.results().items()}
 
 
 # Compound strategies to build valid inputs for multi_index
-subindex_obj = st.one_of(
-    st.integers(),
-    ranged_slices(),
-)
+subindex_obj = st.one_of(st.integers(), ranged_slices())
 
 index_obj = st.one_of(subindex_obj, st.tuples(st.lists(subindex_obj)))
 
@@ -59,7 +56,7 @@ class TestMultiIndexPropertySparse:
                     [tiledb.Dim(dtype=np.int64, domain=(cls.dmin, cls.dmax))]
                 ),
                 attrs=[
-                    tiledb.Attr(name="a", dtype="float64", var=False, nullable=False),
+                    tiledb.Attr(name="a", dtype="float64", var=False, nullable=False)
                 ],
                 cell_order="row-major",
                 tile_order="row-major",

@@ -221,8 +221,8 @@ public:
   void dump() const { return fi_->dump(stdout); }
 };
 
-PYBIND11_MODULE(_fragment, m) {
-  py::class_<PyFragmentInfo>(m, "info")
+void init_fragment(py::module &m) {
+  py::class_<PyFragmentInfo>(m, "PyFragmentInfo")
       .def(py::init<const string &, py::object>(), py::arg("uri"),
            py::arg("ctx") = py::none())
 
