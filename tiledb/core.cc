@@ -19,8 +19,9 @@
 #define TILEDB_DEPRECATED_EXPORT
 
 #include <tiledb/arrowio>
+#include <tiledb/tiledb.h>               // C
 #include <tiledb/tiledb>                 // C++
-#include <tiledb/tiledb.h> // C
+#include <tiledb/tiledb_serialization.h> // C
 
 #include "../external/string_view.hpp"
 #include "../external/tsl/robin_map.h"
@@ -1495,10 +1496,10 @@ void init_core(py::module &m) {
       .def("get_schema", &PAPair::get_schema);
 
   /*
-     We need to make sure C++ TileDBError is translated to a correctly-typed py
-     error. Note that using py::exception(..., "TileDBError") creates a new
-     exception in the *readquery* module, so we must import to reference.
-  */
+   We need to make sure C++ TileDBError is translated to a correctly-typed py
+   error. Note that using py::exception(..., "TileDBError") creates a new
+   exception in the *readquery* module, so we must import to reference.
+*/
   static auto tiledb_py_error =
       (py::object)py::module::import("tiledb").attr("TileDBError");
 
