@@ -6,5 +6,5 @@ addopts = "--ignore=tiledb/tests/perf --ignore=tiledb/tests/__pycache__"
 filterwarnings = [
     "error",
     "default::pytest.PytestWarning",
-    "default::DeprecationWarning:distributed"
+    "default::DeprecationWarning:distributed",
 ]

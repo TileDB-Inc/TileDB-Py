@@ -2,7 +2,7 @@ import ast
 import numpy as np
 
 import tiledb
-from tiledb import _query_condition as qc
+from tiledb.main import _query_condition as qc
 
 """
 A high level wrapper around the Pybind11 query_condition.cc implementation for
