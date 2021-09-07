@@ -20,7 +20,7 @@
 
 #include <tiledb/arrowio>
 #include <tiledb/tiledb>                 // C++
-#include <tiledb/tiledb_serialization.h> // C
+#include <tiledb/tiledb.h> // C
 
 #include "../external/string_view.hpp"
 #include "../external/tsl/robin_map.h"

@@ -2,7 +2,7 @@ import pprint
 import warnings
 
 import tiledb
-from tiledb import _fragment
+from tiledb.main import _fragment
 
 """
 Retrieves information from all fragments for a given array.

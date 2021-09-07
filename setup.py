@@ -327,10 +327,13 @@ def find_or_install_libtiledb(setuptools_cmd):
 
             #
             tiledb_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
+            main_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
 
-        # Update the TileDB Extension instance with correct build-time paths.
+        # Update the extension instances with correct build-time paths.
         tiledb_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
         tiledb_ext.include_dirs += [os.path.join(prefix_dir, "include")]
+        main_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
+        main_ext.include_dirs += [os.path.join(prefix_dir, "include")]
 
         # Update package_data so the shared object gets installed with the Python module.
         libtiledb_objects = [
@@ -612,63 +615,23 @@ __extensions = [
     ),
     Extension(
         "tiledb.main",
-        ["tiledb/main.cc"],
+        [
+            "tiledb/main.cc",
+            "tiledb/core.cc",
+            "tiledb/npbuffer.cc",
+            "tiledb/fragment.cc",
+            "tiledb/serialization.cc",
+            "tiledb/tests/test_serialization.cc",
+            # TODO currently included in core.cc due to dependency.
+            #      need to un-comment after refactor.
+            # "tiledb/query_condition.cc",
+        ],
         include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
         language="c++",
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
         extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
-    ),
-    Extension(
-        "tiledb.core",
-        ["tiledb/core.cc", "tiledb/npbuffer.cc"],
-        include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
-        language="c++",
-        library_dirs=LIB_DIRS,
-        libraries=LIBS,
-        extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
-    ),
-    Extension(
-        "tiledb._fragment",
-        ["tiledb/fragment.cc"],
-        include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
-        language="c++",
-        library_dirs=LIB_DIRS,
-        libraries=LIBS,
-        extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
-    ),
-    Extension(
-        "tiledb._query_condition",
-        ["tiledb/query_condition.cc"],
-        include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
-        language="c++",
-        library_dirs=LIB_DIRS,
-        libraries=LIBS,
-        extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
-    ),
-    Extension(
-        "tiledb._serialization",
-        ["tiledb/serialization.cc"],
-        include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
-        language="c++",
-        library_dirs=LIB_DIRS,
-        libraries=LIBS,
-        extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
-    ),
-    Extension(
-        "tiledb._test_serialization",
-        ["tiledb/tests/test_serialization.cc"],
-        include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
-        language="c++",
-        library_dirs=LIB_DIRS,
-        libraries=LIBS,
-        extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS,
     ),
 ]
 
