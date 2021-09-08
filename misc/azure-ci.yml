@@ -11,12 +11,15 @@ stages:
           imageName: 'macOS-10.14'
           python.version: '3.7'
           SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
+          TILEDB_SERIALIZATION: ON
         windows:
           imageName: 'windows-latest'
           python.version: '3.7'
+          TILEDB_SERIALIZATION: ON
         linux_py3:
           imageName: 'ubuntu-latest'
           python.version: '3.6'
+          TILEDB_SERIALIZATION: ON
       maxParallel: 4
 
     steps:
