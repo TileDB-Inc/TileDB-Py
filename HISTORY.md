@@ -9,6 +9,7 @@
 
 ## API Changes
 * When using `Array.multi_index`, an empty result is returned if the nonempty domain is empty [#656](https://github.com/TileDB-Inc/TileDB-Py/pull/656)
+* Addition of `Array.set_query` to read array using a serialized query [#651](https://github.com/TileDB-Inc/TileDB-Py/pull/651)
 
 ## Improvements
 * Support numeric column names in `from_pandas` by casting to str dtype [#652](https://github.com/TileDB-Inc/TileDB-Py/pull/652)
