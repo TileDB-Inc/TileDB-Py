@@ -1,15 +1,14 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.9.5
-    LIBTILEDB_VERSION: 2.3.3
-    LIBTILEDB_SHA: 9336d3f7189576ba014ed529c2a73beac84279bb 
+    TILEDBPY_VERSION: 0.10.0
+    LIBTILEDB_VERSION: 2.4.0
+    LIBTILEDB_SHA: baf64e19c37f77de6fe8b276b4f1d6499441ac83
     LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
-    SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
     TILEDB_INSTALL: '$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)'
-    MACOSX_DEPLOYMENT_TARGET: 10.13
+    MACOSX_DEPLOYMENT_TARGET: 10.15
     USE_CIBW_VERSION: 1.6.4
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'))
 
@@ -51,7 +50,6 @@ stages:
         macOS_py:
           imageName: 'macOS-10.15'
           CIBW_SKIP: 'cp27-* cp35-* pp*'
-          SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
           CIBW_BUILD_VERBOSITY: 3
         windows_py:
           imageName: 'windows-latest'

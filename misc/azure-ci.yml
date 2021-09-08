@@ -8,9 +8,8 @@ stages:
     strategy:
       matrix:
         mac:
-          imageName: 'macOS-10.14'
+          imageName: 'macOS-10.15'
           python.version: '3.7'
-          SDKROOT: '/Applications/Xcode_10.3.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk'
           TILEDB_SERIALIZATION: ON
         windows:
           imageName: 'windows-latest'
