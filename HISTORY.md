@@ -1,5 +1,8 @@
 # TileDB-Py 0.9.6 Release Notes
 
+## API Changes
+* When using the multi-indexer, an empty result is returned if the nonempty domain is empty [#656](https://github.com/TileDB-Inc/TileDB-Py/pull/656)
+
 ## Improvements
 * Support numeric column names in `from_pandas` by casting to str dtype [#652](https://github.com/TileDB-Inc/TileDB-Py/pull/652)
 

@@ -641,9 +641,7 @@ class TestMultiRange(DiskTestCase):
             data = A.multi_index[slice_index]
 
             assert_array_equal(data["a"], np.array([], dtype=np.uint64))
-
-            with self.assertRaises(tiledb.TileDBError):
-                A.multi_index[:]
+            assert_array_equal(A.multi_index[:], [])
 
         with tiledb.open(uri, mode="w") as A:
             A[[10]] = {"a": [10]}
@@ -760,3 +758,18 @@ class TestMultiRange(DiskTestCase):
 
             assert_array_equal(A[0][""], A.multi_index[0][""])
             assert_array_equal(A.multi_index[0][""], A.multi_index[0, :][""])
+
+    def test_multi_index_open_timestamp_with_empty_nonempty_domain(self):
+        uri = self.path("test_multi_index_open_timestamp_with_empty_nonempty_domain")
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3)))
+        attr = tiledb.Attr(name="", dtype=np.int32)
+        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=[attr])
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, mode="w", timestamp=2) as A:
+            d1 = np.array(np.random.randint(1, 11, size=3, dtype=np.int32))
+            A[np.arange(1, 4)] = d1
+
+        with tiledb.open(uri, mode="r", timestamp=1) as A:
+            assert A.nonempty_domain() is None
+            assert_array_equal(A.multi_index[:][""], A[:][""])
