@@ -17,7 +17,7 @@ stages:
     strategy:
       matrix:
           macOS_libtiledb:
-            imageName: 'macOS-10.15'
+            imageName: 'macOS-10.14'
           windows_libtiledb:
             imageName: 'windows-latest'
     pool:
@@ -48,7 +48,7 @@ stages:
           CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*'
           CIBW_BUILD_VERBOSITY: 3
         macOS_py:
-          imageName: 'macOS-10.15'
+          imageName: 'macOS-10.14'
           CIBW_SKIP: 'cp27-* cp35-* pp*'
           CIBW_BUILD_VERBOSITY: 3
         windows_py:
