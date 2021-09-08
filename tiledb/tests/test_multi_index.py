@@ -773,5 +773,3 @@ class TestMultiRange(DiskTestCase):
         with tiledb.open(uri, mode="r", timestamp=1) as A:
             assert A.nonempty_domain() is None
             assert_array_equal(A.multi_index[:][""], A[:][""])
-            # assert_array_equal(A.multi_index[[]][""], A[:][""])
-            # assert_array_equal(A.multi_index[()][""], A[:][""])
