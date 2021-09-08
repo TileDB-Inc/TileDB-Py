@@ -619,6 +619,7 @@ __extensions = [
             "tiledb/npbuffer.cc",
             "tiledb/fragment.cc",
             "tiledb/serialization.cc",
+            "tiledb/schema_evolution.cc",
             "tiledb/tests/test_serialization.cc",
             # TODO currently included in core.cc due to dependency.
             #      need to un-comment after refactor.
