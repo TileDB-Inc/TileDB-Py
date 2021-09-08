@@ -104,9 +104,9 @@ def iter_ranges(
             rend = nonempty_domain[1]
 
         if rstart is None or rend is None:
-            raise TileDBError("Open-ended slicing requires a valid nonempty_domain")
-
-        yield to_scalar(rstart), to_scalar(rend)
+            pass
+        else:
+            yield to_scalar(rstart), to_scalar(rend)
 
     elif isinstance(sel, tuple):
         assert len(sel) == 2
