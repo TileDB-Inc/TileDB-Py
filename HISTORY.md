@@ -1,10 +1,18 @@
-# TileDB-Py 0.9.6 Release Notes
+# TileDB-Py 0.10.0 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.10.0 includes TileDB Embedded [TileDB 2.4.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.4.0) with a number of
+  new features and improvements, including:
+    - new platform support: Apple M1
+    - support for ArraySchema evolution (adding and removing attributes)
+    - support for Azure SAS (shared access signature) tokens
 
 ## API Changes
-* When using the multi-indexer, an empty result is returned if the nonempty domain is empty [#656](https://github.com/TileDB-Inc/TileDB-Py/pull/656)
+* When using `Array.multi_index`, an empty result is returned if the nonempty domain is empty [#656](https://github.com/TileDB-Inc/TileDB-Py/pull/656)
 
 ## Improvements
 * Support numeric column names in `from_pandas` by casting to str dtype [#652](https://github.com/TileDB-Inc/TileDB-Py/pull/652)
+* New `tiledb.ArraySchemaEvolution` API to add and drop attributes from an existing array [#657](https://github.com/TileDB-Inc/TileDB-Py/pull/657)
 
 ## Bug Fixes
 * Correct listing of consolidated fragments to vacuum in the Fragment Info API by deprecating `FragmentInfoList.to_vacuum_uri`, `FragmentInfoList.to_vacuum_num`, `FragmentInfo.to_vacuum_uri`, and `FragmentInfo.to_vacuum_num` and replacing with `FragmentInfoList.to_vacuum` [#650](https://github.com/TileDB-Inc/TileDB-Py/pull/650)
@@ -18,7 +26,7 @@
 ## Improvements
 * Consolidate `_nonempty_domain_var` into `nonempty_domain` [#632](https://github.com/TileDB-Inc/TileDB-Py/pull/632)
 * Support more valid Python syntax for `QueryCondition` statements [#636](https://github.com/TileDB-Inc/TileDB-Py/pull/636)
-* Addition of `ascii` dtype to `Attr` allows `QueryCondition` to support var-length strings [#637](https://github.com/TileDB-Inc/TileDB-Py/pull/637) 
+* Addition of `ascii` dtype to `Attr` allows `QueryCondition` to support var-length strings [#637](https://github.com/TileDB-Inc/TileDB-Py/pull/637)
 
 # TileDB-Py 0.9.4 Release Notes
 
