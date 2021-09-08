@@ -2189,6 +2189,13 @@ cdef class Attr(object):
         if self.ptr != NULL:
             tiledb_attribute_free(&self.ptr)
 
+    def __capsule__(self):
+        if self.ptr == NULL:
+            raise TileDBError("internal error: cannot create capsule for uninitialized Attr!")
+        cdef const char* name = "ctx"
+        cap = PyCapsule_New(<void *>(self.ptr), name, NULL)
+        return cap
+
     @staticmethod
     cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx=None):
         """Constructs an Attr class instance from a (non-null) tiledb_attribute_t pointer
