@@ -8,28 +8,33 @@ on: [push]
 #     - cron: "0 5 * * *"
 
 jobs:
-  # test-manylinux:
-  #   runs-on: ubuntu-latest
-  #   container:
-  #     image: quay.io/pypa/manylinux2010_x86_64
-  #   steps:
-  #   - run: echo test
-  #     name: Run in container
+  test-manylinux:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux2010_x86_64
+    steps:
+    - name: Set up Python
+      uses: actions/setup-python@v2
+
+    - name: Print Python version
+      run: |
+        which python
+        which pip
+        python --version
+
+    - name: Print env
+      run: printenv
 
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-10.15, windows-latest]
+        os: [macos-10.15, windows-latest]
 
-    container:
-      if: matrix.os == ubuntu-latest
-      image: quay.io/pypa/manylinux2010_x86_64
-
-  #   permissions:
-  #     issues: write
-  #   env:
-  #     TILEDB_VERSION: dev
+    permissions:
+      issues: write
+    env:
+      TILEDB_VERSION: dev
 
     steps:
     - name: Set up Python
