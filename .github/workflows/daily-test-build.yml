@@ -13,9 +13,9 @@ jobs:
     container:
       image: quay.io/pypa/manylinux2010_x86_64
     steps:
-    - name: Set up Development Tools
-      run: yum -y groupinstall “Development Tools”
-      
+    - name: Install GLIBCXX_3.4.15
+      run: yum install http://centos.biz.net.id/7/os/x86_64/Packages/libstdc++-4.8.5-28.el7.i686.rpm
+
     - name: Set up Python
       uses: actions/setup-python@v2
 
