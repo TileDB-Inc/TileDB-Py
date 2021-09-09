@@ -8,6 +8,14 @@ on:
     - cron: "0 5 * * *"
 
 jobs:
+  test-manylinux:
+    container:
+      runs-on: ubuntu-latest
+      container: quay.io/pypa/manylinux2010_x86_64
+      steps:
+      - run: echo test
+        name: Run in container
+
   test:
     runs-on: ${{ matrix.os }}
     strategy:
