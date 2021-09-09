@@ -9,18 +9,18 @@ on: [push]
 
 jobs:
   test-manylinux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     container:
       image: quay.io/pypa/manylinux2010_x86_64
     steps:
-    # - name: Set up Python
-    #   uses: actions/setup-python@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
 
-    # - name: Print Python version
-    #   run: |
-    #     which python
-    #     which pip
-    #     python --version
+    - name: Print Python version
+      run: |
+        which python
+        which pip
+        python --version
 
     - name: Print env
       run: printenv
