@@ -13,41 +13,41 @@ jobs:
     container:
       image: quay.io/pypa/manylinux2010_x86_64
     steps:
-    - name: Set up Python
-      uses: actions/setup-python@v2
+    # - name: Set up Python
+    #   uses: actions/setup-python@v2
 
-    - name: Print Python version
-      run: |
-        which python
-        which pip
-        python --version
-
-    - name: Print env
-      run: printenv
-
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-10.15, windows-latest]
-
-    permissions:
-      issues: write
-    env:
-      TILEDB_VERSION: dev
-
-    steps:
-    - name: Set up Python
-      uses: actions/setup-python@v2
-
-    - name: Print Python version
-      run: |
-        which python
-        which pip
-        python --version
+    # - name: Print Python version
+    #   run: |
+    #     which python
+    #     which pip
+    #     python --version
 
     - name: Print env
       run: printenv
+
+  # test:
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [macos-10.15, windows-latest]
+
+  #   permissions:
+  #     issues: write
+  #   env:
+  #     TILEDB_VERSION: dev
+
+  #   steps:
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v2
+
+  #   - name: Print Python version
+  #     run: |
+  #       which python
+  #       which pip
+  #       python --version
+
+  #   - name: Print env
+  #     run: printenv
 
   #   - name: Checkout TileDB-Py `dev`
   #     uses: actions/checkout@v2
