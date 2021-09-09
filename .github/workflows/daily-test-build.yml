@@ -9,6 +9,7 @@ on: [push]
 
 jobs:
   test-manylinux:
+    runs-on: ubuntu-latest
     container:
       image: quay.io/pypa/manylinux2010_x86_64
     steps:
