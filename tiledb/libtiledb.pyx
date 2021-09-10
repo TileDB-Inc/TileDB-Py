@@ -2532,9 +2532,6 @@ cdef class Dim(object):
         if not ctx:
             ctx = default_ctx()
 
-        if domain is None or len(domain) != 2:
-            raise ValueError('invalid domain extent, must be a pair')
-
         # argument conversion
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
@@ -2551,6 +2548,9 @@ cdef class Dim(object):
             # coordinates are written.
             dim_datatype = TILEDB_STRING_ASCII
         else:
+            if domain is None or len(domain) != 2:
+                raise ValueError('invalid domain extent, must be a pair')
+
             if dtype is not None:
                 dtype = np.dtype(dtype)
                 dtype_min, dtype_max = dtype_range(dtype)
