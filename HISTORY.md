@@ -1,3 +1,8 @@
+# TileDB-Py 0.10.1 Release Notes
+
+## API Changes
+* Do not require `domain=(None, None)` for string dimensions [#662](https://github.com/TileDB-Inc/TileDB-Py/pull/662)
+
 # TileDB-Py 0.10.0 Release Notes
 
 ## TileDB Embedded updates:

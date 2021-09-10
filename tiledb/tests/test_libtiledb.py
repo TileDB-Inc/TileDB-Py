@@ -716,6 +716,7 @@ class ArraySchemaTest(DiskTestCase):
         self.assertEqual(schema.domain.dim("str_index").dtype, np.bytes_)
         self.assertFalse(schema.domain.homogeneous)
 
+
 class ArrayTest(DiskTestCase):
     def create_array_schema(self):
         domain = tiledb.Domain(
