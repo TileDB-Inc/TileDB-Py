@@ -699,9 +699,7 @@ class ArraySchemaTest(DiskTestCase):
     def test_mixed_string_schema(self):
         dims = [
             tiledb.Dim(name="dpos", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
-            tiledb.Dim(
-                name="str_index", domain=(None, None), tile=None, dtype=np.bytes_
-            ),
+            tiledb.Dim(name="str_index", tile=None, dtype=np.bytes_),
         ]
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64)]
@@ -2591,6 +2589,12 @@ class TestSparseArray(DiskTestCase):
 
     def test_sparse_string_domain2(self, sparse_cell_order):
         path = self.path("sparse_string_domain2")
+        with self.assertRaises(ValueError):
+            dims = [
+                tiledb.Dim(
+                    name="str", domain=(None, None, None), tile=None, dtype=np.bytes_
+                )
+            ]
         dims = [tiledb.Dim(name="str", domain=(None, None), tile=None, dtype=np.bytes_)]
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64)]
