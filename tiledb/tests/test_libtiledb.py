@@ -455,9 +455,27 @@ class AttributeTest(DiskTestCase):
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 10)
 
-    def test_vararg_attribute(self):
-        attr = tiledb.Attr("foo", dtype=np.bytes_)
-        self.assertEqual(attr.dtype, np.dtype(np.bytes_))
+    def test_bytes_var_attribute(self):
+        with self.assertRaises(TypeError):
+            tiledb.Attr("foo", var=True, dtype="S1")
+
+        with self.assertRaises(TypeError):
+            tiledb.Attr("foo", var=False, dtype="S")
+        
+        attr = tiledb.Attr("foo", var=True, dtype="S")
+        self.assertEqual(attr.dtype, np.dtype("S"))
+        self.assertTrue(attr.isvar)
+
+        attr = tiledb.Attr("foo", var=False, dtype="S1")
+        self.assertEqual(attr.dtype, np.dtype("S1"))
+        self.assertFalse(attr.isvar)
+        
+        attr = tiledb.Attr("foo", dtype="S1")
+        self.assertEqual(attr.dtype, np.dtype("S1"))
+        self.assertFalse(attr.isvar)
+
+        attr = tiledb.Attr("foo", dtype="S")
+        self.assertEqual(attr.dtype, np.dtype("S"))
         self.assertTrue(attr.isvar)
 
     def test_nullable_attribute(self):

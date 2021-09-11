@@ -2213,7 +2213,7 @@ cdef class Attr(object):
                  name=u"",
                  dtype=np.float64,
                  fill=None,
-                 var=False,
+                 var=None,
                  nullable=False,
                  filters=None,
                  Ctx ctx=None):
@@ -2233,10 +2233,23 @@ cdef class Attr(object):
             tiledb_dtype, ncells = array_type_ncells(_dtype)
 
         # ensure that all unicode strings are var-length
-        if var or _dtype.kind == 'U' or (_dtype.kind == 'S' and _dtype.itemsize == 0):
+        if var or _dtype.kind == 'U':
             var = True
             ncells = TILEDB_VAR_NUM
 
+        if _dtype.kind == 'S':
+            if var and 0 < _dtype.itemsize:
+                raise TypeError("dtype is not compatible with var-length attribute")
+            
+            if _dtype.itemsize == 0:
+                if var == False:
+                    raise TypeError("dtype is not compatible with fixed-length attribute")
+            
+                var = True
+                ncells = TILEDB_VAR_NUM
+        
+        var = var or False
+            
         # variable-length cell type
         if ncells == TILEDB_VAR_NUM and not var:
             raise TypeError("dtype is not compatible with var-length attribute")
