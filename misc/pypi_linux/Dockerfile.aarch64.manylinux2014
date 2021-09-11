@@ -1,14 +1,14 @@
-FROM quay.io/pypa/manylinux_2_24_aarch64
+FROM quay.io/pypa/manylinux2014_aarch64
 
 ###############################################
 # version args
-ARG LIBTILEDB_VERSION=2.3.3
+ARG LIBTILEDB_VERSION=2.4.0
 ENV LIBTILEDB_VERSION=$LIBTILEDB_VERSION
 
 ARG LIBTILEDB_REPO=https://github.com/TileDB-Inc/TileDB
 ENV LIBTILEDB_REPO=$LIBTILEDB_REPO
 
-ARG TILEDBPY_VERSION=0.9.5
+ARG TILEDBPY_VERSION=0.10.0
 ENV TILEDBPY_VERSION=$TILEDBPY_VERSION
 
 ARG CMAKE_VERSION=3.21
@@ -49,6 +49,7 @@ RUN cd /home/tiledb/ && \
          -DTILEDB_SERIALIZATION=ON -DTILEDB_FORCE_ALL_DEPS:BOOL=ON \
          -DTILEDB_LOG_OUTPUT_ON_FAILURE:BOOL=ON \
          -DSANITIZER=OFF -DTILEDB_WERROR=OFF \
+         -DCMAKE_CXX_STANDARD=17 \
          ../TileDB && \
   make -j$(nproc) && \
   make install-tiledb
