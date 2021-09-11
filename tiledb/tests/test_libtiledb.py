@@ -461,7 +461,7 @@ class AttributeTest(DiskTestCase):
 
         with self.assertRaises(TypeError):
             tiledb.Attr("foo", var=False, dtype="S")
-        
+
         attr = tiledb.Attr("foo", var=True, dtype="S")
         self.assertEqual(attr.dtype, np.dtype("S"))
         self.assertTrue(attr.isvar)
@@ -469,7 +469,7 @@ class AttributeTest(DiskTestCase):
         attr = tiledb.Attr("foo", var=False, dtype="S1")
         self.assertEqual(attr.dtype, np.dtype("S1"))
         self.assertFalse(attr.isvar)
-        
+
         attr = tiledb.Attr("foo", dtype="S1")
         self.assertEqual(attr.dtype, np.dtype("S1"))
         self.assertFalse(attr.isvar)

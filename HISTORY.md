@@ -7,6 +7,9 @@
 * Print a warning about ContextVar bug when running under ipykernel < 6.0. [#665](https://github.com/TileDB-Inc/TileDB-Py/pull/665)
   Please see https://github.com/TileDB-Inc/TileDB-Py/issues/667 for more information.
 
+## Bug Fixes
+* For attributes, if `var=False` but the bytestring is fixed-width or if `var=True` but the bytestring is variable length, error out [#663](https://github.com/TileDB-Inc/TileDB-Py/pull/663)
+
 # TileDB-Py 0.10.0 Release Notes
 
 ## TileDB Embedded updates:
