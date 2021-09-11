@@ -2221,7 +2221,7 @@ cdef class Attr(object):
             ctx = default_ctx()
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
-        cdef np.dtype _dtype
+        cdef np.dtype _dtype = None
         cdef tiledb_datatype_t tiledb_dtype
         cdef uint32_t ncells
 
@@ -2236,8 +2236,8 @@ cdef class Attr(object):
         if var or _dtype.kind == 'U':
             var = True
             ncells = TILEDB_VAR_NUM
-
-        if _dtype.kind == 'S':
+        
+        if _dtype and _dtype.kind == 'S':
             if var and 0 < _dtype.itemsize:
                 raise TypeError("dtype is not compatible with var-length attribute")
             
