@@ -5,6 +5,33 @@ import tiledb
 
 _ctx_var = ContextVar("ctx")
 
+already_warned = False
+
+
+def check_ipykernel_warn_once():
+    """
+    This function checks if we have imported ipykernel version < 6 in the
+    current process, and provides a warning that default_ctx/scope_ctx will
+    not work correctly due to a bug in IPython contextvar support."""
+    global already_warned
+    if not already_warned:
+        try:
+            import sys, warnings
+
+            if "ipykernel" in sys.modules and tuple(
+                map(int, sys.modules["ipykernel"].__version__.split("."))
+            ) < (6, 0):
+                warnings.warn(
+                    "tiledb.default_ctx and scope_ctx will not function correctly "
+                    "due to bug in IPython contextvar support.  You must supply a "
+                    "Ctx object to each function for custom configuration options. "
+                    "Please consider upgrading to ipykernel >= 6!"
+                )
+        except:
+            pass
+        finally:
+            already_warned = True
+
 
 @contextmanager
 def scope_ctx(ctx_or_config=None):
@@ -16,6 +43,8 @@ def scope_ctx(ctx_or_config=None):
         or dictionary with config parameters.
     :return: Ctx
     """
+    check_ipykernel_warn_once()
+
     if not isinstance(ctx_or_config, tiledb.Ctx):
         ctx = tiledb.Ctx(ctx_or_config)
     else:
@@ -42,6 +71,8 @@ def default_ctx(config=None):
     :param config: :py:class:`tiledb.Config` object or dictionary with config parameters.
     :return: Ctx
     """
+    check_ipykernel_warn_once()
+
     try:
         ctx = _ctx_var.get()
         if config is not None:
