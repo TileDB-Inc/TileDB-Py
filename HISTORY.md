@@ -6,6 +6,7 @@
 ## Improvements
 * Print a warning about ContextVar bug when running under ipykernel < 6.0. [#665](https://github.com/TileDB-Inc/TileDB-Py/pull/665)
   Please see https://github.com/TileDB-Inc/TileDB-Py/issues/667 for more information.
+* `tiledb.Dim` representation now displays `var=True` for dimensions with `bytes` datatype, consistent with `tiledb.Attr` [#669](https://github.com/TileDB-Inc/TileDB-Py/pull/662)
 
 # TileDB-Py 0.10.0 Release Notes
 

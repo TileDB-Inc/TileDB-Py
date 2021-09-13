@@ -1,5 +1,6 @@
 import gc
 import io
+import itertools
 import os
 import pickle
 import random
@@ -7,6 +8,7 @@ import re
 import urllib
 import subprocess
 import sys
+import textwrap
 import time
 import unittest
 import warnings
@@ -887,9 +889,7 @@ class ArrayTest(DiskTestCase):
         uri = self.path("test_nonempty_domain_scalar")
         dims = tiledb.Dim(domain=(-10, 10), dtype=np.int64, tile=1)
         schema = tiledb.ArraySchema(
-            tiledb.Domain(dims),
-            attrs=[tiledb.Attr(dtype=np.int32)],
-            sparse=True,
+            tiledb.Domain(dims), attrs=[tiledb.Attr(dtype=np.int32)], sparse=True
         )
 
         tiledb.Array.create(uri, schema)
@@ -3904,6 +3904,35 @@ class ReprTest(DiskTestCase):
         g = dict()
         exec("from tiledb import Attr; from numpy import float64", g)
         self.assertEqual(eval(repr(attr), g), attr)
+
+    def test_dim_repr(self):
+        dtype_set = [bytes, np.bytes_]
+        opts = {
+            None: None,
+            "var": True,
+            "domain": (None, None),
+            "filters": [tiledb.GzipFilter()],
+        }
+
+        dim_test_imports = textwrap.dedent(
+            """
+            from tiledb import Dim, FilterList, GzipFilter
+            from numpy import float64
+            """
+        )
+
+        for dtype in dtype_set:
+            opt_choices = [
+                itertools.combinations(opts.keys(), r=n)
+                for n in range(1, len(opts) + 1)
+            ]
+            for opt_set in itertools.chain(*opt_choices):
+                opt_kwarg = {k: opts[k] for k in opt_set if k}
+                g = dict()
+                exec(dim_test_imports, g)
+
+                dim = tiledb.Dim(name="d1", dtype=dtype, **opt_kwarg)
+                self.assertEqual(eval(repr(dim), g), dim)
 
     def test_arrayschema_repr(self, sparse_cell_order):
         filters = tiledb.FilterList([tiledb.ZstdFilter(-1)])
