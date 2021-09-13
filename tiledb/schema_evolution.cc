@@ -13,25 +13,25 @@ namespace py = pybind11;
 typedef struct {
   tiledb_ctx_t *ctx_;
   tiledb_array_schema_evolution_t *evol_;
-} PyArraySchemaEvoluation;
+} PyArraySchemaEvolution;
 
-using ArraySchemaEvolution = PyArraySchemaEvoluation;
+using ArraySchemaEvolution = PyArraySchemaEvolution;
 
 void init_schema_evolution(py::module &m) {
   py::class_<ArraySchemaEvolution>(m, "ArraySchemaEvolution")
-      .def("__init__",
-           [](ArraySchemaEvolution &inst, py::object ctx_py) {
-             tiledb_ctx_t *ctx_c = (py::capsule)ctx_py.attr("__capsule__")();
-             if (ctx_c == nullptr)
-               TPY_ERROR_LOC("Invalid context pointer");
+      .def(py::init([](py::object ctx_py) {
+        tiledb_ctx_t *ctx_c = (py::capsule)ctx_py.attr("__capsule__")();
+        if (ctx_c == nullptr)
+          TPY_ERROR_LOC("Invalid context pointer");
 
-             int rc = tiledb_array_schema_evolution_alloc(ctx_c, &inst.evol_);
-             if (rc != TILEDB_OK) {
-               TPY_ERROR_LOC("Failed to allocate ArraySchemaEvolution");
-             }
+        tiledb_array_schema_evolution_t *evol_p;
+        int rc = tiledb_array_schema_evolution_alloc(ctx_c, &evol_p);
+        if (rc != TILEDB_OK) {
+          TPY_ERROR_LOC("Failed to allocate ArraySchemaEvolution");
+        }
 
-             inst.ctx_ = ctx_c;
-           })
+        return new PyArraySchemaEvolution({ctx_c, evol_p});
+      }))
       .def("add_attribute",
            [](ArraySchemaEvolution &inst, py::object attr_py) {
              tiledb_attribute_t *attr_c =
