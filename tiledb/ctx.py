@@ -26,6 +26,8 @@ def check_ipykernel_warn_once():
                     "due to bug in IPython contextvar support.  You must supply a "
                     "Ctx object to each function for custom configuration options. "
                     "Please consider upgrading to ipykernel >= 6!"
+                    "Please see https://github.com/TileDB-Inc/TileDB-Py/issues/667 "
+                    "for more information."
                 )
         except:
             pass
