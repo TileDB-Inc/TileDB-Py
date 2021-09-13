@@ -83,7 +83,7 @@ from .highlevel import open, save, from_numpy, empty_like, array_exists, array_f
 
 from .query_condition import QueryCondition
 
-from .main import ArraySchemaEvolution
+from .schema_evolution import ArraySchemaEvolution
 
 # TODO restricted imports
 from .dataframe_ import from_csv, from_pandas, open_dataframe
