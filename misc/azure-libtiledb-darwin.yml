@@ -60,7 +60,7 @@ steps:
 - bash: |
     set -xe
     if [[ "$AGENT_OS" == "Windows_NT" ]]; then
-      7z a ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} ${TILEDB_INSTALL}/*
+      7z a ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA}. ${TILEDB_INSTALL}/*
     elif [[ "$AGENT_OS" == "Darwin" ]]; then
       tar -czf ${TILEDB_INSTALL}/libtiledb-${LIBTILEDB_VERSION}-${LIBTILEDB_SHA} -C ${TILEDB_INSTALL} .
     else
