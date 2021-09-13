@@ -456,11 +456,15 @@ class AttributeTest(DiskTestCase):
         self.assertEqual(attr.ncells, 10)
 
     def test_bytes_var_attribute(self):
-        with self.assertRaises(TypeError):
-            tiledb.Attr("foo", var=True, dtype="S1")
+        with pytest.warns(DeprecationWarning, match="Attr given `var=True` but"):
+            attr = tiledb.Attr("foo", var=True, dtype="S1")
+            self.assertEqual(attr.dtype, np.dtype("S"))
+            self.assertTrue(attr.isvar)
 
-        with self.assertRaises(TypeError):
-            tiledb.Attr("foo", var=False, dtype="S")
+        with pytest.warns(DeprecationWarning, match="Attr given `var=False` but"):
+            attr = tiledb.Attr("foo", var=False, dtype="S")
+            self.assertEqual(attr.dtype, np.dtype("S"))
+            self.assertTrue(attr.isvar)
 
         attr = tiledb.Attr("foo", var=True, dtype="S")
         self.assertEqual(attr.dtype, np.dtype("S"))

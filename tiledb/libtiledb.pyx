@@ -2239,11 +2239,23 @@ cdef class Attr(object):
         
         if _dtype and _dtype.kind == 'S':
             if var and 0 < _dtype.itemsize:
-                raise TypeError("dtype is not compatible with var-length attribute")
+                warnings.warn(
+                    f"Attr given `var=True` but `dtype` `{_dtype}` is fixed; "
+                    "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
+                    f"or `var=False`with `dtype={_dtype}`",
+                    DeprecationWarning,
+                )
+                _dtype = np.dtype("S0")
             
             if _dtype.itemsize == 0:
                 if var == False:
-                    raise TypeError("dtype is not compatible with fixed-length attribute")
+                    warnings.warn(
+                        f"Attr given `var=False` but `dtype` `S0` is var-length; "
+                        "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
+                        "with `dtype=S0`, or `var=False` with a fixed-width "
+                        "string `dtype=S<n>` where is  n>1",
+                        DeprecationWarning,
+                    )
             
                 var = True
                 ncells = TILEDB_VAR_NUM
