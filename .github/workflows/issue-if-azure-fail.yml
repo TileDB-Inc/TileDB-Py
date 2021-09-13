@@ -1,0 +1,27 @@
+name: Create Issue if Build Fails on Azure
+
+on: [repository_dispatch]
+
+jobs:
+  clean-branch:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Clean Up Test Branch
+      uses: dawidd6/action-delete-branch@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branches: 'azure-wheel-test-${{ steps.date.outputs.date }}'
+
+  notify-fail:
+    if: github.event.action == 'failed'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Create Issue if Build Fails
+      uses: JasonEtco/create-an-issue@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        filename: .github/workflows/issue-if-azure-fail-template.md
+    

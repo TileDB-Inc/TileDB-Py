@@ -1,5 +1,5 @@
 ---
-title: Nightly Build Fail on {{ date | date('ddd, MMMM Do YYYY') }}
+title: Nightly GitHub Actions Build Fail on {{ date | date('ddd, MMMM Do YYYY') }}
 assignees: nguyenv, ihnorton
 labels: bug
 ---

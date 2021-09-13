@@ -2,15 +2,15 @@ stages:
 - stage: Release
   variables:
     TILEDBPY_VERSION: 0.10.1
-    LIBTILEDB_VERSION: 2.4.0
-    LIBTILEDB_SHA: baf64e19c37f77de6fe8b276b4f1d6499441ac83
+    LIBTILEDB_VERSION: dev
+    LIBTILEDB_SHA: dev
     LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
     TILEDB_INSTALL: '$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)'
     MACOSX_DEPLOYMENT_TARGET: 10.14
     USE_CIBW_VERSION: 1.6.4
-  condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'))
+  condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
 
   jobs:
   - job: build1_libtiledb
@@ -60,6 +60,7 @@ stages:
 
     steps:
     - script: git tag -f $(TILEDBPY_VERSION)
+
     - task: DownloadPipelineArtifact@2
       displayName: 'Download libtiledb artifact'
       inputs:
@@ -159,6 +160,7 @@ stages:
       condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
 
     - template: azure-print-logs.yml
+
     - task: PublishBuildArtifacts@1
       inputs: {pathtoPublish: 'wheelhouse'}
 
@@ -171,4 +173,40 @@ stages:
         echo "TILEDB_INSTALL -----------------------------------------"
         find $TILEDB_INSTALL || true
       displayName: "List all the files"
-      condition: always()
+      condition: always() 
+  
+  - job: trigger_fail_build
+    dependsOn: [build2_python] 
+    condition: failed()
+    pool: server
+    steps:
+    - task: InvokeRESTAPI@1
+      inputs:
+        connectionType: 'connectedServiceName'
+        connectedServiceName: 'TileDB-Py-Test'
+        method: 'POST'
+        body: |
+          {
+          "event_type": "failed"
+          }
+        urlSuffix: 'repos/TileDB-Inc/TileDB-Py/dispatches'
+        waitForCompletion: 'false'
+    
+  - job: trigger_success_build
+    dependsOn: [build2_python]
+    condition: succeeded()
+    pool: server
+    steps:
+    - task: InvokeRESTAPI@1
+      condition: succeeded()
+      inputs:
+        connectionType: 'connectedServiceName'
+        connectedServiceName: 'TileDB-Py-Test'
+        method: 'POST'
+        body: |
+          {
+          "event_type": "succeeded"
+          }
+        urlSuffix: 'repos/TileDB-Inc/TileDB-Py/dispatches'
+        waitForCompletion: 'false'
+      
