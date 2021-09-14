@@ -3909,10 +3909,6 @@ cdef class Array(object):
         self.key = key
         self.domain_index = DomainIndexer(self)
 
-        # Delayed to avoid circular import
-        from .multirange_indexing import DataFrameIndexer, MultiRangeIndexer
-        self.multi_index = MultiRangeIndexer(self)
-        self.df = DataFrameIndexer(self, use_arrow=None)
         self.last_fragment_info = dict()
         self.meta = Metadata(self)
 
@@ -4416,7 +4412,9 @@ cdef class Array(object):
         OrderedDict([('', array([[1., 0., 0.], [0., 2., 0.], [0., 0., 3.]]))])
 
         """
-        return self.multi_index
+        # Delayed to avoid circular import
+        from .multirange_indexing import MultiRangeIndexer
+        return MultiRangeIndexer(self)
 
     @property
     def df(self):
@@ -4457,9 +4455,9 @@ cdef class Array(object):
            5     0.5         5
 
         """
-
-        return self.df
-
+        # Delayed to avoid circular import
+        from .multirange_indexing import DataFrameIndexer
+        return DataFrameIndexer(self, use_arrow=None)
 
     @property
     def last_write_info(self):

@@ -1,7 +1,9 @@
 import numpy as np
 import tiledb
+import concurrent
 
 from tiledb.tests.common import DiskTestCase
+from numpy.testing import assert_array_equal
 
 
 class FixesTest(DiskTestCase):
@@ -43,3 +45,43 @@ class FixesTest(DiskTestCase):
                 q._allocate_buffers()
                 buffers = q._get_buffers()
                 assert buffers[0].nbytes == max
+
+    def test_ch10282_concurrent_multi_index(self):
+        """Test concurrent access to a single tiledb.Array using
+        Array.multi_index and Array.df. We pass an array and slice
+        into a function run by a set of futures, along with expected
+        result; then assert that the result from TileDB matches the
+        expectation.
+        """
+
+        def slice_array(a: tiledb.Array, indexer, selection, expected):
+            """Helper function to slice a given tiledb.Array with an indexer
+            and assert that the selection matches the expected result."""
+            res = getattr(a, indexer)[selection][""]
+            if indexer == "df":
+                res = res.values
+
+            assert_array_equal(res, expected)
+
+        uri = self.path()
+
+        data = np.random.rand(100)
+        with tiledb.from_numpy(uri, data):
+            pass
+
+        futures = []
+        with tiledb.open(uri) as A:
+            with concurrent.futures.ThreadPoolExecutor(10) as executor:
+                for indexer in ["multi_index", "df"]:  #
+                    for end_idx in range(1, 100, 5):
+                        sel = slice(0, end_idx)
+                        expected = data[sel.start : sel.stop + 1]
+                        futures.append(
+                            executor.submit(slice_array, A, indexer, sel, expected)
+                        )
+
+                concurrent.futures.wait(futures)
+
+            # Important: must get each result here or else assertion
+            # failures or exceptions will disappear.
+            list(map(lambda x: x.result(), futures))

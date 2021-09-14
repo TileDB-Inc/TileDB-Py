@@ -6,7 +6,10 @@
 ## Improvements
 * Print a warning about ContextVar bug when running under ipykernel < 6.0. [#665](https://github.com/TileDB-Inc/TileDB-Py/pull/665)
   Please see https://github.com/TileDB-Inc/TileDB-Py/issues/667 for more information.
-* `tiledb.Dim` representation now displays `var=True` for dimensions with `bytes` datatype, consistent with `tiledb.Attr` [#669](https://github.com/TileDB-Inc/TileDB-Py/pull/662)
+* `tiledb.Dim` representation now displays `var=True` for dimensions with `bytes` datatype, consistent with `tiledb.Attr` [#669](https://github.com/TileDB-Inc/TileDB-Py/pull/669)
+
+## Bug fixes
+* Fix concurrent use of `Array.multi_index` and `.df` by using new instance for each invocation [#672](https://github.com/TileDB-Inc/TileDB-Py/pull/672)
 
 ## Bug Fixes
 * For attributes, if `var=False` but the bytestring is fixed-width or if `var=True` but the bytestring is variable length, error out [#663](https://github.com/TileDB-Inc/TileDB-Py/pull/663)
