@@ -457,9 +457,31 @@ class AttributeTest(DiskTestCase):
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 10)
 
-    def test_vararg_attribute(self):
-        attr = tiledb.Attr("foo", dtype=np.bytes_)
-        self.assertEqual(attr.dtype, np.dtype(np.bytes_))
+    def test_bytes_var_attribute(self):
+        with pytest.warns(DeprecationWarning, match="Attr given `var=True` but"):
+            attr = tiledb.Attr("foo", var=True, dtype="S1")
+            self.assertEqual(attr.dtype, np.dtype("S"))
+            self.assertTrue(attr.isvar)
+
+        with pytest.warns(DeprecationWarning, match="Attr given `var=False` but"):
+            attr = tiledb.Attr("foo", var=False, dtype="S")
+            self.assertEqual(attr.dtype, np.dtype("S"))
+            self.assertTrue(attr.isvar)
+
+        attr = tiledb.Attr("foo", var=True, dtype="S")
+        self.assertEqual(attr.dtype, np.dtype("S"))
+        self.assertTrue(attr.isvar)
+
+        attr = tiledb.Attr("foo", var=False, dtype="S1")
+        self.assertEqual(attr.dtype, np.dtype("S1"))
+        self.assertFalse(attr.isvar)
+
+        attr = tiledb.Attr("foo", dtype="S1")
+        self.assertEqual(attr.dtype, np.dtype("S1"))
+        self.assertFalse(attr.isvar)
+
+        attr = tiledb.Attr("foo", dtype="S")
+        self.assertEqual(attr.dtype, np.dtype("S"))
         self.assertTrue(attr.isvar)
 
     def test_nullable_attribute(self):

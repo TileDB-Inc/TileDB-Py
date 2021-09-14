@@ -8,6 +8,9 @@
   Please see https://github.com/TileDB-Inc/TileDB-Py/issues/667 for more information.
 * `tiledb.Dim` representation now displays `var=True` for dimensions with `bytes` datatype, consistent with `tiledb.Attr` [#669](https://github.com/TileDB-Inc/TileDB-Py/pull/662)
 
+## Bug Fixes
+* For attributes, if `var=False` but the bytestring is fixed-width or if `var=True` but the bytestring is variable length, error out [#663](https://github.com/TileDB-Inc/TileDB-Py/pull/663)
+
 # TileDB-Py 0.10.0 Release Notes
 
 ## TileDB Embedded updates:

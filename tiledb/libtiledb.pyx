@@ -2213,7 +2213,7 @@ cdef class Attr(object):
                  name=u"",
                  dtype=np.float64,
                  fill=None,
-                 var=False,
+                 var=None,
                  nullable=False,
                  filters=None,
                  Ctx ctx=None):
@@ -2221,7 +2221,7 @@ cdef class Attr(object):
             ctx = default_ctx()
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
-        cdef np.dtype _dtype
+        cdef np.dtype _dtype = None
         cdef tiledb_datatype_t tiledb_dtype
         cdef uint32_t ncells
 
@@ -2233,10 +2233,35 @@ cdef class Attr(object):
             tiledb_dtype, ncells = array_type_ncells(_dtype)
 
         # ensure that all unicode strings are var-length
-        if var or _dtype.kind == 'U' or (_dtype.kind == 'S' and _dtype.itemsize == 0):
+        if var or _dtype.kind == 'U':
             var = True
             ncells = TILEDB_VAR_NUM
-
+        
+        if _dtype and _dtype.kind == 'S':
+            if var and 0 < _dtype.itemsize:
+                warnings.warn(
+                    f"Attr given `var=True` but `dtype` `{_dtype}` is fixed; "
+                    "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
+                    f"or `var=False`with `dtype={_dtype}`",
+                    DeprecationWarning,
+                )
+                _dtype = np.dtype("S0")
+            
+            if _dtype.itemsize == 0:
+                if var == False:
+                    warnings.warn(
+                        f"Attr given `var=False` but `dtype` `S0` is var-length; "
+                        "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
+                        "with `dtype=S0`, or `var=False` with a fixed-width "
+                        "string `dtype=S<n>` where is  n>1",
+                        DeprecationWarning,
+                    )
+            
+                var = True
+                ncells = TILEDB_VAR_NUM
+        
+        var = var or False
+            
         # variable-length cell type
         if ncells == TILEDB_VAR_NUM and not var:
             raise TypeError("dtype is not compatible with var-length attribute")
