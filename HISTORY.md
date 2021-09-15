@@ -10,8 +10,6 @@
 
 ## Bug fixes
 * Fix concurrent use of `Array.multi_index` and `.df` by using new instance for each invocation [#672](https://github.com/TileDB-Inc/TileDB-Py/pull/672)
-
-## Bug Fixes
 * For attributes, if `var=False` but the bytestring is fixed-width or if `var=True` but the bytestring is variable length, error out [#663](https://github.com/TileDB-Inc/TileDB-Py/pull/663)
 
 # TileDB-Py 0.10.0 Release Notes
