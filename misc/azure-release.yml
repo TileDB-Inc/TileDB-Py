@@ -8,7 +8,7 @@ stages:
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
     TILEDB_INSTALL: '$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)'
-    MACOSX_DEPLOYMENT_TARGET: 10.15
+    MACOSX_DEPLOYMENT_TARGET: 10.14
     USE_CIBW_VERSION: 1.6.4
   condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'))
 
