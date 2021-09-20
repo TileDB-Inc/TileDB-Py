@@ -324,6 +324,13 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     output_offsets = list()
 
     for i in range(nattr):
+        # if dtype is ASCII, ensure all characters are valid
+        if tiledb_array.schema.attr(i).isascii:
+            try:
+                values[i] = np.asarray(values[i], dtype=np.bytes_)
+            except Exception as exc:
+                raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
+
         if tiledb_array.schema.attr(i).isvar:
             try:
                 buffer, offsets = tiledb.main.array_to_buffer(values[i], True, False)
@@ -2498,6 +2505,15 @@ cdef class Attr(object):
         assert (ncells != 0)
         return int(ncells)
 
+    @property 
+    def isascii(self):
+        """True if the attribute is TileDB dtype TILEDB_STRING_ASCII
+
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        return self._get_type() == TILEDB_STRING_ASCII
 
     def __repr__(self):
         filters_str = ""
@@ -2507,7 +2523,7 @@ cdef class Attr(object):
                 filters_str +=  repr(f) + ", "
             filters_str += "])"
 
-        attr_dtype = self.dtype if (self._get_type() != TILEDB_STRING_ASCII) else "ascii"
+        attr_dtype = "ascii" if self.isascii else self.dtype
 
         # filters_str must be last with no spaces
         return (f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
@@ -5267,7 +5283,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
 
         # if dtype is ASCII, ensure all characters are valid
-        if attr.dtype == "|S0":
+        if attr.isascii:
             try:
                 np.asarray(attr_val, dtype=np.bytes_)
             except Exception as exc:
