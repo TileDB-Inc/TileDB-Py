@@ -14,7 +14,7 @@ from tiledb.tests.common import DiskTestCase
 class AttrDataTest(DiskTestCase):
     @hypothesis.settings(deadline=1000)
     @given(st.binary())
-    def test_bytes(self, data):
+    def test_bytes_df(self, data):
         # TODO this test is slow. might be nice to run with in-memory
         #      VFS (if faster) but need to figure out correct setup
         # uri = "mem://" + str(uri_int)
@@ -33,6 +33,22 @@ class AttrDataTest(DiskTestCase):
 
         with tiledb.open(uri) as A:
             assert_array_equal(A.multi_index[:][""], array)
+
+    @hypothesis.settings(deadline=1000)
+    @given(st.binary())
+    def test_bytes_numpy(self, data):
+        # TODO this test is slow. might be nice to run with in-memory
+        #      VFS (if faster) but need to figure out correct setup
+        # uri = "mem://" + str(uri_int)
+
+        uri = self.path()
+        uri_df = self.path()
+
+        if data == b"" or data.count(b"\x00") == len(data):
+            # single-cell empty writes are not supported; TileDB PR 1646
+            array = np.array([data, b"1"], dtype="S0")
+        else:
+            array = np.array([data], dtype="S0")
 
         series = pd.Series(array)
         df = pd.DataFrame({"": series})
