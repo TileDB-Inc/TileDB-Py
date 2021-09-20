@@ -1607,16 +1607,10 @@ class DenseArrayTest(DiskTestCase):
                     assert_array_equal(A, B[:])
 
         D = AssignAndCheck(self, 5, 5)
-        D[np.array([1, 2]), np.array([0, 0])] = np.array([0, 2])
-
-        d1 = np.array([3, 1, 2, 3, 4])
-        d2 = np.array([0, 1, 1, 2, 4])
-        data = np.array([99, 10, 20, 30, 40])
-        D[d1, d2] = data
-
-        # TODO fix broadcast assignment, expand coverage
-        # D[1, d2] = data
-        # D[d1, 1]
+        with pytest.warns(
+            DeprecationWarning, match="Sparse writes to dense arrays is deprecated"
+        ):
+            D[np.array([1, 2]), np.array([0, 0])] = np.array([0, 2])
 
     def test_reopen_dense_array(self):
         uri = self.path("test_reopen_dense_array")
