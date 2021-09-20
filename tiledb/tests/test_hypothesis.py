@@ -28,11 +28,21 @@ class AttrDataTest(DiskTestCase):
         else:
             array = np.array([data], dtype="S0")
 
+        # DEBUG
+        tiledb.stats_enable()
+        tiledb.stats_reset()
+        # END DEBUG
+
         with tiledb.from_numpy(uri, array) as A:
             pass
 
         with tiledb.open(uri) as A:
             assert_array_equal(A.multi_index[:][""], array)
+
+        hypothesis.note(tiledb.stats_dump(print_out=False))
+
+        # DEBUG
+        tiledb.stats_disable()
 
     @hypothesis.settings(deadline=1000)
     @given(st.binary())
@@ -52,7 +62,18 @@ class AttrDataTest(DiskTestCase):
 
         series = pd.Series(array)
         df = pd.DataFrame({"": series})
+
+        # DEBUG
+        tiledb.stats_enable()
+        tiledb.stats_reset()
+        # END DEBUG
+
         tiledb.from_pandas(uri_df, df, sparse=False)
 
         with tiledb.open(uri_df) as A:
             tm.assert_frame_equal(A.df[:], df)
+
+        hypothesis.note(tiledb.stats_dump(print_out=False))
+
+        # DEBUG
+        tiledb.stats_disable()
