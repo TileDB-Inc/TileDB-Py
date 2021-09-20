@@ -4982,6 +4982,10 @@ cdef class DenseArrayImpl(Array):
         """
         selection_tuple = (selection,) if not isinstance(selection, tuple) else selection
         if any(isinstance(s, np.ndarray) for s in selection_tuple):
+            warnings.warn(
+                "Sparse writes to dense arrays is deprecated",
+                DeprecationWarning,
+            )
             _setitem_impl_sparse(self, selection, val, dict())
             return
 
