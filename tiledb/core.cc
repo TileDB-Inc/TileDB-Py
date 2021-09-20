@@ -823,14 +823,12 @@ public:
 
       if (b.isvar) {
         size_t offsets_size = b.offsets.size() - offsets_read;
-        assert(offsets_size > 0);
         uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + offsets_read;
 
         query_->set_buffer(b.name, (uint64_t *)(offsets_ptr), offsets_size,
                            data_ptr, data_nelem);
       } else if (b.isnullable) {
         uint64_t validity_size = b.validity.size() - validity_vals_read;
-        assert(validity_size > 0);
 
         uint8_t *validity_ptr =
             (uint8_t *)b.validity.data() + validity_vals_read;
