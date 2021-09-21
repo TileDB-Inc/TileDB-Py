@@ -5002,6 +5002,7 @@ cdef class DenseArrayImpl(Array):
                 "Sparse writes to dense arrays is deprecated",
                 DeprecationWarning,
             )
+            _setitem_impl_sparse(self, selection, val, dict())
             return
 
         self._setitem_impl(selection, val, dict())
