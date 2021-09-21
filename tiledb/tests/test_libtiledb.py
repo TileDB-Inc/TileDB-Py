@@ -1591,6 +1591,10 @@ class DenseArrayTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 tiledb.DenseArray(uri)
 
+    @pytest.mark.xfail(
+        tiledb.libtiledb.version() >= (2, 5),
+        reason="Skip sparse_write_to_dense with libtiledb 2.5+",
+    )
     def test_sparse_write_to_dense(self):
         class AssignAndCheck:
             def __init__(self, outer, *shape):
