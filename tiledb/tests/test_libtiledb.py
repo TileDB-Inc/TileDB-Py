@@ -1592,31 +1592,20 @@ class DenseArrayTest(DiskTestCase):
                 tiledb.DenseArray(uri)
 
     def test_sparse_write_to_dense(self):
-        class AssignAndCheck:
-            def __init__(self, outer, *shape):
-                self.outer = outer
-                self.shape = shape
+        uri = self.path("test_sparse_write_to_dense")
 
-            def __setitem__(self, s, v):
-                A = np.random.rand(*self.shape)
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
+        tiledb.DenseArray.create(uri, schema)
 
-                uri = self.outer.path(
-                    f"sparse_write_to_dense{random.randint(0,np.uint64(-1))}"
-                )
+        data = np.arange(0, 10, dtype=np.int64)
 
-                tiledb.from_numpy(uri, A).close()
-                with tiledb.open(uri, "w") as B:
-                    B[s] = v
-
-                A[s] = v
-                with tiledb.open(uri) as B:
-                    assert_array_equal(A, B[:])
-
-        D = AssignAndCheck(self, 5, 5)
         with pytest.warns(
             DeprecationWarning, match="Sparse writes to dense arrays is deprecated"
         ):
-            D[np.array([1, 2]), np.array([0, 0])] = np.array([0, 2])
+            with tiledb.DenseArray(uri, mode="w") as T:
+                T[np.arange(10)] = data
 
     def test_reopen_dense_array(self):
         uri = self.path("test_reopen_dense_array")
