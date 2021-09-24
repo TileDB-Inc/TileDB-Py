@@ -188,6 +188,10 @@ def build_libtiledb(src_dir):
         ),
     ]
 
+    deployment_target = os.environ.get("MACOSX_DEPLOYMENT_TARGET", None)
+    if deployment_target:
+        cmake_cmd.extend(f"-DCMAKE_OSX_DEPLOYMENT_TARGET={deployment_target}")
+
     extra_cmake_args = os.environ.get("CMAKE_ARGS", [])
     if extra_cmake_args:
         cmake_cmd.extend(extra_cmake_args.split())
