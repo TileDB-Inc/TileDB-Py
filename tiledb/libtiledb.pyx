@@ -1150,6 +1150,18 @@ cdef class Ctx(object):
         self.set_tag('x-tiledb-api-language', 'python')
         self.set_tag('x-tiledb-api-language-version', '{}.{}.{}'.format(*sys.version_info))
         self.set_tag('x-tiledb-api-sys-platform', sys.platform)
+    
+    def get_stats(self):
+        """Retrieves the stats from a TileDB context."""
+        import json
+        cdef tiledb_ctx_t* ctx_ptr = self.ptr
+        cdef int rc = TILEDB_OK
+        cdef char* stats_json
+        rc = tiledb_ctx_get_stats(ctx_ptr, &stats_json)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        cdef unicode stats = stats_json.decode('UTF-8', 'strict')
+        return stats
 
 
 def _tiledb_datetime_extent(begin, end):
@@ -4665,6 +4677,13 @@ cdef class Query(object):
         # Delayed to avoid circular import
         from .multirange_indexing import DataFrameIndexer
         return DataFrameIndexer(self.array, query=self, use_arrow=self.use_arrow)
+    
+    def get_stats(self):
+        """Retrieves the stats from a TileDB query."""
+        pyquery = self.array.pyquery
+        if pyquery is None:
+            return "" 
+        return self.array.pyquery.get_stats()
 
 
 cdef class DenseArrayImpl(Array):
@@ -4908,9 +4927,9 @@ cdef class DenseArrayImpl(Array):
 
         from tiledb.main import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
+        self.pyquery = q
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
-
         cdef object results = OrderedDict()
         results = q.results()
 
@@ -5566,6 +5585,7 @@ cdef class SparseArrayImpl(Array):
 
         from tiledb.main import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
+        self.pyquery = q
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 

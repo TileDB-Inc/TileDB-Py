@@ -1359,6 +1359,8 @@ public:
     // test helper to get the configured init_buffer_bytes
     return alloc_max_bytes_;
   }
+
+  std::string get_stats() { return query_->stats(); }
 };
 
 void init_stats() {
@@ -1462,6 +1464,7 @@ void init_core(py::module &m) {
           .def("submit", &PyQuery::submit)
           .def("unpack_buffer", &PyQuery::unpack_buffer)
           .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)
+          .def("get_stats", &PyQuery::get_stats)
           .def("_allocate_buffers", &PyQuery::allocate_buffers)
           .def("_get_buffers", &PyQuery::get_buffers)
           .def("_buffer_to_pa", &PyQuery::buffer_to_pa)

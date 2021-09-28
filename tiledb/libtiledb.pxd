@@ -239,6 +239,10 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_ctx_get_last_error(
         tiledb_ctx_t* ctx,
         tiledb_error_t** error)
+    
+    int tiledb_ctx_get_stats(
+        tiledb_ctx_t* ctx, 
+        char** stats_json);
 
     int tiledb_ctx_is_supported_fs(
         tiledb_ctx_t* ctx,
@@ -848,6 +852,11 @@ cdef extern from "tiledb/tiledb.h":
         const char* attr_name,
         uint64_t* size_off,
         uint64_t* size_val)
+    
+    int tiledb_query_get_stats(
+        tiledb_ctx_t* ctx, 
+        tiledb_query_t* query, 
+        char** stats_json);
 
     # Array
     int tiledb_array_alloc(
@@ -1292,6 +1301,7 @@ cdef class Array(object):
     cdef object df
     cdef Metadata meta
     cdef object last_fragment_info
+    cdef object pyquery
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
 
