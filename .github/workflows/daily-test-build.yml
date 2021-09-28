@@ -32,6 +32,7 @@ jobs:
     env:
       TILEDB_VERSION: dev
       TILEDB_SERIALIZATION: ON
+      MACOSX_DEPLOYMENT_TARGET: 10.14
 
     steps:
     - name: Set up Python
