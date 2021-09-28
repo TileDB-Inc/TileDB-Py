@@ -10,6 +10,7 @@
 * Do not require `domain=(None, None)` for string dimensions [#662](https://github.com/TileDB-Inc/TileDB-Py/pull/662)
 * Deprecate sparse writes to dense arrays [#681](https://github.com/TileDB-Inc/TileDB-Py/pull/681)
 * Addition of `Attr.isascii` [#681](https://github.com/TileDB-Inc/TileDB-Py/pull/681)
+* Addition of `Ctx.get_stats` and 'Query.get_stats` [#698](https://github.com/TileDB-Inc/TileDB-Py/pull/698)
 
 ## Improvements
 * Print a warning about ContextVar bug when running under ipykernel < 6.0. [#665](https://github.com/TileDB-Inc/TileDB-Py/pull/665)
