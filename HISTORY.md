@@ -1,3 +1,9 @@
+# TileDB-Py 0.10.2 Release Notes
+
+## Improvements
+
+* Added support for `timestamp` argument in `tiledb.from_numpy` [#699](https://github.com/TileDB-Inc/TileDB-Py/pull/699)
+
 # TileDB-Py 0.10.1 Release Notes
 
 ## API Changes

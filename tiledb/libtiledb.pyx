@@ -2243,7 +2243,7 @@ cdef class Attr(object):
         if var or _dtype.kind == 'U':
             var = True
             ncells = TILEDB_VAR_NUM
-        
+
         if _dtype and _dtype.kind == 'S':
             if var and 0 < _dtype.itemsize:
                 warnings.warn(
@@ -2253,7 +2253,7 @@ cdef class Attr(object):
                     DeprecationWarning,
                 )
                 _dtype = np.dtype("S0")
-            
+
             if _dtype.itemsize == 0:
                 if var == False:
                     warnings.warn(
@@ -2263,12 +2263,12 @@ cdef class Attr(object):
                         "string `dtype=S<n>` where is  n>1",
                         DeprecationWarning,
                     )
-            
+
                 var = True
                 ncells = TILEDB_VAR_NUM
-        
+
         var = var or False
-            
+
         # variable-length cell type
         if ncells == TILEDB_VAR_NUM and not var:
             raise TypeError("dtype is not compatible with var-length attribute")
@@ -2505,7 +2505,7 @@ cdef class Attr(object):
         assert (ncells != 0)
         return int(ncells)
 
-    @property 
+    @property
     def isascii(self):
         """True if the attribute is TileDB dtype TILEDB_STRING_ASCII
 
@@ -4687,10 +4687,15 @@ cdef class DenseArrayImpl(Array):
         """
         if not ctx:
             ctx = default_ctx()
+
+        # pop the write timestamp before creating schema
+        timestamp = kw.pop('timestamp', None)
+
         schema = schema_like_numpy(array, ctx=ctx, **kw)
         Array.create(uri, schema)
 
-        with DenseArray(uri, mode='w', ctx=ctx) as arr:
+
+        with DenseArray(uri, mode='w', ctx=ctx, timestamp=timestamp) as arr:
             # <TODO> probably need better typecheck here
             if array.dtype == object:
                 arr[:] = array
