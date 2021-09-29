@@ -4352,8 +4352,8 @@ cdef class Array(object):
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
         :param key: (default None) encryption key to decrypt an encrypted array
         :type key: str or bytes
-        :param timestamp: (default None) If not None, vacuum the array using the
-        given tuple(int, int) UNIX seconds range (inclusive)
+        :param timestamp: (default None) If not None, consolidate the array using the
+            given tuple(int, int) UNIX seconds range (inclusive)
         :type timestamp: tuple (int, int)
         :raises: :py:exc:`tiledb.TileDBError`
 
@@ -5629,8 +5629,8 @@ def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None)
     :param str key: (default None) Key to decrypt array if the array is encrypted
     :param tiledb.Config config: The TileDB Config with consolidation parameters set
     :param tiledb.Ctx ctx: (default None) The TileDB Context
-    :param timestamp: (default None) If not None, vacuum the array using the given
-    tuple(int, int) UNIX seconds range (inclusive)
+    :param timestamp: (default None) If not None, consolidate the array using the given
+        tuple(int, int) UNIX seconds range (inclusive)
     :rtype: str or bytes
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
