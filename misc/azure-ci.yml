@@ -11,6 +11,7 @@ stages:
           imageName: 'macOS-10.15'
           python.version: '3.7'
           TILEDB_SERIALIZATION: ON
+          MACOSX_DEPLOYMENT_TARGET: 10.14
         windows:
           imageName: 'windows-latest'
           python.version: '3.7'
