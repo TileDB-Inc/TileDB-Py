@@ -58,6 +58,7 @@ stages:
       condition: eq(variables['Agent.OS'], 'Windows_NT')
 
     - bash: |
+        unset SYSTEM
         set -xeo pipefail
         python setup.py build_ext --inplace --werror
         python setup.py install
