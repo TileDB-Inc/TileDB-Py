@@ -3371,6 +3371,15 @@ class TestNumpyToArray(DiskTestCase):
         ) as arr:
             assert_array_equal(arr[:]["a"], np_array)
 
+    def test_from_numpy_timestamp(self):
+        path = self.path()
+        with tiledb.from_numpy(path, np.array([1, 2, 3]), timestamp=10) as A:
+            pass
+        with tiledb.open(path, timestamp=(0, 9)) as A:
+            assert A.nonempty_domain() == None
+        with tiledb.open(path, timestamp=(10, 10)) as A:
+            assert A.nonempty_domain() == ((0, 2),)
+
 
 class TestVFS(DiskTestCase):
     def test_supports(self):
