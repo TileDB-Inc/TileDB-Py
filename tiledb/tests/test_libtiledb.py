@@ -3926,6 +3926,40 @@ class ContextTest(unittest.TestCase):
         self.assertEqual(3, init_test_wrapper({"sm.io_concurrency_level": 3}))
 
 
+class GetStatsTest(DiskTestCase):
+    def test_ctx(self):
+        tiledb.libtiledb.stats_enable()
+        ctx = tiledb.default_ctx()
+        uri = self.path("test_ctx")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, mode="w", ctx=ctx) as T:
+            T[:] = np.random.randint(10, size=3)
+
+        assert "Context.StorageManager.write_store" in ctx.get_stats()
+
+    def test_query(self):
+        tiledb.libtiledb.stats_enable()
+        uri = self.path("test_ctx")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, mode="w") as T:
+            T[:] = np.random.randint(10, size=3)
+
+        with tiledb.open(uri, mode="r") as T:
+            q = T.query()
+            assert "" == q.get_stats()
+
+            q[:]
+            assert "Context.StorageManager.Query" in q.get_stats()
+
+
 class ReprTest(DiskTestCase):
     def test_attr_repr(self):
         attr = tiledb.Attr(name="itsanattr", dtype=np.float64)
