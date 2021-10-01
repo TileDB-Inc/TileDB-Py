@@ -24,6 +24,14 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
+    # we need to try importing here so that we don't potentially cause
+    # a slowdown in the DenseArray/SparseArray.__new__ path when
+    # running `tiledb.open`.
+    try:
+        import tiledb.cloud
+    except ImportError:
+        pass
+
     # default must be set here rather than globally
     pytest.tiledb_vfs = "file"
 
