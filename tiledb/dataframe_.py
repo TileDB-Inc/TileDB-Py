@@ -402,12 +402,18 @@ def from_pandas(uri, dataframe, **kwargs):
 
     """
     check_dataframe_deps()
-    import pandas as pd
 
     if "tiledb_args" in kwargs:
         tiledb_args = kwargs.pop("tiledb_args")
     else:
         tiledb_args = parse_tiledb_kwargs(kwargs)
+
+    with tiledb.scope_ctx(tiledb_args.get("ctx")):
+        _from_pandas(uri, dataframe, tiledb_args)
+
+
+def _from_pandas(uri, dataframe, tiledb_args):
+    import pandas as pd
 
     mode = tiledb_args.get("mode", "ingest")
 
@@ -425,10 +431,7 @@ def from_pandas(uri, dataframe, **kwargs):
             write = False
         elif mode == "append":
             create_array = False
-
-            with tiledb.scope_ctx(tiledb_args.get("ctx")):
-                schema = tiledb.ArraySchema.load(uri)
-
+            schema = tiledb.ArraySchema.load(uri)
             if not schema.sparse and row_start_idx is None:
                 raise TileDBError(
                     "Cannot append to dense array without 'row_start_idx'"
