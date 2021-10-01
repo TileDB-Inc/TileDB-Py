@@ -239,9 +239,9 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_ctx_get_last_error(
         tiledb_ctx_t* ctx,
         tiledb_error_t** error)
-    
+
     int tiledb_ctx_get_stats(
-        tiledb_ctx_t* ctx, 
+        tiledb_ctx_t* ctx,
         char** stats_json);
 
     int tiledb_ctx_is_supported_fs(
@@ -724,6 +724,27 @@ cdef extern from "tiledb/tiledb.h":
         void* buffer,
         uint64_t* buffer_size)
 
+    int32_t tiledb_query_set_data_buffer(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        const char* name,
+        void* buffer,
+        uint64_t* buffer_size)
+
+    int tiledb_query_set_validity_buffer(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        const char* name,
+        uint8_t* buffer,
+        uint64_t* buffer_size)
+
+    int32_t tiledb_query_set_offsets_buffer(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        const char* name,
+        uint64_t* buffer,
+        uint64_t* buffer_size)
+
     int tiledb_query_set_buffer_var(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
@@ -852,10 +873,10 @@ cdef extern from "tiledb/tiledb.h":
         const char* attr_name,
         uint64_t* size_off,
         uint64_t* size_val)
-    
+
     int tiledb_query_get_stats(
-        tiledb_ctx_t* ctx, 
-        tiledb_query_t* query, 
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
         char** stats_json);
 
     # Array
