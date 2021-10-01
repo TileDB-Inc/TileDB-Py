@@ -425,7 +425,10 @@ def from_pandas(uri, dataframe, **kwargs):
             write = False
         elif mode == "append":
             create_array = False
-            schema = tiledb.ArraySchema.load(uri)
+
+            with tiledb.scope_ctx(tiledb_args.get("ctx")):
+                schema = tiledb.ArraySchema.load(uri)
+
             if not schema.sparse and row_start_idx is None:
                 raise TileDBError(
                     "Cannot append to dense array without 'row_start_idx'"
