@@ -1,3 +1,8 @@
+# TileDB-Py 0.10.3 Release Notes
+
+## Bug fixes
+* Pass `Ctx` to `ArraySchema.load` in `from_pandas` [#709](https://github.com/TileDB-Inc/TileDB-Py/pull/709)
+
 # TileDB-Py 0.10.2 Release Notes
 
 ## API Changes
