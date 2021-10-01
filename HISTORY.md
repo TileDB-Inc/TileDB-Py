@@ -1,15 +1,13 @@
 # TileDB-Py 0.10.2 Release Notes
 
-## Improvements
-
-* Added support for `timestamp` argument in `tiledb.from_numpy` [#699](https://github.com/TileDB-Inc/TileDB-Py/pull/699)
-
-# TileDB-Py 0.10.1 Release Notes
-
 ## API Changes
 * Deprecate sparse writes to dense arrays [#681](https://github.com/TileDB-Inc/TileDB-Py/pull/681)
 * Addition of `Attr.isascii` [#681](https://github.com/TileDB-Inc/TileDB-Py/pull/681)
-* Addition of `Ctx.get_stats` and 'Query.get_stats` [#698](https://github.com/TileDB-Inc/TileDB-Py/pull/698)
+* Addition of `Ctx.get_stats` and `Query.get_stats` [#698](https://github.com/TileDB-Inc/TileDB-Py/pull/698)
+
+## Improvements
+
+* Added support for `timestamp` argument in `tiledb.from_numpy` [#699](https://github.com/TileDB-Inc/TileDB-Py/pull/699)
 
 # TileDB-Py 0.10.1 Release Notes
 
