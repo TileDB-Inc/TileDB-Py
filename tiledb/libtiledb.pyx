@@ -438,55 +438,37 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             battr_name = attributes[i].encode('UTF-8')
             buffer_ptr = np.PyArray_DATA(output_values[i])
 
+            rc = tiledb_query_set_data_buffer(ctx_ptr, query_ptr, battr_name,
+                                         buffer_ptr, &(buffer_sizes_ptr[i]))
+
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
             var = output_offsets[i] is not None
             nullable = attributes[i] in nullmaps
 
-            if var and nullable:
+            if var:
                 offsets_buffer_ptr = <uint64_t*>np.PyArray_DATA(output_offsets[i])
+                rc = tiledb_query_set_offsets_buffer(ctx_ptr, query_ptr, battr_name,
+                                                 offsets_buffer_ptr, &(offsets_buffer_sizes_ptr[i]))
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
 
+            if attributes[i] in nullmaps:
                 # NOTE: validity map is owned *by the caller*
                 nulmap = nullmaps[attributes[i]]
                 nullmaps_sizes[i] = len(nulmap)
                 nulmap_buffer_ptr = <uint8_t*>np.PyArray_DATA(nulmap)
-
-                rc = tiledb_query_set_buffer_var_nullable(
+                rc = tiledb_query_set_validity_buffer(
                     ctx_ptr,
                     query_ptr,
                     battr_name,
-                    offsets_buffer_ptr,
-                    &(offsets_buffer_sizes_ptr[i]),
-                    buffer_ptr,
-                    &(buffer_sizes_ptr[i]),
                     nulmap_buffer_ptr,
                     &(nullmaps_sizes_ptr[i])
                 )
-            elif var and not nullable:
-                # VAR_NUM attribute
-                offsets_buffer_ptr = <uint64_t*>np.PyArray_DATA(output_offsets[i])
 
-                rc = tiledb_query_set_buffer_var(ctx_ptr, query_ptr, battr_name,
-                                                 offsets_buffer_ptr, &(offsets_buffer_sizes_ptr[i]),
-                                                 buffer_ptr, &(buffer_sizes_ptr[i]))
-            elif not var and nullable:
-                # NOTE: validity map is owned *by the caller*
-                nulmap = nullmaps[attributes[i]]
-                nullmaps_sizes[i] = len(nulmap)
-                nulmap_buffer_ptr = <uint8_t*>np.PyArray_DATA(nulmap)
-
-                rc = tiledb_query_set_buffer_nullable(
-                    ctx_ptr,
-                    query_ptr,
-                    battr_name,
-                    buffer_ptr,
-                    &(buffer_sizes_ptr[i]),
-                    nulmap_buffer_ptr,
-                    &(nullmaps_sizes_ptr[i])
-                )
-            else: # not var and not nullable
-                rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, battr_name,
-                                             buffer_ptr, &(buffer_sizes_ptr[i]))
-            if rc != TILEDB_OK:
-                _raise_ctx_err(ctx_ptr, rc)
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
 
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)

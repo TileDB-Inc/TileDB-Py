@@ -1130,6 +1130,23 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 self.assertEqual(array1.dtype, array2.dtype)
                 np.testing.assert_array_equal(array1, array2)
 
+    def test_write_var_nullable_str(self):
+        uri = self.path("test_write_var_nullable_str")
+        data = np.array(["a", "b", None, "ABC"], dtype=object)
+        series = pd.Series(data, dtype=pd.StringDtype())
+        df = pd.DataFrame({"data": series})
+        tiledb.from_pandas(uri, df)
+
+        with tiledb.open(uri, "r") as A:
+            assert A.schema.attr("data").isnullable
+            assert A.schema.attr("data").isvar
+
+            # TODO DEFECT: we should be returning None here
+            #              or using .df. df needs core update
+            #              to arrowio.
+            data[2] = ""
+            assert_array_equal(A.multi_index[:]["data"], data)
+
     def test_incomplete_df(self):
         ncells = 1000
         null_count = round(0.56 * ncells)

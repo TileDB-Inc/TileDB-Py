@@ -750,8 +750,9 @@ public:
       // we must not call after submitting
       if (nullable && var) {
         auto sizes = query_->est_result_size_var_nullable(name);
-        buf_nbytes = sizes[0];
-        validity_num = sizes[1] / sizeof(uint8_t);
+        offsets_num = sizes[0];
+        buf_nbytes = sizes[1];
+        validity_num = sizes[2] / sizeof(uint8_t);
       } else if (nullable && !var) {
         auto sizes = query_->est_result_size_nullable(name);
         buf_nbytes = sizes[0];
@@ -823,37 +824,21 @@ public:
       uint64_t data_nelem =
           (b.data.size() - (data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
 
-      if (b.isnullable && b.isvar) {
+      query_->set_data_buffer(b.name, data_ptr, data_nelem);
+
+      if (b.isvar) {
         size_t offsets_size = b.offsets.size() - offsets_read;
         uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + offsets_read;
 
+        query_->set_offsets_buffer(b.name, (uint64_t *)(offsets_ptr),
+                                   offsets_size);
+      }
+      if (b.isnullable) {
         uint64_t validity_size = b.validity.size() - validity_vals_read;
-
         uint8_t *validity_ptr =
             (uint8_t *)b.validity.data() + validity_vals_read;
 
-        query_->set_buffer_nullable(b.name, (uint64_t *)(offsets_ptr),
-                                    offsets_size, data_ptr, data_nelem,
-                                    validity_ptr, validity_size);
-      } else if (b.isnullable && !b.isvar) {
-        uint64_t validity_size = b.validity.size() - validity_vals_read;
-        assert(validity_size > 0);
-
-        uint8_t *validity_ptr =
-            (uint8_t *)b.validity.data() + validity_vals_read;
-
-        query_->set_buffer_nullable(b.name, data_ptr, data_nelem, validity_ptr,
-                                    validity_size);
-      } else if (!b.isnullable && b.isvar) {
-        size_t offsets_size = b.offsets.size() - offsets_read;
-        assert(offsets_size > 0);
-
-        uint64_t *offsets_ptr = (uint64_t *)b.offsets.data() + offsets_read;
-
-        query_->set_buffer(b.name, (uint64_t *)(offsets_ptr), offsets_size,
-                           data_ptr, data_nelem);
-      } else { // !b.isnullable && !b.isvar
-        query_->set_buffer(b.name, data_ptr, data_nelem);
+        query_->set_validity_buffer(b.name, validity_ptr, validity_size);
       }
     }
   }

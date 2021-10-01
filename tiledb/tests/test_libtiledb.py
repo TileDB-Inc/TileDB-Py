@@ -20,7 +20,6 @@ import psutil
 import pytest
 from numpy.testing import assert_array_equal
 
-pd = pytest.importorskip("pandas")
 
 import tiledb
 from tiledb.tests.common import (
@@ -1647,18 +1646,6 @@ class DenseArrayTest(DiskTestCase):
         assert_array_equal(T[:], data * 2)
 
         T.close()
-
-    def test_write_var_nullable_str(self):
-        uri = self.path("test_write_var_nullable_str")
-        data = np.array(["a", "b", None, "ABC"], dtype=object)
-        series = pd.Series(data, dtype=pd.StringDtype())
-        df = pd.DataFrame({"data": series})
-        tiledb.from_pandas(uri, df)
-
-        with tiledb.open(uri, "r") as A:
-            assert A.schema.attr("data").isnullable
-            assert A.schema.attr("data").isvar
-            assert_array_equal(A[:], data)
 
 
 class TestVarlen(DiskTestCase):
