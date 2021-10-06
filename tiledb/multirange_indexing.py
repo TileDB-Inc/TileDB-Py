@@ -88,10 +88,7 @@ def iter_ranges(
     sel: Union[Scalar, slice, Range, List[Scalar]],
     nonempty_domain: Optional[Range] = None,
 ) -> Iterator[Range]:
-    if sel is None and nonempty_domain is None:
-        pass
-
-    elif isinstance(sel, slice):
+    if isinstance(sel, slice):
         if sel.step is not None:
             raise ValueError("Stepped slice ranges are not supported")
 
@@ -123,22 +120,15 @@ def iter_ranges(
 
 def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
-    nonempty_domain = array.nonempty_domain() or []
-    idx = [idx] if not isinstance(idx, tuple) else idx
-
-    for i, (ned, dim_sel) in enumerate(zip_longest(nonempty_domain, idx)):
+    ned = array.nonempty_domain()
+    for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
         # don't try to index nonempty_domain if None
-        ned = ned or None
-
+        nonempty_domain = ned[i] if ned else None
         if not isinstance(dim_sel, list):
             dim_sel = [dim_sel]
-
         ranges[i] = tuple(
-            rng
-            for sel in dim_sel
-            for rng in iter_ranges(sel if sel is not None else ned, ned)
+            rng for sel in dim_sel for rng in iter_ranges(sel, nonempty_domain)
         )
-
     return tuple(ranges)
 
 
