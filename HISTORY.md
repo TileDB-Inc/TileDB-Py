@@ -1,5 +1,8 @@
 # TileDB-Py 0.10.3 Release Notes
 
+## API Changes
+* Addition of `overwrite` parameter to `Array.create` [#713](https://github.com/TileDB-Inc/TileDB-Py/pull/713)
+
 ## Bug fixes
 * Pass `Ctx` to `ArraySchema.load` in `from_pandas` [#709](https://github.com/TileDB-Inc/TileDB-Py/pull/709)
 
