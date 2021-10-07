@@ -3,6 +3,9 @@
 ## Bug fixes
 * Pass `Ctx` to `ArraySchema.load` in `from_pandas` [#709](https://github.com/TileDB-Inc/TileDB-Py/pull/709)
 
+## Improvements
+* String dimension default fix in core [#2436](https://github.com/TileDB-Inc/TileDB/pull/2436) reverts a previous change in which the nonempty domain was passed the to multi-range indexer if unspecified [#712](https://github.com/TileDB-Inc/TileDB-Py/pull/712)
+
 # TileDB-Py 0.10.2 Release Notes
 
 ## API Changes
@@ -11,7 +14,6 @@
 * Addition of `Ctx.get_stats` and `Query.get_stats` [#698](https://github.com/TileDB-Inc/TileDB-Py/pull/698)
 
 ## Improvements
-
 * Added support for `timestamp` argument in `tiledb.from_numpy` [#699](https://github.com/TileDB-Inc/TileDB-Py/pull/699)
 
 # TileDB-Py 0.10.1 Release Notes
