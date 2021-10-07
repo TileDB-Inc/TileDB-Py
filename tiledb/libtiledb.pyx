@@ -4020,21 +4020,14 @@ cdef class Array(object):
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
         
         if overwrite:
-            # check if array exists first
-            try:
-                with Array(uri) as a: 
-                    exists = True
-            except:
-                warnings.warn("Overwrite set, but array does not exist")
-                exists = False
-
-            if exists:
-                if not uri.startswith("file://"):
+            if object_type(uri) == "array":
+                if uri.startswith("file://") or "://" not in uri:
                     if VFS().remove_dir(uri) != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
                 else:
                     raise TypeError("Cannot overwrite non-local array.")
-        
+            else:
+                warnings.warn("Overwrite set, but array does not exist")
 
         if ctx is not None:
             ctx_ptr = ctx.ptr
