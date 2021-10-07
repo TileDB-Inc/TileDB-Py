@@ -6,6 +6,7 @@ exclude .readthedocs.yml
 exclude azure-pipelines.yml
 exclude misc/*
 
+include misc/requirements_wheel.txt
 include README.md
 
 prune doc
