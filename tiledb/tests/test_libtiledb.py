@@ -933,6 +933,32 @@ class ArrayTest(DiskTestCase):
             assert isinstance(ned[0][0], int)
             assert isinstance(ned[0][1], int)
 
+    def test_create_array_overwrite(self):
+        uri = self.path("test_create_array_overwrite")
+        dims = tiledb.Dim(domain=(0, 10), dtype=np.int64)
+        schema = tiledb.ArraySchema(
+            tiledb.Domain(dims), attrs=[tiledb.Attr(dtype=np.int32)], sparse=True
+        )
+
+        with pytest.warns(UserWarning, match="Overwrite set, but array does not exist"):
+            tiledb.Array.create(uri, schema, overwrite=True)
+
+        with tiledb.open(uri, "w") as A:
+            A[0] = 1
+
+        with tiledb.open(uri, "r") as A:
+            assert A.nonempty_domain() == ((0, 0),)
+
+        # cannot overwrite the array by default
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Array.create(uri, schema)
+
+        tiledb.Array.create(uri, schema, overwrite=True)
+
+        # make the old array has been deleted and replaced
+        with tiledb.open(uri, "r") as A:
+            assert A.nonempty_domain() is None
+
 
 class DenseArrayTest(DiskTestCase):
     def test_array_1d(self):

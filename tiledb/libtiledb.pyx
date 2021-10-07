@@ -3980,12 +3980,13 @@ cdef class Array(object):
         return self.ctx
 
     @classmethod
-    def create(cls, uri, ArraySchema schema, key=None, Ctx ctx=None):
+    def create(cls, uri, ArraySchema schema, key=None, overwrite=False, Ctx ctx=None):
         """Creates a TileDB Array at the given URI
 
         :param str uri: URI at which to create the new empty array.
         :param ArraySchema schema: Schema for the array
         :param str key: (default None) Encryption key to use for array
+        :param bool oerwrite: (default False) Overwrite the array if it already exists
         :param ctx Ctx: (default None) Optional TileDB Ctx used when creating the array,
                         by default uses the ArraySchema's associated context
                         (*not* necessarily ``tiledb.default_ctx``).
@@ -4006,6 +4007,8 @@ cdef class Array(object):
         cdef void* key_ptr = NULL
         cdef unsigned int key_len = 0
 
+        cdef int rc = TILEDB_OK
+
         if key is not None:
             if isinstance(key, str):
                 bkey = key.encode('ascii')
@@ -4015,11 +4018,26 @@ cdef class Array(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+        
+        if overwrite:
+            # check if array exists first
+            try:
+                with Array(uri) as a: 
+                    exists = True
+            except:
+                warnings.warn("Overwrite set, but array does not exist")
+                exists = False
+
+            if exists:
+                if not uri.startswith("file://"):
+                    if VFS().remove_dir(uri) != TILEDB_OK:
+                        _raise_ctx_err(ctx_ptr, rc)
+                else:
+                    raise TypeError("Cannot overwrite non-local array.")
+        
 
         if ctx is not None:
             ctx_ptr = ctx.ptr
-
-        cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_array_create_with_key(ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
