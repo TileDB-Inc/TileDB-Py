@@ -86,6 +86,7 @@ def to_scalar(obj: Any) -> Scalar:
 
 def iter_ranges(
     sel: Union[Scalar, slice, Range, List[Scalar]],
+    sparse: bool,
     nonempty_domain: Optional[Range] = None,
 ) -> Iterator[Range]:
     if isinstance(sel, slice):
@@ -100,7 +101,11 @@ def iter_ranges(
         if rend is None and nonempty_domain:
             rend = nonempty_domain[1]
 
-        if rstart is None or rend is None:
+        if sparse and sel.start is None and sel.stop is None:
+            # don't set nonempty_domain for full-domain slices w/ sparse
+            # because TileDB query is faster without the constraint
+            pass
+        elif rstart is None or rend is None:
             pass
         else:
             yield to_scalar(rstart), to_scalar(rend)
@@ -121,13 +126,16 @@ def iter_ranges(
 def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
     ned = array.nonempty_domain()
+    is_sparse = array.schema.sparse
     for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
         # don't try to index nonempty_domain if None
         nonempty_domain = ned[i] if ned else None
         if not isinstance(dim_sel, list):
             dim_sel = [dim_sel]
         ranges[i] = tuple(
-            rng for sel in dim_sel for rng in iter_ranges(sel, nonempty_domain)
+            rng
+            for sel in dim_sel
+            for rng in iter_ranges(sel, is_sparse, nonempty_domain)
         )
     return tuple(ranges)
 
@@ -173,6 +181,7 @@ class MultiRangeIndexer(object):
         if self.pyquery is None or not self.pyquery.is_incomplete:
             self.pyquery = _get_pyquery(self.array, query, self.use_arrow)
             self.pyquery._preload_metadata = preload_metadata
+
             self.pyquery.set_ranges(self.ranges)
 
             if self.query is not None:

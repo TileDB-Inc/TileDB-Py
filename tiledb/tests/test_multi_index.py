@@ -86,6 +86,7 @@ class TestMultiRangeAuxiliary(DiskTestCase):
             arr.schema = Obj()
             arr.schema.domain = Obj()
             arr.schema.domain.ndim = ndim
+            arr.schema.sparse = False
             arr.array = Obj()
             # place-holder for attribute that is not used in these tests
             arr.nonempty_domain = lambda: [()] * ndim
