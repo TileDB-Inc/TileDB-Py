@@ -2609,7 +2609,8 @@ cdef class Dim(object):
         cdef void* tile_size_ptr = NULL
         cdef np.dtype domain_dtype
 
-        if dtype == np.dtype('S'):
+        if ((isinstance(dtype, str) and dtype == "ascii") or 
+                dtype == np.dtype('S')):
             # Handle var-len domain type
             #  (currently only TILEDB_STRING_ASCII)
             # The dimension's domain is implicitly formed as
