@@ -2,6 +2,7 @@
 
 ## API Changes
 * Addition of `overwrite` parameter to `Array.create` [#713](https://github.com/TileDB-Inc/TileDB-Py/pull/713)
+* Addition of `"ascii"` dtype for `Dim`s [#720](https://github.com/TileDB-Inc/TileDB-Py/pull/720)
 
 ## Bug fixes
 * Pass `Ctx` to `ArraySchema.load` in `from_pandas` [#709](https://github.com/TileDB-Inc/TileDB-Py/pull/709)
