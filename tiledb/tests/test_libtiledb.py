@@ -370,6 +370,14 @@ class DomainTest(DiskTestCase):
                 tiledb.Dim("__dim_0", (1, 4), 2, dtype="u8"),
             )
 
+    def test_ascii_domain(self, capfd):
+        dim = tiledb.Dim(name="d", dtype="ascii")
+        assert dim.dtype == np.bytes_
+
+        dom = tiledb.Domain(dim)
+        dom.dump()
+        assert_captured(capfd, "Type: STRING_ASCII")
+
 
 class AttributeTest(DiskTestCase):
     def test_minimal_attribute(self):
