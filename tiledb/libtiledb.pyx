@@ -3210,9 +3210,11 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
         dim_dtype = dim.dtype
 
         if np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_):
-            (dim_lb, dim_ub) = array.nonempty_domain()[r]
+            ned = array.nonempty_domain()
+            (dim_lb, dim_ub) = ned[r] if ned else (None, None)
         else:
             (dim_lb, dim_ub) = dim.domain
+            
 
         dim_slice = idx[r]
         if not isinstance(dim_slice, slice):
@@ -3221,11 +3223,12 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
 
         if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
-            if start is None:
-                start = dim_lb
-            if stop is None:
-                stop = dim_ub
-            if not isinstance(start, (bytes,unicode)) or not isinstance(stop, (bytes,unicode)):
+            if start is None or stop is None:
+                if start is None:
+                    start = dim_lb
+                if stop is None:
+                    stop = dim_ub
+            elif not isinstance(start, (bytes,unicode)) or not isinstance(stop, (bytes,unicode)):
                 raise TileDBError(f"Non-string range '({start},{stop})' provided for string dimension '{dim.name}'")
             subarray.append((start,stop))
             continue

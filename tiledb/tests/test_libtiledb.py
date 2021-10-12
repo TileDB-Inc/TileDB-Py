@@ -728,6 +728,8 @@ class ArraySchemaTest(DiskTestCase):
             fl.append(None)
 
     def test_mixed_string_schema(self):
+        path = self.path("test_mixed_string_schema")
+
         dims = [
             tiledb.Dim(name="dpos", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
             tiledb.Dim(name="str_index", tile=None, dtype=np.bytes_),
@@ -744,6 +746,10 @@ class ArraySchemaTest(DiskTestCase):
         self.assertEqual(schema.domain.dim("dpos").dtype, np.double)
         self.assertEqual(schema.domain.dim("str_index").dtype, np.bytes_)
         self.assertFalse(schema.domain.homogeneous)
+
+        tiledb.Array.create(path, schema)
+        with tiledb.open(path, "r") as arr:
+            assert_array_equal(arr[:]["str_index"], np.array([], dtype="|S1"))
 
 
 class ArrayTest(DiskTestCase):
