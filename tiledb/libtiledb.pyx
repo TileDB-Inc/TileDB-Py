@@ -5267,8 +5267,22 @@ def index_domain_coords(dom: Domain, idx: tuple):
     if ndim != dom.ndim:
         raise IndexError("sparse index ndim must match "
                          "domain ndim: {0!r} != {1!r}".format(ndim, dom.ndim))
-    idx = tuple(np.array(idx[i], dtype=dom.dim(i).dtype, ndmin=1)
-                for i in range(ndim))
+    
+    domain_coords = []
+    for dim, sel in zip(dom, idx):
+        dim_is_string = (np.issubdtype(dim.dtype, np.str_) or 
+            np.issubdtype(dim.dtype, np.bytes_))
+        
+        # ensure strings contain only ASCII characters
+        if dim_is_string:
+            try:
+                np.asarray(sel, dtype=np.bytes_)
+            except Exception as exc:
+                raise TileDBError(f'Dim\' strings may only contain ASCII characters')
+
+        domain_coords.append(np.array(sel, dtype=dim.dtype, ndmin=1))
+
+    idx = tuple(domain_coords)
 
     # check that all sparse coordinates are the same size and dtype
     dim0 = dom.dim(0)
@@ -5285,6 +5299,7 @@ def index_domain_coords(dom: Domain, idx: tuple):
                 raise IndexError("sparse index dimension dtype mismatch")
         elif idx[dim_idx].dtype != dim_dtype:
             raise IndexError("sparse index dimension dtype mismatch")
+
     return idx
 
 def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
@@ -5292,7 +5307,6 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         raise TileDBError("SparseArray is not opened for writing")
     idx = index_as_tuple(selection)
     sparse_coords = list(index_domain_coords(self.schema.domain, idx))
-    dim0_dtype = self.schema.domain.dim(0).dtype
     ncells = sparse_coords[0].shape[0]
 
     sparse_attributes = list()
