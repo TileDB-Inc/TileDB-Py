@@ -13,23 +13,21 @@ from tiledb.tests.common import DiskTestCase
 class QueryConditionTest(DiskTestCase):
     @pytest.fixture
     def input_array_UIDS(self):
-        ctx = tiledb.Ctx()
         path = self.path("input_array_UIDS")
 
         dom = tiledb.Domain(
-            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint32, ctx=ctx),
-            ctx=ctx,
+            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint32)
         )
         attrs = [
-            tiledb.Attr(name="U", dtype=np.uint32, ctx=ctx),
-            tiledb.Attr(name="I", dtype=np.int64, ctx=ctx),
-            tiledb.Attr(name="D", dtype=np.float64, ctx=ctx),
-            tiledb.Attr(name="S", dtype=np.dtype("|S1"), var=False, ctx=ctx),
-            tiledb.Attr(name="A", dtype="ascii", var=True, ctx=ctx),
+            tiledb.Attr(name="U", dtype=np.uint32),
+            tiledb.Attr(name="I", dtype=np.int64),
+            tiledb.Attr(name="D", dtype=np.float64),
+            tiledb.Attr(name="S", dtype=np.dtype("|S1"), var=False),
+            tiledb.Attr(name="A", dtype="ascii", var=True),
         ]
 
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, ctx=ctx)
-        tiledb.SparseArray.create(path, schema)
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
 
         U = np.random.randint(1, 10, 10)
         I = np.random.randint(-5, 5, 10)
@@ -63,7 +61,7 @@ class QueryConditionTest(DiskTestCase):
                 qc = tiledb.QueryCondition("'foo' == 'bar'")
                 A.query(attr_cond=qc, use_arrow=False).df[:]
 
-        with self.assertRaises(tiledb.TileDBError):
+        with self.assertRaises(OverflowError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("U < 10000000000000000000000.0")
                 A.query(attr_cond=qc, attrs=["U"]).df[:]
@@ -192,3 +190,13 @@ class QueryConditionTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < 1")
                 A.query(attr_cond=qc, attrs=["D"]).df[:]
+
+    def test_error_when_using_dim(self, input_array_UIDS):
+        with tiledb.open(input_array_UIDS) as A:
+            with pytest.raises(tiledb.TileDBError) as excinfo:
+                qc = tiledb.QueryCondition("d < 5")
+                A.query(attr_cond=qc).df[:]
+            assert (
+                "`d` is a dimension. QueryConditions currently only work on attributes."
+                == str(excinfo.value)
+            )

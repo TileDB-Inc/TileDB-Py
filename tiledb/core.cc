@@ -628,7 +628,7 @@ public:
 
       try {
         init_pyqc(pyschema_, attrs_);
-      } catch (py::error_already_set &e) {
+      } catch (tiledb::TileDBError &e) {
         TPY_ERROR_LOC(e.what());
       }
 
