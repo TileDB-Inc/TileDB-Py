@@ -511,10 +511,14 @@ public:
       case TILEDB_STRING_ASCII:
       case TILEDB_STRING_UTF8:
       case TILEDB_CHAR: {
-        if (!py::isinstance<py::str>(r0) && !py::isinstance<py::bytes>(r0))
+        if (!py::isinstance<py::none>(r0) && !py::isinstance<py::str>(r0) &&
+            !py::isinstance<py::bytes>(r0))
           TPY_ERROR_LOC(
               "internal error: expected string type for var-length dim!");
-        query_->add_range(dim_idx, r0.cast<string>(), r1.cast<string>());
+
+        if (!py::isinstance<py::none>(r0))
+          query_->add_range(dim_idx, r0.cast<string>(), r1.cast<string>());
+
         break;
       }
       case TILEDB_DATETIME_YEAR:
