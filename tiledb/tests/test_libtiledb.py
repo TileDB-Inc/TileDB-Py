@@ -371,12 +371,27 @@ class DomainTest(DiskTestCase):
             )
 
     def test_ascii_domain(self, capfd):
+        path = self.path("test_ascii_domain")
+
         dim = tiledb.Dim(name="d", dtype="ascii")
         assert dim.dtype == np.bytes_
 
         dom = tiledb.Domain(dim)
         dom.dump()
         assert_captured(capfd, "Type: STRING_ASCII")
+
+        att = tiledb.Attr(name="a", dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        tiledb.SparseArray.create(path, schema)
+
+        ascii_coords = ["a", "b", "c", "ABC"]
+        unicode_coords = ["±", "×", "÷", "√"]
+        data = [1, 2, 3, 4]
+
+        with tiledb.open(path, "w") as A:
+            with self.assertRaises(tiledb.TileDBError):
+                A[unicode_coords] = data
+            A[ascii_coords] = data
 
 
 class AttributeTest(DiskTestCase):
