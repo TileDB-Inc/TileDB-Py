@@ -61,7 +61,7 @@ class QueryConditionTest(DiskTestCase):
                 qc = tiledb.QueryCondition("'foo' == 'bar'")
                 A.query(attr_cond=qc, use_arrow=False).df[:]
 
-        with self.assertRaises(OverflowError):
+        with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("U < 10000000000000000000000.0")
                 A.query(attr_cond=qc, attrs=["U"]).df[:]
@@ -198,5 +198,5 @@ class QueryConditionTest(DiskTestCase):
                 A.query(attr_cond=qc).df[:]
             assert (
                 "`d` is a dimension. QueryConditions currently only work on attributes."
-                == str(excinfo.value)
+                in str(excinfo.value)
             )
