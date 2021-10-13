@@ -630,6 +630,8 @@ public:
         init_pyqc(pyschema_, attrs_);
       } catch (tiledb::TileDBError &e) {
         TPY_ERROR_LOC(e.what());
+      } catch (py::error_already_set &e) {
+        TPY_ERROR_LOC(e.what());
       }
 
       auto pyqc = (attr_cond.attr("_c_obj")).cast<PyQueryCondition>();
@@ -1364,7 +1366,7 @@ public:
   }
 
   std::string get_stats() { return query_->stats(); }
-};
+}; // namespace tiledbpy
 
 void init_stats() {
   g_stats.reset(new StatsInfo());
@@ -1523,5 +1525,4 @@ void init_core(py::module &m) {
     }
   });
 };
-
 }; // namespace tiledbpy
