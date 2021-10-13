@@ -151,7 +151,12 @@ class QueryCondition(ast.NodeVisitor):
             )
 
         if not self._schema.has_attr(att):
-            raise tiledb.TileDBError(f"Attribute `{att}` found not in schema.")
+            if self._schema.domain.has_dim(att):
+                raise tiledb.TileDBError(
+                    f"`{att}` is a dimension. QueryConditions currently only "
+                    "work on attributes."
+                )
+            raise tiledb.TileDBError(f"Attribute `{att}` not found in schema.")
 
         if att not in self._query_attrs:
             raise tiledb.TileDBError(

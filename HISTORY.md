@@ -5,6 +5,7 @@
 
 ## Bug fixes
 * Pass `Ctx` to `ArraySchema.load` in `from_pandas` [#709](https://github.com/TileDB-Inc/TileDB-Py/pull/709)
+* Give clear error message when attempting to apply `QueryCondition` on dimensions [#722](https://github.com/TileDB-Inc/TileDB-Py/pull/722)
 
 ## Improvements
 * String dimension default fix in core [#2436](https://github.com/TileDB-Inc/TileDB/pull/2436) reverts a previous change in which the nonempty domain was passed the to multi-range indexer if unspecified [#712](https://github.com/TileDB-Inc/TileDB-Py/pull/712)
