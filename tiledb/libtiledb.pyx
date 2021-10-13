@@ -4589,7 +4589,7 @@ cdef class Query(object):
             domain = array.schema.domain
             for dname in dims:
                 if not domain.has_dim(dname):
-                    raise TileDBError("Selected dimension does not exist: '{name}")
+                    raise TileDBError(f"Selected dimension does not exist: '{name}'")
             self.dims = [unicode(dname) for dname in dims]
         elif coords == True or dims == True:
             domain = array.schema.domain
