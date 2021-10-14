@@ -511,12 +511,20 @@ public:
       case TILEDB_STRING_ASCII:
       case TILEDB_STRING_UTF8:
       case TILEDB_CHAR: {
-        if (!py::isinstance<py::none>(r0) && !py::isinstance<py::str>(r0) &&
-            !py::isinstance<py::bytes>(r0))
+        if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
+          TPY_ERROR_LOC(
+              "internal error: ranges must both be strings or (None, None)");
+        } else if (!py::isinstance<py::none>(r0) &&
+                   !py::isinstance<py::none>(r1) &&
+                   !py::isinstance<py::str>(r0) &&
+                   !py::isinstance<py::str>(r1) &&
+                   !py::isinstance<py::bytes>(r0) &&
+                   !py::isinstance<py::bytes>(r1)) {
           TPY_ERROR_LOC(
               "internal error: expected string type for var-length dim!");
+        }
 
-        if (!py::isinstance<py::none>(r0))
+        if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0))
           query_->add_range(dim_idx, r0.cast<string>(), r1.cast<string>());
 
         break;
