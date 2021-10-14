@@ -32,3 +32,8 @@ conda install -c conda-forge tiledb-py
 ```
 
 Dataframes functionality (`tiledb.from_pandas`, `Array.df[]`) requires [Pandas](https://pandas.pydata.org/) 1.0 or higher, and [PyArrow](https://arrow.apache.org/docs/python/) 1.0 or higher.
+
+# Contributing
+
+We are happy to welcome contributions, please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for suggestions and
+development-build instructions.
