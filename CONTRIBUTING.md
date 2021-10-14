@@ -14,8 +14,31 @@ Thanks for your interest in TileDB-Py. The notes below give some pointers for fi
 
 ### Contribution Workflow
 
-- [Please follow these instructions to build from source](https://docs.tiledb.com/developer/installation/building-from-source/python)
-- Make changes locally, then rebuild with `python setup.py develop`
+- Quick steps to build locally:
+  - install prerequisites via pip or conda: `pybind11` `cython` `numpy` `pandas` `pyarrow`
+  - recommended: install TileDB embedded (libtiledb)
+    
+    NOTE: if libtiledb path is not specified with `--tiledb`, it will be built automatically by `setup.py`. However, this build
+          is internal to the source tree and somewhat difficult to modify. When working on both projects simultaneously, it is
+          strongly suggested to build libtiledb separately. Changes to libtiledb must be `make install-tiledb` to `dist` in
+          order to be used with `--tiledb`.
+            
+    - from latest release build: https://github.com/TileDB-Inc/TileDB/releases
+      - `tar xf tiledb-<platform>-<hash>.tar.gz -C /path/to/extract`
+      - use `--tiledb=/path/to/extract` (note: this path should _contain_ the `lib` directory)
+    - from [conda-forge](): `mamba install tiledb`
+      - `--tiledb=$CONDA_PREFIX`
+    - from source: https://docs.tiledb.com/main/how-to/installation/building-from-source/c-cpp
+      - use `--tiledb=/path/to/tiledb/dist`
+            
+  - build TileDB-Py
+  ```
+  git clone https://github.com/TileDB-Inc/TileDB-Py
+  cd TileDB-Py
+  python setup.py develop --tiledb=</path/to/tiledb/dist>
+  ```
+
+- Make changes locally, then rebuild with `python setup.py develop [--tiled=<>]`
 - Make sure to run `pytest` to verify changes against tests (add new tests where applicable).
   - Execute the tests as `pytest tiledb` from the top-level directory or `pytest` in the `tiledb/` directory.
 - Please submit [pull requests](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) against the default [`dev` branch of TileDB-Py](https://github.com/TileDB-Inc/TileDB-Py/tree/dev)
