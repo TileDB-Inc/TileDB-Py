@@ -35,5 +35,6 @@ Dataframes functionality (`tiledb.from_pandas`, `Array.df[]`) requires [Pandas](
 
 # Contributing
 
-We are happy to welcome contributions, please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for suggestions and
-development-build instructions.
+We welcome contributions, please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for suggestions and
+development-build instructions. For larger features, please open an issue to discuss goals and
+approach in order to ensure a smooth PR integration and review process.
