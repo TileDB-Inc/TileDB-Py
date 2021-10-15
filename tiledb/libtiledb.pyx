@@ -4605,6 +4605,8 @@ cdef class Query(object):
                     raise TileDBError(f"Selected attribute does not exist: '{name}'")
         self.attrs = attrs
         self.attr_cond = attr_cond
+        if attr_cond is not None and not array.schema.sparse:
+            raise TileDBError("QueryConditions may only be applied to sparse arrays")
 
         if order == None:
             if array.schema.sparse:
@@ -4632,6 +4634,7 @@ cdef class Query(object):
     def __getitem__(self, object selection):
         return self.array.subarray(selection,
                                    attrs=self.attrs,
+                                   attr_cond=self.attr_cond,
                                    coords=self.coords if self.coords else self.dims,
                                    order=self.order)
 
@@ -4929,7 +4932,8 @@ cdef class DenseArrayImpl(Array):
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         subarray = index_domain_subarray(self, self.schema.domain, idx)
         # Note: we included dims (coords) above to match existing semantics
-        out = self._read_dense_subarray(subarray, attr_names, layout, coords)
+        out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout, 
+                                        coords)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
             for (k, v) in out.items():
@@ -4945,12 +4949,17 @@ cdef class DenseArrayImpl(Array):
         return out
 
 
-    cdef _read_dense_subarray(self, list subarray, list attr_names,
-                              tiledb_layout_t layout, bint include_coords):
+    cdef _read_dense_subarray(self, list subarray, list attr_names, 
+                              object attr_cond, tiledb_layout_t layout, 
+                              bint include_coords):
 
         from tiledb.main import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
+        try:
+            q.set_attr_cond(attr_cond)
+        except TileDBError as e:
+            raise TileDBError(e)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
         cdef object results = OrderedDict()
@@ -5257,7 +5266,7 @@ cdef class DenseArrayImpl(Array):
 
         idx = tuple(slice(None) for _ in range(domain.ndim))
         subarray = index_domain_subarray(self, domain, idx)
-        out = self._read_dense_subarray(subarray, [attr_name,], cell_layout, False)
+        out = self._read_dense_subarray(subarray, [attr_name,], None, cell_layout, False)
         return out[attr_name]
 
 # point query index a tiledb array (zips) columnar index vectors
@@ -5534,7 +5543,8 @@ cdef class SparseArrayImpl(Array):
                      use_arrow=use_arrow, return_arrow=return_arrow,
                      return_incomplete=return_incomplete)
 
-    def subarray(self, selection, coords=True, attrs=None, order=None):
+    def subarray(self, selection, coords=True, attrs=None, attr_cond=None, 
+                 order=None):
         """
         Retrieve dimension and data cells for an item or region of the array.
 
@@ -5610,7 +5620,7 @@ cdef class SparseArrayImpl(Array):
         idx = replace_ellipsis(dom.ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
         subarray = index_domain_subarray(self, dom, idx)
-        return self._read_sparse_subarray(subarray, attr_names, layout)
+        return self._read_sparse_subarray(subarray, attr_names, attr_cond, layout)
 
     def __repr__(self):
         if self.isopen:
@@ -5620,7 +5630,7 @@ cdef class SparseArrayImpl(Array):
             return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
     cdef _read_sparse_subarray(self, list subarray, list attr_names,
-                               tiledb_layout_t layout):
+                               object attr_cond, tiledb_layout_t layout):
         cdef object out = OrderedDict()
         # all results are 1-d vectors
         cdef np.npy_intp dims[1]
@@ -5629,6 +5639,10 @@ cdef class SparseArrayImpl(Array):
         from tiledb.main import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
+        try:
+            q.set_attr_cond(attr_cond)
+        except TileDBError as e:
+            raise TileDBError(e)
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 

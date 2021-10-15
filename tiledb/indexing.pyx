@@ -100,9 +100,9 @@ cdef class DomainIndexer(object):
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
 
         if isinstance(self.array, SparseArray):
-            return (<SparseArrayImpl>self.array)._read_sparse_subarray(subarray, attr_names, layout)
+            return (<SparseArrayImpl>self.array)._read_sparse_subarray(subarray, attr_names, attr_cond, layout)
         elif isinstance(self.array, DenseArray):
-            return (<DenseArrayImpl>self.array)._read_dense_subarray(subarray, attr_names, layout, coords)
+            return (<DenseArrayImpl>self.array)._read_dense_subarray(subarray, attr_names, attr_cond, layout, coords)
         else:
             raise Exception("No handler for Array type: " + str(type(self.array)))
 

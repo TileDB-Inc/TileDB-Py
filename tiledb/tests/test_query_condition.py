@@ -91,6 +91,23 @@ class QueryConditionTest(DiskTestCase):
                 qc = tiledb.QueryCondition("U >= 3 or 0.7 < D")
                 A.query(attr_cond=qc, attrs=["U", "D"]).df[:]
 
+    def test_fail_on_dense(self):
+        path = self.path("test_fail_on_dense")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint8)
+        )
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path) as A:
+            with pytest.raises(tiledb.TileDBError) as excinfo:
+                A.query(attr_cond=tiledb.QueryCondition("a < 5"))
+            assert "QueryConditions may only be applied to sparse arrays" in str(
+                excinfo.value
+            )
+
     def test_unsigned(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:
             qc = tiledb.QueryCondition("U < 5")

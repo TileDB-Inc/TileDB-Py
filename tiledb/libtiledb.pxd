@@ -1327,10 +1327,10 @@ cdef class Array(object):
     cdef _ndarray_is_varlen(self, np.ndarray array)
 
 cdef class SparseArrayImpl(Array):
-    cdef _read_sparse_subarray(self, list subarray, list attr_names, tiledb_layout_t layout)
+    cdef _read_sparse_subarray(self, list subarray, list attr_names, object attr_cond, tiledb_layout_t layout)
 
 cdef class DenseArrayImpl(Array):
-    cdef _read_dense_subarray(self, list subarray, list attr_names, tiledb_layout_t layout, bint include_coords)
+    cdef _read_dense_subarray(self, list subarray, list attr_names, object attr_cond, tiledb_layout_t layout, bint include_coords)
 
 cdef class FileHandle(object):
     cdef Ctx ctx
