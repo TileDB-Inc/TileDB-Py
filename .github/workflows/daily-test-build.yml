@@ -60,8 +60,10 @@ jobs:
 
     - name: Test TileDB-Py
       run: pytest -vv
-  
+
+  create_issue_on_fail:
     - name: Create Issue if Build Fails
+      needs: test
       if: failure() || cancelled()
       uses: JasonEtco/create-an-issue@v2
       env:
