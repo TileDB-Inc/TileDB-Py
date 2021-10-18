@@ -7,6 +7,7 @@ import copy
 import glob
 import os
 import random
+import string
 from pathlib import Path
 
 import numpy as np
@@ -560,6 +561,45 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 tiledb.from_pandas(uri, df, sparse=sparse)
                 with tiledb.open(uri) as A:
                     tm.assert_frame_equal(df.iloc[:0], A.df[tiledb.EmptyRange])
+
+    @pytest.mark.skip(
+        tiledb.libtiledb.version() < (2, 4, 3),
+        reason="Skip this test to avoid abort: requires TileDB#2540 in TileDB 2.4.3",
+    )
+    def test_dataframe_str_empty(self):
+        # create a simple sparse array, then index outside the written coords
+        # to get empty results
+        ncells = 100
+
+        uri = self.path()
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                *[
+                    tiledb.Dim(
+                        name="idx", domain=(0, ncells + 1), tile=ncells, dtype="int32"
+                    )
+                ]
+            ),
+            attrs=[tiledb.Attr(name="a1", dtype=str)],
+            cell_order="row-major",
+            tile_order="row-major",
+            capacity=10000,
+            sparse=True,
+            allows_duplicates=False,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as T:
+            T[np.arange(ncells).tolist()] = {
+                "a1": np.array(
+                    [string.ascii_lowercase[0 : n % 26] for n in range(1, 1 + ncells)]
+                )
+            }
+
+        with tiledb.open(uri) as A:
+            res_mi = A.multi_index[ncells]
+            assert res_mi["idx"].size == res_mi["a1"].size == 0
+            tm.assert_frame_equal(A.df[:].iloc[:0], A.df[ncells])
 
     def test_csv_dense(self):
         col_size = 10
