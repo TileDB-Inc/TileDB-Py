@@ -41,7 +41,7 @@ def create_array(path):
 
     schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
 
-    tiledb.SparseArray.create(path, schema)
+    tiledb.SparseArray.create(path, schema, overwrite=True)
 
     # create array of strings from a to a..j
     attr_data = np.array([string.ascii_lowercase[0:n] for n in range(1, 11)], dtype="O")
