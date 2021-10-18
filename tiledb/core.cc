@@ -887,8 +887,10 @@ public:
 
       if (buf.isvar) {
 
-        // account for 'sm.var_offsets.extra_element'
-        offset_elem_num -= (use_arrow_) ? 1 : 0;
+        if (offset_elem_num > 0) {
+          // account for 'sm.var_offsets.extra_element'
+          offset_elem_num -= (use_arrow_) ? 1 : 0;
+        }
 
         if (buf.offsets_read > 0) {
           if (offset_ptr[buf.offsets_read] == 0) {
