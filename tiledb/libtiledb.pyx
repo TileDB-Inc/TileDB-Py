@@ -5273,14 +5273,14 @@ def index_domain_coords(dom: Domain, idx: tuple):
         dim_is_string = (np.issubdtype(dim.dtype, np.str_) or 
             np.issubdtype(dim.dtype, np.bytes_))
         
-        # ensure strings contain only ASCII characters
         if dim_is_string:
             try:
-                np.asarray(sel, dtype=np.bytes_)
+                # ensure strings contain only ASCII characters
+                domain_coords.append(np.array(sel, dtype=np.bytes_, ndmin=1))
             except Exception as exc:
                 raise TileDBError(f'Dim\' strings may only contain ASCII characters')
-
-        domain_coords.append(np.array(sel, dtype=dim.dtype, ndmin=1))
+        else:
+            domain_coords.append(np.array(sel, dtype=dim.dtype, ndmin=1))
 
     idx = tuple(domain_coords)
 
