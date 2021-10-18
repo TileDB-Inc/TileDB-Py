@@ -64,9 +64,13 @@ jobs:
       run: pytest -vv
 
   create_issue_on_fail:
+    runs-on: ubuntu-latest
+    needs: test
+    if: failure() || cancelled()
+    steps:
+    - name: Checkout TileDB-Py `dev`
+      uses: actions/checkout@v2
     - name: Create Issue if Build Fails
-      needs: test
-      if: failure() || cancelled()
       uses: JasonEtco/create-an-issue@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
