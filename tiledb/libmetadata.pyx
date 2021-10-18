@@ -46,7 +46,7 @@ cdef PackedBuffer pack_metadata_val(value):
 
     val0 = value[0]
     if not isinstance(val0, (int, float)):
-        raise TypeError(f"Unsupported item type '{type(value)}'")
+        raise TypeError(f"Unsupported item type '{type(val0)}'")
 
     cdef:
         uint32_t value_num = len(value)
