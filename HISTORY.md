@@ -1,3 +1,9 @@
+# TileDB-Py 0.10.4 Release Notes
+
+## Bug fixes
+* Error out when applying `QueryCondition` to dense arrays [#753](https://github.com/TileDB-Inc/TileDB-Py/pull/753)
+* Ensure that indexer, multi-indexer, and df return the same results when applying `QueryCondition` [#753](https://github.com/TileDB-Inc/TileDB-Py/pull/753)
+
 # TileDB-Py 0.10.3 Release Notes
 
 ## TileDB Embedded updates:
