@@ -1,9 +1,14 @@
 stages:
 - stage: Release
   variables:
-    TILEDBPY_VERSION: 0.10.3
-    LIBTILEDB_VERSION: 2.4.2
-    LIBTILEDB_SHA: 81a0286499793bc21e1073cd3f0e82b0b856b852
+    ${{ if startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-') }}:
+      TILEDBPY_VERSION: dev
+      LIBTILEDB_VERSION: dev
+      LIBTILEDB_SHA: dev
+    ${{ else }}: 
+      TILEDBPY_VERSION: 0.10.3
+      LIBTILEDB_VERSION: 2.4.2
+      LIBTILEDB_SHA: 81a0286499793bc21e1073cd3f0e82b0b856b852
     LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
