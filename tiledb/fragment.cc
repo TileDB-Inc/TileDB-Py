@@ -29,7 +29,7 @@ class PyFragmentInfo {
 
 private:
   Context ctx_;
-  shared_ptr<FragmentInfo> fi_;
+  unique_ptr<FragmentInfo> fi_;
 
 public:
   tiledb_ctx_t *c_ctx_;
@@ -51,7 +51,7 @@ public:
 
     ctx_ = Context(c_ctx_, false);
 
-    fi_ = shared_ptr<tiledb::FragmentInfo>(new FragmentInfo(ctx_, uri));
+    fi_ = unique_ptr<tiledb::FragmentInfo>(new FragmentInfo(ctx_, uri));
   }
 
   template <typename T>
@@ -80,6 +80,8 @@ public:
       TPY_ERROR_LOC(e.what());
     }
   }
+
+  void close() { fi_.reset(); }
 
   py::object fragment_uri(py::object fid) const {
     return fid.is(py::none())
@@ -231,6 +233,8 @@ void init_fragment(py::module &m) {
       .def("load", static_cast<void (PyFragmentInfo::*)(
                        tiledb_encryption_type_t, const string &) const>(
                        &PyFragmentInfo::load))
+
+      .def("close", &PyFragmentInfo::close)
 
       .def("get_non_empty_domain",
            static_cast<py::tuple (PyFragmentInfo::*)(py::object) const>(
