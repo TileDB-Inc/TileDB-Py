@@ -10,16 +10,13 @@ stages:
         mac:
           imageName: 'macOS-10.15'
           python.version: '3.7'
-          TILEDB_SERIALIZATION: ON
           MACOSX_DEPLOYMENT_TARGET: 10.14
         windows:
           imageName: 'windows-latest'
           python.version: '3.7'
-          TILEDB_SERIALIZATION: ON
         linux_py3:
           imageName: 'ubuntu-latest'
           python.version: '3.6'
-          TILEDB_SERIALIZATION: ON
       maxParallel: 4
 
     steps:
