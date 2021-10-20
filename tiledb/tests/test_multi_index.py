@@ -775,3 +775,28 @@ class TestMultiRange(DiskTestCase):
         with tiledb.open(uri, mode="r", timestamp=1) as A:
             assert A.nonempty_domain() is None
             assert_array_equal(A.multi_index[:][""], A[:][""])
+
+    def test_multi_index_query_args(self):
+        uri = self.path("test_multi_index_query_args")
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim(name="dim", domain=(0, 9), dtype=np.uint8)),
+            sparse=True,
+            attrs=[
+                tiledb.Attr(name="a", dtype=np.uint8),
+                tiledb.Attr(name="b", dtype=np.uint8),
+            ],
+        )
+        tiledb.Array.create(uri, schema)
+
+        a = np.array(np.random.randint(10, size=10), dtype=np.int8)
+        b = np.array(np.random.randint(10, size=10), dtype=np.int8)
+
+        with tiledb.open(uri, mode="w") as A:
+            A[np.arange(10)] = {"a": a, "b": b}
+
+        with tiledb.open(uri, mode="r") as A:
+            q = A.query(attr_cond=tiledb.QueryCondition("a >= 5"), attrs=["a"])
+            assert {"a", "dim"} == q.multi_index[:].keys() == q[:].keys()
+            assert_array_equal(q.multi_index[:]["a"], q[:]["a"])
+            assert_array_equal(q.multi_index[:]["a"], q.df[:]["a"])
+            assert all(q[:]["a"] >= 5)

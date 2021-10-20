@@ -184,7 +184,9 @@ class MultiRangeIndexer(object):
 
             self.pyquery.set_ranges(self.ranges)
 
-            if self.query is not None:
+            has_attr_cond = self.query is not None and query.attr_cond is not None
+
+            if has_attr_cond:
                 try:
                     self.pyquery.set_attr_cond(query.attr_cond)
                 except TileDBError as e:
@@ -290,7 +292,6 @@ class DataFrameIndexer(MultiRangeIndexer):
 
                 if self.query and self.query.return_incomplete:
                     return self
-
                 result = self._run_query(query, preload_metadata=True)
             if not (pyarrow and isinstance(result, pyarrow.Table)):
                 if not isinstance(result, DataFrame):
