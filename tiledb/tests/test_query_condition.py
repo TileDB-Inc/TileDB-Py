@@ -92,7 +92,7 @@ class QueryConditionTest(DiskTestCase):
                 A.query(attr_cond=qc, attrs=["U", "D"]).df[:]
 
     @pytest.mark.xfail(
-        tiledb.libtiledb.version() > (2, 5),
+        tiledb.libtiledb.version() >= (2, 5),
         reason="Skip fail_on_dense with libtiledb >2.5",
     )
     def test_fail_on_dense(self):
