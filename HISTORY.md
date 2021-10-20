@@ -4,6 +4,10 @@
 * Error out when applying `QueryCondition` to dense arrays; this feature will be implemented in TileDB Embedded 2.5 [#753](https://github.com/TileDB-Inc/TileDB-Py/pull/753)
 * Ensure that indexer, multi-indexer, and df return the same results when applying `QueryCondition` [#753](https://github.com/TileDB-Inc/TileDB-Py/pull/753)
 
+## API Changes
+* Close the `PyFragmentInfo` object in the `FragmentInfoList` constructor to reflect changes in the `FragmentInfo` API in TileDB Embedded 2.5 [#752](https://github.com/TileDB-Inc/TileDB-Py/pull/752)
+* Make `ctx` argument optional for `ArraySchemaEvolution` [#743](https://github.com/TileDB-Inc/TileDB-Py/pull/743)
+
 # TileDB-Py 0.10.3 Release Notes
 
 ## TileDB Embedded updates:

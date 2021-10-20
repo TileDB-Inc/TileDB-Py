@@ -1,3 +1,5 @@
+from typing import Optional
+
 import tiledb
 from .main import ArraySchemaEvolution as ASE
 
@@ -7,9 +9,8 @@ class ArraySchemaEvolution:
     a TileDB array in place by adding and removing attributes.
     """
 
-    def __init__(self, ctx: tiledb.Ctx):
-        if ctx is None:
-            ctx = tiledb.default_ctx()
+    def __init__(self, ctx: Optional[tiledb.Ctx] = None):
+        ctx = ctx or tiledb.default_ctx()
 
         self.ase = ASE(ctx)
 

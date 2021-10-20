@@ -502,17 +502,23 @@ class FragmentInfoTest(DiskTestCase):
 
         expected_vacuum_uri = fragment_info.fragment_uri(0)
 
+        fragment_info.close()
+
         tiledb.consolidate(
             uri, config=tiledb.Config(params={"sm.vacuum.mode": "fragments"})
         )
 
+        fragment_info = PyFragmentInfo(uri)
         fragment_info.load()
 
         assert fragment_info.to_vacuum_num() == 3
         assert fragment_info.to_vacuum_uri(0) == expected_vacuum_uri
 
+        fragment_info.close()
+
         tiledb.vacuum(uri)
 
+        fragment_info = PyFragmentInfo(uri)
         fragment_info.load()
 
         assert fragment_info.to_vacuum_num() == 0

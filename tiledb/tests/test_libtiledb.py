@@ -3689,9 +3689,6 @@ class TestVFS(DiskTestCase):
 
 class ConsolidationTest(DiskTestCase):
     def test_array_vacuum(self):
-        vfs = tiledb.VFS()
-        path = self.path("test_array_vacuum")
-
         dshape = (0, 19)
         num_writes = 10
 
@@ -3706,42 +3703,50 @@ class ConsolidationTest(DiskTestCase):
                 with tiledb.open(target_path, "w") as A:
                     A[i : dshape[1]] = np.random.rand(dshape[1] - i)
 
-        # expected number of non-fragment directory entries
-        #   there is no ls result for empty __meta directory on s3
-        expected_extra = 2 if pytest.tiledb_vfs == "s3" else 3
-
+        # array #1
+        path = self.path("test_array_vacuum")
         create_array(path)
         write_fragments(path)
-        paths = vfs.ls(path)
-        self.assertEqual(len(paths), expected_extra + (2 * num_writes))
+
+        fi = tiledb.FragmentInfoList(path)
+        self.assertEqual(len(fi), num_writes)
 
         tiledb.consolidate(path)
         tiledb.vacuum(path)
 
-        paths = vfs.ls(path)
-        self.assertEqual(len(paths), expected_extra + 2)
+        fi = tiledb.FragmentInfoList(path)
+        self.assertEqual(len(fi), 1)
 
-        del path
-
+        # array #2
         path2 = self.path("test_array_vacuum_fragment_meta")
         create_array(path2)
         write_fragments(path2)
+
+        fi = tiledb.FragmentInfoList(path2)
+        self.assertEqual(fi.unconsolidated_metadata_num, num_writes)
+
         tiledb.consolidate(
             path2, config=tiledb.Config({"sm.consolidation.mode": "fragment_meta"})
         )
         tiledb.vacuum(path2, config=tiledb.Config({"sm.vacuum.mode": "fragment_meta"}))
-        paths = vfs.ls(path2)
 
-        self.assertEqual(len(paths), expected_extra + 2 * num_writes + 1)
+        fi = tiledb.FragmentInfoList(path2)
+        self.assertEqual(fi.unconsolidated_metadata_num, 0)
 
+        # array #3
         path3 = self.path("test_array_vacuum2")
         create_array(path3)
         write_fragments(path3)
+
+        fi = tiledb.FragmentInfoList(path3)
+        self.assertEqual(fi.unconsolidated_metadata_num, num_writes)
+
         conf = tiledb.Config({"sm.consolidation.mode": "fragment_meta"})
         with tiledb.open(path3, "w") as A:
             A.consolidate(config=conf)
 
-        paths = vfs.ls(path2)
+        fi = tiledb.FragmentInfoList(path3)
+        self.assertEqual(fi.unconsolidated_metadata_num, 0)
 
     def test_array_consolidate_with_timestamp(self):
         dshape = (1, 3)

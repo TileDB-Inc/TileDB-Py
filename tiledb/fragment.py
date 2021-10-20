@@ -109,6 +109,8 @@ class FragmentInfoList:
         self.unconsolidated_metadata_num = fi.unconsolidated_metadata_num()
         self.to_vacuum = fi.to_vacuum_uri()
 
+        fi.close()
+
     @property
     def non_empty_domain(self):
         warnings.warn(
