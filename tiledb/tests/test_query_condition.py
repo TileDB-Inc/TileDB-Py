@@ -91,6 +91,10 @@ class QueryConditionTest(DiskTestCase):
                 qc = tiledb.QueryCondition("U >= 3 or 0.7 < D")
                 A.query(attr_cond=qc, attrs=["U", "D"]).df[:]
 
+    @pytest.mark.xfail(
+        tiledb.libtiledb.version() > (2, 5),
+        reason="Skip fail_on_dense with libtiledb >2.5",
+    )
     def test_fail_on_dense(self):
         path = self.path("test_fail_on_dense")
 
