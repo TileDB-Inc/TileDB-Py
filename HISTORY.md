@@ -1,4 +1,4 @@
-# TileDB-Py 0.10.3 Release Notes
+# TileDB-Py 0.10.4 Release Notes
 
 ## API Changes
 * Close the `PyFragmentInfo` object in the `FragmentInfoList` constructor to reflect changes in the `FragmentInfo` API in TileDB Embedded 2.5 [#752](https://github.com/TileDB-Inc/TileDB-Py/pull/752)
