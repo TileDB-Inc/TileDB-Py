@@ -1,5 +1,6 @@
 import pprint
 import warnings
+import numpy as np
 
 import tiledb
 from tiledb.main import PyFragmentInfo
@@ -13,16 +14,24 @@ class FragmentInfoList:
     """
     Class representing an ordered list of FragmentInfo objects.
 
-    :param uri: URIs of fragments
-    :param version: Fragment version of each fragment
-    :param nonempty_domain: Non-empty domain of each fragment
-    :param cell_num: Number of cells in each fragment
-    :param timestamp_range: Timestamp range of when each fragment was written
-    :param dense: For each fragment, True if fragment is dense, else False
-    :param sparse: For each fragment, True if fragment is sparse, else False
-    :param has_consolidated_metadata: For each fragment, True if fragment has consolidated fragment metadata, else False
-    :param unconsolidated_metadata_num: Number of unconsolidated metadata fragments in each fragment
-    :param to_vacuum: URIs of already consolidated fragments to vacuum
+    :param array_uri: The URI of the TileDB array.
+    :type array_uri: str
+    :param ctx: A TileDB context
+    :type ctx: tiledb.Ctx
+    :param include_mbrs: (default False) include minimum bounding rectangles in FragmentInfo result
+    :type include_mbrs: bool
+
+    Class attributes:
+        - `uri`: URIs of fragments
+        - `version`: Fragment version of each fragment
+        - `nonempty_domain`: Non-empty domain of each fragment
+        - `cell_num`: Number of cells in each fragment
+        - `timestamp_range`: Timestamp range of when each fragment was written
+        - `sparse`: For each fragment, True if fragment is sparse, else False
+        - `has_consolidated_metadata`: For each fragment, True if fragment has consolidated fragment metadata, else False
+        - `unconsolidated_metadata_num`: Number of unconsolidated metadata fragments in each fragment
+        - `to_vacuum`: URIs of already consolidated fragments to vacuum
+        - `mbrs`: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
 
     **Example:**
 
@@ -60,7 +69,7 @@ class FragmentInfoList:
     ...
     ...     for fragment in fragments_info:
     ...         f"===== FRAGMENT NUMBER {fragment.num} ====="
-    ...         f"is dense: {fragment.dense}"
+    ...         f"is sparse: {fragment.sparse}"
     ...         f"cell num: {fragment.cell_num}"
     ...         f"has consolidated metadata: {fragment.has_consolidated_metadata}"
     ...         f"nonempty domain: {fragment.nonempty_domain}"
@@ -69,24 +78,24 @@ class FragmentInfoList:
     'nonempty domains: (((1, 2), (1, 4)), ((2, 3), (2, 3)), ((3, 3), (4, 4)))'
     'sparse fragments: (False, False, False)'
     '===== FRAGMENT NUMBER 0 ====='
-    'is dense: True'
+    'is sparse: False'
     'cell num: 8'
     'has consolidated metadata: False'
     'nonempty domain: ((1, 2), (1, 4))'
     '===== FRAGMENT NUMBER 1 ====='
-    'is dense: True'
+    'is sparse: False'
     'cell num: 16'
     'has consolidated metadata: False'
     'nonempty domain: ((2, 3), (2, 3))'
     '===== FRAGMENT NUMBER 2 ====='
-    'is dense: True'
+    'is sparse: False'
     'cell num: 4'
     'has consolidated metadata: False'
     'nonempty domain: ((3, 3), (4, 4))'
 
     """
 
-    def __init__(self, array_uri, ctx=None):
+    def __init__(self, array_uri, include_mbrs=False, ctx=None):
         if ctx is None:
             ctx = tiledb.default_ctx()
 
@@ -94,22 +103,21 @@ class FragmentInfoList:
 
         self.array_uri = array_uri
 
-        fi = PyFragmentInfo(self.array_uri, ctx)
-        fi.load()
+        fi = PyFragmentInfo(self.array_uri, schema, include_mbrs, ctx)
 
-        self.uri = fi.fragment_uri()
-        self.__nums = fi.fragment_num()
-        self.version = fi.version()
-        self.nonempty_domain = fi.get_non_empty_domain(schema)
-        self.cell_num = fi.cell_num()
-        self.timestamp_range = fi.timestamp_range()
-        self.dense = fi.dense()
-        self.sparse = fi.sparse()
-        self.has_consolidated_metadata = fi.has_consolidated_metadata()
-        self.unconsolidated_metadata_num = fi.unconsolidated_metadata_num()
-        self.to_vacuum = fi.to_vacuum_uri()
+        self.__nums = fi.get_num_fragments()
+        self.uri = fi.get_uri()
+        self.version = fi.get_version()
+        self.nonempty_domain = fi.get_nonempty_domain()
+        self.cell_num = fi.get_cell_num()
+        self.timestamp_range = fi.get_timestamp_range()
+        self.sparse = fi.get_sparse()
+        self.unconsolidated_metadata_num = fi.get_unconsolidated_metadata_num()
+        self.has_consolidated_metadata = fi.get_has_consolidated_metadata()
+        self.to_vacuum = fi.get_to_vacuum()
 
-        fi.close()
+        if include_mbrs:
+            self.mbrs = fi.get_mbrs()
 
     @property
     def non_empty_domain(self):
@@ -137,6 +145,25 @@ class FragmentInfoList:
             DeprecationWarning,
         )
         return self.to_vacuum
+
+    @property
+    def dense(self):
+        warnings.warn(
+            "FragmentInfoList.dense is deprecated; "
+            "please use FragmentInfoList.sparse",
+            DeprecationWarning,
+        )
+        return list(~np.array(self.sparse))
+
+    def __getattr__(self, name):
+        if name == "mbrs":
+            raise AttributeError(
+                "'FragmentInfoList' object has no attribute 'mbrs'. "
+                "(Hint: retrieving minimum bounding rectangles is disabled "
+                "by default to optimize speed and space. "
+                "Use tiledb.array_fragments(include_mbrs=True) to enable)"
+            )
+        return self.__getattribute__(name)
 
     def __iter__(self):
         return FragmentsInfoIterator(self)
@@ -183,17 +210,17 @@ class FragmentInfo:
     """
     Class representing the metadata for a single fragment. See :py:class:`tiledb.FragmentInfoList` for example of usage.
 
-    :param str uri: URIs of fragments
-    :param int version: Fragment version of each fragment
-    :param nonempty_domain: Non-empty domain of each fragment
-    :type nonempty_domain: tuple(numpy scalar, numpy scalar)
-    :param cell_num int: Number of cells in each fragment
-    :param timestamp_range: Timestamp range of when each fragment was written
-    :type timestamp_range: tuple(int, int)
-    :param bool dense: True if fragment is dense, else False
-    :param bool sparse: True if fragment is sparse, else False
-    :param bool has_consolidated_metadata: True if fragment has consolidated metadata, else False
-    :param int unconsolidated_metadata_num: Number of unconsolidated metadata fragments
+    Class attributes:
+        - `uri`: URIs of fragments
+        - `version`: Fragment version of each fragment
+        - `nonempty_domain`: Non-empty domain of each fragment
+        - `cell_num`: Number of cells in each fragment
+        - `timestamp_range`: Timestamp range of when each fragment was written
+        - `sparse`: For each fragment, True if fragment is sparse, else False
+        - `has_consolidated_metadata`: For each fragment, True if fragment has consolidated fragment metadata, else False
+        - `unconsolidated_metadata_num`: Number of unconsolidated metadata fragments in each fragment
+        - `to_vacuum`: URIs of already consolidated fragments to vacuum
+        - `mbrs`: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
@@ -204,13 +231,25 @@ class FragmentInfo:
         self.nonempty_domain = fragments.nonempty_domain[num]
         self.cell_num = fragments.cell_num[num]
         self.timestamp_range = fragments.timestamp_range[num]
-        self.dense = fragments.dense[num]
         self.sparse = fragments.sparse[num]
         self.has_consolidated_metadata = fragments.has_consolidated_metadata[num]
         self.unconsolidated_metadata_num = fragments.unconsolidated_metadata_num
 
+        if hasattr(fragments, "mbrs"):
+            self.mbrs = fragments.mbrs[num]
+
     def __repr__(self):
         return pprint.PrettyPrinter().pformat(self.__dict__)
+
+    def __getattr__(self, name):
+        if name == "mbrs":
+            raise AttributeError(
+                "'FragmentInfo' object has no attribute 'mbrs'. "
+                "(Hint: retrieving minimum bounding rectangles is disabled "
+                "by default to optimize speed and space. "
+                "Use tiledb.array_fragments(include_mbrs=True) to enable)"
+            )
+        return self.__getattribute__(name)
 
     @property
     def non_empty_domain(self):
@@ -238,6 +277,14 @@ class FragmentInfo:
             DeprecationWarning,
         )
         return self._frags.to_vacuum
+
+    @property
+    def to_vacuum_uri(self):
+        warnings.warn(
+            "FragmentInfo.dense is deprecated; please use FragmentInfo.sparse",
+            DeprecationWarning,
+        )
+        return not self._frags.sparse
 
 
 def FragmentsInfo(array_uri, ctx=None):

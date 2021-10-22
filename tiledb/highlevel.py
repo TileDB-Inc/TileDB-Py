@@ -105,19 +105,29 @@ def array_exists(uri, isdense=False, issparse=False):
         return False
 
 
-def array_fragments(uri, ctx=None):
+def array_fragments(uri, include_mbrs=False, ctx=None):
     """
-    Creates a FragmentInfoList object, which is an ordered list of FragmentInfo
-    objects, representing all fragments in the array at the URI.
+    Creates a `FragmentInfoList` object, which is an ordered list of `FragmentInfo`
+    objects, representing all fragments in the array at the given URI.
 
-    FragmentInfo objects contain fragment metadata such as the fragment URI,
-    whether it is sparse or dense, timestamp, number of cells, etc.
+    The returned object contain the following attributes:
+        - `uri`: URIs of fragments
+        - `version`: Fragment version of each fragment
+        - `nonempty_domain`: Non-empty domain of each fragment
+        - `cell_num`: Number of cells in each fragment
+        - `timestamp_range`: Timestamp range of when each fragment was written
+        - `sparse`: For each fragment, True if fragment is sparse, else False
+        - `has_consolidated_metadata`: For each fragment, True if fragment has consolidated fragment metadata, else False
+        - `unconsolidated_metadata_num`: Number of unconsolidated metadata fragments in each fragment
+        - `to_vacuum`: URIs of already consolidated fragments to vacuum
+        - `mbrs`: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
 
     :param str uri: URI for the TileDB array (any supported TileDB URI)
+    :param bool include_mbrs: Include minimum bouding rectangles in result; this is disabled by default for optimize time and space
     :param ctx: (optional) TileDB Ctx
-    :return: FragmentsInfo object
+    :return: FragmentInfoList
     """
-    return tiledb.FragmentInfoList(uri, ctx)
+    return tiledb.FragmentInfoList(uri, include_mbrs, ctx)
 
 
 def delete_fragments(

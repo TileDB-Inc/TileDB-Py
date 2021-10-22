@@ -15,9 +15,8 @@ class FragmentInfoTest(DiskTestCase):
             pytest.skip("Only run FragmentInfo test with TileDB>=2.2")
 
     def test_uri_dne(self):
-        fragment_info = PyFragmentInfo("does_not_exist")
         with self.assertRaises(tiledb.TileDBError):
-            fragment_info.load()
+            fragment_info = tiledb.array_fragments("does_not_exist")
 
     def test_array_fragments(self):
         fragments = 3
@@ -42,7 +41,6 @@ class FragmentInfoTest(DiskTestCase):
         self.assertEqual(fragments_info.unconsolidated_metadata_num, 3)
 
         self.assertEqual(fragments_info.cell_num, (3, 3, 3))
-        self.assertEqual(fragments_info.dense, (True, True, True))
         self.assertEqual(
             fragments_info.has_consolidated_metadata, (False, False, False)
         )
@@ -55,7 +53,6 @@ class FragmentInfoTest(DiskTestCase):
 
         for idx, frag in enumerate(fragments_info):
             self.assertEqual(frag.cell_num, 3)
-            self.assertEqual(frag.dense, True)
             self.assertEqual(frag.has_consolidated_metadata, False)
             self.assertEqual(frag.nonempty_domain, ((idx, idx),))
             self.assertEqual(frag.sparse, False)
@@ -124,59 +121,54 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-        fragment_info = PyFragmentInfo(uri)
-
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
             with tiledb.DenseArray(uri, mode="w", timestamp=timestamp) as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
-            fragment_info.load()
-
-            self.assertEqual(fragment_info.fragment_num(), fragment_idx + 1)
+            fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
+            self.assertEqual(fragment_info.get_num_fragments(), fragment_idx + 1)
 
         all_expected_uris = []
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
 
             self.assertEqual(
-                fragment_info.timestamp_range(fragment_idx), (timestamp, timestamp)
+                fragment_info.get_timestamp_range()[fragment_idx],
+                (timestamp, timestamp),
             )
 
             expected_uri = "__{ts}_{ts}".format(uri=uri, ts=timestamp)
-            actual_uri = fragment_info.fragment_uri(fragment_idx)
+            actual_uri = fragment_info.get_uri()[fragment_idx]
 
             all_expected_uris.append(expected_uri)
 
             # use .contains because the protocol can vary
             self.assertTrue(expected_uri in actual_uri)
             self.assertTrue(
-                actual_uri.endswith(str(fragment_info.version(fragment_idx)))
+                actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
             )
+            self.assertFalse(fragment_info.get_sparse()[fragment_idx])
 
-            self.assertTrue(fragment_info.dense(fragment_idx))
-            self.assertFalse(fragment_info.sparse(fragment_idx))
-
-        all_actual_uris = fragment_info.fragment_uri()
+        all_actual_uris = fragment_info.get_uri()
         for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
             self.assertTrue(expected_uri in actual_uri)
             self.assertTrue(
-                actual_uri.endswith(str(fragment_info.version(fragment_idx)))
+                actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
             )
 
-        self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
-        self.assertEqual(fragment_info.dense(), (True, True, True))
-        self.assertEqual(fragment_info.sparse(), (False, False, False))
+        self.assertEqual(fragment_info.get_timestamp_range(), ((1, 1), (2, 2), (3, 3)))
+        self.assertEqual(fragment_info.get_sparse(), (False, False, False))
         if tiledb.libtiledb.version() < (2, 2, 3):
-            assert fragment_info.version(0) == 7
+            assert fragment_info.get_version()[0] == 7
         elif tiledb.libtiledb.version() < (2, 3, 0):
-            assert fragment_info.version(0) == 8
+            assert fragment_info.get_version()[0] == 8
         else:
             # make sure the version is within some reasonable bound
             # but don't pin because that makes testing against dev
             # more difficult
-            assert fragment_info.version(0) >= 9
-            assert fragment_info.version(0) < 12
+            assert fragment_info.get_version()[0] >= 9
+            assert fragment_info.get_version()[0] < 12
 
     def test_sparse_fragments(self):
         fragments = 3
@@ -190,61 +182,56 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.SparseArray.create(uri, schema)
 
-        fragment_info = PyFragmentInfo(uri)
-
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
             with tiledb.SparseArray(uri, mode="w", timestamp=timestamp) as T:
                 T[fragment_idx] = fragment_idx
 
-            fragment_info.load()
-
-            self.assertEqual(fragment_info.fragment_num(), fragment_idx + 1)
+            fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
+            self.assertEqual(fragment_info.get_num_fragments(), fragment_idx + 1)
 
         all_expected_uris = []
         for fragment_idx in range(fragments):
             timestamp = fragment_idx + 1
 
             self.assertEqual(
-                fragment_info.timestamp_range(fragment_idx), (timestamp, timestamp)
+                fragment_info.get_timestamp_range()[fragment_idx],
+                (timestamp, timestamp),
             )
 
             if uri[0] != "/":
                 uri = "/" + uri.replace("\\", "/")
 
             expected_uri = "/__{ts}_{ts}".format(uri=uri, ts=timestamp)
-            actual_uri = fragment_info.fragment_uri(fragment_idx)
+            actual_uri = fragment_info.get_uri()[fragment_idx]
 
             all_expected_uris.append(expected_uri)
 
             self.assertTrue(expected_uri in actual_uri)
             self.assertTrue(
-                actual_uri.endswith(str(fragment_info.version(fragment_idx)))
+                actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
             )
+            self.assertTrue(fragment_info.get_sparse()[fragment_idx])
 
-            self.assertFalse(fragment_info.dense(fragment_idx))
-            self.assertTrue(fragment_info.sparse(fragment_idx))
-
-        all_actual_uris = fragment_info.fragment_uri()
+        all_actual_uris = fragment_info.get_uri()
         for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
             self.assertTrue(expected_uri in actual_uri)
             self.assertTrue(
-                actual_uri.endswith(str(fragment_info.version(fragment_idx)))
+                actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
             )
 
-        self.assertEqual(fragment_info.timestamp_range(), ((1, 1), (2, 2), (3, 3)))
-        self.assertEqual(fragment_info.dense(), (False, False, False))
-        self.assertEqual(fragment_info.sparse(), (True, True, True))
+        self.assertEqual(fragment_info.get_timestamp_range(), ((1, 1), (2, 2), (3, 3)))
+        self.assertEqual(fragment_info.get_sparse(), (True, True, True))
         if tiledb.libtiledb.version() < (2, 2, 3):
-            assert fragment_info.version(0) == 7
+            assert fragment_info.get_version()[0] == 7
         elif tiledb.libtiledb.version() < (2, 3, 0):
-            assert fragment_info.version(0) == 8
+            assert fragment_info.get_version()[0] == 8
         else:
             # make sure the version is within some reasonable bound
             # but don't pin because that makes testing against dev
             # more difficult
-            assert fragment_info.version(0) >= 9
-            assert fragment_info.version(0) < 12
+            assert fragment_info.get_version()[0] >= 9
+            assert fragment_info.get_version()[0] < 12
 
     def test_nonempty_domain(self):
         uri = self.path("test_nonempty_domain")
@@ -270,37 +257,10 @@ class FragmentInfoTest(DiskTestCase):
             y = [-1.5, -1.25]
             T[x, y] = np.array(range(2))
 
-        fragment_info = PyFragmentInfo(uri)
-        fragment_info.load()
-
-        x_dt = schema.domain.dim(0).dtype
-        y_dt = schema.domain.dim(1).dtype
-
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 0), (1, 4))
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 1), (-1.0, 2.0))
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, 0), (1, 3))
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 1, 1), (-1.5, -1.25)
-        )
-
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, "x"), (1, 4))
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 0, "y"), (-1.0, 2.0)
-        )
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, "x"), (1, 3))
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 1, "y"), (-1.5, -1.25)
-        )
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
         self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 0), ((1, 4), (-1.0, 2.0))
-        )
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 1), ((1, 3), (-1.5, -1.25))
-        )
-
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema),
+            fragment_info.get_nonempty_domain(),
             (((1, 4), (-1.0, 2.0)), ((1, 3), (-1.5, -1.25))),
         )
 
@@ -331,38 +291,10 @@ class FragmentInfoTest(DiskTestCase):
             )
             T[dates] = np.array(range(3))
 
-        fragment_info = PyFragmentInfo(uri)
-        fragment_info.load()
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
         self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 0, 0),
-            (np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),
-        )
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 1, 0),
-            (np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),
-        )
-
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 0, "day"),
-            (np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),
-        )
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 1, "day"),
-            (np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),
-        )
-
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 0),
-            ((np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),),
-        )
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 1),
-            ((np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),),
-        )
-
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema),
+            fragment_info.get_nonempty_domain(),
             (
                 ((np.datetime64("2017-04-01"), np.datetime64("2019-12-04")),),
                 ((np.datetime64("2010-01-01"), np.datetime64("2014-10-03")),),
@@ -390,28 +322,10 @@ class FragmentInfoTest(DiskTestCase):
             y_dims = [b"e", b"f"]
             T[x_dims, y_dims] = np.array([1, 2])
 
-        fragment_info = PyFragmentInfo(uri)
-        fragment_info.load()
-
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 0), ("a", "d"))
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, 1), ("e", "h"))
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, 0), ("a", "b"))
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, 1), ("e", "f"))
-
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, "x"), ("a", "d"))
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 0, "y"), ("e", "h"))
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, "x"), ("a", "b"))
-        self.assertEqual(fragment_info.get_non_empty_domain(schema, 1, "y"), ("e", "f"))
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
         self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 0), (("a", "d"), ("e", "h"))
-        )
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema, 1), (("a", "b"), ("e", "f"))
-        )
-
-        self.assertEqual(
-            fragment_info.get_non_empty_domain(schema),
+            fragment_info.get_nonempty_domain(),
             ((("a", "d"), ("e", "h")), (("a", "b"), ("e", "f"))),
         )
 
@@ -423,7 +337,7 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.SparseArray.create(uri, schema)
 
-        fragment_info = PyFragmentInfo(uri)
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
         with tiledb.SparseArray(uri, mode="w") as T:
             a = np.array([1, 2, 3, 4])
@@ -433,12 +347,9 @@ class FragmentInfoTest(DiskTestCase):
             b = np.array([1, 2])
             T[b] = b
 
-        fragment_info = PyFragmentInfo(uri)
-        fragment_info.load()
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
-        self.assertEqual(fragment_info.cell_num(0), len(a))
-        self.assertEqual(fragment_info.cell_num(1), len(b))
-        self.assertEqual(fragment_info.cell_num(), (len(a), len(b)))
+        self.assertEqual(fragment_info.get_cell_num(), (len(a), len(b)))
 
     def test_consolidated_fragment_metadata(self):
         fragments = 3
@@ -452,33 +363,27 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-        fragment_info = PyFragmentInfo(uri)
-
         for fragment_idx in range(fragments):
             with tiledb.DenseArray(uri, mode="w") as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
-        fragment_info.load()
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
-        self.assertEqual(fragment_info.unconsolidated_metadata_num(), 3)
-        for fragment_idx in range(fragments):
-            self.assertFalse(fragment_info.has_consolidated_metadata(fragment_idx))
-
+        self.assertEqual(fragment_info.get_unconsolidated_metadata_num(), 3)
         self.assertEqual(
-            fragment_info.has_consolidated_metadata(), (False, False, False)
+            fragment_info.get_has_consolidated_metadata(), (False, False, False)
         )
 
         tiledb.consolidate(
             uri, config=tiledb.Config(params={"sm.consolidation.mode": "fragment_meta"})
         )
 
-        fragment_info.load()
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
-        self.assertEqual(fragment_info.unconsolidated_metadata_num(), 0)
-        for fragment_idx in range(fragments):
-            self.assertTrue(fragment_info.has_consolidated_metadata(fragment_idx))
-
-        self.assertEqual(fragment_info.has_consolidated_metadata(), (True, True, True))
+        self.assertEqual(fragment_info.get_unconsolidated_metadata_num(), 0)
+        self.assertEqual(
+            fragment_info.get_has_consolidated_metadata(), (True, True, True)
+        )
 
     def test_fragments_to_vacuum(self):
         fragments = 3
@@ -492,33 +397,63 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-        fragment_info = PyFragmentInfo(uri)
-
         for fragment_idx in range(fragments):
             with tiledb.DenseArray(uri, mode="w") as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
-        fragment_info.load()
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
-        expected_vacuum_uri = fragment_info.fragment_uri(0)
-
-        fragment_info.close()
+        expected_vacuum_uri = fragment_info.get_uri()[0]
 
         tiledb.consolidate(
             uri, config=tiledb.Config(params={"sm.vacuum.mode": "fragments"})
         )
 
-        fragment_info = PyFragmentInfo(uri)
-        fragment_info.load()
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
-        assert fragment_info.to_vacuum_num() == 3
-        assert fragment_info.to_vacuum_uri(0) == expected_vacuum_uri
-
-        fragment_info.close()
+        assert len(fragment_info.get_to_vacuum()) == 3
+        assert fragment_info.get_to_vacuum()[0] == expected_vacuum_uri
 
         tiledb.vacuum(uri)
 
-        fragment_info = PyFragmentInfo(uri)
-        fragment_info.load()
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
-        assert fragment_info.to_vacuum_num() == 0
+        assert len(fragment_info.get_to_vacuum()) == 0
+
+    def test_get_mbr(self):
+        fragments = 3
+
+        uri = self.path("test_get_mbr")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=fragments, dtype=np.int64))
+        att = tiledb.Attr(dtype=np.uint64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        tiledb.Array.create(uri, schema)
+
+        for fragi in range(fragments):
+            timestamp = fragi + 1
+            with tiledb.open(uri, mode="w", timestamp=timestamp) as T:
+                T[np.array(range(0, fragi + 1))] = [fragi] * (fragi + 1)
+
+        expected_mbrs = ((((0, 0),),), (((0, 1),),), (((0, 2),),))
+
+        py_fragment_info = PyFragmentInfo(uri, schema, True, tiledb.default_ctx())
+        assert py_fragment_info.get_mbrs() == expected_mbrs
+
+        array_fragments = tiledb.array_fragments(uri)
+        with pytest.raises(AttributeError) as excinfo:
+            array_fragments.mbrs
+        assert "retrieving minimum bounding rectangles is disabled" in str(
+            excinfo.value
+        )
+
+        with self.assertRaises(AttributeError):
+            array_fragments[0].mbrs
+        assert "retrieving minimum bounding rectangles is disabled" in str(
+            excinfo.value
+        )
+
+        array_fragments = tiledb.array_fragments(uri, include_mbrs=True)
+        assert array_fragments.mbrs == expected_mbrs
+        assert array_fragments[0].mbrs == expected_mbrs[0]
+        assert array_fragments[1].mbrs == expected_mbrs[1]
+        assert array_fragments[2].mbrs == expected_mbrs[2]

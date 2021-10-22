@@ -45,21 +45,21 @@ def create_array():
     )
 
     # Create the (empty) array on disk.
-    tiledb.DenseArray.create(array_name, schema)
+    tiledb.Array.create(array_name, schema)
 
 
 def write_array_1():
-    with tiledb.DenseArray(array_name, mode="w") as A:
+    with tiledb.open(array_name, mode="w") as A:
         A[1:3, 1:5] = np.array(([1, 2, 3, 4, 5, 6, 7, 8]))
 
 
 def write_array_2():
-    with tiledb.DenseArray(array_name, mode="w") as A:
+    with tiledb.open(array_name, mode="w") as A:
         A[2:4, 2:4] = np.array(([101, 102, 103, 104]))
 
 
 def write_array_3():
-    with tiledb.DenseArray(array_name, mode="w") as A:
+    with tiledb.open(array_name, mode="w") as A:
         A[3:4, 4:5] = np.array(([202]))
 
 
@@ -88,7 +88,6 @@ for fragment in fragments_info:
     print()
     print("===== FRAGMENT NUMBER {} =====".format(fragment.num))
     print("fragment uri: {}".format(fragment.uri))
-    print("is dense: {}".format(fragment.dense))
     print("is sparse: {}".format(fragment.sparse))
     print("cell num: {}".format(fragment.cell_num))
     print("has consolidated metadata: {}".format(fragment.has_consolidated_metadata))
