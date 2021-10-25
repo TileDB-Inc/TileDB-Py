@@ -21,17 +21,16 @@ class FragmentInfoList:
     :param include_mbrs: (default False) include minimum bounding rectangles in FragmentInfo result
     :type include_mbrs: bool
 
-    Class attributes:
-        - `uri`: URIs of fragments
-        - `version`: Fragment version of each fragment
-        - `nonempty_domain`: Non-empty domain of each fragment
-        - `cell_num`: Number of cells in each fragment
-        - `timestamp_range`: Timestamp range of when each fragment was written
-        - `sparse`: For each fragment, True if fragment is sparse, else False
-        - `has_consolidated_metadata`: For each fragment, True if fragment has consolidated fragment metadata, else False
-        - `unconsolidated_metadata_num`: Number of unconsolidated metadata fragments in each fragment
-        - `to_vacuum`: URIs of already consolidated fragments to vacuum
-        - `mbrs`: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
+    :ivar uri: URIs of fragments
+    :ivar version: Fragment version of each fragment
+    :ivar nonempty_domain: Non-empty domain of each fragment
+    :ivar cell_num: Number of cells in each fragment
+    :ivar timestamp_range: Timestamp range of when each fragment was written
+    :ivar sparse: For each fragment, True if fragment is sparse, else False
+    :ivar has_consolidated_metadata: For each fragment, True if fragment has consolidated fragment metadata, else False
+    :ivar unconsolidated_metadata_num: Number of unconsolidated metadata fragments in each fragment
+    :ivar to_vacuum: URIs of already consolidated fragments to vacuum
+    :ivar mbrs: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
 
     **Example:**
 
@@ -210,17 +209,16 @@ class FragmentInfo:
     """
     Class representing the metadata for a single fragment. See :py:class:`tiledb.FragmentInfoList` for example of usage.
 
-    Class attributes:
-        - `uri`: URIs of fragments
-        - `version`: Fragment version of each fragment
-        - `nonempty_domain`: Non-empty domain of each fragment
-        - `cell_num`: Number of cells in each fragment
-        - `timestamp_range`: Timestamp range of when each fragment was written
-        - `sparse`: For each fragment, True if fragment is sparse, else False
-        - `has_consolidated_metadata`: For each fragment, True if fragment has consolidated fragment metadata, else False
-        - `unconsolidated_metadata_num`: Number of unconsolidated metadata fragments in each fragment
-        - `to_vacuum`: URIs of already consolidated fragments to vacuum
-        - `mbrs`: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
+    :ivar uri: URIs of fragments
+    :ivar version: Fragment version of each fragment
+    :ivar nonempty_domain: Non-empty domain of each fragment
+    :ivar cell_num: Number of cells in each fragment
+    :ivar timestamp_range: Timestamp range of when each fragment was written
+    :ivar sparse: For each fragment, True if fragment is sparse, else False
+    :ivar has_consolidated_metadata: For each fragment, True if fragment has consolidated fragment metadata, else False
+    :ivar unconsolidated_metadata_num: Number of unconsolidated metadata fragments in each fragment
+    :ivar to_vacuum: URIs of already consolidated fragments to vacuum
+    :ivar mbrs: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
