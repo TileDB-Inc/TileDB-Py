@@ -14,12 +14,12 @@ class FragmentInfoList:
     """
     Class representing an ordered list of FragmentInfo objects.
 
-    :param array_uri: The URI of the TileDB array.
+    :param array_uri: URI for the TileDB array (any supported TileDB URI)
     :type array_uri: str
-    :param ctx: A TileDB context
-    :type ctx: tiledb.Ctx
     :param include_mbrs: (default False) include minimum bounding rectangles in FragmentInfo result
     :type include_mbrs: bool
+    :param ctx: A TileDB context
+    :type ctx: tiledb.Ctx
 
     :ivar uri: URIs of fragments
     :ivar version: Fragment version of each fragment
