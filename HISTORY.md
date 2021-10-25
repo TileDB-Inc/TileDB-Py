@@ -1,3 +1,11 @@
+# TileDB-Py 0.11.0 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.11.0 includes TileDB Embedded [TileDB 2.5.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.5.0)
+
+## API Changes
+* Addition of MBRs to `FragmentInfo` API [#760](https://github.com/TileDB-Inc/TileDB-Py/pull/760)
+
 # TileDB-Py 0.10.5 Release Notes
 
 ## API Changes
