@@ -564,7 +564,7 @@ for arg in args:
 # Global variables
 CXXFLAGS = os.environ.get("CXXFLAGS", "").split()
 if not is_windows():
-    CXXFLAGS.append("-std=c++11")
+    CXXFLAGS.append("-std=c++17")
     if TILEDBPY_WERROR:
         CXXFLAGS.append("-Werror")
     if not TILEDB_DEBUG_BUILD:
