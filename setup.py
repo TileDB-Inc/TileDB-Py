@@ -47,21 +47,11 @@ TILEDB_PKG_DIR = os.path.join(CONTAINING_DIR, "tiledb")
 
 # Set deployment target for mac
 #
-# Need to ensure thatextensions are built for macos 10.9 when compiling on a
-# 10.9 system or above, overriding distutils behaviour which is to target
-# the version used to build the current python binary.
-#
 # TO OVERRIDE:
 #   set MACOSX_DEPLOYMENT_TARGET before calling setup.py
-#
-# From https://github.com/pandas-dev/pandas/pull/24274
-# 3-Clause BSD License: https://github.com/pandas-dev/pandas/blob/master/LICENSE
 if sys.platform == "darwin":
     if "MACOSX_DEPLOYMENT_TARGET" not in os.environ:
-        current_system = LooseVersion(platform.mac_ver()[0])
-        python_target = LooseVersion(get_config_var("MACOSX_DEPLOYMENT_TARGET"))
-        if python_target < "10.9" and current_system >= "10.9":
-            os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+        os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.14"
 
 # Is this process building a wheel?
 WHEEL_BUILD = ("bdist_wheel" in sys.argv) or ("TILEDB_WHEEL_BUILD" in os.environ)
