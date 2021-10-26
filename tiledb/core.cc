@@ -1320,6 +1320,8 @@ public:
         c_pa_array.n_buffers = 2;
       }
 
+      // work around for SC-11522: metadata field must be set to nullptr
+      c_pa_schema.metadata = nullptr;
       py::object pa_array = pa_array_import(py::int_((ptrdiff_t)&c_pa_array),
                                             py::int_((ptrdiff_t)&c_pa_schema));
 
