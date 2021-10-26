@@ -6,9 +6,11 @@ tm = pd._testing
 import copy
 import glob
 import os
+from pathlib import Path
 import random
 import string
-from pathlib import Path
+import tempfile
+import uuid
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -19,6 +21,7 @@ from tiledb.tests.common import (
     DiskTestCase,
     checked_path,
     dtype_max,
+    dtype_min,
     rand_ascii,
     rand_ascii_bytes,
     rand_datetime64_array,
@@ -306,8 +309,8 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         with tiledb.open(uri) as A:
             dim = A.schema.domain.dim(0)
-            assert dim.domain[0] == 0
-            assert dim.domain[1] == dtype_max(np.uint64) - dim.tile
+            assert dim.domain[0] == dtype_min(np.int64)
+            assert dim.domain[1] == dtype_max(np.int64) - dim.tile
 
         for use_arrow in None, False, True:
             df_readback = tiledb.open_dataframe(uri, use_arrow=use_arrow)
@@ -1291,3 +1294,40 @@ class TestFromPandasOptions(DiskTestCase):
                 tiledb.from_pandas(uri, df, **{opt: f})
                 with tiledb.open(uri) as A:
                     assert_filters_eq(getter(A), f)
+
+
+###############################################################################
+
+# Regression tests for specific bugs
+
+
+def test_write_unnamed_index_py755(checked_path):
+    """Test writing array with unnamed non-RangeIndex"""
+
+    def gen_array(sz):
+        # generate random floats in [a,b)
+        a, b = -1000, 1000
+        data = (b - a) * np.random.default_rng().random(size=sz) + a
+        # mask some to nan
+        mask = np.random.choice([1, 0], data.shape)
+        data[mask] = np.nan
+        return data
+
+    col_size = 10
+    n_cols = 9
+
+    df = pd.DataFrame(
+        {
+            k: v
+            for k, v in [
+                (str(uuid.uuid4())[:12], gen_array(col_size)) for _ in range(n_cols)
+            ]
+        }
+    )
+    df.index = pd.Series([str(uuid.uuid4())[:12] for i in range(df.shape[0])], name="")
+
+    uri = checked_path.path()
+    tiledb.from_pandas(uri, df)
+
+    with tiledb.open(uri) as A:
+        tm.assert_frame_equal(df.sort_index(), A.df[:])
