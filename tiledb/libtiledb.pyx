@@ -3787,7 +3787,7 @@ cdef class ArraySchema(object):
         if self.sparse:
             output.write(f"  allows_duplicates={self.allows_duplicates},\n")
 
-        if self.coords_filters is not None:
+        if self.sparse and self.coords_filters is not None:
             output.write(f"  coords_filters={self.coords_filters},\n")
 
         output.write(")\n")
