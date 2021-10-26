@@ -291,6 +291,9 @@ def _sparse_from_dtypes(dtypes, sparse=None):
 
 
 def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
+    check_dataframe_deps()
+    import pandas as pd
+
     per_dim_tile = isinstance(tile, dict)
     if tile is not None:
         tile_values = tile.values() if per_dim_tile else (tile,)
@@ -313,13 +316,12 @@ def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
             raise ValueError(f"Unknown column or index named {name!r}")
 
         dtype = ColumnInfo.from_values(values).dtype
+        internal_dtype = dtype
+
+        if name == "__tiledb_rows" and isinstance(index, pd.RangeIndex):
+            internal_dtype = np.dtype("uint64")
         if name is None:
             name = "__tiledb_rows"
-            # force unnamed index to to uint64
-            # TODO: this looks iffy, check if we should we keep doing this
-            internal_dtype = np.dtype("uint64")
-        else:
-            internal_dtype = dtype
 
         dim_metadata[name] = dtype
         name_dtype_values.append((name, internal_dtype, values))
@@ -749,6 +751,9 @@ def from_csv(uri, csv_file, **kwargs):
             if df_list is None:
                 break
             df = pandas.concat(df_list)
+            if not "index_col" in tiledb_args and df.index.name is None:
+                df.index.name = "__tiledb_rows"
+
             tiledb_args["row_start_idx"] = rows_written
 
             from_pandas(uri, df, tiledb_args=tiledb_args, pandas_args=pandas_args)
@@ -765,6 +770,9 @@ def from_csv(uri, csv_file, **kwargs):
         df_iter = pandas.read_csv(input_csv, **pandas_args)
         df = next(df_iter, None)
         while df is not None:
+            if not "index_col" in tiledb_args and df.index.name is None:
+                df.index.name = "__tiledb_rows"
+
             # tell from_pandas what row to start the next write
             tiledb_args["row_start_idx"] = rows_written
 
@@ -777,6 +785,8 @@ def from_csv(uri, csv_file, **kwargs):
 
     else:
         df = pandas.read_csv(csv_file, **kwargs)
+        if not "index_col" in tiledb_args and df.index.name is None:
+            df.index.name = "__tiledb_rows"
 
         kwargs.update(tiledb_args)
         from_pandas(uri, df, **kwargs)
