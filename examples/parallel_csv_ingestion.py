@@ -43,7 +43,7 @@ from tiledb.tests.common import rand_datetime64_array, rand_utf8
 in_test = "PYTEST_CURRENT_TEST" in os.environ
 
 
-def generate_csvs(csv_folder, count=50, min_length=1, max_length=109):
+def generate_csvs(csv_folder, count=9, min_length=1, max_length=109):
     def make_dataframe(col_size):
         data = {
             "idx_datetime": rand_datetime64_array(col_size, include_extremes=False),
@@ -208,7 +208,7 @@ def from_csv_mp(
 def example():
     # set up test paths and data
     csv_path = tempfile.mkdtemp()
-    generate_csvs(csv_path, count=73)
+    generate_csvs(csv_path, count=11)
     print("Finished generating CSVs in path: ", csv_path)
 
     array_path = tempfile.mkdtemp()
