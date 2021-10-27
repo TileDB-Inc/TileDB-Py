@@ -33,6 +33,8 @@ stages:
     - template: azure-libtiledb-darwin.yml
 
   - job: build1_libtiledb_on_linux
+    pool:
+      vmImage: 'ubuntu-latest'
     container: quay.io/pypa/manylinux2010_x86_64:latest
     variables:
       CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL10 -D__BIONIC__=1"
