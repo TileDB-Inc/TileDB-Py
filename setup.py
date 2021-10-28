@@ -565,6 +565,9 @@ if not is_windows():
         CXXFLAGS.append("-UNDEBUG")  # defined by distutils
     if TILEDB_SYMBOLS_BUILD:
         CXXFLAGS.append("-g")
+else:
+    CXXFLAGS.append("/std:c++17")
+
 LFLAGS = os.environ.get("LFLAGS", "").split()
 
 if TILEDB_PATH != "" and TILEDB_PATH != "source":
