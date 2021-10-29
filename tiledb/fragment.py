@@ -116,7 +116,14 @@ class FragmentInfoList:
         self.to_vacuum = fi.get_to_vacuum()
 
         if include_mbrs:
-            self.mbrs = fi.get_mbrs()
+            if tiledb.libtiledb.version() <= (2, 5, 0):
+                self.mbrs = fi.get_mbrs()
+            else:
+                warnings.warn(
+                    "MBRs for fragments not available; "
+                    "please install libtiledb 2.5.0+",
+                    UserWarning,
+                )
 
     @property
     def non_empty_domain(self):

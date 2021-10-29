@@ -420,6 +420,10 @@ class FragmentInfoTest(DiskTestCase):
 
         assert len(fragment_info.get_to_vacuum()) == 0
 
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 5, 0),
+        reason="MBRs in FragmentInfo only availabe in ilbtiledb<=2.5.0",
+    )
     def test_get_mbr(self):
         fragments = 3
 
