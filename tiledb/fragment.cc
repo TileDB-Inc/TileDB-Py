@@ -77,8 +77,10 @@ public:
     has_consolidated_metadata_ = fill_has_consolidated_metadata();
     to_vacuum_ = fill_to_vacuum_uri();
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 5
     if (include_mbrs)
       mbrs_ = fill_mbr();
+#endif
 
     close();
   }
@@ -242,6 +244,7 @@ private:
     return py::tuple(l);
   }
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 5
   py::tuple fill_mbr() const {
     py::list all_frags;
     uint32_t nfrag = fragment_num();
@@ -281,6 +284,7 @@ private:
     fi_->get_mbr(fid, mid, did, buffer.ptr);
     return std::move(limits);
   }
+#endif
 };
 
 void init_fragment(py::module &m) {
@@ -298,7 +302,9 @@ void init_fragment(py::module &m) {
       .def("get_has_consolidated_metadata",
            &PyFragmentInfo::get_has_consolidated_metadata)
       .def("get_to_vacuum", &PyFragmentInfo::get_to_vacuum)
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 5
       .def("get_mbrs", &PyFragmentInfo::get_mbrs)
+#endif
       .def("dump", &PyFragmentInfo::dump);
 }
 
