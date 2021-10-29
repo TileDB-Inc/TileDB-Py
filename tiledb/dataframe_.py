@@ -648,27 +648,29 @@ def from_csv(uri, csv_file, **kwargs):
     :Keyword Arguments:
         - Any ``pandas.read_csv`` supported keyword argument.
         - TileDB-specific arguments:
+            * ``ctx``: A TileDB context
+            * ``sparse``: (default True) Create sparse schema
+            * ``index_dims``: Set the df index using a list of existing column names
             * ``allows_duplicates``: Generated schema should allow duplicates
-            * ``cell_order``: Schema cell order
-            * ``tile_order``: Schema tile order
-            * ``mode``: (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``,
-              ``append``
-            * ``full_domain``: Dimensions should be created with full range of the dtype
+            * ``mode``: (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
             * ``attr_filters``: FilterList to apply to Attributes: FilterList or Dict[str -> FilterList]
                 for any attribute(s). Unspecified attributes will use default.
             * ``dim_filters``: FilterList to apply to Dimensions: FilterList or Dict[str -> FilterList]
                 for any dimensions(s). Unspecified dimensions will use default.
             * ``coords_filters``: FilterList to apply to all coordinates (Dimensions)
-            * ``sparse``: (default True) Create sparse schema
-            * ``tile``: Dimension tiling: accepts either an int that applies the tiling to all dimensions
-                or a dict("dim_name": int) to specifically assign tiling to a given dimension
-            * ``capacity``: Schema capacity.
-            * ``timestamp``: Write TileDB array at specific timestamp.
+            * ``offsets_filters``: FilterList to apply to all offsets
+            * ``full_domain``: Dimensions should be created with full range of the dtype
+            * ``tile``: Dimension tiling: accepts either an int that applies the tiling to all dimensions or a dict("dim_name": int) to specifically assign tiling to a given dimension
             * ``row_start_idx``: Start index to start new write (for row-indexed ingestions).
-            * ``date_spec``: Dictionary of {``column_name``: format_spec} to apply to date/time
-              columns which are not correctly inferred by pandas 'parse_dates'.
-              Format must be specified using the Python format codes:
-              https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
+            * ``fillna``: Value to use to to fill holes
+            * ``column_types``: Dictionary of {``column_name``: dtype} to apply dtypes to columns
+            * ``varlen_types``: A set of {dtypes}; any column wihin the set is converted to a variable length attribute
+            * ``capacity``: Schema capacity.
+            * ``date_spec``: Dictionary of {``column_name``: format_spec} to apply to date/time columns which are not correctly inferred by pandas 'parse_dates'. Format must be specified using the Python format codes: https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior
+            * ``cell_order``: (default 'row-major) Schema cell order: 'row-major', 'col-major', or 'hilbert'
+            * ``tile_order``: (default 'row-major) Schema tile order: 'row-major' or 'col-major'
+            * ``timestamp``: Write TileDB array at specific timestamp.
+
     :return: None
 
     **Example:**
