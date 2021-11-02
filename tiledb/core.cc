@@ -1086,11 +1086,18 @@ public:
     // metadata ahead of time. In some queries we know we will always
     // access metadata, so initiating this call saves time when loading
     // from remote arrays because metadata i/o is lazy in core.
+    /*
+    // This section is disabled pending final disposition of SC-11720
+    // This call is not currently safe as of TileDB 2.5, and has caused
+    // reproducible deadlocks with the subesequent calls to
+    // Array::est_result_sizes from the main thread.
+    //
     std::future<uint64_t> metadata_num_preload;
     if (preload_metadata_) {
       metadata_num_preload = std::async(
           std::launch::async, [this]() { return array_->metadata_num(); });
     }
+    */
 
     allocate_buffers();
 
@@ -1116,9 +1123,12 @@ public:
 
     // fetch the result of the metadata get task
     // this will block if not yet completed
+    /*
+    // disabled, see comment above
     if (preload_metadata_) {
       metadata_num_preload.get();
     }
+    */
 
     auto incomplete_start = std::chrono::high_resolution_clock::now();
 
