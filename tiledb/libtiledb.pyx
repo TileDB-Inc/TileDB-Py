@@ -5976,6 +5976,173 @@ cdef class FileHandle(object):
         return bool(isclosed)
 
 
+class FileIO(io.RawIOBase):
+    def __init__(self, VFS vfs, uri, mode="rb"):
+        cdef tiledb_vfs_mode_t vfs_mode
+        if mode == "rb":
+            vfs_mode = TILEDB_VFS_READ
+        elif mode == "wb":
+            vfs_mode = TILEDB_VFS_WRITE
+        elif mode == "ab":
+            vfs_mode = TILEDB_VFS_APPEND
+        else:
+            raise ValueError("invalid mode {0!r}".format(mode))
+        cdef bytes buri = unicode_path(uri)
+        cdef tiledb_ctx_t* ctx_ptr = vfs.ctx.ptr
+        cdef tiledb_vfs_t* vfs_ptr = vfs.ptr
+        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        cdef tiledb_vfs_fh_t* fh_ptr = NULL
+        cdef int rc = TILEDB_OK
+        with nogil:
+            rc = tiledb_vfs_open(ctx_ptr, vfs_ptr, uri_ptr, vfs_mode, &fh_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        self.fh = FileHandle.from_ptr(vfs, buri.decode('UTF-8'), fh_ptr)
+        self.vfs = vfs
+        self._offset = 0
+        self._closed = False
+        self._readonly = True
+
+        if mode == "rb":
+            try:
+                self._nbytes = vfs.file_size(uri)
+            except:
+                raise IOError("URI {0!r} is not a valid file")
+            self._readonly = True
+        elif mode == "wb" or mode == "ab":
+            self._readonly = False
+            self._nbytes = 0
+        else:
+            raise ValueError("invalid mode {0!r}".format(mode))
+        self._mode = mode
+
+        return
+
+    def __len__(self):
+        return self._nbytes
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.flush()
+        self.close()
+        return
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @property
+    def closed(self):
+        return self.fh.closed()
+
+    def close(self):
+        self.vfs.close(self.fh)
+
+    def flush(self):
+        self.vfs.sync(self.fh)
+
+    def seekable(self):
+        return True
+
+    def readable(self):
+        return self._readonly
+
+    def seek(self, offset, whence=0):
+        if not isinstance(offset, (int, long)):
+            raise TypeError(f"Offset must be an integer or None (got {safe_repr(offset)})")
+        if whence == 0:
+            if offset < 0:
+                raise ValueError("offset must be a positive or zero value when SEEK_SET")
+            self._offset = offset
+        elif whence == 1:
+            self._offset += offset
+        elif whence == 2:
+            self._offset = self._nbytes + offset
+        else:
+            raise ValueError('whence must be equal to SEEK_SET, SEEK_START, SEEK_END')
+        if self._offset < 0:
+            self._offset = 0
+        elif self._offset > self._nbytes:
+            self._offset = self._nbytes
+
+        return self._offset
+
+    def tell(self):
+        return self._offset
+
+    def writable(self):
+        return not self._readonly
+
+    def read(self, size=-1):
+        if not isinstance(size, (int, long)):
+            raise TypeError(f"size must be an integer or None (got {safe_repr(size)})")
+        if self._mode == "wb":
+            raise IOError("Cannot read from write-only FileIO handle")
+        if self.closed:
+            raise IOError("Cannot read from closed FileIO handle")
+        nbytes_remaining = self._nbytes - self._offset
+        cdef Py_ssize_t nbytes
+        if size < 0:
+            nbytes = nbytes_remaining
+        elif size > nbytes_remaining:
+            nbytes = nbytes_remaining
+        else:
+            nbytes = size
+
+        if nbytes == 0:
+            return b''
+
+        cdef bytes buff = PyBytes_FromStringAndSize(NULL, nbytes)
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
+        self._offset += nbytes
+        return buff
+
+    def read1(self, size=-1):
+        return self.read(size)
+
+    def readall(self):
+        if self._mode == "wb":
+            raise IOError("cannot read from a write-only FileIO handle")
+        if self.closed:
+            raise IOError("cannot read from closed FileIO handle")
+        cdef Py_ssize_t nbytes = self._nbytes - self._offset
+        if nbytes == 0:
+            return PyBytes_FromStringAndSize(NULL, 0)
+        cdef bytes buff = PyBytes_FromStringAndSize(NULL, nbytes)
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
+        self._offset += nbytes
+        return buff
+
+    def readinto(self, buff):
+        if self._mode == "wb":
+            raise IOError("cannot read from a write-only FileIO handle")
+        if self.closed:
+            raise IOError("cannot read from closed FileIO handle")
+        nbytes = len(buff)
+        if nbytes > self._nbytes:
+            nbytes = self._nbytes
+        if nbytes == 0:
+            return 0
+        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
+        self._offset += nbytes
+
+        # RawIOBase contract is to return the number of bytes read
+        return nbytes
+
+    def write(self, buff):
+        if not self.writable():
+            raise IOError("cannot write to read-only FileIO handle")
+        if isinstance(buff, str):
+            buff = buff.encode()
+        nbytes = len(buff)
+        self.vfs.write(self.fh, buff)
+        self._nbytes += nbytes
+        self._offset += nbytes
+        return nbytes
+
 cdef class VFS(object):
     """TileDB VFS class
 
@@ -6397,34 +6564,15 @@ cdef class VFS(object):
         :param str uri: URI of VFS file resource
         :param mode str: 'rb' for opening the file to read, 'wb' to write, 'ab' to append
         :rtype: FileHandle
-        :return: VFS FileHandle
+        :return: TileDB FileIO
         :raises TypeError: cannot convert `uri` to unicode string
         :raises ValueError: invalid mode
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        cdef tiledb_vfs_mode_t vfs_mode
-        if mode == "rb":
-            vfs_mode = TILEDB_VFS_READ
-        elif mode == "wb":
-            vfs_mode = TILEDB_VFS_WRITE
-        elif mode == "ab":
-            vfs_mode = TILEDB_VFS_APPEND
-        else:
-            raise ValueError("invalid mode {0!r}".format(mode))
-        cdef bytes buri = unicode_path(uri)
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-        cdef tiledb_vfs_t* vfs_ptr = self.ptr
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        cdef tiledb_vfs_fh_t* fh_ptr = NULL
-        cdef int rc = TILEDB_OK
-        with nogil:
-            rc = tiledb_vfs_open(ctx_ptr, vfs_ptr, uri_ptr, vfs_mode, &fh_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        return FileHandle.from_ptr(self, buri.decode('UTF-8'), fh_ptr)
+        return FileIO(self, uri, mode)
 
-    def close(self, FileHandle fh):
+    def close(self, file):
         """Closes a VFS FileHandle object
 
         :param FileHandle fh: An opened VFS FileHandle
@@ -6433,13 +6581,23 @@ cdef class VFS(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        if isinstance(file, FileIO):
+            warnings.warn(
+                f"`tiledb.VFS().open` now returns a a FileIO object. Use "
+                "`FileIO.close`.",
+                DeprecationWarning,
+            )
+            return file.close()
+
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef FileHandle fh = <FileHandle> file
         cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
         cdef int rc = TILEDB_OK
         with nogil:
             rc = tiledb_vfs_close(ctx_ptr, fh_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+
         return fh
 
     def readinto(self, FileHandle fh, const unsigned char[:] buffer, offset, nbytes):
@@ -6473,7 +6631,7 @@ cdef class VFS(object):
         # TileDB will error if the requested bytes are not read exactly
         return nbytes
 
-    def read(self, FileHandle fh, offset, nbytes):
+    def read(self, file, offset, nbytes):
         """Read nbytes from an opened VFS FileHandle at a given offset
 
         :param FileHandle fh: An opened VFS FileHandle in 'r' mode
@@ -6484,14 +6642,25 @@ cdef class VFS(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        if isinstance(file, FileIO):
+            warnings.warn(
+                f"`tiledb.VFS().open` now returns a a FileIO object. Use "
+                "`FileIO.read`.",
+                DeprecationWarning,
+            )
+            return file.read(nbytes)
+
         if nbytes == 0:
             return b''
+
         cdef Py_ssize_t _nbytes = nbytes
         cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
-        cdef Py_ssize_t res_nbytes = self.readinto(fh, buffer, offset, nbytes)
-        return buffer
+        cdef Py_ssize_t res_nbytes = self.readinto(<FileHandle> file, 
+            buffer, offset, nbytes)
 
-    def write(self, FileHandle fh, buff):
+        return buffer
+    
+    def write(self, file, buff):
         """Writes buffer to opened VFS FileHandle
 
         :param FileHandle fh: An opened VFS FileHandle in 'w' mode
@@ -6500,8 +6669,17 @@ cdef class VFS(object):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        if isinstance(file, FileIO):
+            warnings.warn(
+                f"`tiledb.VFS().open` now returns a a FileIO object. Use "
+                "`FileIO.write`.",
+                DeprecationWarning,
+            )
+            return file.write(buff)
+
         cdef bytes buffer = bytes(buff)
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef FileHandle fh = <FileHandle> file
         cdef tiledb_vfs_fh_t* fh_ptr = fh.ptr
         cdef const char* buffer_ptr = PyBytes_AS_STRING(buffer)
         cdef Py_ssize_t _nbytes = PyBytes_GET_SIZE(buffer)
@@ -6590,152 +6768,6 @@ cdef class VFS(object):
         check_error(self.ctx,
                     tiledb_vfs_get_config(self.ctx.ptr, self.ptr, &config_ptr))
         return Config.from_ptr(config_ptr)
-
-
-class FileIO(io.RawIOBase):
-    def __init__(self, VFS vfs, uri, mode="rb"):
-        self.fh = vfs.open(uri, mode=mode)
-        self.vfs = vfs
-        self._offset = 0
-        self._closed = False
-        self._readonly = True
-        if mode == "rb":
-            try:
-                self._nbytes = vfs.file_size(uri)
-            except:
-                raise IOError("URI {0!r} is not a valid file")
-            self._readonly = True
-        elif mode == "wb":
-            self._readonly = False
-            self._nbytes = 0
-        else:
-            raise ValueError("invalid mode {0!r}".format(mode))
-        self._mode = mode
-        return
-
-    def __len__(self):
-        return self._nbytes
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.flush()
-        self.close()
-        return
-
-    @property
-    def mode(self):
-        return self._mode
-
-    @property
-    def closed(self):
-        return self.fh.closed()
-
-    def close(self):
-        self.vfs.close(self.fh)
-
-    def flush(self):
-        self.vfs.sync(self.fh)
-
-    def seekable(self):
-        return True
-
-    def readable(self):
-        return self._readonly
-
-    def seek(self, offset, whence=0):
-        if not isinstance(offset, (int, long)):
-            raise TypeError(f"Offset must be an integer or None (got {safe_repr(offset)})")
-        if whence == 0:
-            if offset < 0:
-                raise ValueError("offset must be a positive or zero value when SEEK_SET")
-            self._offset = offset
-        elif whence == 1:
-            self._offset += offset
-        elif whence == 2:
-            self._offset = self._nbytes + offset
-        else:
-            raise ValueError('whence must be equal to SEEK_SET, SEEK_START, SEEK_END')
-        if self._offset < 0:
-            self._offset = 0
-        elif self._offset > self._nbytes:
-            self._offset = self._nbytes
-
-        return self._offset
-
-    def tell(self):
-        return self._offset
-
-    def writable(self):
-        return not self._readonly
-
-    def read(self, size=-1):
-        if not isinstance(size, (int, long)):
-            raise TypeError(f"size must be an integer or None (got {safe_repr(size)})")
-        if self._mode == "wb":
-            raise IOError("Cannot read from write-only FileIO handle")
-        if self.closed:
-            raise IOError("Cannot read from closed FileIO handle")
-        nbytes_remaining = self._nbytes - self._offset
-        cdef Py_ssize_t nbytes
-        if size < 0:
-            nbytes = nbytes_remaining
-        elif size > nbytes_remaining:
-            nbytes = nbytes_remaining
-        else:
-            nbytes = size
-
-        if nbytes == 0:
-            return b''
-
-        cdef bytes buff = PyBytes_FromStringAndSize(NULL, nbytes)
-        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
-        self._offset += nbytes
-        return buff
-
-    def read1(self, size=-1):
-        return self.read(size)
-
-    def readall(self):
-        if self._mode == "wb":
-            raise IOError("cannot read from a write-only FileIO handle")
-        if self.closed:
-            raise IOError("cannot read from closed FileIO handle")
-        cdef Py_ssize_t nbytes = self._nbytes - self._offset
-        if nbytes == 0:
-            return PyBytes_FromStringAndSize(NULL, 0)
-        cdef bytes buff = PyBytes_FromStringAndSize(NULL, nbytes)
-        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
-        self._offset += nbytes
-        return buff
-
-    def readinto(self, buff):
-        if self._mode == "wb":
-            raise IOError("cannot read from a write-only FileIO handle")
-        if self.closed:
-            raise IOError("cannot read from closed FileIO handle")
-        nbytes = len(buff)
-        if nbytes > self._nbytes:
-            nbytes = self._nbytes
-        if nbytes == 0:
-            return 0
-        self.vfs.readinto(self.fh, buff, self._offset, nbytes)
-        self._offset += nbytes
-
-        # RawIOBase contract is to return the number of bytes read
-        return nbytes
-
-    def write(self, buff):
-        if not self.writable():
-            raise IOError("cannot write to read-only FileIO handle")
-        if isinstance(buff, str):
-            buff = buff.encode()
-        nbytes = len(buff)
-        self.vfs.write(self.fh, buff)
-        self._nbytes += nbytes
-        self._offset += nbytes
-        return nbytes
 
 def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
     """

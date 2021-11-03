@@ -3554,24 +3554,36 @@ class TestVFS(DiskTestCase):
         vfs = tiledb.VFS()
 
         buffer = b"bar"
-        fh = vfs.open(self.path("foo"), "wb")
-        vfs.write(fh, buffer)
-        vfs.close(fh)
+        fio = vfs.open(self.path("foo"), "wb")
+        fio.write(buffer)
         self.assertEqual(vfs.file_size(self.path("foo")), 3)
 
-        fh = vfs.open(self.path("foo"), "rb")
-        self.assertEqual(vfs.read(fh, 0, 3), buffer)
-        vfs.close(fh)
+        fio = vfs.open(self.path("foo"), "rb")
+        self.assertEqual(fio.read(3), buffer)
+        fio.close()
+
+        buffer = b"abc"
+        fio = vfs.open(self.path("abc"), "wb")
+        with pytest.warns(DeprecationWarning, match="Use `FileIO.write`"):
+            vfs.write(fio, buffer)
+        with pytest.warns(DeprecationWarning, match="Use `FileIO.close`"):
+            vfs.close(fio)
+        self.assertEqual(vfs.file_size(self.path("abc")), 3)
+
+        fio = vfs.open(self.path("abc"), "rb")
+        with pytest.warns(DeprecationWarning, match="Use `FileIO.read`"):
+            self.assertEqual(vfs.read(fio, 0, 3), buffer)
+        fio.close()
 
         # write / read empty input
-        fh = vfs.open(self.path("baz"), "wb")
-        vfs.write(fh, b"")
-        vfs.close(fh)
+        fio = vfs.open(self.path("baz"), "wb")
+        fio.write(b"")
+        fio.close()
         self.assertEqual(vfs.file_size(self.path("baz")), 0)
 
-        fh = vfs.open(self.path("baz"), "rb")
-        self.assertEqual(vfs.read(fh, 0, 0), b"")
-        vfs.close(fh)
+        fio = vfs.open(self.path("baz"), "rb")
+        self.assertEqual(fio.read(0), b"")
+        fio.close()
 
         # read from file that does not exist
         with self.assertRaises(tiledb.TileDBError):
@@ -3685,6 +3697,21 @@ class TestVFS(DiskTestCase):
                 f.write(data)
 
         self.assertEqual(vfs.dir_size(path), sum(rand_sizes))
+
+    def test_open_with(self):
+        uri = self.path("test_open_with")
+        vfs = tiledb.VFS()
+        buffer = b"0123456789"
+
+        with vfs.open(uri, mode="wb") as fio:
+            fio.write(buffer)
+            fio.flush()
+            self.assertEqual(fio.tell(), len(buffer))
+
+        with vfs.open(uri, mode="rb") as fio:
+            with self.assertRaises(IOError):
+                fio.write(b"foo")
+            self.assertEqual(fio.read(len(buffer)), buffer)
 
 
 class ConsolidationTest(DiskTestCase):
