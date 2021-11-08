@@ -120,6 +120,37 @@ def array_fragments(uri, ctx=None):
     return tiledb.FragmentInfoList(uri, ctx)
 
 
+def delete_fragments(uri, timestamp_range, ctx=None, verbose=False, dry_run=False):
+    """
+    Delete fragments from an array located at uri that fall within a given
+    timestamp_range.
+
+    :param str uri: URI for the TileDB array (any supported TileDB URI)
+    :param (int, int) timestamp: (default None) If not None, vacuum the array
+        using the given range (inclusive)
+    :param ctx: (optional) TileDB Ctx
+    :param verbose: (optional) Print fragments being deleted (default: False)
+    :param dry_run: (optional) Preview fragments to be deleted without
+        running (default: False)
+    :return: FragmentsInfo object
+    """
+
+    if verbose or dry_run:
+        print("Deleting fragments...")
+
+    for frag in tiledb.array_fragments(uri):
+        if (
+            timestamp_range[0] <= frag.timestamp_range[0]
+            and frag.timestamp_range[1] <= timestamp_range[1]
+        ):
+            if verbose or dry_run:
+                print(frag.uri)
+
+            if not dry_run:
+                tiledb.VFS().remove_file(f"{frag.uri}.ok")
+                tiledb.VFS().remove_dir(frag.uri)
+
+
 def _get_ctx(ctx=None, config=None):
     if ctx:
         if config:
