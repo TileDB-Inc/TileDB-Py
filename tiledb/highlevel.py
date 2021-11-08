@@ -135,6 +135,11 @@ def delete_fragments(uri, timestamp_range, ctx=None, verbose=False, dry_run=Fals
     :return: FragmentsInfo object
     """
 
+    if not isinstance(timestamp_range, tuple) and len(timestamp_range) != 2:
+        raise TypeError(
+            "'timestamp_range' argument expects tuple(start: int, end: int)"
+        )
+
     if verbose or dry_run:
         print("Deleting fragments...")
 
