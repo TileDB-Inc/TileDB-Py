@@ -124,7 +124,7 @@ def delete_fragments(
     uri, timestamp_range, config=None, ctx=None, verbose=False, dry_run=False
 ):
     """
-    Delete fragments from an array located at uri that fall within a given
+    Delete fragments from an array located at uri that falls within a given
     timestamp_range.
 
     :param str uri: URI for the TileDB array (any supported TileDB URI)
