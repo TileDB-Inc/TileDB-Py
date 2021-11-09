@@ -128,8 +128,7 @@ def delete_fragments(
     timestamp_range.
 
     :param str uri: URI for the TileDB array (any supported TileDB URI)
-    :param config: Override the context configuration. Defaults to None,
-        inheriting the context parameters.
+    :param config: Override the context configuration. Defaults to ctx.config()
     :param (int, int) timestamp: (default None) If not None, vacuum the array
         using the given range (inclusive)
     :param ctx: (optional) TileDB Ctx
@@ -151,7 +150,7 @@ def delete_fragments(
         ctx = tiledb.default_ctx()
 
     if config is None:
-        config = tiledb.Config()
+        config = tiledb.Config(ctx.config())
 
     vfs = tiledb.VFS(config=config, ctx=ctx)
 
