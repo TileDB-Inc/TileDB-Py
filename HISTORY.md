@@ -1,3 +1,8 @@
+# TileDB-Py 0.10.5 Release Notes
+
+## API Changes
+* Addition of `tiledb.delete_fragments` to remove fragments within a given timestamp range [#774](https://github.com/TileDB-Inc/TileDB-Py/pull/774)
+
 # TileDB-Py 0.10.4 Release Notes
 
 ## TileDB Embedded updates:

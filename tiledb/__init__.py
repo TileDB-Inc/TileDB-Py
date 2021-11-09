@@ -79,7 +79,15 @@ from .array import DenseArray, SparseArray
 
 from .fragment import FragmentInfoList, FragmentInfo, FragmentsInfo
 
-from .highlevel import open, save, from_numpy, empty_like, array_exists, array_fragments
+from .highlevel import (
+    open,
+    save,
+    from_numpy,
+    empty_like,
+    array_exists,
+    array_fragments,
+    delete_fragments,
+)
 
 from .query_condition import QueryCondition
 
