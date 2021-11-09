@@ -148,10 +148,10 @@ def delete_fragments(
         print("Deleting fragments...")
 
     if not ctx:
-        ctx = default_ctx()
+        ctx = tiledb.default_ctx()
 
     if config is None:
-        config = Config()
+        config = tiledb.Config()
 
     vfs = tiledb.VFS(config=config, ctx=ctx)
 
