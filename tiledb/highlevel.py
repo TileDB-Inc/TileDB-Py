@@ -129,8 +129,8 @@ def delete_fragments(
 
     :param str uri: URI for the TileDB array (any supported TileDB URI)
     :param config: Override the context configuration. Defaults to ctx.config()
-    :param (int, int) timestamp: (default None) If not None, vacuum the array
-        using the given range (inclusive)
+    :param (int, int) timestamp_range: (default None) If not None, vacuum the
+        array using the given range (inclusive)
     :param ctx: (optional) TileDB Ctx
     :param verbose: (optional) Print fragments being deleted (default: False)
     :param dry_run: (optional) Preview fragments to be deleted without

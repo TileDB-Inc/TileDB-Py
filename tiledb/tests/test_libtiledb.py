@@ -3940,14 +3940,18 @@ class TestHighlevel(DiskTestCase):
 
         path = self.path("test_delete_fragments")
 
+        ts = tuple((t, t) for t in range(1, 11))
+
         create_array(path, dshape)
         write_fragments(path, dshape, num_writes)
         frags = tiledb.FragmentInfoList(path)
         assert len(frags) == 10
+        assert frags.timestamp_range == ts
 
         tiledb.delete_fragments(path, (3, 6))
         frags = tiledb.FragmentInfoList(path)
         assert len(frags) == 6
+        assert frags.timestamp_range == ts[:2] + ts[6:]
 
 
 # Wrapper to execute specific code in subprocess so that we can ensure the thread count
