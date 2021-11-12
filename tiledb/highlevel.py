@@ -245,7 +245,7 @@ def create_array_from_fragments(
             continue
 
         schema_name = fragment_info.array_schema_name[0]
-        is_new_style_schema = not schema_name.endswith(".tdb")
+        is_new_style_schema = schema_name != "__array_schema.tdb"
         if is_new_style_schema:
             schema_name = os.path.join("__schema", schema_name)
         src_schema = os.path.join(src_uri, schema_name)
