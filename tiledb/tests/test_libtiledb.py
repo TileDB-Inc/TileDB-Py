@@ -3953,6 +3953,38 @@ class TestHighlevel(DiskTestCase):
         assert len(frags) == 6
         assert frags.timestamp_range == ts[:2] + ts[6:]
 
+    def test_create_array_from_fragments(self):
+        dshape = (1, 3)
+        num_writes = 10
+
+        def create_array(target_path, dshape):
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path, dshape, num_writes):
+            for i in range(1, num_writes + 1):
+                with tiledb.open(target_path, "w", timestamp=i) as A:
+                    A[[1, 2, 3]] = np.random.rand(dshape[1])
+
+        src_path = self.path("test_create_array_from_fragments_src")
+        dst_path = self.path("test_create_array_from_fragments_dst")
+
+        ts = tuple((t, t) for t in range(1, 11))
+
+        create_array(src_path, dshape)
+        write_fragments(src_path, dshape, num_writes)
+        frags = tiledb.FragmentInfoList(src_path)
+        assert len(frags) == 10
+        assert frags.timestamp_range == ts
+
+        tiledb.create_array_from_fragments(src_path, dst_path, (3, 6))
+
+        frags = tiledb.FragmentInfoList(dst_path)
+        assert len(frags) == 4
+        assert frags.timestamp_range == ts[2:6]
+
 
 # Wrapper to execute specific code in subprocess so that we can ensure the thread count
 # init is correct. Necessary because multiprocess.get_context is only available in Python 3.4+,

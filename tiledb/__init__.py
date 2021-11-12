@@ -87,6 +87,7 @@ from .highlevel import (
     array_exists,
     array_fragments,
     delete_fragments,
+    create_array_from_fragments 
 )
 
 from .query_condition import QueryCondition
