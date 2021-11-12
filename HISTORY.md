@@ -5,6 +5,8 @@
 
 ## API Changes
 * Addition of MBRs to `FragmentInfo` API [#760](https://github.com/TileDB-Inc/TileDB-Py/pull/760)
+* Addition of `array_schema_name` to `FragmentInfo` API [#777](https://github.com/TileDB-Inc/TileDB-Py/pull/777)
+* Addition of `tiledb.create_array_from_fragments` to copy fragments within a given timestamp range to a new array [#777](https://github.com/TileDB-Inc/TileDB-Py/pull/777)
 
 # TileDB-Py 0.10.5 Release Notes
 
