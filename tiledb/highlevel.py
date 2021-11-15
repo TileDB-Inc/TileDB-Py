@@ -203,6 +203,9 @@ def create_array_from_fragments(
     :param dry_run: (optional) Preview fragments to be copied without
         running (default: False)
     """
+    if array_exists(dst_uri):
+        raise tiledb.TileDBError(f"Array URI `{dst_uri}` already exists")
+
     if not isinstance(timestamp_range, tuple) and len(timestamp_range) != 2:
         raise TypeError(
             "'timestamp_range' argument expects tuple(start: int, end: int)"
@@ -244,7 +247,7 @@ def create_array_from_fragments(
         ):
             continue
 
-        schema_name = fragment_info.array_schema_name[0]
+        schema_name = frag.array_schema_name
         is_new_style_schema = schema_name != "__array_schema.tdb"
         if is_new_style_schema:
             schema_name = os.path.join("__schema", schema_name)
