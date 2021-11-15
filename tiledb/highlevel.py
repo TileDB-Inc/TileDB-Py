@@ -1,6 +1,9 @@
 import tiledb
 
 import numpy as np
+import os
+
+from tiledb import fragment
 
 
 def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=None):
@@ -138,23 +141,19 @@ def delete_fragments(
     timestamp_range.
 
     :param str uri: URI for the TileDB array (any supported TileDB URI)
-    :param config: Override the context configuration. Defaults to ctx.config()
     :param (int, int) timestamp_range: (default None) If not None, vacuum the
         array using the given range (inclusive)
+    :param config: Override the context configuration. Defaults to ctx.config()
     :param ctx: (optional) TileDB Ctx
     :param verbose: (optional) Print fragments being deleted (default: False)
     :param dry_run: (optional) Preview fragments to be deleted without
         running (default: False)
-    :return: FragmentsInfo object
     """
 
     if not isinstance(timestamp_range, tuple) and len(timestamp_range) != 2:
         raise TypeError(
             "'timestamp_range' argument expects tuple(start: int, end: int)"
         )
-
-    if verbose or dry_run:
-        print("Deleting fragments...")
 
     if not ctx:
         ctx = tiledb.default_ctx()
@@ -164,17 +163,127 @@ def delete_fragments(
 
     vfs = tiledb.VFS(config=config, ctx=ctx)
 
+    if verbose or dry_run:
+        print("Deleting fragments:")
+
     for frag in tiledb.array_fragments(uri):
         if (
             timestamp_range[0] <= frag.timestamp_range[0]
             and frag.timestamp_range[1] <= timestamp_range[1]
         ):
             if verbose or dry_run:
-                print(frag.uri)
+                print(f"\t{frag.uri}")
 
             if not dry_run:
                 vfs.remove_file(f"{frag.uri}.ok")
                 vfs.remove_dir(frag.uri)
+
+
+def create_array_from_fragments(
+    src_uri,
+    dst_uri,
+    timestamp_range,
+    config=None,
+    ctx=None,
+    verbose=False,
+    dry_run=False,
+):
+    """
+    (POSIX only). Create a new array from an already existing array by selecting
+    fragments that fall withing a given timestamp_range. The original array is located
+    at src_uri and the new array is created at dst_uri.
+
+    :param str src_uri: URI for the source TileDB array (any supported TileDB URI)
+    :param str dst_uri: URI for the newly created TileDB array (any supported TileDB URI)
+    :param (int, int) timestamp_range: (default None) If not None, vacuum the
+        array using the given range (inclusive)
+    :param config: Override the context configuration. Defaults to ctx.config()
+    :param ctx: (optional) TileDB Ctx
+    :param verbose: (optional) Print fragments being copied (default: False)
+    :param dry_run: (optional) Preview fragments to be copied without
+        running (default: False)
+    """
+    if array_exists(dst_uri):
+        raise tiledb.TileDBError(f"Array URI `{dst_uri}` already exists")
+
+    if not isinstance(timestamp_range, tuple) and len(timestamp_range) != 2:
+        raise TypeError(
+            "'timestamp_range' argument expects tuple(start: int, end: int)"
+        )
+
+    if not ctx:
+        ctx = tiledb.default_ctx()
+
+    if config is None:
+        config = tiledb.Config(ctx.config())
+
+    vfs = tiledb.VFS(config=config, ctx=ctx)
+
+    fragment_info = tiledb.array_fragments(src_uri)
+
+    if len(fragment_info) < 1:
+        print("Cannot create new array; no fragments to copy")
+        return
+
+    if verbose or dry_run:
+        print(f"Creating directory for array at {dst_uri}\n")
+
+    if not dry_run:
+        vfs.create_dir(dst_uri)
+
+    src_lock = os.path.join(src_uri, "__lock.tdb")
+    dst_lock = os.path.join(dst_uri, "__lock.tdb")
+
+    if verbose or dry_run:
+        print(f"Copying lock file {dst_uri}\n")
+
+    if not dry_run:
+        vfs.copy_file(f"{src_lock}", f"{dst_lock}")
+
+    list_new_style_schema = [ver >= 10 for ver in fragment_info.version]
+    is_mixed_versions = len(set(list_new_style_schema)) > 1
+    if is_mixed_versions:
+        raise tiledb.TileDBError(
+            "Cannot copy fragments - this array contains a mix of old and "
+            "new style schemas"
+        )
+    is_new_style_schema = list_new_style_schema[0]
+
+    for frag in fragment_info:
+        if not (
+            timestamp_range[0] <= frag.timestamp_range[0]
+            and frag.timestamp_range[1] <= timestamp_range[1]
+        ):
+            continue
+
+        schema_name = frag.array_schema_name
+        if is_new_style_schema:
+            schema_name = os.path.join("__schema", schema_name)
+        src_schema = os.path.join(src_uri, schema_name)
+        dst_schema = os.path.join(dst_uri, schema_name)
+
+        if verbose or dry_run:
+            print(f"Copying schema `{src_schema}` to `{dst_schema}`\n")
+
+        if not dry_run:
+            if is_new_style_schema:
+                new_style_schema_uri = os.path.join(dst_uri, "__schema")
+                if not vfs.is_dir(new_style_schema_uri):
+                    vfs.create_dir(new_style_schema_uri)
+
+            if not vfs.is_file(dst_schema):
+                vfs.copy_file(src_schema, dst_schema)
+
+        frag_name = os.path.basename(frag.uri)
+        src_frag = frag.uri
+        dst_frag = os.path.join(dst_uri, frag_name)
+
+        if verbose or dry_run:
+            print(f"Copying fragment `{src_frag}` to `{dst_frag}`\n")
+
+        if not dry_run:
+            vfs.copy_file(f"{src_frag}.ok", f"{dst_frag}.ok")
+            vfs.copy_dir(src_frag, dst_frag)
 
 
 def _get_ctx(ctx=None, config=None):

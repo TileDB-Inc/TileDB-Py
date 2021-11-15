@@ -30,7 +30,8 @@ class FragmentInfoList:
     :ivar has_consolidated_metadata: For each fragment, True if fragment has consolidated fragment metadata, else False
     :ivar unconsolidated_metadata_num: Number of unconsolidated metadata fragments in each fragment
     :ivar to_vacuum: URIs of already consolidated fragments to vacuum
-    :ivar mbrs: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
+    :ivar mbrs: (TileDB Embedded 2.5.0+ only) The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
+    :ivar array_schema_name: (TileDB Embedded 2.5.0+ only) The array schema's name
 
     **Example:**
 
@@ -124,6 +125,9 @@ class FragmentInfoList:
                     "please install libtiledb 2.5.0+",
                     UserWarning,
                 )
+
+        if tiledb.libtiledb.version() <= (2, 5, 0):
+            self.array_schema_name = fi.get_array_schema_name()
 
     @property
     def non_empty_domain(self):
@@ -225,7 +229,8 @@ class FragmentInfo:
     :ivar has_consolidated_metadata: For each fragment, True if fragment has consolidated fragment metadata, else False
     :ivar unconsolidated_metadata_num: Number of unconsolidated metadata fragments in each fragment
     :ivar to_vacuum: URIs of already consolidated fragments to vacuum
-    :ivar mbrs: The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
+    :ivar mbrs: (TileDB Embedded 2.5.0+ only) The mimimum bounding rectangle of each fragment; only present when `include_mbrs=True`
+    :ivar array_schema_name: (TileDB Embedded 2.5.0+ only) The array schema's name
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
@@ -239,9 +244,13 @@ class FragmentInfo:
         self.sparse = fragments.sparse[num]
         self.has_consolidated_metadata = fragments.has_consolidated_metadata[num]
         self.unconsolidated_metadata_num = fragments.unconsolidated_metadata_num
+        self.array_schema_name = fragments.array_schema_name[num]
 
         if hasattr(fragments, "mbrs"):
             self.mbrs = fragments.mbrs[num]
+
+        if hasattr(fragments, "array_schema_name"):
+            self.array_schema_name = fragments.array_schema_name[num]
 
     def __repr__(self):
         return pprint.PrettyPrinter().pformat(self.__dict__)

@@ -44,6 +44,7 @@ private:
   py::tuple has_consolidated_metadata_;
   py::tuple to_vacuum_;
   py::tuple mbrs_;
+  py::tuple array_schema_name_;
 
 public:
   tiledb_ctx_t *c_ctx_;
@@ -76,6 +77,7 @@ public:
     unconsolidated_metadata_num_ = unconsolidated_metadata_num();
     has_consolidated_metadata_ = fill_has_consolidated_metadata();
     to_vacuum_ = fill_to_vacuum_uri();
+    array_schema_name_ = fill_array_schema_name();
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 5
     if (include_mbrs)
@@ -100,6 +102,7 @@ public:
   };
   py::tuple get_to_vacuum() { return to_vacuum_; };
   py::tuple get_mbrs() { return mbrs_; };
+  py::tuple get_array_schema_name() { return array_schema_name_; };
 
   void dump() const { return fi_->dump(stdout); }
 
@@ -284,6 +287,11 @@ private:
     fi_->get_mbr(fid, mid, did, buffer.ptr);
     return std::move(limits);
   }
+
+  py::tuple fill_array_schema_name() const {
+    return for_all_fid(&FragmentInfo::array_schema_name);
+  }
+
 #endif
 };
 
@@ -304,6 +312,7 @@ void init_fragment(py::module &m) {
       .def("get_to_vacuum", &PyFragmentInfo::get_to_vacuum)
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 5
       .def("get_mbrs", &PyFragmentInfo::get_mbrs)
+      .def("get_array_schema_name", &PyFragmentInfo::get_array_schema_name)
 #endif
       .def("dump", &PyFragmentInfo::dump);
 }
