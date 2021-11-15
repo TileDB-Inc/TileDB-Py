@@ -244,7 +244,8 @@ def create_array_from_fragments(
     is_mixed_versions = len(set(list_new_style_schema)) > 1
     if is_mixed_versions:
         raise tiledb.TileDBError(
-            "This array contains a mix of old and new style schemas"
+            "Cannot copy fragments - this array contains a mix of old and "
+            "new style schemas"
         )
     is_new_style_schema = list_new_style_schema[0]
 
