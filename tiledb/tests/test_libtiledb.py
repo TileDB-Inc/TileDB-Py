@@ -3955,7 +3955,7 @@ class TestHighlevel(DiskTestCase):
 
     def test_create_array_from_fragments(self):
         dshape = (1, 3)
-        num_writes = 10
+        num_frags = 10
 
         def create_array(target_path, dshape):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
@@ -3963,8 +3963,8 @@ class TestHighlevel(DiskTestCase):
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
             tiledb.libtiledb.Array.create(target_path, schema)
 
-        def write_fragments(target_path, dshape, num_writes):
-            for i in range(1, num_writes + 1):
+        def write_fragments(target_path, dshape, num_frags):
+            for i in range(1, num_frags + 1):
                 with tiledb.open(target_path, "w", timestamp=i) as A:
                     A[[1, 2, 3]] = np.random.rand(dshape[1])
 
@@ -3974,7 +3974,7 @@ class TestHighlevel(DiskTestCase):
         ts = tuple((t, t) for t in range(1, 11))
 
         create_array(src_path, dshape)
-        write_fragments(src_path, dshape, num_writes)
+        write_fragments(src_path, dshape, num_frags)
         frags = tiledb.FragmentInfoList(src_path)
         assert len(frags) == 10
         assert frags.timestamp_range == ts
@@ -3984,6 +3984,22 @@ class TestHighlevel(DiskTestCase):
         frags = tiledb.FragmentInfoList(dst_path)
         assert len(frags) == 4
         assert frags.timestamp_range == ts[2:6]
+
+    def test_create_array_from_evolved_fragments(self):
+        dshape = (1, 3)
+        num_frags = 10
+        
+        src_path = self.path("test_create_array_from_evolved_fragments_src")
+        dst_path = self.path("test_create_array_from_evolved_fragments_dst")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+        att = tiledb.Attr(dtype="int64")
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        tiledb.libtiledb.Array.create(src_path, schema)
+
+        for i in range(1, num_frags + 1):
+            with tiledb.open(src_path, "w", timestamp=i) as A:
+                A[[1, 2, 3]] = np.random.rand(dshape[1])
 
 
 # Wrapper to execute specific code in subprocess so that we can ensure the thread count

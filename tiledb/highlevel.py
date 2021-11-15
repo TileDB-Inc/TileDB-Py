@@ -256,8 +256,12 @@ def create_array_from_fragments(
 
         if not dry_run:
             if is_new_style_schema:
-                vfs.create_dir(os.path.join(dst_uri, "__schema"))
-            vfs.copy_file(src_schema, dst_schema)
+                new_style_schema_uri = os.path.join(dst_uri, "__schema")
+                if not vfs.is_dir(new_style_schema_uri):
+                    vfs.create_dir(new_style_schema_uri)
+
+            if not vfs.is_file(dst_schema):
+                vfs.copy_file(src_schema, dst_schema)
 
         frag_name = os.path.basename(frag.uri)
         src_frag = frag.uri
