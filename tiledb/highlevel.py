@@ -240,6 +240,14 @@ def create_array_from_fragments(
     if not dry_run:
         vfs.copy_file(f"{src_lock}", f"{dst_lock}")
 
+    list_new_style_schema = [ver >= 10 for ver in fragment_info.version]
+    is_mixed_versions = len(set(list_new_style_schema)) > 1
+    if is_mixed_versions:
+        raise tiledb.TileDBError(
+            "This array contains a mix of old and new style schemas"
+        )
+    is_new_style_schema = list_new_style_schema[0]
+
     for frag in fragment_info:
         if not (
             timestamp_range[0] <= frag.timestamp_range[0]
@@ -248,7 +256,6 @@ def create_array_from_fragments(
             continue
 
         schema_name = frag.array_schema_name
-        is_new_style_schema = schema_name != "__array_schema.tdb"
         if is_new_style_schema:
             schema_name = os.path.join("__schema", schema_name)
         src_schema = os.path.join(src_uri, schema_name)
