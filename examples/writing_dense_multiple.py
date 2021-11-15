@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/writing-arrays/writing-in-dense-subarrays
+#   https://docs.tiledb.com/main/how-to/arrays/writing-arrays/writing-in-dense-subarrays
 #
 # When run, this program will create a simple 2D dense array, write some data
 # to it with two write queries, and read the entire array data back.

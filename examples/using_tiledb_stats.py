@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/using-performance-statistics
+#   https://docs.tiledb.com/main/how-to/performance/using-performance-statistics
 #
 # When run, this program will create a 0.5GB dense array, and enable the
 # TileDB statistics surrounding reads from the array.

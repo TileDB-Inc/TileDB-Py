@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/reading-arrays/basic-reading
+#   https://docs.tiledb.com/main/how-to/arrays/reading-arrays/basic-reading
 #
 # When run, this program will create a simple 2D dense array, write some data
 # to it, and read a slice of the data back in the layout of the user's choice

@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#    https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/writing-arrays/var-length-attributes
+#    https://docs.tiledb.com/main/how-to/arrays/writing-arrays/var-length-attributes
 #
 # This program shows how to set/get the TileDB configuration parameters.
 #

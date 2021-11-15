@@ -26,9 +26,8 @@
 #
 # DESCRIPTION
 #
-# Please refer to the TileDB and TileDB-Py documentation for more information:
-#  https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/python-api.html
-#  https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/creating-arrays/creating-dimensions
+# Please see the TileDB documentation for more information:
+#  https://docs.tiledb.com/main/how-to/arrays/creating-arrays/creating-dimensions
 #
 # When run, this program will create a simple 2D dense array, write some data
 # to it, and read a slice of the data back.

@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#  https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/virtual-filesystem
+#  https://docs.tiledb.com/main/how-to/virtual-filesystem
 #
 # This program explores the various TileDB VFS tools.
 #
