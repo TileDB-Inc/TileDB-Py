@@ -189,9 +189,9 @@ def create_array_from_fragments(
     dry_run=False,
 ):
     """
-    Create a new array from an already existing array by selecting fragments that
-    fall withing a given timestamp_range. The original array is located at src_uri
-    and the new array will be created at dst_uri.
+    (POSIX only). Create a new array from an already existing array by selecting
+    fragments that fall withing a given timestamp_range. The original array is located
+    at src_uri and the new array is created at dst_uri.
 
     :param str src_uri: URI for the source TileDB array (any supported TileDB URI)
     :param str dst_uri: URI for the newly created TileDB array (any supported TileDB URI)

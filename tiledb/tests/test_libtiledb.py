@@ -3953,6 +3953,9 @@ class TestHighlevel(DiskTestCase):
         assert len(frags) == 6
         assert frags.timestamp_range == ts[:2] + ts[6:]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="VFS.copy() does not run on windows"
+    )
     def test_create_array_from_fragments(self):
         dshape = (1, 3)
         num_frags = 10
