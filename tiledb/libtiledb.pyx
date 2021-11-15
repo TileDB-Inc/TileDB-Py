@@ -687,7 +687,7 @@ cdef class Config(object):
 
     For TileDB Embedded parameters, see:
 
-        https://docs.tiledb.com/main/solutions/tiledb-embedded/configuration-parameters
+        https://docs.tiledb.com/main/how-to/configuration#configuration-parameters
 
     The following configuration options are supported by TileDB-Py:
 
@@ -4382,7 +4382,7 @@ cdef class Array(object):
         """
         Consolidates fragments of an array object for increased read performance.
 
-        Overview: https://docs.tiledb.com/main/solutions/tiledb-embedded/internal-mechanics/consolidation
+        Overview: https://docs.tiledb.com/main/concepts/internal-mechanics/consolidation
 
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
         :param key: (default None) encryption key to decrypt an encrypted array

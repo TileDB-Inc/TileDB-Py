@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#    https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/consolidation-and-vacuuming
+#    https://docs.tiledb.com/main/how-to/arrays/writing-arrays/consolidation-and-vacuuming
 #
 # When run, this program will create a simple 2D dense array, write some data
 # with three queries (creating three fragments), optionally consolidate

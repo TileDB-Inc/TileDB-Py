@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/object-management
+#   https://docs.tiledb.com/main/how-to/object-management
 #
 # This program creates a hierarchy as shown below. Specifically, it creates
 # groups `dense_arrays` and `sparse_arrays` in a group `my_group`, and

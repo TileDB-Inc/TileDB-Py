@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please refer to the TileDB and TileDB-Py documentation for more information:
-#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage
+#   https://docs.tiledb.com/main/how-to
 #   https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/python-api.html
 #
 # When run, this program will create a simple 2D sparse array, write some data

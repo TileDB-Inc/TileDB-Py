@@ -26,9 +26,8 @@
 #
 # DESCRIPTION
 #
-# Please refer to the TileDB and TileDB-Py documentation for more information:
-#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage
-#   https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/python-api.html
+# Please see the TileDB documentation for more information:
+#   https://docs.tiledb.com/main/how-to/arrays/reading-arrays/incomplete-queries
 #
 # When run, this program will create a 1D dense array, write some data
 # to it, and read slices back by iteration over incomplete queries.

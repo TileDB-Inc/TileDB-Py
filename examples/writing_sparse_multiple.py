@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#   https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/writing-arrays/writing-sparse-cells
+#   https://docs.tiledb.com/main/how-to/arrays/writing-arrays/writing-sparse-cells
 #
 # When run, this program will create a simple 2D sparse array, write some data
 # to it twice, and read all the data back.

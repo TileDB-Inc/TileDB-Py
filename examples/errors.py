@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#    https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/catching-errors
+#    https://docs.tiledb.com/main/how-to/catching-errors
 #
 # This example shows how to catch errors in TileDB.
 #

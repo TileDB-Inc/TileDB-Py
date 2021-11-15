@@ -27,7 +27,7 @@
 # DESCRIPTION
 #
 # Please see the TileDB documentation for more information:
-#    https://docs.tiledb.com/main/solutions/tiledb-embedded/api-usage/configuration
+#    https://docs.tiledb.com/main/how-to/configuration
 #
 # This program shows how to set/get the TileDB configuration parameters.
 #
