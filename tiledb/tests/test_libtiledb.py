@@ -3985,22 +3985,6 @@ class TestHighlevel(DiskTestCase):
         assert len(frags) == 4
         assert frags.timestamp_range == ts[2:6]
 
-    def test_create_array_from_evolved_fragments(self):
-        dshape = (1, 3)
-        num_frags = 10
-        
-        src_path = self.path("test_create_array_from_evolved_fragments_src")
-        dst_path = self.path("test_create_array_from_evolved_fragments_dst")
-
-        dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
-        att = tiledb.Attr(dtype="int64")
-        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-        tiledb.libtiledb.Array.create(src_path, schema)
-
-        for i in range(1, num_frags + 1):
-            with tiledb.open(src_path, "w", timestamp=i) as A:
-                A[[1, 2, 3]] = np.random.rand(dshape[1])
-
 
 # Wrapper to execute specific code in subprocess so that we can ensure the thread count
 # init is correct. Necessary because multiprocess.get_context is only available in Python 3.4+,
