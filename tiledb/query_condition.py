@@ -53,7 +53,7 @@ class QueryCondition(ast.NodeVisitor):
         # select cells where the attribute values for foo are less than 5
         # and bar equal to string asdf.
         qc = QueryCondition("foo > 5 and 'asdf' == bar")
-        A.query(attrs_filter=qc)
+        A.query(attr_cond=qc)
     """
 
     def __init__(self, expression="", ctx=None):
