@@ -5,10 +5,10 @@ stages:
       TILEDBPY_VERSION: dev
       LIBTILEDB_VERSION: dev
       LIBTILEDB_SHA: dev
-    ${{ else }}: 
+    ${{ else }}:
       TILEDBPY_VERSION: 0.11.0
-      LIBTILEDB_VERSION: 2.5.0
-      LIBTILEDB_SHA: d11292dbdb06605ebede973b59978510fe205798
+      LIBTILEDB_VERSION: 2.6.0
+      LIBTILEDB_SHA: 875fc97ce706a46ef642ebcf3ee4a7f345246cbd
     LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
@@ -180,10 +180,10 @@ stages:
         echo "TILEDB_INSTALL -----------------------------------------"
         find $TILEDB_INSTALL || true
       displayName: "List all the files"
-      condition: always() 
-  
+      condition: always()
+
   - job: trigger_fail_build
-    dependsOn: [build2_python] 
+    dependsOn: [build2_python]
     condition: failed()
     pool: server
     steps:
@@ -198,7 +198,7 @@ stages:
           }
         urlSuffix: 'repos/TileDB-Inc/TileDB-Py/dispatches'
         waitForCompletion: 'false'
-    
+
   - job: trigger_success_build
     dependsOn: [build2_python]
     condition: succeeded()
@@ -216,4 +216,3 @@ stages:
           }
         urlSuffix: 'repos/TileDB-Inc/TileDB-Py/dispatches'
         waitForCompletion: 'false'
-      
