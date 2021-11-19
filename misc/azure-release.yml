@@ -21,10 +21,10 @@ stages:
   - job: build1_libtiledb
     strategy:
       matrix:
-          macOS_libtiledb:
-            imageName: 'macOS-10.14'
-          windows_libtiledb:
-            imageName: 'windows-latest'
+          #macOS_libtiledb:
+          #  imageName: 'macOS-10.14'
+          #windows_libtiledb:
+          #  imageName: 'windows-latest'
     pool:
       vmImage: $(imageName)
 
@@ -54,14 +54,14 @@ stages:
           imageName: 'ubuntu-latest'
           CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*'
           CIBW_BUILD_VERBOSITY: 3
-        macOS_py:
-          imageName: 'macOS-10.14'
-          CIBW_SKIP: 'cp27-* cp35-* pp*'
-          CIBW_BUILD_VERBOSITY: 3
-        windows_py:
-          imageName: 'windows-latest'
-          CIBW_SKIP: 'cp27-* cp35-* cp36-* *-win32 pp*'
-          CIBW_BUILD_VERBOSITY: 3
+        #macOS_py:
+        #  imageName: 'macOS-10.14'
+        #  CIBW_SKIP: 'cp27-* cp35-* pp*'
+        #  CIBW_BUILD_VERBOSITY: 3
+        #windows_py:
+        #  imageName: 'windows-latest'
+        #  CIBW_SKIP: 'cp27-* cp35-* cp36-* *-win32 pp*'
+        #  CIBW_BUILD_VERBOSITY: 3
     pool:
       vmImage: $(imageName)
 
