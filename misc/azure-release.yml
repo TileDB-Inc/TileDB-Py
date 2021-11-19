@@ -21,10 +21,10 @@ stages:
   - job: build1_libtiledb
     strategy:
       matrix:
-          #macOS_libtiledb:
-          #  imageName: 'macOS-10.14'
-          #windows_libtiledb:
-          #  imageName: 'windows-latest'
+          macOS_libtiledb:
+            imageName: 'macOS-10.14'
+          windows_libtiledb:
+            imageName: 'windows-latest'
     pool:
       vmImage: $(imageName)
 
