@@ -117,7 +117,7 @@ class FragmentInfoList:
         self.to_vacuum = fi.get_to_vacuum()
 
         if include_mbrs:
-            if tiledb.libtiledb.version() <= (2, 5, 0):
+            if tiledb.libtiledb.version() >= (2, 5, 0):
                 self.mbrs = fi.get_mbrs()
             else:
                 warnings.warn(
@@ -126,7 +126,7 @@ class FragmentInfoList:
                     UserWarning,
                 )
 
-        if tiledb.libtiledb.version() <= (2, 5, 0):
+        if tiledb.libtiledb.version() >= (2, 5, 0):
             self.array_schema_name = fi.get_array_schema_name()
 
     @property
