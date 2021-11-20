@@ -1,5 +1,6 @@
-# note: cmake 3.13 is the last manylinux1 release on pypi
-cmake >= 3.13
+# note: cmake 3.13 is the last manylinux1 release on pypi and
+# the current version of the AWS sdk does not work with cmake 3.22
+cmake >= 3.13, < 3.22
 docutils < 0.18
 
 -r ../requirements_dev.txt
