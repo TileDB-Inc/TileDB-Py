@@ -21,8 +21,10 @@ export TILEDB_WHEEL_BUILD=1
 
 docker build -t $CIBW_MANYLINUX_AARCH64_IMAGE -f misc/pypi_linux/Dockerfile.aarch64.manylinux2014 .
 
-python3 -m venv cibuildwheel_venv
-. cibuildwheel_venv/bin/activate
+rm -rf /tmp/cibuildwheel_venv
+python3 -m venv /tmp/cibuildwheel_venv
+. /tmp/cibuildwheel_venv/bin/activate
+
 pip install cibuildwheel
 
 cibuildwheel --platform=linux --output-dir=wheelhouse .
