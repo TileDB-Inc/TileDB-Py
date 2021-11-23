@@ -5,7 +5,7 @@ stages:
       TILEDBPY_VERSION: dev
       LIBTILEDB_VERSION: dev
       LIBTILEDB_SHA: dev
-    ${{ else }}: 
+    ${{ else }}:
       TILEDBPY_VERSION: 0.11.1
       LIBTILEDB_VERSION: 2.5.1
       LIBTILEDB_SHA: 5b65a96cf1fd8d6f982e816ad133a326a7af1ef9
@@ -35,7 +35,7 @@ stages:
   - job: build1_libtiledb_on_linux
     pool:
       vmImage: 'ubuntu-latest'
-    container: quay.io/pypa/manylinux2010_x86_64:latest
+    container: quay.io/pypa/manylinux2010_x86_64:2021-11-07-28723f3
     variables:
       CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL10 -D__BIONIC__=1"
       CFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
@@ -180,10 +180,10 @@ stages:
         echo "TILEDB_INSTALL -----------------------------------------"
         find $TILEDB_INSTALL || true
       displayName: "List all the files"
-      condition: always() 
-  
+      condition: always()
+
   - job: trigger_fail_build
-    dependsOn: [build2_python] 
+    dependsOn: [build2_python]
     condition: failed()
     pool: server
     steps:
@@ -198,7 +198,7 @@ stages:
           }
         urlSuffix: 'repos/TileDB-Inc/TileDB-Py/dispatches'
         waitForCompletion: 'false'
-    
+
   - job: trigger_success_build
     dependsOn: [build2_python]
     condition: succeeded()
@@ -216,4 +216,3 @@ stages:
           }
         urlSuffix: 'repos/TileDB-Inc/TileDB-Py/dispatches'
         waitForCompletion: 'false'
-      
