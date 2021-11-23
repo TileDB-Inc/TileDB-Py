@@ -25,7 +25,7 @@ ENV HOME /home/tiledb
 
 # dependencies:
 # - cmake (need recent) and auditwheel from pip
-RUN  $PYTHON_BASE/pip install cmake==3.17.3 auditwheel
+RUN  $PYTHON_BASE/pip install cmake<3.22 auditwheel
 
 ENV CMAKE $PYTHON_BASE/cmake
 

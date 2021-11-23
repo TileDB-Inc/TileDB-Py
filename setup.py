@@ -470,17 +470,20 @@ class get_pybind_include(object):
 
 def cmake_available():
     """
-    Checks whether CMake command is available and >= version 3.3.
+    Checks whether CMake command is available and >= version 3.21
+      Note 11/23/2021: < 3.22 temporarily due to AWS SDK imcompatibility.
     :return:
     """
     CMAKE_MINIMUM_MAJOR = 3
-    CMAKE_MINIMUM_MINOR = 3
+    CMAKE_MINIMUM_MINOR = 21
+    CMAKE_MAXIMUM_MINOR = 22
     try:
         output = subprocess.check_output(["cmake", "--version"]).split()
         version = output[2].decode("utf-8").split(".")
         return (
             int(version[0]) >= CMAKE_MINIMUM_MAJOR
             and int(version[1]) >= CMAKE_MINIMUM_MINOR
+            and int(version[1]) < CMAKE_MAXIMUM_MINOR
         )
     except:
         return False
@@ -501,9 +504,11 @@ def setup_requires():
         req = parse_requirements("requirements_dev.txt")
         req = list(filter(lambda r: not r.startswith("-r"), req))
 
+    req_cmake = list(filter(lambda x: "cmake" in x, r))[0]
+
     # Add cmake requirement if libtiledb is not found and cmake is not available.
     if not libtiledb_exists(LIB_DIRS) and not cmake_available():
-        req.append("cmake>=3.11.0")
+        req.append(req_cmake)
 
     return req
 
