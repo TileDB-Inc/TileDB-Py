@@ -1,6 +1,6 @@
 import numpy as np
 import tiledb
-import concurrent
+import concurrent, concurrent.futures
 
 from tiledb.tests.common import DiskTestCase
 from numpy.testing import assert_array_equal
