@@ -101,6 +101,10 @@ from .parquet_ import from_parquet
 
 from .version import version as __version__
 
+from .version_ import VersionHelper
+
+version = VersionHelper()
+
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
 #       Therefore, 'tiledb/__init__.py' must *only* exist in this package.
 #       Furthermore, in sub-packages, the `find_packages` helper will not work at the
