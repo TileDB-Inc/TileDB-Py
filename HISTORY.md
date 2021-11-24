@@ -1,3 +1,8 @@
+# TileDB-Py 0.11.2 Release Notes
+
+## API Changes
+* `tiledb.VFS.open` returns `FileIO` object; no longer returns `FileHandle` [#802](https://github.com/TileDB-Inc/TileDB-Py/pull/802)
+
 # TileDB-Py 0.11.1 Release Notes
 
 ## TileDB Embedded updates:
