@@ -196,7 +196,7 @@ stages:
           {
           "event_type": "failed"
           }
-        urlSuffix: 'repos/TileDB-Inc/TileDB-Py/dispatches'
+        urlSuffix: 'repos/$(Build.Repository.Name)/dispatches'
         waitForCompletion: 'false'
 
   - job: trigger_success_build
@@ -214,5 +214,5 @@ stages:
           {
           "event_type": "succeeded"
           }
-        urlSuffix: 'repos/TileDB-Inc/TileDB-Py/dispatches'
+        urlSuffix: 'repos/$(Build.Repository.Name)/dispatches'
         waitForCompletion: 'false'
