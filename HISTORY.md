@@ -1,3 +1,7 @@
+# TileDB-Py 0.11.2 Release Notes
+## TileDB Embedded updates:
+* TileDB-Py 0.11.2 includes TileDB Embedded [TileDB 2.5.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.5.2)
+
 # TileDB-Py 0.11.1 Release Notes
 
 ## TileDB Embedded updates:
