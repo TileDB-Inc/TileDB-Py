@@ -3,7 +3,8 @@
 * TileDB-Py 0.11.2 includes TileDB Embedded [TileDB 2.5.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.5.2)
 
 # TileDB-Py 0.11.1 Release Notes
-
+## Bug fixes
+* Support dict parameter for 'config' argument to VFS constructor [#805](https://github.com/TileDB-Inc/TileDB-Py/pull/805)
 ## TileDB Embedded updates:
 * TileDB-Py 0.11.1 includes TileDB Embedded [TileDB 2.5.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.5.1)
 
