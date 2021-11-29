@@ -257,7 +257,7 @@ uint8_bool_to_uint8_bitmap(py::array_t<uint8_t> validity_array) {
 
 uint64_t count_zeros(py::array_t<uint8_t> a) {
   uint64_t count = 0;
-  for (ssize_t idx = 0; idx < a.size(); idx++)
+  for (Py_ssize_t idx = 0; idx < a.size(); idx++)
     count += (a.data()[idx] == 0) ? 1 : 0;
   return count;
 }
@@ -1000,13 +1000,13 @@ public:
       auto name = bp.first;
       auto &buf = bp.second;
 
-      ssize_t final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
-      ssize_t final_offsets_count = buf.offsets_read + arrow_offset_size;
-      ssize_t final_validity_count = buf.validity_vals_read;
+      Py_ssize_t final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
+      Py_ssize_t final_offsets_count = buf.offsets_read + arrow_offset_size;
+      Py_ssize_t final_validity_count = buf.validity_vals_read;
 
       assert(final_data_nbytes <= buf.data.size());
       assert(final_offsets_count <=
-             (ssize_t)(buf.offsets.size() + arrow_offset_size));
+             (Py_ssize_t)(buf.offsets.size() + arrow_offset_size));
 
       buf.data.resize({final_data_nbytes});
       buf.offsets.resize({final_offsets_count});
