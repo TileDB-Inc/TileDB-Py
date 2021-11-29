@@ -3450,6 +3450,13 @@ class TestVFS(DiskTestCase):
         with self.assertRaises(ValueError):
             vfs.supports("invalid")
 
+    def test_vfs_config(self):
+        opt = {"region": "us-west-x1234"}
+        params = [opt, tiledb.Config(opt)]
+        for param in params:
+            vfs = tiledb.VFS(param)
+            assert vfs.config()["region"] == opt["region"]
+
     def test_dir(self):
         vfs = tiledb.VFS()
 
