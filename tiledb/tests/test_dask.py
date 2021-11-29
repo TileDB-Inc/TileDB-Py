@@ -45,6 +45,7 @@ class TestDaskSupport(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
+    @pytest.mark.filterwarnings("ignore:There is no current event loop")
     def test_dask_multiattr_2d(self):
         uri = self.path("multiattr")
 
