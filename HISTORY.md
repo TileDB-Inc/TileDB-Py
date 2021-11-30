@@ -3,6 +3,9 @@
 ## Impovements
 * Support for Python 3.10 [#808](https://github.com/TileDB-Inc/TileDB-Py/pull/808)
 
+## API Changes
+* Addition of `tiledb.version()` to return version as a tuple [#801](https://github.com/TileDB-Inc/TileDB-Py/pull/801)
+
 # TileDB-Py 0.11.2 Release Notes
 
 ## TileDB Embedded updates:
