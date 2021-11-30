@@ -1159,17 +1159,27 @@ cdef class Ctx(object):
         self.set_tag('x-tiledb-api-language-version', '{}.{}.{}'.format(*sys.version_info))
         self.set_tag('x-tiledb-api-sys-platform', sys.platform)
 
-    def get_stats(self):
+    def get_stats(self, print_out=True, json=False):
         """Retrieves the stats from a TileDB context."""
-        import json
         cdef tiledb_ctx_t* ctx_ptr = self.ptr
         cdef int rc = TILEDB_OK
-        cdef char* stats_json
-        rc = tiledb_ctx_get_stats(ctx_ptr, &stats_json)
+        cdef char* stats_bytes
+        rc = tiledb_ctx_get_stats(ctx_ptr, &stats_bytes)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        cdef unicode stats = stats_json.decode('UTF-8', 'strict')
-        return stats
+        cdef unicode stats = stats_bytes.decode('UTF-8', 'strict')
+
+        if json:
+            import json
+            output = json.loads(stats)
+        else: 
+            output = stats
+        
+        if print_out:
+            print(output)
+        else:
+            return output
+        
 
 
 def _tiledb_datetime_extent(begin, end):
@@ -4704,12 +4714,23 @@ cdef class Query(object):
         from .multirange_indexing import DataFrameIndexer
         return DataFrameIndexer(self.array, query=self, use_arrow=self.use_arrow)
 
-    def get_stats(self):
+    def get_stats(self, print_out=True, json=False):
         """Retrieves the stats from a TileDB query."""
         pyquery = self.array.pyquery
         if pyquery is None:
             return ""
-        return self.array.pyquery.get_stats()
+        stats = self.array.pyquery.get_stats()
+        
+        if json:
+            import json
+            output = json.loads(stats)
+        else: 
+            output = stats
+        
+        if print_out:
+            print(output)
+        else:
+            return output
 
 
 cdef class DenseArrayImpl(Array):

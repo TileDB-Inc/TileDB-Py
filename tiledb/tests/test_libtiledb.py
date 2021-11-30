@@ -4072,7 +4072,9 @@ class GetStatsTest(DiskTestCase):
         with tiledb.open(uri, mode="w", ctx=ctx) as T:
             T[:] = np.random.randint(10, size=3)
 
-        assert "Context.StorageManager.write_store" in ctx.get_stats()
+        stats = ctx.get_stats(print_out=False)
+        print(stats)
+        assert "Context.StorageManager.write_store" in stats
 
     def test_query(self):
         tiledb.libtiledb.stats_enable()
@@ -4090,7 +4092,9 @@ class GetStatsTest(DiskTestCase):
             assert "" == q.get_stats()
 
             q[:]
-            assert "Context.StorageManager.Query" in q.get_stats()
+
+            stats = q.get_stats(print_out=False)
+            assert "Context.StorageManager.Query" in stats
 
 
 class ReprTest(DiskTestCase):
