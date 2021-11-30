@@ -4073,7 +4073,6 @@ class GetStatsTest(DiskTestCase):
             T[:] = np.random.randint(10, size=3)
 
         stats = ctx.get_stats(print_out=False)
-        print(stats)
         assert "Context.StorageManager.write_store" in stats
 
     def test_query(self):

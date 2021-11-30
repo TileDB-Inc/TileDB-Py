@@ -1160,7 +1160,11 @@ cdef class Ctx(object):
         self.set_tag('x-tiledb-api-sys-platform', sys.platform)
 
     def get_stats(self, print_out=True, json=False):
-        """Retrieves the stats from a TileDB context."""
+        """Retrieves the stats from a TileDB context.
+        
+        :param print_out: Print string to console (default True), or return as string
+        :param json: Return stats JSON object (default: False)
+        """
         cdef tiledb_ctx_t* ctx_ptr = self.ptr
         cdef int rc = TILEDB_OK
         cdef char* stats_bytes
@@ -4715,7 +4719,11 @@ cdef class Query(object):
         return DataFrameIndexer(self.array, query=self, use_arrow=self.use_arrow)
 
     def get_stats(self, print_out=True, json=False):
-        """Retrieves the stats from a TileDB query."""
+        """Retrieves the stats from a TileDB query.
+        
+        :param print_out: Print string to console (default True), or return as string
+        :param json: Return stats JSON object (default: False)
+        """
         pyquery = self.array.pyquery
         if pyquery is None:
             return ""
