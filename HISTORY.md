@@ -4,6 +4,7 @@
 * Support for Python 3.10 [#808](https://github.com/TileDB-Inc/TileDB-Py/pull/808)
 
 ## API Changes
+* Addition of `tiledb.version()` to return version as a tuple [#801](https://github.com/TileDB-Inc/TileDB-Py/pull/801)
 * `Query.get_stats` and `Ctx.get_stats` changed function signature; automatically `print_out` stats and add option to output as `json` [#809](https://github.com/TileDB-Inc/TileDB-Py/pull/809)
 
 # TileDB-Py 0.11.2 Release Notes

@@ -40,11 +40,19 @@ from tiledb.util import schema_from_dict
 
 
 class VersionTest(DiskTestCase):
-    def test_version(self):
+    def test_libtiledb_version(self):
         v = tiledb.libtiledb.version()
         self.assertIsInstance(v, tuple)
         self.assertTrue(len(v) == 3)
         self.assertTrue(v[0] >= 1, "TileDB major version must be >= 1")
+
+    def test_tiledbpy_version(self):
+        v = tiledb.version.version
+        self.assertIsInstance(v, str)
+
+        v = tiledb.version()
+        self.assertIsInstance(v, tuple)
+        self.assertTrue(3 <= len(v) <= 5)
 
 
 class StatsTest(DiskTestCase):
