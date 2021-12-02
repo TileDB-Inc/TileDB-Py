@@ -3959,14 +3959,49 @@ class TestHighlevel(DiskTestCase):
 
         create_array(path, dshape)
         write_fragments(path, dshape, num_writes)
-        frags = tiledb.FragmentInfoList(path)
+        frags = tiledb.array_fragments(path)
         assert len(frags) == 10
         assert frags.timestamp_range == ts
 
         tiledb.delete_fragments(path, (3, 6))
-        frags = tiledb.FragmentInfoList(path)
+        frags = tiledb.array_fragments(path)
         assert len(frags) == 6
         assert frags.timestamp_range == ts[:2] + ts[6:]
+
+    def test_delete_fragments_with_schema_evolution(self):
+        path = self.path("test_delete_fragments_with_schema_evolution")
+        dshape = (1, 3)
+
+        dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+        att = tiledb.Attr(name="a1", dtype=np.float64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        tiledb.libtiledb.Array.create(path, schema)
+
+        ts1_data = np.random.rand(3)
+        with tiledb.open(path, "w", timestamp=1) as A:
+            A[[1, 2, 3]] = ts1_data
+
+        ctx = tiledb.default_ctx()
+        se = tiledb.ArraySchemaEvolution(ctx)
+        se.add_attribute(tiledb.Attr("a2", dtype=np.float64))
+        se.array_evolve(path)
+
+        ts2_data = np.random.rand(3)
+        with tiledb.open(path, "w", timestamp=2) as A:
+            A[[1, 2, 3]] = {"a1": ts2_data, "a2": ts2_data}
+
+        with tiledb.open(path, "r") as A:
+            assert A.schema.has_attr("a1")
+            assert A.schema.has_attr("a2")
+            assert_array_equal(A[:]["a1"], ts2_data)
+            assert_array_equal(A[:]["a2"], ts2_data)
+
+        tiledb.delete_fragments(path, (2, 2))
+
+        with tiledb.open(path, "r") as A:
+            assert A.schema.has_attr("a1")
+            assert not A.schema.has_attr("a2")
+            assert_array_equal(A[:]["a1"], ts1_data)
 
     @pytest.mark.skipif(
         sys.platform == "win32", reason="VFS.copy() does not run on windows"

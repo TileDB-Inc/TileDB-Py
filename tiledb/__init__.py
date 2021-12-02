@@ -77,7 +77,13 @@ from .libtiledb import (
 
 from .array import DenseArray, SparseArray
 
-from .fragment import FragmentInfoList, FragmentInfo, FragmentsInfo
+from .fragment import (
+    FragmentInfoList,
+    FragmentInfo,
+    FragmentsInfo,
+    delete_fragments,
+    create_array_from_fragments,
+)
 
 from .highlevel import (
     open,
@@ -86,8 +92,6 @@ from .highlevel import (
     empty_like,
     array_exists,
     array_fragments,
-    delete_fragments,
-    create_array_from_fragments,
 )
 
 from .query_condition import QueryCondition
