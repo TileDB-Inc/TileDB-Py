@@ -16,7 +16,7 @@ from pkg_resources import resource_filename
 from setuptools import Extension, find_packages, setup
 
 # Target branch
-TILEDB_VERSION = "lr/sparse-unordered-w-dups-reader-cell-progress/ch12134"
+TILEDB_VERSION = "09ea3b1565c0a0349a46d2935dacdbf630b1ade0"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
