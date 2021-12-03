@@ -7,6 +7,9 @@
 * Addition of `tiledb.version()` to return version as a tuple [#801](https://github.com/TileDB-Inc/TileDB-Py/pull/801)
 * `Query.get_stats` and `Ctx.get_stats` changed function signature; automatically `print_out` stats and add option to output as `json` [#809](https://github.com/TileDB-Inc/TileDB-Py/pull/809)
 
+## Bug fixes
+* `tiledb.delete_fragments` removes unused schemas [#813](https://github.com/TileDB-Inc/TileDB-Py/pull/813)
+
 # TileDB-Py 0.11.2 Release Notes
 
 ## TileDB Embedded updates:
