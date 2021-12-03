@@ -117,7 +117,7 @@ Dense Array
 
 .. autoclass:: tiledb.DenseArray
    :members:
-   
+
    .. automethod:: __getitem__(selection)
    .. automethod:: __setitem__(selection, value)
    .. automethod:: query
@@ -128,10 +128,16 @@ Sparse Array
 
 .. autoclass:: tiledb.SparseArray
    :members:
-   
+
    .. automethod:: __getitem__(selection)
    .. automethod:: __setitem__(selection, value)
    .. automethod:: query
+
+Query Condition
+---------------
+
+.. autoclass:: tiledb.QueryCondition
+   :members:
 
 Object Management
 -----------------
