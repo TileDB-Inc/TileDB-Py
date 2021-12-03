@@ -1192,7 +1192,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             assert_array_equal(A.multi_index[:]["data"], data)
 
     @pytest.mark.xfail(
-        date.today() <= date(2021, 12, 10),
+        date.today() <= date(2021, 12, 6),
         reason="Temporary error residing from libtiledb that will be fixed soon",
     )
     def test_incomplete_df(self):
