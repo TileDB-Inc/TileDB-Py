@@ -1161,7 +1161,7 @@ cdef class Ctx(object):
 
     def get_stats(self, print_out=True, json=False):
         """Retrieves the stats from a TileDB context.
-        
+
         :param print_out: Print string to console (default True), or return as string
         :param json: Return stats JSON object (default: False)
         """
@@ -1176,14 +1176,14 @@ cdef class Ctx(object):
         if json:
             import json
             output = json.loads(stats)
-        else: 
+        else:
             output = stats
-        
+
         if print_out:
             print(output)
         else:
             return output
-        
+
 
 
 def _tiledb_datetime_extent(begin, end):
@@ -2623,7 +2623,7 @@ cdef class Dim(object):
         cdef void* tile_size_ptr = NULL
         cdef np.dtype domain_dtype
 
-        if ((isinstance(dtype, str) and dtype == "ascii") or 
+        if ((isinstance(dtype, str) and dtype == "ascii") or
                 dtype == np.dtype('S')):
             # Handle var-len domain type
             #  (currently only TILEDB_STRING_ASCII)
@@ -3229,7 +3229,7 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
             (dim_lb, dim_ub) = ned[r] if ned else (None, None)
         else:
             (dim_lb, dim_ub) = dim.domain
-            
+
 
         dim_slice = idx[r]
         if not isinstance(dim_slice, slice):
@@ -4036,7 +4036,7 @@ cdef class Array(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-        
+
         if overwrite:
             if object_type(uri) == "array":
                 if uri.startswith("file://") or "://" not in uri:
@@ -4720,7 +4720,7 @@ cdef class Query(object):
 
     def get_stats(self, print_out=True, json=False):
         """Retrieves the stats from a TileDB query.
-        
+
         :param print_out: Print string to console (default True), or return as string
         :param json: Return stats JSON object (default: False)
         """
@@ -4728,13 +4728,13 @@ cdef class Query(object):
         if pyquery is None:
             return ""
         stats = self.array.pyquery.get_stats()
-        
+
         if json:
             import json
             output = json.loads(stats)
-        else: 
+        else:
             output = stats
-        
+
         if print_out:
             print(output)
         else:
@@ -4961,7 +4961,7 @@ cdef class DenseArrayImpl(Array):
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         subarray = index_domain_subarray(self, self.schema.domain, idx)
         # Note: we included dims (coords) above to match existing semantics
-        out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout, 
+        out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout,
                                         coords)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
@@ -4978,8 +4978,8 @@ cdef class DenseArrayImpl(Array):
         return out
 
 
-    cdef _read_dense_subarray(self, list subarray, list attr_names, 
-                              object attr_cond, tiledb_layout_t layout, 
+    cdef _read_dense_subarray(self, list subarray, list attr_names,
+                              object attr_cond, tiledb_layout_t layout,
                               bint include_coords):
 
         from tiledb.main import PyQuery
@@ -5308,12 +5308,12 @@ def index_domain_coords(dom: Domain, idx: tuple):
     if ndim != dom.ndim:
         raise IndexError("sparse index ndim must match "
                          "domain ndim: {0!r} != {1!r}".format(ndim, dom.ndim))
-    
+
     domain_coords = []
     for dim, sel in zip(dom, idx):
-        dim_is_string = (np.issubdtype(dim.dtype, np.str_) or 
+        dim_is_string = (np.issubdtype(dim.dtype, np.str_) or
             np.issubdtype(dim.dtype, np.bytes_))
-        
+
         if dim_is_string:
             try:
                 # ensure strings contain only ASCII characters
@@ -5572,7 +5572,7 @@ cdef class SparseArrayImpl(Array):
                      use_arrow=use_arrow, return_arrow=return_arrow,
                      return_incomplete=return_incomplete)
 
-    def subarray(self, selection, coords=True, attrs=None, attr_cond=None, 
+    def subarray(self, selection, coords=True, attrs=None, attr_cond=None,
                  order=None):
         """
         Retrieve dimension and data cells for an item or region of the array.
@@ -6798,14 +6798,16 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
     ...     for i in range(4):
     ...         A[:] = np.ones(4, dtype=np.int64) * i
     >>> paths = tiledb.VFS().ls(path)
-    >>> len(paths) # should be 13 (3 base files + 2*5 fragment+ok files)
-    13
+    >>> # should be 12 (2 base files + 2*5 fragment+ok files)
+    >>> (); len(paths); () # doctest:+ELLIPSIS
+    (...)
     >>> () ; tiledb.consolidate(path) ; () # doctest:+ELLIPSIS
     (...)
     >>> tiledb.vacuum(path)
     >>> paths = tiledb.VFS().ls(path)
-    >>> len(paths) # should now be 5 (3 base files + 2 fragment+ok files)
-    5
+    >>> # should now be 4 ( base files + 2 fragment+ok files)
+    >>> (); len(paths); () # doctest:+ELLIPSIS
+    (...)
 
     """
     cdef tiledb_ctx_t* ctx_ptr = NULL
