@@ -1,3 +1,8 @@
+# TileDB-Py 0.11.4 Release Notes
+
+## API Changes
+* Add rich display for TileDB objects in Jupyter notebooks [#824](https://github.com/TileDB-Inc/TileDB-Py/pull/824)
+
 # TileDB-Py 0.11.3 Release Notes
 
 ## Impovements
