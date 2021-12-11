@@ -8,7 +8,7 @@ stages:
     ${{ else }}:
       TILEDBPY_VERSION: 0.11.3
       LIBTILEDB_VERSION: 2.5.2
-      LIBTILEDB_SHA: f9c058f521e376ba83b4e1b94ee73b0b643f89cb
+      LIBTILEDB_SHA: be9132d97bf4a2f01386a4a091020adcfb137fad
     LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
     TILEDB_SRC: '$(Build.Repository.Localpath)/tiledb_src'
     TILEDB_BUILD: '$(Build.Repository.Localpath)/tiledb_build'
@@ -41,7 +41,7 @@ stages:
     steps:
     - task: UsePythonVersion@0
     - template: azure-libtiledb-darwin.yml
-  
+
   - job: build2_python310
     dependsOn: [build1_libtiledb, build1_libtiledb_on_linux]
     condition: succeeded()
