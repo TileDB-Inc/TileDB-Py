@@ -21,7 +21,7 @@ stages:
     strategy:
       matrix:
           macOS_libtiledb:
-            imageName: 'macOS-10.14'
+            imageName: 'macOS-1015'
           windows_libtiledb:
             imageName: 'windows-latest'
     pool:
@@ -41,7 +41,7 @@ stages:
     steps:
     - task: UsePythonVersion@0
     - template: azure-libtiledb-darwin.yml
-  
+
   - job: build2_python310
     dependsOn: [build1_libtiledb, build1_libtiledb_on_linux]
     condition: succeeded()
@@ -56,7 +56,7 @@ stages:
           CIBW_SKIP: '*_i686 pp* *musl*'
           CIBW_BUILD_VERBOSITY: 3
         macOS_py:
-          imageName: 'macOS-10.14'
+          imageName: 'macOS-1015'
           CIBW_BUILD: 'cp310-*'
           CIBW_SKIP: 'pp*'
           CIBW_BUILD_VERBOSITY: 3
@@ -198,7 +198,7 @@ stages:
           CIBW_SKIP: 'cp27-* cp35-* *_i686 pp*'
           CIBW_BUILD_VERBOSITY: 3
         macOS_py:
-          imageName: 'macOS-10.14'
+          imageName: 'macOS-1015'
           CIBW_SKIP: 'cp27-* cp35-* pp*'
           CIBW_BUILD_VERBOSITY: 3
         windows_py:
