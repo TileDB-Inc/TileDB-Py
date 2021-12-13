@@ -593,6 +593,36 @@ public:
     }
   }
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR == 6
+  void set_ranges_bulk(py::iterable ranges) {
+    // ranges are specified as one iterable per dimension
+
+    uint32_t dim_idx = 0;
+    for (auto dim_range : ranges) {
+      // py::print(dim_range);
+      if (py::isinstance<py::array>(dim_range)) {
+        py::array r_array = dim_range.cast<py::array>();
+        add_bulk_range(dim_idx, r_array);
+      } else {
+        py::tuple dim_range_iter = dim_range.cast<py::iterable>();
+        for (auto r : dim_range_iter) {
+          py::tuple r_tuple = r.cast<py::tuple>();
+          add_dim_range(dim_idx, r_tuple);
+        }
+      }
+      dim_idx++;
+    }
+  }
+
+  void add_bulk_range(uint32_t dim_idx, py::array ranges) {
+    tiledb_ctx_t *c_ctx = ctx_.ptr().get();
+    tiledb_query_t *c_query = query_.get()->ptr().get();
+
+    ctx_.handle_error(tiledb_query_add_point_ranges(
+        c_ctx, c_query, dim_idx, (void *)ranges.data(), ranges.size()));
+  }
+#endif
+
   void set_ranges(py::iterable ranges) {
     // ranges are specified as one iterable per dimension
 
@@ -1487,6 +1517,9 @@ void init_core(py::module &m) {
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
           .def("set_ranges", &PyQuery::set_ranges)
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR == 6
+          .def("set_ranges_bulk", &PyQuery::set_ranges_bulk)
+#endif
           .def("set_subarray", &PyQuery::set_subarray)
           .def("set_attr_cond", &PyQuery::set_attr_cond)
           .def("set_serialized_query", &PyQuery::set_serialized_query)
