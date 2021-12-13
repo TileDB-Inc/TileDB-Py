@@ -581,6 +581,41 @@ public:
     }
   }
 
+  void set_ranges_bulk(py::iterable ranges) {
+    // ranges are specified as one iterable per dimension
+
+    uint32_t dim_idx = 0;
+    for (auto dim_range : ranges) {
+      //py::print(dim_range);
+      if (py::isinstance<py::array>(dim_range)) {
+        py::array r_array = dim_range.cast<py::array>();
+        add_bulk_range(dim_idx, r_array);
+      } else {
+        py::tuple dim_range_iter = dim_range.cast<py::iterable>();
+        for (auto r : dim_range_iter) {
+          py::tuple r_tuple = r.cast<py::tuple>();
+          add_dim_range(dim_idx, r_tuple);
+        }
+      }
+      dim_idx++;
+    }
+  }
+
+  void add_bulk_range(uint32_t dim_idx, py::array ranges) {
+    tiledb_ctx_t *c_ctx = ctx_.ptr().get();
+    tiledb_query_t* c_query = query_.get()->ptr().get();
+
+    ctx_.handle_error(
+      tiledb_query_add_point_ranges(
+        c_ctx,
+        c_query,
+        dim_idx,
+        (void*)ranges.data(),
+        ranges.size()
+      )
+    );
+  }
+
   void set_ranges(py::iterable ranges) {
     // ranges are specified as one iterable per dimension
 
@@ -1454,21 +1489,26 @@ std::string python_internal_stats() {
 
   os << std::endl;
   os << "==== Python Stats ====" << std::endl << std::endl;
-  os << "* Total TileDB query time: "
-     << counters["py.core_read_query_total_time"].count() << std::endl;
-  os << "  > TileDB Core initial query submit time: "
-     << counters["py.core_read_query_initial_submit_time"].count() << std::endl;
 
-  std::string key1 = "py.core_read_query_incomplete_retry_time";
-  if (counters.count(key1) == 1) {
-    os << "  > TileDB Core incomplete retry time: " << counters[key1].count()
-       << std::endl;
-    os << "  > TileDB-Py buffer update time: "
-       << counters["py.read_query_incomplete_buffer_resize_time"].count()
-       << std::endl;
-    os << "  > TileDB-Py retry count: "
-       << (size_t)counters["py.query_retries_count"].count() << std::endl;
+  for (auto& stat : counters) {
+    os << stat.first << " : " << stat.second.count() << std::endl;
   }
+
+  //os << "* Total TileDB query time: "
+  //   << counters["py.core_read_query_total_time"].count() << std::endl;
+  //os << "  > TileDB Core initial query submit time: "
+  //   << counters["py.core_read_query_initial_submit_time"].count() << std::endl;
+
+  //std::string key1 = "py.core_read_query_incomplete_retry_time";
+  //if (counters.count(key1) == 1) {
+  //  os << "  > TileDB Core incomplete retry time: " << counters[key1].count()
+  //     << std::endl;
+  //  os << "  > TileDB-Py buffer update time: "
+  //     << counters["py.read_query_incomplete_buffer_resize_time"].count()
+  //     << std::endl;
+  //  os << "  > TileDB-Py retry count: "
+  //     << (size_t)counters["py.query_retries_count"].count() << std::endl;
+  //}
 
   std::string key3 = "py.buffer_conversion_time";
   if (counters.count(key3) == 1) {
@@ -1489,6 +1529,7 @@ void init_core(py::module &m) {
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
           .def("set_ranges", &PyQuery::set_ranges)
+          .def("set_ranges_bulk", &PyQuery::set_ranges_bulk)
           .def("set_subarray", &PyQuery::set_subarray)
           .def("set_attr_cond", &PyQuery::set_attr_cond)
           .def("set_serialized_query", &PyQuery::set_serialized_query)
