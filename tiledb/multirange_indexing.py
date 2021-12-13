@@ -23,7 +23,7 @@ from typing import (
 
 import numpy as np
 
-from tiledb import Array, ArraySchema, TileDBError
+from tiledb import Array, ArraySchema, TileDBError, libtiledb
 from tiledb.main import PyQuery, increment_stat, use_stats
 from tiledb.libtiledb import Metadata, Query
 
@@ -147,7 +147,10 @@ def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
         # don't try to index nonempty_domain if None
         nonempty_domain = ned[i] if ned else None
-        if not isinstance(dim_sel, list):
+        if isinstance(dim_sel, np.ndarray):
+            ranges[i] = dim_sel
+            continue
+        elif not isinstance(dim_sel, list):
             dim_sel = [dim_sel]
         ranges[i] = tuple(
             rng
@@ -199,7 +202,13 @@ class MultiRangeIndexer(object):
             self.pyquery = _get_pyquery(self.array, query, self.use_arrow)
             self.pyquery._preload_metadata = preload_metadata
 
-            self.pyquery.set_ranges(self.ranges)
+            with timing("py.add_ranges"):
+                if libtiledb.version() >= (2, 6) and any(
+                    [lambda x: isinstance(x, np.ndarray), self.ranges]
+                ):
+                    self.pyquery.set_ranges_bulk(self.ranges)
+                else:
+                    self.pyquery.set_ranges(self.ranges)
 
             has_attr_cond = self.query is not None and query.attr_cond is not None
 
