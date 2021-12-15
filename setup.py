@@ -623,6 +623,7 @@ __extensions = [
             "tiledb/serialization.cc",
             "tiledb/schema_evolution.cc",
             "tiledb/tests/test_serialization.cc",
+            "tiledb/tests/test_metadata.cc",
             # TODO currently included in core.cc due to dependency.
             #      need to un-comment after refactor.
             # "tiledb/query_condition.cc",

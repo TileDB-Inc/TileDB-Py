@@ -9,6 +9,7 @@ from hypothesis import given, settings, strategies as st
 from hypothesis.extra import numpy as st_np
 
 from tiledb.tests.common import DiskTestCase, rand_utf8
+from tiledb.main import test_metadata
 
 
 MIN_INT = np.iinfo(np.int64).min
@@ -341,3 +342,16 @@ class MetadataTest(DiskTestCase):
                 key_int = randutf8s[i] + u"{}".format(randints[i])
                 self.assertEqual(A.meta[key_int], randints[i])
                 self.assertEqual(A.meta[randutf8s[i]], randutf8s[i])
+
+    def test_ascii_metadata(self):
+        uri = self.path("test_ascii_metadata")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=1, dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64)
+        schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
+        tiledb.Array.create(uri, schema)
+
+        test_metadata.write_ascii(uri)
+
+        with tiledb.open(uri) as A:
+            assert A.meta["abc"] == b"xyz"
