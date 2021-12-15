@@ -1454,26 +1454,9 @@ std::string python_internal_stats() {
 
   os << std::endl;
   os << "==== Python Stats ====" << std::endl << std::endl;
-  os << "* Total TileDB query time: "
-     << counters["py.core_read_query_total_time"].count() << std::endl;
-  os << "  > TileDB Core initial query submit time: "
-     << counters["py.core_read_query_initial_submit_time"].count() << std::endl;
 
-  std::string key1 = "py.core_read_query_incomplete_retry_time";
-  if (counters.count(key1) == 1) {
-    os << "  > TileDB Core incomplete retry time: " << counters[key1].count()
-       << std::endl;
-    os << "  > TileDB-Py buffer update time: "
-       << counters["py.read_query_incomplete_buffer_resize_time"].count()
-       << std::endl;
-    os << "  > TileDB-Py retry count: "
-       << (size_t)counters["py.query_retries_count"].count() << std::endl;
-  }
-
-  std::string key3 = "py.buffer_conversion_time";
-  if (counters.count(key3) == 1) {
-    os << "* TileDB-Py buffer conversion time: " << counters[key3].count()
-       << std::endl;
+  for (auto &stat : counters) {
+    os << "  " << stat.first << " : " << stat.second.count() << std::endl;
   }
 
   return os.str();
