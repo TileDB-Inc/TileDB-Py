@@ -337,7 +337,8 @@ stages:
         method: 'POST'
         body: |
           {
-          "event_type": "failed"
+          "event_type": "failed",
+          "client_payload": {"build_id:": "$(Build.BuildId)"}
           }
         urlSuffix: 'repos/$(Build.Repository.Name)/dispatches'
         waitForCompletion: 'false'
@@ -355,7 +356,8 @@ stages:
         method: 'POST'
         body: |
           {
-          "event_type": "succeeded"
+          "event_type": "succeeded",
+          "client_payload": {"build_id:": "$(Build.BuildId)"}
           }
         urlSuffix: 'repos/$(Build.Repository.Name)/dispatches'
         waitForCompletion: 'false'
