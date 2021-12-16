@@ -758,8 +758,9 @@ public:
 
     bool var = is_var(name);
     bool nullable = is_nullable(name);
+    bool dense = array_schema_->array_type() == TILEDB_DENSE;
 
-    if (retries_ < 1) {
+    if (retries_ < 1 && dense) {
       // we must not call after submitting
       if (nullable && var) {
         auto sizes = query_->est_result_size_var_nullable(name);
