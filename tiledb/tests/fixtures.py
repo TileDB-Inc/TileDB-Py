@@ -14,7 +14,7 @@ def sparse_cell_order(request):
 
 
 @pytest.fixture(scope="class")
-def test_incomplete_return_array(tmpdir_factory):
+def test_incomplete_return_array(tmpdir_factory, request):
     tmp_path = str(tmpdir_factory.mktemp("array"))
     ncells = 20
     nvals = 10
@@ -24,7 +24,10 @@ def test_incomplete_return_array(tmpdir_factory):
     dom = tiledb.Domain(tiledb.Dim(domain=(0, len(data) - 1), tile=len(data)))
     att = tiledb.Attr(dtype=str, var=True)
 
-    schema = tiledb.ArraySchema(dom, (att,), sparse=True)
+    allows_duplicates = request.param
+    schema = tiledb.ArraySchema(
+        dom, (att,), sparse=True, allows_duplicates=allows_duplicates
+    )
 
     coords = np.arange(ncells)
 

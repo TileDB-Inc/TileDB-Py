@@ -1212,7 +1212,9 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             data[2] = ""
             assert_array_equal(A.multi_index[:]["data"], data)
 
-    def test_incomplete_df(self):
+    @pytest.mark.parametrize("allows_duplicates", [True, False])
+    @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
+    def test_incomplete_df(self, allows_duplicates, non_overlapping_ranges):
         ncells = 1000
         null_count = round(0.56 * ncells)
 
@@ -1231,13 +1233,14 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         df = pd.DataFrame({"int64": pd.Series(data, dtype=pd.Int64Dtype())})
 
-        tiledb.from_pandas(path, df, sparse=True)
+        tiledb.from_pandas(path, df, sparse=True, allows_duplicates=allows_duplicates)
 
         init_buffer_bytes = 512
         config = tiledb.Config(
             {
                 "py.init_buffer_bytes": init_buffer_bytes,
                 "py.exact_init_buffer_bytes": "true",
+                "sm.query.sparse_unordered_with_dups.non_overlapping_ranges": non_overlapping_ranges,
             }
         )
         self.assertEqual(config["py.init_buffer_bytes"], str(init_buffer_bytes))
