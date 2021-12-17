@@ -4213,7 +4213,8 @@ class NullableIOTest(DiskTestCase):
 
 
 class IncompleteTest(DiskTestCase):
-    def test_incomplete_dense_varlen(self):
+    @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
+    def test_incomplete_dense_varlen(self, non_overlapping_ranges):
         ncells = 10
         path = self.path("incomplete_dense_varlen")
         str_data = [rand_utf8(random.randint(0, n)) for n in range(ncells)]
@@ -4242,6 +4243,7 @@ class IncompleteTest(DiskTestCase):
                 "sm.memory_budget": ncells,
                 "sm.memory_budget_var": ncells,
                 "py.init_buffer_bytes": init_buffer_bytes,
+                "sm.query.sparse_unordered_with_dups.non_overlapping_ranges": non_overlapping_ranges,
             }
         )
         self.assertEqual(config["py.init_buffer_bytes"], str(init_buffer_bytes))
@@ -4250,7 +4252,9 @@ class IncompleteTest(DiskTestCase):
             df = T2.query(attrs=[""]).df[:]
             assert_array_equal(df[""], data)
 
-    def test_incomplete_sparse_varlen(self):
+    @pytest.mark.parametrize("allows_duplicates", [True, False])
+    @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
+    def test_incomplete_sparse_varlen(self, allows_duplicates, non_overlapping_ranges):
         ncells = 100
 
         path = self.path("incomplete_sparse_varlen")
@@ -4262,7 +4266,9 @@ class IncompleteTest(DiskTestCase):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, len(data) + 100), tile=len(data)))
         att = tiledb.Attr(dtype=np.unicode_, var=True)
 
-        schema = tiledb.ArraySchema(dom, (att,), sparse=True)
+        schema = tiledb.ArraySchema(
+            dom, (att,), sparse=True, allows_duplicates=allows_duplicates
+        )
 
         tiledb.SparseArray.create(path, schema)
         with tiledb.SparseArray(path, mode="w") as T:
@@ -4298,8 +4304,16 @@ class IncompleteTest(DiskTestCase):
     @pytest.mark.parametrize(
         "return_arrow, indexer", [(True, "df"), (False, "df"), (False, "multi_index")]
     )
+    @pytest.mark.parametrize(
+        "test_incomplete_return_array", [True, False], indirect=True
+    )
+    @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
     def test_incomplete_return(
-        self, test_incomplete_return_array, return_arrow, indexer
+        self,
+        test_incomplete_return_array,
+        return_arrow,
+        indexer,
+        non_overlapping_ranges,
     ):
         import pyarrow as pa
         import pandas as pd
@@ -4312,6 +4326,7 @@ class IncompleteTest(DiskTestCase):
             {
                 "py.init_buffer_bytes": init_buffer_bytes,
                 "py.exact_init_buffer_bytes": "true",
+                "sm.query.sparse_unordered_with_dups.non_overlapping_ranges": non_overlapping_ranges,
             }
         )
 
@@ -4354,6 +4369,95 @@ class IncompleteTest(DiskTestCase):
                 idx += len(df)
 
         assert idx == len(full_data)
+
+    @pytest.mark.parametrize("cell_order", ["col-major", "row-major", "hilbert"])
+    @pytest.mark.parametrize("tile_order", ["col-major", "row-major"])
+    @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
+    def test_incomplete_global_order(
+        self, cell_order, tile_order, non_overlapping_ranges
+    ):
+        uri = self.path("test_incomplete_global_order")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 30), tile=10, dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64)
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            attrs=(att,),
+            sparse=True,
+            allows_duplicates=True,
+            cell_order=cell_order,
+            tile_order=tile_order,
+        )
+        tiledb.Array.create(uri, schema)
+
+        expected_data = np.random.randint(0, 10, 30)
+
+        with tiledb.open(uri, mode="w") as T:
+            T[np.arange(30)] = expected_data
+
+        init_buffer_bytes = 200
+        cfg = tiledb.Config(
+            {
+                "py.init_buffer_bytes": init_buffer_bytes,
+                "py.exact_init_buffer_bytes": "true",
+                "sm.query.sparse_unordered_with_dups.non_overlapping_ranges": non_overlapping_ranges,
+            }
+        )
+
+        with tiledb.open(uri, mode="r", ctx=tiledb.Ctx(cfg)) as T:
+            actual_data = T.query(order="G")[:][""]
+            assert_array_equal(actual_data, expected_data)
+
+    @pytest.mark.parametrize("exact_init_buffer_bytes", ["true", "false"])
+    @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
+    def test_offset_can_fit_data_var_size_cannot(
+        self, exact_init_buffer_bytes, non_overlapping_ranges
+    ):
+        """
+        One condition that would be nice to get more coverage on is when the offset buffer can fit X cells, but the var size data of those cells cannot fit the buffer. In this case, the reader does adjust the results back.
+        @Luc Rancourt so would we test this by having really large var-size content in each cell?
+        Isaiah  4 days ago
+        eg something like: we set buffers that can hold 100kb, but each var-len cell has 20kb, so we can read at most 5 cells into the data buffer, but theoretically the offsets buffer could hold many more?
+        """
+        tiledb.stats_enable()
+        uri = self.path("test_incomplete_global_order")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 4), tile=1, dtype=np.int64))
+        att = tiledb.Attr(dtype=np.int64, var=True)
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            attrs=(att,),
+            sparse=True,
+            allows_duplicates=True,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, mode="w") as T:
+            T[np.arange(5)] = np.array(
+                [
+                    np.random.randint(0, 10, 10000, dtype=np.int64),
+                    np.random.randint(0, 10, 10000, dtype=np.int64),
+                    np.random.randint(0, 10, 10000, dtype=np.int64),
+                    np.random.randint(0, 10, 10000, dtype=np.int64),
+                    np.random.randint(0, 10, 101, dtype=np.int64),
+                ],
+                dtype="O",
+            )
+
+        init_buffer_bytes = 160000
+        cfg = tiledb.Config(
+            {
+                "py.init_buffer_bytes": init_buffer_bytes,
+                "py.exact_init_buffer_bytes": exact_init_buffer_bytes,
+                "sm.query.sparse_unordered_with_dups.non_overlapping_ranges": non_overlapping_ranges,
+            }
+        )
+
+        with tiledb.open(uri, mode="r", ctx=tiledb.Ctx(cfg)) as T:
+            qry = T.query()
+            actual_data = qry[:][""]
+            # assert_array_equal(actual_data, expected_data)
+            # print(tiledb.main.python_internal_stats())
+
+        tiledb.stats_disable()
 
 
 class TestTest(DiskTestCase):

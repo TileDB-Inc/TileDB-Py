@@ -106,7 +106,7 @@ class CoreCCTest(DiskTestCase):
             "": 2.5 * np.identity(4, dtype=np.float64),
             "foo": 8 * np.identity(4, dtype=np.int32),
             "str": np.array(
-                [rand_ascii(random.randint(0, 5)) for _ in range(16)]
+                [rand_ascii(random.randint(0, 5)) for _ in range(16)], dtype="U0"
             ).reshape(4, 4),
         }
 
