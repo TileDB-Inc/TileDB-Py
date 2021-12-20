@@ -199,6 +199,20 @@ class FragmentInfoList:
         }
         return pprint.PrettyPrinter().pformat(public_attrs)
 
+    def _repr_html_(self) -> str:
+        from io import StringIO
+
+        output = StringIO()
+        output.write("<section>\n")
+        output.write(f"<h2>Fragments for {self.array_uri}</h2>\n")
+        for frag in self:
+            output.write("<details>\n")
+            output.write(f"<summary>{frag.uri}</summary>\n")
+            output.write(frag._repr_html_())
+            output.write("</details>\n")
+        output.write("</section>\n")
+        return output.getvalue()
+
 
 class FragmentsInfoIterator:
     """
@@ -245,7 +259,6 @@ class FragmentInfo:
         self.sparse = fragments.sparse[num]
         self.has_consolidated_metadata = fragments.has_consolidated_metadata[num]
         self.unconsolidated_metadata_num = fragments.unconsolidated_metadata_num
-        self.array_schema_name = fragments.array_schema_name[num]
 
         if hasattr(fragments, "mbrs"):
             self.mbrs = fragments.mbrs[num]
@@ -255,6 +268,23 @@ class FragmentInfo:
 
     def __repr__(self):
         return pprint.PrettyPrinter().pformat(self.__dict__)
+
+    def _repr_html_(self) -> str:
+        from io import StringIO
+
+        output = StringIO()
+        output.write("<section>\n")
+        output.write("<table>\n")
+        for key in self.__dict__:
+            if not key.startswith("_"):
+                output.write("<tr>\n")
+                output.write(f"<td>{key}</td>\n")
+                output.write(f"<td>{self.__dict__[key]}</td>\n")
+                output.write("</tr>\n")
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
 
     def __getattr__(self, name):
         if name == "mbrs":

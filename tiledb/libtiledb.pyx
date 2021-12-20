@@ -885,6 +885,31 @@ cdef class Config(object):
         output.extend(format_str.format(p, v) for p, v in zip(params, values))
         return "\n".join(output)
 
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th>Parameter</th>\n")
+        output.write("<th>Value</th>\n")
+        output.write("</tr>\n")
+
+        params = list(self.keys())
+        values = list(map(repr, self.values()))
+
+        for p, v in zip(params, values):
+            output.write("<tr>\n")
+            output.write(f"<td>{p}</td>\n")
+            output.write(f"<td>{v}</td>\n")
+            output.write("</tr>\n")
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
+
     def items(self, prefix=u""):
         """Returns an iterator object over Config parameters, values
 
@@ -1374,6 +1399,31 @@ cdef class Filter(object):
                 a = getattr(self, f)
                 output.write(f"{f}={a}")
         output.write(")")
+        return output.getvalue()
+    
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th></th>\n")
+        if hasattr(self, '_attrs_'):
+            for f in self._attrs_():
+                output.write(f"<th>{f}</th>")
+        output.write("</tr>\n")
+
+        output.write("<tr>\n")
+        output.write(f"<td>{type(self).__name__}</td>\n")
+        if hasattr(self, '_attrs_'):
+            for f in self._attrs_():
+                output.write(f"<td>{getattr(self, f)}</td>")
+        output.write("</tr>\n")
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
         return output.getvalue()
 
     def __eq__(self, other):
@@ -2083,6 +2133,18 @@ cdef class FilterList(object):
             [repr(self._getfilter(i)) for i in range(self.nfilters)])
         return "FilterList([{0!s}])".format(filters)
 
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        for i in range(self.nfilters):
+            output.write(self._getfilter(i)._repr_html_())
+        output.write("</section>\n")
+
+        return output.getvalue()
+
+    
+
     def __eq__(self, other):
         if other is None:
             return False
@@ -2563,6 +2625,31 @@ cdef class Attr(object):
         return (f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
                 f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
                 f"""{filters_str})""")
+    
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Data Type</th>\n")
+        output.write("<th>Is Var-Len</th>\n")
+        output.write("<th>Is Nullable</th>\n")
+        output.write("</tr>\n")
+
+        output.write("<tr>\n")
+        output.write(f"<td>{self.name}</td>\n")
+        output.write(f"<td>{'ascii' if self.isascii else self.dtype}</td>\n")
+        output.write(f"<td>{self.isvar}</td>\n")
+        output.write(f"<td>{self.isnullable}</td>\n")
+        output.write("</tr>\n")
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
 
 
 cdef class Dim(object):
@@ -2701,6 +2788,43 @@ cdef class Dim(object):
 
         return "Dim(name={0!r}, domain={1!s}, tile='{2!s}', dtype='{3!s}'{4}{5})" \
             .format(self.name, self.domain, self.tile, self.dtype, varlen, filters_str)
+    
+    def _repr_html_(self) -> str:
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Domain</th>\n")
+        output.write("<th>Tile</th>\n")
+        output.write("<th>Data Type</th>\n")
+        output.write("<th>Is Var-Len</th>\n")
+        output.write("<th>Filters</th>\n")
+        output.write("</tr>\n")
+
+        filters_str = ""
+        if self.filters:
+            filters_str = ", filters=FilterList(["
+            for f in self.filters:
+                filters_str +=  repr(f) + ", "
+            filters_str += "])"
+
+        output.write("<tr>\n")
+        output.write(f"<td>{self.name}</td>\n")
+        output.write(f"<td>{self.domain}</td>\n")
+        output.write(f"<td>{self.tile}</td>\n")
+        output.write(f"<td>{self.dtype}</td>\n")
+        output.write(f"<td>{self.dtype in (np.str_, np.bytes_) }</td>\n")
+        output.write(f"<td>{filters_str}</td>\n")
+        output.write("</tr>\n")
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
+
 
     def __len__(self):
         return self.size
@@ -3003,6 +3127,38 @@ cdef class Domain(object):
         dims = ",\n       ".join(
             [repr(self.dim(i)) for i in range(self.ndim)])
         return "Domain({0!s})".format(dims)
+
+    def _repr_html_(self) -> str:
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Domain</th>\n")
+        output.write("<th>Tile</th>\n")
+        output.write("<th>Data Type</th>\n")
+        output.write("<th>Is Var-length</th>\n")
+        output.write("<th>Filters</th>\n")
+        output.write("</tr>\n")
+
+        for i in range(self.ndim):
+            dim = self.dim(i)
+            output.write("<tr>\n")
+            output.write(f"<td>{dim.name}</td>\n")
+            output.write(f"<td>{dim.domain}</td>\n")
+            output.write(f"<td>{dim.tile}</td>\n")
+            output.write(f"<td>{dim.dtype}</td>\n")
+            output.write(f"<td>{dim.dtype in (np.str_, np.bytes_) }</td>\n")
+            output.write(f"<td>{dim.filters._repr_html_()}</td>\n")
+            output.write("</tr>\n")
+
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
 
     def __len__(self):
         """Returns the number of dimensions of the domain"""
@@ -3805,6 +3961,53 @@ cdef class ArraySchema(object):
             output.write(f"  coords_filters={self.coords_filters},\n")
 
         output.write(")\n")
+
+        return output.getvalue()
+
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<h3>ArraySchema</h3>\n")\
+
+        output.write("<details>\n")
+        output.write(f"<summary>domain</summary>\n")
+        output.write(self.domain._repr_html_())
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>attrs</summary>\n")
+        for i in range(self.nattr):
+            output.write(f"{self.attr(i)._repr_html_()}\n")
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>cell_order</summary>\n")
+        output.write(f"{self.cell_order}\n")
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>tile_order</summary>\n")
+        output.write(f"{self.tile_order}\n")
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>capacity</summary>\n")
+        output.write(f"{self.capacity}\n")
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>sparse</summary>\n")
+        output.write(f"{self.sparse}\n")
+        output.write("</details>\n")
+
+        if self.sparse and self.coords_filters is not None:
+            output.write("<details>\n")
+            output.write(f"<summary>coords_filters</summary>\n")
+            output.write(f"{self.coords_filters}\n")
+            output.write("</details>\n")
+
+        output.write("</section>\n")
 
         return output.getvalue()
 
