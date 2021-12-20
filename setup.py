@@ -7,8 +7,7 @@ import shutil
 import subprocess
 import sys
 import zipfile
-from distutils.sysconfig import get_config_var
-from distutils.version import LooseVersion
+from sysconfig import get_config_var
 from urllib.error import URLError
 from urllib.request import urlopen
 
