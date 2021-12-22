@@ -16,8 +16,8 @@ jobs:
         with:
           args: ". --check"
 
-      - name: Check Clang-Format
-        uses: jidicula/clang-format-action@v3.1.0
-        with:
-          clang-format-version: '10'
-          check-path: 'tiledb'
+#      - name: Check Clang-Format
+#        uses: jidicula/clang-format-action@v4.4.0
+#        with:
+#           clang-format-version: '9'
+#           check-path: 'tiledb'
