@@ -1,7 +1,11 @@
 # TileDB-Py 0.11.4 Release Notes
 
+## TileDB Embedded updates:
+* TileDB-Py 0.11.4 includes TileDB Embedded [TileDB 2.5.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.5.3)
+
 ## API Changes
 * Add rich display for TileDB objects in Jupyter notebooks [#824](https://github.com/TileDB-Inc/TileDB-Py/pull/824)
+* Support `TILEDB_STRING_ASCII` for array metadata [#828](https://github.com/TileDB-Inc/TileDB-Py/pull/828)
 
 # TileDB-Py 0.11.3 Release Notes
 
