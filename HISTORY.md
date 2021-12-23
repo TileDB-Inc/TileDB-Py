@@ -1,4 +1,10 @@
+# TileDB-Py 0.11.6 Release Notes
+
+## API Changes
+* Allow writing to dimension-only array (zero attributes) by using assignment to `None`, for example: `A[coords] = None` (given `A: tiledb.Array`) [#854](https://github.com/TileDB-Inc/TileDB-Py/pull/854)
+
 # TileDB-Py 0.11.5 Release Notes
+
 * Added missing dependency on [`packaging`](https://pypi.org/project/packaging/) in requirements.txt [#852](https://github.com/TileDB-Inc/TileDB-Py/pull/852)
 
 # TileDB-Py 0.11.4 Release Notes

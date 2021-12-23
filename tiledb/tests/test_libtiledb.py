@@ -2771,6 +2771,22 @@ class TestSparseArray(DiskTestCase):
             with self.assertRaises(ValueError):
                 A.unique_dim_values("dim3")
 
+    def test_sparse_write_for_zero_attrs(self):
+        uri = self.path("test_sparse_write_to_zero_attrs")
+        dim = tiledb.Dim(name="dim", domain=(0, 9), dtype=np.float64)
+        schema = tiledb.ArraySchema(domain=tiledb.Domain(dim), sparse=True)
+        tiledb.Array.create(uri, schema)
+
+        coords = [1, 2.0, 3.5]
+
+        with tiledb.open(uri, "w") as A:
+            A[coords] = None
+
+        with tiledb.open(uri, "r") as A:
+            output = A.query()[:]
+            assert list(output.keys()) == ["dim"]
+            assert_array_equal(output["dim"][:], coords)
+
 
 class TestDenseIndexing(DiskTestCase):
     def _test_index(self, A, T, idx):
