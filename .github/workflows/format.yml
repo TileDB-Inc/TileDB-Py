@@ -16,8 +16,16 @@ jobs:
         with:
           args: ". --check"
 
+<<<<<<< HEAD
 #      - name: Check Clang-Format
 #        uses: jidicula/clang-format-action@v4.4.0
 #        with:
 #           clang-format-version: '9'
 #           check-path: 'tiledb'
+=======
+      - name: Check Clang-Format
+        uses: jidicula/clang-format-action@v4.4.0
+        with:
+          clang-format-version: '9'
+          check-path: 'tiledb'
+>>>>>>> Update HISTORY.md

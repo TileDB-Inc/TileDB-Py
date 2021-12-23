@@ -1,4 +1,10 @@
+# TileDB-Py 0.11.6 Release Notes
+
+## API Changes
+* Allow writing to a non-attribute array by setting `tiledb.Array(coords) = None` [#854](https://github.com/TileDB-Inc/TileDB-Py/pull/854)
+
 # TileDB-Py 0.11.5 Release Notes
+
 * Added missing dependency on [`packaging`](https://pypi.org/project/packaging/) in requirements.txt [#852](https://github.com/TileDB-Inc/TileDB-Py/pull/852)
 
 # TileDB-Py 0.11.4 Release Notes
