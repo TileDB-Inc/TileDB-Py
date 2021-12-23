@@ -347,13 +347,14 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         output_offsets.append(offsets)
 
     # Check value layouts
-    value = output_values[0]
-    isfortran = value.ndim > 1 and value.flags.f_contiguous
-    if nattr > 1:
-        for i in range(1, nattr):
-            value = values[i]
-            if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
-                raise ValueError("mixed C and Fortran array layouts")
+    if len(values):
+        value = output_values[0]
+        isfortran = value.ndim > 1 and value.flags.f_contiguous
+        if nattr > 1:
+            for i in range(1, nattr):
+                value = values[i]
+                if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
+                    raise ValueError("mixed C and Fortran array layouts")
 
     #### Allocate and fill query ####
 
@@ -5502,15 +5503,17 @@ cdef class DenseArrayImpl(Array):
         return out[attr_name]
 
 # point query index a tiledb array (zips) columnar index vectors
-def index_domain_coords(dom: Domain, idx: tuple):
+def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
     """
     Returns a (zipped) coordinate array representation
     given coordinate indices in numpy's point indexing format
     """
     ndim = len(idx)
-    if ndim != dom.ndim:
-        raise IndexError("sparse index ndim must match "
-                         "domain ndim: {0!r} != {1!r}".format(ndim, dom.ndim))
+
+    if check_ndim:    
+        if ndim != dom.ndim:
+            raise IndexError("sparse index ndim must match domain ndim: "
+                            "{0!r} != {1!r}".format(ndim, dom.ndim))
 
     domain_coords = []
     for dim, sel in zip(dom, idx):
@@ -5549,13 +5552,25 @@ def index_domain_coords(dom: Domain, idx: tuple):
 def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
     if not self.isopen or self.mode != 'w':
         raise TileDBError("SparseArray is not opened for writing")
-    idx = index_as_tuple(selection)
-    sparse_coords = list(index_domain_coords(self.schema.domain, idx))
-    ncells = sparse_coords[0].shape[0]
 
+    set_dims_only = val is None
     sparse_attributes = list()
     sparse_values = list()
+    idx = index_as_tuple(selection)
+    sparse_coords = list(index_domain_coords(self.schema.domain, idx, not set_dims_only))
 
+    if set_dims_only:
+        _write_array(
+            self.ctx.ptr, self.ptr, self,
+            sparse_coords,
+            sparse_attributes,
+            sparse_values,
+            nullmaps,
+            self.last_fragment_info,
+            True
+        )
+        return
+    
     if not isinstance(val, dict):
         if self.nattr > 1:
             raise ValueError("Expected dict-like object {name: value} for multi-attribute "
@@ -5597,6 +5612,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             except Exception as exc:
                 raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
 
+        ncells = sparse_coords[0].shape[0]
         if attr_val.size != ncells:
            raise ValueError("value length ({}) does not match "
                              "coordinate length ({})".format(attr_val.size, ncells))
