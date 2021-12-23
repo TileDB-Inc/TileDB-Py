@@ -7,6 +7,7 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPo
 
 include "common.pxi"
 import io
+import html
 import sys
 import warnings
 from collections import OrderedDict
@@ -3147,10 +3148,10 @@ cdef class Domain(object):
         for i in range(self.ndim):
             dim = self.dim(i)
             output.write("<tr>\n")
-            output.write(f"<td>{dim.name}</td>\n")
+            output.write(f"<td>{html.escape(dim.name)}</td>\n")
             output.write(f"<td>{dim.domain}</td>\n")
             output.write(f"<td>{dim.tile}</td>\n")
-            output.write(f"<td>{dim.dtype}</td>\n")
+            output.write(f"<td>{html.escape(dim.dtype)}</td>\n")
             output.write(f"<td>{dim.dtype in (np.str_, np.bytes_) }</td>\n")
             output.write(f"<td>{dim.filters._repr_html_()}</td>\n")
             output.write("</tr>\n")
@@ -3978,10 +3979,25 @@ cdef class ArraySchema(object):
 
         output.write("<details>\n")
         output.write(f"<summary>attrs</summary>\n")
+        output.write("<table>\n")
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Data Type</th>\n")
+        output.write("<th>Is Var-Len</th>\n")
+        output.write("<th>Is Nullable</th>\n")
+        output.write("</tr>\n")
         for i in range(self.nattr):
-            output.write(f"{self.attr(i)._repr_html_()}\n")
+            attr = self.attr(i)
+            output.write("<tr>\n")
+            output.write(f"<td>{html.escape(attr.name)}</td>\n")
+            dtype = 'ascii' if attr.isascii else html.escape(str(attr.dtype))
+            output.write(f"<td>{dtype}</td>\n")
+            output.write(f"<td>{attr.isvar}</td>\n")
+            output.write(f"<td>{attr.isnullable}</td>\n")
+            output.write("</tr>\n")
+        output.write("</table>\n")
         output.write("</details>\n")
-
+        
         output.write("<details>\n")
         output.write(f"<summary>cell_order</summary>\n")
         output.write(f"{self.cell_order}\n")
