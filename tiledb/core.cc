@@ -21,6 +21,7 @@
 #include <tiledb/arrowio>
 #include <tiledb/tiledb.h>               // C
 #include <tiledb/tiledb>                 // C++
+#include <tiledb/tiledb_experimental.h>  // C
 #include <tiledb/tiledb_serialization.h> // C
 
 #include "../external/string_view.hpp"
@@ -943,44 +944,55 @@ public:
   }
 
   void resubmit_read() {
-    auto start_incomplete_buffer_update =
-        std::chrono::high_resolution_clock::now();
-    for (auto &bp : buffers_) {
-      auto &buf = bp.second;
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
+    tiledb_query_status_details_t status_details;
+    tiledb_query_get_status_details(ctx_.ptr().get(), query_.get()->ptr().get(),
+                                    &status_details);
 
-      // Check if values buffer should be resized
-      if ((buf.data_vals_read == 0) ||
-          (int64_t)(buf.data_vals_read * buf.elem_nbytes) >
-              (buf.data.nbytes() + 1) / 2) {
-        size_t new_size = buf.data.size() * 2;
-        buf.data.resize({new_size}, false);
+    if (status_details.incomplete_reason == TILEDB_REASON_USER_BUFFER_SIZE) {
+#else
+    if (true) {
+#endif
+      auto start_incomplete_buffer_update =
+          std::chrono::high_resolution_clock::now();
+      for (auto &bp : buffers_) {
+        auto &buf = bp.second;
+
+        // Check if values buffer should be resized
+        if ((buf.data_vals_read == 0) ||
+            (int64_t)(buf.data_vals_read * buf.elem_nbytes) >
+                (buf.data.nbytes() + 1) / 2) {
+          size_t new_size = buf.data.size() * 2;
+          buf.data.resize({new_size}, false);
+        }
+
+        // Check if offset buffer should be resized
+        if ((buf.isvar && buf.offsets_read == 0) ||
+            ((int64_t)(buf.offsets_read * sizeof(uint64_t)) >
+             (buf.offsets.nbytes() + 1) / 2)) {
+          size_t new_offsets_size = buf.offsets.size() * 2;
+          buf.offsets.resize({new_offsets_size}, false);
+        }
+
+        // Check if validity buffer should be resized
+        if ((buf.isnullable && buf.validity_vals_read == 0) ||
+            ((int64_t)(buf.validity_vals_read * sizeof(uint8_t)) >
+             (buf.validity.nbytes() + 1) / 2)) {
+          size_t new_validity_size = buf.validity.size() * 2;
+          buf.validity.resize({new_validity_size}, false);
+        }
       }
 
-      // Check if offset buffer should be resized
-      if ((buf.isvar && buf.offsets_read == 0) ||
-          ((int64_t)(buf.offsets_read * sizeof(uint64_t)) >
-           (buf.offsets.nbytes() + 1) / 2)) {
-        size_t new_offsets_size = buf.offsets.size() * 2;
-        buf.offsets.resize({new_offsets_size}, false);
+      // note: this block confuses lldb. continues from here unless bp set after
+      // block.
+      set_buffers();
+
+      if (g_stats) {
+        auto now = std::chrono::high_resolution_clock::now();
+        g_stats.get()
+            ->counters["py.read_query_incomplete_buffer_resize_time"] +=
+            now - start_incomplete_buffer_update;
       }
-
-      // Check if validity buffer should be resized
-      if ((buf.isnullable && buf.validity_vals_read == 0) ||
-          ((int64_t)(buf.validity_vals_read * sizeof(uint8_t)) >
-           (buf.validity.nbytes() + 1) / 2)) {
-        size_t new_validity_size = buf.validity.size() * 2;
-        buf.validity.resize({new_validity_size}, false);
-      }
-    }
-
-    // note: this block confuses lldb. continues from here unless bp set after
-    // block.
-    set_buffers();
-
-    if (g_stats) {
-      auto now = std::chrono::high_resolution_clock::now();
-      g_stats.get()->counters["py.read_query_incomplete_buffer_resize_time"] +=
-          now - start_incomplete_buffer_update;
     }
 
     {
