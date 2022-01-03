@@ -16,7 +16,7 @@ jobs:
       uses: dawidd6/action-delete-branch@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: 'azure-wheel-test-${{ steps.date.outputs.date }}-against-${{ env.LIBTILEDB_SHA }}'
+        branches: 'azure-wheel-test-${{ steps.date.outputs.date }}-against-${{ env.LIBTILEDB_SHA }}'
 
   notify-fail:
     if: github.event.action == 'failed'
