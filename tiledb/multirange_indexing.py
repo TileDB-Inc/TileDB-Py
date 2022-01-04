@@ -4,10 +4,22 @@ import time
 import weakref
 from collections import OrderedDict
 from contextlib import contextmanager
+from contextvars import ContextVar
 from numbers import Real
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
 from dataclasses import dataclass
 from itertools import zip_longest
+from typing import (
+    Any,
+    ContextManager,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import numpy as np
 
@@ -16,6 +28,8 @@ from tiledb.main import PyQuery, increment_stat, use_stats
 from tiledb.libtiledb import Metadata, Query
 
 from .dataframe_ import check_dataframe_deps
+
+current_timer: ContextVar[str] = ContextVar("timer_scope")
 
 try:
     import pyarrow
@@ -46,6 +60,9 @@ class EstimatedResultSize:
 
 @contextmanager
 def timing(key: str) -> Iterator[None]:
+    scoped_name = f"{current_timer.get('py')}.{key}"
+    parent_token = current_timer.set(scoped_name)
+
     if not use_stats():
         yield
     else:
@@ -53,7 +70,8 @@ def timing(key: str) -> Iterator[None]:
         try:
             yield
         finally:
-            increment_stat(key, time.time() - start)
+            increment_stat(scoped_name, time.time() - start)
+            current_timer.reset(parent_token)
 
 
 def mr_dense_result_shape(
@@ -163,7 +181,7 @@ class MultiRangeIndexer(object):
         return array
 
     def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
-        with timing("py.getitem_time"):
+        with timing("getitem_time"):
             if idx is EmptyRange:
                 return _get_empty_results(self.array.schema, self.query)
 
@@ -214,7 +232,7 @@ class MultiRangeIndexer(object):
                     "This includes all variable-length attributes and fixed-length "
                     "attributes with more than one value. Use `query(use_arrow=False)`."
                 )
-            with timing("py.buffer_conversion_time"):
+            with timing("buffer_conversion_time"):
                 table = self.pyquery._buffers_to_pa_table()
                 return table if query.return_arrow else table.to_pandas()
 
@@ -280,7 +298,7 @@ class DataFrameIndexer(MultiRangeIndexer):
         self.use_arrow = use_arrow
 
     def __getitem__(self, idx: Any) -> Union[DataFrame, Table]:
-        with timing("py.getitem_time"):
+        with timing("getitem_time"):
             check_dataframe_deps()
             array = self.array
             # we need to use a Query in order to get coords for a dense array
@@ -296,7 +314,7 @@ class DataFrameIndexer(MultiRangeIndexer):
             if not (pyarrow and isinstance(result, pyarrow.Table)):
                 if not isinstance(result, DataFrame):
                     result = DataFrame.from_dict(result)
-                with timing("py.pandas_index_update_time"):
+                with timing("pandas_index_update_time"):
                     result = _update_df_from_meta(result, array.meta, query.index_col)
             return result
 
