@@ -4,7 +4,7 @@ import time
 import weakref
 from collections import OrderedDict
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, copy_context
 from numbers import Real
 from dataclasses import dataclass
 from itertools import zip_longest
@@ -29,7 +29,7 @@ from tiledb.libtiledb import Metadata, Query
 
 from .dataframe_ import check_dataframe_deps
 
-current_timer: ContextVar[str] = ContextVar("timer_scope")
+current_timer: ContextVar[str] = ContextVar("timer_scope", default=None)
 
 try:
     import pyarrow
@@ -60,7 +60,8 @@ class EstimatedResultSize:
 
 @contextmanager
 def timing(key: str) -> Iterator[None]:
-    scoped_name = f"{current_timer.get('py')}.{key}"
+    parent_name = current_timer.get()
+    scoped_name = f"py.{key}" if parent_name is None else f"{parent_name}.{key}"
     parent_token = current_timer.set(scoped_name)
 
     if not use_stats():
@@ -70,8 +71,10 @@ def timing(key: str) -> Iterator[None]:
         try:
             yield
         finally:
-            increment_stat(scoped_name, time.time() - start)
+            increment_stat(current_timer.get(), time.time() - start)
             current_timer.reset(parent_token)
+
+    print(current_timer.get())
 
 
 def mr_dense_result_shape(
