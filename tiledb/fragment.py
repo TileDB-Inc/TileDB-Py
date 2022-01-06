@@ -515,9 +515,111 @@ def create_array_from_fragments(
             if not vfs.is_file(dst_schema):
                 vfs.copy_file(src_schema, dst_schema)
 
-        frag_name = os.path.basename(frag.uri)
         src_frag = frag.uri
-        dst_frag = os.path.join(dst_uri, frag_name)
+        dst_frag = os.path.join(dst_uri, os.path.basename(frag.uri))
+
+        if verbose or dry_run:
+            print(f"Copying fragment `{src_frag}` to `{dst_frag}`\n")
+
+        if not dry_run:
+            vfs.copy_file(f"{src_frag}.ok", f"{dst_frag}.ok")
+            vfs.copy_dir(src_frag, dst_frag)
+
+
+def copy_fragments_to_existing_array(
+    src_uri,
+    dst_uri,
+    timestamp_range,
+    config=None,
+    ctx=None,
+    verbose=False,
+    dry_run=False,
+):
+    """
+    (POSIX only). Create a new array from an already existing array by selecting
+    fragments that fall withing a given timestamp_range. The original array is located
+    at src_uri and the new array is created at dst_uri.
+
+    :param str src_uri: URI for the source TileDB array (any supported TileDB URI)
+    :param str dst_uri: URI for the newly created TileDB array (any supported TileDB URI)
+    :param (int, int) timestamp_range: (default None) If not None, vacuum the
+        array using the given range (inclusive)
+    :param config: Override the context configuration. Defaults to ctx.config()
+    :param ctx: (optional) TileDB Ctx
+    :param verbose: (optional) Print fragments being copied (default: False)
+    :param dry_run: (optional) Preview fragments to be copied without
+        running (default: False)
+    """
+    if not tiledb.array_exists(dst_uri):
+        raise tiledb.TileDBError(f"Array URI `{dst_uri}` does not exist")
+
+    if not isinstance(timestamp_range, tuple) and len(timestamp_range) != 2:
+        raise TypeError(
+            "'timestamp_range' argument expects tuple(start: int, end: int)"
+        )
+
+    if not ctx:
+        ctx = tiledb.default_ctx()
+
+    if config is None:
+        config = tiledb.Config(ctx.config())
+
+    vfs = tiledb.VFS(config=config, ctx=ctx)
+
+    dst_schema_file = os.path.join(dst_uri, "__array_schema.tdb")
+    src_schema_file = os.path.join(src_uri, "__array_schema.tdb")
+    dst_schema_dir = os.path.join(dst_uri, "__schema")
+    src_schema_dir = os.path.join(src_uri, "__schema")
+
+    is_old_style = vfs.is_file(dst_schema_file) and vfs.is_file(src_schema_file)
+    is_new_style = vfs.is_dir(dst_schema_dir) and vfs.is_dir(src_schema_dir)
+
+    if is_old_style and is_new_style:
+        raise tiledb.TileDBError(
+            "Mix of old and new style schemas detected. There can only be "
+            "one schema present in both the source and destination arrays and "
+            "both must be identical"
+        )
+    elif is_new_style:
+        if len(vfs.ls(dst_schema_dir)) != 1 and len(vfs.ls(src_schema_dir)) != 1:
+            raise tiledb.TileDBError(
+                "Mutltiple evolved schemas detected. There can only be one "
+                "schema present in both the source and destination arrays and "
+                "both must be identical"
+            )
+        schema_name = os.path.basename(vfs.ls(src_schema_dir)[0])
+        src_schema = os.path.join(src_uri, "__schema", schema_name)
+        dst_schema = os.path.join(dst_uri, "__schema", schema_name)
+
+    if tiledb.ArraySchema.load(src_uri) != tiledb.ArraySchema.load(dst_uri):
+        raise TypeError("The source and destination array must have matching schemas.")
+
+    if is_new_style:
+        if verbose or dry_run:
+            print(f"Copying schema `{src_schema}` to `{dst_schema}`\n")
+
+        if not dry_run:
+            vfs.copy_file(src_schema, dst_schema)
+
+    fragment_info = tiledb.array_fragments(src_uri)
+
+    for frag in fragment_info:
+        if not (
+            timestamp_range[0] <= frag.timestamp_range[0]
+            and frag.timestamp_range[1] <= timestamp_range[1]
+        ):
+            continue
+
+        src_frag = frag.uri
+        dst_frag = os.path.join(dst_uri, os.path.basename(frag.uri))
+
+        if src_frag == dst_frag:
+            if verbose or dry_run:
+                print(
+                    f"Fragment {src_frag} not copied. Already exists in "
+                    "destination array.\n"
+                )
+            continue
 
         if verbose or dry_run:
             print(f"Copying fragment `{src_frag}` to `{dst_frag}`\n")
