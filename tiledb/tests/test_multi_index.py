@@ -806,13 +806,11 @@ class TestMultiRange(DiskTestCase):
         attr_name = "a"
 
         make_1d_dense(path, attr_name=attr_name)
-
+        tiledb.stats_enable()
         with tiledb.open(path) as A:
-            tiledb.stats_enable()
-            assert_array_equal(A.multi_index[:][attr_name], np.arange(36))
+            assert_array_equal(A.df[:][attr_name], np.arange(36))
             internal_stats = tiledb.main.python_internal_stats()
             assert "py.getitem_time :" in internal_stats
             assert "py.getitem_time.buffer_conversion_time :" in internal_stats
             assert "py.getitem_time.pandas_index_update_time :" in internal_stats
-
         tiledb.stats_disable()

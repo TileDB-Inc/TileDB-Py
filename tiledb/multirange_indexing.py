@@ -29,7 +29,7 @@ from tiledb.libtiledb import Metadata, Query
 
 from .dataframe_ import check_dataframe_deps
 
-current_timer: ContextVar[str] = ContextVar("timer_scope", default=None)
+current_timer: ContextVar[str] = ContextVar("timer_scope")
 
 try:
     import pyarrow
@@ -60,21 +60,17 @@ class EstimatedResultSize:
 
 @contextmanager
 def timing(key: str) -> Iterator[None]:
-    parent_name = current_timer.get()
-    scoped_name = f"py.{key}" if parent_name is None else f"{parent_name}.{key}"
-    parent_token = current_timer.set(scoped_name)
-
     if not use_stats():
         yield
     else:
+        scoped_name = f"{current_timer.get('py')}.{key}"
+        parent_token = current_timer.set(scoped_name)
         start = time.time()
         try:
             yield
         finally:
             increment_stat(current_timer.get(), time.time() - start)
             current_timer.reset(parent_token)
-
-    print(current_timer.get())
 
 
 def mr_dense_result_shape(
