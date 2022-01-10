@@ -58,7 +58,7 @@ jobs:
       run: |
         set -xeo pipefail
 
-        pytest -vv
+        pytest -vv --showlocals
 
         # Test wheel build, install, and run
         python setup.py bdist_wheel
