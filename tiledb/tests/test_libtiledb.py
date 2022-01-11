@@ -1457,6 +1457,12 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.open(uri, mode="w") as A:
             A[:] = {"x": np.array((1, 2, 3, 4)), "y": np.array((5, 6, 7, 8))}
 
+        with self.assertRaises(KeyError):
+            tiledb.open(uri, attr="z")
+
+        with self.assertRaises(KeyError):
+            tiledb.open(uri, attr="dim0")
+
         with tiledb.open(uri, attr="x") as A:
             assert_array_equal(A[:], np.array((1, 2, 3, 4)))
             assert list(A.multi_index[:].keys()) == ["x"]
