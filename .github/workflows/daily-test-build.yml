@@ -1,6 +1,6 @@
 name: Daily Test Build TileDB-Py Against Core
 
-# on: [push]
+#on: [push]
 
 on:
   schedule:
@@ -14,12 +14,14 @@ jobs:
     - name: Get current date
       id: date
       run: echo "::set-output name=date::$(date +'%a-%Y-%m-%d')"
+    - name: Get libtiledb short SHA
+      run: echo "LIBTILEDB_SHA=$(git ls-remote https://github.com/TileDB-Inc/TileDB HEAD | cut -c1-7)" >> $GITHUB_ENV
     - name: Create Test Branch for Azure Wheel Nightly Build
       uses: peterjgrainger/action-create-branch@v2.0.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        branch: 'azure-wheel-test-${{ steps.date.outputs.date }}'
+        branch: 'azure-wheel-test-${{ steps.date.outputs.date }}-against-${{ env.LIBTILEDB_SHA }}'
 
   test:
     runs-on: ${{ matrix.os }}
@@ -36,8 +38,6 @@ jobs:
     steps:
     - name: Set up Python
       uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
 
     - name: Print Python version
       run: |

@@ -1,11 +1,13 @@
 import itertools
-
 import numpy as np
 import pytest
+import sys
 
 import tiledb
 from tiledb.main import PyFragmentInfo
+
 from tiledb.tests.common import DiskTestCase
+from numpy.testing import assert_array_equal
 
 
 class FragmentInfoTest(DiskTestCase):
@@ -461,3 +463,107 @@ class FragmentInfoTest(DiskTestCase):
         assert array_fragments[0].mbrs == expected_mbrs[0]
         assert array_fragments[1].mbrs == expected_mbrs[1]
         assert array_fragments[2].mbrs == expected_mbrs[2]
+
+
+class CreateArrayFromFragmentsTest(DiskTestCase):
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="VFS.copy() does not run on windows"
+    )
+    def test_create_array_from_fragments(self):
+        dshape = (1, 3)
+        num_frags = 10
+
+        def create_array(target_path, dshape):
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path, dshape, num_frags):
+            for i in range(1, num_frags + 1):
+                with tiledb.open(target_path, "w", timestamp=i) as A:
+                    A[[1, 2, 3]] = np.random.rand(dshape[1])
+
+        src_path = self.path("test_create_array_from_fragments_src")
+        dst_path = self.path("test_create_array_from_fragments_dst")
+
+        ts = tuple((t, t) for t in range(1, 11))
+
+        create_array(src_path, dshape)
+        write_fragments(src_path, dshape, num_frags)
+        frags = tiledb.FragmentInfoList(src_path)
+        assert len(frags) == 10
+        assert frags.timestamp_range == ts
+
+        tiledb.create_array_from_fragments(src_path, dst_path, (3, 6))
+
+        frags = tiledb.FragmentInfoList(dst_path)
+        assert len(frags) == 4
+        assert frags.timestamp_range == ts[2:6]
+
+
+class DeleteFragmentsTest(DiskTestCase):
+    def test_delete_fragments(self):
+        dshape = (1, 3)
+        num_writes = 10
+
+        def create_array(target_path, dshape):
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path, dshape, num_writes):
+            for i in range(1, num_writes + 1):
+                with tiledb.open(target_path, "w", timestamp=i) as A:
+                    A[[1, 2, 3]] = np.random.rand(dshape[1])
+
+        path = self.path("test_delete_fragments")
+
+        ts = tuple((t, t) for t in range(1, 11))
+
+        create_array(path, dshape)
+        write_fragments(path, dshape, num_writes)
+        frags = tiledb.array_fragments(path)
+        assert len(frags) == 10
+        assert frags.timestamp_range == ts
+
+        tiledb.delete_fragments(path, (3, 6))
+        frags = tiledb.array_fragments(path)
+        assert len(frags) == 6
+        assert frags.timestamp_range == ts[:2] + ts[6:]
+
+    def test_delete_fragments_with_schema_evolution(self):
+        path = self.path("test_delete_fragments_with_schema_evolution")
+        dshape = (1, 3)
+
+        dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+        att = tiledb.Attr(name="a1", dtype=np.float64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        tiledb.libtiledb.Array.create(path, schema)
+
+        ts1_data = np.random.rand(3)
+        with tiledb.open(path, "w", timestamp=1) as A:
+            A[[1, 2, 3]] = ts1_data
+
+        ctx = tiledb.default_ctx()
+        se = tiledb.ArraySchemaEvolution(ctx)
+        se.add_attribute(tiledb.Attr("a2", dtype=np.float64))
+        se.array_evolve(path)
+
+        ts2_data = np.random.rand(3)
+        with tiledb.open(path, "w", timestamp=2) as A:
+            A[[1, 2, 3]] = {"a1": ts2_data, "a2": ts2_data}
+
+        with tiledb.open(path, "r") as A:
+            assert A.schema.has_attr("a1")
+            assert A.schema.has_attr("a2")
+            assert_array_equal(A[:]["a1"], ts2_data)
+            assert_array_equal(A[:]["a2"], ts2_data)
+
+        tiledb.delete_fragments(path, (2, 2))
+
+        with tiledb.open(path, "r") as A:
+            assert A.schema.has_attr("a1")
+            assert not A.schema.has_attr("a2")
+            assert_array_equal(A[:]["a1"], ts1_data)

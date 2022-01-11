@@ -7,8 +7,7 @@ import shutil
 import subprocess
 import sys
 import zipfile
-from distutils.sysconfig import get_config_var
-from distutils.version import LooseVersion
+from sysconfig import get_config_var
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -16,7 +15,7 @@ from pkg_resources import resource_filename
 from setuptools import Extension, find_packages, setup
 
 # Target branch
-TILEDB_VERSION = "2.5.1"
+TILEDB_VERSION = "2.5.3"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
@@ -623,6 +622,7 @@ __extensions = [
             "tiledb/serialization.cc",
             "tiledb/schema_evolution.cc",
             "tiledb/tests/test_serialization.cc",
+            "tiledb/tests/test_metadata.cc",
             # TODO currently included in core.cc due to dependency.
             #      need to un-comment after refactor.
             # "tiledb/query_condition.cc",

@@ -1,12 +1,45 @@
-# TileDB-Py 0.11.3 Release Notes
+# TileDB-Py 0.12.0 Release Notes
 
 ## API Changes
+* Allow writing to dimension-only array (zero attributes) by using assignment to `None`, for example: `A[coords] = None` (given `A: tiledb.Array`) [#854](https://github.com/TileDB-Inc/TileDB-Py/pull/854)
+* Remove repeating header names for `attr` when displaying `ArraySchema` in Jupyter Notebooks [#856](https://github.com/TileDB-Inc/TileDB-Py/pull/856)
 * `tiledb.VFS.open` returns `FileIO` object; no longer returns `FileHandle` [#802](https://github.com/TileDB-Inc/TileDB-Py/pull/802)
+
+## Bug fixes
+* HTML escape strings for `Dim` and `Attr`'s `name` and `dtype` [#856](https://github.com/TileDB-Inc/TileDB-Py/pull/856)
+
+# TileDB-Py 0.11.5 Release Notes
+
+* Added missing dependency on [`packaging`](https://pypi.org/project/packaging/) in requirements.txt [#852](https://github.com/TileDB-Inc/TileDB-Py/pull/852)
+
+# TileDB-Py 0.11.4 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.11.4 includes TileDB Embedded [TileDB 2.5.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.5.3)
+
+## API Changes
+* Add rich display for TileDB objects in Jupyter notebooks [#824](https://github.com/TileDB-Inc/TileDB-Py/pull/824)
+* Support `TILEDB_STRING_ASCII` for array metadata [#828](https://github.com/TileDB-Inc/TileDB-Py/pull/828)
+
+# TileDB-Py 0.11.3 Release Notes
+
+## Impovements
+* Support for Python 3.10 [#808](https://github.com/TileDB-Inc/TileDB-Py/pull/808)
+
+## API Changes
+* Addition of `tiledb.version()` to return version as a tuple [#801](https://github.com/TileDB-Inc/TileDB-Py/pull/801)
+* `Query.get_stats` and `Ctx.get_stats` changed function signature; automatically `print_out` stats and add option to output as `json` [#809](https://github.com/TileDB-Inc/TileDB-Py/pull/809)
+
+## Bug fixes
+* `tiledb.delete_fragments` removes unused schemas [#813](https://github.com/TileDB-Inc/TileDB-Py/pull/813)
 
 # TileDB-Py 0.11.2 Release Notes
 
 ## TileDB Embedded updates:
 * TileDB-Py 0.11.2 includes TileDB Embedded [TileDB 2.5.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.5.2)
+
+## Bug fixes
+* Support dict parameter for 'config' argument to VFS constructor [#805](https://github.com/TileDB-Inc/TileDB-Py/pull/805)
 
 # TileDB-Py 0.11.1 Release Notes
 

@@ -17,20 +17,20 @@ def check_dataframe_deps():
     pa_error = """PyArrow version >= 1.0 is suggested for dataframe functionality.
                   Please `pip install pyarrow>=1.0`."""
 
-    from distutils.version import LooseVersion
-
     try:
         import pandas as pd
     except ImportError:
         raise Exception(pd_error)
 
-    if LooseVersion(pd.__version__) < LooseVersion("1.0"):
+    from packaging.version import Version
+
+    if Version(pd.__version__) < Version("1.0"):
         raise Exception(pd_error)
 
     try:
         import pyarrow as pa
 
-        if LooseVersion(pa.__version__) < LooseVersion("1.0"):
+        if Version(pa.__version__) < Version("1.0"):
             warnings.warn(pa_error)
     except ImportError:
         warnings.warn(pa_error)

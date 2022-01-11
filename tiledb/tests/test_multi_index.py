@@ -800,3 +800,17 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(q.multi_index[:]["a"], q[:]["a"])
             assert_array_equal(q.multi_index[:]["a"], q.df[:]["a"])
             assert all(q[:]["a"] >= 5)
+
+    def test_multi_index_timing(self):
+        path = self.path("test_multi_index_timing")
+        attr_name = "a"
+
+        make_1d_dense(path, attr_name=attr_name)
+        tiledb.stats_enable()
+        with tiledb.open(path) as A:
+            assert_array_equal(A.df[:][attr_name], np.arange(36))
+            internal_stats = tiledb.main.python_internal_stats()
+            assert "py.getitem_time :" in internal_stats
+            assert "py.getitem_time.buffer_conversion_time :" in internal_stats
+            assert "py.getitem_time.pandas_index_update_time :" in internal_stats
+        tiledb.stats_disable()

@@ -257,7 +257,7 @@ uint8_bool_to_uint8_bitmap(py::array_t<uint8_t> validity_array) {
 
 uint64_t count_zeros(py::array_t<uint8_t> a) {
   uint64_t count = 0;
-  for (ssize_t idx = 0; idx < a.size(); idx++)
+  for (Py_ssize_t idx = 0; idx < a.size(); idx++)
     count += (a.data()[idx] == 0) ? 1 : 0;
   return count;
 }
@@ -266,6 +266,8 @@ class PyQuery {
 
 private:
   Context ctx_;
+  shared_ptr<tiledb::Domain> domain_;
+  shared_ptr<tiledb::ArraySchema> array_schema_;
   shared_ptr<tiledb::Array> array_;
   shared_ptr<tiledb::Query> query_;
   std::vector<std::string> attrs_;
@@ -313,6 +315,12 @@ public:
     // we never own this pointer, pass own=false
     array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false),
                                             [](Array *p) {} /* no deleter*/);
+
+    array_schema_ =
+        std::shared_ptr<tiledb::ArraySchema>(new ArraySchema(array_->schema()));
+
+    domain_ =
+        std::shared_ptr<tiledb::Domain>(new Domain(array_schema_->domain()));
 
     pyschema_ = array.attr("schema");
 
@@ -451,8 +459,7 @@ public:
     // if (r0.get_type() != r1.get_type())
     //    TPY_ERROR_LOC("Mismatched type");
 
-    auto domain = array_->schema().domain();
-    auto dim = domain.dimension(dim_idx);
+    auto dim = domain_->dimension(dim_idx);
 
     auto tiledb_type = dim.type();
 
@@ -596,8 +603,7 @@ public:
   }
 
   void set_subarray(py::array subarray) {
-    auto schema = array_->schema();
-    auto ndim = schema.domain().ndim();
+    auto ndim = domain_->ndim();
     if (subarray.size() != (2 * ndim))
       TPY_ERROR_LOC(
           "internal error: failed to set subarray (mismatched dimension count");
@@ -652,21 +658,18 @@ public:
     }
   }
 
-  bool is_dimension(std::string name) {
-    return array_->schema().domain().has_dimension(name);
-  }
+  bool is_dimension(std::string name) { return domain_->has_dimension(name); }
 
   bool is_attribute(std::string name) {
-    return array_->schema().has_attribute(name);
+    return array_schema_->has_attribute(name);
   }
 
   bool is_var(std::string name) {
     if (is_dimension(name)) {
-      auto domain = array_->schema().domain();
-      auto dim = domain.dimension(name);
+      auto dim = domain_->dimension(name);
       return dim.cell_val_num() == TILEDB_VAR_NUM;
     } else if (is_attribute(name)) {
-      auto attr = array_->schema().attribute(name);
+      auto attr = array_schema_->attribute(name);
       return attr.cell_val_num() == TILEDB_VAR_NUM;
     } else {
       TPY_ERROR_LOC("Unknown buffer type for is_var check (expected attribute "
@@ -679,20 +682,19 @@ public:
       return false;
     }
 
-    auto attr = array_->schema().attribute(name);
+    auto attr = array_schema_->attribute(name);
     return attr.nullable();
   }
 
   std::pair<tiledb_datatype_t, uint32_t> buffer_type(std::string name) {
-    auto schema = array_->schema();
     tiledb_datatype_t type;
     uint32_t cell_val_num;
     if (is_dimension(name)) {
-      type = schema.domain().dimension(name).type();
-      cell_val_num = schema.domain().dimension(name).cell_val_num();
+      type = domain_->dimension(name).type();
+      cell_val_num = domain_->dimension(name).cell_val_num();
     } else if (is_attribute(name)) {
-      type = schema.attribute(name).type();
-      cell_val_num = schema.attribute(name).cell_val_num();
+      type = array_schema_->attribute(name).type();
+      cell_val_num = array_schema_->attribute(name).cell_val_num();
     } else {
       TPY_ERROR_LOC("Unknown buffer '" + name + "'");
     }
@@ -700,11 +702,10 @@ public:
   }
 
   uint32_t buffer_ncells(std::string name) {
-    auto schema = array_->schema();
     if (is_dimension(name)) {
-      return schema.domain().dimension(name).cell_val_num();
+      return domain_->dimension(name).cell_val_num();
     } else if (is_attribute(name)) {
-      return schema.attribute(name).cell_val_num();
+      return array_schema_->attribute(name).cell_val_num();
     }
     TPY_ERROR_LOC("Unknown buffer '" + name + "' for buffer_ncells");
   }
@@ -722,7 +723,6 @@ public:
   bool is_sparse() { return array_->schema().array_type() == TILEDB_SPARSE; }
 
   void import_buffer(std::string name, py::array data, py::array offsets) {
-    auto schema = array_->schema();
 
     tiledb_datatype_t type;
     uint32_t cell_val_num;
@@ -743,7 +743,6 @@ public:
   }
 
   void alloc_buffer(std::string name) {
-    auto schema = array_->schema();
 
     tiledb_datatype_t type;
     uint32_t cell_val_num;
@@ -759,8 +758,9 @@ public:
 
     bool var = is_var(name);
     bool nullable = is_nullable(name);
+    bool dense = array_schema_->array_type() == TILEDB_DENSE;
 
-    if (retries_ < 1) {
+    if (retries_ < 1 && dense) {
       // we must not call after submitting
       if (nullable && var) {
         auto sizes = query_->est_result_size_var_nullable(name);
@@ -1000,13 +1000,13 @@ public:
       auto name = bp.first;
       auto &buf = bp.second;
 
-      ssize_t final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
-      ssize_t final_offsets_count = buf.offsets_read + arrow_offset_size;
-      ssize_t final_validity_count = buf.validity_vals_read;
+      Py_ssize_t final_data_nbytes = buf.data_vals_read * buf.elem_nbytes;
+      Py_ssize_t final_offsets_count = buf.offsets_read + arrow_offset_size;
+      Py_ssize_t final_validity_count = buf.validity_vals_read;
 
       assert(final_data_nbytes <= buf.data.size());
       assert(final_offsets_count <=
-             (ssize_t)(buf.offsets.size() + arrow_offset_size));
+             (Py_ssize_t)(buf.offsets.size() + arrow_offset_size));
 
       buf.data.resize({final_data_nbytes});
       buf.offsets.resize({final_offsets_count});
@@ -1037,13 +1037,11 @@ public:
   }
 
   void allocate_buffers() {
-    auto schema = array_->schema();
 
     // allocate buffers for dims
     //   - we want to return dims first, if any requested
-    auto domain = schema.domain();
-    for (size_t dim_idx = 0; dim_idx < domain.ndim(); dim_idx++) {
-      auto dim = domain.dimension(dim_idx);
+    for (size_t dim_idx = 0; dim_idx < domain_->ndim(); dim_idx++) {
+      auto dim = domain_->dimension(dim_idx);
       if ((std::find(dims_.begin(), dims_.end(), dim.name()) == dims_.end()) &&
           // we need to also check if this is an attr for backward-compatibility
           (std::find(attrs_.begin(), attrs_.end(), dim.name()) ==
@@ -1056,8 +1054,9 @@ public:
     // allocate buffers for attributes
     //   - schema.attributes() is unordered, but we need to return ordered
     //   results
-    for (size_t attr_idx = 0; attr_idx < schema.attribute_num(); attr_idx++) {
-      auto attr = schema.attribute(attr_idx);
+    for (size_t attr_idx = 0; attr_idx < array_schema_->attribute_num();
+         attr_idx++) {
+      auto attr = array_schema_->attribute(attr_idx);
       if (std::find(attrs_.begin(), attrs_.end(), attr.name()) ==
           attrs_.end()) {
         continue;
@@ -1454,26 +1453,9 @@ std::string python_internal_stats() {
 
   os << std::endl;
   os << "==== Python Stats ====" << std::endl << std::endl;
-  os << "* Total TileDB query time: "
-     << counters["py.core_read_query_total_time"].count() << std::endl;
-  os << "  > TileDB Core initial query submit time: "
-     << counters["py.core_read_query_initial_submit_time"].count() << std::endl;
 
-  std::string key1 = "py.core_read_query_incomplete_retry_time";
-  if (counters.count(key1) == 1) {
-    os << "  > TileDB Core incomplete retry time: " << counters[key1].count()
-       << std::endl;
-    os << "  > TileDB-Py buffer update time: "
-       << counters["py.read_query_incomplete_buffer_resize_time"].count()
-       << std::endl;
-    os << "  > TileDB-Py retry count: "
-       << (size_t)counters["py.query_retries_count"].count() << std::endl;
-  }
-
-  std::string key3 = "py.buffer_conversion_time";
-  if (counters.count(key3) == 1) {
-    os << "* TileDB-Py buffer conversion time: " << counters[key3].count()
-       << std::endl;
+  for (auto &stat : counters) {
+    os << "  " << stat.first << " : " << stat.second.count() << std::endl;
   }
 
   return os.str();

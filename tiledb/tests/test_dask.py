@@ -45,6 +45,7 @@ class TestDaskSupport(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
+    @pytest.mark.filterwarnings("ignore:There is no current event loop")
     def test_dask_multiattr_2d(self):
         uri = self.path("multiattr")
 
@@ -98,7 +99,7 @@ class TestDaskSupport(DiskTestCase):
         assert_array_equal(D2, A)
 
         D3 = D2.map_overlap(
-            lambda x: x + 1, depth={0: 0, 1: 1, 2: 1}, dtype=A.dtype
+            lambda x: x + 1, depth={0: 0, 1: 1, 2: 1}, dtype=A.dtype, boundary="none"
         ).compute()
         assert_array_equal(D2 * 2, D3)
 
@@ -126,7 +127,7 @@ class TestDaskSupport(DiskTestCase):
         D2 = da.from_tiledb(uri, attribute="TDB_VALUES")
 
         D3 = D2.map_overlap(
-            lambda x: x + 1, depth={0: 0, 1: 1, 2: 1}, dtype=D2.dtype
+            lambda x: x + 1, depth={0: 0, 1: 1, 2: 1}, dtype=D2.dtype, boundary="none"
         ).compute()
         assert_array_equal(D2 + 1, D3)
 

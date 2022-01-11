@@ -7,6 +7,7 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPo
 
 include "common.pxi"
 import io
+import html
 import sys
 import warnings
 from collections import OrderedDict
@@ -347,13 +348,14 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         output_offsets.append(offsets)
 
     # Check value layouts
-    value = output_values[0]
-    isfortran = value.ndim > 1 and value.flags.f_contiguous
-    if nattr > 1:
-        for i in range(1, nattr):
-            value = values[i]
-            if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
-                raise ValueError("mixed C and Fortran array layouts")
+    if len(values):
+        value = output_values[0]
+        isfortran = value.ndim > 1 and value.flags.f_contiguous
+        if nattr > 1:
+            for i in range(1, nattr):
+                value = values[i]
+                if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
+                    raise ValueError("mixed C and Fortran array layouts")
 
     #### Allocate and fill query ####
 
@@ -885,6 +887,31 @@ cdef class Config(object):
         output.extend(format_str.format(p, v) for p, v in zip(params, values))
         return "\n".join(output)
 
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th>Parameter</th>\n")
+        output.write("<th>Value</th>\n")
+        output.write("</tr>\n")
+
+        params = list(self.keys())
+        values = list(map(repr, self.values()))
+
+        for p, v in zip(params, values):
+            output.write("<tr>\n")
+            output.write(f"<td>{p}</td>\n")
+            output.write(f"<td>{v}</td>\n")
+            output.write("</tr>\n")
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
+
     def items(self, prefix=u""):
         """Returns an iterator object over Config parameters, values
 
@@ -1159,17 +1186,31 @@ cdef class Ctx(object):
         self.set_tag('x-tiledb-api-language-version', '{}.{}.{}'.format(*sys.version_info))
         self.set_tag('x-tiledb-api-sys-platform', sys.platform)
 
-    def get_stats(self):
-        """Retrieves the stats from a TileDB context."""
-        import json
+    def get_stats(self, print_out=True, json=False):
+        """Retrieves the stats from a TileDB context.
+
+        :param print_out: Print string to console (default True), or return as string
+        :param json: Return stats JSON object (default: False)
+        """
         cdef tiledb_ctx_t* ctx_ptr = self.ptr
         cdef int rc = TILEDB_OK
-        cdef char* stats_json
-        rc = tiledb_ctx_get_stats(ctx_ptr, &stats_json)
+        cdef char* stats_bytes
+        rc = tiledb_ctx_get_stats(ctx_ptr, &stats_bytes)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-        cdef unicode stats = stats_json.decode('UTF-8', 'strict')
-        return stats
+        cdef unicode stats = stats_bytes.decode('UTF-8', 'strict')
+
+        if json:
+            import json
+            output = json.loads(stats)
+        else:
+            output = stats
+
+        if print_out:
+            print(output)
+        else:
+            return output
+
 
 
 def _tiledb_datetime_extent(begin, end):
@@ -1360,6 +1401,31 @@ cdef class Filter(object):
                 a = getattr(self, f)
                 output.write(f"{f}={a}")
         output.write(")")
+        return output.getvalue()
+    
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th></th>\n")
+        if hasattr(self, '_attrs_'):
+            for f in self._attrs_():
+                output.write(f"<th>{f}</th>")
+        output.write("</tr>\n")
+
+        output.write("<tr>\n")
+        output.write(f"<td>{type(self).__name__}</td>\n")
+        if hasattr(self, '_attrs_'):
+            for f in self._attrs_():
+                output.write(f"<td>{getattr(self, f)}</td>")
+        output.write("</tr>\n")
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
         return output.getvalue()
 
     def __eq__(self, other):
@@ -2069,6 +2135,18 @@ cdef class FilterList(object):
             [repr(self._getfilter(i)) for i in range(self.nfilters)])
         return "FilterList([{0!s}])".format(filters)
 
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        for i in range(self.nfilters):
+            output.write(self._getfilter(i)._repr_html_())
+        output.write("</section>\n")
+
+        return output.getvalue()
+
+    
+
     def __eq__(self, other):
         if other is None:
             return False
@@ -2549,6 +2627,31 @@ cdef class Attr(object):
         return (f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
                 f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
                 f"""{filters_str})""")
+    
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Data Type</th>\n")
+        output.write("<th>Is Var-Len</th>\n")
+        output.write("<th>Is Nullable</th>\n")
+        output.write("</tr>\n")
+
+        output.write("<tr>\n")
+        output.write(f"<td>{self.name}</td>\n")
+        output.write(f"<td>{'ascii' if self.isascii else self.dtype}</td>\n")
+        output.write(f"<td>{self.isvar}</td>\n")
+        output.write(f"<td>{self.isnullable}</td>\n")
+        output.write("</tr>\n")
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
 
 
 cdef class Dim(object):
@@ -2609,7 +2712,7 @@ cdef class Dim(object):
         cdef void* tile_size_ptr = NULL
         cdef np.dtype domain_dtype
 
-        if ((isinstance(dtype, str) and dtype == "ascii") or 
+        if ((isinstance(dtype, str) and dtype == "ascii") or
                 dtype == np.dtype('S')):
             # Handle var-len domain type
             #  (currently only TILEDB_STRING_ASCII)
@@ -2687,6 +2790,43 @@ cdef class Dim(object):
 
         return "Dim(name={0!r}, domain={1!s}, tile='{2!s}', dtype='{3!s}'{4}{5})" \
             .format(self.name, self.domain, self.tile, self.dtype, varlen, filters_str)
+    
+    def _repr_html_(self) -> str:
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Domain</th>\n")
+        output.write("<th>Tile</th>\n")
+        output.write("<th>Data Type</th>\n")
+        output.write("<th>Is Var-Len</th>\n")
+        output.write("<th>Filters</th>\n")
+        output.write("</tr>\n")
+
+        filters_str = ""
+        if self.filters:
+            filters_str = ", filters=FilterList(["
+            for f in self.filters:
+                filters_str +=  repr(f) + ", "
+            filters_str += "])"
+
+        output.write("<tr>\n")
+        output.write(f"<td>{self.name}</td>\n")
+        output.write(f"<td>{self.domain}</td>\n")
+        output.write(f"<td>{self.tile}</td>\n")
+        output.write(f"<td>{self.dtype}</td>\n")
+        output.write(f"<td>{self.dtype in (np.str_, np.bytes_) }</td>\n")
+        output.write(f"<td>{filters_str}</td>\n")
+        output.write("</tr>\n")
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
+
 
     def __len__(self):
         return self.size
@@ -2990,6 +3130,38 @@ cdef class Domain(object):
             [repr(self.dim(i)) for i in range(self.ndim)])
         return "Domain({0!s})".format(dims)
 
+    def _repr_html_(self) -> str:
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<table>\n")
+
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Domain</th>\n")
+        output.write("<th>Tile</th>\n")
+        output.write("<th>Data Type</th>\n")
+        output.write("<th>Is Var-length</th>\n")
+        output.write("<th>Filters</th>\n")
+        output.write("</tr>\n")
+
+        for i in range(self.ndim):
+            dim = self.dim(i)
+            output.write("<tr>\n")
+            output.write(f"<td>{html.escape(dim.name)}</td>\n")
+            output.write(f"<td>{dim.domain}</td>\n")
+            output.write(f"<td>{dim.tile}</td>\n")
+            output.write(f"<td>{html.escape(dim.dtype)}</td>\n")
+            output.write(f"<td>{dim.dtype in (np.str_, np.bytes_) }</td>\n")
+            output.write(f"<td>{dim.filters._repr_html_()}</td>\n")
+            output.write("</tr>\n")
+
+
+        output.write("</table>\n")
+        output.write("</section>\n")
+
+        return output.getvalue()
+
     def __len__(self):
         """Returns the number of dimensions of the domain"""
         return self.ndim
@@ -3215,7 +3387,7 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
             (dim_lb, dim_ub) = ned[r] if ned else (None, None)
         else:
             (dim_lb, dim_ub) = dim.domain
-            
+
 
         dim_slice = idx[r]
         if not isinstance(dim_slice, slice):
@@ -3794,6 +3966,68 @@ cdef class ArraySchema(object):
 
         return output.getvalue()
 
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<section>\n")
+        output.write("<h3>ArraySchema</h3>\n")\
+
+        output.write("<details>\n")
+        output.write(f"<summary>domain</summary>\n")
+        output.write(self.domain._repr_html_())
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>attrs</summary>\n")
+        output.write("<table>\n")
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Data Type</th>\n")
+        output.write("<th>Is Var-Len</th>\n")
+        output.write("<th>Is Nullable</th>\n")
+        output.write("</tr>\n")
+        for i in range(self.nattr):
+            attr = self.attr(i)
+            output.write("<tr>\n")
+            output.write(f"<td>{html.escape(attr.name)}</td>\n")
+            dtype = 'ascii' if attr.isascii else html.escape(str(attr.dtype))
+            output.write(f"<td>{dtype}</td>\n")
+            output.write(f"<td>{attr.isvar}</td>\n")
+            output.write(f"<td>{attr.isnullable}</td>\n")
+            output.write("</tr>\n")
+        output.write("</table>\n")
+        output.write("</details>\n")
+        
+        output.write("<details>\n")
+        output.write(f"<summary>cell_order</summary>\n")
+        output.write(f"{self.cell_order}\n")
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>tile_order</summary>\n")
+        output.write(f"{self.tile_order}\n")
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>capacity</summary>\n")
+        output.write(f"{self.capacity}\n")
+        output.write("</details>\n")
+
+        output.write("<details>\n")
+        output.write(f"<summary>sparse</summary>\n")
+        output.write(f"{self.sparse}\n")
+        output.write("</details>\n")
+
+        if self.sparse and self.coords_filters is not None:
+            output.write("<details>\n")
+            output.write(f"<summary>coords_filters</summary>\n")
+            output.write(f"{self.coords_filters}\n")
+            output.write("</details>\n")
+
+        output.write("</section>\n")
+
+        return output.getvalue()
+
 
 # Wrapper class to allow returning a Python object so that exceptions work correctly
 # within preload_array
@@ -4022,7 +4256,7 @@ cdef class Array(object):
             key_ptr = <void *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-        
+
         if overwrite:
             if object_type(uri) == "array":
                 if uri.startswith("file://") or "://" not in uri:
@@ -4704,12 +4938,27 @@ cdef class Query(object):
         from .multirange_indexing import DataFrameIndexer
         return DataFrameIndexer(self.array, query=self, use_arrow=self.use_arrow)
 
-    def get_stats(self):
-        """Retrieves the stats from a TileDB query."""
+    def get_stats(self, print_out=True, json=False):
+        """Retrieves the stats from a TileDB query.
+
+        :param print_out: Print string to console (default True), or return as string
+        :param json: Return stats JSON object (default: False)
+        """
         pyquery = self.array.pyquery
         if pyquery is None:
             return ""
-        return self.array.pyquery.get_stats()
+        stats = self.array.pyquery.get_stats()
+
+        if json:
+            import json
+            output = json.loads(stats)
+        else:
+            output = stats
+
+        if print_out:
+            print(output)
+        else:
+            return output
 
 
 cdef class DenseArrayImpl(Array):
@@ -4932,7 +5181,7 @@ cdef class DenseArrayImpl(Array):
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         subarray = index_domain_subarray(self, self.schema.domain, idx)
         # Note: we included dims (coords) above to match existing semantics
-        out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout, 
+        out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout,
                                         coords)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
@@ -4949,8 +5198,8 @@ cdef class DenseArrayImpl(Array):
         return out
 
 
-    cdef _read_dense_subarray(self, list subarray, list attr_names, 
-                              object attr_cond, tiledb_layout_t layout, 
+    cdef _read_dense_subarray(self, list subarray, list attr_names,
+                              object attr_cond, tiledb_layout_t layout,
                               bint include_coords):
 
         from tiledb.main import PyQuery
@@ -5270,21 +5519,23 @@ cdef class DenseArrayImpl(Array):
         return out[attr_name]
 
 # point query index a tiledb array (zips) columnar index vectors
-def index_domain_coords(dom: Domain, idx: tuple):
+def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
     """
     Returns a (zipped) coordinate array representation
     given coordinate indices in numpy's point indexing format
     """
     ndim = len(idx)
-    if ndim != dom.ndim:
-        raise IndexError("sparse index ndim must match "
-                         "domain ndim: {0!r} != {1!r}".format(ndim, dom.ndim))
-    
+
+    if check_ndim:    
+        if ndim != dom.ndim:
+            raise IndexError("sparse index ndim must match domain ndim: "
+                            "{0!r} != {1!r}".format(ndim, dom.ndim))
+
     domain_coords = []
     for dim, sel in zip(dom, idx):
-        dim_is_string = (np.issubdtype(dim.dtype, np.str_) or 
+        dim_is_string = (np.issubdtype(dim.dtype, np.str_) or
             np.issubdtype(dim.dtype, np.bytes_))
-        
+
         if dim_is_string:
             try:
                 # ensure strings contain only ASCII characters
@@ -5317,13 +5568,25 @@ def index_domain_coords(dom: Domain, idx: tuple):
 def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
     if not self.isopen or self.mode != 'w':
         raise TileDBError("SparseArray is not opened for writing")
-    idx = index_as_tuple(selection)
-    sparse_coords = list(index_domain_coords(self.schema.domain, idx))
-    ncells = sparse_coords[0].shape[0]
 
+    set_dims_only = val is None
     sparse_attributes = list()
     sparse_values = list()
+    idx = index_as_tuple(selection)
+    sparse_coords = list(index_domain_coords(self.schema.domain, idx, not set_dims_only))
 
+    if set_dims_only:
+        _write_array(
+            self.ctx.ptr, self.ptr, self,
+            sparse_coords,
+            sparse_attributes,
+            sparse_values,
+            nullmaps,
+            self.last_fragment_info,
+            True
+        )
+        return
+    
     if not isinstance(val, dict):
         if self.nattr > 1:
             raise ValueError("Expected dict-like object {name: value} for multi-attribute "
@@ -5365,6 +5628,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             except Exception as exc:
                 raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
 
+        ncells = sparse_coords[0].shape[0]
         if attr_val.size != ncells:
            raise ValueError("value length ({}) does not match "
                              "coordinate length ({})".format(attr_val.size, ncells))
@@ -5543,7 +5807,7 @@ cdef class SparseArrayImpl(Array):
                      use_arrow=use_arrow, return_arrow=return_arrow,
                      return_incomplete=return_incomplete)
 
-    def subarray(self, selection, coords=True, attrs=None, attr_cond=None, 
+    def subarray(self, selection, coords=True, attrs=None, attr_cond=None,
                  order=None):
         """
         Retrieve dimension and data cells for an item or region of the array.
@@ -6801,14 +7065,16 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
     ...     for i in range(4):
     ...         A[:] = np.ones(4, dtype=np.int64) * i
     >>> paths = tiledb.VFS().ls(path)
-    >>> len(paths) # should be 13 (3 base files + 2*5 fragment+ok files)
-    13
+    >>> # should be 12 (2 base files + 2*5 fragment+ok files)
+    >>> (); len(paths); () # doctest:+ELLIPSIS
+    (...)
     >>> () ; tiledb.consolidate(path) ; () # doctest:+ELLIPSIS
     (...)
     >>> tiledb.vacuum(path)
     >>> paths = tiledb.VFS().ls(path)
-    >>> len(paths) # should now be 5 (3 base files + 2 fragment+ok files)
-    5
+    >>> # should now be 4 ( base files + 2 fragment+ok files)
+    >>> (); len(paths); () # doctest:+ELLIPSIS
+    (...)
 
     """
     cdef tiledb_ctx_t* ctx_ptr = NULL

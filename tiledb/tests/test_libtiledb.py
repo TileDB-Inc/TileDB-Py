@@ -40,11 +40,19 @@ from tiledb.util import schema_from_dict
 
 
 class VersionTest(DiskTestCase):
-    def test_version(self):
+    def test_libtiledb_version(self):
         v = tiledb.libtiledb.version()
         self.assertIsInstance(v, tuple)
         self.assertTrue(len(v) == 3)
         self.assertTrue(v[0] >= 1, "TileDB major version must be >= 1")
+
+    def test_tiledbpy_version(self):
+        v = tiledb.version.version
+        self.assertIsInstance(v, str)
+
+        v = tiledb.version()
+        self.assertIsInstance(v, tuple)
+        self.assertTrue(3 <= len(v) <= 5)
 
 
 class StatsTest(DiskTestCase):
@@ -2763,6 +2771,22 @@ class TestSparseArray(DiskTestCase):
             with self.assertRaises(ValueError):
                 A.unique_dim_values("dim3")
 
+    def test_sparse_write_for_zero_attrs(self):
+        uri = self.path("test_sparse_write_to_zero_attrs")
+        dim = tiledb.Dim(name="dim", domain=(0, 9), dtype=np.float64)
+        schema = tiledb.ArraySchema(domain=tiledb.Domain(dim), sparse=True)
+        tiledb.Array.create(uri, schema)
+
+        coords = [1, 2.0, 3.5]
+
+        with tiledb.open(uri, "w") as A:
+            A[coords] = None
+
+        with tiledb.open(uri, "r") as A:
+            output = A.query()[:]
+            assert list(output.keys()) == ["dim"]
+            assert_array_equal(output["dim"][:], coords)
+
 
 class TestDenseIndexing(DiskTestCase):
     def _test_index(self, A, T, idx):
@@ -3957,71 +3981,6 @@ class TestHighlevel(DiskTestCase):
             if n == 0:
                 start_threads = len(thisproc.threads())
 
-    def test_delete_fragments(self):
-        dshape = (1, 3)
-        num_writes = 10
-
-        def create_array(target_path, dshape):
-            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
-            att = tiledb.Attr(dtype="int64")
-            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
-
-        def write_fragments(target_path, dshape, num_writes):
-            for i in range(1, num_writes + 1):
-                with tiledb.open(target_path, "w", timestamp=i) as A:
-                    A[[1, 2, 3]] = np.random.rand(dshape[1])
-
-        path = self.path("test_delete_fragments")
-
-        ts = tuple((t, t) for t in range(1, 11))
-
-        create_array(path, dshape)
-        write_fragments(path, dshape, num_writes)
-        frags = tiledb.FragmentInfoList(path)
-        assert len(frags) == 10
-        assert frags.timestamp_range == ts
-
-        tiledb.delete_fragments(path, (3, 6))
-        frags = tiledb.FragmentInfoList(path)
-        assert len(frags) == 6
-        assert frags.timestamp_range == ts[:2] + ts[6:]
-
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="VFS.copy() does not run on windows"
-    )
-    def test_create_array_from_fragments(self):
-        dshape = (1, 3)
-        num_frags = 10
-
-        def create_array(target_path, dshape):
-            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
-            att = tiledb.Attr(dtype="int64")
-            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
-
-        def write_fragments(target_path, dshape, num_frags):
-            for i in range(1, num_frags + 1):
-                with tiledb.open(target_path, "w", timestamp=i) as A:
-                    A[[1, 2, 3]] = np.random.rand(dshape[1])
-
-        src_path = self.path("test_create_array_from_fragments_src")
-        dst_path = self.path("test_create_array_from_fragments_dst")
-
-        ts = tuple((t, t) for t in range(1, 11))
-
-        create_array(src_path, dshape)
-        write_fragments(src_path, dshape, num_frags)
-        frags = tiledb.FragmentInfoList(src_path)
-        assert len(frags) == 10
-        assert frags.timestamp_range == ts
-
-        tiledb.create_array_from_fragments(src_path, dst_path, (3, 6))
-
-        frags = tiledb.FragmentInfoList(dst_path)
-        assert len(frags) == 4
-        assert frags.timestamp_range == ts[2:6]
-
 
 # Wrapper to execute specific code in subprocess so that we can ensure the thread count
 # init is correct. Necessary because multiprocess.get_context is only available in Python 3.4+,
@@ -4099,7 +4058,8 @@ class GetStatsTest(DiskTestCase):
         with tiledb.open(uri, mode="w", ctx=ctx) as T:
             T[:] = np.random.randint(10, size=3)
 
-        assert "Context.StorageManager.write_store" in ctx.get_stats()
+        stats = ctx.get_stats(print_out=False)
+        assert "Context.StorageManager.write_store" in stats
 
     def test_query(self):
         tiledb.libtiledb.stats_enable()
@@ -4117,7 +4077,9 @@ class GetStatsTest(DiskTestCase):
             assert "" == q.get_stats()
 
             q[:]
-            assert "Context.StorageManager.Query" in q.get_stats()
+
+            stats = q.get_stats(print_out=False)
+            assert "Context.StorageManager.Query" in stats
 
 
 class ReprTest(DiskTestCase):

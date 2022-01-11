@@ -12,12 +12,12 @@ jobs:
       - name: Check Python Black Format
         # restore after https://github.com/psf/black/issues/2079
         #uses: psf/black@stable
-        uses: psf/black@20.8b1
+        uses: psf/black@21.12b0
         with:
           args: ". --check"
 
       - name: Check Clang-Format
-        uses: jidicula/clang-format-action@v3.1.0
+        uses: DoozyX/clang-format-lint-action@v0.13
         with:
-          clang-format-version: '10'
-          check-path: 'tiledb'
+          clangFormatVersion: '10'
+          source: 'tiledb'

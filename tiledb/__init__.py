@@ -77,7 +77,13 @@ from .libtiledb import (
 
 from .array import DenseArray, SparseArray
 
-from .fragment import FragmentInfoList, FragmentInfo, FragmentsInfo
+from .fragment import (
+    FragmentInfoList,
+    FragmentInfo,
+    FragmentsInfo,
+    delete_fragments,
+    create_array_from_fragments,
+)
 
 from .highlevel import (
     open,
@@ -86,8 +92,6 @@ from .highlevel import (
     empty_like,
     array_exists,
     array_fragments,
-    delete_fragments,
-    create_array_from_fragments,
 )
 
 from .query_condition import QueryCondition
@@ -100,6 +104,10 @@ from .multirange_indexing import EmptyRange
 from .parquet_ import from_parquet
 
 from .version import version as __version__
+
+from .version_ import VersionHelper
+
+version = VersionHelper()
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
 #       Therefore, 'tiledb/__init__.py' must *only* exist in this package.
