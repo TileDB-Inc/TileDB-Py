@@ -337,9 +337,11 @@ def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQue
     return PyQuery(
         array._ctx_(),
         array,
-        array.view_attr
-        if array.view_attr is not None
-        else tuple(_iter_attr_names(schema, query)),
+        tuple(
+            [array.view_attr]
+            if array.view_attr is not None
+            else _iter_attr_names(schema, query)
+        ),
         tuple(_iter_dim_names(schema, query)),
         layout,
         use_arrow,
