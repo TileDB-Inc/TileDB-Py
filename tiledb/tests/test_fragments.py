@@ -542,6 +542,63 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
         assert len(frags) == 14
         assert frags.timestamp_range == ts[2:6] + ts[10:]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="VFS.copy() does not run on windows"
+    )
+    def test_copy_fragments_to_existing_array_mismatch(self):
+        def create_array(target_path, attr_type):
+            dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3))
+            att = tiledb.Attr(dtype=attr_type)
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path):
+            for i in range(10):
+                with tiledb.open(target_path, "w") as A:
+                    A[[1, 2, 3]] = np.random.rand(3)
+
+        src_path = self.path("test_copy_fragments_to_existing_array_evolved_src")
+        create_array(src_path, "int64")
+        write_fragments(src_path)
+
+        dst_path = self.path("test_copy_fragments_to_existing_array_evolved_dst")
+        create_array(dst_path, "int32")
+        write_fragments(dst_path)
+
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.copy_fragments_to_existing_array(src_path, dst_path, (3, 6))
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="VFS.copy() does not run on windows"
+    )
+    def test_copy_fragments_to_existing_array_evolved(self):
+        def create_array(target_path):
+            dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path):
+            for i in range(10):
+                with tiledb.open(target_path, "w") as A:
+                    A[[1, 2, 3]] = np.random.rand(3)
+
+        src_path = self.path("test_copy_fragments_to_existing_array_evolved_src")
+        create_array(src_path)
+        write_fragments(src_path)
+
+        dst_path = self.path("test_copy_fragments_to_existing_array_evolved_dst")
+        create_array(dst_path)
+        write_fragments(dst_path)
+
+        ctx = tiledb.default_ctx()
+        se = tiledb.ArraySchemaEvolution(ctx)
+        se.add_attribute(tiledb.Attr("a2", dtype=np.float64))
+        se.array_evolve(src_path)
+
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.copy_fragments_to_existing_array(src_path, dst_path, (3, 6))
+
 
 class DeleteFragmentsTest(DiskTestCase):
     def test_delete_fragments(self):

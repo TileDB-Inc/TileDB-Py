@@ -536,12 +536,11 @@ def copy_fragments_to_existing_array(
     dry_run=False,
 ):
     """
-    (POSIX only). Create a new array from an already existing array by selecting
-    fragments that fall withing a given timestamp_range. The original array is located
-    at src_uri and the new array is created at dst_uri.
+    (POSIX only). Copy fragments from an array at src_uri to another array at
+    dst_uri by selecting fragments that fall withing a given timestamp_range.
 
     :param str src_uri: URI for the source TileDB array (any supported TileDB URI)
-    :param str dst_uri: URI for the newly created TileDB array (any supported TileDB URI)
+    :param str dst_uri: URI for the destination TileDB array (any supported TileDB URI)
     :param (int, int) timestamp_range: (default None) If not None, vacuum the
         array using the given range (inclusive)
     :param config: Override the context configuration. Defaults to ctx.config()
@@ -577,22 +576,24 @@ def copy_fragments_to_existing_array(
     if is_old_style and is_new_style:
         raise tiledb.TileDBError(
             "Mix of old and new style schemas detected. There can only be "
-            "one schema present in both the source and destination arrays and "
-            "both must be identical"
+            "one schema version present in both the source and destination "
+            "arrays and both must be identical"
         )
     elif is_new_style:
-        if len(vfs.ls(dst_schema_dir)) != 1 and len(vfs.ls(src_schema_dir)) != 1:
+        if len(vfs.ls(dst_schema_dir)) != 1 or len(vfs.ls(src_schema_dir)) != 1:
             raise tiledb.TileDBError(
                 "Mutltiple evolved schemas detected. There can only be one "
-                "schema present in both the source and destination arrays and "
-                "both must be identical"
+                "schema version present in both the source and destination "
+                "arrays and both must be identical"
             )
         schema_name = os.path.basename(vfs.ls(src_schema_dir)[0])
         src_schema = os.path.join(src_uri, "__schema", schema_name)
         dst_schema = os.path.join(dst_uri, "__schema", schema_name)
 
     if tiledb.ArraySchema.load(src_uri) != tiledb.ArraySchema.load(dst_uri):
-        raise TypeError("The source and destination array must have matching schemas.")
+        raise tiledb.TileDBError(
+            "The source and destination array must have matching schemas."
+        )
 
     if is_new_style:
         if verbose or dry_run:
