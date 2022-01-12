@@ -201,6 +201,10 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     case TILEDB_TIME_AS:
       return py::dtype("m8[as]");
 #endif
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 7
+    case TILEDB_BLOB:
+      return py::dtype("bytes");
+#endif
 
     case TILEDB_ANY:
       break;
