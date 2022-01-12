@@ -81,6 +81,7 @@ from .fragment import (
     FragmentInfoList,
     FragmentInfo,
     FragmentsInfo,
+    copy_fragments_to_existing_array,
     delete_fragments,
     create_array_from_fragments,
 )
