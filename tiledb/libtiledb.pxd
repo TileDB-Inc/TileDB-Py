@@ -655,19 +655,19 @@ cdef extern from "tiledb/tiledb.h":
         const char* key,
         tiledb_datatype_t value_type,
         uint32_t value_num,
-        const void* value)
+        const void* value) nogil
 
     int tiledb_array_delete_metadata(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
-        const char* key)
+        const char* key) nogil
 
     int tiledb_array_has_metadata_key(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
         const char* key,
         tiledb_datatype_t* value_type,
-        int32_t* has_key)
+        int32_t* has_key) nogil
 
     int tiledb_array_get_metadata(
         tiledb_ctx_t* ctx,
@@ -675,12 +675,12 @@ cdef extern from "tiledb/tiledb.h":
         const char* key,
         tiledb_datatype_t* value_type,
         uint32_t* value_num,
-        const void** value)
+        const void** value) nogil
 
     int tiledb_array_get_metadata_num(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
-        uint64_t* num)
+        uint64_t* num) nogil
 
     int tiledb_array_get_metadata_from_index(
         tiledb_ctx_t* ctx,
@@ -690,12 +690,12 @@ cdef extern from "tiledb/tiledb.h":
         uint32_t* key_len,
         tiledb_datatype_t* value_type,
         uint32_t* value_num,
-        const void** value)
+        const void** value) nogil
 
     int tiledb_array_consolidate_metadata(
         tiledb_ctx_t* ctx,
         const char* array_uri,
-        tiledb_config_t* config)
+        tiledb_config_t* config) nogil
 
     int tiledb_array_consolidate_metadata_with_key(
         tiledb_ctx_t* ctx,
@@ -703,7 +703,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_encryption_type_t encryption_type,
         const void* encryption_key,
         uint32_t key_length,
-        tiledb_config_t* config)
+        tiledb_config_t* config) nogil
 
     # Query
     int tiledb_query_alloc(
