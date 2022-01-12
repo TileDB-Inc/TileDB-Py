@@ -777,7 +777,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # note: filters omitted
 
         array_nfiles = len(tiledb.VFS().ls(tmp_array))
-        self.assertEqual(array_nfiles, 3 if tiledb.libtiledb.version() < (2, 6) else 2)
+        self.assertEqual(array_nfiles, 3 if tiledb.libtiledb.version() < (2, 7) else 2)
 
         with tiledb.open(tmp_array) as A:
             self.assertEqual(A.schema, ref_schema)
