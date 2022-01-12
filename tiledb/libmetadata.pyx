@@ -180,14 +180,18 @@ cdef put_metadata(Array array, key, value):
         data_view = packed_buf.data
         data_ptr = &data_view[0] if value_num > 0 else NULL
 
-    cdef int rc = tiledb_array_put_metadata(
-        array.ctx.ptr,
-        array.ptr,
-        PyBytes_AS_STRING(key.encode('UTF-8')),
-        tiledb_type,
-        value_num,
-        data_ptr,
-    )
+    key_utf8 = key.encode('UTF-8')
+    cdef const char* key_utf8_ptr = <const char*>key_utf8
+    cdef int rc = TILEDB_OK
+    with nogil:
+        rc = tiledb_array_put_metadata(
+            array.ctx.ptr,
+            array.ptr,
+            key_utf8_ptr,
+            tiledb_type,
+            value_num,
+            data_ptr,
+        )
     if rc != TILEDB_OK:
         _raise_ctx_err(array.ctx.ptr, rc)
 
@@ -198,15 +202,18 @@ cdef object get_metadata(Array array, key, is_ndarray=False):
         uint32_t value_num = 0
         const char* value_ptr = NULL
         bytes key_utf8 = key.encode('UTF-8')
+        const char* key_utf8_ptr = <const char*>key_utf8
 
-    cdef int32_t rc = tiledb_array_get_metadata(
-        array.ctx.ptr,
-        array.ptr,
-        <const char*>key_utf8,
-        &value_type,
-        &value_num,
-        <const void**>&value_ptr,
-    )
+    cdef int32_t rc = TILEDB_OK
+    with nogil:
+        rc = tiledb_array_get_metadata(
+            array.ctx.ptr,
+            array.ptr,
+            key_utf8_ptr,
+            &value_type,
+            &value_num,
+            <const void**>&value_ptr,
+        )
     if rc != TILEDB_OK:
         _raise_ctx_err(array.ctx.ptr, rc)
 
@@ -230,21 +237,24 @@ def iter_metadata(Array array, keys_only):
         uint32_t value_num
         const char* value_ptr = NULL
 
-    cdef int32_t rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
+    cdef int32_t rc = TILEDB_OK
+    with nogil:
+        rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &metadata_num)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
 
     for i in range(metadata_num):
-        rc = tiledb_array_get_metadata_from_index(
-            ctx_ptr,
-            array_ptr,
-            i,
-            &key_ptr,
-            &key_len,
-            &value_type,
-            &value_num,
-            <const void**>&value_ptr,
-        )
+        with nogil:
+            rc = tiledb_array_get_metadata_from_index(
+                ctx_ptr,
+                array_ptr,
+                i,
+                &key_ptr,
+                &key_len,
+                &value_type,
+                &value_num,
+                <const void**>&value_ptr,
+            )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -311,12 +321,16 @@ cdef class Metadata:
         cdef:
             tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
             tiledb_array_t* array_ptr = (<Array>self.array).ptr
+            const char* key_utf8_ptr
             int32_t rc
 
         # key may be stored as is or it may be prefixed (for numpy values)
         # we don't know this here so delete all potential internal keys
         for k in key, _NP_DATA_PREFIX + key, _NP_SHAPE_PREFIX + key:
-            rc = tiledb_array_delete_metadata(ctx_ptr, array_ptr, k.encode('UTF-8'))
+            key_utf8 = k.encode('UTF-8')
+            key_utf8_ptr = <const char*>key_utf8
+            with nogil:
+                rc = tiledb_array_delete_metadata(ctx_ptr, array_ptr, key_utf8_ptr)
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
@@ -328,16 +342,19 @@ cdef class Metadata:
             tiledb_ctx_t* ctx_ptr = (<Array>self.array).ctx.ptr
             tiledb_array_t* array_ptr = (<Array>self.array).ptr
             bytes key_utf8 = key.encode('UTF-8')
+            const char* key_utf8_ptr = <const char*>key_utf8
             tiledb_datatype_t value_type
             int32_t has_key
 
-        cdef int32_t rc = tiledb_array_has_metadata_key(
-            ctx_ptr,
-            array_ptr,
-            <const char*>key_utf8,
-            &value_type,
-            &has_key,
-        )
+        cdef int32_t rc = TILEDB_OK
+        with nogil:
+            tiledb_array_has_metadata_key(
+                ctx_ptr,
+                array_ptr,
+                key_utf8_ptr,
+                &value_type,
+                &has_key,
+            )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -380,13 +397,16 @@ cdef class Metadata:
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <uint32_t> PyBytes_GET_SIZE(bkey)
 
-        rc = tiledb_array_consolidate_metadata_with_key(
-                ctx_ptr,
-                buri,
-                key_type,
-                key_ptr,
-                key_len,
-                config_ptr)
+        cdef const char* buri_ptr = <const char*>buri
+
+        with nogil:
+            rc = tiledb_array_consolidate_metadata_with_key(
+                    ctx_ptr,
+                    buri_ptr,
+                    key_type,
+                    key_ptr,
+                    key_len,
+                    config_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -411,7 +431,9 @@ cdef class Metadata:
             tiledb_array_t* array_ptr = (<Array>self.array).ptr
             uint64_t num
 
-        cdef int32_t rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &num)
+        cdef int32_t rc = TILEDB_OK
+        with nogil:
+            tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &num)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
