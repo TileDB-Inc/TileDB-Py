@@ -1,8 +1,9 @@
-# TileDB-Py 0.11.6 Release Notes
+# TileDB-Py 0.12.0 Release Notes
 
 ## API Changes
 * Allow writing to dimension-only array (zero attributes) by using assignment to `None`, for example: `A[coords] = None` (given `A: tiledb.Array`) [#854](https://github.com/TileDB-Inc/TileDB-Py/pull/854)
 * Remove repeating header names for `attr` when displaying `ArraySchema` in Jupyter Notebooks [#856](https://github.com/TileDB-Inc/TileDB-Py/pull/856)
+* `tiledb.VFS.open` returns `FileIO` object; no longer returns `FileHandle` [#802](https://github.com/TileDB-Inc/TileDB-Py/pull/802)
 * Addition of `tiledb.copy_fragments_to_existing_array` [#864](https://github.com/TileDB-Inc/TileDB-Py/pull/864)
 
 ## Bug fixes
@@ -47,9 +48,12 @@
 ## TileDB Embedded updates:
 * TileDB-Py 0.11.1 includes TileDB Embedded [TileDB 2.5.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.5.1)
 
+## Bug fixes
+* Support dict parameter for 'config' argument to VFS constructor [#805](https://github.com/TileDB-Inc/TileDB-Py/pull/805)
+
 ## Bug Fixes
 * Correct libtiledb version checking for Fragment Info API getters' MBRs and array schema name [#784](https://github.com/TileDB-Inc/TileDB-Py/pull/784)
-*
+
 # TileDB-Py 0.11.0 Release Notes
 
 ## TileDB Embedded updates:
