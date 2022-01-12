@@ -348,7 +348,7 @@ cdef class Metadata:
 
         cdef int32_t rc = TILEDB_OK
         with nogil:
-            tiledb_array_has_metadata_key(
+            rc = tiledb_array_has_metadata_key(
                 ctx_ptr,
                 array_ptr,
                 key_utf8_ptr,
@@ -433,7 +433,7 @@ cdef class Metadata:
 
         cdef int32_t rc = TILEDB_OK
         with nogil:
-            tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &num)
+            rc = tiledb_array_get_metadata_num(ctx_ptr, array_ptr, &num)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
