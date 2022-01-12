@@ -6,6 +6,7 @@
 
 ## Bug fixes
 * HTML escape strings for `Dim` and `Attr`'s `name` and `dtype` [#856](https://github.com/TileDB-Inc/TileDB-Py/pull/856)
+* Fix attribute view for multi-indexer [#866](https://github.com/TileDB-Inc/TileDB-Py/pull/866)
 
 # TileDB-Py 0.11.5 Release Notes
 

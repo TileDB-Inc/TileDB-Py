@@ -1441,6 +1441,32 @@ class DenseArrayTest(DiskTestCase):
         assert_ts((3, None), A * 3)
         assert_ts((3, None), A * 3)
 
+    def test_open_attr(self):
+        uri = self.path("test_open_attr")
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                tiledb.Dim(name="dim0", dtype=np.uint32, domain=(1, 4))
+            ),
+            attrs=(
+                tiledb.Attr(name="x", dtype=np.int32),
+                tiledb.Attr(name="y", dtype=np.int32),
+            ),
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, mode="w") as A:
+            A[:] = {"x": np.array((1, 2, 3, 4)), "y": np.array((5, 6, 7, 8))}
+
+        with self.assertRaises(KeyError):
+            tiledb.open(uri, attr="z")
+
+        with self.assertRaises(KeyError):
+            tiledb.open(uri, attr="dim0")
+
+        with tiledb.open(uri, attr="x") as A:
+            assert_array_equal(A[:], np.array((1, 2, 3, 4)))
+            assert list(A.multi_index[:].keys()) == ["x"]
+
     def test_ncell_attributes(self):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=int))
         attr = tiledb.Attr(dtype=[("", np.int32), ("", np.int32), ("", np.int32)])
