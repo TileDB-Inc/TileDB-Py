@@ -4,9 +4,11 @@
 * Allow writing to dimension-only array (zero attributes) by using assignment to `None`, for example: `A[coords] = None` (given `A: tiledb.Array`) [#854](https://github.com/TileDB-Inc/TileDB-Py/pull/854)
 * Remove repeating header names for `attr` when displaying `ArraySchema` in Jupyter Notebooks [#856](https://github.com/TileDB-Inc/TileDB-Py/pull/856)
 * `tiledb.VFS.open` returns `FileIO` object; no longer returns `FileHandle` [#802](https://github.com/TileDB-Inc/TileDB-Py/pull/802)
+* Addition of `tiledb.copy_fragments_to_existing_array` [#864](https://github.com/TileDB-Inc/TileDB-Py/pull/864)
 
 ## Bug fixes
 * HTML escape strings for `Dim` and `Attr`'s `name` and `dtype` [#856](https://github.com/TileDB-Inc/TileDB-Py/pull/856)
+* Fix attribute view for multi-indexer [#866](https://github.com/TileDB-Inc/TileDB-Py/pull/866)
 
 # TileDB-Py 0.11.5 Release Notes
 

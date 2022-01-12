@@ -4438,6 +4438,11 @@ cdef class Array(object):
            return self.schema.nattr
 
     @property
+    def view_attr(self):
+        """The view attribute of this array."""
+        return self.view_attr
+
+    @property
     def timestamp(self):
         """Deprecated in 0.9.2.
 
