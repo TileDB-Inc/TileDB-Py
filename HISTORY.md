@@ -10,6 +10,9 @@
 * HTML escape strings for `Dim` and `Attr`'s `name` and `dtype` [#856](https://github.com/TileDB-Inc/TileDB-Py/pull/856)
 * Fix attribute view for multi-indexer [#866](https://github.com/TileDB-Inc/TileDB-Py/pull/866)
 
+## Improvements
+* Metadata-related API calls are now 'nogil' [#867](https://github.com/TileDB-Inc/TileDB-Py/pull/867)
+
 # TileDB-Py 0.11.5 Release Notes
 
 * Added missing dependency on [`packaging`](https://pypi.org/project/packaging/) in requirements.txt [#852](https://github.com/TileDB-Inc/TileDB-Py/pull/852)
