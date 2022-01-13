@@ -1,7 +1,7 @@
 # TileDB-Py 0.12.0 Release Notes
 
 ## TileDB Embedded updates:
-* TileDB-Py 0.12.0 includes TileDB Embedded TileDB 2.6.0
+* TileDB-Py 0.12.0 includes TileDB Embedded [TileDB 2.6.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.0)
 
 ## API Changes
 * Allow writing to dimension-only array (zero attributes) by using assignment to `None`, for example: `A[coords] = None` (given `A: tiledb.Array`) [#854](https://github.com/TileDB-Inc/TileDB-Py/pull/854)
