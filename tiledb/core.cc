@@ -593,7 +593,7 @@ public:
     }
   }
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR == 6
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
   void set_ranges_bulk(py::iterable ranges) {
     // ranges are specified as one iterable per dimension
 
