@@ -1517,7 +1517,7 @@ void init_core(py::module &m) {
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
           .def("set_ranges", &PyQuery::set_ranges)
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR == 6
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
           .def("set_ranges_bulk", &PyQuery::set_ranges_bulk)
 #endif
           .def("set_subarray", &PyQuery::set_subarray)
