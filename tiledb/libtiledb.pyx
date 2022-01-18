@@ -3151,7 +3151,7 @@ cdef class Domain(object):
             output.write(f"<td>{html.escape(dim.name)}</td>\n")
             output.write(f"<td>{dim.domain}</td>\n")
             output.write(f"<td>{dim.tile}</td>\n")
-            output.write(f"<td>{html.escape(dim.dtype)}</td>\n")
+            output.write(f"<td>{html.escape(str(dim.dtype))}</td>\n")
             output.write(f"<td>{dim.dtype in (np.str_, np.bytes_) }</td>\n")
             output.write(f"<td>{dim.filters._repr_html_()}</td>\n")
             output.write("</tr>\n")
