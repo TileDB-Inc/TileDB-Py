@@ -3496,6 +3496,8 @@ cdef class ArraySchema(object):
     :type coords_filters: tiledb.FilterList
     :param offsets_filters: (default None) offsets filter list
     :type offsets_filters: tiledb.FilterList
+    :param validity_filters: (default None) validity filter list
+    :type validity_filters: tiledb.FilterList
     :param bool allows_duplicates: True if duplicates are allowed
     :param bool sparse: True if schema is sparse, else False \
         (set by SparseArray and DenseArray derived classes)
@@ -3511,6 +3513,7 @@ cdef class ArraySchema(object):
                  capacity=0,
                  coords_filters=None,
                  offsets_filters=None,
+                 validity_filters=None,
                  allows_duplicates=False,
                  sparse=False,
                  Ctx ctx=None):
@@ -3563,6 +3566,13 @@ cdef class ArraySchema(object):
                 filter_list_ptr = filter_list.ptr
                 check_error(ctx,
                     tiledb_array_schema_set_coords_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
+            if validity_filters is not None:
+                if not isinstance(validity_filters, FilterList):
+                    validity_filters = FilterList(validity_filters)
+                filter_list = validity_filters
+                filter_list_ptr = filter_list.ptr
+                check_error(ctx,
+                    tiledb_array_schema_set_validity_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
         except:
             tiledb_array_schema_free(&schema_ptr)
             raise
@@ -3798,6 +3808,19 @@ cdef class ArraySchema(object):
             tiledb_array_schema_get_coords_filter_list(
                 self.ctx.ptr, self.ptr, &filter_list_ptr))
         return FilterList.from_ptr(filter_list_ptr, self.ctx)
+    
+    @property
+    def validity_filters(self):
+        """The FilterList for the array's validity 
+
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        cdef tiledb_filter_list_t* validity_list_ptr = NULL
+        check_error(self.ctx,
+            tiledb_array_schema_get_validity_filter_list(
+                self.ctx.ptr, self.ptr, &validity_list_ptr))
+        return FilterList.from_ptr(validity_list_ptr, self.ctx)
 
     @property
     def domain(self):
