@@ -539,6 +539,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
         tiledb_filter_list_t* filter_list)
+    
+    int tiledb_array_schema_set_validity_filter_list(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        tiledb_filter_list_t* filter_list)
 
     int tiledb_array_schema_check(
         tiledb_ctx_t* ctx,
@@ -580,6 +585,11 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_array_schema_get_offsets_filter_list(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
+        tiledb_filter_list_t** filter_list)
+    
+    int tiledb_array_schema_get_validity_filter_list(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
         tiledb_filter_list_t** filter_list)
 
     int tiledb_array_schema_get_domain(

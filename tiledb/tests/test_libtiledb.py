@@ -639,6 +639,7 @@ class ArraySchemaTest(DiskTestCase):
         # create sparse array with schema
         coords_filters = tiledb.FilterList([tiledb.ZstdFilter(4)])
         offsets_filters = tiledb.FilterList([tiledb.LZ4Filter(5)])
+        validity_filters = tiledb.FilterList([tiledb.GzipFilter(9)])
 
         schema = tiledb.ArraySchema(
             domain=domain,
@@ -650,6 +651,7 @@ class ArraySchemaTest(DiskTestCase):
             sparse=True,
             coords_filters=coords_filters,
             offsets_filters=offsets_filters,
+            validity_filters=validity_filters,
         )
 
         schema.dump()
@@ -663,6 +665,9 @@ class ArraySchemaTest(DiskTestCase):
         # <todo>
         # self.assertEqual(schema.coords_compressor, ('zstd', 4))
         # self.assertEqual(schema.offsets_compressor, ('lz4', 5))
+        self.assertEqual(len(schema.coords_filters), 1)
+        self.assertEqual(len(schema.offsets_filters), 1)
+        self.assertEqual(len(schema.validity_filters), 1)
 
         self.assertEqual(schema.domain, domain)
         self.assertEqual(schema.ndim, 2)
@@ -683,6 +688,7 @@ class ArraySchemaTest(DiskTestCase):
                 sparse=True,
                 coords_filters=coords_filters,
                 offsets_filters=offsets_filters,
+                validity_filters=validity_filters,
             ),
         )
 
@@ -720,6 +726,11 @@ class ArraySchemaTest(DiskTestCase):
             filters=coords_filters_pylist, chunksize=4096
         )
 
+        validity_filters_pylist = [tiledb.libtiledb.GzipFilter(level=9)]
+        validity_filters = tiledb.libtiledb.FilterList(
+            filters=validity_filters_pylist, chunksize=1024
+        )
+
         # create sparse array with schema
         schema = tiledb.ArraySchema(
             domain=domain,
@@ -729,6 +740,7 @@ class ArraySchemaTest(DiskTestCase):
             tile_order="row-major",
             coords_filters=coords_filters,
             offsets_filters=off_filters,
+            validity_filters=validity_filters,
             sparse=True,
         )
         self.assertTrue(schema.sparse)
@@ -745,10 +757,12 @@ class ArraySchemaTest(DiskTestCase):
             tile_order="row-major",
             coords_filters=coords_filters_pylist,
             offsets_filters=off_filters,
+            validity_filters=validity_filters,
             sparse=True,
         )
         self.assertEqual(len(schema2.coords_filters), 1)
         self.assertEqual(len(schema2.offsets_filters), 1)
+        self.assertEqual(len(schema2.validity_filters), 1)
 
     def test_none_filter_list(self):
         with self.assertRaises(ValueError):
