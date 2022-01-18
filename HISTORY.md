@@ -1,3 +1,8 @@
+# TileDB-Py 0.12.1 Release Notes
+
+## Bug fixes
+* Cast 'dim`'s dtype in `Domain` to `str` prior to applying `html.escape` [#883](https://github.com/TileDB-Inc/TileDB-Py/pull/883)
+
 # TileDB-Py 0.12.0 Release Notes
 
 ## TileDB Embedded updates:
