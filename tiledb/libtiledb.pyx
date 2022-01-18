@@ -1402,7 +1402,7 @@ cdef class Filter(object):
                 output.write(f"{f}={a}")
         output.write(")")
         return output.getvalue()
-    
+
     def _repr_html_(self):
         output = io.StringIO()
 
@@ -2145,7 +2145,7 @@ cdef class FilterList(object):
 
         return output.getvalue()
 
-    
+
 
     def __eq__(self, other):
         if other is None:
@@ -2627,7 +2627,7 @@ cdef class Attr(object):
         return (f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
                 f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
                 f"""{filters_str})""")
-    
+
     def _repr_html_(self):
         output = io.StringIO()
 
@@ -2790,7 +2790,7 @@ cdef class Dim(object):
 
         return "Dim(name={0!r}, domain={1!s}, tile='{2!s}', dtype='{3!s}'{4}{5})" \
             .format(self.name, self.domain, self.tile, self.dtype, varlen, filters_str)
-    
+
     def _repr_html_(self) -> str:
         output = io.StringIO()
 
@@ -3997,7 +3997,7 @@ cdef class ArraySchema(object):
             output.write("</tr>\n")
         output.write("</table>\n")
         output.write("</details>\n")
-        
+
         output.write("<details>\n")
         output.write(f"<summary>cell_order</summary>\n")
         output.write(f"{self.cell_order}\n")
@@ -4301,6 +4301,8 @@ cdef class Array(object):
             rc = tiledb_array_schema_get_array_type(ctx_ptr, schema_ptr, &array_type)
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
+
+            tiledb_array_schema_free(&schema_ptr)
 
             if array_type == TILEDB_DENSE:
                 new_array_typed = DenseArray.__new__(DenseArray)
@@ -5531,7 +5533,7 @@ def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
     """
     ndim = len(idx)
 
-    if check_ndim:    
+    if check_ndim:
         if ndim != dom.ndim:
             raise IndexError("sparse index ndim must match domain ndim: "
                             "{0!r} != {1!r}".format(ndim, dom.ndim))
@@ -5591,7 +5593,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             True
         )
         return
-    
+
     if not isinstance(val, dict):
         if self.nattr > 1:
             raise ValueError("Expected dict-like object {name: value} for multi-attribute "
@@ -6924,11 +6926,11 @@ cdef class VFS(object):
 
         cdef Py_ssize_t _nbytes = nbytes
         cdef bytes buffer = PyBytes_FromStringAndSize(NULL, _nbytes)
-        cdef Py_ssize_t res_nbytes = self.readinto(<FileHandle> file, 
+        cdef Py_ssize_t res_nbytes = self.readinto(<FileHandle> file,
             buffer, offset, nbytes)
 
         return buffer
-    
+
     def write(self, file, buff):
         """Writes buffer to opened VFS FileHandle
 
