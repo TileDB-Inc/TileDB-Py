@@ -318,8 +318,7 @@ public:
     tiledb_array_t *c_array_ = (py::capsule)array.attr("__capsule__")();
 
     // we never own this pointer, pass own=false
-    array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false),
-                                            [](Array *p) {} /* no deleter*/);
+    array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false));
 
     array_schema_ =
         std::shared_ptr<tiledb::ArraySchema>(new ArraySchema(array_->schema()));
