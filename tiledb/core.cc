@@ -992,8 +992,12 @@ public:
         if ((buf.data_vals_read == 0) ||
             (int64_t)(buf.data_vals_read * buf.elem_nbytes) >
                 (buf.data.nbytes() + 1) / 2) {
+          std::cout << "buf.data_vals_read: " << buf.data_vals_read
+                    << std::endl;
           size_t new_size = buf.data.size() * 2;
           buf.data.resize({new_size}, false);
+          std::cout << "buf.data.size() resized to " << buf.data.size()
+                    << std::endl;
         }
 
         // Check if offset buffer should be resized

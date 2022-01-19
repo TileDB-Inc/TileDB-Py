@@ -39,20 +39,20 @@ class QueryCondition(ast.NodeVisitor):
 
         compare_op ::= < | > | <= | >= | == | !=
 
-    TileDB attribute names are strings (no quotes).
+    TileDB attribute names are Python valid variables or a attr() casted string.
 
-        attr ::= <str>
+        attr ::= <variable> | attr(<str>)
 
-    Values are any Python-valid number or a string enclosed in quotes.
+    Values are any Python-valid number or string. They may also be casted with val().
 
-        val ::= <num> | "<str>" | '<str>'
+        val ::= <num> | <str> | val(val)
 
     Example
     -------
     with tiledb.open(uri, mode="r") as A:
         # select cells where the attribute values for foo are less than 5
         # and bar equal to string asdf.
-        qc = QueryCondition("foo > 5 and 'asdf' == bar")
+        qc = QueryCondition("foo > 5 and 'asdf' == attr('b a r') and baz <= val(1.0)")
         A.query(attr_cond=qc)
     """
 
@@ -117,7 +117,11 @@ class QueryCondition(ast.NodeVisitor):
         except KeyError:
             raise tiledb.TileDBError("Unsupported comparison operator.")
 
-        if not isinstance(att, ast.Name):
+        is_attr = isinstance(att, ast.Name) or (
+            isinstance(att, ast.Constant) and hasattr(att, "qc_type")
+        )
+
+        if not is_attr:
             REVERSE_OP = {
                 qc.TILEDB_GT: qc.TILEDB_LT,
                 qc.TILEDB_GE: qc.TILEDB_LE,
@@ -130,8 +134,11 @@ class QueryCondition(ast.NodeVisitor):
             op = REVERSE_OP[op]
             att, val = val, att
 
-        if isinstance(att, ast.Name):
-            att = att.id
+        if is_attr:
+            if isinstance(att, ast.Name):
+                att = att.id
+            elif isinstance(att, ast.Constant):
+                att = att.value
         else:
             raise tiledb.TileDBError("Incorrect type for attribute name.")
 
@@ -225,7 +232,8 @@ class QueryCondition(ast.NodeVisitor):
             op = AST_TO_TILEDB[type(node.op)]
         except KeyError:
             raise tiledb.TileDBError(
-                f'Unsupported Boolean operator: {ast.dump(node.op)}. Only "and" is currently supported.'
+                f"Unsupported Boolean operator: {ast.dump(node.op)}. "
+                'Only "and" is currently supported.'
             )
 
         result = self.visit(node.values[0])
@@ -233,6 +241,21 @@ class QueryCondition(ast.NodeVisitor):
             result = result.combine(self.visit(value), op)
 
         return result
+
+    def visit_Call(self, node):
+        visit_cast = ["attr", "val"]
+
+        if node.func.id not in visit_cast:
+            raise tiledb.TileDBError(f"Valid casts are attr() or val().")
+
+        if len(node.args) != 1:
+            raise tiledb.TileDBError(
+                f"Exactly one argument must be provided to {node.func.id}()."
+            )
+
+        node.args[0].qc_type = node.func.id
+
+        return self.visit(node.args[0])
 
     def visit_Name(self, node):
         return node

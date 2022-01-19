@@ -221,3 +221,83 @@ class QueryConditionTest(DiskTestCase):
                 "`d` is a dimension. QueryConditions currently only work on attributes."
                 in str(excinfo.value)
             )
+
+    def test_attr_and_val_casting_num(self):
+        path = self.path("test_attr_and_val_casting_num")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="dim", domain=(1, 10), tile=1, dtype=np.uint32)
+        )
+        attrs = [
+            tiledb.Attr(name="64-bit integer", dtype=np.int64),
+            tiledb.Attr(name="double", dtype=np.float64),
+        ]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        I = np.random.randint(-5, 5, 10)
+        D = np.random.rand(10)
+
+        with tiledb.open(path, "w") as arr:
+            arr[np.arange(1, 11)] = {"64-bit integer": I, "double": D}
+
+        with tiledb.open(path) as arr:
+            qc = tiledb.QueryCondition("attr('64-bit integer') <= val(0)")
+            result = arr.query(attr_cond=qc).df[:]
+            assert all(result["64-bit integer"] <= 0)
+
+            qc = tiledb.QueryCondition("attr('64-bit integer') <= 0")
+            result = arr.query(attr_cond=qc).df[:]
+            assert all(result["64-bit integer"] <= 0)
+
+            qc = tiledb.QueryCondition("double <= 0.5")
+            result = arr.query(attr_cond=qc).df[:]
+            assert all(result["double"] <= 0.5)
+
+            qc = tiledb.QueryCondition("attr('double') <= 0.5")
+            result = arr.query(attr_cond=qc).df[:]
+            assert all(result["double"] <= 0.5)
+
+            qc = tiledb.QueryCondition("double <= val(0.5)")
+            result = arr.query(attr_cond=qc).df[:]
+            assert all(result["double"] <= 0.5)
+
+            qc = tiledb.QueryCondition("attr('double') <= val(0.5)")
+            result = arr.query(attr_cond=qc).df[:]
+            assert all(result["double"] <= 0.5)
+
+    def test_attr_and_val_casting_str(self):
+        path = self.path("test_attr_and_val_casting_str")
+
+        dom = tiledb.Domain(tiledb.Dim(name="dim", dtype="ascii"))
+        attrs = [tiledb.Attr(name="attr with spaces", dtype="ascii", var=True)]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        A = np.array(
+            [
+                "value with spaces",
+                "nospaces",
+                "value with spaces",
+                "another value",
+                "",
+            ]
+        )
+
+        with tiledb.open(path, "w") as arr:
+            arr[["a", "b", "c", "d", "e"]] = {"attr with spaces": A}
+
+        with tiledb.open(path) as arr:
+            qc = tiledb.QueryCondition(
+                "attr('attr with spaces') == 'value with spaces'"
+            )
+            result = arr.query(attr_cond=qc, use_arrow=False).df[:]
+            assert list(result["dim"]) == [b"a", b"c"]
+
+            qc = tiledb.QueryCondition(
+                "attr('attr with spaces') == val('value with spaces')"
+            )
+            result = arr.query(attr_cond=qc, use_arrow=False).df[:]
+            assert list(result["dim"]) == [b"a", b"c"]
