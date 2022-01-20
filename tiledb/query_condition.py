@@ -117,11 +117,11 @@ class QueryCondition(ast.NodeVisitor):
         except KeyError:
             raise tiledb.TileDBError("Unsupported comparison operator.")
 
-        is_attr = isinstance(att, ast.Name) or (
-            isinstance(att, ast.Constant) and hasattr(att, "qc_type")
+        is_att = lambda a: isinstance(a, ast.Name) or (
+            isinstance(a, ast.Constant) and hasattr(a, "qc_type")
         )
 
-        if not is_attr:
+        if not is_att(att):
             REVERSE_OP = {
                 qc.TILEDB_GT: qc.TILEDB_LT,
                 qc.TILEDB_GE: qc.TILEDB_LE,
@@ -134,7 +134,7 @@ class QueryCondition(ast.NodeVisitor):
             op = REVERSE_OP[op]
             att, val = val, att
 
-        if is_attr:
+        if is_att(att):
             if isinstance(att, ast.Name):
                 att = att.id
             elif isinstance(att, ast.Constant):
