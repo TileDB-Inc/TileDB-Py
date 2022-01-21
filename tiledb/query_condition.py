@@ -1,5 +1,7 @@
 import ast
+from dataclasses import dataclass, field
 import numpy as np
+from typing import List, Union
 
 import tiledb
 import tiledb.main as qc
@@ -11,7 +13,8 @@ filtering query results on attribute values.
 """
 
 
-class QueryCondition(ast.NodeVisitor):
+@dataclass
+class QueryCondition:
     """
     Class representing a TileDB query condition object for attribute filtering
     pushdown. Set the query condition with a string representing an expression
@@ -56,42 +59,44 @@ class QueryCondition(ast.NodeVisitor):
         A.query(attr_cond=qc)
     """
 
-    def __init__(self, expression="", ctx=None):
-        if ctx is None:
-            ctx = tiledb.default_ctx()
+    expression: str
+    ctx: tiledb.Ctx = field(default=tiledb.default_ctx(), repr=False)
+    tree: ast.AST = field(default=None, repr=False)
+    c_obj: PyQueryCondition = field(init=False, repr=False)
 
-        self._ctx = ctx
-        self._schema = None
-        self._query_attrs = None
-        self._c_obj = None
-
+    def __post_init__(self):
         try:
-            self.tree = ast.parse(expression)
+            self.tree = ast.parse(self.expression)
         except:
             raise tiledb.TileDBError(
-                f"Could not parse the given QueryCondition statement: {expression}"
+                "Could not parse the given QueryCondition statement: "
+                f"{self.expression}"
             )
 
-        if not self.tree.body:
+        if not self.tree:
             raise tiledb.TileDBError(
                 "The query condition statement could not be parsed properly. "
                 "(Is this an empty expression?)"
             )
 
-        self.raw_str = expression
+    def init_query_condition(self, schema: tiledb.ArraySchema, query_attrs: List[str]):
+        qctree = QueryConditionTree(self.ctx, schema, query_attrs)
+        self.c_obj = qctree.visit(self.tree.body[0])
 
-    def init_query_condition(self, schema, query_attrs):
-        self._schema = schema
-        self._query_attrs = query_attrs
-        self._c_obj = self.visit(self.tree.body[0])
-
-        if not isinstance(self._c_obj, tiledb.main.PyQueryCondition):
+        if not isinstance(self.c_obj, tiledb.main.PyQueryCondition):
             raise tiledb.TileDBError(
                 "Malformed query condition statement. A query condition must "
                 "be made up of one or more Boolean expressions."
             )
 
-    def visit_Compare(self, node):
+
+@dataclass
+class QueryConditionTree(ast.NodeVisitor):
+    ctx: tiledb.Ctx
+    schema: tiledb.ArraySchema
+    query_attrs: List[str]
+
+    def visit_Compare(self, node: ast.Compare) -> PyQueryCondition:
         result = self.aux_visit_Compare(
             self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
         )
@@ -102,7 +107,12 @@ class QueryCondition(ast.NodeVisitor):
             result = result.combine(value, qc.TILEDB_AND)
         return result
 
-    def aux_visit_Compare(self, att, op, val):
+    def aux_visit_Compare(
+        self,
+        att: Union[ast.Name, ast.Constant],
+        op: ast.Compare,
+        val: Union[ast.Name, ast.Constant],
+    ) -> PyQueryCondition:
         AST_TO_TILEDB = {
             ast.Gt: qc.TILEDB_GT,
             ast.GtE: qc.TILEDB_GE,
@@ -157,21 +167,21 @@ class QueryCondition(ast.NodeVisitor):
                 f"Incorrect type for comparison value: {ast.dump(val)}"
             )
 
-        if not self._schema.has_attr(att):
-            if self._schema.domain.has_dim(att):
+        if not self.schema.has_attr(att):
+            if self.schema.domain.has_dim(att):
                 raise tiledb.TileDBError(
                     f"`{att}` is a dimension. QueryConditions currently only "
                     "work on attributes."
                 )
             raise tiledb.TileDBError(f"Attribute `{att}` not found in schema.")
 
-        if att not in self._query_attrs:
+        if att not in self.query_attrs:
             raise tiledb.TileDBError(
                 f"Attribute `{att}` given to filter in query's `attr_cond` "
                 "arg but not found in `attr` arg."
             )
 
-        dtype = self._schema.attr(att).dtype
+        dtype = self.schema.attr(att).dtype
 
         if dtype.kind in "SUa":
             dtype_name = "string"
@@ -192,7 +202,7 @@ class QueryCondition(ast.NodeVisitor):
                     f"Type mismatch between attribute `{att}` and value `{val}`."
                 )
 
-        result = PyQueryCondition(self._ctx)
+        result = PyQueryCondition(self.ctx)
 
         if not hasattr(result, f"init_{dtype_name}"):
             raise tiledb.TileDBError(
@@ -208,7 +218,7 @@ class QueryCondition(ast.NodeVisitor):
 
         return result
 
-    def visit_BinOp(self, node):
+    def visit_BinOp(self, node: ast.BinOp) -> PyQueryCondition:
         AST_TO_TILEDB = {ast.BitAnd: qc.TILEDB_AND}
 
         try:
@@ -225,7 +235,7 @@ class QueryCondition(ast.NodeVisitor):
 
         return result
 
-    def visit_BoolOp(self, node):
+    def visit_BoolOp(self, node: ast.BoolOp) -> PyQueryCondition:
         AST_TO_TILEDB = {ast.And: qc.TILEDB_AND}
 
         try:
@@ -242,7 +252,11 @@ class QueryCondition(ast.NodeVisitor):
 
         return result
 
-    def visit_Call(self, node):
+    def visit_Call(
+        self, node: ast.Call
+    ) -> Union[
+        ast.Name, ast.Constant, ast.UnaryOp, ast.Num, ast.Num, ast.Str, ast.Bytes
+    ]:
         visit_cast = ["attr", "val"]
 
         if node.func.id not in visit_cast:
@@ -257,13 +271,13 @@ class QueryCondition(ast.NodeVisitor):
 
         return self.visit(node.args[0])
 
-    def visit_Name(self, node):
+    def visit_Name(self, node: ast.Name) -> ast.Name:
         return node
 
-    def visit_Constant(self, node):
+    def visit_Constant(self, node: ast.Constant) -> ast.Constant:
         return node
 
-    def visit_UnaryOp(self, node):
+    def visit_UnaryOp(self, node: ast.UnaryOp):
         if isinstance(node.op, ast.UAdd):
             sign = 1
         elif isinstance(node.op, ast.USub):
@@ -281,20 +295,17 @@ class QueryCondition(ast.NodeVisitor):
         else:
             return node.operand
 
-    def visit_Num(self, node):
+    def visit_Num(self, node: ast.Num) -> ast.Num:
         # deprecated in 3.8
         return node
 
-    def visit_Str(self, node):
+    def visit_Str(self, node: ast.Str) -> ast.Str:
         # deprecated in 3.8
         return node
 
-    def visit_Bytes(self, node):
+    def visit_Bytes(self, node: ast.Bytes) -> ast.Bytes:
         # deprecated in 3.8
         return node
 
-    def visit_Expr(self, node):
+    def visit_Expr(self, node: ast.Expr) -> Union[ast.Constant, ast.Name]:
         return self.visit(node.value)
-
-    def __repr__(self) -> str:
-        return f'QueryCondition("{self.raw_str}")'
