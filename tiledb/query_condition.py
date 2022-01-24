@@ -60,7 +60,7 @@ class QueryCondition:
     """
 
     expression: str
-    ctx: tiledb.Ctx = field(default=tiledb.default_ctx(), repr=False)
+    ctx: tiledb.Ctx = field(default_factory=tiledb.default_ctx, repr=False)
     tree: ast.AST = field(default=None, repr=False)
     c_obj: PyQueryCondition = field(init=False, repr=False)
 
