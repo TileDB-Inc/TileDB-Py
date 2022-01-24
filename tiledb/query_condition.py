@@ -128,7 +128,15 @@ class QueryConditionTree(ast.NodeVisitor):
             raise tiledb.TileDBError("Unsupported comparison operator.")
 
         is_att = lambda a: isinstance(a, ast.Name) or (
-            isinstance(a, ast.Constant) and hasattr(a, "qc_type")
+            (
+                (
+                    isinstance(a, ast.Constant)
+                    or isinstance(a, ast.Num)
+                    or isinstance(a, ast.Str)
+                    or isinstance(a, ast.Bytes)
+                )
+                and hasattr(a, "qc_type")
+            )
         )
 
         if not is_att(att):
@@ -149,6 +157,9 @@ class QueryConditionTree(ast.NodeVisitor):
                 att = att.id
             elif isinstance(att, ast.Constant):
                 att = att.value
+            elif isinstance(att, ast.Str) or isinstance(att, ast.Bytes):
+                # deprecated in 3.8
+                att = att.s
         else:
             raise tiledb.TileDBError("Incorrect type for attribute name.")
 
