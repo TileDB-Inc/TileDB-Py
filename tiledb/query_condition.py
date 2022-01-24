@@ -1,7 +1,7 @@
 import ast
 from dataclasses import dataclass, field
 import numpy as np
-from typing import List, Union
+from typing import Any, Callable, List, Tuple, TypeVar, Union
 
 import tiledb
 import tiledb.main as qc
@@ -11,6 +11,20 @@ from tiledb.main import PyQueryCondition
 A high level wrapper around the Pybind11 query_condition.cc implementation for
 filtering query results on attribute values.
 """
+
+QueryConditionNodeElem = TypeVar(
+    "QueryConditionNodeElem",
+    ast.Name,
+    ast.Constant,
+    ast.Num,
+    ast.Num,
+    ast.Str,
+    ast.Bytes,
+)
+
+QueryConditionNodeVar = TypeVar(
+    "QueryConditionNodeVar", ast.Constant, ast.Num, ast.Str, ast.Bytes
+)
 
 
 @dataclass
@@ -109,10 +123,31 @@ class QueryConditionTree(ast.NodeVisitor):
 
     def aux_visit_Compare(
         self,
-        att: Union[ast.Name, ast.Constant],
-        op: ast.Compare,
-        val: Union[ast.Name, ast.Constant],
+        att_node: Union[QueryConditionNodeElem, ast.UnaryOp],
+        op_node: ast.Compare,
+        val_node: Union[QueryConditionNodeElem, ast.UnaryOp],
     ) -> PyQueryCondition:
+        op = self.get_op_from_node(op_node)
+
+        att_node, val_node, op = self.order_nodes(att_node, val_node, op)
+
+        att = self.get_att_from_node(att_node)
+        val = self.get_val_from_node(val_node)
+
+        dt = self.schema.attr(att).dtype
+        dtype = "string" if dt.kind in "SUa" else dt.name
+        val = self.cast_val_to_dtype(val, dtype)
+
+        pyqc = PyQueryCondition(self.ctx)
+
+        try:
+            self.init_pyqc(pyqc, dtype)(att, val, op)
+        except tiledb.TileDBError as e:
+            raise tiledb.TileDBError(e)
+
+        return pyqc
+
+    def get_op_from_node(self, node: ast.Compare) -> qc.tiledb_query_condition_op_t:
         AST_TO_TILEDB = {
             ast.Gt: qc.TILEDB_GT,
             ast.GtE: qc.TILEDB_GE,
@@ -123,23 +158,29 @@ class QueryConditionTree(ast.NodeVisitor):
         }
 
         try:
-            op = AST_TO_TILEDB[type(op)]
+            op = AST_TO_TILEDB[type(node)]
         except KeyError:
             raise tiledb.TileDBError("Unsupported comparison operator.")
 
-        is_att = lambda a: isinstance(a, ast.Name) or (
+        return op
+
+    def is_att_node(self, att: QueryConditionNodeElem) -> bool:
+        return isinstance(att, ast.Name) or (
             (
                 (
-                    isinstance(a, ast.Constant)
-                    or isinstance(a, ast.Num)
-                    or isinstance(a, ast.Str)
-                    or isinstance(a, ast.Bytes)
+                    isinstance(att, ast.Constant)
+                    or isinstance(att, ast.Num)
+                    or isinstance(att, ast.Str)
+                    or isinstance(att, ast.Bytes)
                 )
-                and hasattr(a, "qc_type")
+                and hasattr(att, "qc_type")
             )
         )
 
-        if not is_att(att):
+    def order_nodes(
+        self, att: QueryConditionNodeElem, val: QueryConditionNodeElem, op: ast.Compare
+    ) -> Tuple[QueryConditionNodeElem, QueryConditionNodeElem, ast.Compare]:
+        if not self.is_att_node(att):
             REVERSE_OP = {
                 qc.TILEDB_GT: qc.TILEDB_LT,
                 qc.TILEDB_GE: qc.TILEDB_LE,
@@ -152,30 +193,20 @@ class QueryConditionTree(ast.NodeVisitor):
             op = REVERSE_OP[op]
             att, val = val, att
 
-        if is_att(att):
-            if isinstance(att, ast.Name):
-                att = att.id
-            elif isinstance(att, ast.Constant):
-                att = att.value
-            elif isinstance(att, ast.Str) or isinstance(att, ast.Bytes):
-                # deprecated in 3.8
-                att = att.s
-        else:
-            raise tiledb.TileDBError("Incorrect type for attribute name.")
+        return att, val, op
 
-        if isinstance(val, ast.Constant):
-            sign = val.sign if hasattr(val, "sign") else 1
-            val = val.value * sign
-        elif isinstance(val, ast.Num):
-            # deprecated in 3.8
-            sign = val.sign if hasattr(val, "sign") else 1
-            val = val.n * sign
-        elif isinstance(val, ast.Str) or isinstance(val, ast.Bytes):
-            # deprecated in 3.8
-            val = val.s
+    def get_att_from_node(self, node: QueryConditionNodeElem) -> QueryConditionNodeElem:
+        if self.is_att_node(node):
+            if isinstance(node, ast.Name):
+                att = node.id
+            elif isinstance(node, ast.Constant):
+                att = node.value
+            elif isinstance(node, ast.Str) or isinstance(node, ast.Bytes):
+                # deprecated in 3.8
+                att = node.s
         else:
             raise tiledb.TileDBError(
-                f"Incorrect type for comparison value: {ast.dump(val)}"
+                f"Incorrect type for attribute name : {ast.dump(node)}"
             )
 
         if not self.schema.has_attr(att):
@@ -192,42 +223,47 @@ class QueryConditionTree(ast.NodeVisitor):
                 "arg but not found in `attr` arg."
             )
 
-        dtype = self.schema.attr(att).dtype
+        return att
 
-        if dtype.kind in "SUa":
-            dtype_name = "string"
+    def get_val_from_node(self, node: QueryConditionNodeVar) -> QueryConditionNodeVar:
+        if isinstance(node, ast.Constant):
+            sign = node.sign if hasattr(node, "sign") else 1
+            val = node.value * sign
+        elif isinstance(node, ast.Num):
+            # deprecated in 3.8
+            sign = node.sign if hasattr(node, "sign") else 1
+            val = node.n * sign
+        elif isinstance(node, ast.Str) or isinstance(node, ast.Bytes):
+            # deprecated in 3.8
+            val = node.s
         else:
+            raise tiledb.TileDBError(
+                f"Incorrect type for comparison value: {ast.dump(node)}"
+            )
+
+        return val
+
+    def cast_val_to_dtype(self, val: QueryConditionNodeVar, dtype: str) -> Any:
+        if dtype != "string":
             try:
                 # this prevents numeric strings ("1", '123.32') from getting
                 # casted to numeric types
                 if isinstance(val, str):
-                    raise tiledb.TileDBError(
-                        f"Type mismatch between attribute `{att}` and value `{val}`."
-                    )
-
-                cast = getattr(np, dtype.name)
+                    raise tiledb.TileDBError(f"Cannot cast `{val}` to {dtype}.")
+                cast = getattr(np, dtype)
                 val = cast(val)
-                dtype_name = dtype.name
             except ValueError:
-                raise tiledb.TileDBError(
-                    f"Type mismatch between attribute `{att}` and value `{val}`."
-                )
+                raise tiledb.TileDBError(f"Cannot cast `{val}` to {dtype}.")
 
-        result = PyQueryCondition(self.ctx)
+        return val
 
-        if not hasattr(result, f"init_{dtype_name}"):
-            raise tiledb.TileDBError(
-                f"PyQueryCondition's `init_{dtype_name}` not found."
-            )
+    def init_pyqc(self, pyqc: PyQueryCondition, dtype: str) -> Callable:
+        init_fn_name = f"init_{dtype}"
 
-        init_qc = getattr(result, f"init_{dtype_name}")
+        if not hasattr(pyqc, init_fn_name):
+            raise tiledb.TileDBError(f"PyQueryCondition.{init_fn_name}() not found.")
 
-        try:
-            init_qc(att, val, op)
-        except tiledb.TileDBError as e:
-            raise tiledb.TileDBError(e)
-
-        return result
+        return getattr(pyqc, init_fn_name)
 
     def visit_BinOp(self, node: ast.BinOp) -> PyQueryCondition:
         AST_TO_TILEDB = {ast.BitAnd: qc.TILEDB_AND}
@@ -263,11 +299,7 @@ class QueryConditionTree(ast.NodeVisitor):
 
         return result
 
-    def visit_Call(
-        self, node: ast.Call
-    ) -> Union[
-        ast.Name, ast.Constant, ast.UnaryOp, ast.Num, ast.Num, ast.Str, ast.Bytes
-    ]:
+    def visit_Call(self, node: ast.Call) -> Union[QueryConditionNodeElem, ast.UnaryOp]:
         visit_cast = ["attr", "val"]
 
         if node.func.id not in visit_cast:
