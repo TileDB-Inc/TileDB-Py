@@ -16,6 +16,7 @@ using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 //template <typename T>
 //declare_dimension
 
+void init_array(py::module&);
 void init_context(py::module&);
 void init_config(py::module&);
 void init_enums(py::module&);
@@ -25,6 +26,7 @@ void init_query(py::module& m);
 PYBIND11_MODULE(cc, m) {
   //py::enum_<tiledb_datatype_t>(m, "tiledb_datatype");
 
+  init_array(m);
   init_context(m);
   init_config(m);
   init_enums(m);

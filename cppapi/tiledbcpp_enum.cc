@@ -54,6 +54,7 @@ void init_enums(py::module& m) {
     DENUM(TIME_FS)
     DENUM(TIME_AS);
 
+
   py::enum_<tiledb_array_type_t>(m, "ArrayType")
     DENUM(DENSE)
     DENUM(SPARSE);
@@ -95,6 +96,10 @@ void init_enums(py::module& m) {
     DENUM(INPROGRESS)
     DENUM(INCOMPLETE)
     DENUM(UNINITIALIZED);
+
+  py::enum_<tiledb_query_type_t>(m, "QueryType")
+    DENUM(READ)
+    DENUM(WRITE);
 
   py::enum_<tiledb_query_condition_op_t>(m, "QueryConditionOp", py::module_local())
     DENUM(LT)

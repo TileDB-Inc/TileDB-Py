@@ -2,6 +2,7 @@ import numpy as np
 import tiledb
 import pytest
 import hypothesis
+import tempfile
 
 import cc as lt
 
@@ -100,3 +101,15 @@ def test_enums():
     check_enum("ArrayType")
     check_enum("FilterType")
     check_enum("QueryStatus")
+
+def test_array():
+    uri = tempfile.mkdtemp()
+
+    # TODO BOOTSTRAP
+    tiledb.from_numpy(uri, np.random.rand(4)).close()
+
+    ctx = lt.Context()
+    arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    assert arr.is_open()
+    #assert arr.uri() == uri
+    #assert arr.schema == arr.schema
