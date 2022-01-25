@@ -64,7 +64,11 @@ void init_array(py::module& m) {
           .def("put_metadata", [](Array& self, std::string& key, tiledb_datatype_t tdb_type, const py::buffer& b) {
                py::buffer_info info = b.request();
 
-               ssize_t size = std::reduce(info.shape.begin(), info.shape.end());
+               //ssize_t size = std::reduce(info.shape.begin(), info.shape.end());
+               ssize_t size = 1;
+	             for (auto s : info.shape) {
+	               size *= s;
+               }
                ssize_t nbytes = size * info.itemsize;
 
                self.put_metadata(
