@@ -5,9 +5,8 @@ import time
 import tempfile
 import os
 
-import cc as lt
-
-from common import paths_equal
+from tiledb import cc as lt
+from tiledb.tests.common import paths_equal
 
 import pytest
 
@@ -42,12 +41,14 @@ def test_config():
         # TODO should this be KeyError?
         cfg2.get("abc")
 
+
 def test_config_io(tmp_path):
     cfg = lt.Config({"abc": "def"})
     path = tmp_path / "test.cfg"
     cfg.save_to_file(str(path))
     cfg2 = lt.Config(str(path))
     assert cfg == cfg2
+
 
 def test_context():
     ctx = lt.Context()
@@ -56,18 +57,21 @@ def test_context():
     ctx = lt.Context(cfg)
     assert ctx.config == cfg
 
+
 # NOMERGE
 @pytest.fixture(scope="function", autouse=True)
 def no_output(capfd):
     pass
 
+
 def make_range(dtype):
     if np.issubdtype(dtype, np.number):
-        return np.array([0,100.123]).astype(dtype), np.array([1]).astype(dtype)
+        return np.array([0, 100.123]).astype(dtype), np.array([1]).astype(dtype)
     elif np.issubdtype(dtype, str) or np.issubdtype(dtype, bytes):
         return np.array(["a", "z"]).astype(dtype), None
     else:
         raise TypeError(f"Unsupported dtype '{dtype}'")
+
 
 @pytest.mark.parametrize("dtype_str", SUPPORTED_DTYPES)
 def test_dimension(dtype_str):
@@ -82,20 +86,21 @@ def test_dimension(dtype_str):
     # TODO move this to pybind11
     tiledb_datatype = lt.DataType(tiledb.libtiledb.dtype_to_tiledb(dtype))
 
-    range,extent = make_range(dtype)
+    range, extent = make_range(dtype)
 
     if dtype_str == "S":
         tiledb_datatype = lt.DataType.STRING_ASCII
-        extent = np.array([], dtype=dtype) # null extent
+        extent = np.array([], dtype=dtype)  # null extent
 
     dim = lt.Dimension.create(ctx, "foo", tiledb_datatype, range, extent)
     print(dim)
+
 
 def test_enums():
     def check_enum(name):
         """Helper function to iterate over a pybind11 enum and check that the typed value matches name"""
         enum_type = getattr(lt, name)
-        for name,enum in enum_type.__members__.items():
+        for name, enum in enum_type.__members__.items():
             if name == "NONE":
                 assert lt._enum_string(enum) == "NOOP"
             else:
@@ -105,6 +110,7 @@ def test_enums():
     check_enum("ArrayType")
     check_enum("FilterType")
     check_enum("QueryStatus")
+
 
 def test_array():
     uri = tempfile.mkdtemp()
@@ -128,9 +134,9 @@ def test_array():
     assert arr.open_timestamp_start == 0
     assert arr.open_timestamp_end == 1
 
-    config = lt.Config({'foo': 'bar'})
+    config = lt.Config({"foo": "bar"})
     arr.set_config(config)
-    assert arr.config()['foo'] == 'bar'
+    assert arr.config()["foo"] == "bar"
 
     arr.close()
     assert not arr.is_open()
@@ -151,7 +157,7 @@ def test_array():
     ####
     arrw = lt.Array(ctx, uri, lt.QueryType.WRITE)
 
-    data = b'abcdef'
+    data = b"abcdef"
     arrw.put_metadata("key", lt.DataType.STRING_ASCII, data)
     arrw.close()
 
@@ -178,37 +184,41 @@ def test_array():
     assert not arr.has_metadata("key")[0]
     arr.close()
 
+
 def test_domain():
     ctx = lt.Context()
     dom = lt.Domain(ctx)
-    dim = lt.Dimension.create(ctx, "foo",
-                              lt.DataType.INT32, np.int32([0,9]),
-                              np.int32([9]))
+    dim = lt.Dimension.create(
+        ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9])
+    )
     dom.add_dimension(dim)
 
     assert dom.datatype() == lt.DataType.INT32
     assert dom.cell_num() == 10
     # TODO assert dom.dimension("foo").domain() == ??? np.array?
 
+
 def test_attribute():
     ctx = lt.Context()
     attr = lt.Attribute(ctx, "a1", lt.DataType.FLOAT64)
 
-    assert(attr.name() == "a1")
-    assert(attr.type() == lt.DataType.FLOAT64)
-    assert(attr.cell_size() == 8)
-    assert(attr.cell_val_num() == 1)
+    assert attr.name() == "a1"
+    assert attr.type() == lt.DataType.FLOAT64
+    assert attr.cell_size() == 8
+    assert attr.cell_val_num() == 1
     attr.set_cell_val_num(5)
-    assert(attr.cell_val_num() == 5)
-    assert(attr.nullable() == False)
+    assert attr.cell_val_num() == 5
+    assert attr.nullable() == False
     attr.set_nullable(True)
-    assert(attr.nullable() == True)
-    #print(attr.filter_list()) # TODO
+    assert attr.nullable() == True
+    # print(attr.filter_list()) # TODO
+
 
 def test_schema_dump(capfd):
     ctx = lt.Context()
     schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
-    #schema.dump() # TODO FILE* target and capfd
+    # schema.dump() # TODO FILE* target and capfd
+
 
 def test_schema():
     ctx = lt.Context()
@@ -233,22 +243,23 @@ def test_schema():
     # TODO assert schema.offsets_filter_list ==
 
     dom = lt.Domain(ctx)
-    dim = lt.Dimension.create(ctx, "foo",
-                              lt.DataType.INT32, np.int32([0,9]),
-                              np.int32([9]))
+    dim = lt.Dimension.create(
+        ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9])
+    )
     dom.add_dimension(dim)
 
     schema.set_domain(dom)
     # TODO dom and dimension need full equality check
     assert schema.domain().dimension("foo").name() == dim.name()
 
+
 def test_query_string():
     def create_schema():
         schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
         dom = lt.Domain(ctx)
-        dim = lt.Dimension.create(ctx, "foo",
-                                  lt.DataType.STRING_ASCII, np.uint8([]),
-                                  np.uint8([]))
+        dim = lt.Dimension.create(
+            ctx, "foo", lt.DataType.STRING_ASCII, np.uint8([]), np.uint8([])
+        )
         dom.add_dimension(dim)
 
         schema.set_domain(dom)
@@ -266,15 +277,15 @@ def test_query_string():
 
     q.add_range("foo", "start", "end")
 
+
 def test_write_sparse():
     def create_schema():
         ctx = lt.Context()
         schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
         dom = lt.Domain(ctx)
-        dim = lt.Dimension.create(ctx, "x",
-                                  lt.DataType.INT32,
-                                  np.int32([0,9]),
-                                  np.int32([10]))
+        dim = lt.Dimension.create(
+            ctx, "x", lt.DataType.INT32, np.int32([0, 9]), np.int32([10])
+        )
         dom.add_dimension(dim)
 
         attr = lt.Attribute(ctx, "a", lt.DataType.INT32)
@@ -284,7 +295,7 @@ def test_write_sparse():
         return schema
 
     coords = np.arange(10).astype(np.int32)
-    data = np.random.randint(0,10,10).astype(np.int32)
+    data = np.random.randint(0, 10, 10).astype(np.int32)
 
     def write():
         uri = tempfile.mkdtemp()
@@ -301,7 +312,7 @@ def test_write_sparse():
         q.set_data_buffer("a", data)
         q.set_data_buffer("x", coords)
 
-        assert(q.submit() == lt.QueryStatus.COMPLETE)
+        assert q.submit() == lt.QueryStatus.COMPLETE
 
         return uri
 
@@ -319,23 +330,22 @@ def test_write_sparse():
         q.set_data_buffer("a", rdata)
         q.set_data_buffer("x", rcoords)
 
-        assert(q.submit() == lt.QueryStatus.COMPLETE)
-        assert(np.all(rcoords == coords))
-        assert(np.all(rdata == data))
-
+        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert np.all(rcoords == coords)
+        assert np.all(rdata == data)
 
     uri = write()
     read(uri)
+
 
 def test_write_dense():
     def create_schema():
         ctx = lt.Context()
         schema = lt.ArraySchema(ctx, lt.ArrayType.DENSE)
         dom = lt.Domain(ctx)
-        dim = lt.Dimension.create(ctx, "x",
-                                  lt.DataType.UINT64,
-                                  np.uint64([0,9]),
-                                  np.uint64([10]))
+        dim = lt.Dimension.create(
+            ctx, "x", lt.DataType.UINT64, np.uint64([0, 9]), np.uint64([10])
+        )
         dom.add_dimension(dim)
 
         attr = lt.Attribute(ctx, "a", lt.DataType.FLOAT32)
@@ -345,7 +355,7 @@ def test_write_dense():
         return schema
 
     coords = np.arange(10).astype(np.uint64)
-    data = np.random.randint(0,10,10).astype(np.float32)
+    data = np.random.randint(0, 10, 10).astype(np.float32)
 
     def write():
         uri = tempfile.mkdtemp()
@@ -360,10 +370,10 @@ def test_write_dense():
         assert q.query_type() == lt.QueryType.WRITE
 
         q.set_data_buffer("a", data)
-        #q.set_data_buffer("x", coords)
-        q.set_subarray(np.uint64([0,9]))
+        # q.set_data_buffer("x", coords)
+        q.set_subarray(np.uint64([0, 9]))
 
-        assert(q.submit() == lt.QueryStatus.COMPLETE)
+        assert q.submit() == lt.QueryStatus.COMPLETE
 
         return uri
 
@@ -381,8 +391,8 @@ def test_write_dense():
 
         q.set_data_buffer("a", rdata)
 
-        assert(q.submit() == lt.QueryStatus.COMPLETE)
-        assert(np.all(rdata == data))
+        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert np.all(rdata == data)
 
     uri = write()
     read(uri)
