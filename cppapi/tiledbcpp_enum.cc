@@ -13,7 +13,7 @@ namespace py = pybind11;
 #define DENUM(x) .value(#x, TILEDB_##x)
 
 void init_enums(py::module& m) {
-  py::enum_<tiledb_datatype_t>(m, "DataType")
+  py::enum_<tiledb_datatype_t>(m, "DataType", py::module_local())
     DENUM(INT32)
     DENUM(INT64)
     DENUM(FLOAT32)
@@ -96,7 +96,7 @@ void init_enums(py::module& m) {
     DENUM(INCOMPLETE)
     DENUM(UNINITIALIZED);
 
-  py::enum_<tiledb_query_condition_op_t>(m, "QueryConditionOp")
+  py::enum_<tiledb_query_condition_op_t>(m, "QueryConditionOp", py::module_local())
     DENUM(LT)
     DENUM(LE)
     DENUM(GT)

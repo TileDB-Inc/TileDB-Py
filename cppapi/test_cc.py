@@ -1,11 +1,16 @@
 import numpy as np
-#import tiledb
+import tiledb
 import pytest
 import hypothesis
 
 import cc as lt
 
-from tiledb.tests.fixtures import SUPPORTED_DTYPES
+# from tiledb.tests.fixtures
+INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
+STRING_DTYPES = ["U", "S"]
+FLOAT_DTYPES = ["f4", "f8"]
+SUPPORTED_DTYPES = INTEGER_DTYPES + STRING_DTYPES + FLOAT_DTYPES
+
 
 def test_config():
     cfg = lt.Config()
