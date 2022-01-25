@@ -32,12 +32,12 @@ def test_config():
     del cfg["xyz"]
     with pytest.raises(KeyError):
         cfg["xyz"]
-    with pytest.raises(RuntimeError):
+    with pytest.raises(lt.TileDBError):
         # TODO should this be KeyError?
         cfg.get("xyz")
 
     cfg2.unset("abc")
-    with pytest.raises(RuntimeError):
+    with pytest.raises(lt.TileDBError):
         # TODO should this be KeyError?
         cfg2.get("abc")
 
@@ -156,9 +156,16 @@ def test_array():
     arrw.close()
 
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    assert arr.metadata_num() == 1
     assert arr.has_metadata("key")
     mv = arr.get_metadata("key")
     assert bytes(mv) == data
+
+    assert arr.get_metadata_from_index(0)[0] == lt.DataType.STRING_ASCII
+    mv = arr.get_metadata_from_index(0)[1]
+    assert bytes(mv) == data
+    with pytest.raises(lt.TileDBError):
+        arr.get_metadata_from_index(1)
     arr.close()
 
     arrw = lt.Array(ctx, uri, lt.QueryType.WRITE)
@@ -166,7 +173,7 @@ def test_array():
     arrw.close()
 
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
-
     with pytest.raises(KeyError):
         arr.get_metadata("key")
     assert not arr.has_metadata("key")[0]
+    arr.close()

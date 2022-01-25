@@ -104,12 +104,34 @@ void init_array(py::module& m) {
                     value_num * tiledb_datatype_size(tdb_type)
                );
           })
+          .def("get_metadata_from_index",  [](Array& self, uint64_t index) -> py::tuple {
+               tiledb_datatype_t tdb_type;
+               uint32_t value_num;
+               const void* data_ptr;
+               std::string key;
+
+               self.get_metadata_from_index(index, &key, &tdb_type, &value_num, &data_ptr);
+
+               if (data_ptr == nullptr && value_num != 1) {
+                    throw py::key_error();
+               }
+               // TODO handle empty value case
+
+               assert(data_ptr != nullptr);
+               auto buf = py::memoryview::from_memory(
+                    data_ptr,
+                    value_num * tiledb_datatype_size(tdb_type)
+               );
+
+               return py::make_tuple(tdb_type, buf);
+          })
           .def("delete_metadata", &Array::delete_metadata)
           .def("has_metadata", [](Array& self, std::string& key) -> py::tuple {
                tiledb_datatype_t has_type;
                bool has_it = self.has_metadata(key, &has_type);
                return py::make_tuple(has_it, has_type);
           })
+          .def("metadata_num", &Array::metadata_num)
           ;
 
 }
