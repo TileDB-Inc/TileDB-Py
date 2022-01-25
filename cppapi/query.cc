@@ -1,5 +1,8 @@
 #include <tiledb/tiledb> // C++
 
+
+#include "common.h"
+
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>

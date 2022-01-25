@@ -189,6 +189,22 @@ def test_domain():
     assert dom.cell_num() == 10
     # TODO assert dom.dimension("foo").domain() == ??? np.array?
 
+def test_attribute():
+    ctx = lt.Context()
+    attr = lt.Attribute(ctx, "a1", lt.DataType.FLOAT64)
+
+    assert(attr.name() == "a1")
+    assert(attr.type() == lt.DataType.FLOAT64)
+    assert(attr.cell_size() == 8)
+    assert(attr.cell_val_num() == 1)
+    attr.set_cell_val_num(5)
+    assert(attr.cell_val_num() == 5)
+    assert(attr.nullable() == False)
+    attr.set_nullable(True)
+    assert(attr.nullable() == True)
+    #print(attr.filter_list()) # TODO
+
+
 def test_schema():
     ctx = lt.Context()
 

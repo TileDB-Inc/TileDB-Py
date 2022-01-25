@@ -21,6 +21,9 @@ void init_schema(py::module& m) {
                py::keep_alive<1,2>() /* ArraySchema keeps Context alive */)
           // TODO .def(py::init<Context, py::capsule>) // tiledb_array_schema_t* signature
           .def("dump", &ArraySchema::dump) // TODO add FILE* signature support?
+          .def("dump", [](ArraySchema& schema) {
+               schema.dump();
+          }) // TODO add FILE* signature support?
           .def("array_type", &ArraySchema::array_type)
           .def("capacity", &ArraySchema::capacity)
           .def("set_capacity", &ArraySchema::set_capacity)
@@ -38,6 +41,7 @@ void init_schema(py::module& m) {
           .def("domain", &ArraySchema::domain)
           .def("set_domain", &ArraySchema::set_domain)
           // TODO? .def("__eq__", &Domain::operator==)
+          .def("add_attribute", &ArraySchema::add_attribute)
           ;
 }
 

@@ -11,6 +11,7 @@ set(CMAKE_BUILD_TYPE Debug)
 pybind11_add_module(cc
   tiledbcpp.cc
   array.cc
+  attribute.cc
   context.cc
   enum.cc
   domain.cc
