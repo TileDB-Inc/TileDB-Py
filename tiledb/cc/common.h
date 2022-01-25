@@ -1,5 +1,5 @@
-#include <tiledb/tiledb> // C++
 #include <tiledb/tiledb.h> // for enums
+#include <tiledb/tiledb>   // C++
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -25,15 +25,13 @@ public:
   }
 };
 
-
-
 namespace tiledbpy::common {
 
-ssize_t buffer_nbytes(py::buffer_info& info);
+ssize_t buffer_nbytes(py::buffer_info &info);
 
-bool expect_buffer_nbytes(py::buffer_info& info, tiledb_datatype_t datatype, size_t nbytes);
+bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
+                          size_t nbytes);
 
-}
-
+} // namespace tiledbpy::common
 
 py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);

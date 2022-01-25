@@ -4,19 +4,65 @@
 
 namespace tiledbpy::common {
 
-ssize_t buffer_nbytes(py::buffer_info& info) {
-    return info.itemsize * std::accumulate(info.shape.begin(), info.shape.end(), 1, std::multiplies());
+ssize_t buffer_nbytes(py::buffer_info &info) {
+  return info.itemsize * std::accumulate(info.shape.begin(), info.shape.end(),
+                                         1, std::multiplies());
 }
 
-bool expect_buffer_nbytes(py::buffer_info& info, tiledb_datatype_t datatype, size_t nelem) {
-    ssize_t nbytes = buffer_nbytes(info);
-    ssize_t nbytes_expected = tiledb_datatype_size(datatype) * nelem;
-    return nbytes == nbytes_expected;
+bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
+                          size_t nelem) {
+  ssize_t nbytes = buffer_nbytes(info);
+  ssize_t nbytes_expected = tiledb_datatype_size(datatype) * nelem;
+  return nbytes == nbytes_expected;
 }
 
-}
+} // namespace tiledbpy::common
 
-py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) { if (cell_val_num == 1) { auto np = py::module::import("numpy"); auto datetime64 = np.attr("datetime64"); switch (type) { case TILEDB_INT32: return py::dtype("int32"); case TILEDB_INT64: return py::dtype("int64"); case TILEDB_FLOAT32: return py::dtype("float32"); case TILEDB_FLOAT64: return py::dtype("float64"); case TILEDB_INT8: return py::dtype("int8"); case TILEDB_UINT8: return py::dtype("uint8"); case TILEDB_INT16: return py::dtype("int16"); case TILEDB_UINT16: return py::dtype("uint16"); case TILEDB_UINT32: return py::dtype("uint32"); case TILEDB_UINT64: return py::dtype("uint64"); case TILEDB_STRING_ASCII: return py::dtype("S1"); case TILEDB_STRING_UTF8: return py::dtype("U1"); case TILEDB_STRING_UTF16: case TILEDB_STRING_UTF32: TPY_ERROR_LOC("Unimplemented UTF16 or UTF32 string conversion!"); case TILEDB_STRING_UCS2: case TILEDB_STRING_UCS4: TPY_ERROR_LOC("Unimplemented UCS2 or UCS4 string conversion!"); case TILEDB_CHAR: return py::dtype("S1"); case TILEDB_DATETIME_YEAR: return py::dtype("M8[Y]"); case TILEDB_DATETIME_MONTH: return py::dtype("M8[M]"); case TILEDB_DATETIME_WEEK: return py::dtype("M8[W]"); case TILEDB_DATETIME_DAY: return py::dtype("M8[D]");
+py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
+  if (cell_val_num == 1) {
+    auto np = py::module::import("numpy");
+    auto datetime64 = np.attr("datetime64");
+    switch (type) {
+    case TILEDB_INT32:
+      return py::dtype("int32");
+    case TILEDB_INT64:
+      return py::dtype("int64");
+    case TILEDB_FLOAT32:
+      return py::dtype("float32");
+    case TILEDB_FLOAT64:
+      return py::dtype("float64");
+    case TILEDB_INT8:
+      return py::dtype("int8");
+    case TILEDB_UINT8:
+      return py::dtype("uint8");
+    case TILEDB_INT16:
+      return py::dtype("int16");
+    case TILEDB_UINT16:
+      return py::dtype("uint16");
+    case TILEDB_UINT32:
+      return py::dtype("uint32");
+    case TILEDB_UINT64:
+      return py::dtype("uint64");
+    case TILEDB_STRING_ASCII:
+      return py::dtype("S1");
+    case TILEDB_STRING_UTF8:
+      return py::dtype("U1");
+    case TILEDB_STRING_UTF16:
+    case TILEDB_STRING_UTF32:
+      TPY_ERROR_LOC("Unimplemented UTF16 or UTF32 string conversion!");
+    case TILEDB_STRING_UCS2:
+    case TILEDB_STRING_UCS4:
+      TPY_ERROR_LOC("Unimplemented UCS2 or UCS4 string conversion!");
+    case TILEDB_CHAR:
+      return py::dtype("S1");
+    case TILEDB_DATETIME_YEAR:
+      return py::dtype("M8[Y]");
+    case TILEDB_DATETIME_MONTH:
+      return py::dtype("M8[M]");
+    case TILEDB_DATETIME_WEEK:
+      return py::dtype("M8[W]");
+    case TILEDB_DATETIME_DAY:
+      return py::dtype("M8[D]");
     case TILEDB_DATETIME_HR:
       return py::dtype("M8[h]");
     case TILEDB_DATETIME_MIN:
@@ -117,4 +163,3 @@ uint64_t count_zeros(py::array_t<uint8_t> a) {
     count += (a.data()[idx] == 0) ? 1 : 0;
   return count;
 }
-
