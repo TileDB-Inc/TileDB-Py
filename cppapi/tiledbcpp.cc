@@ -17,11 +17,13 @@ using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 //declare_dimension
 
 void init_enums(py::module&);
+void init_domain(py::module& m);
 
 PYBIND11_MODULE(cc, m) {
   //py::enum_<tiledb_datatype_t>(m, "tiledb_datatype");
 
   init_enums(m);
+  init_domain(m);
 
   py::class_<Context>(m, "Context")
     .def(py::init())
@@ -60,31 +62,6 @@ PYBIND11_MODULE(cc, m) {
     }, py::keep_alive<0,1>())
     .def("__del__", &Config::unset)
     .def("unset", &Config::unset);
-
-  py::class_<tiledb::Dimension>(m, "Dimension")
-    // TODO: rewrite. this is an MVP placeholder and needs work including:
-    // - don't hardcode the dtype
-    // - convert from dtype <> tiledb_datatype_t
-    // - accept np.array (monotype) as the ranges
-    .def("create",
-      [](const Context& ctx, const std::string& name, tiledb_datatype_t the_type,
-          py::object start, py::object end, py::object extent) {
-        auto np = py::module::import("numpy");
-        auto range_ = py::array(np.attr("array")(py::make_tuple(start, end)));
-        auto extent_ = py::array(np.attr("array")(extent));
-        auto TT = TILEDB_INT64;
-        return std::make_unique<Dimension>(
-          Dimension::create(ctx, name, TT, range_.data(), extent_.data()));
-      }
-    )
-    .def("cell_val_nul", &Dimension::cell_val_num)
-    .def("set_cell_val_num", &Dimension::set_cell_val_num)
-    .def("filter_list", &Dimension::filter_list)
-    .def("set_filter_list", &Dimension::set_filter_list)
-    .def("name", &Dimension::name)
-    .def("tiledb_datatype", &Dimension::type)
-    //.def("domain", &Dimension::domain)
-    .def("domain_to_str", &Dimension::domain_to_str);
 
   /*
   py::class_<tiledb::Domain>(m, "Domain")

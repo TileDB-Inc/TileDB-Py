@@ -1,6 +1,10 @@
+import numpy as np
+import tiledb
 import tiledb.cc as lt
 import pytest
 import hypothesis
+
+from tiledb.tests.fixtures import SUPPORTED_DTYPES
 
 def test_config():
     cfg = lt.Config()
@@ -40,11 +44,41 @@ def test_context():
     ctx = lt.Context(cfg)
     assert ctx.config == cfg
 
-def test_dimension():
-    #d = lt.Dimension.create(
-
-    #
+# NOMERGE
+@pytest.fixture(scope="function", autouse=True)
+def no_output(capfd):
     pass
+
+def make_range(dtype):
+    if np.issubdtype(dtype, np.number):
+        return np.array([0,100.123]).astype(dtype), 1
+    elif np.issubdtype(dtype, str) or np.issubdtype(dtype, bytes):
+        return np.array(["a", "z"]).astype(dtype), None
+    else:
+        raise TypeError(f"Unsupported dtype '{dtype}'")
+
+@pytest.mark.parametrize("dtype_str", SUPPORTED_DTYPES)
+def test_dimension(dtype_str):
+    if dtype_str == "U":
+        pytest.skip("dtype('U') not supported for dimension")
+
+    ctx = lt.Context()
+
+    dtype = np.dtype(dtype_str)
+    # TODO move this to pybind11
+    tiledb_datatype = lt.DataType(tiledb.libtiledb.dtype_to_tiledb(dtype))
+
+
+    range,extent = make_range(dtype)
+    start,end = range[0], range[1]
+
+    if dtype_str == "S":
+        tiledb_datatype = lt.DataType.STRING_ASCII
+        start, end = 0, 0
+        extent = 0
+
+    dim = lt.Dimension.create(ctx, "foo", tiledb_datatype, start, end, extent)
+    print(dim)
 
 def test_enums():
     def check_enum(name):

@@ -6,7 +6,9 @@ import numpy as np
 from tiledb.tests.common import assert_subarrays_equal, rand_utf8
 
 INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
-
+STRING_DTYPES = ["U", "S"]
+FLOAT_DTYPES = ["f4", "f8"]
+SUPPORTED_DTYPES = INTEGER_DTYPES + STRING_DTYPES + FLOAT_DTYPES
 
 @pytest.fixture(scope="module", params=["hilbert", "row-major"])
 def sparse_cell_order(request):
