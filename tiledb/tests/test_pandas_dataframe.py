@@ -317,7 +317,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             df_readback = tiledb.open_dataframe(uri, use_arrow=use_arrow)
             tm.assert_frame_equal(df, df_readback)
 
-            attrs = ["s", "q", "t"]
+            attrs = ["s", "q", "t", "u"]
             df_readback = tiledb.open_dataframe(uri, attrs=attrs, use_arrow=use_arrow)
             tm.assert_frame_equal(df[attrs], df_readback)
 
@@ -497,7 +497,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             # test .df[] indexing with query
             df_idx_res = A.query(attrs=["int_vals"]).df[slice(*ned_time), :]
             tm.assert_frame_equal(df_idx_res, df)
-            # test .df[] with Arrow
+            # test .df[] with/without Arrow
             df_idx_res = A.query(use_arrow=True).df[slice(*ned_time), :]
             tm.assert_frame_equal(df_idx_res, df)
             df_idx_res = A.query(use_arrow=False).df[slice(*ned_time), :]
@@ -827,6 +827,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             date_spec={"time": "%Y-%m-%dT%H:%M:%S.%f"},
             chunksize=10,
             sparse=True,
+            quotechar='"',
         )
 
         with tiledb.open(tmp_array) as A:
@@ -1028,10 +1029,25 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         col_size = 10
         df = make_dataframe_basic3(col_size)
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    {
+                        "string_ascii": np.array(
+                            [rand_ascii() for _ in range(col_size)], dtype="S"
+                        ),
+                        "string_utf8": np.array(
+                            [rand_ascii_bytes() for _ in range(col_size)], dtype="U"
+                        ),
+                    }
+                ),
+            ],
+            axis=1,
+        )
         df.set_index(["time"], inplace=True)
 
         tiledb.from_pandas(uri, df, sparse=True)
-
         with tiledb.open(uri) as A:
             with self.assertRaises(tiledb.TileDBError):
                 A.query(dims=["nodimnodim"])
@@ -1059,6 +1075,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             self.assertTrue("time" not in res_df4)
             self.assertTrue("double_range" in res_df4)
             self.assertTrue("int_vals" == res_df4.index.name)
+
+            for attr_name in ["string_utf8", "string_ascii"]:
+                res_df5 = A.query(attrs=[attr_name]).df[:]
+                self.assertTrue(attr_name in res_df5.columns)
+                self.assertTrue(len(res_df5.columns) == 1)
 
     def test_read_parquet(self):
         # skip: because to_parquet is erroring out with FileIO object
