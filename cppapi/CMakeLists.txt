@@ -3,8 +3,8 @@ project(tiledbcc LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(TileDB REQUIRED PATHS /bld/TileDB-dbg/dist/lib/cmake/TileDB)
-#find_package(TileDB REQUIRED PATHS /bld/TileDB-rel/dist/lib/cmake/TileDB)
+#find_package(TileDB REQUIRED PATHS /bld/TileDB-dbg/dist/lib/cmake/TileDB)
+find_package(TileDB REQUIRED PATHS /bld/TileDB-rel/dist/lib/cmake/TileDB)
 #find_package(TileDB REQUIRED PATHS /bld/rel/2.5.1/lib/cmake/TileDB/)
 
 find_package(pybind11 REQUIRED)

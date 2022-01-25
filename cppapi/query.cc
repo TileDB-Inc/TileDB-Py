@@ -181,7 +181,7 @@ void init_query(py::module& m) {
         // TODO .def("array") -> Array&
         .def("query_status", &Query::query_status)
         .def("has_results", &Query::has_results)
-        .def("submit", &Query::submit)
+        .def("submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
         //TODO .def("submit_async", Fn& callback)
         //.def("submit_async")
         .def("finalize", &Query::finalize)
@@ -240,14 +240,15 @@ void init_query(py::module& m) {
           size_t item_size = a.itemsize();
           q.set_validity_buffer(name, (uint8_t*)(a.data()), a.size());
         })
-        .def("set_fragment_uri", &Query::set_fragment_uri)
         .def("fragment_uri", &Query::fragment_uri)
-        .def("unset_buffer", &Query::unset_buffer)
-        .def("set_continuation", [](Query& q) {
-          q.ctx().handle_error(
-            tiledb_query_set_continuation(q.ctx().ptr().get(), q.ptr().get())
-          );
-        })
+        /** hackery from another branch... */
+        //.def("set_fragment_uri", &Query::set_fragment_uri)
+        //.def("unset_buffer", &Query::unset_buffer)
+        //.def("set_continuation", [](Query& q) {
+        //  q.ctx().handle_error(
+        //    tiledb_query_set_continuation(q.ctx().ptr().get(), q.ptr().get())
+        //  );
+        //})
         ;
 }
 

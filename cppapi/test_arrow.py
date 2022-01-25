@@ -32,7 +32,8 @@ def get_data(uri):
 uri = "/Users/inorton/work/git/TileDB-Py-gen/cppapi/test_data/262205/"
 table = get_data(uri)
 
-tiledb_uri = "/Users/inorton/work/git/TileDB-Py-gen/cppapi/test_data/ts_array.tdb"
+#tiledb_uri = "/Users/inorton/work/git/TileDB-Py-gen/cppapi/test_data/ts_array.tdb"
+tiledb_uri = "/Users/inorton/work/git/TileDB-Py-gen/cppapi/test_data/ts_array2.tdb/"
 tiledb_array = tiledb.open(tiledb_uri)
 #%%
 def init_write(bath: pa.Table, array_uri: str):
@@ -53,6 +54,16 @@ class AttrMapper:
 
     def attr2field(self, attr_name: str):
         return self._attr_field_map[attr_name]
+
+def convert_offsets(offsets):
+    """
+    Convert arrow offsets to tiledb offsets
+    - remove last element
+    - in-place multiplication by 8
+    """
+    res = offsets.view(np.uint32).astype(np.uint64)[:-1]
+    np.multiply(res, 8) #, out=res)
+    return res
 
 def get_buffers(table: pa.Table, tdb_schema: tiledb.ArraySchema) -> Dict[str, Tuple[np.array]]:
     """
@@ -91,12 +102,14 @@ def get_buffers(table: pa.Table, tdb_schema: tiledb.ArraySchema) -> Dict[str, Tu
             assert isinstance(col, pa.StringArray), f"'{col_name}' not a StringArray"
             buffers = col.buffers()
             res = (
-                np.asarray(buffers[1]).view(np.uint32),
-                np.asarray(buffers[2]).view(np.uint8)
+                np.asarray(buffers[2]).view(np.uint8),
+                convert_offsets(np.asarray(buffers[1]))
             )
         else:
+            dtype = tdb_schema.domain.dim(attr_name).dtype if isdim else tdb_schema.attr(attr_name).dtype
             res = (
-                col.to_numpy().view(np.uint8),
+                # note that we must use dtype here to get proper conversion for datetime arrays
+                np.asarray(col, dtype=dtype),
                 None
             )
 
@@ -127,7 +140,7 @@ def write_arrow_buffers(tiledb_uri: str, dim_buffers, attr_buffers):
     with tiledb.open(tiledb_uri) as tdb_r:
         tdb_schema = tdb_r.schema
 
-    attr_buffers["imo"] = np.arange(len(table))
+    attr_buffers["imo"] = (np.arange(len(table)), None)
 
     get_name = lambda k: tdb_schema.domain.dim(k).name
     global dims
@@ -138,6 +151,7 @@ def write_arrow_buffers(tiledb_uri: str, dim_buffers, attr_buffers):
     #    "sm.var_offsets.mode": "elements",
     #    "sm.var_offsets.extra_element": "true"
     #}
+    config_dict = {}
 
     config = lt.Config(config_dict)
     ctx = lt.Context(config)
@@ -145,14 +159,20 @@ def write_arrow_buffers(tiledb_uri: str, dim_buffers, attr_buffers):
     query = lt.Query(ctx, cc_array, lt.QueryType.WRITE)
     query.set_layout(lt.LayoutType.UNORDERED)
 
-    for name,(data,offsets) in dims.items():
+    for name, (data,offsets) in dims.items():
         query.set_data_buffer(name, data)
-        if offsets:
+        if offsets is not None: # TBD
             query.set_offsets_buffer(name, offsets)
+
+    for name, (data,offsets) in attr_buffers.items():
+        query.set_data_buffer(name, data)
+        if offsets is not None:
+            query.set_offsets_buffer(name, offsets)
+
 
     query.submit()
 
-    if not query.query_status() == lt.QueryStatus.COMPLETE():
+    if not query.query_status() == lt.QueryStatus.COMPLETE:
         raise Exception("Query submit failed to complete!")
 
 def write_arrow_table(table: pa.Table, tiledb_uri: str):
@@ -165,8 +185,10 @@ def write_arrow_table(table: pa.Table, tiledb_uri: str):
     write_arrow_buffers(tiledb_uri, dim_buffers, attr_buffers)
 
 #%%
-write_arrow_buffers(tiledb_uri, dim_buffers, attr_buffers)
+#write_arrow_buffers(tiledb_uri, dim_buffers, attr_buffers)
 # %%
 write_arrow_table(table, tiledb_uri)
 
+# %%
+dim_buffers, attr_buffers = get_buffers(table, tiledb_array.schema)
 # %%
