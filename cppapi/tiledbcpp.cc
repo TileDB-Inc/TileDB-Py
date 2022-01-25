@@ -29,7 +29,10 @@ PYBIND11_MODULE(cc, m) {
   py::class_<Context>(m, "Context")
     .def(py::init())
     .def(py::init<Config>())
-    .def_property_readonly("config", &Context::config);
+    .def_property_readonly("config", &Context::config)
+    .def("set_tag", &Context::set_tag)
+    .def("stats", &Context::stats);
+
 
   py::class_<tiledb::Config>(m, "Config")
     .def(py::init())

@@ -1,8 +1,9 @@
 import numpy as np
 import tiledb
-import tiledb.cc as lt
 import pytest
 import hypothesis
+
+import cc as lt
 
 from tiledb.tests.fixtures import SUPPORTED_DTYPES
 

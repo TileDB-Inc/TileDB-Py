@@ -21,3 +21,5 @@ void init_query(py::module& m) {
           .def("set_subarray", &PyQuery::set_subarray)
     }
 }
+
+} // namespace
