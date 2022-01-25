@@ -23,6 +23,7 @@ void init_enums(py::module&);
 void init_domain(py::module& m);
 void init_query(py::module& m);
 
+
 PYBIND11_MODULE(cc, m) {
   //py::enum_<tiledb_datatype_t>(m, "tiledb_datatype");
 
@@ -32,6 +33,8 @@ PYBIND11_MODULE(cc, m) {
   init_enums(m);
   init_domain(m);
   init_query(m);
+
+  py::register_exception<TileDBError>(m, "TileDBError");
 }
 
 
