@@ -222,3 +222,27 @@ def test_schema():
     schema.set_domain(dom)
     # TODO dom and dimension need full equality check
     assert schema.domain().dimension("foo").name() == dim.name()
+
+def test_query():
+    def create_schema():
+        schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
+        dom = lt.Domain(ctx)
+        dim = lt.Dimension.create(ctx, "foo",
+                                  lt.DataType.STRING_ASCII, np.uint8([]),
+                                  np.uint8([]))
+        dom.add_dimension(dim)
+
+        schema.set_domain(dom)
+        return schema
+
+    uri = tempfile.mkdtemp()
+
+    ctx = lt.Context()
+    schema = create_schema()
+    lt.Array.create(uri, schema)
+    arr = lt.Array(ctx, uri, lt.QueryType.READ)
+
+    q = lt.Query(ctx, arr, lt.QueryType.READ)
+    assert q.query_type() == lt.QueryType.READ
+
+    q.add_range(0, "start", "end")
