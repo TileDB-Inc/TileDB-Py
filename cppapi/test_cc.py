@@ -239,7 +239,7 @@ def test_schema():
     # TODO dom and dimension need full equality check
     assert schema.domain().dimension("foo").name() == dim.name()
 
-def test_query():
+def test_query_string():
     def create_schema():
         schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
         dom = lt.Domain(ctx)
@@ -261,4 +261,42 @@ def test_query():
     q = lt.Query(ctx, arr, lt.QueryType.READ)
     assert q.query_type() == lt.QueryType.READ
 
-    q.add_range(0, "start", "end")
+    q.add_range("foo", "start", "end")
+
+def test_query():
+    def create_schema():
+        schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
+        dom = lt.Domain(ctx)
+        dim = lt.Dimension.create(ctx, "x",
+                                  lt.DataType.INT32,
+                                  np.int32([0,9]),
+                                  np.int32([10]))
+        dom.add_dimension(dim)
+
+        attr = lt.Attribute(ctx, "a", lt.DataType.INT32)
+        schema.add_attribute(attr)
+
+        schema.set_domain(dom)
+        schema.dump()
+        return schema
+
+    uri = tempfile.mkdtemp()
+
+    ctx = lt.Context()
+    schema = create_schema()
+    lt.Array.create(uri, schema)
+    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+
+    q = lt.Query(ctx, arr, lt.QueryType.WRITE)
+    q.set_layout(lt.LayoutType.UNORDERED)
+    assert q.query_type() == lt.QueryType.WRITE
+
+    #q.add_range(0, (0, 9))
+
+    coords = np.arange(10).astype(np.int32)
+    data = np.random.randint(0,10,10).astype(np.int32)
+
+    q.set_data_buffer("a", data)
+    q.set_data_buffer("x", coords)
+
+    assert(q.submit() == lt.QueryStatus.COMPLETE)
