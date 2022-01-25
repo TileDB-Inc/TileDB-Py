@@ -64,20 +64,21 @@ void init_enums(py::module& m) {
     DENUM(UNORDERED)
     DENUM(HILBERT);
 
+  #define DFENUM(x) .value(#x, TILEDB_FILTER_##x)
   py::enum_<tiledb_filter_type_t>(m, "FilterType")
-    DENUM(FILTER_NONE)
-    DENUM(FILTER_GZIP)
-    DENUM(FILTER_ZSTD)
-    DENUM(FILTER_LZ4)
-    DENUM(FILTER_RLE)
-    DENUM(FILTER_BZIP2)
-    DENUM(FILTER_DOUBLE_DELTA)
-    DENUM(FILTER_BIT_WIDTH_REDUCTION)
-    DENUM(FILTER_BITSHUFFLE)
-    DENUM(FILTER_BYTESHUFFLE)
-    DENUM(FILTER_POSITIVE_DELTA)
-    DENUM(FILTER_CHECKSUM_MD5)
-    DENUM(FILTER_CHECKSUM_SHA256);
+    DFENUM(NONE)
+    DFENUM(GZIP)
+    DFENUM(ZSTD)
+    DFENUM(LZ4)
+    DFENUM(RLE)
+    DFENUM(BZIP2)
+    DFENUM(DOUBLE_DELTA)
+    DFENUM(BIT_WIDTH_REDUCTION)
+    DFENUM(BITSHUFFLE)
+    DFENUM(BYTESHUFFLE)
+    DFENUM(POSITIVE_DELTA)
+    DFENUM(CHECKSUM_MD5)
+    DFENUM(CHECKSUM_SHA256);
 
   py::enum_<tiledb_filter_option_t>(m, "FilterOption")
     DENUM(COMPRESSION_LEVEL)
@@ -110,6 +111,16 @@ void init_enums(py::module& m) {
         py::overload_cast<tiledb_array_type_t>(&tiledb::ArraySchema::to_str));
   m.def("_enum_string",
         py::overload_cast<tiledb_layout_t>(&tiledb::ArraySchema::to_str));
+  m.def("_enum_string",
+        py::overload_cast<tiledb_filter_type_t>(&tiledb::Filter::to_str));
+  m.def("_enum_string",
+        [](tiledb_query_status_t status) {
+          const char* c_str;
+          tiledb_query_status_to_str(status, &c_str);
+          return std::string(c_str);
+        });
+
+
 }
 
 }; // namespace libtiledbcpp

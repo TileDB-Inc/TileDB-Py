@@ -51,7 +51,12 @@ def test_enums():
         """Helper function to iterate over a pybind11 enum and check that the typed value matches name"""
         enum_type = getattr(lt, name)
         for name,enum in enum_type.__members__.items():
-            assert name != lt._enum_string(enum)
+            if name == "NONE":
+                assert lt._enum_string(enum) == "NOOP"
+            else:
+                assert name == lt._enum_string(enum)
 
     check_enum("DataType")
     check_enum("ArrayType")
+    check_enum("FilterType")
+    check_enum("QueryStatus")
