@@ -2,6 +2,7 @@ import numpy as np
 import tiledb
 import pytest
 import hypothesis
+import time
 import tempfile
 import os
 
@@ -155,13 +156,17 @@ def test_array():
     arrw.close()
 
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    assert arr.has_metadata("key")
     mv = arr.get_metadata("key")
     assert bytes(mv) == data
+    arr.close()
 
     arrw = lt.Array(ctx, uri, lt.QueryType.WRITE)
     arrw.delete_metadata("key")
+    arrw.close()
 
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
-    mv = arr.get_metadata("key")
 
-    print('helo')
+    with pytest.raises(KeyError):
+        arr.get_metadata("key")
+    assert not arr.has_metadata("key")[0]
