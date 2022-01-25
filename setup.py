@@ -14,17 +14,6 @@ from urllib.request import urlopen
 from pkg_resources import resource_filename
 from setuptools import Extension, find_packages, setup
 
-# if pybind11 is installed then use parallel compilation
-# note that this does not work from the delay-load function
-try:
-    from pybind11.setup_helpers import ParallelCompile, naive_recompile
-    # NOMERGE DO NOT USE naive_recompile for CI!
-    ParallelCompile(default=0, max=8, needs_recompile=naive_recompile).install()
-except ImportError:
-    pass
-
-print("setup.py sys.argv is: ", sys.argv)
-
 # Target branch
 TILEDB_VERSION = "2.6.2"
 # allow overriding w/ environment variable
