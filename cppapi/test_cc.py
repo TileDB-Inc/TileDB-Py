@@ -3,8 +3,11 @@ import tiledb
 import pytest
 import hypothesis
 import tempfile
+import os
 
 import cc as lt
+
+from common import paths_equal
 
 # from tiledb.tests.fixtures
 INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
@@ -111,5 +114,34 @@ def test_array():
     ctx = lt.Context()
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
     assert arr.is_open()
-    #assert arr.uri() == uri
-    #assert arr.schema == arr.schema
+    assert paths_equal(arr.uri(), uri)
+    assert arr.schema == arr.schema
+
+    # TODO test
+    # open(tiledb_query_type_t query_type, tiledb_encryption_type_t encryption_type, const std::string& encryption_key, uint64_t timestamp)
+
+    arr.reopen()
+    arr.set_open_timestamp_start(0)
+    arr.set_open_timestamp_end(1)
+    arr.reopen()
+    assert arr.open_timestamp_start == 0
+    assert arr.open_timestamp_end == 1
+
+    config = lt.Config({'foo': 'bar'})
+    arr.set_config(config)
+    assert arr.config()['foo'] == 'bar'
+
+    arr.close()
+    assert not arr.is_open()
+
+    arr = lt.Array(ctx, uri, lt.QueryType.READ)
+
+    # TODO test
+    # consolidate sig1
+    # consolidate sig2
+    # vacuum
+    # load_schema
+    # create
+    lt.Array.encryption_type(ctx, uri) == lt.EncryptionType.NO_ENCRYPTION
+    # TODO assert lt.Array.load_schema(ctx, uri) == arr.schema
+    assert arr.query_type() == lt.QueryType.READ
