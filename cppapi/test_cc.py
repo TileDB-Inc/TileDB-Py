@@ -266,7 +266,7 @@ def test_query_string():
 
     q.add_range("foo", "start", "end")
 
-def test_query():
+def test_write_sparse():
     def create_schema():
         ctx = lt.Context()
         schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
@@ -286,7 +286,7 @@ def test_query():
     coords = np.arange(10).astype(np.int32)
     data = np.random.randint(0,10,10).astype(np.int32)
 
-    def test_write():
+    def write():
         uri = tempfile.mkdtemp()
 
         ctx = lt.Context()
@@ -305,7 +305,7 @@ def test_query():
 
         return uri
 
-    def test_read(uri):
+    def read(uri):
         ctx = lt.Context()
         arr = lt.Array(ctx, uri, lt.QueryType.READ)
 
@@ -324,5 +324,65 @@ def test_query():
         assert(np.all(rdata == data))
 
 
-    uri = test_write()
-    test_read(uri)
+    uri = write()
+    read(uri)
+
+def test_write_dense():
+    def create_schema():
+        ctx = lt.Context()
+        schema = lt.ArraySchema(ctx, lt.ArrayType.DENSE)
+        dom = lt.Domain(ctx)
+        dim = lt.Dimension.create(ctx, "x",
+                                  lt.DataType.UINT64,
+                                  np.uint64([0,9]),
+                                  np.uint64([10]))
+        dom.add_dimension(dim)
+
+        attr = lt.Attribute(ctx, "a", lt.DataType.FLOAT32)
+        schema.add_attribute(attr)
+
+        schema.set_domain(dom)
+        return schema
+
+    coords = np.arange(10).astype(np.uint64)
+    data = np.random.randint(0,10,10).astype(np.float32)
+
+    def write():
+        uri = tempfile.mkdtemp()
+
+        ctx = lt.Context()
+        schema = create_schema()
+        lt.Array.create(uri, schema)
+        arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+
+        q = lt.Query(ctx, arr, lt.QueryType.WRITE)
+        q.set_layout(lt.LayoutType.ROW_MAJOR)
+        assert q.query_type() == lt.QueryType.WRITE
+
+        q.set_data_buffer("a", data)
+        #q.set_data_buffer("x", coords)
+        q.set_subarray(np.uint64([0,9]))
+
+        assert(q.submit() == lt.QueryStatus.COMPLETE)
+
+        return uri
+
+    def read(uri):
+        ctx = lt.Context()
+        arr = lt.Array(ctx, uri, lt.QueryType.READ)
+
+        q = lt.Query(ctx, arr, lt.QueryType.READ)
+        q.set_layout(lt.LayoutType.ROW_MAJOR)
+        assert q.query_type() == lt.QueryType.READ
+
+        q.add_range(0, (0, 9))
+
+        rdata = np.zeros(10).astype(np.float32)
+
+        q.set_data_buffer("a", rdata)
+
+        assert(q.submit() == lt.QueryStatus.COMPLETE)
+        assert(np.all(rdata == data))
+
+    uri = write()
+    read(uri)

@@ -8,6 +8,10 @@
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+
+
 namespace libtiledbcpp {
 
 using namespace tiledb;
@@ -191,6 +195,20 @@ void init_query(py::module& m) {
         //.def("add_range", (Query& (Query::*)(uint32_t, const std::string&, const std::string&))&Query::add_range)
         .def("add_range", [](Query& q, uint32_t dim_idx, py::tuple range) {
             add_dim_range(q, dim_idx, range);
+        })
+        .def("set_subarray", [](Query& q, py::array a) {
+          // TODO check_type(a.dtype)
+          // TODO check size == ndim * 2
+
+          // Use the C API here because we are doing typecheck
+          auto ctx = q.ctx(); // NB this requires libtiledb >=2.6
+          ctx.handle_error(
+            tiledb_query_set_subarray(
+              ctx.ptr().get(),
+              q.ptr().get(),
+              const_cast<void*>(a.data())));
+
+
         })
         //.def("add_range", ([](Query& this, uint32_t dim_idx, py::object, py::object) {
         //    auto schema = this.array().schema();
