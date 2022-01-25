@@ -196,6 +196,12 @@ void init_query(py::module& m) {
         .def("add_range", [](Query& q, uint32_t dim_idx, py::tuple range) {
             add_dim_range(q, dim_idx, range);
         })
+        //.def("add_range", [](Query& q, std::string name, py::tuple range) {
+        //  auto array = q.array();
+        //  auto schema = array.schema();
+        //  uint32_t dim_idx = schema.domain.dim(name).
+        //  add_dim_range(q, dim_idx, range);
+        //})
         .def("set_subarray", [](Query& q, py::array a) {
           // TODO check_type(a.dtype)
           // TODO check size == ndim * 2
@@ -223,6 +229,14 @@ void init_query(py::module& m) {
           // TODO check_type(a.dtype)
           size_t item_size = a.itemsize();
           q.set_data_buffer(name, const_cast<void*>(a.data()), a.size());
+        })
+        .def("set_fragment_uri", &Query::set_fragment_uri)
+        .def("fragment_uri", &Query::fragment_uri)
+        .def("unset_buffer", &Query::unset_buffer)
+        .def("set_continuation", [](Query& q) {
+          q.ctx().handle_error(
+            tiledb_query_set_continuation(q.ctx().ptr().get(), q.ptr().get())
+          );
         })
         ;
 }
