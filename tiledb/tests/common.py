@@ -12,6 +12,7 @@ import tempfile
 import traceback
 import tiledb
 import uuid
+import urllib
 
 import numpy as np
 import pytest
@@ -374,3 +375,17 @@ def assert_captured(cap, expected):
         out, err = cap.readouterr()
         assert not err
         assert expected in out
+
+def paths_equal(path1, path2):
+    p1 = urllib.parse.urlparse(path1)
+    p2 = urllib.parse.urlparse(path2)
+
+    if p1.scheme == p2.scheme:
+        pass
+    elif "file" in (p1.scheme, p2.scheme):
+        scheme_eq = p1.scheme == "file" or p1.scheme == ""
+        scheme_eq |= p2.scheme == "file" or p2.scheme == ""
+        return p1.path == p2.path and scheme_eq
+    else:
+        return p1.schema == p2.schema and p1.path == p2.path and \
+            p1.netloc == p2.netloc
