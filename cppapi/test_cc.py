@@ -187,6 +187,7 @@ def test_domain():
 
     assert dom.datatype() == lt.DataType.INT32
     assert dom.cell_num() == 10
+    # TODO assert dom.dimension("foo").domain() == ??? np.array?
 
 def test_schema():
     ctx = lt.Context()
@@ -219,5 +220,5 @@ def test_schema():
     dom.add_dimension(dim)
 
     schema.set_domain(dom)
-    # TODO needs full equality check
+    # TODO dom and dimension need full equality check
     assert schema.domain().dimension("foo").name() == dim.name()

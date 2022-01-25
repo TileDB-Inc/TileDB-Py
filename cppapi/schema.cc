@@ -19,7 +19,7 @@ void init_schema(py::module& m) {
                py::keep_alive<1,2>() /* ArraySchema keeps Context alive */)
           .def(py::init<Context&, std::string&, tiledb_encryption_type_t, std::string&>(),
                py::keep_alive<1,2>() /* ArraySchema keeps Context alive */)
-          //.def(py::init<Context, py::capsule>) // tiledb_array_schema_t* signature
+          // TODO .def(py::init<Context, py::capsule>) // tiledb_array_schema_t* signature
           .def("dump", &ArraySchema::dump) // TODO add FILE* signature support?
           .def("array_type", &ArraySchema::array_type)
           .def("capacity", &ArraySchema::capacity)
