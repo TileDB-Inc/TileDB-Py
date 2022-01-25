@@ -90,12 +90,13 @@ void init_enums(py::module& m) {
     DENUM(NO_ENCRYPTION)
     DENUM(AES_256_GCM);
 
-  py::enum_<tiledb_query_status_t>(m, "QueryStatus")
-    DENUM(FAILED)
-    DENUM(COMPLETED)
-    DENUM(INPROGRESS)
-    DENUM(INCOMPLETE)
-    DENUM(UNINITIALIZED);
+  py::enum_<tiledb::Query::Status>(m, "QueryStatus")
+    .value("FAILED", Query::Status::FAILED)
+    .value("COMPLETE", Query::Status::COMPLETE)
+    .value("INPROGRESS", Query::Status::INPROGRESS)
+    .value("INCOMPLETE", Query::Status::INCOMPLETE)
+    .value("UNINITIALIZED", Query::Status::UNINITIALIZED)
+    .export_values();
 
   py::enum_<tiledb_query_type_t>(m, "QueryType")
     DENUM(READ)
@@ -119,10 +120,10 @@ void init_enums(py::module& m) {
   m.def("_enum_string",
         py::overload_cast<tiledb_filter_type_t>(&tiledb::Filter::to_str));
   m.def("_enum_string",
-        [](tiledb_query_status_t status) {
-          const char* c_str;
-          tiledb_query_status_to_str(status, &c_str);
-          return std::string(c_str);
+        [](Query::Status status) {
+          std::stringstream ss;
+          ss << status;
+          return ss.str();
         });
 
 
