@@ -12,8 +12,8 @@ pybind11_add_module(cc
   tiledbcpp.cc
   array.cc
   context.cc
-  tiledbcpp_enum.cc
-  tiledbcpp_domain.cc
+  enum.cc
+  domain.cc
   query.cc
   schema.cc
   common.cc
