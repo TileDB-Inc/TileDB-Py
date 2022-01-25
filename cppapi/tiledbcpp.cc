@@ -14,6 +14,7 @@ template <typename... Args>
 using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 
 void init_array(py::module&);
+void init_schema(py::module&);
 void init_context(py::module&);
 void init_config(py::module&);
 void init_enums(py::module&);
@@ -24,6 +25,7 @@ void init_query(py::module& m);
 PYBIND11_MODULE(cc, m) {
 
   init_array(m);
+  init_schema(m);
   init_context(m);
   init_config(m);
   init_enums(m);

@@ -177,3 +177,21 @@ def test_array():
         arr.get_metadata("key")
     assert not arr.has_metadata("key")[0]
     arr.close()
+
+def test_schema():
+    ctx = lt.Context()
+    schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
+    assert schema.array_type() == lt.ArrayType.SPARSE
+
+    #TODO schema.dump()
+
+    schema.set_capacity(101)
+    assert schema.capacity() == 101
+
+    schema.set_allows_dups(True)
+    assert schema.allows_dups()
+
+    with pytest.raises(lt.TileDBError):
+        schema.set_tile_order(lt.LayoutType.HILBERT)
+    schema.set_tile_order(lt.LayoutType.UNORDERED)
+    assert schema.tile_order() == lt.LayoutType.UNORDERED
