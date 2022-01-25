@@ -230,6 +230,16 @@ void init_query(py::module& m) {
           size_t item_size = a.itemsize();
           q.set_data_buffer(name, const_cast<void*>(a.data()), a.size());
         })
+        .def("set_offsets_buffer", [](Query& q, std::string name, py::array a){
+          // TODO check_type(a.dtype)
+          size_t item_size = a.itemsize();
+          q.set_offsets_buffer(name, (uint64_t*)(a.data()), a.size());
+        })
+        .def("set_validity_buffer", [](Query& q, std::string name, py::array a){
+          // TODO check_type(a.dtype)
+          size_t item_size = a.itemsize();
+          q.set_validity_buffer(name, (uint8_t*)(a.data()), a.size());
+        })
         .def("set_fragment_uri", &Query::set_fragment_uri)
         .def("fragment_uri", &Query::fragment_uri)
         .def("unset_buffer", &Query::unset_buffer)
