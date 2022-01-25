@@ -18,6 +18,7 @@ using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 
 void init_enums(py::module&);
 void init_domain(py::module& m);
+void init_query(py::module& m);
 
 PYBIND11_MODULE(cc, m) {
   //py::enum_<tiledb_datatype_t>(m, "tiledb_datatype");
@@ -63,29 +64,7 @@ PYBIND11_MODULE(cc, m) {
     .def("__del__", &Config::unset)
     .def("unset", &Config::unset);
 
-  /*
-  py::class_<tiledb::Domain>(m, "Domain")
-    .def(py::init<Context>())
-    .def("cell_num", [](Domain& dom) { return dom.cell_num(); })
-    //.def("dump")
-    .def("tiledb_datatype", &Domain::type)
-    .def("ndim", &Domain::ndim)
-    .def("dimensions", &Domain::dimensions)
-    .def("dimension", py::overload_cast<const std::string&>(&Domain::dimension, py::const_))
-    .def("dimension", py::overload_cast<const std::string&>(&Domain::dimension, py::const_))
-    .def("add_dimension", &Domain::add_dimension);
-  */
-
 }
 
-
-/*
-PYBIND11_MODULE(libtiledbcpp, m) {
-  py::class_<tiledb::Query>(m, "Query")
-      .def(py::init<py::object, py::object, py::iterable, py::object,
-                    py::object, py::object>())
-      .def("set_ranges", &PyQuery::set_ranges)
-      .def("set_subarray", &PyQuery::set_subarray)
-*/
 
 }; // namespace libtiledbcpp
