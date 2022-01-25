@@ -1,5 +1,6 @@
 import ctypes
 import io
+import glob
 import multiprocessing
 import os
 import platform
@@ -13,6 +14,7 @@ from urllib.request import urlopen
 
 from pkg_resources import resource_filename
 from setuptools import Extension, find_packages, setup
+from pybind11.setup_helpers import Pybind11Extension
 
 # Target branch
 TILEDB_VERSION = "2.6.2"
@@ -634,7 +636,21 @@ __extensions = [
         extra_link_args=LFLAGS,
         extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
     ),
+    Pybind11Extension(
+        "tiledb.cc",
+        sorted(glob.glob("tiledb/cc/*.cc")),  # Sort source files for reproducibility
+        include_dirs=INC_DIRS,
+        define_macros=DEF_MACROS,
+        library_dirs=LIB_DIRS,
+        libraries=LIBS,
+        extra_link_args=LFLAGS,
+        extra_compile_args=CXXFLAGS.copy().remove("-Werror")
+        if CXXFLAGS.count("-Werror")
+        else CXXFLAGS,
+        language="c++",
+    ),
 ]
+
 
 if TILEDBPY_MODULAR:
     for source in MODULAR_SOURCES:
