@@ -8,8 +8,9 @@ find_package(pybind11 REQUIRED)
 
 pybind11_add_module(cc
   tiledbcpp.cc
+  context.cc
   tiledbcpp_enum.cc
   tiledbcpp_domain.cc
-  #tiledbcpp_query.cc
+  tiledbcpp_query.cc
 )
 target_link_libraries(cc PRIVATE TileDB::tiledb_shared)
