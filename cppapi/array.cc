@@ -62,8 +62,45 @@ void init_array(py::module& m) {
                py::overload_cast<const Context&, const std::string&,
                               tiledb_encryption_type_t, const std::string&,
                               Config* const>(&Array::consolidate_metadata))
-          .def("put_metadata", &Array::put_metadata)
-          //.def("get_metadata", &Array::get_metadata)
+          .def("put_metadata", [](Array& self, std::string& key, tiledb_datatype_t tdb_type, const py::buffer& b) {
+               py::buffer_info info = b.request();
+
+               ssize_t size = std::reduce(info.shape.begin(), info.shape.end());
+               ssize_t nbytes = size * info.itemsize;
+
+               self.put_metadata(
+                    key,
+                    tdb_type,
+                    size,
+                    info.ptr
+               );
+               /*
+               std::cout << "ndim: " << info.ndim << std::endl;
+
+
+               std::cout << "sz: " << size << std::endl;
+               std::cout << "imsz: " << info.itemsize << std::endl;
+
+               std::cout << "--|" << std::endl;
+               for (auto& s : info.shape) {
+                    std::cout << s << std::endl;
+               }
+               */
+          })
+          .def("get_metadata", [](Array& self, std::string& key) -> py::buffer {
+               tiledb_datatype_t tdb_type;
+               uint32_t value_num;
+               const void* data_ptr;
+
+               self.get_metadata(key, &tdb_type, &value_num, &data_ptr);
+
+               assert(data_ptr != nullptr);
+               return py::memoryview::from_memory(
+                    data_ptr,
+                    value_num * tiledb_datatype_size(tdb_type)
+               );
+          })
+          .def("delete_metadata", &Array::delete_metadata)
           //.def("has_metadata", &Array::has_metadata)
           ;
 

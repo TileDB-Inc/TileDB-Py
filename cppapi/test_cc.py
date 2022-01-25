@@ -145,3 +145,23 @@ def test_array():
     lt.Array.encryption_type(ctx, uri) == lt.EncryptionType.NO_ENCRYPTION
     # TODO assert lt.Array.load_schema(ctx, uri) == arr.schema
     assert arr.query_type() == lt.QueryType.READ
+
+    arr.close()
+    ####
+    arrw = lt.Array(ctx, uri, lt.QueryType.WRITE)
+
+    data = b'abcdef'
+    arrw.put_metadata("key", lt.DataType.STRING_ASCII, data)
+    arrw.close()
+
+    arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    mv = arr.get_metadata("key")
+    assert bytes(mv) == data
+
+    arrw = lt.Array(ctx, uri, lt.QueryType.WRITE)
+    arrw.delete_metadata("key")
+
+    arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    mv = arr.get_metadata("key")
+
+    print('helo')
