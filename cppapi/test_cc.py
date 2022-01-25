@@ -1,6 +1,5 @@
 import numpy as np
 import tiledb
-import pytest
 import hypothesis
 import time
 import tempfile
@@ -9,6 +8,8 @@ import os
 import cc as lt
 
 from common import paths_equal
+
+import pytest
 
 # from tiledb.tests.fixtures
 INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
@@ -204,14 +205,16 @@ def test_attribute():
     assert(attr.nullable() == True)
     #print(attr.filter_list()) # TODO
 
+def test_schema_dump(capfd):
+    ctx = lt.Context()
+    schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
+    #schema.dump() # TODO FILE* target and capfd
 
 def test_schema():
     ctx = lt.Context()
 
     schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
     assert schema.array_type() == lt.ArrayType.SPARSE
-
-    #TODO schema.dump()
 
     schema.set_capacity(101)
     assert schema.capacity() == 101
@@ -265,6 +268,7 @@ def test_query_string():
 
 def test_query():
     def create_schema():
+        ctx = lt.Context()
         schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
         dom = lt.Domain(ctx)
         dim = lt.Dimension.create(ctx, "x",
@@ -277,26 +281,48 @@ def test_query():
         schema.add_attribute(attr)
 
         schema.set_domain(dom)
-        schema.dump()
         return schema
-
-    uri = tempfile.mkdtemp()
-
-    ctx = lt.Context()
-    schema = create_schema()
-    lt.Array.create(uri, schema)
-    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
-
-    q = lt.Query(ctx, arr, lt.QueryType.WRITE)
-    q.set_layout(lt.LayoutType.UNORDERED)
-    assert q.query_type() == lt.QueryType.WRITE
-
-    #q.add_range(0, (0, 9))
 
     coords = np.arange(10).astype(np.int32)
     data = np.random.randint(0,10,10).astype(np.int32)
 
-    q.set_data_buffer("a", data)
-    q.set_data_buffer("x", coords)
+    def test_write():
+        uri = tempfile.mkdtemp()
 
-    assert(q.submit() == lt.QueryStatus.COMPLETE)
+        ctx = lt.Context()
+        schema = create_schema()
+        lt.Array.create(uri, schema)
+        arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+
+        q = lt.Query(ctx, arr, lt.QueryType.WRITE)
+        q.set_layout(lt.LayoutType.UNORDERED)
+        assert q.query_type() == lt.QueryType.WRITE
+
+        q.set_data_buffer("a", data)
+        q.set_data_buffer("x", coords)
+
+        assert(q.submit() == lt.QueryStatus.COMPLETE)
+
+        return uri
+
+    def test_read(uri):
+        ctx = lt.Context()
+        arr = lt.Array(ctx, uri, lt.QueryType.READ)
+
+        q = lt.Query(ctx, arr, lt.QueryType.READ)
+        q.set_layout(lt.LayoutType.ROW_MAJOR)
+        assert q.query_type() == lt.QueryType.READ
+
+        rcoords = np.zeros(10).astype(np.int32)
+        rdata = np.zeros(10).astype(np.int32)
+
+        q.set_data_buffer("a", rdata)
+        q.set_data_buffer("x", rcoords)
+
+        assert(q.submit() == lt.QueryStatus.COMPLETE)
+        assert(np.all(rcoords == coords))
+        assert(np.all(rdata == data))
+
+
+    uri = test_write()
+    test_read(uri)
