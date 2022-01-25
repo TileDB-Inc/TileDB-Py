@@ -2,6 +2,7 @@
 
 ## Bug fixes
 * Cast 'dim`'s dtype in `Domain` to `str` prior to applying `html.escape` [#883](https://github.com/TileDB-Inc/TileDB-Py/pull/883)
+* Support attributes with spaces in `QueryCondition` by casting with attr(); values may be casted with val() [#886](https://github.com/TileDB-Inc/TileDB-Py/pull/886)
 
 # TileDB-Py 0.12.0 Release Notes
 

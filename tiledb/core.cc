@@ -687,7 +687,7 @@ public:
         TPY_ERROR_LOC(e.what());
       }
 
-      auto pyqc = (attr_cond.attr("_c_obj")).cast<PyQueryCondition>();
+      auto pyqc = (attr_cond.attr("c_obj")).cast<PyQueryCondition>();
       auto qc = pyqc.ptr().get();
       query_->set_condition(*qc);
     }

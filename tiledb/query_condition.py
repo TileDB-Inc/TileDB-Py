@@ -1,5 +1,7 @@
 import ast
+from dataclasses import dataclass, field
 import numpy as np
+from typing import Any, Callable, List, Tuple, TypeVar, Union
 
 import tiledb
 import tiledb.main as qc
@@ -10,8 +12,23 @@ A high level wrapper around the Pybind11 query_condition.cc implementation for
 filtering query results on attribute values.
 """
 
+QueryConditionNodeElem = TypeVar(
+    "QueryConditionNodeElem",
+    ast.Name,
+    ast.Constant,
+    ast.Num,
+    ast.Num,
+    ast.Str,
+    ast.Bytes,
+)
 
-class QueryCondition(ast.NodeVisitor):
+QueryConditionNodeVar = TypeVar(
+    "QueryConditionNodeVar", ast.Constant, ast.Num, ast.Str, ast.Bytes
+)
+
+
+@dataclass
+class QueryCondition:
     """
     Class representing a TileDB query condition object for attribute filtering
     pushdown. Set the query condition with a string representing an expression
@@ -39,59 +56,61 @@ class QueryCondition(ast.NodeVisitor):
 
         compare_op ::= < | > | <= | >= | == | !=
 
-    TileDB attribute names are strings (no quotes).
+    TileDB attribute names are Python valid variables or a attr() casted string.
 
-        attr ::= <str>
+        attr ::= <variable> | attr(<str>)
 
-    Values are any Python-valid number or a string enclosed in quotes.
+    Values are any Python-valid number or string. They may also be casted with val().
 
-        val ::= <num> | "<str>" | '<str>'
+        val ::= <num> | <str> | val(val)
 
     Example
     -------
     with tiledb.open(uri, mode="r") as A:
         # select cells where the attribute values for foo are less than 5
         # and bar equal to string asdf.
-        qc = QueryCondition("foo > 5 and 'asdf' == bar")
+        qc = QueryCondition("foo > 5 and 'asdf' == attr('b a r') and baz <= val(1.0)")
         A.query(attr_cond=qc)
     """
 
-    def __init__(self, expression="", ctx=None):
-        if ctx is None:
-            ctx = tiledb.default_ctx()
+    expression: str
+    ctx: tiledb.Ctx = field(default_factory=tiledb.default_ctx, repr=False)
+    tree: ast.AST = field(default=None, repr=False)
+    c_obj: PyQueryCondition = field(init=False, repr=False)
 
-        self._ctx = ctx
-        self._schema = None
-        self._query_attrs = None
-        self._c_obj = None
-
+    def __post_init__(self):
         try:
-            self.tree = ast.parse(expression)
+            self.tree = ast.parse(self.expression)
         except:
             raise tiledb.TileDBError(
-                f"Could not parse the given QueryCondition statement: {expression}"
+                "Could not parse the given QueryCondition statement: "
+                f"{self.expression}"
             )
 
-        if not self.tree.body:
+        if not self.tree:
             raise tiledb.TileDBError(
                 "The query condition statement could not be parsed properly. "
                 "(Is this an empty expression?)"
             )
 
-        self.raw_str = expression
+    def init_query_condition(self, schema: tiledb.ArraySchema, query_attrs: List[str]):
+        qctree = QueryConditionTree(self.ctx, schema, query_attrs)
+        self.c_obj = qctree.visit(self.tree.body[0])
 
-    def init_query_condition(self, schema, query_attrs):
-        self._schema = schema
-        self._query_attrs = query_attrs
-        self._c_obj = self.visit(self.tree.body[0])
-
-        if not isinstance(self._c_obj, tiledb.main.PyQueryCondition):
+        if not isinstance(self.c_obj, tiledb.main.PyQueryCondition):
             raise tiledb.TileDBError(
                 "Malformed query condition statement. A query condition must "
                 "be made up of one or more Boolean expressions."
             )
 
-    def visit_Compare(self, node):
+
+@dataclass
+class QueryConditionTree(ast.NodeVisitor):
+    ctx: tiledb.Ctx
+    schema: tiledb.ArraySchema
+    query_attrs: List[str]
+
+    def visit_Compare(self, node: ast.Compare) -> PyQueryCondition:
         result = self.aux_visit_Compare(
             self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
         )
@@ -102,7 +121,33 @@ class QueryCondition(ast.NodeVisitor):
             result = result.combine(value, qc.TILEDB_AND)
         return result
 
-    def aux_visit_Compare(self, att, op, val):
+    def aux_visit_Compare(
+        self,
+        att_node: Union[QueryConditionNodeElem, ast.UnaryOp],
+        op_node: ast.Compare,
+        val_node: Union[QueryConditionNodeElem, ast.UnaryOp],
+    ) -> PyQueryCondition:
+        op = self.get_op_from_node(op_node)
+
+        att_node, val_node, op = self.order_nodes(att_node, val_node, op)
+
+        att = self.get_att_from_node(att_node)
+        val = self.get_val_from_node(val_node)
+
+        dt = self.schema.attr(att).dtype
+        dtype = "string" if dt.kind in "SUa" else dt.name
+        val = self.cast_val_to_dtype(val, dtype)
+
+        pyqc = PyQueryCondition(self.ctx)
+
+        try:
+            self.init_pyqc(pyqc, dtype)(att, val, op)
+        except tiledb.TileDBError as e:
+            raise tiledb.TileDBError(e)
+
+        return pyqc
+
+    def get_op_from_node(self, node: ast.Compare) -> qc.tiledb_query_condition_op_t:
         AST_TO_TILEDB = {
             ast.Gt: qc.TILEDB_GT,
             ast.GtE: qc.TILEDB_GE,
@@ -113,11 +158,29 @@ class QueryCondition(ast.NodeVisitor):
         }
 
         try:
-            op = AST_TO_TILEDB[type(op)]
+            op = AST_TO_TILEDB[type(node)]
         except KeyError:
             raise tiledb.TileDBError("Unsupported comparison operator.")
 
-        if not isinstance(att, ast.Name):
+        return op
+
+    def is_att_node(self, att: QueryConditionNodeElem) -> bool:
+        return isinstance(att, ast.Name) or (
+            (
+                (
+                    isinstance(att, ast.Constant)
+                    or isinstance(att, ast.Num)
+                    or isinstance(att, ast.Str)
+                    or isinstance(att, ast.Bytes)
+                )
+                and hasattr(att, "qc_type")
+            )
+        )
+
+    def order_nodes(
+        self, att: QueryConditionNodeElem, val: QueryConditionNodeElem, op: ast.Compare
+    ) -> Tuple[QueryConditionNodeElem, QueryConditionNodeElem, ast.Compare]:
+        if not self.is_att_node(att):
             REVERSE_OP = {
                 qc.TILEDB_GT: qc.TILEDB_LT,
                 qc.TILEDB_GE: qc.TILEDB_LE,
@@ -130,78 +193,79 @@ class QueryCondition(ast.NodeVisitor):
             op = REVERSE_OP[op]
             att, val = val, att
 
-        if isinstance(att, ast.Name):
-            att = att.id
-        else:
-            raise tiledb.TileDBError("Incorrect type for attribute name.")
+        return att, val, op
 
-        if isinstance(val, ast.Constant):
-            sign = val.sign if hasattr(val, "sign") else 1
-            val = val.value * sign
-        elif isinstance(val, ast.Num):
-            # deprecated in 3.8
-            sign = val.sign if hasattr(val, "sign") else 1
-            val = val.n * sign
-        elif isinstance(val, ast.Str) or isinstance(val, ast.Bytes):
-            # deprecated in 3.8
-            val = val.s
+    def get_att_from_node(self, node: QueryConditionNodeElem) -> QueryConditionNodeElem:
+        if self.is_att_node(node):
+            if isinstance(node, ast.Name):
+                att = node.id
+            elif isinstance(node, ast.Constant):
+                att = node.value
+            elif isinstance(node, ast.Str) or isinstance(node, ast.Bytes):
+                # deprecated in 3.8
+                att = node.s
         else:
             raise tiledb.TileDBError(
-                f"Incorrect type for comparison value: {ast.dump(val)}"
+                f"Incorrect type for attribute name : {ast.dump(node)}"
             )
 
-        if not self._schema.has_attr(att):
-            if self._schema.domain.has_dim(att):
+        if not self.schema.has_attr(att):
+            if self.schema.domain.has_dim(att):
                 raise tiledb.TileDBError(
                     f"`{att}` is a dimension. QueryConditions currently only "
                     "work on attributes."
                 )
             raise tiledb.TileDBError(f"Attribute `{att}` not found in schema.")
 
-        if att not in self._query_attrs:
+        if att not in self.query_attrs:
             raise tiledb.TileDBError(
                 f"Attribute `{att}` given to filter in query's `attr_cond` "
                 "arg but not found in `attr` arg."
             )
 
-        dtype = self._schema.attr(att).dtype
+        return att
 
-        if dtype.kind in "SUa":
-            dtype_name = "string"
+    def get_val_from_node(self, node: QueryConditionNodeVar) -> QueryConditionNodeVar:
+        if isinstance(node, ast.Constant):
+            sign = node.sign if hasattr(node, "sign") else 1
+            val = node.value * sign
+        elif isinstance(node, ast.Num):
+            # deprecated in 3.8
+            sign = node.sign if hasattr(node, "sign") else 1
+            val = node.n * sign
+        elif isinstance(node, ast.Str) or isinstance(node, ast.Bytes):
+            # deprecated in 3.8
+            val = node.s
         else:
+            raise tiledb.TileDBError(
+                f"Incorrect type for comparison value: {ast.dump(node)}"
+            )
+
+        return val
+
+    def cast_val_to_dtype(self, val: QueryConditionNodeVar, dtype: str) -> Any:
+        if dtype != "string":
             try:
                 # this prevents numeric strings ("1", '123.32') from getting
                 # casted to numeric types
                 if isinstance(val, str):
-                    raise tiledb.TileDBError(
-                        f"Type mismatch between attribute `{att}` and value `{val}`."
-                    )
-
-                cast = getattr(np, dtype.name)
+                    raise tiledb.TileDBError(f"Cannot cast `{val}` to {dtype}.")
+                cast = getattr(np, dtype)
                 val = cast(val)
-                dtype_name = dtype.name
             except ValueError:
-                raise tiledb.TileDBError(
-                    f"Type mismatch between attribute `{att}` and value `{val}`."
-                )
+                raise tiledb.TileDBError(f"Cannot cast `{val}` to {dtype}.")
 
-        result = PyQueryCondition(self._ctx)
+        return val
 
-        if not hasattr(result, f"init_{dtype_name}"):
-            raise tiledb.TileDBError(
-                f"PyQueryCondition's `init_{dtype_name}` not found."
-            )
+    def init_pyqc(self, pyqc: PyQueryCondition, dtype: str) -> Callable:
+        init_fn_name = f"init_{dtype}"
 
-        init_qc = getattr(result, f"init_{dtype_name}")
+        if not hasattr(pyqc, init_fn_name):
+            raise tiledb.TileDBError(f"PyQueryCondition.{init_fn_name}() not found.")
 
-        try:
-            init_qc(att, val, op)
-        except tiledb.TileDBError as e:
-            raise tiledb.TileDBError(e)
+        return getattr(pyqc, init_fn_name)
 
-        return result
-
-    def visit_BinOp(self, node):
+    def visit_BinOp(self, node: ast.BinOp) -> PyQueryCondition:
         AST_TO_TILEDB = {ast.BitAnd: qc.TILEDB_AND}
 
         try:
@@ -218,14 +282,15 @@ class QueryCondition(ast.NodeVisitor):
 
         return result
 
-    def visit_BoolOp(self, node):
+    def visit_BoolOp(self, node: ast.BoolOp) -> PyQueryCondition:
         AST_TO_TILEDB = {ast.And: qc.TILEDB_AND}
 
         try:
             op = AST_TO_TILEDB[type(node.op)]
         except KeyError:
             raise tiledb.TileDBError(
-                f'Unsupported Boolean operator: {ast.dump(node.op)}. Only "and" is currently supported.'
+                f"Unsupported Boolean operator: {ast.dump(node.op)}. "
+                'Only "and" is currently supported.'
             )
 
         result = self.visit(node.values[0])
@@ -234,13 +299,28 @@ class QueryCondition(ast.NodeVisitor):
 
         return result
 
-    def visit_Name(self, node):
+    def visit_Call(self, node: ast.Call) -> Union[QueryConditionNodeElem, ast.UnaryOp]:
+        visit_cast = ["attr", "val"]
+
+        if node.func.id not in visit_cast:
+            raise tiledb.TileDBError(f"Valid casts are attr() or val().")
+
+        if len(node.args) != 1:
+            raise tiledb.TileDBError(
+                f"Exactly one argument must be provided to {node.func.id}()."
+            )
+
+        node.args[0].qc_type = node.func.id
+
+        return self.visit(node.args[0])
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
         return node
 
-    def visit_Constant(self, node):
+    def visit_Constant(self, node: ast.Constant) -> ast.Constant:
         return node
 
-    def visit_UnaryOp(self, node):
+    def visit_UnaryOp(self, node: ast.UnaryOp):
         if isinstance(node.op, ast.UAdd):
             sign = 1
         elif isinstance(node.op, ast.USub):
@@ -258,20 +338,17 @@ class QueryCondition(ast.NodeVisitor):
         else:
             return node.operand
 
-    def visit_Num(self, node):
+    def visit_Num(self, node: ast.Num) -> ast.Num:
         # deprecated in 3.8
         return node
 
-    def visit_Str(self, node):
+    def visit_Str(self, node: ast.Str) -> ast.Str:
         # deprecated in 3.8
         return node
 
-    def visit_Bytes(self, node):
+    def visit_Bytes(self, node: ast.Bytes) -> ast.Bytes:
         # deprecated in 3.8
         return node
 
-    def visit_Expr(self, node):
+    def visit_Expr(self, node: ast.Expr) -> Union[ast.Constant, ast.Name]:
         return self.visit(node.value)
-
-    def __repr__(self) -> str:
-        return f'QueryCondition("{self.raw_str}")'
