@@ -62,7 +62,7 @@ def no_output(capfd):
 
 def make_range(dtype):
     if np.issubdtype(dtype, np.number):
-        return np.array([0,100.123]).astype(dtype), 1
+        return np.array([0,100.123]).astype(dtype), np.array([1]).astype(dtype)
     elif np.issubdtype(dtype, str) or np.issubdtype(dtype, bytes):
         return np.array(["a", "z"]).astype(dtype), None
     else:
@@ -71,24 +71,23 @@ def make_range(dtype):
 @pytest.mark.parametrize("dtype_str", SUPPORTED_DTYPES)
 def test_dimension(dtype_str):
     if dtype_str == "U":
+        # TODO this should assert TileDBError and continue
         pytest.skip("dtype('U') not supported for dimension")
 
     ctx = lt.Context()
 
     dtype = np.dtype(dtype_str)
+
     # TODO move this to pybind11
     tiledb_datatype = lt.DataType(tiledb.libtiledb.dtype_to_tiledb(dtype))
 
-
     range,extent = make_range(dtype)
-    start,end = range[0], range[1]
 
     if dtype_str == "S":
         tiledb_datatype = lt.DataType.STRING_ASCII
-        start, end = 0, 0
-        extent = 0
+        extent = np.array([], dtype=dtype) # null extent
 
-    dim = lt.Dimension.create(ctx, "foo", tiledb_datatype, start, end, extent)
+    dim = lt.Dimension.create(ctx, "foo", tiledb_datatype, range, extent)
     print(dim)
 
 def test_enums():
@@ -178,8 +177,20 @@ def test_array():
     assert not arr.has_metadata("key")[0]
     arr.close()
 
+def test_domain():
+    ctx = lt.Context()
+    dom = lt.Domain(ctx)
+    dim = lt.Dimension.create(ctx, "foo",
+                              lt.DataType.INT32, np.int32([0,9]),
+                              np.int32([9]))
+    dom.add_dimension(dim)
+
+    assert dom.datatype() == lt.DataType.INT32
+    assert dom.cell_num() == 10
+
 def test_schema():
     ctx = lt.Context()
+
     schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
     assert schema.array_type() == lt.ArrayType.SPARSE
 
@@ -195,3 +206,18 @@ def test_schema():
         schema.set_tile_order(lt.LayoutType.HILBERT)
     schema.set_tile_order(lt.LayoutType.UNORDERED)
     assert schema.tile_order() == lt.LayoutType.UNORDERED
+
+    # TODO schema.set_coords_filter_list(...)
+    # TODO assert schema.coords_filter_list() == lt.FilterListType.NONE
+    # TODO schema.set_offsets_filter_list
+    # TODO assert schema.offsets_filter_list ==
+
+    dom = lt.Domain(ctx)
+    dim = lt.Dimension.create(ctx, "foo",
+                              lt.DataType.INT32, np.int32([0,9]),
+                              np.int32([9]))
+    dom.add_dimension(dim)
+
+    schema.set_domain(dom)
+    # TODO needs full equality check
+    assert schema.domain().dimension("foo").name() == dim.name()

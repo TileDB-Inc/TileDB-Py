@@ -5,29 +5,36 @@
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
+#include "common.h"
+
 namespace libtiledbcpp {
 
 using namespace tiledb;
+using namespace tiledbpy::common;
 namespace py = pybind11;
 
 void init_domain(py::module& m) {
    py::class_<tiledb::Dimension>(m, "Dimension")
-    // TODO: rewrite. this is an MVP placeholder and needs work including:
-    // - don't hardcode the dtype
-    // - convert from dtype <> tiledb_datatype_t
-    // - accept np.array (monotype) as the ranges
     .def("create",
-      [](const Context& ctx, const std::string& name, tiledb_datatype_t tiledb_datatype,
-          py::object start, py::object end, py::object extent) {
-        auto np = py::module::import("numpy");
-        auto range_ = py::array(np.attr("array")(py::make_tuple(start, end)));
-        auto extent_ = py::array(np.attr("array")(extent));
+      [](const Context& ctx, const std::string& name, tiledb_datatype_t datatype,
+          py::buffer range, py::buffer extent) {
+       auto range_info = range.request();
+       auto extent_info = extent.request();
+       if (datatype != TILEDB_STRING_ASCII) {
+         if (!expect_buffer_nbytes(range_info, datatype, 2))
+         {
+           throw py::value_error("Unexpected type/shape for range buffer!");
+         }
+         if (!expect_buffer_nbytes(extent_info, datatype, 1)) {
+           throw py::value_error("Unexpected type/shape for range buffer!");
+         }
+       }
 
-        const void *range_data = (tiledb_datatype != TILEDB_STRING_ASCII) ? range_.data() : nullptr;
-        const void *extent_data = (tiledb_datatype != TILEDB_STRING_ASCII) ? extent_.data() : nullptr;
+        const void *range_data = (datatype != TILEDB_STRING_ASCII) ? range_info.ptr : nullptr;
+        const void *extent_data = (datatype != TILEDB_STRING_ASCII) ? extent_info.ptr : nullptr;
 
         return std::make_unique<Dimension>(
-          Dimension::create(ctx, name, tiledb_datatype, range_data, extent_data));
+          Dimension::create(ctx, name, datatype, range_data, extent_data));
       }
     )
     .def("cell_val_nul", &Dimension::cell_val_num)
@@ -41,9 +48,10 @@ void init_domain(py::module& m) {
     .def("domain_to_str", &Dimension::domain_to_str);
 
   py::class_<tiledb::Domain>(m, "Domain")
-    .def(py::init<Context>())
+    .def(py::init<Context&>(),
+         py::keep_alive<1,2>() /* ArraySchema keeps Context alive */)
     .def("cell_num", [](Domain& dom) { return dom.cell_num(); })
-    .def("tiledb_datatype", &Domain::type)
+    .def("datatype", &Domain::type)
     .def("ndim", &Domain::ndim)
     .def("dimensions", &Domain::dimensions)
     .def("dimension", py::overload_cast<const std::string&>(&Domain::dimension, py::const_))

@@ -31,7 +31,13 @@ void init_schema(py::module& m) {
           .def("set_order", &ArraySchema::set_tile_order)
           .def("cell_order", &ArraySchema::cell_order)
           .def("set_cell_order", &ArraySchema::set_cell_order)
-          .def("coords_filter_list", &ArraySchema::coords_filter_list)
+          //.set("set_coords_filter_list")
+          //.def("coords_filter_list", &ArraySchema::coords_filter_list)
+          //.def("offsets_filter_list")
+          //.def("set_offsets_filter_list")
+          .def("domain", &ArraySchema::domain)
+          .def("set_domain", &ArraySchema::set_domain)
+          // TODO? .def("__eq__", &Domain::operator==)
           ;
 }
 

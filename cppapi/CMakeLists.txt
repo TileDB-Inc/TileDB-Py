@@ -16,5 +16,6 @@ pybind11_add_module(cc
   tiledbcpp_domain.cc
   query.cc
   schema.cc
+  common.cc
 )
 target_link_libraries(cc PRIVATE TileDB::tiledb_shared)
