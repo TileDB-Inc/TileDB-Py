@@ -232,7 +232,8 @@ class MultiRangeIndexer(object):
             # error with a clear message to pass use_arrow=False.
             attrs = map(schema.attr, query.attrs or ())
             if any(
-                (attr.isvar or len(attr.dtype) > 1) and attr.dtype != np.unicode_
+                (attr.isvar or len(attr.dtype) > 1)
+                and (not attr.dtype in (np.unicode_, np.bytes_))
                 for attr in attrs
             ):
                 raise TileDBError(
