@@ -1367,7 +1367,7 @@ public:
         // convert to bitmap
         buffer_info.validity = uint8_bool_to_uint8_bitmap(buffer_info.validity);
         c_pa_array.buffers[0] = buffer_info.validity.data();
-        c_pa_array.n_buffers = 2;
+        c_pa_array.n_buffers = is_var(buffer_name) ? 3 : 2;
         c_pa_schema.flags |= ARROW_FLAG_NULLABLE;
       } else if (!is_var(buffer_name)) {
         // reset the number of buffers for non-nullable data
