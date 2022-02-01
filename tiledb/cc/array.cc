@@ -26,13 +26,13 @@ void init_array(py::module &m) {
       //.def("ptr", [](Array& arr){ return py::capsule(arr.ptr()); } )
       // open with encryption key
       .def("open",
-           (void (Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
-                            const std::string &)) &
+           (void(Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
+                           const std::string &)) &
                Array::open)
       // open with encryption key and timestamp
       .def("open",
-           (void (Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
-                            const std::string &, uint64_t)) &
+           (void(Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
+                           const std::string &, uint64_t)) &
                Array::open)
       .def("reopen", &Array::reopen)
       .def("set_open_timestamp_start", &Array::set_open_timestamp_start)

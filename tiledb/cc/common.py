@@ -2,6 +2,7 @@ import urllib
 
 # from tiledb.tests.common import paths_equal
 
+
 def paths_equal(path1, path2):
     p1 = urllib.parse.urlparse(path1)
     p2 = urllib.parse.urlparse(path2)
@@ -14,5 +15,4 @@ def paths_equal(path1, path2):
         scheme_eq |= p2.scheme == "file" or p2.scheme == ""
         return p1.path == p2.path and scheme_eq
 
-    return p1.schema == p2.schema and p1.path == p2.path and \
-        p1.netloc == p2.netloc
+    return p1.schema == p2.schema and p1.path == p2.path and p1.netloc == p2.netloc

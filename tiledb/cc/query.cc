@@ -166,9 +166,10 @@ void init_query(py::module &m) {
       .def(py::init<Context &, Array &>(),
            py::keep_alive<1, 2>()) // TODO keepalive for the Array as well?
       // TODO .def("ptr", [&]() -> py::capsule)
-      .def("query_type", &Query::query_type)
-      .def("set_layout", &Query::set_layout)
-      .def("query_layout", &Query::query_layout)
+
+      .def_property_readonly("query_type", &Query::query_type)
+      .def_property("layout", &Query::query_layout, &Query::set_layout)
+
       .def("set_condition", &Query::set_condition)
       // TODO .def("array") -> Array&
       .def("query_status", &Query::query_status)
@@ -189,7 +190,7 @@ void init_query(py::module &m) {
                                const std::string &)) &
                Query::add_range)
       //.def("add_range", (Query& (Query::*)(uint32_t, const std::string&, const
-      //std::string&))&Query::add_range)
+      // std::string&))&Query::add_range)
       .def("add_range",
            [](Query &q, uint32_t dim_idx, py::tuple range) {
              add_dim_range(q, dim_idx, range);
@@ -211,7 +212,7 @@ void init_query(py::module &m) {
                  ctx.ptr().get(), q.ptr().get(), const_cast<void *>(a.data())));
            })
       //.def("add_range", ([](Query& this, uint32_t dim_idx, py::object,
-      //py::object) {
+      // py::object) {
       //    auto schema = this.array().schema();
       //    tiledb_datatype_t dim_type =
       //    schema.domain().dimension(dim_idx).type(); size_t dim_size =
@@ -239,6 +240,7 @@ void init_query(py::module &m) {
              size_t item_size = a.itemsize();
              q.set_validity_buffer(name, (uint8_t *)(a.data()), a.size());
            })
+      .def("fragment_num", &Query::fragment_num)
       .def("fragment_uri", &Query::fragment_uri)
       /** hackery from another branch... */
       //.def("set_fragment_uri", &Query::set_fragment_uri)

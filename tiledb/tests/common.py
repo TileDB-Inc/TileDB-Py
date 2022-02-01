@@ -371,6 +371,7 @@ def assert_captured(cap, expected):
         assert not err
         assert expected in out
 
+
 def paths_equal(path1, path2):
     p1 = urllib.parse.urlparse(path1)
     p2 = urllib.parse.urlparse(path2)
@@ -382,5 +383,4 @@ def paths_equal(path1, path2):
         scheme_eq |= p2.scheme == "file" or p2.scheme == ""
         return p1.path == p2.path and scheme_eq
     else:
-        return p1.schema == p2.schema and p1.path == p2.path and \
-            p1.netloc == p2.netloc
+        return p1.schema == p2.schema and p1.path == p2.path and p1.netloc == p2.netloc

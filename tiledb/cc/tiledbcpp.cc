@@ -18,6 +18,7 @@ void init_attribute(py::module &);
 void init_schema(py::module &);
 void init_context(py::module &);
 void init_config(py::module &);
+void init_filter(py::module &);
 void init_enums(py::module &);
 void init_domain(py::module &m);
 void init_query(py::module &m);
@@ -30,6 +31,7 @@ PYBIND11_MODULE(cc, m) {
   init_context(m);
   init_config(m);
   init_enums(m);
+  init_filter(m);
   init_domain(m);
   init_query(m);
 

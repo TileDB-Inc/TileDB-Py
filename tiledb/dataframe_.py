@@ -189,7 +189,7 @@ def _get_schema_filters(filters):
         return tiledb.FilterList()
     elif isinstance(filters, (list, tiledb.FilterList)):
         return tiledb.FilterList(filters)
-    elif isinstance(filters, tiledb.libtiledb.Filter):
+    elif isinstance(filters, tiledb.Filter):
         return tiledb.FilterList([filters])
     else:
         raise ValueError("Unknown FilterList type!")

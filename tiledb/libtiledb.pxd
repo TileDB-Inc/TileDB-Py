@@ -1260,14 +1260,14 @@ cdef class Filter(object):
     cdef Ctx ctx
     cdef tiledb_filter_t* ptr
 
-cdef class FilterList(object):
-    cdef Ctx ctx
-    cdef tiledb_filter_list_t* ptr
+# cdef class FilterList(object):
+#     cdef Ctx ctx
+#     cdef tiledb_filter_list_t* ptr
 
-    @staticmethod
-    cdef FilterList from_ptr(tiledb_filter_list_t* ptr, Ctx ctx=*)
+#     @staticmethod
+#     cdef FilterList from_ptr(tiledb_filter_list_t* ptr, Ctx ctx=*)
 
-    cdef Filter _getfilter(FilterList self, int idx)
+#     cdef Filter _getfilter(FilterList self, int idx)
 
 cdef class Attr(object):
     cdef Ctx ctx
