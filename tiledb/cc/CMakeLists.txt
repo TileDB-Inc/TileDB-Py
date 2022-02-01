@@ -13,13 +13,15 @@ set(CMAKE_BUILD_TYPE Debug)
 
 pybind11_add_module(cc
   tiledbcpp.cc
+  common.cc
+  
   array.cc
   attribute.cc
   context.cc
   enum.cc
   domain.cc
+  filter.cc
   query.cc
   schema.cc
-  common.cc
 )
 target_link_libraries(cc PRIVATE TileDB::tiledb_shared)

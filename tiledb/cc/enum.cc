@@ -32,7 +32,7 @@ void init_enums(py::module &m) {
   py::enum_<tiledb_array_type_t>(m, "ArrayType") DENUM(DENSE) DENUM(SPARSE);
 
   py::enum_<tiledb_layout_t>(m, "LayoutType") DENUM(ROW_MAJOR) DENUM(COL_MAJOR)
-      DENUM(UNORDERED) DENUM(HILBERT);
+      DENUM(GLOBAL_ORDER) DENUM(UNORDERED) DENUM(HILBERT);
 
 #define DFENUM(x) .value(#x, TILEDB_FILTER_##x)
   py::enum_<tiledb_filter_type_t>(m, "FilterType") DFENUM(NONE) DFENUM(GZIP)

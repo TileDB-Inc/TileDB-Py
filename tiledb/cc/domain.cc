@@ -39,29 +39,32 @@ void init_domain(py::module &m) {
              return std::make_unique<Dimension>(Dimension::create(
                  ctx, name, datatype, range_data, extent_data));
            })
-      .def("cell_val_nul", &Dimension::cell_val_num)
-      .def("set_cell_val_num", &Dimension::set_cell_val_num)
-      .def("filter_list", &Dimension::filter_list)
-      .def("set_filter_list", &Dimension::set_filter_list)
-      .def("name", &Dimension::name)
+      .def_property_readonly("name", &Dimension::name)
+      // .def_property_readonly("domain", &Dimension::domain)
+      // .def_property_readonly("tile", &Dimension::tile_extent)
+      .def_property("filters", &Dimension::filter_list,
+                    &Dimension::set_filter_list)
+      .def_property("ncell", &Dimension::cell_val_num,
+                    &Dimension::set_cell_val_num)
       .def("tiledb_datatype", &Dimension::type)
       // TODO needs numpy <> tiledb type and void*+(type,size) -> numpy
       // translators
-      //.def("domain", &Dimension::domain)
       .def("domain_to_str", &Dimension::domain_to_str);
 
   py::class_<tiledb::Domain>(m, "Domain")
       .def(py::init<Context &>(),
            py::keep_alive<1, 2>() /* ArraySchema keeps Context alive */)
-      .def("cell_num", [](Domain &dom) { return dom.cell_num(); })
-      .def("datatype", &Domain::type)
-      .def("ndim", &Domain::ndim)
-      .def("dimensions", &Domain::dimensions)
-      .def("dimension", py::overload_cast<const std::string &>(
-                            &Domain::dimension, py::const_))
-      .def("dimension", py::overload_cast<const std::string &>(
-                            &Domain::dimension, py::const_))
-      .def("add_dimension", &Domain::add_dimension);
+
+      .def_property_readonly("ncell",
+                             [](Domain &dom) { return dom.cell_num(); })
+      .def_property_readonly("dtype", &Domain::type)
+      .def_property_readonly("ndim", &Domain::ndim)
+      .def_property_readonly("dims", &Domain::dimensions)
+
+      .def("dim", py::overload_cast<unsigned>(&Domain::dimension, py::const_))
+      .def("dim", py::overload_cast<const std::string &>(&Domain::dimension,
+                                                         py::const_))
+      .def("add_dim", &Domain::add_dimension);
 }
 
 } // namespace libtiledbcpp

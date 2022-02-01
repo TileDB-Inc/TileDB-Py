@@ -717,18 +717,16 @@ class ArraySchemaTest(DiskTestCase):
         filter_list = tiledb.FilterList([tiledb.GzipFilter()])
         a2 = tiledb.Attr("a2", filters=filter_list, dtype="float32")
 
-        off_filters_pylist = [tiledb.libtiledb.ZstdFilter(level=10)]
-        off_filters = tiledb.libtiledb.FilterList(
-            filters=off_filters_pylist, chunksize=2048
-        )
+        off_filters_pylist = [tiledb.ZstdFilter(level=10)]
+        off_filters = tiledb.FilterList(filters=off_filters_pylist, chunksize=2048)
 
-        coords_filters_pylist = [tiledb.libtiledb.Bzip2Filter(level=5)]
-        coords_filters = tiledb.libtiledb.FilterList(
+        coords_filters_pylist = [tiledb.Bzip2Filter(level=5)]
+        coords_filters = tiledb.FilterList(
             filters=coords_filters_pylist, chunksize=4096
         )
 
-        validity_filters_pylist = [tiledb.libtiledb.GzipFilter(level=9)]
-        validity_filters = tiledb.libtiledb.FilterList(
+        validity_filters_pylist = [tiledb.GzipFilter(level=9)]
+        validity_filters = tiledb.FilterList(
             filters=validity_filters_pylist, chunksize=1024
         )
 
@@ -3005,17 +3003,15 @@ class TestDenseIndexing(DiskTestCase):
 
 class TestFilterTest(unittest.TestCase):
     def test_filter(self):
-        gzip_filter = tiledb.libtiledb.GzipFilter(level=10)
-        self.assertIsInstance(gzip_filter, tiledb.libtiledb.Filter)
+        gzip_filter = tiledb.GzipFilter(level=10)
+        self.assertIsInstance(gzip_filter, tiledb.Filter)
         self.assertEqual(gzip_filter.level, 10)
 
-        bw_filter = tiledb.libtiledb.BitWidthReductionFilter(window=10)
-        self.assertIsInstance(bw_filter, tiledb.libtiledb.Filter)
+        bw_filter = tiledb.BitWidthReductionFilter(window=10)
+        self.assertIsInstance(bw_filter, tiledb.Filter)
         self.assertEqual(bw_filter.window, 10)
 
-        filter_list = tiledb.libtiledb.FilterList(
-            [gzip_filter, bw_filter], chunksize=1024
-        )
+        filter_list = tiledb.FilterList([gzip_filter, bw_filter], chunksize=1024)
         self.assertEqual(filter_list.chunksize, 1024)
         self.assertEqual(len(filter_list), 2)
         self.assertEqual(filter_list[0].level, gzip_filter.level)

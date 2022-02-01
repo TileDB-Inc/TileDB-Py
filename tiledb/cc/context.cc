@@ -14,16 +14,19 @@ void init_context(py::module &m) {
   py::class_<Context>(m, "Context")
       .def(py::init())
       .def(py::init<Config>())
+      .def(py::init<py::capsule, bool>())
+
       .def_property_readonly("config", &Context::config)
       .def("set_tag", &Context::set_tag)
-      .def("stats", &Context::stats);
+      .def("get_stats", &Context::stats);
 }
 
 void init_config(py::module &m) {
-  py::class_<tiledb::Config>(m, "Config")
+  py::class_<tiledb::Config>(m, "ccConfig")
       .def(py::init())
       .def(py::init<std::map<std::string, std::string>>())
       .def(py::init<std::string>())
+
       .def("set", &Config::set)
       .def("get", &Config::get)
       .def("save_to_file", &Config::save_to_file)

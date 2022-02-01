@@ -1,4 +1,3 @@
-import ctypes
 import os
 import sys
 
@@ -33,18 +32,7 @@ except:
         # Otherwise try loading by name only.
         ctypes.CDLL(lib_name)
 
-from .ctx import default_ctx, scope_ctx
-from .libtiledb import (
-    Array,
-    Ctx,
-    Config,
-    Dim,
-    Domain,
-    Attr,
-    ArraySchema,
-    TileDBError,
-    VFS,
-    FileIO,
+from .filter import (
     Filter,
     FilterList,
     NoOpFilter,
@@ -60,6 +48,35 @@ from .libtiledb import (
     PositiveDeltaFilter,
     ChecksumMD5Filter,
     ChecksumSHA256Filter,
+)
+
+from .ctx import default_ctx, scope_ctx
+from .libtiledb import (
+    Array,
+    Ctx,
+    Config,
+    Dim,
+    Domain,
+    Attr,
+    ArraySchema,
+    TileDBError,
+    VFS,
+    FileIO,
+    # Filter,
+    # FilterList,
+    # NoOpFilter,
+    # GzipFilter,
+    # ZstdFilter,
+    # LZ4Filter,
+    # Bzip2Filter,
+    # RleFilter,
+    # DoubleDeltaFilter,
+    # BitShuffleFilter,
+    # ByteShuffleFilter,
+    # BitWidthReductionFilter,
+    # PositiveDeltaFilter,
+    # ChecksumMD5Filter,
+    # ChecksumSHA256Filter,
     consolidate,
     group_create,
     object_type,
@@ -67,7 +84,6 @@ from .libtiledb import (
     walk,
     remove,
     move,
-    schema_like,
     stats_enable,
     stats_disable,
     stats_reset,
@@ -96,6 +112,8 @@ from .highlevel import (
 )
 
 from .query_condition import QueryCondition
+
+from .schema import schema_like
 
 from .schema_evolution import ArraySchemaEvolution
 
