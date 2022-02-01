@@ -211,7 +211,27 @@ def test_attribute():
     assert attr.nullable() == False
     attr.set_nullable(True)
     assert attr.nullable() == True
-    # print(attr.filter_list()) # TODO
+    print(attr.filter_list())  # TODO
+
+
+def test_filter():
+    ctx = lt.Context()
+    fl = lt.FilterList(ctx)
+
+    fl.add_filter(lt.Filter(ctx, lt.FilterType.ZSTD))
+    assert fl.filter(0).filter_type() == lt.FilterType.ZSTD
+    assert fl.nfilters() == 1
+
+    bzip_filter = lt.Filter(ctx, lt.FilterType.BZIP2)
+    bzip_filter.set_option(ctx, lt.FilterOption.COMPRESSION_LEVEL, 2)
+    assert bzip_filter.get_option(ctx, lt.FilterOption.COMPRESSION_LEVEL) == 2
+
+    fl.add_filter(bzip_filter)
+    assert fl.filter(1).filter_type() == lt.FilterType.BZIP2
+    assert fl.nfilters() == 2
+
+    fl.set_max_chunk_size(100000)
+    assert fl.max_chunk_size() == 100000
 
 
 def test_schema_dump(capfd):

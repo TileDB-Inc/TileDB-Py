@@ -27,8 +27,7 @@ void init_attribute(py::module &m) {
       .def("set_cell_val_num", &Attribute::set_cell_val_num)
       //.def("set_fill_value", &Attribute::set_fill_value)
       //.def("get_fill_value", &Attribute::get_fill_value)
-      .def("filter_list",
-           &Attribute::filter_list) // TODO/TOTEST needs FL implementation
+      .def("filter_list", &Attribute::filter_list)
       .def("set_filter_list", &Attribute::set_filter_list)
       .def("nullable", &Attribute::nullable)
       .def("set_nullable", &Attribute::set_nullable);
