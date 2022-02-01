@@ -632,7 +632,7 @@ class TestMultiRange(DiskTestCase):
 
         uri = self.path("test_fix_473_sparse_index_bug")
         dom = tiledb.Domain(
-            tiledb.Dim(name="x", domain=(0, 2 ** 64 - 2), tile=1, dtype=np.uint64)
+            tiledb.Dim(name="x", domain=(0, 2**64 - 2), tile=1, dtype=np.uint64)
         )
         schema = tiledb.ArraySchema(
             domain=dom, sparse=True, attrs=[tiledb.Attr(name="a", dtype=np.uint64)]
