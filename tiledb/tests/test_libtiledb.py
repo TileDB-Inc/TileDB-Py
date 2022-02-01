@@ -760,9 +760,14 @@ class ArraySchemaTest(DiskTestCase):
             validity_filters=validity_filters,
             sparse=True,
         )
-        self.assertEqual(len(schema2.coords_filters), 1)
-        self.assertEqual(len(schema2.offsets_filters), 1)
-        self.assertEqual(len(schema2.validity_filters), 1)
+        assert len(schema2.coords_filters) == 1
+        assert schema2.coords_filters[0] == tiledb.Bzip2Filter(level=5)
+
+        assert len(schema2.offsets_filters) == 1
+        assert schema2.offsets_filters[0] == tiledb.ZstdFilter(level=10)
+
+        assert len(schema2.validity_filters) == 1
+        assert schema2.validity_filters[0] == tiledb.GzipFilter(level=9)
 
     def test_none_filter_list(self):
         with self.assertRaises(ValueError):
