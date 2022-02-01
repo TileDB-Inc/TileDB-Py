@@ -10,11 +10,9 @@ jobs:
       - uses: actions/setup-python@v2
 
       - name: Check Python Black Format
-        # restore after https://github.com/psf/black/issues/2079
-        #uses: psf/black@stable
-        uses: psf/black@21.12b0
+        uses: psf/black@stable
         with:
-          args: ". --check"
+          options: ". --check"
 
       - name: Check Clang-Format
         uses: DoozyX/clang-format-lint-action@v0.13

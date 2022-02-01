@@ -162,7 +162,7 @@ class MetadataTest(DiskTestCase):
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
         # test a 1 MB blob
-        blob = np.random.rand(int((1024 ** 2) / 8)).tobytes()
+        blob = np.random.rand(int((1024**2) / 8)).tobytes()
         with tiledb.Array(path, "w") as A:
             test_vals["bigblob"] = blob
             A.meta["bigblob"] = blob
@@ -284,14 +284,14 @@ class MetadataTest(DiskTestCase):
         for _ in range(2):
             for i in range(write_count):
                 with tiledb.Array(path, mode="w") as A:
-                    A.meta[randutf8s[i] + u"{}".format(randints[i])] = int(randints[i])
+                    A.meta[randutf8s[i] + "{}".format(randints[i])] = int(randints[i])
                     A.meta[randutf8s[i]] = randutf8s[i]
                     time.sleep(0.001)
 
         # test data
         with tiledb.Array(path) as A:
             for i in range(write_count):
-                key_int = randutf8s[i] + u"{}".format(randints[i])
+                key_int = randutf8s[i] + "{}".format(randints[i])
                 self.assertEqual(A.meta[key_int], randints[i])
                 self.assertEqual(A.meta[randutf8s[i]], randutf8s[i])
 
@@ -339,7 +339,7 @@ class MetadataTest(DiskTestCase):
         # test data again after consolidation
         with tiledb.Array(path) as A:
             for i in range(write_count):
-                key_int = randutf8s[i] + u"{}".format(randints[i])
+                key_int = randutf8s[i] + "{}".format(randints[i])
                 self.assertEqual(A.meta[key_int], randints[i])
                 self.assertEqual(A.meta[randutf8s[i]], randutf8s[i])
 

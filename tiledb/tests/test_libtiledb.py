@@ -1629,9 +1629,9 @@ class DenseArrayTest(DiskTestCase):
 
         # create context with 1 MB memory budget (2 MB total, 1 MB usable)
         config = tiledb.Config(
-            {"sm.memory_budget": 2 * 1024 ** 2, "py.init_buffer_bytes": 1024 ** 2}
+            {"sm.memory_budget": 2 * 1024**2, "py.init_buffer_bytes": 1024**2}
         )
-        self.assertEqual(config["py.init_buffer_bytes"], str(1024 ** 2))
+        self.assertEqual(config["py.init_buffer_bytes"], str(1024**2))
         # TODO would be good to check repeat count here. Not currently exposed by retry loop.
         with tiledb.DenseArray(path, ctx=tiledb.Ctx(config)) as A:
             res_mr = A.multi_index[slice(0, len(data) - 1)]
@@ -3904,7 +3904,7 @@ class MemoryTest(DiskTestCase):
         with tiledb.DenseArray(path, mode="r") as data:
             data[:]
             initial = process.memory_info().rss
-            print("  initial RSS: {}".format(round(initial / (10 ** 6)), 2))
+            print("  initial RSS: {}".format(round(initial / (10**6)), 2))
             for i in range(100):
                 # read but don't store: this memory should be freed
                 data[:]
@@ -3912,7 +3912,7 @@ class MemoryTest(DiskTestCase):
                 if i % 10 == 0:
                     print(
                         "    read iter {}, RSS (MB): {}".format(
-                            i, round(process.memory_info().rss / (10 ** 6), 2)
+                            i, round(process.memory_info().rss / (10**6), 2)
                         )
                     )
 
@@ -3926,12 +3926,12 @@ class MemoryTest(DiskTestCase):
 
         process = psutil.Process(os.getpid())
         final = process.memory_info().rss
-        print("  final RSS: {}".format(round(final / (10 ** 6)), 2))
+        print("  final RSS: {}".format(round(final / (10**6)), 2))
 
         gc.collect()
 
         final_gc = process.memory_info().rss
-        print("  final RSS after forced GC: {}".format(round(final_gc / (10 ** 6)), 2))
+        print("  final RSS after forced GC: {}".format(round(final_gc / (10**6)), 2))
 
         assert_captured(capfd, "final RSS")
         self.assertTrue(final < (2 * initial))
@@ -4237,7 +4237,7 @@ class IncompleteTest(DiskTestCase):
         # these settings force ~100 retries
         # TODO would be good to check repeat count here; not yet exposed
         #      Also would be useful to have max cell config in libtiledb.
-        init_buffer_bytes = 1024 ** 2
+        init_buffer_bytes = 1024**2
         config = tiledb.Config(
             {
                 "sm.memory_budget": ncells,
@@ -4281,7 +4281,7 @@ class IncompleteTest(DiskTestCase):
         # these settings force ~100 retries
         # TODO would be good to check repeat count here; not yet exposed
         #      Also would be useful to have max cell config in libtiledb.
-        init_buffer_bytes = 1024 ** 2
+        init_buffer_bytes = 1024**2
         config = tiledb.Config(
             {
                 "sm.memory_budget": ncells,
