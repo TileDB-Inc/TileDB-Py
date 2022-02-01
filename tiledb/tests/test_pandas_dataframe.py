@@ -1254,6 +1254,30 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df = pd.DataFrame(data)
         tiledb.from_pandas(uri, df)
 
+    def test_pyarrow_nullable_string(self):
+        uri = self.path("test_pyarrow_nullable_string")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="__tiledb_rows", domain=(0, 4), tile=1, dtype=np.uint64)
+        )
+        attrs = [tiledb.Attr(name="str", dtype="ascii", var=True, nullable=True)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(uri, schema)
+
+        df = pd.DataFrame(
+            {"str": pd.Series(["foobar", "baz", None, None, ""], dtype="string")}
+        )
+
+        tiledb.from_pandas(uri, df, index_dims=["__tiledb_rows"], mode="append")
+
+        # TODO hack. needs write path support, this allows from_pandas(mode='append')
+        with tiledb.open(uri, "w") as A:
+            A.meta["__pandas_index_dims"] = '{"__tiledb_rows": "int64"}'
+            A.meta["__pandas_attribute_repr"] = '{"str": "string"}'
+
+        with tiledb.open(uri, "r") as A:
+            tm.assert_frame_equal(df, A.df[:])
+
 
 class TestFromPandasOptions(DiskTestCase):
     def test_filters_options(self):
