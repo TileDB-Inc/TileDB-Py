@@ -1205,12 +1205,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(uri, "r") as A:
             assert A.schema.attr("data").isnullable
             assert A.schema.attr("data").isvar
-
-            # TODO DEFECT: we should be returning None here
-            #              or using .df. df needs core update
-            #              to arrowio.
-            data[2] = ""
-            assert_array_equal(A.multi_index[:]["data"], data)
+            tm.assert_frame_equal(df, A.df[:])
 
     @pytest.mark.parametrize("allows_duplicates", [True, False])
     @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
