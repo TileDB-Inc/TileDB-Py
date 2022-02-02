@@ -1,7 +1,7 @@
 import ast
 from dataclasses import dataclass, field
 import numpy as np
-from typing import Any, Callable, List, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, List, Tuple, Type, Union
 
 import tiledb
 import tiledb.main as qc
@@ -65,12 +65,12 @@ class QueryCondition:
 
     expression: str
     ctx: tiledb.Ctx = field(default_factory=tiledb.default_ctx, repr=False)
-    tree: ast.Module = field(init=False, repr=False)
+    tree: ast.Expression = field(init=False, repr=False)
     c_obj: PyQueryCondition = field(init=False, repr=False)
 
     def __post_init__(self):
         try:
-            self.tree = ast.parse(self.expression)
+            self.tree = ast.parse(self.expression, mode="eval")
         except:
             raise tiledb.TileDBError(
                 "Could not parse the given QueryCondition statement: "
@@ -85,7 +85,7 @@ class QueryCondition:
 
     def init_query_condition(self, schema: tiledb.ArraySchema, query_attrs: List[str]):
         qctree = QueryConditionTree(self.ctx, schema, query_attrs)
-        self.c_obj = qctree.visit(self.tree.body[0])
+        self.c_obj = qctree.visit(self.tree.body)
 
         if not isinstance(self.c_obj, PyQueryCondition):
             raise tiledb.TileDBError(
@@ -100,26 +100,54 @@ class QueryConditionTree(ast.NodeVisitor):
     schema: tiledb.ArraySchema
     query_attrs: List[str]
 
+    def visit_Gt(self, node):
+        return qc.TILEDB_GT
+
+    def visit_GtE(self, node):
+        return qc.TILEDB_GE
+
+    def visit_Lt(self, node):
+        return qc.TILEDB_LT
+
+    def visit_LtE(self, node):
+        return qc.TILEDB_LE
+
+    def visit_Eq(self, node):
+        return qc.TILEDB_EQ
+
+    def visit_NotEq(self, node):
+        return qc.TILEDB_NE
+
+    def visit_BitAnd(self, node):
+        return qc.TILEDB_AND
+
+    def visit_And(self, node):
+        return qc.TILEDB_AND
+
     def visit_Compare(self, node: Type[ast.Compare]) -> PyQueryCondition:
         result = self.aux_visit_Compare(
-            self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
+            self.visit(node.left),
+            self.visit(node.ops[0]),
+            self.visit(node.comparators[0]),
         )
+
         for lhs, op, rhs in zip(
             node.comparators[:-1], node.ops[1:], node.comparators[1:]
         ):
-            value = self.aux_visit_Compare(self.visit(lhs), op, self.visit(rhs))
+            value = self.aux_visit_Compare(
+                self.visit(lhs), self.visit(op), self.visit(rhs)
+            )
             result = result.combine(value, qc.TILEDB_AND)
+
         return result
 
     def aux_visit_Compare(
         self,
         att_node: QueryConditionNodeElem,
-        op_node: Union[ast.cmpop, ast.Compare],
+        op_node: qc.tiledb_query_condition_op_t,
         val_node: QueryConditionNodeElem,
     ) -> PyQueryCondition:
-        op = self.get_op_from_node(op_node)
-
-        att, val, op = self.order_nodes(att_node, val_node, op)
+        att, val, op = self.order_nodes(att_node, val_node, op_node)
 
         att = self.get_att_from_node(att)
         val = self.get_val_from_node(val)
@@ -136,25 +164,6 @@ class QueryConditionTree(ast.NodeVisitor):
             raise tiledb.TileDBError(e)
 
         return pyqc
-
-    def get_op_from_node(
-        self, node: Union[ast.cmpop, ast.Compare]
-    ) -> qc.tiledb_query_condition_op_t:
-        AST_TO_TILEDB = {
-            ast.Gt: qc.TILEDB_GT,
-            ast.GtE: qc.TILEDB_GE,
-            ast.Lt: qc.TILEDB_LT,
-            ast.LtE: qc.TILEDB_LE,
-            ast.Eq: qc.TILEDB_EQ,
-            ast.NotEq: qc.TILEDB_NE,
-        }
-
-        try:
-            op = AST_TO_TILEDB[type(node)]
-        except KeyError:
-            raise tiledb.TileDBError("Unsupported comparison operator.")
-
-        return op
 
     def is_att_node(self, att: QueryConditionNodeElem) -> bool:
         if isinstance(att, ast.Call):
@@ -173,8 +182,15 @@ class QueryConditionTree(ast.NodeVisitor):
         return isinstance(att, ast.Name)
 
     def order_nodes(
-        self, att: QueryConditionNodeElem, val: QueryConditionNodeElem, op: ast.Compare
-    ) -> Tuple[QueryConditionNodeElem, QueryConditionNodeElem, ast.Compare]:
+        self,
+        att: QueryConditionNodeElem,
+        val: QueryConditionNodeElem,
+        op: qc.tiledb_query_condition_op_t,
+    ) -> Tuple[
+        QueryConditionNodeElem,
+        QueryConditionNodeElem,
+        qc.tiledb_query_condition_op_t,
+    ]:
         if not self.is_att_node(att):
             REVERSE_OP = {
                 qc.TILEDB_GT: qc.TILEDB_LT,
@@ -286,14 +302,9 @@ class QueryConditionTree(ast.NodeVisitor):
 
         return getattr(pyqc, init_fn_name)
 
-    def visit_BinOp(self, node: Union[ast.operator, ast.BinOp]) -> PyQueryCondition:
-        AST_TO_TILEDB = {ast.BitAnd: qc.TILEDB_AND}
-
-        if not isinstance(node, ast.BinOp):
-            raise tiledb.TileDBError(f"Unexpected node {ast.dump(node)}.")
-
+    def visit_BinOp(self, node: ast.BinOp) -> PyQueryCondition:
         try:
-            op = AST_TO_TILEDB[type(node.op)]
+            op = self.visit(node.op)
         except KeyError:
             raise tiledb.TileDBError(
                 f"Unsupported binary operator: {ast.dump(node.op)}. Only & is currently supported."
@@ -306,14 +317,9 @@ class QueryConditionTree(ast.NodeVisitor):
 
         return result
 
-    def visit_BoolOp(self, node: Union[ast.operator, ast.BoolOp]) -> PyQueryCondition:
-        AST_TO_TILEDB = {ast.And: qc.TILEDB_AND}
-
-        if not isinstance(node, ast.BoolOp):
-            raise tiledb.TileDBError(f"Unexpected node {ast.dump(node)}.")
-
+    def visit_BoolOp(self, node: ast.BoolOp) -> PyQueryCondition:
         try:
-            op = AST_TO_TILEDB[type(node.op)]
+            op = self.visit(node.op)
         except KeyError:
             raise tiledb.TileDBError(
                 f"Unsupported Boolean operator: {ast.dump(node.op)}. "
@@ -379,6 +385,3 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_Bytes(self, node: ast.Bytes) -> ast.Bytes:
         # deprecated in 3.8
         return node
-
-    def visit_Expr(self, node: ast.Expr) -> Union[ast.Constant, ast.Name]:
-        return self.visit(node.value)
