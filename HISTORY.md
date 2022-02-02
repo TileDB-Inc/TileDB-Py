@@ -1,11 +1,15 @@
-# TileDB-Py 0.12.1 Release Notes
+# TileDB-Py 0.12.2 Release Notes
 
 ## TileDB Embedded updates:
-* TileDB-Py 0.12.1 includes TileDB Embedded [TileDB 2.6.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.1)
+* TileDB-Py 0.12.1 includes TileDB Embedded [TileDB 2.6.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.2)
 
 ## API Changes
 * Addition of `ArraySchema.validity_filters` [#898](https://github.com/TileDB-Inc/TileDB-Py/pull/898)
 
+# TileDB-Py 0.12.1 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.12.1 includes TileDB Embedded [TileDB 2.6.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.1)
 ## Bug fixes
 * Cast 'dim`'s dtype in `Domain` to `str` prior to applying `html.escape` [#883](https://github.com/TileDB-Inc/TileDB-Py/pull/883)
 * Support attributes with spaces in `QueryCondition` by casting with attr(); values may be casted with val() [#886](https://github.com/TileDB-Inc/TileDB-Py/pull/886)
