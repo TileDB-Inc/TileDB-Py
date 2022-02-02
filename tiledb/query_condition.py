@@ -143,11 +143,11 @@ class QueryConditionTree(ast.NodeVisitor):
 
     def aux_visit_Compare(
         self,
-        att_node: QueryConditionNodeElem,
+        lhs: QueryConditionNodeElem,
         op_node: qc.tiledb_query_condition_op_t,
-        val_node: QueryConditionNodeElem,
+        rhs: QueryConditionNodeElem,
     ) -> PyQueryCondition:
-        att, val, op = self.order_nodes(att_node, val_node, op_node)
+        att, val, op = self.order_nodes(lhs, rhs, op_node)
 
         att = self.get_att_from_node(att)
         val = self.get_val_from_node(val)
