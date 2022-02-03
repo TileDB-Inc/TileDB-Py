@@ -1,7 +1,12 @@
+# TileDB-Py 0.12.3 Release Notes
+
+## Bug Fixes
+* Error out with `IndexError` when attempting to use a step in the regular indexer []()
+
 # TileDB-Py 0.12.2 Release Notes
 
 ## TileDB Embedded updates:
-* TileDB-Py 0.12.1 includes TileDB Embedded [TileDB 2.6.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.2)
+* TileDB-Py 0.12.2 includes TileDB Embedded [TileDB 2.6.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.2)
 
 ## API Changes
 * Addition of `ArraySchema.validity_filters` [#898](https://github.com/TileDB-Inc/TileDB-Py/pull/898)
