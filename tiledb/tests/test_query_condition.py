@@ -304,8 +304,8 @@ class QueryConditionTest(DiskTestCase):
             assert list(result["dim"]) == [b"a", b"c"]
 
     @pytest.mark.skipif(
-        tiledb.libtiledb.version() < (2, 6, 2),
-        reason="var-length np.bytes_ query condition support introduced in 2.6.2",
+        tiledb.libtiledb.version() < (2, 6, 3),
+        reason="var-length np.bytes_ query condition support introduced in 2.6.3",
     )
     def test_var_length_str(self):
         path = self.path("test_var_length_str")
