@@ -1,7 +1,7 @@
 # TileDB-Py 0.12.3 Release Notes
 
 ## Bug Fixes
-* Error out with `IndexError` when attempting to use a step in the regular indexer []()
+* Error out with `IndexError` when attempting to use a step in the regular indexer [#911](https://github.com/TileDB-Inc/TileDB-Py/pull/911)
 
 # TileDB-Py 0.12.2 Release Notes
 
