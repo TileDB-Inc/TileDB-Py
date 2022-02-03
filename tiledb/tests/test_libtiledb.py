@@ -2413,6 +2413,11 @@ class TestSparseArray(DiskTestCase):
         with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             self.assertEqual(((50, 100),), T.nonempty_domain())
 
+            # stepped ranges are not supported
+            with self.assertRaises(IndexError) as idxerr:
+                T[40:61:5]
+            assert str(idxerr.value) == "steps are not supported for sparse arrays"
+
             # retrieve just valid coordinates in subarray T[40:60]
             assert_array_equal(T[40:61]["x"], [50, 60])
 

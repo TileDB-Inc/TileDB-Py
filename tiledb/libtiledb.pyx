@@ -3406,8 +3406,8 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
             subarray.append((start,stop))
             continue
 
-        #if step and step < 0:
-        #    raise IndexError("only positive slice steps are supported")
+        if step and array.schema.sparse:
+           raise IndexError("steps are not supported for sparse arrays")
 
         # Datetimes will be treated specially
         is_datetime = (dim_dtype.kind == 'M')
