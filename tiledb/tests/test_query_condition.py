@@ -1,3 +1,4 @@
+from cmath import atanh
 import pytest
 
 import numpy as np
@@ -301,3 +302,40 @@ class QueryConditionTest(DiskTestCase):
             )
             result = arr.query(attr_cond=qc, use_arrow=False).df[:]
             assert list(result["dim"]) == [b"a", b"c"]
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 6, 3),
+        reason="var-length np.bytes_ query condition support introduced in 2.6.3",
+    )
+    def test_var_length_str(self):
+        path = self.path("test_var_length_str")
+
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 4)))
+        attrs = [
+            tiledb.Attr(name="ascii", dtype="ascii", var=True),
+            tiledb.Attr(name="bytes", dtype=np.bytes_, var=True),
+        ]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        create_array = lambda func: np.array(
+            [func[i - 1] * i for i in range(1, 6)], dtype=np.bytes_
+        )
+
+        ascii_data = create_array(string.ascii_lowercase)
+        bytes_data = create_array(string.ascii_uppercase)
+
+        with tiledb.open(path, "w") as arr:
+            arr[np.arange(5)] = {"ascii": ascii_data, "bytes": bytes_data}
+
+        with tiledb.open(path, "r") as arr:
+            for s in ascii_data:
+                qc = tiledb.QueryCondition(f"ascii == '{s.decode()}'")
+                result = arr.query(attr_cond=qc, use_arrow=False).df[:]
+                assert result["ascii"][0] == s
+
+            for s in bytes_data:
+                qc = tiledb.QueryCondition(f"bytes == '{s.decode()}'")
+                result = arr.query(attr_cond=qc, use_arrow=False).df[:]
+                assert result["bytes"][0] == s
