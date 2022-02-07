@@ -566,7 +566,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 with tiledb.open(uri) as A:
                     tm.assert_frame_equal(df.iloc[:0], A.df[tiledb.EmptyRange])
 
-    @pytest.mark.skip(
+    @pytest.mark.skipif(
         tiledb.libtiledb.version() < (2, 4, 3),
         reason="Skip this test to avoid abort: requires TileDB#2540 in TileDB 2.4.3",
     )
