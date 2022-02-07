@@ -93,7 +93,7 @@ def test_dimension(dtype_str):
         extent = np.array([], dtype=dtype)  # null extent
 
     dim = lt.Dimension.create(ctx, "foo", tiledb_datatype, range, extent)
-    print(dim)
+    # print(dim)
 
 
 def test_enums():
@@ -117,6 +117,7 @@ def test_array():
 
     # TODO BOOTSTRAP
     tiledb.from_numpy(uri, np.random.rand(4)).close()
+    # lt.from_numpy(uri, np.random.rand(4)).close()
 
     ctx = lt.Context()
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
@@ -191,10 +192,10 @@ def test_domain():
     dim = lt.Dimension.create(
         ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9])
     )
-    dom.add_dimension(dim)
+    dom.add_dim(dim)
 
-    assert dom.datatype() == lt.DataType.INT32
-    assert dom.cell_num() == 10
+    assert dom.dtype == lt.DataType.INT32
+    assert dom.ncell == 10
     # TODO assert dom.dimension("foo").domain() == ??? np.array?
 
 
@@ -202,16 +203,16 @@ def test_attribute():
     ctx = lt.Context()
     attr = lt.Attribute(ctx, "a1", lt.DataType.FLOAT64)
 
-    assert attr.name() == "a1"
-    assert attr.type() == lt.DataType.FLOAT64
-    assert attr.cell_size() == 8
-    assert attr.cell_val_num() == 1
-    attr.set_cell_val_num(5)
-    assert attr.cell_val_num() == 5
-    assert attr.nullable() == False
-    attr.set_nullable(True)
-    assert attr.nullable() == True
-    print(attr.filter_list())  # TODO
+    assert attr.name == "a1"
+    assert attr.dtype == lt.DataType.FLOAT64
+    assert attr.cell_size == 8
+    assert attr.ncell == 1
+    attr.ncell = 5
+    assert attr.ncell == 5
+    assert attr.nullable == False
+    attr.nullable = True
+    assert attr.nullable == True
+    assert attr.filters.nfilters() == 0
 
 
 def test_filter():
@@ -244,18 +245,18 @@ def test_schema():
     ctx = lt.Context()
 
     schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
-    assert schema.array_type() == lt.ArrayType.SPARSE
+    assert schema.array_type == lt.ArrayType.SPARSE
 
-    schema.set_capacity(101)
-    assert schema.capacity() == 101
+    schema.capacity = 101
+    assert schema.capacity == 101
 
-    schema.set_allows_dups(True)
-    assert schema.allows_dups()
+    schema.allows_dups = True
+    assert schema.allows_dups
 
     with pytest.raises(lt.TileDBError):
-        schema.set_tile_order(lt.LayoutType.HILBERT)
-    schema.set_tile_order(lt.LayoutType.UNORDERED)
-    assert schema.tile_order() == lt.LayoutType.UNORDERED
+        schema.tile_order = lt.LayoutType.HILBERT
+    schema.tile_order = lt.LayoutType.UNORDERED
+    assert schema.tile_order == lt.LayoutType.UNORDERED
 
     # TODO schema.set_coords_filter_list(...)
     # TODO assert schema.coords_filter_list() == lt.FilterListType.NONE
@@ -266,11 +267,11 @@ def test_schema():
     dim = lt.Dimension.create(
         ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9])
     )
-    dom.add_dimension(dim)
+    dom.add_dim(dim)
 
-    schema.set_domain(dom)
+    schema.domain = dom
     # TODO dom and dimension need full equality check
-    assert schema.domain().dimension("foo").name() == dim.name()
+    assert schema.domain.dim("foo").name == dim.name
 
 
 def test_query_string():
@@ -280,9 +281,9 @@ def test_query_string():
         dim = lt.Dimension.create(
             ctx, "foo", lt.DataType.STRING_ASCII, np.uint8([]), np.uint8([])
         )
-        dom.add_dimension(dim)
+        dom.add_dim(dim)
 
-        schema.set_domain(dom)
+        schema.domain = dom
         return schema
 
     uri = tempfile.mkdtemp()
@@ -306,12 +307,12 @@ def test_write_sparse():
         dim = lt.Dimension.create(
             ctx, "x", lt.DataType.INT32, np.int32([0, 9]), np.int32([10])
         )
-        dom.add_dimension(dim)
+        dom.add_dim(dim)
 
         attr = lt.Attribute(ctx, "a", lt.DataType.INT32)
-        schema.add_attribute(attr)
+        schema.add_attr(attr)
 
-        schema.set_domain(dom)
+        schema.domain = dom
         return schema
 
     coords = np.arange(10).astype(np.int32)
@@ -366,12 +367,12 @@ def test_write_dense():
         dim = lt.Dimension.create(
             ctx, "x", lt.DataType.UINT64, np.uint64([0, 9]), np.uint64([10])
         )
-        dom.add_dimension(dim)
+        dom.add_dim(dim)
 
         attr = lt.Attribute(ctx, "a", lt.DataType.FLOAT32)
-        schema.add_attribute(attr)
+        schema.add_attr(attr)
 
-        schema.set_domain(dom)
+        schema.domain = dom
         return schema
 
     coords = np.arange(10).astype(np.uint64)

@@ -20,17 +20,18 @@ void init_attribute(py::module &m) {
       .def(
           py::init<Context &, std::string &, tiledb_datatype_t, FilterList &>(),
           py::keep_alive<1, 2>() /* Attribute keeps Context alive */)
-      .def("name", &Attribute::name)
-      .def("type", &Attribute::type)
-      .def("cell_size", &Attribute::cell_size)
-      .def("cell_val_num", &Attribute::cell_val_num)
-      .def("set_cell_val_num", &Attribute::set_cell_val_num)
-      //.def("set_fill_value", &Attribute::set_fill_value)
-      //.def("get_fill_value", &Attribute::get_fill_value)
-      .def("filter_list", &Attribute::filter_list)
-      .def("set_filter_list", &Attribute::set_filter_list)
-      .def("nullable", &Attribute::nullable)
-      .def("set_nullable", &Attribute::set_nullable);
+
+      .def_property_readonly("name", &Attribute::name)
+      .def_property_readonly("dtype", &Attribute::type)
+      .def_property("nullable", &Attribute::nullable, &Attribute::set_nullable)
+      .def_property("ncell", &Attribute::cell_val_num,
+                    &Attribute::set_cell_val_num)
+      //   .def_property("fill", &Attribute::get_fill_value,
+      //                 &Attribute::set_fill_value)
+      .def_property_readonly("var", &Attribute::variable_sized)
+      .def_property("filters", &Attribute::filter_list,
+                    &Attribute::set_filter_list)
+      .def_property_readonly("cell_size", &Attribute::cell_size);
 }
 
 } // namespace libtiledbcpp
