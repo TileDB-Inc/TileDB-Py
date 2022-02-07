@@ -212,7 +212,7 @@ def test_attribute():
     assert attr.nullable == False
     attr.nullable = True
     assert attr.nullable == True
-    assert attr.filters.nfilters() == 0
+    assert len(attr.filters) == 0
 
 
 def test_filter():
@@ -220,19 +220,19 @@ def test_filter():
     fl = lt.FilterList(ctx)
 
     fl.add_filter(lt.Filter(ctx, lt.FilterType.ZSTD))
-    assert fl.filter(0).filter_type() == lt.FilterType.ZSTD
-    assert fl.nfilters() == 1
+    assert fl.filter(0).type == lt.FilterType.ZSTD
+    assert len(fl) == 1
 
     bzip_filter = lt.Filter(ctx, lt.FilterType.BZIP2)
     bzip_filter.set_option(ctx, lt.FilterOption.COMPRESSION_LEVEL, 2)
     assert bzip_filter.get_option(ctx, lt.FilterOption.COMPRESSION_LEVEL) == 2
 
     fl.add_filter(bzip_filter)
-    assert fl.filter(1).filter_type() == lt.FilterType.BZIP2
-    assert fl.nfilters() == 2
+    assert fl.filter(1).type == lt.FilterType.BZIP2
+    assert len(fl) == 2
 
-    fl.set_max_chunk_size(100000)
-    assert fl.max_chunk_size() == 100000
+    fl.max_chunk_size = 100000
+    assert fl.max_chunk_size == 100000
 
 
 def test_schema_dump(capfd):
@@ -294,7 +294,7 @@ def test_query_string():
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
 
     q = lt.Query(ctx, arr, lt.QueryType.READ)
-    assert q.query_type() == lt.QueryType.READ
+    assert q.query_type == lt.QueryType.READ
 
     q.add_range("foo", "start", "end")
 
@@ -327,8 +327,8 @@ def test_write_sparse():
         arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
 
         q = lt.Query(ctx, arr, lt.QueryType.WRITE)
-        q.set_layout(lt.LayoutType.UNORDERED)
-        assert q.query_type() == lt.QueryType.WRITE
+        q.layout = lt.LayoutType.UNORDERED
+        assert q.query_type == lt.QueryType.WRITE
 
         q.set_data_buffer("a", data)
         q.set_data_buffer("x", coords)
@@ -342,8 +342,8 @@ def test_write_sparse():
         arr = lt.Array(ctx, uri, lt.QueryType.READ)
 
         q = lt.Query(ctx, arr, lt.QueryType.READ)
-        q.set_layout(lt.LayoutType.ROW_MAJOR)
-        assert q.query_type() == lt.QueryType.READ
+        q.layout = lt.LayoutType.ROW_MAJOR
+        assert q.query_type == lt.QueryType.READ
 
         rcoords = np.zeros(10).astype(np.int32)
         rdata = np.zeros(10).astype(np.int32)
@@ -387,8 +387,8 @@ def test_write_dense():
         arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
 
         q = lt.Query(ctx, arr, lt.QueryType.WRITE)
-        q.set_layout(lt.LayoutType.ROW_MAJOR)
-        assert q.query_type() == lt.QueryType.WRITE
+        q.layout = lt.LayoutType.ROW_MAJOR
+        assert q.query_type == lt.QueryType.WRITE
 
         q.set_data_buffer("a", data)
         # q.set_data_buffer("x", coords)
@@ -403,8 +403,8 @@ def test_write_dense():
         arr = lt.Array(ctx, uri, lt.QueryType.READ)
 
         q = lt.Query(ctx, arr, lt.QueryType.READ)
-        q.set_layout(lt.LayoutType.ROW_MAJOR)
-        assert q.query_type() == lt.QueryType.READ
+        q.layout = lt.LayoutType.ROW_MAJOR
+        assert q.query_type == lt.QueryType.READ
 
         q.add_range(0, (0, 9))
 

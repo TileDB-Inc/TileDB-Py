@@ -67,7 +67,6 @@ from .libtiledb import (
     walk,
     remove,
     move,
-    schema_like,
     stats_enable,
     stats_disable,
     stats_reset,
@@ -96,6 +95,8 @@ from .highlevel import (
 )
 
 from .query_condition import QueryCondition
+
+from .schema import schema_like
 
 from .schema_evolution import ArraySchemaEvolution
 

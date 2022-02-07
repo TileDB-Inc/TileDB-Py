@@ -1,4 +1,8 @@
-from .libtiledb import DenseArrayImpl, SparseArrayImpl
+import numpy as np
+
+from .ctx import default_ctx
+from .libtiledb import Array, DenseArrayImpl, SparseArrayImpl
+from .schema import schema_like_numpy
 
 # Extensible (pure Python) array class definitions inheriting from the
 # Cython implemention. The cloudarray mix-in adds optional functionality
@@ -34,6 +38,28 @@ class DenseArray(DenseArrayImpl):
                 pass
 
         return super().__new__(cls, *args, **kwargs)
+
+    @staticmethod
+    def from_numpy(uri, array, ctx=None, **kw):
+        """Implementation of tiledb.from_numpy for dense arrays. See documentation
+        of tiledb.from_numpy
+        """
+        if not ctx:
+            ctx = default_ctx()
+
+        # pop the write timestamp before creating schema
+        timestamp = kw.pop("timestamp", None)
+
+        schema = schema_like_numpy(array, ctx=ctx, **kw)
+        Array.create(uri, schema)
+
+        with DenseArray(uri, mode="w", ctx=ctx, timestamp=timestamp) as arr:
+            # <TODO> probably need better typecheck here
+            if array.dtype == object:
+                arr[:] = array
+            else:
+                arr.write_direct(np.ascontiguousarray(array))
+        return DenseArray(uri, mode="r", ctx=ctx)
 
 
 class SparseArray(SparseArrayImpl):
