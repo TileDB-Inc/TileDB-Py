@@ -100,6 +100,8 @@ from .schema import schema_like
 
 from .schema_evolution import ArraySchemaEvolution
 
+from .typing import TileDBSequence, TileDBDictSequence
+
 # TODO restricted imports
 from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .multirange_indexing import EmptyRange
