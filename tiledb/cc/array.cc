@@ -79,13 +79,13 @@ void init_array(py::module &m) {
               const py::buffer &b) {
              py::buffer_info info = b.request();
 
-             // ssize_t size = std::reduce(info.shape.begin(),
+             // size_t size = std::reduce(info.shape.begin(),
              // info.shape.end());
-             ssize_t size = 1;
+             size_t size = 1;
              for (auto s : info.shape) {
                size *= s;
              }
-             ssize_t nbytes = size * info.itemsize;
+             size_t nbytes = size * info.itemsize;
 
              self.put_metadata(key, tdb_type, size, info.ptr);
              /*

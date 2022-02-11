@@ -4,12 +4,13 @@ from typing import Sequence
 
 import tiledb.cc as lt
 from .ctx import default_ctx
-from .libtiledb import Ctx
 
 
 @dataclass(repr=False)
 class Filter(lt.Filter):
     """Base class for all TileDB filters."""
+
+    from .libtiledb import Ctx
 
     type: lt.FilterType = lt.FilterType.NONE
     ctx: Ctx = field(default_factory=default_ctx, repr=False)
@@ -465,6 +466,8 @@ class FilterList(lt.FilterList):
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
+
+    from .libtiledb import Ctx
 
     filters: Sequence[Filter] = None
     chunksize: int = None

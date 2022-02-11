@@ -1,3 +1,4 @@
+import ctypes
 import os
 import sys
 
@@ -31,24 +32,6 @@ except:
     except OSError as e:
         # Otherwise try loading by name only.
         ctypes.CDLL(lib_name)
-
-from .filter import (
-    Filter,
-    FilterList,
-    NoOpFilter,
-    GzipFilter,
-    ZstdFilter,
-    LZ4Filter,
-    Bzip2Filter,
-    RleFilter,
-    DoubleDeltaFilter,
-    BitShuffleFilter,
-    ByteShuffleFilter,
-    BitWidthReductionFilter,
-    PositiveDeltaFilter,
-    ChecksumMD5Filter,
-    ChecksumSHA256Filter,
-)
 
 from .ctx import default_ctx, scope_ctx
 from .libtiledb import (
@@ -92,6 +75,24 @@ from .libtiledb import (
 )
 
 from .array import DenseArray, SparseArray
+
+from .filter import (
+    Filter,
+    FilterList,
+    NoOpFilter,
+    GzipFilter,
+    ZstdFilter,
+    LZ4Filter,
+    Bzip2Filter,
+    RleFilter,
+    DoubleDeltaFilter,
+    BitShuffleFilter,
+    ByteShuffleFilter,
+    BitWidthReductionFilter,
+    PositiveDeltaFilter,
+    ChecksumMD5Filter,
+    ChecksumSHA256Filter,
+)
 
 from .fragment import (
     FragmentInfoList,
