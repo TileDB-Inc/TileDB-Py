@@ -30,7 +30,8 @@ void init_schema(py::module &m) {
 
       .def_property("domain", &ArraySchema::domain, &ArraySchema::set_domain)
       .def_property_readonly("array_type", &ArraySchema::array_type)
-      .def_property_readonly("timestamp_range", &ArraySchema::timestamp_range)
+      //  .def_property_readonly("timestamp_range",
+      //  &ArraySchema::timestamp_range)
       .def_property("capacity", &ArraySchema::capacity,
                     &ArraySchema::set_capacity)
       .def_property("cell_order", &ArraySchema::cell_order,

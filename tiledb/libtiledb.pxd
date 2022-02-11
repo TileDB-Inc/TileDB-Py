@@ -1256,9 +1256,9 @@ cdef class ConfigValues(object):
 cdef class Ctx(object):
     cdef tiledb_ctx_t* ptr
 
-cdef class Filter(object):
-    cdef Ctx ctx
-    cdef tiledb_filter_t* ptr
+# cdef class Filter(object):
+#     cdef Ctx ctx
+#     cdef tiledb_filter_t* ptr
 
 # cdef class FilterList(object):
 #     cdef Ctx ctx

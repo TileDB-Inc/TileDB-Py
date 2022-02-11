@@ -261,15 +261,19 @@ def find_or_install_libtiledb(setuptools_cmd):
     """
     tiledb_ext = None
     main_ext = None
+    tiledb_cc_ext = None
     print("ext_modules: ", setuptools_cmd.distribution.ext_modules)
     for ext in setuptools_cmd.distribution.ext_modules:
         if ext.name == "tiledb.libtiledb":
             tiledb_ext = ext
         elif ext.name == "tiledb.main":
             main_ext = ext
+        elif ext.name == "tiledb.cc":
+            tiledb_cc_ext = ext
 
     print("tiledb_ext: ", tiledb_ext)
     print("main_ext: ", main_ext)
+    print("tiledb_cc_ext: ", tiledb_cc_ext)
     print("tiledb_ext.library_dirs: ", tiledb_ext.library_dirs)
     wheel_build = getattr(tiledb_ext, "tiledb_wheel_build", False)
     from_source = getattr(tiledb_ext, "tiledb_from_source", False)
@@ -332,12 +336,18 @@ def find_or_install_libtiledb(setuptools_cmd):
             #
             tiledb_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
             main_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
+            tiledb_cc_ext.library_dirs += [os.path.join(prefix_dir, "lib")]
 
         # Update the extension instances with correct build-time paths.
         tiledb_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
         tiledb_ext.include_dirs += [os.path.join(prefix_dir, "include")]
         main_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
         main_ext.include_dirs += [os.path.join(prefix_dir, "include")]
+        tiledb_cc_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
+        tiledb_cc_ext.include_dirs += [os.path.join(prefix_dir, "include")]
+        tiledb_cc_ext.extra_compile_args += [
+            "-std=c++17" if not is_windows() else "/std:c++17"
+        ]
 
         # Update package_data so the shared object gets installed with the Python module.
         libtiledb_objects = [

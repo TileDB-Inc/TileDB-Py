@@ -12,7 +12,6 @@ import sys
 import warnings
 from collections import OrderedDict
 
-from .array import DenseArray, SparseArray
 from .ctx import default_ctx
 from .filter import FilterList
 
