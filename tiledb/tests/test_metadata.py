@@ -9,7 +9,7 @@ from hypothesis import given, settings, strategies as st
 from hypothesis.extra import numpy as st_np
 
 from tiledb.tests.common import DiskTestCase, rand_utf8
-from tiledb.main import test_metadata
+from tiledb.main import metadata_test_aux
 
 
 MIN_INT = np.iinfo(np.int64).min
