@@ -40,7 +40,7 @@ public:
 };
 
 void init_test_metadata(py::module &m) {
-  py::class_<PyASCIIMetadataTest>(m, "test_metadata")
+  py::class_<PyASCIIMetadataTest>(m, "metadata_test_aux")
       .def_static("write_ascii", &PyASCIIMetadataTest::write_ascii);
 }
 
