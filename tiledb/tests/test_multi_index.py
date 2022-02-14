@@ -22,16 +22,16 @@ from tiledb.tests.common import (
     intspace,
     SUPPORTED_DATETIME64_DTYPES,
     rand_datetime64_array,
-    assert_all_arrays_equal,
+    assert_dict_arrays_equal,
 )
 
 import hypothesis.extra.numpy as npst
 
 
-def make_1d_dense(path, attr_name="", attr_dtype=np.int64):
+def make_1d_dense(path, attr_name="", attr_dtype=np.int64, dim_dtype=np.uint64):
     a_orig = np.arange(36)
 
-    dom = tiledb.Domain(tiledb.Dim(domain=(0, 35), tile=35, dtype=np.uint64))
+    dom = tiledb.Domain(tiledb.Dim(domain=(0, 35), tile=35, dtype=dim_dtype))
     att = tiledb.Attr(name=attr_name, dtype=attr_dtype)
     schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False)
     tiledb.DenseArray.create(path, schema)
@@ -814,3 +814,49 @@ class TestMultiRange(DiskTestCase):
             assert "py.getitem_time.buffer_conversion_time :" in internal_stats
             assert "py.getitem_time.pandas_index_update_time :" in internal_stats
         tiledb.stats_disable()
+
+    # parametrize dtype and sparse
+    @pytest.mark.parametrize(
+        "dim_dtype",
+        [
+            np.int64,
+            np.uint64,
+            np.int32,
+            np.uint32,
+            np.int16,
+            np.uint16,
+            np.int8,
+            np.uint8,
+        ],
+    )
+    def test_multi_index_ndarray(self, dim_dtype):
+        # TODO support for dense?
+        sparse = True  # ndarray indexing currently only supported for sparse
+
+        path = self.path(f"test_multi_index_ndarray")
+
+        ncells = 10
+        data = np.arange(ncells - 1)
+        coords = np.arange(ncells - 1)
+
+        # use negative range for sparse
+        if sparse and np.issubdtype(dim_dtype, np.signedinteger):
+            coords -= 4
+
+        dom = tiledb.Domain(
+            tiledb.Dim(domain=(coords.min(), coords.max()), dtype=dim_dtype)
+        )
+        att = tiledb.Attr(dtype=np.int8)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=sparse)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as A:
+            if sparse:
+                A[coords] = data
+            else:
+                A[:] = data
+
+        with tiledb.open(path) as A:
+            assert_dict_arrays_equal(
+                A.multi_index[coords.tolist()], A.multi_index[coords]
+            )
