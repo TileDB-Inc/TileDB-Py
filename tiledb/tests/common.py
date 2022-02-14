@@ -350,6 +350,13 @@ def assert_all_arrays_equal(*arrays):
         assert_array_equal(a1, a2)
 
 
+def assert_dict_arrays_equal(d1, d2):
+    assert d1.keys() == d2.keys(), "Keys not equal"
+
+    for k in d1.keys():
+        assert_array_equal(d1[k], d2[k])
+
+
 def assert_captured(cap, expected):
     if sys.platform == "win32":
         return

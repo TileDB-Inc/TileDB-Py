@@ -351,7 +351,7 @@ class MetadataTest(DiskTestCase):
         schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
         tiledb.Array.create(uri, schema)
 
-        test_metadata.write_ascii(uri)
+        metadata_test_aux.write_ascii(uri)
 
         with tiledb.open(uri) as A:
             assert A.meta["abc"] == b"xyz"

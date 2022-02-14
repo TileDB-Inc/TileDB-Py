@@ -600,7 +600,9 @@ public:
     for (auto dim_range : ranges) {
       // py::print(dim_range);
       if (py::isinstance<py::array>(dim_range)) {
-        py::array r_array = dim_range.cast<py::array>();
+        auto tiledb_type = domain_->dimension(dim_idx).type();
+        py::dtype dtype = tiledb_dtype(tiledb_type, 1);
+        py::array r_array = dim_range.attr("astype")(dtype);
         add_bulk_range(dim_idx, r_array);
       } else {
         py::tuple dim_range_iter = dim_range.cast<py::iterable>();
