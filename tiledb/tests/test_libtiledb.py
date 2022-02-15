@@ -2279,6 +2279,12 @@ class TestSparseArray(DiskTestCase):
     def test_sparse_string_domain(
         self, coords, expected_ned, allows_duplicates, sparse_cell_order
     ):
+        if sparse_cell_order in ("hilbert", "row-major") and allows_duplicates == True:
+            if tiledb.libtiledb.version() < (2, 8):
+                pytest.xfail(
+                    "Skipping known bug with legacy reader and hilbert or row-major layout"
+                )
+
         path = self.path("sparse_string_domain")
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(None, None), dtype=np.bytes_))
         att = tiledb.Attr(name="a", dtype=np.int64)
