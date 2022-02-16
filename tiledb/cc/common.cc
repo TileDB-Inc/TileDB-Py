@@ -4,15 +4,15 @@
 
 namespace tiledbpy::common {
 
-ssize_t buffer_nbytes(py::buffer_info &info) {
+size_t buffer_nbytes(py::buffer_info &info) {
   return info.itemsize * std::accumulate(info.shape.begin(), info.shape.end(),
                                          1, std::multiplies<>());
 }
 
 bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
                           size_t nelem) {
-  ssize_t nbytes = buffer_nbytes(info);
-  ssize_t nbytes_expected = tiledb_datatype_size(datatype) * nelem;
+  size_t nbytes = buffer_nbytes(info);
+  size_t nbytes_expected = tiledb_datatype_size(datatype) * nelem;
   return nbytes == nbytes_expected;
 }
 
@@ -159,7 +159,7 @@ uint8_bool_to_uint8_bitmap(py::array_t<uint8_t> validity_array) {
 
 uint64_t count_zeros(py::array_t<uint8_t> a) {
   uint64_t count = 0;
-  for (ssize_t idx = 0; idx < a.size(); idx++)
+  for (py::ssize_t idx = 0; idx < a.size(); idx++)
     count += (a.data()[idx] == 0) ? 1 : 0;
   return count;
 }

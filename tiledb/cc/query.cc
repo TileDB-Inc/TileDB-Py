@@ -7,8 +7,8 @@
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+// #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+// #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
 
 namespace libtiledbcpp {
 
@@ -225,19 +225,19 @@ void init_query(py::module &m) {
       .def("set_data_buffer",
            [](Query &q, std::string name, py::array a) {
              // TODO check_type(a.dtype)
-             size_t item_size = a.itemsize();
+             //  size_t item_size = a.itemsize();
              q.set_data_buffer(name, const_cast<void *>(a.data()), a.size());
            })
       .def("set_offsets_buffer",
            [](Query &q, std::string name, py::array a) {
              // TODO check_type(a.dtype)
-             size_t item_size = a.itemsize();
+             //  size_t item_size = a.itemsize();
              q.set_offsets_buffer(name, (uint64_t *)(a.data()), a.size());
            })
       .def("set_validity_buffer",
            [](Query &q, std::string name, py::array a) {
              // TODO check_type(a.dtype)
-             size_t item_size = a.itemsize();
+             //  size_t item_size = a.itemsize();
              q.set_validity_buffer(name, (uint8_t *)(a.data()), a.size());
            })
       .def("fragment_num", &Query::fragment_num)

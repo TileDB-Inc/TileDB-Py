@@ -27,7 +27,7 @@ public:
 
 namespace tiledbpy::common {
 
-ssize_t buffer_nbytes(py::buffer_info &info);
+size_t buffer_nbytes(py::buffer_info &info);
 
 bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
                           size_t nbytes);
