@@ -1,27 +1,21 @@
-from dataclasses import dataclass, field
 import io
-from typing import Sequence
+from typing import overload, List, Sequence, Union
 
 import tiledb.cc as lt
 from .ctx import default_ctx
 
 
-@dataclass(repr=False)
 class Filter(lt.Filter):
     """Base class for all TileDB filters."""
 
     from .libtiledb import Ctx
 
-    type: lt.FilterType = lt.FilterType.NONE
-    ctx: Ctx = field(default_factory=default_ctx, repr=False)
+    def __init__(self, type: lt.FilterOption, ctx: Ctx = None):
+        self._ctx = ctx or default_ctx()
 
-    def __post_init__(self, type=None):
-        if type:
-            self.type = type
+        super().__init__(lt.Context(self._ctx.__capsule__(), False), type)
 
-        super().__init__(lt.Context(self.ctx.__capsule__(), False), self.type)
-
-    def __repr__(self):
+    def __repr__(self) -> str:
         output = io.StringIO()
         output.write(f"{type(self).__name__}(")
         if hasattr(self, "_attrs_"):
@@ -31,7 +25,7 @@ class Filter(lt.Filter):
         output.write(")")
         return output.getvalue()
 
-    def _repr_html_(self):
+    def _repr_html_(self) -> str:
         output = io.StringIO()
 
         output.write("<section>\n")
@@ -56,8 +50,17 @@ class Filter(lt.Filter):
 
         return output.getvalue()
 
+    def __eq__(self, other: "Filter"):
+        if other.__class__ is not self.__class__:
+            return False
+        for f in self._attrs_():
+            left = getattr(self, f)
+            right = getattr(other, f)
+            if left != right:
+                return False
+        return True
 
-@dataclass(repr=False)
+
 class CompressionFilter(Filter):
     """
     Base class for filters performing compression.
@@ -77,36 +80,38 @@ class CompressionFilter(Filter):
 
     """
 
-    type: lt.FilterType
-    level: int = -1
+    from .libtiledb import Ctx
 
-    def __post_init__(self, type, level):
-        if type:
-            self.type = type
+    def __init__(self, type: lt.FilterType, level: int = -1, ctx: Ctx = None):
+        self._level = level
+        self._ctx = ctx or default_ctx()
 
-        if level:
-            self.level = level
-
-        super().__post_init__(self.type)
+        super().__init__(type, self._ctx)
         self.set_option(
-            lt.Context(self.ctx.__capsule__(), False),
+            lt.Context(self._ctx.__capsule__(), False),
             lt.FilterOption.COMPRESSION_LEVEL,
-            self.level,
+            self._level,
         )
 
+    @property
+    def level(self):
+        return self._level
 
-@dataclass(repr=False)
+
 class NoOpFilter(Filter):
     """A filter that does nothing."""
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.NONE)
+    from .libtiledb import Ctx
+
+    def __init__(self, ctx: Ctx = None):
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.NONE, self._ctx)
 
     def _attrs_(self):
         return {}
 
 
-@dataclass(repr=False)
 class GzipFilter(CompressionFilter):
     """
     Filter that compresses using gzip.
@@ -128,14 +133,18 @@ class GzipFilter(CompressionFilter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.GZIP, self.level)
+    from .libtiledb import Ctx
+
+    def __init__(self, level: int = -1, ctx: Ctx = None):
+        self._level = level
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.GZIP, self._level, self._ctx)
 
     def _attrs_(self):
         return {"level": self.level}
 
 
-@dataclass(repr=False)
 class ZstdFilter(CompressionFilter):
     """
     Filter that compresses using zstd.
@@ -157,14 +166,18 @@ class ZstdFilter(CompressionFilter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.ZSTD, self.level)
+    from .libtiledb import Ctx
+
+    def __init__(self, level: int = -1, ctx: Ctx = None):
+        self._level = level
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.ZSTD, self._level, self._ctx)
 
     def _attrs_(self):
         return {"level": self.level}
 
 
-@dataclass(repr=False)
 class LZ4Filter(CompressionFilter):
     """
     Filter that compresses using lz4.
@@ -186,14 +199,18 @@ class LZ4Filter(CompressionFilter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.LZ4, self.level)
+    from .libtiledb import Ctx
+
+    def __init__(self, level: int = -1, ctx: Ctx = None):
+        self._level = level
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.LZ4, self._level, self._ctx)
 
     def _attrs_(self):
         return {"level": self.level}
 
 
-@dataclass(repr=False)
 class Bzip2Filter(CompressionFilter):
     """
     Filter that compresses using bzip2.
@@ -213,14 +230,18 @@ class Bzip2Filter(CompressionFilter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.BZIP2, self.level)
+    from .libtiledb import Ctx
+
+    def __init__(self, level: int = -1, ctx: Ctx = None):
+        self._level = level
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.BZIP2, self._level, self._ctx)
 
     def _attrs_(self):
         return {"level": self.level}
 
 
-@dataclass(repr=False)
 class RleFilter(CompressionFilter):
     """
     Filter that compresses using run-length encoding (RLE).
@@ -237,14 +258,18 @@ class RleFilter(CompressionFilter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.RLE, self.level)
+    from .libtiledb import Ctx
+
+    def __init__(self, level: int = -1, ctx: Ctx = None):
+        self._level = level
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.RLE, self._level, self._ctx)
 
     def _attrs_(self):
         return {}
 
 
-@dataclass(repr=False)
 class DoubleDeltaFilter(CompressionFilter):
     """
     Filter that performs double-delta encoding.
@@ -261,14 +286,18 @@ class DoubleDeltaFilter(CompressionFilter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.DOUBLE_DELTA, self.level)
+    from .libtiledb import Ctx
+
+    def __init__(self, level: int = -1, ctx: Ctx = None):
+        self._level = level
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.DOUBLE_DELTA, self._level, self._ctx)
 
     def _attrs_(self):
         return {}
 
 
-@dataclass(repr=False)
 class BitShuffleFilter(Filter):
     """
     Filter that performs a bit shuffle transformation.
@@ -285,14 +314,16 @@ class BitShuffleFilter(Filter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.BITSHUFFLE)
+    from .libtiledb import Ctx
+
+    def __init__(self, ctx: Ctx = None):
+        self._ctx = ctx or default_ctx()
+        super().__init__(lt.FilterType.BITSHUFFLE, self._ctx)
 
     def _attrs_(self):
         return {}
 
 
-@dataclass(repr=False)
 class ByteShuffleFilter(Filter):
     """
     Filter that performs a byte shuffle transformation.
@@ -309,14 +340,16 @@ class ByteShuffleFilter(Filter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.BYTESHUFFLE)
+    from .libtiledb import Ctx
+
+    def __init__(self, ctx: Ctx = None):
+        self._ctx = ctx or default_ctx()
+        super().__init__(lt.FilterType.BYTESHUFFLE, self._ctx)
 
     def _attrs_(self):
         return {}
 
 
-@dataclass(repr=False)
 class BitWidthReductionFilter(Filter):
     """Filter that performs bit-width reduction.
 
@@ -337,21 +370,27 @@ class BitWidthReductionFilter(Filter):
 
     """
 
-    window: int = -1
+    from .libtiledb import Ctx
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.BIT_WIDTH_REDUCTION)
+    def __init__(self, window: int = -1, ctx: Ctx = None):
+        self._window = window
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.BIT_WIDTH_REDUCTION)
         self.set_option(
-            lt.Context(self.ctx.__capsule__(), False),
+            lt.Context(self._ctx.__capsule__(), False),
             lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
-            self.window,
+            self._window,
         )
 
     def _attrs_(self):
-        return {"window": self.window}
+        return {"window": self._window}
+
+    @property
+    def window(self):
+        return self._window
 
 
-@dataclass(repr=False)
 class PositiveDeltaFilter(Filter):
     """
     Filter that performs positive-delta encoding.
@@ -373,21 +412,27 @@ class PositiveDeltaFilter(Filter):
 
     """
 
-    window: int = -1
+    from .libtiledb import Ctx
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.POSITIVE_DELTA)
+    def __init__(self, window: int = -1, ctx: Ctx = None):
+        self._window = window
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.POSITIVE_DELTA)
         self.set_option(
-            lt.Context(self.ctx.__capsule__(), False),
+            lt.Context(self._ctx.__capsule__(), False),
             lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
-            self.window,
+            self._window,
         )
 
     def _attrs_(self):
-        return {"window": self.window}
+        return {"window": self._window}
+
+    @property
+    def window(self):
+        return self._window
 
 
-@dataclass(repr=False)
 class ChecksumMD5Filter(Filter):
     """
     MD5 checksum filter.
@@ -404,14 +449,16 @@ class ChecksumMD5Filter(Filter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.CHECKSUM_MD5)
+    from .libtiledb import Ctx
+
+    def __init__(self, ctx: Ctx = None):
+        self._ctx = ctx or default_ctx()
+        super().__init__(lt.FilterType.CHECKSUM_MD5, self._ctx)
 
     def _attrs_(self):
         return {}
 
 
-@dataclass(repr=False)
 class ChecksumSHA256Filter(Filter):
     """
     SHA256 checksum filter.
@@ -428,14 +475,17 @@ class ChecksumSHA256Filter(Filter):
 
     """
 
-    def __post_init__(self):
-        super().__post_init__(lt.FilterType.CHECKSUM_SHA256)
+    from .libtiledb import Ctx
+
+    def __init__(self, ctx: Ctx = None):
+        self._ctx = ctx or default_ctx()
+        super().__init__(lt.FilterType.CHECKSUM_SHA256, self._ctx)
 
     def _attrs_(self):
         return {}
 
 
-@dataclass(repr=False)
+#
 class FilterList(lt.FilterList):
     """
     An ordered list of Filter objects for filtering TileDB data.
@@ -469,30 +519,45 @@ class FilterList(lt.FilterList):
 
     from .libtiledb import Ctx
 
-    filters: Sequence[Filter] = None
-    chunksize: int = None
-    ctx: Ctx = field(default_factory=default_ctx, repr=False)
-    is_capsule: bool = field(default=False, repr=False)
+    def __init__(
+        self,
+        filters: Sequence[Filter] = None,
+        chunksize: int = None,
+        ctx: Ctx = None,
+        is_capsule: bool = False,
+    ):
+        self._ctx = ctx or default_ctx()
+        _cctx = lt.Context(self._ctx.__capsule__(), False)
 
-    def __post_init__(self):
-        if self.is_capsule:
-            super().__init__(lt.Context(self.ctx.__capsule__(), False), self.filters)
-            self.filters = [self._getfilter(i) for i in range(len(self))]
+        if is_capsule:
+            super().__init__(_cctx, filters)
+            # self.filters = [self._getfilter(i) for i in range(len(self))]
         else:
-            super().__init__(lt.Context(self.ctx.__capsule__(), False))
+            super().__init__(_cctx)
 
-            if self.filters is not None:
-                self.filters = list(self.filters)
-                for filter in self.filters:
-                    if not isinstance(filter, Filter):
+            if filters is not None:
+                filters = list(filters)
+                for f in filters:
+                    if not isinstance(f, Filter):
                         raise ValueError(
                             "filters argument must be an iterable of TileDB filter objects"
                         )
-                    self.add_filter(filter)
+                    self.add_filter(f)
 
-        if self.chunksize:
-            self._max_chunk_size = self.chunksize
-        self.chunksize = self._max_chunk_size
+        if chunksize is not None:
+            self._chunksize = chunksize
+
+    @property
+    def chunksize(self):
+        return self._chunksize
+
+    @overload
+    def __getitem__(self, idx: int) -> Filter:
+        ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> List[Filter]:
+        ...
 
     def __getitem__(self, idx):
         """Gets a copy of the filter in the list at the given index
@@ -533,7 +598,7 @@ class FilterList(lt.FilterList):
 
         return filters
 
-    def __eq__(self, other):
+    def __eq__(self, other: Union["FilterList", Sequence[Filter]]) -> bool:
         if other is None:
             return False
         if len(self) != len(other):
@@ -543,18 +608,18 @@ class FilterList(lt.FilterList):
                 return False
         return True
 
-    def append(self, filter):
+    def append(self, filter: Filter):
         if not isinstance(filter, Filter):
             raise ValueError("filter argument must be a TileDB filter objects")
         self.add_filter(filter)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         filters = ",\n       ".join(
             [repr(self._getfilter(i)) for i in range(len(self))]
         )
         return "FilterList([{0!s}])".format(filters)
 
-    def _repr_html_(self):
+    def _repr_html_(self) -> str:
         output = io.StringIO()
 
         output.write("<section>\n")
@@ -564,7 +629,7 @@ class FilterList(lt.FilterList):
 
         return output.getvalue()
 
-    def _getfilter(self, i):
+    def _getfilter(self, i: int) -> Filter:
         filter_type_cc_to_python = {
             lt.FilterType.GZIP: GzipFilter,
             lt.FilterType.ZSTD: ZstdFilter,
@@ -581,26 +646,22 @@ class FilterList(lt.FilterList):
             lt.FilterType.NONE: NoOpFilter,
         }
 
-        filtype = filter_type_cc_to_python[self.filter(i).type]
-        if issubclass(filtype, CompressionFilter):
-            level = self.filter(i).get_option(
-                lt.Context(self.ctx.__capsule__(), False),
-                lt.FilterOption.COMPRESSION_LEVEL,
-            )
-            fil = filtype(level=level, ctx=self.ctx)
-        elif filtype == BitWidthReductionFilter:
-            window = self.filter(i).get_option(
-                lt.Context(self.ctx.__capsule__(), False),
-                lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
-            )
-            fil = filtype(window=window, ctx=self.ctx)
-        elif filtype == PositiveDeltaFilter:
-            window = self.filter(i).get_option(
-                lt.Context(self.ctx.__capsule__(), False),
-                lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
-            )
-            fil = filtype(window=window, ctx=self.ctx)
-        else:
-            fil = filtype(self.ctx)
+        fil = self.filter(i)
+        filtype = filter_type_cc_to_python[fil.type]
 
-        return fil
+        if issubclass(filtype, CompressionFilter):
+            opt = lt.FilterOption.COMPRESSION_LEVEL
+        elif filtype == BitWidthReductionFilter:
+            opt = lt.FilterOption.BIT_WIDTH_MAX_WINDOW
+        elif filtype == PositiveDeltaFilter:
+            opt = lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW
+        else:
+            opt = None
+
+        if opt is not None:
+            _cctx = lt.Context(self._ctx.__capsule__(), False)
+            filter = filtype(fil.get_option(_cctx, opt), ctx=self._ctx)
+        else:
+            filter = filtype(self._ctx)
+
+        return filter
