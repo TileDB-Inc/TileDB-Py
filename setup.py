@@ -16,16 +16,11 @@ from pkg_resources import resource_filename
 from setuptools import Extension, find_packages, setup
 from pybind11.setup_helpers import Pybind11Extension
 
-# if pybind11 is installed then use parallel compilation
-# note that this does not work from the delay-load function
-try:
-    from pybind11.setup_helpers import ParallelCompile, naive_recompile
-    # NOMERGE DO NOT USE naive_recompile for CI!
-    ParallelCompile(default=0, max=8, needs_recompile=naive_recompile).install()
-except ImportError:
-    pass
-
-print("setup.py sys.argv is: ", sys.argv)
+### DO NOT USE ON CI
+## Optional multithreaded build
+#from pybind11.setup_helpers import ParallelCompile
+#ParallelCompile('10').install()
+### DO NOT USE ON CI
 
 # Target branch
 TILEDB_VERSION = "2.7.0"
@@ -345,9 +340,6 @@ def find_or_install_libtiledb(setuptools_cmd):
         main_ext.include_dirs += [os.path.join(prefix_dir, "include")]
         tiledb_cc_ext.library_dirs += [os.path.join(prefix_dir, lib_subdir)]
         tiledb_cc_ext.include_dirs += [os.path.join(prefix_dir, "include")]
-        tiledb_cc_ext.extra_compile_args += [
-            "-std=c++17" if not is_windows() else "/std:c++17"
-        ]
 
         # Update package_data so the shared object gets installed with the Python module.
         libtiledb_objects = [
@@ -671,9 +663,7 @@ __extensions = [
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS.copy().remove("-Werror")
-        if CXXFLAGS.count("-Werror")
-        else CXXFLAGS,
+        extra_compile_args=CXXFLAGS + ["-fvisibility=hidden"],
         language="c++",
     ),
 ]
@@ -705,6 +695,8 @@ else:
 # Helper to set Extension attributes correctly based on python version
 def ext_attr_update(attr, value):
     for x in __extensions:
+        if isinstance(x, Pybind11Extension):
+            continue
         setattr(x, attr, value)
 
 
