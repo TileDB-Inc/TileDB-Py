@@ -6,7 +6,7 @@ namespace tiledbpy::common {
 
 ssize_t buffer_nbytes(py::buffer_info &info) {
   return info.itemsize * std::accumulate(info.shape.begin(), info.shape.end(),
-                                         1, std::multiplies());
+                                         1, std::multiplies<>());
 }
 
 bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
