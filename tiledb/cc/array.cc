@@ -85,7 +85,7 @@ void init_array(py::module &m) {
              for (auto s : info.shape) {
                size *= s;
              }
-             size_t nbytes = size * info.itemsize;
+             // size_t nbytes = size * info.itemsize;
 
              self.put_metadata(key, tdb_type, size, info.ptr);
              /*

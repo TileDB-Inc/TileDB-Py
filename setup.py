@@ -18,8 +18,8 @@ from pybind11.setup_helpers import Pybind11Extension
 
 ### DO NOT USE ON CI
 ## Optional multithreaded build
-#from pybind11.setup_helpers import ParallelCompile
-#ParallelCompile('10').install()
+# from pybind11.setup_helpers import ParallelCompile
+# ParallelCompile('10').install()
 ### DO NOT USE ON CI
 
 # Target branch
@@ -685,7 +685,9 @@ if TILEDBPY_MODULAR:
             library_dirs=LIB_DIRS,
             libraries=LIBS,
             extra_link_args=LFLAGS,
-            extra_compile_args=CXXFLAGS,
+            extra_compile_args=CXXFLAGS.copy().remove("-Werror")
+            if CXXFLAGS.count("-Werror")
+            else CXXFLAGS,
             language="c++",
         )
         __extensions.append(ext)
