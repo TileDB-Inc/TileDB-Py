@@ -375,6 +375,6 @@ def assert_captured(cap, expected):
         assert expected in out
 
 
-@pytest.fixture(scope="module", params=["hilbert", "row-major"])
+@pytest.fixture(scope="module", params=["hilbert", "row-major", "col-major"])
 def fx_sparse_cell_order(request):
     yield request.param
