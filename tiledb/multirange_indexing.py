@@ -2,6 +2,7 @@ import dataclasses
 import json
 import time
 import weakref
+from enum import Enum
 from collections import OrderedDict
 from contextlib import contextmanager
 from contextvars import ContextVar, copy_context
@@ -46,6 +47,13 @@ except ImportError:
 
 # sentinel value to denote selecting an empty range
 EmptyRange = object()
+
+# iteration state for incomplete queries
+class IterState(Enum):
+    NONE = 0
+    INIT = 1
+    RUNNING = 2
+
 
 # TODO: expand with more accepted scalar types
 Scalar = Real
@@ -172,6 +180,11 @@ class MultiRangeIndexer(object):
         self.query = query
         self.pyquery = None
         self.use_arrow = None
+        self._iter_state = (
+            IterState.INIT
+            if self.query and self.query.return_incomplete
+            else IterState.NONE
+        )
 
     @property
     def array(self) -> Array:
@@ -190,6 +203,7 @@ class MultiRangeIndexer(object):
             self.ranges = getitem_ranges(self.array, idx)
 
             if self.query and self.query.return_incomplete:
+                self._run_query(self.query)
                 return self
 
             return self._run_query(self.query)
@@ -197,7 +211,6 @@ class MultiRangeIndexer(object):
     def _run_query(
         self, query: Optional[Query] = None, preload_metadata: bool = False
     ) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
-
         if self.pyquery is None or not self.pyquery.is_incomplete:
             self.pyquery = _get_pyquery(self.array, query, self.use_arrow)
             self.pyquery._preload_metadata = preload_metadata
@@ -221,6 +234,9 @@ class MultiRangeIndexer(object):
             self.pyquery._return_incomplete = (
                 self.query and self.query.return_incomplete
             )
+
+            if self._iter_state == IterState.INIT:
+                return
 
         self.pyquery.submit()
 
@@ -281,11 +297,16 @@ class MultiRangeIndexer(object):
             raise TileDBError(
                 "Cannot iterate unless query is initialized with return_incomplete=True"
             )
+
         return self
 
     def __next__(self):
-        if self.pyquery and not self.pyquery.is_incomplete:
+        if (
+            self.pyquery and not self.pyquery.is_incomplete
+        ) and self._iter_state == IterState.RUNNING:
             raise StopIteration()
+
+        self._iter_state = IterState.RUNNING
         return self._run_query(self.query)
 
 
@@ -318,7 +339,9 @@ class DataFrameIndexer(MultiRangeIndexer):
                 self.ranges = getitem_ranges(self.array, idx)
 
                 if self.query and self.query.return_incomplete:
+                    self._run_query(self.query)
                     return self
+
                 result = self._run_query(query, preload_metadata=True)
             if not (pyarrow and isinstance(result, pyarrow.Table)):
                 if not isinstance(result, DataFrame):
