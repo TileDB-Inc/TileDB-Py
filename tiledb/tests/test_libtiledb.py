@@ -4361,17 +4361,17 @@ class IncompleteTest(DiskTestCase):
         idx = 0
         with tiledb.open(path, ctx=tiledb.Ctx(cfg)) as A:
             query = A.query(return_incomplete=True, return_arrow=return_arrow)
-            iterable = getattr(query, indexer)
+            iterable = getattr(query, indexer)[:]
 
-            for result in iterable[:]:
+            est_results = iterable.estimated_result_sizes()
+            assert isinstance(est_results[""], EstimatedResultSize)
+            assert isinstance(est_results["__dim_0"], EstimatedResultSize)
+            assert est_results["__dim_0"].offsets_bytes == 0
+            assert est_results["__dim_0"].data_bytes > 0
+            assert est_results[""].offsets_bytes > 0
+            assert est_results[""].data_bytes > 0
 
-                est_results = iterable.estimated_result_sizes()
-                assert isinstance(est_results[""], EstimatedResultSize)
-                assert isinstance(est_results["__dim_0"], EstimatedResultSize)
-                assert est_results["__dim_0"].offsets_bytes == 0
-                assert est_results["__dim_0"].data_bytes > 0
-                assert est_results[""].offsets_bytes > 0
-                assert est_results[""].data_bytes > 0
+            for result in iterable:
 
                 if return_arrow:
                     assert isinstance(result, pa.Table)

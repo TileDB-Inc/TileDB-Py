@@ -287,6 +287,7 @@ private:
   bool exact_init_bytes_ = false;
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
   uint64_t alloc_max_bytes_ = DEFAULT_ALLOC_MAX_BYTES;
+  tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
 
   py::object pyschema_;
 
@@ -361,11 +362,11 @@ public:
         std::shared_ptr<tiledb::Query>(new Query(ctx_, *array_, TILEDB_READ));
     //        [](Query* p){} /* note: no deleter*/);
 
-    tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
-    if (!issparse && layout == TILEDB_UNORDERED) {
+    layout_ = (tiledb_layout_t)py_layout.cast<int32_t>();
+    if (!issparse && layout_ == TILEDB_UNORDERED) {
       TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
     }
-    query_->set_layout(layout);
+    query_->set_layout(layout_);
 
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
     if (use_arrow_) {
@@ -1399,11 +1400,35 @@ public:
   }
 
   py::object estimated_result_sizes() {
-    py::dict results;
-    for (auto const &bp : buffers_) {
-      auto name = bp.first;
-      auto buf = bp.second;
+    // vector of names to estimate
+    std::vector<std::string> estim_names;
 
+    for (size_t dim_idx = 0; dim_idx < domain_->ndim(); dim_idx++) {
+      auto dim = domain_->dimension(dim_idx);
+      if ((std::find(dims_.begin(), dims_.end(), dim.name()) == dims_.end()) &&
+          // we need to also check if this is an attr for backward-compatibility
+          (std::find(attrs_.begin(), attrs_.end(), dim.name()) ==
+           attrs_.end())) {
+        continue;
+      }
+      estim_names.push_back(dim.name());
+    }
+
+    // iterate by idx: schema.attributes() is unordered, but we need to
+    //                 return ordered results
+    for (size_t attr_idx = 0; attr_idx < array_schema_->attribute_num();
+         attr_idx++) {
+      auto attr = array_schema_->attribute(attr_idx);
+      if (std::find(attrs_.begin(), attrs_.end(), attr.name()) ==
+          attrs_.end()) {
+        continue;
+      }
+      estim_names.push_back(attr.name());
+    }
+
+    py::dict results;
+
+    for (auto const &name : estim_names) {
       size_t est_offsets = 0, est_data_bytes = 0;
 
       if (is_var(name)) {
