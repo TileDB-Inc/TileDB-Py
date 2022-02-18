@@ -1273,6 +1273,54 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(uri, "r") as A:
             tm.assert_frame_equal(df, A.df[:])
 
+    @pytest.mark.parametrize("tile_order", ["row-major", "col-major"])
+    @pytest.mark.parametrize("cell_order", ["row-major", "col-major", "hilbert"])
+    def test_tile_and_cell_order(self, tile_order, cell_order):
+        uri_from_pandas = self.path("dataframe_basic_rt1_from_pandas")
+        df = make_dataframe_basic1()
+        tiledb.from_pandas(
+            uri_from_pandas,
+            df,
+            sparse=True,
+            tile_order=tile_order,
+            cell_order=cell_order,
+        )
+        with tiledb.open(uri_from_pandas) as A:
+            tm.assert_frame_equal(df, A.df[:])
+
+        uri_from_csv = self.path("dataframe_basic_rt1_from_csv")
+        csv = self.path("csv_basic_rt1")
+        with self.vfs.open(csv, "wb") as fio:
+            df_convert = df.copy()
+            df_convert["x"] = df_convert["x"].str.decode("UTF-8")
+            df_convert["chars"] = df_convert["chars"].str.decode("UTF-8")
+            df_convert["r"] = df_convert["r"].str.decode("UTF-8")
+            df_convert["v"] = df_convert["v"].str.decode("UTF-8")
+            df_convert.to_csv(fio, index=False)
+        tiledb.from_csv(
+            uri_from_csv,
+            csv,
+            sparse=True,
+            tile_order=tile_order,
+            cell_order=cell_order,
+            column_types={
+                "time": np.dtype("<M8[ns]"),
+                "x": np.dtype("S"),
+                "chars": np.dtype("S"),
+                "cccc": np.dtype("int64"),
+                "q": np.dtype("<U"),
+                "t": np.dtype("<U"),
+                "r": np.dtype("S"),
+                "s": np.dtype("<U"),
+                "u": np.dtype("<U"),
+                "v": np.dtype("S"),
+                "vals_int64": np.dtype("int64"),
+                "vals_float64": np.dtype("float64"),
+            },
+        )
+        with tiledb.open(uri_from_csv) as A:
+            tm.assert_frame_equal(df, A.df[:])
+
 
 class TestFromPandasOptions(DiskTestCase):
     def test_filters_options(self):
