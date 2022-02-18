@@ -4056,6 +4056,17 @@ class ContextTest(unittest.TestCase):
         self.assertIsInstance(ctx, tiledb.Ctx)
         assert isinstance(ctx.config(), tiledb.libtiledb.Config)
 
+    def test_default_ctx_errors(self):
+        config = tiledb.Config()
+        ctx = tiledb.Ctx(config=config)
+
+        with pytest.raises(ValueError) as excinfo:
+            tiledb.default_ctx(ctx)
+        assert (
+            "default_ctx takes in `tiledb.Config` object or dictionary with "
+            "config parameters."
+        ) == str(excinfo.value)
+
     def test_scope_ctx(self):
         key = "sm.tile_cache_size"
         ctx0 = tiledb.default_ctx()
@@ -4082,6 +4093,15 @@ class ContextTest(unittest.TestCase):
 
         assert tiledb.default_ctx() is ctx0
         assert tiledb.default_ctx().config()[key] == "10000000"
+
+    def test_scope_ctx_error(self):
+        with pytest.raises(ValueError) as excinfo:
+            with tiledb.scope_ctx([]):
+                pass
+        assert (
+            "scope_ctx takes in `tiledb.Ctx` object, `tiledb.Config` object, "
+            "or dictionary with config parameters."
+        ) == str(excinfo.value)
 
     @pytest.mark.skipif(
         "pytest.tiledb_vfs == 's3'", reason="Test not yet supported with S3"

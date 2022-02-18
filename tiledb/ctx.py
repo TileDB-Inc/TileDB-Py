@@ -1,5 +1,9 @@
 from contextlib import contextmanager
 from contextvars import ContextVar
+from typing import TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    from tiledb import Ctx, Config
 
 import tiledb
 
@@ -36,7 +40,7 @@ def check_ipykernel_warn_once():
 
 
 @contextmanager
-def scope_ctx(ctx_or_config=None):
+def scope_ctx(ctx_or_config: Union["Ctx", "Config", dict] = None) -> "Ctx":
     """
     Context manager for setting the default `tiledb.Ctx` context variable when entering
     a block of code and restoring it to its previous value when exiting the block.
@@ -46,6 +50,16 @@ def scope_ctx(ctx_or_config=None):
     :return: Ctx
     """
     check_ipykernel_warn_once()
+
+    if ctx_or_config is not None and not (
+        isinstance(ctx_or_config, tiledb.Ctx)
+        or isinstance(ctx_or_config, tiledb.Config)
+        or isinstance(ctx_or_config, dict)
+    ):
+        raise ValueError(
+            "scope_ctx takes in `tiledb.Ctx` object, `tiledb.Config` object, or "
+            "dictionary with config parameters."
+        )
 
     if not isinstance(ctx_or_config, tiledb.Ctx):
         ctx = tiledb.Ctx(ctx_or_config)
@@ -58,7 +72,7 @@ def scope_ctx(ctx_or_config=None):
         _ctx_var.reset(token)
 
 
-def default_ctx(config=None):
+def default_ctx(config: Union["Config", dict] = None) -> "Ctx":
     """
     Returns, and optionally initializes, the default `tiledb.Ctx` context variable.
 
@@ -74,6 +88,14 @@ def default_ctx(config=None):
     :return: Ctx
     """
     check_ipykernel_warn_once()
+
+    if config is not None and not (
+        isinstance(config, tiledb.Config) or isinstance(config, dict)
+    ):
+        raise ValueError(
+            "default_ctx takes in `tiledb.Config` object or "
+            "dictionary with config parameters."
+        )
 
     try:
         ctx = _ctx_var.get()
