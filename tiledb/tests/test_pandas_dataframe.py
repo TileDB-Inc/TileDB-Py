@@ -1287,6 +1287,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         )
         with tiledb.open(uri_from_pandas) as A:
             tm.assert_frame_equal(df, A.df[:])
+            column_types = {A.attr(i).name: A.attr(i).dtype for i in range(A.nattr)}
 
         uri_from_csv = self.path("dataframe_basic_rt1_from_csv")
         csv = self.path("csv_basic_rt1")
@@ -1303,20 +1304,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             sparse=True,
             tile_order=tile_order,
             cell_order=cell_order,
-            column_types={
-                "time": np.dtype("<M8[ns]"),
-                "x": np.dtype("S"),
-                "chars": np.dtype("S"),
-                "cccc": np.dtype("int64"),
-                "q": np.dtype("<U"),
-                "t": np.dtype("<U"),
-                "r": np.dtype("S"),
-                "s": np.dtype("<U"),
-                "u": np.dtype("<U"),
-                "v": np.dtype("S"),
-                "vals_int64": np.dtype("int64"),
-                "vals_float64": np.dtype("float64"),
-            },
+            column_types=column_types,
         )
         with tiledb.open(uri_from_csv) as A:
             tm.assert_frame_equal(df, A.df[:])
