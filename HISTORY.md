@@ -1,3 +1,8 @@
+# TileDB-Py 0.13.0 Release Notes
+
+## Bug fixes
+* Do not print out `FragmentInfo_frags` for `repr` [#925](https://github.com/TileDB-Inc/TileDB-Py/pull/925)
+
 # TileDB-Py 0.12.3 Release Notes
 
 ## Bug Fixes
