@@ -1,3 +1,8 @@
+# TileDB-Py 0.13.0 Release Notes
+
+## Bug Fixes
+* Enable building with serialization disabled [#924](https://github.com/TileDB-Inc/TileDB-Py/pull/924)
+
 # TileDB-Py 0.12.3 Release Notes
 
 ## Bug Fixes

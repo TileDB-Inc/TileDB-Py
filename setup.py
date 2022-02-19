@@ -597,6 +597,24 @@ with open("README.md") as f:
 MODULAR_SOURCES = ["tiledb/np2buf.pyx", "tiledb/indexing.pyx", "tiledb/libmetadata.pyx"]
 MODULAR_HEADERS = ["tiledb/libtiledb.pxd", "tiledb/indexing.pxd"]
 
+TILEDB_MAIN_SOURCES = [
+    "tiledb/main.cc",
+    "tiledb/core.cc",
+    "tiledb/npbuffer.cc",
+    "tiledb/fragment.cc",
+    "tiledb/schema_evolution.cc",
+    "tiledb/tests/test_metadata.cc",
+    # TODO currently included in core.cc due to dependency.
+    #      need to un-comment after refactor.
+    # "tiledb/query_condition.cc",
+]
+
+if "TILEDB_SERIALIZATION" in os.environ:
+    TILEDB_MAIN_SOURCES += [
+        "tiledb/serialization.cc",
+        "tiledb/tests/test_serialization.cc",
+    ]
+
 __extensions = [
     Extension(
         "tiledb.libtiledb",
@@ -614,19 +632,7 @@ __extensions = [
     ),
     Extension(
         "tiledb.main",
-        [
-            "tiledb/main.cc",
-            "tiledb/core.cc",
-            "tiledb/npbuffer.cc",
-            "tiledb/fragment.cc",
-            "tiledb/serialization.cc",
-            "tiledb/schema_evolution.cc",
-            "tiledb/tests/test_serialization.cc",
-            "tiledb/tests/test_metadata.cc",
-            # TODO currently included in core.cc due to dependency.
-            #      need to un-comment after refactor.
-            # "tiledb/query_condition.cc",
-        ],
+        TILEDB_MAIN_SOURCES,
         include_dirs=INC_DIRS + [get_pybind_include(), get_pybind_include(user=True)],
         language="c++",
         library_dirs=LIB_DIRS,

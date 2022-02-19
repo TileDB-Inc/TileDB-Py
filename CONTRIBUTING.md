@@ -29,9 +29,8 @@ Thanks for your interest in TileDB-Py. The notes below give some pointers for fi
     - from [conda-forge](): `mamba install tiledb`
       - `--tiledb=$CONDA_PREFIX`
     - from source: https://docs.tiledb.com/main/how-to/installation/building-from-source/c-cpp
+      - libtiledb may be built without serialization (default) or with serialization (`--enable-serialization`)
       - use `--tiledb=/path/to/tiledb/dist` option when running ``setup.py`` in the step below
-      - also please note that libtiledb needs to be built with serialization enabled for TileDB-Py build to succeed
-        (pass the ``--enable-serialization`` option to the ``bootstrap`` script before compiling)
             
   - build TileDB-Py
   ```

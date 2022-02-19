@@ -1,16 +1,14 @@
-from contextlib import AbstractContextManager
-import itertools
+import pytest
+
+ser_test = pytest.importorskip(
+    "tiledb.main.test_serialization", reason="Serialzation not enabled."
+)
 
 import numpy as np
 from numpy.testing import assert_array_equal
-import pytest
 
 import tiledb
-from tiledb.main import tiledb_serialization_type_t as ser_type
-from tiledb.main import serialization as ser
-
 from tiledb.tests.common import DiskTestCase
-from tiledb.main import test_serialization as ser_test
 
 
 class SerializationTest(DiskTestCase):
