@@ -1,16 +1,17 @@
 import io
-from typing import overload, List, Sequence, Union
+from typing import List, overload, Sequence, TYPE_CHECKING, Union
 
 import tiledb.cc as lt
 from .ctx import default_ctx
+
+if TYPE_CHECKING:
+    from .libtiledb import Ctx
 
 
 class Filter(lt.Filter):
     """Base class for all TileDB filters."""
 
-    from .libtiledb import Ctx
-
-    def __init__(self, type: lt.FilterOption, ctx: Ctx = None):
+    def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
 
         super().__init__(lt.Context(self._ctx.__capsule__(), False), type)
@@ -80,9 +81,7 @@ class CompressionFilter(Filter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, type: lt.FilterType, level: int = -1, ctx: Ctx = None):
+    def __init__(self, type: lt.FilterType, level: int = -1, ctx: "Ctx" = None):
         self._level = level
         self._ctx = ctx or default_ctx()
 
@@ -101,9 +100,7 @@ class CompressionFilter(Filter):
 class NoOpFilter(Filter):
     """A filter that does nothing."""
 
-    from .libtiledb import Ctx
-
-    def __init__(self, ctx: Ctx = None):
+    def __init__(self, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
 
         super().__init__(lt.FilterType.NONE, self._ctx)
@@ -133,9 +130,7 @@ class GzipFilter(CompressionFilter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, level: int = -1, ctx: Ctx = None):
+    def __init__(self, level: int = -1, ctx: "Ctx" = None):
         self._level = level
         self._ctx = ctx or default_ctx()
 
@@ -166,9 +161,7 @@ class ZstdFilter(CompressionFilter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, level: int = -1, ctx: Ctx = None):
+    def __init__(self, level: int = -1, ctx: "Ctx" = None):
         self._level = level
         self._ctx = ctx or default_ctx()
 
@@ -199,9 +192,7 @@ class LZ4Filter(CompressionFilter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, level: int = -1, ctx: Ctx = None):
+    def __init__(self, level: int = -1, ctx: "Ctx" = None):
         self._level = level
         self._ctx = ctx or default_ctx()
 
@@ -230,9 +221,7 @@ class Bzip2Filter(CompressionFilter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, level: int = -1, ctx: Ctx = None):
+    def __init__(self, level: int = -1, ctx: "Ctx" = None):
         self._level = level
         self._ctx = ctx or default_ctx()
 
@@ -258,9 +247,7 @@ class RleFilter(CompressionFilter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, level: int = -1, ctx: Ctx = None):
+    def __init__(self, level: int = -1, ctx: "Ctx" = None):
         self._level = level
         self._ctx = ctx or default_ctx()
 
@@ -286,9 +273,7 @@ class DoubleDeltaFilter(CompressionFilter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, level: int = -1, ctx: Ctx = None):
+    def __init__(self, level: int = -1, ctx: "Ctx" = None):
         self._level = level
         self._ctx = ctx or default_ctx()
 
@@ -314,9 +299,7 @@ class BitShuffleFilter(Filter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, ctx: Ctx = None):
+    def __init__(self, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
         super().__init__(lt.FilterType.BITSHUFFLE, self._ctx)
 
@@ -340,9 +323,7 @@ class ByteShuffleFilter(Filter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, ctx: Ctx = None):
+    def __init__(self, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
         super().__init__(lt.FilterType.BYTESHUFFLE, self._ctx)
 
@@ -370,9 +351,7 @@ class BitWidthReductionFilter(Filter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, window: int = -1, ctx: Ctx = None):
+    def __init__(self, window: int = -1, ctx: "Ctx" = None):
         self._window = window
         self._ctx = ctx or default_ctx()
 
@@ -412,9 +391,7 @@ class PositiveDeltaFilter(Filter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, window: int = -1, ctx: Ctx = None):
+    def __init__(self, window: int = -1, ctx: "Ctx" = None):
         self._window = window
         self._ctx = ctx or default_ctx()
 
@@ -449,9 +426,7 @@ class ChecksumMD5Filter(Filter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, ctx: Ctx = None):
+    def __init__(self, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
         super().__init__(lt.FilterType.CHECKSUM_MD5, self._ctx)
 
@@ -475,9 +450,7 @@ class ChecksumSHA256Filter(Filter):
 
     """
 
-    from .libtiledb import Ctx
-
-    def __init__(self, ctx: Ctx = None):
+    def __init__(self, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
         super().__init__(lt.FilterType.CHECKSUM_SHA256, self._ctx)
 
@@ -517,13 +490,11 @@ class FilterList(lt.FilterList):
 
     """
 
-    from .libtiledb import Ctx
-
     def __init__(
         self,
         filters: Sequence[Filter] = None,
         chunksize: int = None,
-        ctx: Ctx = None,
+        ctx: "Ctx" = None,
         is_capsule: bool = False,
     ):
         self._ctx = ctx or default_ctx()
