@@ -411,7 +411,7 @@ def from_pandas(uri, dataframe, **kwargs):
         * **full_domain** - Dimensions should be created with full range of the dtype
         * **tile** - Dimension tiling: accepts either an int that applies the tiling to all dimensions or a dict("dim_name": int) to specifically assign tiling to a given dimension
         * **row_start_idx** - Start index to start new write (for row-indexed ingestions).
-        * **fillna** - Value to use to to fill holes
+        * **fillna** - Value to use to fill holes
         * **column_types** - Dictionary of {``column_name``: dtype} to apply dtypes to columns
         * **varlen_types** - A set of {dtypes}; any column wihin the set is converted to a variable length attribute
         * **capacity** - Schema capacity.
@@ -679,7 +679,7 @@ def from_csv(uri, csv_file, **kwargs):
         * **full_domain** - Dimensions should be created with full range of the dtype
         * **tile** - Dimension tiling: accepts either an int that applies the tiling to all dimensions or a dict("dim_name": int) to specifically assign tiling to a given dimension
         * **row_start_idx** - Start index to start new write (for row-indexed ingestions).
-        * **fillna** - Value to use to to fill holes
+        * **fillna** - Value to use to fill holes
         * **column_types** - Dictionary of {``column_name``: dtype} to apply dtypes to columns
         * **varlen_types** - A set of {dtypes}; any column wihin the set is converted to a variable length attribute
         * **capacity** - Schema capacity.
