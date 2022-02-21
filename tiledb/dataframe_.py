@@ -401,6 +401,8 @@ def from_pandas(uri, dataframe, **kwargs):
         * Any `pandas.read_csv <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>`_ supported keyword argument
         * **ctx** - A TileDB context
         * **sparse** - (default True) Create sparse schema
+        * **chunksize** - (default None) Maximum number of rows to read at a time. Note that this is also a `pandas.read_csv` argument
+                          which `tiledb.read_csv` checks for in order to correctly read a file batchwise.
         * **index_dims** - Set the df index using a list of existing column names
         * **allows_duplicates** - Generated schema should allow duplicates
         * **mode** - (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
