@@ -30,8 +30,10 @@ Thanks for your interest in TileDB-Py. The notes below give some pointers for fi
       - `--tiledb=$CONDA_PREFIX`
     - from source: https://docs.tiledb.com/main/how-to/installation/building-from-source/c-cpp
       - use `--tiledb=/path/to/tiledb/dist` option when running ``setup.py`` in the step below
-      - also please note that libtiledb needs to be built with serialization enabled for TileDB-Py build to succeed
-        (pass the ``--enable-serialization`` option to the ``bootstrap`` script before compiling)
+      - if building libtiledb from source,  to enable serialization pass ``--enable-serialization`` 
+        to the ``bootstrap`` script before compiling
+	- serialization is optional. if libtiledb is not build with serialization, then it will not be
+	  enabled in TileDB-Py
             
   - build TileDB-Py
   ```

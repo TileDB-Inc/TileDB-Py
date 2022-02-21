@@ -19,10 +19,13 @@
 #define TILEDB_DEPRECATED_EXPORT
 
 #include <tiledb/arrowio>
-#include <tiledb/tiledb.h>               // C
-#include <tiledb/tiledb>                 // C++
-#include <tiledb/tiledb_experimental.h>  // C
+#include <tiledb/tiledb.h>              // C
+#include <tiledb/tiledb>                // C++
+#include <tiledb/tiledb_experimental.h> // C
+
+#if defined(TILEDB_SERIALIZATION)
 #include <tiledb/tiledb_serialization.h> // C
+#endif
 
 #include "../external/string_view.hpp"
 #include "../external/tsl/robin_map.h"
@@ -655,6 +658,7 @@ public:
     }
   }
 
+#if defined(TILEDB_SERIALIZATION)
   void set_serialized_query(py::buffer serialized_query) {
     int rc;
     tiledb_query_t *c_query;
@@ -676,6 +680,7 @@ public:
     if (rc == TILEDB_ERR)
       TPY_ERROR_LOC("Could not deserialize query.");
   }
+#endif
 
   void set_attr_cond(py::object attr_cond) {
     if (!attr_cond.is(py::none())) {
@@ -1548,7 +1553,9 @@ void init_core(py::module &m) {
 #endif
           .def("set_subarray", &PyQuery::set_subarray)
           .def("set_attr_cond", &PyQuery::set_attr_cond)
+#if defined(TILEDB_SERIALIZATION)
           .def("set_serialized_query", &PyQuery::set_serialized_query)
+#endif
           .def("submit", &PyQuery::submit)
           .def("unpack_buffer", &PyQuery::unpack_buffer)
           .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)

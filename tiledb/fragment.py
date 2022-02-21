@@ -1,7 +1,7 @@
-import pprint
-import warnings
 import numpy as np
 import os
+import pprint
+import warnings
 
 import tiledb
 from tiledb.main import PyFragmentInfo
