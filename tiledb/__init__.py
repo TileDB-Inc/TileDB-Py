@@ -43,8 +43,6 @@ from .libtiledb import (
     Attr,
     ArraySchema,
     TileDBError,
-    VFS,
-    FileIO,
     consolidate,
     group_create,
     object_type,
@@ -102,6 +100,8 @@ from .query_condition import QueryCondition
 from .schema import schema_like
 
 from .schema_evolution import ArraySchemaEvolution
+
+from .vfs import VFS
 
 # TODO restricted imports
 from .dataframe_ import from_csv, from_pandas, open_dataframe

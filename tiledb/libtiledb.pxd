@@ -1251,19 +1251,19 @@ cdef class SparseArrayImpl(Array):
 cdef class DenseArrayImpl(Array):
     cdef _read_dense_subarray(self, list subarray, list attr_names, object attr_cond, tiledb_layout_t layout, bint include_coords)
 
-cdef class FileHandle(object):
-    cdef Ctx ctx
-    cdef VFS vfs
-    cdef unicode uri
-    cdef tiledb_vfs_fh_t* ptr
+# cdef class FileHandle(object):
+#     cdef Ctx ctx
+#     cdef VFS vfs
+#     cdef unicode uri
+#     cdef tiledb_vfs_fh_t* ptr
 
-    @staticmethod
-    cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr)
-    cpdef closed(self)
+#     @staticmethod
+#     cdef from_ptr(VFS vfs, unicode uri, tiledb_vfs_fh_t* fh_ptr)
+#     cpdef closed(self)
 
-cdef class VFS(object):
-    cdef Ctx ctx
-    cdef tiledb_vfs_t* ptr
+# cdef class VFS(object):
+#     cdef Ctx ctx
+#     cdef tiledb_vfs_t* ptr
 
 cdef class Query(object):
     cdef Array array
