@@ -61,7 +61,7 @@ public:
 
   shared_ptr<QueryCondition> ptr() { return qc_; }
 
-  py::capsule get_capsule() { return py::capsule(&qc_, "qc", nullptr); }
+  py::capsule __capsule__() { return py::capsule(&qc_, "qc", nullptr); }
 
   PyQueryCondition
   combine(PyQueryCondition rhs,
@@ -155,7 +155,7 @@ void init_query_condition(py::module &m) {
 
       .def("combine", &PyQueryCondition::combine)
 
-      .def("get_capsule", &PyQueryCondition::get_capsule);
+      .def("__capsule__", &PyQueryCondition::__capsule__);
 
   py::enum_<tiledb_query_condition_op_t>(m, "tiledb_query_condition_op_t",
                                          py::arithmetic())

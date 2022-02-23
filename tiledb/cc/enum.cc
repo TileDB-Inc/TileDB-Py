@@ -61,6 +61,10 @@ void init_enums(py::module &m) {
                                          py::module_local()) DENUM(LT) DENUM(LE)
       DENUM(GT) DENUM(GE) DENUM(EQ) DENUM(NE);
 
+#define DVENUM(x) .value(#x, TILEDB_VFS_##x)
+  py::enum_<tiledb_vfs_mode_t>(m, "VFSMode") DVENUM(READ) DVENUM(WRITE)
+      DVENUM(APPEND);
+
   // test helpers to check enum name against typed value
   m.def("_enum_string", &tiledb::impl::type_to_str);
   m.def("_enum_string",
