@@ -4,6 +4,7 @@
 * TileDB-Py 0.12.3 includes TileDB Embedded [TileDB 2.6.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.3)
 
 ## Bug Fixes
+* Properly initalize query in order to retrieve estimate results [#920](https://github.com/TileDB-Inc/TileDB-Py/pull/920)
 * Enable building with serialization disabled [#924](https://github.com/TileDB-Inc/TileDB-Py/pull/924)
 * Do not print out `FragmentInfo_frags` for `repr` [#925](https://github.com/TileDB-Inc/TileDB-Py/pull/925)
 * Error out with `IndexError` when attempting to use a step in the regular indexer [#911](https://github.com/TileDB-Inc/TileDB-Py/pull/911)
