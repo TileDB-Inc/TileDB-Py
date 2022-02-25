@@ -6,7 +6,6 @@
 ## Bug Fixes
 * Enable building with serialization disabled [#924](https://github.com/TileDB-Inc/TileDB-Py/pull/924)
 * Do not print out `FragmentInfo_frags` for `repr` [#925](https://github.com/TileDB-Inc/TileDB-Py/pull/925)
-## Bug Fixes
 * Error out with `IndexError` when attempting to use a step in the regular indexer [#911](https://github.com/TileDB-Inc/TileDB-Py/pull/911)
 
 # TileDB-Py 0.12.2 Release Notes
