@@ -6,10 +6,10 @@
 ## API Changes
 * Deprecate partial vacuuming []()
 
-# TileDB-Py 0.12.4 Release Notes
+# TileDB-Py 0.12.3 Release Notes
 
 ## TileDB Embedded updates:
-* TileDB-Py 0.12.4 includes TileDB Embedded [TileDB 2.6.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.3)
+* TileDB-Py 0.12.3 includes TileDB Embedded [TileDB 2.6.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.3)
 
 ## Bug Fixes
 * Properly initalize query in order to retrieve estimate results [#920](https://github.com/TileDB-Inc/TileDB-Py/pull/920)
