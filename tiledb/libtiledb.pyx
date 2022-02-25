@@ -7072,8 +7072,6 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
         Defaults to None, inheriting the context parameters.
     :param (ctx: tiledb.Ctx, optional): Context. Defaults to
         `tiledb.default_ctx()`.
-    :param (int, int) timestamp: (default None) If not None, vacuum the array
-        using the given range (inclusive)
     :raises TypeError: cannot convert `uri` to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
@@ -7114,16 +7112,10 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
         ctx = default_ctx()
 
     if timestamp:
-        if config is None:
-            config = Config()
-
-        if not isinstance(timestamp, tuple) and len(timestamp) != 2:
-            raise TypeError("'timestamp' argument expects tuple(start: int, end: int)")
-
-        if timestamp[0] is not None:
-            config["sm.vacuum.timestamp_start"] = timestamp[0]
-        if timestamp[1] is not None:
-            config["sm.vacuum.timestamp_end"] = timestamp[1]
+        warnings.warn("Partial vacuuming is no longer supported. Remove "
+                      "`timestamp` argument. No fragments have been vacuumed.", 
+                      DeprecationWarning)
+        return
 
     ctx_ptr = ctx.ptr
     config_ptr = config.ptr if config is not None else NULL
