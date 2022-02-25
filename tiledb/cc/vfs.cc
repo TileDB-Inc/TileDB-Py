@@ -18,6 +18,9 @@ void init_vfs(py::module &m) {
       .def(py::init<const Context &>(), py::keep_alive<1, 2>())
       .def(py::init<const Context &, const Config &>(), py::keep_alive<1, 2>())
 
+      .def("ctx", &VFS::context)
+      .def("config", &VFS::config)
+
       .def("create_bucket", &VFS::create_bucket)
       .def("remove_bucket", &VFS::remove_bucket)
       .def("is_bucket", &VFS::is_bucket)

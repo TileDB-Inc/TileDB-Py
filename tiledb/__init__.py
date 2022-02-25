@@ -101,7 +101,7 @@ from .schema import schema_like
 
 from .schema_evolution import ArraySchemaEvolution
 
-from .vfs import VFS
+from .vfs import VFS, FileIO
 
 # TODO restricted imports
 from .dataframe_ import from_csv, from_pandas, open_dataframe
