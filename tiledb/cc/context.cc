@@ -22,7 +22,7 @@ void init_context(py::module &m) {
 }
 
 void init_config(py::module &m) {
-  py::class_<tiledb::Config>(m, "ccConfig")
+  py::class_<tiledb::Config>(m, "Config")
       .def(py::init())
       .def(py::init<std::map<std::string, std::string>>())
       .def(py::init<std::string>())
