@@ -1,11 +1,11 @@
-# TileDB-Py 0.13.0 Release Notes
+# TileDB-Py 0.12.3 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.12.3 includes TileDB Embedded [TileDB 2.6.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.3)
 
 ## Bug Fixes
 * Enable building with serialization disabled [#924](https://github.com/TileDB-Inc/TileDB-Py/pull/924)
 * Do not print out `FragmentInfo_frags` for `repr` [#925](https://github.com/TileDB-Inc/TileDB-Py/pull/925)
-
-# TileDB-Py 0.12.3 Release Notes
-
 ## Bug Fixes
 * Error out with `IndexError` when attempting to use a step in the regular indexer [#911](https://github.com/TileDB-Inc/TileDB-Py/pull/911)
 
