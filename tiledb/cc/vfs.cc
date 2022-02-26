@@ -58,7 +58,12 @@ public:
     tiledb_vfs_open(this->_ctx, vfs.ptr().get(), uri.c_str(), mode, &this->_fh);
   }
 
-  ~FileHandle() { tiledb_vfs_close(this->_ctx, this->_fh); }
+  ~FileHandle() {
+    if (!this->closed())
+      this->close();
+  }
+
+  void close() { tiledb_vfs_close(this->_ctx, this->_fh); }
 
   py::bytes read(uint64_t offset, uint64_t nbytes) {
     py::array data = py::array(py::dtype::of<std::byte>(), nbytes);
@@ -93,6 +98,7 @@ void init_file_handle(py::module &m) {
 
       .def_property_readonly("closed", &FileHandle::closed)
 
+      .def("close", &FileHandle::close)
       .def("read", &FileHandle::read)
       .def("write", &FileHandle::write)
       .def("flush", &FileHandle::flush);

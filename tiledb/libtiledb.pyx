@@ -14,6 +14,7 @@ from collections import OrderedDict
 
 from .ctx import default_ctx
 from .filter import FilterList
+from .vfs import VFS
 
 import tiledb.cc as lt
 
@@ -3453,7 +3454,7 @@ cdef class Array(object):
         if overwrite:
             if object_type(uri) == "array":
                 if uri.startswith("file://") or "://" not in uri:
-                    if lt.VFS().remove_dir(uri) != TILEDB_OK:
+                    if VFS().remove_dir(uri) != TILEDB_OK:
                         _raise_ctx_err(ctx_ptr, rc)
                 else:
                     raise TypeError("Cannot overwrite non-local array.")

@@ -18,7 +18,8 @@ void init_context(py::module &m) {
 
       .def_property_readonly("config", &Context::config)
       .def("set_tag", &Context::set_tag)
-      .def("get_stats", &Context::stats);
+      .def("get_stats", &Context::stats)
+      .def("is_supported_fs", &Context::is_supported_fs);
 }
 
 void init_config(py::module &m) {

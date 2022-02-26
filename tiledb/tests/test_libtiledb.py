@@ -3725,7 +3725,9 @@ class TestVFS(DiskTestCase):
         self.assertEqual(vfs.file_size(self.path("abc")), 3)
 
         fio = vfs.open(self.path("abc"), "rb")
-        with pytest.warns(DeprecationWarning, match="Use `FileIO.read`"):
+        with pytest.warns(
+            DeprecationWarning, match="Use `FileIO.seek` and `FileIO.read`"
+        ):
             self.assertEqual(vfs.read(fio, 0, 3), buffer)
         fio.close()
 
@@ -3740,7 +3742,7 @@ class TestVFS(DiskTestCase):
         fio.close()
 
         # read from file that does not exist
-        with self.assertRaises(tiledb.TileDBError):
+        with self.assertRaises(IOError):
             vfs.open(self.path("do_not_exist"), "rb")
 
     def test_io(self):
