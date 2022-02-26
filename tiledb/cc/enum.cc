@@ -65,6 +65,9 @@ void init_enums(py::module &m) {
   py::enum_<tiledb_vfs_mode_t>(m, "VFSMode") DVENUM(READ) DVENUM(WRITE)
       DVENUM(APPEND);
 
+  py::enum_<tiledb_filesystem_t>(m, "FileSystem") DENUM(S3) DENUM(AZURE)
+      DENUM(GCS) DENUM(HDFS);
+
   // test helpers to check enum name against typed value
   m.def("_enum_string", &tiledb::impl::type_to_str);
   m.def("_enum_string",
