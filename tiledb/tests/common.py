@@ -2,6 +2,7 @@ import tiledb
 import contextlib
 import datetime
 import glob
+import importlib
 import os
 import random
 import shutil
@@ -19,6 +20,10 @@ from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
 SUPPORTED_DATETIME64_DTYPES = tuple(
     np.dtype(f"M8[{res}]") for res in "Y M W D h m s ms us ns".split()
 )
+
+
+def has_pandas():
+    return importlib.util.find_spec("pandas") is not None
 
 
 def assert_tail_equal(a, *rest, **kwargs):

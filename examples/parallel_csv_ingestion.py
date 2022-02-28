@@ -31,7 +31,7 @@
 #
 
 import tiledb
-import numpy as np, pandas as pd
+import numpy as np
 import os, tempfile, time, glob
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
@@ -41,6 +41,21 @@ from tiledb.tests.common import rand_datetime64_array, rand_utf8
 
 # are we running as a test
 in_test = "PYTEST_CURRENT_TEST" in os.environ
+
+
+def check_dataframe_deps():
+    pd_error = """Pandas version >= 1.0 required for dataframe functionality.
+                  Please `pip install pandas>=1.0` to proceed."""
+
+    try:
+        import pandas as pd
+    except ImportError:
+        raise Exception(pd_error)
+
+    from packaging.version import Version
+
+    if Version(pd.__version__) < Version("1.0"):
+        raise Exception(pd_error)
 
 
 def generate_csvs(csv_folder, count=9, min_length=1, max_length=109):
@@ -317,4 +332,5 @@ def test_parallel_csv_ingestion():
 
 
 if __name__ == "__main__":
+    check_dataframe_deps()
     test_parallel_csv_ingestion()

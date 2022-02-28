@@ -19,6 +19,7 @@ from tiledb.multirange_indexing import getitem_ranges, mr_dense_result_shape
 from tiledb.tests.common import (
     DiskTestCase,
     assert_tail_equal,
+    has_pandas,
     intspace,
     SUPPORTED_DATETIME64_DTYPES,
     rand_datetime64_array,
@@ -662,6 +663,7 @@ class TestMultiRange(DiskTestCase):
                 np.array([], dtype=np.uint64),
             )
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_fixed_multi_attr_df(self):
         uri = self.path("test_fixed_multi_attr_df")
         dom = tiledb.Domain(
@@ -695,6 +697,7 @@ class TestMultiRange(DiskTestCase):
             result = A.query(attrs=["111"], use_arrow=False)
             assert_array_equal(result.df[0]["111"], data_111)
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_var_multi_attr_df(self):
         uri = self.path("test_var_multi_attr_df")
         dom = tiledb.Domain(
@@ -776,6 +779,7 @@ class TestMultiRange(DiskTestCase):
             assert A.nonempty_domain() is None
             assert_array_equal(A.multi_index[:][""], A[:][""])
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_multi_index_query_args(self):
         uri = self.path("test_multi_index_query_args")
         schema = tiledb.ArraySchema(
@@ -801,6 +805,7 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(q.multi_index[:]["a"], q.df[:]["a"])
             assert all(q[:]["a"] >= 5)
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_multi_index_timing(self):
         path = self.path("test_multi_index_timing")
         attr_name = "a"

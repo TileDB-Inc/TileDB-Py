@@ -1,14 +1,14 @@
 import tiledb
+import importlib
 import numpy as np
-import pandas as pd
-import pandas._testing as tm
+import pytest
 
 import hypothesis
 import hypothesis.strategies as st
 from hypothesis import given
 from numpy.testing import assert_array_equal
 
-from tiledb.tests.common import DiskTestCase
+from tiledb.tests.common import DiskTestCase, has_pandas
 
 
 class AttrDataTest(DiskTestCase):
@@ -43,9 +43,13 @@ class AttrDataTest(DiskTestCase):
         # DEBUG
         tiledb.stats_disable()
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     @hypothesis.settings(deadline=1000)
     @given(st.binary())
     def test_bytes_df(self, data):
+        import pandas as pd
+        from pandas import _testing as tm
+
         # TODO this test is slow. might be nice to run with in-memory
         #      VFS (if faster) but need to figure out correct setup
         # uri = "mem://" + str(uri_int)

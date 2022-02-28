@@ -37,6 +37,24 @@ import numpy as np
 import sys
 import tiledb
 
+import importlib
+
+
+def check_dataframe_deps():
+    pd_error = """Pandas version >= 1.0 required for dataframe functionality.
+                  Please `pip install pandas>=1.0` to proceed."""
+
+    try:
+        import pandas as pd
+    except ImportError:
+        raise Exception(pd_error)
+
+    from packaging.version import Version
+
+    if Version(pd.__version__) < Version("1.0"):
+        raise Exception(pd_error)
+
+
 # Name of the array to create.
 array_name = "incomplete_iteration"
 
@@ -92,6 +110,7 @@ def read_array_iterated():
     print(f"Query completed after {i} iterations")
 
 
+check_dataframe_deps()
 create_array()
 write_array()
 read_array_iterated()

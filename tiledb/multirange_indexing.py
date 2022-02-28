@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar, copy_context
 from numbers import Real
 from dataclasses import dataclass
+import importlib
 from itertools import zip_longest
 from typing import (
     Any,
@@ -18,9 +19,11 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    # TYPE_CHECKING,
     Union,
     cast,
 )
+
 
 import numpy as np
 
@@ -32,10 +35,11 @@ from .dataframe_ import check_dataframe_deps
 
 current_timer: ContextVar[str] = ContextVar("timer_scope")
 
-try:
-    import pyarrow
+# has_pandas = importlib.util.find_spec("pandas") is not None
+# has_pyarrow = importlib.util.find_spec("pyarrow") is not None
 
-    Table = Union[pyarrow.Table]
+try:
+    from pyarrow import Table
 except ImportError:
     pyarrow = Table = None
 
@@ -344,7 +348,7 @@ class DataFrameIndexer(MultiRangeIndexer):
 
                 result = self._run_query(query, preload_metadata=True)
             if not (pyarrow and isinstance(result, pyarrow.Table)):
-                if not isinstance(result, DataFrame):
+                if DataFrame and not isinstance(result, DataFrame):
                     result = DataFrame.from_dict(result)
                 with timing("pandas_index_update_time"):
                     result = _update_df_from_meta(result, array.meta, query.index_col)

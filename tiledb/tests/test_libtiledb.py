@@ -27,6 +27,7 @@ from tiledb.tests.common import (
     assert_subarrays_equal,
     assert_unordered_equal,
     DiskTestCase,
+    has_pandas,
     rand_ascii,
     rand_ascii_bytes,
     rand_utf8,
@@ -447,7 +448,7 @@ class AttributeTest(DiskTestCase):
         with tiledb.open(path) as R:
             assert R.multi_index[0][""] == np.array(fill, dtype=dtype)
             assert R[0] == np.array(fill, dtype=dtype)
-            if not hasattr(dtype, "fields"):
+            if has_pandas() and not hasattr(dtype, "fields"):
                 # record type unsupported for .df
                 assert R.df[0][""].values == np.array(fill, dtype=dtype)
 
@@ -1658,8 +1659,9 @@ class DenseArrayTest(DiskTestCase):
             res_idx = A[:]
             assert_array_equal(res_idx, data)
 
-            df = A.df[:]
-            assert_array_equal(df[""], data)
+            if has_pandas():
+                df = A.df[:]
+                assert_array_equal(df[""], data)
 
     def test_written_fragment_info(self):
         uri = self.path("test_written_fragment_info")
@@ -2236,6 +2238,7 @@ class TestSparseArray(DiskTestCase):
                 "coords" not in T.query(coords=False).multi_index[-10.0:5.0]
             )
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     @pytest.mark.parametrize("dtype", INTEGER_DTYPES)
     def test_sparse_index_dtypes(self, dtype):
         path = self.path()
@@ -3287,14 +3290,20 @@ class PickleTest(DiskTestCase):
                 pickle.dump(T, buf)
                 buf.seek(0)
                 with pickle.load(buf) as T2:
-                    assert_array_equal(T.df[:], T2.df[:])
+                    if sparse:
+                        assert_array_equal(T[:][""], T2[:][""])
+                    else:
+                        assert_array_equal(T[:], T2[:])
 
             with io.BytesIO() as buf, tiledb.open(uri) as V:
                 pickle.dump(V, buf)
                 buf.seek(0)
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
-                    assert_array_equal(V.df[:], V2.df[:])
+                    if sparse:
+                        assert_array_equal(V[:][""], V2[:][""])
+                    else:
+                        assert_array_equal(V[:], V2[:])
 
     @tiledb.scope_ctx({"vfs.s3.region": "kuyper-belt-1", "vfs.max_parallel_ops": "1"})
     def test_pickle_with_config(self):
@@ -3336,7 +3345,10 @@ class PickleTest(DiskTestCase):
                 pickle.dump(T, buf)
                 buf.seek(0)
                 with pickle.load(buf) as T2:
-                    assert_array_equal(T.df[:], T2.df[:])
+                    if sparse:
+                        assert_array_equal(T[:][""], T2[:][""])
+                    else:
+                        assert_array_equal(T[:], T2[:])
                     assert T2.timestamp_range == (2, 3)
 
             with io.BytesIO() as buf, tiledb.open(path, timestamp=(2, 3)) as V:
@@ -3344,7 +3356,10 @@ class PickleTest(DiskTestCase):
                 buf.seek(0)
                 with pickle.load(buf) as V2:
                     # make sure anonymous view pickles and round-trips
-                    assert_array_equal(V.df[:], V2.df[:])
+                    if sparse:
+                        assert_array_equal(V[:][""], V2[:][""])
+                    else:
+                        assert_array_equal(V[:], V2[:])
                     assert V2.timestamp_range == (2, 3)
 
 
@@ -4298,8 +4313,8 @@ class IncompleteTest(DiskTestCase):
         self.assertEqual(config["py.init_buffer_bytes"], str(init_buffer_bytes))
 
         with tiledb.DenseArray(path, mode="r", ctx=tiledb.Ctx(config)) as T2:
-            df = T2.query(attrs=[""]).df[:]
-            assert_array_equal(df[""], data)
+            result = T2.query(attrs=[""])[:]
+            assert_array_equal(result, data)
 
     @pytest.mark.parametrize("allows_duplicates", [True, False])
     @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
@@ -4350,6 +4365,7 @@ class IncompleteTest(DiskTestCase):
                 T2.multi_index[101:105][""], np.array([], dtype=np.dtype("<U"))
             )
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     @pytest.mark.parametrize(
         "return_arrow, indexer", [(True, "df"), (False, "df"), (False, "multi_index")]
     )
@@ -4365,8 +4381,8 @@ class IncompleteTest(DiskTestCase):
         non_overlapping_ranges,
     ):
         import pyarrow as pa
-        import pandas as pd
         from tiledb.multirange_indexing import EstimatedResultSize
+        import pandas as pd
 
         path = test_incomplete_return_array
 
@@ -4397,7 +4413,6 @@ class IncompleteTest(DiskTestCase):
             assert est_results[""].data_bytes > 0
 
             for result in iterable:
-
                 if return_arrow:
                     assert isinstance(result, pa.Table)
                     df = result.to_pandas()
