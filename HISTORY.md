@@ -4,7 +4,7 @@
 * TileDB-Py 0.12.3 includes TileDB Embedded [TileDB 2.6.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.3)
 
 ## API Changes
-* Deprecate partial vacuuming []()
+* Deprecate partial vacuuming [#930](https://github.com/TileDB-Inc/TileDB-Py/pull/930)
 
 # TileDB-Py 0.12.3 Release Notes
 

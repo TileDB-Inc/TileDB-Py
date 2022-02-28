@@ -7112,10 +7112,20 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
         ctx = default_ctx()
 
     if timestamp:
-        warnings.warn("Partial vacuuming is no longer supported. Remove "
-                      "`timestamp` argument. No fragments have been vacuumed.", 
+        warnings.warn("Partial vacuuming will no longer be "
+                      "supported in 0.14 / libtiledb 2.8", 
                       DeprecationWarning)
-        return
+
+        if config is None:
+            config = Config()
+
+        if not isinstance(timestamp, tuple) and len(timestamp) != 2:
+            raise TypeError("'timestamp' argument expects tuple(start: int, end: int)")
+
+        if timestamp[0] is not None:
+            config["sm.vacuum.timestamp_start"] = timestamp[0]
+        if timestamp[1] is not None:
+            config["sm.vacuum.timestamp_end"] = timestamp[1]
 
     ctx_ptr = ctx.ptr
     config_ptr = config.ptr if config is not None else NULL
