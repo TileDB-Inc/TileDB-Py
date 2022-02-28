@@ -50,47 +50,47 @@ class QueryConditionTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("1.324 < 1")
-                A.query(attr_cond=qc, use_arrow=False).df[:]
+                A.query(attr_cond=qc, use_arrow=False)[:]
 
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("foo >= bar")
-                A.query(attr_cond=qc, use_arrow=False).df[:]
+                A.query(attr_cond=qc, use_arrow=False)[:]
 
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("'foo' == 'bar'")
-                A.query(attr_cond=qc, use_arrow=False).df[:]
+                A.query(attr_cond=qc, use_arrow=False)[:]
 
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("U < 10000000000000000000000.0")
-                A.query(attr_cond=qc, attrs=["U"]).df[:]
+                A.query(attr_cond=qc, attrs=["U"])[:]
 
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("D")
-                A.query(attr_cond=qc, attrs=["D"]).df[:]
+                A.query(attr_cond=qc, attrs=["D"])[:]
 
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("D,")
-                A.query(attr_cond=qc, attrs=["D"]).df[:]
+                A.query(attr_cond=qc, attrs=["D"])[:]
 
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("D > ")
-                A.query(attr_cond=qc, attrs=["D"]).df[:]
+                A.query(attr_cond=qc, attrs=["D"])[:]
 
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("(D > 0.7) | (D < 3.5)")
-                A.query(attr_cond=qc, attrs=["D"]).df[:]
+                A.query(attr_cond=qc, attrs=["D"])[:]
 
         with self.assertRaises(tiledb.TileDBError):
             with tiledb.open(input_array_UIDS) as A:
                 qc = tiledb.QueryCondition("U >= 3 or 0.7 < D")
-                A.query(attr_cond=qc, attrs=["U", "D"]).df[:]
+                A.query(attr_cond=qc, attrs=["U", "D"])[:]
 
     @pytest.mark.xfail(
         tiledb.libtiledb.version() >= (2, 5),
@@ -116,108 +116,108 @@ class QueryConditionTest(DiskTestCase):
     def test_unsigned(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:
             qc = tiledb.QueryCondition("U < 5")
-            result = A.query(attr_cond=qc, attrs=["U"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["U"])[:]
             assert all(result["U"] < 5)
 
     def test_signed(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:
             qc = tiledb.QueryCondition("I < 1")
-            result = A.query(attr_cond=qc, attrs=["I"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["I"])[:]
             assert all(result["I"] < 1)
 
             qc = tiledb.QueryCondition("I < +1")
-            result = A.query(attr_cond=qc, attrs=["I"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["I"])[:]
             assert all(result["I"] < +1)
 
             qc = tiledb.QueryCondition("I < ---1")
-            result = A.query(attr_cond=qc, attrs=["I"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["I"])[:]
             assert all(result["I"] < ---1)
 
             qc = tiledb.QueryCondition("-5 < I < 5")
-            result = A.query(attr_cond=qc, attrs=["I"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["I"])[:]
             assert all(-5 < result["I"])
             assert all(result["I"] < 5)
 
     def test_floats(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:
             qc = tiledb.QueryCondition("D > 5.0")
-            result = A.query(attr_cond=qc, attrs=["D"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["D"])[:]
             assert all(result["D"] > 5.0)
 
             qc = tiledb.QueryCondition("(D > 0.7) & (D < 3.5)")
-            result = A.query(attr_cond=qc, attrs=["D"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["D"])[:]
             assert all((result["D"] > 0.7) & (result["D"] < 3.5))
 
             qc = tiledb.QueryCondition("0.2 < D < 0.75")
-            result = A.query(attr_cond=qc, attrs=["D", "I"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
             assert all(0.2 < result["D"])
             assert all(result["D"] < 0.75)
 
     def test_string(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:
             qc = tiledb.QueryCondition("S == 'c'")
-            result = A.query(attr_cond=qc, attrs=["S"], use_arrow=False).df[:]
+            result = A.query(attr_cond=qc, attrs=["S"], use_arrow=False)[:]
             assert len(result["S"]) == 1
             assert result["S"][0] == b"c"
 
             qc = tiledb.QueryCondition("A == 'a'")
-            result = A.query(attr_cond=qc, attrs=["A"], use_arrow=False).df[:]
+            result = A.query(attr_cond=qc, attrs=["A"], use_arrow=False)[:]
             assert len(result["A"]) == 1
             assert result["A"][0] == b"a"
 
     def test_combined_types(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:
             qc = tiledb.QueryCondition("(I > 0) & ((-3 < D) & (D < 3.0))")
-            result = A.query(attr_cond=qc, attrs=["I", "D"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["I", "D"])[:]
             assert all((result["I"] > 0) & ((-3 < result["D"]) & (result["D"] < 3.0)))
 
             qc = tiledb.QueryCondition("U >= 3 and 0.7 < D")
-            result = A.query(attr_cond=qc, attrs=["U", "D"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["U", "D"])[:]
             assert all(result["U"] >= 3)
             assert all(0.7 < result["D"])
 
             qc = tiledb.QueryCondition("(0.2 < D and D < 0.75) and (-5 < I < 5)")
-            result = A.query(attr_cond=qc, attrs=["D", "I"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
             assert all((0.2 < result["D"]) & (result["D"] < 0.75))
             assert all((-5 < result["I"]) & (result["I"] < 5))
 
             qc = tiledb.QueryCondition("(-5 < I <= -1) and (0.2 < D < 0.75)")
-            result = A.query(attr_cond=qc, attrs=["D", "I"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
             assert all((0.2 < result["D"]) & (result["D"] < 0.75))
             assert all((-5 < result["I"]) & (result["I"] <= -1))
 
             qc = tiledb.QueryCondition("(0.2 < D < 0.75) and (-5 < I < 5)")
-            result = A.query(attr_cond=qc, attrs=["D", "I"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
             assert all((0.2 < result["D"]) & (result["D"] < 0.75))
             assert all((-5 < result["I"]) & (result["I"] < 5))
 
     def test_check_attrs(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:
             qc = tiledb.QueryCondition("U < 0.1")
-            result = A.query(attr_cond=qc, attrs=["U"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["U"])[:]
             assert all(result["U"] < 0.1)
 
             qc = tiledb.QueryCondition("U < 1.0")
-            result = A.query(attr_cond=qc, attrs=["U"]).df[:]
+            result = A.query(attr_cond=qc, attrs=["U"])[:]
             assert all(result["U"] < 1.0)
 
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < '1'")
-                A.query(attr_cond=qc, attrs=["U"]).df[:]
+                A.query(attr_cond=qc, attrs=["U"])[:]
 
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < 'one'")
-                A.query(attr_cond=qc, attrs=["U"]).df[:]
+                A.query(attr_cond=qc, attrs=["U"])[:]
 
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < 1")
-                A.query(attr_cond=qc, attrs=["D"]).df[:]
+                A.query(attr_cond=qc, attrs=["D"])[:]
 
     def test_error_when_using_dim(self, input_array_UIDS):
         with tiledb.open(input_array_UIDS) as A:
             with pytest.raises(tiledb.TileDBError) as excinfo:
                 qc = tiledb.QueryCondition("d < 5")
-                A.query(attr_cond=qc).df[:]
+                A.query(attr_cond=qc)[:]
             assert (
                 "`d` is a dimension. QueryConditions currently only work on attributes."
                 in str(excinfo.value)
@@ -245,27 +245,27 @@ class QueryConditionTest(DiskTestCase):
 
         with tiledb.open(path) as arr:
             qc = tiledb.QueryCondition("attr('64-bit integer') <= val(0)")
-            result = arr.query(attr_cond=qc).df[:]
+            result = arr.query(attr_cond=qc)[:]
             assert all(result["64-bit integer"] <= 0)
 
             qc = tiledb.QueryCondition("attr('64-bit integer') <= 0")
-            result = arr.query(attr_cond=qc).df[:]
+            result = arr.query(attr_cond=qc)[:]
             assert all(result["64-bit integer"] <= 0)
 
             qc = tiledb.QueryCondition("double <= 0.5")
-            result = arr.query(attr_cond=qc).df[:]
+            result = arr.query(attr_cond=qc)[:]
             assert all(result["double"] <= 0.5)
 
             qc = tiledb.QueryCondition("attr('double') <= 0.5")
-            result = arr.query(attr_cond=qc).df[:]
+            result = arr.query(attr_cond=qc)[:]
             assert all(result["double"] <= 0.5)
 
             qc = tiledb.QueryCondition("double <= val(0.5)")
-            result = arr.query(attr_cond=qc).df[:]
+            result = arr.query(attr_cond=qc)[:]
             assert all(result["double"] <= 0.5)
 
             qc = tiledb.QueryCondition("attr('double') <= val(0.5)")
-            result = arr.query(attr_cond=qc).df[:]
+            result = arr.query(attr_cond=qc)[:]
             assert all(result["double"] <= 0.5)
 
     def test_attr_and_val_casting_str(self):
@@ -294,13 +294,13 @@ class QueryConditionTest(DiskTestCase):
             qc = tiledb.QueryCondition(
                 "attr('attr with spaces') == 'value with spaces'"
             )
-            result = arr.query(attr_cond=qc, use_arrow=False).df[:]
+            result = arr.query(attr_cond=qc, use_arrow=False)[:]
             assert list(result["dim"]) == [b"a", b"c"]
 
             qc = tiledb.QueryCondition(
                 "attr('attr with spaces') == val('value with spaces')"
             )
-            result = arr.query(attr_cond=qc, use_arrow=False).df[:]
+            result = arr.query(attr_cond=qc, use_arrow=False)[:]
             assert list(result["dim"]) == [b"a", b"c"]
 
     @pytest.mark.skipif(
@@ -332,10 +332,10 @@ class QueryConditionTest(DiskTestCase):
         with tiledb.open(path, "r") as arr:
             for s in ascii_data:
                 qc = tiledb.QueryCondition(f"ascii == '{s.decode()}'")
-                result = arr.query(attr_cond=qc, use_arrow=False).df[:]
+                result = arr.query(attr_cond=qc, use_arrow=False)[:]
                 assert result["ascii"][0] == s
 
             for s in bytes_data:
                 qc = tiledb.QueryCondition(f"bytes == '{s.decode()}'")
-                result = arr.query(attr_cond=qc, use_arrow=False).df[:]
+                result = arr.query(attr_cond=qc, use_arrow=False)[:]
                 assert result["bytes"][0] == s

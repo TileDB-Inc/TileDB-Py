@@ -2,7 +2,8 @@ import numpy as np
 import tiledb
 import concurrent, concurrent.futures
 
-from tiledb.tests.common import DiskTestCase
+import pytest
+from tiledb.tests.common import DiskTestCase, has_pandas
 from numpy.testing import assert_array_equal
 
 
@@ -46,6 +47,7 @@ class FixesTest(DiskTestCase):
                 buffers = q._get_buffers()
                 assert buffers[0].nbytes == max
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_ch10282_concurrent_multi_index(self):
         """Test concurrent access to a single tiledb.Array using
         Array.multi_index and Array.df. We pass an array and slice

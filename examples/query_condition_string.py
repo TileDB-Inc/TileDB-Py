@@ -55,7 +55,7 @@ def read_array(path, cond):
         qc = tiledb.QueryCondition(cond)
 
         print("QueryCondition is: ", qc)
-        res = arr.query(attr_cond=qc).df[:]
+        res = arr.query(attr_cond=qc)[:]
         return res
 
 
