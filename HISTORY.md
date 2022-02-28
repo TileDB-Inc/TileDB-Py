@@ -1,3 +1,8 @@
+# TileDB-Py 0.13.0 Release Notes
+
+## API Changes
+* Default `from_csv` to use `filter=ZstdFilter()` if not specified for `Attr` or `Dim` []()
+
 # TileDB-Py 0.12.3 Release Notes
 
 ## TileDB Embedded updates:
