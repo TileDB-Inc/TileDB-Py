@@ -3884,7 +3884,11 @@ class ConsolidationTest(DiskTestCase):
         assert len(frags.to_vacuum) == 4
 
         with pytest.warns(
-            DeprecationWarning, match="Partial vacuuming is no longer supported"
+            DeprecationWarning,
+            match=(
+                "Partial vacuuming will no longer be "
+                "supported in 0.14 / libtiledb 2.8"
+            ),
         ):
             tiledb.vacuum(path, timestamp=(1, 2))
 

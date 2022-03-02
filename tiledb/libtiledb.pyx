@@ -7111,7 +7111,7 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
     if not ctx:
         ctx = default_ctx()
 
-    if timestamp:
+    if timestamp is not None:
         warnings.warn("Partial vacuuming will no longer be "
                       "supported in 0.14 / libtiledb 2.8", 
                       DeprecationWarning)
