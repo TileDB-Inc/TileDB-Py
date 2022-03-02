@@ -1,6 +1,10 @@
 # TileDB-Py 0.13.0 Release Notes
 
+## TileDB Embedded updates:
+* TileDB-Py 0.13.0 includes TileDB Embedded [TileDB 2.7.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.7.0)
+
 ## API Changes
+* Deprecate partial vacuuming [#930](https://github.com/TileDB-Inc/TileDB-Py/pull/930)
 * Default `from_csv` to use `filter=ZstdFilter()` if not specified for `Attr` or `Dim` [#937](https://github.com/TileDB-Inc/TileDB-Py/pull/937)
 
 # TileDB-Py 0.12.3 Release Notes

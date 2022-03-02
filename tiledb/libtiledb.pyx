@@ -7072,8 +7072,6 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
         Defaults to None, inheriting the context parameters.
     :param (ctx: tiledb.Ctx, optional): Context. Defaults to
         `tiledb.default_ctx()`.
-    :param (int, int) timestamp: (default None) If not None, vacuum the array
-        using the given range (inclusive)
     :raises TypeError: cannot convert `uri` to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
@@ -7113,7 +7111,11 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
     if not ctx:
         ctx = default_ctx()
 
-    if timestamp:
+    if timestamp is not None:
+        warnings.warn("Partial vacuuming will no longer be "
+                      "supported in 0.14 / libtiledb 2.8", 
+                      DeprecationWarning)
+
         if config is None:
             config = Config()
 
