@@ -3,7 +3,10 @@ import json
 import os
 import warnings
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import List, Optional, TYPE_CHECKING, Union
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 import numpy as np
 
@@ -209,7 +212,7 @@ def _get_attrs(names, column_infos, attr_filters):
         attrs.append(
             tiledb.Attr(
                 name=name,
-                filters=filters,
+                filters=filters or [tiledb.ZstdFilter()],
                 dtype=column_info.dtype,
                 nullable=column_info.nullable,
                 var=column_info.var,
@@ -266,7 +269,7 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
         # nb.bytes_ which will force encoding on write
         dtype=np.bytes_ if dtype == np.str_ else dtype,
         tile=tile,
-        filters=dim_filters,
+        filters=dim_filters or [tiledb.ZstdFilter()],
     )
 
 
@@ -342,7 +345,7 @@ def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
             dtype,
             tile=get_dim_tile(name),
             full_domain=full_domain,
-            dim_filters=_get_attr_dim_filters(name, filters),
+            dim_filters=_get_attr_dim_filters(name, filters) or [tiledb.ZstdFilter()],
         )
         for name, dtype, values in name_dtype_values
     ]
@@ -386,7 +389,7 @@ def _df_to_np_arrays(df, column_infos, fillna):
     return ret, nullmaps
 
 
-def from_pandas(uri, dataframe, **kwargs):
+def from_pandas(uri: str, dataframe: "pd.DataFrame", **kwargs):
     """Create TileDB array at given URI from a Pandas dataframe
 
     Supports most Pandas series types, including nullable integers and
@@ -401,6 +404,8 @@ def from_pandas(uri, dataframe, **kwargs):
         * Any `pandas.read_csv <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>`_ supported keyword argument
         * **ctx** - A TileDB context
         * **sparse** - (default True) Create sparse schema
+        * **chunksize** - (default None) Maximum number of rows to read at a time. Note that this is also a `pandas.read_csv` argument
+                          which `tiledb.read_csv` checks for in order to correctly read a file batchwise.
         * **index_dims** - Set the df index using a list of existing column names
         * **allows_duplicates** - Generated schema should allow duplicates
         * **mode** - (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
@@ -656,7 +661,7 @@ def _iterate_csvs_pandas(csv_list, pandas_args):
             yield result_list
 
 
-def from_csv(uri, csv_file, **kwargs):
+def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
     """
     Create TileDB array at given URI from a CSV file or list of files
 

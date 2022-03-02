@@ -239,6 +239,7 @@ class TestDimType:
         with tiledb.open(uri) as A:
             assert A.schema.domain.dim(0).dtype == expected
             assert A.schema.domain.dim(0).name == df.index.name
+            assert A.schema.domain.dim(0).filters == [tiledb.ZstdFilter()]
 
 
 class TestPandasDataFrameRoundtrip(DiskTestCase):
@@ -309,9 +310,13 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tiledb.from_pandas(uri, df, full_domain=True, sparse=False)
 
         with tiledb.open(uri) as A:
-            dim = A.schema.domain.dim(0)
+            dim = A.domain.dim(0)
             assert dim.domain[0] == dtype_min(np.int64)
             assert dim.domain[1] == dtype_max(np.int64) - dim.tile
+            assert dim.filters == [tiledb.ZstdFilter()]
+
+            attr = A.attr(0)
+            assert attr.filters == [tiledb.ZstdFilter()]
 
         for use_arrow in None, False, True:
             df_readback = tiledb.open_dataframe(uri, use_arrow=use_arrow)
@@ -781,10 +786,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         with tiledb.open(tmp_array) as A:
             self.assertEqual(A.schema, ref_schema)
-
-            # TODO currently no equality check for filters
-            self.assertEqual(A.schema.coords_filters[0].level, coords_filters[0].level)
-            self.assertEqual(A.schema.attr(0).filters[0].level, attrs_filters[0].level)
+            assert A.dim(0).filters[0] == tiledb.ZstdFilter()
+            assert A.dim(1).filters[0] == tiledb.ZstdFilter()
+            assert A.schema.coords_filters[0] == coords_filters[0]
+            assert A.schema.coords_filters[0].level == coords_filters[0].level
+            assert A.attr(0).filters[0] == attrs_filters[0]
+            assert A.attr(0).filters[0].level == attrs_filters[0].level
 
         # Test mode='append' for from_csv
         tiledb.from_csv(tmp_array, tmp_csv, mode="append", row_start_idx=0)
@@ -1020,9 +1027,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         )
         with tiledb.open(uri) as A:
             self.assertTrue(A.schema.attr("data").filters == bz_filter)
-            self.assertTrue(A.schema.attr("raw").filters == tiledb.FilterList())
+            self.assertTrue(A.schema.attr("raw").filters == [tiledb.ZstdFilter()])
             self.assertTrue(A.schema.domain.dim("index").filters == bz_filter)
-            self.assertTrue(A.schema.domain.dim("indey").filters == tiledb.FilterList())
+            self.assertTrue(
+                A.schema.domain.dim("indey").filters == [tiledb.ZstdFilter()]
+            )
 
     def test_dataframe_query(self):
         uri = self.path("df_query")

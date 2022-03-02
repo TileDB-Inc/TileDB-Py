@@ -5,6 +5,7 @@
 
 ## API Changes
 * Deprecate partial vacuuming [#930](https://github.com/TileDB-Inc/TileDB-Py/pull/930)
+* Default `from_csv` to use `filter=ZstdFilter()` if not specified for `Attr` or `Dim` [#937](https://github.com/TileDB-Inc/TileDB-Py/pull/937)
 
 # TileDB-Py 0.12.3 Release Notes
 
