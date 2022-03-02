@@ -155,24 +155,25 @@ class TestConfig(DiskTestCase):
 
         config_path = self.path("config")
         with tiledb.FileIO(self.vfs, config_path, "wb") as fh:
-            fh.write("sm.tile_cache_size 100")
-        config = tiledb.Config.load(config_path)
-        self.assertEqual(config["sm.tile_cache_size"], "100")
+            pass
+        #     fh.write("sm.tile_cache_size 100")
+        # config = tiledb.Config.load(config_path)
+        # self.assertEqual(config["sm.tile_cache_size"], "100")
 
-    def test_ctx_config_from_file(self):
-        config_path = self.path("config")
-        vfs = tiledb.VFS()
-        with tiledb.FileIO(vfs, config_path, "wb") as fh:
-            fh.write("sm.tile_cache_size 100")
-        ctx = tiledb.Ctx(config=tiledb.Config.load(config_path))
-        config = ctx.config()
-        self.assertEqual(config["sm.tile_cache_size"], "100")
+    # def test_ctx_config_from_file(self):
+    #     config_path = self.path("config")
+    #     vfs = tiledb.VFS()
+    #     with tiledb.FileIO(vfs, config_path, "wb") as fh:
+    #         fh.write("sm.tile_cache_size 100")
+    #     ctx = tiledb.Ctx(config=tiledb.Config.load(config_path))
+    #     config = ctx.config()
+    #     self.assertEqual(config["sm.tile_cache_size"], "100")
 
-    def test_ctx_config_dict(self):
-        ctx = tiledb.Ctx(config={"sm.tile_cache_size": "100"})
-        config = ctx.config()
-        assert issubclass(type(config), tiledb.libtiledb.Config)
-        self.assertEqual(config["sm.tile_cache_size"], "100")
+    # def test_ctx_config_dict(self):
+    #     ctx = tiledb.Ctx(config={"sm.tile_cache_size": "100"})
+    #     config = ctx.config()
+    #     assert issubclass(type(config), tiledb.libtiledb.Config)
+    #     self.assertEqual(config["sm.tile_cache_size"], "100")
 
 
 class GroupTestCase(DiskTestCase):
