@@ -1,7 +1,7 @@
-# TileDB-Py 0.12.3 Release Notes
+# TileDB-Py 0.13.0 Release Notes
 
 ## TileDB Embedded updates:
-* TileDB-Py 0.12.3 includes TileDB Embedded [TileDB 2.6.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.6.3)
+* TileDB-Py 0.13.0 includes TileDB Embedded [TileDB 2.7.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.7.0)
 
 ## API Changes
 * Deprecate partial vacuuming [#930](https://github.com/TileDB-Inc/TileDB-Py/pull/930)
