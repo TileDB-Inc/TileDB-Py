@@ -61,17 +61,6 @@ class FragmentInfoTest(DiskTestCase):
             self.assertEqual(frag.sparse, False)
             self.assertEqual(frag.timestamp_range, (idx + 1, idx + 1))
 
-            if tiledb.libtiledb.version() < (2, 2, 3):
-                assert frag.version == 7
-            elif tiledb.libtiledb.version() < (2, 3, 0):
-                assert frag.version == 8
-            else:
-                # make sure the version is within some reasonable bound
-                # but don't pin because that makes testing against dev
-                # more difficult
-                assert frag.version >= 9
-                assert frag.version < 12
-
     def test_array_fragments_var(self):
         fragments = 3
 
@@ -162,16 +151,6 @@ class FragmentInfoTest(DiskTestCase):
 
         self.assertEqual(fragment_info.get_timestamp_range(), ((1, 1), (2, 2), (3, 3)))
         self.assertEqual(fragment_info.get_sparse(), (False, False, False))
-        if tiledb.libtiledb.version() < (2, 2, 3):
-            assert fragment_info.get_version()[0] == 7
-        elif tiledb.libtiledb.version() < (2, 3, 0):
-            assert fragment_info.get_version()[0] == 8
-        else:
-            # make sure the version is within some reasonable bound
-            # but don't pin because that makes testing against dev
-            # more difficult
-            assert fragment_info.get_version()[0] >= 9
-            assert fragment_info.get_version()[0] < 12
 
     def test_sparse_fragments(self):
         fragments = 3
@@ -225,16 +204,6 @@ class FragmentInfoTest(DiskTestCase):
 
         self.assertEqual(fragment_info.get_timestamp_range(), ((1, 1), (2, 2), (3, 3)))
         self.assertEqual(fragment_info.get_sparse(), (True, True, True))
-        if tiledb.libtiledb.version() < (2, 2, 3):
-            assert fragment_info.get_version()[0] == 7
-        elif tiledb.libtiledb.version() < (2, 3, 0):
-            assert fragment_info.get_version()[0] == 8
-        else:
-            # make sure the version is within some reasonable bound
-            # but don't pin because that makes testing against dev
-            # more difficult
-            assert fragment_info.get_version()[0] >= 9
-            assert fragment_info.get_version()[0] < 12
 
     def test_nonempty_domain(self):
         uri = self.path("test_nonempty_domain")
