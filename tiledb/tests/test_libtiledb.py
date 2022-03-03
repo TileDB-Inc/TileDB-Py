@@ -3886,8 +3886,8 @@ class ConsolidationTest(DiskTestCase):
         with pytest.warns(
             DeprecationWarning,
             match=(
-                "Partial vacuuming will no longer be "
-                "supported in 0.14 / libtiledb 2.8"
+                "Partial vacuuming via timestamp will be deprecrated in "
+                "a future release and replaced by passing in fragment URIs."
             ),
         ):
             tiledb.vacuum(path, timestamp=(1, 2))

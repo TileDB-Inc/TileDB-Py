@@ -781,8 +781,8 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         )
         # note: filters omitted
 
-        array_nfiles = len(tiledb.VFS().ls(tmp_array))
-        self.assertEqual(array_nfiles, 3 if tiledb.libtiledb.version() < (2, 7) else 2)
+        fi = tiledb.array_fragments(tmp_array)
+        assert len(fi) == 0
 
         with tiledb.open(tmp_array) as A:
             self.assertEqual(A.schema, ref_schema)
@@ -975,10 +975,17 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         )
 
         # Check number of fragments
-        # * should equal 8 based on chunksize=25
-        # * 20 files, 10 rows each, 200 rows == 8 writes:
-        fragments = glob.glob(tmp_array + "/*.ok")
-        self.assertEqual(len(fragments), 8)
+        frags_dir = os.path.join(tmp_array, "__fragments")
+        if self.vfs.is_dir(frags_dir):
+            fragments = self.vfs.ls(frags_dir)
+        else:
+            fragments = glob.glob(tmp_array + "/*.ok")
+        assert len(fragments) == 8
+
+        # TODO: THIS IS ERRORING OUT; prefer this to above
+        # https://app.shortcut.com/tiledb-inc/story/15277/fragmentinfo-overflowerror-int-too-big-to-convert
+        # fi = tiledb.array_fragments(tmp_array)
+        # assert len(fi) == 8
 
         # Check the returned data
         # note: tiledb returns sorted values

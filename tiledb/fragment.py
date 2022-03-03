@@ -370,7 +370,6 @@ def delete_fragments(
     :param dry_run: (optional) Preview fragments to be deleted without
         running (default: False)
     """
-
     if not isinstance(timestamp_range, tuple) and len(timestamp_range) != 2:
         raise TypeError(
             "'timestamp_range' argument expects tuple(start: int, end: int)"
@@ -390,30 +389,31 @@ def delete_fragments(
     # TODO currently we cannot mix old and new style schemas, so it is only
     # relevant to check if we need to delete new style schemas. we will need to
     # check both in the future.
+    array_fragments = tiledb.array_fragments(uri)
     deleted_fragment_schema = set()
-    for frag in tiledb.array_fragments(uri):
+    for frag in array_fragments:
         if (
             timestamp_range[0] <= frag.timestamp_range[0]
             and frag.timestamp_range[1] <= timestamp_range[1]
         ):
+            if frag.version < 12:
+                ok_or_wrt = f"{frag.uri}.ok"
+            else:
+                frag_name = os.path.basename(frag.uri)
+                ok_or_wrt = os.path.join(uri, "__commits", f"{frag_name}.wrt")
+
             if verbose or dry_run:
                 print(f"\t{frag.uri}")
+                print(ok_or_wrt)
 
             if not dry_run:
-                vfs.remove_file(f"{frag.uri}.ok")
                 vfs.remove_dir(frag.uri)
+                vfs.remove_file(ok_or_wrt)
 
             deleted_fragment_schema.add(frag.array_schema_name)
 
-    schemas_in_array = set(tiledb.array_fragments(uri).array_schema_name)
-    schemas_on_disk = set(
-        [
-            os.path.basename(full_path)
-            for full_path in vfs.ls(os.path.join(uri, "__schema"))
-        ]
-    )
-
-    schemas_to_remove_on_disk = list(deleted_fragment_schema - schemas_in_array)
+    schemas_in_array = set(array_fragments.array_schema_name)
+    schemas_to_remove_on_disk = list(schemas_in_array - deleted_fragment_schema)
     if schemas_to_remove_on_disk and (verbose or dry_run):
         print("Deleting schemas:")
 
@@ -421,7 +421,6 @@ def delete_fragments(
         schema = os.path.join(uri, "__schema", schema_name)
         if verbose or dry_run:
             print(schema)
-
         vfs.remove_file(schema)
 
 
@@ -520,15 +519,32 @@ def create_array_from_fragments(
             if not vfs.is_file(dst_schema):
                 vfs.copy_file(src_schema, dst_schema)
 
-        src_frag = frag.uri
-        dst_frag = os.path.join(dst_uri, os.path.basename(frag.uri))
+        base_name = os.path.basename(frag.uri)
+        if frag.version < 12:
+            frag_name = base_name
+        else:
+            vfs.create_dir(os.path.join(dst_uri, "__fragments"))
+            frag_name = os.path.join("__fragments", base_name)
+
+        src_frag = os.path.join(src_uri, frag_name)
+        dst_frag = os.path.join(dst_uri, frag_name)
+
+        if frag.version < 12:
+            ok_or_wrt_name = f"{base_name}.ok"
+        else:
+            vfs.create_dir(os.path.join(dst_uri, "__commits"))
+            ok_or_wrt_name = os.path.join("__commits", f"{base_name}.wrt")
+
+        src_ok_or_wrt = os.path.join(src_uri, ok_or_wrt_name)
+        dst_ok_or_wrt = os.path.join(dst_uri, ok_or_wrt_name)
 
         if verbose or dry_run:
-            print(f"Copying fragment `{src_frag}` to `{dst_frag}`\n")
+            print(f"Copying `{src_frag}` to `{dst_frag}`\n")
+            print(f"Copying `{src_ok_or_wrt}` to `{dst_ok_or_wrt}`\n")
 
         if not dry_run:
-            vfs.copy_file(f"{src_frag}.ok", f"{dst_frag}.ok")
             vfs.copy_dir(src_frag, dst_frag)
+            vfs.copy_file(src_ok_or_wrt, dst_ok_or_wrt)
 
 
 def copy_fragments_to_existing_array(
@@ -607,17 +623,32 @@ def copy_fragments_to_existing_array(
         if not dry_run:
             vfs.copy_file(src_schema, dst_schema)
 
-    fragment_info = tiledb.array_fragments(src_uri)
+    array_fragments = tiledb.array_fragments(src_uri)
 
-    for frag in fragment_info:
+    for frag in array_fragments:
         if not (
             timestamp_range[0] <= frag.timestamp_range[0]
             and frag.timestamp_range[1] <= timestamp_range[1]
         ):
             continue
 
-        src_frag = frag.uri
-        dst_frag = os.path.join(dst_uri, os.path.basename(frag.uri))
+        base_name = os.path.basename(frag.uri)
+        if frag.version < 12:
+            frag_name = base_name
+        else:
+            vfs.create_dir(os.path.join(dst_uri, "__fragments"))
+            frag_name = os.path.join("__fragments", base_name)
+
+        src_frag = os.path.join(src_uri, frag_name)
+        dst_frag = os.path.join(dst_uri, frag_name)
+
+        if frag.version < 12:
+            ok_or_wrt_name = f"{base_name}.ok"
+        else:
+            ok_or_wrt_name = os.path.join("__commits", f"{base_name}.wrt")
+
+        src_ok_or_wrt = os.path.join(src_uri, ok_or_wrt_name)
+        dst_ok_or_wrt = os.path.join(dst_uri, ok_or_wrt_name)
 
         if src_frag == dst_frag:
             if verbose or dry_run:
@@ -628,8 +659,9 @@ def copy_fragments_to_existing_array(
             continue
 
         if verbose or dry_run:
-            print(f"Copying fragment `{src_frag}` to `{dst_frag}`\n")
+            print(f"Copying `{src_frag}` to `{dst_frag}`\n")
+            print(f"Copying `{src_ok_or_wrt}` to `{dst_ok_or_wrt}`\n")
 
         if not dry_run:
-            vfs.copy_file(f"{src_frag}.ok", f"{dst_frag}.ok")
             vfs.copy_dir(src_frag, dst_frag)
+            vfs.copy_file(src_ok_or_wrt, dst_ok_or_wrt)
