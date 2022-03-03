@@ -333,4 +333,6 @@ def test_parallel_csv_ingestion():
 
 if __name__ == "__main__":
     check_dataframe_deps()
+    import pandas as pd
+
     test_parallel_csv_ingestion()

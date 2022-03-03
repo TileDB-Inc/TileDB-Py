@@ -37,8 +37,6 @@ import numpy as np
 import sys
 import tiledb
 
-import importlib
-
 
 def check_dataframe_deps():
     pd_error = """Pandas version >= 1.0 required for dataframe functionality.

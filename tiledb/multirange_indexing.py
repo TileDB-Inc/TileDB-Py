@@ -39,6 +39,7 @@ current_timer: ContextVar[str] = ContextVar("timer_scope")
 # has_pyarrow = importlib.util.find_spec("pyarrow") is not None
 
 try:
+    import pyarrow
     from pyarrow import Table
 except ImportError:
     pyarrow = Table = None
