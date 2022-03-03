@@ -857,13 +857,16 @@ public:
   }
 
   py::object get_buffers() {
-    py::list result;
+    py::dict rmap;
     for (auto &bp : buffers_) {
+      py::list result;
+      const auto name = bp.first;
       const BufferInfo b = bp.second;
       result.append(b.data);
       result.append(b.offsets);
+      rmap[py::str{name}] = result;
     }
-    return std::move(result);
+    return std::move(rmap);
   }
 
   void set_buffers() {
