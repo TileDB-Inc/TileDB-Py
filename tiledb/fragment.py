@@ -520,7 +520,9 @@ def create_array_from_fragments(
                 vfs.copy_file(src_schema, dst_schema)
 
         base_name = os.path.basename(frag.uri)
-        if 10 < frag.version:
+        if frag.version < 12:
+            frag_name = base_name
+        else:
             vfs.create_dir(os.path.join(dst_uri, "__fragments"))
             frag_name = os.path.join("__fragments", base_name)
 
@@ -631,7 +633,10 @@ def copy_fragments_to_existing_array(
             continue
 
         base_name = os.path.basename(frag.uri)
-        if 10 < frag.version:
+        if frag.version < 12:
+            frag_name = base_name
+        else:
+            vfs.create_dir(os.path.join(dst_uri, "__fragments"))
             frag_name = os.path.join("__fragments", base_name)
 
         src_frag = os.path.join(src_uri, frag_name)

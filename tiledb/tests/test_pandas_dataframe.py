@@ -975,10 +975,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         )
 
         # Check number of fragments
-        if tiledb.libtiledb.version() < (2, 7, 0):
-            fragments = glob.glob(tmp_array + "/*.ok")
+        frags_dir = os.path.join(tmp_array, "__fragments")
+        if self.vfs.is_dir(frags_dir):
+            fragments = self.vfs.ls(frags_dir)
         else:
-            fragments = self.vfs.ls(os.path.join(tmp_array, "__fragments"))
+            fragments = glob.glob(tmp_array + "/*.ok")
         assert len(fragments) == 8
 
         # TODO: THIS IS ERRORING OUT; prefer this to above
