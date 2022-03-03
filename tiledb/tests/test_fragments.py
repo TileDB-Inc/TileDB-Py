@@ -571,11 +571,6 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
 
 
 class DeleteFragmentsTest(DiskTestCase):
-    @pytest.mark.xfail(
-        date.today() <= date(2022, 3, 9),
-        reason="partial vacuuming deprecated in dev - "
-        "need to modify delete_fragments()",
-    )
     def test_delete_fragments(self):
         dshape = (1, 3)
         num_writes = 10
@@ -608,8 +603,7 @@ class DeleteFragmentsTest(DiskTestCase):
 
     @pytest.mark.xfail(
         date.today() <= date(2022, 3, 9),
-        reason="partial vacuuming deprecated in dev - "
-        "need to modify delete_fragments()",
+        reason="need to modify delete_fragments() to work with schema evolution",
     )
     def test_delete_fragments_with_schema_evolution(self):
         path = self.path("test_delete_fragments_with_schema_evolution")
@@ -633,6 +627,9 @@ class DeleteFragmentsTest(DiskTestCase):
         with tiledb.open(path, "w", timestamp=2) as A:
             A[[1, 2, 3]] = {"a1": ts2_data, "a2": ts2_data}
 
+        frags = tiledb.array_fragments(path)
+        assert len(frags) == 2
+
         with tiledb.open(path, "r") as A:
             assert A.schema.has_attr("a1")
             assert A.schema.has_attr("a2")
@@ -640,6 +637,9 @@ class DeleteFragmentsTest(DiskTestCase):
             assert_array_equal(A[:]["a2"], ts2_data)
 
         tiledb.delete_fragments(path, (2, 2))
+
+        frags = tiledb.array_fragments(path)
+        assert len(frags) == 1
 
         with tiledb.open(path, "r") as A:
             assert A.schema.has_attr("a1")
