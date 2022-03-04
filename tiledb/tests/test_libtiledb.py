@@ -588,25 +588,25 @@ class ArraySchemaTest(DiskTestCase):
         )
         a1 = tiledb.Attr("val", dtype="f8")
         schema = tiledb.ArraySchema(domain=domain, attrs=(a1,))
-        self.assertFalse(schema.sparse)
-        self.assertEqual(schema.cell_order, "row-major")
-        self.assertEqual(schema.tile_order, "row-major")
-        self.assertEqual(schema.domain, domain)
-        self.assertEqual(schema.ndim, 2)
-        self.assertEqual(schema.shape, (8, 8))
-        self.assertEqual(schema.nattr, 1)
-        self.assertEqual(schema.domain.homogeneous, True)
-        self.assertEqual(schema.attr(0), a1)
-        self.assertTrue(schema.has_attr("val"))
-        self.assertFalse(schema.has_attr("nononoattr"))
-        self.assertEqual(schema, tiledb.ArraySchema(domain=domain, attrs=(a1,)))
-        self.assertNotEqual(
-            schema, tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=True)
-        )
+        assert schema.sparse == False
+        assert schema.cell_order == "row-major"
+        assert schema.tile_order == "row-major"
+        assert schema.domain == domain
+        assert schema.ndim == 2
+        assert schema.shape == (8, 8)
+        assert schema.nattr == 1
+        assert schema.domain.homogeneous == True
+        assert hasattr(schema, "version")  # don't pin to a specific version
+        assert schema.attr(0) == a1
+        assert schema.has_attr("val") == True
+        assert schema.has_attr("nononoattr") == False
+        assert schema == tiledb.ArraySchema(domain=domain, attrs=(a1,))
+        assert schema != tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=True)
+
         with self.assertRaises(tiledb.TileDBError):
             schema.allows_duplicates
         # test iteration over attributes
-        self.assertEqual(list(schema), [a1])
+        assert list(schema) == [a1]
 
         with self.assertRaisesRegex(
             tiledb.TileDBError,

@@ -3865,6 +3865,19 @@ cdef class ArraySchema(object):
         """
         return self.domain.shape
 
+    @property
+    def version(self):
+        """The array's scehma version.
+
+        :rtype: int
+        :raises :py:exc:`tiledb.TileDBError`
+        """
+        cdef uint32_t version
+        check_error(self.ctx,
+                    tiledb_array_schema_get_version(
+                        self.ctx.ptr, self.ptr, &version))
+        return version
+
     def _make_invalid(self):
         """This is a helper function for testing schema.check: resets schema
         in order to make the schema invalid."""
