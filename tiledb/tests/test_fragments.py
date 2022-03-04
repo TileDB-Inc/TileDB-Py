@@ -38,28 +38,25 @@ class FragmentInfoTest(DiskTestCase):
             with tiledb.DenseArray(uri, mode="w", timestamp=timestamp) as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
-        fragments_info = tiledb.array_fragments(uri)
+        fi = tiledb.array_fragments(uri)
 
-        self.assertEqual(len(fragments_info), 3)
-        self.assertEqual(fragments_info.unconsolidated_metadata_num, 3)
+        assert len(fi) == 3
+        assert fi.unconsolidated_metadata_num == 3
+        assert fi.cell_num == (3, 3, 3)
+        assert fi.has_consolidated_metadata == (False, False, False)
+        assert fi.nonempty_domain == (((0, 0),), ((1, 1),), ((2, 2),))
+        assert fi.sparse == (False, False, False)
+        assert fi.timestamp_range == ((1, 1), (2, 2), (3, 3))
+        assert fi.to_vacuum == ()
+        assert hasattr(fi, "version")  # don't pin to a specific version
 
-        self.assertEqual(fragments_info.cell_num, (3, 3, 3))
-        self.assertEqual(
-            fragments_info.has_consolidated_metadata, (False, False, False)
-        )
-        self.assertEqual(
-            fragments_info.nonempty_domain, (((0, 0),), ((1, 1),), ((2, 2),))
-        )
-        self.assertEqual(fragments_info.sparse, (False, False, False))
-        self.assertEqual(fragments_info.timestamp_range, ((1, 1), (2, 2), (3, 3)))
-        self.assertEqual(fragments_info.to_vacuum, ())
-
-        for idx, frag in enumerate(fragments_info):
-            self.assertEqual(frag.cell_num, 3)
-            self.assertEqual(frag.has_consolidated_metadata, False)
-            self.assertEqual(frag.nonempty_domain, ((idx, idx),))
-            self.assertEqual(frag.sparse, False)
-            self.assertEqual(frag.timestamp_range, (idx + 1, idx + 1))
+        for idx, frag in enumerate(fi):
+            assert frag.cell_num == 3
+            assert frag.has_consolidated_metadata == False
+            assert frag.nonempty_domain == ((idx, idx),)
+            assert frag.sparse == False
+            assert frag.timestamp_range == (idx + 1, idx + 1)
+            assert hasattr(frag, "version")  # don't pin to a specific version
 
     def test_array_fragments_var(self):
         fragments = 3
