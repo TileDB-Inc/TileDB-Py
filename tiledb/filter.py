@@ -490,6 +490,22 @@ class FilterList(lt.FilterList):
 
     """
 
+    filter_type_cc_to_python = {
+        lt.FilterType.GZIP: GzipFilter,
+        lt.FilterType.ZSTD: ZstdFilter,
+        lt.FilterType.LZ4: LZ4Filter,
+        lt.FilterType.BZIP2: Bzip2Filter,
+        lt.FilterType.RLE: RleFilter,
+        lt.FilterType.DOUBLE_DELTA: DoubleDeltaFilter,
+        lt.FilterType.BIT_WIDTH_REDUCTION: BitWidthReductionFilter,
+        lt.FilterType.BITSHUFFLE: BitShuffleFilter,
+        lt.FilterType.BYTESHUFFLE: ByteShuffleFilter,
+        lt.FilterType.POSITIVE_DELTA: PositiveDeltaFilter,
+        lt.FilterType.CHECKSUM_MD5: ChecksumMD5Filter,
+        lt.FilterType.CHECKSUM_SHA256: ChecksumSHA256Filter,
+        lt.FilterType.NONE: NoOpFilter,
+    }
+
     def __init__(
         self,
         filters: Sequence[Filter] = None,
@@ -502,7 +518,6 @@ class FilterList(lt.FilterList):
 
         if is_capsule:
             super().__init__(_cctx, filters)
-            # self.filters = [self._getfilter(i) for i in range(len(self))]
         else:
             super().__init__(_cctx)
 
@@ -601,24 +616,9 @@ class FilterList(lt.FilterList):
         return output.getvalue()
 
     def _getfilter(self, i: int) -> Filter:
-        filter_type_cc_to_python = {
-            lt.FilterType.GZIP: GzipFilter,
-            lt.FilterType.ZSTD: ZstdFilter,
-            lt.FilterType.LZ4: LZ4Filter,
-            lt.FilterType.BZIP2: Bzip2Filter,
-            lt.FilterType.RLE: RleFilter,
-            lt.FilterType.DOUBLE_DELTA: DoubleDeltaFilter,
-            lt.FilterType.BIT_WIDTH_REDUCTION: BitWidthReductionFilter,
-            lt.FilterType.BITSHUFFLE: BitShuffleFilter,
-            lt.FilterType.BYTESHUFFLE: ByteShuffleFilter,
-            lt.FilterType.POSITIVE_DELTA: PositiveDeltaFilter,
-            lt.FilterType.CHECKSUM_MD5: ChecksumMD5Filter,
-            lt.FilterType.CHECKSUM_SHA256: ChecksumSHA256Filter,
-            lt.FilterType.NONE: NoOpFilter,
-        }
-
         fil = self.filter(i)
-        filtype = filter_type_cc_to_python[fil.type]
+        filtype = self.filter_type_cc_to_python[fil.type]
+        opt = None
 
         if issubclass(filtype, CompressionFilter):
             opt = lt.FilterOption.COMPRESSION_LEVEL
@@ -626,8 +626,6 @@ class FilterList(lt.FilterList):
             opt = lt.FilterOption.BIT_WIDTH_MAX_WINDOW
         elif filtype == PositiveDeltaFilter:
             opt = lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW
-        else:
-            opt = None
 
         if opt is not None:
             _cctx = lt.Context(self._ctx.__capsule__(), False)
