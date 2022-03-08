@@ -1,7 +1,12 @@
-# TileDB-Py 0.13.1 Release Notes
+# TileDB-Py 0.14.0 Release Notes
 
 ## API Changes
 * Addition of `ArraySchema.version` to get version of array schema [#949](https://github.com/TileDB-Inc/TileDB-Py/pull/949)
+
+# TileDB-Py 0.13.1 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.13.1 includes TileDB Embedded [TileDB 2.7.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.7.1)
 
 # TileDB-Py 0.13.0 Release Notes
 
