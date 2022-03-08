@@ -15,7 +15,7 @@ from pkg_resources import resource_filename
 from setuptools import Extension, find_packages, setup
 
 # Target branch
-TILEDB_VERSION = "2.6.3"
+TILEDB_VERSION = "2.6.4"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
