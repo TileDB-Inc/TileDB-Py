@@ -33,6 +33,8 @@ except:
         # Otherwise try loading by name only.
         ctypes.CDLL(lib_name)
 
+from .cc import TileDBError
+
 from .ctx import default_ctx, scope_ctx
 from .libtiledb import (
     Array,
@@ -42,7 +44,6 @@ from .libtiledb import (
     Domain,
     Attr,
     ArraySchema,
-    TileDBError,
     consolidate,
     group_create,
     object_type,
