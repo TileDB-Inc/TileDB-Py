@@ -600,8 +600,9 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
 
     if version:
         import tiledb
+        import tiledb.libtiledb
         stats_str += f"TileDB Embedded Version: {tiledb.libtiledb.version()}\n"
-        stats_str += f"TileDB-Py Version: {tiledb.version.version}\n"
+        stats_str += f"TileDB-Py Version: {tiledb.version()}\n"
 
     if not verbose:
         stats_str += "\n==== READ ====\n\n"
