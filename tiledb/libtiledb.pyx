@@ -17,6 +17,8 @@ from .filter import FilterList
 from .vfs import VFS
 
 import tiledb.cc as lt
+from tiledb.cc import TileDBError
+
 
 ###############################################################################
 #     Numpy initialization code (critical)                                    #
@@ -27,7 +29,7 @@ np.import_array()
 
 
 ###############################################################################
-#    MODULAR IMPORTS                                                          #
+#    MODULAR IMPORTS                                                 #
 ###############################################################################
 
 IF TILEDBPY_MODULAR:
@@ -492,27 +494,6 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     finally:
         tiledb_query_free(&query_ptr)
     return
-
-
-cdef class TileDBError(Exception):
-    """TileDB Error Exception
-
-    Captures and raises error return code (``TILEDB_ERR``) messages when calling ``libtiledb``
-    functions.  The error message that is raised is the last error set for the :py:class:`tiledb.Ctx`
-
-    A Python :py:class:`MemoryError` is raised on ``TILEDB_OOM``
-
-    """
-
-    @property
-    def message(self):
-        """The TileDB error message string
-
-        :rtype: str
-        :return: error message
-
-        """
-        return self.args[0]
 
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
     cdef const char* err_msg_ptr = NULL

@@ -1273,9 +1273,5 @@ cdef class ReadQuery(object):
 cdef class Metadata(object):
     cdef object array_ref
 
-cdef class TileDBError(Exception):
-    pass
-
-
 IF (not TILEDBPY_MODULAR):
     include "indexing.pxd"
