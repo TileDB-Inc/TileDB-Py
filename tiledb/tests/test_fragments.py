@@ -568,11 +568,6 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
 
 
 class DeleteFragmentsTest(DiskTestCase):
-    @pytest.mark.xfail(
-        date.today() <= date(2022, 3, 9),
-        reason="partial vacuuming deprecated in dev - "
-        "need to modify delete_fragments()",
-    )
     def test_delete_fragments(self):
         dshape = (1, 3)
         num_writes = 10
@@ -604,7 +599,7 @@ class DeleteFragmentsTest(DiskTestCase):
         assert frags.timestamp_range == ts[:2] + ts[6:]
 
     @pytest.mark.xfail(
-        date.today() <= date(2022, 3, 9),
+        date.today() <= date(2022, 3, 16),
         reason="need to modify delete_fragments() to work with schema evolution",
     )
     def test_delete_fragments_with_schema_evolution(self):
