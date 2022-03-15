@@ -2,6 +2,9 @@ name: TileDB Python CI
 
 on: [push, pull_request]
 
+env:
+  TILEDB_VERSION: 'dev'
+
 jobs:
   build:
 
