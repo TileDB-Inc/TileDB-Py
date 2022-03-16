@@ -390,7 +390,8 @@ def delete_fragments(
     # relevant to check if we need to delete new style schemas. we will need to
     # check both in the future.
     array_fragments = tiledb.array_fragments(uri)
-    deleted_fragment_schema = set()
+    live_fragment_schemas = set()
+    deleted_fragment_schemas = set()
     for frag in array_fragments:
         if (
             timestamp_range[0] <= frag.timestamp_range[0]
@@ -410,10 +411,11 @@ def delete_fragments(
                 vfs.remove_dir(frag.uri)
                 vfs.remove_file(ok_or_wrt)
 
-            deleted_fragment_schema.add(frag.array_schema_name)
+            deleted_fragment_schemas.add(frag.array_schema_name)
+        else:
+            live_fragment_schemas.add(frag.array_schema_name)
 
-    schemas_in_array = set(array_fragments.array_schema_name)
-    schemas_to_remove_on_disk = list(schemas_in_array - deleted_fragment_schema)
+    schemas_to_remove_on_disk = list(deleted_fragment_schemas - live_fragment_schemas)
     if schemas_to_remove_on_disk and (verbose or dry_run):
         print("Deleting schemas:")
 

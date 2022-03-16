@@ -598,10 +598,6 @@ class DeleteFragmentsTest(DiskTestCase):
         assert len(frags) == 6
         assert frags.timestamp_range == ts[:2] + ts[6:]
 
-    @pytest.mark.xfail(
-        date.today() <= date(2022, 3, 16),
-        reason="need to modify delete_fragments() to work with schema evolution",
-    )
     def test_delete_fragments_with_schema_evolution(self):
         path = self.path("test_delete_fragments_with_schema_evolution")
         dshape = (1, 3)
