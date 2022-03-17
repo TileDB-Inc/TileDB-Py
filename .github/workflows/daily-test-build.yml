@@ -1,5 +1,7 @@
 name: Daily Test Build TileDB-Py Against Core
 
+#on: [push]
+
 on:
   schedule:
     # runs every day at 5:00 UTC (1:00AM EST / Midnight CST)
