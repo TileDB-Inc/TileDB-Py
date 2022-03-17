@@ -28,7 +28,7 @@ class ExamplesTest:
         # - in tmpdir so we don't pollute the source tree
         # - with exit status checking (should fail tests if example fails)
         requires_pd = [
-            f"{self.PROJECT_DIR}/examples/{fn}.py"
+            os.path.join(self.PROJECT_DIR, "examples", f"{fn}.py")
             for fn in ["incomplete_iteration", "parallel_csv_ingestion"]
         ]
         if not has_pandas() and path in requires_pd:
