@@ -29,6 +29,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-10.15, windows-latest]
         uninstall_pandas: [true, false]
+      fail-fast: false
 
     permissions:
       issues: write

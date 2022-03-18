@@ -10,6 +10,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-10.15, windows-latest]
         python-version: ['3.7', '3.8', '3.9', '3.10']
+      fail-fast: false
     env:
       MACOSX_DEPLOYMENT_TARGET: 10.14
     steps:
