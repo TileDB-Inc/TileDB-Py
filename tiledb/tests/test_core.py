@@ -28,7 +28,7 @@ class CoreCCTest(DiskTestCase):
                 q._test_err("bad foo happened")
             except Exception as exc:
                 assert isinstance(exc, tiledb.TileDBError)
-                assert exc.message == "bad foo happened"
+                assert str(exc) == "bad foo happened"
 
             q.set_ranges([[(0, 3)]])
 

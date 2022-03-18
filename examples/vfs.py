@@ -79,21 +79,21 @@ def write():
     # Create VFS file handle
     f = vfs.open("tiledb_vfs.bin", "wb")
 
-    # Write binary data
-    vfs.write(f, struct.pack("f", 153.0))
-    vfs.write(f, "abcd".encode("utf-8"))
-    vfs.close(f)
+    # # Write binary data
+    # vfs.write(f, struct.pack("f", 153.0))
+    # vfs.write(f, "abcd".encode("utf-8"))
+    # vfs.close(f)
 
-    # Write binary data again - this will overwrite the previous file
-    f = vfs.open("tiledb_vfs.bin", "wb")
-    vfs.write(f, struct.pack("f", 153.1))
-    vfs.write(f, "abcdef".encode("utf-8"))
-    vfs.close(f)
+    # # Write binary data again - this will overwrite the previous file
+    # f = vfs.open("tiledb_vfs.bin", "wb")
+    # vfs.write(f, struct.pack("f", 153.1))
+    # vfs.write(f, "abcdef".encode("utf-8"))
+    # vfs.close(f)
 
-    # Append binary data to existing file (this will NOT work on S3)
-    f = vfs.open("tiledb_vfs.bin", "ab")
-    vfs.write(f, "ghijkl".encode("utf-8"))
-    vfs.close(f)
+    # # Append binary data to existing file (this will NOT work on S3)
+    # f = vfs.open("tiledb_vfs.bin", "ab")
+    # vfs.write(f, "ghijkl".encode("utf-8"))
+    # vfs.close(f)
 
 
 def read():
@@ -111,4 +111,4 @@ def read():
 
 dirs_files()
 write()
-read()
+# read()
