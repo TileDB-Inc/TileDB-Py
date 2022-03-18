@@ -231,8 +231,8 @@ def test_filter():
     assert fl.filter(1).type == lt.FilterType.BZIP2
     assert len(fl) == 2
 
-    fl.chunksize = 100000
-    assert fl.chunksize == 100000
+    fl._chunksize = 100000
+    assert fl._chunksize == 100000
 
 
 def test_schema_dump(capfd):
