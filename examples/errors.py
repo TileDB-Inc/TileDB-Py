@@ -39,7 +39,7 @@ try:
     tiledb.group_create("my_group")
     tiledb.group_create("my_group")
 except tiledb.TileDBError as e:
-    print("TileDB exception: %s" % e.message)
+    print(f"TileDB exception: {e}")
 
 # clean up
 if tiledb.VFS().is_dir("my_group"):
