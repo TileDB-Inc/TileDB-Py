@@ -640,9 +640,7 @@ __extensions = [
         library_dirs=LIB_DIRS,
         libraries=LIBS,
         extra_link_args=LFLAGS,
-        extra_compile_args=CXXFLAGS.copy().remove("-Werror")
-        if CXXFLAGS.count("-Werror")
-        else CXXFLAGS,
+        extra_compile_args=[flag for flag in CXXFLAGS if flag != "-Werror"],
         language="c++",
     ),
     Extension(
