@@ -111,7 +111,6 @@ stages:
               export TILEDB_INSTALL=.libtiledb
               export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL} TILEDB_WHEEL_BUILD=1"
               # use the requirements_wheel.txt with numpy pins to ensure ABI compatibility
-              export CIBW_BEFORE_TEST="pip install -r misc/requirements_wheel.txt"
               export CIBW_TEST_COMMAND="python -c 'import tiledb'"
               # copy libtiledb into usr/local for audithweel to find
               export CIBW_BEFORE_BUILD="cp -R .libtiledb/* /usr/local"
@@ -131,7 +130,6 @@ stages:
 
               export TILEDB_WHEEL_BUILD=1
               # use the requirements_wheel.txt with numpy pins to ensure ABI compatibility
-              export CIBW_BEFORE_TEST="pip install -r misc/requirements_wheel.txt"
               export CIBW_TEST_COMMAND="python -c 'import tiledb'"
               echo "${TILEDB_INSTALL}"
 
@@ -251,7 +249,6 @@ stages:
               export TILEDB_INSTALL=.libtiledb
               export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL} TILEDB_WHEEL_BUILD=1"
               # use the requirements_wheel.txt with numpy pins to ensure ABI compatibility
-              export CIBW_BEFORE_TEST="pip install -r misc/requirements_wheel.txt"
               export CIBW_TEST_COMMAND="python -c 'import tiledb'"
               # copy libtiledb into usr/local for audithweel to find
               export CIBW_BEFORE_BUILD="cp -R .libtiledb/* /usr/local"
@@ -271,7 +268,6 @@ stages:
 
               export TILEDB_WHEEL_BUILD=1
               # use the requirements_wheel.txt with numpy pins to ensure ABI compatibility
-              export CIBW_BEFORE_TEST="pip install -r misc/requirements_wheel.txt"
               export CIBW_TEST_COMMAND="python -c 'import tiledb'"
               echo "${TILEDB_INSTALL}"
 
