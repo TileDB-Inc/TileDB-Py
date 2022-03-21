@@ -737,59 +737,68 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             tiledb.from_csv(tmp_assert_dir, tmp_csv, tile=(3, 1.0))
 
         tmp_array = os.path.join(tmp_dir, "array")
-        tiledb.from_csv(
-            tmp_array,
-            tmp_csv,
-            index_col=["time", "double_range"],
-            parse_dates=["time"],
-            mode="schema_only",
-            capacity=1001,
-            sparse=True,
-            tile={"time": 5},
-            coords_filters=coords_filters,
-            attr_filters=attrs_filters,
-        )
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            tiledb.from_csv(
+                tmp_array,
+                tmp_csv,
+                index_col=["time", "double_range"],
+                parse_dates=["time"],
+                mode="schema_only",
+                capacity=1001,
+                sparse=True,
+                tile={"time": 5},
+                coords_filters=coords_filters,
+                attr_filters=attrs_filters,
+            )
 
         t0, t1 = df.time.min(), df.time.max()
 
         import numpy
 
-        ref_schema = tiledb.ArraySchema(
-            domain=tiledb.Domain(
-                *[
-                    tiledb.Dim(
-                        name="time",
-                        domain=(t0.to_datetime64(), t1.to_datetime64()),
-                        tile=5,
-                        dtype="datetime64[ns]",
-                    ),
-                    tiledb.Dim(
-                        name="double_range",
-                        domain=(-1000.0, 1000.0),
-                        tile=1000,
-                        dtype="float64",
-                    ),
-                ]
-            ),
-            attrs=[tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters)],
-            coords_filters=coords_filters,
-            cell_order="row-major",
-            tile_order="row-major",
-            capacity=1001,
-            sparse=True,
-            allows_duplicates=False,
-        )
-        # note: filters omitted
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            ref_schema = tiledb.ArraySchema(
+                domain=tiledb.Domain(
+                    *[
+                        tiledb.Dim(
+                            name="time",
+                            domain=(t0.to_datetime64(), t1.to_datetime64()),
+                            tile=5,
+                            dtype="datetime64[ns]",
+                        ),
+                        tiledb.Dim(
+                            name="double_range",
+                            domain=(-1000.0, 1000.0),
+                            tile=1000,
+                            dtype="float64",
+                        ),
+                    ]
+                ),
+                attrs=[
+                    tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters)
+                ],
+                coords_filters=coords_filters,
+                cell_order="row-major",
+                tile_order="row-major",
+                capacity=1001,
+                sparse=True,
+                allows_duplicates=False,
+            )
+            # note: filters omitted
 
         fi = tiledb.array_fragments(tmp_array)
         assert len(fi) == 0
 
         with tiledb.open(tmp_array) as A:
             self.assertEqual(A.schema, ref_schema)
-            assert A.dim(0).filters[0] == tiledb.ZstdFilter()
-            assert A.dim(1).filters[0] == tiledb.ZstdFilter()
-            assert A.schema.coords_filters[0] == coords_filters[0]
-            assert A.schema.coords_filters[0].level == coords_filters[0].level
+            assert A.dim(0).filters[0] == tiledb.ZstdFilter(level=7)
+            assert A.dim(1).filters[0] == tiledb.ZstdFilter(level=7)
+            assert len(A.schema.coords_filters) == 0
             assert A.attr(0).filters[0] == attrs_filters[0]
             assert A.attr(0).filters[0].level == attrs_filters[0].level
 
@@ -1387,9 +1396,21 @@ class TestFromPandasOptions(DiskTestCase):
                     continue
 
                 uri = self.path()
-                tiledb.from_pandas(uri, df, **{opt: f})
-                with tiledb.open(uri) as A:
-                    assert_filters_eq(getter(A), f)
+
+                if opt == "coords_filters":
+                    with pytest.warns(
+                        DeprecationWarning,
+                        match="coords_filters is deprecated; set the FilterList for each dimension",
+                    ):
+                        tiledb.from_pandas(uri, df, **{opt: f})
+
+                    with tiledb.open(uri) as A:
+                        assert len(A.schema.coords_filters) == 0
+                        assert_filters_eq(A.schema.domain.dim(0).filters, f)
+                else:
+                    tiledb.from_pandas(uri, df, **{opt: f})
+                    with tiledb.open(uri) as A:
+                        assert_filters_eq(getter(A), f)
 
 
 ###############################################################################

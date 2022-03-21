@@ -642,44 +642,11 @@ class ArraySchemaTest(DiskTestCase):
         offsets_filters = tiledb.FilterList([tiledb.LZ4Filter(5)])
         validity_filters = tiledb.FilterList([tiledb.GzipFilter(9)])
 
-        schema = tiledb.ArraySchema(
-            domain=domain,
-            attrs=(a1, a2),
-            capacity=10,
-            cell_order="col-major",
-            tile_order="row-major",
-            allows_duplicates=True,
-            sparse=True,
-            coords_filters=coords_filters,
-            offsets_filters=offsets_filters,
-            validity_filters=validity_filters,
-        )
-
-        schema.dump()
-        assert_captured(capfd, "Array type: sparse")
-
-        self.assertTrue(schema.sparse)
-        self.assertEqual(schema.capacity, 10)
-        self.assertEqual(schema.cell_order, "col-major")
-        self.assertEqual(schema.tile_order, "row-major")
-
-        # <todo>
-        # self.assertEqual(schema.coords_compressor, ('zstd', 4))
-        # self.assertEqual(schema.offsets_compressor, ('lz4', 5))
-        self.assertEqual(len(schema.coords_filters), 1)
-        self.assertEqual(len(schema.offsets_filters), 1)
-        self.assertEqual(len(schema.validity_filters), 1)
-
-        self.assertEqual(schema.domain, domain)
-        self.assertEqual(schema.ndim, 2)
-        self.assertEqual(schema.shape, (1000, 9900))
-        self.assertEqual(schema.nattr, 2)
-        self.assertEqual(schema.attr(0), a1)
-        self.assertEqual(schema.attr("a2"), a2)
-        self.assertEqual(schema.allows_duplicates, True)
-        self.assertEqual(
-            schema,
-            tiledb.ArraySchema(
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            schema = tiledb.ArraySchema(
                 domain=domain,
                 attrs=(a1, a2),
                 capacity=10,
@@ -690,11 +657,54 @@ class ArraySchemaTest(DiskTestCase):
                 coords_filters=coords_filters,
                 offsets_filters=offsets_filters,
                 validity_filters=validity_filters,
-            ),
-        )
+            )
+
+        schema.dump()
+        assert_captured(capfd, "Array type: sparse")
+
+        assert schema.sparse == True
+        assert schema.capacity == 10
+        assert schema.cell_order, "co == major"
+        assert schema.tile_order, "ro == major"
+
+        # <todo>
+        # assert schema.coords_compressor, ('zstd' == 4)
+        # assert schema.offsets_compressor, ('lz4' == 5)
+        assert len(schema.coords_filters) == 0
+        assert len(schema.offsets_filters) == 1
+        assert len(schema.validity_filters) == 1
+
+        assert schema.domain == domain
+        assert schema.ndim == 2
+        assert schema.shape, 1000 == 9900
+        assert schema.nattr == 2
+        assert schema.attr(0) == a1
+        assert schema.attr("a2") == a2
+        assert schema.allows_duplicates == True
+
+        assert schema.domain.dim("d1").filters == coords_filters
+        assert schema.domain.dim("d2").filters == coords_filters
+
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            schema2 = tiledb.ArraySchema(
+                domain=domain,
+                attrs=(a1, a2),
+                capacity=10,
+                cell_order="col-major",
+                tile_order="row-major",
+                allows_duplicates=True,
+                sparse=True,
+                coords_filters=coords_filters,
+                offsets_filters=offsets_filters,
+                validity_filters=validity_filters,
+            )
+        assert schema == schema2
 
         # test iteration over attributes
-        self.assertEqual(list(schema), [a1, a2])
+        assert list(schema) == [a1, a2]
 
         with self.assertRaisesRegex(
             tiledb.TileDBError,
@@ -731,36 +741,62 @@ class ArraySchemaTest(DiskTestCase):
         )
 
         # create sparse array with schema
-        schema = tiledb.ArraySchema(
-            domain=domain,
-            attrs=(a1, a2),
-            capacity=10,
-            cell_order="col-major",
-            tile_order="row-major",
-            coords_filters=coords_filters,
-            offsets_filters=off_filters,
-            validity_filters=validity_filters,
-            sparse=True,
-        )
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            schema = tiledb.ArraySchema(
+                domain=domain,
+                attrs=(a1, a2),
+                capacity=10,
+                cell_order="col-major",
+                tile_order="row-major",
+                coords_filters=coords_filters,
+                offsets_filters=off_filters,
+                validity_filters=validity_filters,
+                sparse=True,
+            )
         self.assertTrue(schema.sparse)
+
+        assert len(schema.coords_filters) == 0
+
+        assert len(schema.domain.dim("d1").filters) == 1
+        assert schema.domain.dim("d1").filters[0] == tiledb.Bzip2Filter(level=5)
+        assert schema.domain.dim("d2").filters[0] == tiledb.Bzip2Filter(level=5)
+
+        assert len(schema.offsets_filters) == 1
+        assert schema.offsets_filters[0] == tiledb.ZstdFilter(level=10)
+
+        assert len(schema.validity_filters) == 1
+        assert schema.validity_filters[0] == tiledb.GzipFilter(level=9)
 
         schema.dump()
         assert_captured(capfd, "Array type: sparse")
 
         # make sure we can construct ArraySchema with python lists of filters
-        schema2 = tiledb.ArraySchema(
-            domain=domain,
-            attrs=(a1, a2),
-            capacity=10,
-            cell_order="col-major",
-            tile_order="row-major",
-            coords_filters=coords_filters_pylist,
-            offsets_filters=off_filters,
-            validity_filters=validity_filters,
-            sparse=True,
-        )
-        assert len(schema2.coords_filters) == 1
-        assert schema2.coords_filters[0] == tiledb.Bzip2Filter(level=5)
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            schema2 = tiledb.ArraySchema(
+                domain=domain,
+                attrs=(a1, a2),
+                capacity=10,
+                cell_order="col-major",
+                tile_order="row-major",
+                coords_filters=coords_filters_pylist,
+                offsets_filters=off_filters,
+                validity_filters=validity_filters,
+                sparse=True,
+            )
+        assert len(schema2.coords_filters) == 0
+
+        assert schema.domain.dim("d1").filters == coords_filters_pylist
+        assert schema.domain.dim("d2").filters == coords_filters_pylist
+
+        assert len(schema2.domain.dim("d1").filters) == 1
+        assert schema2.domain.dim("d1").filters[0] == tiledb.Bzip2Filter(level=5)
+        assert schema2.domain.dim("d2").filters[0] == tiledb.Bzip2Filter(level=5)
 
         assert len(schema2.offsets_filters) == 1
         assert schema2.offsets_filters[0] == tiledb.ZstdFilter(level=10)
