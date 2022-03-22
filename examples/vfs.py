@@ -79,7 +79,7 @@ def write():
     # Create VFS file handle
     f = vfs.open("tiledb_vfs.bin", "wb")
 
-    # # Write binary data
+    # Write binary data
     vfs.write(f, struct.pack("f", 153.0))
     vfs.write(f, "abcd".encode("utf-8"))
     vfs.close(f)
