@@ -46,24 +46,25 @@ void init_vfs(py::module &m) {
 
 class FileHandle {
 private:
-  tiledb_ctx_t *_ctx;
+  Context _ctx;
   tiledb_vfs_fh_t *_fh;
 
 public:
-  // TODO ERROR CHECKING
-
   FileHandle(const Context &ctx, const VFS &vfs, std::string uri,
              tiledb_vfs_mode_t mode)
-      : _ctx(ctx.ptr().get()) {
-    tiledb_vfs_open(this->_ctx, vfs.ptr().get(), uri.c_str(), mode, &this->_fh);
+      : _ctx(ctx) {
+    _ctx.handle_error(tiledb_vfs_open(_ctx.ptr().get(), vfs.ptr().get(),
+                                      uri.c_str(), mode, &this->_fh));
   }
 
-  void close() { tiledb_vfs_close(this->_ctx, this->_fh); }
+  void close() { tiledb_vfs_close(_ctx.ptr().get(), this->_fh); }
 
   py::bytes read(uint64_t offset, uint64_t nbytes) {
     py::array data = py::array(py::dtype::of<std::byte>(), nbytes);
     py::buffer_info buffer = data.request();
-    tiledb_vfs_read(this->_ctx, this->_fh, offset, buffer.ptr, nbytes);
+
+    _ctx.handle_error(tiledb_vfs_read(_ctx.ptr().get(), this->_fh, offset,
+                                      buffer.ptr, nbytes));
 
     auto np = py::module::import("numpy");
     auto to_bytes = np.attr("ndarray").attr("tobytes");
@@ -73,14 +74,18 @@ public:
 
   void write(py::buffer data) {
     py::buffer_info buffer = data.request();
-    tiledb_vfs_write(this->_ctx, this->_fh, buffer.ptr, buffer.shape[0]);
+    _ctx.handle_error(tiledb_vfs_write(_ctx.ptr().get(), this->_fh, buffer.ptr,
+                                       buffer.shape[0]));
   }
 
-  void flush() { tiledb_vfs_sync(this->_ctx, this->_fh); }
+  void flush() {
+    _ctx.handle_error(tiledb_vfs_sync(_ctx.ptr().get(), this->_fh));
+  }
 
   bool closed() {
     int32_t is_closed;
-    tiledb_vfs_fh_is_closed(this->_ctx, this->_fh, &is_closed);
+    _ctx.handle_error(
+        tiledb_vfs_fh_is_closed(_ctx.ptr().get(), this->_fh, &is_closed));
     return is_closed;
   }
 };
