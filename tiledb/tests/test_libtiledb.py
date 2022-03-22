@@ -3743,7 +3743,7 @@ class TestVFS(DiskTestCase):
         fio.close()
 
         # read from file that does not exist
-        with self.assertRaises(IOError):
+        with self.assertRaises(tiledb.TileDBError):
             vfs.open(self.path("do_not_exist"), "rb")
 
     def test_io(self):

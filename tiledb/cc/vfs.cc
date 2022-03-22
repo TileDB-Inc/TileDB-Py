@@ -57,7 +57,9 @@ public:
                                       uri.c_str(), mode, &this->_fh));
   }
 
-  void close() { tiledb_vfs_close(_ctx.ptr().get(), this->_fh); }
+  void close() {
+    _ctx.handle_error(tiledb_vfs_close(_ctx.ptr().get(), this->_fh));
+  }
 
   py::bytes read(uint64_t offset, uint64_t nbytes) {
     py::array data = py::array(py::dtype::of<std::byte>(), nbytes);

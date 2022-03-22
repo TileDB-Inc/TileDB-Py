@@ -155,11 +155,8 @@ class FileIO(io.RawIOBase):
         }
         if mode not in str_to_vfs_mode:
             raise ValueError(f"invalid mode {mode}")
-        self._mode = mode
 
-        self._fh = lt.FileHandle(
-            self._vfs.ctx(), self._vfs, uri, str_to_vfs_mode[self._mode]
-        )
+        self._mode = mode
         self._offset = 0
         self._nbytes = 0
 
@@ -167,7 +164,11 @@ class FileIO(io.RawIOBase):
             try:
                 self._nbytes = vfs.file_size(uri)
             except:
-                raise IOError(f"URI {uri} is not a valid file")
+                raise lt.TileDBError(f"URI {uri} is not a valid file")
+
+        self._fh = lt.FileHandle(
+            self._vfs.ctx(), self._vfs, uri, str_to_vfs_mode[self._mode]
+        )
 
     def __len__(self):
         return self._nbytes
