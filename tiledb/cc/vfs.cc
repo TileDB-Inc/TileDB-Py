@@ -58,11 +58,6 @@ public:
     tiledb_vfs_open(this->_ctx, vfs.ptr().get(), uri.c_str(), mode, &this->_fh);
   }
 
-  ~FileHandle() {
-    if (!this->closed())
-      this->close();
-  }
-
   void close() { tiledb_vfs_close(this->_ctx, this->_fh); }
 
   py::bytes read(uint64_t offset, uint64_t nbytes) {
