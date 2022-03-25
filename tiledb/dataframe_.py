@@ -411,7 +411,6 @@ def from_pandas(uri: str, dataframe: "pd.DataFrame", **kwargs):
         * **mode** - (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
         * **attr_filters** - FilterList to apply to Attributes: FilterList or Dict[str -> FilterList] for any attribute(s). Unspecified attributes will use default.
         * **dim_filters** - FilterList to apply to Dimensions: FilterList or Dict[str -> FilterList] for any dimensions(s). Unspecified dimensions will use default.
-        * **coords_filters** - FilterList to apply to all coordinates (Dimensions)
         * **offsets_filters** - FilterList to apply to all offsets
         * **full_domain** - Dimensions should be created with full range of the dtype
         * **tile** - Dimension tiling: accepts either an int that applies the tiling to all dimensions or a dict("dim_name": int) to specifically assign tiling to a given dimension
@@ -490,15 +489,17 @@ def _from_pandas(uri, dataframe, tiledb_args):
 
     with tiledb.scope_ctx(tiledb_args.get("ctx")):
         if create_array:
-            _create_array(
-                uri,
-                dataframe,
-                sparse,
-                full_domain,
-                index_dims,
-                column_infos,
-                tiledb_args,
-            )
+            with warnings.catch_warnings() as w:
+                warnings.simplefilter("always")
+                _create_array(
+                    uri,
+                    dataframe,
+                    sparse,
+                    full_domain,
+                    index_dims,
+                    column_infos,
+                    tiledb_args,
+                )
 
         if write:
             if tiledb_args.get("debug", True):
@@ -536,19 +537,23 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
     )
 
     # create the ArraySchema
-    schema = tiledb.ArraySchema(
-        sparse=sparse,
-        domain=tiledb.Domain(*dims),
-        attrs=attrs,
-        cell_order=tiledb_args["cell_order"],
-        tile_order=tiledb_args["tile_order"],
-        coords_filters=_get_schema_filters(tiledb_args.get("coords_filters", True)),
-        offsets_filters=_get_schema_filters(tiledb_args.get("offsets_filters", True)),
-        # 0 will use the libtiledb internal default
-        capacity=tiledb_args.get("capacity") or 0,
-        # don't set allows_duplicates=True for dense
-        allows_duplicates=sparse and tiledb_args.get("allows_duplicates", False),
-    )
+    with warnings.catch_warnings() as w:
+        warnings.simplefilter("always")
+        schema = tiledb.ArraySchema(
+            sparse=sparse,
+            domain=tiledb.Domain(*dims),
+            attrs=attrs,
+            cell_order=tiledb_args["cell_order"],
+            tile_order=tiledb_args["tile_order"],
+            coords_filters=_get_schema_filters(tiledb_args.get("coords_filters", True)),
+            offsets_filters=_get_schema_filters(
+                tiledb_args.get("offsets_filters", True)
+            ),
+            # 0 will use the libtiledb internal default
+            capacity=tiledb_args.get("capacity") or 0,
+            # don't set allows_duplicates=True for dense
+            allows_duplicates=sparse and tiledb_args.get("allows_duplicates", False),
+        )
 
     tiledb.Array.create(uri, schema)
 
@@ -679,7 +684,6 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         * **mode** - (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
         * **attr_filters** - FilterList to apply to Attributes: FilterList or Dict[str -> FilterList] for any attribute(s). Unspecified attributes will use default.
         * **dim_filters** - FilterList to apply to Dimensions: FilterList or Dict[str -> FilterList] for any dimensions(s). Unspecified dimensions will use default.
-        * **coords_filters** - FilterList to apply to all coordinates (Dimensions)
         * **offsets_filters** - FilterList to apply to all offsets
         * **full_domain** - Dimensions should be created with full range of the dtype
         * **tile** - Dimension tiling: accepts either an int that applies the tiling to all dimensions or a dict("dim_name": int) to specifically assign tiling to a given dimension

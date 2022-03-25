@@ -2,6 +2,7 @@
 
 ## API Changes
 * Addition of `ArraySchema.version` to get version of array schema [#949](https://github.com/TileDB-Inc/TileDB-Py/pull/949)
+* Deprecate `coords_filters` from `ArraySchema` [#993](https://github.com/TileDB-Inc/TileDB-Py/pull/993)
 
 # TileDB-Py 0.13.1 Release Notes
 

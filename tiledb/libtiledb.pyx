@@ -2610,8 +2610,6 @@ cdef class ArraySchema(object):
     :param tile_order:  TileDB label for tile layout
     :type tile_order: 'row-major' (default) or 'C', 'col-major' or 'F'
     :param int capacity: tile cell capacity
-    :param coords_filters: (default None) coordinate filter list
-    :type coords_filters: tiledb.FilterList
     :param offsets_filters: (default None) offsets filter list
     :type offsets_filters: tiledb.FilterList
     :param validity_filters: (default None) validity filter list
@@ -2666,8 +2664,14 @@ cdef class ArraySchema(object):
         if allows_duplicates:
             ballows_dups = 1
             tiledb_array_schema_set_allows_dups(ctx.ptr, schema_ptr, ballows_dups)
+        
+        if not isinstance(domain, Domain):
+            raise TypeError("'domain' must be an instance of Domain (domain is: '{}')".format(domain))
+        cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
 
-        cdef tiledb_filter_list_t* filter_list_ptr = NULL
+        cdef tiledb_domain_t* dom_with_coords_filters_ptr = NULL;
+        cdef unsigned int ndim = 0
+        cdef tiledb_dimension_t* dim_ptr = NULL
         try:
             if offsets_filters is not None:
                 if not isinstance(offsets_filters, FilterList):
@@ -2677,14 +2681,42 @@ cdef class ArraySchema(object):
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
                     tiledb_array_schema_set_offsets_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
+
             if coords_filters is not None:
-                if not isinstance(coords_filters, FilterList):
-                    coords_filters = FilterList(coords_filters, ctx=ctx)
-                filter_list = coords_filters
+                warnings.warn(
+                    "coords_filters is deprecated; "
+                    "set the FilterList for each dimension",
+                    DeprecationWarning,
+                )
+
+                filter_list = FilterList()
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
                     tiledb_array_schema_set_coords_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
+        
+                check_error(self.ctx,
+                    tiledb_domain_get_ndim(ctx.ptr, domain_ptr, &ndim))
+                
+                if not isinstance(coords_filters, FilterList):
+                    coords_filters = FilterList(coords_filters, ctx=ctx)
+                filter_list = coords_filters
+                filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
+                filter_list.__capsule__(), "fl")
+
+                tiledb_domain_alloc(ctx.ptr, &dom_with_coords_filters_ptr)
+                for dim_id in range(ndim):
+                    check_error(self.ctx,
+                            tiledb_domain_get_dimension_from_index(
+                                ctx.ptr, domain_ptr, dim_id, &dim_ptr))
+                    check_error(self.ctx,
+                        tiledb_dimension_set_filter_list(
+                            ctx.ptr, dim_ptr, filter_list_ptr))
+                    check_error(self.ctx,
+                        tiledb_domain_add_dimension(
+                            ctx.ptr, dom_with_coords_filters_ptr, dim_ptr))
+                domain_ptr = dom_with_coords_filters_ptr
+
             if validity_filters is not None:
                 if not isinstance(validity_filters, FilterList):
                     validity_filters = FilterList(validity_filters, ctx=ctx)
@@ -2697,13 +2729,11 @@ cdef class ArraySchema(object):
             tiledb_array_schema_free(&schema_ptr)
             raise
 
-        if  not isinstance(domain, Domain):
-            raise TypeError("'domain' must be an instance of Domain (domain is: '{}')".format(domain))
-        cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
         rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
         if rc != TILEDB_OK:
             tiledb_array_schema_free(&schema_ptr)
             _raise_ctx_err(ctx.ptr, rc)
+        
         cdef tiledb_attribute_t* attr_ptr = NULL
         cdef Attr attribute
         for attr in attrs:
@@ -2719,6 +2749,7 @@ cdef class ArraySchema(object):
         if rc != TILEDB_OK:
             tiledb_array_schema_free(&schema_ptr)
             _raise_ctx_err(ctx.ptr, rc)
+
         self.ctx = ctx
         self.ptr = schema_ptr
 
@@ -2933,6 +2964,14 @@ cdef class ArraySchema(object):
             PyCapsule_New(filter_list_ptr, "fl", NULL), 
                 is_capsule=True, ctx=self.ctx)
     
+    @coords_filters.setter
+    def coords_filters(self, value):
+        warnings.warn(
+            "coords_filters is deprecated; "
+            "set the FilterList for each dimension",
+            DeprecationWarning,
+        )
+    
     @property
     def validity_filters(self):
         """The FilterList for the array's validity 
@@ -3121,9 +3160,6 @@ cdef class ArraySchema(object):
         if self.sparse:
             output.write(f"  allows_duplicates={self.allows_duplicates},\n")
 
-        if self.sparse and self.coords_filters is not None:
-            output.write(f"  coords_filters={self.coords_filters},\n")
-
         output.write(")\n")
 
         return output.getvalue()
@@ -3179,12 +3215,6 @@ cdef class ArraySchema(object):
         output.write(f"<summary>sparse</summary>\n")
         output.write(f"{self.sparse}\n")
         output.write("</details>\n")
-
-        if self.sparse and self.coords_filters is not None:
-            output.write("<details>\n")
-            output.write(f"<summary>coords_filters</summary>\n")
-            output.write(f"{self.coords_filters}\n")
-            output.write("</details>\n")
 
         output.write("</section>\n")
 
