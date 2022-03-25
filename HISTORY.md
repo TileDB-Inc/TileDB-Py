@@ -1,4 +1,7 @@
-# TileDB-Py 0.14.0 Release Notes
+# In-progress
+
+## Bug Fixes
+* Fix default validity for write to nullable attribute [#994]((https://github.com/TileDB-Inc/TileDB-Py/pull/994)
 
 ## API Changes
 * Addition of `ArraySchema.version` to get version of array schema [#949](https://github.com/TileDB-Inc/TileDB-Py/pull/949)
