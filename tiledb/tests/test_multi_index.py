@@ -820,20 +820,22 @@ class TestMultiRange(DiskTestCase):
             assert "py.getitem_time.pandas_index_update_time :" in internal_stats
         tiledb.stats_disable()
 
-    # parametrize dtype and sparse
-    @pytest.mark.parametrize(
-        "dim_dtype",
-        [
-            np.int64,
-            np.uint64,
-            np.int32,
-            np.uint32,
-            np.int16,
-            np.uint16,
-            np.int8,
-            np.uint8,
-        ],
-    )
+
+# parametrize dtype and sparse
+@pytest.mark.parametrize(
+    "dim_dtype",
+    [
+        np.int64,
+        np.uint64,
+        np.int32,
+        np.uint32,
+        np.int16,
+        np.uint16,
+        np.int8,
+        np.uint8,
+    ],
+)
+class TestMultiIndexND(DiskTestCase):
     def test_multi_index_ndarray(self, dim_dtype):
         # TODO support for dense?
         sparse = True  # ndarray indexing currently only supported for sparse
@@ -864,4 +866,66 @@ class TestMultiRange(DiskTestCase):
         with tiledb.open(path) as A:
             assert_dict_arrays_equal(
                 A.multi_index[coords.tolist()], A.multi_index[coords]
+            )
+            assert_dict_arrays_equal(
+                A.multi_index[coords.tolist()], A.multi_index[coords]
+            )
+
+    def test_multi_index_ndarray_2d(self, dim_dtype):
+        sparse = False
+
+        path = self.path(f"test_multi_index_ndarray_2d")
+
+        ncells = 10
+        ext = ncells - 1
+        if sparse:
+            data = np.arange(ext)
+        else:
+            data = np.arange(ext**2).reshape(ext, ext)
+        d1_coords = np.arange(ext)
+        d2_coords = np.arange(ext, 0, -1)
+
+        # use negative range for sparse
+        if sparse and np.issubdtype(dim_dtype, np.signedinteger):
+            d1_coords -= 4
+
+        d1 = tiledb.Dim(
+            name="d1", domain=(d1_coords.min(), d1_coords.max()), dtype=dim_dtype
+        )
+        d2 = tiledb.Dim(
+            name="d2", domain=(d2_coords.min(), d2_coords.max()), dtype=dim_dtype
+        )
+        dom = tiledb.Domain([d1, d2])
+
+        att = tiledb.Attr(dtype=np.int8)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=sparse)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as A:
+            if sparse:
+                A[d1_coords.tolist(), d2_coords.tolist()] = {"": data}
+            else:
+                A[:] = data
+                # raise ValueError("Test only support sparse")
+
+        with tiledb.open(path) as A:
+            assert_dict_arrays_equal(
+                A.multi_index[d1_coords.tolist(), d2_coords.tolist()],
+                A.multi_index[d1_coords, d2_coords],
+            )
+
+            # note: np.flip below because coords are in reverse order, which is how
+            #       tiledb will return the results for the first query, but not second
+            assert_dict_arrays_equal(
+                A.multi_index[d1_coords.tolist(), np.flip(d2_coords.tolist())],
+                A.multi_index[d1_coords, :],
+            )
+
+            slc = slice(0, ncells - 1, 2)
+            assert_dict_arrays_equal(
+                A.multi_index[d1_coords[slc].tolist(), :],
+                A.multi_index[d1_coords[slc], :],
+            )
+            assert_dict_arrays_equal(
+                A.multi_index[:, d2_coords[slc]], A.multi_index[:, d2_coords[slc]]
             )

@@ -94,7 +94,10 @@ def mr_dense_result_shape(
 
     new_shape = []
     for i, subranges in enumerate(ranges):
-        if subranges:
+        if isinstance(subranges, np.ndarray):
+            total_length = len(subranges)
+            new_shape.append(np.uint64(total_length))
+        elif subranges not in (None, ()):
             total_length = sum(abs(stop - start) + 1 for start, stop in subranges)
             new_shape.append(np.uint64(total_length))
         elif base_shape is not None:
