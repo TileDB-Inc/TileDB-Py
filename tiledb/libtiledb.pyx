@@ -1629,7 +1629,7 @@ cdef class Attr(object):
         check_error(self.ctx,
                     tiledb_attribute_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
 
-        return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL), 
+        return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL),
             is_capsule=True, ctx=self.ctx)
 
     @property
@@ -1867,7 +1867,7 @@ cdef class Dim(object):
                 if tile_size_array.size != 1:
                     raise ValueError("tile extent must be a scalar")
                 tile_size_ptr = np.PyArray_DATA(tile_size_array)
-            
+
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         try:
             check_error(ctx,
@@ -2028,7 +2028,7 @@ cdef class Dim(object):
         check_error(self.ctx,
                     tiledb_dimension_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
 
-        return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL), 
+        return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL),
             is_capsule=True, ctx=self.ctx)
 
     cdef unsigned int _cell_val_num(Dim self) except? 0:
@@ -2664,7 +2664,7 @@ cdef class ArraySchema(object):
         if allows_duplicates:
             ballows_dups = 1
             tiledb_array_schema_set_allows_dups(ctx.ptr, schema_ptr, ballows_dups)
-        
+
         if not isinstance(domain, Domain):
             raise TypeError("'domain' must be an instance of Domain (domain is: '{}')".format(domain))
         cdef tiledb_domain_t* domain_ptr = (<Domain> domain).ptr
@@ -2694,10 +2694,10 @@ cdef class ArraySchema(object):
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
                     tiledb_array_schema_set_coords_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
-        
+
                 check_error(self.ctx,
                     tiledb_domain_get_ndim(ctx.ptr, domain_ptr, &ndim))
-                
+
                 if not isinstance(coords_filters, FilterList):
                     coords_filters = FilterList(coords_filters, ctx=ctx)
                 filter_list = coords_filters
@@ -2733,7 +2733,7 @@ cdef class ArraySchema(object):
         if rc != TILEDB_OK:
             tiledb_array_schema_free(&schema_ptr)
             _raise_ctx_err(ctx.ptr, rc)
-        
+
         cdef tiledb_attribute_t* attr_ptr = NULL
         cdef Attr attribute
         for attr in attrs:
@@ -2946,7 +2946,7 @@ cdef class ArraySchema(object):
             tiledb_array_schema_get_offsets_filter_list(
                 self.ctx.ptr, self.ptr, &filter_list_ptr))
         return FilterList(
-            PyCapsule_New(filter_list_ptr, "fl", NULL), 
+            PyCapsule_New(filter_list_ptr, "fl", NULL),
                 is_capsule=True, ctx=self.ctx)
 
     @property
@@ -2961,9 +2961,9 @@ cdef class ArraySchema(object):
             tiledb_array_schema_get_coords_filter_list(
                 self.ctx.ptr, self.ptr, &filter_list_ptr))
         return FilterList(
-            PyCapsule_New(filter_list_ptr, "fl", NULL), 
+            PyCapsule_New(filter_list_ptr, "fl", NULL),
                 is_capsule=True, ctx=self.ctx)
-    
+
     @coords_filters.setter
     def coords_filters(self, value):
         warnings.warn(
@@ -2971,10 +2971,10 @@ cdef class ArraySchema(object):
             "set the FilterList for each dimension",
             DeprecationWarning,
         )
-    
+
     @property
     def validity_filters(self):
-        """The FilterList for the array's validity 
+        """The FilterList for the array's validity
 
         :rtype: tiledb.FilterList
         :raises: :py:exc:`tiledb.TileDBError`
@@ -2984,7 +2984,7 @@ cdef class ArraySchema(object):
             tiledb_array_schema_get_validity_filter_list(
                 self.ctx.ptr, self.ptr, &validity_list_ptr))
         return FilterList(
-            PyCapsule_New(validity_list_ptr, "fl", NULL), 
+            PyCapsule_New(validity_list_ptr, "fl", NULL),
                 is_capsule=True, ctx=self.ctx)
 
     @property
@@ -4811,7 +4811,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                 attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
 
             if attr.isnullable and attr.name not in nullmaps:
-                nullmaps[attr.name] = np.array([int(v is None) for v in attr_val], dtype=np.uint8)
+                nullmaps[attr.name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
 
         except Exception as exc:
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc

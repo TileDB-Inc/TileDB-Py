@@ -2874,6 +2874,32 @@ class TestSparseArray(DiskTestCase):
             assert list(output.keys()) == ["dim"]
             assert_array_equal(output["dim"][:], coords)
 
+    def test_sparse_write_nullable_default(self):
+        uri = self.path("test_sparse_write_nullable_default")
+
+        dim1 = tiledb.Dim(name="d1", dtype="|S0", var=True)
+        att = tiledb.Attr(name="a1", dtype="<U0", var=True, nullable=True)
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(dim1),
+            attrs=(att,),
+            sparse=True,
+            allows_duplicates=False,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            A[["a", "b", "c"]] = np.array(["aaa", "bb", "c"])
+
+        if has_pandas():
+            import pandas as pd
+
+            with tiledb.open(uri) as A:
+                pd._testing.assert_frame_equal(
+                    A.query(dims=False).df[:],
+                    pd.DataFrame({"a1": pd.Series(["aaa", "bb", "c"])}),
+                )
+
 
 class TestDenseIndexing(DiskTestCase):
     def _test_index(self, A, T, idx):
