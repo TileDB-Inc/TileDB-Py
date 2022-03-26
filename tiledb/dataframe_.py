@@ -112,6 +112,9 @@ class ColumnInfo:
     def from_dtype(cls, dtype, varlen_types=()):
         from pandas.api import types as pd_types
 
+        if dtype == "ascii":
+            return cls("ascii", var=True)
+
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
 

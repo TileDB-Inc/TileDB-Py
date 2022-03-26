@@ -1334,6 +1334,21 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(uri_from_csv) as A:
             tm.assert_frame_equal(df, A.df[:])
 
+    def test_set_ascii_dtype(self):
+        df = make_dataframe_basic1()
+
+        uri_char = self.path("test_set_ascii_dtype_char")
+        tiledb.from_pandas(uri_char, df, sparse=True)
+        with tiledb.open(uri_char) as A:
+            assert A.attr("x").dtype == np.dtype("S")
+            assert not A.attr("x").isascii
+
+        uri_ascii = self.path("test_set_ascii_dtype_ascii")
+        tiledb.from_pandas(uri_ascii, df, sparse=True, column_types={"x": "ascii"})
+        with tiledb.open(uri_ascii) as A:
+            assert A.attr("x").dtype == np.dtype("S")
+            assert A.attr("x").isascii
+
 
 class TestFromPandasOptions(DiskTestCase):
     def test_filters_options(self):

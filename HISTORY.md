@@ -6,6 +6,7 @@
 ## API Changes
 * Addition of `ArraySchema.version` to get version of array schema [#949](https://github.com/TileDB-Inc/TileDB-Py/pull/949)
 * Deprecate `coords_filters` from `ArraySchema` [#993](https://github.com/TileDB-Inc/TileDB-Py/pull/993)
+* Allow setting `ascii` in `column_type` for `from_pandas`/`from_csv` [#999](https://github.com/TileDB-Inc/TileDB-Py/pull/999)
 
 # TileDB-Py 0.13.1 Release Notes
 
