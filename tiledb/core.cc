@@ -825,6 +825,11 @@ public:
       } else { // !nullable && !var
         buf_nbytes = query_->est_result_size(name);
       }
+
+      // Add extra offset to estimate in order to avoid incomplete resubmit
+      // libtiledb 2.7.* does not include extra element in estimate.
+      // Remove this section after resolution of SC-16301.
+      offsets_num += (var && use_arrow_) ? 1 : 0;
     }
 
     // - for sparse arrays: don't try to allocate more than alloc_max_bytes_
