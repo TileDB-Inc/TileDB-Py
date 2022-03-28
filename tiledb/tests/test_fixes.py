@@ -87,3 +87,39 @@ class FixesTest(DiskTestCase):
             # Important: must get each result here or else assertion
             # failures or exceptions will disappear.
             list(map(lambda x: x.result(), futures))
+
+    # skip, does not currently work, because we cannot force use
+    # of the memory estimate
+    @pytest.mark.skip
+    def test_sc16301_arrow_extra_estimate_dense(self):
+        """
+        Test that dense query of array with var-length attribute completes
+        in one try. We are currently adding an extra element to the offset
+        estimate from libtiledb, in order to avoid an unnecessary pair of
+        query resubmits when the offsets won't fit in the estimated buffer.
+        """
+
+        uri = self.path("test_sc16301_arrow_extra_estimate_dense")
+
+        dim1 = tiledb.Dim(name="d1", dtype="int64", domain=(1, 3))
+        att = tiledb.Attr(name="a1", dtype="<U0", var=True)
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(dim1),
+            attrs=(att,),
+            sparse=False,
+            allows_duplicates=False,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            A[:] = np.array(["aaa", "bb", "c"])
+
+        with tiledb.open(uri) as A:
+            tiledb.stats_enable()
+            r = A[:]
+            assert (
+                """"Context.StorageManager.Query.Reader.loop_num": 1"""
+                in tiledb.stats_dump(print_out=False)
+            )
+            tiledb.stats_disable()

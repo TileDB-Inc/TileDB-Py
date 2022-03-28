@@ -2,7 +2,7 @@
 
 ## Bug Fixes
 * Fix default validity for write to nullable attribute [#994]((https://github.com/TileDB-Inc/TileDB-Py/pull/994)
-
+* Reduce query time for dense var-length arrays by including extra offset element in initial buffer allocation [#1005](https://github.com/TileDB-Inc/TileDB-Py/pull/1005)
 ## API Changes
 * Addition of `ArraySchema.version` to get version of array schema [#949](https://github.com/TileDB-Inc/TileDB-Py/pull/949)
 * Deprecate `coords_filters` from `ArraySchema` [#993](https://github.com/TileDB-Inc/TileDB-Py/pull/993)
