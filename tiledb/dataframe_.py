@@ -182,7 +182,7 @@ def _get_column_infos(df, column_types, varlen_types):
 
 def _get_schema_filters(filters):
     if filters is True:
-        # default case, unspecified: use libtiledb defaults
+        # default case, use ZstdFilter
         return tiledb.FilterList([tiledb.ZstdFilter()])
     elif filters is None:
         # empty filter list (schema uses zstd by default if unspecified)
