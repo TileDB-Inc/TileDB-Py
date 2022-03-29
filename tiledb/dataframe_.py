@@ -539,12 +539,16 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
     # create the ArraySchema
     with warnings.catch_warnings() as w:
         warnings.simplefilter("always")
+        coord_filter = tiledb_args.get("coords_filters", True)
         schema = tiledb.ArraySchema(
             sparse=sparse,
             domain=tiledb.Domain(*dims),
             attrs=attrs,
             cell_order=tiledb_args["cell_order"],
             tile_order=tiledb_args["tile_order"],
+            coords_filters=None
+            if coord_filter is True
+            else _get_schema_filters(coord_filter),
             offsets_filters=_get_schema_filters(
                 tiledb_args.get("offsets_filters", True)
             ),
