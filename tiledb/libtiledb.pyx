@@ -1904,8 +1904,7 @@ cdef class Dim(object):
 
         # for consistency, print `var=True` for string-like types
         varlen = "" if not self.dtype in (np.str_, np.bytes_) else ", var=True"
-
-        return "Dim(name={0!r}, domain={1!s}, tile='{2!s}', dtype='{3!s}'{4}{5})" \
+        return "Dim(name={0!r}, domain={1!s}, tile={2!r}, dtype='{3!s}'{4}{5})" \
             .format(self.name, self.domain, self.tile, self.dtype, varlen, filters_str)
 
     def _repr_html_(self) -> str:
