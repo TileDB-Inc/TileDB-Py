@@ -4256,6 +4256,7 @@ class ReprTest(DiskTestCase):
         dim_test_imports = textwrap.dedent(
             """
             from tiledb import Dim, FilterList, GzipFilter
+            import numpy
             from numpy import float64
             """
         )
@@ -4272,6 +4273,17 @@ class ReprTest(DiskTestCase):
 
                 dim = tiledb.Dim(name="d1", dtype=dtype, **opt_kwarg)
                 self.assertEqual(eval(repr(dim), g), dim)
+
+        # test datetime
+        g = dict()
+        exec(dim_test_imports, g)
+        dim = tiledb.Dim(
+            name="d1",
+            domain=(np.datetime64("2010-01-01"), np.datetime64("2020")),
+            tile=2,
+            dtype=np.datetime64("", "D"),
+        )
+        self.assertEqual(eval(repr(dim), g), dim)
 
     def test_arrayschema_repr(self, sparse_cell_order):
         filters = tiledb.FilterList([tiledb.ZstdFilter(-1)])
