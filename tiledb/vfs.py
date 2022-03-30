@@ -94,7 +94,7 @@ class VFS(lt.VFS):
             buff = buff.encode()
         file.write(buff)
 
-    def read(self, file: lt.FileHandle, offset: int, nbytes: int):
+    def read(self, file: lt.FileHandle, offset: int, nbytes: int) -> bytes:
         """Read nbytes from an opened VFS FileHandle at a given offset
 
         :param FileHandle file: An opened VFS FileHandle in 'r' mode
