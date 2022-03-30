@@ -182,8 +182,8 @@ def _get_column_infos(df, column_types, varlen_types):
 
 def _get_schema_filters(filters):
     if filters is True:
-        # default case, unspecified: use libtiledb defaults
-        return None
+        # default case, use ZstdFilter
+        return tiledb.FilterList([tiledb.ZstdFilter()])
     elif filters is None:
         # empty filter list (schema uses zstd by default if unspecified)
         return tiledb.FilterList()
@@ -212,7 +212,7 @@ def _get_attrs(names, column_infos, attr_filters):
         attrs.append(
             tiledb.Attr(
                 name=name,
-                filters=filters or [tiledb.ZstdFilter()],
+                filters=filters,
                 dtype=column_info.dtype,
                 nullable=column_info.nullable,
                 var=column_info.var,
@@ -269,7 +269,7 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
         # nb.bytes_ which will force encoding on write
         dtype=np.bytes_ if dtype == np.str_ else dtype,
         tile=tile,
-        filters=dim_filters or [tiledb.ZstdFilter()],
+        filters=dim_filters,
     )
 
 
@@ -345,7 +345,7 @@ def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
             dtype,
             tile=get_dim_tile(name),
             full_domain=full_domain,
-            dim_filters=_get_attr_dim_filters(name, filters) or [tiledb.ZstdFilter()],
+            dim_filters=_get_attr_dim_filters(name, filters),
         )
         for name, dtype, values in name_dtype_values
     ]
@@ -539,13 +539,16 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
     # create the ArraySchema
     with warnings.catch_warnings() as w:
         warnings.simplefilter("always")
+        coord_filter = tiledb_args.get("coords_filters", True)
         schema = tiledb.ArraySchema(
             sparse=sparse,
             domain=tiledb.Domain(*dims),
             attrs=attrs,
             cell_order=tiledb_args["cell_order"],
             tile_order=tiledb_args["tile_order"],
-            coords_filters=_get_schema_filters(tiledb_args.get("coords_filters", True)),
+            coords_filters=None
+            if coord_filter is True
+            else _get_schema_filters(coord_filter),
             offsets_filters=_get_schema_filters(
                 tiledb_args.get("offsets_filters", True)
             ),
