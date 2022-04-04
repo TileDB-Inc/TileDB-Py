@@ -1,4 +1,18 @@
-# In-progress
+# TileDB-Py 0.13.3 Release Notes
+
+## TileDB Embedded updates:
+* The Python 3.10 / manylinux2014 wheels for TileDB-Py 0.13.3 include TileDB Embedded [TileDB 2.7.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.7.2) built with GCS support
+
+## Improvements
+* Move `VFS`, `FileIO`, and `FileHandle` classes from Cython to Pybind11 [#934](https://github.com/TileDB-Inc/TileDB-Py/pull/934)
+
+# TileDB-Py 0.13.2 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.13.2 includes TileDB Embedded [TileDB 2.7.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.7.2)
+
+## Improvements
+* Move `FilterList` and `Filter` classes from Cython to Pybind11 [#921j](https://github.com/TileDB-Inc/TileDB-Py/pull/921)
 
 ## Bug Fixes
 * Fix default validity for write to nullable attribute [#994]((https://github.com/TileDB-Inc/TileDB-Py/pull/994)
@@ -114,8 +128,6 @@
 
 ## Bug fixes
 * Support dict parameter for 'config' argument to VFS constructor [#805](https://github.com/TileDB-Inc/TileDB-Py/pull/805)
-
-## Bug Fixes
 * Correct libtiledb version checking for Fragment Info API getters' MBRs and array schema name [#784](https://github.com/TileDB-Inc/TileDB-Py/pull/784)
 
 # TileDB-Py 0.11.0 Release Notes
