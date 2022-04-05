@@ -12,10 +12,10 @@
 * TileDB-Py 0.13.2 includes TileDB Embedded [TileDB 2.7.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.7.2)
 
 ## Improvements
-* Move `FilterList` and `Filter` classes from Cython to Pybind11 [#921j](https://github.com/TileDB-Inc/TileDB-Py/pull/921)
+* Move `FilterList` and `Filter` classes from Cython to Pybind11 [#921](https://github.com/TileDB-Inc/TileDB-Py/pull/921)
 
 ## Bug Fixes
-* Fix default validity for write to nullable attribute [#994]((https://github.com/TileDB-Inc/TileDB-Py/pull/994)
+* Fix default validity for write to nullable attribute [#994](https://github.com/TileDB-Inc/TileDB-Py/pull/994)
 * Reduce query time for dense var-length arrays by including extra offset element in initial buffer allocation [#1005](https://github.com/TileDB-Inc/TileDB-Py/pull/1005)
 * Fix round-trippable repr for dimension tile [#998](https://github.com/TileDB-Inc/TileDB-Py/pull/998)
 
