@@ -130,7 +130,7 @@ void add_dim_range(Query &query, uint32_t dim_idx, py::tuple r) {
     case TILEDB_TIME_FS:
     case TILEDB_TIME_AS:
 #endif
-      py::dtype dtype = tiledb_dtype(tiledb_type, 1);
+      py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
       auto dt0 = py::isinstance<py::int_>(r0) ? r0 : r0.attr("astype")(dtype);
       auto dt1 = py::isinstance<py::int_>(r1) ? r1 : r1.attr("astype")(dtype);
 

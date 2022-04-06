@@ -13,6 +13,13 @@ namespace py = pybind11;
 #define DENUM(x) .value(#x, TILEDB_##x)
 
 void init_enums(py::module &m) {
+  // consts from tiledb.h
+  m.def("TILEDB_COORDS", []() { return TILEDB_COORDS; });
+  m.def("TILEDB_VAR_NUM", []() { return TILEDB_VAR_NUM; });
+  m.def("TILEDB_MAX_PATH", []() { return TILEDB_MAX_PATH; });
+  m.def("TILEDB_OFFSET_SIZE", []() { return TILEDB_OFFSET_SIZE; });
+  m.def("TILEDB_TIMESTAMP_NOW_MS", []() { return TILEDB_TIMESTAMP_NOW_MS; });
+
   py::enum_<tiledb_datatype_t>(m, "DataType", py::module_local()) DENUM(INT32)
       DENUM(INT64) DENUM(FLOAT32) DENUM(FLOAT64) DENUM(CHAR) DENUM(INT8)
           DENUM(UINT8) DENUM(INT16) DENUM(UINT16) DENUM(UINT32) DENUM(UINT64)
@@ -67,6 +74,12 @@ void init_enums(py::module &m) {
 
   py::enum_<tiledb_filesystem_t>(m, "FileSystem") DENUM(S3) DENUM(AZURE)
       DENUM(GCS) DENUM(HDFS);
+
+  py::enum_<tiledb::Object::Type>(m, "ObjectType")
+      .value("ARRAY", Object::Type::Array)
+      .value("GROUP", Object::Type::Group)
+      .value("INVALID", Object::Type::Invalid)
+      .export_values();
 
   // test helpers to check enum name against typed value
   m.def("_enum_string", &tiledb::impl::type_to_str);
