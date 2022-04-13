@@ -56,8 +56,12 @@ class Group(lt.Group):
     >>> grp.meta["str"] = "string_metadata"
     >>> grp.close()
     >>>
-    >>> # Get the first member's uri and type
     >>> grp.open("r")
+    >>> # Dump all the members in string format
+    >>> mbrs_repr = grp
+    >>> # Or create a list of Objects in the Group
+    >>> mbrs_iter = list(grp)
+    >>> # Get the first member's uri and type
     >>> member_uri, member_type = grp[0].uri, grp[0].type
     >>> grp.close()
     >>>

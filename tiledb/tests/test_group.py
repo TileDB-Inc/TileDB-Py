@@ -144,10 +144,17 @@ class GroupTest(GroupTestCase):
         assert grp.mode == "r"
         assert grp.isopen
         assert len(grp) == 2
-        assert os.path.basename(grp[0].uri) == os.path.basename(array_path)
-        assert os.path.basename(grp[1].uri) == os.path.basename(grp0_path)
-        assert grp[0].type == tiledb.Array
-        assert grp[1].type == tiledb.Group
+
+        type_to_basename = {
+            tiledb.Array: os.path.basename(array_path),
+            tiledb.Group: os.path.basename(grp0_path),
+        }
+        
+        assert grp[0].type in type_to_basename 
+        assert type_to_basename[grp[0].type] == os.path.basename(grp[0].uri)
+        assert grp[1].type in type_to_basename 
+        assert type_to_basename[grp[1].type] == os.path.basename(grp[1].uri)
+
         grp.close()
 
         grp.open("w")
