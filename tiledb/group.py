@@ -5,6 +5,7 @@ import tiledb.cc as lt
 from .ctx import default_ctx
 
 if TYPE_CHECKING:
+    from .libtiledb import Ctx
     from .object import Object
 
 
@@ -23,7 +24,7 @@ class Group(lt.Group):
     See more at:
     https://docs.tiledb.com/main/background/key-concepts-and-data-format#arrays-and-groups
 
-    :param uri: The URI to the group
+    :param uri: The URI to the Group
     :type str
     :param mode: Read mode ('r') or write mode ('w')
     :type str
@@ -162,42 +163,135 @@ class Group(lt.Group):
 
     @staticmethod
     def create(uri: str, ctx: "Ctx" = None):
+        """
+        Create a new Group.
+
+        :param uri: The URI to the to-be created Group
+        :type str
+        :param ctx: A TileDB context
+        :type tiledb.Ctx
+        """
         _ctx = ctx or default_ctx()
         cctx = lt.Context(_ctx.__capsule__(), False)
         lt.Group._create(cctx, uri)
 
     def open(self, mode: str = "r"):
+        """
+        Open a Group in read mode ("r") or write mode ("w").
+
+        :param mode: Read mode ('r') or write mode ('w')
+        :type str
+        """
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
         query_type = Group._mode_to_query_type[mode]
 
         self._open(query_type)
 
-    def __getitem__(self, idx: int) -> "Object":
+    def close(self):
+        """
+        Close a Group.
+        """
+        self._close()
+
+    def add(self, uri: str, name: str = None, relative: bool = False):
+        """
+        Adds a member to the Group.
+
+        :param uri: The URI of the member to add
+        :type str
+        :param relative: Whether the path of the URI is a relative path (default=False)
+        :type bool
+        :param name: An optional name for the Group (default=None)
+        :type str
+        """
+        if name:
+            self._add(uri, relative, name)
+        else:
+            self._add(uri, relative)
+
+    def __getitem__(self, member: Union[int, str]) -> "Object":
+        """
+        Retrieve a member from the Group as an Object.
+
+        :param member: The index or name of the member
+        :type Union[int, str]
+        :return: The member as an Object
+        :type Object
+        """
         from .object import Object
 
-        if not isinstance(idx, int):
-            raise TypeError(f"Unexpected idx type '{type(idx)}': expected int")
+        if not isinstance(member, (int, str)):
+            raise TypeError(
+                f"Unexpected member type '{type(member)}': expected int or str"
+            )
 
-        obj = self._member(idx)
+        obj = self._member(member)
         return Object(obj._type, obj.uri)
 
+    def remove(self, member: str):
+        """
+        Remove a member from the Group.
+
+        :param member: The URI or name of the member
+        :type str
+        """
+        if not isinstance(member, str):
+            raise TypeError(f"Unexpected member type '{type(member)}': expected str")
+
+        self._remove(member)
+
     def __delitem__(self, uri: str):
+        """
+        Remove a member from the group.
+
+        :param uri: The URI to the member
+        :type str
+        """
         self._remove(uri)
 
     def __iter__(self):
         return iter(self[i] for i in range(len(self)))
 
+    def __repr__(self):
+        return self.dump(True)
+
     @property
     def meta(self) -> GroupMetadata:
         """
         The metadata of the Group contained as a key-value structure.
+
+        :return: The Group's metadata
+        :type GroupMetadata
         """
         return self._meta
 
     @property
-    def mode() -> str:
+    def isopen(self) -> bool:
         """
-        Indictes if the Group is opened in read mode ('r') or write mode ('w').
+        Indicates whether or not the Group is open.
+
+        :return: Whether or not the Group is open
+        :type bool
         """
-        return self._query_type_to_mode[self.query_type]
+        return self._isopen
+
+    @property
+    def uri(self) -> str:
+        """
+        The URI of the Group.
+
+        :return: URI of the Group
+        :type str
+        """
+        return self._uri
+
+    @property
+    def mode(self) -> str:
+        """
+        Indicates if the Group is opened in read mode ('r') or write mode ('w').
+
+        :return: Read mode ('r') or write mode ('w')
+        :type str
+        """
+        return self._query_type_to_mode[self._query_type]

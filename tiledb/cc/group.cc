@@ -64,12 +64,12 @@ void init_group(py::module &m) {
       .def("_open", &Group::open)
       .def("set_config", &Group::set_config)
       .def("config", &Group::config)
-      .def("close", &Group::close)
+      .def("_close", &Group::close)
       .def("_create", &Group::create)
 
-      .def("is_open", &Group::is_open)
-      .def_property_readonly("uri", &Group::uri)
-      .def_property_readonly("query_type", &Group::query_type)
+      .def_property_readonly("_isopen", &Group::is_open)
+      .def_property_readonly("_uri", &Group::uri)
+      .def_property_readonly("_query_type", &Group::query_type)
 
       .def("_put_metadata", put_metadata)
       .def("_delete_metadata", &Group::delete_metadata)
@@ -80,12 +80,15 @@ void init_group(py::module &m) {
       // NOTE is this worth implementing?
       //   .def("get_metadata_from_index", get_metadata_from_index)
 
-      .def("add", &Group::add_member, py::arg("uri"),
-           py::arg("relative") = false)
-      .def("remove", &Group::remove_member)
+      .def("_add", &Group::add_member, py::arg("uri"),
+           py::arg("relative") = false, py::arg("name") = std::nullopt)
+      .def("_remove", &Group::remove_member)
       .def("__len__", &Group::member_count)
-      .def("_member", &Group::member)
-      .def("dump", &Group::dump);
+      .def("_member",
+           static_cast<Object (Group::*)(uint64_t) const>(&Group::member))
+      .def("_member",
+           static_cast<Object (Group::*)(std::string) const>(&Group::member))
+      .def("_dump", &Group::dump);
 }
 
 } // namespace libtiledbcpp
