@@ -12,17 +12,16 @@ class Group(lt.Group):
     """
     Support for organizing multiple arrays in arbitrary directory hierarchies.
     Group members may be any number of nested groups and arrays. Members are
-    stored as `tiledb.Object`s which indiciate the member's URI and type.
+    stored as `tiledb.Object`s which indicate the member's URI and type.
 
-    Groups may containing associated metadata similar to array metadata where
+    Groups may contain associated metadata similar to array metadata where
     keys are strings. Singleton values may be of type int, float, str, or bytes.
-    Multiple heterogenous values may be placed in containers of type list, tuple,
-    or 1-D np.ndarray. The values within containers are limited to type int or
-    float.
+    Multiple values of the same type may be placed in containers of type list,
+    tuple, or 1-D np.ndarray. The values within containers are limited to type
+    int or float.
 
     See more at:
     https://docs.tiledb.com/main/background/key-concepts-and-data-format#arrays-and-groups
-
 
     :param uri: The URI to the group
     :type str
@@ -38,7 +37,7 @@ class Group(lt.Group):
     >>> tiledb.Group.create(grp_path)
     >>> grp = tiledb.Group(grp_path, "w")
     >>>
-    >>> # Create an array an add as a member to the group
+    >>> # Create an array and add as a member to the group
     >>> array_path = "array.tdb"
     >>> domain = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
     >>> a1 = tiledb.Attr("val", dtype="f8")
@@ -46,7 +45,7 @@ class Group(lt.Group):
     >>> tiledb.Array.create(array_path, schema)
     >>> grp.add(array_path)
     >>>
-    >>> # Create a group and add is as subgroup
+    >>> # Create a group and add as a subgroup
     >>> subgrp_path = "sub_group"
     >>> tiledb.Group.create(subgrp_path)
     >>> grp.add(subgrp_path)
