@@ -1,4 +1,7 @@
-# In-Progress 
+# TileDB-Py 0.14.0 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.14.0 includes TileDB Embedded [TileDB 2.8.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.8.0)
 
 ## API Changes
 * Addition of `Group` and `Object` classes to support improved groups [#1022](https://github.com/TileDB-Inc/TileDB-Py/pull/1022)
