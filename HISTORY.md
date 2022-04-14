@@ -1,3 +1,9 @@
+# In-Progress 
+
+## API Changes
+* Addition of `Group` and `Object` classes to support improved groups [#1022](https://github.com/TileDB-Inc/TileDB-Py/pull/1022)
+
+
 # TileDB-Py 0.13.3 Release Notes
 
 ## TileDB Embedded updates:

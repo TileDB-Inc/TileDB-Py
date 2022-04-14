@@ -34,4 +34,10 @@ bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
 
 } // namespace tiledbpy::common
 
-py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
+py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
+tiledb_datatype_t np_to_tdb_dtype(py::dtype type);
+
+bool is_tdb_num(tiledb_datatype_t type);
+bool is_tdb_str(tiledb_datatype_t type);
+
+py::size_t get_ncells(py::dtype type);

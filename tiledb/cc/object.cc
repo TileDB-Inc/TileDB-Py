@@ -1,0 +1,30 @@
+#include <tiledb/tiledb>
+
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/pytypes.h>
+#include <pybind11/stl.h>
+
+#include "common.h"
+
+namespace libtiledbcpp {
+
+using namespace tiledb;
+using namespace tiledbpy::common;
+namespace py = pybind11;
+
+void init_object(py::module &m) {
+  py::class_<Object>(m, "Object")
+      .def(py::init<const Object::Type &, const std::string &>())
+      .def(py::init<tiledb_object_t, const std::string &>())
+
+      .def_property_readonly("_type", &Object::type)
+      .def_property_readonly("uri", &Object::uri)
+      .def("__repr__", &Object::to_str)
+
+      .def_static("object", &Object::object)
+      .def_static("remove", &Object::remove)
+      .def_static("move", &Object::move);
+}
+
+} // namespace libtiledbcpp

@@ -5211,32 +5211,6 @@ def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None)
         _raise_ctx_err(ctx_ptr, rc)
     return uri
 
-
-def group_create(uri, Ctx ctx=None):
-    """
-    Create a TileDB Group object at the specified path (URI)
-
-    :param str uri: URI of the TileDB Group to be created
-    :rtype: str
-    :param tiledb.Ctx ctx: The TileDB Context
-    :return: The URI of the created TileDB Group
-    :raises TypeError: cannot convert path to unicode string
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    if not ctx:
-        ctx = default_ctx()
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    cdef bytes buri = unicode_path(uri)
-    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-    with nogil:
-        rc = tiledb_group_create(ctx_ptr, uri_ptr)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    return uri
-
-
 def object_type(uri, Ctx ctx=None):
     """Returns the TileDB object type at the specified path (URI)
 

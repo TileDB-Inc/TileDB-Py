@@ -45,7 +45,6 @@ from .libtiledb import (
     Attr,
     ArraySchema,
     consolidate,
-    group_create,
     object_type,
     ls,
     walk,
@@ -86,6 +85,12 @@ from .fragment import (
     delete_fragments,
     create_array_from_fragments,
 )
+
+from .group import Group
+
+group_create = Group.create
+
+from .object import Object
 
 from .highlevel import (
     open,

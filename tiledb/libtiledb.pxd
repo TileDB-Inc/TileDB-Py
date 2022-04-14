@@ -239,11 +239,6 @@ cdef extern from "tiledb/tiledb.h":
     void tiledb_error_free(
         tiledb_error_t** err)
 
-    # Group
-    int tiledb_group_create(
-        tiledb_ctx_t* ctx,
-        const char* group) nogil
-
     # Attribute
     int tiledb_attribute_alloc(
         tiledb_ctx_t* ctx,
