@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.tests.common import DiskTestCase
@@ -121,7 +120,7 @@ class GroupTest(GroupTestCase):
         # assert "int" not in grp.meta
         # grp.close()
 
-    def test_group_members(self):
+    def test_group_members(self, capfd):
         grp_path = self.path("test_group_members")
         tiledb.Group.create(grp_path)
 
@@ -154,6 +153,10 @@ class GroupTest(GroupTestCase):
         assert type_to_basename[grp[0].type] == os.path.basename(grp[0].uri)
         assert grp[1].type in type_to_basename
         assert type_to_basename[grp[1].type] == os.path.basename(grp[1].uri)
+        
+        assert "test_group_members GROUP" in repr(grp)
+        assert "|-- test_group_members ARRAY" in repr(grp)
+        assert "|-- test_group_0 GROUP" in repr(grp)
 
         grp.close()
 
@@ -202,3 +205,5 @@ class GroupTest(GroupTestCase):
         grp.open("r")
         assert len(grp) == 0
         grp.close()
+        
+        
