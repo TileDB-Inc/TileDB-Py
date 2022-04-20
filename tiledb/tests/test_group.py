@@ -153,7 +153,7 @@ class GroupTest(GroupTestCase):
         assert type_to_basename[grp[0].type] == os.path.basename(grp[0].uri)
         assert grp[1].type in type_to_basename
         assert type_to_basename[grp[1].type] == os.path.basename(grp[1].uri)
-        
+
         assert "test_group_members GROUP" in repr(grp)
         assert "|-- test_group_members ARRAY" in repr(grp)
         assert "|-- test_group_0 GROUP" in repr(grp)
@@ -205,5 +205,3 @@ class GroupTest(GroupTestCase):
         grp.open("r")
         assert len(grp) == 0
         grp.close()
-        
-        
