@@ -1,3 +1,11 @@
+# In Progress
+
+## Improvements
+* Add `Group` and `Object` to docs [#1040](https://github.com/TileDB-Inc/TileDB-Py/pull/1040)
+
+## Bug Fixes
+* Correct `Group.__repr__` to call correct `_dump` function [#1040](https://github.com/TileDB-Inc/TileDB-Py/pull/1040)
+
 # TileDB-Py 0.14.1 Release Notes
 
 ## TileDB Embedded updates:
@@ -10,7 +18,6 @@
 
 ## API Changes
 * Addition of `Group` and `Object` classes to support improved groups [#1022](https://github.com/TileDB-Inc/TileDB-Py/pull/1022)
-
 
 # TileDB-Py 0.13.3 Release Notes
 
