@@ -254,7 +254,7 @@ class Group(lt.Group):
         return iter(self[i] for i in range(len(self)))
 
     def __repr__(self):
-        return self.dump(True)
+        return self._dump(True)
 
     @property
     def meta(self) -> GroupMetadata:

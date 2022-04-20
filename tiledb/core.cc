@@ -39,7 +39,7 @@
 namespace tiledbpy {
 
 using namespace std;
-using namespace tiledb;
+// using namespace tiledb;
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -1401,6 +1401,7 @@ public:
 
     auto pa_table =
         pa.attr("Table").attr("from_arrays")(results, "names"_a = names);
+
     return pa_table;
   }
 
