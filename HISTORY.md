@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Correct `Group.__repr__` to call correct `_dump` function [#1038](https://github.com/TileDB-Inc/TileDB-Py/pull/1038)
+
 # TileDB-Py 0.14.0 Release Notes
 
 ## TileDB Embedded updates:
