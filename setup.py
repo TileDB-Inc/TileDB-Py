@@ -23,7 +23,7 @@ from pybind11.setup_helpers import Pybind11Extension
 ### DO NOT USE ON CI
 
 # Target branch
-TILEDB_VERSION = "e9a945c4591f643ee9f183b1c9455b1eb848945f"  # 2.8.1
+TILEDB_VERSION = "2.8.1"
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
