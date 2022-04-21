@@ -139,6 +139,20 @@ Query Condition
 .. autoclass:: tiledb.QueryCondition
    :members:
 
+Group
+-----
+
+.. autoclass:: tiledb.Group
+   :members:
+
+Object
+------
+
+.. autoclass:: tiledb.Object
+
+   .. autoattribute:: uri
+   .. autoattribute:: type
+
 Object Management
 -----------------
 

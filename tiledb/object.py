@@ -18,9 +18,18 @@ class Object(lt.Object):
         super().__init__(type, uri)
 
     @property
+    def uri(self) -> str:
+        """
+        :return: URI of the Object.
+        :rtype: str
+        """
+        return self._uri
+
+    @property
     def type(self) -> type:
         """
-        Valid TileDB object types are Array and Group.
+        :return: Valid TileDB object types are Array and Group.
+        :rtype: type
         """
         if self._type not in self._obj_type_to_class:
             raise KeyError(f"Unknown object type: {self._type}")

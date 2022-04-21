@@ -19,12 +19,12 @@ void init_object(py::module &m) {
       .def(py::init<tiledb_object_t, const std::string &>())
 
       .def_property_readonly("_type", &Object::type)
-      .def_property_readonly("uri", &Object::uri)
+      .def_property_readonly("_uri", &Object::uri)
       .def("__repr__", &Object::to_str)
 
-      .def_static("object", &Object::object)
-      .def_static("remove", &Object::remove)
-      .def_static("move", &Object::move);
+      .def_static("_object", &Object::object)
+      .def_static("_remove", &Object::remove)
+      .def_static("_move", &Object::move);
 }
 
 } // namespace libtiledbcpp

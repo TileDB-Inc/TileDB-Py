@@ -12,24 +12,20 @@ if TYPE_CHECKING:
 class Group(lt.Group):
     """
     Support for organizing multiple arrays in arbitrary directory hierarchies.
-    Group members may be any number of nested groups and arrays. Members are
-    stored as `tiledb.Object`s which indicate the member's URI and type.
+
+    Group members may be any number of nested groups and arrays. Members are stored as tiledb.Objects which indicate the member's URI and type.
 
     Groups may contain associated metadata similar to array metadata where
-    keys are strings. Singleton values may be of type int, float, str, or bytes.
-    Multiple values of the same type may be placed in containers of type list,
-    tuple, or 1-D np.ndarray. The values within containers are limited to type
-    int or float.
+    keys are strings. Singleton values may be of type int, float, str, or bytes. Multiple values of the same type may be placed in containers of type list, tuple, or 1-D np.ndarray. The values within containers are limited to type int or float.
 
-    See more at:
-    https://docs.tiledb.com/main/background/key-concepts-and-data-format#arrays-and-groups
+    See more at: https://docs.tiledb.com/main/background/key-concepts-and-data-format#arrays-and-groups
 
     :param uri: The URI to the Group
-    :type str
+    :type uri: str
     :param mode: Read mode ('r') or write mode ('w')
-    :type str
+    :type mode: str
     :param ctx: A TileDB context
-    :type tiledb.Ctx
+    :type ctx: tiledb.Ctx
 
     **Example:**
 
@@ -171,9 +167,9 @@ class Group(lt.Group):
         Create a new Group.
 
         :param uri: The URI to the to-be created Group
-        :type str
+        :type uri: str
         :param ctx: A TileDB context
-        :type tiledb.Ctx
+        :type ctx: tiledb.Ctx
         """
         _ctx = ctx or default_ctx()
         cctx = lt.Context(_ctx.__capsule__(), False)
@@ -184,7 +180,7 @@ class Group(lt.Group):
         Open a Group in read mode ("r") or write mode ("w").
 
         :param mode: Read mode ('r') or write mode ('w')
-        :type str
+        :type mode: str
         """
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
@@ -203,11 +199,11 @@ class Group(lt.Group):
         Adds a member to the Group.
 
         :param uri: The URI of the member to add
-        :type str
-        :param relative: Whether the path of the URI is a relative path (default=False)
+        :type uri: str
+        :param relative: Whether the path of the URI is a relative path (default=relative: False)
         :type bool
         :param name: An optional name for the Group (default=None)
-        :type str
+        :type name: str
         """
         if name:
             self._add(uri, relative, name)
@@ -219,9 +215,9 @@ class Group(lt.Group):
         Retrieve a member from the Group as an Object.
 
         :param member: The index or name of the member
-        :type Union[int, str]
+        :type member: Union[int, str]
         :return: The member as an Object
-        :type Object
+        :rtype: Object
         """
         from .object import Object
 
@@ -238,7 +234,7 @@ class Group(lt.Group):
         Remove a member from the Group.
 
         :param member: The URI or name of the member
-        :type str
+        :type member: str
         """
         if not isinstance(member, str):
             raise TypeError(f"Unexpected member type '{type(member)}': expected str")
@@ -250,7 +246,7 @@ class Group(lt.Group):
         Remove a member from the group.
 
         :param uri: The URI to the member
-        :type str
+        :type uri: str
         """
         self._remove(uri)
 
@@ -263,39 +259,31 @@ class Group(lt.Group):
     @property
     def meta(self) -> GroupMetadata:
         """
-        The metadata of the Group contained as a key-value structure.
-
-        :return: The Group's metadata
-        :type GroupMetadata
+        :return: The Group's metadata as a key-value structure
+        :rtype: GroupMetadata
         """
         return self._meta
 
     @property
     def isopen(self) -> bool:
         """
-        Indicates whether or not the Group is open.
-
         :return: Whether or not the Group is open
-        :type bool
+        :rtype: bool
         """
         return self._isopen
 
     @property
     def uri(self) -> str:
         """
-        The URI of the Group.
-
         :return: URI of the Group
-        :type str
+        :rtype: str
         """
         return self._uri
 
     @property
     def mode(self) -> str:
         """
-        Indicates if the Group is opened in read mode ('r') or write mode ('w').
-
         :return: Read mode ('r') or write mode ('w')
-        :type str
+        :rtype: str
         """
         return self._query_type_to_mode[self._query_type]
