@@ -1,3 +1,8 @@
+# TileDB-Py 0.14.1 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.14.1 includes TileDB Embedded [TileDB 2.8.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.8.1)
+
 # TileDB-Py 0.14.0 Release Notes
 
 ## TileDB Embedded updates:
