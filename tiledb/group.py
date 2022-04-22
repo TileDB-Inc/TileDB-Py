@@ -227,7 +227,7 @@ class Group(lt.Group):
             )
 
         obj = self._member(member)
-        return Object(obj._type, obj.uri)
+        return Object(obj._type, obj._uri)
 
     def remove(self, member: str):
         """
