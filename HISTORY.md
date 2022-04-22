@@ -5,7 +5,7 @@
 
 ## Bug Fixes
 * Correct `Group.__repr__` to call correct `_dump` function [#1040](https://github.com/TileDB-Inc/TileDB-Py/pull/1040)
-* Check type of  `ctx` in `from_pandas` and `from_csv` []() 
+* Check type of  `ctx` in `from_pandas` and `from_csv` [#1042](https://github.com/TileDB-Inc/TileDB-Py/pull/1042) 
 
 # TileDB-Py 0.14.1 Release Notes
 
