@@ -68,6 +68,10 @@ Filters
 
 .. autoclass:: tiledb.FilterList
    :members:
+
+   .. automethod:: __getitem__(idx)
+   .. automethod:: __len__
+
 .. autoclass:: tiledb.libtiledb.CompressionFilter
    :members:
 .. autoclass:: tiledb.GzipFilter
@@ -145,6 +149,19 @@ Group
 .. autoclass:: tiledb.Group
    :members:
 
+   .. automethod:: __getitem__(member)
+   .. automethod:: __delitem__(uri)
+   .. automethod:: __len__
+
+.. autoclass:: tiledb.Group.GroupMetadata
+   :members:
+
+   .. automethod:: __setitem__(key, value)
+   .. automethod:: __getitem__(key)
+   .. automethod:: __delitem__(key)
+   .. automethod:: __contains__(key)
+   .. automethod:: __len__
+
 Object
 ------
 
@@ -184,6 +201,11 @@ VFS
 
 .. autoclass:: tiledb.VFS
    :members:
+
+.. autoclass:: tiledb.FileIO
+   :members:
+
+   .. automethod:: __len__
 
 Version
 -------

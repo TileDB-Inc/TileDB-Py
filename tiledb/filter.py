@@ -79,7 +79,7 @@ class CompressionFilter(Filter):
         self._ctx = ctx or default_ctx()
 
         super().__init__(type, self._ctx)
-        self.set_option(
+        self._set_option(
             lt.Context(self._ctx.__capsule__(), False),
             lt.FilterOption.COMPRESSION_LEVEL,
             self._level,
@@ -349,7 +349,7 @@ class BitWidthReductionFilter(Filter):
         self._ctx = ctx or default_ctx()
 
         super().__init__(lt.FilterType.BIT_WIDTH_REDUCTION)
-        self.set_option(
+        self._set_option(
             lt.Context(self._ctx.__capsule__(), False),
             lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
             self._window,
@@ -389,7 +389,7 @@ class PositiveDeltaFilter(Filter):
         self._ctx = ctx or default_ctx()
 
         super().__init__(lt.FilterType.POSITIVE_DELTA)
-        self.set_option(
+        self._set_option(
             lt.Context(self._ctx.__capsule__(), False),
             lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
             self._window,
@@ -521,7 +521,7 @@ class FilterList(lt.FilterList):
                         raise ValueError(
                             "filters argument must be an iterable of TileDB filter objects"
                         )
-                    self.add_filter(f)
+                    self._add_filter(f)
 
         if chunksize is not None:
             self._chunksize = chunksize
@@ -587,10 +587,23 @@ class FilterList(lt.FilterList):
                 return False
         return True
 
+    def __len__(self) -> int:
+        """
+        :rtype: int
+        :return: Number of filters in the FilterList
+
+        """
+        return self._nfilters()
+
     def append(self, filter: Filter):
+        """
+        :param Filter filter: the filter to append into the FilterList
+        :raises ValueError: filter argument incorrect type
+
+        """
         if not isinstance(filter, Filter):
             raise ValueError("filter argument must be a TileDB filter objects")
-        self.add_filter(filter)
+        self._add_filter(filter)
 
     def __repr__(self) -> str:
         filters = ",\n       ".join(
@@ -624,8 +637,8 @@ class FilterList(lt.FilterList):
         return output.getvalue()
 
     def _getfilter(self, i: int) -> Filter:
-        fil = self.filter(i)
-        filtype = self.filter_type_cc_to_python[fil.type]
+        fil = self._filter(i)
+        filtype = self.filter_type_cc_to_python[fil._type]
         opt = None
 
         if issubclass(filtype, CompressionFilter):
@@ -637,7 +650,7 @@ class FilterList(lt.FilterList):
 
         if opt is not None:
             _cctx = lt.Context(self._ctx.__capsule__(), False)
-            filter = filtype(fil.get_option(_cctx, opt), ctx=self._ctx)
+            filter = filtype(fil._get_option(_cctx, opt), ctx=self._ctx)
         else:
             filter = filtype(self._ctx)
 

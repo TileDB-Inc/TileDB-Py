@@ -62,8 +62,8 @@ void init_group(py::module &m) {
           py::keep_alive<1, 2>())
 
       .def("_open", &Group::open)
-      .def("set_config", &Group::set_config)
-      .def("config", &Group::config)
+      .def("_set_config", &Group::set_config)
+      .def("_config", &Group::config)
       .def("_close", &Group::close)
       .def("_create", &Group::create)
 
@@ -83,7 +83,7 @@ void init_group(py::module &m) {
       .def("_add", &Group::add_member, py::arg("uri"),
            py::arg("relative") = false, py::arg("name") = std::nullopt)
       .def("_remove", &Group::remove_member)
-      .def("__len__", &Group::member_count)
+      .def("_member_count", &Group::member_count)
       .def("_member",
            static_cast<Object (Group::*)(uint64_t) const>(&Group::member))
       .def("_member",
