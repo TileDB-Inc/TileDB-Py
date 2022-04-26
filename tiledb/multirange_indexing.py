@@ -204,7 +204,7 @@ class MultiRangeIndexer(object):
         return array
 
     def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
-        if self.query.return_arrow:
+        if self.query is not None and self.query.return_arrow:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
 
         with timing("getitem_time"):
