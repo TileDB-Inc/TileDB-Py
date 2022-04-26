@@ -20,6 +20,7 @@ from tiledb.tests.common import (
     DiskTestCase,
     assert_tail_equal,
     has_pandas,
+    has_pyarrow,
     intspace,
     SUPPORTED_DATETIME64_DTYPES,
     rand_datetime64_array,
@@ -139,6 +140,51 @@ class TestMultiRangeAuxiliary(DiskTestCase):
 
 
 class TestMultiRange(DiskTestCase):
+    @pytest.mark.skipif(not has_pyarrow(), reason="pyarrow not installed")
+    def test_return_arrow_indexers(self):
+        import pyarrow as pa
+
+        uri = self.path("multirange_behavior_sparse")
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                tiledb.Dim(name="idx", domain=(-5, 5), dtype=np.int64)
+            ),
+            attrs=[tiledb.Attr(name="data", dtype=np.int64)],
+        )
+        tiledb.Array.create(uri, schema)
+        data = np.random.randint(-10, 10, size=11)
+
+        with tiledb.open(uri, "w") as A:
+            A[:] = data
+
+        with tiledb.open(uri, "r") as A:
+            with self.assertRaisesRegex(
+                tiledb.TileDBError,
+                "Cannot initialize return_arrow with use_arrow=False",
+            ):
+                q = A.query(return_arrow=True, use_arrow=False)
+
+            q = A.query(return_arrow=True)
+
+            with self.assertRaisesRegex(
+                tiledb.TileDBError,
+                "`return_arrow=True` requires .df indexer",
+            ):
+                q[:]
+
+            with self.assertRaisesRegex(
+                tiledb.TileDBError,
+                "`return_arrow=True` requires .df indexer",
+            ):
+                q.multi_index[:]
+
+            q.df[:]
+
+            # TODO replace above with; this is currently not working due
+            # to Shortcut Story #17010
+            # assert_array_equal(q.df[:]["data"], data)
+
     def test_multirange_behavior(self):
         uri = self.path("multirange_behavior_sparse")
 

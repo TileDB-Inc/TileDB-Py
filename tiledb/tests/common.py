@@ -27,6 +27,10 @@ def has_pandas():
     return importlib.util.find_spec("pandas") is not None
 
 
+def has_pyarrow():
+    return importlib.util.find_spec("pyarrow") is not None
+
+
 def assert_tail_equal(a, *rest, **kwargs):
     """Assert that all arrays in target equal first array"""
     for target in rest:

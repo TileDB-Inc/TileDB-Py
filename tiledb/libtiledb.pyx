@@ -4048,6 +4048,9 @@ cdef class Query(object):
         self.domain_index = DomainIndexer(array, query=self)
 
     def __getitem__(self, object selection):
+        if self.return_arrow:
+            raise TileDBError("`return_arrow=True` requires .df indexer`")
+
         return self.array.subarray(selection,
                                    attrs=self.attrs,
                                    attr_cond=self.attr_cond,
