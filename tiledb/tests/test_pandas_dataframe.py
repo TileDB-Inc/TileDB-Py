@@ -628,6 +628,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             df.to_csv(fio)
 
         tmp_array = os.path.join(tmp_dir, "array")
+
+        with self.assertRaisesRegex(ValueError, "expected a TileDB Context object"):
+            cfg = tiledb.Config()
+            tiledb.from_csv(tmp_array, tmp_csv, ctx=cfg)
+
         tiledb.from_csv(
             tmp_array,
             tmp_csv,
@@ -1010,6 +1015,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
     def test_dataframe_misc(self):
         uri = self.path("test_small_domain_range")
         df = pd.DataFrame({"data": [2]}, index=[0])
+
+        with self.assertRaisesRegex(ValueError, "expected a TileDB Context object"):
+            cfg = tiledb.Config()
+            tiledb.from_pandas(uri, df, ctx=cfg)
+
         tiledb.from_pandas(uri, df)
 
         data = {

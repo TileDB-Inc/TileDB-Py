@@ -438,7 +438,11 @@ def from_pandas(uri: str, dataframe: "pd.DataFrame", **kwargs):
     else:
         tiledb_args = parse_tiledb_kwargs(kwargs)
 
-    with tiledb.scope_ctx(tiledb_args.get("ctx")):
+    ctx = tiledb_args.get("ctx")
+    if ctx is not None and not isinstance(ctx, tiledb.Ctx):
+        raise ValueError(f"`ctx` expected a TileDB Context object but saw {type(ctx)}")
+
+    with tiledb.scope_ctx(ctx):
         _from_pandas(uri, dataframe, tiledb_args)
 
 
@@ -726,9 +730,13 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
     ##########################################################################
     # set up common arguments
     ##########################################################################
+    ctx = tiledb_args.get("ctx")
+    if ctx is not None and not isinstance(ctx, tiledb.Ctx):
+        raise ValueError(f"`ctx` expected a TileDB Context object but saw {type(ctx)}")
+
     if isinstance(csv_file, str) and not os.path.isfile(csv_file):
         # for non-local files, use TileDB VFS i/o
-        vfs = tiledb.VFS(ctx=tiledb_args.get("ctx"))
+        vfs = tiledb.VFS(ctx=ctx)
         csv_file = tiledb.FileIO(vfs, csv_file, mode="rb")
     elif isinstance(csv_file, (list, tuple)):
         # TODO may be useful to support a filter callback here
