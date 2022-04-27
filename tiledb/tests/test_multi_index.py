@@ -140,7 +140,7 @@ class TestMultiRangeAuxiliary(DiskTestCase):
 
 
 class TestMultiRange(DiskTestCase):
-    @pytest.mark.skipif(not has_pyarrow(), reason="pyarrow not installed")
+    @pytest.mark.skipif(not has_pyarrow() or not has_pandas(), reason="pyarrow and/or pandas not installed")
     def test_return_arrow_indexers(self):
         import pyarrow as pa
 
