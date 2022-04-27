@@ -28,7 +28,7 @@ class Filter(lt.Filter):
 
     def _repr_html_(self) -> str:
         output = io.StringIO()
-        
+
         opt = list(self._attrs_().keys())[0] if self._attrs_() else ""
         val = getattr(self, opt) if self._attrs_() else ""
 
@@ -601,9 +601,9 @@ class FilterList(lt.FilterList):
     def _repr_html_(self) -> str:
         if len(self) == 0:
             return "-"
-        
+
         output = io.StringIO()
-        output.write("<section>\n")            
+        output.write("<section>\n")
         output.write("<table>\n")
         output.write("<tr>\n")
         output.write("<th>Name</th>\n")

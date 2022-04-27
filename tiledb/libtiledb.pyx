@@ -3156,20 +3156,20 @@ cdef class ArraySchema(object):
         output.write("</td>")
         output.write("</tr>")
 
-        output.write("<tr><th>Cell Order</th></td>")
+        output.write("<tr><th>Cell Order</th></tr>")
         output.write(f"<tr><td>{self.cell_order}</td></tr>")
 
-        output.write("<tr><th>Tile Order</th></td>")
+        output.write("<tr><th>Tile Order</th></tr>")
         output.write(f"<tr><td>{self.tile_order}</td></tr>")
 
-        output.write("<tr><th>Capacity</th></td>")
+        output.write("<tr><th>Capacity</th></tr>")
         output.write(f"<tr><td>{self.capacity}</td></tr>")
 
-        output.write("<tr><th>Sparse</th></td>")
+        output.write("<tr><th>Sparse</th></tr>")
         output.write(f"<tr><td>{self.sparse}</td></tr>")
 
         if self.sparse:
-            output.write("<tr><th>Allows DuplicatesK/th></td>")
+            output.write("<tr><th>Allows DuplicatesK/th></tr>")
             output.write(f"<tr><td>{self.allows_duplicates}</td></tr>")
 
         output.write("</table>")
