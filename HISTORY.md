@@ -2,6 +2,7 @@
 
 ## Improvements
 * Refactor display of TileDB objects in Jupyter notebooks to be more readable [#1049](https://github.com/TileDB-Inc/TileDB-Py/pull/1049)
+* Improve documentation for `Filter`, `FilterList`, `VFS`, `FileIO`, and `Group` [#1043](https://github.com/TileDB-Inc/TileDB-Py/pull/1043)
 
 # TileDB-Py 0.14.2 Release Notes
 
