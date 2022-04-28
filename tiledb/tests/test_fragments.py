@@ -3,6 +3,7 @@ import itertools
 import numpy as np
 import pytest
 import sys
+import xml.etree.ElementTree
 
 import tiledb
 from tiledb.main import PyFragmentInfo
@@ -57,6 +58,17 @@ class FragmentInfoTest(DiskTestCase):
             assert frag.sparse == False
             assert frag.timestamp_range == (idx + 1, idx + 1)
             assert hasattr(frag, "version")  # don't pin to a specific version
+            try:
+                assert xml.etree.ElementTree.fromstring(frag._repr_html_()) is not None
+            except:
+                pytest.fail(
+                    f"Could not parse frag._repr_html_(). Saw {frag._repr_html_()}"
+                )
+
+        try:
+            assert xml.etree.ElementTree.fromstring(fi._repr_html_()) is not None
+        except:
+            pytest.fail(f"Could not parse fi._repr_html_(). Saw {fi._repr_html_()}")
 
     def test_array_fragments_var(self):
         fragments = 3
