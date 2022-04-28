@@ -1,7 +1,7 @@
 # In-Progress
 
 ## Bug Fixes
-* `Dim.shape` correctly errors out if type is not integer or datetime []()
+* `Dim.shape` correctly errors out if type is not integer or datetime [#1055](https://github.com/TileDB-Inc/TileDB-Py/pull/1055)
 
 # TileDB-Py 0.14.2 Release Notes
 
