@@ -2025,9 +2025,16 @@ cdef class Dim(object):
 
     cdef _integer_domain(self):
         cdef tiledb_datatype_t typ = self._get_type()
-        if typ == TILEDB_FLOAT32 or typ == TILEDB_FLOAT64:
-            return False
-        return True
+        return typ in (
+            TILEDB_UINT8,
+            TILEDB_INT8,
+            TILEDB_UINT16,
+            TILEDB_INT16,
+            TILEDB_UINT32,
+            TILEDB_INT32,
+            TILEDB_UINT64,
+            TILEDB_INT64,
+        )
 
     cdef _datetime_domain(self):
         cdef tiledb_datatype_t typ = self._get_type()
