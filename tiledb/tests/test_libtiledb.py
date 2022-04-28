@@ -12,6 +12,7 @@ import textwrap
 import time
 import unittest
 import warnings
+import xml.etree.ElementTree
 from collections import OrderedDict
 from contextlib import redirect_stdout
 
@@ -174,6 +175,15 @@ class TestConfig(DiskTestCase):
         assert issubclass(type(config), tiledb.libtiledb.Config)
         self.assertEqual(config["sm.tile_cache_size"], "100")
 
+    def test_config_repr_html(self):
+        config = tiledb.Config()
+        try:
+            assert xml.etree.ElementTree.fromstring(config._repr_html_()) is not None
+        except:
+            pytest.fail(
+                f"Could not parse config._repr_html_(). Saw {config._repr_html_()}"
+            )
+
 
 class DimensionTest(unittest.TestCase):
     def test_minimal_dimension(self):
@@ -187,6 +197,10 @@ class DimensionTest(unittest.TestCase):
         self.assertEqual(dim.name, "d1")
         self.assertEqual(dim.shape, (4,))
         self.assertEqual(dim.tile, 2)
+        try:
+            assert xml.etree.ElementTree.fromstring(dim._repr_html_()) is not None
+        except:
+            pytest.fail(f"Could not parse dim._repr_html_(). Saw {dim._repr_html_()}")
 
     def test_dimension_filter(self):
         filters = [tiledb.GzipFilter(2)]
@@ -305,6 +319,11 @@ class DomainTest(DiskTestCase):
         dom2 = tiledb.Domain(dims)
         self.assertEqual(dom, dom2)
 
+        try:
+            assert xml.etree.ElementTree.fromstring(dom._repr_html_()) is not None
+        except:
+            pytest.fail(f"Could not parse dom._repr_html_(). Saw {dom._repr_html_()}")
+
     def test_datetime_domain(self):
         dim = tiledb.Dim(
             name="d1",
@@ -355,6 +374,11 @@ class AttributeTest(DiskTestCase):
         # self.assertEqual(attr.compressor, (None, -1))
         self.assertFalse(attr.isvar)
         self.assertFalse(attr.isnullable)
+
+        try:
+            assert xml.etree.ElementTree.fromstring(attr._repr_html_()) is not None
+        except:
+            pytest.fail(f"Could not parse attr._repr_html_(). Saw {attr._repr_html_()}")
 
     def test_attribute(self, capfd):
         attr = tiledb.Attr("foo")
@@ -521,6 +545,14 @@ class ArraySchemaTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=(attr1,))
         # valid schema does not raise
         schema.check()
+
+        try:
+            assert xml.etree.ElementTree.fromstring(schema._repr_html_()) is not None
+        except:
+            pytest.fail(
+                f"Could not parse schema._repr_html_(). Saw {schema._repr_html_()}"
+            )
+
         with self.assertRaises(tiledb.TileDBError):
             schema._make_invalid()
             schema.check()
@@ -3012,15 +3044,40 @@ class TestFilterTest(unittest.TestCase):
         self.assertIsInstance(gzip_filter, tiledb.Filter)
         self.assertEqual(gzip_filter.level, 10)
 
+        try:
+            assert (
+                xml.etree.ElementTree.fromstring(gzip_filter._repr_html_()) is not None
+            )
+        except:
+            pytest.fail(
+                f"Could not parse gzip_filter._repr_html_(). Saw {gzip_filter._repr_html_()}"
+            )
+
         bw_filter = tiledb.BitWidthReductionFilter(window=10)
         self.assertIsInstance(bw_filter, tiledb.Filter)
         self.assertEqual(bw_filter.window, 10)
+
+        try:
+            assert xml.etree.ElementTree.fromstring(bw_filter._repr_html_()) is not None
+        except:
+            pytest.fail(
+                f"Could not parse bw_filter._repr_html_(). Saw {bw_filter._repr_html_()}"
+            )
 
         filter_list = tiledb.FilterList([gzip_filter, bw_filter], chunksize=1024)
         self.assertEqual(filter_list.chunksize, 1024)
         self.assertEqual(len(filter_list), 2)
         self.assertEqual(filter_list[0].level, gzip_filter.level)
         self.assertEqual(filter_list[1].window, bw_filter.window)
+
+        try:
+            assert (
+                xml.etree.ElementTree.fromstring(filter_list._repr_html_()) is not None
+            )
+        except:
+            pytest.fail(
+                f"Could not parse filter_list._repr_html_(). Saw {filter_list._repr_html_()}"
+            )
 
         # test filter list iteration
         self.assertEqual(len(list(filter_list)), 2)

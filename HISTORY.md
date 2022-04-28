@@ -1,5 +1,8 @@
 # In-Progress
 
+## Improvements
+* Refactor display of TileDB objects in Jupyter notebooks to be more readable [#1049](https://github.com/TileDB-Inc/TileDB-Py/pull/1049)
+
 ## Bug Fixes
 * `Dim.shape` correctly errors out if type is not integer or datetime [#1055](https://github.com/TileDB-Inc/TileDB-Py/pull/1055)
 

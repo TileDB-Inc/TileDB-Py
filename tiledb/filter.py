@@ -29,23 +29,16 @@ class Filter(lt.Filter):
     def _repr_html_(self) -> str:
         output = io.StringIO()
 
+        opt = list(self._attrs_().keys())[0] if self._attrs_() else ""
+        val = getattr(self, opt) if self._attrs_() else ""
+
         output.write("<section>\n")
         output.write("<table>\n")
-
-        output.write("<tr>\n")
-        output.write("<th></th>\n")
-        if hasattr(self, "_attrs_"):
-            for f in self._attrs_():
-                output.write(f"<th>{f}</th>")
-        output.write("</tr>\n")
-
         output.write("<tr>\n")
         output.write(f"<td>{type(self).__name__}</td>\n")
-        if hasattr(self, "_attrs_"):
-            for f in self._attrs_():
-                output.write(f"<td>{getattr(self, f)}</td>")
+        output.write(f"<td>{opt}</td>")
+        output.write(f"<td>{val}</td>")
         output.write("</tr>\n")
-
         output.write("</table>\n")
         output.write("</section>\n")
 
@@ -606,11 +599,26 @@ class FilterList(lt.FilterList):
         return "FilterList([{0!s}])".format(filters)
 
     def _repr_html_(self) -> str:
-        output = io.StringIO()
+        if len(self) == 0:
+            return "-"
 
+        output = io.StringIO()
         output.write("<section>\n")
-        for i in range(len(self)):
-            output.write(self[i]._repr_html_())
+        output.write("<table>\n")
+        output.write("<tr>\n")
+        output.write("<th>Name</th>\n")
+        output.write("<th>Option</th>\n")
+        output.write("<th>Level</th>\n")
+        output.write("</tr>\n")
+        for filter in self:
+            opt = list(filter._attrs_().keys())[0] if filter._attrs_() else "-"
+            val = getattr(filter, opt) if filter._attrs_() else "-"
+            output.write("<tr>\n")
+            output.write(f"<td>{type(filter).__name__}</td>\n")
+            output.write(f"<td>{opt}</td>")
+            output.write(f"<td>{val}</td>")
+            output.write("</tr>\n")
+        output.write("</table>\n")
         output.write("</section>\n")
 
         return output.getvalue()

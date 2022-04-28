@@ -874,25 +874,23 @@ cdef class Config(object):
     def _repr_html_(self):
         output = io.StringIO()
 
-        output.write("<section>\n")
-        output.write("<table>\n")
+        output.write("<table>")
 
-        output.write("<tr>\n")
-        output.write("<th>Parameter</th>\n")
-        output.write("<th>Value</th>\n")
-        output.write("</tr>\n")
+        output.write("<tr>")
+        output.write("<th>Parameter</th>")
+        output.write("<th>Value</th>")
+        output.write("</tr>")
 
         params = list(self.keys())
         values = list(map(repr, self.values()))
 
         for p, v in zip(params, values):
-            output.write("<tr>\n")
-            output.write(f"<td>{p}</td>\n")
-            output.write(f"<td>{v}</td>\n")
-            output.write("</tr>\n")
+            output.write("<tr>")
+            output.write(f"<td>{p}</td>")
+            output.write(f"<td>{v}</td>")
+            output.write("</tr>")
 
-        output.write("</table>\n")
-        output.write("</section>\n")
+        output.write("</table>")
 
         return output.getvalue()
 
@@ -1732,25 +1730,29 @@ cdef class Attr(object):
     def _repr_html_(self):
         output = io.StringIO()
 
-        output.write("<section>\n")
-        output.write("<table>\n")
+        output.write("<table>")
+        output.write("<tr>")
+        output.write("<th>Name</th>")
+        output.write("<th>Data Type</th>")
+        output.write("<th>Is Var-Len</th>")
+        output.write("<th>Is Nullable</th>")
+        output.write("<th>Filters</th>")
+        output.write("</tr>")
+        output.write(f"{self._repr_html_row_only_()}")
+        output.write("</table>")
 
-        output.write("<tr>\n")
-        output.write("<th>Name</th>\n")
-        output.write("<th>Data Type</th>\n")
-        output.write("<th>Is Var-Len</th>\n")
-        output.write("<th>Is Nullable</th>\n")
-        output.write("</tr>\n")
+        return output.getvalue()
+    
+    def _repr_html_row_only_(self):
+        output = io.StringIO()
 
-        output.write("<tr>\n")
-        output.write(f"<td>{self.name}</td>\n")
-        output.write(f"<td>{'ascii' if self.isascii else self.dtype}</td>\n")
-        output.write(f"<td>{self.isvar}</td>\n")
-        output.write(f"<td>{self.isnullable}</td>\n")
-        output.write("</tr>\n")
-
-        output.write("</table>\n")
-        output.write("</section>\n")
+        output.write("<tr>")
+        output.write(f"<td>{self.name}</td>")
+        output.write(f"<td>{'ascii' if self.isascii else self.dtype}</td>")
+        output.write(f"<td>{self.isvar}</td>")
+        output.write(f"<td>{self.isnullable}</td>")
+        output.write(f"<td>{self.filters._repr_html_()}</td>")
+        output.write("</tr>")
 
         return output.getvalue()
 
@@ -1894,36 +1896,31 @@ cdef class Dim(object):
     def _repr_html_(self) -> str:
         output = io.StringIO()
 
-        output.write("<section>\n")
-        output.write("<table>\n")
+        output.write("<table>")
+        output.write("<tr>")
+        output.write("<th>Name</th>")
+        output.write("<th>Domain</th>")
+        output.write("<th>Tile</th>")
+        output.write("<th>Data Type</th>")
+        output.write("<th>Is Var-Len</th>")
+        output.write("<th>Filters</th>")
+        output.write("</tr>")
+        output.write(self._repr_html_row_only_())
+        output.write("</table>")
 
-        output.write("<tr>\n")
-        output.write("<th>Name</th>\n")
-        output.write("<th>Domain</th>\n")
-        output.write("<th>Tile</th>\n")
-        output.write("<th>Data Type</th>\n")
-        output.write("<th>Is Var-Len</th>\n")
-        output.write("<th>Filters</th>\n")
-        output.write("</tr>\n")
+        return output.getvalue()
+    
+    def _repr_html_row_only_(self) -> str:
+        output = io.StringIO()
 
-        filters_str = ""
-        if self.filters:
-            filters_str = ", filters=FilterList(["
-            for f in self.filters:
-                filters_str +=  repr(f) + ", "
-            filters_str += "])"
-
-        output.write("<tr>\n")
-        output.write(f"<td>{self.name}</td>\n")
-        output.write(f"<td>{self.domain}</td>\n")
-        output.write(f"<td>{self.tile}</td>\n")
-        output.write(f"<td>{self.dtype}</td>\n")
-        output.write(f"<td>{self.dtype in (np.str_, np.bytes_) }</td>\n")
-        output.write(f"<td>{filters_str}</td>\n")
-        output.write("</tr>\n")
-
-        output.write("</table>\n")
-        output.write("</section>\n")
+        output.write("<tr>")
+        output.write(f"<td>{self.name}</td>")
+        output.write(f"<td>{self.domain}</td>")
+        output.write(f"<td>{self.tile}</td>")
+        output.write(f"<td>{self.dtype}</td>")
+        output.write(f"<td>{self.dtype in (np.str_, np.bytes_)}</td>")
+        output.write(f"<td>{self.filters._repr_html_()}</td>")
+        output.write("</tr>")
 
         return output.getvalue()
 
@@ -2241,32 +2238,19 @@ cdef class Domain(object):
     def _repr_html_(self) -> str:
         output = io.StringIO()
 
-        output.write("<section>\n")
-        output.write("<table>\n")
+        output.write("<table>")
 
-        output.write("<tr>\n")
-        output.write("<th>Name</th>\n")
-        output.write("<th>Domain</th>\n")
-        output.write("<th>Tile</th>\n")
-        output.write("<th>Data Type</th>\n")
-        output.write("<th>Is Var-length</th>\n")
-        output.write("<th>Filters</th>\n")
-        output.write("</tr>\n")
-
+        output.write("<tr>")
+        output.write("<th>Name</th>")
+        output.write("<th>Domain</th>")
+        output.write("<th>Tile</th>")
+        output.write("<th>Data Type</th>")
+        output.write("<th>Is Var-length</th>")
+        output.write("<th>Filters</th>")
+        output.write("</tr>")
         for i in range(self.ndim):
-            dim = self.dim(i)
-            output.write("<tr>\n")
-            output.write(f"<td>{html.escape(dim.name)}</td>\n")
-            output.write(f"<td>{dim.domain}</td>\n")
-            output.write(f"<td>{dim.tile}</td>\n")
-            output.write(f"<td>{html.escape(str(dim.dtype))}</td>\n")
-            output.write(f"<td>{dim.dtype in (np.str_, np.bytes_) }</td>\n")
-            output.write(f"<td>{dim.filters._repr_html_()}</td>\n")
-            output.write("</tr>\n")
-
-
-        output.write("</table>\n")
-        output.write("</section>\n")
+            output.write(self.dim(i)._repr_html_row_only_())
+        output.write("</table>")
 
         return output.getvalue()
 
@@ -3157,56 +3141,45 @@ cdef class ArraySchema(object):
     def _repr_html_(self):
         output = io.StringIO()
 
-        output.write("<section>\n")
-        output.write("<h3>ArraySchema</h3>\n")\
+        output.write("<table>")
 
-        output.write("<details>\n")
-        output.write(f"<summary>domain</summary>\n")
-        output.write(self.domain._repr_html_())
-        output.write("</details>\n")
+        output.write("<tr><th>Domain</th></tr>")
+        output.write(f"<tr><td>{self.domain._repr_html_()}</td></tr>")
 
-        output.write("<details>\n")
-        output.write(f"<summary>attrs</summary>\n")
-        output.write("<table>\n")
-        output.write("<tr>\n")
-        output.write("<th>Name</th>\n")
-        output.write("<th>Data Type</th>\n")
-        output.write("<th>Is Var-Len</th>\n")
-        output.write("<th>Is Nullable</th>\n")
-        output.write("</tr>\n")
+        output.write("<tr><th>Attributes</th></tr>")
+        output.write("<tr>")
+        output.write("<td>")
+        output.write("<table>")
+        output.write("<tr>")
+        output.write("<th>Name</th>")
+        output.write("<th>Data Type</th>")
+        output.write("<th>Is Var-Len</th>")
+        output.write("<th>Is Nullable</th>")
+        output.write("<th>Filters</th>")
+        output.write("</tr>")
         for i in range(self.nattr):
-            attr = self.attr(i)
-            output.write("<tr>\n")
-            output.write(f"<td>{html.escape(attr.name)}</td>\n")
-            dtype = 'ascii' if attr.isascii else html.escape(str(attr.dtype))
-            output.write(f"<td>{dtype}</td>\n")
-            output.write(f"<td>{attr.isvar}</td>\n")
-            output.write(f"<td>{attr.isnullable}</td>\n")
-            output.write("</tr>\n")
-        output.write("</table>\n")
-        output.write("</details>\n")
+            output.write(f"{self.attr(i)._repr_html_row_only_()}")
+        output.write("</table>")
+        output.write("</td>")
+        output.write("</tr>")
 
-        output.write("<details>\n")
-        output.write(f"<summary>cell_order</summary>\n")
-        output.write(f"{self.cell_order}\n")
-        output.write("</details>\n")
+        output.write("<tr><th>Cell Order</th></tr>")
+        output.write(f"<tr><td>{self.cell_order}</td></tr>")
 
-        output.write("<details>\n")
-        output.write(f"<summary>tile_order</summary>\n")
-        output.write(f"{self.tile_order}\n")
-        output.write("</details>\n")
+        output.write("<tr><th>Tile Order</th></tr>")
+        output.write(f"<tr><td>{self.tile_order}</td></tr>")
 
-        output.write("<details>\n")
-        output.write(f"<summary>capacity</summary>\n")
-        output.write(f"{self.capacity}\n")
-        output.write("</details>\n")
+        output.write("<tr><th>Capacity</th></tr>")
+        output.write(f"<tr><td>{self.capacity}</td></tr>")
 
-        output.write("<details>\n")
-        output.write(f"<summary>sparse</summary>\n")
-        output.write(f"{self.sparse}\n")
-        output.write("</details>\n")
+        output.write("<tr><th>Sparse</th></tr>")
+        output.write(f"<tr><td>{self.sparse}</td></tr>")
 
-        output.write("</section>\n")
+        if self.sparse:
+            output.write("<tr><th>Allows DuplicatesK/th></tr>")
+            output.write(f"<tr><td>{self.allows_duplicates}</td></tr>")
+
+        output.write("</table>")
 
         return output.getvalue()
 
