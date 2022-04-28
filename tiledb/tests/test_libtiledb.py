@@ -282,6 +282,14 @@ class DimensionTest(unittest.TestCase):
                 name="d1", domain=(-10, 10), tile=2, dtype=np.datetime64("", "D")
             )
 
+    def test_shape(self):
+        dim = tiledb.Dim(name="", dtype="|S0", var=True)
+        with self.assertRaisesRegex(
+            TypeError,
+            "shape only valid for integer and datetime dimension domains",
+        ):
+            dim.shape
+
 
 class DomainTest(DiskTestCase):
     def test_domain(self, capfd):
