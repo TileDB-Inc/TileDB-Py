@@ -90,6 +90,12 @@ class Group(lt.Group):
             self._group = group
 
         def __setitem__(self, key: str, value: GroupMetadataValueType):
+            """
+            :param str key: Key for the Group metadata entry
+            :param value: Value for the Group metadata entry
+            :type value: Union[int, float, str, bytes, np.ndarray]
+
+            """
             if not isinstance(key, str):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
@@ -110,6 +116,12 @@ class Group(lt.Group):
             self._group._put_metadata(f"{prefix}{key}", _value)
 
         def __getitem__(self, key: str) -> GroupMetadataValueType:
+            """
+            :param str key: Key of the Group metadata entry
+            :rtype: Union[int, float, str, bytes, np.ndarray]
+            :return: The value associated with the key
+
+            """
             if not isinstance(key, str):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
@@ -128,6 +140,11 @@ class Group(lt.Group):
                 raise KeyError(f"KeyError: {key}")
 
         def __delitem__(self, key: str):
+            """Removes the entry from the Group metadata.
+
+            :param str key: Key of the Group metadata entry
+
+            """
             if not isinstance(key, str):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
@@ -136,7 +153,13 @@ class Group(lt.Group):
             self._group._delete_metadata(key)
             self._group._delete_metadata(f"{Group._NP_DATA_PREFIX}{key}")
 
-        def __contains__(self, key: str):
+        def __contains__(self, key: str) -> bool:
+            """
+            :param str key: Key of the Group metadata entry
+            :rtype: bool
+            :return: True if the key is in the Group metadata, otherwise False
+
+            """
             if not isinstance(key, str):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
@@ -146,7 +169,12 @@ class Group(lt.Group):
                 f"{Group._NP_DATA_PREFIX}{key}"
             )
 
-        def __len__(self):
+        def __len__(self) -> int:
+            """
+            :rtype: int
+            :return: Number of entries in the Group metadata
+
+            """
             return self._group._metadata_num()
 
     def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
@@ -228,6 +256,14 @@ class Group(lt.Group):
 
         obj = self._member(member)
         return Object(obj._type, obj._uri)
+
+    def __len__(self) -> int:
+        """
+        :rtype: int
+        :return: Number of members in the Group
+
+        """
+        return self._member_count()
 
     def remove(self, member: str):
         """

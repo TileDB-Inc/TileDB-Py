@@ -18,9 +18,9 @@ void init_filter(py::module &m) {
       .def(py::init<const Context &, tiledb_filter_type_t>(),
            py::keep_alive<1, 2>())
 
-      .def_property_readonly("type", &Filter::filter_type)
+      .def_property_readonly("_type", &Filter::filter_type)
 
-      .def("set_option",
+      .def("_set_option",
            [](Filter &filter, Context ctx, tiledb_filter_option_t option,
               int32_t level) {
              // TODO check_type(a.dtype)
@@ -28,7 +28,7 @@ void init_filter(py::module &m) {
              ctx.handle_error(tiledb_filter_set_option(
                  ctx.ptr().get(), filter.ptr().get(), option, &level));
            })
-      .def("get_option",
+      .def("_get_option",
            [](Filter &filter, Context ctx, tiledb_filter_option_t option) {
              int32_t level;
              // TODO check_type(a.dtype)
@@ -50,12 +50,9 @@ void init_filter(py::module &m) {
       .def_property("_chunksize", &FilterList::max_chunk_size,
                     &FilterList::set_max_chunk_size)
 
-      .def("__len__", &FilterList::nfilters)
-      .def("nfilters", &FilterList::nfilters)
-
-      .def("filter", &FilterList::filter)
-
-      .def("add_filter", &FilterList::add_filter);
+      .def("_nfilters", &FilterList::nfilters)
+      .def("_filter", &FilterList::filter)
+      .def("_add_filter", &FilterList::add_filter);
 }
 
 } // namespace libtiledbcpp

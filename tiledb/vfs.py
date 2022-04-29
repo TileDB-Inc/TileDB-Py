@@ -1,5 +1,5 @@
 import io
-from typing import Optional, Type, TYPE_CHECKING, Union
+from typing import List, Optional, Type, TYPE_CHECKING, Union
 from types import TracebackType
 import warnings
 
@@ -22,8 +22,8 @@ class VFS(lt.VFS):
     """
 
     def __init__(self, config: Union["Config", dict] = None, ctx: "Ctx" = None):
-        self._ctx = ctx or default_ctx()
-        cctx = lt.Context(self._ctx.__capsule__(), False)
+        ctx = ctx or default_ctx()
+        cctx = lt.Context(ctx.__capsule__(), False)
 
         if config:
             from .libtiledb import Config
@@ -41,8 +41,22 @@ class VFS(lt.VFS):
         else:
             super().__init__(cctx)
 
+    def ctx(self) -> "Ctx":
+        """
+        :rtype: tiledb.Ctx
+        :return: context associated with the VFS object
+        """
+        return self._ctx
+
+    def config(self) -> "Config":
+        """
+        :rtype: tiledb.Config
+        :return: config associated with the VFS object
+        """
+        return self._config
+
     def open(self, uri: str, mode: str = "rb"):
-        """Opens a VFS file resource for reading / writing / appends at URI
+        """Opens a VFS file resource for reading / writing / appends at URI.
 
         If the file did not exist upon opening, a new file is created.
 
@@ -58,7 +72,7 @@ class VFS(lt.VFS):
         return FileIO(self, uri, mode)
 
     def close(self, file: lt.FileHandle):
-        """Closes a VFS FileHandle object
+        """Closes a VFS FileHandle object.
 
         :param FileIO file: An opened VFS FileIO
         :rtype: FileIO
@@ -76,7 +90,7 @@ class VFS(lt.VFS):
         return file
 
     def write(self, file: lt.FileHandle, buff: Union[str, bytes]):
-        """Writes buffer to opened VFS FileHandle
+        """Writes buffer to opened VFS FileHandle.
 
         :param FileHandle file: An opened VFS FileHandle in 'w' mode
         :param buff: a Python object that supports the byte buffer protocol
@@ -95,7 +109,7 @@ class VFS(lt.VFS):
         file.write(buff)
 
     def read(self, file: lt.FileHandle, offset: int, nbytes: int) -> bytes:
-        """Read nbytes from an opened VFS FileHandle at a given offset
+        """Read nbytes from an opened VFS FileHandle at a given offset.
 
         :param FileHandle file: An opened VFS FileHandle in 'r' mode
         :param int offset: offset position in bytes to read from
@@ -119,7 +133,7 @@ class VFS(lt.VFS):
         return file.read(offset, nbytes)
 
     def supports(self, scheme: str) -> bool:
-        """Returns true if the given URI scheme (storage backend) is supported
+        """Returns true if the given URI scheme (storage backend) is supported.
 
         :param str scheme: scheme component of a VFS resource URI (ex. 'file' / 'hdfs' / 's3')
         :rtype: bool
@@ -140,11 +154,170 @@ class VFS(lt.VFS):
         if scheme not in scheme_to_fs_type:
             raise ValueError(f"Unsupported VFS scheme '{scheme}://'")
 
-        cctx = lt.Context(self._ctx.__capsule__(), False)
-        return cctx.is_supported_fs(scheme_to_fs_type[scheme])
+        return self._ctx.is_supported_fs(scheme_to_fs_type[scheme])
+
+    def create_bucket(self, uri: str):
+        """Creates an object store bucket with the input URI.
+
+        :param str uri: Input URI of the bucket
+
+        """
+        return self._create_bucket(uri)
+
+    def remove_bucket(self, uri: str):
+        """Deletes an object store bucket with the input URI.
+
+        :param str uri: Input URI of the bucket
+
+        """
+        return self._remove_bucket(uri)
+
+    def is_bucket(self, uri: str) -> bool:
+        """
+        :param str uri: Input URI of the bucket
+        :rtype: bool
+        :return: True if an object store bucket with the input URI exists, False otherwise
+
+        """
+        return self._is_bucket(uri)
+
+    def empty_bucket(self, uri: str):
+        """Empty an object store bucket.
+
+        :param str uri: Input URI of the bucket
+
+        """
+        return self._empty_bucket(uri)
+
+    def is_empty_bucket(self, uri: str) -> bool:
+        """
+        :param str uri: Input URI of the bucket
+        :rtype: bool
+        :return: True if an object store bucket is empty, False otherwise
+
+        """
+        return self._is_empty_bucket(uri)
+
+    def create_dir(self, uri: str):
+        """Check if an object store bucket is empty.
+
+        :param str uri: Input URI of the bucket
+
+        """
+        return self._create_dir(uri)
+
+    def is_dir(self, uri: str) -> bool:
+        """
+        :param str uri: Input URI of the directory
+        :rtype: bool
+        :return: True if a directory with the input URI exists, False otherwise
+
+        """
+        return self._is_dir(uri)
+
+    def remove_dir(self, uri: str):
+        """Removes a directory (recursively) with the input URI.
+
+        :param str uri: Input URI of the directory
+
+        """
+        return self._remove_dir(uri)
+
+    def dir_size(self, uri: str) -> int:
+        """
+        :param str uri: Input URI of the directory
+        :rtype: int
+        :return: The size of a directory with the input URI
+
+        """
+        return self._dir_size(uri)
+
+    def move_dir(self, old_uri: str, new_uri: str):
+        """Renames a TileDB directory from an old URI to a new URI.
+
+        :param str old_uri: Input of the old directory URI
+        :param str new_uri: Input of the new directory URI
+
+        """
+        return self._move_dir(old_uri, new_uri)
+
+    def copy_dir(self, old_uri: str, new_uri: str):
+        """Copies a TileDB directory from an old URI to a new URI.
+
+        :param str old_uri: Input of the old directory URI
+        :param str new_uri: Input of the new directory URI
+
+        """
+        return self._copy_dir(old_uri, new_uri)
+
+    def is_file(self, uri: str) -> bool:
+        """
+        :param str uri: Input URI of the file
+        :rtype: bool
+        :return: True if a file with the input URI exists, False otherwise
+
+        """
+        return self._is_file(uri)
+
+    def remove_file(self, uri: str):
+        """Removes a file with the input URI.
+
+        :param str uri: Input URI of the file
+
+        """
+        return self._remove_file(uri)
+
+    def file_size(self, uri: str) -> int:
+        """
+        :param str uri: Input URI of the file
+        :rtype: int
+        :return: The size of a file with the input URI
+
+        """
+        return self._file_size(uri)
+
+    def move_file(self, old_uri: str, new_uri: str):
+        """Renames a TileDB file from an old URI to a new URI.
+
+        :param str old_uri: Input of the old file URI
+        :param str new_uri: Input of the new file URI
+
+        """
+        return self._move_file(old_uri, new_uri)
+
+    def copy_file(self, old_uri: str, new_uri: str):
+        """Copies a TileDB file from an old URI to a new URI.
+
+        :param str old_uri: Input of the old file URI
+        :param str new_uri: Input of the new file URI
+
+        """
+        return self._copy_file(old_uri, new_uri)
+
+    def ls(self, uri: str) -> List[str]:
+        """Retrieves the children in directory `uri`. This function is
+        non-recursive, i.e., it focuses in one level below `uri`.
+
+        :param str uri: Input URI of the directory
+        :rtype: List[str]
+        :return: The children in directory `uri`
+
+        """
+        return self._ls(uri)
+
+    def touch(self, uri: str):
+        """Touches a file with the input URI, i.e., creates a new empty file.
+
+        :param str uri: Input URI of the file
+
+        """
+        return self._touch(uri)
 
 
 class FileIO(io.RawIOBase):
+    """TileDB FileIO class that encapsulates files opened by tiledb.VFS. The file
+    operations are meant to mimic Python's built-in file I/O methods."""
+
     def __init__(self, vfs: VFS, uri: str, mode: str = "rb"):
         self._vfs = vfs
 
@@ -167,10 +340,15 @@ class FileIO(io.RawIOBase):
                 raise lt.TileDBError(f"URI {uri} is not a valid file")
 
         self._fh = lt.FileHandle(
-            self._vfs.ctx(), self._vfs, uri, str_to_vfs_mode[self._mode]
+            self._vfs._ctx, self._vfs, uri, str_to_vfs_mode[self._mode]
         )
 
     def __len__(self):
+        """
+        :rtype: int
+        :return: Number of bytes in file
+
+        """
         return self._nbytes
 
     def __enter__(self):
@@ -185,29 +363,65 @@ class FileIO(io.RawIOBase):
         self.flush()
 
     @property
-    def mode(self):
+    def mode(self) -> str:
+        """
+        :rtype: str
+        :return: Whether the file is in read mode ("rb"), write mode ("wb"), or append mode ("ab")
+
+        """
         return self._mode
 
-    def readable(self):
+    def readable(self) -> bool:
+        """
+        :rtype: bool
+        :return: True if the file is readable (ie. "rb" mode), otherwise False
+
+        """
         return self._mode == "rb"
 
-    def writable(self):
+    def writable(self) -> bool:
+        """
+        :rtype: bool
+        :return: True if the file is writable (ie. "wb" or "ab" mode), otherwise False
+
+        """
         return self._mode != "rb"
 
     @property
-    def closed(self):
-        return self._fh.closed
+    def closed(self) -> bool:
+        """
+        :rtype: bool
+        :return: True if the file is closed, otherwise False
+
+        """
+        return self._fh._closed
 
     def seekable(self):
+        """
+        All tiledb.FileIO objects are seekable.
+
+        :rtype: bool
+        :return: True
+
+        """
         return True
 
     def flush(self):
-        self._fh.flush()
+        """
+        Force the data to be written to the file.
+        """
+        self._fh._flush()
 
     def seek(self, offset: int, whence: int = 0):
+        """
+        :param int offset: Byte position to set the file pointer
+        :param int whence: Reference point. A whence value of 0 measures from the
+        beginning of the file, 1 uses the current file position, and 2 uses the
+        end of the file as the reference point. whence can be omitted and defaults to 0.
+        """
         if not isinstance(offset, int):
             raise TypeError(
-                f"Offset must be an integer or None (got {safe_repr(offset)})"
+                f"Offset must be an integer or None (got type {type(offset)})"
             )
         if whence == 0:
             if offset < 0:
@@ -228,12 +442,26 @@ class FileIO(io.RawIOBase):
 
         return self._offset
 
-    def tell(self):
+    def tell(self) -> int:
+        """
+        :rtype: int
+        :return: The current position in the file represented as number of bytes
+
+        """
         return self._offset
 
-    def read(self, size: int = -1):
+    def read(self, size: int = -1) -> bytes:
+        """
+        Read the file from the current pointer position.
+
+        :param int size: Number of bytes to read. By default, size is set to -1
+        which will read until the end of the file.
+        :rtype: bytes
+        :return: The bytes in the file
+
+        """
         if not isinstance(size, int):
-            raise TypeError(f"size must be an integer or None (got {safe_repr(size)})")
+            raise TypeError(f"size must be an integer or None (got type {type(size)})")
         if not self.readable():
             raise IOError("Cannot read from write-only FileIO handle")
         if self.closed:
@@ -244,17 +472,21 @@ class FileIO(io.RawIOBase):
         if nbytes == 0:
             return b""
 
-        buff = self._fh.read(self._offset, nbytes)
+        buff = self._fh._read(self._offset, nbytes)
         self._offset += nbytes
         return buff
 
     def write(self, buff: bytes):
+        """
+        :param bytes buff: Write the given bytes to the file
+
+        """
         if not self.writable():
             raise IOError("cannot write to read-only FileIO handle")
         if isinstance(buff, str):
             buff = buff.encode()
         nbytes = len(buff)
-        self._fh.write(buff)
+        self._fh._write(buff)
         self._nbytes += nbytes
         self._offset += nbytes
         return nbytes

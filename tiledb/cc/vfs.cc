@@ -18,30 +18,30 @@ void init_vfs(py::module &m) {
       .def(py::init<const Context &>(), py::keep_alive<1, 2>())
       .def(py::init<const Context &, const Config &>(), py::keep_alive<1, 2>())
 
-      .def("ctx", &VFS::context)
-      .def("config", &VFS::config)
+      .def_property_readonly("_ctx", &VFS::context)
+      .def_property_readonly("_config", &VFS::config)
 
-      .def("create_bucket", &VFS::create_bucket)
-      .def("remove_bucket", &VFS::remove_bucket)
-      .def("is_bucket", &VFS::is_bucket)
-      .def("empty_bucket", &VFS::empty_bucket)
-      .def("is_empty_bucket", &VFS::is_empty_bucket)
+      .def("_create_bucket", &VFS::create_bucket)
+      .def("_remove_bucket", &VFS::remove_bucket)
+      .def("_is_bucket", &VFS::is_bucket)
+      .def("_empty_bucket", &VFS::empty_bucket)
+      .def("_is_empty_bucket", &VFS::is_empty_bucket)
 
-      .def("create_dir", &VFS::create_dir)
-      .def("is_dir", &VFS::is_dir)
-      .def("remove_dir", &VFS::remove_dir)
-      .def("dir_size", &VFS::dir_size)
-      .def("move_dir", &VFS::move_dir)
-      .def("copy_dir", &VFS::copy_dir)
+      .def("_create_dir", &VFS::create_dir)
+      .def("_is_dir", &VFS::is_dir)
+      .def("_remove_dir", &VFS::remove_dir)
+      .def("_dir_size", &VFS::dir_size)
+      .def("_move_dir", &VFS::move_dir)
+      .def("_copy_dir", &VFS::copy_dir)
 
-      .def("is_file", &VFS::is_file)
-      .def("remove_file", &VFS::remove_file)
-      .def("file_size", &VFS::file_size)
-      .def("move_file", &VFS::move_file)
-      .def("copy_file", &VFS::copy_file)
+      .def("_is_file", &VFS::is_file)
+      .def("_remove_file", &VFS::remove_file)
+      .def("_file_size", &VFS::file_size)
+      .def("_move_file", &VFS::move_file)
+      .def("_copy_file", &VFS::copy_file)
 
-      .def("ls", &VFS::ls)
-      .def("touch", &VFS::touch);
+      .def("_ls", &VFS::ls)
+      .def("_touch", &VFS::touch);
 }
 
 class FileHandle {
@@ -98,12 +98,12 @@ void init_file_handle(py::module &m) {
                     tiledb_vfs_mode_t>(),
            py::keep_alive<1, 2>())
 
-      .def_property_readonly("closed", &FileHandle::closed)
+      .def_property_readonly("_closed", &FileHandle::closed)
 
-      .def("close", &FileHandle::close)
-      .def("read", &FileHandle::read)
-      .def("write", &FileHandle::write)
-      .def("flush", &FileHandle::flush);
+      .def("_close", &FileHandle::close)
+      .def("_read", &FileHandle::read)
+      .def("_write", &FileHandle::write)
+      .def("_flush", &FileHandle::flush);
 }
 
 } // namespace libtiledbcpp
