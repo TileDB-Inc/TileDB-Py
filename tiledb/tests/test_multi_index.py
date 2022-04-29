@@ -182,7 +182,6 @@ class TestMultiRange(DiskTestCase):
 
             assert_array_equal(q.df[:]["data"], data)
 
-
     @pytest.mark.skipif(
         not has_pyarrow() or not has_pandas(),
         reason="pyarrow and/or pandas not installed",
@@ -203,11 +202,10 @@ class TestMultiRange(DiskTestCase):
                 A[np.arange(num)] = expected_data
             else:
                 A[:] = expected_data
-                
+
         with tiledb.open(uri, "r") as arr:
             actual_data = arr.query(return_arrow=True).df[:]
             assert_array_equal(actual_data[:][""], expected_data)
-    
 
     def test_multirange_behavior(self):
         uri = self.path("multirange_behavior_sparse")

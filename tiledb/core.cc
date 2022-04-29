@@ -22,8 +22,8 @@
 #include <tiledb/tiledb>                // C++
 #include <tiledb/tiledb_experimental.h> // C
 
-#include "py_arrowio"
 #include "py_arrow_io_impl.h"
+#include "py_arrowio"
 
 #if defined(TILEDB_SERIALIZATION)
 #include <tiledb/tiledb_serialization.h> // C
@@ -127,11 +127,10 @@ struct BufferHolder {
   py::object offsets;
   py::object validity;
 
-  BufferHolder(py::object d, py::object o, py::object v) : data(d), offsets(o), validity(v) {}
+  BufferHolder(py::object d, py::object o, py::object v)
+      : data(d), offsets(o), validity(v) {}
 
-  static void free_buffer_holder(BufferHolder* self) {
-    delete self;
-  }
+  static void free_buffer_holder(BufferHolder *self) { delete self; }
 };
 
 py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
@@ -1362,8 +1361,8 @@ public:
 
     std::unique_ptr<PAPair> pa_pair(new PAPair());
 
-    adapter.export_buffer(name.c_str(), &(pa_pair->array_),
-                          &(pa_pair->schema_), nullptr, nullptr);
+    adapter.export_buffer(name.c_str(), &(pa_pair->array_), &(pa_pair->schema_),
+                          nullptr, nullptr);
     pa_pair->exported_ = true;
 
     return pa_pair;
@@ -1386,14 +1385,16 @@ public:
     for (auto &buffer_name : buffers_order_) {
       BufferInfo &buffer_info = buffers_.at(buffer_name);
 
-      auto buffer_holder = new BufferHolder(buffer_info.data, buffer_info.validity, buffer_info.offsets);
+      auto buffer_holder = new BufferHolder(
+          buffer_info.data, buffer_info.validity, buffer_info.offsets);
 
       ArrowArray c_pa_array;
       ArrowSchema c_pa_schema;
       adapter.export_buffer(buffer_name.c_str(),
                             static_cast<void *>(&c_pa_array),
                             static_cast<void *>(&c_pa_schema),
-                            (tiledb::arrow::ArrowAdapter::release_cb)BufferHolder::free_buffer_holder,
+                            (tiledb::arrow::ArrowAdapter::release_cb)
+                                BufferHolder::free_buffer_holder,
                             buffer_holder);
 
       if (is_nullable(buffer_name)) {
