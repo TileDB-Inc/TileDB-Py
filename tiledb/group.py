@@ -229,7 +229,7 @@ class Group(lt.Group):
         :param uri: The URI of the member to add
         :type uri: str
         :param relative: Whether the path of the URI is a relative path (default=relative: False)
-        :type bool
+        :type relative: bool
         :param name: An optional name for the Group (default=None)
         :type name: str
         """
