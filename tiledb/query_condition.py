@@ -25,42 +25,42 @@ class QueryCondition:
     as defined by the grammar below. A more straight forward example of usage is
     given beneath.
 
-    BNF
-    ---
+    **BNF:**
+
     A query condition is made up of one or more Boolean expressions. Multiple
     Boolean expressions are chained together with Boolean operators.
 
-        query_cond ::= bool_expr | bool_expr bool_op query_cond
+        ``query_cond ::= bool_expr | bool_expr bool_op query_cond``
 
     A Boolean expression contains a comparison operator. The operator works on a
     TileDB attribute name and value.
 
-        bool_expr ::= attr compare_op val | val compare_op attr | val compare_op attr compare_op val
+        ``bool_expr ::= attr compare_op val | val compare_op attr | val compare_op attr compare_op val``
 
-    "and" and "&" are the only Boolean operators supported at the moment. We
-    intend to support "or" and "not" in future releases.
+    ``and`` and ``&`` are the only Boolean operators supported at the moment. We
+    intend to support ``or`` and ``not`` in future releases.
 
-        bool_op ::= and | &
+        ``bool_op ::= and | &``
 
     All comparison operators are supported.
 
-        compare_op ::= < | > | <= | >= | == | !=
+        ``compare_op ::= < | > | <= | >= | == | !=``
 
-    TileDB attribute names are Python valid variables or a attr() casted string.
+    TileDB attribute names are Python valid variables or a ``attr()`` casted string.
 
-        attr ::= <variable> | attr(<str>)
+        ``attr ::= <variable> | attr(<str>)``
 
-    Values are any Python-valid number or string. They may also be casted with val().
+    Values are any Python-valid number or string. They may also be casted with ``val()``.
 
-        val ::= <num> | <str> | val(val)
+        ``val ::= <num> | <str> | val(val)``
 
-    Example
-    -------
-    with tiledb.open(uri, mode="r") as A:
-        # select cells where the attribute values for foo are less than 5
-        # and bar equal to string asdf.
-        qc = QueryCondition("foo > 5 and 'asdf' == attr('b a r') and baz <= val(1.0)")
-        A.query(attr_cond=qc)
+    **Example:**
+
+    >>> with tiledb.open(uri, mode="r") as A:
+    >>>     # select cells where the attribute values for foo are less than 5
+    >>>     # and bar equal to string asdf.
+    >>>     qc = QueryCondition("foo > 5 and 'asdf' == attr('b a r') and baz <= val(1.0)")
+    >>>     A.query(attr_cond=qc)
     """
 
     expression: str
