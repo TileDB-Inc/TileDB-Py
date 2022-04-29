@@ -22,8 +22,11 @@
 #include <tiledb/tiledb>                // C++
 #include <tiledb/tiledb_experimental.h> // C
 
-#include "py_arrow_io_impl.h"
+// clang-format off
+// do not re-order these headers
 #include "py_arrowio"
+#include "py_arrow_io_impl.h"
+// clang-format on
 
 #if defined(TILEDB_SERIALIZATION)
 #include <tiledb/tiledb_serialization.h> // C
