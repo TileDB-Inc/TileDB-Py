@@ -2,7 +2,7 @@
 
 ## Improvements
 * Refactor display of TileDB objects in Jupyter notebooks to be more readable [#1049](https://github.com/TileDB-Inc/TileDB-Py/pull/1049)
-* Improve documentation for `Filter`, `FilterList`, `VFS`, `FileIO`, and `Group` [#1043](https://github.com/TileDB-Inc/TileDB-Py/pull/1043)
+* Improve documentation for `Filter`, `FilterList`, `VFS`, `FileIO`, `Group`, and  `QueryCondition` [#1043](https://github.com/TileDB-Inc/TileDB-Py/pull/1043), [#1058](https://github.com/TileDB-Inc/TileDB-Py/pull/1058)
 
 ## Bug Fixes
 * `Dim.shape` correctly errors out if type is not integer or datetime [#1055](https://github.com/TileDB-Inc/TileDB-Py/pull/1055)
