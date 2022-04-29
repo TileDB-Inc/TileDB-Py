@@ -10,6 +10,9 @@ on:
 jobs:
   test-wheels-on-azure:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Get current date
         id: date
