@@ -145,8 +145,6 @@ class TestMultiRange(DiskTestCase):
         reason="pyarrow and/or pandas not installed",
     )
     def test_return_arrow_indexers(self):
-        import pyarrow as pa
-
         uri = self.path("multirange_behavior_sparse")
 
         schema = tiledb.ArraySchema(
@@ -182,11 +180,34 @@ class TestMultiRange(DiskTestCase):
             ):
                 q.multi_index[:]
 
-            q.df[:]
+            assert_array_equal(q.df[:]["data"], data)
 
-            # TODO replace above with; this is currently not working due
-            # to Shortcut Story #17010
-            # assert_array_equal(q.df[:]["data"], data)
+
+    @pytest.mark.skipif(
+        not has_pyarrow() or not has_pandas(),
+        reason="pyarrow and/or pandas not installed",
+    )
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_return_large_arrow_table(self, sparse):
+        num = 2**16 - 1
+        uri = self.path("test_return_large_arrow_table")
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, num - 1), dtype=np.uint16))
+        att = tiledb.Attr(dtype=np.uint64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=sparse)
+        tiledb.Array.create(uri, schema)
+
+        expected_data = np.arange(num)
+
+        with tiledb.open(uri, "w") as A:
+            if sparse:
+                A[np.arange(num)] = expected_data
+            else:
+                A[:] = expected_data
+                
+        with tiledb.open(uri, "r") as arr:
+            actual_data = arr.query(return_arrow=True).df[:]
+            assert_array_equal(actual_data[:][""], expected_data)
+    
 
     def test_multirange_behavior(self):
         uri = self.path("multirange_behavior_sparse")
