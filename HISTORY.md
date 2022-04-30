@@ -6,6 +6,7 @@
 
 ## Bug Fixes
 * `Dim.shape` correctly errors out if type is not integer or datetime [#1055](https://github.com/TileDB-Inc/TileDB-Py/pull/1055)
+* Correctly check dtypes in `from_pandas` for supported versions of NumPy <1.20 [#1054](https://github.com/TileDB-Inc/TileDB-Py/pull/1054)
 
 # TileDB-Py 0.14.2 Release Notes
 
