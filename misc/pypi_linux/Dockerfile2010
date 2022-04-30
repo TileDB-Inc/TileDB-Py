@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux2010_x86_64:latest
+FROM quay.io/pypa/manylinux2010_x86_64:2022-04-24-d28e73e
 
 ###############################################
 # version args

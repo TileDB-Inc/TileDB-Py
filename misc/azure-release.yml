@@ -34,7 +34,7 @@ stages:
       - job: build1_libtiledb_on_linux
         pool:
           vmImage: "ubuntu-latest"
-        container: quay.io/pypa/manylinux2010_x86_64:2021-11-07-28723f3
+        container: quay.io/pypa/manylinux2010_x86_64:2022-04-24-d28e73e
         variables:
           CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL10 -D__BIONIC__=1"
           CFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
