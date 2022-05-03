@@ -1,4 +1,4 @@
-# In-Progress
+# TileDB-Py 0.14.3 Release Notes
 
 ## Improvements
 * Refactor display of TileDB objects in Jupyter notebooks to be more readable [#1049](https://github.com/TileDB-Inc/TileDB-Py/pull/1049)
@@ -7,6 +7,7 @@
 ## Bug Fixes
 * `Dim.shape` correctly errors out if type is not integer or datetime [#1055](https://github.com/TileDB-Inc/TileDB-Py/pull/1055)
 * Correctly check dtypes in `from_pandas` for supported versions of NumPy <1.20 [#1054](https://github.com/TileDB-Inc/TileDB-Py/pull/1054)
+* Fix Arrow Table lifetime issues when using`.query(return_arrow=True)` [#1056](https://github.com/TileDB-Inc/TileDB-Py/pull/1056)
 
 # TileDB-Py 0.14.2 Release Notes
 
