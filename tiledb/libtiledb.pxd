@@ -56,6 +56,7 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_INT64
         TILEDB_FLOAT32
         TILEDB_FLOAT64
+        TILEDB_BLOB
         TILEDB_CHAR
         TILEDB_INT8
         TILEDB_UINT8
@@ -1142,6 +1143,13 @@ cdef extern from "tiledb/tiledb.h":
         char* path_out,
         unsigned* path_length) nogil
 
+cdef extern from "tiledb/tiledb_experimental.h":
+    # Filestore
+    int tiledb_filestore_schema_create(
+        tiledb_ctx_t* ctx,
+        const char* uri,
+        tiledb_array_schema_t** array_schema) nogil
+
 # Free helper functions
 cpdef unicode ustring(object s)
 cpdef check_error(Ctx ctx, int rc)
@@ -1216,6 +1224,8 @@ cdef class ArraySchema(object):
 
     @staticmethod
     cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=*)
+    # @staticmethod
+    # cdef from_file(const char* uri, Ctx ctx=*)
     cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr)
     cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr)
     cdef _attr_name(self, name)

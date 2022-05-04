@@ -78,6 +78,8 @@ from .filter import (
     ChecksumSHA256Filter,
 )
 
+from .filestore import Filestore
+
 from .fragment import (
     FragmentInfoList,
     FragmentInfo,

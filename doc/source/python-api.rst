@@ -211,6 +211,14 @@ VFS
 
    .. automethod:: __len__
 
+Filestore
+---------
+
+.. autoclass:: tiledb.Filestore
+   :members:
+
+   .. automethod:: __len__
+
 Version
 -------
 

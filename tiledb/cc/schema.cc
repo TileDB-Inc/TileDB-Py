@@ -12,15 +12,12 @@ namespace py = pybind11;
 
 void init_schema(py::module &m) {
   py::class_<tiledb::ArraySchema>(m, "ArraySchema")
-      .def(py::init<Context &, tiledb_array_type_t>(),
-           py::keep_alive<1, 2>() /* ArraySchema keeps Context alive */)
-      .def(py::init<Context &, std::string &>(),
-           py::keep_alive<1, 2>() /* ArraySchema keeps Context alive */)
+      .def(py::init<Context &, tiledb_array_type_t>(), py::keep_alive<1, 2>())
+      .def(py::init<Context &, std::string &>(), py::keep_alive<1, 2>())
       .def(py::init<Context &, std::string &, tiledb_encryption_type_t,
                     std::string &>(),
-           py::keep_alive<1, 2>() /* ArraySchema keeps Context alive */)
-      // TODO .def(py::init<Context, py::capsule>) // tiledb_array_schema_t*
-      // signature
+           py::keep_alive<1, 2>())
+      .def(py::init<Context &, py::capsule>(), py::keep_alive<1, 2>())
 
       .def("dump", &ArraySchema::dump) // TODO add FILE* signature support?
       .def("dump",

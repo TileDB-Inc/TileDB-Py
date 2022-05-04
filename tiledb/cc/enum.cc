@@ -81,6 +81,10 @@ void init_enums(py::module &m) {
       .value("INVALID", Object::Type::Invalid)
       .export_values();
 
+#define DMENUM(x) .value(#x, TILEDB_MIME_##x)
+  py::enum_<tiledb_mime_type_t>(m, "MIMEType") DMENUM(AUTODETECT) DMENUM(TIFF)
+      DMENUM(PDF);
+
   // test helpers to check enum name against typed value
   m.def("_enum_string", &tiledb::impl::type_to_str);
   m.def("_enum_string",
