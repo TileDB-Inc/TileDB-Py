@@ -3684,7 +3684,12 @@ class TestHighlevel(DiskTestCase):
         # This test checks that contexts are destroyed correctly.
         # It creates new contexts repeatedly, in-process, and
         # checks that the total number of threads stays stable.
-        config = {"sm.num_reader_threads": 128}
+        threads = (
+            "sm.num_reader_threads"
+            if tiledb.libtiledb.version() < (2, 10)
+            else "sm.compute_concurrency_level"
+        )
+        config = {threads: 128}
         ll = list()
         uri = self.path("test_ctx_thread_cleanup")
         with tiledb.from_numpy(uri, np.random.rand(100)) as A:
