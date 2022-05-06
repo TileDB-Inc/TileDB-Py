@@ -195,7 +195,7 @@ class TestMultiRange(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=sparse)
         tiledb.Array.create(uri, schema)
 
-        expected_data = np.arange(num)
+        expected_data = np.arange(num, dtype=np.uint64)
 
         with tiledb.open(uri, "w") as A:
             if sparse:
