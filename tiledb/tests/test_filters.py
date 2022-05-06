@@ -52,6 +52,7 @@ class TestFilterTest(unittest.TestCase):
             tiledb.RleFilter(),
             tiledb.Bzip2Filter(),
             tiledb.DoubleDeltaFilter(),
+            tiledb.DictionaryFilter(),
             tiledb.BitWidthReductionFilter(),
             tiledb.BitShuffleFilter(),
             tiledb.ByteShuffleFilter(),
