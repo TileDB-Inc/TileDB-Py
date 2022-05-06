@@ -2,9 +2,10 @@ import numpy as np
 import unittest
 
 import tiledb
+from tiledb.tests.common import DiskTestCase
 
 
-class TestFilterTest(unittest.TestCase):
+class TestFilterTest(DiskTestCase):
     def test_filter(self):
         gzip_filter = tiledb.GzipFilter(level=10)
         self.assertIsInstance(gzip_filter, tiledb.Filter)
@@ -84,3 +85,14 @@ class TestFilterTest(unittest.TestCase):
                 raise
 
             self.assertEqual(new_filter, f)
+
+    def test_dictionary_encoding(self):
+        path = self.path("test_dictionary_encoding")
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(1, 10), dtype=np.uint64))
+        attr = tiledb.Attr(
+            dtype="ascii",
+            var=True,
+            filters=tiledb.FilterList([tiledb.DictionaryFilter()]),
+        )
+        schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=True)
+        tiledb.Array.create(path, schema)

@@ -274,7 +274,8 @@ class DoubleDeltaFilter(CompressionFilter):
 
     def _attrs_(self):
         return {}
-    
+
+
 class DictionaryFilter(CompressionFilter):
     """
     Filter that performs dictionary encoding.
@@ -521,6 +522,7 @@ class FilterList(lt.FilterList):
         lt.FilterType.POSITIVE_DELTA: PositiveDeltaFilter,
         lt.FilterType.CHECKSUM_MD5: ChecksumMD5Filter,
         lt.FilterType.CHECKSUM_SHA256: ChecksumSHA256Filter,
+        lt.FilterType.DICTIONARY: DictionaryFilter,
         lt.FilterType.NONE: NoOpFilter,
     }
 
