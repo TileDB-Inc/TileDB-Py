@@ -39,7 +39,7 @@ jobs:
       issues: write
     env:
       TILEDB_VERSION: ${{ matrix.libtiledb_version }}
-      MACOSX_DEPLOYMENT_TARGET: 10.14
+      MACOSX_DEPLOYMENT_TARGET: 10.15
 
     steps:
       - name: Set up Python

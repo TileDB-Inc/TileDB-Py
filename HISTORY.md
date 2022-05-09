@@ -1,3 +1,8 @@
+# In-progress
+
+## Misc Updates
+* Update `MACOSX_DEPLOYMENT_TARGET` from 10.14 to 10.15 [#1080](https://github.com/TileDB-Inc/TileDB-Py/pull/1080)
+
 # TileDB-Py 0.14.3 Release Notes
 
 ## Improvements
