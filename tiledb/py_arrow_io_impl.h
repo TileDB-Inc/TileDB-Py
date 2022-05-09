@@ -756,8 +756,8 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
 
   size_t elem_num = 0;
   if (bufferinfo.is_var) {
-    // adjust for offset unless empty result
-    elem_num = (bufferinfo.data_num == 0) ? 0 : bufferinfo.offsets_num - 1;
+    // adjust for arrow offset unless empty result
+    elem_num = (bufferinfo.offsets_num == 0) ? 0 : bufferinfo.offsets_num - 1;
   } else {
     elem_num = bufferinfo.data_num;
   }

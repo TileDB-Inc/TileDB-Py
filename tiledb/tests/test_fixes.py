@@ -6,6 +6,9 @@ import pytest
 from tiledb.tests.common import DiskTestCase, has_pandas
 from numpy.testing import assert_array_equal
 
+pd = pytest.importorskip("pandas")
+tm = pd._testing
+
 
 class FixesTest(DiskTestCase):
     def test_ch7727_float32_dim_estimate_incorrect(self):
@@ -123,3 +126,20 @@ class FixesTest(DiskTestCase):
                 in tiledb.stats_dump(print_out=False)
             )
             tiledb.stats_disable()
+
+    @pytest.mark.skipif(
+        not has_pandas() and has_pyarrow(), reason="pandas or pyarrow not installed"
+    )
+    def test_py1078_df_all_empty_strings(self):
+        uri = self.path()
+        df = pd.DataFrame(
+            index=np.arange(10).astype(str),
+            data={
+                "A": list(str(i) for i in range(10)),
+                "B": list("" for i in range(10)),
+            },
+        )
+
+        tiledb.from_pandas(uri, df)
+        with tiledb.open(uri) as arr:
+            tm.assert_frame_equal(arr.df[:], df)
