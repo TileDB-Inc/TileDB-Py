@@ -1,5 +1,5 @@
 import numpy as np
-import unittest
+from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.tests.common import DiskTestCase
@@ -88,7 +88,7 @@ class TestFilterTest(DiskTestCase):
 
     def test_dictionary_encoding(self):
         path = self.path("test_dictionary_encoding")
-        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(1, 10), dtype=np.uint64))
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
         attr = tiledb.Attr(
             dtype="ascii",
             var=True,
@@ -96,3 +96,11 @@ class TestFilterTest(DiskTestCase):
         )
         schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=True)
         tiledb.Array.create(path, schema)
+
+        data = [b"x" * i for i in np.random.randint(1, 10, size=10)]
+
+        with tiledb.open(path, "w") as A:
+            A[np.arange(10)] = data
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal(A[:][""], data)
