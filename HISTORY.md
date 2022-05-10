@@ -1,7 +1,10 @@
-# In-progress
+# TileDB-Py 0.14.4 Release Notes
 
 ## Misc Updates
 * Update `MACOSX_DEPLOYMENT_TARGET` from 10.14 to 10.15 [#1080](https://github.com/TileDB-Inc/TileDB-Py/pull/1080)
+
+# Bug Fixes
+* Correct handling of Arrow cell count with all empty result [#1082](https://github.com/TileDB-Inc/TileDB-Py/pull/1082)
 
 # TileDB-Py 0.14.3 Release Notes
 
