@@ -1,3 +1,8 @@
+# In-progess
+
+## Misc Updates
+* Wheels will no longer be supported for macOS 10.14 Mojave; the minimum supported macOS version is now 10.15 Catalina [#1080](https://github.com/TileDB-Inc/TileDB-Py/pull/1080)
+
 # TileDB-Py 0.14.4 Release Notes
 
 ## Misc Updates
