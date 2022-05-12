@@ -591,7 +591,7 @@ LFLAGS = os.environ.get("LFLAGS", "").split()
 
 if TILEDB_PATH != "" and TILEDB_PATH != "source":
     print("TILEDB_PATH in block before: '{}'".format(TILEDB_PATH))
-    TILEDB_PATH = os.path.normpath(TILEDB_PATH)
+    TILEDB_PATH = os.path.normpath(os.path.abspath(TILEDB_PATH))
     print("TILEDB_PATH in block after: '{}'".format(TILEDB_PATH))
     LIB_DIRS += [os.path.join(os.path.normpath(TILEDB_PATH), "lib")]
     if sys.platform.startswith("linux"):
