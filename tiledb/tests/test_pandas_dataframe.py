@@ -1359,6 +1359,19 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             assert A.attr("x").dtype == np.dtype("S")
             assert A.attr("x").isascii
 
+    def test_append_empty_dataframe(self):
+        uri = self.path("test_append_empty_dataframe")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame(index=["a", "b"]),
+            mode="ingest",
+        )
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame(index=pd.Index(data=[])),
+            mode="append",
+        )
+
 
 class TestFromPandasOptions(DiskTestCase):
     def test_filters_options(self):
