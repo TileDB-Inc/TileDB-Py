@@ -20,7 +20,11 @@ from hypothesis import strategies as st
 def is_boundserror(exc: Exception):
     assert str(exc) != ""
 
-    vals = ["out of domain bounds", "Cannot add range to dimension"]
+    vals = [
+        "out of domain bounds",
+        "Cannot add range to dimension",
+        "cannot be larger than the higher bound",
+    ]
 
     return any(x in str(exc) for x in vals)
 
