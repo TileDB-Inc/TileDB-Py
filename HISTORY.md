@@ -1,4 +1,7 @@
-# In-progess
+# TileDB-Py 0.15.0 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.15.0 includes TileDB Embedded [TileDB 2.9.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.9.0)
 
 ## Misc Updates
 * Wheels will no longer be supported for macOS 10.14 Mojave; the minimum supported macOS version is now 10.15 Catalina [#1080](https://github.com/TileDB-Inc/TileDB-Py/pull/1080)
