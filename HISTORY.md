@@ -1,3 +1,8 @@
+# In Progress
+
+## API Changes
+* Addition of `tiledb.DictionaryFilter` [#1074](https://github.com/TileDB-Inc/TileDB-Py/pull/1074)
+
 # TileDB-Py 0.15.1 Release Notes
 
 ## TileDB Embedded updates:
