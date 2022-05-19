@@ -276,6 +276,32 @@ class DoubleDeltaFilter(CompressionFilter):
         return {}
 
 
+class DictionaryFilter(CompressionFilter):
+    """
+    Filter that performs dictionary encoding.
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.DictionaryEncodingFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
+    ...     tiledb.DenseArray.create(tmp + "/array", schema)
+
+    """
+
+    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+        self._level = level
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.DICTIONARY, self._level, self._ctx)
+
+    def _attrs_(self):
+        return {}
+
+
 class BitShuffleFilter(Filter):
     """
     Filter that performs a bit shuffle transformation.
@@ -496,6 +522,7 @@ class FilterList(lt.FilterList):
         lt.FilterType.POSITIVE_DELTA: PositiveDeltaFilter,
         lt.FilterType.CHECKSUM_MD5: ChecksumMD5Filter,
         lt.FilterType.CHECKSUM_SHA256: ChecksumSHA256Filter,
+        lt.FilterType.DICTIONARY: DictionaryFilter,
         lt.FilterType.NONE: NoOpFilter,
     }
 

@@ -69,6 +69,7 @@ from .filter import (
     Bzip2Filter,
     RleFilter,
     DoubleDeltaFilter,
+    DictionaryFilter,
     BitShuffleFilter,
     ByteShuffleFilter,
     BitWidthReductionFilter,
