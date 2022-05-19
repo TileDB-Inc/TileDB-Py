@@ -1191,7 +1191,7 @@ class DenseArrayTest(DiskTestCase):
             pass
         with tiledb.open(path) as B:
             assert_array_equal(B[:], data)
-            
+
     def test_dense_index_bool(self):
         path = self.path()
         data = np.random.randint(0, 1, 10, dtype=bool)
@@ -2277,10 +2277,8 @@ class TestSparseArray(DiskTestCase):
     def test_sparse_index_bool(self):
         path = self.path()
         data = np.random.randint(0, 1, 10, dtype=bool)
-        
-        dom = tiledb.Domain(
-            tiledb.Dim("d0", domain=(1, 10), dtype=int)
-        )
+
+        dom = tiledb.Domain(tiledb.Dim("d0", domain=(1, 10), dtype=int))
         attr = tiledb.Attr("attr", dtype=np.bool_)
         schema = tiledb.ArraySchema(
             domain=dom, attrs=(attr,), sparse=True, allows_duplicates=True
@@ -2288,12 +2286,11 @@ class TestSparseArray(DiskTestCase):
         tiledb.SparseArray.create(path, schema)
 
         with tiledb.open(path, "w") as A:
-            A[np.arange(1,11)] = data
+            A[np.arange(1, 11)] = data
 
         with tiledb.open(path) as B:
             assert_array_equal(B[:]["attr"], data)
             assert_array_equal(B.multi_index[:]["attr"], data)
-
 
     def test_query_real_exact(self, sparse_cell_order):
         """
