@@ -228,6 +228,9 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
   case TILEDB_DATETIME_NS:
     return ArrowInfo("tsn:");
 
+  case TILEDB_BOOL:
+    return ArrowInfo("b");
+
   // TODO: these could potentially be rep'd w/ additional
   //       language-specific metadata
   case TILEDB_DATETIME_YEAR:
@@ -300,6 +303,8 @@ TypeInfo arrow_type_to_tiledb(ArrowSchema *arw_schema) {
     return {TILEDB_CHAR, 1, TILEDB_VAR_NUM, fmt == "Z"};
   else if (fmt == "u" || fmt == "U")
     return {TILEDB_STRING_UTF8, 1, TILEDB_VAR_NUM, fmt == "U"};
+  else if (fmt == "b")
+    return {TILEDB_BOOL, 1, 1, large};
   else
     throw tiledb::TileDBError(
         "[TileDB-Arrow]: Unknown or unsupported Arrow format string '" + fmt +

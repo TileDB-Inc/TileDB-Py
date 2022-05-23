@@ -1,7 +1,8 @@
-# In Progress
+# In-progress
 
 ## API Changes
 * Addition of `tiledb.DictionaryFilter` [#1074](https://github.com/TileDB-Inc/TileDB-Py/pull/1074)
+* Add support for `Datatype::TILEDB_BOOL` [#1110](https://github.com/TileDB-Inc/TileDB-Py/pull/1110)
 
 # TileDB-Py 0.15.1 Release Notes
 

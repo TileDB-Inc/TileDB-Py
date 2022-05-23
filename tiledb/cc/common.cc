@@ -44,6 +44,9 @@ std::unordered_map<tiledb_datatype_t, std::string> _tdb_to_np_name_dtype = {
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 7
     {TILEDB_BLOB, "bytes"},
 #endif
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
+    {TILEDB_BOOL, "bool"},
+#endif
 };
 
 std::unordered_map<std::string, tiledb_datatype_t> _np_name_to_tdb_dtype = {
@@ -84,6 +87,9 @@ std::unordered_map<std::string, tiledb_datatype_t> _np_name_to_tdb_dtype = {
 #endif
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 7
     {"bytes", TILEDB_BLOB},
+#endif
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
+    {"bool", TILEDB_BOOL},
 #endif
 };
 

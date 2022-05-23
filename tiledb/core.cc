@@ -225,6 +225,10 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     case TILEDB_BLOB:
       return py::dtype("bytes");
 #endif
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
+    case TILEDB_BOOL:
+      return py::dtype("bool");
+#endif
 
     case TILEDB_ANY:
       break;

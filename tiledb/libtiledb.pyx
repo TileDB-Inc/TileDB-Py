@@ -109,7 +109,8 @@ _tiledb_dtype_to_numpy_typeid_convert ={
     TILEDB_INT16: np.NPY_INT16,
     TILEDB_UINT16: np.NPY_UINT16,
     TILEDB_CHAR: np.NPY_STRING,
-    TILEDB_STRING_UTF8: np.NPY_UNICODE
+    TILEDB_STRING_UTF8: np.NPY_UNICODE,
+    TILEDB_BOOL: np.NPY_BOOL
 }
 
 # Conversion from TileDB dtype to Numpy dtype
@@ -126,7 +127,8 @@ _tiledb_dtype_to_numpy_dtype_convert = {
     TILEDB_UINT16: np.uint16,
     TILEDB_CHAR: np.dtype('S1'),
     TILEDB_STRING_ASCII: np.bytes_,
-    TILEDB_STRING_UTF8: np.dtype('U1')
+    TILEDB_STRING_UTF8: np.dtype('U1'),
+    TILEDB_BOOL: np.bool_
 }
 
 def version():
