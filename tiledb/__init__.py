@@ -40,10 +40,6 @@ from .libtiledb import (
     Array,
     Ctx,
     Config,
-    Dim,
-    Domain,
-    Attr,
-    ArraySchema,
     consolidate,
     object_type,
     ls,
@@ -58,6 +54,14 @@ from .libtiledb import (
 )
 
 from .array import DenseArray, SparseArray
+
+from .array_schema import ArraySchema
+
+from .attribute import Attr
+
+from .dimension import Dim
+
+from .domain import Domain
 
 from .filter import (
     Filter,
@@ -105,8 +109,6 @@ from .highlevel import (
 )
 
 from .query_condition import QueryCondition
-
-from .schema import schema_like
 
 from .schema_evolution import ArraySchemaEvolution
 
