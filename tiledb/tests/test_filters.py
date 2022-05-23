@@ -1,10 +1,11 @@
 import numpy as np
-import unittest
+from numpy.testing import assert_array_equal
 
 import tiledb
+from tiledb.tests.common import DiskTestCase
 
 
-class TestFilterTest(unittest.TestCase):
+class TestFilterTest(DiskTestCase):
     def test_filter(self):
         gzip_filter = tiledb.GzipFilter(level=10)
         self.assertIsInstance(gzip_filter, tiledb.Filter)
@@ -52,6 +53,7 @@ class TestFilterTest(unittest.TestCase):
             tiledb.RleFilter(),
             tiledb.Bzip2Filter(),
             tiledb.DoubleDeltaFilter(),
+            tiledb.DictionaryFilter(),
             tiledb.BitWidthReductionFilter(),
             tiledb.BitShuffleFilter(),
             tiledb.ByteShuffleFilter(),
@@ -83,3 +85,22 @@ class TestFilterTest(unittest.TestCase):
                 raise
 
             self.assertEqual(new_filter, f)
+
+    def test_dictionary_encoding(self):
+        path = self.path("test_dictionary_encoding")
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
+        attr = tiledb.Attr(
+            dtype="ascii",
+            var=True,
+            filters=tiledb.FilterList([tiledb.DictionaryFilter()]),
+        )
+        schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=True)
+        tiledb.Array.create(path, schema)
+
+        data = [b"x" * i for i in np.random.randint(1, 10, size=10)]
+
+        with tiledb.open(path, "w") as A:
+            A[np.arange(10)] = data
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal(A[:][""], data)
