@@ -179,6 +179,11 @@ class Group(lt.Group):
             return self._group._metadata_num()
 
         def _iter(self, keys_only: bool = True):
+            """
+            Iterate over Group metadata keys or (key, value) tuples
+
+            :param keys_only: whether to yield just keys or values too
+            """
             metadata_num = self._group._metadata_num()
             for i in range(metadata_num):
                 key, _ = self._group._get_metadata_from_index(i)
@@ -193,32 +198,27 @@ class Group(lt.Group):
                     yield key, val
 
         def __iter__(self):
-            """
-            Iterate over array metadata keys or (key, value) tuples
-
-            :param keys_only: whether to yield just keys or values too
-            """
             for key in self._iter():
                 yield key
 
-        def keys(self):
+        def keys(self) -> KeysView:
             """
             :rtype: KeysView
-            :return: Metadata keys
+            :return: Group metadata keys
             """
             return KeysView(self)
 
-        def values(self):
+        def values(self) -> ValuesView:
             """
             :rtype: ValuesView
-            :return: Metadata values
+            :return: Group metadata values
             """
             return ValuesView(self)
 
-        def items(self):
+        def items(self) -> ItemsView:
             """
             :rtype: ItemsView
-            :return: Metadata key value pairings
+            :return: Group metadata key value pairings
             """
             return ItemsView(self)
 
