@@ -1,5 +1,6 @@
-from typing import Union, TYPE_CHECKING
+from collections.abc import KeysView, ValuesView, ItemsView
 import numpy as np
+from typing import Union, TYPE_CHECKING
 
 import tiledb.cc as lt
 from .ctx import default_ctx
@@ -176,6 +177,53 @@ class Group(lt.Group):
 
             """
             return self._group._metadata_num()
+
+        def _iter(self, keys_only: bool = True):
+            metadata_num = self._group._metadata_num()
+            for i in range(metadata_num):
+                key, _ = self._group._get_metadata_from_index(i)
+
+                if key.startswith(Group._NP_DATA_PREFIX):
+                    key = key[len(Group._NP_DATA_PREFIX) :]
+
+                if keys_only:
+                    yield key
+                else:
+                    val = self.__getitem__(key)
+                    yield key, val
+
+        def __iter__(self):
+            """
+            Iterate over array metadata keys or (key, value) tuples
+
+            :param keys_only: whether to yield just keys or values too
+            """
+            for key in self._iter():
+                yield key
+
+        def keys(self):
+            """
+            :rtype: KeysView
+            :return: Metadata keys
+            """
+            return KeysView(self)
+
+        def values(self):
+            """
+            :rtype: ValuesView
+            :return: Metadata values
+            """
+            return ValuesView(self)
+
+        def items(self):
+            """
+            :rtype: ItemsView
+            :return: Metadata key value pairings
+            """
+            return ItemsView(self)
+
+        def __repr__(self):
+            return str(dict(self._iter(keys_only=False)))
 
     def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()

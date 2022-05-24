@@ -101,6 +101,9 @@ class GroupTest(GroupTestCase):
         grp.close()
 
         grp.open("r")
+
+        assert grp.meta.keys() == {"int", "flt", "str"}
+
         assert len(grp.meta) == 3
         assert "int" in grp.meta
         assert values_equal(grp.meta["int"], int_data)

@@ -37,12 +37,13 @@ bool has_metadata(Group &group, const std::string &key) {
   return group.has_metadata(key, &_unused_value_type);
 }
 
-py::array get_metadata(Group &group, const std::string &key) {
+py::tuple get_metadata_from_index(Group &group, uint64_t index) {
+  std::string key;
   tiledb_datatype_t tdb_type;
   uint32_t value_num;
-  const void *c_buf;
+  const void *value;
 
-  group.get_metadata(key, &tdb_type, &value_num, &c_buf);
+  group.get_metadata_from_index(index, &key, &tdb_type, &value_num, &value);
 
   py::dtype value_type = tdb_to_np_dtype(tdb_type, 1);
 
@@ -50,7 +51,25 @@ py::array get_metadata(Group &group, const std::string &key) {
     value_num /= value_type.itemsize();
 
   py::array py_buf(value_type, value_num);
-  memcpy(py_buf.mutable_data(), c_buf, py_buf.nbytes());
+  memcpy(py_buf.mutable_data(), value, py_buf.nbytes());
+
+  return py::make_tuple(key, py_buf);
+}
+
+py::array get_metadata(Group &group, const std::string &key) {
+  tiledb_datatype_t tdb_type;
+  uint32_t value_num;
+  const void *value;
+
+  group.get_metadata(key, &tdb_type, &value_num, &value);
+
+  py::dtype value_type = tdb_to_np_dtype(tdb_type, 1);
+
+  if (tdb_type == TILEDB_STRING_UTF8)
+    value_num /= value_type.itemsize();
+
+  py::array py_buf(value_type, value_num);
+  memcpy(py_buf.mutable_data(), value, py_buf.nbytes());
 
   return py_buf;
 }
@@ -76,9 +95,7 @@ void init_group(py::module &m) {
       .def("_has_metadata", has_metadata)
       .def("_metadata_num", &Group::metadata_num)
       .def("_get_metadata", get_metadata)
-
-      // NOTE is this worth implementing?
-      //   .def("get_metadata_from_index", get_metadata_from_index)
+      .def("_get_metadata_from_index", get_metadata_from_index)
 
       .def("_add", &Group::add_member, py::arg("uri"),
            py::arg("relative") = false, py::arg("name") = std::nullopt)
