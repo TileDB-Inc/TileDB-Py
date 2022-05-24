@@ -197,10 +197,9 @@ class GroupTest(GroupTestCase):
         assert grp["subgroup"].type == tiledb.Group
         grp.close()
 
-        grp.open("w")
-        del grp["subarray"]
-        grp.remove("subgroup")
-        grp.close()
+        with grp.open("w") as g: # test __enter__ and __exit__
+            del g["subarray"]
+            g.remove("subgroup")
 
         grp.open("r")
         assert len(grp) == 0
