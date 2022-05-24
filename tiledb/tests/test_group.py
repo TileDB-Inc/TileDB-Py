@@ -101,6 +101,7 @@ class GroupTest(GroupTestCase):
         grp.close()
 
         grp.open("r")
+
         assert len(grp.meta) == 3
         assert "int" in grp.meta
         assert values_equal(grp.meta["int"], int_data)
@@ -193,7 +194,13 @@ class GroupTest(GroupTestCase):
         grp.open("r")
         assert os.path.basename(grp["subarray"].uri) == os.path.basename(array_path)
         assert os.path.basename(grp["subgroup"].uri) == os.path.basename(subgrp_path)
+
+        assert "dne" not in grp
+
+        assert "subarray" in grp
         assert grp["subarray"].type == tiledb.Array
+
+        assert "subgroup" in grp
         assert grp["subgroup"].type == tiledb.Group
         grp.close()
 
