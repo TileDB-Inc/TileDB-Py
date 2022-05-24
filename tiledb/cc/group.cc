@@ -58,7 +58,7 @@ py::array get_metadata(Group &group, const std::string &key) {
 bool has_member(Group &group, std::string obj) {
   try {
     group.member(obj);
-  } catch (TileDBError e) {
+  } catch (const TileDBError &e) {
     return false;
   }
   return true;
