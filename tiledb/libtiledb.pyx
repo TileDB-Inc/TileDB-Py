@@ -3486,9 +3486,17 @@ cdef class Array(object):
         return new_array_typed
 
     def __enter__(self):
+        """
+        The `__enter__` and `__exit__` methods allow TileDB arrays to be opened (and auto-closed)
+        using `with tiledb.open(uri) as A:` syntax.
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        The `__enter__` and `__exit__` methods allow TileDB arrays to be opened (and auto-closed)
+        using `with tiledb.open(uri) as A:` syntax.
+        """
         self.close()
 
     def close(self):

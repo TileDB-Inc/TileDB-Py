@@ -292,6 +292,20 @@ class Group(lt.Group):
     def __repr__(self):
         return self._dump(True)
 
+    def __enter__(self):
+        """
+        The `__enter__` and `__exit__` methods allow TileDB groups to be opened (and auto-closed)
+        using with-as syntax.
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        The `__enter__` and `__exit__` methods allow TileDB groups to be opened (and auto-closed)
+        using with-as syntax.
+        """
+        self.close()
+
     @property
     def meta(self) -> GroupMetadata:
         """
