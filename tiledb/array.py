@@ -1,8 +1,7 @@
 from .libtiledb import DenseArrayImpl, SparseArrayImpl
 
 # Extensible (pure Python) array class definitions inheriting from the
-# Cython implemention. The cloudarray mix-in adds optional functionality
-# for registering arrays and executing functions on the
+# Cython implementation.
 
 # NOTE: the mixin import must be inside the __new__ initializer because it
 #       needs to be deferred. tiledb.cloud is not yet known to the importer
@@ -19,20 +18,21 @@ class DenseArray(DenseArrayImpl):
     and assignment.
     """
 
-    _mixin_init = False
-
     def __new__(cls, *args, **kwargs):
-        if not cls._mixin_init:
-            # must set before importing, because import is not thread-safe
-            #   https://github.com/TileDB-Inc/TileDB-Py/issues/244
-            cls._mixin_init = True
-            try:
-                from tiledb.cloud import cloudarray
+        try:
+            from tiledb.cloud import cloudarray
 
-                DenseArray.__bases__ = DenseArray.__bases__ + (cloudarray.CloudArray,)
-            except ImportError:
-                pass
-
+            cls.__bases__ += (cloudarray.CloudArray,)
+        except (ImportError, TypeError):
+            # If we couldn't import, tiledb.cloud isn't installed
+            # If there was a TypeError, CloudArray was already added (by another thread)
+            pass
+        try:
+            # Mixin initialization completed: delete this method for subsequent calls
+            del DenseArray.__new__
+        except AttributeError:
+            # This method is already deleted (by another thread)
+            pass
         return super().__new__(cls, *args, **kwargs)
 
 
@@ -44,16 +44,19 @@ class SparseArray(SparseArrayImpl):
     and assignment.
     """
 
-    _mixin_init = False
-
     def __new__(cls, *args, **kwargs):
-        if not cls._mixin_init:
-            cls._mixin_init = True
-            try:
-                from tiledb.cloud import cloudarray
+        try:
+            from tiledb.cloud import cloudarray
 
-                SparseArray.__bases__ = SparseArray.__bases__ + (cloudarray.CloudArray,)
-            except ImportError:
-                pass
-
+            cls.__bases__ += (cloudarray.CloudArray,)
+        except (ImportError, TypeError):
+            # If we couldn't import, tiledb.cloud isn't installed
+            # If there was a TypeError, CloudArray was already added (by another thread)
+            pass
+        try:
+            # Mixin initialization completed: delete this method for subsequent calls
+            del SparseArray.__new__
+        except AttributeError:
+            # This method is already deleted (by another thread)
+            pass
         return super().__new__(cls, *args, **kwargs)
