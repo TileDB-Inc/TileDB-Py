@@ -112,11 +112,6 @@ class Group(lt.Group):
             elif isinstance(value, bytes):
                 self._group._put_metadata(key, lt.DataType.CHAR, len(value), value)
 
-            # elif isinstance(value, str):
-            #     self._group._put_metadata(
-            #         key, lt.DataType.STRING_UTF8, len(value), value
-            #     )
-
             else:
                 if isinstance(value, (list, tuple)):
                     _value = np.array(value)
@@ -211,27 +206,6 @@ class Group(lt.Group):
         def __iter__(self):
             for key in self._iter():
                 yield key
-
-        # def keys(self) -> KeysView:
-        #     """
-        #     :rtype: KeysView
-        #     :return: Group metadata keys
-        #     """
-        #     return KeysView(self)
-
-        # def values(self) -> ValuesView:
-        #     """
-        #     :rtype: ValuesView
-        #     :return: Group metadata values
-        #     """
-        #     return ValuesView(self)
-
-        # def items(self) -> ItemsView:
-        #     """
-        #     :rtype: ItemsView
-        #     :return: Group metadata key value pairings
-        #     """
-        #     return ItemsView(self)
 
         def __repr__(self):
             return str(dict(self._iter(keys_only=False)))

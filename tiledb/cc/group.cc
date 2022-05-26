@@ -115,7 +115,6 @@ void init_group(py::module &m) {
       .def("_put_metadata", put_metadata_numpy)
       .def("_put_metadata", put_metadata)
 
-      // .def("_put_metadata", put_metadata)
       .def("_delete_metadata", &Group::delete_metadata)
       .def("_has_metadata", has_metadata)
       .def("_metadata_num", &Group::metadata_num)
