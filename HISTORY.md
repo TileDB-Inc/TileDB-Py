@@ -1,8 +1,12 @@
 # In-progress
 
+# Bug Fixes
+* Fix race condition in `{Dense,Sparse}Array.__new__` [#1096](https://github.com/TileDB-Inc/TileDB-Py/pull/1096)
+
 ## API Changes
 * Addition of `tiledb.DictionaryFilter` [#1074](https://github.com/TileDB-Inc/TileDB-Py/pull/1074)
 * Add support for `Datatype::TILEDB_BOOL` [#1110](https://github.com/TileDB-Inc/TileDB-Py/pull/1110)
+* Support with-statement for `Group`s [#1124](https://github.com/TileDB-Inc/TileDB-Py/pull/1124)
 * Addition of `keys`, `values`, and `items` to `Group.meta` [#1123](https://github.com/TileDB-Inc/TileDB-Py/pull/1123)
 
 # TileDB-Py 0.15.1 Release Notes
