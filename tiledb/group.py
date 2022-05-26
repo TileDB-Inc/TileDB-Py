@@ -1,6 +1,6 @@
-from collections.abc import KeysView, ValuesView, ItemsView
+from importlib.metadata import metadata
+from typing import MutableMapping, Union, KeysView, ValuesView, ItemsView, TYPE_CHECKING
 import numpy as np
-from typing import Union, TYPE_CHECKING
 
 import tiledb.cc as lt
 from .ctx import default_ctx
@@ -80,7 +80,7 @@ class Group(lt.Group):
         lt.QueryType.WRITE: "w",
     }
 
-    class GroupMetadata:
+    class GroupMetadata(MutableMapping):
         """
         Holds metadata for the associated Group in a dictionary-like structure.
         """
@@ -105,16 +105,28 @@ class Group(lt.Group):
             del self[key]
 
             if isinstance(value, np.ndarray):
-                prefix = Group._NP_DATA_PREFIX
-                _value = value
+                self._group._put_metadata(
+                    f"{Group._NP_DATA_PREFIX}{key}", np.array(value)
+                )
+
+            elif isinstance(value, bytes):
+                self._group._put_metadata(key, lt.DataType.CHAR, len(value), value)
+
+            # elif isinstance(value, str):
+            #     self._group._put_metadata(
+            #         key, lt.DataType.STRING_UTF8, len(value), value
+            #     )
+
             else:
-                prefix = ""
                 if isinstance(value, (list, tuple)):
                     _value = np.array(value)
                 else:
+                    if isinstance(value, (int, float)):
+                        np_dtype = np.int64 if isinstance(value, int) else np.float64
+                        value = np_dtype(value)
                     _value = np.array([value])
 
-            self._group._put_metadata(f"{prefix}{key}", _value)
+                self._group._put_metadata(key, _value)
 
         def __getitem__(self, key: str) -> GroupMetadataValueType:
             """
@@ -181,7 +193,6 @@ class Group(lt.Group):
         def _iter(self, keys_only: bool = True):
             """
             Iterate over Group metadata keys or (key, value) tuples
-
             :param keys_only: whether to yield just keys or values too
             """
             metadata_num = self._group._metadata_num()
@@ -201,29 +212,49 @@ class Group(lt.Group):
             for key in self._iter():
                 yield key
 
-        def keys(self) -> KeysView:
-            """
-            :rtype: KeysView
-            :return: Group metadata keys
-            """
-            return KeysView(self)
+        # def keys(self) -> KeysView:
+        #     """
+        #     :rtype: KeysView
+        #     :return: Group metadata keys
+        #     """
+        #     return KeysView(self)
 
-        def values(self) -> ValuesView:
-            """
-            :rtype: ValuesView
-            :return: Group metadata values
-            """
-            return ValuesView(self)
+        # def values(self) -> ValuesView:
+        #     """
+        #     :rtype: ValuesView
+        #     :return: Group metadata values
+        #     """
+        #     return ValuesView(self)
 
-        def items(self) -> ItemsView:
-            """
-            :rtype: ItemsView
-            :return: Group metadata key value pairings
-            """
-            return ItemsView(self)
+        # def items(self) -> ItemsView:
+        #     """
+        #     :rtype: ItemsView
+        #     :return: Group metadata key value pairings
+        #     """
+        #     return ItemsView(self)
 
         def __repr__(self):
             return str(dict(self._iter(keys_only=False)))
+
+        def setdefault(self, key, default=None):
+            raise NotImplementedError(
+                "Group.GroupMetadata.setdefault requires read-write access"
+            )
+
+        def pop(self, key, default=None):
+            raise NotImplementedError(
+                "Group.GroupMetadata.pop requires read-write access"
+            )
+
+        def popitem(self):
+            raise NotImplementedError(
+                "Group.GroupMetadata.popitem requires read-write access"
+            )
+
+        def clear(self):
+            raise NotImplementedError(
+                "Group.GroupMetadata.clear requires read-write access"
+            )
 
     def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
