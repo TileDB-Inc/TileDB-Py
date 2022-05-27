@@ -204,14 +204,13 @@ class _BaseIndexer:
             return _get_empty_results(array.schema, self.query)
 
         self.ranges = getitem_ranges(array, idx)
-        if self.pyquery is None:
-            self.pyquery = _get_pyquery(
-                array,
-                self.query,
-                self.ranges,
-                self.use_arrow,
-                self.preload_metadata,
-            )
+        self.pyquery = _get_pyquery(
+            array,
+            self.query,
+            self.ranges,
+            self.use_arrow,
+            self.preload_metadata,
+        )
         return self if self.pyquery._return_incomplete else self._run_query()
 
     def _run_query(self) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
