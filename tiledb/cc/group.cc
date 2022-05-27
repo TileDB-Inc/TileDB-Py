@@ -39,8 +39,8 @@ void put_metadata_numpy(Group &group, const std::string &key, py::array value) {
 }
 
 void put_metadata(Group &group, const std::string &key,
-                      tiledb_datatype_t value_type, uint32_t value_num,
-                      const char *value) {
+                  tiledb_datatype_t value_type, uint32_t value_num,
+                  const char *value) {
   group.put_metadata(key, value_type, value_num, value);
 }
 
