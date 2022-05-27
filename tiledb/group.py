@@ -1,5 +1,4 @@
-from importlib.metadata import metadata
-from typing import MutableMapping, Union, KeysView, ValuesView, ItemsView, TYPE_CHECKING
+from typing import MutableMapping, Union, TYPE_CHECKING
 import numpy as np
 
 import tiledb.cc as lt
