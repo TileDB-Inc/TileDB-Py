@@ -209,23 +209,17 @@ class MultiRangeIndexer:
                     self.use_arrow,
                     preload_metadata=False,
                 )
-            if self.pyquery._return_incomplete:
-                return self
+            return self if self.pyquery._return_incomplete else self._run_query()
 
-            return self._run_query(self.query)
-
-    def _run_query(
-        self,
-        query: Optional[Query] = None,
-    ) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
+    def _run_query(self) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
         self.pyquery.submit()
         schema = self.array.schema
-        if query and self.use_arrow:
+        if self.query and self.use_arrow:
             # TODO currently there is lack of support for Arrow list types.
             # This prevents multi-value attributes, asides from strings, from being
             # queried properly. Until list attributes are supported in core,
             # error with a clear message to pass use_arrow=False.
-            attrs = map(schema.attr, query.attrs or ())
+            attrs = map(schema.attr, self.query.attrs or ())
             if any(
                 (attr.isvar or len(attr.dtype) > 1)
                 and attr.dtype not in (np.unicode_, np.bytes_)
@@ -238,7 +232,7 @@ class MultiRangeIndexer:
                 )
             with timing("buffer_conversion_time"):
                 table = self.pyquery._buffers_to_pa_table()
-                return table if query.return_arrow else table.to_pandas()
+                return table if self.query.return_arrow else table.to_pandas()
 
         result_dict = _get_pyquery_results(self.pyquery, schema)
         if not schema.sparse:
@@ -277,7 +271,7 @@ class MultiRangeIndexer:
                 "Cannot iterate unless query is initialized with return_incomplete=True"
             )
         while True:
-            yield self._run_query(self.query)
+            yield self._run_query()
             if not self.pyquery.is_incomplete:
                 break
 
@@ -294,7 +288,8 @@ class DataFrameIndexer(MultiRangeIndexer):
         query: Optional[Query] = None,
         use_arrow: Optional[bool] = None,
     ) -> None:
-        super().__init__(array, query)
+        # we need to use a Query in order to get coords for a dense array
+        super().__init__(array, query or Query(array, coords=True))
         if pyarrow and use_arrow is None:
             use_arrow = True
         self.use_arrow = use_arrow
@@ -303,16 +298,14 @@ class DataFrameIndexer(MultiRangeIndexer):
         with timing("getitem_time"):
             check_dataframe_deps()
             array = self.array
-            # we need to use a Query in order to get coords for a dense array
-            query = self.query or Query(array, coords=True)
             if idx is EmptyRange:
-                result = _get_empty_results(array.schema, query)
+                result = _get_empty_results(array.schema, self.query)
             else:
                 self.ranges = getitem_ranges(array, idx)
                 if self.pyquery is None:
                     self.pyquery = _get_pyquery(
                         array,
-                        query,
+                        self.query,
                         self.ranges,
                         self.use_arrow,
                         preload_metadata=True,
@@ -320,12 +313,14 @@ class DataFrameIndexer(MultiRangeIndexer):
                 if self.pyquery._return_incomplete:
                     return self
 
-                result = self._run_query(query)
+                result = self._run_query()
             if not (pyarrow and isinstance(result, pyarrow.Table)):
                 if DataFrame and not isinstance(result, DataFrame):
                     result = DataFrame.from_dict(result)
                 with timing("pandas_index_update_time"):
-                    result = _update_df_from_meta(result, array.meta, query.index_col)
+                    result = _update_df_from_meta(
+                        result, array.meta, self.query.index_col
+                    )
             return result
 
 
