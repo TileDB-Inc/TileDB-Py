@@ -3171,8 +3171,9 @@ cdef class ArraySchema(object):
         output.write("<tr><th>Tile Order</th></tr>")
         output.write(f"<tr><td>{self.tile_order}</td></tr>")
 
-        output.write("<tr><th>Capacity</th></tr>")
-        output.write(f"<tr><td>{self.capacity}</td></tr>")
+        if not self.sparse:
+            output.write("<tr><th>Capacity</th></tr>")
+            output.write(f"<tr><td>{self.capacity}</td></tr>")
 
         output.write("<tr><th>Sparse</th></tr>")
         output.write(f"<tr><td>{self.sparse}</td></tr>")
