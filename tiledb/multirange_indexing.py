@@ -53,14 +53,6 @@ except ImportError:
 # sentinel value to denote selecting an empty range
 EmptyRange = object()
 
-
-# iteration state for incomplete queries
-class IterState(Enum):
-    NONE = 0
-    INIT = 1
-    RUNNING = 2
-
-
 # TODO: expand with more accepted scalar types
 Scalar = Real
 Range = Tuple[Scalar, Scalar]
@@ -189,9 +181,6 @@ class MultiRangeIndexer:
         self.query = query
         self.pyquery = None
         self.use_arrow = False
-        self._iter_state = (
-            IterState.INIT if query and query.return_incomplete else IterState.NONE
-        )
 
     @property
     def array(self) -> Array:
@@ -220,8 +209,7 @@ class MultiRangeIndexer:
                     self.use_arrow,
                     preload_metadata=False,
                 )
-
-            if self.query and self.query.return_incomplete:
+            if self.pyquery._return_incomplete:
                 return self
 
             return self._run_query(self.query)
@@ -282,23 +270,16 @@ class MultiRangeIndexer:
         }
 
     def __iter__(self):
-        if not self.query.return_incomplete:
+        if not self.pyquery:
+            raise TileDBError("Query not initialized")
+        if not self.pyquery._return_incomplete:
             raise TileDBError(
                 "Cannot iterate unless query is initialized with return_incomplete=True"
             )
-
-        return self
-
-    def __next__(self):
-        if (
-            self.pyquery
-            and not self.pyquery.is_incomplete
-            and self._iter_state == IterState.RUNNING
-        ):
-            raise StopIteration()
-
-        self._iter_state = IterState.RUNNING
-        return self._run_query(self.query)
+        while True:
+            yield self._run_query(self.query)
+            if not self.pyquery.is_incomplete:
+                break
 
 
 class DataFrameIndexer(MultiRangeIndexer):
@@ -336,8 +317,7 @@ class DataFrameIndexer(MultiRangeIndexer):
                         self.use_arrow,
                         preload_metadata=True,
                     )
-
-                if query and query.return_incomplete:
+                if self.pyquery._return_incomplete:
                     return self
 
                 result = self._run_query(query)
