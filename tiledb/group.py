@@ -140,7 +140,6 @@ class Group(lt.Group):
 
             if self._group._has_metadata(key):
                 data, tdb_type = self._group._get_metadata(key)
-                # print(data, tdb_type)
                 if tdb_type == lt.DataType.STRING_UTF8:
                     return str(data.tobytes().decode("UTF-8"))
                 elif tdb_type in (lt.DataType.CHAR, lt.DataType.STRING_ASCII):
