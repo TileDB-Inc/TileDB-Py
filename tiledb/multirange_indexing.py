@@ -221,22 +221,9 @@ class MultiRangeIndexer:
         self, query: Optional[Query] = None, preload_metadata: bool = False
     ) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
         if self.pyquery is None or not self.pyquery.is_incomplete:
-            self.pyquery = _get_pyquery(self.array, query, self.use_arrow)
-            self.pyquery._preload_metadata = preload_metadata
-
-            with timing("py.add_ranges"):
-                if hasattr(self.pyquery, "set_ranges_bulk") and any(
-                    isinstance(r, np.ndarray) for r in self.ranges
-                ):
-                    self.pyquery.set_ranges_bulk(self.ranges)
-                else:
-                    self.pyquery.set_ranges(self.ranges)
-
-            if query and query.attr_cond is not None:
-                self.pyquery.set_attr_cond(query.attr_cond)
-
-            self.pyquery._return_incomplete = query and query.return_incomplete
-
+            self.pyquery = _get_pyquery(
+                self.array, query, self.ranges, self.use_arrow, preload_metadata
+            )
             if self._iter_state == IterState.INIT:
                 return
 
@@ -353,9 +340,15 @@ class DataFrameIndexer(MultiRangeIndexer):
             return result
 
 
-def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQuery:
+def _get_pyquery(
+    array: Array,
+    query: Optional[Query],
+    ranges: Sequence[Sequence[Range]],
+    use_arrow: bool,
+    preload_metadata: bool,
+) -> PyQuery:
     schema = array.schema
-    if query is not None:
+    if query:
         order = query.order
     else:
         # set default order:  TILEDB_UNORDERED for sparse,  TILEDB_ROW_MAJOR for dense
@@ -369,7 +362,7 @@ def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQue
             "'U' (TILEDB_UNORDERED), or 'G' (TILEDB_GLOBAL_ORDER)"
         )
 
-    return PyQuery(
+    pyquery = PyQuery(
         array._ctx_(),
         array,
         tuple(
@@ -381,6 +374,20 @@ def _get_pyquery(array: Array, query: Optional[Query], use_arrow: bool) -> PyQue
         layout,
         use_arrow,
     )
+    with timing("add_ranges"):
+        if hasattr(pyquery, "set_ranges_bulk") and any(
+            isinstance(r, np.ndarray) for r in ranges
+        ):
+            pyquery.set_ranges_bulk(ranges)
+        else:
+            pyquery.set_ranges(ranges)
+
+    pyquery._preload_metadata = preload_metadata
+    pyquery._return_incomplete = query and query.return_incomplete
+    if query and query.attr_cond is not None:
+        pyquery.set_attr_cond(query.attr_cond)
+
+    return pyquery
 
 
 def _iter_attr_names(
