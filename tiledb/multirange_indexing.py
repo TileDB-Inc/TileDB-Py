@@ -53,6 +53,7 @@ except ImportError:
 # sentinel value to denote selecting an empty range
 EmptyRange = object()
 
+
 # iteration state for incomplete queries
 class IterState(Enum):
     NONE = 0
@@ -206,29 +207,30 @@ class MultiRangeIndexer:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
 
         with timing("getitem_time"):
+            array = self.array
             if idx is EmptyRange:
-                return _get_empty_results(self.array.schema, self.query)
+                return _get_empty_results(array.schema, self.query)
 
-            self.ranges = getitem_ranges(self.array, idx)
+            self.ranges = getitem_ranges(array, idx)
+            if self.pyquery is None:
+                self.pyquery = _get_pyquery(
+                    array,
+                    self.query,
+                    self.ranges,
+                    self.use_arrow,
+                    preload_metadata=False,
+                )
 
             if self.query and self.query.return_incomplete:
-                self._run_query(self.query)
                 return self
 
             return self._run_query(self.query)
 
     def _run_query(
-        self, query: Optional[Query] = None, preload_metadata: bool = False
+        self,
+        query: Optional[Query] = None,
     ) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
-        if self.pyquery is None or not self.pyquery.is_incomplete:
-            self.pyquery = _get_pyquery(
-                self.array, query, self.ranges, self.use_arrow, preload_metadata
-            )
-            if self._iter_state == IterState.INIT:
-                return
-
         self.pyquery.submit()
-
         schema = self.array.schema
         if query and self.use_arrow:
             # TODO currently there is lack of support for Arrow list types.
@@ -326,12 +328,19 @@ class DataFrameIndexer(MultiRangeIndexer):
                 result = _get_empty_results(array.schema, query)
             else:
                 self.ranges = getitem_ranges(array, idx)
+                if self.pyquery is None:
+                    self.pyquery = _get_pyquery(
+                        array,
+                        query,
+                        self.ranges,
+                        self.use_arrow,
+                        preload_metadata=True,
+                    )
 
                 if query and query.return_incomplete:
-                    self._run_query(query)
                     return self
 
-                result = self._run_query(query, preload_metadata=True)
+                result = self._run_query(query)
             if not (pyarrow and isinstance(result, pyarrow.Table)):
                 if DataFrame and not isinstance(result, DataFrame):
                     result = DataFrame.from_dict(result)
