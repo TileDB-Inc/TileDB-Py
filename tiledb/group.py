@@ -112,6 +112,12 @@ class Group(lt.Group):
             elif isinstance(value, bytes):
                 self._group._put_metadata(key, lt.DataType.CHAR, len(value), value)
 
+            elif isinstance(value, str):
+                value = value.encode("UTF-8")
+                self._group._put_metadata(
+                    key, lt.DataType.STRING_UTF8, len(value), value
+                )
+
             else:
                 if isinstance(value, (list, tuple)):
                     _value = np.array(value)
@@ -134,16 +140,25 @@ class Group(lt.Group):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
             if self._group._has_metadata(key):
-                data = self._group._get_metadata(key)
-                if data.dtype.kind == "U":
-                    data = "".join(data)
-                elif data.dtype.kind == "S":
-                    data = data.tobytes()
+                data, tdb_type = self._group._get_metadata(key)
+                # print(data, tdb_type)
+                if tdb_type == lt.DataType.STRING_UTF8:
+                    return str(data.tobytes().decode("UTF-8"))
+                elif tdb_type in (lt.DataType.CHAR, lt.DataType.STRING_ASCII):
+                    return data.tobytes()
                 else:
                     data = tuple(data)
-                return data[0] if len(data) == 1 else data
+                    return data[0] if len(data) == 1 else data
             elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
-                return self._group._get_metadata(f"{Group._NP_DATA_PREFIX}{key}")
+                data, tdb_type = self._group._get_metadata(
+                    f"{Group._NP_DATA_PREFIX}{key}"
+                )
+                if tdb_type == lt.DataType.STRING_UTF8:
+                    return str(data.tobytes().decode("UTF-8"))
+                elif tdb_type in (lt.DataType.CHAR, lt.DataType.STRING_ASCII):
+                    return data.tobytes()
+                else:
+                    return data
             else:
                 raise KeyError(f"KeyError: {key}")
 
@@ -192,7 +207,7 @@ class Group(lt.Group):
             """
             metadata_num = self._group._metadata_num()
             for i in range(metadata_num):
-                key, _ = self._group._get_metadata_from_index(i)
+                key = self._group._get_key_from_index(i)
 
                 if key.startswith(Group._NP_DATA_PREFIX):
                     key = key[len(Group._NP_DATA_PREFIX) :]

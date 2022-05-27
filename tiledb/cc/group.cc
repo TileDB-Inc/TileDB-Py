@@ -38,9 +38,9 @@ void put_metadata_numpy(Group &group, const std::string &key, py::array value) {
                      value_num > 0 ? value.data() : nullptr);
 }
 
-void put_metadata(Group &group, const std::string &key,
-                  tiledb_datatype_t value_type, uint32_t value_num,
-                  const char *value) {
+void put_metadata_str(Group &group, const std::string &key,
+                      tiledb_datatype_t value_type, uint32_t value_num,
+                      const char *value) {
   group.put_metadata(key, value_type, value_num, value);
 }
 
@@ -49,7 +49,7 @@ bool has_metadata(Group &group, const std::string &key) {
   return group.has_metadata(key, &_unused_value_type);
 }
 
-py::tuple get_metadata_from_index(Group &group, uint64_t index) {
+std::string get_key_from_index(Group &group, uint64_t index) {
   std::string key;
   tiledb_datatype_t tdb_type;
   uint32_t value_num;
@@ -57,22 +57,10 @@ py::tuple get_metadata_from_index(Group &group, uint64_t index) {
 
   group.get_metadata_from_index(index, &key, &tdb_type, &value_num, &value);
 
-  py::dtype value_type = tdb_to_np_dtype(tdb_type, 1);
-
-  if (tdb_type == TILEDB_STRING_UTF8)
-    value_num /= value_type.itemsize();
-
-  if (value == nullptr)
-    value_num = 0;
-
-  py::array py_buf(value_type, value_num);
-
-  memcpy(py_buf.mutable_data(), value, py_buf.nbytes());
-
-  return py::make_tuple(key, py_buf);
+  return key;
 }
 
-py::array get_metadata(Group &group, const std::string &key) {
+py::tuple get_metadata(Group &group, const std::string &key) {
   tiledb_datatype_t tdb_type;
   uint32_t value_num;
   const void *value;
@@ -81,19 +69,21 @@ py::array get_metadata(Group &group, const std::string &key) {
 
   py::dtype value_type = tdb_to_np_dtype(tdb_type, 1);
 
-  if (tdb_type == TILEDB_STRING_UTF8)
-    value_num /= value_type.itemsize();
-
   py::array py_buf;
   if (value == nullptr) {
     py_buf = py::array(value_type, 0);
-    return py_buf;
+    return py::make_tuple(py_buf, tdb_type);
+  }
+
+  if (tdb_type == TILEDB_STRING_UTF8) {
+    value_type = py::dtype("|S1");
   }
 
   py_buf = py::array(value_type, value_num);
+
   memcpy(py_buf.mutable_data(), value, py_buf.nbytes());
 
-  return py_buf;
+  return py::make_tuple(py_buf, tdb_type);
 }
 
 void init_group(py::module &m) {
@@ -113,13 +103,13 @@ void init_group(py::module &m) {
       .def_property_readonly("_query_type", &Group::query_type)
 
       .def("_put_metadata", put_metadata_numpy)
-      .def("_put_metadata", put_metadata)
+      .def("_put_metadata", put_metadata_str)
 
       .def("_delete_metadata", &Group::delete_metadata)
       .def("_has_metadata", has_metadata)
       .def("_metadata_num", &Group::metadata_num)
       .def("_get_metadata", get_metadata)
-      .def("_get_metadata_from_index", get_metadata_from_index)
+      .def("_get_key_from_index", get_key_from_index)
 
       .def("_add", &Group::add_member, py::arg("uri"),
            py::arg("relative") = false, py::arg("name") = std::nullopt)

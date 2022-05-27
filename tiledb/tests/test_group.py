@@ -359,11 +359,13 @@ class GroupMetadataTest(GroupTestCase):
         grp = tiledb.Group(path, "w")
         grp.meta["empty_byte"] = b""
         grp.meta["null_byte"] = b"\x00"
+        grp.meta["zero"] = "xxx"
         grp.close()
 
         grp = tiledb.Group(path, "r")
         assert grp.meta["empty_byte"] == b""
         assert grp.meta["null_byte"] == b"\x00"
+        assert grp.meta["zero"] == "xxx"
         grp.close()
 
     @given(st_metadata)
