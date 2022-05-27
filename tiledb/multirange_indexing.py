@@ -27,7 +27,7 @@ from typing import (
 
 import numpy as np
 
-from tiledb import Array, ArraySchema, TileDBError, libtiledb
+from tiledb import Array, ArraySchema, TileDBError
 from tiledb.main import PyQuery, increment_stat, use_stats
 from tiledb.libtiledb import Metadata, Query
 
@@ -176,7 +176,7 @@ def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     return tuple(ranges)
 
 
-class MultiRangeIndexer(object):
+class MultiRangeIndexer:
     """
     Implements multi-range indexing.
     """
@@ -187,11 +187,9 @@ class MultiRangeIndexer(object):
         self.array_ref = weakref.ref(array)
         self.query = query
         self.pyquery = None
-        self.use_arrow = None
+        self.use_arrow = False
         self._iter_state = (
-            IterState.INIT
-            if self.query and self.query.return_incomplete
-            else IterState.NONE
+            IterState.INIT if query and query.return_incomplete else IterState.NONE
         )
 
     @property
@@ -204,7 +202,7 @@ class MultiRangeIndexer(object):
         return array
 
     def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
-        if self.query is not None and self.query.return_arrow:
+        if self.query and self.query.return_arrow:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
 
         with timing("getitem_time"):
@@ -227,24 +225,17 @@ class MultiRangeIndexer(object):
             self.pyquery._preload_metadata = preload_metadata
 
             with timing("py.add_ranges"):
-                if libtiledb.version() >= (2, 6) and any(
-                    [lambda x: isinstance(x, np.ndarray), self.ranges]
+                if hasattr(self.pyquery, "set_ranges_bulk") and any(
+                    isinstance(r, np.ndarray) for r in self.ranges
                 ):
                     self.pyquery.set_ranges_bulk(self.ranges)
                 else:
                     self.pyquery.set_ranges(self.ranges)
 
-            has_attr_cond = self.query is not None and query.attr_cond is not None
+            if query and query.attr_cond is not None:
+                self.pyquery.set_attr_cond(query.attr_cond)
 
-            if has_attr_cond:
-                try:
-                    self.pyquery.set_attr_cond(query.attr_cond)
-                except TileDBError as e:
-                    raise TileDBError(e)
-
-            self.pyquery._return_incomplete = (
-                self.query and self.query.return_incomplete
-            )
+            self.pyquery._return_incomplete = query and query.return_incomplete
 
             if self._iter_state == IterState.INIT:
                 return
@@ -252,7 +243,7 @@ class MultiRangeIndexer(object):
         self.pyquery.submit()
 
         schema = self.array.schema
-        if query is not None and self.use_arrow:
+        if query and self.use_arrow:
             # TODO currently there is lack of support for Arrow list types.
             # This prevents multi-value attributes, asides from strings, from being
             # queried properly. Until list attributes are supported in core,
@@ -260,7 +251,7 @@ class MultiRangeIndexer(object):
             attrs = map(schema.attr, query.attrs or ())
             if any(
                 (attr.isvar or len(attr.dtype) > 1)
-                and (not attr.dtype in (np.unicode_, np.bytes_))
+                and attr.dtype not in (np.unicode_, np.bytes_)
                 for attr in attrs
             ):
                 raise TileDBError(
@@ -294,14 +285,12 @@ class MultiRangeIndexer(object):
 
         :return: OrderedDict of key: str -> EstimatedResultSize
         """
-        results = {}
         if not self.pyquery:
             raise TileDBError("Query not initialized")
-        tmp = self.pyquery.estimated_result_sizes()
-        for name, val in tmp.items():
-            results[name] = EstimatedResultSize(val[0], val[1])
-
-        return results
+        return {
+            name: EstimatedResultSize(*values)
+            for name, values in self.pyquery.estimated_result_sizes().items()
+        }
 
     def __iter__(self):
         if not self.query.return_incomplete:
@@ -313,8 +302,10 @@ class MultiRangeIndexer(object):
 
     def __next__(self):
         if (
-            self.pyquery and not self.pyquery.is_incomplete
-        ) and self._iter_state == IterState.RUNNING:
+            self.pyquery
+            and not self.pyquery.is_incomplete
+            and self._iter_state == IterState.RUNNING
+        ):
             raise StopIteration()
 
         self._iter_state = IterState.RUNNING
@@ -343,14 +334,14 @@ class DataFrameIndexer(MultiRangeIndexer):
             check_dataframe_deps()
             array = self.array
             # we need to use a Query in order to get coords for a dense array
-            query = self.query if self.query else Query(array, coords=True)
+            query = self.query or Query(array, coords=True)
             if idx is EmptyRange:
                 result = _get_empty_results(array.schema, query)
             else:
-                self.ranges = getitem_ranges(self.array, idx)
+                self.ranges = getitem_ranges(array, idx)
 
-                if self.query and self.query.return_incomplete:
-                    self._run_query(self.query)
+                if query and query.return_incomplete:
+                    self._run_query(query)
                     return self
 
                 result = self._run_query(query, preload_metadata=True)
