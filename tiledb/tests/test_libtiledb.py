@@ -1192,6 +1192,10 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.open(path) as B:
             assert_array_equal(B[:], data)
 
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 10),
+        reason="TILEDB_BOOL introduced in libtiledb 2.10",
+    )
     def test_dense_index_bool(self):
         path = self.path()
         data = np.random.randint(0, 1, 10, dtype=bool)
@@ -2274,6 +2278,10 @@ class TestSparseArray(DiskTestCase):
             assert B.multi_index[data[0]]["attr"] == data[0]
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 10),
+        reason="TILEDB_BOOL introduced in libtiledb 2.10",
+    )
     def test_sparse_index_bool(self):
         path = self.path()
         data = np.random.randint(0, 1, 10, dtype=bool)
