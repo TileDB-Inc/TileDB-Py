@@ -1744,7 +1744,7 @@ cdef class Attr(object):
         output.write("</table>")
 
         return output.getvalue()
-    
+
     def _repr_html_row_only_(self):
         output = io.StringIO()
 
@@ -1911,7 +1911,7 @@ cdef class Dim(object):
         output.write("</table>")
 
         return output.getvalue()
-    
+
     def _repr_html_row_only_(self) -> str:
         output = io.StringIO()
 
@@ -3178,7 +3178,7 @@ cdef class ArraySchema(object):
         output.write(f"<tr><td>{self.sparse}</td></tr>")
 
         if self.sparse:
-            output.write("<tr><th>Allows DuplicatesK/th></tr>")
+            output.write("<tr><th>Allows Duplicates</th></tr>")
             output.write(f"<tr><td>{self.allows_duplicates}</td></tr>")
 
         output.write("</table>")
