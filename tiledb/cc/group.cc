@@ -79,9 +79,7 @@ py::tuple get_metadata(Group &group, const std::string &key) {
     value_type = py::dtype("|S1");
   }
 
-  py_buf = py::array(value_type, value_num);
-
-  memcpy(py_buf.mutable_data(), value, py_buf.nbytes());
+  py_buf = py::array(value_type, value_num, value);
 
   return py::make_tuple(py_buf, tdb_type);
 }
