@@ -198,6 +198,10 @@ class _BaseIndexer:
             )
         return array
 
+    @property
+    def return_incomplete(self) -> bool:
+        return bool(self.query and self.query.return_incomplete)
+
     def __getitem__(self, idx: Any):
         array = self.array
         if idx is EmptyRange:
@@ -209,9 +213,10 @@ class _BaseIndexer:
             self.query,
             self.ranges,
             self.use_arrow,
+            self.return_incomplete,
             self.preload_metadata,
         )
-        return self if self.pyquery._return_incomplete else self._run_query()
+        return self if self.return_incomplete else self._run_query()
 
     def _run_query(self) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
         self.pyquery.submit()
@@ -253,7 +258,7 @@ class _BaseIndexer:
     def __iter__(self):
         if not self.pyquery:
             raise TileDBError("Query not initialized")
-        if not self.pyquery._return_incomplete:
+        if not self.return_incomplete:
             raise TileDBError(
                 "Cannot iterate unless query is initialized with return_incomplete=True"
             )
@@ -314,7 +319,7 @@ class DataFrameIndexer(_BaseIndexer):
     def __getitem__(self, idx: Any) -> Union[DataFrame, Table]:
         with timing("getitem_time"):
             result = super().__getitem__(idx)
-            if self.pyquery._return_incomplete:
+            if self.return_incomplete:
                 return result
 
             if pyarrow and isinstance(result, pyarrow.Table):
@@ -333,6 +338,7 @@ def _get_pyquery(
     query: Optional[Query],
     ranges: Sequence[Sequence[Range]],
     use_arrow: bool,
+    return_incomplete: bool,
     preload_metadata: bool,
 ) -> PyQuery:
     schema = array.schema
@@ -370,8 +376,8 @@ def _get_pyquery(
         else:
             pyquery.set_ranges(ranges)
 
+    pyquery._return_incomplete = return_incomplete
     pyquery._preload_metadata = preload_metadata
-    pyquery._return_incomplete = query and query.return_incomplete
     if query and query.attr_cond is not None:
         pyquery.set_attr_cond(query.attr_cond)
 
