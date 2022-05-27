@@ -381,6 +381,20 @@ def find_or_install_libtiledb(setuptools_cmd):
         print("-------------------\n")
         setuptools_cmd.distribution.package_data.update({"tiledb": libtiledb_objects})
 
+    version_header = os.path.join(prefix_dir, "include", "tiledb", "tiledb_version.h")
+    with open(version_header) as header:
+        lines = list(header)[-3:]
+        major, minor, patch = [int(l.split()[-1]) for l in lines]
+    ext_attr_update(
+        "cython_compile_time_env",
+        {
+            "TILEDBPY_MODULAR": TILEDBPY_MODULAR,
+            "LIBTILEDB_VERSION_MAJOR": major,
+            "LIBTILEDB_VERSION_MINOR": minor,
+            "LIBTILEDB_VERSION_PATCH": patch,
+        },
+    )
+
 
 class LazyCommandClass(dict):
     """
@@ -725,20 +739,20 @@ if TILEDB_PATH == "source":
 elif TILEDB_PATH != "":
     ext_attr_update("tiledb_path", TILEDB_PATH)
 
-# Set the compile-time macros for Cython
-version_header = os.path.join(TILEDB_PATH, "include", "tiledb", "tiledb_version.h")
-with open(version_header) as header:
-    lines = list(header)[-3:]
-    major, minor, patch = [int(l.split()[-1]) for l in lines]
-ext_attr_update(
-    "cython_compile_time_env",
-    {
-        "TILEDBPY_MODULAR": TILEDBPY_MODULAR,
-        "LIBTILEDB_VERSION_MAJOR": major,
-        "LIBTILEDB_VERSION_MINOR": minor,
-        "LIBTILEDB_VERSION_PATCH": patch,
-    },
-)
+# # Set the compile-time macros for Cython
+# version_header = os.path.join(TILEDB_PATH, "include", "tiledb", "tiledb_version.h")
+# with open(version_header) as header:
+#     lines = list(header)[-3:]
+#     major, minor, patch = [int(l.split()[-1]) for l in lines]
+# ext_attr_update(
+#     "cython_compile_time_env",
+#     {
+#         "TILEDBPY_MODULAR": TILEDBPY_MODULAR,
+#         "LIBTILEDB_VERSION_MAJOR": major,
+#         "LIBTILEDB_VERSION_MINOR": minor,
+#         "LIBTILEDB_VERSION_PATCH": patch,
+#     },
+# )
 
 setup(
     name="tiledb",
