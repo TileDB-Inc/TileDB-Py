@@ -4123,8 +4123,28 @@ class IncompleteTest(DiskTestCase):
             query = A.query(
                 return_incomplete=True, use_arrow=use_arrow, return_arrow=return_arrow
             )
-            iterable = getattr(query, indexer)[:]
+            # empty range
+            iterable = getattr(query, indexer)[tiledb.EmptyRange]
+            est_results = iterable.estimated_result_sizes()
+            assert isinstance(est_results[""], EstimatedResultSize)
+            assert isinstance(est_results["__dim_0"], EstimatedResultSize)
+            assert est_results["__dim_0"].offsets_bytes == 0
+            assert est_results["__dim_0"].data_bytes == 0
+            assert est_results[""].offsets_bytes == 0
+            assert est_results[""].data_bytes == 0
 
+            results = list(iterable)
+            assert len(results) == 1
+            result = results[0]
+            if indexer == "df":
+                assert isinstance(result, pd.DataFrame)
+                assert len(result) == 0
+            else:
+                assert isinstance(result, OrderedDict)
+                assert len(pd.DataFrame(result)) == 0
+
+            # full range
+            iterable = getattr(query, indexer)[:]
             est_results = iterable.estimated_result_sizes()
             assert isinstance(est_results[""], EstimatedResultSize)
             assert isinstance(est_results["__dim_0"], EstimatedResultSize)

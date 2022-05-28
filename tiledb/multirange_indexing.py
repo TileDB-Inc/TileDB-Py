@@ -188,7 +188,6 @@ class _BaseIndexer(ABC):
         self.query = query
         self.use_arrow = use_arrow
         self.preload_metadata = preload_metadata
-        self.pyquery = None
 
     @property
     def array(self) -> Array:
@@ -224,15 +223,21 @@ class _BaseIndexer(ABC):
 
         :return: OrderedDict of key: str -> EstimatedResultSize
         """
-        if not self.pyquery:
+        if not hasattr(self, "pyquery"):
             raise TileDBError("Query not initialized")
-        return {
-            name: EstimatedResultSize(*values)
-            for name, values in self.pyquery.estimated_result_sizes().items()
-        }
+
+        if self.pyquery is None:
+            return {
+                name: EstimatedResultSize(0, 0) for name in self._empty_results.keys()
+            }
+        else:
+            return {
+                name: EstimatedResultSize(*values)
+                for name, values in self.pyquery.estimated_result_sizes().items()
+            }
 
     def __iter__(self):
-        if not self.pyquery:
+        if not hasattr(self, "pyquery"):
             raise TileDBError("Query not initialized")
         if not self.return_incomplete:
             raise TileDBError(
@@ -240,7 +245,7 @@ class _BaseIndexer(ABC):
             )
         while True:
             yield self._run_query()
-            if not self.pyquery.is_incomplete:
+            if self.pyquery is None or not self.pyquery.is_incomplete:
                 break
 
     @property
