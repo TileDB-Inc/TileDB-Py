@@ -110,8 +110,10 @@ _tiledb_dtype_to_numpy_typeid_convert ={
     TILEDB_UINT16: np.NPY_UINT16,
     TILEDB_CHAR: np.NPY_STRING,
     TILEDB_STRING_UTF8: np.NPY_UNICODE,
-    # TILEDB_BOOL: np.NPY_BOOL
 }
+IF LIBTILEDB_VERSION_MAJOR >= 2:
+    IF LIBTILEDB_VERSION_MINOR >= 10:
+        _tiledb_dtype_to_numpy_typeid_convert[TILEDB_BOOL] = np.NPY_BOOL
 
 # Conversion from TileDB dtype to Numpy dtype
 _tiledb_dtype_to_numpy_dtype_convert = {
@@ -128,12 +130,9 @@ _tiledb_dtype_to_numpy_dtype_convert = {
     TILEDB_CHAR: np.dtype('S1'),
     TILEDB_STRING_ASCII: np.bytes_,
     TILEDB_STRING_UTF8: np.dtype('U1'),
-    # TILEDB_BOOL: np.bool_
 }
-
 IF LIBTILEDB_VERSION_MAJOR >= 2:
     IF LIBTILEDB_VERSION_MINOR >= 10:
-        _tiledb_dtype_to_numpy_typeid_convert[TILEDB_BOOL] = np.NPY_BOOL
         _tiledb_dtype_to_numpy_dtype_convert[TILEDB_BOOL] = np.bool_
 
 def version():
