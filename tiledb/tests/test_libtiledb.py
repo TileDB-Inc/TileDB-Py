@@ -4079,7 +4079,13 @@ class IncompleteTest(DiskTestCase):
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     @pytest.mark.parametrize(
-        "return_arrow, indexer", [(True, "df"), (False, "df"), (False, "multi_index")]
+        "use_arrow, return_arrow, indexer",
+        [
+            (True, True, "df"),
+            (True, False, "df"),
+            (False, False, "df"),
+            (None, False, "multi_index"),
+        ],
     )
     @pytest.mark.parametrize(
         "test_incomplete_return_array", [True, False], indirect=True
@@ -4088,6 +4094,7 @@ class IncompleteTest(DiskTestCase):
     def test_incomplete_return(
         self,
         test_incomplete_return_array,
+        use_arrow,
         return_arrow,
         indexer,
         non_overlapping_ranges,
@@ -4113,7 +4120,9 @@ class IncompleteTest(DiskTestCase):
         # count number of elements retrieved so that we can slice the comparison array
         idx = 0
         with tiledb.open(path, ctx=tiledb.Ctx(cfg)) as A:
-            query = A.query(return_incomplete=True, return_arrow=return_arrow)
+            query = A.query(
+                return_incomplete=True, use_arrow=use_arrow, return_arrow=return_arrow
+            )
             iterable = getattr(query, indexer)[:]
 
             est_results = iterable.estimated_result_sizes()

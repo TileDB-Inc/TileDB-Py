@@ -3,6 +3,7 @@ import json
 import time
 import weakref
 from enum import Enum
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
 from contextvars import ContextVar, copy_context
@@ -169,7 +170,7 @@ def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     return tuple(ranges)
 
 
-class _BaseIndexer:
+class _BaseIndexer(ABC):
     """
     Implements multi-range indexing.
     """
@@ -202,37 +203,12 @@ class _BaseIndexer:
     def return_incomplete(self) -> bool:
         return bool(self.query and self.query.return_incomplete)
 
-    def __getitem__(self, idx: Any):
-        array = self.array
-        if idx is EmptyRange:
-            return _get_empty_results(array.schema, self.query)
-
-        self.ranges = getitem_ranges(array, idx)
-        self.pyquery = _get_pyquery(
-            array,
-            self.query,
-            self.ranges,
-            self.use_arrow,
-            self.return_incomplete,
-            self.preload_metadata,
-        )
-        return self if self.return_incomplete else self._run_query()
-
-    def _run_query(self) -> Union[Dict[str, np.ndarray], DataFrame, Table]:
-        self.pyquery.submit()
-        if self.use_arrow:
-            with timing("buffer_conversion_time"):
-                table = self.pyquery._buffers_to_pa_table()
-                return table if self.query.return_arrow else table.to_pandas()
-
-        schema = self.array.schema
-        result_dict = _get_pyquery_results(self.pyquery, schema)
-        if not schema.sparse:
-            result_shape = mr_dense_result_shape(self.ranges, schema.shape)
-            for arr in result_dict.values():
-                # TODO check/test layout
-                arr.shape = result_shape
-        return result_dict
+    def __getitem__(self, idx):
+        with timing("getitem_time"):
+            self._set_ranges(
+                getitem_ranges(self.array, idx) if idx is not EmptyRange else None
+            )
+            return self if self.return_incomplete else self._run_query()
 
     def estimated_result_sizes(self):
         """
@@ -267,6 +243,28 @@ class _BaseIndexer:
             if not self.pyquery.is_incomplete:
                 break
 
+    @property
+    def _empty_results(self):
+        return _get_empty_results(self.array.schema, self.query)
+
+    def _set_ranges(self, ranges):
+        self.pyquery = (
+            _get_pyquery(
+                self.array,
+                self.query,
+                ranges,
+                self.use_arrow,
+                self.return_incomplete,
+                self.preload_metadata,
+            )
+            if ranges is not None
+            else None
+        )
+
+    @abstractmethod
+    def _run_query(self):
+        """Run the query for the latest __getitem__ call and return the result"""
+
 
 class MultiRangeIndexer(_BaseIndexer):
     """
@@ -277,10 +275,27 @@ class MultiRangeIndexer(_BaseIndexer):
         if query and query.return_arrow:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
         super().__init__(array, query)
+        self.result_shape = None
 
-    def __getitem__(self, idx: Any) -> Dict[str, np.ndarray]:
-        with timing("getitem_time"):
-            return super().__getitem__(idx)
+    def _set_ranges(self, ranges):
+        super()._set_ranges(ranges)
+        schema = self.array.schema
+        if ranges is not None and not schema.sparse and len(schema.shape) > 1:
+            self.result_shape = mr_dense_result_shape(ranges, schema.shape)
+        else:
+            self.result_shape = None
+
+    def _run_query(self) -> Dict[str, np.ndarray]:
+        if self.pyquery is None:
+            return self._empty_results
+
+        self.pyquery.submit()
+        result_dict = _get_pyquery_results(self.pyquery, self.array.schema)
+        if self.result_shape is not None:
+            for arr in result_dict.values():
+                # TODO check/test layout
+                arr.shape = self.result_shape
+        return result_dict
 
 
 class DataFrameIndexer(_BaseIndexer):
@@ -316,21 +331,23 @@ class DataFrameIndexer(_BaseIndexer):
             )
         super().__init__(array, query, use_arrow, preload_metadata=True)
 
-    def __getitem__(self, idx: Any) -> Union[DataFrame, Table]:
-        with timing("getitem_time"):
-            result = super().__getitem__(idx)
-            if self.return_incomplete:
-                return result
+    def _run_query(self) -> Union[DataFrame, Table]:
+        if self.pyquery is not None:
+            self.pyquery.submit()
 
-            if pyarrow and isinstance(result, pyarrow.Table):
-                return result
+        if self.pyquery is None:
+            df = DataFrame(self._empty_results)
+        elif self.use_arrow:
+            with timing("buffer_conversion_time"):
+                table = self.pyquery._buffers_to_pa_table()
+            if self.query.return_arrow:
+                return table
+            df = table.to_pandas()
+        else:
+            df = DataFrame(_get_pyquery_results(self.pyquery, self.array.schema))
 
-            if not isinstance(result, DataFrame):
-                result = DataFrame.from_dict(result)
-            with timing("pandas_index_update_time"):
-                return _update_df_from_meta(
-                    result, self.array.meta, self.query.index_col
-                )
+        with timing("pandas_index_update_time"):
+            return _update_df_from_meta(df, self.array.meta, self.query.index_col)
 
 
 def _get_pyquery(
