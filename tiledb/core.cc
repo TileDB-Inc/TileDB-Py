@@ -1562,14 +1562,14 @@ py::object python_internal_stats(bool dict = false) {
     // core.cc is only tracking read time right now; don't output if we
     // have no query submission time
     if (rq_time == 0) {
-      return stats_json;
+      return std::move(stats_json);
     }
 
     for (auto &stat : counters) {
       stats_json[py::str(stat.first)] = stat.second.count();
     }
 
-    return stats_json;
+    return std::move(stats_json);
   } else {
     std::ostringstream os;
 
