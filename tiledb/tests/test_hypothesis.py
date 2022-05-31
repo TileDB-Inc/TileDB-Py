@@ -14,7 +14,6 @@ from tiledb.tests.common import DiskTestCase, has_pandas
 class AttrDataTest(DiskTestCase):
     @hypothesis.settings(deadline=1000)
     @given(st.binary())
-    @hypothesis.reproduce_failure("6.46.9", b"AAEWBwIA")
     def test_bytes_numpy(self, data):
         # TODO this test is slow. might be nice to run with in-memory
         #      VFS (if faster) but need to figure out correct setup
