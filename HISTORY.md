@@ -4,6 +4,9 @@
 * Addition of `tiledb.DictionaryFilter` [#1074](https://github.com/TileDB-Inc/TileDB-Py/pull/1074)
 * Add support for `Datatype::TILEDB_BOOL` [#1110](https://github.com/TileDB-Inc/TileDB-Py/pull/1110)
 
+# Bug Fixes
+* Correcting `stats_dump` issues: Python stats now also in JSON form if `json=True`, resolve name mangling of `json` argument and `json` module, and pulling "timer" and "counter" stats from `stats_json_core` for `libtiledb`>=2.3  [#1140](https://github.com/TileDB-Inc/TileDB-Py/pull/1140)
+
 # TileDB-Py 0.15.1 Release Notes
 
 ## TileDB Embedded updates:
