@@ -1,4 +1,4 @@
-from typing import Union, TYPE_CHECKING
+from typing import MutableMapping, Union, TYPE_CHECKING
 import numpy as np
 
 import tiledb.cc as lt
@@ -79,7 +79,7 @@ class Group(lt.Group):
         lt.QueryType.WRITE: "w",
     }
 
-    class GroupMetadata:
+    class GroupMetadata(MutableMapping):
         """
         Holds metadata for the associated Group in a dictionary-like structure.
         """
@@ -104,16 +104,29 @@ class Group(lt.Group):
             del self[key]
 
             if isinstance(value, np.ndarray):
-                prefix = Group._NP_DATA_PREFIX
-                _value = value
+                self._group._put_metadata(
+                    f"{Group._NP_DATA_PREFIX}{key}", np.array(value)
+                )
+
+            elif isinstance(value, bytes):
+                self._group._put_metadata(key, lt.DataType.CHAR, len(value), value)
+
+            elif isinstance(value, str):
+                value = value.encode("UTF-8")
+                self._group._put_metadata(
+                    key, lt.DataType.STRING_UTF8, len(value), value
+                )
+
             else:
-                prefix = ""
                 if isinstance(value, (list, tuple)):
                     _value = np.array(value)
                 else:
+                    if isinstance(value, (int, float)):
+                        np_dtype = np.int64 if isinstance(value, int) else np.float64
+                        value = np_dtype(value)
                     _value = np.array([value])
 
-            self._group._put_metadata(f"{prefix}{key}", _value)
+                self._group._put_metadata(key, _value)
 
         def __getitem__(self, key: str) -> GroupMetadataValueType:
             """
@@ -126,16 +139,24 @@ class Group(lt.Group):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
             if self._group._has_metadata(key):
-                data = self._group._get_metadata(key)
-                if data.dtype.kind == "U":
-                    data = "".join(data)
-                elif data.dtype.kind == "S":
-                    data = data.tobytes()
+                data, tdb_type = self._group._get_metadata(key)
+                if tdb_type == lt.DataType.STRING_UTF8:
+                    return str(data.tobytes().decode("UTF-8"))
+                elif tdb_type in (lt.DataType.CHAR, lt.DataType.STRING_ASCII):
+                    return data.tobytes()
                 else:
                     data = tuple(data)
-                return data[0] if len(data) == 1 else data
+                    return data[0] if len(data) == 1 else data
             elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
-                return self._group._get_metadata(f"{Group._NP_DATA_PREFIX}{key}")
+                data, tdb_type = self._group._get_metadata(
+                    f"{Group._NP_DATA_PREFIX}{key}"
+                )
+                if tdb_type == lt.DataType.STRING_UTF8:
+                    return str(data.tobytes().decode("UTF-8"))
+                elif tdb_type in (lt.DataType.CHAR, lt.DataType.STRING_ASCII):
+                    return data.tobytes()
+                else:
+                    return data
             else:
                 raise KeyError(f"KeyError: {key}")
 
@@ -176,6 +197,51 @@ class Group(lt.Group):
 
             """
             return self._group._metadata_num()
+
+        def _iter(self, keys_only: bool = True):
+            """
+            Iterate over Group metadata keys or (key, value) tuples
+            :param keys_only: whether to yield just keys or values too
+            """
+            metadata_num = self._group._metadata_num()
+            for i in range(metadata_num):
+                key = self._group._get_key_from_index(i)
+
+                if key.startswith(Group._NP_DATA_PREFIX):
+                    key = key[len(Group._NP_DATA_PREFIX) :]
+
+                if keys_only:
+                    yield key
+                else:
+                    val = self.__getitem__(key)
+                    yield key, val
+
+        def __iter__(self):
+            for key in self._iter():
+                yield key
+
+        def __repr__(self):
+            return str(dict(self._iter(keys_only=False)))
+
+        def setdefault(self, key, default=None):
+            raise NotImplementedError(
+                "Group.GroupMetadata.setdefault requires read-write access"
+            )
+
+        def pop(self, key, default=None):
+            raise NotImplementedError(
+                "Group.GroupMetadata.pop requires read-write access"
+            )
+
+        def popitem(self):
+            raise NotImplementedError(
+                "Group.GroupMetadata.popitem requires read-write access"
+            )
+
+        def clear(self):
+            raise NotImplementedError(
+                "Group.GroupMetadata.clear requires read-write access"
+            )
 
     def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()

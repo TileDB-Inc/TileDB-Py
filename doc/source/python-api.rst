@@ -162,6 +162,9 @@ Group
    .. automethod:: __delitem__(key)
    .. automethod:: __contains__(key)
    .. automethod:: __len__
+   .. automethod:: __keys__
+   .. automethod:: __values__
+   .. automethod:: __items__
 
 Object
 ------
