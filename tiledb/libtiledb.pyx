@@ -577,9 +577,13 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
     stats_str_core = stats_str_ptr.decode("UTF-8", "strict").strip()
 
     if json or not verbose:
-        import json
-        stats_json_core = json.loads(stats_str_core)
+        from json import loads as json_loads
+        stats_json_core = json_loads(stats_str_core)[0]
 
+        if include_python:
+            from json import dumps as json_dumps
+            import tiledb.main
+            stats_json_core["python"] = json_dumps(tiledb.main.python_internal_stats(True))
         if json:
             return stats_json_core
 
@@ -595,16 +599,23 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
 
     if not verbose:
         stats_str += "\n==== READ ====\n\n"
-        stats_str += "- Number of read queries: {}\n".format(
-            stats_json_core["READ_NUM"])
-        stats_str += "- Number of attributes read: {}\n".format(
-            stats_json_core["READ_ATTR_FIXED_NUM"]
-            + stats_json_core["READ_ATTR_VAR_NUM"])
-        stats_str += "- Time to compute estimated result size: {}\n".format(
-            stats_json_core["READ_COMPUTE_EST_RESULT_SIZE"])
-        stats_str += "- Read time: {}\n".format(stats_json_core["READ"])
+        subheader = "Context.StorageManager.Query.Reader"
+
+        loop_num = stats_json_core["counters"][f"{subheader}.loop_num"]
+        stats_str += f"- Number of read queries: {loop_num}\n"
+
+        attr_num = stats_json_core["counters"][f"{subheader}.attr_num"]
+        attr_fixed_num = stats_json_core["counters"][f"{subheader}.attr_fixed_num"]
+        stats_str += f"- Number of attributes read: {attr_num + attr_fixed_num}\n"
+
+        read_compute_est_result_size = stats_json_core["timers"]["Context.StorageManager.Query.Subarray.read_compute_est_result_size.sum"]
+        stats_str += f"- Time to compute estimated result size: {read_compute_est_result_size}\n"
+
+        read_tiles = stats_json_core["timers"][f"{subheader}.read_tiles.sum"]
+        stats_str += f"- Read time: {read_tiles}\n"
+
         stats_str += "- Total read query time (array open + init state + read): {}\n".format(
-            stats_json_core["READ"] + stats_json_core["READ_INIT_STATE"])
+            stats_json_core["timers"]["Context.StorageManager.array_open_for_reads.sum"] + stats_json_core["timers"][f"{subheader}.init_state.sum"] + stats_json_core["timers"][f"{subheader}.read_tiles.sum"])
     else:
         stats_str += "\n"
         stats_str += stats_str_core
