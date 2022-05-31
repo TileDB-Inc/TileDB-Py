@@ -14,22 +14,34 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-void put_metadata(Group &group, const std::string &key, py::array value) {
-  tiledb_datatype_t value_type = np_to_tdb_dtype(value.dtype());
+void put_metadata_numpy(Group &group, const std::string &key, py::array value) {
+  tiledb_datatype_t value_type;
+  try {
+    value_type = np_to_tdb_dtype(value.dtype());
+  } catch (const TileDBPyError &e) {
+    throw py::type_error(e.what());
+  }
 
   if (is_tdb_str(value_type) && value.size() > 1)
-    TPY_ERROR_LOC("array/list of strings not supported");
+    throw py::type_error("array/list of strings not supported");
 
   py::buffer_info value_buffer = value.request();
   if (value_buffer.ndim != 1)
-    TPY_ERROR_LOC("Only 1D Numpy arrays can be stored as metadata");
+    throw py::type_error("Only 1D Numpy arrays can be stored as metadata");
 
   py::size_t ncells = get_ncells(value.dtype());
   if (ncells != 1)
-    TPY_ERROR_LOC("Unsupported dtype for metadata");
+    throw py::type_error("Unsupported dtype for metadata");
 
   auto value_num = is_tdb_str(value_type) ? value.nbytes() : value.size();
-  group.put_metadata(key, value_type, value_num, value.data());
+  group.put_metadata(key, value_type, value_num,
+                     value_num > 0 ? value.data() : nullptr);
+}
+
+void put_metadata(Group &group, const std::string &key,
+                  tiledb_datatype_t value_type, uint32_t value_num,
+                  const char *value) {
+  group.put_metadata(key, value_type, value_num, value);
 }
 
 bool has_metadata(Group &group, const std::string &key) {
@@ -37,22 +49,39 @@ bool has_metadata(Group &group, const std::string &key) {
   return group.has_metadata(key, &_unused_value_type);
 }
 
-py::array get_metadata(Group &group, const std::string &key) {
+std::string get_key_from_index(Group &group, uint64_t index) {
+  std::string key;
   tiledb_datatype_t tdb_type;
   uint32_t value_num;
-  const void *c_buf;
+  const void *value;
 
-  group.get_metadata(key, &tdb_type, &value_num, &c_buf);
+  group.get_metadata_from_index(index, &key, &tdb_type, &value_num, &value);
+
+  return key;
+}
+
+py::tuple get_metadata(Group &group, const std::string &key) {
+  tiledb_datatype_t tdb_type;
+  uint32_t value_num;
+  const void *value;
+
+  group.get_metadata(key, &tdb_type, &value_num, &value);
 
   py::dtype value_type = tdb_to_np_dtype(tdb_type, 1);
 
-  if (tdb_type == TILEDB_STRING_UTF8)
-    value_num /= value_type.itemsize();
+  py::array py_buf;
+  if (value == nullptr) {
+    py_buf = py::array(value_type, 0);
+    return py::make_tuple(py_buf, tdb_type);
+  }
 
-  py::array py_buf(value_type, value_num);
-  memcpy(py_buf.mutable_data(), c_buf, py_buf.nbytes());
+  if (tdb_type == TILEDB_STRING_UTF8) {
+    value_type = py::dtype("|S1");
+  }
 
-  return py_buf;
+  py_buf = py::array(value_type, value_num, value);
+
+  return py::make_tuple(py_buf, tdb_type);
 }
 
 void init_group(py::module &m) {
@@ -71,14 +100,14 @@ void init_group(py::module &m) {
       .def_property_readonly("_uri", &Group::uri)
       .def_property_readonly("_query_type", &Group::query_type)
 
+      .def("_put_metadata", put_metadata_numpy)
       .def("_put_metadata", put_metadata)
+
       .def("_delete_metadata", &Group::delete_metadata)
       .def("_has_metadata", has_metadata)
       .def("_metadata_num", &Group::metadata_num)
       .def("_get_metadata", get_metadata)
-
-      // NOTE is this worth implementing?
-      //   .def("get_metadata_from_index", get_metadata_from_index)
+      .def("_get_key_from_index", get_key_from_index)
 
       .def("_add", &Group::add_member, py::arg("uri"),
            py::arg("relative") = false, py::arg("name") = std::nullopt)
