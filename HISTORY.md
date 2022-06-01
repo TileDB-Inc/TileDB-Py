@@ -1,7 +1,7 @@
 # TileDB-Py 0.15.2 Release Notes
 
 ## Improvements
-* Refactor `MultiRangeIndexer` & `DataFrameIndexer`: addition of ABC `_BaseIndexer` with virtual method `_run_query` and generator `_BaseIndexer.__iter__`; remove `_iter_state`;  and fix bugs related to incomplete queries [#1134](https://github.com/TileDB-Inc/TileDB-Py/pull/1134)
+* Refactor `MultiRangeIndexer` & `DataFrameIndexer`: addition of ABC `_BaseIndexer` with virtual method `_run_query` and generator `_BaseIndexer.__iter__`; remove `_iter_state`; and fix bugs related to incomplete queries [#1134](https://github.com/TileDB-Inc/TileDB-Py/pull/1134)
 
 ## Bug Fixes
 * Fix race condition in `{Dense,Sparse}Array.__new__` [#1096](https://github.com/TileDB-Inc/TileDB-Py/pull/1096)
