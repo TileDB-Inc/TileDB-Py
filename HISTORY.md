@@ -10,7 +10,7 @@
 * Addition of `Group.__contains__` to check if member with given name is in Group [#1125](https://github.com/TileDB-Inc/TileDB-Py/pull/1125)
 * Support with-statement for `Group`s [#1124](https://github.com/TileDB-Inc/TileDB-Py/pull/1124)
 * Addition of `keys`, `values`, and `items` to `Group.meta` [#1123](https://github.com/TileDB-Inc/TileDB-Py/pull/1123)
-* `Group.member` also returns name if given []()
+* `Group.member` also returns name if given [#1141](https://github.com/TileDB-Inc/TileDB-Py/pull/1141)
 
 # TileDB-Py 0.15.1 Release Notes
 
