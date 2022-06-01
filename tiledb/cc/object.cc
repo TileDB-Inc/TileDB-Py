@@ -23,11 +23,6 @@ void init_object(py::module &m) {
       .def_property_readonly("_type", &Object::type)
       .def_property_readonly("_uri", &Object::uri)
       .def_property_readonly("_name", &Object::name)
-      // .def_property_readonly("_name",
-      //                        [](Object &obj) {
-      //                          std::cout << obj.name().value() << std::endl;
-      //                          return obj.name();
-      //                        })
       .def("__repr__", &Object::to_str)
 
       .def_static("_object", &Object::object)
