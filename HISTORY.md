@@ -1,6 +1,9 @@
-# In-progress
+# TileDB-Py 0.15.2 Release Notes
 
-# Bug Fixes
+## Improvements
+* Refactor `MultiRangeIndexer` & `DataFrameIndexer`: addition of ABC `_BaseIndexer` with virtual method `_run_query` and generator `_BaseIndexer.__iter__`; remove `_iter_state`;  and fix bugs related to incomplete queries [#1134](https://github.com/TileDB-Inc/TileDB-Py/pull/1134)
+
+## Bug Fixes
 * Fix race condition in `{Dense,Sparse}Array.__new__` [#1096](https://github.com/TileDB-Inc/TileDB-Py/pull/1096)
 * Correcting `stats_dump` issues: Python stats now also in JSON form if `json=True`, resolve name mangling of `json` argument and `json` module, and pulling "timer" and "counter" stats from `stats_json_core` for `libtiledb`>=2.3  [#1140](https://github.com/TileDB-Inc/TileDB-Py/pull/1140)
 
@@ -35,7 +38,7 @@
 ## Misc Updates
 * Update `MACOSX_DEPLOYMENT_TARGET` from 10.14 to 10.15 [#1080](https://github.com/TileDB-Inc/TileDB-Py/pull/1080)
 
-# Bug Fixes
+## Bug Fixes
 * Correct handling of Arrow cell count with all empty result [#1082](https://github.com/TileDB-Inc/TileDB-Py/pull/1082)
 
 # TileDB-Py 0.14.3 Release Notes
