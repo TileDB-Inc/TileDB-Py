@@ -84,6 +84,15 @@ py::tuple get_metadata(Group &group, const std::string &key) {
   return py::make_tuple(py_buf, tdb_type);
 }
 
+bool has_member(Group &group, std::string obj) {
+  try {
+    group.member(obj);
+  } catch (const TileDBError &e) {
+    return false;
+  }
+  return true;
+}
+
 void init_group(py::module &m) {
   py::class_<Group>(m, "Group")
       .def(
@@ -117,6 +126,7 @@ void init_group(py::module &m) {
            static_cast<Object (Group::*)(uint64_t) const>(&Group::member))
       .def("_member",
            static_cast<Object (Group::*)(std::string) const>(&Group::member))
+      .def("_has_member", has_member)
       .def("_dump", &Group::dump);
 }
 

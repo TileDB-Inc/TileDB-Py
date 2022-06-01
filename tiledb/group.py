@@ -355,6 +355,13 @@ class Group(lt.Group):
     def __iter__(self):
         return iter(self[i] for i in range(len(self)))
 
+    def __contains__(self, member: str) -> bool:
+        """
+        :return: Whether the Group contains a member with the given name
+        :rtype: bool
+        """
+        return self._has_member(member)
+
     def __repr__(self):
         return self._dump(True)
 

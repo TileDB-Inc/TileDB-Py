@@ -104,6 +104,57 @@ class GroupTest(GroupTestCase):
         self.assertFalse(self.is_group(self.group2))
         self.assertTrue(self.is_group(self.group2 + "_moved"))
 
+    @pytest.mark.parametrize(
+        "int_data,flt_data,str_data",
+        (
+            (-1, -1.5, "asdf"),
+            ([1, 2, 3], [1.5, 2.5, 3.5], b"asdf"),
+            (np.array([1, 2, 3]), np.array([1.5, 2.5, 3.5]), np.array(["x"])),
+        ),
+    )
+    def test_group_metadata(self, int_data, flt_data, str_data):
+        def values_equal(lhs, rhs):
+            if isinstance(lhs, np.ndarray):
+                if not isinstance(rhs, np.ndarray):
+                    return False
+                return np.array_equal(lhs, rhs)
+            elif isinstance(lhs, (list, tuple)):
+                if not isinstance(rhs, (list, tuple)):
+                    return False
+                return tuple(lhs) == tuple(rhs)
+            else:
+                return lhs == rhs
+
+        grp_path = self.path("test_group_metadata")
+        tiledb.Group.create(grp_path)
+
+        grp = tiledb.Group(grp_path, "w")
+        grp.meta["int"] = int_data
+        grp.meta["flt"] = flt_data
+        grp.meta["str"] = str_data
+        grp.close()
+
+        grp.open("r")
+
+        assert len(grp.meta) == 3
+        assert "int" in grp.meta
+        assert values_equal(grp.meta["int"], int_data)
+        assert "flt" in grp.meta
+        assert values_equal(grp.meta["flt"], flt_data)
+        assert "str" in grp.meta
+        assert values_equal(grp.meta["str"], str_data)
+        grp.close()
+
+        # NOTE uncomment when deleting is "synced" in core
+        # grp.open("w")
+        # del grp.meta["int"]
+        # grp.close()
+
+        # grp = tiledb.Group(grp_path, "r")
+        # assert len(grp.meta) == 2
+        # assert "int" not in grp.meta
+        # grp.close()
+
     def test_group_members(self, capfd):
         grp_path = self.path("test_group_members")
         tiledb.Group.create(grp_path)
@@ -177,7 +228,13 @@ class GroupTest(GroupTestCase):
         grp.open("r")
         assert os.path.basename(grp["subarray"].uri) == os.path.basename(array_path)
         assert os.path.basename(grp["subgroup"].uri) == os.path.basename(subgrp_path)
+
+        assert "dne" not in grp
+
+        assert "subarray" in grp
         assert grp["subarray"].type == tiledb.Array
+
+        assert "subgroup" in grp
         assert grp["subgroup"].type == tiledb.Group
         grp.close()
 

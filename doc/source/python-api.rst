@@ -151,6 +151,7 @@ Group
 
    .. automethod:: __getitem__(member)
    .. automethod:: __delitem__(uri)
+   .. automethod:: __contains__(member)
    .. automethod:: __len__
 
 .. autoclass:: tiledb.Group.GroupMetadata

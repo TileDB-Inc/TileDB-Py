@@ -6,6 +6,7 @@
 ## API Changes
 * Addition of `tiledb.DictionaryFilter` [#1074](https://github.com/TileDB-Inc/TileDB-Py/pull/1074)
 * Add support for `Datatype::TILEDB_BOOL` [#1110](https://github.com/TileDB-Inc/TileDB-Py/pull/1110)
+* Addition of `Group.__contains__` to check if member with given name is in Group [#1125](https://github.com/TileDB-Inc/TileDB-Py/pull/1125)
 * Support with-statement for `Group`s [#1124](https://github.com/TileDB-Inc/TileDB-Py/pull/1124)
 * Addition of `keys`, `values`, and `items` to `Group.meta` [#1123](https://github.com/TileDB-Inc/TileDB-Py/pull/1123)
 
