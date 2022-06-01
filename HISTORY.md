@@ -2,6 +2,7 @@
 
 # Bug Fixes
 * Fix race condition in `{Dense,Sparse}Array.__new__` [#1096](https://github.com/TileDB-Inc/TileDB-Py/pull/1096)
+* Correcting `stats_dump` issues: Python stats now also in JSON form if `json=True`, resolve name mangling of `json` argument and `json` module, and pulling "timer" and "counter" stats from `stats_json_core` for `libtiledb`>=2.3  [#1140](https://github.com/TileDB-Inc/TileDB-Py/pull/1140)
 
 ## API Changes
 * Addition of `tiledb.DictionaryFilter` [#1074](https://github.com/TileDB-Inc/TileDB-Py/pull/1074)
@@ -9,9 +10,7 @@
 * Addition of `Group.__contains__` to check if member with given name is in Group [#1125](https://github.com/TileDB-Inc/TileDB-Py/pull/1125)
 * Support with-statement for `Group`s [#1124](https://github.com/TileDB-Inc/TileDB-Py/pull/1124)
 * Addition of `keys`, `values`, and `items` to `Group.meta` [#1123](https://github.com/TileDB-Inc/TileDB-Py/pull/1123)
-
-# Bug Fixes
-* Correcting `stats_dump` issues: Python stats now also in JSON form if `json=True`, resolve name mangling of `json` argument and `json` module, and pulling "timer" and "counter" stats from `stats_json_core` for `libtiledb`>=2.3  [#1140](https://github.com/TileDB-Inc/TileDB-Py/pull/1140)
+* `Group.member` also returns name if given [#1141](https://github.com/TileDB-Inc/TileDB-Py/pull/1141)
 
 # TileDB-Py 0.15.1 Release Notes
 

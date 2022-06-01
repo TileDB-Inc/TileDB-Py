@@ -321,7 +321,7 @@ class Group(lt.Group):
             )
 
         obj = self._member(member)
-        return Object(obj._type, obj._uri)
+        return Object(obj._type, obj._uri, obj._name)
 
     def __len__(self) -> int:
         """
