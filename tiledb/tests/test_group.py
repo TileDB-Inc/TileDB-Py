@@ -186,8 +186,11 @@ class GroupTest(GroupTestCase):
 
         assert grp[0].type in type_to_basename
         assert type_to_basename[grp[0].type] == os.path.basename(grp[0].uri)
+        assert grp[0].name is None
+
         assert grp[1].type in type_to_basename
         assert type_to_basename[grp[1].type] == os.path.basename(grp[1].uri)
+        assert grp[1].name is None
 
         assert "test_group_members GROUP" in repr(grp)
         assert "|-- test_group_members ARRAY" in repr(grp)
@@ -236,6 +239,13 @@ class GroupTest(GroupTestCase):
 
         assert "subgroup" in grp
         assert grp["subgroup"].type == tiledb.Group
+
+        for mbr in grp:
+            if "subarray" in mbr.uri:
+                assert mbr.name == "subarray"
+            elif "subgroup" in mbr.uri:
+                assert mbr.name == "subgroup"
+
         grp.close()
 
         with tiledb.Group(grp_path, "w") as grp:  # test __enter__ and __exit__

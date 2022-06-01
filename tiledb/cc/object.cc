@@ -15,11 +15,19 @@ namespace py = pybind11;
 
 void init_object(py::module &m) {
   py::class_<Object>(m, "Object")
-      .def(py::init<const Object::Type &, const std::string &>())
-      .def(py::init<tiledb_object_t, const std::string &>())
+      .def(py::init<const Object::Type &, const std::string &,
+                    const std::optional<std::string> &>())
+      .def(py::init<tiledb_object_t, const std::string &,
+                    const std::optional<std::string> &>())
 
       .def_property_readonly("_type", &Object::type)
       .def_property_readonly("_uri", &Object::uri)
+      .def_property_readonly("_name", &Object::name)
+      // .def_property_readonly("_name",
+      //                        [](Object &obj) {
+      //                          std::cout << obj.name().value() << std::endl;
+      //                          return obj.name();
+      //                        })
       .def("__repr__", &Object::to_str)
 
       .def_static("_object", &Object::object)

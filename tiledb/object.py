@@ -1,5 +1,7 @@
 import tiledb.cc as lt
 
+from typing import Optional
+
 
 class Object(lt.Object):
     """
@@ -14,8 +16,8 @@ class Object(lt.Object):
         lt.ObjectType.GROUP: Group,
     }
 
-    def __init__(self, type: lt.ObjectType, uri: str):
-        super().__init__(type, uri)
+    def __init__(self, type: lt.ObjectType, uri: str, name: Optional[str] = None):
+        super().__init__(type, uri, name)
 
     @property
     def uri(self) -> str:
@@ -34,3 +36,11 @@ class Object(lt.Object):
         if self._type not in self._obj_type_to_class:
             raise KeyError(f"Unknown object type: {self._type}")
         return self._obj_type_to_class[self._type]
+
+    @property
+    def name(self) -> Optional[str]:
+        """
+        :return: Name of the Object if given. Otherwise, None.
+        :rtype: str
+        """
+        return self._name
