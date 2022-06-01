@@ -1557,19 +1557,19 @@ py::object python_internal_stats(bool dict = false) {
   auto rq_time = counters["py.core_read_query_initial_submit_time"].count();
 
   if (dict) {
-    py::dict stats_json;
+    py::dict stats;
 
     // core.cc is only tracking read time right now; don't output if we
     // have no query submission time
     if (rq_time == 0) {
-      return std::move(stats_json);
+      return std::move(stats);
     }
 
     for (auto &stat : counters) {
-      stats_json[py::str(stat.first)] = stat.second.count();
+      stats[py::str(stat.first)] = stat.second.count();
     }
 
-    return std::move(stats_json);
+    return std::move(stats);
   } else {
     std::ostringstream os;
 
@@ -1634,7 +1634,7 @@ void init_core(py::module &m) {
   m.def("init_stats", &init_stats);
   m.def("disable_stats", &init_stats);
   m.def("python_internal_stats", &python_internal_stats,
-        py::arg("json") = false);
+        py::arg("dict") = false);
   m.def("increment_stat", &increment_stat);
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);
