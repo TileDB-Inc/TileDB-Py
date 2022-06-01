@@ -1548,29 +1548,46 @@ py::object get_stats() {
   return std::move(res);
 }
 
-std::string python_internal_stats() {
+py::object python_internal_stats(bool dict = false) {
   if (!g_stats) {
     TPY_ERROR_LOC("Stats counters are not uninitialized!")
   }
 
   auto counters = g_stats.get()->counters;
-
-  std::ostringstream os;
-
-  // core.cc is only tracking read time right now; don't print if we
-  // have no query submission time
   auto rq_time = counters["py.core_read_query_initial_submit_time"].count();
-  if (rq_time == 0)
-    return os.str();
 
-  os << std::endl;
-  os << "==== Python Stats ====" << std::endl << std::endl;
+  if (dict) {
+    py::dict stats;
 
-  for (auto &stat : counters) {
-    os << "  " << stat.first << " : " << stat.second.count() << std::endl;
+    // core.cc is only tracking read time right now; don't output if we
+    // have no query submission time
+    if (rq_time == 0) {
+      return std::move(stats);
+    }
+
+    for (auto &stat : counters) {
+      stats[py::str(stat.first)] = stat.second.count();
+    }
+
+    return std::move(stats);
+  } else {
+    std::ostringstream os;
+
+    // core.cc is only tracking read time right now; don't output if we
+    // have no query submission time
+    if (rq_time == 0) {
+      return py::str(os.str());
+    }
+
+    os << std::endl;
+    os << "==== Python Stats ====" << std::endl << std::endl;
+
+    for (auto &stat : counters) {
+      os << "  " << stat.first << " : " << stat.second.count() << std::endl;
+    }
+
+    return py::str(os.str());
   }
-
-  return os.str();
 }
 
 void init_core(py::module &m) {
@@ -1616,7 +1633,8 @@ void init_core(py::module &m) {
 
   m.def("init_stats", &init_stats);
   m.def("disable_stats", &init_stats);
-  m.def("python_internal_stats", &python_internal_stats);
+  m.def("python_internal_stats", &python_internal_stats,
+        py::arg("dict") = false);
   m.def("increment_stat", &increment_stat);
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);

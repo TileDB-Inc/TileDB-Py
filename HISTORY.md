@@ -10,6 +10,9 @@
 * Support with-statement for `Group`s [#1124](https://github.com/TileDB-Inc/TileDB-Py/pull/1124)
 * Addition of `keys`, `values`, and `items` to `Group.meta` [#1123](https://github.com/TileDB-Inc/TileDB-Py/pull/1123)
 
+# Bug Fixes
+* Correcting `stats_dump` issues: Python stats now also in JSON form if `json=True`, resolve name mangling of `json` argument and `json` module, and pulling "timer" and "counter" stats from `stats_json_core` for `libtiledb`>=2.3  [#1140](https://github.com/TileDB-Inc/TileDB-Py/pull/1140)
+
 # TileDB-Py 0.15.1 Release Notes
 
 ## TileDB Embedded updates:
