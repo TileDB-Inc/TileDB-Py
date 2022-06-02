@@ -1,5 +1,8 @@
 # TileDB-Py 0.15.2 Release Notes
 
+## TileDB Embedded updates:
+* TileDB-Py 0.15.2 includes TileDB Embedded [TileDB 2.9.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.9.2)
+
 ## Improvements
 * Refactor `MultiRangeIndexer` & `DataFrameIndexer`: addition of ABC `_BaseIndexer` with virtual method `_run_query` and generator `_BaseIndexer.__iter__`; remove `_iter_state`; and fix bugs related to incomplete queries [#1134](https://github.com/TileDB-Inc/TileDB-Py/pull/1134)
 
