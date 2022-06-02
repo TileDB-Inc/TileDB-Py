@@ -170,6 +170,7 @@ void init_query_condition(py::module &m) {
   py::enum_<tiledb_query_condition_combination_op_t>(
       m, "tiledb_query_condition_combination_op_t", py::arithmetic())
       .value("TILEDB_AND", TILEDB_AND)
+      .value("TILEDB_OR", TILEDB_OR)
       .export_values();
 }
 }; // namespace tiledbpy
