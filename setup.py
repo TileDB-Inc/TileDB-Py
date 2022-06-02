@@ -28,7 +28,7 @@ TILEDB_VERSION = "2.9.2"
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
 
 # Use `setup.py [] --debug` for a debug build of libtiledb
-TILEDB_DEBUG_BUILD = False
+TILEDB_DEBUG_BUILD = True
 # Use `setup.py [] --release-symbols` for a release build with symbols libtiledb
 TILEDB_SYMBOLS_BUILD = False
 
