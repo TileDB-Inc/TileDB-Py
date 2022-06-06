@@ -122,7 +122,8 @@ class ColumnInfo:
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
-            if pd_types.is_bool_dtype(dtype):
+            if tiledb.libtiledb.version() < (2, 10) and pd_types.is_bool_dtype(dtype):
+                # as of libtiledb 2.10, we support TILEDB_BOOL
                 np_type = np.uint8
             else:
                 # XXX Parametrized dtypes such as "foo[int32]") sometimes have a "subtype"
@@ -143,7 +144,9 @@ class ColumnInfo:
 
         # bool type
         if pd_types.is_bool_dtype(dtype):
-            return cls(np.dtype("uint8"), repr="bool")
+            # as of libtiledb 2.10, we support TILEDB_BOOL
+            dtype = "uint8" if tiledb.libtiledb.version() < (2, 10) else "bool"
+            return cls(np.dtype(dtype), repr="bool")
 
         # complex types
         if pd_types.is_complex_dtype(dtype):

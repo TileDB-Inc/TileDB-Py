@@ -1,3 +1,8 @@
+# In Progress
+
+## API Changes
+* Use `bool` instead of `uint8` for Boolean dtype in `dataframe_.py` []()
+
 # TileDB-Py 0.15.3 Release Notes
 
 ## TileDB Embedded updates:
