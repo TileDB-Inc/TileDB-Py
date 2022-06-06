@@ -1395,7 +1395,8 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tiledb.from_pandas(uri, df)
 
         with tiledb.open(uri) as A:
-            assert A.schema.attr("flags").dtype == bool
+            dtype = np.uint8 if tiledb.libtiledb.version() < (2, 10) else bool
+            assert A.schema.attr("flags").dtype == dtype
 
 
 class TestFromPandasOptions(DiskTestCase):
