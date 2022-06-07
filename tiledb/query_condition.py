@@ -28,19 +28,27 @@ class QueryCondition:
     **BNF:**
 
     A query condition is made up of one or more Boolean expressions. Multiple
-    Boolean expressions are chained together with Boolean operators.
+    Boolean expressions are chained together with Boolean operators. The ``or_op``
+    Boolean operators are given lower presedence than ``and_op``.
 
-        ``query_cond ::= bool_expr | bool_expr bool_op query_cond``
+        ``query_cond ::= bool_term | query_cond or_op bool_term``
+
+        ``bool_term ::= bool_expr | bool_term and_op bool_expr``
+
+    Logical ``and`` and bitwise ``&`` Boolean operators are given equal precedence.
+
+        ``and_op ::= and | &``
+
+    Likewise, ``or`` and ``|`` are given equal precedence.
+
+        ``or_op ::= or | |``
+
+    We intend to support ``not`` in future releases.
 
     A Boolean expression contains a comparison operator. The operator works on a
     TileDB attribute name and value.
 
         ``bool_expr ::= attr compare_op val | val compare_op attr | val compare_op attr compare_op val``
-
-    ``and`` and ``&`` are the only Boolean operators supported at the moment. We
-    intend to support ``or`` and ``not`` in future releases.
-
-        ``bool_op ::= and | &``
 
     All comparison operators are supported.
 
@@ -57,9 +65,11 @@ class QueryCondition:
     **Example:**
 
     >>> with tiledb.open(uri, mode="r") as A:
-    >>>     # select cells where the attribute values for foo are less than 5
-    >>>     # and bar equal to string asdf.
-    >>>     qc = QueryCondition("foo > 5 and 'asdf' == attr('b a r') and baz <= val(1.0)")
+    >>>     # Select cells where the attribute values for `foo` are less than 5
+    >>>     # and `bar` equal to string "asdf".
+    >>>     # Note precedence is equivalent to:
+    >>>     # (foo > 5 or ('asdf' == attr('b a r') and baz <= val(1.0)))
+    >>>     qc = QueryCondition("foo > 5 or 'asdf' == attr('b a r') and baz <= val(1.0)")
     >>>     A.query(attr_cond=qc)
     """
 
@@ -100,6 +110,18 @@ class QueryConditionTree(ast.NodeVisitor):
     schema: tiledb.ArraySchema
     query_attrs: List[str]
 
+    def visit_BitOr(self, node):
+        return qc.TILEDB_OR
+
+    def visit_Or(self, node):
+        return qc.TILEDB_OR
+
+    def visit_BitAnd(self, node):
+        return qc.TILEDB_AND
+
+    def visit_And(self, node):
+        return qc.TILEDB_AND
+
     def visit_Gt(self, node):
         return qc.TILEDB_GT
 
@@ -118,12 +140,6 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_NotEq(self, node):
         return qc.TILEDB_NE
 
-    def visit_BitAnd(self, node):
-        return qc.TILEDB_AND
-
-    def visit_And(self, node):
-        return qc.TILEDB_AND
-
     def visit_Compare(self, node: Type[ast.Compare]) -> PyQueryCondition:
         result = self.aux_visit_Compare(
             self.visit(node.left),
@@ -131,6 +147,7 @@ class QueryConditionTree(ast.NodeVisitor):
             self.visit(node.comparators[0]),
         )
 
+        # Handling cases val < attr < val
         for lhs, op, rhs in zip(
             node.comparators[:-1], node.ops[1:], node.comparators[1:]
         ):
@@ -157,11 +174,7 @@ class QueryConditionTree(ast.NodeVisitor):
         val = self.cast_val_to_dtype(val, dtype)
 
         pyqc = PyQueryCondition(self.ctx)
-
-        try:
-            self.init_pyqc(pyqc, dtype)(att, val, op)
-        except tiledb.TileDBError as e:
-            raise tiledb.TileDBError(e)
+        self.init_pyqc(pyqc, dtype)(att, val, op)
 
         return pyqc
 
@@ -322,8 +335,7 @@ class QueryConditionTree(ast.NodeVisitor):
             op = self.visit(node.op)
         except KeyError:
             raise tiledb.TileDBError(
-                f"Unsupported Boolean operator: {ast.dump(node.op)}. "
-                'Only "and" is currently supported.'
+                f"Unsupported Boolean operator: {ast.dump(node.op)}."
             )
 
         result = self.visit(node.values[0])

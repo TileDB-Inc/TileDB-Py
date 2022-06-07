@@ -82,16 +82,6 @@ class QueryConditionTest(DiskTestCase):
                 qc = tiledb.QueryCondition("D > ")
                 A.query(attr_cond=qc, attrs=["D"])[:]
 
-        with self.assertRaises(tiledb.TileDBError):
-            with tiledb.open(input_array_UIDS) as A:
-                qc = tiledb.QueryCondition("(D > 0.7) | (D < 3.5)")
-                A.query(attr_cond=qc, attrs=["D"])[:]
-
-        with self.assertRaises(tiledb.TileDBError):
-            with tiledb.open(input_array_UIDS) as A:
-                qc = tiledb.QueryCondition("U >= 3 or 0.7 < D")
-                A.query(attr_cond=qc, attrs=["U", "D"])[:]
-
     @pytest.mark.xfail(
         tiledb.libtiledb.version() >= (2, 5),
         reason="Skip fail_on_dense with libtiledb >2.5",
@@ -339,3 +329,73 @@ class QueryConditionTest(DiskTestCase):
                 qc = tiledb.QueryCondition(f"bytes == '{s.decode()}'")
                 result = arr.query(attr_cond=qc, use_arrow=False)[:]
                 assert result["bytes"][0] == s
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 10, 0),
+        reason="OR query condition operator introduced in libtiledb 2.10",
+    )
+    def test_or(self, input_array_UIDS):
+        with tiledb.open(input_array_UIDS) as A:
+            qc = tiledb.QueryCondition("(D < 0.25) | (D > 0.75)")
+            result = A.query(attr_cond=qc, attrs=["D"])[:]
+            assert all((result["D"] < 0.25) | (result["D"] > 0.75))
+
+            qc = tiledb.QueryCondition("(D < 0.25) or (D > 0.75)")
+            result = A.query(attr_cond=qc, attrs=["D"])[:]
+            assert all((result["D"] < 0.25) | (result["D"] > 0.75))
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 10, 0),
+        reason="OR query condition operator and bool type introduced in libtiledb 2.10",
+    )
+    def test_01(self):
+        path = self.path("test_01")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
+        attrs = [
+            tiledb.Attr(name="a", dtype=np.uint8),
+            tiledb.Attr(name="b", dtype=np.uint8),
+            tiledb.Attr(name="c", dtype=np.uint8),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as arr:
+            arr[np.arange(1, 11)] = {
+                "a": np.random.randint(0, high=2, size=10),
+                "b": np.random.randint(0, high=2, size=10),
+                "c": np.random.randint(0, high=2, size=10),
+            }
+
+        with tiledb.open(path) as A:
+            qc = tiledb.QueryCondition("a == 1 and b == 1 and c == 1")
+            result = A.query(attr_cond=qc)[:]
+            assert all(result["a"] & result["b"] & result["c"])
+
+            qc = tiledb.QueryCondition("a == 1 and b == 1 or c == 1")
+            result = A.query(attr_cond=qc)[:]
+            assert all(result["a"] & result["b"] | result["c"])
+
+            qc = tiledb.QueryCondition("a == 1 or b == 1 and c == 1")
+            result = A.query(attr_cond=qc)[:]
+            assert all(result["a"] | result["b"] & result["c"])
+
+            qc = tiledb.QueryCondition("a == 1 or b == 1 or c == 1")
+            result = A.query(attr_cond=qc)[:]
+            assert all(result["a"] | result["b"] | result["c"])
+
+            qc = tiledb.QueryCondition("(a == 1 and b == 1) or c == 1")
+            result = A.query(attr_cond=qc)[:]
+            assert all(result["a"] & result["b"] | result["c"])
+
+            qc = tiledb.QueryCondition("a == 1 and (b == 1 or c == 1)")
+            result = A.query(attr_cond=qc)[:]
+            assert all(result["a"] & (result["b"] | result["c"]))
+
+            qc = tiledb.QueryCondition("(a == 1 or b == 1) and c == 1")
+            result = A.query(attr_cond=qc)[:]
+            assert all((result["a"] | result["b"]) & result["c"])
+
+            qc = tiledb.QueryCondition("a == 1 or (b == 1 and c == 1)")
+            result = A.query(attr_cond=qc)[:]
+            assert all(result["a"] | result["b"] & result["c"])
