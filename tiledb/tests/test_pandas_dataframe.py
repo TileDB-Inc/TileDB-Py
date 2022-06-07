@@ -123,8 +123,18 @@ class TestColumnInfo:
         "type_specs, info_dtype, info_repr, info_nullable",
         [
             # bool types
-            ([bool, "b1"], np.dtype("uint8"), "bool", False),
-            ([pd.BooleanDtype()], np.dtype("uint8"), "boolean", True),
+            (
+                [bool, "b1"],
+                np.dtype("uint8" if tiledb.libtiledb.version() < (2, 10) else "bool"),
+                "bool",
+                False,
+            ),
+            (
+                [pd.BooleanDtype()],
+                np.dtype("uint8" if tiledb.libtiledb.version() < (2, 10) else "bool"),
+                "boolean",
+                True,
+            ),
             # numeric types
             ([np.uint8, "u1"], np.dtype("uint8"), None, False),
             ([np.uint16, "u2"], np.dtype("uint16"), None, False),
@@ -1371,6 +1381,22 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             pd.DataFrame(index=pd.Index(data=[])),
             mode="append",
         )
+
+    def test_bool_type(self):
+        uri = self.path("test_bool_type")
+        df = pd.DataFrame.from_dict(
+            {
+                "obs_id": np.asarray(["ACTG", "GCTA"]),
+                "var_id": np.asarray(["ENS001", "ENS002"]),
+                "flags": np.asarray([True, False]),
+            }
+        )
+        df.set_index(["obs_id", "var_id"], inplace=True)
+        tiledb.from_pandas(uri, df)
+
+        with tiledb.open(uri) as A:
+            dtype = np.uint8 if tiledb.libtiledb.version() < (2, 10) else bool
+            assert A.schema.attr("flags").dtype == dtype
 
 
 class TestFromPandasOptions(DiskTestCase):
