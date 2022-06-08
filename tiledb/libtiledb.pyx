@@ -112,6 +112,9 @@ _tiledb_dtype_to_numpy_typeid_convert ={
     TILEDB_STRING_UTF8: np.NPY_UNICODE,
 }
 IF LIBTILEDB_VERSION_MAJOR >= 2:
+    IF LIBTILEDB_VERSION_MINOR >= 9:
+        _tiledb_dtype_to_numpy_typeid_convert[TILEDB_BLOB] = np.NPY_BYTE
+IF LIBTILEDB_VERSION_MAJOR >= 2:
     IF LIBTILEDB_VERSION_MINOR >= 10:
         _tiledb_dtype_to_numpy_typeid_convert[TILEDB_BOOL] = np.NPY_BOOL
 
@@ -131,6 +134,9 @@ _tiledb_dtype_to_numpy_dtype_convert = {
     TILEDB_STRING_ASCII: np.bytes_,
     TILEDB_STRING_UTF8: np.dtype('U1'),
 }
+IF LIBTILEDB_VERSION_MAJOR >= 2:
+    IF LIBTILEDB_VERSION_MINOR >= 9:
+        _tiledb_dtype_to_numpy_dtype_convert[TILEDB_BLOB] = np.byte
 IF LIBTILEDB_VERSION_MAJOR >= 2:
     IF LIBTILEDB_VERSION_MINOR >= 10:
         _tiledb_dtype_to_numpy_dtype_convert[TILEDB_BOOL] = np.bool_
