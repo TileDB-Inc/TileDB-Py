@@ -145,15 +145,14 @@ class GroupTest(GroupTestCase):
         assert values_equal(grp.meta["str"], str_data)
         grp.close()
 
-        # NOTE uncomment when deleting is "synced" in core
-        # grp.open("w")
-        # del grp.meta["int"]
-        # grp.close()
+        grp.open("w")
+        del grp.meta["int"]
+        grp.close()
 
-        # grp = tiledb.Group(grp_path, "r")
-        # assert len(grp.meta) == 2
-        # assert "int" not in grp.meta
-        # grp.close()
+        grp = tiledb.Group(grp_path, "r")
+        assert len(grp.meta) == 2
+        assert "int" not in grp.meta
+        grp.close()
 
     def test_group_members(self, capfd):
         grp_path = self.path("test_group_members")

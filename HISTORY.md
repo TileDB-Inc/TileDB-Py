@@ -3,6 +3,7 @@
 ## API Changes
 * Use `bool` instead of `uint8` for Boolean dtype in `dataframe_.py` [#1154](https://github.com/TileDB-Inc/TileDB-Py/pull/1154)
 * Support QueryCondition OR operator [#1146](https://github.com/TileDB-Inc/TileDB-Py/pull/1146)
+* Support `TILEDB_BLOB` dtype [#1159](https://github.com/TileDB-Inc/TileDB-Py/pull/1159)
 
 ## Bug Fixes
 * Fix error where passing a `Context` to `Group` would segfault intermittenly [#1165](https://github.com/TileDB-Inc/TileDB-Py/pull/1165)
