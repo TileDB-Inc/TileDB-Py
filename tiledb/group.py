@@ -245,7 +245,7 @@ class Group(lt.Group):
 
     def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
-        cctx = lt.Context(self._ctx.__capsule__(), False)
+        cctx = lt.Context(self._ctx, False)
 
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
@@ -266,7 +266,7 @@ class Group(lt.Group):
         :type ctx: tiledb.Ctx
         """
         _ctx = ctx or default_ctx()
-        cctx = lt.Context(_ctx.__capsule__(), False)
+        cctx = lt.Context(_ctx, False)
         lt.Group._create(cctx, uri)
 
     def open(self, mode: str = "r"):
