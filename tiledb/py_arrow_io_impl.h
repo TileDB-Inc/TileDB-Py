@@ -229,8 +229,9 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
     return ArrowInfo("tsn:");
 
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
+  // TILEDB_BOOL is stored as a uint8_t but arrow::Type::BOOL is 1 bit
   case TILEDB_BOOL:
-    return ArrowInfo("b");
+    return ArrowInfo("C");
 #endif
 
   // TODO: these could potentially be rep'd w/ additional
