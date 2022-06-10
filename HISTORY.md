@@ -5,6 +5,7 @@
 * Support QueryCondition OR operator [#1146](https://github.com/TileDB-Inc/TileDB-Py/pull/1146)
 
 ## Bug Fixes
+* Fix error where passing a `Context` to `Group` would segfault intermittenly [#1165](https://github.com/TileDB-Inc/TileDB-Py/pull/1165)
 * Correct Boolean values when `use_arrow=True` []()
 
 # TileDB-Py 0.15.3 Release Notes
