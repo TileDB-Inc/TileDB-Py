@@ -15,8 +15,12 @@ void init_context(py::module &m) {
       .def(py::init())
       .def(py::init<Config>())
       .def(py::init<py::capsule, bool>())
+      .def(py::init([](py::object ctx, bool own) {
+             return Context(py::capsule(ctx.attr("__capsule__")()), own);
+           }),
+           py::keep_alive<1, 2>())
 
-      .def_property_readonly("config", &Context::config)
+      .def("config", &Context::config)
       .def("set_tag", &Context::set_tag)
       .def("get_stats", &Context::stats)
       .def("is_supported_fs", &Context::is_supported_fs);

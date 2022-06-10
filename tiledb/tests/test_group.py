@@ -479,3 +479,17 @@ class GroupMetadataTest(GroupTestCase):
         grp = tiledb.Group(path, "r")
         self.assert_metadata_roundtrip(grp.meta, test_vals)
         grp.close()
+
+    def test_pass_context(self):
+        foo = self.path("foo")
+        bar = self.path("foo/bar")
+
+        tiledb.group_create(foo)
+        tiledb.group_create(bar)
+
+        ctx = tiledb.Ctx()
+        with tiledb.Group(foo, mode="w", ctx=ctx) as G:
+            G.add(bar, name="bar")
+
+        with tiledb.Group(foo, mode="r", ctx=ctx) as G:
+            assert "bar" in G
