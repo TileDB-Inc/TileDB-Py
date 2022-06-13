@@ -1,4 +1,7 @@
-# In Progress
+# TileDB-Py 0.15.4 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.15.4 includes TileDB Embedded [TileDB 2.9.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.9.4)
 
 ## API Changes
 * Use `bool` instead of `uint8` for Boolean dtype in `dataframe_.py` [#1154](https://github.com/TileDB-Inc/TileDB-Py/pull/1154)
