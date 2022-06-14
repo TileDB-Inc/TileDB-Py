@@ -1,8 +1,3 @@
-# In Progess 
-
-## API Changes
-* Support QueryCondition OR operator [#1146](https://github.com/TileDB-Inc/TileDB-Py/pull/1146)
-
 # TileDB-Py 0.15.5 Release Notes
 
 ## TileDB Embedded updates:
