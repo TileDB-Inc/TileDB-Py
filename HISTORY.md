@@ -1,15 +1,24 @@
-# TileDB-Py 0.15.4 Release Notes
+# In Progess 
+
+## API Changes
+* Support QueryCondition OR operator [#1146](https://github.com/TileDB-Inc/TileDB-Py/pull/1146)
+
+# TileDB-Py 0.15.5 Release Notes
 
 ## TileDB Embedded updates:
-* TileDB-Py 0.15.4 includes TileDB Embedded [TileDB 2.9.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.9.4)
+* TileDB-Py 0.15.5 includes TileDB Embedded [TileDB 2.9.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.9.4)
 
 ## API Changes
 * Use `bool` instead of `uint8` for Boolean dtype in `dataframe_.py` [#1154](https://github.com/TileDB-Inc/TileDB-Py/pull/1154)
-* Support QueryCondition OR operator [#1146](https://github.com/TileDB-Inc/TileDB-Py/pull/1146)
 * Support `TILEDB_BLOB` dtype [#1159](https://github.com/TileDB-Inc/TileDB-Py/pull/1159)
 
 ## Bug Fixes
 * Fix error where passing a `Context` to `Group` would segfault intermittenly [#1165](https://github.com/TileDB-Inc/TileDB-Py/pull/1165)
+
+# TileDB-Py 0.15.4 Release Notes
+
+## Packaging Notes
+* Due to a packaging error, the wheels for 0.15.4 should not be used.
 
 # TileDB-Py 0.15.3 Release Notes
 
