@@ -345,8 +345,21 @@ class DataFrameIndexer(_BaseIndexer):
         elif self.use_arrow:
             with timing("buffer_conversion_time"):
                 table = self.pyquery._buffers_to_pa_table()
+
+            # this is a workaround to cast TILEDB_BOOL types from uint8
+            # representation in Arrow to Boolean
+            schema = table.schema
+            for n in range(self.array.nattr):
+                attr = self.array.attr(n)
+                if attr.dtype == bool:
+                    field_idx = schema.get_field_index(attr.name)
+                    field = pyarrow.field(attr.name, pyarrow.bool_())
+                    schema = schema.set(field_idx, field)
+            table = table.cast(schema)
+
             if self.query.return_arrow:
                 return table
+
             df = table.to_pandas()
         else:
             df = DataFrame(_get_pyquery_results(self.pyquery, self.array.schema))
