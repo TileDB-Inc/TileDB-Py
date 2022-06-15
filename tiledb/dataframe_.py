@@ -405,7 +405,6 @@ def from_pandas(uri: str, dataframe: "pd.DataFrame", **kwargs):
 
     :param uri: URI for new TileDB array
     :param dataframe: pandas DataFrame
-    :param mode: Creation mode, one of 'ingest' (default), 'schema_only', 'append'
 
     :Keyword Arguments:
 
@@ -416,7 +415,7 @@ def from_pandas(uri: str, dataframe: "pd.DataFrame", **kwargs):
                           which `tiledb.read_csv` checks for in order to correctly read a file batchwise.
         * **index_dims** - Set the df index using a list of existing column names
         * **allows_duplicates** - Generated schema should allow duplicates
-        * **mode** - (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
+        * **mode** - Creation mode, one of 'ingest' (default), 'schema_only', 'append'
         * **attr_filters** - FilterList to apply to Attributes: FilterList or Dict[str -> FilterList] for any attribute(s). Unspecified attributes will use default.
         * **dim_filters** - FilterList to apply to Dimensions: FilterList or Dict[str -> FilterList] for any dimensions(s). Unspecified dimensions will use default.
         * **offsets_filters** - FilterList to apply to all offsets
@@ -457,7 +456,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
     mode = tiledb_args.get("mode", "ingest")
 
     if mode != "append" and tiledb.array_exists(uri):
-        raise TileDBError("Array URI '{}' already exists!".format(uri))
+        raise TileDBError(f"Array URI '{uri}' already exists!")
 
     sparse = tiledb_args["sparse"]
     index_dims = tiledb_args.get("index_dims") or ()
@@ -476,7 +475,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
                     "Cannot append to dense array without 'row_start_idx'"
                 )
         elif mode != "ingest":
-            raise TileDBError("Invalid mode specified ('{}')".format(mode))
+            raise TileDBError(f"Invalid mode specified ('{mode}')")
 
     # TODO: disentangle the full_domain logic
     full_domain = tiledb_args.get("full_domain", False)
@@ -696,7 +695,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         * **sparse** - (default True) Create sparse schema
         * **index_dims** - Set the df index using a list of existing column names
         * **allows_duplicates** - Generated schema should allow duplicates
-        * **mode** - (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
+        * **mode** - Creation mode, one of 'ingest' (default), 'schema_only', 'append'
         * **attr_filters** - FilterList to apply to Attributes: FilterList or Dict[str -> FilterList] for any attribute(s). Unspecified attributes will use default.
         * **dim_filters** - FilterList to apply to Dimensions: FilterList or Dict[str -> FilterList] for any dimensions(s). Unspecified dimensions will use default.
         * **offsets_filters** - FilterList to apply to all offsets

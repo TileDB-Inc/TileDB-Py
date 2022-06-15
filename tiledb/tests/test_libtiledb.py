@@ -3566,6 +3566,88 @@ class TestNumpyToArray(DiskTestCase):
         with tiledb.open(path, timestamp=(10, 10)) as A:
             assert A.nonempty_domain() == ((0, 2),)
 
+    def test_from_numpy_schema_only(self):
+        uri = self.path("test_from_numpy_schema_only")
+
+        arr1 = np.array([1.0, 2.0, 3.0])
+        with tiledb.DenseArray.from_numpy(uri, arr1, mode="schema_only") as arr:
+            assert arr.nonempty_domain() is None
+
+    def test_from_numpy_append(self):
+        uri = self.path("test_from_numpy_append")
+
+        arr1 = np.array([1.0, 2.0, 3.0])
+
+        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+            assert A.nonempty_domain() == ((0, 2),)
+            assert_array_equal(A[0:3], arr1)
+
+        arr2 = np.array([4.0, 5.0, 6.0])
+
+        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append") as A:
+            assert A.nonempty_domain() == ((0, 5),)
+            assert_array_equal(A[0:6], np.append(arr1, arr2))
+
+    def test_from_numpy_append_array2d(self):
+        uri = self.path("test_from_numpy_append_array2d")
+
+        arr1 = np.random.rand(10, 5)
+
+        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+            assert A.nonempty_domain() == ((0, 9), (0, 4))
+            assert_array_equal(A[0:10, 0:5], arr1)
+
+        # error out if number of dimensions do not match
+        with self.assertRaises(ValueError):
+            arr2 = np.random.rand(5)
+            tiledb.DenseArray.from_numpy(uri, arr2, mode="append")
+
+        # error out if number of dimensions do not match
+        with self.assertRaises(ValueError):
+            arr2 = np.random.rand(4, 4)
+            tiledb.DenseArray.from_numpy(uri, arr2, mode="append")
+
+        arr2 = np.random.rand(5, 5)
+
+        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append") as A:
+            assert A.nonempty_domain() == ((0, 14), (0, 4))
+            assert_array_equal(A[0:15, 0:5], np.append(arr1, arr2, axis=0))
+
+    @pytest.mark.parametrize("append_dim", (0, 1, 2, 3))
+    def test_from_numpy_append_array3d(self, append_dim):
+        uri = self.path("test_from_numpy_append_array3d")
+
+        arr1 = np.random.rand(2, 2, 2)
+
+        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+            assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
+            assert_array_equal(A[0:2, 0:2, 0:2], arr1)
+
+        arr2 = np.random.rand(2, 2, 2)
+
+        # error out if index is out of bounds
+        if append_dim == 3:
+            with self.assertRaises(IndexError):
+                tiledb.DenseArray.from_numpy(
+                    uri, arr2, mode="append", append_dim=append_dim
+                )
+            return
+
+        with tiledb.DenseArray.from_numpy(
+            uri, arr2, mode="append", append_dim=append_dim
+        ) as A:
+            if append_dim == 0:
+                assert A.nonempty_domain() == ((0, 3), (0, 1), (0, 1))
+                result = A[0:4, 0:2, 0:2]
+            elif append_dim == 1:
+                assert A.nonempty_domain() == ((0, 1), (0, 3), (0, 1))
+                result = A[0:2, 0:4, 0:2]
+            elif append_dim == 2:
+                assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 3))
+                result = A[0:2, 0:2, 0:4]
+
+            assert_array_equal(result, np.append(arr1, arr2, axis=append_dim))
+
 
 class ConsolidationTest(DiskTestCase):
     def test_array_vacuum(self):

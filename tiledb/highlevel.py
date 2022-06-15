@@ -77,6 +77,13 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
     :raises TypeError: cannot convert ``uri`` to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
+    :Keyword Arguments:
+
+        * **full_domain** - Dimensions should be created with full range of the dtype (default: False)
+        * **mode** - Creation mode, one of 'ingest' (default), 'schema_only', 'append'
+        * **append_dim** - The dimension along which the Numpy array is append (default: 0).
+        * **timestamp** - Write TileDB array at specific timestamp.
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
