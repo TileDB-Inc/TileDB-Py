@@ -29,9 +29,11 @@ def is_boundserror(exc: Exception):
     return any(x in str(exc) for x in vals)
 
 
-def _direct_query_ranges(array: SparseArray, ranges):
+def _direct_query_ranges(array: SparseArray, ranges, order):
+    order_map = {"C": 0, "F": 1, "U": 3}
+    layout = order_map[order]
     with tiledb.scope_ctx() as ctx:
-        q = tiledb.main.PyQuery(ctx, array, ("a",), (), 0, False)
+        q = tiledb.main.PyQuery(ctx, array, ("a",), (), layout, False)
         q.set_ranges(ranges)
         q.submit()
     return {k: v[0].view(array.attr(0).dtype) for k, v in q.results().items()}
@@ -77,8 +79,9 @@ class TestMultiIndexPropertySparse:
 
         return uri
 
+    @pytest.mark.parametrize("order", ["C", "F", "U"])
     @given(st.lists(bounded_ntuple(length=2, min_value=-100, max_value=100)))
-    def test_multi_index_two_way_query(self, sparse_array_1d, ranges):
+    def test_multi_index_two_way_query(self, order, sparse_array_1d, ranges):
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
 
@@ -89,8 +92,8 @@ class TestMultiIndexPropertySparse:
 
         try:
             with tiledb.open(uri) as A:
-                r1 = A.multi_index[ranges]["a"]
-                r2 = _direct_query_ranges(A, [ranges])["a"]
+                r1 = A.query(order=order).multi_index[ranges]["a"]
+                r2 = _direct_query_ranges(A, [ranges], order)["a"]
 
                 assert_array_equal(r1, r2)
         except tiledb.TileDBError as exc:
