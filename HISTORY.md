@@ -3,6 +3,9 @@
 ## Improvements
 * `setup.py` retrieves core version by using `ctypes` to call `tiledb_version` rather than parsing `tiledb_version.h` [#1191](https://github.com/TileDB-Inc/TileDB-Py/pull/1191)
 
+## Bug Fixes
+* Set nonempty domain to `(None, None)` for empty string [#1182](https://github.com/TileDB-Inc/TileDB-Py/pull/1182)
+
 # TileDB-Py 0.16.1 Release Notes
 
 ## TileDB Embedded updates:
