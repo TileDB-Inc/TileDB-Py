@@ -3588,6 +3588,21 @@ class TestNumpyToArray(DiskTestCase):
             assert A.nonempty_domain() == ((0, 5),)
             assert_array_equal(A[0:6], np.append(arr1, arr2))
 
+    def test_from_numpy_start_idx(self):
+        uri = self.path("test_from_numpy_start_idx")
+
+        arr1 = np.array([1.0, 2.0, 3.0])
+
+        with tiledb.DenseArray.from_numpy(uri, arr1) as A:
+            assert A.nonempty_domain() == ((0, 2),)
+            assert_array_equal(A[0:3], arr1)
+
+        arr2 = np.array([4.0, 5.0, 6.0])
+
+        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append", start_idx=0) as A:
+            assert A.nonempty_domain() == ((0, 2),)
+            assert_array_equal(A[0:3], arr2)
+
     def test_from_numpy_append_array2d(self):
         uri = self.path("test_from_numpy_append_array2d")
 
@@ -3647,6 +3662,32 @@ class TestNumpyToArray(DiskTestCase):
                 result = A[0:2, 0:2, 0:4]
 
             assert_array_equal(result, np.append(arr1, arr2, axis=append_dim))
+
+    @pytest.mark.parametrize("append_dim", (0, 1, 2, 3))
+    def test_from_numpy_append_array3d_overwrite(self, append_dim):
+        uri = self.path("test_from_numpy_append_array3d")
+
+        arr1 = np.random.rand(2, 2, 2)
+
+        with tiledb.DenseArray.from_numpy(uri, arr1) as A:
+            assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
+            assert_array_equal(A[0:2, 0:2, 0:2], arr1)
+
+        arr2 = np.random.rand(2, 2, 2)
+
+        # error out if index is out of bounds
+        if append_dim == 3:
+            with self.assertRaises(IndexError):
+                tiledb.DenseArray.from_numpy(
+                    uri, arr2, mode="append", append_dim=append_dim
+                )
+            return
+
+        with tiledb.DenseArray.from_numpy(
+            uri, arr2, mode="append", append_dim=append_dim, start_idx=0
+        ) as A:
+            assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
+            assert_array_equal(A[0:2, 0:2, 0:2], arr2)
 
 
 class ConsolidationTest(DiskTestCase):

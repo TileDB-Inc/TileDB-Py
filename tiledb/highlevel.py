@@ -82,6 +82,7 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
         * **full_domain** - Dimensions should be created with full range of the dtype (default: False)
         * **mode** - Creation mode, one of 'ingest' (default), 'schema_only', 'append'
         * **append_dim** - The dimension along which the Numpy array is append (default: 0).
+        * **start_idx** - The starting index to append to. By default, append to the end of the existing data.
         * **timestamp** - Write TileDB array at specific timestamp.
 
     **Example:**

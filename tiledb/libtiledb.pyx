@@ -4752,6 +4752,7 @@ cdef class DenseArrayImpl(Array):
 
         """
         append_dim = kw.pop("append_dim", None)
+        start_idx = kw.pop("start_idx", None)
 
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
@@ -4794,9 +4795,15 @@ cdef class DenseArrayImpl(Array):
                 ned = A.nonempty_domain()
 
             for n in range(array.ndim):
-                offset_idx = ned[n][0] if ned is not None else 0
-                subarray[n*2] = offset_idx
-                subarray[n*2 + 1] = array.shape[n] + offset_idx - 1
+                if start_idx is not None:
+                    range_start_idx = start_idx 
+                elif ned is not None:
+                    range_start_idx = ned[n][0]
+                else:
+                    range_start_idx = 0
+                    
+                subarray[n*2] = range_start_idx
+                subarray[n*2 + 1] = array.shape[n] + range_start_idx - 1
 
             if append_dim is not None:
                 if array.ndim <= append_dim:
@@ -4810,8 +4817,15 @@ cdef class DenseArrayImpl(Array):
 
                 for n in range(array.ndim): 
                     if n == append_dim:
-                        subarray[n*2] = ned[n][1] + 1
-                        subarray[n*2 + 1] = array.shape[n] + ned[n][1]
+                        if start_idx is not None:
+                            range_start_idx = start_idx 
+                            range_end_idx = array.shape[n] + start_idx -1
+                        else:
+                            range_start_idx = ned[n][1] + 1
+                            range_end_idx = array.shape[n] + ned[n][1]
+
+                        subarray[n*2] = range_start_idx
+                        subarray[n*2 + 1] = range_end_idx
                     else:
                         if array.shape[n] != ned[n][1] - ned[n][0] + 1:
                             raise ValueError(
