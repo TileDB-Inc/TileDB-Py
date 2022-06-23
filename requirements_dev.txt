@@ -12,5 +12,3 @@ setuptools_scm >= 1.5.4
 wheel >= 0.30
 contextvars ;python_version<"3.7"
 dataclasses ;python_version<"3.7"
-black
-clang-format == 10.0.1
