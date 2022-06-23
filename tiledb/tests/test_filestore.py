@@ -1,4 +1,3 @@
-from ctypes.wintypes import tagSIZE
 import numpy as np
 import pytest
 
