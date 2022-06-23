@@ -20,6 +20,7 @@ void init_config(py::module &);
 void init_enums(py::module &);
 void init_domain(py::module &m);
 void init_file_handle(py::module &);
+void init_filestore(py::module &m);
 void init_filter(py::module &);
 void init_group(py::module &);
 void init_object(py::module &m);
@@ -36,6 +37,7 @@ PYBIND11_MODULE(cc, m) {
   init_domain(m);
   init_enums(m);
   init_file_handle(m);
+  init_filestore(m);
   init_filter(m);
   init_group(m);
   init_object(m);

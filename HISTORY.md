@@ -1,3 +1,7 @@
+# In Progress
+
+## API Changes
+* Addition of Filestore API [#1070](https://github.com/TileDB-Inc/TileDB-Py/pull/1070)
 # TileDB-Py 0.15.6 Release Notes
 
 ## TileDB Embedded updates:

@@ -1339,7 +1339,10 @@ cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
     cdef base_dtype
     cdef uint32_t cell_val_num = cell_size
 
-    if cell_val_num == 1:
+    if tiledb_dtype == TILEDB_BLOB:
+        return np.bytes_
+
+    elif cell_val_num == 1:
         if tiledb_dtype in _tiledb_dtype_to_numpy_dtype_convert:
             return _tiledb_dtype_to_numpy_dtype_convert[tiledb_dtype]
         elif _tiledb_type_is_datetime(tiledb_dtype):
@@ -2841,6 +2844,23 @@ cdef class ArraySchema(object):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
+
+    @staticmethod
+    def from_file(uri=None, Ctx ctx=None):
+        """Create an ArraySchema for a Filestore Array from a given file. 
+        If a uri is not given, then create a default schema."""
+        if not ctx:
+            ctx = default_ctx()
+        cdef tiledb_array_schema_t* schema_ptr = NULL
+
+        cdef const char* uri_ptr = NULL
+        if uri is not None:
+            uri_ptr = PyBytes_AS_STRING(uri.encode('UTF-8'))
+
+        check_error(ctx, tiledb_filestore_schema_create(
+                         ctx.ptr, uri_ptr, &schema_ptr))
+        
+        return ArraySchema.from_ptr(schema_ptr, ctx=ctx)
 
     def __eq__(self, other):
         """Instance is equal to another ArraySchema"""
