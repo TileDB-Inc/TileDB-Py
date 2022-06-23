@@ -1,3 +1,5 @@
+black
+clang-format == 10.0.1
 dask
 distributed
 -r ../requirements_dev.txt
