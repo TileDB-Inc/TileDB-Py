@@ -1,14 +1,12 @@
-import ctypes
+from ctypes import CDLL, c_int, POINTER
 import io
 import glob
 import multiprocessing
 import os
-import platform
 import shutil
 import subprocess
 import sys
 import zipfile
-from sysconfig import get_config_var
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -93,14 +91,12 @@ def _libtiledb_exists(library_dirs):
             )
         )
     # If no explicit path is given check to see if TileDB is globally installed.
-    import ctypes
-
     lib_name = names[0]
 
     try:
         # note: this is a relative path on linux
         #       https://bugs.python.org/issue21042
-        ctypes.CDLL(lib_name)
+        CDLL(lib_name)
         return lib_name
     except:
         pass
@@ -290,7 +286,7 @@ def find_or_install_libtiledb(setuptools_cmd):
     if wheel_build and is_windows() and lib_exists:
         do_install = True
 
-    print("prefix_dir: ", main_ext)
+    print("prefix_dir: ", prefix_dir or None)
     print("do_install: ", do_install)
 
     if do_install:
@@ -356,7 +352,7 @@ def find_or_install_libtiledb(setuptools_cmd):
             test_path = os.path.join(TILEDB_PKG_DIR, shared_obj)
             # should only ever be 1, not sure why libtiledb_library_names -> List
             try:
-                ctypes.CDLL(test_path)
+                CDLL(test_path)
             except:
                 print("\n-------------------")
                 print("Failed to load shared library: {}".format(test_path))
@@ -383,17 +379,25 @@ def find_or_install_libtiledb(setuptools_cmd):
         print("-------------------\n")
         setuptools_cmd.distribution.package_data.update({"tiledb": libtiledb_objects})
 
-    version_header = os.path.join(prefix_dir, "include", "tiledb", "tiledb_version.h")
-    with open(version_header) as header:
-        lines = list(header)[-3:]
-        major, minor, patch = [int(l.split()[-1]) for l in lines]
+    libtiledbso = CDLL(
+        lib_exists or os.path.join(dest_dir, libtiledb_library_names()[0])
+    )
+
+    libtiledbso.tiledb_version.argtypes = [
+        POINTER(c_int),
+        POINTER(c_int),
+        POINTER(c_int),
+    ]
+    major, minor, patch = c_int(), c_int(), c_int()
+    libtiledbso.tiledb_version(major, minor, patch)
+
     ext_attr_update(
         "cython_compile_time_env",
         {
             "TILEDBPY_MODULAR": TILEDBPY_MODULAR,
-            "LIBTILEDB_VERSION_MAJOR": major,
-            "LIBTILEDB_VERSION_MINOR": minor,
-            "LIBTILEDB_VERSION_PATCH": patch,
+            "LIBTILEDB_VERSION_MAJOR": major.value,
+            "LIBTILEDB_VERSION_MINOR": minor.value,
+            "LIBTILEDB_VERSION_PATCH": patch.value,
         },
     )
 
