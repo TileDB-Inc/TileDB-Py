@@ -1,3 +1,8 @@
+# TileDB-Py 0.16.1 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.16.1 includes TileDB Embedded [TileDB 2.10.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.10.1)
+
 # TileDB-Py 0.16.0 Release Notes
 
 ## TileDB Embedded updates:
@@ -102,8 +107,8 @@
 
 ## Bug Fixes
 * Correct `Group.__repr__` to call correct `_dump` function [#1040](https://github.com/TileDB-Inc/TileDB-Py/pull/1040)
-* Check type of `ctx` in `from_pandas` and `from_csv` [#1042](https://github.com/TileDB-Inc/TileDB-Py/pull/1042) 
-* Only allow use of `.df` indexer for `.query(return_arrow=True)`; error out with meaningful error message otherwise [#1045](https://github.com/TileDB-Inc/TileDB-Py/pull/1045) 
+* Check type of `ctx` in `from_pandas` and `from_csv` [#1042](https://github.com/TileDB-Inc/TileDB-Py/pull/1042)
+* Only allow use of `.df` indexer for `.query(return_arrow=True)`; error out with meaningful error message otherwise [#1045](https://github.com/TileDB-Inc/TileDB-Py/pull/1045)
 
 # TileDB-Py 0.14.1 Release Notes
 
