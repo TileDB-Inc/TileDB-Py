@@ -1,4 +1,5 @@
 #include <tiledb/tiledb>
+//#include <tiledb/tiledb_experimental.h> // for filter_dump, not yet available
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -22,21 +23,67 @@ void init_filter(py::module &m) {
 
       .def("_set_option",
            [](Filter &filter, Context ctx, tiledb_filter_option_t option,
-              int32_t level) {
-             // TODO check_type(a.dtype)
-             // Use the C API here because we are doing typecheck
-             ctx.handle_error(tiledb_filter_set_option(
-                 ctx.ptr().get(), filter.ptr().get(), option, &level));
+              py::object value) {
+             switch (option) {
+             case TILEDB_COMPRESSION_LEVEL:
+               filter.set_option(option, value.cast<int32_t>());
+               break;
+             case TILEDB_BIT_WIDTH_MAX_WINDOW:
+             case TILEDB_POSITIVE_DELTA_MAX_WINDOW:
+               filter.set_option(option, value.cast<uint32_t>());
+               break;
+             case TILEDB_SCALE_FLOAT_BYTEWIDTH:
+               filter.set_option(option, value.cast<uint64_t>());
+               break;
+             case TILEDB_SCALE_FLOAT_FACTOR:
+             case TILEDB_SCALE_FLOAT_OFFSET:
+               filter.set_option(option, value.cast<double>());
+               break;
+             default:
+               TPY_ERROR_LOC("Unrecognized filter option to _set_option");
+             }
            })
+
       .def("_get_option",
-           [](Filter &filter, Context ctx, tiledb_filter_option_t option) {
-             int32_t level;
-             // TODO check_type(a.dtype)
-             // Use the C API here because we are doing typecheck
-             ctx.handle_error(tiledb_filter_get_option(
-                 ctx.ptr().get(), filter.ptr().get(), option, &level));
-             return level;
+           [](Filter &filter, Context ctx,
+              tiledb_filter_option_t option) -> py::object {
+             switch (option) {
+             case TILEDB_COMPRESSION_LEVEL: {
+               int32_t value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_BIT_WIDTH_MAX_WINDOW:
+             case TILEDB_POSITIVE_DELTA_MAX_WINDOW: {
+               uint32_t value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_SCALE_FLOAT_BYTEWIDTH: {
+               uint64_t value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_SCALE_FLOAT_FACTOR:
+             case TILEDB_SCALE_FLOAT_OFFSET: {
+               double value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             default:
+               TPY_ERROR_LOC("Unrecognized filter option to _get_option");
+             }
            });
+  /* needs core patch */
+  /*
+   .def("_dump", [](Filter &filter, Context ctx) {
+          // TODO check_type(a.dtype)
+          // Use the C API here because we are doing typecheck
+
+          ctx.handle_error(tiledb_filter_dump(
+              ctx.ptr().get(), filter.ptr().get()));
+        });
+  */
 
   py::class_<FilterList>(m, "FilterList")
       .def(py::init<const Context &>(), py::keep_alive<1, 2>())
@@ -53,6 +100,6 @@ void init_filter(py::module &m) {
       .def("_nfilters", &FilterList::nfilters)
       .def("_filter", &FilterList::filter)
       .def("_add_filter", &FilterList::add_filter);
-}
+} // namespace libtiledbcpp
 
 } // namespace libtiledbcpp

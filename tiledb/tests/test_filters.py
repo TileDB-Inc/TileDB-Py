@@ -1,5 +1,7 @@
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, assert_allclose
+import pytest
+import warnings
 
 import tiledb
 from tiledb.tests.common import DiskTestCase
@@ -60,6 +62,7 @@ class TestFilterTest(DiskTestCase):
             tiledb.PositiveDeltaFilter(),
             tiledb.ChecksumSHA256Filter(),
             tiledb.ChecksumMD5Filter(),
+            tiledb.FloatScalingFilter(),
         ]
         # make sure that repr works and round-trips correctly
         for f in filters:
@@ -74,7 +77,7 @@ class TestFilterTest(DiskTestCase):
             new_filter = None
             try:
                 new_filter = eval(filter_repr, tmp_globals)
-            except Exception as exc:
+            except Exception:
                 warn_str = (
                     """Exception during FilterTest filter repr eval"""
                     + """, filter repr string was:\n"""
@@ -104,3 +107,30 @@ class TestFilterTest(DiskTestCase):
 
         with tiledb.open(path, "r") as A:
             assert_array_equal(A[:][""], data)
+
+    @pytest.mark.parametrize("factor", [1, 0.5, 2])
+    @pytest.mark.parametrize("offset", [0])
+    @pytest.mark.parametrize("bytewidth", [1, 8])
+    def test_float_scaling_filter(self, factor, offset, bytewidth):
+        path = self.path("test_float_scaling_filter")
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
+
+        filter = tiledb.FloatScalingFilter(factor, offset, bytewidth)
+
+        attr = tiledb.Attr(dtype=np.float64, filters=tiledb.FilterList([filter]))
+        schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=True)
+        tiledb.Array.create(path, schema)
+
+        data = np.random.rand(10)
+
+        with tiledb.open(path, "w") as A:
+            A[np.arange(10)] = data
+
+        with tiledb.open(path, "r") as A:
+            filter = A.schema.attr("").filters[0]
+            assert filter.factor == factor
+            assert filter.offset == offset
+            assert filter.bytewidth == bytewidth
+
+            # TODO compute the correct tolerance here
+            assert_allclose(data, A[:][""], rtol=1, atol=1)
