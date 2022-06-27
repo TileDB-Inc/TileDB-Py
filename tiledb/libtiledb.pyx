@@ -2847,7 +2847,7 @@ cdef class ArraySchema(object):
 
     @staticmethod
     def from_file(uri=None, Ctx ctx=None):
-        """Create an ArraySchema for a Filestore Array from a given file. 
+        """Create an ArraySchema for a Filestore Array from a given file.
         If a uri is not given, then create a default schema."""
         if not ctx:
             ctx = default_ctx()
@@ -2859,7 +2859,7 @@ cdef class ArraySchema(object):
 
         check_error(ctx, tiledb_filestore_schema_create(
                          ctx.ptr, uri_ptr, &schema_ptr))
-        
+
         return ArraySchema.from_ptr(schema_ptr, ctx=ctx)
 
     def __eq__(self, other):
@@ -4702,14 +4702,15 @@ cdef class DenseArrayImpl(Array):
         cdef bytes battr_name = attr._internal_name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
 
-
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes
 
+        use_global_order = self.ctx.config().get("py.use_global_order_1d_write", False) == "true"
+
         cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
-        if array.ndim == 1:
+        if array.ndim == 1 and use_global_order:
             layout = TILEDB_GLOBAL_ORDER
-        elif array.ndim > 1 and array.flags.f_contiguous:
+        elif array.flags.f_contiguous:
             layout = TILEDB_COL_MAJOR
 
         cdef tiledb_query_t* query_ptr = NULL
