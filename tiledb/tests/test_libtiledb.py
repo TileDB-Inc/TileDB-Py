@@ -5,6 +5,7 @@ import os
 import pickle
 import random
 import re
+from tkinter import NONE
 import urllib
 import subprocess
 import sys
@@ -1021,6 +1022,21 @@ class ArrayTest(DiskTestCase):
             assert_array_equal(ned, ((-1, 1),))
             assert isinstance(ned[0][0], int)
             assert isinstance(ned[0][1], int)
+
+    def test_nonempty_domain_empty_string(self):
+        uri = self.path("test_nonempty_domain_empty_string")
+        dims = [tiledb.Dim(dtype="ascii")]
+        schema = tiledb.ArraySchema(tiledb.Domain(dims), sparse=True)
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "r") as A:
+            assert_array_equal(A.nonempty_domain(), ((None, None),))
+
+        with tiledb.open(uri, "w") as A:
+            A[""] = None
+
+        with tiledb.open(uri, "r") as A:
+            assert_array_equal(A.nonempty_domain(), ((b"", b""),))
 
     def test_create_array_overwrite(self):
         uri = self.path("test_create_array_overwrite")
