@@ -402,7 +402,11 @@ def find_or_install_libtiledb(setuptools_cmd):
     )
 
     if is_windows():
-        windll.kernel32.FreeLibrary(libtiledbso._handle)
+        from ctypes.wintypes import HMODULE
+
+        kernel32 = WinDLL("kernel32", use_last_error=True)
+        kernel32.FreeLibrary.argtypes = [HMODULE]
+        kernel32.FreeLibrary(libtiledbso._handle)
 
 
 class LazyCommandClass(dict):
