@@ -1,4 +1,4 @@
-from ctypes import CDLL, c_int, POINTER
+from ctypes import *
 import io
 import glob
 import multiprocessing
@@ -400,6 +400,9 @@ def find_or_install_libtiledb(setuptools_cmd):
             "LIBTILEDB_VERSION_PATCH": patch.value,
         },
     )
+
+    if is_windows():
+        windll.kernel32.FreeLibrary(libtiledbso._handle)
 
 
 class LazyCommandClass(dict):
