@@ -83,7 +83,6 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_DATETIME_PS
         TILEDB_DATETIME_FS
         TILEDB_DATETIME_AS
-        TILEDB_BLOB
         TILEDB_BOOL
 
     ctypedef enum tiledb_array_type_t:
