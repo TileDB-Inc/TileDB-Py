@@ -3,6 +3,9 @@
 ## Improvements
 * `setup.py` retrieves core version by using `ctypes` to call `tiledb_version` rather than parsing `tiledb_version.h` [#1191](https://github.com/TileDB-Inc/TileDB-Py/pull/1191)
 
+## API Changes
+* Querying dense array with `[:]` returns shape that matches nonempty domain, consistent with `.df[:]` and .multi_index[:]` [#1199](https://github.com/TileDB-Inc/TileDB-Py/pull/1199)
+
 # TileDB-Py 0.16.1 Release Notes
 
 ## TileDB Embedded updates:
