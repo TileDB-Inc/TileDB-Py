@@ -49,15 +49,16 @@ void init_domain(py::module &m) {
            }),
            py::keep_alive<1, 2>())
       .def_property_readonly("_name", &Dimension::name)
-      // .def_property_readonly("domain", &Dimension::domain)
+      .def_property_readonly("domain", &Dimension::domain)
       // .def_property_readonly("tile", &Dimension::tile_extent)
       .def_property("_filters", &Dimension::filter_list,
                     &Dimension::set_filter_list)
       .def_property("_ncell", &Dimension::cell_val_num,
                     &Dimension::set_cell_val_num)
-      .def("_dtype", &Dimension::type)
-      // TODO needs numpy <> tiledb type and void*+(type,size) -> numpy
-      // translators
+      // .def("_dtype", &Dimension::type)
+      .def_property_readonly(
+          "_dtype",
+          [](Dimension dim) { return tdb_to_np_dtype(dim.type(), 1); })
       .def("_domain_to_str", &Dimension::domain_to_str);
 
   py::class_<tiledb::Domain>(m, "Domain")
