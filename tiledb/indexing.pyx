@@ -29,8 +29,14 @@ cdef class DomainIndexer(object):
 
     def __init__(self, Array array, query = None):
         self.array_ref = weakref.ref(array)
-        self.schema = array.schema
+        # self.schema = array.schema
         self.query = query
+
+        # setattr(self, "schema", array.schema)
+    
+    @property
+    def schema(self):
+        return self.array.array_ref().schema
 
     @property
     def array(self):

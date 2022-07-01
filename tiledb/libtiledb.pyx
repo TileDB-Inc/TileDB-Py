@@ -238,6 +238,8 @@ def schema_like_numpy(array, ctx=None, **kw):
     # create an ArraySchema from the numpy array object
     tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
 
+    cctx = lt.Context(ctx, False)
+
     attr_name = kw.pop('attr_name', '')
     dim_dtype = kw.pop('dim_dtype', np.dtype("uint64"))
     full_domain = kw.pop('full_domain', False)
@@ -281,7 +283,7 @@ def schema_like_numpy(array, ctx=None, **kw):
         else:
             domain = (0, array.shape[d] - 1)
             
-        dims.append(lt.Dimension(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
+        dom._add_dim(lt.Dimension(cctx, "__dim_0", np.dtype(dim_dtype), np.array(domain), np.array(tile_extent)))
 
     var = False
     if array.dtype == object:
@@ -307,9 +309,14 @@ def schema_like_numpy(array, ctx=None, **kw):
     else:
         el_dtype = array.dtype
 
-    att = lt.Attribute(dtype=el_dtype, name=attr_name, var=var, ctx=ctx)
-    dom = lt.Domain(*dims, ctx=ctx)
-    return lt.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+    # att = lt.Attribute(dtype=el_dtype, name=attr_name, var=var, ctx=ctx)
+    att = lt.Attribute(cctx, attr_name, el_dtype)
+    # dom = lt.Domain(*dims, ctx=ctx)
+    schema = lt.ArraySchema(cctx, lt.ArrayType.DENSE)
+    schema._domain = dom
+    schema._add_attr(att)
+    # return lt.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+    return schema
 
 # note: this function is cdef, so it must return a python object in order to
 #       properly forward python exceptions raised within the function. See:
@@ -466,8 +473,8 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     if not issparse:
         dom = tiledb_array.schema.domain
         for dim_idx,s_range in enumerate(coords_or_subarray):
-            dim = dom.dim(dim_idx)
-            dim_dtype = dim.dtype
+            dim = dom._dim(dim_idx)
+            dim_dtype = dim._dtype
             s_start = np.asarray(s_range[0], dtype=dim_dtype)
             s_end = np.asarray(s_range[1], dtype=dim_dtype)
             s_start_ptr = np.PyArray_DATA(s_start)
@@ -489,7 +496,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     try:
         for i in range(0, nattr):
-            battr_name = lt.attributeibutes[i].encode('UTF-8')
+            battr_name = lt.Attributeibutes[i].encode('UTF-8')
             buffer_ptr = np.PyArray_DATA(output_values[i])
 
             rc = tiledb_query_set_data_buffer(ctx_ptr, query_ptr, battr_name,
@@ -499,7 +506,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 _raise_ctx_err(ctx_ptr, rc)
 
             var = output_offsets[i] is not None
-            nullable = lt.attributeibutes[i] in nullmaps
+            nullable = lt.Attributeibutes[i] in nullmaps
 
             if var:
                 offsets_buffer_ptr = <uint64_t*>np.PyArray_DATA(output_offsets[i])
@@ -1622,7 +1629,7 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
     #             _raise_ctx_err(ctx.ptr, rc)
 
     #     self.ctx = ctx
-    #     self.ptr = lt.attribute_ptr
+    #     self.ptr = lt.Attribute_ptr
 
     # def __eq__(self, other):
     #     if not isinstance(other, Attr):
@@ -2242,7 +2249,7 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
 
 
 def clone_dim_with_name(dim, name):
-    return lt.Dimension(name=name, domain=dim.domain, tile=dim.tile, dtype=dim.dtype, ctx=dim.ctx)
+    return lt.Dimension(name=name, domain=dim.domain, tile=dim.tile, dtype=dim._dtype, ctx=dim.ctx)
 
 # cdef class Domain(object):
 #     """Class representing the domain of a TileDB Array.
@@ -2541,8 +2548,8 @@ def replace_ellipsis(ndim: int, idx: tuple):
 def replace_scalars_slice(dom: lt.Domain, idx: tuple):
     """Replace scalar indices with slice objects"""
     new_idx, drop_axes = [], []
-    for i in range(dom.ndim):
-        dim = dom.dim(i)
+    for i in range(dom._ndim):
+        dim = dom._dim(i)
         dim_idx = idx[i]
         if np.isscalar(dim_idx):
             drop_axes.append(i)
@@ -2565,7 +2572,7 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
     Return a numpy array representation of the tiledb subarray buffer
     for a given domain and tuple of index slices
     """
-    ndim = dom.ndim
+    ndim = dom._ndim
     if len(idx) != ndim:
         raise IndexError("number of indices does not match domain rank: "
                          "(got {!r}, expected: {!r})".format(len(idx), ndim))
@@ -2573,8 +2580,8 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
     subarray = list()
     for r in range(ndim):
         # extract lower and upper bounds for domain dimension extent
-        dim = dom.dim(r)
-        dim_dtype = dim.dtype
+        dim = dom._dim(r)
+        dim_dtype = dim._dtype
 
         if np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_):
             ned = array.nonempty_domain()
@@ -2815,8 +2822,8 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
     #     for attr in attrs:
     #         if not isinstance(attr, Attr):
     #             raise TypeError("Cannot create schema with non-Attr value for 'attrs' argument")
-    #         attribute = lt.attribute
-    #         attr_ptr = lt.attributeibute.ptr
+    #         attribute = lt.Attribute
+    #         attr_ptr = lt.Attributeibute.ptr
     #         rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
     #         if rc != TILEDB_OK:
     #             tiledb_array_schema_free(&schema_ptr)
@@ -3416,7 +3423,8 @@ cdef class Array(object):
             if rc != TILEDB_OK:
               _raise_ctx_err(ctx_ptr, rc)
             schema = lt.ArraySchema(
-                ctx, PyCapsule_New(array_schema_ptr, "schema", NULL)
+                lt.Context(ctx, False), 
+                PyCapsule_New(array_schema_ptr, "schema", NULL),
             )
         except:
             tiledb_array_close(ctx_ptr, array_ptr)
@@ -3460,7 +3468,7 @@ cdef class Array(object):
     def __repr__(self):
         if self.isopen:
             return "Array(type={0}, uri={1!r}, mode={2}, ndim={3})"\
-                .format("Sparse" if self.schema.sparse else "Dense", self.uri, self.mode, self.schema.ndim)
+                .format("Sparse" if self.schema._array_type == lt.ArrayType.SPARSE else "Dense", self.uri, self.mode, self.schema.ndim)
         else:
             return "Array(uri={0!r}, mode=closed)"
 
@@ -3497,7 +3505,7 @@ cdef class Array(object):
         cdef tiledb_array_schema_t* schema_ptr = <tiledb_array_schema_t*>PyCapsule_GetPointer(
                         schema.__capsule__(), "schema")
         cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-                        schema.ctx().__capsule__(), "ctx")
+                        schema._ctx().__capsule__(), "ctx")
 
         cdef bytes bkey
         cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
@@ -3684,14 +3692,14 @@ cdef class Array(object):
     @property
     def domain(self):
         """The :py:class:`Domain` of this array."""
-        return self.schema.domain
+        return self.schema._domain
 
     @property
     def dtype(self):
         """The NumPy dtype of the specified attribute"""
-        if self.view_attr is None and self.schema.nattr > 1:
+        if self.view_attr is None and self.schema._nattr > 1:
             raise NotImplementedError("Multi-attribute does not have single dtype!")
-        return self.schema.attr(0).dtype
+        return self.schema._attr(0).dtype
 
     @property
     def shape(self):
@@ -3704,7 +3712,7 @@ cdef class Array(object):
         if self.view_attr:
             return 1
         else:
-           return self.schema.nattr
+           return self.schema._nattr
 
     @property
     def view_attr(self):
@@ -3778,7 +3786,7 @@ cdef class Array(object):
             DeprecationWarning,
         )
         # returns the record array dtype of the coordinate array
-        return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
+        return np.dtype([(str(dim.name), dim._dtype) for dim in self.schema._domain])
 
     @property
     def uri(self):
@@ -3796,7 +3804,7 @@ cdef class Array(object):
         :rtype: :py:class:`Attr`
         :return: The array attribute at index or with the given name (label)
         :raises TypeError: invalid key type"""
-        return self.schema.attr(key)
+        return self.schema._attr(key)
 
     def dim(self, dim_id):
         """Returns a :py:class:`Dim` instance given a dim index or name
@@ -3806,7 +3814,7 @@ cdef class Array(object):
         :rtype: :py:class:`Attr`
         :return: The array attribute at index or with the given name (label)
         :raises TypeError: invalid key type"""
-        return self.schema.domain.dim(dim_id)
+        return self.schema._domain.dim(dim_id)
 
     def nonempty_domain(self):
         """Return the minimum bounding domain which encompasses nonempty values.
@@ -3817,7 +3825,7 @@ cdef class Array(object):
 
         """
         cdef list results = list()
-        dom = self.schema.domain
+        dom = self.schema._domain
 
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
@@ -3833,8 +3841,8 @@ cdef class Array(object):
         cdef void* end_buf_ptr
         cdef np.dtype dim_dtype
 
-        for dim_idx in range(dom.ndim):
-            dim_dtype = dom.dim(dim_idx).dtype
+        for dim_idx in range(dom._ndim):
+            dim_dtype = dom._dim(dim_idx).dtype
 
             if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
                 rc = tiledb_array_get_non_empty_domain_var_size_from_index(
@@ -4249,8 +4257,13 @@ cdef class DenseArrayImpl(Array):
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
+<<<<<<< HEAD
         if self.schema.sparse:
             raise ValueError(f"Array at {self.uri} is not a dense array")
+=======
+        if self.schema._array_type == lt.ArrayType.SPARSE:
+            raise ValueError("Array at {} is not a dense array".format(self.uri))
+>>>>>>> WIP get more of libtiledb.pyx to run with pybind11 code
         return
 
     @staticmethod
@@ -4462,16 +4475,16 @@ cdef class DenseArrayImpl(Array):
                              "or 'U' (TILEDB_UNORDERED)")
         attr_names = list()
         if coords == True:
-            attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
+            attr_names.extend(self.schema._domain.dim(i).name for i in range(self.schema.ndim))
         elif coords:
             attr_names.extend(coords)
 
         if attrs is None:
             attr_names.extend(
-                self.schema.attr(i)._internal_name for i in range(self.schema.nattr)
+                self.schema._attr(i)._name for i in range(self.schema._nattr)
             )
         else:
-            attr_names.extend(self.schema.attr(a).name for a in attrs)
+            attr_names.extend(self.schema._attr(a).name for a in attrs)
 
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
@@ -4488,8 +4501,8 @@ cdef class DenseArrayImpl(Array):
             for (k, v) in out.items():
                 out[k] = v.squeeze(axis=drop_axes)
         # attribute is anonymous, just return the result
-        if not coords and self.schema.nattr == 1:
-            attr = self.schema.attr(0)
+        if not coords and self.schema._nattr == 1:
+            attr = self.schema._attr(0)
             if attr.isanon:
                 return out[attr._internal_name]
         return out
@@ -4529,8 +4542,8 @@ cdef class DenseArrayImpl(Array):
         cdef Py_ssize_t nattr = len(attr_names)
         cdef int i
         for i in range(nattr):
-            name = lt.attribute_names[i]
-            if not self.schema.domain.has_dim(name) and self.schema.attr(name).isvar:
+            name = lt.Attribute_names[i]
+            if not self.schema._domain.has_dim(name) and self.schema._attr(name).isvar:
                 # for var arrays we create an object array
                 dtype = object
                 out[name] = q.unpack_buffer(name, results[name][0], results[name][1]).reshape(output_shape)
@@ -4622,27 +4635,27 @@ cdef class DenseArrayImpl(Array):
         cdef list values = list()
 
         if isinstance(val, dict):
-            for attr_idx in range(self.schema.nattr):
-                attr = self.schema.attr(attr_idx)
-                k = lt.attribute.name
+            for attr_idx in range(self.schema._nattr):
+                attr = self.schema._attr(attr_idx)
+                k = lt.Attribute.name
                 v = val[k]
-                attr = self.schema.attr(k)
+                attr = self.schema._attr(k)
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
                 if type(v) is np.ndarray and v.dtype is not np.dtype('O'):
                     v = np.ascontiguousarray(v, dtype=attr.dtype)
                 values.append(v)
         elif np.isscalar(val):
-            for i in range(self.schema.nattr):
-                attr = self.schema.attr(i)
+            for i in range(self.schema._nattr):
+                attr = self.schema._attr(i)
                 subarray_shape = tuple(int(subarray[r][1] - subarray[r][0]) + 1
                                        for r in range(len(subarray)))
                 attributes.append(attr._internal_name)
                 A = np.empty(subarray_shape, dtype=attr.dtype)
                 A[:] = val
                 values.append(A)
-        elif self.schema.nattr == 1:
-            attr = self.schema.attr(0)
+        elif self.schema._nattr == 1:
+            attr = self.schema._attr(0)
             attributes.append(attr._internal_name)
             # object arrays are var-len and handled later
             if type(val) is np.ndarray and val.dtype is not np.dtype('O'):
@@ -4655,11 +4668,11 @@ cdef class DenseArrayImpl(Array):
             # (note: implicitly relies on the fact that we treat all arrays
             #  as zero initialized as long as query returns TILEDB_OK)
             # see also: https://github.com/TileDB-Inc/TileDB-Py/issues/128
-            if self.schema.nattr == 1:
-                attributes.append(self.schema.attr(0).name)
+            if self.schema._nattr == 1:
+                attributes.append(self.schema._attr(0).name)
                 values.append(val)
             else:
-                dtype = self.schema.attr(self.view_attr).dtype
+                dtype = self.schema._attr(self.view_attr).dtype
                 with DenseArrayImpl(self.uri, 'r', ctx=Ctx(self.ctx.config())) as readable:
                     current = readable[selection]
                 current[self.view_attr] = \
@@ -4677,7 +4690,7 @@ cdef class DenseArrayImpl(Array):
             for key,val in nullmaps.items():
                 if not self.schema.has_attr(key):
                     raise lt.TileDBError("Cannot set validity for non-existent attribute.")
-                if not self.schema.attr(key).isnullable:
+                if not self.schema._attr(key).isnullable:
                     raise ValueError("Cannot set validity map for non-nullable attribute.")
                 if not isinstance(val, np.ndarray):
                     raise TypeError(f"Expected NumPy array for attribute '{key}' "
@@ -4708,7 +4721,7 @@ cdef class DenseArrayImpl(Array):
         if self.view_attr:
             name = self.view_attr
         else:
-            name = self.schema.attr(0).name
+            name = self.schema._attr(0).name
         array = self.read_direct(name=name)
         if dtype and array.dtype != dtype:
             return array.astype(dtype)
@@ -4731,7 +4744,7 @@ cdef class DenseArrayImpl(Array):
 
         if not self.isopen or self.mode != 'w':
             raise lt.TileDBError("DenseArray is not opened for writing")
-        if self.schema.nattr != 1:
+        if self.schema._nattr != 1:
             raise ValueError("cannot write_direct to a multi-attribute DenseArray")
         if not array.flags.c_contiguous and not array.flags.f_contiguous:
             raise ValueError("array is not contiguous")
@@ -4740,8 +4753,8 @@ cdef class DenseArrayImpl(Array):
         cdef tiledb_array_t* array_ptr = self.ptr
 
         # attr name
-        attr = self.schema.attr(0)
-        cdef bytes battr_name = lt.attribute._internal_name.encode('UTF-8')
+        attr = self.schema._attr(0)
+        cdef bytes battr_name = attr._name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
 
         cdef void* buff_ptr = np.PyArray_DATA(array)
@@ -4852,15 +4865,15 @@ cdef class DenseArrayImpl(Array):
         cdef tiledb_array_t* array_ptr = self.ptr
 
         cdef unicode attr_name
-        if name is None and self.schema.nattr != 1:
+        if name is None and self.schema._nattr != 1:
             raise ValueError(
                 "read_direct with no provided attribute is ambiguous for multi-attribute arrays")
         elif name is None:
-            attr = self.schema.attr(0)
-            attr_name = lt.attribute._internal_name
+            attr = self.schema._attr(0)
+            attr_name = lt.Attribute._internal_name
         else:
-            attr = self.schema.attr(name)
-            attr_name = lt.attribute._internal_name
+            attr = self.schema._attr(name)
+            attr_name = lt.Attribute._internal_name
         order = 'C'
         cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
         if self.schema.cell_order == 'col-major' and self.schema.tile_order == 'col-major':
@@ -4884,14 +4897,14 @@ def index_domain_coords(dom: lt.Domain, idx: tuple, check_ndim: bool):
     ndim = len(idx)
 
     if check_ndim:
-        if ndim != dom.ndim:
+        if ndim != dom._ndim:
             raise IndexError("sparse index ndim must match domain ndim: "
-                            "{0!r} != {1!r}".format(ndim, dom.ndim))
+                            "{0!r} != {1!r}".format(ndim, dom._ndim))
 
     domain_coords = []
     for dim, sel in zip(dom, idx):
-        dim_is_string = (np.issubdtype(dim.dtype, np.str_) or
-            np.issubdtype(dim.dtype, np.bytes_))
+        dim_is_string = (np.issubdtype(dim._dtype, np.str_) or
+            np.issubdtype(dim._dtype, np.bytes_))
 
         if dim_is_string:
             try:
@@ -4900,16 +4913,16 @@ def index_domain_coords(dom: lt.Domain, idx: tuple, check_ndim: bool):
             except Exception as exc:
                 raise lt.TileDBError(f'Dim\' strings may only contain ASCII characters')
         else:
-            domain_coords.append(np.array(sel, dtype=dim.dtype, ndmin=1))
+            domain_coords.append(np.array(sel, dtype=dim._dtype, ndmin=1))
 
     idx = tuple(domain_coords)
 
     # check that all sparse coordinates are the same size and dtype
-    dim0 = dom.dim(0)
+    dim0 = dom._dim(0)
     dim0_type = dim0.dtype
     len0 = len(idx[0])
     for dim_idx in range(ndim):
-        dim_dtype = dom.dim(dim_idx).dtype
+        dim_dtype = dom._dim(dim_idx).dtype
         if len(idx[dim_idx]) != len0:
             raise IndexError("sparse index dimension length mismatch")
 
@@ -4930,7 +4943,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
     sparse_attributes = list()
     sparse_values = list()
     idx = index_as_tuple(selection)
-    sparse_coords = list(index_domain_coords(self.schema.domain, idx, not set_dims_only))
+    sparse_coords = list(index_domain_coords(self.schema._domain, idx, not set_dims_only))
 
     if set_dims_only:
         _write_array(
@@ -4951,9 +4964,9 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         val = dict({self.attr(0).name: val})
 
     # must iterate in Attr order to ensure that value order matches
-    for attr_idx in range(self.schema.nattr):
+    for attr_idx in range(self.schema._nattr):
         attr = self.attr(attr_idx)
-        name = lt.attribute.name
+        name = lt.Attribute.name
         attr_val = val[name]
 
         try:
@@ -5015,7 +5028,7 @@ cdef class SparseArrayImpl(Array):
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        if not self.schema.sparse:
+        if self.schema._array_type == lt.ArrayType.DENSE:
             raise ValueError("Array at '{}' is not a sparse array".format(self.uri))
 
         return
@@ -5227,18 +5240,18 @@ cdef class SparseArrayImpl(Array):
         attr_names = list()
 
         if attrs is None:
-            attr_names.extend(self.schema.attr(i)._internal_name for i in range(self.schema.nattr))
+            attr_names.extend(self.schema._attr(i)._name for i in range(self.schema._nattr))
         else:
-            attr_names.extend(self.schema.attr(a)._internal_name for a in attrs)
+            attr_names.extend(self.schema._attr(a)._internal_name for a in attrs)
 
         if coords == True:
-            attr_names.extend(self.schema.domain.dim(i).name for i in range(self.schema.ndim))
+            attr_names.extend(self.schema._domain.dim(i).name for i in range(self.schema.ndim))
         elif coords:
             attr_names.extend(coords)
 
-        dom = self.schema.domain
+        dom = self.schema._domain
         idx = index_as_tuple(selection)
-        idx = replace_ellipsis(dom.ndim, idx)
+        idx = replace_ellipsis(dom._ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
         subarray = index_domain_subarray(self, dom, idx)
         return self._read_sparse_subarray(subarray, attr_names, attr_cond, layout)
@@ -5273,7 +5286,7 @@ cdef class SparseArrayImpl(Array):
         # collect a list of dtypes for resulting to construct array
         dtypes = list()
         for i in range(nattr):
-            name, final_name = lt.attribute_names[i], attr_names[i]
+            name, final_name = lt.Attribute_names[i], attr_names[i]
             if name == '__attr':
                 final_name = ''
             if self.schema._needs_var_buffer(name):
@@ -5281,11 +5294,11 @@ cdef class SparseArrayImpl(Array):
                     arr = q.unpack_buffer(name, results[name][0], results[name][1])
                 else:
                     arr = results[name][0]
-                    arr.dtype = self.schema.attr_or_dim_dtype(name)
+                    arr.dtype = self.schema._attr_or_dim_dtype(name)
                 out[final_name] = arr
             else:
-                if self.schema.domain.has_dim(name):
-                    el_dtype = self.schema.domain.dim(name).dtype
+                if self.schema._domain.has_dim(name):
+                    el_dtype = self.schema._domain.dim(name).dtype
                 else:
                     el_dtype = self.attr(name).dtype
                 arr = results[name][0]

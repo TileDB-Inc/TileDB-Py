@@ -16,28 +16,36 @@ namespace py = pybind11;
 void init_domain(py::module &m) {
   py::class_<tiledb::Dimension>(m, "Dimension")
       .def(py::init([](const Context &ctx, const std::string &name,
-                       tiledb_datatype_t datatype, py::buffer range,
-                       py::buffer extent) {
-             auto range_info = range.request();
-             auto extent_info = extent.request();
-             if (datatype != TILEDB_STRING_ASCII) {
-               if (!expect_buffer_nbytes(range_info, datatype, 2)) {
+                       py::dtype datatype, py::buffer domain,
+                       py::buffer tile_extent) {
+             tiledb_datatype_t dim_type;
+             try {
+               dim_type = np_to_tdb_dtype(datatype);
+             } catch (const TileDBPyError &e) {
+               throw py::type_error(e.what());
+             }
+
+             auto domain_info = domain.request();
+             auto tile_extent_info = tile_extent.request();
+             if (dim_type != TILEDB_STRING_ASCII) {
+               if (!expect_buffer_nbytes(domain_info, dim_type, 2)) {
                  throw py::value_error(
-                     "Unexpected type/shape for range buffer!");
+                     "Unexpected type/shape for domain buffer!");
                }
-               if (!expect_buffer_nbytes(extent_info, datatype, 1)) {
+               if (!expect_buffer_nbytes(tile_extent_info, dim_type, 1)) {
                  throw py::value_error(
-                     "Unexpected type/shape for range buffer!");
+                     "Unexpected type/shape for domain buffer!");
                }
              }
 
-             const void *range_data =
-                 (datatype != TILEDB_STRING_ASCII) ? range_info.ptr : nullptr;
-             const void *extent_data =
-                 (datatype != TILEDB_STRING_ASCII) ? extent_info.ptr : nullptr;
+             const void *domain_data =
+                 (dim_type != TILEDB_STRING_ASCII) ? domain_info.ptr : nullptr;
+             const void *tile_extent_data = (dim_type != TILEDB_STRING_ASCII)
+                                                ? tile_extent_info.ptr
+                                                : nullptr;
 
              return std::make_unique<Dimension>(Dimension::create(
-                 ctx, name, datatype, range_data, extent_data));
+                 ctx, name, dim_type, domain_data, tile_extent_data));
            }),
            py::keep_alive<1, 2>())
       .def_property_readonly("_name", &Dimension::name)
@@ -47,7 +55,7 @@ void init_domain(py::module &m) {
                     &Dimension::set_filter_list)
       .def_property("_ncell", &Dimension::cell_val_num,
                     &Dimension::set_cell_val_num)
-      .def("_tiledb_datatype", &Dimension::type)
+      .def("_dtype", &Dimension::type)
       // TODO needs numpy <> tiledb type and void*+(type,size) -> numpy
       // translators
       .def("_domain_to_str", &Dimension::domain_to_str);
