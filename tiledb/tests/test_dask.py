@@ -2,6 +2,7 @@ import pytest
 
 da = pytest.importorskip("dask.array")
 
+from datetime import datetime
 import sys
 import tiledb
 from tiledb.tests.common import DiskTestCase
@@ -45,6 +46,13 @@ class TestDaskSupport(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
+    @pytest.mark.skipif(
+        datetime.now() < datetime(2022, 7, 19),
+        reason=(
+            "`DeprecationWarning` being thrown by Dask but will be fixed by "
+            "https://github.com/dask/distributed/issues/6163"
+        ),
+    )
     @pytest.mark.filterwarnings("ignore:There is no current event loop")
     def test_dask_multiattr_2d(self):
         uri = self.path("multiattr")
