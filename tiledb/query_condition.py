@@ -23,12 +23,12 @@ class QueryCondition:
     Class representing a TileDB query condition object for attribute filtering
     pushdown.
 
-    When querying a sparse array, only the values that validate the given
+    When querying a sparse array, only the values that satisfy the given
     condition are returned (coupled with their associated coordinates). An example
     may be found in `examples/query_condition_sparse.py`.
 
     For dense arrays, the given shape of the query matches the shape of the output
-    array. Values that DO NOT validate the given condition are filled with the
+    array. Values that DO NOT satisfy the given condition are filled with the
     TileDB default fill value. Different attribute types have different default
     fill values as outlined here (https://docs.tiledb.com/main/background/internal-mechanics/writing#default-fill-values). An example may be found in `examples/query_condition_dense.py`.
 

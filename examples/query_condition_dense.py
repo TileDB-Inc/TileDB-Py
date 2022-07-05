@@ -79,5 +79,27 @@ def read_array(path):
 
 
 if __name__ == "__main__":
+    """Example output for `python query_condition_dense.py`:
+
+    --- without query condition:
+
+    OrderedDict([('attr1', array([4, 0, 9, 7, 6, 0, 0, 5, 7, 5], dtype=uint64)),
+                ('attr2',
+                array([0.74476144, 0.47211544, 0.99054245, 0.36640416, 0.91699594,
+        0.06216043, 0.58581863, 0.00505695, 0.7486192 , 0.87649422]))])
+
+    --- with query condition QueryCondition(expression='(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)'):
+    --- the fill value for attr1 is [18446744073709551615]
+    --- the fill value for attr1 is [nan]
+
+    OrderedDict([('attr1',
+                array([18446744073709551615, 18446744073709551615, 18446744073709551615,
+        18446744073709551615, 18446744073709551615, 18446744073709551615,
+        18446744073709551615,                    5, 18446744073709551615,
+                            5], dtype=uint64)),
+                ('attr2',
+                array([       nan,        nan,        nan,        nan,        nan,
+                nan,        nan, 0.00505695,        nan, 0.87649422]))])
+    """
     create_array(uri)
     read_array(uri)

@@ -110,181 +110,216 @@ class QueryConditionTest(DiskTestCase):
         with tiledb.open(path) as A:
             A.query(attr_cond=tiledb.QueryCondition("a < 5"))
 
-    @pytest.mark.parametrize("sparse", [True, False])
-    def test_unsigned(self, sparse):
-        with tiledb.open(self.create_input_array_UIDSA(sparse)) as A:
+    def test_unsigned_sparse(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            qc = tiledb.QueryCondition("U < 5")
+            result = A.query(attr_cond=qc, attrs=["U"])[:]
+            assert all(result["U"] < 5)
+
+    def test_unsigned_dense(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask = A.attr("U").fill
 
             qc = tiledb.QueryCondition("U < 5")
             result = A.query(attr_cond=qc, attrs=["U"])[:]
-            if sparse:
-                assert all(result["U"] < 5)
-            else:
-                assert all(self.filter_sparse(result["U"], mask) < 5)
+            assert all(self.filter_sparse(result["U"], mask) < 5)
 
-    @pytest.mark.parametrize("sparse", [True, False])
-    def test_signed(self, sparse):
-        uri = self.create_input_array_UIDSA(sparse)
+    def test_signed_sparse(self):
+        uri = self.create_input_array_UIDSA(sparse=True)
+
+        with tiledb.open(uri) as A:
+            qc = tiledb.QueryCondition("I < 1")
+            result = A.query(attr_cond=qc, attrs=["I"])[:]
+            assert all(result["I"] < 1)
+
+            qc = tiledb.QueryCondition("I < +1")
+            result = A.query(attr_cond=qc, attrs=["I"])[:]
+            assert all(result["I"] < +1)
+
+            qc = tiledb.QueryCondition("I < ---1")
+            result = A.query(attr_cond=qc, attrs=["I"])[:]
+            assert all(result["I"] < ---1)
+
+            qc = tiledb.QueryCondition("-5 < I < 5")
+            result = A.query(attr_cond=qc, attrs=["I"])[:]
+            assert all(-5 < result["I"])
+            assert all(result["I"] < 5)
+
+    def test_signed_dense(self):
+        uri = self.create_input_array_UIDSA(sparse=False)
 
         with tiledb.open(uri) as A:
             mask = A.attr("I").fill
 
             qc = tiledb.QueryCondition("I < 1")
             result = A.query(attr_cond=qc, attrs=["I"])[:]
-            if sparse:
-                assert all(result["I"] < 1)
-            else:
-                assert all(self.filter_sparse(result["I"], mask) < 1)
+            assert all(self.filter_sparse(result["I"], mask) < 1)
 
             qc = tiledb.QueryCondition("I < +1")
             result = A.query(attr_cond=qc, attrs=["I"])[:]
-            if sparse:
-                assert all(result["I"] < +1)
-            else:
-                assert all(self.filter_sparse(result["I"], mask) < +1)
+            assert all(self.filter_sparse(result["I"], mask) < +1)
 
             qc = tiledb.QueryCondition("I < ---1")
             result = A.query(attr_cond=qc, attrs=["I"])[:]
-            if sparse:
-                assert all(result["I"] < ---1)
-            else:
-                assert all(self.filter_sparse(result["I"], mask) < ---1)
+            assert all(self.filter_sparse(result["I"], mask) < ---1)
 
             qc = tiledb.QueryCondition("-5 < I < 5")
             result = A.query(attr_cond=qc, attrs=["I"])[:]
-            if sparse:
-                assert all(-5 < result["I"])
-                assert all(result["I"] < 5)
-            else:
-                assert all(-5 < self.filter_sparse(result["I"], mask))
-                assert all(self.filter_sparse(result["I"], mask) < 5)
+            assert all(-5 < self.filter_sparse(result["I"], mask))
+            assert all(self.filter_sparse(result["I"], mask) < 5)
 
-    @pytest.mark.parametrize("sparse", [True, False])
-    def test_floats(self, sparse):
-        with tiledb.open(self.create_input_array_UIDSA(sparse)) as A:
+    def test_floats_sparse(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            qc = tiledb.QueryCondition("D > 5.0")
+            result = A.query(attr_cond=qc, attrs=["D"])[:]
+            assert all(result["D"] > 5.0)
+
+            qc = tiledb.QueryCondition("(D > 0.7) & (D < 3.5)")
+            result = A.query(attr_cond=qc, attrs=["D"])[:]
+            assert all((result["D"] > 0.7) & (result["D"] < 3.5))
+
+            qc = tiledb.QueryCondition("0.2 < D < 0.75")
+            result = A.query(attr_cond=qc, attrs=["D", "D"])[:]
+            assert all(0.2 < result["D"])
+            assert all(result["D"] < 0.75)
+
+    def test_floats_dense(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask = A.attr("D").fill
 
             qc = tiledb.QueryCondition("D > 5.0")
             result = A.query(attr_cond=qc, attrs=["D"])[:]
-            if sparse:
-                assert all(result["D"] > 5.0)
-            else:
-                assert all(self.filter_sparse(result["D"], mask) > 5.0)
+            assert all(self.filter_sparse(result["D"], mask) > 5.0)
 
             qc = tiledb.QueryCondition("(D > 0.7) & (D < 3.5)")
             result = A.query(attr_cond=qc, attrs=["D"])[:]
-            if sparse:
-                assert all((result["D"] > 0.7) & (result["D"] < 3.5))
-            else:
-                assert all(self.filter_sparse(result["D"], mask) > 0.7)
-                assert all(self.filter_sparse(result["D"], mask) < 3.5)
+            assert all(self.filter_sparse(result["D"], mask) > 0.7)
+            assert all(self.filter_sparse(result["D"], mask) < 3.5)
 
             qc = tiledb.QueryCondition("0.2 < D < 0.75")
             result = A.query(attr_cond=qc, attrs=["D", "D"])[:]
-            if sparse:
-                assert all(0.2 < result["D"])
-                assert all(result["D"] < 0.75)
-            else:
-                assert all(0.2 < self.filter_sparse(result["D"], mask))
-                assert all(self.filter_sparse(result["D"], mask) < 0.75)
+            assert all(0.2 < self.filter_sparse(result["D"], mask))
+            assert all(self.filter_sparse(result["D"], mask) < 0.75)
 
-    @pytest.mark.parametrize("sparse", [True, False])
-    def test_string(self, sparse):
-        with tiledb.open(self.create_input_array_UIDSA(sparse)) as A:
+    def test_string_sparse(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
             qc = tiledb.QueryCondition("S == 'c'")
             result = A.query(attr_cond=qc, attrs=["S"])[:]
-            if sparse:
-                assert len(result["S"]) == 1
-                assert result["S"][0] == b"c"
-            else:
-                assert all(self.filter_sparse(result["S"], A.attr("S").fill) == b"c")
+            assert len(result["S"]) == 1
+            assert result["S"][0] == b"c"
 
             qc = tiledb.QueryCondition("A == 'a'")
             result = A.query(attr_cond=qc, attrs=["A"])[:]
-            if sparse:
-                assert len(result["A"]) == 1
-                assert result["A"][0] == b"a"
-            else:
-                assert all(self.filter_sparse(result["A"], A.attr("A").fill) == b"a")
+            assert len(result["A"]) == 1
+            assert result["A"][0] == b"a"
 
-    @pytest.mark.parametrize("sparse", [True, False])
-    def test_combined_types(self, sparse):
-        with tiledb.open(self.create_input_array_UIDSA(sparse)) as A:
+    def test_string_dense(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
+            qc = tiledb.QueryCondition("S == 'c'")
+            result = A.query(attr_cond=qc, attrs=["S"])[:]
+            assert all(self.filter_sparse(result["S"], A.attr("S").fill) == b"c")
+
+            qc = tiledb.QueryCondition("A == 'a'")
+            result = A.query(attr_cond=qc, attrs=["A"])[:]
+            assert all(self.filter_sparse(result["A"], A.attr("A").fill) == b"a")
+
+    def test_combined_types_sparse(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            qc = tiledb.QueryCondition("(I > 0) & ((-3 < D) & (D < 3.0))")
+            result = A.query(attr_cond=qc, attrs=["I", "D"])[:]
+            assert all((result["I"] > 0) & ((-3 < result["D"]) & (result["D"] < 3.0)))
+
+            qc = tiledb.QueryCondition("U >= 3 and 0.7 < D")
+            result = A.query(attr_cond=qc, attrs=["U", "D"])[:]
+            assert all(result["U"] >= 3) & all(0.7 < result["D"])
+
+            qc = tiledb.QueryCondition("(0.2 < D and D < 0.75) and (-5 < I < 5)")
+            result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
+            assert all((0.2 < result["D"]) & (result["D"] < 0.75))
+            assert all((-5 < result["I"]) & (result["I"] < 5))
+
+            qc = tiledb.QueryCondition("(-5 < I <= -1) and (0.2 < D < 0.75)")
+            result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
+            assert all((0.2 < result["D"]) & (result["D"] < 0.75))
+            assert all((-5 < result["I"]) & (result["I"] <= -1))
+
+            qc = tiledb.QueryCondition("(0.2 < D < 0.75) and (-5 < I < 5)")
+            result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
+            assert all((0.2 < result["D"]) & (result["D"] < 0.75))
+            assert all((-5 < result["I"]) & (result["I"] < 5))
+
+    def test_combined_types_dense(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask_U = A.attr("U").fill
             mask_I = A.attr("I").fill
             mask_D = A.attr("D").fill
 
             qc = tiledb.QueryCondition("(I > 0) & ((-3 < D) & (D < 3.0))")
             result = A.query(attr_cond=qc, attrs=["I", "D"])[:]
-            if sparse:
-                assert all(
-                    (result["I"] > 0) & ((-3 < result["D"]) & (result["D"] < 3.0))
-                )
-            else:
-                res_I = self.filter_sparse(result["I"], mask_I)
-                res_D = self.filter_sparse(result["D"], mask_D)
-                assert all(res_I > 0) & all(-3 < res_D) & all(res_D < 3.0)
+            res_I = self.filter_sparse(result["I"], mask_I)
+            res_D = self.filter_sparse(result["D"], mask_D)
+            assert all(res_I > 0) & all(-3 < res_D) & all(res_D < 3.0)
 
             qc = tiledb.QueryCondition("U >= 3 and 0.7 < D")
             result = A.query(attr_cond=qc, attrs=["U", "D"])[:]
-            if sparse:
-                assert all(result["U"] >= 3) & all(0.7 < result["D"])
-            else:
-                res_U = self.filter_sparse(result["U"], mask_U)
-                res_D = self.filter_sparse(result["D"], mask_D)
-                assert all(res_U >= 3) & all(0.7 < res_D)
+            res_U = self.filter_sparse(result["U"], mask_U)
+            res_D = self.filter_sparse(result["D"], mask_D)
+            assert all(res_U >= 3) & all(0.7 < res_D)
 
             qc = tiledb.QueryCondition("(0.2 < D and D < 0.75) and (-5 < I < 5)")
             result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
-            if sparse:
-                assert all((0.2 < result["D"]) & (result["D"] < 0.75))
-                assert all((-5 < result["I"]) & (result["I"] < 5))
-            else:
-                res_D = self.filter_sparse(result["D"], mask_D)
-                res_I = self.filter_sparse(result["I"], mask_I)
-                assert all((0.2 < res_D) & (res_D < 0.75))
-                assert all((-5 < res_I) & (res_I < 5))
+            res_D = self.filter_sparse(result["D"], mask_D)
+            res_I = self.filter_sparse(result["I"], mask_I)
+            assert all((0.2 < res_D) & (res_D < 0.75))
+            assert all((-5 < res_I) & (res_I < 5))
 
             qc = tiledb.QueryCondition("(-5 < I <= -1) and (0.2 < D < 0.75)")
             result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
-            if sparse:
-                assert all((0.2 < result["D"]) & (result["D"] < 0.75))
-                assert all((-5 < result["I"]) & (result["I"] <= -1))
-            else:
-                res_D = self.filter_sparse(result["D"], mask_D)
-                res_I = self.filter_sparse(result["I"], mask_I)
-                assert all((0.2 < res_D) & (res_D < 0.75))
-                assert all((-5 < res_I) & (res_I <= -1))
+            res_D = self.filter_sparse(result["D"], mask_D)
+            res_I = self.filter_sparse(result["I"], mask_I)
+            assert all((0.2 < res_D) & (res_D < 0.75))
+            assert all((-5 < res_I) & (res_I <= -1))
 
             qc = tiledb.QueryCondition("(0.2 < D < 0.75) and (-5 < I < 5)")
             result = A.query(attr_cond=qc, attrs=["D", "I"])[:]
-            if sparse:
-                assert all((0.2 < result["D"]) & (result["D"] < 0.75))
-                assert all((-5 < result["I"]) & (result["I"] < 5))
-            else:
-                res_D = self.filter_sparse(result["D"], mask_D)
-                res_I = self.filter_sparse(result["I"], mask_I)
-                assert all((0.2 < res_D) & (res_D < 0.75))
-                assert all((-5 < res_I) & (res_I < 5))
+            res_D = self.filter_sparse(result["D"], mask_D)
+            res_I = self.filter_sparse(result["I"], mask_I)
+            assert all((0.2 < res_D) & (res_D < 0.75))
+            assert all((-5 < res_I) & (res_I < 5))
 
-    @pytest.mark.parametrize("sparse", [True, False])
-    def test_check_attrs(self, sparse):
-        with tiledb.open(self.create_input_array_UIDSA(sparse)) as A:
+    def test_check_attrs_sparse(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            qc = tiledb.QueryCondition("U < 0.1")
+            result = A.query(attr_cond=qc, attrs=["U"])[:]
+            assert all(result["U"] < 0.1)
+
+            qc = tiledb.QueryCondition("U < 1.0")
+            result = A.query(attr_cond=qc, attrs=["U"])[:]
+            assert all(result["U"] < 1.0)
+
+            with self.assertRaises(tiledb.TileDBError):
+                qc = tiledb.QueryCondition("U < '1'")
+                A.query(attr_cond=qc, attrs=["U"])[:]
+
+            with self.assertRaises(tiledb.TileDBError):
+                qc = tiledb.QueryCondition("U < 'one'")
+                A.query(attr_cond=qc, attrs=["U"])[:]
+
+            with self.assertRaises(tiledb.TileDBError):
+                qc = tiledb.QueryCondition("U < 1")
+                A.query(attr_cond=qc, attrs=["D"])[:]
+
+    def test_check_attrs_dense(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask = A.attr("U").fill
 
             qc = tiledb.QueryCondition("U < 0.1")
             result = A.query(attr_cond=qc, attrs=["U"])[:]
-            if sparse:
-                assert all(result["U"] < 0.1)
-            else:
-                assert all(self.filter_sparse(result["U"], mask) < 0.1)
+            assert all(self.filter_sparse(result["U"], mask) < 0.1)
 
             qc = tiledb.QueryCondition("U < 1.0")
             result = A.query(attr_cond=qc, attrs=["U"])[:]
-            if sparse:
-                assert all(result["U"] < 1.0)
-            else:
-                assert all(self.filter_sparse(result["U"], mask) < 1.0)
+            assert all(self.filter_sparse(result["U"], mask) < 1.0)
 
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < '1'")
@@ -430,26 +465,33 @@ class QueryConditionTest(DiskTestCase):
         tiledb.libtiledb.version() < (2, 10, 0),
         reason="OR query condition operator introduced in libtiledb 2.10",
     )
-    @pytest.mark.parametrize("sparse", [True, False])
-    def test_or(self, sparse):
-        with tiledb.open(self.create_input_array_UIDSA(sparse)) as A:
+    def test_or_sparse(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            qc = tiledb.QueryCondition("(D < 0.25) | (D > 0.75)")
+            result = A.query(attr_cond=qc, attrs=["D"])[:]
+            assert all((result["D"] < 0.25) | (result["D"] > 0.75))
+
+            qc = tiledb.QueryCondition("(D < 0.25) or (D > 0.75)")
+            result = A.query(attr_cond=qc, attrs=["D"])[:]
+            assert all((result["D"] < 0.25) | (result["D"] > 0.75))
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 10, 0),
+        reason="OR query condition operator introduced in libtiledb 2.10",
+    )
+    def test_or_dense(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask = A.attr("D").fill
 
             qc = tiledb.QueryCondition("(D < 0.25) | (D > 0.75)")
             result = A.query(attr_cond=qc, attrs=["D"])[:]
-            if sparse:
-                assert all((result["D"] < 0.25) | (result["D"] > 0.75))
-            else:
-                res = self.filter_sparse(result["D"], mask)
-                assert all((res < 0.25) | (res > 0.75))
+            res = self.filter_sparse(result["D"], mask)
+            assert all((res < 0.25) | (res > 0.75))
 
             qc = tiledb.QueryCondition("(D < 0.25) or (D > 0.75)")
             result = A.query(attr_cond=qc, attrs=["D"])[:]
-            if sparse:
-                assert all((result["D"] < 0.25) | (result["D"] > 0.75))
-            else:
-                result = self.filter_sparse(result["D"], mask)
-                assert all((res < 0.25) | (res > 0.75))
+            res = self.filter_sparse(result["D"], mask)
+            assert all((res < 0.25) | (res > 0.75))
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version() < (2, 10, 0),
