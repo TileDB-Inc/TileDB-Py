@@ -49,7 +49,19 @@ void init_domain(py::module &m) {
            }),
            py::keep_alive<1, 2>())
       .def_property_readonly("_name", &Dimension::name)
-      .def_property_readonly("domain", &Dimension::domain)
+
+      .def_property_readonly("domain", &Dimension::domain<uint8_t>)
+      .def_property_readonly("domain", &Dimension::domain<uint16_t>)
+      .def_property_readonly("domain", &Dimension::domain<uint32_t>)
+      .def_property_readonly("domain", &Dimension::domain<uint64_t>)
+      .def_property_readonly("domain", &Dimension::domain<int8_t>)
+      .def_property_readonly("domain", &Dimension::domain<int16_t>)
+      .def_property_readonly("domain", &Dimension::domain<int32_t>)
+      .def_property_readonly("domain", &Dimension::domain<int64_t>)
+      .def_property_readonly("domain", &Dimension::domain<float>)
+      .def_property_readonly("domain", &Dimension::domain<double>)
+      .def_property_readonly("domain", &Dimension::domain<std::string>)
+
       // .def_property_readonly("tile", &Dimension::tile_extent)
       .def_property("_filters", &Dimension::filter_list,
                     &Dimension::set_filter_list)
