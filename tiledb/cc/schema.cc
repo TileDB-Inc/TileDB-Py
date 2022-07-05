@@ -24,29 +24,36 @@ void init_schema(py::module &m) {
              return py::capsule(schema.ptr().get(), "schema", nullptr);
            })
 
-      .def("_dump", &ArraySchema::dump) // TODO add FILE* signature support?
-      .def("_dump",
-           [](ArraySchema &schema) {
-             schema.dump();
-           }) // TODO add FILE* signature support?
+      .def("_dump", &ArraySchema::dump)
+      .def("_dump", [](ArraySchema &schema) { schema.dump(); })
 
       .def("_ctx", &ArraySchema::context)
+
       .def_property("_domain", &ArraySchema::domain, &ArraySchema::set_domain)
+
       .def_property_readonly("_array_type", &ArraySchema::array_type)
+
       //  .def_property_readonly("timestamp_range",
       //  &ArraySchema::timestamp_range)
+
       .def_property("_capacity", &ArraySchema::capacity,
                     &ArraySchema::set_capacity)
+
       .def_property("_cell_order", &ArraySchema::cell_order,
                     &ArraySchema::set_cell_order)
+
       .def_property("_tile_order", &ArraySchema::tile_order,
                     &ArraySchema::set_tile_order)
+
       .def_property("_allows_dups", &ArraySchema::allows_dups,
                     &ArraySchema::set_allows_dups)
+
       .def_property("_coords_filters", &ArraySchema::coords_filter_list,
                     &ArraySchema::set_coords_filter_list)
+
       .def_property("_offsets_filters", &ArraySchema::offsets_filter_list,
                     &ArraySchema::set_offsets_filter_list)
+
       .def_property("_validity_filters", &ArraySchema::validity_filter_list,
                     &ArraySchema::set_validity_filter_list)
 
@@ -56,10 +63,16 @@ void init_schema(py::module &m) {
                         &ArraySchema::attribute, py::const_))
       .def("_attr",
            py::overload_cast<unsigned int>(&ArraySchema::attribute, py::const_))
+
       .def_property_readonly("_nattr", &ArraySchema::attribute_num)
-      //  .def("ndim", []() { return domain.ndim })
+
+      .def_property_readonly(
+          "_ndim", [](ArraySchema schema) { return schema.domain().ndim(); })
+
       .def("_add_attr", &ArraySchema::add_attribute)
+
       .def("_check", &ArraySchema::check)
+
       .def("_has_attribute", &ArraySchema::has_attribute);
 }
 
