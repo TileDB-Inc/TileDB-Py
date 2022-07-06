@@ -1801,6 +1801,21 @@ class DenseArrayTest(DiskTestCase):
 
         T.close()
 
+    def test_writing_partial_dense_array(self):
+        uri = self.path("test_writing_partial_dense_array")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 1000), tile=1000, dtype=np.int64))
+        attr = tiledb.Attr(name="rows", dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, sparse=False, attrs=[attr])
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            A[0:1000] = np.arange(1000)
+
+        with tiledb.open(uri) as A:
+            ned = A.nonempty_domain()[0]
+            assert len(A[:]["rows"]) == ned[1] - ned[0] + 1
+
 
 class TestVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
