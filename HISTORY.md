@@ -4,7 +4,8 @@
 * `setup.py` retrieves core version by using `ctypes` to call `tiledb_version` rather than parsing `tiledb_version.h` [#1191](https://github.com/TileDB-Inc/TileDB-Py/pull/1191)
 
 ## API Changes
-* Querying dense array with `[:]` returns shape that matches nonempty domain, consistent with `.df[:]` and .multi_index[:]` [#1199](https://github.com/TileDB-Inc/TileDB-Py/pull/1199)
+* Support `QueryCondition` for dense arrays [#1198](https://github.com/TileDB-Inc/TileDB-Py/pull/1198)
+* Querying dense array with `[:]` returns shape that matches nonempty domain, consistent with `.df[:]` and `.multi_index[:]` [#1199](https://github.com/TileDB-Inc/TileDB-Py/pull/1199)
 
 # TileDB-Py 0.16.1 Release Notes
 
@@ -17,9 +18,9 @@
 * TileDB-Py 0.16.0 includes TileDB Embedded [TileDB 2.10.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.10.0)
 
 ## API Changes
-* Addition of Filestore API [#1070](https://github.com/TileDB-Inc/TileDB-Py/pull/1070)
+* Addition of `Filestore` API [#1070](https://github.com/TileDB-Inc/TileDB-Py/pull/1070)
 * Use `bool` instead of `uint8` for Boolean dtype in `dataframe_.py` [#1154](https://github.com/TileDB-Inc/TileDB-Py/pull/1154)
-* Support QueryCondition OR operator [#1146](https://github.com/TileDB-Inc/TileDB-Py/pull/1146)
+* Support `QueryCondition` OR operator [#1146](https://github.com/TileDB-Inc/TileDB-Py/pull/1146)
 
 # TileDB-Py 0.15.6 Release Notes
 
