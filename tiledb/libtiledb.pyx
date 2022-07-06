@@ -1524,7 +1524,7 @@ def replace_scalars_slice(dom: lt.Domain, idx: tuple):
     return tuple(new_idx), tuple(drop_axes)
 
 
-def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
+def index_domain_subarray(array: Array, dom: lt.Domain, idx: tuple, read_array: bool = False):
     """
     Return a numpy array representation of the tiledb subarray buffer
     for a given domain and tuple of index slices
@@ -2467,7 +2467,7 @@ cdef class Query(object):
         if attrs is not None:
             for name in attrs:
                 if not array.schema.has_attr(name):
-                    raise TileDBError(f"Selected attribute does not exist: '{name}'")
+                    raise lt.TileDBError(f"Selected attribute does not exist: '{name}'")
         self.attrs = attrs
         self.attr_cond = attr_cond
 
@@ -2602,13 +2602,8 @@ cdef class DenseArrayImpl(Array):
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-<<<<<<< HEAD
-        if self.schema.sparse:
-            raise ValueError(f"Array at {self.uri} is not a dense array")
-=======
         if self.schema._array_type == lt.ArrayType.SPARSE:
             raise ValueError("Array at {} is not a dense array".format(self.uri))
->>>>>>> WIP get more of libtiledb.pyx to run with pybind11 code
         return
 
     @staticmethod
@@ -2872,7 +2867,7 @@ cdef class DenseArrayImpl(Array):
         out = OrderedDict()
 
         cdef tuple output_shape
-        domain_dtype = self.domain._dtype
+        domain_dtype = self.domain._numpy_dtype
         is_datetime = domain_dtype.kind == 'M'
         # Using the domain check is valid because dense arrays are homogeneous
         if is_datetime:

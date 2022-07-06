@@ -14,7 +14,7 @@ class Filter(lt.Filter):
     def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.Context(self._ctx.__capsule__(), False), type)
+        super().__init__(lt.Context(self._ctx, False), type)
 
     def __repr__(self) -> str:
         output = io.StringIO()
@@ -80,7 +80,7 @@ class CompressionFilter(Filter):
 
         super().__init__(type, self._ctx)
         self._set_option(
-            lt.Context(self._ctx.__capsule__(), False),
+            lt.Context(self._ctx, False),
             lt.FilterOption.COMPRESSION_LEVEL,
             self._level,
         )
@@ -376,7 +376,7 @@ class BitWidthReductionFilter(Filter):
 
         super().__init__(lt.FilterType.BIT_WIDTH_REDUCTION)
         self._set_option(
-            lt.Context(self._ctx.__capsule__(), False),
+            lt.Context(self._ctx, False),
             lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
             self._window,
         )
@@ -416,7 +416,7 @@ class PositiveDeltaFilter(Filter):
 
         super().__init__(lt.FilterType.POSITIVE_DELTA)
         self._set_option(
-            lt.Context(self._ctx.__capsule__(), False),
+            lt.Context(self._ctx, False),
             lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
             self._window,
         )
@@ -534,7 +534,7 @@ class FilterList(lt.FilterList):
         is_capsule: bool = False,
     ):
         self._ctx = ctx or default_ctx()
-        _cctx = lt.Context(self._ctx.__capsule__(), False)
+        _cctx = lt.Context(self._ctx, False)
 
         if is_capsule:
             super().__init__(_cctx, filters)
@@ -676,7 +676,7 @@ class FilterList(lt.FilterList):
             opt = lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW
 
         if opt is not None:
-            _cctx = lt.Context(self._ctx.__capsule__(), False)
+            _cctx = lt.Context(self._ctx, False)
             filter = filtype(fil._get_option(_cctx, opt), ctx=self._ctx)
         else:
             filter = filtype(self._ctx)

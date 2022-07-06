@@ -1,6 +1,7 @@
 import tiledb
+import tiledb.cc as lt
+
 import numpy as np
-from typing import Iterable
 from tiledb.dataframe_ import ColumnInfo
 
 
@@ -35,3 +36,16 @@ def _sparse_schema_from_dict(input_attrs, input_dims):
 
 def schema_from_dict(attrs, dims):
     return _sparse_schema_from_dict(attrs, dims)
+
+
+def _tiledb_type_is_integer(tdb_type: lt.DataType):
+    return tdb_type in (
+        lt.DataType.UINT8,
+        lt.DataType.INT8,
+        lt.DataType.UINT16,
+        lt.DataType.INT16,
+        lt.DataType.UINT32,
+        lt.DataType.INT32,
+        lt.DataType.UINT64,
+        lt.DataType.INT64,
+    )

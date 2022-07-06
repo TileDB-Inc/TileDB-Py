@@ -54,7 +54,7 @@ void init_domain(py::module &m) {
       .def_property_readonly("_name", &Dimension::name)
 
       .def_property_readonly(
-          "domain",
+          "_domain",
           [](Dimension &dim) {
             switch (dim.type()) {
             case TILEDB_UINT64: {
@@ -102,7 +102,44 @@ void init_domain(py::module &m) {
             }
           })
 
-      // .def_property_readonly("_tile", &Dimension::tile_extent)
+      .def_property_readonly(
+          "_tile",
+          [](Dimension &dim) {
+            switch (dim.type()) {
+            case TILEDB_UINT64: {
+              return py::cast(dim.tile_extent<uint64_t>());
+            }
+            case TILEDB_INT64: {
+              return py::cast(dim.tile_extent<int64_t>());
+            }
+            case TILEDB_UINT32: {
+              return py::cast(dim.tile_extent<uint32_t>());
+            }
+            case TILEDB_INT32: {
+              return py::cast(dim.tile_extent<int32_t>());
+            }
+            case TILEDB_UINT16: {
+              return py::cast(dim.tile_extent<uint16_t>());
+            }
+            case TILEDB_INT16: {
+              return py::cast(dim.tile_extent<int16_t>());
+            }
+            case TILEDB_UINT8: {
+              return py::cast(dim.tile_extent<uint8_t>());
+            }
+            case TILEDB_INT8: {
+              return py::cast(dim.tile_extent<int8_t>());
+            }
+            case TILEDB_FLOAT64: {
+              return py::cast(dim.tile_extent<double>());
+            }
+            case TILEDB_FLOAT32: {
+              return py::cast(dim.tile_extent<float>());
+            }
+            default:
+              TPY_ERROR_LOC("Unsupported dtype for Dimension's tile extent");
+            }
+          })
 
       .def_property("_filters", &Dimension::filter_list,
                     &Dimension::set_filter_list)
@@ -110,8 +147,10 @@ void init_domain(py::module &m) {
       .def_property("_ncell", &Dimension::cell_val_num,
                     &Dimension::set_cell_val_num)
 
+      .def_property_readonly("_tiledb_dtype", &Dimension::type)
+
       .def_property_readonly(
-          "_dtype",
+          "_numpy_dtype",
           [](Dimension &dim) { return tdb_to_np_dtype(dim.type(), 1); })
 
       .def("_domain_to_str", &Dimension::domain_to_str);
