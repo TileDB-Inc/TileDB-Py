@@ -3837,7 +3837,7 @@ cdef class Array(object):
                     continue
 
                 buf_dtype = 'S'
-                start_buf = np.empty(end_size, 'S' + str(start_size))
+                start_buf = np.empty(start_size, 'S' + str(start_size))
                 end_buf = np.empty(end_size, 'S' + str(end_size))
                 start_buf_ptr = np.PyArray_DATA(start_buf)
                 end_buf_ptr = np.PyArray_DATA(end_buf)
@@ -3854,7 +3854,11 @@ cdef class Array(object):
                     _raise_ctx_err(ctx_ptr, rc)
                 if is_empty:
                     return None
-                results.append((start_buf.item(0), end_buf.item(0)))
+
+                if start_size > 0 and end_size > 0:
+                    results.append((start_buf.item(0), end_buf.item(0)))
+                else:
+                    results.append((None, None))
             else:
                 rc = tiledb_array_get_non_empty_domain_from_index(
                         ctx_ptr, array_ptr, dim_idx, start_buf_ptr, &is_empty

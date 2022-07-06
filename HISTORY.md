@@ -3,6 +3,9 @@
 ## Improvements
 * `setup.py` retrieves core version by using `ctypes` to call `tiledb_version` rather than parsing `tiledb_version.h` [#1191](https://github.com/TileDB-Inc/TileDB-Py/pull/1191)
 
+## Bug Fixes
+* Set nonempty domain to `(None, None)` for empty string [#1182](https://github.com/TileDB-Inc/TileDB-Py/pull/1182)
+
 ## API Changes
 * Support `QueryCondition` for dense arrays [#1198](https://github.com/TileDB-Inc/TileDB-Py/pull/1198)
 * Querying dense array with `[:]` returns shape that matches nonempty domain, consistent with `.df[:]` and `.multi_index[:]` [#1199](https://github.com/TileDB-Inc/TileDB-Py/pull/1199)
