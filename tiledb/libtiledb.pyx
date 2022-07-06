@@ -109,6 +109,7 @@ _tiledb_dtype_to_numpy_typeid_convert ={
     TILEDB_INT16: np.NPY_INT16,
     TILEDB_UINT16: np.NPY_UINT16,
     TILEDB_CHAR: np.NPY_STRING,
+    TILEDB_STRING_ASCII: np.NPY_STRING,
     TILEDB_STRING_UTF8: np.NPY_UNICODE,
 }
 IF LIBTILEDB_VERSION_MAJOR >= 2:
@@ -131,7 +132,7 @@ _tiledb_dtype_to_numpy_dtype_convert = {
     TILEDB_INT16: np.int16,
     TILEDB_UINT16: np.uint16,
     TILEDB_CHAR: np.dtype('S1'),
-    TILEDB_STRING_ASCII: np.bytes_,
+    TILEDB_STRING_ASCII: np.dtype('S'),
     TILEDB_STRING_UTF8: np.dtype('U1'),
 }
 IF LIBTILEDB_VERSION_MAJOR >= 2:
@@ -2525,7 +2526,7 @@ def replace_scalars_slice(dom: Domain, idx: tuple):
     return tuple(new_idx), tuple(drop_axes)
 
 
-def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
+def index_domain_subarray(array: Array, dom: Domain, idx: tuple, read_array: bool = False):
     """
     Return a numpy array representation of the tiledb subarray buffer
     for a given domain and tuple of index slices
@@ -2543,9 +2544,17 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
 
         if np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_):
             ned = array.nonempty_domain()
-            (dim_lb, dim_ub) = ned[r] if ned else (None, None)
+            (dim_lb, dim_ub) = ned[r] if ned is not None else (None, None)
         else:
-            (dim_lb, dim_ub) = dim.domain
+            if read_array:
+                ned = array.nonempty_domain()
+                (dim_lb, dim_ub) = (
+                    np.array(ned[r], dim_dtype)
+                    if ned is not None
+                    else dim.domain
+                )
+            else:
+                (dim_lb, dim_ub) = dim.domain
 
 
         dim_slice = idx[r]
@@ -4098,8 +4107,6 @@ cdef class Query(object):
                     raise TileDBError(f"Selected attribute does not exist: '{name}'")
         self.attrs = attrs
         self.attr_cond = attr_cond
-        if attr_cond is not None and not array.schema.sparse:
-            raise TileDBError("QueryConditions may only be applied to sparse arrays")
 
         if order == None:
             if array.schema.sparse:
@@ -4441,7 +4448,7 @@ cdef class DenseArrayImpl(Array):
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
-        subarray = index_domain_subarray(self, self.schema.domain, idx)
+        subarray = index_domain_subarray(self, self.schema.domain, idx, True)
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout,
                                         coords)
