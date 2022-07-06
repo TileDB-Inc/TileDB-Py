@@ -474,7 +474,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         dom = tiledb_array.schema._domain
         for dim_idx,s_range in enumerate(coords_or_subarray):
             dim = dom._dim(dim_idx)
-            dim_dtype = dim._dtype
+            dim_dtype = dim._numpy_dtype
             s_start = np.asarray(s_range[0], dtype=dim_dtype)
             s_end = np.asarray(s_range[1], dtype=dim_dtype)
             s_start_ptr = np.PyArray_DATA(s_start)
@@ -1462,7 +1462,7 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
     return tiledb_order_to_string[order]
 
 def clone_dim_with_name(dim, name):
-    return lt.Dimension(name=name, domain=dim.domain, tile=dim.tile, dtype=dim._dtype, ctx=dim.ctx)
+    return lt.Dimension(name=name, domain=dim.domain, tile=dim.tile, dtype=dim._numpy_dtype, ctx=dim.ctx)
 
 def index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -1538,7 +1538,7 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
     for r in range(ndim):
         # extract lower and upper bounds for domain dimension extent
         dim = dom._dim(r)
-        dim_dtype = dim._dtype
+        dim_dtype = dim._numpy_dtype
 
         if np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_):
             ned = array.nonempty_domain()
@@ -2131,7 +2131,7 @@ cdef class Array(object):
             DeprecationWarning,
         )
         # returns the record array dtype of the coordinate array
-        return np.dtype([(str(dim.name), dim._dtype) for dim in self.schema._domain])
+        return np.dtype([(str(dim.name), dim._numpy_dtype) for dim in self.schema._domain])
 
     @property
     def uri(self):
@@ -3251,8 +3251,8 @@ def index_domain_coords(dom: lt.Domain, idx: tuple, check_ndim: bool):
 
     domain_coords = []
     for dim, sel in zip(dom, idx):
-        dim_is_string = (np.issubdtype(dim._dtype, np.str_) or
-            np.issubdtype(dim._dtype, np.bytes_))
+        dim_is_string = (np.issubdtype(dim._numpy_dtype, np.str_) or
+            np.issubdtype(dim._numpy_dtype, np.bytes_))
 
         if dim_is_string:
             try:
@@ -3261,7 +3261,7 @@ def index_domain_coords(dom: lt.Domain, idx: tuple, check_ndim: bool):
             except Exception as exc:
                 raise lt.TileDBError(f'Dim\' strings may only contain ASCII characters')
         else:
-            domain_coords.append(np.array(sel, dtype=dim._dtype, ndmin=1))
+            domain_coords.append(np.array(sel, dtype=dim._numpy_dtype, ndmin=1))
 
     idx = tuple(domain_coords)
 

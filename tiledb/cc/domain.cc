@@ -25,27 +25,29 @@ void init_domain(py::module &m) {
                throw py::type_error(e.what());
              }
 
-             auto domain_info = domain.request();
-             auto tile_extent_info = tile_extent.request();
-             if (dim_type != TILEDB_STRING_ASCII) {
-               if (!expect_buffer_nbytes(domain_info, dim_type, 2)) {
-                 throw py::value_error(
-                     "Unexpected type/shape for domain buffer!");
-               }
-               if (!expect_buffer_nbytes(tile_extent_info, dim_type, 1)) {
-                 throw py::value_error(
-                     "Unexpected type/shape for domain buffer!");
-               }
-             }
+             py::buffer_info domain_info = domain.request();
+             py::buffer_info tile_extent_info = tile_extent.request();
+             //  if (dim_type != TILEDB_STRING_ASCII) {
+             //    if (!expect_buffer_nbytes(domain_info, dim_type, 2)) {
+             //      throw py::value_error(
+             //          "Unexpected type/shape for domain buffer!");
+             //    }
+             //    if (!expect_buffer_nbytes(tile_extent_info, dim_type, 1)) {
+             //      throw py::value_error(
+             //          "Unexpected type/shape for domain buffer!");
+             //    }
+             //  }
 
-             const void *domain_data =
-                 (dim_type != TILEDB_STRING_ASCII) ? domain_info.ptr : nullptr;
-             const void *tile_extent_data = (dim_type != TILEDB_STRING_ASCII)
-                                                ? tile_extent_info.ptr
-                                                : nullptr;
+             //  const void *domain_data =
+             //      (dim_type != TILEDB_STRING_ASCII) ? domain_info.ptr :
+             //      nullptr;
+             //  const void *tile_extent_data = (dim_type !=
+             //  TILEDB_STRING_ASCII)
+             //                                     ? tile_extent_info.ptr
+             //                                     : nullptr;
 
              return std::make_unique<Dimension>(Dimension::create(
-                 ctx, name, dim_type, domain_data, tile_extent_data));
+                 ctx, name, dim_type, domain_info.ptr, tile_extent_info.ptr));
            }),
            py::keep_alive<1, 2>())
 
@@ -100,7 +102,7 @@ void init_domain(py::module &m) {
             }
           })
 
-      // .def_property_readonly("tile", &Dimension::tile_extent)
+      // .def_property_readonly("_tile", &Dimension::tile_extent)
 
       .def_property("_filters", &Dimension::filter_list,
                     &Dimension::set_filter_list)
@@ -120,8 +122,11 @@ void init_domain(py::module &m) {
       .def_property_readonly("_ncell",
                              [](Domain &dom) { return dom.cell_num(); })
 
+      .def_property_readonly("_tiledb_dtype", &Domain::type)
+
       .def_property_readonly(
-          "_dtype", [](Domain &dom) { return tdb_to_np_dtype(dom.type(), 1); })
+          "_numpy_dtype",
+          [](Domain &dom) { return tdb_to_np_dtype(dom.type(), 1); })
 
       .def_property_readonly("_ndim", &Domain::ndim)
 
