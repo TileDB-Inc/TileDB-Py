@@ -414,7 +414,7 @@ def from_pandas(uri: str, dataframe: "pd.DataFrame", **kwargs):
         * **sparse** - (default True) Create sparse schema
         * **chunksize** - (default None) Maximum number of rows to read at a time. Note that this is also a `pandas.read_csv` argument
                           which `tiledb.read_csv` checks for in order to correctly read a file batchwise.
-        * **index_dims** - Set the df index using a list of existing column names
+        * **index_dims** (``List[str]``) -- List of column name(s) to use as dimension(s) in TileDB array schema. This is the recommended way to create dimensions.
         * **allows_duplicates** - Generated schema should allow duplicates
         * **mode** - (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
         * **attr_filters** - FilterList to apply to Attributes: FilterList or Dict[str -> FilterList] for any attribute(s). Unspecified attributes will use default.
@@ -694,7 +694,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         * Any `pandas.read_csv <https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html>`_ supported keyword argument
         * **ctx** - A TileDB context
         * **sparse** - (default True) Create sparse schema
-        * **index_dims** - Set the df index using a list of existing column names
+        * **index_dims** (``List[str]``) -- List of column name(s) to use as dimension(s) in TileDB array schema. This is the recommended way to create dimensions. (note: the Pandas ``read_csv`` argument ``index_col`` will be passed through if provided, which results in indexes that will be converted to dimnesions by default; however ``index_dims`` is preferred).
         * **allows_duplicates** - Generated schema should allow duplicates
         * **mode** - (default ``ingest``), Ingestion mode: ``ingest``, ``schema_only``, ``append``
         * **attr_filters** - FilterList to apply to Attributes: FilterList or Dict[str -> FilterList] for any attribute(s). Unspecified attributes will use default.
