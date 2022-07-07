@@ -43,8 +43,8 @@ void init_filter(py::module &m) {
       .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
 
       .def("__capsule__",
-           [](FilterList &filterlist) {
-             return py::capsule(filterlist.ptr().get(), "fl", nullptr);
+           [](FilterList &fl) {
+             return py::capsule(fl.ptr().get(), "fl", nullptr);
            })
 
       .def_property("_chunksize", &FilterList::max_chunk_size,

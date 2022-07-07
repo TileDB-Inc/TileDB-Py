@@ -27,24 +27,6 @@ void init_domain(py::module &m) {
 
              py::buffer_info domain_info = domain.request();
              py::buffer_info tile_extent_info = tile_extent.request();
-             //  if (dim_type != TILEDB_STRING_ASCII) {
-             //    if (!expect_buffer_nbytes(domain_info, dim_type, 2)) {
-             //      throw py::value_error(
-             //          "Unexpected type/shape for domain buffer!");
-             //    }
-             //    if (!expect_buffer_nbytes(tile_extent_info, dim_type, 1)) {
-             //      throw py::value_error(
-             //          "Unexpected type/shape for domain buffer!");
-             //    }
-             //  }
-
-             //  const void *domain_data =
-             //      (dim_type != TILEDB_STRING_ASCII) ? domain_info.ptr :
-             //      nullptr;
-             //  const void *tile_extent_data = (dim_type !=
-             //  TILEDB_STRING_ASCII)
-             //                                     ? tile_extent_info.ptr
-             //                                     : nullptr;
 
              return std::make_unique<Dimension>(Dimension::create(
                  ctx, name, dim_type, domain_info.ptr, tile_extent_info.ptr));
@@ -61,6 +43,18 @@ void init_domain(py::module &m) {
               auto dom = dim.domain<uint64_t>();
               return py::make_tuple(dom.first, dom.second);
             }
+            case TILEDB_DATETIME_YEAR:
+            case TILEDB_DATETIME_WEEK:
+            case TILEDB_DATETIME_DAY:
+            case TILEDB_DATETIME_HR:
+            case TILEDB_DATETIME_MIN:
+            case TILEDB_DATETIME_SEC:
+            case TILEDB_DATETIME_MS:
+            case TILEDB_DATETIME_US:
+            case TILEDB_DATETIME_NS:
+            case TILEDB_DATETIME_PS:
+            case TILEDB_DATETIME_FS:
+            case TILEDB_DATETIME_AS:
             case TILEDB_INT64: {
               auto dom = dim.domain<int64_t>();
               return py::make_tuple(dom.first, dom.second);
@@ -109,6 +103,18 @@ void init_domain(py::module &m) {
             case TILEDB_UINT64: {
               return py::cast(dim.tile_extent<uint64_t>());
             }
+            case TILEDB_DATETIME_YEAR:
+            case TILEDB_DATETIME_WEEK:
+            case TILEDB_DATETIME_DAY:
+            case TILEDB_DATETIME_HR:
+            case TILEDB_DATETIME_MIN:
+            case TILEDB_DATETIME_SEC:
+            case TILEDB_DATETIME_MS:
+            case TILEDB_DATETIME_US:
+            case TILEDB_DATETIME_NS:
+            case TILEDB_DATETIME_PS:
+            case TILEDB_DATETIME_FS:
+            case TILEDB_DATETIME_AS:
             case TILEDB_INT64: {
               return py::cast(dim.tile_extent<int64_t>());
             }
@@ -137,7 +143,7 @@ void init_domain(py::module &m) {
               return py::cast(dim.tile_extent<float>());
             }
             default:
-              TPY_ERROR_LOC("Unsupported dtype for Dimension's tile extent");
+              TPY_ERROR_LOC("Unsupported dtype  for Dimension's tile extent");
             }
           })
 

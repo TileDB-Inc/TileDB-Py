@@ -1462,7 +1462,7 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
     return tiledb_order_to_string[order]
 
 def clone_dim_with_name(dim, name):
-    return lt.Dimension(name=name, domain=dim.domain, tile=dim.tile, dtype=dim._numpy_dtype, ctx=dim.ctx)
+    return lt.Dimension(name=name, domain=dim._domain, tile=dim.tile, dtype=dim._numpy_dtype, ctx=dim.ctx)
 
 def index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -1513,7 +1513,7 @@ def replace_scalars_slice(dom: lt.Domain, idx: tuple):
             if isinstance(dim_idx, _inttypes):
                 start = int(dim_idx)
                 if start < 0:
-                    start += int(dim.domain[1]) + 1
+                    start += int(dim._domain[1]) + 1
                 stop = start + 1
             else:
                 start = dim_idx
@@ -1544,8 +1544,15 @@ def index_domain_subarray(array: Array, dom: lt.Domain, idx: tuple, read_array: 
             ned = array.nonempty_domain()
             (dim_lb, dim_ub) = ned[r] if ned else (None, None)
         else:
-            (dim_lb, dim_ub) = dim.domain
-
+            if read_array:
+                ned = array.nonempty_domain()
+                (dim_lb, dim_ub) = (
+                    np.array(ned[r], dim_dtype)
+                    if ned is not None
+                    else dim._domain
+                )
+            else:
+                (dim_lb, dim_ub) = dim._domain
 
         dim_slice = idx[r]
         if not isinstance(dim_slice, slice):

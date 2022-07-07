@@ -527,28 +527,26 @@ class FilterList(lt.FilterList):
     }
 
     def __init__(
-        self,
-        filters: Sequence[Filter] = None,
-        chunksize: int = None,
-        ctx: "Ctx" = None,
-        is_capsule: bool = False,
+        self, filters: Sequence[Filter] = None, chunksize: int = None, ctx: "Ctx" = None
     ):
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
 
-        if is_capsule:
+        if filters is not None and type(filters).__name__ == "PyCapsule":
             super().__init__(_cctx, filters)
+        elif filters is not None and isinstance(filters, lt.FilterList):
+            super().__init__(_cctx)
+            for i in range(filters._nfilters()):
+                self._add_filter(filters._filter(i))
         else:
             super().__init__(_cctx)
-
-            if filters is not None:
-                filters = list(filters)
-                for f in filters:
-                    if not isinstance(f, Filter):
-                        raise ValueError(
-                            "filters argument must be an iterable of TileDB filter objects"
-                        )
-                    self._add_filter(f)
+            filters = None if filters is None else list(filters)
+            for f in filters:
+                if not isinstance(f, Filter):
+                    raise ValueError(
+                        "filters argument must be an iterable of TileDB filter objects"
+                    )
+                self._add_filter(f)
 
         if chunksize is not None:
             self._chunksize = chunksize

@@ -49,3 +49,20 @@ def _tiledb_type_is_integer(tdb_type: lt.DataType):
         lt.DataType.UINT64,
         lt.DataType.INT64,
     )
+
+
+def _tiledb_type_is_datetime(tdb_type: lt.DataType):
+    return tdb_type in (
+        lt.DataType.DATETIME_YEAR,
+        lt.DataType.DATETIME_WEEK,
+        lt.DataType.DATETIME_DAY,
+        lt.DataType.DATETIME_HR,
+        lt.DataType.DATETIME_MIN,
+        lt.DataType.DATETIME_SEC,
+        lt.DataType.DATETIME_MS,
+        lt.DataType.DATETIME_US,
+        lt.DataType.DATETIME_NS,
+        lt.DataType.DATETIME_PS,
+        lt.DataType.DATETIME_FS,
+        lt.DataType.DATETIME_AS,
+    )
