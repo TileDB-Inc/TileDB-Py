@@ -4310,6 +4310,7 @@ cdef class DenseArrayImpl(Array):
             Array.create(uri, schema)
 
         if mode in ("ingest", "append"):
+            kw["mode"] = mode
             with DenseArray(uri, mode='w', ctx=ctx, timestamp=timestamp) as arr:
                 # <TODO> probably need better typecheck here
                 if array.dtype == object:
@@ -4752,6 +4753,7 @@ cdef class DenseArrayImpl(Array):
 
         """
         append_dim = kw.pop("append_dim", None)
+        mode = kw.pop("mode", "ingest")
         start_idx = kw.pop("start_idx", None)
 
         if not self.isopen or self.mode != 'w':
@@ -4791,21 +4793,15 @@ cdef class DenseArrayImpl(Array):
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
-            with Array.load_typed(self.uri) as A:
-                ned = A.nonempty_domain()
-
+            range_start_idx = start_idx or 0
             for n in range(array.ndim):
-                if start_idx is not None:
-                    range_start_idx = start_idx 
-                elif ned is not None:
-                    range_start_idx = ned[n][0]
-                else:
-                    range_start_idx = 0
-                    
                 subarray[n*2] = range_start_idx
                 subarray[n*2 + 1] = array.shape[n] + range_start_idx - 1
 
-            if append_dim is not None:
+            if mode == "append":
+                with Array.load_typed(self.uri) as A:
+                    ned = A.nonempty_domain()
+
                 if array.ndim <= append_dim:
                     raise IndexError("`append_dim` out of range")
                 
