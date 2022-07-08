@@ -11,6 +11,7 @@ import html
 import sys
 import warnings
 from collections import OrderedDict
+from collections.abc import Sequence
 
 from .ctx import default_ctx
 from .filter import FilterList
@@ -240,13 +241,48 @@ def schema_like_numpy(array, ctx=None, **kw):
     tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
 
     attr_name = kw.pop('attr_name', '')
-    dim_dtype = kw.pop('dim_dtype', np.uint64)
+    dim_dtype = kw.pop('dim_dtype', np.dtype("uint64"))
+    full_domain = kw.pop('full_domain', False)
     dims = []
+
     for (dim_num,d) in enumerate(range(array.ndim)):
         # support smaller tile extents by kw
         # domain is based on full shape
         tile_extent = tiling[d] if tiling else array.shape[d]
-        domain = (0, array.shape[d] - 1)
+        if full_domain:
+            if dim_dtype not in (np.bytes_, np.str_):
+                # Use the full type domain, deferring to the constructor
+                dtype_min, dtype_max = dtype_range(dim_dtype)
+                dim_max = dtype_max
+                if dim_dtype.kind == "M":
+                    date_unit = np.datetime_data(dim_dtype)[0]
+                    dim_min = np.datetime64(dtype_min, date_unit)
+                    tile_max = np.iinfo(np.uint64).max - tile_extent
+                    if np.uint64(dtype_max - dtype_min) > tile_max:
+                        dim_max = np.datetime64(dtype_max - tile_extent, date_unit)
+                else:
+                    dim_min = dtype_min
+
+                if np.issubdtype(dim_dtype, np.integer):
+                    tile_max = np.iinfo(np.uint64).max - tile_extent
+                    if np.uint64(dtype_max - dtype_min) > tile_max:
+                        dim_max = dtype_max - tile_extent
+                domain = (dim_min, dim_max)
+            else:
+                domain = (None, None)
+
+            if np.issubdtype(dim_dtype, np.integer) or dim_dtype.kind == "M":
+                # we can't make a tile larger than the dimension range or lower than 1
+                tile_extent = max(1, min(tile_extent, np.uint64(dim_max - dim_min)))
+            elif np.issubdim_dtype(dim_dtype, np.floating):
+                # this difference can be inf
+                with np.errstate(over="ignore"):
+                    dim_range = dim_max - dim_min
+                if dim_range < tile_extent:
+                    tile_extent = np.ceil(dim_range)
+        else:
+            domain = (0, array.shape[d] - 1)
+
         dims.append(Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
 
     var = False
@@ -4240,7 +4276,7 @@ cdef class DenseArrayImpl(Array):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if self.schema.sparse:
-            raise ValueError("Array at {} is not a dense array".format(self.uri))
+            raise ValueError(f"Array at {self.uri} is not a dense array")
         return
 
     @staticmethod
@@ -4250,20 +4286,38 @@ cdef class DenseArrayImpl(Array):
         """
         if not ctx:
             ctx = default_ctx()
+        
+        mode = kw.pop("mode", "ingest")
+        timestamp = kw.pop("timestamp", None)
 
-        # pop the write timestamp before creating schema
-        timestamp = kw.pop('timestamp', None)
+        if mode not in ("ingest", "schema_only", "append"):
+            raise TileDBError(f"Invalid mode specified ('{mode}')")
 
-        schema = schema_like_numpy(array, ctx=ctx, **kw)
-        Array.create(uri, schema)
+        if mode in ("ingest", "schema_only"):
+            try:
+                with Array.load_typed(uri):
+                    raise TileDBError(f"Array URI '{uri}' already exists!")
+            except TileDBError:
+                pass
+        
+        if mode == "append":
+            kw["append_dim"] = kw.get("append_dim", 0)
+            if ArraySchema.load(uri).sparse:
+                raise TileDBError("Cannot append to sparse array")
 
+        if mode in ("ingest", "schema_only"):
+            schema = schema_like_numpy(array, ctx=ctx, **kw)
+            Array.create(uri, schema)
 
-        with DenseArray(uri, mode='w', ctx=ctx, timestamp=timestamp) as arr:
-            # <TODO> probably need better typecheck here
-            if array.dtype == object:
-                arr[:] = array
-            else:
-                arr.write_direct(np.ascontiguousarray(array))
+        if mode in ("ingest", "append"):
+            kw["mode"] = mode
+            with DenseArray(uri, mode='w', ctx=ctx, timestamp=timestamp) as arr:
+                # <TODO> probably need better typecheck here
+                if array.dtype == object:
+                    arr[:] = array
+                else:
+                    arr.write_direct(np.ascontiguousarray(array), **kw)
+
         return DenseArray(uri, mode='r', ctx=ctx)
 
     def __len__(self):
@@ -4687,7 +4741,7 @@ cdef class DenseArrayImpl(Array):
             return array.astype(dtype)
         return array
 
-    def write_direct(self, np.ndarray array not None):
+    def write_direct(self, np.ndarray array not None, **kw):
         """
         Write directly to given array attribute with minimal checks,
         assumes that the numpy array is the same shape as the array's domain
@@ -4698,6 +4752,10 @@ cdef class DenseArrayImpl(Array):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        append_dim = kw.pop("append_dim", None)
+        mode = kw.pop("mode", "ingest")
+        start_idx = kw.pop("start_idx", None)
+
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
         if self.schema.nattr != 1:
@@ -4715,6 +4773,7 @@ cdef class DenseArrayImpl(Array):
 
         cdef void* buff_ptr = np.PyArray_DATA(array)
         cdef uint64_t buff_size = array.nbytes
+        cdef np.ndarray subarray = np.zeros(2*array.ndim, np.uint64)
 
         use_global_order = self.ctx.config().get("py.use_global_order_1d_write", False) == "true"
 
@@ -4733,13 +4792,69 @@ cdef class DenseArrayImpl(Array):
             rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
-            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr, attr_name_ptr, buff_ptr, &buff_size)
+
+            range_start_idx = start_idx or 0
+            for n in range(array.ndim):
+                subarray[n*2] = range_start_idx
+                subarray[n*2 + 1] = array.shape[n] + range_start_idx - 1
+
+            if mode == "append":
+                with Array.load_typed(self.uri) as A:
+                    ned = A.nonempty_domain()
+
+                if array.ndim <= append_dim:
+                    raise IndexError("`append_dim` out of range")
+                
+                if array.ndim != len(ned):
+                    raise ValueError(
+                        "The number of dimension of the TileDB array and "
+                        "Numpy array to append do not match"
+                    )
+
+                for n in range(array.ndim): 
+                    if n == append_dim:
+                        if start_idx is not None:
+                            range_start_idx = start_idx 
+                            range_end_idx = array.shape[n] + start_idx -1
+                        else:
+                            range_start_idx = ned[n][1] + 1
+                            range_end_idx = array.shape[n] + ned[n][1]
+
+                        subarray[n*2] = range_start_idx
+                        subarray[n*2 + 1] = range_end_idx
+                    else:
+                        if array.shape[n] != ned[n][1] - ned[n][0] + 1:
+                            raise ValueError(
+                                "The input Numpy array must be of the same "
+                                "shape as the TileDB array, exluding the "
+                                "`append_dim`, but the Numpy array at index "
+                                f"{n} has {array.shape[n]} dimension(s) and "
+                                f"the TileDB array has {ned[n][1]-ned[n][0]}."
+                            )
+            
+            rc = tiledb_query_set_subarray(
+                    ctx_ptr, 
+                    query_ptr, 
+                    <void*>np.PyArray_DATA(subarray)
+            )
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_query_set_buffer(
+                    ctx_ptr, 
+                    query_ptr, 
+                    attr_name_ptr, 
+                    buff_ptr, 
+                    &buff_size
+            )
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
             with nogil:
                 rc = tiledb_query_submit(ctx_ptr, query_ptr)
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
+
             with nogil:
                 rc = tiledb_query_finalize(ctx_ptr, query_ptr)
             if rc != TILEDB_OK:

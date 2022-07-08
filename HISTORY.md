@@ -9,6 +9,7 @@
 ## API Changes
 * Support `QueryCondition` for dense arrays [#1198](https://github.com/TileDB-Inc/TileDB-Py/pull/1198)
 * Querying dense array with `[:]` returns shape that matches nonempty domain, consistent with `.df[:]` and `.multi_index[:]` [#1199](https://github.com/TileDB-Inc/TileDB-Py/pull/1199)
+* Addition of `from_numpy` support for `mode={ingest,schema_only,append}` [#1185](https://github.com/TileDB-Inc/TileDB-Py/pull/1185)
 
 # TileDB-Py 0.16.1 Release Notes
 
