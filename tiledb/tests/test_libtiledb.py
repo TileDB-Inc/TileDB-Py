@@ -5,7 +5,6 @@ import os
 import pickle
 import random
 import re
-from tkinter import NONE
 import urllib
 import subprocess
 import sys
