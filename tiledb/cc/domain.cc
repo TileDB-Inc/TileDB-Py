@@ -19,19 +19,34 @@ void init_domain(py::module &m) {
                        py::dtype datatype, py::buffer domain,
                        py::buffer tile_extent) {
              tiledb_datatype_t dim_type;
+             void *dim_dom = nullptr;
+             void *dim_tile = nullptr;
+
              try {
                dim_type = np_to_tdb_dtype(datatype);
              } catch (const TileDBPyError &e) {
                throw py::type_error(e.what());
              }
 
-             py::buffer_info domain_info = domain.request();
-             py::buffer_info tile_extent_info = tile_extent.request();
+             if (dim_type != TILEDB_STRING_ASCII) {
+               py::buffer_info domain_info = domain.request();
+               py::buffer_info tile_extent_info = tile_extent.request();
 
-             return std::make_unique<Dimension>(Dimension::create(
-                 ctx, name, dim_type, domain_info.ptr, tile_extent_info.ptr));
+               dim_dom = domain_info.ptr;
+               dim_tile = tile_extent_info.ptr;
+             }
+
+             return std::make_unique<Dimension>(
+                 Dimension::create(ctx, name, dim_type, dim_dom, dim_tile));
            }),
            py::keep_alive<1, 2>())
+
+      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
+
+      .def("__capsule__",
+           [](Dimension &dim) {
+             return py::capsule(dim.ptr().get(), "dim", nullptr);
+           })
 
       .def_property_readonly("_name", &Dimension::name)
 
@@ -183,7 +198,9 @@ void init_domain(py::module &m) {
 
       .def("_has_dim", &Domain::has_dimension)
 
-      .def("_add_dim", &Domain::add_dimension);
+      .def("_add_dim", &Domain::add_dimension)
+
+      .def("_dump", [](Domain &dom) { dom.dump(); });
 }
 
 } // namespace libtiledbcpp

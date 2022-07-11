@@ -27,10 +27,22 @@ class Dim(lt.Dimension):
         ctx: "Ctx" = None,
     ):
         self._ctx = ctx or default_ctx()
-        cctx = lt.Context(self._ctx, False)
+        _cctx = lt.Context(self._ctx, False)
+
+        if isinstance(name, lt.Dimension):
+            dim = name
+            name = dim._name
+            dtype = dim._numpy_dtype
+            domain = dim._domain
+            tile = dim._tile
 
         domain = np.array(domain)
         tile = np.array([tile])
+
+        if np.issubdtype(np.dtype(dtype), np.datetime64) and not np.issubdtype(
+            domain.dtype, np.datetime64
+        ):
+            raise TypeError("datetime dimension must have datetime domain")
 
         if np.issubdtype(domain.dtype, np.datetime64):
             domain = np.array(domain, dtype=np.uint64)
@@ -38,8 +50,7 @@ class Dim(lt.Dimension):
         if np.issubdtype(tile.dtype, np.timedelta64):
             tile = np.array(tile, dtype=np.uint64)
 
-        # dtype needs to be tiledb type
-        super().__init__(cctx, name, np.dtype(dtype), domain, tile)
+        super().__init__(_cctx, name, np.dtype(dtype), domain, tile)
 
         if filters is not None:
             self._filters = FilterList(filters)
@@ -181,17 +192,17 @@ class Dim(lt.Dimension):
             )
         return ((self._domain[1] - self._domain[0] + 1),)
 
-    # @property
-    # def size(self):
-    #     """The size of the dimension domain (number of cells along dimension).
+    @property
+    def size(self):
+        """The size of the dimension domain (number of cells along dimension).
 
-    #     :rtype: int
-    #     :raises TypeError: floating point (inexact) domain
+        :rtype: int
+        :raises TypeError: floating point (inexact) domain
 
-    #     """
-    #     if not self._integer_domain():
-    #         raise TypeError("size only valid for integer dimension domains")
-    #     return int(self._shape()[0])
+        """
+        if not _tiledb_type_is_integer(self._tiledb_dtype):
+            raise TypeError("size only valid for integer dimension domains")
+        return int(self._ncell)
 
     @property
     def tile(self):
