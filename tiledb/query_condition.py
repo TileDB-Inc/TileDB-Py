@@ -23,6 +23,10 @@ class QueryCondition:
     Class representing a TileDB query condition object for attribute filtering
     pushdown.
 
+    A query condition is set with a string representing an expression
+    as defined by the grammar below. A more straight forward example of usage is
+    given beneath.
+
     When querying a sparse array, only the values that satisfy the given
     condition are returned (coupled with their associated coordinates). An example
     may be found in `examples/query_condition_sparse.py`.
@@ -30,11 +34,9 @@ class QueryCondition:
     For dense arrays, the given shape of the query matches the shape of the output
     array. Values that DO NOT satisfy the given condition are filled with the
     TileDB default fill value. Different attribute types have different default
-    fill values as outlined here (https://docs.tiledb.com/main/background/internal-mechanics/writing#default-fill-values). An example may be found in `examples/query_condition_dense.py`.
-
-    Set the query condition with a string representing an expression
-    as defined by the grammar below. A more straight forward example of usage is
-    given beneath.
+    fill values as outlined here
+    (https://docs.tiledb.com/main/background/internal-mechanics/writing#default-fill-values).
+    An example may be found in `examples/query_condition_dense.py`.
 
     **BNF:**
 
@@ -56,14 +58,26 @@ class QueryCondition:
 
     We intend to support ``not`` in future releases.
 
-    A Boolean expression contains a comparison operator. The operator works on a
+    A Boolean expression may either be a comparison expression or membership
+    expression.
+
+        ``bool_expr ::= compare_expr | member_expr``
+
+    A comparison expression contains a comparison operator. The operator works on a
     TileDB attribute name and value.
 
-        ``bool_expr ::= attr compare_op val | val compare_op attr | val compare_op attr compare_op val``
+        ``compare_expr ::= attr compare_op val
+            | val compare_op attr
+            | val compare_op attr compare_op val``
 
     All comparison operators are supported.
 
         ``compare_op ::= < | > | <= | >= | == | !=``
+
+    A memership expression contains the membership operator, ``in``. The operator
+    works on a TileDB attribute and list of values.
+
+        ``member_expr ::= attr in <list>``
 
     TileDB attribute names are Python valid variables or a ``attr()`` casted string.
 
@@ -79,9 +93,15 @@ class QueryCondition:
     >>>     # Select cells where the attribute values for `foo` are less than 5
     >>>     # and `bar` equal to string "asdf".
     >>>     # Note precedence is equivalent to:
-    >>>     # (foo > 5 or ('asdf' == attr('b a r') and baz <= val(1.0)))
-    >>>     qc = QueryCondition("foo > 5 or 'asdf' == attr('b a r') and baz <= val(1.0)")
+    >>>     # tiledb.QueryCondition("foo > 5 or ('asdf' == attr('b a r') and baz <= val(1.0))")
+    >>>     qc = tiledb.QueryCondition("foo > 5 or 'asdf' == attr('b a r') and baz <= val(1.0)")
     >>>     A.query(attr_cond=qc)
+    >>>
+    >>>     # Select cells where the attribute values for `foo` are equal to
+    >>>     # 1, 2, or 3.
+    >>>     # Note this is equivalent to:
+    >>>     # tiledb.QueryCondition("foo == 1 or foo == 2 or foo == 3")
+    >>>     A.query(attr_cond=tiledb.QueryCondition("foo in [1, 2, 3]"))
     """
 
     expression: str
@@ -151,21 +171,52 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_NotEq(self, node):
         return qc.TILEDB_NE
 
-    def visit_Compare(self, node: Type[ast.Compare]) -> PyQueryCondition:
-        result = self.aux_visit_Compare(
-            self.visit(node.left),
-            self.visit(node.ops[0]),
-            self.visit(node.comparators[0]),
-        )
+    def visit_In(self, node):
+        return node
 
-        # Handling cases val < attr < val
-        for lhs, op, rhs in zip(
-            node.comparators[:-1], node.ops[1:], node.comparators[1:]
+    def visit_List(self, node):
+        return list(node.elts)
+
+    def visit_Compare(self, node: Type[ast.Compare]) -> PyQueryCondition:
+        operator = self.visit(node.ops[0])
+
+        if operator in (
+            qc.TILEDB_GT,
+            qc.TILEDB_GE,
+            qc.TILEDB_LT,
+            qc.TILEDB_LE,
+            qc.TILEDB_EQ,
+            qc.TILEDB_NE,
         ):
-            value = self.aux_visit_Compare(
-                self.visit(lhs), self.visit(op), self.visit(rhs)
+            result = self.aux_visit_Compare(
+                self.visit(node.left),
+                operator,
+                self.visit(node.comparators[0]),
             )
-            result = result.combine(value, qc.TILEDB_AND)
+
+            # Handling cases val < attr < val
+            for lhs, op, rhs in zip(
+                node.comparators[:-1], node.ops[1:], node.comparators[1:]
+            ):
+                value = self.aux_visit_Compare(
+                    self.visit(lhs), self.visit(op), self.visit(rhs)
+                )
+                result = result.combine(value, qc.TILEDB_AND)
+        elif isinstance(operator, ast.In):
+            rhs = node.comparators[0]
+            if not isinstance(rhs, ast.List):
+                raise tiledb.TileDBError(
+                    f"`in` operator syntax must be written as `attr in ['l', 'i', 's', 't']`"
+                )
+
+            consts = self.visit(rhs)
+            result = self.aux_visit_Compare(
+                self.visit(node.left), qc.TILEDB_EQ, consts[0]
+            )
+
+            for val in consts[1:]:
+                value = self.aux_visit_Compare(self.visit(node.left), qc.TILEDB_EQ, val)
+                result = result.combine(value, qc.TILEDB_OR)
 
         return result
 

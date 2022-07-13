@@ -548,3 +548,62 @@ class QueryConditionTest(DiskTestCase):
             qc = tiledb.QueryCondition("a == 1 or (b == 1 and c == 1)")
             result = A.query(attr_cond=qc)[:]
             assert all(result["a"] | result["b"] & result["c"])
+
+    def test_in_operator_sparse(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            qc = tiledb.QueryCondition("U in [1, 2, 3]")
+            result = A.query(attr_cond=qc, attrs=["U"])[:]
+            for val in result["U"]:
+                assert val in [1, 2, 3]
+
+            qc = tiledb.QueryCondition("S in ['a', 'e', 'i', 'o', 'u']")
+            result = A.query(attr_cond=qc, attrs=["S"])[:]
+            for val in result["S"]:
+                assert val in [b"a", b"e", b"i", b"o", b"u"]
+
+            qc = tiledb.QueryCondition(
+                "S in ['a', 'e', 'i', 'o', 'u'] and U in [5, 6, 7]"
+            )
+            result = A.query(attr_cond=qc)[:]
+            for val in result["U"]:
+                assert val in [5, 6, 7]
+            for val in result["S"]:
+                assert val in [b"a", b"e", b"i", b"o", b"u"]
+
+            result = A.query(attr_cond=tiledb.QueryCondition("U in [8]"))[:]
+            for val in result["U"]:
+                assert val == 8
+
+            result = A.query(attr_cond=tiledb.QueryCondition("S in ['8']"))[:]
+            assert len(result["S"]) == 0
+
+    def test_in_operator_dense(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
+            U_mask = A.attr("U").fill
+            S_mask = A.attr("S").fill
+
+            qc = tiledb.QueryCondition("U in [1, 2, 3]")
+            result = A.query(attr_cond=qc, attrs=["U"])[:]
+            for val in self.filter_sparse(result["U"], U_mask):
+                assert val in [1, 2, 3]
+
+            qc = tiledb.QueryCondition("S in ['a', 'e', 'i', 'o', 'u']")
+            result = A.query(attr_cond=qc, attrs=["S"])[:]
+            for val in self.filter_sparse(result["S"], S_mask):
+                assert val in [b"a", b"e", b"i", b"o", b"u"]
+
+            qc = tiledb.QueryCondition(
+                "S in ['a', 'e', 'i', 'o', 'u'] and U in [5, 6, 7]"
+            )
+            result = A.query(attr_cond=qc)[:]
+            for val in self.filter_sparse(result["U"], U_mask):
+                assert val in [5, 6, 7]
+            for val in self.filter_sparse(result["S"], S_mask):
+                assert val in [b"a", b"e", b"i", b"o", b"u"]
+
+            result = A.query(attr_cond=tiledb.QueryCondition("U in [8]"))[:]
+            for val in self.filter_sparse(result["U"], U_mask):
+                assert val == 8
+
+            result = A.query(attr_cond=tiledb.QueryCondition("S in ['8']"))[:]
+            assert len(self.filter_sparse(result["S"], S_mask)) == 0

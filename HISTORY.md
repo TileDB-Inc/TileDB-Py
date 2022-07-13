@@ -1,3 +1,8 @@
+# In Progress
+
+## API Changes
+* Addition of `in` operator for `QueryCondition` [#1214](https://github.com/TileDB-Inc/TileDB-Py/pull/1214)
+
 # TileDB-Py 0.16.3 Release Notes
 
 ## Packaging Notes
