@@ -3,6 +3,11 @@
 ## API Changes
 * Addition of `in` operator for `QueryCondition` [#1214](https://github.com/TileDB-Inc/TileDB-Py/pull/1214)
 
+# TileDB-Py 0.16.3 Release Notes
+
+## Packaging Notes
+* This removes `import tkinter` from `test_libtiledb.py` which was preventing the conda package from building properly
+
 # TileDB-Py 0.16.2 Release Notes
 
 ## TileDB Embedded updates:
