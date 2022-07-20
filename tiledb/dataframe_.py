@@ -479,7 +479,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
 
     # TODO: disentangle the full_domain logic
     full_domain = tiledb_args.get("full_domain", False)
-    if sparse == False and (not index_dims or "index_col" not in kwargs):
+    if sparse == False and (not index_dims or "index_col" not in tiledb_args):
         full_domain = True
     if full_domain is None and tiledb_args.get("nrows"):
         full_domain = False
