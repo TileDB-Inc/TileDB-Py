@@ -47,7 +47,7 @@ class TestDaskSupport(DiskTestCase):
         tiledb.DenseArray.create(uri, schema)
 
     @pytest.mark.xfail(
-        datetime.now() < datetime(2022, 7, 19),
+        datetime.now() < datetime(2022, 8, 2),
         reason=(
             "`DeprecationWarning` being thrown by Dask but will be fixed by "
             "https://github.com/dask/distributed/issues/6163"
