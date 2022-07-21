@@ -249,8 +249,11 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
                 dim_min = dtype_min
 
             if np.issubdtype(dtype, np.integer):
-                tile_max = np.iinfo(np.uint64).max - tile
-                if np.uint64(dtype_max - dtype_min) > tile_max:
+                tile_max = np.iinfo(dtype).max - tile
+
+                if tile_max < 0:
+                    dim_max -= 1
+                elif dtype_max - dtype_min > tile_max:
                     dim_max = dtype_max - tile
         else:
             dim_min, dim_max = None, None
@@ -479,7 +482,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
 
     # TODO: disentangle the full_domain logic
     full_domain = tiledb_args.get("full_domain", False)
-    if sparse == False and (not index_dims or "index_col" not in kwargs):
+    if sparse == False and (not index_dims or "index_col" not in tiledb_args):
         full_domain = True
     if full_domain is None and tiledb_args.get("nrows"):
         full_domain = False

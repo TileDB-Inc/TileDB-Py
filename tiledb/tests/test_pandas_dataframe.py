@@ -1,3 +1,4 @@
+from curses import A_ATTRIBUTES
 import pytest
 
 pd = pytest.importorskip("pandas")
@@ -1475,6 +1476,48 @@ class TestFromPandasOptions(DiskTestCase):
                     tiledb.from_pandas(uri, df, **{opt: f})
                     with tiledb.open(uri) as A:
                         assert_filters_eq(getter(A), f)
+
+    @pytest.mark.parametrize(
+        "dtype",
+        [
+            np.uint8,
+            np.uint16,
+            np.uint32,
+            np.uint64,
+            np.int8,
+            np.int16,
+            np.int32,
+            np.int64,
+        ],
+    )
+    def test_full_domain(self, dtype):
+        uri = self.path("test_full_domain")
+
+        df = pd.DataFrame(
+            {
+                "d": np.random.randint(0, 10, size=10, dtype=dtype),
+                "a": np.random.random(size=10),
+            }
+        )
+
+        tiledb.from_pandas(
+            uri,
+            df,
+            index_dims=["d"],
+            sparse=True,
+            full_domain=True,
+        )
+
+        with tiledb.open(uri, "r") as A:
+            dim = A.dim("d")
+            iinfo = np.iinfo(dtype)
+            assert dim.domain[0] == iinfo.min
+            if dtype in (np.uint8, np.int8):
+                assert A.dim("d").tile == 254
+                assert dim.domain[1] == iinfo.max - 1
+            else:
+                assert A.dim("d").tile == 10000
+                assert dim.domain[1] == iinfo.max - A.dim("d").tile
 
 
 ###############################################################################
