@@ -1,10 +1,6 @@
 TileDB Python API Reference
 ===========================
 
-.. warning::
-
-   The Python interface to TileDB is still under development and the API is subject to change.
-
 Modules
 -------
 
