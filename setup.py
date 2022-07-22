@@ -94,7 +94,24 @@ def _libtiledb_exists(library_dirs):
     try:
         # note: this is a relative path on linux
         #       https://bugs.python.org/issue21042
-        CDLL(lib_name)
+
+        lib = CDLL(lib_name)
+
+        if os.name == "posix":
+            # Workaround to retrieving full path of shared library based
+            # on https://stackoverflow.com/a/35683698
+
+            dlinfo = lib.dlinfo
+            dlinfo.argtypes = c_void_p, c_int, c_void_p
+            dlinfo.restype = c_int
+
+            class LINKMAP(Structure):
+                _fields_ = [("l_addr", c_void_p), ("l_name", c_char_p)]
+
+            lmptr = POINTER(LINKMAP)()
+            dlinfo(lib._handle, 2, byref(lmptr))
+            lib_name = lmptr.contents.l_name.decode()
+
         return lib_name
     except:
         pass
