@@ -1,7 +1,13 @@
 # In Progress
 
+## Improvements
+* `setup.py` revert back to retrieving core version by using `ctypes` by parsing `tiledb_version.h`; the tiledb shared object lib now returns back a full path [#1226](https://github.com/TileDB-Inc/TileDB-Py/pull/1226)
+
 ## API Changes
 * Addition of `in` operator for `QueryCondition` [#1214](https://github.com/TileDB-Inc/TileDB-Py/pull/1214)
+
+## Bug Fixes
+* Deprecate `Filestore.import_uri` in lieu of `Filestore.copy_from` [#1226](https://github.com/TileDB-Inc/TileDB-Py/pull/1226)
 
 # TileDB-Py 0.16.3 Release Notes
 

@@ -83,12 +83,15 @@ public:
 
 void init_filestore(py::module &m) {
   py::class_<Filestore>(m, "Filestore")
-      .def_static("_schema_create", &Filestore::schema_create)
-      .def_static("_uri_import", &Filestore::uri_import)
-      .def_static("_uri_export", &Filestore::uri_export)
-      .def_static("_buffer_import", &Filestore::buffer_import)
-      .def_static("_buffer_export", &Filestore::buffer_export)
-      .def_static("_size", &Filestore::size)
+      .def_static("_schema_create", &Filestore::schema_create,
+                  py::keep_alive<1, 2>())
+      .def_static("_uri_import", &Filestore::uri_import, py::keep_alive<1, 2>())
+      .def_static("_uri_export", &Filestore::uri_export, py::keep_alive<1, 2>())
+      .def_static("_buffer_import", &Filestore::buffer_import,
+                  py::keep_alive<1, 2>())
+      .def_static("_buffer_export", &Filestore::buffer_export,
+                  py::keep_alive<1, 2>())
+      .def_static("_size", &Filestore::size, py::keep_alive<1, 2>())
       .def_static("_mime_type_to_str", &Filestore::mime_type_to_str)
       .def_static("_mime_type_from_str", &Filestore::mime_type_from_str);
   ;
