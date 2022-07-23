@@ -94,7 +94,24 @@ def _libtiledb_exists(library_dirs):
     try:
         # note: this is a relative path on linux
         #       https://bugs.python.org/issue21042
-        CDLL(lib_name)
+
+        lib = CDLL(lib_name)
+
+        if os.name == "posix":
+            # Workaround to retrieving full path of shared library based
+            # on https://stackoverflow.com/a/35683698
+
+            dlinfo = lib.dlinfo
+            dlinfo.argtypes = c_void_p, c_int, c_void_p
+            dlinfo.restype = c_int
+
+            class LINKMAP(Structure):
+                _fields_ = [("l_addr", c_void_p), ("l_name", c_char_p)]
+
+            lmptr = POINTER(LINKMAP)()
+            dlinfo(lib._handle, 2, byref(lmptr))
+            lib_name = lmptr.contents.l_name.decode()
+
         return lib_name
     except:
         pass
@@ -284,7 +301,7 @@ def find_or_install_libtiledb(setuptools_cmd):
     if wheel_build and is_windows() and lib_exists:
         do_install = True
 
-    print("prefix_dir: ", prefix_dir or None)
+    print("prefix_dir: ", prefix_dir)
     print("do_install: ", do_install)
 
     if do_install:
@@ -377,34 +394,25 @@ def find_or_install_libtiledb(setuptools_cmd):
         print("-------------------\n")
         setuptools_cmd.distribution.package_data.update({"tiledb": libtiledb_objects})
 
-    libtiledbso = CDLL(
-        lib_exists or os.path.join(dest_dir, libtiledb_library_names()[0])
+    libtiledb_dir = (
+        os.path.dirname(os.path.dirname(lib_exists)) if lib_exists else prefix_dir
     )
-
-    libtiledbso.tiledb_version.argtypes = [
-        POINTER(c_int),
-        POINTER(c_int),
-        POINTER(c_int),
-    ]
-    major, minor, patch = c_int(), c_int(), c_int()
-    libtiledbso.tiledb_version(major, minor, patch)
+    version_header = os.path.join(
+        libtiledb_dir, "include", "tiledb", "tiledb_version.h"
+    )
+    with open(version_header) as header:
+        lines = list(header)[-3:]
+        major, minor, patch = [int(l.split()[-1]) for l in lines]
 
     ext_attr_update(
         "cython_compile_time_env",
         {
             "TILEDBPY_MODULAR": TILEDBPY_MODULAR,
-            "LIBTILEDB_VERSION_MAJOR": major.value,
-            "LIBTILEDB_VERSION_MINOR": minor.value,
-            "LIBTILEDB_VERSION_PATCH": patch.value,
+            "LIBTILEDB_VERSION_MAJOR": major,
+            "LIBTILEDB_VERSION_MINOR": minor,
+            "LIBTILEDB_VERSION_PATCH": patch,
         },
     )
-
-    if is_windows():
-        from ctypes.wintypes import HMODULE
-
-        kernel32 = WinDLL("kernel32", use_last_error=True)
-        kernel32.FreeLibrary.argtypes = [HMODULE]
-        kernel32.FreeLibrary(libtiledbso._handle)
 
 
 class LazyCommandClass(dict):
