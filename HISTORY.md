@@ -5,6 +5,7 @@
 
 ## API Changes
 * Addition of `in` operator for `QueryCondition` [#1214](https://github.com/TileDB-Inc/TileDB-Py/pull/1214)
+* Revert `.df[:]` to return entire domain rather than nonempty domain []()
 
 ## Bug Fixes
 * Deprecate `Filestore.import_uri` in lieu of `Filestore.copy_from` [#1226](https://github.com/TileDB-Inc/TileDB-Py/pull/1226)
