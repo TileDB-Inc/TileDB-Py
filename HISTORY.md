@@ -5,7 +5,7 @@
 
 ## API Changes
 * Addition of `in` operator for `QueryCondition` [#1214](https://github.com/TileDB-Inc/TileDB-Py/pull/1214)
-* Revert `.df[:]` to return entire array rather than nonempty domain [#1261](https://github.com/TileDB-Inc/TileDB-Py/pull/1261)
+* Revert the regular indexer `[:]` to return entire array rather than nonempty domain in order to maintain NumPy semantics [#1261](https://github.com/TileDB-Inc/TileDB-Py/pull/1261)
 
 ## Bug Fixes
 * Deprecate `Filestore.import_uri` in lieu of `Filestore.copy_from` [#1226](https://github.com/TileDB-Inc/TileDB-Py/pull/1226)
