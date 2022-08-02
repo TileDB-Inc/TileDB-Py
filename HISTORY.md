@@ -2,7 +2,7 @@
 
 ## Improvements
 * `setup.py` revert back to retrieving core version by using `ctypes` by parsing `tiledb_version.h`; the tiledb shared object lib now returns back a full path [#1226](https://github.com/TileDB-Inc/TileDB-Py/pull/1226)
-* Update minimum required cmake version to =>3.23; required for building `libtiledb` []()
+* Update minimum required cmake version to =>3.23; required for building `libtiledb` [#1260](https://github.com/TileDB-Inc/TileDB-Py/pull/1260)
 
 ## API Changes
 * Addition of `in` operator for `QueryCondition` [#1214](https://github.com/TileDB-Inc/TileDB-Py/pull/1214)
