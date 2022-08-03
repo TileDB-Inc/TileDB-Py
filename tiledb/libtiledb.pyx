@@ -2562,7 +2562,7 @@ def replace_scalars_slice(dom: Domain, idx: tuple):
     return tuple(new_idx), tuple(drop_axes)
 
 
-def index_domain_subarray(array: Array, dom: Domain, idx: tuple, read_array: bool = False):
+def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
     """
     Return a numpy array representation of the tiledb subarray buffer
     for a given domain and tuple of index slices
@@ -2580,17 +2580,9 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple, read_array: boo
 
         if np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_):
             ned = array.nonempty_domain()
-            (dim_lb, dim_ub) = ned[r] if ned is not None else (None, None)
+            (dim_lb, dim_ub) = ned[r] if ned else (None, None)
         else:
-            if read_array:
-                ned = array.nonempty_domain()
-                (dim_lb, dim_ub) = (
-                    np.array(ned[r], dim_dtype)
-                    if ned is not None
-                    else dim.domain
-                )
-            else:
-                (dim_lb, dim_ub) = dim.domain
+            (dim_lb, dim_ub) = dim.domain
 
 
         dim_slice = idx[r]
@@ -4502,7 +4494,7 @@ cdef class DenseArrayImpl(Array):
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
-        subarray = index_domain_subarray(self, self.schema.domain, idx, True)
+        subarray = index_domain_subarray(self, self.schema.domain, idx)
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout,
                                         coords)
