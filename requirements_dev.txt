@@ -3,8 +3,7 @@ numpy >= 1.16.5
 # ------------------------------------------------
 # ** MUST sync with misc/requirements_wheel.txt **
 # ------------------------------------------------
-# Note 11/23/2021: the current version of the AWS sdk does not work with cmake 3.22
-cmake >= 3.21, < 3.22
+cmake >= 3.23
 cython >= 0.27
 pybind11 >= 2.6.2
 setuptools >= 18.0, <= 59.5.0
