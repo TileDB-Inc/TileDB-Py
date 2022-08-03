@@ -1,4 +1,7 @@
-# In Progress
+# TileDB-Py 0.16.4 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.16.4 includes TileDB Embedded [TileDB 2.10.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.10.3)
 
 ## Improvements
 * `setup.py` revert back to retrieving core version by using `ctypes` by parsing `tiledb_version.h`; the tiledb shared object lib now returns back a full path [#1226](https://github.com/TileDB-Inc/TileDB-Py/pull/1226)
