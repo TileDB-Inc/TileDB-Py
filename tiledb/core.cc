@@ -54,6 +54,9 @@ struct StatsInfo {
 };
 
 bool config_has_key(tiledb::Config config, std::string key) {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
+  return config.contains(key);
+#else
   try {
     config.get(key);
   } catch (TileDBError &e) {
@@ -61,6 +64,7 @@ bool config_has_key(tiledb::Config config, std::string key) {
     return false;
   }
   return true;
+#endif
 }
 
 struct PAPair {
