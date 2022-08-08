@@ -1849,13 +1849,7 @@ class TestVarlen(DiskTestCase):
             assert_array_equal(A, T.multi_index[1 : len(A)][""])
 
     def test_varlen_sparse_all_empty_strings(self):
-        # this test addresses a fix for specific need for reads on a
-        # large existing array, see
-        #   https://github.com/TileDB-Inc/TileDB-Py/pull/475
-        # we currently have to write a placeholder at the end to
-        # avoid zero-length cell error
-        # TODO: follow-up with improved testing for empty var-length/strings
-        A = np.array(["", "", "", "", "", "\x00"], dtype=object)
+        A = np.array(["", "", "", "", ""], dtype=object)
         dim_len = len(A)
         uri = self.path("varlen_all_empty_strings")
 
@@ -3672,6 +3666,19 @@ class TestNumpyToArray(DiskTestCase):
         ) as A:
             assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
             assert_array_equal(A[0:2, 0:2, 0:2], arr2)
+
+    @pytest.mark.parametrize("empty_str", ["", b""])
+    @pytest.mark.parametrize("num_strs", [1, 1000])
+    def test_from_numpy_empty_str(self, empty_str, num_strs):
+        uri = self.path("test_from_numpy_empty_str")
+        np_array = np.asarray([empty_str] * num_strs, dtype="O")
+        tiledb.from_numpy(uri, np_array)
+
+        with tiledb.open(uri, "r") as A:
+            assert_array_equal(A[:], np_array)
+            if has_pandas():
+                assert_array_equal(A.query(use_arrow=True).df[:][""], np_array)
+                assert_array_equal(A.query(use_arrow=False).df[:][""], np_array)
 
 
 class ConsolidationTest(DiskTestCase):
