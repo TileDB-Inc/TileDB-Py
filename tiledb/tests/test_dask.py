@@ -54,6 +54,7 @@ class TestDaskSupport(DiskTestCase):
         ),
     )
     @pytest.mark.filterwarnings("ignore:There is no current event loop")
+    @pytest.mark.filterwarnings("ignore:make_current is deprecated")
     def test_dask_multiattr_2d(self):
         uri = self.path("multiattr")
 
