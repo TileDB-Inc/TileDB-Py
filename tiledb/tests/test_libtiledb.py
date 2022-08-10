@@ -3946,7 +3946,7 @@ def init_test_helper(cfg=None):
     print(int(concurrency_level))
 
 
-class ContextTest(unittest.TestCase):
+class ContextTest(DiskTestCase):
     def test_default_ctx(self):
         ctx = tiledb.default_ctx()
         self.assertIsInstance(ctx, tiledb.Ctx)
@@ -4001,6 +4001,15 @@ class ContextTest(unittest.TestCase):
 
     @pytest.mark.skipif(
         "pytest.tiledb_vfs == 's3'", reason="Test not yet supported with S3"
+    )
+    @pytest.mark.filterwarnings(
+        # As of 0.17.0, a warning is emitted for the aarch64 conda builds with
+        # the messsage:
+        #     <jemalloc>: MADV_DONTNEED does not work (memset will be used instead)
+        #     <jemalloc>: (This is the expected behaviour if you are running under QEMU)
+        # This can be ignored as this is being run in a Docker image / QEMU and
+        # is therefore expected behavior
+        "ignore:This is the expected behaviour if you are running under QEMU"
     )
     def test_init_config(self):
         self.assertEqual(
