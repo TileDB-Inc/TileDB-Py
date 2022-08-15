@@ -23,6 +23,28 @@
 * Update minimum required cmake version to =>3.23; required for building `libtiledb` [#1260](https://github.com/TileDB-Inc/TileDB-Py/pull/1260)
 
 ## API Changes
+* Support `datetime64` for `QueryCondition` [#1279](https://github.com/TileDB-Inc/TileDB-Py/pull/1279)
+
+# TileDB-Py 0.17.0 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.17.0 includes TileDB Embedded [TileDB 2.11.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.11.0)
+
+# TileDB-Py 0.16.5 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.16.5 includes TileDB Embedded [TileDB 2.10.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.10.4)
+
+# TileDB-Py 0.16.4 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.16.4 includes TileDB Embedded [TileDB 2.10.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.10.3)
+
+## Improvements
+* `setup.py` revert back to retrieving core version by using `ctypes` by parsing `tiledb_version.h`; the tiledb shared object lib now returns back a full path [#1226](https://github.com/TileDB-Inc/TileDB-Py/pull/1226)
+* Update minimum required cmake version to =>3.23; required for building `libtiledb` [#1260](https://github.com/TileDB-Inc/TileDB-Py/pull/1260)
+
+## API Changes
 * Addition of `in` operator for `QueryCondition` [#1214](https://github.com/TileDB-Inc/TileDB-Py/pull/1214)
 * Revert the regular indexer `[:]` to return entire array rather than nonempty domain in order to maintain NumPy semantics [#1261](https://github.com/TileDB-Inc/TileDB-Py/pull/1261)
 

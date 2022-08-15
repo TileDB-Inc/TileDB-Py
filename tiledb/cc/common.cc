@@ -231,3 +231,10 @@ uint64_t count_zeros(py::array_t<uint8_t> a) {
     count += (a.data()[idx] == 0) ? 1 : 0;
   return count;
 }
+
+// Context default_ctx() {
+//   auto libtiledb = py::module::import("tiledb");
+//   auto default_ctx = libtiledb.attr("default_ctx")();
+//   auto context = libtiledb.attr("cc").attr("Context");
+//   return context(default_ctx, false).cast<Context>();
+// }

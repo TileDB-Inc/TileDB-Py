@@ -1,6 +1,6 @@
 black
 clang-format == 10.0.1
-dask
+dask < 6.2
 distributed
 -r ../requirements_dev.txt
 -r requirements_test.txt

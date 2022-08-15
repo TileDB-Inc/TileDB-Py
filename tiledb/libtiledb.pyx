@@ -14,7 +14,6 @@ from collections import OrderedDict
 from collections.abc import Sequence
 
 from .ctx import default_ctx
-from .filter import FilterList
 from .vfs import VFS
 
 import tiledb.cc as lt
@@ -1573,14 +1572,14 @@ cdef class Attr(object):
             raise TypeError("dtype is not compatible with var-length attribute")
 
         if filters is not None:
-            if not isinstance(filters, FilterList):
+            if not isinstance(filters, lt.FilterList):
                 try:
                     filters = iter(filters)
                 except:
                     raise TypeError("filters argument must be a tiledb.FilterList or iterable of Filters")
                 else:
                     # we want this to raise a specific error if construction fails
-                    filters = FilterList(filters, ctx=ctx)
+                    filters = lt.FilterList(filters, ctx=lt.Context(ctx.__capsule__(), False))
             filter_list = filters
 
         # alloc attribute object and set cell num / compressor
@@ -1715,8 +1714,9 @@ cdef class Attr(object):
         check_error(self.ctx,
                     tiledb_attribute_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
 
-        return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL),
-            is_capsule=True, ctx=self.ctx)
+        return lt.FilterList(
+            lt.Context(self.ctx.__capsule__(), False),
+            PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     @property
     def fill(self):
@@ -1972,8 +1972,9 @@ cdef class Dim(object):
 
             if filters is not None:
                 filter_list = filters
-                if not isinstance(filters, FilterList):
-                    filter_list = FilterList(filters, ctx=ctx)
+                if not isinstance(filters, lt.FilterList):
+                    filter_list = lt.FilterList(
+                        filters, ctx=lt.Context(ctx.__capsule__(), False))
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
@@ -2112,8 +2113,9 @@ cdef class Dim(object):
         check_error(self.ctx,
                     tiledb_dimension_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
 
-        return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL),
-            is_capsule=True, ctx=self.ctx)
+        return lt.FilterList(
+            lt.Context(self.ctx.__capsule__(), False), 
+            PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     cdef unsigned int _cell_val_num(Dim self) except? 0:
         cdef unsigned int ncells = 0
@@ -2752,8 +2754,8 @@ cdef class ArraySchema(object):
         cdef tiledb_dimension_t* dim_ptr = NULL
         try:
             if offsets_filters is not None:
-                if not isinstance(offsets_filters, FilterList):
-                    offsets_filters = FilterList(offsets_filters, ctx=ctx)
+                if not isinstance(offsets_filters, lt.FilterList):
+                    offsets_filters = lt.FilterList(offsets_filters, ctx=ctx)
                 filter_list = offsets_filters
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
@@ -2767,7 +2769,7 @@ cdef class ArraySchema(object):
                     DeprecationWarning,
                 )
 
-                filter_list = FilterList()
+                filter_list = lt.FilterList()
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
@@ -2776,8 +2778,9 @@ cdef class ArraySchema(object):
                 check_error(self.ctx,
                     tiledb_domain_get_ndim(ctx.ptr, domain_ptr, &ndim))
 
-                if not isinstance(coords_filters, FilterList):
-                    coords_filters = FilterList(coords_filters, ctx=ctx)
+                if not isinstance(coords_filters, lt.FilterList):
+                    coords_filters = lt.FilterList(
+                        coords_filters, ctx=lt.Context(ctx.__capsule__(), False))
                 filter_list = coords_filters
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                 filter_list.__capsule__(), "fl")
@@ -2796,8 +2799,8 @@ cdef class ArraySchema(object):
                 domain_ptr = dom_with_coords_filters_ptr
 
             if validity_filters is not None:
-                if not isinstance(validity_filters, FilterList):
-                    validity_filters = FilterList(validity_filters, ctx=ctx)
+                if not isinstance(validity_filters, lt.FilterList):
+                    validity_filters = lt.FilterList(validity_filters, ctx=ctx)
                 filter_list = validity_filters
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
@@ -3040,9 +3043,9 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_offsets_filter_list(
                 self.ctx.ptr, self.ptr, &filter_list_ptr))
-        return FilterList(
-            PyCapsule_New(filter_list_ptr, "fl", NULL),
-                is_capsule=True, ctx=self.ctx)
+        return lt.FilterList(
+            lt.Context(self.ctx.__capsule__(), False),
+            PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     @property
     def coords_filters(self):
@@ -3055,9 +3058,9 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_coords_filter_list(
                 self.ctx.ptr, self.ptr, &filter_list_ptr))
-        return FilterList(
-            PyCapsule_New(filter_list_ptr, "fl", NULL),
-                is_capsule=True, ctx=self.ctx)
+        return lt.FilterList(
+            lt.Context(self.ctx.__capsule__(), False),
+            PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     @coords_filters.setter
     def coords_filters(self, value):
@@ -3078,9 +3081,9 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_validity_filter_list(
                 self.ctx.ptr, self.ptr, &validity_list_ptr))
-        return FilterList(
-            PyCapsule_New(validity_list_ptr, "fl", NULL),
-                is_capsule=True, ctx=self.ctx)
+        return lt.FilterList(
+            lt.Context(self.ctx.__capsule__(), False),
+            PyCapsule_New(validity_list_ptr, "fl", NULL))
 
     @property
     def domain(self):

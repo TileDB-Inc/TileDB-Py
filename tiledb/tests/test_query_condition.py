@@ -3,6 +3,7 @@ import pytest
 import math
 import numpy as np
 from numpy.testing import assert_array_equal
+import pandas as pd
 import string
 
 import tiledb

@@ -803,10 +803,10 @@ class ArraySchemaTest(DiskTestCase):
         assert schema2.validity_filters[0] == tiledb.GzipFilter(level=9)
 
     def test_none_filter_list(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             tiledb.FilterList([None])
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             fl = tiledb.FilterList()
             fl.append(None)
 

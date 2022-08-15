@@ -41,3 +41,5 @@ bool is_tdb_num(tiledb_datatype_t type);
 bool is_tdb_str(tiledb_datatype_t type);
 
 py::size_t get_ncells(py::dtype type);
+
+// Context default_ctx();
