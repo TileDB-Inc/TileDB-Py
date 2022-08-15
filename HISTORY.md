@@ -1,4 +1,4 @@
-# In Progress
+# TileDB-Py 0.17.1 Release Notes
 
 ## API Changes
 * Support `datetime64` for `QueryCondition` [#1279](https://github.com/TileDB-Inc/TileDB-Py/pull/1279)
