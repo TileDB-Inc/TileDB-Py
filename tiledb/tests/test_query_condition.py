@@ -616,7 +616,7 @@ class QueryConditionTest(DiskTestCase):
         uri = self.path("query-filter-dense-datetime.tdb")
 
         data = pd.DataFrame(
-            np.random.randint(438923600, 243892360000, 20),
+            np.random.randint(438923600, 243892360000, 20, dtype=np.int64),
             columns=["dates"],
         )
 
