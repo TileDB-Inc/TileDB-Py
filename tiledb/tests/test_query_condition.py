@@ -16,12 +16,13 @@ class QueryConditionTest(DiskTestCase):
         if isinstance(mask, np.ndarray):
             mask = mask[0]
 
-        if isinstance(mask, float) and np.isnan(mask):
+        if isinstance(mask, float):
             return data[np.invert(np.isnan(data))]
-        elif np.isnat(mask):
+
+        if isinstance(mask, np.timedelta64):
             return data[np.invert(np.isnat(data))]
-        else:
-            return data[data != mask]
+
+        return data[data != mask]
 
     def create_input_array_UIDSA(self, sparse):
         path = self.path("input_array_UIDSA")

@@ -46,15 +46,13 @@ class TestDaskSupport(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-    @pytest.mark.xfail(
-        datetime.now() < datetime(2022, 8, 8),
-        reason=(
-            "`DeprecationWarning` being thrown by Dask but will be fixed by "
-            "https://github.com/dask/distributed/issues/6163"
-        ),
-    )
     @pytest.mark.filterwarnings("ignore:There is no current event loop")
-    @pytest.mark.filterwarnings("ignore:make_current is deprecated")
+    @pytest.mark.filterwarnings(
+        # In Python 3.7 on POSIX systems, Hurricane outputs a warning message
+        # that "make_current is deprecated." This should be fixed by Dask in
+        # future releases.
+        "ignore:make_current is deprecated"
+    )
     def test_dask_multiattr_2d(self):
         uri = self.path("multiattr")
 

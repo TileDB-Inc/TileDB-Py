@@ -84,7 +84,7 @@ class QueryCondition:
         ``attr ::= <variable> | attr(<str>)``
 
     Values are any Python-valid number or string. datetime64 values should first be
-    casted to UNIX seconds. Vales may also be casted with ``val()``.
+    cast to UNIX seconds. Values may also be casted with ``val()``.
 
         ``val ::= <num> | <str> | val(val)``
 
@@ -364,7 +364,7 @@ class QueryConditionTree(ast.NodeVisitor):
                 if isinstance(val, str):
                     raise tiledb.TileDBError(f"Cannot cast `{val}` to {dtype}.")
                 if np.issubdtype(dtype, np.datetime64):
-                    cast = getattr(np, "uint64")
+                    cast = getattr(np, "int64")
                 else:
                     cast = getattr(np, dtype)
                 val = cast(val)
@@ -374,8 +374,8 @@ class QueryConditionTree(ast.NodeVisitor):
         return val
 
     def init_pyqc(self, pyqc: PyQueryCondition, dtype: str) -> Callable:
-        if np.issubdtype(dtype, np.datetime64):
-            dtype = "uint64"
+        if dtype != "string" and np.issubdtype(dtype, np.datetime64):
+            dtype = "int64"
 
         init_fn_name = f"init_{dtype}"
 
