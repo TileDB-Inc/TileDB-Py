@@ -3,12 +3,11 @@ import pytest
 import math
 import numpy as np
 from numpy.testing import assert_array_equal
-import pandas as pd
 import string
 
 import tiledb
 
-from tiledb.tests.common import DiskTestCase
+from tiledb.tests.common import DiskTestCase, has_pandas
 
 
 class QueryConditionTest(DiskTestCase):
@@ -612,7 +611,10 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(attr_cond=tiledb.QueryCondition("S in ['8']"))[:]
             assert len(self.filter_dense(result["S"], S_mask)) == 0
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_dense_datetime(self):
+        import pandas as pd
+
         uri = self.path("query-filter-dense-datetime.tdb")
 
         data = pd.DataFrame(
