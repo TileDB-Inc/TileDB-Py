@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Fix issue where querying an array with a Boolean type when `arrow=True`, but is unselected in `.query(attr=...)`, results in an error `pyarrow.lib.ArrowInvalid: Invalid column index to set field.` []()
+
 # TileDB-Py 0.17.1 Release Notes
 
 ## API Changes
