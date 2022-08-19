@@ -349,12 +349,16 @@ class DataFrameIndexer(_BaseIndexer):
             # this is a workaround to cast TILEDB_BOOL types from uint8
             # representation in Arrow to Boolean
             schema = table.schema
-            for n in range(self.array.nattr):
-                attr = self.array.attr(n)
+            for attr_or_dim in schema:
+                if not self.array.schema.has_attr(attr_or_dim.name):
+                    continue
+
+                attr = self.array.attr(attr_or_dim.name)
                 if attr.dtype == bool:
                     field_idx = schema.get_field_index(attr.name)
                     field = pyarrow.field(attr.name, pyarrow.bool_())
                     schema = schema.set(field_idx, field)
+
             table = table.cast(schema)
 
             if self.query.return_arrow:

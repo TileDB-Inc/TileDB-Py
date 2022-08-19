@@ -1,8 +1,6 @@
 import pytest
 
-import math
 import numpy as np
-from numpy.testing import assert_array_equal
 import string
 
 import tiledb
@@ -638,3 +636,32 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(attr_cond=qc).df[:]
 
             assert all(self.filter_dense(result["dates"], dt_mask) == A[idx]["dates"])
+
+    def test_array_with_bool_but_unused(self):
+        path = self.path("test_array_with_bool_but_unused")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 3), tile=1, dtype=np.uint32)
+        )
+        attrs = [
+            tiledb.Attr(name="myint", dtype=int),
+            tiledb.Attr(name="mystr", dtype=str),
+            tiledb.Attr(name="mybool", dtype=bool),
+        ]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        data = {
+            "myint": np.asarray([10, 20, 30]),
+            "mystr": np.asarray(["apple", "ball", "cat"]),
+            "mybool": np.asarray([True, False, True]),
+        }
+
+        with tiledb.open(path, "w") as A:
+            A[np.arange(1, 4)] = data
+
+        with tiledb.open(path) as A:
+            qc = tiledb.QueryCondition("myint > 10")
+            result = A.query(attr_cond=qc, attrs=["myint"])[:]
+            assert all(result["myint"] > 10)
