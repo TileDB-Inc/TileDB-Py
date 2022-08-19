@@ -40,7 +40,8 @@ void init_filter(py::module &m) {
 
   py::class_<FilterList>(m, "FilterList")
       .def(py::init<const Context &>(), py::keep_alive<1, 2>())
-      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
+      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>(),
+           py::return_value_policy::copy)
 
       .def("__capsule__",
            [](FilterList &fl) {

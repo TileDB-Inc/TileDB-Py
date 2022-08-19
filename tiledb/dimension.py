@@ -172,7 +172,7 @@ class Dim(lt.Dimension):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return FilterList(self._filters)
+        return FilterList(self._filters.__capsule__())
 
     @property
     def shape(self):
