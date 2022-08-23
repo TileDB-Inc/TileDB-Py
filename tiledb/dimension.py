@@ -26,6 +26,23 @@ class Dim(lt.Dimension):
         var: bool = None,
         ctx: "Ctx" = None,
     ):
+        """Class representing a dimension of a TileDB Array.
+
+        :param str name: the dimension name, empty if anonymous
+        :param domain:
+        :type domain: tuple(int, int) or tuple(float, float)
+        :param tile: Tile extent
+        :type tile: int or float
+        :param filters: List of filters to apply
+        :type filters: FilterList
+        :dtype: the Dim numpy dtype object, type object, or string \
+            that can be corerced into a numpy dtype object
+        :raises ValueError: invalid domain or tile extent
+        :raises TypeError: invalid domain, tile extent, or dtype type
+        :raises: :py:exc:`TileDBError`
+        :param tiledb.Ctx ctx: A TileDB Context
+
+        """
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
 
@@ -38,6 +55,13 @@ class Dim(lt.Dimension):
 
         domain = np.array(domain)
         tile = np.array([tile])
+
+        if (isinstance(dtype, str) and dtype == "ascii") or dtype == np.dtype("S"):
+            # Handle var-len domain type
+            #  (currently only TILEDB_STRING_ASCII)
+            # The dimension's domain is implicitly formed as
+            # coordinates are written.
+            dtype = np.dtype("S")
 
         if np.issubdtype(np.dtype(dtype), np.datetime64) and not np.issubdtype(
             domain.dtype, np.datetime64
@@ -143,26 +167,24 @@ class Dim(lt.Dimension):
         """
         return self._name
 
-    # @property
-    # def isvar(self):
-    #     """True if the dimension is variable length
+    @property
+    def isvar(self):
+        """True if the dimension is variable length
 
-    #     :rtype: bool
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     """
-    #     cdef unsigned int ncells = self._cell_val_num()
-    #     return ncells == TILEDB_VAR_NUM
+        """
+        return self._cell_val_num() == lt.TILEDB_VAR_NUM
 
-    # @property
-    # def isanon(self):
-    #     """True if the dimension is anonymous
+    @property
+    def isanon(self):
+        """True if the dimension is anonymous
 
-    #     :rtype: bool
+        :rtype: bool
 
-    #     """
-    #     name = self.name
-    #     return name == u"" or name.startswith("__dim")
+        """
+        return self.name == "" or self.name.startswith("__dim")
 
     @property
     def filters(self):
@@ -172,7 +194,7 @@ class Dim(lt.Dimension):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return FilterList(self._filters.__capsule__())
+        return FilterList(self._filters)
 
     @property
     def shape(self):

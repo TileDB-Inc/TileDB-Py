@@ -41,9 +41,6 @@ void init_attribute(py::module &m) {
       .def_property("_ncell", &Attribute::cell_val_num,
                     &Attribute::set_cell_val_num)
 
-      //   .def_property("fill", &Attribute::get_fill_value,
-      //                 &Attribute::set_fill_value)
-
       .def_property_readonly("_var", &Attribute::variable_sized)
 
       .def_property("_filters", &Attribute::filter_list,

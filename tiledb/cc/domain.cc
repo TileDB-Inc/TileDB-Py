@@ -41,12 +41,8 @@ void init_domain(py::module &m) {
            }),
            py::keep_alive<1, 2>())
 
-      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
-
-      .def("__capsule__",
-           [](Dimension &dim) {
-             return py::capsule(dim.ptr().get(), "dim", nullptr);
-           })
+      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>(),
+           py::keep_alive<1, 3>())
 
       .def_property_readonly("_name", &Dimension::name)
 
@@ -198,7 +194,7 @@ void init_domain(py::module &m) {
 
       .def("_has_dim", &Domain::has_dimension)
 
-      .def("_add_dim", &Domain::add_dimension)
+      .def("_add_dim", &Domain::add_dimension, py::keep_alive<1, 2>())
 
       .def("_dump", [](Domain &dom) { dom.dump(); });
 }

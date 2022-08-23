@@ -13,7 +13,7 @@ std::unordered_map<tiledb_datatype_t, std::string> _tdb_to_np_name_dtype = {
     {TILEDB_UINT16, "uint16"},
     {TILEDB_UINT32, "uint32"},
     {TILEDB_UINT64, "uint64"},
-    {TILEDB_STRING_ASCII, "|S1"},
+    {TILEDB_STRING_ASCII, "|S"},
     {TILEDB_STRING_UTF8, "|U1"},
     {TILEDB_CHAR, "|S1"},
     {TILEDB_DATETIME_YEAR, "M8[Y]"},

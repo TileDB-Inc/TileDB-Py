@@ -4,6 +4,8 @@ import tiledb.cc as lt
 from .ctx import default_ctx
 from .dimension import Dim
 
+import io
+
 if TYPE_CHECKING:
     from .libtiledb import Ctx
 
@@ -14,17 +16,47 @@ class Domain(lt.Domain):
     """
 
     def __init__(self, *dims: Dim, ctx: "Ctx" = None):
+        """Class representing the domain of a TileDB Array.
+
+        :param *dims*: one or more tiledb.Dim objects up to the Domain's ndim
+        :raises TypeError: All dimensions must have the same dtype
+        :raises: :py:exc:`TileDBError`
+        :param tiledb.Ctx ctx: A TileDB Context
+
+        """
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
 
         super().__init__(_cctx)
 
-        for d in dims:
-            self._add_dim(lt.Dimension(_cctx, d.__capsule__()))
+        # support passing a list of dims without splatting
+        if len(dims) == 1 and isinstance(dims[0], list):
+            dims = dims[0]
 
-    # def __repr__(self):
-    #     dims = ",\n       ".join([repr(self.dim(i)) for i in range(self.ndim)])
-    #     return "Domain({0!s})".format(dims)
+        if len(dims) == 0:
+            raise lt.TileDBError("Domain must have ndim >= 1")
+
+        if len(dims) > 1:
+            if all(dim.name == "__dim_0" for dim in dims):
+                # rename anonymous dimensions sequentially
+                dims = [
+                    clone_dim_with_name(dims[i], name=f"__dim_{i}") for i in range(ndim)
+                ]
+            elif any(dim.name.startswith("__dim_0") for dim in dims[1:]):
+                raise lt.TileDBError(
+                    "Mixed dimension naming: dimensions must be either all anonymous or all named."
+                )
+
+        for d in dims:
+            if not isinstance(d, Dim):
+                raise TypeError(
+                    "Cannot create Domain with non-Dim value for 'dims' argument"
+                )
+            self._add_dim(d)
+
+    def __repr__(self):
+        dims = ",\n       ".join([repr(self.dim(i)) for i in range(self.ndim)])
+        return "Domain({0!s})".format(dims)
 
     def _repr_html_(self) -> str:
         output = io.StringIO()
@@ -103,22 +135,35 @@ class Domain(lt.Domain):
         """
         return tuple(dim.shape[0] for dim in self)
 
-    # @property
-    # def size(self):
-    #     """The domain's size (number of cells), valid only for integer domains.
+    @property
+    def size(self):
+        """The domain's size (number of cells), valid only for integer domains.
 
-    #     :rtype: int
-    #     :raises TypeError: floating point (inexact) domain
+        :rtype: int
+        :raises TypeError: floating point (inexact) domain
 
-    #     """
-    #     if not self._integer_domain():
-    #         raise TypeError("shape valid only for integer domains")
-    #     return np.product(self._shape())
+        """
+        if self._tiledb_dtype() not in (
+            lt.TILEDB_UINT8,
+            lt.TILEDB_INT8,
+            lt.TILEDB_UINT16,
+            lt.TILEDB_INT16,
+            lt.TILEDB_UINT32,
+            lt.TILEDB_INT32,
+            lt.TILEDB_UINT64,
+            lt.TILEDB_INT64,
+        ):
+            raise TypeError("shape valid only for integer domains")
+        return np.product(self.shape())
 
-    # @property
-    # def homogeneous(self):
-    #     """Returns True if the domain's dimension types are homogeneous."""
-    #     return self._is_homogeneous()
+    def _is_homogeneous(self):
+        dtype0 = self.dim(0).dtype
+        return all(self.dim(i).dtype == dtype0 for i in range(1, self.ndim))
+
+    @property
+    def homogeneous(self):
+        """Returns True if the domain's dimension types are homogeneous."""
+        return self._is_homogeneous()
 
     def dim(self, dim_id):
         """Returns a Dim object from the domain given the dimension's index or name.
@@ -129,30 +174,15 @@ class Domain(lt.Domain):
         """
         return Dim(self._dim(dim_id))
 
-    # def has_dim(self, name):
-    #     """
-    #     Returns true if the Domain has a Dimension with the given name
+    def has_dim(self, name):
+        """
+        Returns true if the Domain has a Dimension with the given name
 
-    #     :param name: name of Dimension
-    #     :rtype: bool
-    #     :return:
-    #     """
-    #     cdef:
-    #         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
-    #         cdef tiledb_domain_t* dom_ptr = self.ptr
-    #         int32_t has_dim = 0
-    #         int32_t rc = TILEDB_OK
-    #         bytes bname = name.encode("UTF-8")
-
-    #     rc = tiledb_domain_has_dimension(
-    #         ctx_ptr,
-    #         dom_ptr,
-    #         bname,
-    #         &has_dim
-    #     )
-    #     if rc != TILEDB_OK:
-    #         _raise_ctx_err(ctx_ptr, rc)
-    #     return bool(has_dim)
+        :param name: name of Dimension
+        :rtype: bool
+        :return:
+        """
+        return self._has_dim(name)
 
     def dump(self):
         """Dumps a string representation of the domain object to standard output (STDOUT)"""

@@ -538,15 +538,17 @@ class FilterList(lt.FilterList):
             super().__init__(_cctx)
             for i in range(filters._nfilters()):
                 self._add_filter(filters._filter(i))
+            chunksize = filters._chunksize
         else:
             super().__init__(_cctx)
-            filters = None if filters is None else list(filters)
-            for f in filters:
-                if not isinstance(f, Filter):
-                    raise ValueError(
-                        "filters argument must be an iterable of TileDB filter objects"
-                    )
-                self._add_filter(f)
+            if filters is not None:
+                filters = list(filters)
+                for f in filters:
+                    if not isinstance(f, Filter):
+                        raise ValueError(
+                            "filters argument must be an iterable of TileDB filter objects"
+                        )
+                    self._add_filter(f)
 
         if chunksize is not None:
             self._chunksize = chunksize

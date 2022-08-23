@@ -1,6 +1,9 @@
 import io
+import numpy as np
 
 import tiledb.cc as lt
+from .ctx import default_ctx
+from .filter import FilterList
 
 
 class Attr(lt.Attribute):
@@ -8,8 +11,40 @@ class Attr(lt.Attribute):
     Represents a TileDB attribute.
     """
 
-    def __init__(self, type: lt.ObjectType, uri: str):
-        super().__init__(type, uri)
+    def __init__(
+        self,
+        name="",
+        dtype=np.float64,
+        fill=None,
+        var=None,
+        nullable=False,
+        filters=None,
+        ctx=None,
+    ):
+        """Class representing a TileDB array attribute.
+
+        :param tiledb.Ctx ctx: A TileDB Context
+        :param str name: Attribute name, empty if anonymous
+        :param dtype: Attribute value datatypes
+        :type dtype: numpy.dtype object or type or string
+        :param nullable: Attribute is nullable
+        :type bool:
+        :param fill: Fill value for unset cells.
+        :param var: Attribute is variable-length (automatic for byte/string types)
+        :type dtype: bool
+        :param filters: List of filters to apply
+        :type filters: FilterList
+        :raises TypeError: invalid dtype
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        self._ctx = ctx or default_ctx()
+        _cctx = lt.Context(self._ctx, False)
+
+        super().__init__(_cctx, name, np.dtype(dtype))
+
+        if filters is not None:
+            self._filters = FilterList(filters)
 
     def __eq__(self, other):
         if not isinstance(other, Attr):
@@ -80,21 +115,15 @@ class Attr(lt.Attribute):
     #     # <todo> do we want to reimplement this on top of new API?
     #     pass
 
-    # @property
-    # def filters(self):
-    #     """FilterList of the TileDB attribute
+    @property
+    def filters(self):
+        """FilterList of the TileDB attribute
 
-    #     :rtype: tiledb.FilterList
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     """
-    #     cdef tiledb_filter_list_t* filter_list_ptr = NULL
-    #     cdef int rc = TILEDB_OK
-    #     check_error(self.ctx,
-    #                 tiledb_attribute_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
-
-    #     return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL),
-    #         is_capsule=True, ctx=self.ctx)
+        """
+        return FilterList(self._filters)
 
     # @property
     # def fill(self):
