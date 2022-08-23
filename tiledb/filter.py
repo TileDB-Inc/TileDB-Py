@@ -17,18 +17,28 @@ from .cc import (
     ChecksumSHA256Filter,
 )
 
-from typing import Sequence, Union
+from typing import Sequence, TYPE_CHECKING
+
+import tiledb.cc as lt
+from .ctx import default_ctx
+
+if TYPE_CHECKING:
+    from .libtiledb import Ctx
 
 
-def filter_list_eq(self, other: Union["FilterList", Sequence[Filter]]) -> bool:
-    if other is None:
-        return False
-    if len(self) != len(other):
-        return False
-    for i, f in enumerate(self):
-        if f != other[i]:
-            return False
-    return True
+def filter_list_init(
+    filters: Sequence[Filter] = None,
+    chunksize: int = None,
+    ctx: "Ctx" = None,
+    is_capsule=False,
+):
+    ctx = ctx or default_ctx()
+    cctx = lt.Context(ctx.__capsule__(), False)
+
+    if is_capsule:
+        FilterList(cctx, filters)
+    else:
+        FilterList(filters, chunksize, cctx)
 
 
-FilterList.__eq__ = filter_list_eq
+# FilterList.__init__ = filter_list_init

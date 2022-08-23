@@ -57,13 +57,6 @@ inline bool operator!=(const PyFilter &lhs, const PyFilter &rhs) {
   return !operator==(lhs, rhs);
 }
 
-class PyFilterList : public FilterList {
-public:
-  PyFilterList(const Context &ctx) : FilterList(ctx){};
-  PyFilterList(const Context &ctx, py::capsule filterlist)
-      : FilterList(ctx, filterlist){};
-};
-
 class NoOpFilter : public PyFilter {
 public:
   NoOpFilter(const Context &ctx) : PyFilter(ctx, TILEDB_FILTER_NONE){};
@@ -250,6 +243,8 @@ py::object pyfilter_to_pyobject(PyFilter pyfilter) {
     return py::cast(ChecksumSHA256Filter(pyfilter));
   case TILEDB_FILTER_DICTIONARY:
     return py::cast(DictionaryFilter(pyfilter));
+  default:
+    throw py::type_error("pyfilter_to_pyobject given invalid filter type");
   }
 }
 
@@ -349,7 +344,7 @@ void init_filter(py::module &m) {
       .def("__repr__", &ChecksumSHA256Filter::repr)
       .def(py::self == py::self);
 
-  py::class_<PyFilterList>(m, "FilterList")
+  py::class_<FilterList>(m, "FilterList")
       .def(py::init<const Context &>(), py::keep_alive<1, 2>())
       .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
 
@@ -377,7 +372,7 @@ void init_filter(py::module &m) {
              //    _ctx = ctx.cast<Context>();
              //  }
 
-             PyFilterList filter_list = PyFilterList(ctx);
+             FilterList filter_list = FilterList(ctx);
 
              for (auto filter : _filters) {
                try {
@@ -397,19 +392,39 @@ void init_filter(py::module &m) {
            py::arg("chunksize") = py::none(), py::arg("ctx") = Context())
 
       .def("__capsule__",
-           [](PyFilterList &filterlist) {
+           [](FilterList &filterlist) {
              return py::capsule(filterlist.ptr().get(), "fl", nullptr);
            })
 
-      .def("_repr_html_", [](PyFilterList &filterlist) { return ""; })
+      .def("_repr_html_", [](FilterList &filterlist) { return ""; })
 
-      .def_property("chunksize", &PyFilterList::max_chunk_size,
-                    &PyFilterList::set_max_chunk_size)
+      .def_property("chunksize", &FilterList::max_chunk_size,
+                    &FilterList::set_max_chunk_size)
 
-      .def("__len__", &PyFilterList::nfilters)
+      .def("__len__", &FilterList::nfilters)
+
+      .def("__eq__",
+           [](FilterList &self, py::object other) {
+             if (other.is_none())
+               return false;
+             if (self.nfilters() != py::len(other))
+               return false;
+
+             auto other_it = py::iter(py::iterable(other));
+             for (uint32_t i = 0; i < self.nfilters(); ++i) {
+               if (py::isinstance<PyFilter>(*other_it) == true) {
+                 Filter f = self.filter(i);
+                 if (PyFilter(f) != other_it->cast<PyFilter>()) {
+                   return false;
+                 }
+               }
+               ++other_it;
+             }
+             return true;
+           })
 
       .def("__getitem__",
-           [](PyFilterList &filter_list, uint32_t filter_index) {
+           [](FilterList &filter_list, uint32_t filter_index) {
              if (filter_list.nfilters() == 0 or filter_index < 0 or
                  filter_index > (filter_list.nfilters() - 1)) {
                throw std::out_of_range("FilterList index out of range");
@@ -420,7 +435,7 @@ void init_filter(py::module &m) {
            })
 
       .def("__getitem__",
-           [](PyFilterList &filter_list, py::slice filter_indexes) -> py::list {
+           [](FilterList &filter_list, py::slice filter_indexes) -> py::list {
              py::list output;
              py::tuple slice = py::make_tuple(filter_indexes);
              uint32_t start = py::int_(slice[0]);
@@ -437,12 +452,12 @@ void init_filter(py::module &m) {
 
       .def(
           "append",
-          [](PyFilterList &filterlist, PyFilter &filter) {
+          [](FilterList &filterlist, PyFilter &filter) {
             filterlist.add_filter(filter);
           },
           py::keep_alive<1, 2>())
 
-      .def("append", &PyFilterList::add_filter, py::keep_alive<1, 2>());
+      .def("append", &FilterList::add_filter, py::keep_alive<1, 2>());
 }
 
 } // namespace libtiledbcpp
