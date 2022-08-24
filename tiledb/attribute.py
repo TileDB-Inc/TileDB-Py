@@ -53,67 +53,45 @@ class Attr(lt.Attribute):
             return False
         return True
 
-    # def dump(self):
-    #     """Dumps a string representation of the Attr object to standard output (stdout)"""
-    #     check_error(self.ctx,
-    #                 tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
-    #     print('\n')
-    #     return
+    def dump(self):
+        """Dumps a string representation of the Attr object to standard output (stdout)"""
+        self._dump()
 
-    # @property
-    # def dtype(self):
-    #     """Return numpy dtype object representing the Attr type
+    @property
+    def dtype(self):
+        """Return numpy dtype object representing the Attr type
 
-    #     :rtype: numpy.dtype
+        :rtype: numpy.dtype
 
-    #     """
-    #     cdef tiledb_datatype_t typ
-    #     check_error(self.ctx,
-    #                 tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
-    #     cdef uint32_t ncells = 0
-    #     check_error(self.ctx,
-    #                 tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
+        """
+        return self._numpy_dtype
 
-    #     return np.dtype(_numpy_dtype(typ, ncells))
+    @property
+    def name(self):
+        """Attribute string name, empty string if the attribute is anonymous
 
-    # @property
-    # def name(self):
-    #     """Attribute string name, empty string if the attribute is anonymous
+        :rtype: str
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     :rtype: str
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        """
+        internal_name = self._name
+        # handle __attr names from arrays written with libtiledb < 2
+        if internal_name == "__attr":
+            return ""
+        return internal_name
 
-    #     """
-    #     internal_name = self._get_name()
-    #     # handle __attr names from arrays written with libtiledb < 2
-    #     if internal_name == "__attr":
-    #         return u""
-    #     return internal_name
+    @property
+    def _internal_name(self):
+        return self._name
 
-    # @property
-    # def _internal_name(self):
-    #     return self._get_name()
+    @property
+    def isanon(self):
+        """True if attribute is an anonymous attribute
 
-    # @property
-    # def isanon(self):
-    #     """True if attribute is an anonymous attribute
+        :rtype: bool
 
-    #     :rtype: bool
-
-    #     """
-    #     cdef unicode name = self._get_name()
-    #     return name == u"" or name.startswith(u"__attr")
-
-    # @property
-    # def compressor(self):
-    #     """String label of the attributes compressor and compressor level
-
-    #     :rtype: tuple(str, int)
-    #     :raises: :py:exc:`tiledb.TileDBError`
-
-    #     """
-    #     # <todo> do we want to reimplement this on top of new API?
-    #     pass
+        """
+        return self._name == "" or self._name.startswith("__attr")
 
     @property
     def filters(self):
@@ -125,13 +103,15 @@ class Attr(lt.Attribute):
         """
         return FilterList(self._filters)
 
-    # @property
-    # def fill(self):
-    #     """Fill value for unset cells of this attribute
+    @property
+    def fill(self):
+        """Fill value for unset cells of this attribute
 
-    #     :rtype: depends on dtype
-    #     :raises: :py:exc:`tiledb.TileDBERror`
-    #     """
+        :rtype: depends on dtype
+        :raises: :py:exc:`tiledb.TileDBERror`
+        """
+        return self._fill_value
+
     #     cdef const uint8_t* value_ptr = NULL
     #     cdef uint64_t size
     #     check_error(self.ctx,
@@ -174,54 +154,46 @@ class Attr(lt.Attribute):
 
     #     return fill_array
 
-    # @property
-    # def isnullable(self):
-    #     """True if the attribute is nullable
+    @property
+    def isnullable(self):
+        """True if the attribute is nullable
 
-    #     :rtype: bool
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     """
-    #     cdef uint8_t nullable = 0
-    #     cdef int rc = TILEDB_OK
-    #     check_error(
-    #         self.ctx,
-    #         tiledb_attribute_get_nullable(self.ctx.ptr, self.ptr, &nullable))
+        """
+        return self._var
 
-    #     return <bint>nullable
+    @property
+    def isvar(self):
+        """True if the attribute is variable length
 
-    # @property
-    # def isvar(self):
-    #     """True if the attribute is variable length
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     :rtype: bool
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        """
+        return self._ncell == lt.TILEDB_VAR_NUM
 
-    #     """
-    #     cdef unsigned int ncells = self._cell_val_num()
-    #     return ncells == TILEDB_VAR_NUM
+    @property
+    def ncells(self):
+        """The number of cells (scalar values) for a given attribute value
 
-    # @property
-    # def ncells(self):
-    #     """The number of cells (scalar values) for a given attribute value
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     :rtype: int
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        """
+        assert self._ncell != 0
+        return int(self._ncell)
 
-    #     """
-    #     cdef unsigned int ncells = self._cell_val_num()
-    #     assert (ncells != 0)
-    #     return int(ncells)
+    @property
+    def isascii(self):
+        """True if the attribute is TileDB dtype TILEDB_STRING_ASCII
 
-    # @property
-    # def isascii(self):
-    #     """True if the attribute is TileDB dtype TILEDB_STRING_ASCII
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     :rtype: bool
-    #     :raises: :py:exc:`tiledb.TileDBError`
-
-    #     """
-    #     return self._get_type() == TILEDB_STRING_ASCII
+        """
+        return self._tiledb_dtype == lt.DataType.STRING_ASCII
 
     def __repr__(self):
         filters_str = ""

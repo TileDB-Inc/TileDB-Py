@@ -143,15 +143,15 @@ class Domain(lt.Domain):
         :raises TypeError: floating point (inexact) domain
 
         """
-        if self._tiledb_dtype() not in (
-            lt.TILEDB_UINT8,
-            lt.TILEDB_INT8,
-            lt.TILEDB_UINT16,
-            lt.TILEDB_INT16,
-            lt.TILEDB_UINT32,
-            lt.TILEDB_INT32,
-            lt.TILEDB_UINT64,
-            lt.TILEDB_INT64,
+        if self._tiledb_dtype not in (
+            lt.DataType.UINT8,
+            lt.DataType.INT8,
+            lt.DataType.UINT16,
+            lt.DataType.INT16,
+            lt.DataType.UINT32,
+            lt.DataType.INT32,
+            lt.DataType.UINT64,
+            lt.DataType.INT64,
         ):
             raise TypeError("shape valid only for integer domains")
         return np.product(self.shape())
