@@ -1,7 +1,7 @@
 # In Progress
 
 ## Bug Fixes
-* Fix issue where querying an array with a Boolean type when `arrow=True`, but is unselected in `.query(attr=...)`, results in an error `pyarrow.lib.ArrowInvalid: Invalid column index to set field.` []()
+* Fix issue where querying an array with a Boolean type when `arrow=True`, but is unselected in `.query(attr=...)`, results in an error `pyarrow.lib.ArrowInvalid: Invalid column index to set field.` [#1291](https://github.com/TileDB-Inc/TileDB-Py/pull/1291)
 * Use Arrow type fixed-width binary ("w:") for non-variable TILEDB_CHAR [#1286](https://github.com/TileDB-Inc/TileDB-Py/pull/1286)
 
 # TileDB-Py 0.17.1 Release Notes
