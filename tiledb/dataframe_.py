@@ -480,11 +480,18 @@ def _from_pandas(uri, dataframe, tiledb_args):
         elif mode != "ingest":
             raise TileDBError(f"Invalid mode specified ('{mode}')")
 
-    # TODO: disentangle the full_domain logic
     full_domain = tiledb_args.get("full_domain", False)
+
     if sparse == False and (not index_dims or "index_col" not in tiledb_args):
+        # for dense arrays, if there aren't any columns specified to use in
+        # creating the dimension (via `index_dims` or the Pandas `read_csv`
+        # argument `index_col`), then use the full domain
         full_domain = True
+
     if full_domain is None and tiledb_args.get("nrows"):
+        # Pandas `read_csv` argument `nrows` specifies to only read the first n
+        # rows of a CSV file resulting in a dimension that should have a domain
+        # length of n, not the full domain
         full_domain = False
 
     date_spec = tiledb_args.get("date_spec")

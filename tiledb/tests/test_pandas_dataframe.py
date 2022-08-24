@@ -1,4 +1,3 @@
-from curses import A_ATTRIBUTES
 import pytest
 
 pd = pytest.importorskip("pandas")
