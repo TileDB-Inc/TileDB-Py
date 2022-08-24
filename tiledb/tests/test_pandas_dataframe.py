@@ -1512,7 +1512,7 @@ class TestFromPandasOptions(DiskTestCase):
             iinfo = np.iinfo(dtype)
             assert dim.domain[0] == iinfo.min
             if dtype in (np.uint8, np.int8):
-                assert A.dim("d").tile == 254
+                assert A.dim("d").tile == iinfo.max
                 assert dim.domain[1] == iinfo.max - 1
             else:
                 assert A.dim("d").tile == 10000

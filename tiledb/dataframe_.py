@@ -264,8 +264,12 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
         dim_max = np.max(values)
 
     if np.issubdtype(dtype, np.integer) or dtype.kind == "M":
-        # we can't make a tile larger than the dimension range or lower than 1
-        tile = max(1, min(tile, np.uint64(dim_max - dim_min)))
+        # when full_domain=True, the tile cannot exceed the max range of the
+        # datatype. when full_domain=False, the tile cannot exceed the max range
+        # of the dimensions. the tile extent must be at least 1.
+        dim_range = np.uint64(dim_max - dim_min)
+        tile_max = np.uint64(dtype_max) if full_domain else dim_range
+        tile = max(1, min(tile, tile_max))
     elif np.issubdtype(dtype, np.floating):
         # this difference can be inf
         with np.errstate(over="ignore"):
