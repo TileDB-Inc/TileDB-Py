@@ -18,6 +18,7 @@ stages:
 
     jobs:
       - job: build1_libtiledb
+        timeoutInMinutes: 120
         strategy:
           matrix:
             macOS_libtiledb:
@@ -32,6 +33,7 @@ stages:
           - template: azure-libtiledb-darwin.yml
 
       - job: build1_libtiledb_on_linux
+        timeoutInMinutes: 120
         pool:
           vmImage: "ubuntu-latest"
         container: quay.io/pypa/manylinux2010_x86_64:2022-04-24-d28e73e
