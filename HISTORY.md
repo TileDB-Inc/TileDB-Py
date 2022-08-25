@@ -1,4 +1,7 @@
-# In Progress
+# TileDB-Py 0.17.2 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.17.2 includes TileDB Embedded [TileDB 2.11.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.11.1)
 
 ## Bug Fixes
 * Fix issue where querying an array with a Boolean type when `arrow=True`, but is unselected in `.query(attr=...)`, results in an error `pyarrow.lib.ArrowInvalid: Invalid column index to set field.` [#1291](https://github.com/TileDB-Inc/TileDB-Py/pull/1291)
