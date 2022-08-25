@@ -183,7 +183,9 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
       return ArrowInfo("U");
     }
   case TILEDB_CHAR:
-    if (bufferinfo.offsets_elem_size == 4) {
+    if (!bufferinfo.is_var) {
+      return ArrowInfo("w:" + std::to_string(cell_val_num));
+    } else if (bufferinfo.offsets_elem_size == 4) {
       return ArrowInfo("z");
     } else {
       return ArrowInfo("Z");
@@ -304,7 +306,10 @@ TypeInfo arrow_type_to_tiledb(ArrowSchema *arw_schema) {
     return {TILEDB_DATETIME_NS, 8, 1, large};
   else if (fmt == "z" || fmt == "Z")
     return {TILEDB_CHAR, 1, TILEDB_VAR_NUM, fmt == "Z"};
-  else if (fmt == "u" || fmt == "U")
+  else if (fmt.rfind("w:", 0) == 0) {
+    uint32_t cell_val_num = atoi(fmt.substr(2).c_str());
+    return {TILEDB_CHAR, 1, cell_val_num, fmt == "w"};
+  } else if (fmt == "u" || fmt == "U")
     return {TILEDB_STRING_UTF8, 1, TILEDB_VAR_NUM, fmt == "U"};
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
   else if (fmt == "b")
@@ -769,7 +774,14 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
     // adjust for arrow offset unless empty result
     elem_num = (bufferinfo.offsets_num == 0) ? 0 : bufferinfo.offsets_num - 1;
   } else {
-    elem_num = bufferinfo.data_num;
+    if (arrow_fmt.fmt_.rfind("w:", 0) == 0) {
+      // for Arrow fixed-width binary (non-variable TILEDB_CHAR), we need to
+      // take the size of the entire buffer and divide by the size of each
+      // element
+      elem_num = bufferinfo.data_num / bufferinfo.tdbtype.cell_val_num;
+    } else {
+      elem_num = bufferinfo.data_num;
+    }
   }
 
   auto cpp_arrow_array = new CPPArrowArray(elem_num, // elem_num

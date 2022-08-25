@@ -888,6 +888,23 @@ class TestMultiRange(DiskTestCase):
             assert "py.getitem_time.pandas_index_update_time :" in internal_stats
         tiledb.stats_disable()
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    def test_fixed_width_char(self):
+        uri = self.path("test_fixed_width_char")
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim(name="dim", domain=(0, 2), dtype=np.uint8)),
+            attrs=[tiledb.Attr(dtype="|S3")],
+        )
+        tiledb.Array.create(uri, schema)
+
+        data = np.array(["cat", "dog", "hog"], dtype="|S3")
+
+        with tiledb.open(uri, mode="w") as A:
+            A[:] = data
+
+        with tiledb.open(uri, mode="r") as A:
+            assert all(A.query(use_arrow=True).df[:][""] == data)
+
 
 # parametrize dtype and sparse
 @pytest.mark.parametrize(
