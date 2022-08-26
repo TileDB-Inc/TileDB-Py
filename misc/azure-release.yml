@@ -54,7 +54,7 @@ stages:
           matrix:
             linux_py:
               imageName: "ubuntu-latest"
-              CIBW_SKIP: "cp27-* cp35-* cp36-* *_i686 pp*"
+              CIBW_SKIP: "cp27-* cp35-* cp36-* *_i686 pp* *musllinux*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_py:
               imageName: "macOS-11"
@@ -111,7 +111,7 @@ stages:
               export CIBW_ENVIRONMENT="TILEDB_PATH=${TILEDB_INSTALL} TILEDB_WHEEL_BUILD=1"
               # use the requirements_wheel.txt with numpy pins to ensure ABI compatibility
               export CIBW_TEST_COMMAND="python -c 'import tiledb'"
-              # copy libtiledb into usr/local for audithweel to find
+              # copy libtiledb into usr/local for auditwheel to find
               export CIBW_BEFORE_BUILD="cp -R .libtiledb/* /usr/local"
               ls -lR "${TILEDB_INSTALL}"
 
