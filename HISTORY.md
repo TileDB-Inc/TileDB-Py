@@ -1,3 +1,10 @@
+# In Progress
+
+## Misc Updates
+* Wheels will no longer be supported for macOS 10.15 Catalina; the minimum supported macOS version is now 11 Big Sur [#1300](https://github.com/TileDB-Inc/TileDB-Py/pull/1300)
+* Wheels will no longer supported for Python 3.6 [#1300](https://github.com/TileDB-Inc/TileDB-Py/pull/1300)
+
+
 # TileDB-Py 0.17.2 Release Notes
 
 ## TileDB Embedded updates:
