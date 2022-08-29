@@ -380,7 +380,7 @@ class QueryConditionTree(ast.NodeVisitor):
     def init_pyqc(self, pyqc: PyQueryCondition, dtype: str) -> Callable:
         if dtype != "string" and np.issubdtype(dtype, np.datetime64):
             dtype = "int64"
-        breakpoint()
+
         init_fn_name = f"init_{dtype}"
 
         if not hasattr(pyqc, init_fn_name):

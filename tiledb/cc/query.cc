@@ -171,9 +171,6 @@ void init_query(py::module &m) {
       .def_property("layout", &Query::query_layout, &Query::set_layout)
 
       .def("set_condition", &Query::set_condition)
-      //.def("set_condition", [](Query &q, py::object pyqc) {
-      //
-      //})
       // TODO .def("array") -> Array&
       .def("query_status", &Query::query_status)
       .def("has_results", &Query::has_results)

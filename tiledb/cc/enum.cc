@@ -63,20 +63,11 @@ void init_enums(py::module &m) {
       .value("UNINITIALIZED", Query::Status::UNINITIALIZED)
       .export_values();
 
-  py::enum_<tiledb_query_type_t>(m, "QueryType") \
-    .value("READ", TILEDB_READ)
-    .value("WRITE", TILEDB_WRITE)
-    .value("DELETE", TILEDB_DELETE)
-    .value("MODIFY_EXCLUSIVE", TILEDB_MODIFY_EXCLUSIVE);
+  py::enum_<tiledb_query_type_t>(m, "QueryType") DENUM(READ) DENUM(WRITE);
 
   py::enum_<tiledb_query_condition_op_t>(m, "QueryConditionOp",
-                                         py::module_local()) \
-        DENUM(LT) \
-        DENUM(LE) \
-        DENUM(GT) \
-        DENUM(GE) \
-        DENUM(EQ) \
-        DENUM(NE);
+                                         py::module_local()) DENUM(LT) DENUM(LE)
+      DENUM(GT) DENUM(GE) DENUM(EQ) DENUM(NE);
 
 #define DVENUM(x) .value(#x, TILEDB_VFS_##x)
   py::enum_<tiledb_vfs_mode_t>(m, "VFSMode") DVENUM(READ) DVENUM(WRITE)

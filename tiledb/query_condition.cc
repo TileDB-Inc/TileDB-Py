@@ -19,91 +19,79 @@ using namespace tiledb;
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-class PyQueryCondition : public QueryCondition {
+class PyQueryCondition {
 
 private:
-  const Context ctx_;
-  //shared_ptr<QueryCondition> qc_;
+  Context ctx_;
+  shared_ptr<QueryCondition> qc_;
 
 public:
   PyQueryCondition() = delete;
 
-  // Yes, we are making two non-owning Context because this class needs access too
-  PyQueryCondition(py::object ctx) :
-    QueryCondition(get_ctx(ctx)), ctx_(get_ctx(ctx)) {}
-
-  PyQueryCondition(const Context& ctx, QueryCondition qc) :
-    QueryCondition(std::move(qc)), ctx_(ctx) {};
-
-  //void init(const string &attribute_name, const string &condition_value,
-  //          tiledb_query_condition_op_t op) {
-  //  try {
-  //    this->init(attribute_name, condition_value, op);
-  //  } catch (TileDBError &e) {
-  //    TPY_ERROR_LOC(e.what());
-  //  }
-  //}
-
-  template <typename T>
-  void init_pyqc(const string &attribute_name, T condition_value,
-            tiledb_query_condition_op_t op) {
-    size_t val_size = 0;
-    std::cout << typeid(T).name() << std::endl;
-    if constexpr (std::is_same_v<T, std::string>) {
-      val_size = condition_value.size();
-    } else {
-      val_size = sizeof(T);
-    }
+  PyQueryCondition(py::object ctx) {
     try {
-      this->init(attribute_name, &condition_value, val_size, op);
+      set_ctx(ctx);
+      qc_ = shared_ptr<QueryCondition>(new QueryCondition(ctx_));
     } catch (TileDBError &e) {
       TPY_ERROR_LOC(e.what());
     }
   }
 
-  //shared_ptr<QueryCondition> ptr() { return ; }
+  void init(const string &attribute_name, const string &condition_value,
+            tiledb_query_condition_op_t op) {
+    try {
+      qc_->init(attribute_name, condition_value, op);
+    } catch (TileDBError &e) {
+      TPY_ERROR_LOC(e.what());
+    }
+  }
 
-  py::capsule __capsule__() { return py::capsule(this, "qc", nullptr); }
+  template <typename T>
+  void init(const string &attribute_name, T condition_value,
+            tiledb_query_condition_op_t op) {
+    try {
+      qc_->init(attribute_name, &condition_value, sizeof(condition_value), op);
+    } catch (TileDBError &e) {
+      TPY_ERROR_LOC(e.what());
+    }
+  }
+
+  shared_ptr<QueryCondition> ptr() { return qc_; }
+
+  py::capsule __capsule__() { return py::capsule(&qc_, "qc", nullptr); }
 
   PyQueryCondition
   combine(PyQueryCondition rhs,
           tiledb_query_condition_combination_op_t combination_op) const {
 
-    //auto pyqc = PyQueryCondition(nullptr, ctx_.ptr().get());
+    auto pyqc = PyQueryCondition(nullptr, ctx_.ptr().get());
 
     tiledb_query_condition_t *combined_qc = nullptr;
     ctx_.handle_error(
         tiledb_query_condition_alloc(ctx_.ptr().get(), &combined_qc));
 
     ctx_.handle_error(tiledb_query_condition_combine(
-        ctx_.ptr().get(), this->ptr().get(), rhs.ptr().get(),
+        ctx_.ptr().get(), qc_->ptr().get(), rhs.qc_->ptr().get(),
         combination_op, &combined_qc));
 
-    //pyqc.qc_ = std::shared_ptr<QueryCondition>(
-    //    new QueryCondition(pyqc.ctx_, combined_qc));
+    pyqc.qc_ = std::shared_ptr<QueryCondition>(
+        new QueryCondition(pyqc.ctx_, combined_qc));
 
-    //return std::make_shared<const PyQueryCondition>(ctx_, QueryCondition(ctx_, combined_qc));
-
-
-    return PyQueryCondition(ctx_, QueryCondition(ctx_, combined_qc));
+    return pyqc;
   }
 
 private:
-  //PyQueryCondition(shared_ptr<QueryCondition> qc, tiledb_ctx_t *c_ctx)
-  //    : QueryCondition(Context(c_ctx, false))  {
-  //  //ctx_ = Context(c_ctx, false);
-  //}
-
-  //void set_ctx(py::object ctx) {
-  //  ctx_ = get_ctx(ctx);
-  //}
-  Context get_ctx(py::object ctx) {
-    tiledb_ctx_t *c_ctx = (py::capsule)ctx.attr("__capsule__")();
-    if (c_ctx == nullptr)
-      TPY_ERROR_LOC("Invalid context pointer!")
-    return Context(c_ctx, false);
+  PyQueryCondition(shared_ptr<QueryCondition> qc, tiledb_ctx_t *c_ctx)
+      : qc_(qc) {
+    ctx_ = Context(c_ctx, false);
   }
 
+  void set_ctx(py::object ctx) {
+    tiledb_ctx_t *c_ctx;
+    if ((c_ctx = (py::capsule)ctx.attr("__capsule__")()) == nullptr)
+      TPY_ERROR_LOC("Invalid context pointer!")
+    ctx_ = Context(c_ctx, false);
+  }
 }; // namespace tiledbpy
 
 void init_query_condition(py::module &m) {
@@ -118,55 +106,53 @@ void init_query_condition(py::module &m) {
       .def("init_string",
            static_cast<void (PyQueryCondition::*)(
                const string &, const string &, tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
 
       .def("init_uint64",
            static_cast<void (PyQueryCondition::*)(const string &, uint64_t,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
       .def("init_int64",
            static_cast<void (PyQueryCondition::*)(const string &, int64_t,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
       .def("init_uint32",
            static_cast<void (PyQueryCondition::*)(const string &, uint32_t,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
       .def("init_int32",
            static_cast<void (PyQueryCondition::*)(const string &, int32_t,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
       .def("init_uint16",
            static_cast<void (PyQueryCondition::*)(const string &, uint16_t,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
       .def("init_int16",
            static_cast<void (PyQueryCondition::*)(const string &, int16_t,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
       .def("init_uint8",
            static_cast<void (PyQueryCondition::*)(const string &, uint8_t,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
       .def("init_int8",
            static_cast<void (PyQueryCondition::*)(const string &, int8_t,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
 
       .def("init_float32",
            static_cast<void (PyQueryCondition::*)(const string &, float,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
       .def("init_float64",
            static_cast<void (PyQueryCondition::*)(const string &, double,
                                                   tiledb_query_condition_op_t)>(
-               &PyQueryCondition::init_pyqc))
+               &PyQueryCondition::init))
 
       .def("combine", &PyQueryCondition::combine)
 
       .def("__capsule__", &PyQueryCondition::__capsule__);
-
-      //.def("__qc__", &PyQueryCondition::ptr);
 
   py::enum_<tiledb_query_condition_op_t>(m, "tiledb_query_condition_op_t",
                                          py::arithmetic())

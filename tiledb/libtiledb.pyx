@@ -17,7 +17,7 @@ from .ctx import default_ctx
 from .filter import FilterList
 from .vfs import VFS
 
-#import tiledb.cc as lt
+import tiledb.cc as lt
 from tiledb.cc import TileDBError
 
 
@@ -4316,7 +4316,7 @@ cdef class DenseArrayImpl(Array):
         """
         if not ctx:
             ctx = default_ctx()
-
+        
         mode = kw.pop("mode", "ingest")
         timestamp = kw.pop("timestamp", None)
 
@@ -4329,7 +4329,7 @@ cdef class DenseArrayImpl(Array):
                     raise TileDBError(f"Array URI '{uri}' already exists!")
             except TileDBError:
                 pass
-
+        
         if mode == "append":
             kw["append_dim"] = kw.get("append_dim", 0)
             if ArraySchema.load(uri).sparse:
@@ -4892,17 +4892,17 @@ cdef class DenseArrayImpl(Array):
 
                 if array.ndim <= append_dim:
                     raise IndexError("`append_dim` out of range")
-
+                
                 if array.ndim != len(ned):
                     raise ValueError(
                         "The number of dimension of the TileDB array and "
                         "Numpy array to append do not match"
                     )
 
-                for n in range(array.ndim):
+                for n in range(array.ndim): 
                     if n == append_dim:
                         if start_idx is not None:
-                            range_start_idx = start_idx
+                            range_start_idx = start_idx 
                             range_end_idx = array.shape[n] + start_idx -1
                         else:
                             range_start_idx = ned[n][1] + 1
@@ -4919,20 +4919,20 @@ cdef class DenseArrayImpl(Array):
                                 f"{n} has {array.shape[n]} dimension(s) and "
                                 f"the TileDB array has {ned[n][1]-ned[n][0]}."
                             )
-
+            
             rc = tiledb_query_set_subarray(
-                    ctx_ptr,
-                    query_ptr,
+                    ctx_ptr, 
+                    query_ptr, 
                     <void*>np.PyArray_DATA(subarray)
             )
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
             rc = tiledb_query_set_buffer(
-                    ctx_ptr,
-                    query_ptr,
-                    attr_name_ptr,
-                    buff_ptr,
+                    ctx_ptr, 
+                    query_ptr, 
+                    attr_name_ptr, 
+                    buff_ptr, 
                     &buff_size
             )
             if rc != TILEDB_OK:
