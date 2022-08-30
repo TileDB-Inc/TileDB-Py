@@ -1654,14 +1654,11 @@ cdef class Attr(object):
         :rtype: numpy.dtype
 
         """
-        cdef tiledb_datatype_t typ
-        check_error(self.ctx,
-                    tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
         cdef uint32_t ncells = 0
         check_error(self.ctx,
                     tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
 
-        return np.dtype(_numpy_dtype(typ, ncells))
+        return np.dtype(_numpy_dtype(self._get_type(), ncells))
 
     @property
     def name(self):
@@ -1824,10 +1821,11 @@ cdef class Attr(object):
                 filters_str +=  repr(f) + ", "
             filters_str += "])"
 
+        dtype = "ascii" if self.isascii else self.dtype
+
         # filters_str must be last with no spaces
-        return (f"""Attr(name={repr(self.name)}, dtype='{self.dtype!s}', """
-                f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
-                f"""{filters_str})""")
+        return (f"Attr(name={self.name!r}, dtype='{dtype}', var={self.isvar}, "
+                f"nullable={self.isnullable}{filters_str})")
 
     def _repr_html_(self):
         output = io.StringIO()
