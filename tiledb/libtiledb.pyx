@@ -241,48 +241,16 @@ def schema_like_numpy(array, ctx=None, **kw):
     cctx = lt.Context(ctx, False)
 
     attr_name = kw.pop('attr_name', '')
-    dim_dtype = kw.pop('dim_dtype', np.dtype("uint64"))
-    full_domain = kw.pop('full_domain', False)
-    dims = []
-
+    dim_dtype = kw.pop('dim_dtype', np.uint64)
+    # dims = []
+    dom = lt.Domain(cctx)
     for (dim_num,d) in enumerate(range(array.ndim)):
         # support smaller tile extents by kw
         # domain is based on full shape
         tile_extent = tiling[d] if tiling else array.shape[d]
-        if full_domain:
-            if dim_dtype not in (np.bytes_, np.str_):
-                # Use the full type domain, deferring to the constructor
-                dtype_min, dtype_max = dtype_range(dim_dtype)
-                dim_max = dtype_max
-                if dim_dtype.kind == "M":
-                    date_unit = np.datetime_data(dim_dtype)[0]
-                    dim_min = np.datetime64(dtype_min, date_unit)
-                    tile_max = np.iinfo(np.uint64).max - tile_extent
-                    if np.uint64(dtype_max - dtype_min) > tile_max:
-                        dim_max = np.datetime64(dtype_max - tile_extent, date_unit)
-                else:
-                    dim_min = dtype_min
+        domain = (0, array.shape[d] - 1)
+        # dims.append(lt.Dimension(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
 
-                if np.issubdtype(dim_dtype, np.integer):
-                    tile_max = np.iinfo(np.uint64).max - tile_extent
-                    if np.uint64(dtype_max - dtype_min) > tile_max:
-                        dim_max = dtype_max - tile_extent
-                domain = (dim_min, dim_max)
-            else:
-                domain = (None, None)
-
-            if np.issubdtype(dim_dtype, np.integer) or dim_dtype.kind == "M":
-                # we can't make a tile larger than the dimension range or lower than 1
-                tile_extent = max(1, min(tile_extent, np.uint64(dim_max - dim_min)))
-            elif np.issubdim_dtype(dim_dtype, np.floating):
-                # this difference can be inf
-                with np.errstate(over="ignore"):
-                    dim_range = dim_max - dim_min
-                if dim_range < tile_extent:
-                    tile_extent = np.ceil(dim_range)
-        else:
-            domain = (0, array.shape[d] - 1)
-            
         dom._add_dim(lt.Dimension(cctx, "__dim_0", np.dtype(dim_dtype), np.array(domain), np.array(tile_extent)))
 
     var = False
@@ -2625,19 +2593,19 @@ cdef class DenseArrayImpl(Array):
         timestamp = kw.pop("timestamp", None)
 
         if mode not in ("ingest", "schema_only", "append"):
-            raise TileDBError(f"Invalid mode specified ('{mode}')")
+            raise lt.TileDBError(f"Invalid mode specified ('{mode}')")
 
         if mode in ("ingest", "schema_only"):
             try:
                 with Array.load_typed(uri):
-                    raise TileDBError(f"Array URI '{uri}' already exists!")
-            except TileDBError:
+                    raise lt.TileDBError(f"Array URI '{uri}' already exists!")
+            except lt.TileDBError:
                 pass
         
         if mode == "append":
             kw["append_dim"] = kw.get("append_dim", 0)
-            if ArraySchema.load(uri).sparse:
-                raise TileDBError("Cannot append to sparse array")
+            if lt.ArraySchema.load(uri).sparse:
+                raise lt.TileDBError("Cannot append to sparse array")
 
         if mode in ("ingest", "schema_only"):
             schema = schema_like_numpy(array, ctx=ctx, **kw)
