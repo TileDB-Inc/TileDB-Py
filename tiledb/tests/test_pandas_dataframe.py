@@ -27,6 +27,7 @@ from tiledb.tests.common import (
     rand_ascii_bytes,
     rand_datetime64_array,
     rand_utf8,
+    has_pyarrow,
 )
 
 
@@ -235,7 +236,7 @@ class TestDimType:
                     {"data": np.array(["a"], dtype=np.str_)},
                     index=pd.Index(np.array(["b"], dtype=np.str_), name="str_dim"),
                 ),
-                np.bytes_,
+                np.str_,
                 {},
             )
         ],
@@ -433,17 +434,21 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df = make_dataframe_basic1(100)
 
         for col in df.columns:
-            uri = self.path("df_indx_dim+{}".format(str(col)))
+            uri = self.path(f"df_indx_dim+{col}")
 
             # ensure that all column which will be used as string dim index
             # is sorted, because that is how it will be returned
             if df.dtypes[col] == "O":
                 df.sort_values(col, inplace=True)
 
-                # also ensure that string columns are converted to bytes
-                # b/c only TILEDB_ASCII supported for string dimension
+                # also ensure that columns are converted to valid ASCII
+                if type(df[col][0]) is bytes:
+                    df[col] = [x.decode("UTF-8") for x in df[col]]
+
                 if type(df[col][0]) is str:
-                    df[col] = [x.encode("UTF-8") for x in df[col]]
+                    df[col] = [
+                        x.encode("ascii", "replace").decode("UTF-8") for x in df[col]
+                    ]
 
             new_df = df.drop_duplicates(subset=col)
             new_df.set_index(col, inplace=True)
@@ -1035,7 +1040,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         data = {
             "data": np.array([1, 2, 3]),
             "raw": np.array([4, 5, 6]),
-            "index": np.array(["a", "b", "c"], dtype=np.dtype("|S")),
+            "index": np.array(["a", "b", "c"], dtype=np.dtype("U")),
             "indey": np.array([0.0, 0.5, 0.9]),
         }
         df = pd.DataFrame.from_dict(data)
@@ -1043,7 +1048,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         uri = self.path("test_string_index_infer")
         tiledb.from_pandas(uri, df)
         with tiledb.open(uri) as A:
-            self.assertTrue(A.schema.domain.dim(0).dtype == np.dtype("|S"))
+            self.assertTrue(A.schema.domain.dim(0).dtype == np.dtype("U"))
 
         # test setting Attr and Dim filter list by override
         uri = self.path("test_df_attrs_filters1")
@@ -1366,7 +1371,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         uri_ascii = self.path("test_set_ascii_dtype_ascii")
         tiledb.from_pandas(uri_ascii, df, sparse=True, column_types={"x": "ascii"})
         with tiledb.open(uri_ascii) as A:
-            assert A.attr("x").dtype == np.dtype("S")
+            assert A.attr("x").dtype == np.dtype("U")
             assert A.attr("x").isascii
 
     def test_append_empty_dataframe(self):
@@ -1397,6 +1402,25 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(uri) as A:
             dtype = np.uint8 if tiledb.libtiledb.version() < (2, 10) else bool
             assert A.schema.attr("flags").dtype == dtype
+
+    @pytest.mark.skipif(not has_pyarrow(), reason="pyarrow not installed")
+    def test_ascii_dim_and_attr(self):
+        uri = self.path("test_str_dims")
+        dom = tiledb.Domain([tiledb.Dim(dtype="ascii")])
+        attrs = [tiledb.Attr(name="data", dtype="ascii", var=True)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(uri, schema)
+
+        abc = ["a", "b", "c"]
+
+        with tiledb.open(uri, "w") as A:
+            A[abc] = np.array(abc)
+
+        with tiledb.open(uri, "r") as A:
+            assert abc == A.query(use_arrow=False).df[:]["__dim_0"].tolist()
+            assert abc == A.query(use_arrow=True).df[:]["__dim_0"].tolist()
+            assert abc == A.query(use_arrow=False).df[:]["data"].tolist()
+            assert abc == A.query(use_arrow=True).df[:]["data"].tolist()
 
 
 class TestFromPandasOptions(DiskTestCase):

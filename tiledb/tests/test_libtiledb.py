@@ -306,12 +306,33 @@ class DimensionTest(unittest.TestCase):
             )
 
     def test_shape(self):
-        dim = tiledb.Dim(name="", dtype="|S0", var=True)
+        dim = tiledb.Dim(name="", dtype="ascii", var=True)
         with self.assertRaisesRegex(
             TypeError,
             "shape only valid for integer and datetime dimension domains",
         ):
             dim.shape
+
+    def test_string_dtypes(self):
+        expected_repr = (
+            "Dim(name='__dim_0', domain=(None, None), "
+            "tile=None, dtype='ascii', var=True)"
+        )
+        expected_warn = "Use 'ascii' for string dimensions."
+
+        dim = tiledb.Dim(dtype="ascii")
+        assert dim.dtype == np.dtype("U")
+        assert repr(dim) == expected_repr
+
+        with pytest.warns(UserWarning, match=expected_warn):
+            dim = tiledb.Dim(dtype=np.bytes_)
+            assert dim.dtype == np.dtype("U")
+            assert repr(dim) == expected_repr
+
+        with pytest.warns(UserWarning, match=expected_warn):
+            dim = tiledb.Dim(dtype=np.str_)
+            assert dim.dtype == np.dtype("U")
+            assert repr(dim) == expected_repr
 
 
 class DomainTest(DiskTestCase):
@@ -368,7 +389,7 @@ class DomainTest(DiskTestCase):
         path = self.path("test_ascii_domain")
 
         dim = tiledb.Dim(name="d", dtype="ascii")
-        assert dim.dtype == np.bytes_
+        assert dim.dtype == np.str_
 
         dom = tiledb.Domain(dim)
         dom.dump()
@@ -545,9 +566,9 @@ class AttributeTest(DiskTestCase):
             assert A.schema.nattr == 1
             A.schema.dump()
             assert_captured(capfd, "Type: STRING_ASCII")
-            assert A.schema.attr("A").dtype == np.bytes_
+            assert A.schema.attr("A").dtype == np.str_
             assert A.schema.attr("A").isascii
-            assert_array_equal(A[:]["A"], np.asarray(ascii_data, dtype=np.bytes_))
+            assert_array_equal(A[:]["A"], np.asarray(ascii_data, dtype=np.str_))
 
 
 class ArraySchemaTest(DiskTestCase):
@@ -815,7 +836,7 @@ class ArraySchemaTest(DiskTestCase):
 
         dims = [
             tiledb.Dim(name="dpos", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
-            tiledb.Dim(name="str_index", tile=None, dtype=np.bytes_),
+            tiledb.Dim(name="str_index", tile=None, dtype="ascii"),
         ]
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64)]
@@ -827,12 +848,12 @@ class ArraySchemaTest(DiskTestCase):
         self.assertTrue(schema.domain.dim("str_index").isvar)
         self.assertFalse(schema.domain.dim("dpos").isvar)
         self.assertEqual(schema.domain.dim("dpos").dtype, np.double)
-        self.assertEqual(schema.domain.dim("str_index").dtype, np.bytes_)
+        self.assertEqual(schema.domain.dim("str_index").dtype, np.str_)
         self.assertFalse(schema.domain.homogeneous)
 
         tiledb.Array.create(path, schema)
         with tiledb.open(path, "r") as arr:
-            assert_array_equal(arr[:]["str_index"], np.array([], dtype="|S1"))
+            assert_array_equal(arr[:]["str_index"], np.array([], dtype="|U1"))
 
 
 class ArrayTest(DiskTestCase):
@@ -1035,7 +1056,7 @@ class ArrayTest(DiskTestCase):
             A[""] = None
 
         with tiledb.open(uri, "r") as A:
-            assert_array_equal(A.nonempty_domain(), ((b"", b""),))
+            assert_array_equal(A.nonempty_domain(), (("", ""),))
 
     def test_create_array_overwrite(self):
         uri = self.path("test_create_array_overwrite")
@@ -2777,12 +2798,12 @@ class TestSparseArray(DiskTestCase):
                 sparse_cell_order != "hilbert",
             )
             a_nonempty = A.nonempty_domain()
-            self.assertEqual(a_nonempty[0], (0, 49))
-            self.assertEqual(a_nonempty[1], (-100.0, 100.0))
+            assert a_nonempty[0] == (0, 49)
+            assert a_nonempty[1] == (-100.0, 100.0)
 
     def test_sparse_string_domain(self, sparse_cell_order):
         path = self.path("sparse_string_domain")
-        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(None, None), dtype=np.bytes_))
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(None, None), dtype="ascii"))
         att = tiledb.Attr(name="a", dtype=np.int64)
         schema = tiledb.ArraySchema(
             domain=dom,
@@ -2794,7 +2815,7 @@ class TestSparseArray(DiskTestCase):
         tiledb.SparseArray.create(path, schema)
 
         data = [1, 2, 3, 4]
-        coords = [b"aa", b"bbb", b"c", b"dddd"]
+        coords = ["aa", "bb", "c", "dddd"]
 
         with tiledb.open(path, "w") as A:
             A[coords] = data
@@ -2803,18 +2824,18 @@ class TestSparseArray(DiskTestCase):
             ned = A.nonempty_domain()[0]
             res = A[ned[0] : ned[1]]
             assert_array_equal(res["a"], data)
-            self.assertEqual(set(res["d"]), set(coords))
-            self.assertEqual(A.nonempty_domain(), ((b"aa", b"dddd"),))
+            assert set(res["d"]) == set(coords)
+            assert A.nonempty_domain() == (("aa", "dddd"),)
 
     def test_sparse_string_domain2(self, sparse_cell_order):
         path = self.path("sparse_string_domain2")
         with self.assertRaises(ValueError):
             dims = [
                 tiledb.Dim(
-                    name="str", domain=(None, None, None), tile=None, dtype=np.bytes_
+                    name="str", domain=(None, None, None), tile=None, dtype="ascii"
                 )
             ]
-        dims = [tiledb.Dim(name="str", domain=(None, None), tile=None, dtype=np.bytes_)]
+        dims = [tiledb.Dim(name="str", domain=(None, None), tile=None, dtype="ascii")]
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64)]
 
@@ -2824,7 +2845,7 @@ class TestSparseArray(DiskTestCase):
         tiledb.SparseArray.create(path, schema)
 
         data = np.random.rand(10)
-        coords = [rand_ascii_bytes(random.randint(5, 50)) for _ in range(10)]
+        coords = [rand_ascii(random.randint(5, 50)) for _ in range(10)]
 
         with tiledb.open(path, "w") as A:
             A[coords] = data
@@ -2832,7 +2853,7 @@ class TestSparseArray(DiskTestCase):
         with tiledb.open(path) as A:
             ned = A.nonempty_domain()[0]
             res = A[ned[0] : ned[1]]
-            self.assertTrue(set(res["str"]) == set(coords))
+            assert set(res["str"]) == set(coords)
             # must check data ordered by coords
             assert_array_equal(res["val"], data[np.argsort(coords, kind="stable")])
 
@@ -2840,7 +2861,7 @@ class TestSparseArray(DiskTestCase):
         uri = self.path("sparse_mixed_domain")
         dims = [
             tiledb.Dim(name="p", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
-            tiledb.Dim(name="str", domain=(None, None), tile=None, dtype=np.bytes_),
+            tiledb.Dim(name="str", domain=(None, None), tile=None, dtype="ascii"),
         ]
         dom = tiledb.Domain(*dims)
         attrs = [tiledb.Attr(name="val", dtype=np.float64)]
@@ -2852,7 +2873,7 @@ class TestSparseArray(DiskTestCase):
 
         nrows = 5
         idx_f64 = np.random.rand(nrows)
-        idx_str = [rand_ascii(5).encode("utf-8") for _ in range(nrows)]
+        idx_str = [rand_ascii(5) for _ in range(nrows)]
         data = np.random.rand(nrows)
 
         with tiledb.SparseArray(uri, "w") as A:
@@ -2868,7 +2889,7 @@ class TestSparseArray(DiskTestCase):
 
     def test_sparse_get_unique_dim_values(self, sparse_cell_order):
         uri = self.path("get_non_empty_coords")
-        dim1 = tiledb.Dim(name="dim1", domain=(None, None), tile=None, dtype=np.bytes_)
+        dim1 = tiledb.Dim(name="dim1", domain=(None, None), tile=None, dtype="ascii")
         dim2 = tiledb.Dim(name="dim2", domain=(0, 1), tile=1, dtype=np.float64)
         attr = tiledb.Attr(name="attr", dtype=np.float32)
         dom = tiledb.Domain(dim1, dim2)
@@ -2886,12 +2907,10 @@ class TestSparseArray(DiskTestCase):
         with tiledb.open(uri, "r") as A:
             self.assertEqual(
                 A.unique_dim_values(),
-                OrderedDict(
-                    [("dim1", (b"a1", b"a2", b"a3")), ("dim2", (0.0, 0.25, 0.5))]
-                ),
+                OrderedDict([("dim1", ("a1", "a2", "a3")), ("dim2", (0.0, 0.25, 0.5))]),
             )
 
-            self.assertEqual(A.unique_dim_values("dim1"), (b"a1", b"a2", b"a3"))
+            self.assertEqual(A.unique_dim_values("dim1"), ("a1", "a2", "a3"))
             self.assertEqual(A.unique_dim_values("dim2"), (0, 0.25, 0.5))
 
             with self.assertRaises(ValueError):
@@ -2919,7 +2938,7 @@ class TestSparseArray(DiskTestCase):
     def test_sparse_write_nullable_default(self):
         uri = self.path("test_sparse_write_nullable_default")
 
-        dim1 = tiledb.Dim(name="d1", dtype="|S0", var=True)
+        dim1 = tiledb.Dim(name="d1", dtype="ascii", var=True)
         att = tiledb.Attr(name="a1", dtype="<U0", var=True, nullable=True)
 
         schema = tiledb.ArraySchema(
@@ -4072,7 +4091,7 @@ class ReprTest(DiskTestCase):
         self.assertEqual(eval(repr(attr), g), attr)
 
     def test_dim_repr(self):
-        dtype_set = [bytes, np.bytes_]
+        dtype_set = ["ascii"]
         opts = {
             None: None,
             "var": True,
@@ -4099,7 +4118,7 @@ class ReprTest(DiskTestCase):
                 exec(dim_test_imports, g)
 
                 dim = tiledb.Dim(name="d1", dtype=dtype, **opt_kwarg)
-                self.assertEqual(eval(repr(dim), g), dim)
+                assert eval(repr(dim), g) == dim
 
         # test datetime
         g = dict()

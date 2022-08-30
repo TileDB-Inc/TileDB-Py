@@ -97,7 +97,7 @@ class TestFilterTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=True)
         tiledb.Array.create(path, schema)
 
-        data = [b"x" * i for i in np.random.randint(1, 10, size=10)]
+        data = ["x" * i for i in np.random.randint(1, 10, size=10)]
 
         with tiledb.open(path, "w") as A:
             A[np.arange(10)] = data

@@ -212,7 +212,7 @@ class QueryConditionTest(DiskTestCase):
             qc = tiledb.QueryCondition("A == 'a'")
             result = A.query(attr_cond=qc, attrs=["A"])[:]
             assert len(result["A"]) == 1
-            assert result["A"][0] == b"a"
+            assert result["A"][0] == "a"
 
     def test_string_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
@@ -222,7 +222,7 @@ class QueryConditionTest(DiskTestCase):
 
             qc = tiledb.QueryCondition("A == 'a'")
             result = A.query(attr_cond=qc, attrs=["A"])[:]
-            assert all(self.filter_dense(result["A"], A.attr("A").fill) == b"a")
+            assert all(self.filter_dense(result["A"], A.attr("A").fill) == "a")
 
     def test_combined_types_sparse(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
@@ -417,13 +417,13 @@ class QueryConditionTest(DiskTestCase):
                 "attr('attr with spaces') == 'value with spaces'"
             )
             result = arr.query(attr_cond=qc)[:]
-            assert list(result["dim"]) == [b"a", b"c"]
+            assert list(result["dim"]) == ["a", "c"]
 
             qc = tiledb.QueryCondition(
                 "attr('attr with spaces') == val('value with spaces')"
             )
             result = arr.query(attr_cond=qc)[:]
-            assert list(result["dim"]) == [b"a", b"c"]
+            assert list(result["dim"]) == ["a", "c"]
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version() < (2, 7, 0),
@@ -455,7 +455,7 @@ class QueryConditionTest(DiskTestCase):
             for s in ascii_data:
                 qc = tiledb.QueryCondition(f"ascii == '{s.decode()}'")
                 result = arr.query(attr_cond=qc)[:]
-                assert result["ascii"][0] == s
+                assert result["ascii"][0] == s.decode()
 
             for s in bytes_data:
                 qc = tiledb.QueryCondition(f"bytes == '{s.decode()}'")

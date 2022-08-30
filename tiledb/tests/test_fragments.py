@@ -75,7 +75,7 @@ class FragmentInfoTest(DiskTestCase):
 
         uri = self.path("test_array_fragments_var")
         dom = tiledb.Domain(
-            tiledb.Dim(name="dim", domain=(None, None), tile=None, dtype=np.bytes_)
+            tiledb.Dim(name="dim", domain=(None, None), tile=None, dtype="ascii")
         )
         schema = tiledb.ArraySchema(
             domain=dom,
@@ -285,8 +285,8 @@ class FragmentInfoTest(DiskTestCase):
     def test_nonempty_domain_strings(self):
         uri = self.path("test_nonempty_domain_strings")
         dom = tiledb.Domain(
-            tiledb.Dim(name="x", domain=(None, None), dtype=np.bytes_),
-            tiledb.Dim(name="y", domain=(None, None), dtype=np.bytes_),
+            tiledb.Dim(name="x", domain=(None, None), dtype="ascii"),
+            tiledb.Dim(name="y", domain=(None, None), dtype="ascii"),
         )
         att = tiledb.Attr()
         schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
@@ -294,13 +294,13 @@ class FragmentInfoTest(DiskTestCase):
         tiledb.SparseArray.create(uri, schema)
 
         with tiledb.SparseArray(uri, mode="w") as T:
-            x_dims = [b"a", b"b", b"c", b"d"]
-            y_dims = [b"e", b"f", b"g", b"h"]
+            x_dims = ["a", "b", "c", "d"]
+            y_dims = ["e", "f", "g", "h"]
             T[x_dims, y_dims] = np.array([1, 2, 3, 4])
 
         with tiledb.SparseArray(uri, mode="w") as T:
-            x_dims = [b"a", b"b"]
-            y_dims = [b"e", b"f"]
+            x_dims = ["a", "b"]
+            y_dims = ["e", "f"]
             T[x_dims, y_dims] = np.array([1, 2])
 
         fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())

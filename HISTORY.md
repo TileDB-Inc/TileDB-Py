@@ -1,5 +1,8 @@
 # In Progress
 
+## API Changes
+* `TILEDB_STRING_ASCII` displaying as `str` instead of `bytes` [#1304](https://github.com/TileDB-Inc/TileDB-Py/pull/1304)
+
 ## Misc Updates
 * Wheels will no longer be supported for macOS 10.15 Catalina; the minimum supported macOS version is now 11 Big Sur [#1300](https://github.com/TileDB-Inc/TileDB-Py/pull/1300)
 * Wheels will no longer supported for Python 3.6 [#1300](https://github.com/TileDB-Inc/TileDB-Py/pull/1300)
