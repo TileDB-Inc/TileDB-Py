@@ -91,7 +91,10 @@ def test_sparse_delete_purge():
     ###########################
 
     print("---- initial array, timestamps 1,2")
-    p_all()
+    with tiledb.open(uri) as A:
+        d = A[:]
+        print(d["idx"])
+        print(d["data"])
 
     apply_delete(uri, "data == 2", timestamp=3)
     print("---- apply delete for 'data == 2' at ts==3")
@@ -117,6 +120,13 @@ def test_sparse_delete_purge():
     assert 2 not in rr(3)
 
     p_all()
+
+    if True:
+        # change to ts=6 and instead the assert fails below consolidate
+        ts = 3
+        write_array(uri, [-5.5], [2], ts)
+        print(f"---- write back {-5.5: 2} at {ts}")
+        p_all()
 
     time.sleep(0.01)
     cfg = tiledb.Config({"sm.consolidation.purge_deleted_cells": "true"})
