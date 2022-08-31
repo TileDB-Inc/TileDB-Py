@@ -152,7 +152,11 @@ void init_query_condition(py::module &m) {
 
       .def("combine", &PyQueryCondition::combine)
 
-      .def("__capsule__", &PyQueryCondition::__capsule__);
+      .def("__capsule__", &PyQueryCondition::__capsule__)
+      .def("__qc_capsule__", [](PyQueryCondition &pyqc) -> py::capsule {
+        auto val = pyqc.ptr().get()->ptr().get();
+        return py::capsule(val, "qc_capsule", nullptr);
+      });
 
   py::enum_<tiledb_query_condition_op_t>(m, "tiledb_query_condition_op_t",
                                          py::arithmetic())

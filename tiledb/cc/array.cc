@@ -18,6 +18,9 @@ void init_array(py::module &m) {
       .def(
           py::init<const Context &, const std::string &, tiledb_query_type_t>(),
           py::keep_alive<1, 2>() /* Array keeps Context alive */)
+      .def(
+          py::init<const Context &, const std::string &, tiledb_query_type_t, int64_t>(),
+          py::keep_alive<1, 2>() /* Array keeps Context alive */)
       // TODO capsule Array(const Context& ctx, tiledb_array_t* carray,
       // tiledb_config_t* config)
       .def("is_open", &Array::is_open)
@@ -33,6 +36,9 @@ void init_array(py::module &m) {
       .def("open",
            (void (Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
                             const std::string &, uint64_t)) &
+               Array::open)
+      .def("open",
+           (void (Array::*)(tiledb_query_type_t, uint64_t)) &
                Array::open)
       .def("reopen", &Array::reopen)
       .def("set_open_timestamp_start", &Array::set_open_timestamp_start)

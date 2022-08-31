@@ -1,7 +1,9 @@
 #include <tiledb/tiledb> // C++
+#include <tiledb/tiledb.h>
 
 #include "common.h"
 
+#define PYBIND11_DETAILED_ERROR_MESSAGES
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
@@ -171,6 +173,17 @@ void init_query(py::module &m) {
       .def_property("layout", &Query::query_layout, &Query::set_layout)
 
       .def("set_condition", &Query::set_condition)
+      .def("set_condition", [](Query &q, py::object cond) {
+        auto c_ctx = q.ctx(); // NB this requires libtiledb >=2.6
+        Context ctx(c_ctx.ptr().get(), false);
+
+        // TODO NOMERGE this is super hacky
+        auto pyqc_c = (cond.attr("c_obj").attr("__qc_capsule__"))().cast<py::capsule>().get_pointer<tiledb_query_condition_t>();
+        tiledb_query_condition_t* qc_c  = (tiledb_query_condition_t*)(pyqc_c);
+        //std::cout << " --- here3 " << std::endl;
+        auto qc = new QueryCondition(ctx, pyqc_c);
+        q.set_condition(*qc);
+      })
       // TODO .def("array") -> Array&
       .def("query_status", &Query::query_status)
       .def("has_results", &Query::has_results)
