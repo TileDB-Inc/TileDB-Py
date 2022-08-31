@@ -1,8 +1,11 @@
+from math import hypot
 import tiledb
-import importlib
 import time
 import numpy as np
 import pytest
+
+pd = pytest.importorskip("pandas")
+tm = pd._testing
 
 import hypothesis
 import hypothesis.strategies as st
@@ -16,6 +19,7 @@ class AttrDataTest(DiskTestCase):
     @hypothesis.settings(deadline=1000)
     @given(st.binary())
     def test_bytes_numpy(self, data):
+        start = time.time()
         # TODO this test is slow. might be nice to run with in-memory
         #      VFS (if faster) but need to figure out correct setup
         # uri = "mem://" + str(uri_int)
@@ -28,7 +32,7 @@ class AttrDataTest(DiskTestCase):
         with tiledb.from_numpy(uri, array) as A:
             pass
         fnp_time = time.time() - start_fnp
-        hypothesis.note("from_numpy time: {fnp_time}")
+        hypothesis.note(f"from_numpy time: {fnp_time}")
 
         # DEBUG
         tiledb.stats_enable()
@@ -42,13 +46,13 @@ class AttrDataTest(DiskTestCase):
 
         # DEBUG
         tiledb.stats_disable()
+        hypothesis.note(f"test_bytes_numpy time: {start - time.time()}")
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     @hypothesis.settings(deadline=1000)
     @given(st.binary())
     def test_bytes_df(self, data):
-        import pandas as pd
-        from pandas import _testing as tm
+        start = time.time()
 
         # TODO this test is slow. might be nice to run with in-memory
         #      VFS (if faster) but need to figure out correct setup
@@ -64,7 +68,7 @@ class AttrDataTest(DiskTestCase):
         start_fpd = time.time()
         tiledb.from_pandas(uri_df, df, sparse=False)
         fpd_time = time.time() - start_fpd
-        hypothesis.note("from_pandas time: {fpd_time}")
+        hypothesis.note(f"from_pandas time: {fpd_time}")
 
         # DEBUG
         tiledb.stats_enable()
@@ -78,3 +82,4 @@ class AttrDataTest(DiskTestCase):
 
         # DEBUG
         tiledb.stats_disable()
+        hypothesis.note(f"test_bytes_df time: {start - time.time()}")
