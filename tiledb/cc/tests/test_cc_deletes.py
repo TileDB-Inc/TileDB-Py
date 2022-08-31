@@ -82,9 +82,9 @@ def test_sparse_delete_purge():
     ########################### WRITE
     create_array(uri)
 
-    write_array(uri, idx=np.linspace(-10, -1, 5), data=np.arange(0, 5), timestamp=1)
+    write_array(uri, idx=np.arange(0, 5), data=np.arange(0, 5), timestamp=1)
 
-    write_array(uri, idx=np.linspace(0, 10, 5), data=np.arange(5, 10), timestamp=2)
+    write_array(uri, idx=np.arange(5, 10), data=np.arange(5, 10), timestamp=2)
     assert 2 in rr(2)
     assert 2 in rr(3)
 
@@ -122,10 +122,10 @@ def test_sparse_delete_purge():
     p_all()
 
     if True:
-        # change to ts=6 and instead the assert fails below consolidate
+        # - with ts=3, get failure to find fragment
         ts = 3
-        write_array(uri, [-5.5], [2], ts)
-        print(f"---- write back {-5.5: 2} at {ts}")
+        write_array(uri, [2], [2], ts)
+        print(f"---- write back [2]=>[2] at {ts}")
         p_all()
 
     time.sleep(0.01)
