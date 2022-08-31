@@ -13,14 +13,17 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-py::array get_fill_value(Attribute &attr) {
+void set_fill_value(Attribute &attr, py::array value) {
+  attr.set_fill_value(value.data(), value.nbytes());
+}
+
+py::object get_fill_value(Attribute &attr) {
+  const void *value;
+  uint64_t size;
+
+  attr.get_fill_value(&value, &size);
+
   switch (attr.type()) {
-  case TILEDB_UINT64: {
-    const uint64_t *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("uint64"), 1);
-  }
   case TILEDB_DATETIME_YEAR:
   case TILEDB_DATETIME_WEEK:
   case TILEDB_DATETIME_DAY:
@@ -34,61 +37,40 @@ py::array get_fill_value(Attribute &attr) {
   case TILEDB_DATETIME_FS:
   case TILEDB_DATETIME_AS:
   case TILEDB_INT64: {
-    const int64_t *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("int64"), 1);
+    return py::cast((const int64_t *)value);
   }
-  case TILEDB_UINT32: {
-    const uint32_t *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("uint32"), 1);
+  case TILEDB_UINT64: {
+    return py::cast((const uint64_t *)value);
   }
   case TILEDB_INT32: {
-    const int32_t *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("int32"), 1);
+    return py::cast((const int32_t *)value);
   }
-  case TILEDB_UINT16: {
-    const uint16_t *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("uint16"), 1);
+  case TILEDB_UINT32: {
+    return py::cast((const uint32_t *)value);
   }
   case TILEDB_INT16: {
-    const int16_t *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("int16"), 1);
+    return py::cast((const int16_t *)value);
   }
-  case TILEDB_UINT8: {
-    const uint8_t *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("uint8"), 1);
+  case TILEDB_UINT16: {
+    return py::cast((const uint16_t *)value);
   }
   case TILEDB_INT8: {
-    const int8_t *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("int8"), 1);
+    return py::cast((const int8_t *)value);
+  }
+  case TILEDB_UINT8: {
+    return py::cast((const uint8_t *)value);
   }
   case TILEDB_FLOAT64: {
-    const double *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("double"), 1);
+    return py::cast((const double *)value);
   }
   case TILEDB_FLOAT32: {
-    const float *value;
-    uint64_t size;
-    attr.get_fill_value((const void **)&value, &size);
-    return py::array(py::dtype("float"), 1);
+    return py::cast((const float *)value);
+  }
+  case TILEDB_STRING_ASCII: {
+    return py::cast(std::string((const char *)value, size));
   }
   default:
-    TPY_ERROR_LOC("Unsupported dtype for Dimension's domain");
+    TPY_ERROR_LOC("Unsupported dtype for Attribute");
   }
 }
 
@@ -131,7 +113,10 @@ void init_attribute(py::module &m) {
 
       .def_property_readonly("_cell_size", &Attribute::cell_size)
 
-      .def_property_readonly("_fill_value", get_fill_value)
+      .def_property("_fill", get_fill_value, set_fill_value)
+
+      // .def("_set_fill_value", set_fill_value)
+      // .def("_get_fill_value", get_fill_value)
 
       .def("_dump", [](Attribute &attr) { attr.dump(); });
   ;

@@ -1,5 +1,6 @@
 import io
 import numpy as np
+import warnings
 
 import tiledb.cc as lt
 from .ctx import default_ctx
@@ -43,8 +44,44 @@ class Attr(lt.Attribute):
 
         super().__init__(_cctx, name, np.dtype(dtype))
 
+        if isinstance(dtype, str) and dtype == "ascii":
+            var = True
+            self._ncell = lt.TILEDB_VAR_NUM()
+        elif np.dtype(dtype).kind == "U":
+            var = True
+            self._ncell = lt.TILEDB_VAR_NUM()
+        elif np.dtype(dtype).kind == "S":
+            if var and 0 < dtype.itemsize:
+                warnings.warn(
+                    f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
+                    "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
+                    f"or `var=False`with `dtype={dtype}`",
+                    DeprecationWarning,
+                )
+                dtype = np.dtype("S0")
+
+            if dtype.itemsize == 0:
+                if var == False:
+                    warnings.warn(
+                        f"Attr given `var=False` but `dtype` `S0` is var-length; "
+                        "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
+                        "with `dtype=S0`, or `var=False` with a fixed-width "
+                        "string `dtype=S<n>` where is  n>1",
+                        DeprecationWarning,
+                    )
+                var = True
+                self._ncell = lt.TILEDB_VAR_NUM()
+
+        var = var or False
+
+        if self._ncell == lt.TILEDB_VAR_NUM() and not var:
+            raise TypeError("dtype is not compatible with var-length attribute")
+
         if filters is not None:
             self._filters = FilterList(filters)
+
+        if fill is not None:
+            self._fill = np.array([fill], dtype=np.dtype(dtype))
 
     def __eq__(self, other):
         if not isinstance(other, Attr):
@@ -110,7 +147,7 @@ class Attr(lt.Attribute):
         :rtype: depends on dtype
         :raises: :py:exc:`tiledb.TileDBERror`
         """
-        return self._fill_value
+        return self._fill
 
     #     cdef const uint8_t* value_ptr = NULL
     #     cdef uint64_t size
