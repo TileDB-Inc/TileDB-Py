@@ -95,19 +95,19 @@ def test_sparse_delete_purge():
 
     ###########################
 
-    time.sleep(0.1)
+    time.sleep(0.01)
     tiledb.consolidate(uri)
     print("---- consolidate")
 
     p_all()
 
-    time.sleep(0.1)
+    time.sleep(0.01)
     print("---- vacuum")
     tiledb.vacuum(uri)
 
     p_all()
 
-    time.sleep(0.1)
+    time.sleep(0.01)
     cfg = tiledb.Config({"sm.consolidation.purge_deleted_cells": "true"})
 
     with tiledb.scope_ctx(cfg):
