@@ -75,12 +75,18 @@ def test_sparse_delete_purge():
         pa(uri, 4)
         pa(uri, None)
 
+    def rr(ts):
+        with tiledb.open(uri, timestamp=ts) as A:
+            return A[:]["data"]
+
     ########################### WRITE
     create_array(uri)
 
     write_array(uri, idx=np.linspace(-10, -1, 5), data=np.arange(0, 5), timestamp=1)
 
     write_array(uri, idx=np.linspace(0, 10, 5), data=np.arange(5, 10), timestamp=2)
+    assert 2 in rr(2)
+    assert 2 in rr(3)
 
     ###########################
 
@@ -90,17 +96,25 @@ def test_sparse_delete_purge():
     apply_delete(uri, "data == 2", timestamp=3)
     print("---- apply delete for 'data == 2' at ts==3")
 
+    assert 2 in rr(2)
+    assert 2 not in rr(3)
+
     ###########################
 
     time.sleep(0.01)
     tiledb.consolidate(uri)
     print("---- consolidate")
 
+    assert 2 in rr(2)
+    assert 2 not in rr(3)
+
     p_all()
 
     time.sleep(0.01)
     print("---- vacuum")
     tiledb.vacuum(uri)
+    assert 2 in rr(2)
+    assert 2 not in rr(3)
 
     p_all()
 
@@ -110,11 +124,16 @@ def test_sparse_delete_purge():
     with tiledb.scope_ctx(cfg):
         tiledb.consolidate(uri, config=cfg)
         print("---- consolidate WITH PURGE")
+    assert 2 in rr(2)
+    assert 2 not in rr(3)
 
     p_all()
 
     tiledb.vacuum(uri)
     print("---- vacuum")
+    assert 2 in rr(2)
+    assert 2 not in rr(3)
+
     p_all()
 
 
