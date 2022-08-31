@@ -8,8 +8,10 @@ import numpy as np
 import tempfile
 import time
 
+global debug
+
 #%%
-def write_array(uri, timestamp=None):
+def create_array(uri):
     schema = tiledb.ArraySchema(
         domain=tiledb.Domain(
             *[
@@ -29,32 +31,35 @@ def write_array(uri, timestamp=None):
         allows_duplicates=False,  # TODO parametrize
     )
     tiledb.SparseArray.create(uri, schema)
-    data = np.arange(5)
-    idx = np.arange(-10, 0, 2)
 
+
+def write_array(uri, idx, data, timestamp=None):
     with tiledb.open(uri, "w", timestamp=timestamp) as A:
         A[idx] = {"data": data}
+
+
+def apply_delete(uri, cond, timestamp=None):
+    pyschema = tiledb.ArraySchema.load(uri)
+
+    pyqc = tiledb.QueryCondition(cond)
+    pyqc.init_query_condition(pyschema, ["data"])
+
+    ctx = lt.Context()
+    arr = lt.Array(ctx, uri, lt.QueryType.DELETE)
+    if timestamp:
+        arr = lt.Array(ctx, uri, lt.QueryType.DELETE, timestamp)
+    else:
+        arr = lt.Array(ctx, uri, lt.QueryType.DELETE)
+
+    q = lt.Query(ctx, arr, lt.QueryType.DELETE)
+    q.set_condition(pyqc)
+
+    assert q.submit() == lt.QueryStatus.COMPLETE
 
 
 # test_sparse_delete()
 #%%
 def test_sparse_delete_purge():
-    def apply_delete(uri, cond, timestamp=None):
-        pyqc = tiledb.QueryCondition(cond)
-        pyqc.init_query_condition(pyschema, ["data"])
-
-        ctx = lt.Context()
-        arr = lt.Array(ctx, uri, lt.QueryType.DELETE)
-        if timestamp:
-            arr = lt.Array(ctx, uri, lt.QueryType.DELETE, timestamp)
-        else:
-            arr = lt.Array(ctx, uri, lt.QueryType.DELETE)
-
-        q = lt.Query(ctx, arr, lt.QueryType.DELETE)
-        q.set_condition(pyqc)
-
-        assert q.submit() == lt.QueryStatus.COMPLETE
-
     def pa(uri, timestamp):
         print(f"<< read at: {timestamp}")
         with tiledb.open(uri, timestamp=timestamp) as A:
@@ -71,27 +76,19 @@ def test_sparse_delete_purge():
         pa(uri, None)
 
     ########################### WRITE
+    create_array(uri)
 
-    write_array(uri, timestamp=1)
-    data = np.arange(5, 10)
-    idx = np.arange(0, 10, 2)
+    write_array(uri, idx=np.linspace(-10, -1, 5), data=np.arange(0, 5), timestamp=1)
 
-    with tiledb.open(uri, "w", timestamp=2) as A:
-        A[idx] = {"data": data}
+    write_array(uri, idx=np.linspace(0, 10, 5), data=np.arange(5, 10), timestamp=2)
 
-    breakpoint()
     ###########################
 
     print("---- initial array, timestamps 1,2")
-    with tiledb.open(uri) as A:
-        print(A[:]["data"])
-
-    pyschema = tiledb.ArraySchema.load(uri)
+    p_all()
 
     apply_delete(uri, "data == 2", timestamp=3)
     print("---- apply delete for 'data == 2' at ts==3")
-
-    p_all()
 
     ###########################
 
