@@ -2,6 +2,8 @@ import io
 import numpy as np
 import warnings
 
+from collections import deque
+
 import tiledb.cc as lt
 from .ctx import default_ctx
 from .filter import FilterList
@@ -41,15 +43,16 @@ class Attr(lt.Attribute):
         """
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
-
-        super().__init__(_cctx, name, np.dtype(dtype))
+        _dtype = dtype
+        _ncell = None
 
         if isinstance(dtype, str) and dtype == "ascii":
             var = True
-            self._ncell = lt.TILEDB_VAR_NUM()
+            _ncell = lt.TILEDB_VAR_NUM()
+            _dtype = np.dtype("S0")
         elif np.dtype(dtype).kind == "U":
             var = True
-            self._ncell = lt.TILEDB_VAR_NUM()
+            _ncell = lt.TILEDB_VAR_NUM()
         elif np.dtype(dtype).kind == "S":
             if var and 0 < dtype.itemsize:
                 warnings.warn(
@@ -70,7 +73,28 @@ class Attr(lt.Attribute):
                         DeprecationWarning,
                     )
                 var = True
-                self._ncell = lt.TILEDB_VAR_NUM()
+                _ncell = lt.TILEDB_VAR_NUM()
+        elif np.dtype(dtype).kind == "V":
+            # handles n fixed-size record dtypes
+            if dtype.shape != ():
+                raise TypeError("nested sub-array numpy dtypes are not supported")
+            # check that types are the same
+            deq = deque(dtype.fields.values())
+            typ0, _ = deq.popleft()
+            nfields = 1
+            for (typ, _) in deq:
+                nfields += 1
+                if typ != typ0:
+                    raise TypeError(
+                        "heterogenous record numpy dtypes are not supported"
+                    )
+            _dtype = typ0
+            _ncell = len(dtype.fields.values())
+
+        super().__init__(_cctx, name, np.dtype(_dtype))
+
+        if _ncell:
+            self._ncell = _ncell
 
         var = var or False
 
@@ -81,7 +105,7 @@ class Attr(lt.Attribute):
             self._filters = FilterList(filters)
 
         if fill is not None:
-            self._fill = np.array([fill], dtype=np.dtype(dtype))
+            self._fill = np.array([fill], dtype=_dtype)
 
     def __eq__(self, other):
         if not isinstance(other, Attr):
@@ -147,49 +171,12 @@ class Attr(lt.Attribute):
         :rtype: depends on dtype
         :raises: :py:exc:`tiledb.TileDBERror`
         """
-        return self._fill
-
-    #     cdef const uint8_t* value_ptr = NULL
-    #     cdef uint64_t size
-    #     check_error(self.ctx,
-    #         tiledb_attribute_get_fill_value(
-    #             self.ctx.ptr, self.ptr, <const void**>&value_ptr, &size))
-
-    #     if value_ptr == NULL:
-    #         return None
-
-    #     if size == 0:
-    #         raise TileDBError("Unexpected zero-length non-null fill value")
-
-    #     cdef np.npy_intp shape[1]
-    #     shape[0] = <np.npy_intp> 1
-    #     cdef tiledb_datatype_t tiledb_type = self._get_type()
-    #     cdef int typeid = _numpy_typeid(tiledb_type)
-    #     assert(typeid != np.NPY_NOTYPE)
-    #     cdef np.ndarray fill_array
-
-    #     if np.issubdtype(self.dtype, np.bytes_):
-    #         return (<char*>value_ptr)[:size]
-    #     elif np.issubdtype(self.dtype, np.unicode_):
-    #         return (<char*>value_ptr)[:size].decode('utf-8')
-    #     else:
-    #         fill_array = np.empty(1, dtype=self.dtype)
-    #         memcpy(np.PyArray_DATA(fill_array), value_ptr, size)
-
-    #     if _tiledb_type_is_datetime(tiledb_type):
-    #         # Coerce to np.int64
-    #         fill_array.dtype = np.int64
-    #         datetime_dtype = _tiledb_type_to_datetime(tiledb_type).dtype
-    #         date_unit = np.datetime_data(datetime_dtype)[0]
-    #         tmp_val = None
-    #         if fill_array[0] == 0:
-    #             # undefined should span the whole dimension domain
-    #             tmp_val = int(self.shape[0])
-    #         else:
-    #             tmp_val = int(fill_array[0])
-    #         return np.timedelta64(tmp_val, date_unit)
-
-    #     return fill_array
+        value = self._fill
+        if self._tiledb_dtype == lt.DataType.STRING_UTF8:
+            return value
+        elif self._tiledb_dtype == lt.DataType.STRING_ASCII:
+            return value
+        return tuple(value)
 
     @property
     def isnullable(self):

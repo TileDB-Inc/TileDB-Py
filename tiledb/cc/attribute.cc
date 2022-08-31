@@ -23,55 +23,14 @@ py::object get_fill_value(Attribute &attr) {
 
   attr.get_fill_value(&value, &size);
 
-  switch (attr.type()) {
-  case TILEDB_DATETIME_YEAR:
-  case TILEDB_DATETIME_WEEK:
-  case TILEDB_DATETIME_DAY:
-  case TILEDB_DATETIME_HR:
-  case TILEDB_DATETIME_MIN:
-  case TILEDB_DATETIME_SEC:
-  case TILEDB_DATETIME_MS:
-  case TILEDB_DATETIME_US:
-  case TILEDB_DATETIME_NS:
-  case TILEDB_DATETIME_PS:
-  case TILEDB_DATETIME_FS:
-  case TILEDB_DATETIME_AS:
-  case TILEDB_INT64: {
-    return py::cast((const int64_t *)value);
+  auto value_type = tdb_to_np_dtype(attr.type(), 1);
+  auto value_num = attr.cell_val_num();
+  if (is_tdb_str(attr.type())) {
+    value_type = py::dtype("|S");
+    value_num = size;
   }
-  case TILEDB_UINT64: {
-    return py::cast((const uint64_t *)value);
-  }
-  case TILEDB_INT32: {
-    return py::cast((const int32_t *)value);
-  }
-  case TILEDB_UINT32: {
-    return py::cast((const uint32_t *)value);
-  }
-  case TILEDB_INT16: {
-    return py::cast((const int16_t *)value);
-  }
-  case TILEDB_UINT16: {
-    return py::cast((const uint16_t *)value);
-  }
-  case TILEDB_INT8: {
-    return py::cast((const int8_t *)value);
-  }
-  case TILEDB_UINT8: {
-    return py::cast((const uint8_t *)value);
-  }
-  case TILEDB_FLOAT64: {
-    return py::cast((const double *)value);
-  }
-  case TILEDB_FLOAT32: {
-    return py::cast((const float *)value);
-  }
-  case TILEDB_STRING_ASCII: {
-    return py::cast(std::string((const char *)value, size));
-  }
-  default:
-    TPY_ERROR_LOC("Unsupported dtype for Attribute");
-  }
+
+  return py::array(value_type, value_num, value);
 }
 
 void init_attribute(py::module &m) {
