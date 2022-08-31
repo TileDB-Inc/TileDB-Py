@@ -1,11 +1,12 @@
 import tiledb
 import importlib
+import time
 import numpy as np
 import pytest
 
 import hypothesis
 import hypothesis.strategies as st
-from hypothesis import given
+from hypothesis import given, reproduce_failure
 from numpy.testing import assert_array_equal
 
 from tiledb.tests.common import DiskTestCase, has_pandas
@@ -21,19 +22,18 @@ class AttrDataTest(DiskTestCase):
 
         uri = self.path()
 
-        if data == b"" or data.count(b"\x00") == len(data):
-            # single-cell empty writes are not supported; TileDB PR 1646
-            array = np.array([data, b"1"], dtype="S0")
-        else:
-            array = np.array([data], dtype="S0")
+        array = np.array([data], dtype="S0")
+
+        start_fnp = time.time()
+        with tiledb.from_numpy(uri, array) as A:
+            pass
+        fnp_time = time.time() - start_fnp
+        hypothesis.note("from_numpy time: {fnp_time}")
 
         # DEBUG
         tiledb.stats_enable()
         tiledb.stats_reset()
         # END DEBUG
-
-        with tiledb.from_numpy(uri, array) as A:
-            pass
 
         with tiledb.open(uri) as A:
             assert_array_equal(A.multi_index[:][""], array)
@@ -56,21 +56,20 @@ class AttrDataTest(DiskTestCase):
 
         uri_df = self.path()
 
-        if data == b"" or data.count(b"\x00") == len(data):
-            # single-cell empty writes are not supported; TileDB PR 1646
-            array = np.array([data, b"1"], dtype="S0")
-        else:
-            array = np.array([data], dtype="S0")
+        array = np.array([data], dtype="S0")
 
         series = pd.Series(array)
         df = pd.DataFrame({"": series})
+
+        start_fpd = time.time()
+        tiledb.from_pandas(uri_df, df, sparse=False)
+        fpd_time = time.time() - start_fpd
+        hypothesis.note("from_pandas time: {fpd_time}")
 
         # DEBUG
         tiledb.stats_enable()
         tiledb.stats_reset()
         # END DEBUG
-
-        tiledb.from_pandas(uri_df, df, sparse=False)
 
         with tiledb.open(uri_df) as A:
             tm.assert_frame_equal(A.df[:], df)
