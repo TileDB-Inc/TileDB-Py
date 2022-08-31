@@ -15,6 +15,17 @@ from numpy.testing import assert_array_equal
 from tiledb.tests.common import DiskTestCase, has_pandas
 
 
+def pytest_configure(config):
+    # Try to work around `https://github.com/HypothesisWorks/hypothesis/issues/2108` and the like
+    # Setting up to generate the strategy can be slow.
+    @given(st.binary())
+    def foo(x):
+        pass
+
+    foo()
+    return
+
+
 class AttrDataTest(DiskTestCase):
     @hypothesis.settings(deadline=1000)
     @given(st.binary())
