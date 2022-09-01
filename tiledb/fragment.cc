@@ -279,6 +279,13 @@ private:
   }
 
   py::tuple fill_mbr(uint32_t fid, uint32_t mid, uint32_t did) const {
+    py::bool_ isvar = get_dim_isvar(schema_.attr("domain"), did);
+
+    if (isvar) {
+      auto limits = fi_->mbr_var(fid, mid, did);
+      return py::make_tuple(limits.first, limits.second);
+    }
+
     py::dtype type = get_dim_type(schema_.attr("domain"), did);
     py::dtype array_type =
         type.kind() == 'M' ? pybind11::dtype::of<uint64_t>() : type;
