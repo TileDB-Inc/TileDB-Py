@@ -27,7 +27,7 @@ def pytest_configure(config):
 
 
 class AttrDataTest(DiskTestCase):
-    @hypothesis.settings(deadline=1000)
+    @hypothesis.settings(deadline=2000)
     @given(st.binary())
     def test_bytes_numpy(self, data):
         start = time.time()
@@ -60,7 +60,7 @@ class AttrDataTest(DiskTestCase):
         hypothesis.note(f"test_bytes_numpy time: {start - time.time()}")
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
-    @hypothesis.settings(deadline=1000)
+    @hypothesis.settings(deadline=2000)
     @given(st.binary())
     def test_bytes_df(self, data):
         start = time.time()
