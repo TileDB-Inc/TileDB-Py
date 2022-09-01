@@ -12,7 +12,7 @@ import tempfile
 import time
 import logging
 
-from enum import Enum
+from enum import IntEnum
 
 #%%
 def create_array(uri):
@@ -40,7 +40,7 @@ def create_array(uri):
     tiledb.SparseArray.create(uri, schema)
 
 
-class OpType(Enum):
+class OpType(IntEnum):
     DEL = 1
     VAC = 2
     WRT = 3
@@ -155,16 +155,32 @@ class DelModel:
 #%%
 logging.getLogger().setLevel(logging.DEBUG)
 
-t = Tape.from_length(100, start=3)
-t
 
-uri = tempfile.mkdtemp()
-create_array(uri)
+def run_tape(tape):
 
-m = DelModel(uri)
-m.write(1, np.arange(0, 5), np.arange(0, 5))
-m.write(2, np.arange(5, 10), np.arange(5, 10))
+    uri = tempfile.mkdtemp()
+    create_array(uri)
+
+    m = DelModel(uri)
+    m.write(1, np.arange(0, 5), np.arange(0, 5))
+    m.write(2, np.arange(5, 10), np.arange(5, 10))
+
+    m.eval_tape(tape)
+
+
+def exec_one(executor, tape_len=100):
+    t = Tape.from_length(100, start=3)
+
+    # try:
+    #    pass
+    # catch:
+    #    pass
+
 
 #%%
-m.eval_tape(t)
+# from concurrent import futures
+#
+# def doit():
+#    with futures.
+#%%
 # %%
