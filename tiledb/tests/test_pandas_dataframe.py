@@ -1350,6 +1350,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             tile_order=tile_order,
             cell_order=cell_order,
             column_types=column_types,
+            na_filter=False,  # https://github.com/TileDB-Inc/TileDB-Py/issues/1306#issuecomment-1233570928
         )
         with tiledb.open(uri_from_csv) as A:
             tm.assert_frame_equal(df, A.df[:])
