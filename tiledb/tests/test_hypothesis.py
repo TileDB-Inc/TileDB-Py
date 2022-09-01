@@ -35,7 +35,7 @@ class AttrDataTest(DiskTestCase):
         #      VFS (if faster) but need to figure out correct setup
         # uri = "mem://" + str(uri_int)
 
-        uri = self.path()
+        uri = "mem://" + self.path()
 
         array = np.array([data], dtype="S0")
 
