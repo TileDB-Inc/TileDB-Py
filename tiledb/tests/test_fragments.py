@@ -403,7 +403,10 @@ class FragmentInfoTest(DiskTestCase):
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version() < (2, 5, 0),
-        reason="MBRs in FragmentInfo only availabe in ilbtiledb<=2.5.0",
+        reason=(
+            "MBRs in FragmentInfo only available in "
+            "tiledb.libtiledb.version() < (2, 5, 0)"
+        ),
     )
     def test_get_mbr(self):
         fragments = 3
@@ -420,6 +423,52 @@ class FragmentInfoTest(DiskTestCase):
                 T[np.array(range(0, fragi + 1))] = [fragi] * (fragi + 1)
 
         expected_mbrs = ((((0, 0),),), (((0, 1),),), (((0, 2),),))
+
+        py_fragment_info = PyFragmentInfo(uri, schema, True, tiledb.default_ctx())
+        assert py_fragment_info.get_mbrs() == expected_mbrs
+
+        array_fragments = tiledb.array_fragments(uri)
+        with pytest.raises(AttributeError) as excinfo:
+            array_fragments.mbrs
+        assert "retrieving minimum bounding rectangles is disabled" in str(
+            excinfo.value
+        )
+
+        with self.assertRaises(AttributeError):
+            array_fragments[0].mbrs
+        assert "retrieving minimum bounding rectangles is disabled" in str(
+            excinfo.value
+        )
+
+        array_fragments = tiledb.array_fragments(uri, include_mbrs=True)
+        assert array_fragments.mbrs == expected_mbrs
+        assert array_fragments[0].mbrs == expected_mbrs[0]
+        assert array_fragments[1].mbrs == expected_mbrs[1]
+        assert array_fragments[2].mbrs == expected_mbrs[2]
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 5, 0),
+        reason=(
+            "MBRs in FragmentInfo only available in "
+            "tiledb.libtiledb.version() < (2, 5, 0)"
+        ),
+    )
+    def test_get_var_sized_dim_mbrs(self):
+        fragments = 3
+
+        uri = self.path("test_get_var_sized_dim_mbrs")
+        dom = tiledb.Domain(tiledb.Dim(dtype="ascii"))
+        att = tiledb.Attr(dtype=np.uint64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        tiledb.Array.create(uri, schema)
+
+        for fragi in range(fragments):
+            timestamp = fragi + 1
+            with tiledb.open(uri, mode="w", timestamp=timestamp) as T:
+                coords = [chr(i) * (fragi + 1) for i in range(97, fragi + 98)]
+                T[np.array(coords)] = [fragi] * (fragi + 1)
+
+        expected_mbrs = (((("a", "a"),),), ((("aa", "bb"),),), ((("aaa", "ccc"),),))
 
         py_fragment_info = PyFragmentInfo(uri, schema, True, tiledb.default_ctx())
         assert py_fragment_info.get_mbrs() == expected_mbrs
