@@ -1,39 +1,40 @@
+from math import hypot
 import tiledb
-import importlib
+import time
 import numpy as np
 import pytest
 
+pd = pytest.importorskip("pandas")
+tm = pd._testing
+
 import hypothesis
 import hypothesis.strategies as st
-from hypothesis import given
+from hypothesis import given, reproduce_failure
 from numpy.testing import assert_array_equal
 
 from tiledb.tests.common import DiskTestCase, has_pandas
 
 
 class AttrDataTest(DiskTestCase):
-    @hypothesis.settings(deadline=1000)
+    @hypothesis.settings(deadline=None)
     @given(st.binary())
     def test_bytes_numpy(self, data):
-        # TODO this test is slow. might be nice to run with in-memory
-        #      VFS (if faster) but need to figure out correct setup
-        # uri = "mem://" + str(uri_int)
+        start = time.time()
 
-        uri = self.path()
+        uri = "mem://" + self.path()
 
-        if data == b"" or data.count(b"\x00") == len(data):
-            # single-cell empty writes are not supported; TileDB PR 1646
-            array = np.array([data, b"1"], dtype="S0")
-        else:
-            array = np.array([data], dtype="S0")
+        array = np.array([data], dtype="S0")
+
+        start_fnp = time.time()
+        with tiledb.from_numpy(uri, array) as A:
+            pass
+        fnp_time = time.time() - start_fnp
+        hypothesis.note(f"from_numpy time: {fnp_time}")
 
         # DEBUG
         tiledb.stats_enable()
         tiledb.stats_reset()
         # END DEBUG
-
-        with tiledb.from_numpy(uri, array) as A:
-            pass
 
         with tiledb.open(uri) as A:
             assert_array_equal(A.multi_index[:][""], array)
@@ -43,12 +44,20 @@ class AttrDataTest(DiskTestCase):
         # DEBUG
         tiledb.stats_disable()
 
+        duration = time.time() - start
+        if duration > 2:
+            # Hypothesis setup is causing deadline exceeded errors
+            # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
+            # Set deadline=None and use internal timing instead.
+            pytest.fail("test_bytes_numpy exceeded 2s")
+
+        hypothesis.note(f"test_bytes_numpy duration: {duration}")
+
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
-    @hypothesis.settings(deadline=1000)
+    @hypothesis.settings(deadline=None)
     @given(st.binary())
     def test_bytes_df(self, data):
-        import pandas as pd
-        from pandas import _testing as tm
+        start = time.time()
 
         # TODO this test is slow. might be nice to run with in-memory
         #      VFS (if faster) but need to figure out correct setup
@@ -56,21 +65,20 @@ class AttrDataTest(DiskTestCase):
 
         uri_df = self.path()
 
-        if data == b"" or data.count(b"\x00") == len(data):
-            # single-cell empty writes are not supported; TileDB PR 1646
-            array = np.array([data, b"1"], dtype="S0")
-        else:
-            array = np.array([data], dtype="S0")
+        array = np.array([data], dtype="S0")
 
         series = pd.Series(array)
         df = pd.DataFrame({"": series})
+
+        start_fpd = time.time()
+        tiledb.from_pandas(uri_df, df, sparse=False)
+        fpd_time = time.time() - start_fpd
+        hypothesis.note(f"from_pandas time: {fpd_time}")
 
         # DEBUG
         tiledb.stats_enable()
         tiledb.stats_reset()
         # END DEBUG
-
-        tiledb.from_pandas(uri_df, df, sparse=False)
 
         with tiledb.open(uri_df) as A:
             tm.assert_frame_equal(A.df[:], df)
@@ -79,3 +87,12 @@ class AttrDataTest(DiskTestCase):
 
         # DEBUG
         tiledb.stats_disable()
+
+        duration = time.time() - start
+        if duration > 2:
+            # Hypothesis setup is causing deadline exceeded errors
+            # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
+            # Set deadline=None and use internal timing instead.
+            pytest.fail("test_bytes_numpy exceeded 2s")
+
+        hypothesis.note(f"test_bytes_df time: {duration}")
