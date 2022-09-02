@@ -15,25 +15,11 @@ from numpy.testing import assert_array_equal
 from tiledb.tests.common import DiskTestCase, has_pandas
 
 
-def pytest_configure(config):
-    # Try to work around `https://github.com/HypothesisWorks/hypothesis/issues/2108` and the like
-    # Setting up to generate the strategy can be slow.
-    @given(st.binary())
-    def foo(x):
-        pass
-
-    foo()
-    return
-
-
 class AttrDataTest(DiskTestCase):
-    @hypothesis.settings(deadline=2000)
+    @hypothesis.settings(deadline=None)
     @given(st.binary())
     def test_bytes_numpy(self, data):
         start = time.time()
-        # TODO this test is slow. might be nice to run with in-memory
-        #      VFS (if faster) but need to figure out correct setup
-        # uri = "mem://" + str(uri_int)
 
         uri = "mem://" + self.path()
 
@@ -57,10 +43,18 @@ class AttrDataTest(DiskTestCase):
 
         # DEBUG
         tiledb.stats_disable()
-        hypothesis.note(f"test_bytes_numpy time: {start - time.time()}")
+
+        duration = time.time() - start
+        if duration > 2:
+            # Hypothesis setup is causing deadline exceeded errors
+            # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
+            # Set deadline=None and use internal timing instead.
+            pytest.fail("test_bytes_numpy exceeded 2s")
+
+        hypothesis.note(f"test_bytes_numpy duration: {duration}")
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
-    @hypothesis.settings(deadline=2000)
+    @hypothesis.settings(deadline=None)
     @given(st.binary())
     def test_bytes_df(self, data):
         start = time.time()
@@ -93,4 +87,12 @@ class AttrDataTest(DiskTestCase):
 
         # DEBUG
         tiledb.stats_disable()
-        hypothesis.note(f"test_bytes_df time: {start - time.time()}")
+
+        duration = time.time() - start
+        if duration > 2:
+            # Hypothesis setup is causing deadline exceeded errors
+            # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
+            # Set deadline=None and use internal timing instead.
+            pytest.fail("test_bytes_numpy exceeded 2s")
+
+        hypothesis.note(f"test_bytes_df time: {duration}")
