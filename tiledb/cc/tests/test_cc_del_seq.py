@@ -168,15 +168,19 @@ def run_tape(tape):
     m.eval_tape(tape)
 
 
-def exec_one(executor, tape_len=100):
-    t = Tape.from_length(100, start=3)
-
-    # try:
-    #    pass
-    # catch:
-    #    pass
+t = Tape.from_length(100, start=3)
+run_tape(t)
 
 
+# def exec_one(executor, tape_len=100):
+#    t = Tape.from_length(100, start=3)
+#
+#    # try:
+#    #    pass
+#    # catch:
+#    #    pass
+#
+#
 #%%
 # from concurrent import futures
 #
