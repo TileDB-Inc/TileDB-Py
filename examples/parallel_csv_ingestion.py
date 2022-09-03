@@ -139,8 +139,8 @@ def from_csv_mp(
     Currently uses ProcessPoolExecutor.
     """
 
-    # Setting start method to 'spawn' is required before TileDB 2.1 to
-    # avoid problems with TBB when spawning via fork.
+    # Setting start method to 'spawn' is required to
+    # avoid problems with process global state when spawning via fork.
     # NOTE: *must be inside __main__* or a function.
     if multiprocessing.get_start_method(True) != "spawn":
         multiprocessing.set_start_method("spawn", True)
