@@ -28,6 +28,12 @@ class UtilTest(DiskTestCase):
         self.assertEqual(T.shape, arr.shape)
         self.assertEqual(T.dtype, arr.dtype)
 
+        uri = self.path("empty_like_shape")
+        T = tiledb.empty_like(uri, arr.shape, dtype=arr.dtype)
+        check_schema(self, T.schema)
+        self.assertEqual(T.shape, arr.shape)
+        self.assertEqual(T.dtype, arr.dtype)
+
         # test a fake object with .shape, .ndim, .dtype
         class FakeArray(object):
             def __init__(self, shape, dtype):
