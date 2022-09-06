@@ -22,6 +22,7 @@ class AttrDataTest(DiskTestCase):
         start = time.time()
 
         uri = "mem://" + self.path()
+        hypothesis.note(f"!!! self.path() time: {time.time() - start}")
 
         array = np.array([data], dtype="S0")
 
@@ -29,7 +30,7 @@ class AttrDataTest(DiskTestCase):
         with tiledb.from_numpy(uri, array) as A:
             pass
         fnp_time = time.time() - start_fnp
-        hypothesis.note(f"from_numpy time: {fnp_time}")
+        hypothesis.note(f"!!! from_numpy time: {fnp_time}")
 
         # DEBUG
         tiledb.stats_enable()
@@ -45,13 +46,12 @@ class AttrDataTest(DiskTestCase):
         tiledb.stats_disable()
 
         duration = time.time() - start
+        hypothesis.note(f"!!! test_bytes_numpy duration: {duration}")
         if duration > 2:
             # Hypothesis setup is causing deadline exceeded errors
             # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
             # Set deadline=None and use internal timing instead.
-            pytest.fail("test_bytes_numpy exceeded 2s")
-
-        hypothesis.note(f"test_bytes_numpy duration: {duration}")
+            pytest.fail(f"!!! test_bytes_df exceeded 2s: {duration}")
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     @hypothesis.settings(deadline=None)
@@ -64,6 +64,7 @@ class AttrDataTest(DiskTestCase):
         # uri = "mem://" + str(uri_int)
 
         uri_df = self.path()
+        hypothesis.note(f"!!! self.path() time: {time.time() - start}")
 
         array = np.array([data], dtype="S0")
 
@@ -89,10 +90,9 @@ class AttrDataTest(DiskTestCase):
         tiledb.stats_disable()
 
         duration = time.time() - start
+        hypothesis.note(f"test_bytes_df duration: {duration}")
         if duration > 2:
             # Hypothesis setup is causing deadline exceeded errors
             # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
             # Set deadline=None and use internal timing instead.
-            pytest.fail("test_bytes_numpy exceeded 2s")
-
-        hypothesis.note(f"test_bytes_df time: {duration}")
+            pytest.fail(f"test_bytes_numpy exceeded 2s: {duration}")
