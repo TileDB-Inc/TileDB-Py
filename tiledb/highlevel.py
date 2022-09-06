@@ -43,7 +43,7 @@ def save(uri, array, **kwargs):
     return from_numpy(uri, array, **kwargs)
 
 
-def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None):
+def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None, dtype=None):
     """
     Create and return an empty, writeable DenseArray with schema based on
     a NumPy-array like object.
@@ -54,10 +54,16 @@ def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None):
     :param key: (optional) encryption key, if applicable
     :param tile: (optional) tiling of generated array
     :param ctx: (optional) TileDB Ctx
+    :param dtype: (optional) required if arr is a shape tuple
     :return:
     """
     ctx = _get_ctx(ctx, config)
-    schema = tiledb.schema_like(arr, tile=tile, ctx=ctx)
+    if isinstance(arr, tuple):
+        if dtype is None:
+            raise ValueError("dtype must be valid data type (e.g. np.int32), not None")
+        schema = tiledb.schema_like(shape=arr, tile=tile, ctx=ctx, dtype=dtype)
+    else:
+        schema = tiledb.schema_like(arr, tile=tile, ctx=ctx)
     tiledb.DenseArray.create(uri, schema, key=key, ctx=ctx)
     return tiledb.DenseArray(uri, mode="w", key=key, ctx=ctx)
 
