@@ -1,6 +1,7 @@
 # In Progress
 
 ## API Changes
+* Add ability to pass shape tuple to empty_like [#1316](https://github.com/TileDB-Inc/TileDB-Py/pull/1316)
 * Support retrieving MBRs of var-sized dimensions [#1311](https://github.com/TileDB-Inc/TileDB-Py/pull/1311)
 
 ## Misc Updates
