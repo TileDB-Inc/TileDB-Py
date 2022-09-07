@@ -18,19 +18,26 @@ from tiledb.tests.common import DiskTestCase, has_pandas
 class AttrDataTest(DiskTestCase):
     @hypothesis.settings(deadline=None)
     @given(st.binary())
-    def test_bytes_numpy(self, data):
+    @pytest.mark.parametrize("mode", ["np", "df"])
+    def test_bytes_npdf(self, mode, data):
         start = time.time()
 
         uri = "mem://" + self.path()
-        hypothesis.note(f"!!! self.path() time: {time.time() - start}")
+        hypothesis.note(f"!!! self.path() '{uri}' time: {time.time() - start}")
 
         array = np.array([data], dtype="S0")
 
-        start_fnp = time.time()
-        with tiledb.from_numpy(uri, array) as A:
-            pass
-        fnp_time = time.time() - start_fnp
-        hypothesis.note(f"!!! from_numpy time: {fnp_time}")
+        start_ingest = time.time()
+        if mode == "np":
+            with tiledb.from_numpy(uri, array) as A:
+                pass
+        else:
+            series = pd.Series(array)
+            df = pd.DataFrame({"": series})
+            # NOTE: ctx required here for mem://
+            tiledb.from_pandas(uri, df, sparse=False, ctx=tiledb.default_ctx())
+
+        hypothesis.note(f"{mode} ingest time: {time.time() - start_ingest}")
 
         # DEBUG
         tiledb.stats_enable()
@@ -38,7 +45,10 @@ class AttrDataTest(DiskTestCase):
         # END DEBUG
 
         with tiledb.open(uri) as A:
-            assert_array_equal(A.multi_index[:][""], array)
+            if mode == "np":
+                assert_array_equal(A.multi_index[:][""], array)
+            else:
+                tm.assert_frame_equal(A.df[:], df)
 
         hypothesis.note(tiledb.stats_dump(print_out=False))
 
@@ -46,53 +56,9 @@ class AttrDataTest(DiskTestCase):
         tiledb.stats_disable()
 
         duration = time.time() - start
-        hypothesis.note(f"!!! test_bytes_numpy duration: {duration}")
+        hypothesis.note(f"!!! test_bytes_{mode} duration: {duration}")
         if duration > 2:
-            # Hypothesis setup is causing deadline exceeded errors
+            # Hypothesis setup is (maybe) causing deadline exceeded errors
             # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
             # Set deadline=None and use internal timing instead.
-            pytest.fail(f"!!! test_bytes_df exceeded 2s: {duration}")
-
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
-    @hypothesis.settings(deadline=None)
-    @given(st.binary())
-    def test_bytes_df(self, data):
-        start = time.time()
-
-        # TODO this test is slow. might be nice to run with in-memory
-        #      VFS (if faster) but need to figure out correct setup
-        # uri = "mem://" + str(uri_int)
-
-        uri_df = self.path()
-        hypothesis.note(f"!!! self.path() time: {time.time() - start}")
-
-        array = np.array([data], dtype="S0")
-
-        series = pd.Series(array)
-        df = pd.DataFrame({"": series})
-
-        start_fpd = time.time()
-        tiledb.from_pandas(uri_df, df, sparse=False)
-        fpd_time = time.time() - start_fpd
-        hypothesis.note(f"from_pandas time: {fpd_time}")
-
-        # DEBUG
-        tiledb.stats_enable()
-        tiledb.stats_reset()
-        # END DEBUG
-
-        with tiledb.open(uri_df) as A:
-            tm.assert_frame_equal(A.df[:], df)
-
-        hypothesis.note(tiledb.stats_dump(print_out=False))
-
-        # DEBUG
-        tiledb.stats_disable()
-
-        duration = time.time() - start
-        hypothesis.note(f"test_bytes_df duration: {duration}")
-        if duration > 2:
-            # Hypothesis setup is causing deadline exceeded errors
-            # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
-            # Set deadline=None and use internal timing instead.
-            pytest.fail(f"test_bytes_numpy exceeded 2s: {duration}")
+            pytest.fail(f"!!! {mode} function body duration exceeded 2s: {duration}")
