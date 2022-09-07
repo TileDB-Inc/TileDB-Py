@@ -127,7 +127,7 @@ py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
   else if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
            type == TILEDB_STRING_ASCII) {
     std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
-    if (cell_val_num < TILEDB_VAR_NUM)
+    if (cell_val_num != TILEDB_VAR_NUM)
       base_str += std::to_string(cell_val_num);
     return py::dtype(base_str);
   }

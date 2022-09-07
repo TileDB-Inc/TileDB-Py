@@ -23,8 +23,9 @@ py::array get_fill_value(Attribute &attr) {
 
   attr.get_fill_value(&value, &size);
 
-  auto value_type = tdb_to_np_dtype(attr.type(), 1);
   auto value_num = attr.cell_val_num();
+  auto value_type = tdb_to_np_dtype(attr.type(), value_num);
+
   if (is_tdb_str(attr.type())) {
     value_type = py::dtype("|S1");
     value_num = size;
@@ -46,19 +47,23 @@ void init_attribute(py::module &m) {
              return Attribute(ctx, name, attr_dtype);
            }),
            py::keep_alive<1, 2>())
+
       //   .def(py::init<Context &, std::string, tiledb_datatype_t>(),
       //        py::keep_alive<1, 2>() /* Attribute keeps Context alive */)
+
       .def(
           py::init<Context &, std::string &, tiledb_datatype_t, FilterList &>(),
-          py::keep_alive<1, 2>() /* Attribute keeps Context alive */)
+          py::keep_alive<1, 2>())
 
       .def_property_readonly("_name", &Attribute::name)
 
       .def_property_readonly("_tiledb_dtype", &Attribute::type)
 
-      .def_property_readonly(
-          "_numpy_dtype",
-          [](Attribute &attr) { return tdb_to_np_dtype(attr.type(), 1); })
+      .def_property_readonly("_numpy_dtype",
+                             [](Attribute &attr) {
+                               return tdb_to_np_dtype(attr.type(),
+                                                      attr.cell_val_num());
+                             })
 
       .def_property("_nullable", &Attribute::nullable, &Attribute::set_nullable)
 
@@ -73,9 +78,6 @@ void init_attribute(py::module &m) {
       .def_property_readonly("_cell_size", &Attribute::cell_size)
 
       .def_property("_fill", get_fill_value, set_fill_value)
-
-      // .def("_set_fill_value", set_fill_value)
-      // .def("_get_fill_value", get_fill_value)
 
       .def("_dump", [](Attribute &attr) { attr.dump(); });
   ;

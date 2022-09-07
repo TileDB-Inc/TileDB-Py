@@ -122,7 +122,6 @@ class AttributeTest(DiskTestCase):
     def test_ncell_bytes_attribute(self):
         dtype = np.dtype((np.bytes_, 10))
         attr = tiledb.Attr("foo", dtype=dtype)
-
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 10)
 

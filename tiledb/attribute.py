@@ -43,55 +43,58 @@ class Attr(lt.Attribute):
         """
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
-        _dtype = dtype
-        _ncell = None
 
         if isinstance(dtype, str) and dtype == "ascii":
             var = True
             _ncell = lt.TILEDB_VAR_NUM()
             _dtype = np.dtype("S0")
-        elif np.dtype(dtype).kind == "U":
-            var = True
-            _ncell = lt.TILEDB_VAR_NUM()
-        elif np.dtype(dtype).kind == "S":
-            if var and 0 < dtype.itemsize:
-                warnings.warn(
-                    f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
-                    "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
-                    f"or `var=False`with `dtype={dtype}`",
-                    DeprecationWarning,
-                )
-                dtype = np.dtype("S0")
+        else:
+            _dtype = np.dtype(dtype)
+            _ncell = None
 
-            if dtype.itemsize == 0:
-                if var == False:
+            if _dtype.kind == "U":
+                if var is not None and var == False:
+                    _ncell = _dtype.itemsize
+                _ncell = lt.TILEDB_VAR_NUM()
+            elif _dtype.kind == "S":
+                if var and 0 < _dtype.itemsize:
                     warnings.warn(
-                        f"Attr given `var=False` but `dtype` `S0` is var-length; "
-                        "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
-                        "with `dtype=S0`, or `var=False` with a fixed-width "
-                        "string `dtype=S<n>` where is  n>1",
+                        f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
+                        "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
+                        f"or `var=False`with `dtype={dtype}`",
                         DeprecationWarning,
                     )
+                    _dtype = np.dtype("S0")
+
+                if _dtype.itemsize == 0:
+                    if var == False:
+                        warnings.warn(
+                            f"Attr given `var=False` but `dtype` `S0` is var-length; "
+                            "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
+                            "with `dtype=S0`, or `var=False` with a fixed-width "
+                            "string `dtype=S<n>` where is  n>1",
+                            DeprecationWarning,
+                        )
                 var = True
                 _ncell = lt.TILEDB_VAR_NUM()
-        elif np.dtype(dtype).kind == "V":
-            # handles n fixed-size record dtypes
-            if dtype.shape != ():
-                raise TypeError("nested sub-array numpy dtypes are not supported")
-            # check that types are the same
-            deq = deque(dtype.fields.values())
-            typ0, _ = deq.popleft()
-            nfields = 1
-            for (typ, _) in deq:
-                nfields += 1
-                if typ != typ0:
-                    raise TypeError(
-                        "heterogenous record numpy dtypes are not supported"
-                    )
-            _dtype = typ0
-            _ncell = len(dtype.fields.values())
+            elif _dtype.kind == "V":
+                # handles n fixed-size record dtypes
+                if _dtype.shape != ():
+                    raise TypeError("nested sub-array numpy dtypes are not supported")
+                # check that types are the same
+                deq = deque(_dtype.fields.values())
+                typ0, _ = deq.popleft()
+                nfields = 1
+                for (typ, _) in deq:
+                    nfields += 1
+                    if typ != typ0:
+                        raise TypeError(
+                            "heterogenous record numpy dtypes are not supported"
+                        )
+                _dtype = typ0
+                _ncell = len(dtype.fields.values())
 
-        super().__init__(_cctx, name, np.dtype(_dtype))
+        super().__init__(_cctx, name, _dtype)
 
         if _ncell:
             self._ncell = _ncell
@@ -194,7 +197,7 @@ class Attr(lt.Attribute):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return self._ncell == lt.TILEDB_VAR_NUM
+        return self._ncell == lt.TILEDB_VAR_NUM()
 
     @property
     def ncells(self):
