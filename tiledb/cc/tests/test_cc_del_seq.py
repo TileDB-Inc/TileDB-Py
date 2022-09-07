@@ -11,8 +11,24 @@ import random
 import tempfile
 import time
 import logging
+import pickle
+import uuid
+import sys
+
+from io import StringIO
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import log_to_stderr
 
 from enum import IntEnum
+
+log_record = StringIO()
+logging.basicConfig(
+    level=logging.DEBUG,
+    handlers=[
+        # logging.StreamHandler(sys.stderr),
+        logging.StreamHandler(log_record)
+    ],
+)
 
 #%%
 def create_array(uri):
@@ -148,7 +164,9 @@ class DelModel:
             raise ValueError(f"Unsupported op type: '{step.op}'")
 
     def eval_tape(self, tape: Tape):
+        logging.debug(f"eval_tape, max timestamp for tape is: {max(tape.time)}")
         for step in tape:
+            logging.debug(f"<<<<< {step}")
             self._eval(step)
 
 
@@ -168,23 +186,58 @@ def run_tape(tape):
     m.eval_tape(tape)
 
 
-t = Tape.from_length(100, start=3)
-run_tape(t)
+def record_state(t: Tape, /, **args):
+    filename = f"{uuid.uuid4()}.dump"
+
+    with open(filename, "wb") as f:
+        pickle.dump({"tape": t, **args}, f)
+    return filename
 
 
-# def exec_one(executor, tape_len=100):
-#    t = Tape.from_length(100, start=3)
-#
-#    # try:
-#    #    pass
-#    # catch:
-#    #    pass
-#
-#
-#%%
-# from concurrent import futures
-#
-# def doit():
-#    with futures.
-#%%
-# %%
+def replay_state(filename):
+    with open(filename, "rb") as f:
+        d = pickle.load(f)
+    tape = d["tape"]
+
+    # Note: rerun is *in-process* for debuggability
+    run_tape(tape)
+
+
+def run_tape_subprocess(tape):
+    log_to_stderr()
+    run_tape(tape)
+
+    # intentional segfault for debugging
+    if False:
+        import ctypes
+
+        ctypes.memmove(0x0, 0x1, 1)
+
+
+def exec_subprocess(tape_len=100):
+    t = Tape.from_length(100, start=3)
+
+    try:
+        with ProcessPoolExecutor(max_workers=1) as ppe:
+            fut = ppe.submit(run_tape_subprocess, t)
+            res = fut.result()
+    except Exception as exc:
+        logger = logging.getLogger()
+        # flush the logger so we can grab from StringIO
+        logger.handlers[0].flush()
+
+        filename = record_state(t, exception=exc, log=log_record)
+
+        logging.error(f"Failed case saved to '{filename}'")
+        logging.error("  reproduce with 'python test_cc_del_seq.py -r <file>.dump")
+    else:
+        logging.info("Completed without error")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and "-r" in sys.argv:
+        replay_state(sys.argv[2])
+    else:
+        exec_subprocess()
+
+# run_tape(Tape.from_length(100))
