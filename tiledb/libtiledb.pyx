@@ -499,6 +499,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 _raise_ctx_err(ctx_ptr, rc)
 
     try:
+        start_buffers = time.time()
         for i in range(0, nattr):
             battr_name = attributes[i].encode('UTF-8')
             buffer_ptr = np.PyArray_DATA(output_values[i])
@@ -533,6 +534,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
+        total_buffers = time.time() - start_buffers
 
         start_submit = time.time()
         with nogil:
@@ -555,6 +557,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     function_total = time.time() - function_start
     print(f"{tiledb_array.uri}: {battr_name}")
+    print(f"offset+buffer: {total_buffers} ({total_buffers/function_total*100}%)")
     print(f"tiledb_query_submit: {total_submit} ({total_submit/function_total*100}%)")
     print(f"total time: {function_total}")
     print()
