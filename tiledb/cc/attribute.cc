@@ -17,7 +17,7 @@ void set_fill_value(Attribute &attr, py::array value) {
   attr.set_fill_value(value.data(), value.nbytes());
 }
 
-py::object get_fill_value(Attribute &attr) {
+py::array get_fill_value(Attribute &attr) {
   const void *value;
   uint64_t size;
 
@@ -26,7 +26,7 @@ py::object get_fill_value(Attribute &attr) {
   auto value_type = tdb_to_np_dtype(attr.type(), 1);
   auto value_num = attr.cell_val_num();
   if (is_tdb_str(attr.type())) {
-    value_type = py::dtype("|S");
+    value_type = py::dtype("|S1");
     value_num = size;
   }
 

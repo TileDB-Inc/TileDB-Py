@@ -172,11 +172,9 @@ class Attr(lt.Attribute):
         :raises: :py:exc:`tiledb.TileDBERror`
         """
         value = self._fill
-        if self._tiledb_dtype == lt.DataType.STRING_UTF8:
-            return value
-        elif self._tiledb_dtype == lt.DataType.STRING_ASCII:
-            return value
-        return tuple(value)
+        if self._tiledb_dtype in (lt.DataType.STRING_UTF8, lt.DataType.STRING_ASCII):
+            return value.tobytes()
+        return value
 
     @property
     def isnullable(self):
