@@ -1,7 +1,9 @@
 #!python
 #cython: embedsignature=True
 #cython: auto_pickle=False
+#cython: profile=True
 
+cimport cython
 from cpython.version cimport PY_MAJOR_VERSION
 from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPointer
 
@@ -9,6 +11,7 @@ include "common.pxi"
 import io
 import html
 import sys
+import time
 import warnings
 from collections import OrderedDict
 from collections.abc import Sequence
@@ -20,6 +23,10 @@ from .vfs import VFS
 import tiledb.cc as lt
 from tiledb.cc import TileDBError
 
+from Cython.Compiler.Options import get_directive_defaults
+directive_defaults = get_directive_defaults()
+directive_defaults['linetrace'] = True
+directive_defaults['binding'] = True
 
 ###############################################################################
 #     Numpy initialization code (critical)                                    #
@@ -359,6 +366,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   dict nullmaps,
                   dict fragment_info,
                   bint issparse):
+    function_start = time.time()
 
     # used for buffer conversion (local import to avoid circularity)
     import tiledb.main
@@ -382,7 +390,9 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         # if dtype is ASCII, ensure all characters are valid
         if tiledb_array.schema.attr(i).isascii:
             try:
+                start = time.time()
                 values[i] = np.asarray(values[i], dtype=np.bytes_)
+                print(f"ASCII check: {time.time() - start}")
             except Exception as exc:
                 raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
 
@@ -479,7 +489,6 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                     ctx_ptr, query_ptr, dim_idx,
                     s_start_ptr,  s_start.nbytes,
                     s_end_ptr, s_end.nbytes)
-
             else:
                 rc = tiledb_query_add_range(
                     ctx_ptr, query_ptr, dim_idx,
@@ -493,7 +502,6 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         for i in range(0, nattr):
             battr_name = attributes[i].encode('UTF-8')
             buffer_ptr = np.PyArray_DATA(output_values[i])
-
             rc = tiledb_query_set_data_buffer(ctx_ptr, query_ptr, battr_name,
                                          buffer_ptr, &(buffer_sizes_ptr[i]))
 
@@ -526,8 +534,10 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
 
+        start_submit = time.time()
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        total_submit = time.time() - start_submit
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -542,6 +552,12 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     finally:
         tiledb_query_free(&query_ptr)
+
+    function_total = time.time() - function_start
+    print(f"{tiledb_array.uri}: {battr_name}")
+    print(f"tiledb_query_submit: {total_submit} ({total_submit/function_total*100}%)")
+    print(f"total time: {function_total}")
+    print()
     return
 
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
