@@ -7,7 +7,7 @@ import pytest
 pd = pytest.importorskip("pandas")
 tm = pd._testing
 
-import hypothesis
+import hypothesis as hp
 import hypothesis.strategies as st
 from hypothesis import given, reproduce_failure
 from numpy.testing import assert_array_equal
@@ -16,14 +16,14 @@ from tiledb.tests.common import DiskTestCase, has_pandas
 
 
 class AttrDataTest(DiskTestCase):
-    @hypothesis.settings(deadline=None)
+    @hp.settings(deadline=None, verbosity=hp.Verbosity.verbose)
     @given(st.binary())
     @pytest.mark.parametrize("mode", ["np", "df"])
     def test_bytes_npdf(self, mode, data):
         start = time.time()
 
         uri = "mem://" + self.path()
-        hypothesis.note(f"!!! self.path() '{uri}' time: {time.time() - start}")
+        hp.note(f"!!! self.path() '{uri}' time: {time.time() - start}")
 
         array = np.array([data], dtype="S0")
 
@@ -37,7 +37,7 @@ class AttrDataTest(DiskTestCase):
             # NOTE: ctx required here for mem://
             tiledb.from_pandas(uri, df, sparse=False, ctx=tiledb.default_ctx())
 
-        hypothesis.note(f"{mode} ingest time: {time.time() - start_ingest}")
+        hp.note(f"{mode} ingest time: {time.time() - start_ingest}")
 
         # DEBUG
         tiledb.stats_enable()
@@ -50,13 +50,13 @@ class AttrDataTest(DiskTestCase):
             else:
                 tm.assert_frame_equal(A.df[:], df)
 
-        hypothesis.note(tiledb.stats_dump(print_out=False))
+        hp.note(tiledb.stats_dump(print_out=False))
 
         # DEBUG
         tiledb.stats_disable()
 
         duration = time.time() - start
-        hypothesis.note(f"!!! test_bytes_{mode} duration: {duration}")
+        hp.note(f"!!! test_bytes_{mode} duration: {duration}")
         if duration > 2:
             # Hypothesis setup is (maybe) causing deadline exceeded errors
             # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
