@@ -57,26 +57,36 @@ class Attr(lt.Attribute):
                     _ncell = _dtype.itemsize
                 _ncell = lt.TILEDB_VAR_NUM()
             elif _dtype.kind == "S":
-                if var and 0 < _dtype.itemsize:
-                    warnings.warn(
-                        f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
-                        "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
-                        f"or `var=False`with `dtype={dtype}`",
-                        DeprecationWarning,
-                    )
-                    _dtype = np.dtype("S0")
-
-                if _dtype.itemsize == 0:
-                    if var == False:
+                if var is not None and var == False and 0 < _dtype.itemsize:
+                    _ncell = _dtype.itemsize
+                elif var is None:
+                    if 0 < _dtype.itemsize:
+                        var = False
+                        _ncell = _dtype.itemsize
+                    else:
+                        var = True
+                        _ncell = lt.TILEDB_VAR_NUM()
+                else:
+                    if var and 0 < _dtype.itemsize:
                         warnings.warn(
-                            f"Attr given `var=False` but `dtype` `S0` is var-length; "
-                            "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
-                            "with `dtype=S0`, or `var=False` with a fixed-width "
-                            "string `dtype=S<n>` where is  n>1",
+                            f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
+                            "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
+                            f"or `var=False`with `dtype={dtype}`",
                             DeprecationWarning,
                         )
-                var = True
-                _ncell = lt.TILEDB_VAR_NUM()
+                        _dtype = np.dtype("S0")
+
+                    if _dtype.itemsize == 0:
+                        if var == False:
+                            warnings.warn(
+                                f"Attr given `var=False` but `dtype` `S0` is var-length; "
+                                "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
+                                "with `dtype=S0`, or `var=False` with a fixed-width "
+                                "string `dtype=S<n>` where is  n>1",
+                                DeprecationWarning,
+                            )
+                    var = True
+                    _ncell = lt.TILEDB_VAR_NUM()
             elif _dtype.kind == "V":
                 # handles n fixed-size record dtypes
                 if _dtype.shape != ():
@@ -109,6 +119,9 @@ class Attr(lt.Attribute):
 
         if fill is not None:
             self._fill = np.array([fill], dtype=_dtype)
+
+        if nullable is not None:
+            self._nullable = nullable
 
     def __eq__(self, other):
         if not isinstance(other, Attr):
@@ -187,7 +200,7 @@ class Attr(lt.Attribute):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return self._var
+        return self._nullable
 
     @property
     def isvar(self):

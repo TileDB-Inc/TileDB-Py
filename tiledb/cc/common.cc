@@ -107,7 +107,15 @@ bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
 } // namespace tiledbpy::common
 
 py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
-  if (cell_val_num == 1) {
+  if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
+      type == TILEDB_STRING_ASCII) {
+    std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
+    if (cell_val_num != TILEDB_VAR_NUM)
+      base_str += std::to_string(cell_val_num);
+    return py::dtype(base_str);
+  }
+
+  else if (cell_val_num == 1) {
     if (type == TILEDB_STRING_UTF16 || type == TILEDB_STRING_UTF32)
       TPY_ERROR_LOC("Unimplemented UTF16 or UTF32 string conversion!");
     if (type == TILEDB_STRING_UCS2 || type == TILEDB_STRING_UCS4)
@@ -122,14 +130,6 @@ py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
       return py::dtype("complex64");
     if (type == TILEDB_FLOAT64)
       return py::dtype("complex128");
-  }
-
-  else if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
-           type == TILEDB_STRING_ASCII) {
-    std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
-    if (cell_val_num != TILEDB_VAR_NUM)
-      base_str += std::to_string(cell_val_num);
-    return py::dtype(base_str);
   }
 
   else if (cell_val_num == TILEDB_VAR_NUM)
