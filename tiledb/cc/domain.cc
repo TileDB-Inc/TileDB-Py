@@ -175,6 +175,18 @@ void init_domain(py::module &m) {
   py::class_<Domain>(m, "Domain")
       .def(py::init<Context &>(), py::keep_alive<1, 2>())
 
+      .def(py::init([](const Context &ctx, py::object dom) {
+             return Domain(ctx, py::capsule(dom.attr("__capsule__")()));
+           }), py::keep_alive<1, 2>(), py::keep_alive<1, 3>())
+
+      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>(),
+           py::keep_alive<1, 3>())
+
+      .def("__capsule__",
+           [](Domain &dom) {
+             return py::capsule(dom.ptr().get(), "dom", nullptr);
+           })
+
       .def_property_readonly("_ncell",
                              [](Domain &dom) { return dom.cell_num(); })
 

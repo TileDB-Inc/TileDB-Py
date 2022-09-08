@@ -15,7 +15,7 @@ class Domain(lt.Domain):
     Represents a TileDB domain.
     """
 
-    def __init__(self, *dims: Dim, ctx: "Ctx" = None):
+    def __init__(self, *dims: Dim, ctx: "Ctx" = None, _capsule=None):
         """Class representing the domain of a TileDB Array.
 
         :param *dims*: one or more tiledb.Dim objects up to the Domain's ndim
@@ -27,32 +27,36 @@ class Domain(lt.Domain):
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
 
-        super().__init__(_cctx)
+        if _capsule:
+            super().__init__(_cctx, _capsule)
+        else:
+            super().__init__(_cctx)
 
-        # support passing a list of dims without splatting
-        if len(dims) == 1 and isinstance(dims[0], list):
-            dims = dims[0]
+            # support passing a list of dims without splatting
+            if len(dims) == 1 and isinstance(dims[0], list):
+                dims = dims[0]
 
-        if len(dims) == 0:
-            raise lt.TileDBError("Domain must have ndim >= 1")
+            if len(dims) == 0:
+                raise lt.TileDBError("Domain must have ndim >= 1")
 
-        if len(dims) > 1:
-            if all(dim.name == "__dim_0" for dim in dims):
-                # rename anonymous dimensions sequentially
-                dims = [
-                    clone_dim_with_name(dims[i], name=f"__dim_{i}") for i in range(ndim)
-                ]
-            elif any(dim.name.startswith("__dim_0") for dim in dims[1:]):
-                raise lt.TileDBError(
-                    "Mixed dimension naming: dimensions must be either all anonymous or all named."
-                )
+            if len(dims) > 1:
+                if all(dim.name == "__dim_0" for dim in dims):
+                    # rename anonymous dimensions sequentially
+                    dims = [
+                        clone_dim_with_name(dims[i], name=f"__dim_{i}")
+                        for i in range(ndim)
+                    ]
+                elif any(dim.name.startswith("__dim_0") for dim in dims[1:]):
+                    raise lt.TileDBError(
+                        "Mixed dimension naming: dimensions must be either all anonymous or all named."
+                    )
 
-        for d in dims:
-            if not isinstance(d, Dim):
-                raise TypeError(
-                    "Cannot create Domain with non-Dim value for 'dims' argument"
-                )
-            self._add_dim(d)
+            for d in dims:
+                if not isinstance(d, Dim):
+                    raise TypeError(
+                        "Cannot create Domain with non-Dim value for 'dims' argument"
+                    )
+                self._add_dim(d)
 
     def __repr__(self):
         dims = ",\n       ".join([repr(self.dim(i)) for i in range(self.ndim)])

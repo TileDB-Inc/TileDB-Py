@@ -2,6 +2,9 @@ from typing import TYPE_CHECKING
 
 import tiledb.cc as lt
 from .ctx import default_ctx
+from .domain import Domain
+
+import io
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx
@@ -43,8 +46,25 @@ class ArraySchema(lt.ArraySchema):
         allows_duplicates=False,
         sparse=False,
         ctx: "Ctx" = None,
+        _uri=None,
     ):
-        super().__init__(ctx, lt.ArrayType.SPARSE)
+        _ctx = ctx or default_ctx()
+        _cctx = lt.Context(_ctx, False)
+
+        if _uri:
+            super().__init__(_cctx, _uri)
+        else:
+            _type = lt.ArrayType.SPARSE if sparse else lt.ArrayType.DENSE
+
+            super().__init__(_cctx, _type)
+
+            if domain:
+                # self._domain = domain
+                self._domain = lt.Domain(_cctx, domain)
+
+            if attrs:
+                for att in attrs:
+                    self._add_attr(att)
 
     # @staticmethod
     # def load(uri, Ctx ctx=None, key=None):
@@ -115,18 +135,15 @@ class ArraySchema(lt.ArraySchema):
     #     check_error(self.ctx,
     #                 tiledb_array_schema_check(self.ctx.ptr, self.ptr))
 
-    # @property
-    # def sparse(self):
-    #     """True if the array is a sparse array representation
+    @property
+    def sparse(self):
+        """True if the array is a sparse array representation
 
-    #     :rtype: bool
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: bool
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     """
-    #     cdef tiledb_array_type_t typ = TILEDB_DENSE
-    #     check_error(self.ctx,
-    #                 tiledb_array_schema_get_array_type(self.ctx.ptr, self.ptr, &typ))
-    #     return typ == TILEDB_SPARSE
+        """
+        return self._array_type == lt.ArrayType.SPARSE
 
     # @property
     # def allows_duplicates(self):
@@ -255,18 +272,16 @@ class ArraySchema(lt.ArraySchema):
     #         PyCapsule_New(validity_list_ptr, "fl", NULL),
     #             is_capsule=True, ctx=self.ctx)
 
-    # @property
-    # def domain(self):
-    #     """The Domain associated with the array.
+    @property
+    def domain(self):
+        """The Domain associated with the array.
 
-    #     :rtype: tiledb.Domain
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: tiledb.Domain
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     """
-    #     cdef tiledb_domain_t* dom = NULL
-    #     check_error(self.ctx,
-    #                 tiledb_array_schema_get_domain(self.ctx.ptr, self.ptr, &dom))
-    #     return Domain.from_ptr(dom, self.ctx)
+        """
+        return self._domain
+        # return Domain(_capsule=self._domain)
 
     # @property
     # def nattr(self):

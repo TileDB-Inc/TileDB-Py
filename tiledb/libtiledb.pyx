@@ -15,6 +15,7 @@ from collections.abc import Sequence
 
 from .ctx import default_ctx
 from .filter import FilterList
+from .array_schema import ArraySchema
 from .vfs import VFS
 
 import tiledb.cc as lt
@@ -1977,10 +1978,9 @@ cdef class Array(object):
     @property
     def schema(self):
         """The :py:class:`ArraySchema` for this array."""
-        schema = self.schema
-        if schema is None:
+        if self.schema is None:
             raise lt.TileDBError("Cannot access schema, array is closed")
-        return schema
+        return ArraySchema(_uri=self.uri)
 
     @property
     def mode(self):
