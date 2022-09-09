@@ -4,6 +4,7 @@ import tiledb.cc as lt
 from .attribute import Attr
 from .ctx import default_ctx
 from .domain import Domain
+from .util import _tiledb_layout_string
 
 import io
 import numbers
@@ -65,7 +66,13 @@ class ArraySchema(lt.ArraySchema):
 
             if attrs:
                 for att in attrs:
+                    if not isinstance(att, Attr):
+                        raise TypeError(
+                            "Cannot create schema with non-Attr value for 'attrs' argument"
+                        )
                     self._add_attr(att)
+
+        self._check()
 
     # @staticmethod
     # def load(uri, Ctx ctx=None, key=None):
@@ -127,14 +134,13 @@ class ArraySchema(lt.ArraySchema):
     #     """Returns a generator object that iterates over the ArraySchema's Attribute objects"""
     #     return (self.attr(i) for i in range(self.nattr))
 
-    # def check(self):
-    #     """Checks the correctness of the array schema
+    def check(self):
+        """Checks the correctness of the array schema
 
-    #     :rtype: None
-    #     :raises: :py:exc:`tiledb.TileDBError` if invalid
-    #     """
-    #     check_error(self.ctx,
-    #                 tiledb_array_schema_check(self.ctx.ptr, self.ptr))
+        :rtype: None
+        :raises: :py:exc:`tiledb.TileDBError` if invalid
+        """
+        return self._check()
 
     @property
     def sparse(self):
@@ -157,46 +163,37 @@ class ArraySchema(lt.ArraySchema):
     #     tiledb_array_schema_get_allows_dups(self.ctx.ptr, self.ptr, &ballows_dups)
     #     return bool(ballows_dups)
 
-    # @property
-    # def capacity(self):
-    #     """The array capacity
+    @property
+    def capacity(self):
+        """The array capacity
 
-    #     :rtype: int
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     """
-    #     cdef uint64_t cap = 0
-    #     check_error(self.ctx,
-    #                 tiledb_array_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
-    #     return cap
+        """
+        return self._capacity
 
-    # @property
-    # def cell_order(self):
-    #     """The cell order layout of the array."""
-    #     cdef tiledb_layout_t order = TILEDB_UNORDERED
-    #     self._cell_order(&order)
-    #     return _tiledb_layout_string(order)
+    @property
+    def cell_order(self):
+        """The cell order layout of the array.
 
-    # cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr):
-    #     check_error(self.ctx,
-    #         tiledb_array_schema_get_tile_order(self.ctx.ptr, self.ptr, tile_order_ptr))
+        :rtype: str
+        """
+        return _tiledb_layout_string(self._cell_order)
 
-    # @property
-    # def tile_order(self):
-    #     """The tile order layout of the array.
+    @property
+    def tile_order(self):
+        """The tile order layout of the array.
 
-    #     :rtype: str
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: str
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     """
-    #     cdef tiledb_layout_t order = TILEDB_UNORDERED
-    #     self._tile_order(&order)
+        """
+        layout_string = _tiledb_layout_string(self._cell_order)
+        if self.cell_order == "hilbert":
+            layout_string = None
 
-    #     layout_string = _tiledb_layout_string(order)
-    #     if self.cell_order == "hilbert":
-    #         layout_string = None
-
-    #     return layout_string
+        return layout_string
 
     # @property
     # def coords_compressor(self):
@@ -299,7 +296,7 @@ class ArraySchema(lt.ArraySchema):
 
         :rtype: int
         """
-        return self._domain.ndim
+        return self.domain.ndim
 
     @property
     def shape(self):
@@ -310,26 +307,14 @@ class ArraySchema(lt.ArraySchema):
         """
         return self.domain.shape
 
-    # @property
-    # def version(self):
-    #     """The array's scehma version.
+    @property
+    def version(self):
+        """The array's scehma version.
 
-    #     :rtype: int
-    #     :raises :py:exc:`tiledb.TileDBError`
-    #     """
-    #     cdef uint32_t version
-    #     check_error(self.ctx,
-    #                 tiledb_array_schema_get_version(
-    #                     self.ctx.ptr, self.ptr, &version))
-    #     return version
-
-    # def _make_invalid(self):
-    #     """This is a helper function for testing schema.check: resets schema
-    #     in order to make the schema invalid."""
-    #     cdef tiledb_array_schema_t* schema_ptr = self.ptr
-    #     tiledb_array_schema_free(&schema_ptr)
-    #     check_error(self.ctx,
-    #                 tiledb_array_schema_alloc(self.ctx.ptr, TILEDB_DENSE, &self.ptr))
+        :rtype: int
+        :raises :py:exc:`tiledb.TileDBError`
+        """
+        return self._version
 
     # def _needs_var_buffer(self, unicode name):
     #     """
@@ -363,40 +348,26 @@ class ArraySchema(lt.ArraySchema):
             "or an integer index, not {0!r}".format(type(key))
         )
 
-    # def has_attr(self, name):
-    #     """Returns true if the given name is an Attribute of the ArraySchema
+    def has_attr(self, name):
+        """Returns true if the given name is an Attribute of the ArraySchema
 
-    #     :param name: attribute name
-    #     :rtype: boolean
-    #     """
-    #     cdef:
-    #         int32_t has_attr = 0
-    #         int32_t rc = TILEDB_OK
-    #         bytes bname = name.encode("UTF-8")
+        :param name: attribute name
+        :rtype: boolean
+        """
+        return self._has_attribute(name)
 
-    #     rc = tiledb_array_schema_has_attribute(
-    #         self.ctx.ptr,
-    #         self.ptr,
-    #         bname,
-    #         &has_attr
-    #     )
-    #     if rc != TILEDB_OK:
-    #         _raise_ctx_err(self.ctx.ptr, rc)
+    def attr_or_dim_dtype(self, name):
+        if self.has_attr(name):
+            dtype = self.attr(name).dtype
+        elif self.domain.has_dim(name):
+            dtype = self.domain.dim(name).dtype
+        else:
+            raise TileDBError(f"Unknown attribute or dimension ('{name}')")
 
-    #     return bool(has_attr)
-
-    # def attr_or_dim_dtype(self, unicode name):
-    #     if self.has_attr(name):
-    #         dtype = self.attr(name).dtype
-    #     elif self.domain.has_dim(name):
-    #         dtype = self.domain.dim(name).dtype
-    #     else:
-    #         raise TileDBError(f"Unknown attribute or dimension ('{name}')")
-
-    #     if dtype.itemsize == 0:
-    #         # special handling for flexible numpy dtypes: change itemsize from 0 to 1
-    #         dtype = np.dtype((dtype, 1))
-    #     return dtype
+        if dtype.itemsize == 0:
+            # special handling for flexible numpy dtypes: change itemsize from 0 to 1
+            dtype = np.dtype((dtype, 1))
+        return dtype
 
     # def dump(self):
     #     """Dumps a string representation of the array object to standard output (stdout)"""

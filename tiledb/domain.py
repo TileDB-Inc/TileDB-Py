@@ -41,9 +41,20 @@ class Domain(lt.Domain):
 
         if len(dims) > 1:
             if all(dim.name == "__dim_0" for dim in dims):
+
+                def clone_dim_with_name(dim, name):
+                    return Dim(
+                        name=name,
+                        domain=dim._domain,
+                        tile=dim.tile,
+                        dtype=dim._numpy_dtype,
+                        ctx=dim._ctx,
+                    )
+
                 # rename anonymous dimensions sequentially
                 dims = [
-                    clone_dim_with_name(dims[i], name=f"__dim_{i}") for i in range(ndim)
+                    clone_dim_with_name(dims[i], name=f"__dim_{i}")
+                    for i in range(len(dims))
                 ]
             elif any(dim.name.startswith("__dim_0") for dim in dims[1:]):
                 raise lt.TileDBError(

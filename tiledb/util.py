@@ -66,3 +66,18 @@ def _tiledb_type_is_datetime(tdb_type: lt.DataType):
         lt.DataType.DATETIME_FS,
         lt.DataType.DATETIME_AS,
     )
+
+
+def _tiledb_layout_string(order):
+    tiledb_order_to_string = {
+        lt.LayoutType.ROW_MAJOR: "row-major",
+        lt.LayoutType.COL_MAJOR: "col-major",
+        lt.LayoutType.GLOBAL_ORDER: "global",
+        lt.LayoutType.UNORDERED: "unordered",
+        lt.LayoutType.HILBERT: "hilbert",
+    }
+
+    if order not in tiledb_order_to_string:
+        raise ValueError(f"unknown tiledb layout: {order}")
+
+    return tiledb_order_to_string[order]

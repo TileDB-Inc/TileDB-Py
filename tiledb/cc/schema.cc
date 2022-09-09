@@ -42,6 +42,8 @@ void init_schema(py::module &m) {
       .def_property("_capacity", &ArraySchema::capacity,
                     &ArraySchema::set_capacity)
 
+     .def_property_readonly("_version", &ArraySchema::version)
+
       .def_property("_cell_order", &ArraySchema::cell_order,
                     &ArraySchema::set_cell_order)
 
