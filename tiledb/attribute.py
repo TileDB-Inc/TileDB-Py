@@ -23,6 +23,7 @@ class Attr(lt.Attribute):
         nullable=False,
         filters=None,
         ctx=None,
+        _lt_obj=None,
     ):
         """Class representing a TileDB array attribute.
 
@@ -43,6 +44,14 @@ class Attr(lt.Attribute):
         """
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
+
+        if _lt_obj:
+            name = _lt_obj._name
+            dtype = _lt_obj._numpy_dtype
+            fill = _lt_obj._fill
+            var = _lt_obj._var
+            nullable = _lt_obj._nullable
+            filters = _lt_obj._filters
 
         if isinstance(dtype, str) and dtype == "ascii":
             var = True
@@ -233,22 +242,22 @@ class Attr(lt.Attribute):
         """
         return self._tiledb_dtype == lt.DataType.STRING_ASCII
 
-    def __repr__(self):
-        filters_str = ""
-        if self.filters:
-            filters_str = ", filters=FilterList(["
-            for f in self.filters:
-                filters_str += repr(f) + ", "
-            filters_str += "])"
+    # def __repr__(self):
+    #     filters_str = ""
+    #     if self.filters:
+    #         filters_str = ", filters=FilterList(["
+    #         for f in self.filters:
+    #             filters_str += repr(f) + ", "
+    #         filters_str += "])"
 
-        attr_dtype = "ascii" if self.isascii else self.dtype
+    #     attr_dtype = "ascii" if self.isascii else self.dtype
 
-        # filters_str must be last with no spaces
-        return (
-            f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
-            f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
-            f"""{filters_str})"""
-        )
+    #     # filters_str must be last with no spaces
+    #     return (
+    #         f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
+    #         f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
+    #         f"""{filters_str})"""
+    #     )
 
     def _repr_html_(self):
         output = io.StringIO()

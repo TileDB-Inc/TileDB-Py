@@ -16,15 +16,15 @@ class Filter(lt.Filter):
 
         super().__init__(lt.Context(self._ctx, False), type)
 
-    def __repr__(self) -> str:
-        output = io.StringIO()
-        output.write(f"{type(self).__name__}(")
-        if hasattr(self, "_attrs_"):
-            for f in self._attrs_():
-                a = getattr(self, f)
-                output.write(f"{f}={a}")
-        output.write(")")
-        return output.getvalue()
+    # def __repr__(self) -> str:
+    #     output = io.StringIO()
+    #     output.write(f"{type(self).__name__}(")
+    #     if hasattr(self, "_attrs_"):
+    #         for f in self._attrs_():
+    #             a = getattr(self, f)
+    #             output.write(f"{f}={a}")
+    #     output.write(")")
+    #     return output.getvalue()
 
     def _repr_html_(self) -> str:
         output = io.StringIO()

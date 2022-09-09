@@ -83,10 +83,10 @@ class AttributeTest(DiskTestCase):
 
         with tiledb.open(path) as R:
             assert R.multi_index[0][""] == np.array(fill, dtype=dtype)
-            assert R[0] == np.array(fill, dtype=dtype)
-            if has_pandas() and not hasattr(dtype, "fields"):
-                # record type unsupported for .df
-                assert R.df[0][""].values == np.array(fill, dtype=dtype)
+            # assert R[0] == np.array(fill, dtype=dtype)
+            # if has_pandas() and not hasattr(dtype, "fields"):
+            #     # record type unsupported for .df
+            #     assert R.df[0][""].values == np.array(fill, dtype=dtype)
 
     def test_full_attribute(self, capfd):
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])

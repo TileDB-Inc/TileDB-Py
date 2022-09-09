@@ -2162,7 +2162,7 @@ cdef class Array(object):
         cdef np.dtype dim_dtype
 
         for dim_idx in range(dom._ndim):
-            dim_dtype = dom._dim(dim_idx).dtype
+            dim_dtype = dom._dim(dim_idx)._numpy_dtype
 
             if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
                 rc = tiledb_array_get_non_empty_domain_var_size_from_index(
@@ -2678,7 +2678,7 @@ cdef class DenseArrayImpl(Array):
     def __repr__(self):
         if self.isopen:
             return "DenseArray(uri={0!r}, mode={1}, ndim={2})"\
-                .format(self.uri, self.mode, self.schema.ndim)
+                .format(self.uri, self.mode, self.schema._ndim)
         else:
             return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 

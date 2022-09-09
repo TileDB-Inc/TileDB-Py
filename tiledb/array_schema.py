@@ -1,10 +1,12 @@
 from typing import TYPE_CHECKING
 
 import tiledb.cc as lt
+from .attribute import Attr
 from .ctx import default_ctx
 from .domain import Domain
 
 import io
+import numbers
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx
@@ -59,8 +61,7 @@ class ArraySchema(lt.ArraySchema):
             super().__init__(_cctx, _type)
 
             if domain:
-                # self._domain = domain
-                self._domain = lt.Domain(_cctx, domain)
+                self._domain = domain
 
             if attrs:
                 for att in attrs:
@@ -280,38 +281,34 @@ class ArraySchema(lt.ArraySchema):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return self._domain
-        # return Domain(_capsule=self._domain)
+        return Domain(_lt_obj=self._domain)
 
-    # @property
-    # def nattr(self):
-    #     """The number of array attributes.
+    @property
+    def nattr(self):
+        """The number of array attributes.
 
-    #     :rtype: int
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: int
+        :raises: :py:exc:`tiledb.TileDBError`
 
-    #     """
-    #     cdef unsigned int nattr = 0
-    #     check_error(self.ctx,
-    #                 tiledb_array_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
-    #     return nattr
+        """
+        return self._nattr
 
-    # @property
-    # def ndim(self):
-    #     """The number of array domain dimensions.
+    @property
+    def ndim(self):
+        """The number of array domain dimensions.
 
-    #     :rtype: int
-    #     """
-    #     return self.domain.ndim
+        :rtype: int
+        """
+        return self._domain.ndim
 
-    # @property
-    # def shape(self):
-    #     """The array's shape
+    @property
+    def shape(self):
+        """The array's shape
 
-    #     :rtype: tuple(numpy scalar, numpy scalar)
-    #     :raises TypeError: floating point (inexact) domain
-    #     """
-    #     return self.domain.shape
+        :rtype: tuple(numpy scalar, numpy scalar)
+        :raises TypeError: floating point (inexact) domain
+        """
+        return self.domain.shape
 
     # @property
     # def version(self):
@@ -347,22 +344,24 @@ class ArraySchema(lt.ArraySchema):
     #     else:
     #         raise ValueError(f"Requested name '{name}' is not an attribute or dimension")
 
-    # def attr(self, object key not None):
-    #     """Returns an Attr instance given an int index or string label
+    def attr(self, key):
+        """Returns an Attr instance given an int index or string label
 
-    #     :param key: attribute index (positional or associative)
-    #     :type key: int or str
-    #     :rtype: tiledb.Attr
-    #     :return: The ArraySchema attribute at index or with the given name (label)
-    #     :raises TypeError: invalid key type
+        :param key: attribute index (positional or associative)
+        :type key: int or str
+        :rtype: tiledb.Attr
+        :return: The ArraySchema attribute at index or with the given name (label)
+        :raises TypeError: invalid key type
 
-    #     """
-    #     if isinstance(key, (str, unicode)):
-    #         return self._attr_name(key)
-    #     elif isinstance(key, _inttypes):
-    #         return self._attr_idx(int(key))
-    #     raise TypeError("attr indices must be a string name, "
-    #                     "or an integer index, not {0!r}".format(type(key)))
+        """
+        if isinstance(key, str):
+            return Attr(_lt_obj=self._attr(key))
+        elif isinstance(key, numbers.Integral):
+            return Attr(_lt_obj=self._attr(int(key)))
+        raise TypeError(
+            "attr indices must be a string name, "
+            "or an integer index, not {0!r}".format(type(key))
+        )
 
     # def has_attr(self, name):
     #     """Returns true if the given name is an Attribute of the ArraySchema
@@ -406,30 +405,30 @@ class ArraySchema(lt.ArraySchema):
     #     print("\n")
     #     return
 
-    def __repr__(self):
-        # TODO support/use __qualname__
-        output = io.StringIO()
-        output.write("ArraySchema(\n")
-        output.write("  domain=Domain(*[\n")
-        for i in range(self.domain.ndim):
-            output.write(f"    {repr(self.domain.dim(i))},\n")
-        output.write("  ]),\n")
-        output.write("  attrs=[\n")
-        for i in range(self.nattr):
-            output.write(f"    {repr(self.attr(i))},\n")
-        output.write("  ],\n")
-        output.write(
-            f"  cell_order='{self.cell_order}',\n"
-            f"  tile_order={repr(self.tile_order)},\n"
-        )
-        output.write(f"  capacity={self.capacity},\n")
-        output.write(f"  sparse={self.sparse},\n")
-        if self.sparse:
-            output.write(f"  allows_duplicates={self.allows_duplicates},\n")
+    # def __repr__(self):
+    #     # TODO support/use __qualname__
+    #     output = io.StringIO()
+    #     output.write("ArraySchema(\n")
+    #     output.write("  domain=Domain(*[\n")
+    #     for i in range(self.domain.ndim):
+    #         output.write(f"    {repr(self.domain.dim(i))},\n")
+    #     output.write("  ]),\n")
+    #     output.write("  attrs=[\n")
+    #     for i in range(self.nattr):
+    #         output.write(f"    {repr(self.attr(i))},\n")
+    #     output.write("  ],\n")
+    #     output.write(
+    #         f"  cell_order='{self.cell_order}',\n"
+    #         f"  tile_order={repr(self.tile_order)},\n"
+    #     )
+    #     output.write(f"  capacity={self.capacity},\n")
+    #     output.write(f"  sparse={self.sparse},\n")
+    #     if self.sparse:
+    #         output.write(f"  allows_duplicates={self.allows_duplicates},\n")
 
-        output.write(")\n")
+    #     output.write(")\n")
 
-        return output.getvalue()
+    #     return output.getvalue()
 
     def _repr_html_(self):
         output = io.StringIO()
