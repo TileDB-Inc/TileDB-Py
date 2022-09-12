@@ -52,11 +52,12 @@ class Dim(lt.Dimension):
             dtype = dim._numpy_dtype
             domain = dim._domain
             tile = dim._tile
+            filters = dim._filters
 
         domain = np.array(domain)
         tile = np.array([tile])
 
-        if (isinstance(dtype, str) and dtype == "ascii") or dtype == np.dtype("S"):
+        if (isinstance(dtype, str) and dtype == "ascii") or np.dtype(dtype).kind == "S":
             # Handle var-len domain type
             #  (currently only TILEDB_STRING_ASCII)
             # The dimension's domain is implicitly formed as
@@ -175,7 +176,7 @@ class Dim(lt.Dimension):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return self._cell_val_num() == lt.TILEDB_VAR_NUM
+        return self._ncell == lt.TILEDB_VAR_NUM()
 
     @property
     def isanon(self):

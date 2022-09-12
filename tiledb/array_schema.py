@@ -4,10 +4,13 @@ import tiledb.cc as lt
 from .attribute import Attr
 from .ctx import default_ctx
 from .domain import Domain
-from .util import _tiledb_layout_string
+from .filter import FilterList
+from .util import _tiledb_layout_string, _tiledb_layout
 
 import io
 import numbers
+import numpy as np
+import warnings
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx
@@ -61,16 +64,44 @@ class ArraySchema(lt.ArraySchema):
 
             super().__init__(_cctx, _type)
 
-            if domain:
-                self._domain = domain
-
-            if attrs:
+            if attrs is not None:
                 for att in attrs:
                     if not isinstance(att, Attr):
                         raise TypeError(
                             "Cannot create schema with non-Attr value for 'attrs' argument"
                         )
                     self._add_attr(att)
+
+            self._cell_order = _tiledb_layout(cell_order)
+            self._tile_order = _tiledb_layout(tile_order)
+
+            if capacity is not None:
+                self._capacity = capacity
+
+            if coords_filters is not None:
+                warnings.warn(
+                    "coords_filters is deprecated; set the FilterList for each dimension",
+                    DeprecationWarning,
+                )
+
+                self._coords_filters = FilterList()
+
+                dims_with_coords_filters = []
+                for dim in domain:
+                    dim._filters = FilterList(coords_filters)
+                    dims_with_coords_filters.append(dim)
+                domain = Domain(dims_with_coords_filters)
+
+            if domain is not None:
+                self._domain = domain
+
+            if offsets_filters is not None:
+                self._offsets_filters = FilterList(offsets_filters)
+
+            if validity_filters is not None:
+                self._validity_filters = FilterList(validity_filters)
+
+            self._allows_dups = allows_duplicates
 
         self._check()
 
@@ -104,35 +135,37 @@ class ArraySchema(lt.ArraySchema):
     #         _raise_ctx_err(ctx_ptr, rc)
     #     return ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
 
-    # def __eq__(self, other):
-    #     """Instance is equal to another ArraySchema"""
-    #     if not isinstance(other, ArraySchema):
-    #         return False
-    #     nattr = self.nattr
-    #     if nattr != other.nattr:
-    #         return False
-    #     if (self.sparse != other.sparse or
-    #         self.cell_order != other.cell_order or
-    #         self.tile_order != other.tile_order):
-    #         return False
-    #     if (self.capacity != other.capacity):
-    #         return False
-    #     if self.domain != other.domain:
-    #         return False
-    #     if self.coords_filters != other.coords_filters:
-    #         return False
-    #     for i in range(nattr):
-    #         if self.attr(i) != other.attr(i):
-    #             return False
-    #     return True
+    def __eq__(self, other):
+        """Instance is equal to another ArraySchema"""
+        if not isinstance(other, ArraySchema):
+            return False
+        nattr = self.nattr
+        if nattr != other.nattr:
+            return False
+        if (
+            self.sparse != other.sparse
+            or self.cell_order != other.cell_order
+            or self.tile_order != other.tile_order
+        ):
+            return False
+        if self.capacity != other.capacity:
+            return False
+        if self.domain != other.domain:
+            return False
+        if self.coords_filters != other.coords_filters:
+            return False
+        for i in range(nattr):
+            if self.attr(i) != other.attr(i):
+                return False
+        return True
 
-    # def __len__(self):
-    #     """Returns the number of Attributes in the ArraySchema"""
-    #     return self.nattr
+    def __len__(self):
+        """Returns the number of Attributes in the ArraySchema"""
+        return self._nattr
 
-    # def __iter__(self):
-    #     """Returns a generator object that iterates over the ArraySchema's Attribute objects"""
-    #     return (self.attr(i) for i in range(self.nattr))
+    def __iter__(self):
+        """Returns a generator object that iterates over the ArraySchema's Attribute objects"""
+        return (self.attr(i) for i in range(self.nattr))
 
     def check(self):
         """Checks the correctness of the array schema
@@ -152,16 +185,16 @@ class ArraySchema(lt.ArraySchema):
         """
         return self._array_type == lt.ArrayType.SPARSE
 
-    # @property
-    # def allows_duplicates(self):
-    #     """Returns True if the (sparse) array allows duplicates."""
+    @property
+    def allows_duplicates(self):
+        """Returns True if the (sparse) array allows duplicates."""
 
-    #     if not self.sparse:
-    #         raise TileDBError("ArraySchema.allows_duplicates does not apply to dense arrays")
+        if not self.sparse:
+            raise lt.TileDBError(
+                "ArraySchema.allows_duplicates does not apply to dense arrays"
+            )
 
-    #     cdef int ballows_dups
-    #     tiledb_array_schema_get_allows_dups(self.ctx.ptr, self.ptr, &ballows_dups)
-    #     return bool(ballows_dups)
+        return self._allows_dups
 
     @property
     def capacity(self):
@@ -195,80 +228,39 @@ class ArraySchema(lt.ArraySchema):
 
         return layout_string
 
-    # @property
-    # def coords_compressor(self):
-    #     """The compressor label and level for the array's coordinates.
+    @property
+    def offsets_filters(self):
+        """The FilterList for the array's variable-length attribute offsets
 
-    #     :rtype: tuple(str, int)
-    #     :raises: :py:exc:`tiledb.TileDBError`
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        return FilterList(self._offsets_filters)
 
-    #     """
-    #     # <todo> reimplement on top of filter API?
-    #     pass
+    @property
+    def coords_filters(self):
+        """The FilterList for the array's coordinates
 
-    # @property
-    # def offsets_compressor(self):
-    #     """The compressor label and level for the array's variable-length attribute offsets.
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        return FilterList(self._coords_filters)
 
-    #     :rtype: tuple(str, int)
-    #     :raises: :py:exc:`tiledb.TileDBError`
+    @coords_filters.setter
+    def coords_filters(self, value):
+        warnings.warn(
+            "coords_filters is deprecated; set the FilterList for each dimension",
+            DeprecationWarning,
+        )
 
-    #     """
-    #     # <todo> reimplement on top of filter API?
-    #     pass
+    @property
+    def validity_filters(self):
+        """The FilterList for the array's validity
 
-    # @property
-    # def offsets_filters(self):
-    #     """The FilterList for the array's variable-length attribute offsets
-
-    #     :rtype: tiledb.FilterList
-    #     :raises: :py:exc:`tiledb.TileDBError`
-    #     """
-    #     cdef tiledb_filter_list_t* filter_list_ptr = NULL
-    #     check_error(self.ctx,
-    #         tiledb_array_schema_get_offsets_filter_list(
-    #             self.ctx.ptr, self.ptr, &filter_list_ptr))
-    #     return FilterList(
-    #         PyCapsule_New(filter_list_ptr, "fl", NULL),
-    #             is_capsule=True, ctx=self.ctx)
-
-    # @property
-    # def coords_filters(self):
-    #     """The FilterList for the array's coordinates
-
-    #     :rtype: tiledb.FilterList
-    #     :raises: :py:exc:`tiledb.TileDBError`
-    #     """
-    #     cdef tiledb_filter_list_t* filter_list_ptr = NULL
-    #     check_error(self.ctx,
-    #         tiledb_array_schema_get_coords_filter_list(
-    #             self.ctx.ptr, self.ptr, &filter_list_ptr))
-    #     return FilterList(
-    #         PyCapsule_New(filter_list_ptr, "fl", NULL),
-    #             is_capsule=True, ctx=self.ctx)
-
-    # @coords_filters.setter
-    # def coords_filters(self, value):
-    #     warnings.warn(
-    #         "coords_filters is deprecated; "
-    #         "set the FilterList for each dimension",
-    #         DeprecationWarning,
-    #     )
-
-    # @property
-    # def validity_filters(self):
-    #     """The FilterList for the array's validity
-
-    #     :rtype: tiledb.FilterList
-    #     :raises: :py:exc:`tiledb.TileDBError`
-    #     """
-    #     cdef tiledb_filter_list_t* validity_list_ptr = NULL
-    #     check_error(self.ctx,
-    #         tiledb_array_schema_get_validity_filter_list(
-    #             self.ctx.ptr, self.ptr, &validity_list_ptr))
-    #     return FilterList(
-    #         PyCapsule_New(validity_list_ptr, "fl", NULL),
-    #             is_capsule=True, ctx=self.ctx)
+        :rtype: tiledb.FilterList
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        return FilterList(self._validity_filters)
 
     @property
     def domain(self):
@@ -316,18 +308,20 @@ class ArraySchema(lt.ArraySchema):
         """
         return self._version
 
-    # def _needs_var_buffer(self, unicode name):
-    #     """
-    #     Returns true if the given attribute or dimension is var-sized
-    #     :param name:
-    #     :rtype: bool
-    #     """
-    #     if self.has_attr(name):
-    #         return self.attr(name).isvar
-    #     elif self.domain.has_dim(name):
-    #         return self.domain.dim(name).isvar
-    #     else:
-    #         raise ValueError(f"Requested name '{name}' is not an attribute or dimension")
+    def _needs_var_buffer(self, name):
+        """
+        Returns true if the given attribute or dimension is var-sized
+        :param name:
+        :rtype: bool
+        """
+        if self.has_attr(name):
+            return self.attr(name).isvar
+        elif self.domain.has_dim(name):
+            return self.domain.dim(name).isvar
+        else:
+            raise ValueError(
+                f"Requested name '{name}' is not an attribute or dimension"
+            )
 
     def attr(self, key):
         """Returns an Attr instance given an int index or string label
@@ -369,12 +363,9 @@ class ArraySchema(lt.ArraySchema):
             dtype = np.dtype((dtype, 1))
         return dtype
 
-    # def dump(self):
-    #     """Dumps a string representation of the array object to standard output (stdout)"""
-    #     check_error(self.ctx,
-    #                 tiledb_array_schema_dump(self.ctx.ptr, self.ptr, stdout))
-    #     print("\n")
-    #     return
+    def dump(self):
+        """Dumps a string representation of the array object to standard output (stdout)"""
+        print(self._dump(), "\n")
 
     # def __repr__(self):
     #     # TODO support/use __qualname__

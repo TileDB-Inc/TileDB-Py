@@ -111,7 +111,7 @@ class Attr(lt.Attribute):
                             "heterogenous record numpy dtypes are not supported"
                         )
                 _dtype = typ0
-                _ncell = len(dtype.fields.values())
+                _ncell = nfields
 
         super().__init__(_cctx, name, _dtype)
 
@@ -127,7 +127,7 @@ class Attr(lt.Attribute):
             self._filters = FilterList(filters)
 
         if fill is not None:
-            self._fill = np.array([fill], dtype=_dtype)
+            self._fill = np.array([fill], dtype=np.dtype(dtype))
 
         if nullable is not None:
             self._nullable = nullable

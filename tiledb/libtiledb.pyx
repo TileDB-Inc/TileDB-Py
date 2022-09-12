@@ -3563,7 +3563,7 @@ cdef class SparseArrayImpl(Array):
             attr_names.extend(self.schema._attr(a)._name for a in attrs)
 
         if coords == True:
-            attr_names.extend(self.schema._domain.dim(i).name for i in range(self.schema.ndim))
+            attr_names.extend(self.schema._domain._dim(i)._name for i in range(self.schema._ndim))
         elif coords:
             attr_names.extend(coords)
 
@@ -3607,18 +3607,20 @@ cdef class SparseArrayImpl(Array):
             name, final_name = attr_names[i], attr_names[i]
             if name == '__attr':
                 final_name = ''
-            if self.schema._needs_var_buffer(name):
+            
+            array_schema = ArraySchema(_uri=self.uri)
+            if array_schema._needs_var_buffer(name):
                 if len(results[name][1]) > 0: # note: len(offsets) > 0
                     arr = q.unpack_buffer(name, results[name][0], results[name][1])
                 else:
                     arr = results[name][0]
-                    arr.dtype = self.schema._attr_or_dim_dtype(name)
+                    arr.dtype = array_schema.attr_or_dim_dtype(name)
                 out[final_name] = arr
             else:
-                if self.schema._domain._has_dim(name):
-                    el_dtype = self.schema._domain.dim(name).dtype
+                if array_schema.domain._has_dim(name):
+                    el_dtype = array_schema.domain._dim(name)._numpy_dtype
                 else:
-                    el_dtype = self.attr(name).dtype
+                    el_dtype = self.attr(name)._numpy_dtype
                 arr = results[name][0]
 
                 # this is a work-around for NumPy restrictions removed in 1.16

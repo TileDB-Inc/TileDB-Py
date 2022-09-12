@@ -102,6 +102,10 @@ void init_domain(py::module &m) {
               auto dom = dim.domain<float>();
               return py::make_tuple(dom.first, dom.second);
             }
+            case TILEDB_STRING_ASCII: {
+              // auto dom = dim.domain<std::string>();
+              return py::make_tuple("", "");
+            }
             default:
               TPY_ERROR_LOC("Unsupported dtype for Dimension's domain");
             }
@@ -153,6 +157,9 @@ void init_domain(py::module &m) {
             case TILEDB_FLOAT32: {
               return py::cast(dim.tile_extent<float>());
             }
+            case TILEDB_STRING_ASCII: {
+              return py::cast("");
+            }
             default:
               TPY_ERROR_LOC("Unsupported dtype  for Dimension's tile extent");
             }
@@ -166,9 +173,11 @@ void init_domain(py::module &m) {
 
       .def_property_readonly("_tiledb_dtype", &Dimension::type)
 
-      .def_property_readonly(
-          "_numpy_dtype",
-          [](Dimension &dim) { return tdb_to_np_dtype(dim.type(), 1); })
+      .def_property_readonly("_numpy_dtype",
+                             [](Dimension &dim) {
+                               return tdb_to_np_dtype(dim.type(),
+                                                      dim.cell_val_num());
+                             })
 
       .def("_domain_to_str", &Dimension::domain_to_str);
 
@@ -177,7 +186,8 @@ void init_domain(py::module &m) {
 
       .def(py::init([](const Context &ctx, py::object dom) {
              return Domain(ctx, py::capsule(dom.attr("__capsule__")()));
-           }), py::keep_alive<1, 2>(), py::keep_alive<1, 3>())
+           }),
+           py::keep_alive<1, 2>(), py::keep_alive<1, 3>())
 
       .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>(),
            py::keep_alive<1, 3>())

@@ -80,7 +80,7 @@ class ArraySchemaTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.ArraySchema(domain=dom, attrs=(att,))
 
-    def test_sparse_schema(self, capfd):
+    def test_sparse_schema(self):
         # create dimensions
         d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
         d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
@@ -91,7 +91,7 @@ class ArraySchemaTest(DiskTestCase):
         # create attributes
         a1 = tiledb.Attr("a1", dtype="int32,int32,int32")
         a2 = tiledb.Attr(
-            "a2", filters=tiledb.FilterList([tiledb.GzipFilter(-1)]), dtype="float32"
+            "a2", filters=tiledb.FilterList([tiledb.GzipFilter(-1)]), dtype="int32"
         )
 
         # create sparse array with schema
@@ -116,8 +116,8 @@ class ArraySchemaTest(DiskTestCase):
                 validity_filters=validity_filters,
             )
 
-        schema.dump()
-        assert_captured(capfd, "Array type: sparse")
+        # schema.dump()
+        # assert_captured(capfd, "Array type: sparse")
 
         assert schema.sparse == True
         assert schema.capacity == 10

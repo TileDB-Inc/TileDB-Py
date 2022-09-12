@@ -154,15 +154,15 @@ py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
 }
 
 tiledb_datatype_t np_to_tdb_dtype(py::dtype type) {
-  auto name = py::str(py::getattr(type, "name"));
-  if (_np_name_to_tdb_dtype.count(name) == 1)
-    return _np_name_to_tdb_dtype[name];
-
   auto kind = py::str(py::getattr(type, "kind"));
   if (kind == py::str("S"))
     return TILEDB_STRING_ASCII;
   if (kind == py::str("U"))
     return TILEDB_STRING_UTF8;
+
+  auto name = py::str(py::getattr(type, "name"));
+  if (_np_name_to_tdb_dtype.count(name) == 1)
+    return _np_name_to_tdb_dtype[name];
 
   TPY_ERROR_LOC("could not handle numpy dtype");
 }

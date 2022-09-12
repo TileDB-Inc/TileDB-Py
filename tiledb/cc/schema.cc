@@ -62,8 +62,6 @@ void init_schema(py::module &m) {
       .def_property("_validity_filters", &ArraySchema::validity_filter_list,
                     &ArraySchema::set_validity_filter_list)
 
-      // TODO? .def("__eq__", &Domain::operator==)
-
       .def("_attr", py::overload_cast<const std::string &>(
                         &ArraySchema::attribute, py::const_))
       .def("_attr",

@@ -81,3 +81,23 @@ def _tiledb_layout_string(order):
         raise ValueError(f"unknown tiledb layout: {order}")
 
     return tiledb_order_to_string[order]
+
+
+def _tiledb_layout(order):
+    string_to_tiledb_order = {
+        "row-major": lt.LayoutType.ROW_MAJOR,
+        "C": lt.LayoutType.ROW_MAJOR,
+        "col-major": lt.LayoutType.COL_MAJOR,
+        "R": lt.LayoutType.COL_MAJOR,
+        "global": lt.LayoutType.GLOBAL_ORDER,
+        "hilbert": lt.LayoutType.HILBERT,
+        "H": lt.LayoutType.HILBERT,
+        "unordered": lt.LayoutType.UNORDERED,
+        "U": lt.LayoutType.UNORDERED,
+        None: lt.LayoutType.UNORDERED,
+    }
+
+    if order not in string_to_tiledb_order:
+        raise ValueError(f"unknown tiledb layout: {order}")
+
+    return string_to_tiledb_order[order]

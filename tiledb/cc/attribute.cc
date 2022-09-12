@@ -31,6 +31,10 @@ py::array get_fill_value(Attribute &attr) {
     value_num = size;
   }
 
+  if (py::str(value_type.attr("kind")) == py::str("V")) {
+    value_num = 1;
+  }
+
   return py::array(value_type, value_num, value);
 }
 
