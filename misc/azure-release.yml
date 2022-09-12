@@ -7,7 +7,7 @@ stages:
         LIBTILEDB_SHA: dev
       ${{ else }}:
         TILEDBPY_VERSION: 0.17.3
-        LIBTILEDB_VERSION: 2.11.3
+        LIBTILEDB_VERSION: 2.11.2
         LIBTILEDB_SHA: 6ad6f767216bb26718632f9155e9d907340e62f4
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
