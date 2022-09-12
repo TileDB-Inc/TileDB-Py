@@ -14,8 +14,10 @@ from collections import OrderedDict
 from collections.abc import Sequence
 
 from .ctx import default_ctx
-from .filter import FilterList
 from .array_schema import ArraySchema
+from .dimension import Dim
+from .domain import Domain
+from .filter import FilterList
 from .vfs import VFS
 
 import tiledb.cc as lt
@@ -353,14 +355,14 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     output_offsets = list()
 
     for i in range(nattr):
+        attr = tiledb_array.schema.attr(i)
+
         # if dtype is ASCII, ensure all characters are valid
-        if tiledb_array.schema._attr(i).isascii:
+        if attr._tiledb_dtype == TILEDB_STRING_ASCII:
             try:
                 values[i] = np.asarray(values[i], dtype=np.bytes_)
             except Exception as exc:
                 raise lt.TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
-
-        attr = tiledb_array.schema._attr(i)
 
         if attr._var:
             try:
@@ -397,10 +399,11 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     # Set coordinate buffer size and name, and layout for sparse writes
     if issparse:
+        dom = Domain(_lt_obj=tiledb_array.schema.domain)
         for dim_idx in range(tiledb_array.schema.ndim):
-            name = tiledb_array.schema._domain.dim(dim_idx).name
+            name = dom.dim(dim_idx)._name
             val = coords_or_subarray[dim_idx]
-            if tiledb_array.schema._domain.dim(dim_idx)._var:
+            if dom.dim(dim_idx).isvar:
                 buffer, offsets = tiledb.main.array_to_buffer(val, True, False)
                 buffer_sizes[nattr + dim_idx] = buffer.nbytes
                 buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
@@ -465,7 +468,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     try:
         for i in range(0, nattr):
-            battr_name = lt.Attributeibutes[i].encode('UTF-8')
+            battr_name = attributes[i].encode('UTF-8')
             buffer_ptr = np.PyArray_DATA(output_values[i])
 
             rc = tiledb_query_set_data_buffer(ctx_ptr, query_ptr, battr_name,
@@ -475,7 +478,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 _raise_ctx_err(ctx_ptr, rc)
 
             var = output_offsets[i] is not None
-            nullable = lt.Attributeibutes[i] in nullmaps
+            nullable = attributes[i] in nullmaps
 
             if var:
                 offsets_buffer_ptr = <uint64_t*>np.PyArray_DATA(output_offsets[i])
@@ -3212,15 +3215,17 @@ def index_domain_coords(dom: lt.Domain, idx: tuple, check_ndim: bool):
     Returns a (zipped) coordinate array representation
     given coordinate indices in numpy's point indexing format
     """
+    domain = Domain(_lt_obj=dom)
+
     ndim = len(idx)
 
     if check_ndim:
-        if ndim != dom._ndim:
+        if ndim != domain.ndim:
             raise IndexError("sparse index ndim must match domain ndim: "
                             "{0!r} != {1!r}".format(ndim, dom._ndim))
 
     domain_coords = []
-    for dim, sel in zip(dom, idx):
+    for dim, sel in zip(domain, idx):
         dim_is_string = (np.issubdtype(dim._numpy_dtype, np.str_) or
             np.issubdtype(dim._numpy_dtype, np.bytes_))
 
@@ -3236,11 +3241,11 @@ def index_domain_coords(dom: lt.Domain, idx: tuple, check_ndim: bool):
     idx = tuple(domain_coords)
 
     # check that all sparse coordinates are the same size and dtype
-    dim0 = dom._dim(0)
+    dim0 = domain.dim(0)
     dim0_type = dim0.dtype
     len0 = len(idx[0])
     for dim_idx in range(ndim):
-        dim_dtype = dom._dim(dim_idx).dtype
+        dim_dtype = domain.dim(dim_idx).dtype
         if len(idx[dim_idx]) != len0:
             raise IndexError("sparse index dimension length mismatch")
 
@@ -3279,12 +3284,12 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         if self.nattr > 1:
             raise ValueError("Expected dict-like object {name: value} for multi-attribute "
                              "array.")
-        val = dict({self.attr(0).name: val})
+        val = dict({self.attr(0)._name: val})
 
     # must iterate in Attr order to ensure that value order matches
     for attr_idx in range(self.schema._nattr):
         attr = self.attr(attr_idx)
-        name = lt.Attribute.name
+        name = attr._name
         attr_val = val[name]
 
         try:
@@ -3292,25 +3297,25 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                 # ensure that the value is array-convertible, for example: pandas.Series
                 attr_val = np.asarray(attr_val)
             else:
-                if (np.issubdtype(attr.dtype, np.string_) and not
+                if (np.issubdtype(attr._numpy_dtype, np.string_) and not
                     (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
                     raise ValueError("Cannot write a string value to non-string "
                                      "typed attribute '{}'!".format(name))
 
-                attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                attr_val = np.ascontiguousarray(attr_val, dtype=attr._dtype)
 
-            if attr.isnullable and attr.name not in nullmaps:
-                nullmaps[attr.name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
+            if attr._nullable and attr._name not in nullmaps:
+                nullmaps[attr._name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
 
         except Exception as exc:
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
 
         # set nullmap if nullable attribute does not have a nullmap already set
-        if attr.isnullable and attr.name not in nullmaps:
-            nullmaps[attr.name] = np.ones(attr_val.shape)
+        if attr._nullable and attr._name not in nullmaps:
+            nullmaps[attr._name] = np.ones(attr_val.shape)
 
         # if dtype is ASCII, ensure all characters are valid
-        if attr.isascii:
+        if attr._tiledb_dtype == TILEDB_STRING_ASCII:
             try:
                 np.asarray(attr_val, dtype=np.bytes_)
             except Exception as exc:

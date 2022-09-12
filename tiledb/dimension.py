@@ -25,6 +25,7 @@ class Dim(lt.Dimension):
         dtype: np.dtype = np.uint64,
         var: bool = None,
         ctx: "Ctx" = None,
+        _lt_obj=None,
     ):
         """Class representing a dimension of a TileDB Array.
 
@@ -46,23 +47,19 @@ class Dim(lt.Dimension):
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
 
-        if isinstance(name, lt.Dimension):
-            dim = name
-            name = dim._name
-            dtype = dim._numpy_dtype
-            domain = dim._domain
-            tile = dim._tile
-            filters = dim._filters
-
-        domain = np.array(domain)
-        tile = np.array([tile])
+        if _lt_obj is not None:
+            name = _lt_obj._name
+            dtype = _lt_obj._numpy_dtype
+            domain = np.array(_lt_obj._domain)
+            tile = _lt_obj._tile
+            filters = _lt_obj._filters
 
         if (isinstance(dtype, str) and dtype == "ascii") or np.dtype(dtype).kind == "S":
-            # Handle var-len domain type
-            #  (currently only TILEDB_STRING_ASCII)
-            # The dimension's domain is implicitly formed as
-            # coordinates are written.
+            # Handle var-len dom type (currently only TILEDB_STRING_ASCII)
+            # The dims's dom is implicitly formed as coordinates are written.
             dtype = np.dtype("S")
+
+        domain = np.array(domain)
 
         if np.issubdtype(np.dtype(dtype), np.datetime64) and not np.issubdtype(
             domain.dtype, np.datetime64
@@ -71,9 +68,10 @@ class Dim(lt.Dimension):
 
         if np.issubdtype(domain.dtype, np.datetime64):
             domain = np.array(domain, dtype=np.uint64)
-
-        if np.issubdtype(tile.dtype, np.timedelta64):
             tile = np.array(tile, dtype=np.uint64)
+        else:
+            domain = np.array(domain, dtype=dtype)
+            tile = np.array(tile, dtype=dtype)
 
         super().__init__(_cctx, name, np.dtype(dtype), domain, tile)
 

@@ -22,11 +22,7 @@ void init_domain(py::module &m) {
              void *dim_dom = nullptr;
              void *dim_tile = nullptr;
 
-             try {
-               dim_type = np_to_tdb_dtype(datatype);
-             } catch (const TileDBPyError &e) {
-               throw py::type_error(e.what());
-             }
+             dim_type = np_to_tdb_dtype(datatype);
 
              if (dim_type != TILEDB_STRING_ASCII) {
                py::buffer_info domain_info = domain.request();
@@ -38,6 +34,88 @@ void init_domain(py::module &m) {
 
              return std::make_unique<Dimension>(
                  Dimension::create(ctx, name, dim_type, dim_dom, dim_tile));
+           }),
+           py::keep_alive<1, 2>())
+
+      .def(py::init([](const Context &ctx, const std::string &name,
+                       py::dtype datatype, py::array domain) {
+             tiledb_datatype_t dim_type = np_to_tdb_dtype(datatype);
+             py::buffer_info domain_info = domain.request();
+             void *dim_dom = domain_info.ptr;
+
+             switch (dim_type) {
+             case TILEDB_UINT64: {
+               std::array<uint64_t, 2> dom = {((uint64_t *)(dim_dom))[0],
+                                              ((uint64_t *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_DATETIME_YEAR:
+             case TILEDB_DATETIME_WEEK:
+             case TILEDB_DATETIME_DAY:
+             case TILEDB_DATETIME_HR:
+             case TILEDB_DATETIME_MIN:
+             case TILEDB_DATETIME_SEC:
+             case TILEDB_DATETIME_MS:
+             case TILEDB_DATETIME_US:
+             case TILEDB_DATETIME_NS:
+             case TILEDB_DATETIME_PS:
+             case TILEDB_DATETIME_FS:
+             case TILEDB_DATETIME_AS:
+             case TILEDB_INT64: {
+               std::array<int64_t, 2> dom = {((int64_t *)(dim_dom))[0],
+                                             ((int64_t *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_UINT32: {
+               std::array<uint32_t, 2> dom = {((uint32_t *)(dim_dom))[0],
+                                              ((uint32_t *)(dim_dom))[1]};
+               std::cout << ((uint32_t *)(dim_dom))[0] << " ";
+               std::cout << ((uint32_t *)(dim_dom))[1] << std::endl;
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_INT32: {
+               std::array<int32_t, 2> dom = {((int32_t *)(dim_dom))[0],
+                                             ((int32_t *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_UINT16: {
+               std::array<uint16_t, 2> dom = {((uint16_t *)(dim_dom))[0],
+                                              ((uint16_t *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_INT16: {
+               std::array<int16_t, 2> dom = {((int16_t *)(dim_dom))[0],
+                                             ((int16_t *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_UINT8: {
+               std::array<uint8_t, 2> dom = {((uint8_t *)(dim_dom))[0],
+                                             ((uint8_t *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_INT8: {
+               std::array<int8_t, 2> dom = {((int8_t *)(dim_dom))[0],
+                                            ((int8_t *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_FLOAT64: {
+               std::array<double, 2> dom = {((double *)(dim_dom))[0],
+                                            ((double *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+             case TILEDB_FLOAT32: {
+               std::array<float, 2> dom = {((float *)(dim_dom))[0],
+                                           ((float *)(dim_dom))[1]};
+               return Dimension::create(ctx, name, dom);
+             }
+               //  case TILEDB_STRING_ASCII: {
+               //    std::array<std::string, 2> dom = {((char *)(dim_dom))[0],
+               //                                      ((char *)(dim_dom))[1]};
+               //    return Dimension::create(ctx, name, dom);
+               //  }
+             default:
+               TPY_ERROR_LOC("Unsupported dtype for Dimension's domain");
+             }
            }),
            py::keep_alive<1, 2>())
 

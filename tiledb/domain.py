@@ -28,7 +28,7 @@ class Domain(lt.Domain):
         _cctx = lt.Context(self._ctx, False)
 
         if isinstance(_lt_obj, lt.Domain):
-            dims = [Dim(_lt_obj._dim(i)) for i in range(_lt_obj._ndim)]
+            dims = [Dim(_lt_obj=_lt_obj._dim(i)) for i in range(_lt_obj._ndim)]
 
         super().__init__(_cctx)
 
@@ -97,7 +97,7 @@ class Domain(lt.Domain):
 
     def __iter__(self):
         """Returns a generator object that iterates over the domain's dimension objects"""
-        return (Dim(self._dim(i)) for i in range(self.ndim))
+        return (Dim(_lt_obj=self._dim(i)) for i in range(self.ndim))
 
     def __eq__(self, other):
         """Returns true if Domain is equal to self.
@@ -186,7 +186,7 @@ class Domain(lt.Domain):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return Dim(self._dim(dim_id))
+        return Dim(_lt_obj=self._dim(dim_id))
 
     def has_dim(self, name):
         """
