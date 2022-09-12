@@ -1,4 +1,4 @@
-# In Progress
+# TileDB-Py 0.17.3 Release Notes
 
 ## API Changes
 * Add ability to pass shape tuple to empty_like [#1316](https://github.com/TileDB-Inc/TileDB-Py/pull/1316)
