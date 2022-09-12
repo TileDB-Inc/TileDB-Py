@@ -132,6 +132,7 @@ class GroupTest(GroupTestCase):
         grp.meta["int"] = int_data
         grp.meta["flt"] = flt_data
         grp.meta["str"] = str_data
+        time.sleep(0.001)
         grp.close()
 
         grp.open("r")
@@ -143,15 +144,18 @@ class GroupTest(GroupTestCase):
         assert values_equal(grp.meta["flt"], flt_data)
         assert "str" in grp.meta
         assert values_equal(grp.meta["str"], str_data)
+        time.sleep(0.001)
         grp.close()
 
         grp.open("w")
         del grp.meta["int"]
+        time.sleep(0.001)
         grp.close()
 
         grp = tiledb.Group(grp_path, "r")
         assert len(grp.meta) == 2
         assert "int" not in grp.meta
+        time.sleep(0.001)
         grp.close()
 
     def test_group_members(self, capfd):
@@ -285,6 +289,7 @@ class GroupMetadataTest(GroupTestCase):
         grp.meta["int"] = int_data
         grp.meta["flt"] = flt_data
         grp.meta["str"] = str_data
+        time.sleep(0.001)
         grp.close()
 
         grp.open("r")
@@ -296,15 +301,18 @@ class GroupMetadataTest(GroupTestCase):
         assert values_equal(grp.meta["flt"], flt_data)
         assert "str" in grp.meta
         assert values_equal(grp.meta["str"], str_data)
+        time.sleep(0.001)
         grp.close()
 
         grp.open("w")
         del grp.meta["int"]
+        time.sleep(0.001)
         grp.close()
 
         grp = tiledb.Group(grp_path, "r")
         assert len(grp.meta) == 2
         assert "int" not in grp.meta
+        time.sleep(0.001)
         grp.close()
 
     def assert_equal_md_values(self, written_value, read_value):
