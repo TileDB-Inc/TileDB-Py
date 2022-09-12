@@ -533,15 +533,23 @@ py::tuple convert_np(py::array input, bool allow_unicode,
 #if PY_MAJOR_VERSION >= 3
   if (use_fallback) {
 #endif
+    printf("TILEDB-PY NPBUFFER.CC CONVERT_NP FALLBACK ENTER\n");
     auto tiledb = py::module::import("tiledb");
     auto libtiledb = tiledb.attr("libtiledb");
     auto array_to_buffer = libtiledb.attr("array_to_buffer");
-    return array_to_buffer(input);
+    // return array_to_buffer(input);
+    auto retval = array_to_buffer(input);
+    printf("TILEDB-PY NPBUFFER.CC CONVERT_NP FALLBACK EXIT\n");
+    return retval;
 #if PY_MAJOR_VERSION >= 3
   } else {
+    printf("TILEDB-PY NPBUFFER.CC CONVERT_NP NON-FALLBACK ENTER\n");
     NumpyConvert cvt(input);
     cvt.allow_unicode(allow_unicode);
-    return cvt.get();
+    //return cvt.get();
+    auto retval = cvt.get();
+    printf("TILEDB-PY NPBUFFER.CC CONVERT_NP NON-FALLBACK EXIT\n");
+    return retval;
   }
 #endif
 }

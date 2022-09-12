@@ -362,6 +362,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     # used for buffer conversion (local import to avoid circularity)
     import tiledb.main
+    print("TILEDB-PY _WRITE_ARRAY ENTER")
 
     cdef bint isfortran = False
     cdef Py_ssize_t nattr = len(attributes)
@@ -371,6 +372,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     if issparse:
         nattr_alloc += tiledb_array.schema.ndim
 
+    print("TILEDB-PY _WRITE_ARRAY 100")
     # Set up buffers
     cdef np.ndarray buffer_sizes = np.zeros((nattr_alloc,), dtype=np.uint64)
     cdef np.ndarray buffer_offsets_sizes = np.zeros((nattr_alloc,),  dtype=np.uint64)
@@ -378,6 +380,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     output_values = list()
     output_offsets = list()
 
+    print("TILEDB-PY _WRITE_ARRAY 200")
     for i in range(nattr):
         # if dtype is ASCII, ensure all characters are valid
         if tiledb_array.schema.attr(i).isascii:
@@ -401,6 +404,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         output_values.append(buffer)
         output_offsets.append(offsets)
 
+    print("TILEDB-PY _WRITE_ARRAY 300")
     # Check value layouts
     if len(values):
         value = output_values[0]
@@ -413,6 +417,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     #### Allocate and fill query ####
 
+    print("TILEDB-PY _WRITE_ARRAY 400")
     cdef tiledb_query_t* query_ptr = NULL
     cdef int rc = TILEDB_OK
     rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
@@ -421,29 +426,41 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     cdef tiledb_layout_t layout = TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR
 
+    print("TILEDB-PY _WRITE_ARRAY 500")
     # Set coordinate buffer size and name, and layout for sparse writes
     if issparse:
+        print("TILEDB-PY _WRITE_ARRAY 510")
         for dim_idx in range(tiledb_array.schema.ndim):
+            print("TILEDB-PY _WRITE_ARRAY 520")
             name = tiledb_array.schema.domain.dim(dim_idx).name
+            print("TILEDB-PY _WRITE_ARRAY 530")
             val = coords_or_subarray[dim_idx]
+            print("TILEDB-PY _WRITE_ARRAY 540")
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
+                print("TILEDB-PY _WRITE_ARRAY 541")
                 buffer, offsets = tiledb.main.array_to_buffer(val, True, False)
+                print("TILEDB-PY _WRITE_ARRAY 542")
                 buffer_sizes[nattr + dim_idx] = buffer.nbytes
                 buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
             else:
                 buffer, offsets = val, None
                 buffer_sizes[nattr + dim_idx] = buffer.nbytes
 
+            print("TILEDB-PY _WRITE_ARRAY 550")
             attributes.append(name)
             output_values.append(buffer)
             output_offsets.append(offsets)
+            print("TILEDB-PY _WRITE_ARRAY 560")
         nattr += tiledb_array.schema.ndim
         layout = TILEDB_UNORDERED
 
     # Create nullmaps sizes array if necessary
 
+    print("TILEDB-PY _WRITE_ARRAY 600")
     # Set layout
+    print("TILEDB-PY _WRITE_ARRAY 610")
     rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
+    print("TILEDB-PY _WRITE_ARRAY 611")
     if rc != TILEDB_OK:
         tiledb_query_free(&query_ptr)
         _raise_ctx_err(ctx_ptr, rc)
@@ -457,6 +474,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     cdef uint64_t* offsets_buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_offsets_sizes)
     cdef uint64_t* nullmaps_sizes_ptr = <uint64_t*> np.PyArray_DATA(nullmaps_sizes)
 
+    print("TILEDB-PY _WRITE_ARRAY 700")
     # set subarray (ranges)
     cdef np.ndarray s_start
     cdef np.ndarray s_end
@@ -489,6 +507,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 tiledb_query_free(&query_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
 
+    print("TILEDB-PY _WRITE_ARRAY 800")
     try:
         for i in range(0, nattr):
             battr_name = attributes[i].encode('UTF-8')
@@ -526,8 +545,10 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
 
+        print("TILEDB-PY _WRITE_ARRAY BEFORE TILEDB_QUERY_SUBMIT")
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        print("TILEDB-PY _WRITE_ARRAY AFTER  TILEDB_QUERY_SUBMIT")
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -542,6 +563,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     finally:
         tiledb_query_free(&query_ptr)
+    print("TILEDB-PY _WRITE_ARRAY EXIT")
     return
 
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
@@ -4747,6 +4769,7 @@ cdef class DenseArrayImpl(Array):
         append_dim = kw.pop("append_dim", None)
         mode = kw.pop("mode", "ingest")
         start_idx = kw.pop("start_idx", None)
+        print("TILEDB-PY WRITE_DIRECT ENTER")
 
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
@@ -4901,6 +4924,7 @@ def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
     Returns a (zipped) coordinate array representation
     given coordinate indices in numpy's point indexing format
     """
+    print("TILEDB-PY INDEX_DOMAIN_COORDS ENTER")
     ndim = len(idx)
 
     if check_ndim:
@@ -4908,27 +4932,36 @@ def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
             raise IndexError("sparse index ndim must match domain ndim: "
                             "{0!r} != {1!r}".format(ndim, dom.ndim))
 
+    print("TILEDB-PY INDEX_DOMAIN_COORDS 100")
     domain_coords = []
     for dim, sel in zip(dom, idx):
+        print("TILEDB-PY INDEX_DOMAIN_COORDS 111")
         dim_is_string = (np.issubdtype(dim.dtype, np.str_) or
             np.issubdtype(dim.dtype, np.bytes_))
 
         if dim_is_string:
             try:
                 # ensure strings contain only ASCII characters
+                print("TILEDB-PY INDEX_DOMAIN_COORDS 120")
                 domain_coords.append(np.array(sel, dtype=np.bytes_, ndmin=1))
+                print("TILEDB-PY INDEX_DOMAIN_COORDS 121")
             except Exception as exc:
                 raise TileDBError(f'Dim\' strings may only contain ASCII characters')
         else:
+            print("TILEDB-PY INDEX_DOMAIN_COORDS 130")
             domain_coords.append(np.array(sel, dtype=dim.dtype, ndmin=1))
+            print("TILEDB-PY INDEX_DOMAIN_COORDS 131")
 
+    print("TILEDB-PY INDEX_DOMAIN_COORDS 200")
     idx = tuple(domain_coords)
 
+    print("TILEDB-PY INDEX_DOMAIN_COORDS 300")
     # check that all sparse coordinates are the same size and dtype
     dim0 = dom.dim(0)
     dim0_type = dim0.dtype
     len0 = len(idx[0])
     for dim_idx in range(ndim):
+        print("TILEDB-PY INDEX_DOMAIN_COORDS 40x")
         dim_dtype = dom.dim(dim_idx).dtype
         if len(idx[dim_idx]) != len0:
             raise IndexError("sparse index dimension length mismatch")
@@ -4940,6 +4973,7 @@ def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
         elif idx[dim_idx].dtype != dim_dtype:
             raise IndexError("sparse index dimension dtype mismatch")
 
+    print("TILEDB-PY INDEX_DOMAIN_COORDS EXIT")
     return idx
 
 def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):

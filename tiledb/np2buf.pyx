@@ -44,6 +44,7 @@ cdef _varlen_cell_dtype(object var):
     raise TypeError(f"Unsupported varlen cell datatype ('{actual_type}')")
 
 def array_to_buffer(object val):
+    print("TDBY ARRAY_TO_BUFFER ENTER")
     cdef arr = <np.ndarray?>val
 
     if len(arr) == 0:
@@ -54,6 +55,7 @@ def array_to_buffer(object val):
             np.issubdtype(arr.dtype, np.unicode_)),
            "array_to_buffer: input array must be np.object or np.bytes!")
 
+    print("TDBY ARRAY_TO_BUFFER 100")
     firstdtype = _varlen_cell_dtype(arr.flat[0])
     # item size
     cdef uint64_t el_size = _varlen_dtype_itemsize(firstdtype)
@@ -68,6 +70,7 @@ def array_to_buffer(object val):
     cdef uint64_t el_buffer_size = 0
     cdef uint64_t item_len = 0
 
+    print("TDBY ARRAY_TO_BUFFER 200")
     # first pass: check types and calculate offsets
     for (i, item) in enumerate(arr.flat):
         if firstdtype != _varlen_cell_dtype(item):
@@ -102,6 +105,7 @@ def array_to_buffer(object val):
         # *running total* buffer size
         buffer_size += el_buffer_size
 
+    print("TDBY ARRAY_TO_BUFFER 300")
     # return a numpy buffer because that is what the caller uses for non-varlen buffers
     cdef np.ndarray buffer = np.zeros(shape=buffer_size, dtype=np.uint8)
     # <TODO> should be np.empty(shape=buffer_size, dtype=np.uint8)
@@ -134,6 +138,7 @@ def array_to_buffer(object val):
         if tmp_utf8:
             del tmp_utf8
 
+    print("TDBY ARRAY_TO_BUFFER EXIT")
     return buffer, buffer_offsets
 
 cdef tiledb_datatype_t c_dtype_to_tiledb(np.dtype dtype) except? TILEDB_CHAR:
