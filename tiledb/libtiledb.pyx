@@ -2961,7 +2961,7 @@ cdef class DenseArrayImpl(Array):
                 attributes.append(attr._name)
                 # object arrays are var-len and handled later
                 if type(v) is np.ndarray and v.dtype is not np.dtype('O'):
-                    v = np.ascontiguousarray(v, dtype=attr.dtype)
+                    v = np.ascontiguousarray(v, dtype=attr._numpy_dtype)
                 values.append(v)
         elif np.isscalar(val):
             for i in range(self.schema._nattr):
@@ -2969,7 +2969,7 @@ cdef class DenseArrayImpl(Array):
                 subarray_shape = tuple(int(subarray[r][1] - subarray[r][0]) + 1
                                        for r in range(len(subarray)))
                 attributes.append(attr._name)
-                A = np.empty(subarray_shape, dtype=attr.dtype)
+                A = np.empty(subarray_shape, dtype=attr._numpy_dtype)
                 A[:] = val
                 values.append(A)
         elif self.schema._nattr == 1:
@@ -2977,7 +2977,7 @@ cdef class DenseArrayImpl(Array):
             attributes.append(attr._name)
             # object arrays are var-len and handled later
             if type(val) is np.ndarray and val.dtype is not np.dtype('O'):
-                val = np.ascontiguousarray(val, dtype=attr.dtype)
+                val = np.ascontiguousarray(val, dtype=attr._numpy_dtype)
             values.append(val)
         elif self.view_attr is not None:
             # Support single-attribute assignment for multi-attr array
@@ -3302,7 +3302,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                     raise ValueError("Cannot write a string value to non-string "
                                      "typed attribute '{}'!".format(name))
 
-                attr_val = np.ascontiguousarray(attr_val, dtype=attr._dtype)
+                attr_val = np.ascontiguousarray(attr_val, dtype=attr._numpy_dtype)
 
             if attr._nullable and attr._name not in nullmaps:
                 nullmaps[attr._name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
