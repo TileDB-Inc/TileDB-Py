@@ -246,10 +246,10 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     std::string base_str;
     switch (type) {
     case TILEDB_CHAR:
-    case TILEDB_STRING_ASCII:
       base_str = "|S";
       break;
     case TILEDB_STRING_UTF8:
+    case TILEDB_STRING_ASCII:
       base_str = "|U";
       break;
     default:

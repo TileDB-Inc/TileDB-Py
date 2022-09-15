@@ -808,7 +808,7 @@ class TestMultiRange(DiskTestCase):
         uri = self.path("test_multi_index_with_implicit_full_string_range")
         dom = tiledb.Domain(
             tiledb.Dim(name="dint", domain=(0, 4), tile=5, dtype=np.int32),
-            tiledb.Dim(name="dstr", domain=(None, None), tile=None, dtype=np.bytes_),
+            tiledb.Dim(name="dstr", domain=(None, None), tile=None, dtype="ascii"),
         )
         schema = tiledb.ArraySchema(
             domain=dom, sparse=True, attrs=[tiledb.Attr(name="", dtype=np.int32)]
@@ -817,9 +817,7 @@ class TestMultiRange(DiskTestCase):
         tiledb.Array.create(uri, schema)
         with tiledb.open(uri, mode="w") as A:
             d1 = np.concatenate((np.arange(5), np.arange(5)))
-            d2 = np.asarray(
-                ["a", "b", "ab", "ab", "c", "c", "c", "c", "d", "e"], dtype=np.bytes_
-            )
+            d2 = np.asarray(["a", "b", "ab", "ab", "c", "c", "c", "c", "d", "e"])
             A[d1, d2] = np.array(np.random.randint(10, size=10), dtype=np.int32)
 
         with tiledb.open(uri, mode="r") as A:

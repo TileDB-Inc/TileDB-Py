@@ -82,10 +82,10 @@ cdef object unpack_metadata_val(
     ):
     assert value_num != 0, "internal error: unexpected value_num==0"
 
-    if value_type == TILEDB_STRING_UTF8:
+    if value_type == TILEDB_STRING_UTF8 or value_type == TILEDB_STRING_ASCII:
         return value_ptr[:value_num].decode('UTF-8')  if value_ptr != NULL else ''
 
-    if value_type == TILEDB_CHAR or value_type == TILEDB_STRING_ASCII:
+    if value_type == TILEDB_CHAR:
         return value_ptr[:value_num] if value_ptr != NULL else b''
 
     if value_ptr == NULL:

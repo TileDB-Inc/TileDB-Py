@@ -273,9 +273,8 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
     return tiledb.Dim(
         name=name,
         domain=(dim_min, dim_max),
-        # libtiledb only supports TILEDB_ASCII dimensions, so we must use
-        # nb.bytes_ which will force encoding on write
-        dtype=np.bytes_ if dtype == np.str_ else dtype,
+        # TileDB only supports TILEDB_STRING_ASCII dimensions for strings
+        dtype="ascii" if dtype in (np.bytes_, np.str_) else dtype,
         tile=tile,
         filters=dim_filters,
     )

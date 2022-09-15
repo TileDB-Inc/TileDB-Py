@@ -110,7 +110,7 @@ _tiledb_dtype_to_numpy_typeid_convert ={
     TILEDB_INT16: np.NPY_INT16,
     TILEDB_UINT16: np.NPY_UINT16,
     TILEDB_CHAR: np.NPY_STRING,
-    TILEDB_STRING_ASCII: np.NPY_STRING,
+    TILEDB_STRING_ASCII: np.NPY_UNICODE,
     TILEDB_STRING_UTF8: np.NPY_UNICODE,
 }
 IF LIBTILEDB_VERSION_MAJOR >= 2:
@@ -133,7 +133,7 @@ _tiledb_dtype_to_numpy_dtype_convert = {
     TILEDB_INT16: np.int16,
     TILEDB_UINT16: np.uint16,
     TILEDB_CHAR: np.dtype('S1'),
-    TILEDB_STRING_ASCII: np.dtype('S'),
+    TILEDB_STRING_ASCII: np.dtype('U'),
     TILEDB_STRING_UTF8: np.dtype('U1'),
 }
 IF LIBTILEDB_VERSION_MAJOR >= 2:
@@ -1654,14 +1654,11 @@ cdef class Attr(object):
         :rtype: numpy.dtype
 
         """
-        cdef tiledb_datatype_t typ
-        check_error(self.ctx,
-                    tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
         cdef uint32_t ncells = 0
         check_error(self.ctx,
                     tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
 
-        return np.dtype(_numpy_dtype(typ, ncells))
+        return np.dtype(_numpy_dtype(self._get_type(), ncells))
 
     @property
     def name(self):
@@ -1824,12 +1821,11 @@ cdef class Attr(object):
                 filters_str +=  repr(f) + ", "
             filters_str += "])"
 
-        attr_dtype = "ascii" if self.isascii else self.dtype
+        dtype = "ascii" if self.isascii else self.dtype
 
         # filters_str must be last with no spaces
-        return (f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
-                f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
-                f"""{filters_str})""")
+        return (f"Attr(name={self.name!r}, dtype='{dtype}', var={self.isvar}, "
+                f"nullable={self.isnullable}{filters_str})")
 
     def _repr_html_(self):
         output = io.StringIO()
@@ -1852,7 +1848,7 @@ cdef class Attr(object):
 
         output.write("<tr>")
         output.write(f"<td>{self.name}</td>")
-        output.write(f"<td>{'ascii' if self.isascii else self.dtype}</td>")
+        output.write(f"<td>{self.isascii}</td>")
         output.write(f"<td>{self.isvar}</td>")
         output.write(f"<td>{self.isnullable}</td>")
         output.write(f"<td>{self.filters._repr_html_()}</td>")
@@ -1903,8 +1899,12 @@ cdef class Dim(object):
         if not ctx:
             ctx = default_ctx()
 
+        is_string = (
+            isinstance(dtype, str) and dtype == "ascii"
+        ) or np.dtype(dtype) in (np.str_, np.bytes_)
+
         if var is not None:
-            if var and np.dtype(dtype) not in (np.str_, np.bytes_):
+            if var and not is_string:
                 raise TypeError("'var=True' specified for non-str/bytes dtype")
 
         if domain is not None and len(domain) != 2:
@@ -1919,12 +1919,14 @@ cdef class Dim(object):
         cdef void* tile_size_ptr = NULL
         cdef np.dtype domain_dtype
 
-        if ((isinstance(dtype, str) and dtype == "ascii") or
-                dtype == np.dtype('S')):
+        if is_string:
             # Handle var-len domain type
             #  (currently only TILEDB_STRING_ASCII)
             # The dimension's domain is implicitly formed as
             # coordinates are written.
+            if dtype != "ascii":
+                warnings.warn("Use 'ascii' for string dimensions.")
+            dtype = np.dtype("|U0")
             dim_datatype = TILEDB_STRING_ASCII
         else:
             if domain is None or len(domain) != 2:
@@ -1985,17 +1987,19 @@ cdef class Dim(object):
         self.ptr = dim_ptr
 
     def __repr__(self):
-        filters_str = ""
+        filters = ""
         if self.filters:
-            filters_str = ", filters=FilterList(["
+            filters = ", filters=FilterList(["
             for f in self.filters:
-                filters_str +=  repr(f) + ", "
-            filters_str += "])"
+                filters +=  repr(f) + ", "
+            filters += "])"
+
+        dtype = "ascii" if self._get_type() == TILEDB_STRING_ASCII else self.dtype
 
         # for consistency, print `var=True` for string-like types
-        varlen = "" if not self.dtype in (np.str_, np.bytes_) else ", var=True"
-        return "Dim(name={0!r}, domain={1!s}, tile={2!r}, dtype='{3!s}'{4}{5})" \
-            .format(self.name, self.domain, self.tile, self.dtype, varlen, filters_str)
+        varlen = "" if dtype != "ascii" else ", var=True"
+        return f"Dim(name={self.name!r}, domain={self.domain}, tile={self.tile!r}, dtype='{dtype}'{varlen}{filters})"
+
 
     def _repr_html_(self) -> str:
         output = io.StringIO()
@@ -2022,7 +2026,7 @@ cdef class Dim(object):
         output.write(f"<td>{self.domain}</td>")
         output.write(f"<td>{self.tile}</td>")
         output.write(f"<td>{self.dtype}</td>")
-        output.write(f"<td>{self.dtype in (np.str_, np.bytes_)}</td>")
+        output.write(f"<td>{self.dtype == 'ascii'}</td>")
         output.write(f"<td>{self.filters._repr_html_()}</td>")
         output.write("</tr>")
 
@@ -2222,7 +2226,7 @@ cdef class Dim(object):
         :rtype: tuple(numpy scalar, numpy scalar)
 
         """
-        if self.dtype == np.dtype('S'):
+        if self.dtype == np.dtype('U'):
             return None, None
         cdef const void* domain_ptr = NULL
         check_error(self.ctx,
@@ -3864,9 +3868,8 @@ cdef class Array(object):
                     results.append((None, None))
                     continue
 
-                buf_dtype = 'S'
-                start_buf = np.empty(start_size, 'S' + str(start_size))
-                end_buf = np.empty(end_size, 'S' + str(end_size))
+                start_buf = np.empty(start_size, f"S{start_size}")
+                end_buf = np.empty(end_size, f"S{end_size}")
                 start_buf_ptr = np.PyArray_DATA(start_buf)
                 end_buf_ptr = np.PyArray_DATA(end_buf)
             else:
@@ -3884,7 +3887,8 @@ cdef class Array(object):
                     return None
 
                 if start_size > 0 and end_size > 0:
-                    results.append((start_buf.item(0), end_buf.item(0)))
+                    results.append((start_buf.item(0).decode("UTF-8"), 
+                                    end_buf.item(0).decode("UTF-8")))
                 else:
                     results.append((None, None))
             else:
@@ -4918,7 +4922,7 @@ def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
                 # ensure strings contain only ASCII characters
                 domain_coords.append(np.array(sel, dtype=np.bytes_, ndmin=1))
             except Exception as exc:
-                raise TileDBError(f'Dim\' strings may only contain ASCII characters')
+                raise TileDBError('Dimension strings may only contain ASCII characters')
         else:
             domain_coords.append(np.array(sel, dtype=dim.dtype, ndmin=1))
 

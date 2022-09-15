@@ -354,4 +354,4 @@ class MetadataTest(DiskTestCase):
         metadata_test_aux.write_ascii(uri)
 
         with tiledb.open(uri) as A:
-            assert A.meta["abc"] == b"xyz"
+            assert A.meta["abc"] == "xyz"
