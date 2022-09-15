@@ -798,6 +798,12 @@ cdef class Config(object):
            conversion to Python. Deduplication may reduce memory usage for datasets
            with many identical strings, at the cost of some performance reduction
            due to hash calculation/lookup for each object.
+        
+        - 'py.sparse_coords_no_convert'
+
+           Do not convert or check sparse dimension coordinates. The coordinates must be passed as Numpy arrays with dtypes that match the associated dimension's dtype exactly (for dimension dtype="ascii", use numpy dtype="S").
+           Default `False`.
+
 
     Unknown parameters will be ignored!
 
@@ -4946,11 +4952,16 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
     if not self.isopen or self.mode != 'w':
         raise TileDBError("SparseArray is not opened for writing")
 
+    no_convert = self.ctx.config().get("py.sparse_coords_no_convert", False) == "true"
     set_dims_only = val is None
     sparse_attributes = list()
     sparse_values = list()
     idx = index_as_tuple(selection)
-    sparse_coords = list(index_domain_coords(self.schema.domain, idx, not set_dims_only))
+
+    if no_convert:
+        sparse_coords = list(idx) 
+    else:
+        sparse_coords = list(index_domain_coords(self.schema.domain, idx, not set_dims_only))
 
     if set_dims_only:
         _write_array(
