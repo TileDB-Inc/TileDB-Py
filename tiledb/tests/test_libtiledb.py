@@ -205,6 +205,7 @@ class TestConfig(DiskTestCase):
                 f"Could not parse config._repr_html_(). Saw {config._repr_html_()}"
             )
 
+
 class ArrayTest(DiskTestCase):
     def create_array_schema(self):
         domain = tiledb.Domain(

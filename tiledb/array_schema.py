@@ -105,35 +105,40 @@ class ArraySchema(lt.ArraySchema):
 
         self._check()
 
-    # @staticmethod
-    # def load(uri, Ctx ctx=None, key=None):
-    #     if not ctx:
-    #         ctx = default_ctx()
-    #     cdef bytes buri = uri.encode('UTF-8')
-    #     cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
-    #     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-    #     cdef tiledb_array_schema_t* array_schema_ptr = NULL
-    #     # encryption key
-    #     cdef bytes bkey
-    #     cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-    #     cdef void* key_ptr = NULL
-    #     cdef unsigned int key_len = 0
-    #     if key is not None:
-    #         if isinstance(key, str):
-    #             bkey = key.encode('ascii')
-    #         else:
-    #             bkey = bytes(key)
-    #         key_type = TILEDB_AES_256_GCM
-    #         key_ptr = <void *> PyBytes_AS_STRING(bkey)
-    #         #TODO: unsafe cast here ssize_t -> uint64_t
-    #         key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
-    #     cdef int rc = TILEDB_OK
-    #     with nogil:
-    #         rc = tiledb_array_schema_load_with_key(
-    #             ctx_ptr, uri_ptr, key_type, key_ptr, key_len, &array_schema_ptr)
-    #     if rc != TILEDB_OK:
-    #         _raise_ctx_err(ctx_ptr, rc)
-    #     return ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
+    @staticmethod
+    def load(uri, ctx=None, key=None):
+        if not ctx:
+            ctx = default_ctx()
+        _ctx = ctx or default_ctx()
+        _cctx = lt.Context(_ctx, False)
+
+        # cdef bytes buri = uri.encode('UTF-8')
+        # cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        # cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+        # cdef tiledb_array_schema_t* array_schema_ptr = NULL
+        # # encryption key
+        # cdef bytes bkey
+        # cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
+        # cdef void* key_ptr = NULL
+        # cdef unsigned int key_len = 0
+        # if key is not None:
+        #     if isinstance(key, str):
+        #         bkey = key.encode('ascii')
+        #     else:
+        #         bkey = bytes(key)
+        #     key_type = TILEDB_AES_256_GCM
+        #     key_ptr = <void *> PyBytes_AS_STRING(bkey)
+        #     #TODO: unsafe cast here ssize_t -> uint64_t
+        #     key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+        # cdef int rc = TILEDB_OK
+        # with nogil:
+        #     rc = tiledb_array_schema_load_with_key(
+        #         ctx_ptr, uri_ptr, key_type, key_ptr, key_len, &array_schema_ptr)
+        # if rc != TILEDB_OK:
+        #     _raise_ctx_err(ctx_ptr, rc)
+        # return ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
+
+        return ArraySchema(_cctx, _uri=uri)
 
     def __eq__(self, other):
         """Instance is equal to another ArraySchema"""

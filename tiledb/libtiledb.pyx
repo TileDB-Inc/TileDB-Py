@@ -420,10 +420,6 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         nattr += tiledb_array.schema.ndim
         layout = TILEDB_UNORDERED
 
-    print(attributes)
-    print(output_values)
-    print(output_offsets)
-
     # Create nullmaps sizes array if necessary
 
     # Set layout
@@ -510,14 +506,14 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
 
-        # with nogil:
-        #     rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        # if rc != TILEDB_OK:
-        #     _raise_ctx_err(ctx_ptr, rc)
+        with nogil:
+            rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
-        # rc = tiledb_query_finalize(ctx_ptr, query_ptr)
-        # if rc != TILEDB_OK:
-        #     _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_query_finalize(ctx_ptr, query_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
         if fragment_info is not False:
             assert(type(fragment_info) is dict)
