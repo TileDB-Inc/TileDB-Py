@@ -219,7 +219,7 @@ class Attr(lt.Attribute):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return self._ncell == lt.TILEDB_VAR_NUM()
+        return self._var
 
     @property
     def ncells(self):

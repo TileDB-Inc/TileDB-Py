@@ -15,6 +15,7 @@ from collections.abc import Sequence
 
 from .ctx import default_ctx
 from .array_schema import ArraySchema
+from .attribute import Attr
 from .dimension import Dim
 from .domain import Domain
 from .filter import FilterList
@@ -377,6 +378,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         output_values.append(buffer)
         output_offsets.append(offsets)
 
+
     # Check value layouts
     if len(values):
         value = output_values[0]
@@ -401,7 +403,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     if issparse:
         dom = Domain(_lt_obj=tiledb_array.schema.domain)
         for dim_idx in range(tiledb_array.schema.ndim):
-            name = dom.dim(dim_idx)._name
+            name = dom.dim(dim_idx).name
             val = coords_or_subarray[dim_idx]
             if dom.dim(dim_idx).isvar:
                 buffer, offsets = tiledb.main.array_to_buffer(val, True, False)
@@ -414,8 +416,13 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             attributes.append(name)
             output_values.append(buffer)
             output_offsets.append(offsets)
+        
         nattr += tiledb_array.schema.ndim
         layout = TILEDB_UNORDERED
+
+    print(attributes)
+    print(output_values)
+    print(output_offsets)
 
     # Create nullmaps sizes array if necessary
 
@@ -443,15 +450,15 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     dim = None
     cdef np.dtype dim_dtype = None
     if not issparse:
-        dom = tiledb_array.schema._domain
-        for dim_idx,s_range in enumerate(coords_or_subarray):
-            dim = dom._dim(dim_idx)
+        dom = ArraySchema(_uri=tiledb_array.uri).domain
+        for dim_idx, s_range in enumerate(coords_or_subarray):
+            dim = dom.dim(dim_idx)
             dim_dtype = dim._numpy_dtype
             s_start = np.asarray(s_range[0], dtype=dim_dtype)
             s_end = np.asarray(s_range[1], dtype=dim_dtype)
             s_start_ptr = np.PyArray_DATA(s_start)
             s_end_ptr = np.PyArray_DATA(s_end)
-            if dim._var:
+            if dim.isvar:
                 rc = tiledb_query_add_range_var(
                     ctx_ptr, query_ptr, dim_idx,
                     s_start_ptr,  s_start.nbytes,
@@ -503,14 +510,14 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
 
-        with nogil:
-            rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
+        # with nogil:
+        #     rc = tiledb_query_submit(ctx_ptr, query_ptr)
+        # if rc != TILEDB_OK:
+        #     _raise_ctx_err(ctx_ptr, rc)
 
-        rc = tiledb_query_finalize(ctx_ptr, query_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
+        # rc = tiledb_query_finalize(ctx_ptr, query_ptr)
+        # if rc != TILEDB_OK:
+        #     _raise_ctx_err(ctx_ptr, rc)
 
         if fragment_info is not False:
             assert(type(fragment_info) is dict)
@@ -2805,9 +2812,9 @@ cdef class DenseArrayImpl(Array):
             attr_names.extend(self.schema._attr(a).name for a in attrs)
 
         selection = index_as_tuple(selection)
-        idx = replace_ellipsis(self.schema.domain.ndim, selection)
-        idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
-        subarray = index_domain_subarray(self, self.schema.domain, idx)
+        idx = replace_ellipsis(self.schema._domain._ndim, selection)
+        idx, drop_axes = replace_scalars_slice(self.schema._domain, idx)
+        subarray = index_domain_subarray(self, self.schema._domain, idx)
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout,
                                         coords)
