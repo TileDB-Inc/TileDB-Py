@@ -517,7 +517,7 @@ class ChecksumSHA256Filter(Filter):
         return {}
 
 
-class FloatScalingFilter(Filter):
+class FloatScaleFilter(Filter):
     """
     Filter that stores floats as integers in a reduced representation via scaling.
     The reduced storage space is in lieu of some precision loss. The float scaling
@@ -545,7 +545,7 @@ class FloatScalingFilter(Filter):
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
     ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList([tiledb.FloatScalingFilter(1, 0)]))
+    ...                      filters=tiledb.FilterList([tiledb.FloatScaleFilter(1, 0)]))
     ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
@@ -558,19 +558,6 @@ class FloatScalingFilter(Filter):
         bytewidth: int = None,
         ctx: "Ctx" = None,
     ):
-        # try:
-        #     self._factor = float(factor)
-        # except ValueError:
-        #     raise ValueError("`factor` argument must be a float")
-
-        # try:
-        #     self._offset = float(offset)
-        # except ValueError:
-        #     raise ValueError("`offset` argument must be a float")
-
-        # if bytewidth not in (1, 2, 4, 8):
-        #     raise ValueError("`bytewidth` argument must be 1, 2, 4, or 8")
-
         self._factor = factor
         self._offset = offset
         self._bytewidth = bytewidth
@@ -681,7 +668,7 @@ class FilterList(lt.FilterList):
         lt.FilterType.CHECKSUM_MD5: ChecksumMD5Filter,
         lt.FilterType.CHECKSUM_SHA256: ChecksumSHA256Filter,
         lt.FilterType.DICTIONARY: DictionaryFilter,
-        lt.FilterType.SCALE_FLOAT: FloatScalingFilter,
+        lt.FilterType.SCALE_FLOAT: FloatScaleFilter,
         lt.FilterType.NONE: NoOpFilter,
     }
 
@@ -833,7 +820,7 @@ class FilterList(lt.FilterList):
             options = [lt.FilterOption.BIT_WIDTH_MAX_WINDOW]
         elif filtype == PositiveDeltaFilter:
             options = [lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW]
-        elif filtype == FloatScalingFilter:
+        elif filtype == FloatScaleFilter:
             options = [
                 lt.FilterOption.SCALE_FLOAT_FACTOR,
                 lt.FilterOption.SCALE_FLOAT_OFFSET,

@@ -1,7 +1,7 @@
 # In Progress
 
 ## API Changes
-* Addition of `FloatingScaleFilter` [#1195](https://github.com/TileDB-Inc/TileDB-Py/pull/1195)
+* Addition of `FloatScaleFilter` [#1195](https://github.com/TileDB-Inc/TileDB-Py/pull/1195)
 
 # TileDB-Py 0.17.3 Release Notes
 

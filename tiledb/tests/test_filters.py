@@ -62,7 +62,7 @@ class TestFilterTest(DiskTestCase):
             tiledb.PositiveDeltaFilter(),
             tiledb.ChecksumSHA256Filter(),
             tiledb.ChecksumMD5Filter(),
-            tiledb.FloatScalingFilter(),
+            tiledb.FloatScaleFilter(),
         ]
         # make sure that repr works and round-trips correctly
         for f in filters:
@@ -115,7 +115,7 @@ class TestFilterTest(DiskTestCase):
         path = self.path("test_float_scaling_filter")
         dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
 
-        filter = tiledb.FloatScalingFilter(factor, offset, bytewidth)
+        filter = tiledb.FloatScaleFilter(factor, offset, bytewidth)
 
         attr = tiledb.Attr(dtype=np.float64, filters=tiledb.FilterList([filter]))
         schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=True)
