@@ -2130,7 +2130,7 @@ cdef class Array(object):
         :rtype: :py:class:`Attr`
         :return: The array attribute at index or with the given name (label)
         :raises TypeError: invalid key type"""
-        return self.schema._attr(key)
+        return Attr(_lt_obj=self.schema._attr(key))
 
     def dim(self, dim_id):
         """Returns a :py:class:`Dim` instance given a dim index or name

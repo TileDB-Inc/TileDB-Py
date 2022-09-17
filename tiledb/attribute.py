@@ -45,6 +45,42 @@ class Attr(lt.Attribute):
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
 
+        _np_name_to_tdb_dtype = {
+            "int32": lt.DataType.INT32,
+            "int64": lt.DataType.INT64,
+            "float32": lt.DataType.FLOAT32,
+            "float64": lt.DataType.FLOAT64,
+            "int8": lt.DataType.INT8,
+            "uint8": lt.DataType.UINT8,
+            "int16": lt.DataType.INT16,
+            "uint16": lt.DataType.UINT16,
+            "uint32": lt.DataType.UINT32,
+            "uint64": lt.DataType.UINT64,
+            "datetime64[Y]": lt.DataType.DATETIME_YEAR,
+            "datetime64[M]": lt.DataType.DATETIME_MONTH,
+            "datetime64[W]": lt.DataType.DATETIME_WEEK,
+            "datetime64[D]": lt.DataType.DATETIME_DAY,
+            "datetime64[h]": lt.DataType.DATETIME_HR,
+            "datetime64[m]": lt.DataType.DATETIME_MIN,
+            "datetime64[s]": lt.DataType.DATETIME_SEC,
+            "datetime64[ms]": lt.DataType.DATETIME_MS,
+            "datetime64[us]": lt.DataType.DATETIME_US,
+            "datetime64[ns]": lt.DataType.DATETIME_NS,
+            "datetime64[ps]": lt.DataType.DATETIME_PS,
+            "datetime64[fs]": lt.DataType.DATETIME_FS,
+            "datetime64[as]": lt.DataType.DATETIME_AS,
+            "timedelta64[h]": lt.DataType.TIME_HR,
+            "timedelta64[m]": lt.DataType.TIME_MIN,
+            "timedelta64[s]": lt.DataType.TIME_SEC,
+            "timedelta64[ms]": lt.DataType.TIME_MS,
+            "timedelta64[us]": lt.DataType.TIME_US,
+            "timedelta64[ns]": lt.DataType.TIME_NS,
+            "timedelta64[ps]": lt.DataType.TIME_PS,
+            "timedelta64[fs]": lt.DataType.TIME_FS,
+            "timedelta64[as]": lt.DataType.TIME_AS,
+            "bool": lt.DataType.BOOL,
+        }
+
         if _lt_obj:
             name = _lt_obj._name
             dtype = _lt_obj._numpy_dtype
@@ -56,62 +92,64 @@ class Attr(lt.Attribute):
         if isinstance(dtype, str) and dtype == "ascii":
             var = True
             _ncell = lt.TILEDB_VAR_NUM()
-            _dtype = np.dtype("S0")
-        else:
-            _dtype = np.dtype(dtype)
-            _ncell = None
-
-            if _dtype.kind == "U":
-                if var is not None and var == False:
-                    _ncell = _dtype.itemsize
+            _dtype = lt.DataType.STRING_ASCII
+        elif np.dtype(dtype).kind == "U":
+            _dtype = lt.DataType.STRING_UTF8
+            if var is not None and var == False:
+                _ncell = np.dtype(dtype).itemsize
+            else:
                 _ncell = lt.TILEDB_VAR_NUM()
-            elif _dtype.kind == "S":
-                if var is not None and var == False and 0 < _dtype.itemsize:
-                    _ncell = _dtype.itemsize
-                elif var is None:
-                    if 0 < _dtype.itemsize:
-                        var = False
-                        _ncell = _dtype.itemsize
-                    else:
-                        var = True
-                        _ncell = lt.TILEDB_VAR_NUM()
+        elif np.dtype(dtype).kind == "S":
+            _dtype = lt.DataType.CHAR
+            if var is not None and var == False and 0 < np.dtype(dtype).itemsize:
+                _ncell = np.dtype(dtype).itemsize
+            elif var is None:
+                if 0 < np.dtype(dtype).itemsize:
+                    var = False
+                    _ncell = np.dtype(dtype).itemsize
                 else:
-                    if var and 0 < _dtype.itemsize:
-                        warnings.warn(
-                            f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
-                            "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
-                            f"or `var=False`with `dtype={dtype}`",
-                            DeprecationWarning,
-                        )
-                        _dtype = np.dtype("S0")
-
-                    if _dtype.itemsize == 0:
-                        if var == False:
-                            warnings.warn(
-                                f"Attr given `var=False` but `dtype` `S0` is var-length; "
-                                "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
-                                "with `dtype=S0`, or `var=False` with a fixed-width "
-                                "string `dtype=S<n>` where is  n>1",
-                                DeprecationWarning,
-                            )
                     var = True
                     _ncell = lt.TILEDB_VAR_NUM()
-            elif _dtype.kind == "V":
-                # handles n fixed-size record dtypes
-                if _dtype.shape != ():
-                    raise TypeError("nested sub-array numpy dtypes are not supported")
-                # check that types are the same
-                deq = deque(_dtype.fields.values())
-                typ0, _ = deq.popleft()
-                nfields = 1
-                for (typ, _) in deq:
-                    nfields += 1
-                    if typ != typ0:
-                        raise TypeError(
-                            "heterogenous record numpy dtypes are not supported"
+            else:
+                if var and 0 < np.dtype(dtype).itemsize:
+                    warnings.warn(
+                        f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
+                        "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
+                        f"or `var=False`with `dtype={dtype}`",
+                        DeprecationWarning,
+                    )
+                    _dtype = lt.DataType.STRING_ASCII
+
+                if np.dtype(dtype).itemsize == 0:
+                    if var == False:
+                        warnings.warn(
+                            f"Attr given `var=False` but `dtype` `S0` is var-length; "
+                            "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
+                            "with `dtype=S0`, or `var=False` with a fixed-width "
+                            "string `dtype=S<n>` where is  n>1",
+                            DeprecationWarning,
                         )
-                _dtype = typ0
-                _ncell = nfields
+                var = True
+                _ncell = lt.TILEDB_VAR_NUM()
+        elif np.dtype(dtype).kind == "V":
+            # handles n fixed-size record dtypes
+            if np.dtype(dtype).shape != ():
+                raise TypeError("nested sub-array numpy dtypes are not supported")
+            # check that types are the same
+            deq = deque(np.dtype(dtype).fields.values())
+            typ0, _ = deq.popleft()
+            nfields = 1
+            for (typ, _) in deq:
+                nfields += 1
+                if typ != typ0:
+                    raise TypeError(
+                        "heterogenous record numpy dtypes are not supported"
+                    )
+            _dtype = _np_name_to_tdb_dtype[typ0.name]
+            _ncell = nfields
+        else:
+            _dtype = _np_name_to_tdb_dtype[np.dtype(dtype).name]
+            _ncell = None
 
         super().__init__(_cctx, name, _dtype)
 
@@ -197,7 +235,7 @@ class Attr(lt.Attribute):
         :raises: :py:exc:`tiledb.TileDBERror`
         """
         value = self._fill
-        if self._tiledb_dtype in (lt.DataType.STRING_UTF8, lt.DataType.STRING_ASCII):
+        if self._tiledb_dtype in (lt.DataType.CHAR, lt.DataType.STRING_ASCII):
             return value.tobytes()
         return value
 

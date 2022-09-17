@@ -31,6 +31,7 @@ py::array get_fill_value(Attribute &attr) {
     value_num = size;
   }
 
+  // record type
   if (py::str(value_type.attr("kind")) == py::str("V")) {
     value_num = 1;
   }
@@ -40,20 +41,8 @@ py::array get_fill_value(Attribute &attr) {
 
 void init_attribute(py::module &m) {
   py::class_<tiledb::Attribute>(m, "Attribute")
-      .def(py::init([](Context &ctx, std::string name, py::dtype datatype) {
-             tiledb_datatype_t attr_dtype;
-             try {
-               attr_dtype = np_to_tdb_dtype(datatype);
-             } catch (const TileDBPyError &e) {
-               throw py::type_error(e.what());
-             }
-
-             return Attribute(ctx, name, attr_dtype);
-           }),
+      .def(py::init<Context &, std::string &, tiledb_datatype_t>(),
            py::keep_alive<1, 2>())
-
-      //   .def(py::init<Context &, std::string, tiledb_datatype_t>(),
-      //        py::keep_alive<1, 2>() /* Attribute keeps Context alive */)
 
       .def(
           py::init<Context &, std::string &, tiledb_datatype_t, FilterList &>(),
@@ -67,6 +56,7 @@ void init_attribute(py::module &m) {
                              [](Attribute &attr) {
                                return tdb_to_np_dtype(attr.type(),
                                                       attr.cell_val_num());
+                               //  }
                              })
 
       .def_property("_nullable", &Attribute::nullable, &Attribute::set_nullable)

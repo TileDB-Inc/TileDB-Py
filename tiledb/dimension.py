@@ -22,7 +22,7 @@ class Dim(lt.Dimension):
         domain=None,
         tile=None,
         filters=None,
-        dtype: np.dtype = np.uint64,
+        dtype: np.dtype = None,
         var: bool = None,
         ctx: "Ctx" = None,
         _lt_obj=None,
@@ -47,6 +47,9 @@ class Dim(lt.Dimension):
         self._ctx = ctx or default_ctx()
         _cctx = lt.Context(self._ctx, False)
 
+        if dtype is None:
+            dtype = np.uint64
+
         if _lt_obj is not None:
             name = _lt_obj._name
             dtype = _lt_obj._numpy_dtype
@@ -68,10 +71,12 @@ class Dim(lt.Dimension):
 
         if np.issubdtype(domain.dtype, np.datetime64):
             domain = np.array(domain, dtype=np.uint64)
-            tile = np.array(tile, dtype=np.uint64)
+            if tile is not None:
+                tile = np.array(tile, dtype=np.uint64)
         else:
             domain = np.array(domain, dtype=dtype)
-            tile = np.array(tile, dtype=dtype)
+            if tile is not None:
+                tile = np.array(tile, dtype=dtype)
 
         super().__init__(_cctx, name, np.dtype(dtype), domain, tile)
 
