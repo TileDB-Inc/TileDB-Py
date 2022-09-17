@@ -227,6 +227,19 @@ def tiledb_type_to_datetime(tiledb_type: lt.DataType):
     return tdb_type
 
 
+def tiledb_type_is_integer(tiledb_type: lt.DataType):
+    return tiledb_type in (
+        lt.DataType.UINT8,
+        lt.DataType.INT8,
+        lt.DataType.UINT16,
+        lt.DataType.INT16,
+        lt.DataType.UINT32,
+        lt.DataType.INT32,
+        lt.DataType.UINT64,
+        lt.DataType.INT64,
+    )
+
+
 def numpy_dtype(tiledb_dtype: lt.DataType, cell_size: int = 1) -> np.dtype:
     """Return a numpy type given a tiledb_datatype_t enum value."""
     cell_val_num = cell_size

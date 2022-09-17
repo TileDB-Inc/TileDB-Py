@@ -1167,30 +1167,6 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
 #                                                                             #
 ###############################################################################
 
-cdef class Dim(object):
-    cdef object ctx
-    cdef tiledb_dimension_t* ptr
-
-    @staticmethod
-    cdef from_ptr(const tiledb_dimension_t* ptr, object ctx=*)
-
-    cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR
-    cdef unsigned int _cell_val_num(Dim self) except? 0
-    cdef _integer_domain(self)
-    cdef _datetime_domain(self)
-    cdef _shape(self)
-
-cdef class Domain(object):
-    cdef object ctx
-    cdef tiledb_domain_t* ptr
-
-    @staticmethod
-    cdef from_ptr(const tiledb_domain_t* ptr, object ctx=*)
-    cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR
-    cdef _integer_domain(Domain self)
-    cdef _is_homogeneous(Domain self)
-    cdef _shape(Domain self)
-
 cdef class ArraySchema(object):
     cdef object ctx
     cdef tiledb_array_schema_t* ptr

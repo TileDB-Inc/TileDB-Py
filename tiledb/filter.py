@@ -800,8 +800,8 @@ class FilterList(lt.FilterList):
         filters: Sequence[Filter] = None,
         chunksize: int = None,
         ctx: "Ctx" = None,
-        _lt_obj=None,
-        _capsule=None,
+        _lt_obj: lt.FilterList = None,
+        _capsule: "PyCapsule" = None,
     ):
         self._ctx = ctx or default_ctx()
 
