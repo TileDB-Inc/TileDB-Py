@@ -76,6 +76,7 @@ from .filter import (
     PositiveDeltaFilter,
     ChecksumMD5Filter,
     ChecksumSHA256Filter,
+    FloatScaleFilter,
 )
 
 from .filestore import Filestore

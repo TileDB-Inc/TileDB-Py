@@ -1,4 +1,5 @@
 import io
+import numpy as np
 from typing import List, overload, Sequence, TYPE_CHECKING, Union
 
 import tiledb.cc as lt
@@ -20,9 +21,11 @@ class Filter(lt.Filter):
         output = io.StringIO()
         output.write(f"{type(self).__name__}(")
         if hasattr(self, "_attrs_"):
+            attr_output = []
             for f in self._attrs_():
                 a = getattr(self, f)
-                output.write(f"{f}={a}")
+                attr_output.append(f"{f}={a}")
+            output.write(",".join(attr_output))
         output.write(")")
         return output.getvalue()
 
@@ -75,19 +78,23 @@ class CompressionFilter(Filter):
     """
 
     def __init__(self, type: lt.FilterType, level: int = -1, ctx: "Ctx" = None):
-        self._level = level
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
         self._ctx = ctx or default_ctx()
 
         super().__init__(type, self._ctx)
         self._set_option(
             lt.Context(self._ctx.__capsule__(), False),
             lt.FilterOption.COMPRESSION_LEVEL,
-            self._level,
+            level,
         )
 
     @property
     def level(self):
-        return self._level
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.COMPRESSION_LEVEL,
+        )
 
 
 class NoOpFilter(Filter):
@@ -108,7 +115,7 @@ class GzipFilter(CompressionFilter):
 
     :param ctx: TileDB Ctx
     :type ctx: tiledb.Ctx
-    :param level: (default None) If not None set the compressor level
+    :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
     :type level: int
 
     **Example:**
@@ -124,10 +131,12 @@ class GzipFilter(CompressionFilter):
     """
 
     def __init__(self, level: int = -1, ctx: "Ctx" = None):
-        self._level = level
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
+
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.FilterType.GZIP, self._level, self._ctx)
+        super().__init__(lt.FilterType.GZIP, level, self._ctx)
 
     def _attrs_(self):
         return {"level": self.level}
@@ -139,7 +148,7 @@ class ZstdFilter(CompressionFilter):
 
     :param ctx: TileDB Ctx
     :type ctx: tiledb.Ctx
-    :param level: (default None) If not None set the compressor level
+    :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
     :type level: int
 
     **Example:**
@@ -155,10 +164,12 @@ class ZstdFilter(CompressionFilter):
     """
 
     def __init__(self, level: int = -1, ctx: "Ctx" = None):
-        self._level = level
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
+
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.FilterType.ZSTD, self._level, self._ctx)
+        super().__init__(lt.FilterType.ZSTD, level, self._ctx)
 
     def _attrs_(self):
         return {"level": self.level}
@@ -170,7 +181,7 @@ class LZ4Filter(CompressionFilter):
 
     :param ctx: TileDB Ctx
     :type ctx: tiledb.Ctx
-    :param level: (default None) If not None set the compressor level
+    :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
     :type level: int
 
     **Example:**
@@ -186,10 +197,12 @@ class LZ4Filter(CompressionFilter):
     """
 
     def __init__(self, level: int = -1, ctx: "Ctx" = None):
-        self._level = level
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
+
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.FilterType.LZ4, self._level, self._ctx)
+        super().__init__(lt.FilterType.LZ4, level, self._ctx)
 
     def _attrs_(self):
         return {"level": self.level}
@@ -199,7 +212,7 @@ class Bzip2Filter(CompressionFilter):
     """
     Filter that compresses using bzip2.
 
-    :param level: (default None) If not None set the compressor level
+    :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
     :type level: int
 
     **Example:**
@@ -215,10 +228,12 @@ class Bzip2Filter(CompressionFilter):
     """
 
     def __init__(self, level: int = -1, ctx: "Ctx" = None):
-        self._level = level
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
+
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.FilterType.BZIP2, self._level, self._ctx)
+        super().__init__(lt.FilterType.BZIP2, level, self._ctx)
 
     def _attrs_(self):
         return {"level": self.level}
@@ -227,6 +242,9 @@ class Bzip2Filter(CompressionFilter):
 class RleFilter(CompressionFilter):
     """
     Filter that compresses using run-length encoding (RLE).
+
+    :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
+    :type level: int
 
     **Example:**
 
@@ -241,10 +259,12 @@ class RleFilter(CompressionFilter):
     """
 
     def __init__(self, level: int = -1, ctx: "Ctx" = None):
-        self._level = level
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
+
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.FilterType.RLE, self._level, self._ctx)
+        super().__init__(lt.FilterType.RLE, level, self._ctx)
 
     def _attrs_(self):
         return {}
@@ -253,6 +273,9 @@ class RleFilter(CompressionFilter):
 class DoubleDeltaFilter(CompressionFilter):
     """
     Filter that performs double-delta encoding.
+
+    :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
+    :type level: int
 
     **Example:**
 
@@ -267,10 +290,12 @@ class DoubleDeltaFilter(CompressionFilter):
     """
 
     def __init__(self, level: int = -1, ctx: "Ctx" = None):
-        self._level = level
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
+
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.FilterType.DOUBLE_DELTA, self._level, self._ctx)
+        super().__init__(lt.FilterType.DOUBLE_DELTA, level, self._ctx)
 
     def _attrs_(self):
         return {}
@@ -279,6 +304,9 @@ class DoubleDeltaFilter(CompressionFilter):
 class DictionaryFilter(CompressionFilter):
     """
     Filter that performs dictionary encoding.
+
+    :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
+    :type level: int
 
     **Example:**
 
@@ -293,10 +321,12 @@ class DictionaryFilter(CompressionFilter):
     """
 
     def __init__(self, level: int = -1, ctx: "Ctx" = None):
-        self._level = level
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
+
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.FilterType.DICTIONARY, self._level, self._ctx)
+        super().__init__(lt.FilterType.DICTIONARY, level, self._ctx)
 
     def _attrs_(self):
         return {}
@@ -355,7 +385,7 @@ class BitWidthReductionFilter(Filter):
 
      :param ctx: A TileDB Context
      :type ctx: tiledb.Ctx
-     :param window: (default None) max window size for the filter
+     :param window: -1 (default) sets the max window size for the filter to the default window size as specified in TileDB core. Otherwise, sets the compressor level to the given value.
      :type window: int
 
     **Example:**
@@ -371,22 +401,28 @@ class BitWidthReductionFilter(Filter):
     """
 
     def __init__(self, window: int = -1, ctx: "Ctx" = None):
-        self._window = window
+        if not isinstance(window, int):
+            raise ValueError("`window` argument must be a int")
         self._ctx = ctx or default_ctx()
 
         super().__init__(lt.FilterType.BIT_WIDTH_REDUCTION)
-        self._set_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
-            self._window,
-        )
+
+        if window != -1:
+            self._set_option(
+                lt.Context(self._ctx.__capsule__(), False),
+                lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
+                window,
+            )
 
     def _attrs_(self):
-        return {"window": self._window}
+        return {"window": self.window}
 
     @property
     def window(self):
-        return self._window
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
+        )
 
 
 class PositiveDeltaFilter(Filter):
@@ -395,9 +431,8 @@ class PositiveDeltaFilter(Filter):
 
     :param ctx: A TileDB Context
     :type ctx: tiledb.Ctx
-    :param window: (default None) the max window for the filter
-    :type window: int
-
+    :param window: -1 (default) sets the max window size for the filter to the default window size as specified in TileDB core. Otherwise, sets the compressor level to the given value.
+     :type window: int
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
@@ -411,22 +446,27 @@ class PositiveDeltaFilter(Filter):
     """
 
     def __init__(self, window: int = -1, ctx: "Ctx" = None):
-        self._window = window
+        if not isinstance(window, int):
+            raise ValueError("`window` argument must be a int")
         self._ctx = ctx or default_ctx()
 
         super().__init__(lt.FilterType.POSITIVE_DELTA)
-        self._set_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
-            self._window,
-        )
+        if window != -1:
+            self._set_option(
+                lt.Context(self._ctx.__capsule__(), False),
+                lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
+                window,
+            )
 
     def _attrs_(self):
-        return {"window": self._window}
+        return {"window": self.window}
 
     @property
     def window(self):
-        return self._window
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
+        )
 
 
 class ChecksumMD5Filter(Filter):
@@ -477,6 +517,111 @@ class ChecksumSHA256Filter(Filter):
         return {}
 
 
+class FloatScaleFilter(Filter):
+    """
+    Filter that stores floats as integers in a reduced representation via scaling.
+    The reduced storage space is in lieu of some precision loss. The float scaling
+    filter takes three parameters: the scale, the offset, and the byte width.
+
+    On write, the float scaling filter applies the scale factor and offset,
+    and stores the value of round((raw_float - offset) / scale) as an
+    integer with the specified NumPy dtype.
+
+    On read, the float scaling filter will reverse the scale factor and offset,
+    and returns the floating point data, with a potential loss of precision.
+
+    :param factor: the scaling factor used to translate the data
+    :type factor: float
+    :param offset: the offset value used to translate the data
+    :type offset: float
+    :param bytewidth: values may be stored as integers of bytewidth 1, 2, 4, or 8
+    :type np.integer:
+    :param ctx: A TileDB Context
+    :type ctx: tiledb.Ctx
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.FloatScaleFilter(1, 0)]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
+    ...     tiledb.DenseArray.create(tmp + "/array", schema)
+
+    """
+
+    def __init__(
+        self,
+        factor: float = None,
+        offset: float = None,
+        bytewidth: int = None,
+        ctx: "Ctx" = None,
+    ):
+        self._factor = factor
+        self._offset = offset
+        self._bytewidth = bytewidth
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.SCALE_FLOAT, self._ctx)
+
+        if factor:
+            self._set_option(
+                lt.Context(self._ctx.__capsule__(), False),
+                lt.FilterOption.SCALE_FLOAT_FACTOR,
+                float(factor),
+            )
+
+        if offset is not None:
+            # 0 evals to false so we weren't actually setting here
+            # if offset==0 :upside-down-face:
+            self._set_option(
+                lt.Context(self._ctx.__capsule__(), False),
+                lt.FilterOption.SCALE_FLOAT_OFFSET,
+                float(offset),
+            )
+
+        if bytewidth:
+            self._set_option(
+                lt.Context(self._ctx.__capsule__(), False),
+                lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
+                bytewidth,
+            )
+
+    def dump(self):
+        self._dump(
+            lt.Context(self._ctx.__capsule__(), False),
+        )
+
+    def _attrs_(self):
+        return {
+            "factor": self._factor,
+            "offset": self._offset,
+            "bytewidth": self._bytewidth,
+        }
+
+    @property
+    def factor(self):
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.SCALE_FLOAT_FACTOR,
+        )
+
+    @property
+    def offset(self):
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.SCALE_FLOAT_OFFSET,
+        )
+
+    @property
+    def bytewidth(self):
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
+        )
+
+
 #
 class FilterList(lt.FilterList):
     """
@@ -523,6 +668,7 @@ class FilterList(lt.FilterList):
         lt.FilterType.CHECKSUM_MD5: ChecksumMD5Filter,
         lt.FilterType.CHECKSUM_SHA256: ChecksumSHA256Filter,
         lt.FilterType.DICTIONARY: DictionaryFilter,
+        lt.FilterType.SCALE_FLOAT: FloatScaleFilter,
         lt.FilterType.NONE: NoOpFilter,
     }
 
@@ -629,7 +775,7 @@ class FilterList(lt.FilterList):
 
         """
         if not isinstance(filter, Filter):
-            raise ValueError("filter argument must be a TileDB filter objects")
+            raise ValueError("filter argument must be a TileDB Filter object")
         self._add_filter(filter)
 
     def __repr__(self) -> str:
@@ -666,19 +812,28 @@ class FilterList(lt.FilterList):
     def _getfilter(self, i: int) -> Filter:
         fil = self._filter(i)
         filtype = self.filter_type_cc_to_python[fil._type]
-        opt = None
+        options = None
 
         if issubclass(filtype, CompressionFilter):
-            opt = lt.FilterOption.COMPRESSION_LEVEL
+            options = [lt.FilterOption.COMPRESSION_LEVEL]
         elif filtype == BitWidthReductionFilter:
-            opt = lt.FilterOption.BIT_WIDTH_MAX_WINDOW
+            options = [lt.FilterOption.BIT_WIDTH_MAX_WINDOW]
         elif filtype == PositiveDeltaFilter:
-            opt = lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW
+            options = [lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW]
+        elif filtype == FloatScaleFilter:
+            options = [
+                lt.FilterOption.SCALE_FLOAT_FACTOR,
+                lt.FilterOption.SCALE_FLOAT_OFFSET,
+                lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
+            ]
 
-        if opt is not None:
+        if options is not None:
             _cctx = lt.Context(self._ctx.__capsule__(), False)
-            filter = filtype(fil._get_option(_cctx, opt), ctx=self._ctx)
-        else:
-            filter = filtype(self._ctx)
+
+            opts = []
+            for opt in options:
+                opts.append(fil._get_option(_cctx, opt))
+
+            filter = filtype(*opts, ctx=self._ctx)
 
         return filter
