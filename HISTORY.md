@@ -1,5 +1,8 @@
 # In Progress
 
+## Improvements
+* Move `Attr` from Cython to pure Python [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326)
+
 ## API Changes
 * Permit true-ASCII attributes in non-from-pandas dataframes [#1337](https://github.com/TileDB-Inc/TileDB-Py/pull/1337)
 * Addition of `Array.upgrade_version` to upgrade array to latest version [#1334](https://github.com/TileDB-Inc/TileDB-Py/pull/1334)
