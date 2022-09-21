@@ -386,13 +386,12 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     output_values = list()
     output_offsets = list()
 
+    convert_start = time.time()
     for i in range(nattr):
         # if dtype is ASCII, ensure all characters are valid
         if tiledb_array.schema.attr(i).isascii:
             try:
-                start = time.time()
                 values[i] = np.asarray(values[i], dtype=np.bytes_)
-                print(f"ASCII check: {time.time() - start}")
             except Exception as exc:
                 raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
 
@@ -410,6 +409,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         buffer_sizes[i] = buffer.nbytes
         output_values.append(buffer)
         output_offsets.append(offsets)
+    convert_total = time.time() - convert_start
 
     # Check value layouts
     if len(values):
@@ -534,12 +534,12 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
-        total_buffers = time.time() - start_buffers
+        buffers_total = time.time() - start_buffers
 
         start_submit = time.time()
         with nogil:
             rc = tiledb_query_submit(ctx_ptr, query_ptr)
-        total_submit = time.time() - start_submit
+        submit_total = time.time() - start_submit
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -557,9 +557,10 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     function_total = time.time() - function_start
     print(f"{tiledb_array.uri}: {battr_name}")
-    print(f"offset+buffer: {total_buffers} ({total_buffers/function_total*100}%)")
-    print(f"tiledb_query_submit: {total_submit} ({total_submit/function_total*100}%)")
-    print(f"total time: {function_total}")
+    # print(f"total time for _write_array: {function_total}")
+    print(f"--convert/_write_array: {convert_total} ({convert_total/function_total*100}%)")
+    print(f"--offset+buffer/_write_array: {buffers_total} ({buffers_total/function_total*100}%)")
+    print(f"--tiledb_query_submit/_write_array: {submit_total} ({submit_total/function_total*100}%)")
     print()
     return
 
@@ -4958,10 +4959,11 @@ def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
                 raise IndexError("sparse index dimension dtype mismatch")
         elif idx[dim_idx].dtype != dim_dtype:
             raise IndexError("sparse index dimension dtype mismatch")
-
     return idx
 
 def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
+    function_start = time.time()
+
     if not self.isopen or self.mode != 'w':
         raise TileDBError("SparseArray is not opened for writing")
 
@@ -4969,7 +4971,9 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
     sparse_attributes = list()
     sparse_values = list()
     idx = index_as_tuple(selection)
+    index_domain_coords_start = time.time()
     sparse_coords = list(index_domain_coords(self.schema.domain, idx, not set_dims_only))
+    index_domain_coords_buffers = time.time() - index_domain_coords_start
 
     if set_dims_only:
         _write_array(
@@ -5035,6 +5039,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         or (len(sparse_values) != len(val.values())):
         raise TileDBError("Sparse write input data count does not match number of attributes")
 
+    write_array_start = time.time()
     _write_array(
         self.ctx.ptr, self.ptr, self,
         sparse_coords,
@@ -5044,6 +5049,12 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         self.last_fragment_info,
         True
     )
+    write_array_buffers = time.time() - write_array_start
+
+    function_total = time.time() - function_start
+    print(f"total time for _setitem_impl_sparse: {function_total}")
+    print(f"-index_domain_coords/_setitem_impl_sparse: {index_domain_coords_buffers} ({index_domain_coords_buffers/function_total*100}%)")
+    print(f"-_write_array/_setitem_impl_sparse: {write_array_buffers} ({write_array_buffers/function_total*100}%)")
     return
 
 cdef class SparseArrayImpl(Array):
