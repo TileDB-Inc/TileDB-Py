@@ -355,6 +355,16 @@ public:
 
     bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
 
+    std::string mode = py::str(array.attr("mode"));
+    auto query_mode = TILEDB_READ;
+    if (mode == "r") {
+      query_mode = TILEDB_READ;
+    } else if (mode == "d") {
+      query_mode = TILEDB_DELETE;
+    } else {
+      throw std::invalid_argument("Invalid query mode: " + mode);
+    }
+
     // initialize the dims that we are asked to read
     for (auto d : dims) {
       dims_.push_back(d.cast<string>());
@@ -365,32 +375,36 @@ public:
       attrs_.push_back(a.cast<string>());
     }
 
-    py::object pre_buffers = array.attr("_buffers");
-    if (!pre_buffers.is(py::none())) {
-      py::dict pre_buffers_dict = pre_buffers.cast<py::dict>();
+    if (query_mode == TILEDB_READ) {
+      py::object pre_buffers = array.attr("_buffers");
+      if (!pre_buffers.is(py::none())) {
+        py::dict pre_buffers_dict = pre_buffers.cast<py::dict>();
 
-      // iterate over (key, value) pairs
-      for (std::pair<py::handle, py::handle> b : pre_buffers_dict) {
-        py::str name = b.first.cast<py::str>();
+        // iterate over (key, value) pairs
+        for (std::pair<py::handle, py::handle> b : pre_buffers_dict) {
+          py::str name = b.first.cast<py::str>();
 
-        // unpack value tuple of (data, offsets)
-        auto bfrs = b.second.cast<std::pair<py::handle, py::handle>>();
-        auto data_array = bfrs.first.cast<py::array>();
-        auto offsets_array = bfrs.second.cast<py::array>();
+          // unpack value tuple of (data, offsets)
+          auto bfrs = b.second.cast<std::pair<py::handle, py::handle>>();
+          auto data_array = bfrs.first.cast<py::array>();
+          auto offsets_array = bfrs.second.cast<py::array>();
 
-        import_buffer(name, data_array, offsets_array);
+          import_buffer(name, data_array, offsets_array);
+        }
       }
     }
 
     query_ =
-        std::shared_ptr<tiledb::Query>(new Query(ctx_, *array_, TILEDB_READ));
+        std::shared_ptr<tiledb::Query>(new Query(ctx_, *array_, query_mode));
     //        [](Query* p){} /* note: no deleter*/);
 
-    layout_ = (tiledb_layout_t)py_layout.cast<int32_t>();
-    if (!issparse && layout_ == TILEDB_UNORDERED) {
-      TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
+    if (query_mode == TILEDB_READ) {
+      layout_ = (tiledb_layout_t)py_layout.cast<int32_t>();
+      if (!issparse && layout_ == TILEDB_UNORDERED) {
+        TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
+      }
+      query_->set_layout(layout_);
     }
-    query_->set_layout(layout_);
 
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
     if (use_arrow_) {
@@ -1341,6 +1355,8 @@ public:
       submit_read();
     else if (array_->query_type() == TILEDB_WRITE)
       submit_write();
+    else if (array_->query_type() == TILEDB_DELETE)
+      query_->submit();
     else
       TPY_ERROR_LOC("Unknown query type!")
   }
