@@ -42,6 +42,7 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_ARRAY
 
     ctypedef enum tiledb_query_type_t:
+        TILEDB_DELETE
         TILEDB_READ
         TILEDB_WRITE
 

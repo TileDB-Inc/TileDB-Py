@@ -9,6 +9,7 @@
 * Array and Group metadata now store bytes as `TILEDB_BLOB` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
 * Addition of `{Array,Group}.metadata.dump()` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
 * Addition of `Group.is_relative` to check if the URI component of a group member is relative [#1386](https://github.com/TileDB-Inc/TileDB-Py/pull/1386)
+* Addition of query deletes to delete data that satisifies a given query condition [#1309](https://github.com/TileDB-Inc/TileDB-Py/pull/1309)
 
 ## Bug Fixes
 * Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
@@ -35,6 +36,7 @@
 
 ## API Changes
 * Addition of `FloatScaleFilter` [#1195](https://github.com/TileDB-Inc/TileDB-Py/pull/1195)
+* Addition of `d` mode for arrays to delete data that satisfies a given query condition [#1309](https://github.com/TileDB-Inc/TileDB-Py/pull/1309)
 
 ## Misc Updates
 * Wheels are minimally supported for macOS 10.15 Catalina [#1275](https://github.com/TileDB-Inc/TileDB-Py/pull/1275)
