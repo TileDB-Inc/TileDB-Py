@@ -1,7 +1,13 @@
-# In Progress
+# TileDB-Py 0.17.4 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.17.4 includes TileDB Embedded [TileDB 2.11.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.11.3)
 
 ## API Changes
 * Addition of `FloatScaleFilter` [#1195](https://github.com/TileDB-Inc/TileDB-Py/pull/1195)
+
+## Misc Updates
+* Wheels are minimally supported for macOS 10.15 Catalina [#1275](https://github.com/TileDB-Inc/TileDB-Py/pull/1275)
 
 # TileDB-Py 0.17.3 Release Notes
 
