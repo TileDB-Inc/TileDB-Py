@@ -321,10 +321,6 @@ class QueryConditionTree(ast.NodeVisitor):
 
         if att not in self.query_attrs:
             self.query_attrs.append(att)
-        #     raise tiledb.TileDBError(
-        #         f"Attribute `{att}` given to filter in query's `attr_cond` "
-        #         "arg but not found in `attr` arg."
-        #     )
 
         return att
 
