@@ -307,10 +307,6 @@ class QueryConditionTest(DiskTestCase):
                 qc = tiledb.QueryCondition("U < 'one'")
                 A.query(attr_cond=qc, attrs=["U"])[:]
 
-            with self.assertRaises(tiledb.TileDBError):
-                qc = tiledb.QueryCondition("U < 1")
-                A.query(attr_cond=qc, attrs=["D"])[:]
-
     def test_check_attrs_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask = A.attr("U").fill
@@ -330,10 +326,6 @@ class QueryConditionTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < 'one'")
                 A.query(attr_cond=qc, attrs=["U"])[:]
-
-            with self.assertRaises(tiledb.TileDBError):
-                qc = tiledb.QueryCondition("U < 1")
-                A.query(attr_cond=qc, attrs=["D"])[:]
 
     @pytest.mark.parametrize("sparse", [True, False])
     def test_error_when_using_dim(self, sparse):
