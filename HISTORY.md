@@ -1,6 +1,6 @@
 # In Progress
 
-* Addition of `Array.upgrade_version` to upgrade array to latest version []()
+* Addition of `Array.upgrade_version` to upgrade array to latest version [#1334](https://github.com/TileDB-Inc/TileDB-Py/pull/1334)
 
 # TileDB-Py 0.17.4 Release Notes
 
