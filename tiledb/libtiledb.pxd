@@ -1148,6 +1148,11 @@ cdef extern from "tiledb/tiledb_experimental.h":
         tiledb_ctx_t* ctx,
         const char* uri,
         tiledb_array_schema_t** array_schema) nogil
+    
+    int tiledb_array_upgrade_version(
+        tiledb_ctx_t* ctx, 
+        const char* array_uri, 
+        tiledb_config_t* config) nogil
 
 # Free helper functions
 cpdef unicode ustring(object s)

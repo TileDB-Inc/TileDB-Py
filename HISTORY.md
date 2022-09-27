@@ -1,3 +1,7 @@
+# In Progress
+
+* Addition of `Array.upgrade_version` to upgrade array to latest version []()
+
 # TileDB-Py 0.17.4 Release Notes
 
 ## TileDB Embedded updates:
