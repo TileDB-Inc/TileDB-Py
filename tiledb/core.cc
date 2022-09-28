@@ -711,7 +711,7 @@ public:
       py::object init_pyqc = attr_cond.attr("init_query_condition");
 
       try {
-        init_pyqc(pyschema_, attrs_);
+        attrs_ = init_pyqc(pyschema_, attrs_).cast<std::vector<std::string>>();
       } catch (tiledb::TileDBError &e) {
         TPY_ERROR_LOC(e.what());
       } catch (py::error_already_set &e) {
