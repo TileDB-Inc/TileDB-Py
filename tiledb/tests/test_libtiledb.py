@@ -1092,7 +1092,7 @@ class ArrayTest(DiskTestCase):
         A.upgrade_version()
 
         with tiledb.open(path) as A:
-            assert A.schema.version >= 16
+            assert A.schema.version >= 15
 
 
 class DenseArrayTest(DiskTestCase):
