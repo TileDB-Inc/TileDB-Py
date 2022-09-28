@@ -36,6 +36,11 @@ def test_schema_evolution(tmp_path):
 
     newattr = tiledb.Attr("a3", dtype=np.int8)
     se.add_attribute(newattr)
+
+    with pytest.raises(tiledb.TileDBError) as excinfo:
+        se.add_attribute(newattr)
+    assert "Input attribute name is already there" in str(excinfo.value)
+
     se.array_evolve(uri)
 
     data2 = {

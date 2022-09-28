@@ -2,6 +2,7 @@
 
 ## API Changes
 * Attributes in query conditions no longer need to be passed to `Array.query`'s `attr` arg [#1333](https://github.com/TileDB-Inc/TileDB-Py/pull/1333)
+* `ArraySchemaEvolution` checks context's last error for error message []()
 
 # TileDB-Py 0.17.4 Release Notes
 
