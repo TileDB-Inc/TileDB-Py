@@ -47,18 +47,36 @@ def test_schema_evolution(tmp_path):
     with tiledb.open(uri, "w") as A:
         A[:] = data2
 
-    with tiledb.open(uri) as A:
-        res = A[:]
-        assert_array_equal(res["a1"], data2["a1"])
-        assert_array_equal(res["a2"], data2["a2"])
-        assert_array_equal(res["a3"], data2["a3"])
+    def test_it():
+        with tiledb.open(uri) as A:
+            res = A[:]
+            assert_array_equal(res["a1"], data2["a1"])
+            assert_array_equal(res["a2"], data2["a2"])
+            assert_array_equal(res["a3"], data2["a3"])
+
+    test_it()
+    tiledb.consolidate(uri)
+    test_it()
 
     se = tiledb.ArraySchemaEvolution(ctx)
     se.drop_attribute("a1")
     se.array_evolve(uri)
 
-    with tiledb.open(uri) as A:
-        res = A[:]
-        assert "a1" not in res.keys()
-        assert_array_equal(res["a2"], data2["a2"])
-        assert_array_equal(res["a3"], data2["a3"])
+    data3 = {
+        "a2": np.random.randint(0, 1e7, size=4).astype(np.int32),
+        "a3": np.random.randint(0, 255, size=4).astype(np.int8),
+    }
+
+    def test_it2():
+        with tiledb.open(uri) as A:
+            res = A[:]
+            assert "a1" not in res.keys()
+            assert_array_equal(res["a2"], data3["a2"])
+            assert_array_equal(res["a3"], data3["a3"])
+
+    with tiledb.open(uri, "w") as A:
+        A[:] = data3
+
+    test_it2()
+    tiledb.consolidate(uri)
+    test_it2()
