@@ -3931,6 +3931,28 @@ cdef class Array(object):
         if self.mode == 'r':
             raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
         return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, timestamp=timestamp)
+    
+    def upgrade_version(self, Config config=None):
+        """
+        Upgrades an array to the latest format version.
+
+        :param ctx The TileDB context.
+        :param array_uri The uri of the array.
+        :param config Configuration parameters for the upgrade
+            (`nullptr` means default, which will use the config from `ctx`).
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        cdef int rc = TILEDB_OK
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef bytes buri = self.uri.encode('UTF-8')
+        cdef tiledb_config_t* config_ptr = NULL
+        if config is not None:
+            config_ptr = config.ptr
+
+        rc = tiledb_array_upgrade_version(
+            ctx_ptr, buri, config_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
     def dump(self):
         self.schema.dump()

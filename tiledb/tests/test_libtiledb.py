@@ -1,3 +1,4 @@
+import base64
 import gc
 import io
 import itertools
@@ -8,6 +9,7 @@ import re
 import urllib
 import subprocess
 import sys
+import tarfile
 import textwrap
 import time
 import unittest
@@ -1062,6 +1064,35 @@ class ArrayTest(DiskTestCase):
         # make the old array has been deleted and replaced
         with tiledb.open(uri, "r") as A:
             assert A.nonempty_domain() is None
+
+    def test_upgrade_version(self):
+        tgz_sparse = b"""H4sIAJKNpWAAA+2aPW/TQBjHz2nTFlGJClUoAxIuA0ICpXf2vdhbGWBiYEIgihI7MRT1JVKairKh
+                         qgNfgA2kDnwFVga+ABtfgE8AEwsS5/ROTUzBjWpbKv3/JPexLxc/l/59zz3PJc1lUjqUUiWEO7Ty
+                         0GqsPbxgnArmUymk71LmUc6JK8ofGiE724Oor4fyYqvXH/S2/trv5VqSbPzjPuMfyi18nCXRXG61
+                         NpNBVOZjMIH+XEip9fc9xaB/FaT6b/Q6681BNy7Lh/5/SM4n0l8JPf9pWQMaBfq3on4/etXa7qwl
+                         m1EZz0Ge/p6X1V9wKaF/FdT1sWrOXxs77dhXLw//OiRtcNKuzvBspH+gjwVz7Yy07TqdhNTuzcw4
+                         OwtT0407qzM3Hi58vzZH7678cN99rl9f2ji40JZ77T0Wzb+JD/rdp8SZnfta2gcFx5LOfyY9xqXn
+                         ByoIVeYqDJMu44GOyGHCeRIGKuHCF1HsRRGLaacl8jOHifM/z2M+8r9KOL3+zd56jo8J1n+rPxcC
+                         8b8KjvRnvlSh8rJXcRJ2Euor7gne8XgsJdVPhAoSFXZFogrWX6//aqg/p9C/Ck6vf6Hx3+rPmEL8
+                         r4IC9G+1nvWj55vJ1mC4k9CNBpkqImf+a7VFRn8phI/5XwVpUh+Yc9fYk+b/af9FMp7/27Zd51vc
+                         brf3Y7c+e//BFeJ8IJfSG9hoYd9zUl9p/4sZX7ZN1xrdlXrquwYXcAEXx7s4ojbSOWXK2NtknBVy
+                         Mmxc/GKsZ2781tifxj4xjj8Zu2Qc79sBgKopYP3v5u0Z5uX/7I/8z6ce9n8rwYaAhj6ukvE4Yttu
+                         flz+5TbeE/JIt9vYUSO3Hs8Pwww4wxQw/3O/Msit/wXP1n9Sof6vhNH538i02ak+njyA/4kC9v+L
+                         rP/N/q8UmP/VgPofLuDiXLg4AvU/MBSw/hdZ/5v1XxcCDOt/FaD+P98UMP+LrP/t7z8Uxe8/KgH1
+                         PwAAAAAAAAAAAAAAAAAAAAAAAHD2+Q18oX51AFAAAA=="""
+
+        path = self.path("test_upgrade_version")
+
+        with tarfile.open(fileobj=io.BytesIO(base64.b64decode(tgz_sparse))) as tf:
+            tf.extractall(path)
+
+        with tiledb.open(path) as A:
+            assert A.schema.version == 5
+
+        A.upgrade_version()
+
+        with tiledb.open(path) as A:
+            assert A.schema.version >= 15
 
 
 class DenseArrayTest(DiskTestCase):

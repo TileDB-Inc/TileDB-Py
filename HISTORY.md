@@ -1,6 +1,7 @@
 # In Progress
 
 ## API Changes
+* Addition of `Array.upgrade_version` to upgrade array to latest version [#1334](https://github.com/TileDB-Inc/TileDB-Py/pull/1334)
 * Attributes in query conditions no longer need to be passed to `Array.query`'s `attr` arg [#1333](https://github.com/TileDB-Inc/TileDB-Py/pull/1333)
 
 # TileDB-Py 0.17.4 Release Notes
