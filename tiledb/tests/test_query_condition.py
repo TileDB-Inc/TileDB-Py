@@ -1,6 +1,7 @@
 import pytest
 
 import numpy as np
+from numpy.testing import assert_array_equal
 import string
 
 import tiledb
@@ -306,10 +307,6 @@ class QueryConditionTest(DiskTestCase):
                 qc = tiledb.QueryCondition("U < 'one'")
                 A.query(attr_cond=qc, attrs=["U"])[:]
 
-            with self.assertRaises(tiledb.TileDBError):
-                qc = tiledb.QueryCondition("U < 1")
-                A.query(attr_cond=qc, attrs=["D"])[:]
-
     def test_check_attrs_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask = A.attr("U").fill
@@ -329,10 +326,6 @@ class QueryConditionTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 qc = tiledb.QueryCondition("U < 'one'")
                 A.query(attr_cond=qc, attrs=["U"])[:]
-
-            with self.assertRaises(tiledb.TileDBError):
-                qc = tiledb.QueryCondition("U < 1")
-                A.query(attr_cond=qc, attrs=["D"])[:]
 
     @pytest.mark.parametrize("sparse", [True, False])
     def test_error_when_using_dim(self, sparse):
@@ -665,3 +658,17 @@ class QueryConditionTest(DiskTestCase):
             qc = tiledb.QueryCondition("myint > 10")
             result = A.query(attr_cond=qc, attrs=["myint"])[:]
             assert all(result["myint"] > 10)
+
+    def test_do_not_return_queried_attr(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            qc = tiledb.QueryCondition("U < 3")
+
+            i_result = A.query(attr_cond=qc, attrs=["I", "U"])[:]
+            assert "I" in i_result.keys()
+            assert "U" in i_result.keys()
+            assert all(i_result["U"] < 5)
+
+            u_result = A.query(attr_cond=qc, attrs=["I"])[:]
+            assert "I" in u_result.keys()
+            assert "U" not in u_result.keys()
+            assert_array_equal(i_result["I"], u_result["I"])
