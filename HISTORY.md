@@ -1,7 +1,7 @@
 # In Progress
 
 ## Bug Fixes
-* Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars []()
+* Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
 
 ## API Changes
 * Addition of `Array.upgrade_version` to upgrade array to latest version [#1334](https://github.com/TileDB-Inc/TileDB-Py/pull/1334)
