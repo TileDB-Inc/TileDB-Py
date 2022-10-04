@@ -1534,7 +1534,8 @@ cdef class Attr(object):
         if isinstance(dtype, str) and dtype == "ascii":
             tiledb_dtype = TILEDB_STRING_ASCII
             ncells = TILEDB_VAR_NUM
-            var = True
+            if var is None:
+                var = True
         else:
             _dtype = np.dtype(dtype)
             tiledb_dtype, ncells = array_type_ncells(_dtype)
