@@ -1,6 +1,7 @@
 # In Progress
 
 ## API Changes
+* Permit true-ASCII attributes in non-from-pandas dataframes [#1337](https://github.com/TileDB-Inc/TileDB-Py/pull/1337)
 * Addition of `Array.upgrade_version` to upgrade array to latest version [#1334](https://github.com/TileDB-Inc/TileDB-Py/pull/1334)
 * Attributes in query conditions no longer need to be passed to `Array.query`'s `attr` arg [#1333](https://github.com/TileDB-Inc/TileDB-Py/pull/1333)
 
