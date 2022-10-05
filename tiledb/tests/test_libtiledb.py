@@ -526,7 +526,15 @@ class AttributeTest(DiskTestCase):
         dom = tiledb.Domain(
             tiledb.Dim(name="d", domain=(1, 4), tile=1, dtype=np.uint32)
         )
-        attrs = [tiledb.Attr(name="A", dtype="ascii", var=True)]
+
+        with pytest.raises(TypeError) as exc_info:
+            tiledb.Attr(name="A", dtype="ascii", var=False)
+        assert (
+            str(exc_info.value) == "dtype is not compatible with var-length attribute"
+        )
+
+        attrs = [tiledb.Attr(name="A", dtype="ascii")]
+
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
         tiledb.Array.create(path, schema)
 
@@ -547,6 +555,7 @@ class AttributeTest(DiskTestCase):
             assert A.schema.nattr == 1
             A.schema.dump()
             assert_captured(capfd, "Type: STRING_ASCII")
+            assert A.schema.attr("A").isvar
             assert A.schema.attr("A").dtype == np.bytes_
             assert A.schema.attr("A").isascii
             assert_array_equal(A[:]["A"], np.asarray(ascii_data, dtype=np.bytes_))
