@@ -1187,17 +1187,6 @@ cdef class ConfigValues(object):
 cdef class Ctx(object):
     cdef tiledb_ctx_t* ptr
 
-cdef class Attr(object):
-    cdef Ctx ctx
-    cdef tiledb_attribute_t* ptr
-
-    @staticmethod
-    cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx=*)
-    cdef unicode _get_name(Attr self)
-    cdef unsigned int _cell_val_num(Attr self) except? 0
-    cdef tiledb_datatype_t _get_type(Attr self) except? TILEDB_CHAR
-
-
 cdef class Dim(object):
     cdef Ctx ctx
     cdef tiledb_dimension_t* ptr
