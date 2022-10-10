@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 import numpy as np
 
 import tiledb
-from tiledb import TileDBError, libtiledb
+from tiledb import libtiledb
+from tiledb.cc import TileDBError
 
 
 def check_dataframe_deps():
