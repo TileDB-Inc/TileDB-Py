@@ -77,6 +77,9 @@ class QueryCondition:
             | val compare_op var
             | val compare_op var compare_op val``
 
+    If an attribute name has special characters in it, you can wrap ``namehere``
+    in ``attr("namehere")``.
+
     All comparison operators are supported.
 
         ``compare_op ::= < | > | <= | >= | == | !=``
