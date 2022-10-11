@@ -1,4 +1,4 @@
-# In Progress
+# TileDB-Py 0.17.5 Release Notes
 
 ## Improvements
 * Move `Attr` from Cython to pure Python [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326)
@@ -21,6 +21,9 @@
 * Wheels are minimally supported for macOS 10.15 Catalina [#1275](https://github.com/TileDB-Inc/TileDB-Py/pull/1275)
 
 # TileDB-Py 0.17.3 Release Notes
+
+## TileDB Embedded updates:
+* TileDB-Py 0.17.3 includes TileDB Embedded [TileDB 2.11.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.11.2)
 
 ## API Changes
 * Add ability to pass shape tuple to empty_like [#1316](https://github.com/TileDB-Inc/TileDB-Py/pull/1316)
