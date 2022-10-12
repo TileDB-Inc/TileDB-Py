@@ -1685,6 +1685,21 @@ class DenseArrayTest(DiskTestCase):
 
         T.close()
 
+    def test_data_begins_with_null_chars(self):
+        path = self.path("test_data_begins_with_null_chars")
+        data = np.array(["", "", "", "a", "", "", "", "", "", "b"], dtype=np.unicode_)
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, len(data)), tile=len(data)))
+        att = tiledb.Attr(dtype=np.unicode_, var=True)
+        schema = tiledb.ArraySchema(dom, (att,))
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as T:
+            T[:] = data
+
+        with tiledb.open(path, mode="r") as T:
+            assert_array_equal(data, T[:])
+
 
 class TestVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):

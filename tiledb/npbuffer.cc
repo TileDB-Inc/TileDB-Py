@@ -147,6 +147,8 @@ private:
       output_p += sz;
       idx++;
     }
+
+    data_buf_->resize(data_nbytes_);
   }
 
   void convert_bytes() {
