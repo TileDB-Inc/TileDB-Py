@@ -1,10 +1,12 @@
+# In Progress
+
+## Bug Fixes
+* Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
+
 # TileDB-Py 0.17.5 Release Notes
 
 ## Improvements
 * Move `Attr` from Cython to pure Python [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326)
-
-## Bug Fixes
-* Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
 
 ## API Changes
 * Permit true-ASCII attributes in non-from-pandas dataframes [#1337](https://github.com/TileDB-Inc/TileDB-Py/pull/1337)
