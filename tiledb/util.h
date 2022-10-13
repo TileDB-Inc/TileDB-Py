@@ -1,10 +1,13 @@
 #include <cmath>
+#include <tiledb/tiledb>
 
 #ifndef TILEDB_PY_UTIL_H
 #define TILEDB_PY_UTIL_H
 
 const uint64_t DEFAULT_INIT_BUFFER_BYTES = 1310720 * 8;
 const uint64_t DEFAULT_ALLOC_MAX_BYTES = uint64_t(5 * pow(2, 30));
+
+std::string get_last_ctx_err_str(tiledb_ctx_t *, int);
 
 #define TPY_ERROR_STR(m)                                                       \
   [](auto m) -> std::string {                                     \
