@@ -62,7 +62,6 @@ class TestFilterTest(DiskTestCase):
     @pytest.mark.parametrize("attr_type", [np.int64])
     @pytest.mark.parametrize("filter_type", all_filter_types)
     def test_filter_list(self, attr_type, filter_type):
-        print(attr_type, filter_type)
         if not filter_applicable(filter_type, attr_type):
             pytest.mark.skip("Filter not supported for attribute type '{attr_type}'")
 
