@@ -6,6 +6,30 @@ import warnings
 import tiledb
 from tiledb.tests.common import DiskTestCase
 
+all_filter_types = [
+    tiledb.NoOpFilter(),
+    tiledb.GzipFilter(),
+    tiledb.ZstdFilter(),
+    tiledb.LZ4Filter(),
+    tiledb.RleFilter(),
+    tiledb.Bzip2Filter(),
+    tiledb.DoubleDeltaFilter(),
+    tiledb.DictionaryFilter(),
+    tiledb.BitWidthReductionFilter(),
+    tiledb.BitShuffleFilter(),
+    tiledb.ByteShuffleFilter(),
+    tiledb.PositiveDeltaFilter(),
+    tiledb.ChecksumSHA256Filter(),
+    tiledb.ChecksumMD5Filter(),
+    tiledb.FloatScaleFilter(),
+]
+
+
+def filter_applicable(filter_type, attr_type) -> bool:
+    """Return bool indicating filter applicability to a given attribute type."""
+    if issubclass(attr_type, np.floating) and filter_type in [tiledb.DoubleDeltaFilter]:
+        return False
+
 
 class TestFilterTest(DiskTestCase):
     def test_filter(self):
@@ -35,39 +59,27 @@ class TestFilterTest(DiskTestCase):
         self.assertEqual(len(attr.filters), 2)
         self.assertEqual(attr.filters.chunksize, filter_list.chunksize)
 
-    def test_filter_list(self):
+    @pytest.mark.parametrize("attr_type", [np.int64])
+    @pytest.mark.parametrize("filter_type", all_filter_types)
+    def test_filter_list(self, attr_type, filter_type):
+        print(attr_type, filter_type)
+        if not filter_applicable(filter_type, attr_type):
+            pytest.mark.skip("Filter not supported for attribute type '{attr_type}'")
+
         # should be constructible without a `filters` keyword arg set
         filter_list1 = tiledb.FilterList()
-        filter_list1.append(tiledb.GzipFilter())
+        filter_list1.append(filter_type)
         self.assertEqual(len(filter_list1), 1)
+        repr(filter_list1)
 
         filter_list2 = [x for x in filter_list1]
-        attr = tiledb.Attr(filters=filter_list2)
+        attr = tiledb.Attr(filters=filter_list2, dtype=attr_type)
         self.assertEqual(len(attr.filters), 1)
 
-    @pytest.mark.parametrize(
-        "filter",
-        [
-            tiledb.NoOpFilter(),
-            tiledb.GzipFilter(),
-            tiledb.ZstdFilter(),
-            tiledb.LZ4Filter(),
-            tiledb.RleFilter(),
-            tiledb.Bzip2Filter(),
-            tiledb.DoubleDeltaFilter(),
-            tiledb.DictionaryFilter(),
-            tiledb.BitWidthReductionFilter(),
-            tiledb.BitShuffleFilter(),
-            tiledb.ByteShuffleFilter(),
-            tiledb.PositiveDeltaFilter(),
-            tiledb.ChecksumSHA256Filter(),
-            tiledb.ChecksumMD5Filter(),
-            tiledb.FloatScaleFilter(),
-            tiledb.XORFilter(),
-        ],
-    )
+    @pytest.mark.parametrize("filter", all_filter_types)
     def test_all_filters(self, filter):
         # test initialization
+
         # make sure that repr works and round-trips correctly
         # some of these have attributes, so we just check the class name here
         self.assertTrue(type(filter).__name__ in repr(filter))
