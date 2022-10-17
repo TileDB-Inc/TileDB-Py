@@ -7,28 +7,35 @@ import tiledb
 from tiledb.tests.common import DiskTestCase
 
 all_filter_types = [
-    tiledb.NoOpFilter(),
-    tiledb.GzipFilter(),
-    tiledb.ZstdFilter(),
-    tiledb.LZ4Filter(),
-    tiledb.RleFilter(),
-    tiledb.Bzip2Filter(),
-    tiledb.DoubleDeltaFilter(),
-    tiledb.DictionaryFilter(),
-    tiledb.BitWidthReductionFilter(),
-    tiledb.BitShuffleFilter(),
-    tiledb.ByteShuffleFilter(),
-    tiledb.PositiveDeltaFilter(),
-    tiledb.ChecksumSHA256Filter(),
-    tiledb.ChecksumMD5Filter(),
-    tiledb.FloatScaleFilter(),
+    tiledb.NoOpFilter,
+    tiledb.GzipFilter,
+    tiledb.ZstdFilter,
+    tiledb.LZ4Filter,
+    tiledb.RleFilter,
+    tiledb.Bzip2Filter,
+    tiledb.DoubleDeltaFilter,
+    tiledb.DictionaryFilter,
+    tiledb.BitWidthReductionFilter,
+    tiledb.BitShuffleFilter,
+    tiledb.ByteShuffleFilter,
+    tiledb.PositiveDeltaFilter,
+    tiledb.ChecksumSHA256Filter,
+    tiledb.ChecksumMD5Filter,
+    tiledb.FloatScaleFilter,
 ]
 
 
 def filter_applicable(filter_type, attr_type) -> bool:
     """Return bool indicating filter applicability to a given attribute type."""
-    if issubclass(attr_type, np.floating) and filter_type in [tiledb.DoubleDeltaFilter]:
+    if not isinstance(attr_type, type):
+        # guard issubclass below: first argument must be a type
+        return True
+    elif issubclass(attr_type, np.floating) and filter_type in [
+        tiledb.DoubleDeltaFilter
+    ]:
         return False
+
+    return True
 
 
 class TestFilterTest(DiskTestCase):
@@ -59,15 +66,20 @@ class TestFilterTest(DiskTestCase):
         self.assertEqual(len(attr.filters), 2)
         self.assertEqual(attr.filters.chunksize, filter_list.chunksize)
 
-    @pytest.mark.parametrize("attr_type", [np.int64])
+    @pytest.mark.parametrize(
+        "attr_type", [np.int64, np.int32, np.float64, "ascii", bytes, str]
+    )
     @pytest.mark.parametrize("filter_type", all_filter_types)
     def test_filter_list(self, attr_type, filter_type):
-        if not filter_applicable(filter_type, attr_type):
+        if not isinstance(attr_type, type):
+            return True
+        elif not filter_applicable(filter_type, attr_type):
             pytest.mark.skip("Filter not supported for attribute type '{attr_type}'")
+            return
 
         # should be constructible without a `filters` keyword arg set
         filter_list1 = tiledb.FilterList()
-        filter_list1.append(filter_type)
+        filter_list1.append(filter_type())
         self.assertEqual(len(filter_list1), 1)
         repr(filter_list1)
 
