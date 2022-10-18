@@ -74,8 +74,7 @@ class TestFilterTest(DiskTestCase):
         if not isinstance(attr_type, type):
             return True
         elif not filter_applicable(filter_type, attr_type):
-            pytest.mark.skip("Filter not supported for attribute type '{attr_type}'")
-            return
+            pytest.skip("Filter not supported for attribute type '{attr_type}'")
 
         # should be constructible without a `filters` keyword arg set
         filter_list1 = tiledb.FilterList()
