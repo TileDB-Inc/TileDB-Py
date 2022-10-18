@@ -15,9 +15,6 @@
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
-#define TILEDB_DEPRECATED
-#define TILEDB_DEPRECATED_EXPORT
-
 #include <tiledb/tiledb.h>              // C
 #include <tiledb/tiledb>                // C++
 #include <tiledb/tiledb_experimental.h> // C

@@ -3,9 +3,6 @@
 
 #include <exception>
 
-#define TILEDB_DEPRECATED
-#define TILEDB_DEPRECATED_EXPORT
-
 #include "util.h"
 #include <tiledb/tiledb> // C++
 

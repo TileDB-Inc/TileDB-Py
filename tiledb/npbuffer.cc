@@ -15,9 +15,6 @@
 //#include "debug.cc"
 #endif
 
-#define TILEDB_DEPRECATED
-#define TILEDB_DEPRECATED_EXPORT
-
 #include <tiledb/tiledb> // C++
 
 // anonymous namespace for helper functions
