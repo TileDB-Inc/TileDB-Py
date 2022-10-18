@@ -42,6 +42,7 @@ from .libtiledb import (
     Config,
     Dim,
     Domain,
+    Attr,
     ArraySchema,
     consolidate,
     object_type,
@@ -57,8 +58,6 @@ from .libtiledb import (
 )
 
 from .array import DenseArray, SparseArray
-
-from .attribute import Attr
 
 from .filter import (
     Filter,

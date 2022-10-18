@@ -1,4 +1,5 @@
 import io
+import numpy as np
 from typing import List, overload, Sequence, TYPE_CHECKING, Union
 
 import tiledb.cc as lt
@@ -13,7 +14,8 @@ class Filter(lt.Filter):
 
     def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
-        super().__init__(lt.Context(self._ctx, False), type)
+
+        super().__init__(lt.Context(self._ctx.__capsule__(), False), type)
 
     def __repr__(self) -> str:
         output = io.StringIO()
@@ -82,7 +84,7 @@ class CompressionFilter(Filter):
 
         super().__init__(type, self._ctx)
         self._set_option(
-            lt.Context(self._ctx, False),
+            lt.Context(self._ctx.__capsule__(), False),
             lt.FilterOption.COMPRESSION_LEVEL,
             level,
         )
@@ -675,21 +677,16 @@ class FilterList(lt.FilterList):
         filters: Sequence[Filter] = None,
         chunksize: int = None,
         ctx: "Ctx" = None,
-        _lt_obj=None,
-        _capsule=None,
+        is_capsule: bool = False,
     ):
         self._ctx = ctx or default_ctx()
-        _cctx = lt.Context(self._ctx, False)
+        _cctx = lt.Context(self._ctx.__capsule__(), False)
 
-        if _capsule is not None:
-            super().__init__(_cctx, _capsule)
-        elif _lt_obj is not None:
-            super().__init__(_cctx)
-            for i in range(_lt_obj._nfilters()):
-                self._add_filter(_lt_obj._filter(i))
-            chunksize = _lt_obj._chunksize
+        if is_capsule:
+            super().__init__(_cctx, filters)
         else:
             super().__init__(_cctx)
+
             if filters is not None:
                 filters = list(filters)
                 for f in filters:
