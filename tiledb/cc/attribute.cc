@@ -13,68 +13,25 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-void set_fill_value(Attribute &attr, py::array value) {
-  attr.set_fill_value(value.data(), value.nbytes());
-}
-
-py::array get_fill_value(Attribute &attr) {
-  const void *value;
-  uint64_t size;
-
-  attr.get_fill_value(&value, &size);
-
-  auto value_num = attr.cell_val_num();
-  auto value_type = tdb_to_np_dtype(attr.type(), value_num);
-
-  if (is_tdb_str(attr.type())) {
-    value_type = py::dtype("|S1");
-    value_num = size;
-  }
-
-  // record type
-  if (py::str(value_type.attr("kind")) == py::str("V")) {
-    value_num = 1;
-  }
-
-  return py::array(value_type, value_num, value);
-}
-
 void init_attribute(py::module &m) {
   py::class_<tiledb::Attribute>(m, "Attribute")
-      .def(py::init<Context &, std::string &, tiledb_datatype_t>(),
-           py::keep_alive<1, 2>())
-
+      .def(py::init<Context &, std::string, tiledb_datatype_t>(),
+           py::keep_alive<1, 2>() /* Attribute keeps Context alive */)
       .def(
           py::init<Context &, std::string &, tiledb_datatype_t, FilterList &>(),
-          py::keep_alive<1, 2>())
+          py::keep_alive<1, 2>() /* Attribute keeps Context alive */)
 
-      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
-
-      .def("__capsule__",
-           [](Attribute &attr) {
-             return py::capsule(attr.ptr().get(), "attr", nullptr);
-           })
-
-      .def_property_readonly("_name", &Attribute::name)
-
-      .def_property_readonly("_tiledb_dtype", &Attribute::type)
-
-      .def_property("_nullable", &Attribute::nullable, &Attribute::set_nullable)
-
-      .def_property("_ncell", &Attribute::cell_val_num,
+      .def_property_readonly("name", &Attribute::name)
+      .def_property_readonly("dtype", &Attribute::type)
+      .def_property("nullable", &Attribute::nullable, &Attribute::set_nullable)
+      .def_property("ncell", &Attribute::cell_val_num,
                     &Attribute::set_cell_val_num)
-
-      .def_property_readonly("_var", &Attribute::variable_sized)
-
-      .def_property("_filters", &Attribute::filter_list,
+      //   .def_property("fill", &Attribute::get_fill_value,
+      //                 &Attribute::set_fill_value)
+      .def_property_readonly("var", &Attribute::variable_sized)
+      .def_property("filters", &Attribute::filter_list,
                     &Attribute::set_filter_list)
-
-      .def_property_readonly("_cell_size", &Attribute::cell_size)
-
-      .def_property("_fill", get_fill_value, set_fill_value)
-
-      .def("_dump", [](Attribute &attr) { attr.dump(); });
-  ;
+      .def_property_readonly("cell_size", &Attribute::cell_size);
 }
 
 } // namespace libtiledbcpp
