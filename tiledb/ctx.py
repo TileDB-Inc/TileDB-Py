@@ -1,15 +1,397 @@
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Union
+import io
+import sys
+from typing import TYPE_CHECKING, Optional, Union
 
-if TYPE_CHECKING:
-    from tiledb import Ctx, Config
 
 import tiledb
+import tiledb.cc as lt
 
 _ctx_var = ContextVar("ctx")
 
 already_warned = False
+
+
+class Config(lt.Config):
+    """TileDB Config class
+
+    The Config object stores configuration parameters for both TileDB Embedded
+    and TileDB-Py.
+
+    For TileDB Embedded parameters, see:
+
+        https://docs.tiledb.com/main/how-to/configuration#configuration-parameters
+
+    The following configuration options are supported by TileDB-Py:
+
+        - `py.init_buffer_bytes`:
+
+           Initial allocation size in bytes for attribute and dimensions buffers.
+           If result size exceed the pre-allocated buffer(s), then the query will return
+           incomplete and TileDB-Py will allocate larger buffers and resubmit.
+           Specifying a sufficiently large buffer size will often improve performance.
+           Default 10 MB (1024**2 * 10).
+
+        - `py.use_arrow`:
+
+           Use `pyarrow` from the Apache Arrow project to convert
+           query results into Pandas dataframe format when requested.
+           Default `True`.
+
+        - `py.deduplicate`:
+
+           Attempt to deduplicate Python objects during buffer
+           conversion to Python. Deduplication may reduce memory usage for datasets
+           with many identical strings, at the cost of some performance reduction
+           due to hash calculation/lookup for each object.
+
+    Unknown parameters will be ignored!
+
+    :param dict params: Set parameter values from dict like object
+    :param str path: Set parameter values from persisted Config parameter file
+    """
+
+    def __init__(self, params: dict = None, path: str = None, _lt_obj=None):
+        if _lt_obj is not None:
+            return super().__init__(dict(_lt_obj._iter()))
+
+        super().__init__()
+
+        if path is not None:
+            self.load(path)
+
+        if params is not None:
+            self.update(params)
+
+    @staticmethod
+    def load(uri: str):
+        """Constructs a Config class instance from config parameters loaded from a local Config file
+
+        :parameter str uri: a local URI config file path
+        :rtype: tiledb.Config
+        :return: A TileDB Config instance with persisted parameter values
+        :raises TypeError: `uri` cannot be converted to a unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        return lt.Config(uri)
+
+    def __setitem__(self, key: str, value: str):
+        """Sets a config parameter value.
+
+        :param str key: Name of parameter to set
+        :param str value: Value of parameter to set
+        :raises TypeError: `key` or `value` cannot be encoded into a UTF-8 string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        super().set(str(key), str(value))
+
+    def get(self, key: str, raise_keyerror: bool = True):
+        try:
+            return super().get(key)
+        except Exception:
+            if raise_keyerror:
+                raise KeyError(key)
+            else:
+                return None
+
+    def __getitem__(self, key: str):
+        """Gets a config parameter value.
+
+        :param str key: Name of parameter to get
+        :return: Config parameter value string
+        :rtype str:
+        :raises TypeError: `key` cannot be encoded into a UTF-8 string
+        :raises KeyError: Config parameter not found
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        return self.get(key, True)
+
+    def __delitem__(self, key: str):
+        """
+        Removes a configured parameter (resetting it to its default).
+
+        :param str key: Name of parameter to reset.
+        :raises TypeError: `key` cannot be encoded into a UTF-8 string
+
+        """
+        super().unset(key)
+
+    def __iter__(self):
+        """Returns an iterator over the Config parameters (keys)"""
+        return ConfigKeys(self)
+
+    def __len__(self):
+        """Returns the number of parameters (keys) held by the Config object"""
+        return sum(1 for _ in self)
+
+    def __eq__(self, config):
+        if not isinstance(config, Config):
+            return False
+        keys = set(self.keys())
+        okeys = set(config.keys())
+        if keys != okeys:
+            return False
+        for k in keys:
+            val, oval = self[k], config[k]
+            if val != oval:
+                return False
+        return True
+
+    def __repr__(self):
+        colnames = ["Parameter", "Value"]
+        params = list(self.keys())
+        values = list(map(repr, self.values()))
+        colsizes = [
+            max(len(colnames[0]), *map(len, (p for p in params))),
+            max(len(colnames[1]), *map(len, (v for v in values))),
+        ]
+        format_str = " | ".join("{{:<{}}}".format(i) for i in colsizes)
+        output = []
+        output.append(format_str.format(colnames[0], colnames[1]))
+        output.append(format_str.format("-" * colsizes[0], "-" * colsizes[1]))
+        output.extend(format_str.format(p, v) for p, v in zip(params, values))
+        return "\n".join(output)
+
+    def _repr_html_(self):
+        output = io.StringIO()
+
+        output.write("<table>")
+
+        output.write("<tr>")
+        output.write("<th>Parameter</th>")
+        output.write("<th>Value</th>")
+        output.write("</tr>")
+
+        params = list(self.keys())
+        values = list(map(repr, self.values()))
+
+        for p, v in zip(params, values):
+            output.write("<tr>")
+            output.write(f"<td>{p}</td>")
+            output.write(f"<td>{v}</td>")
+            output.write("</tr>")
+
+        output.write("</table>")
+
+        return output.getvalue()
+
+    def items(self, prefix: str = ""):
+        """Returns an iterator object over Config parameters, values
+
+        :param str prefix: return only parameters with a given prefix
+        :rtype: ConfigItems
+        :returns: iterator over Config parameter, value tuples
+
+        """
+        return ConfigItems(self, prefix=prefix)
+
+    def keys(self, prefix: str = ""):
+        """Returns an iterator object over Config parameters (keys)
+
+        :param str prefix: return only parameters with a given prefix
+        :rtype: ConfigKeys
+        :returns: iterator over Config parameter string keys
+
+        """
+        return ConfigKeys(self, prefix=prefix)
+
+    def values(self, prefix: str = ""):
+        """Returns an iterator object over Config values
+
+        :param str prefix: return only parameters with a given prefix
+        :rtype: ConfigValues
+        :returns: iterator over Config string values
+
+        """
+        return ConfigValues(self, prefix=prefix)
+
+    def dict(self, prefix: str = ""):
+        """Returns a dict representation of a Config object
+
+        :param str prefix: return only parameters with a given prefix
+        :rtype: dict
+        :return: Config parameter / values as a a Python dict
+
+        """
+        return dict(ConfigItems(self, prefix=prefix))
+
+    def clear(self):
+        """Unsets all Config parameters (returns them to their default values)"""
+        for k in self.keys():
+            del self[k]
+
+    # def get(self, key, *args: Optional[str]):
+    #     """Gets the value of a config parameter, or a default value.
+
+    #     :param str key: Config parameter
+    #     :param args: return `arg` if Config does not contain parameter `key`
+    #     :return: Parameter value, `arg` or None.
+
+    #     """
+    #     nargs = len(args)
+    #     if nargs > 1:
+    #         raise TypeError("get expected at most 2 arguments, got {}".format(nargs))
+    #     try:
+    #         return self[key]
+    #     except KeyError:
+    #         return args[0] if nargs == 1 else None
+
+    def update(self, odict: dict):
+        """Update a config object with parameter, values from a dict like object
+
+        :param odict: dict-like object containing parameter, values to update Config.
+
+        """
+        super().update(dict(odict))
+
+    def from_file(self, path: str):
+        """Update a Config object with from a persisted config file
+
+        :param path: A local Config file path
+
+        """
+        config = Config.load(path)
+        self.update(config)
+
+    def save(self, uri: str):
+        """Persist Config parameter values to a config file
+
+        :parameter str uri: a local URI config file path
+        :raises TypeError: `uri` cannot be converted to a unicode string
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        """
+        super().save_to_file(uri)
+
+
+class ConfigKeys:
+    """
+    An iterator object over Config parameter strings (keys)
+    """
+
+    def __init__(self, config: Config, prefix: str = ""):
+        self.config_items = ConfigItems(config, prefix=prefix)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        (k, _) = self.config_items.__next__()
+        return k
+
+
+class ConfigValues:
+    """
+    An iterator object over Config parameter value strings
+    """
+
+    def __init__(self, config: Config, prefix: str = ""):
+        self.config_items = ConfigItems(config, prefix=prefix)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        (_, v) = self.config_items.__next__()
+        return v
+
+
+class ConfigItems:
+    """
+    An iterator object over Config parameter, values
+
+    :param config: TileDB Config object
+    :type config: tiledb.Config
+    :param prefix: (default "") Filter paramter names with given prefix
+    :type prefix: str
+
+    """
+
+    def __init__(self, config: Config, prefix: str = ""):
+        self.config = config
+        self.iter = config._iter(prefix)
+
+    def __iter__(self):
+        return self.iter
+
+    def __next__(self):
+        return self.iter.__next__()
+
+
+class Ctx(lt.Context):
+    """Class representing a TileDB context.
+
+    A TileDB context wraps a TileDB storage manager.
+
+    :param config: Initialize Ctx with given config parameters
+    :type config: tiledb.Config or dict
+
+    """
+
+    def __init__(self, config: Config = None):
+        _config = lt.Config()
+
+        if config is not None:
+            if isinstance(config, lt.Config):
+                _config = config
+            elif isinstance(config, Config):
+                _config.update(config.dict())
+            elif isinstance(config, dict):
+                _config.update(config)
+            else:
+                raise TypeError(
+                    "Ctx's config argument expects type `tiledb.Config` or `dict`"
+                )
+
+        super().__init__(_config)
+
+        self._set_default_tags()
+
+    def __repr__(self):
+        return "tiledb.Ctx() [see Ctx.config() for configuration]"
+
+    def config(self):
+        """Returns the Config instance associated with the Ctx."""
+        return Config(_lt_obj=super().config())
+
+    def set_tag(self, key: str, value: str):
+        """Sets a (string, string) "tag" on the Ctx (internal)."""
+        super().set_tag(key, value)
+
+    def _set_default_tags(self):
+        """Sets all default tags on the Ctx"""
+        super().set_tag("x-tiledb-api-language", "python")
+        super().set_tag(
+            "x-tiledb-api-language-version",
+            f"{sys.version_info.major}."
+            f"{sys.version_info.minor}."
+            f"{sys.version_info.micro}",
+        )
+        super().set_tag("x-tiledb-api-sys-platform", sys.platform)
+
+    def get_stats(self, print_out: bool = True, json: bool = False):
+        """Retrieves the stats from a TileDB context.
+
+        :param print_out: Print string to console (default True), or return as string
+        :param json: Return stats JSON object (default: False)
+        """
+        stats = super().get_stats()
+
+        if json:
+            import json
+
+            output = json.loads(stats)
+        else:
+            output = stats
+
+        if print_out:
+            print(output)
+        else:
+            return output
 
 
 def check_ipykernel_warn_once():
