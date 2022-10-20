@@ -20,6 +20,11 @@ void init_context(py::module &m) {
            }),
            py::keep_alive<1, 2>())
 
+      .def("__capsule__",
+           [](Context &ctx) {
+             return py::capsule(ctx.ptr().get(), "ctx", nullptr);
+           })
+
       .def("config", &Context::config)
       .def("set_tag", &Context::set_tag)
       .def("get_stats", &Context::stats)
@@ -32,8 +37,20 @@ void init_config(py::module &m) {
       .def(py::init<std::map<std::string, std::string>>())
       .def(py::init<std::string>())
 
+      .def("__capsule__",
+           [](Config &config) {
+             return py::capsule(config.ptr().get(), "config", nullptr);
+           })
+
       .def("set", &Config::set)
       .def("get", &Config::get)
+      .def("update",
+           [](Config &cfg, py::dict &odict) {
+             for (auto item : odict) {
+               cfg.set(item.first.cast<py::str>(), item.second.cast<py::str>());
+             }
+           })
+
       .def("save_to_file", &Config::save_to_file)
       .def("__eq__", &Config::operator==)
       .def("__ne__", &Config::operator!=)
@@ -57,11 +74,11 @@ void init_config(py::module &m) {
              }
            })
       .def(
-          "__iter__",
-          [](Config &cfg) { return py::make_iterator(cfg.begin(), cfg.end()); },
-          py::keep_alive<0, 1>())
-      .def("__del__", &Config::unset)
+          "_iter",
+          [](Config &cfg, std::string prefix) {
+            return py::make_iterator(cfg.begin(), cfg.end());
+          },
+          py::keep_alive<0, 1>(), py::arg("prefix") = "")
       .def("unset", &Config::unset);
 }
-
 }; // namespace libtiledbcpp
