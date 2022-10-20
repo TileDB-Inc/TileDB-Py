@@ -122,7 +122,8 @@ cdef dict execute_multi_index(Array array,
     # NOTE: query_ptr *must* only be freed in caller
 
     cdef:
-        tiledb_ctx_t* ctx_ptr = array.ctx.ptr
+        tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
+            array.ctx.__capsule__(), "ctx")
         tiledb_query_status_t query_status
 
     cdef:
@@ -292,7 +293,8 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
                          "'F' (TILEDB_COL_MAJOR), "\
                          "or 'G' (TILEDB_GLOBAL_ORDER)")
 
-    cdef tiledb_ctx_t* ctx_ptr = array.ctx.ptr
+    cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
+        array.ctx.__capsule__(), "ctx")
     cdef tiledb_array_t* array_ptr = array.ptr
     cdef tiledb_query_t* query_ptr = NULL
 
