@@ -652,6 +652,7 @@ TILEDB_MAIN_SOURCES = [
     "tiledb/npbuffer.cc",
     "tiledb/fragment.cc",
     "tiledb/schema_evolution.cc",
+    "tiledb/util.cc",
     "tiledb/tests/test_metadata.cc",
     # TODO currently included in core.cc due to dependency.
     #      need to un-comment after refactor.
