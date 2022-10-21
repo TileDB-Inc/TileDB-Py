@@ -1,10 +1,12 @@
 name: Daily Test Build TileDB-Py Against Core
 
-on:
-  workflow_dispatch:
-  schedule:
-    # runs every day at 5:00 UTC (1:00AM EST / Midnight CST)
-    - cron: "0 5 * * *"
+on: [push]
+
+#on:
+#  workflow_dispatch:
+#  schedule:
+#    # runs every day at 5:00 UTC (1:00AM EST / Midnight CST)
+#    - cron: "0 5 * * *"
 
 jobs:
   test-wheels-on-azure:
