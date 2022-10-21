@@ -45,9 +45,9 @@ class TestFilterTest(DiskTestCase):
         attr = tiledb.Attr(filters=filter_list2)
         self.assertEqual(len(attr.filters), 1)
 
-    def test_all_filters(self):
-        # test initialization
-        filters = [
+    @pytest.mark.parametrize(
+        "filter",
+        [
             tiledb.NoOpFilter(),
             tiledb.GzipFilter(),
             tiledb.ZstdFilter(),
@@ -63,31 +63,34 @@ class TestFilterTest(DiskTestCase):
             tiledb.ChecksumSHA256Filter(),
             tiledb.ChecksumMD5Filter(),
             tiledb.FloatScaleFilter(),
-        ]
+            tiledb.XORFilter(),
+        ],
+    )
+    def test_all_filters(self, filter):
+        # test initialization
         # make sure that repr works and round-trips correctly
-        for f in filters:
-            # some of these have attributes, so we just check the class name here
-            self.assertTrue(type(f).__name__ in repr(f))
+        # some of these have attributes, so we just check the class name here
+        self.assertTrue(type(filter).__name__ in repr(filter))
 
-            tmp_globals = dict()
-            setup = "from tiledb import *"
-            exec(setup, tmp_globals)
+        tmp_globals = dict()
+        setup = "from tiledb import *"
+        exec(setup, tmp_globals)
 
-            filter_repr = repr(f)
-            new_filter = None
-            try:
-                new_filter = eval(filter_repr, tmp_globals)
-            except Exception:
-                warn_str = (
-                    """Exception during FilterTest filter repr eval"""
-                    + """, filter repr string was:\n"""
-                    + """'''"""
-                    + """\n{}\n'''""".format(filter_repr)
-                )
-                warnings.warn(warn_str)
-                raise
+        filter_repr = repr(filter)
+        new_filter = None
+        try:
+            new_filter = eval(filter_repr, tmp_globals)
+        except Exception as exc:
+            warn_str = (
+                """Exception during FilterTest filter repr eval"""
+                + """, filter repr string was:\n"""
+                + """'''"""
+                + """\n{}\n'''""".format(filter_repr)
+            )
+            warnings.warn(warn_str)
+            raise
 
-            self.assertEqual(new_filter, f)
+        self.assertEqual(new_filter, filter)
 
     def test_dictionary_encoding(self):
         path = self.path("test_dictionary_encoding")
