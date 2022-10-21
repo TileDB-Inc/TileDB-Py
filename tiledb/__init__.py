@@ -70,6 +70,7 @@ from .filter import (
     RleFilter,
     DoubleDeltaFilter,
     DictionaryFilter,
+    XORFilter,
     BitShuffleFilter,
     ByteShuffleFilter,
     BitWidthReductionFilter,

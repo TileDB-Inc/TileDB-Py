@@ -522,14 +522,11 @@ class FloatScaleFilter(Filter):
     Filter that stores floats as integers in a reduced representation via scaling.
     The reduced storage space is in lieu of some precision loss. The float scaling
     filter takes three parameters: the scale, the offset, and the byte width.
-
     On write, the float scaling filter applies the scale factor and offset,
     and stores the value of round((raw_float - offset) / scale) as an
     integer with the specified NumPy dtype.
-
     On read, the float scaling filter will reverse the scale factor and offset,
     and returns the floating point data, with a potential loss of precision.
-
     :param factor: the scaling factor used to translate the data
     :type factor: float
     :param offset: the offset value used to translate the data
@@ -538,9 +535,7 @@ class FloatScaleFilter(Filter):
     :type np.integer:
     :param ctx: A TileDB Context
     :type ctx: tiledb.Ctx
-
     **Example:**
-
     >>> import tiledb, numpy as np, tempfile
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
@@ -548,7 +543,6 @@ class FloatScaleFilter(Filter):
     ...                      filters=tiledb.FilterList([tiledb.FloatScaleFilter(1, 0)]))
     ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
-
     """
 
     def __init__(
@@ -622,7 +616,30 @@ class FloatScaleFilter(Filter):
         )
 
 
-#
+class XORFilter(Filter):
+    """
+    XOR  filter.
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.XORFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
+    ...     tiledb.DenseArray.create(tmp + "/array", schema)
+
+    """
+
+    def __init__(self, ctx: "Ctx" = None):
+        self._ctx = ctx or default_ctx()
+        super().__init__(lt.FilterType.XOR, self._ctx)
+
+    def _attrs_(self):
+        return {}
+
+
 class FilterList(lt.FilterList):
     """
     An ordered list of Filter objects for filtering TileDB data.
@@ -669,6 +686,7 @@ class FilterList(lt.FilterList):
         lt.FilterType.CHECKSUM_SHA256: ChecksumSHA256Filter,
         lt.FilterType.DICTIONARY: DictionaryFilter,
         lt.FilterType.SCALE_FLOAT: FloatScaleFilter,
+        lt.FilterType.XOR: XORFilter,
         lt.FilterType.NONE: NoOpFilter,
     }
 
