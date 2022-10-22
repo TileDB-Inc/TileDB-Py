@@ -45,12 +45,16 @@ void init_enums(py::module &m) {
           DFENUM(BIT_WIDTH_REDUCTION) DFENUM(BITSHUFFLE) DFENUM(BYTESHUFFLE)
               DFENUM(POSITIVE_DELTA) DFENUM(CHECKSUM_MD5)
                   DFENUM(CHECKSUM_SHA256) DFENUM(SCALE_FLOAT) DFENUM(DICTIONARY)
-                      DFENUM(XOR);
+                      DFENUM(XOR) DFENUM(WEBP);
 
   py::enum_<tiledb_filter_option_t>(m, "FilterOption") DENUM(COMPRESSION_LEVEL)
       DENUM(BIT_WIDTH_MAX_WINDOW) DENUM(POSITIVE_DELTA_MAX_WINDOW)
           DENUM(SCALE_FLOAT_BYTEWIDTH) DENUM(SCALE_FLOAT_FACTOR)
-              DENUM(SCALE_FLOAT_OFFSET);
+              DENUM(SCALE_FLOAT_OFFSET) DENUM(WEBP_INPUT_FORMAT)
+                  DENUM(WEBP_QUALITY) DENUM(WEBP_LOSSLESS);
+
+//  py::enum_<tiledb::WebpInputFormat>(m, "WebpInputFormat") DENUM(WEBP_NONE)
+//      DENUM(WEBP_RGB) DENUM(WEBP_RGBA) DENUM(WEBP_BGR) DENUM(WEBP_BGRA);
 
   py::enum_<tiledb_encryption_type_t>(m, "EncryptionType") DENUM(NO_ENCRYPTION)
       DENUM(AES_256_GCM);

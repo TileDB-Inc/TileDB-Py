@@ -621,7 +621,79 @@ class XORFilter(Filter):
     def _attrs_(self):
         return {}
 
+class WebpFilter(Filter):
+    """
+    WebP filter.
 
+    **Example:**
+    TODO
+
+    """
+    def __init__(
+            self,
+            input_format: int = None,
+            quality: float = None,
+            lossless: bool = None,
+            ctx: "Ctx" = None,
+    ):
+        self._input_format = input_format
+        self._quality = quality
+        self._lossless = lossless
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.WEBP, self._ctx)
+
+        if input_format is not None:
+            self._set_option(
+                lt.Context(self._ctx.__capsule__(), False),
+                lt.FilterOption.WEBP_INPUT_FORMAT,
+                input_format
+            )
+
+        if quality is not None:
+            self._set_option(
+                lt.Context(self._ctx.__capsule__(), False),
+                lt.FilterOption.WEBP_QUALITY,
+                float(quality)
+            )
+
+        if lossless is not None:
+            self._set_option(
+                lt.Context(self._ctx.__capsule__(), False),
+                lt.FilterOption.WEBP_LOSSLESS,
+                lossless
+            )
+
+    def _attrs_(self):
+        return {
+            "input_format": self._input_format,
+            "quality": self._quality,
+            "lossless": self._lossless,
+        }
+
+    @property
+    def input_format(self):
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.WEBP_INPUT_FORMAT,
+        )
+
+    @property
+    def quality(self):
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.WEBP_QUALITY,
+        )
+
+    @property
+    def lossless(self):
+        return self._get_option(
+            lt.Context(self._ctx.__capsule__(), False),
+            lt.FilterOption.WEBP_LOSSLESS,
+        )
+
+
+#
 class FilterList(lt.FilterList):
     """
     An ordered list of Filter objects for filtering TileDB data.
@@ -669,6 +741,7 @@ class FilterList(lt.FilterList):
         lt.FilterType.DICTIONARY: DictionaryFilter,
         lt.FilterType.SCALE_FLOAT: FloatScaleFilter,
         lt.FilterType.XOR: XORFilter,
+        lt.FilterType.WEBP: WebpFilter,
         lt.FilterType.NONE: NoOpFilter,
     }
 
