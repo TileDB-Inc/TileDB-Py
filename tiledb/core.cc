@@ -703,22 +703,19 @@ public:
   }
 #endif
 
-  void set_attr_cond(py::object attr_cond) {
-    if (!attr_cond.is(py::none())) {
-      py::object init_pyqc = attr_cond.attr("init_query_condition");
+  void set_cond(py::object cond) {
+    py::object init_pyqc = cond.attr("init_query_condition");
 
-      try {
-        attrs_ = init_pyqc(pyschema_, attrs_).cast<std::vector<std::string>>();
-      } catch (tiledb::TileDBError &e) {
-        TPY_ERROR_LOC(e.what());
-      } catch (py::error_already_set &e) {
-        TPY_ERROR_LOC(e.what());
-      }
-
-      auto pyqc = (attr_cond.attr("c_obj")).cast<PyQueryCondition>();
-      auto qc = pyqc.ptr().get();
-      query_->set_condition(*qc);
+    try {
+      attrs_ = init_pyqc(pyschema_, attrs_).cast<std::vector<std::string>>();
+    } catch (tiledb::TileDBError &e) {
+      TPY_ERROR_LOC(e.what());
+    } catch (py::error_already_set &e) {
+      TPY_ERROR_LOC(e.what());
     }
+    auto pyqc = (cond.attr("c_obj")).cast<PyQueryCondition>();
+    auto qc = pyqc.ptr().get();
+    query_->set_condition(*qc);
   }
 
   bool is_dimension(std::string name) { return domain_->has_dimension(name); }
@@ -1605,7 +1602,7 @@ void init_core(py::module &m) {
           .def("set_ranges_bulk", &PyQuery::set_ranges_bulk)
 #endif
           .def("set_subarray", &PyQuery::set_subarray)
-          .def("set_attr_cond", &PyQuery::set_attr_cond)
+          .def("set_cond", &PyQuery::set_cond)
 #if defined(TILEDB_SERIALIZATION)
           .def("set_serialized_query", &PyQuery::set_serialized_query)
 #endif

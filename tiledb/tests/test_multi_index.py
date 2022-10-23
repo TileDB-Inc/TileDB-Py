@@ -867,7 +867,7 @@ class TestMultiRange(DiskTestCase):
             A[np.arange(10)] = {"a": a, "b": b}
 
         with tiledb.open(uri, mode="r") as A:
-            q = A.query(attr_cond=tiledb.QueryCondition("a >= 5"), attrs=["a"])
+            q = A.query(cond="a >= 5", attrs=["a"])
             assert {"a", "dim"} == q.multi_index[:].keys() == q[:].keys()
             assert_array_equal(q.multi_index[:]["a"], q[:]["a"])
             assert_array_equal(q.multi_index[:]["a"], q.df[:]["a"])

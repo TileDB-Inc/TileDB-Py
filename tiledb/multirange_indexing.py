@@ -1,43 +1,25 @@
-import dataclasses
 import json
 import time
 import weakref
-from enum import Enum
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
-from contextvars import ContextVar, copy_context
+from contextvars import ContextVar
 from numbers import Real
 from dataclasses import dataclass
-import importlib
-from itertools import zip_longest
-from typing import (
-    Any,
-    ContextManager,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    # TYPE_CHECKING,
-    Union,
-    cast,
-)
+import warnings
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
 
 
 import numpy as np
 
-from tiledb import Array, ArraySchema, TileDBError
+from tiledb import Array, ArraySchema, QueryCondition, TileDBError
 from tiledb.main import PyQuery, increment_stat, use_stats
 from tiledb.libtiledb import Metadata, Query
 
 from .dataframe_ import check_dataframe_deps
 
 current_timer: ContextVar[str] = ContextVar("timer_scope")
-
-# has_pandas = importlib.util.find_spec("pandas") is not None
-# has_pyarrow = importlib.util.find_spec("pyarrow") is not None
 
 try:
     import pyarrow
@@ -417,8 +399,23 @@ def _get_pyquery(
 
     pyquery._return_incomplete = return_incomplete
     pyquery._preload_metadata = preload_metadata
-    if query and query.attr_cond is not None:
-        pyquery.set_attr_cond(query.attr_cond)
+    if query and query.cond is not None:
+        if isinstance(query.cond, str):
+            pyquery.set_cond(QueryCondition(query.cond))
+        elif isinstance(query.cond, QueryCondition):
+            from tiledb import version as tiledbpy_version
+
+            assert tiledbpy_version() < (0, 19, 0)
+            warnings.warn(
+                "Passing `tiledb.QueryCondition` to `cond` is no longer "
+                "required and is slated for removal in version 0.19.0. "
+                "Instead of `cond=tiledb.QueryCondition('expression')`, "
+                "use `cond='expression'`.",
+                DeprecationWarning,
+            )
+            pyquery.set_cond(query.cond)
+        else:
+            raise TypeError("`cond` expects type str.")
 
     return pyquery
 

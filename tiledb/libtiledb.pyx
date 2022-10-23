@@ -4129,7 +4129,7 @@ cdef class Query(object):
     See documentation of Array.query
     """
 
-    def __init__(self, array, attrs=None, attr_cond=None, dims=None,
+    def __init__(self, array, attrs=None, cond=None, dims=None,
                  coords=False, index_col=True,
                  order=None, use_arrow=None, return_arrow=False,
                  return_incomplete=False):
@@ -4158,7 +4158,7 @@ cdef class Query(object):
                 if not array.schema.has_attr(name):
                     raise TileDBError(f"Selected attribute does not exist: '{name}'")
         self.attrs = attrs
-        self.attr_cond = attr_cond
+        self.cond = cond
 
         if order == None:
             if array.schema.sparse:
@@ -4189,7 +4189,7 @@ cdef class Query(object):
 
         return self.array.subarray(selection,
                                    attrs=self.attrs,
-                                   attr_cond=self.attr_cond,
+                                   cond=self.cond,
                                    coords=self.coords if self.coords else self.dims,
                                    order=self.order)
 
@@ -4200,8 +4200,22 @@ cdef class Query(object):
 
     @property
     def attr_cond(self):
-        """QueryCondition used to filter attributes in Query."""
-        return self.attr_cond
+        from tiledb import version as tiledbpy_version
+
+        assert tiledbpy_version() < (0, 19, 0)
+
+        warnings.warn(
+            "`attr_cond` is now deprecated and is slated for removal in "
+            "version 0.19.0. Use `cond`.",
+            DeprecationWarning,
+        )
+
+        return self.cond
+    
+    @property
+    def cond(self):
+        """QueryCondition used to filter attributes or dimensions in Query."""
+        return self.cond
 
     @property
     def dims(self):
@@ -4396,8 +4410,9 @@ cdef class DenseArrayImpl(Array):
         else:
             return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    def query(self, attrs=None, attr_cond=None, dims=None, coords=False, order='C',
-              use_arrow=None, return_arrow=False, return_incomplete=False):
+    def query(self, attrs=None, attr_cond=None, cond=None, dims=None, 
+              coords=False, order='C', use_arrow=None, return_arrow=False, 
+              return_incomplete=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -4408,7 +4423,7 @@ cdef class DenseArrayImpl(Array):
         :param attrs: the DenseArray attributes to subselect over.
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
-        :param attr_cond: the QueryCondition to filter attributes on.
+        :param cond: the str expression to filter attributes or dimensions on. The expression must be parsable by tiledb.QueryCondition(). See help(tiledb.QueryCondition) for more details.
         :param dims: the DenseArray dimensions to subselect over. If dims is None (default)
             then no dimensions are returned, unless coords=True.
         :param coords: if True, return array of coodinate value (default False).
@@ -4444,21 +4459,42 @@ cdef class DenseArrayImpl(Array):
         ...         A.query(attrs=("a1",))[0:5]
         OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
 
-        """
+        """            
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
-        return Query(self, attrs=attrs, attr_cond=attr_cond, dims=dims,
+
+        if attr_cond is not None:
+            from tiledb import version as tiledbpy_version
+
+            assert tiledbpy_version() < (0, 19, 0)
+
+            if cond is not None:
+                raise TileDBError("Both `attr_cond` and `cond` were passed. "
+                    "Only use `cond`. `attr_cond` is now deprecated " 
+                    "and is slated for removal in version 0.19.0."
+                )
+            
+            warnings.warn(
+                "`attr_cond` is now deprecated and is slated for removal in "
+                "version 0.19.0. Use `cond`.",
+                DeprecationWarning,
+            )
+            cond = attr_cond
+        
+        return Query(self, attrs=attrs, cond=cond, dims=dims,
                      coords=coords, order=order, use_arrow=use_arrow,
                      return_arrow=return_arrow,
                      return_incomplete=return_incomplete)
 
-    def subarray(self, selection, attrs=None, attr_cond=None, coords=False, order=None):
+    def subarray(self, selection, attrs=None, cond=None, attr_cond=None,
+                 coords=False, order=None):
         """Retrieve data cells for an item or region of the array.
 
         Optionally subselect over attributes, return dense result coordinate values,
         and specify a layout a result layout / cell-order.
 
         :param selection: tuple of scalar and/or slice objects
+        :param cond: the str expression to filter attributes or dimensions on. The expression must be parsable by tiledb.QueryCondition(). See help(tiledb.QueryCondition) for more details.
         :param coords: if True, return array of coordinate value (default False).
         :param attrs: the DenseArray attributes to subselect over.
             If attrs is None (default) all array attributes will be returned.
@@ -4488,6 +4524,25 @@ cdef class DenseArrayImpl(Array):
         """
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
+
+        if attr_cond is not None:
+            from tiledb import version as tiledbpy_version
+
+            assert tiledbpy_version() < (0, 19, 0)
+
+            if cond is not None:
+                raise TileDBError("Both `attr_cond` and `cond` were passed. "
+                    "Only use `cond`. `attr_cond` is now deprecated " 
+                    "and is slated for removal in version 0.19.0."
+                )
+            
+            warnings.warn(
+                "`attr_cond` is now deprecated and is slated for removal in "
+                "version 0.19.0. Use `cond`.",
+                DeprecationWarning,
+            )
+            cond = attr_cond
+
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'C':
             layout = TILEDB_ROW_MAJOR
@@ -4520,7 +4575,7 @@ cdef class DenseArrayImpl(Array):
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         subarray = index_domain_subarray(self, self.schema.domain, idx)
         # Note: we included dims (coords) above to match existing semantics
-        out = self._read_dense_subarray(subarray, attr_names, attr_cond, layout,
+        out = self._read_dense_subarray(subarray, attr_names, cond, layout,
                                         coords)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
@@ -4538,16 +4593,33 @@ cdef class DenseArrayImpl(Array):
 
 
     cdef _read_dense_subarray(self, list subarray, list attr_names,
-                              object attr_cond, tiledb_layout_t layout,
+                              object cond, tiledb_layout_t layout,
                               bint include_coords):
 
         from tiledb.main import PyQuery
+        
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
-        try:
-            q.set_attr_cond(attr_cond)
-        except TileDBError as e:
-            raise TileDBError(e)
+
+        if cond is not None:
+            from .query_condition import QueryCondition
+
+            if isinstance(cond, str):
+                q.set_cond(QueryCondition(cond))
+            elif isinstance(cond, QueryCondition):
+                from tiledb import version as tiledbpy_version
+                assert tiledbpy_version() < (0, 19, 0)
+                warnings.warn(
+                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
+                    "required and is slated for removal in version 0.19.0. "
+                    "Instead of `cond=tiledb.QueryCondition('expression')`, "
+                    "use `cond='expression'`.",
+                    DeprecationWarning,
+                )
+                q.set_cond(cond)
+            else:
+                raise TypeError("`cond` expects type str.")
+
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
         cdef object results = OrderedDict()
@@ -5146,8 +5218,9 @@ cdef class SparseArrayImpl(Array):
         """
         return self.subarray(selection)
 
-    def query(self, attrs=None, attr_cond=None, dims=None, index_col=True,
-              coords=None, order='U', use_arrow=None, return_arrow=None, return_incomplete=False):
+    def query(self, attrs=None, cond=None, attr_cond=None, dims=None, 
+              index_col=True, coords=None, order='U', use_arrow=None, 
+              return_arrow=None, return_incomplete=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -5158,7 +5231,7 @@ cdef class SparseArrayImpl(Array):
         :param attrs: the SparseArray attributes to subselect over.
             If attrs is None (default) all array attributes will be returned.
             Array attributes can be defined by name or by positional index.
-        :param attr_cond: the QueryCondition to filter attributes on.
+        :param cond: the str expression to filter attributes or dimensions on. The expression must be parsable by tiledb.QueryCondition(). See help(tiledb.QueryCondition) for more details.
         :param dims: the SparseArray dimensions to subselect over. If dims is None (default)
             then all dimensions are returned, unless coords=False.
         :param index_col: For dataframe queries, override the saved index information,
@@ -5195,6 +5268,24 @@ cdef class SparseArrayImpl(Array):
         """
         if not self.isopen:
             raise TileDBError("SparseArray is not opened")
+        
+        if attr_cond is not None:
+            from tiledb import version as tiledbpy_version
+
+            assert tiledbpy_version() < (0, 19, 0)
+
+            if cond is not None:
+                raise TileDBError("Both `attr_cond` and `cond` were passed. "
+                    "Only use `cond`. `attr_cond` is now deprecated " 
+                    "and is slated for removal in version 0.19.0."
+                )
+            
+            warnings.warn(
+                "`attr_cond` is now deprecated and is slated for removal in "
+                "version 0.19.0. Use `cond`.",
+                DeprecationWarning,
+            )
+            cond = attr_cond
 
         # backwards compatibility
         _coords = coords
@@ -5203,13 +5294,13 @@ cdef class SparseArrayImpl(Array):
         elif dims is None and coords is None:
             _coords = True
 
-        return Query(self, attrs=attrs, attr_cond=attr_cond, dims=dims,
+        return Query(self, attrs=attrs, cond=cond, dims=dims,
                      coords=_coords, index_col=index_col, order=order,
                      use_arrow=use_arrow, return_arrow=return_arrow,
                      return_incomplete=return_incomplete)
 
-    def subarray(self, selection, coords=True, attrs=None, attr_cond=None,
-                 order=None):
+    def subarray(self, selection, coords=True, attrs=None, cond=None, 
+                 attr_cond=None, order=None):
         """
         Retrieve dimension and data cells for an item or region of the array.
 
@@ -5217,6 +5308,7 @@ cdef class SparseArrayImpl(Array):
         and specify a layout a result layout / cell-order.
 
         :param selection: tuple of scalar and/or slice objects
+        :param cond: the str expression to filter attributes or dimensions on. The expression must be parsable by tiledb.QueryCondition(). See help(tiledb.QueryCondition) for more details.
         :param coords: if True, return array of coordinate value (default True).
         :param attrs: the SparseArray attributes to subselect over.
             If attrs is None (default) all array attributes will be returned.
@@ -5252,6 +5344,24 @@ cdef class SparseArrayImpl(Array):
 
         if not self.isopen or self.mode != 'r':
             raise TileDBError("SparseArray is not opened for reading")
+        
+        if attr_cond is not None:
+            from tiledb import version as tiledbpy_version
+
+            assert tiledbpy_version() < (0, 19, 0)
+
+            if cond is not None:
+                raise TileDBError("Both `attr_cond` and `cond` were passed. "
+                    "Only use `cond`. `attr_cond` is now deprecated " 
+                    "and is slated for removal in version 0.19.0."
+                )
+            
+            warnings.warn(
+                "`attr_cond` is now deprecated and is slated for removal in "
+                "version 0.19.0. Use `cond`.",
+                DeprecationWarning,
+            )
+            cond = attr_cond
 
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'U':
@@ -5285,7 +5395,7 @@ cdef class SparseArrayImpl(Array):
         idx = replace_ellipsis(dom.ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
         subarray = index_domain_subarray(self, dom, idx)
-        return self._read_sparse_subarray(subarray, attr_names, attr_cond, layout)
+        return self._read_sparse_subarray(subarray, attr_names, cond, layout)
 
     def __repr__(self):
         if self.isopen:
@@ -5295,19 +5405,35 @@ cdef class SparseArrayImpl(Array):
             return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
     cdef _read_sparse_subarray(self, list subarray, list attr_names,
-                               object attr_cond, tiledb_layout_t layout):
+                               object cond, tiledb_layout_t layout):
         cdef object out = OrderedDict()
         # all results are 1-d vectors
         cdef np.npy_intp dims[1]
         cdef Py_ssize_t nattr = len(attr_names)
 
         from tiledb.main import PyQuery
+        
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
-        try:
-            q.set_attr_cond(attr_cond)
-        except TileDBError as e:
-            raise TileDBError(e)
+
+        if cond is not None:
+            from .query_condition import QueryCondition
+
+            if isinstance(cond, str):
+                q.set_cond(QueryCondition(cond))
+            elif isinstance(cond, QueryCondition):
+                from tiledb import version as tiledbpy_version
+                assert tiledbpy_version() < (0, 19, 0)
+                warnings.warn(
+                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
+                    "required and is slated for removal in version 0.19.0. "
+                    "Instead of `cond=tiledb.QueryCondition('expression')`, "
+                    "use `cond='expression'`.",
+                    DeprecationWarning,
+                )
+                q.set_cond(cond)
+            else:
+                raise TypeError("`cond` expects type str.")
         q.set_ranges([list([x]) for x in subarray])
         q.submit()
 

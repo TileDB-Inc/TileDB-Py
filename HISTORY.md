@@ -10,6 +10,12 @@
 ## Improvements
 * Addition of Utility Function `get_last_ctx_err_str()` for C API [#1351](https://github.com/TileDB-Inc/TileDB-Py/pull/1351)
 
+## API Changes
+* Changes to query conditions [#1341](https://github.com/TileDB-Inc/TileDB-Py/pull/1341)
+    * Support query conditions on sparse dimensions
+    * Deprecate `attr_cond` in favor of `cond`
+    * Deprecate passing `tiledb.QueryCondition` to `cond` in favor of passing string directly
+
 # TileDB-Py 0.17.5 Release Notes
 
 ## Improvements
