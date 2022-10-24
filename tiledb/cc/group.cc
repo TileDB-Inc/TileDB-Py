@@ -127,6 +127,7 @@ void init_group(py::module &m) {
       .def("_member",
            static_cast<Object (Group::*)(std::string) const>(&Group::member))
       .def("_has_member", has_member)
+      .def("_is_relative", &Group::is_relative)
       .def("_dump", &Group::dump);
 }
 
