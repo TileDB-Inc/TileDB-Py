@@ -72,6 +72,7 @@ from .filter import (
     DictionaryFilter,
     XORFilter,
     BitShuffleFilter,
+    BitSortFilter,
     ByteShuffleFilter,
     BitWidthReductionFilter,
     PositiveDeltaFilter,

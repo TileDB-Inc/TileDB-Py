@@ -425,6 +425,30 @@ class BitWidthReductionFilter(Filter):
         )
 
 
+class BitSortFilter(Filter):
+    """
+    <TODO>
+
+    *Only supported for sparse arrays!*
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.BitSortFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
+    ...     tiledb.DenseArray.create(tmp + "/array", schema)
+
+    """
+
+    def __init__(self, ctx: "Ctx" = None):
+        self._ctx = ctx or default_ctx()
+
+        super().__init__(lt.FilterType.BITSORT, self._ctx)
+
+
 class PositiveDeltaFilter(Filter):
     """
     Filter that performs positive-delta encoding.
@@ -687,6 +711,7 @@ class FilterList(lt.FilterList):
         lt.FilterType.DICTIONARY: DictionaryFilter,
         lt.FilterType.SCALE_FLOAT: FloatScaleFilter,
         lt.FilterType.XOR: XORFilter,
+        lt.FilterType.BITSORT: BitSortFilter,
         lt.FilterType.NONE: NoOpFilter,
     }
 

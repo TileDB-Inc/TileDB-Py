@@ -1,4 +1,3 @@
-from math import hypot
 import tiledb
 import time
 import numpy as np

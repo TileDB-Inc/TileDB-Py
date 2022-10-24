@@ -45,7 +45,7 @@ void init_enums(py::module &m) {
           DFENUM(BIT_WIDTH_REDUCTION) DFENUM(BITSHUFFLE) DFENUM(BYTESHUFFLE)
               DFENUM(POSITIVE_DELTA) DFENUM(CHECKSUM_MD5)
                   DFENUM(CHECKSUM_SHA256) DFENUM(SCALE_FLOAT) DFENUM(DICTIONARY)
-                      DFENUM(XOR);
+                      DFENUM(XOR) DFENUM(BITSORT);
 
   py::enum_<tiledb_filter_option_t>(m, "FilterOption") DENUM(COMPRESSION_LEVEL)
       DENUM(BIT_WIDTH_MAX_WINDOW) DENUM(POSITIVE_DELTA_MAX_WINDOW)
