@@ -1,17 +1,19 @@
 # In Progress
 
 ## API Changes
-* Add support for `XORFilter` [#1294](https://github.com/TileDB-Inc/TileDB-Py/pull/1294)
-* Addition of `Array.delete_fragments`; deprecate `tiledb.delete_fragments` [#1329](https://github.com/TileDB-Inc/TileDB-Py/pull/1329)
-* Addition of `Group.is_relative` to check if the URI component of a group member is relative [#1386](https://github.com/TileDB-Inc/TileDB-Py/pull/1386)
 * Changes to query conditions [#1341](https://github.com/TileDB-Inc/TileDB-Py/pull/1341)
     * Support query conditions on sparse dimensions
     * Deprecate `attr_cond` in favor of `cond`
     * Deprecate passing `tiledb.QueryCondition` to `cond` in favor of passing string directly
+* Add support for `XORFilter` [#1294](https://github.com/TileDB-Inc/TileDB-Py/pull/1294)
+* Addition of `Array.delete_fragments`; deprecate `tiledb.delete_fragments` [#1329](https://github.com/TileDB-Inc/TileDB-Py/pull/1329)
+* Array and Group metadata now store bytes as `TILEDB_BLOB` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
+* Addition of `{Array,Group}.metadata.dump()` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
+* Addition of `Group.is_relative` to check if the URI component of a group member is relative [#1386](https://github.com/TileDB-Inc/TileDB-Py/pull/1386)
 
 ## Bug Fixes
 * Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
-* Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings []()
+* Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings [#1372](https://github.com/TileDB-Inc/TileDB-Py/pull/1372)
 
 ## Improvements
 * Addition of Utility Function `get_last_ctx_err_str()` for C API [#1351](https://github.com/TileDB-Inc/TileDB-Py/pull/1351)

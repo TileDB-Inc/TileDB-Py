@@ -8,7 +8,7 @@ import pytest
 from hypothesis import given, settings, strategies as st
 from hypothesis.extra import numpy as st_np
 
-from tiledb.tests.common import DiskTestCase, rand_utf8
+from tiledb.tests.common import assert_captured, DiskTestCase, rand_utf8
 from tiledb.main import metadata_test_aux
 
 
@@ -343,7 +343,7 @@ class MetadataTest(DiskTestCase):
                 self.assertEqual(A.meta[key_int], randints[i])
                 self.assertEqual(A.meta[randutf8s[i]], randutf8s[i])
 
-    def test_ascii_metadata(self):
+    def test_ascii_metadata(self, capfd):
         uri = self.path("test_ascii_metadata")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=1, dtype=np.int64))
@@ -355,3 +355,18 @@ class MetadataTest(DiskTestCase):
 
         with tiledb.open(uri) as A:
             assert A.meta["abc"] == b"xyz"
+            A.meta.dump()
+            assert_captured(capfd, "Type: STRING_ASCII")
+
+    def test_bytes_metadata(self, capfd):
+        path = self.path()
+        with tiledb.from_numpy(path, np.ones((5,), np.float64)):
+            pass
+
+        with tiledb.Array(path, mode="w") as A:
+            A.meta["bytes"] = b"blob"
+
+        with tiledb.Array(path, mode="r") as A:
+            assert A.meta["bytes"] == b"blob"
+            A.meta.dump()
+            assert_captured(capfd, "Type: BLOB")

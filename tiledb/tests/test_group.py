@@ -8,8 +8,7 @@ from hypothesis import given, settings, strategies as st
 from hypothesis.extra import numpy as st_np
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, rand_utf8
-from tiledb.main import metadata_test_aux
+from tiledb.tests.common import DiskTestCase
 
 MIN_INT = np.iinfo(np.int64).min
 MAX_INT = np.iinfo(np.int64).max
@@ -105,14 +104,19 @@ class GroupTest(GroupTestCase):
         self.assertTrue(self.is_group(self.group2 + "_moved"))
 
     @pytest.mark.parametrize(
-        "int_data,flt_data,str_data",
+        "int_data,flt_data,str_data,str_type",
         (
-            (-1, -1.5, "asdf"),
-            ([1, 2, 3], [1.5, 2.5, 3.5], b"asdf"),
-            (np.array([1, 2, 3]), np.array([1.5, 2.5, 3.5]), np.array(["x"])),
+            (-1, -1.5, "asdf", "STRING_UTF8"),
+            ([1, 2, 3], [1.5, 2.5, 3.5], b"asdf", "BLOB"),
+            (
+                np.array([1, 2, 3]),
+                np.array([1.5, 2.5, 3.5]),
+                np.array(["x"]),
+                "STRING_UTF8",
+            ),
         ),
     )
-    def test_group_metadata(self, int_data, flt_data, str_data):
+    def test_group_metadata(self, int_data, flt_data, str_data, str_type, capfd):
         def values_equal(lhs, rhs):
             if isinstance(lhs, np.ndarray):
                 if not isinstance(rhs, np.ndarray):
@@ -145,6 +149,14 @@ class GroupTest(GroupTestCase):
         assert "str" in grp.meta
         assert values_equal(grp.meta["str"], str_data)
         time.sleep(0.001)
+
+        grp.meta.dump()
+        metadata_dump = capfd.readouterr().out
+
+        assert "Type: DataType.FLOAT" in metadata_dump
+        assert "Type: DataType.INT" in metadata_dump
+        assert f"Type: DataType.{str_type}" in metadata_dump
+
         grp.close()
 
         grp.open("w")
