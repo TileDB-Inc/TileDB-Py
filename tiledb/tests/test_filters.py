@@ -66,15 +66,11 @@ class TestFilterTest(DiskTestCase):
         self.assertEqual(len(attr.filters), 2)
         self.assertEqual(attr.filters.chunksize, filter_list.chunksize)
 
-    @pytest.mark.parametrize(
-        "attr_type", [np.int64, np.int32, np.float64, "ascii", bytes, str]
-    )
+    @pytest.mark.parametrize("attr_type", [np.int64])
     @pytest.mark.parametrize("filter_type", all_filter_types)
     def test_filter_list(self, attr_type, filter_type):
-        if not isinstance(attr_type, type):
-            return True
-        elif not filter_applicable(filter_type, attr_type):
-            pytest.skip("Filter not supported for attribute type '{attr_type}'")
+        if not filter_applicable(filter_type, attr_type):
+            pytest.mark.skip("Filter not supported for attribute type '{attr_type}'")
 
         # should be constructible without a `filters` keyword arg set
         filter_list1 = tiledb.FilterList()
