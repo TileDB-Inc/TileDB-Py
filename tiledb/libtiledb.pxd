@@ -1142,6 +1142,11 @@ cdef extern from "tiledb/tiledb.h":
         char* path_out,
         unsigned* path_length) nogil
 
+    int tiledb_datatype_to_str(
+        tiledb_datatype_t datatype,
+        const char** datatype_str
+    )
+
 cdef extern from "tiledb/tiledb_experimental.h":
     # Filestore
     int tiledb_filestore_schema_create(

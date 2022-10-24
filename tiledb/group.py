@@ -109,7 +109,7 @@ class Group(lt.Group):
                 )
 
             elif isinstance(value, bytes):
-                self._group._put_metadata(key, lt.DataType.CHAR, len(value), value)
+                self._group._put_metadata(key, lt.DataType.BLOB, len(value), value)
 
             elif isinstance(value, str):
                 value = value.encode("UTF-8")
@@ -128,7 +128,7 @@ class Group(lt.Group):
 
                 self._group._put_metadata(key, _value)
 
-        def __getitem__(self, key: str) -> GroupMetadataValueType:
+        def __getitem__(self, key: str, include_type=False) -> GroupMetadataValueType:
             """
             :param str key: Key of the Group metadata entry
             :rtype: Union[int, float, str, bytes, np.ndarray]
@@ -141,22 +141,36 @@ class Group(lt.Group):
             if self._group._has_metadata(key):
                 data, tdb_type = self._group._get_metadata(key)
                 if tdb_type == lt.DataType.STRING_UTF8:
-                    return str(data.tobytes().decode("UTF-8"))
-                elif tdb_type in (lt.DataType.CHAR, lt.DataType.STRING_ASCII):
-                    return data.tobytes()
+                    value = str(data.tobytes().decode("UTF-8"))
+                    return (value, tdb_type) if include_type else value
+                elif tdb_type in (
+                    lt.DataType.STRING_ASCII,
+                    lt.DataType.BLOB,
+                    lt.DataType.CHAR,
+                ):
+                    value = data.tobytes()
+                    return (value, tdb_type) if include_type else value
                 else:
                     data = tuple(data)
-                    return data[0] if len(data) == 1 else data
+                    value = data[0] if len(data) == 1 else data
+                    return (value, tdb_type) if include_type else value
             elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
                 data, tdb_type = self._group._get_metadata(
                     f"{Group._NP_DATA_PREFIX}{key}"
                 )
                 if tdb_type == lt.DataType.STRING_UTF8:
-                    return str(data.tobytes().decode("UTF-8"))
-                elif tdb_type in (lt.DataType.CHAR, lt.DataType.STRING_ASCII):
-                    return data.tobytes()
+                    value = str(data.tobytes().decode("UTF-8"))
+                    return (value, tdb_type) if include_type else value
+                elif tdb_type in (
+                    lt.DataType.STRING_ASCII,
+                    lt.DataType.BLOB,
+                    lt.DataType.CHAR,
+                ):
+                    value = data.tobytes()
+                    return (value, tdb_type) if include_type else value
                 else:
-                    return data
+                    value = data
+                    return (value, tdb_type) if include_type else value
             else:
                 raise KeyError(f"KeyError: {key}")
 
@@ -198,11 +212,14 @@ class Group(lt.Group):
             """
             return self._group._metadata_num()
 
-        def _iter(self, keys_only: bool = True):
+        def _iter(self, keys_only: bool = True, dump: bool = False):
             """
             Iterate over Group metadata keys or (key, value) tuples
             :param keys_only: whether to yield just keys or values too
             """
+            if keys_only and dump:
+                raise ValueError("keys_only and dump cannot both be True")
+
             metadata_num = self._group._metadata_num()
             for i in range(metadata_num):
                 key = self._group._get_key_from_index(i)
@@ -213,8 +230,18 @@ class Group(lt.Group):
                 if keys_only:
                     yield key
                 else:
-                    val = self.__getitem__(key)
-                    yield key, val
+                    val, val_dtype = self.__getitem__(key, include_type=True)
+
+                    if dump:
+                        yield (
+                            "### Array Metadata ###\n"
+                            f"- Key: {key}\n"
+                            f"- Value: {val}\n"
+                            f"- Type: {val_dtype}\n"
+                        )
+                    else:
+
+                        yield key, val
 
         def __iter__(self):
             for key in self._iter():
@@ -242,6 +269,11 @@ class Group(lt.Group):
             raise NotImplementedError(
                 "Group.GroupMetadata.clear requires read-write access"
             )
+
+        def dump(self):
+            """Output information about all group metadata to stdout."""
+            for metadata in self._iter(keys_only=False, dump=True):
+                print(metadata)
 
     def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()

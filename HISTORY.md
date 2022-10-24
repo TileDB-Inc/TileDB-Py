@@ -2,10 +2,12 @@
 
 ## API Changes
 * Add support for `XORFilter` [#1294](https://github.com/TileDB-Inc/TileDB-Py/pull/1294)
+* Array and Group metadata now store bytes as `TILEDB_BLOB` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
+* Addition of `{Array,Group}.metadata.dump()` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
 
 ## Bug Fixes
 * Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
-* Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings []()
+* Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings [#1372](https://github.com/TileDB-Inc/TileDB-Py/pull/1372)
 
 ## Improvements
 * Addition of Utility Function `get_last_ctx_err_str()` for C API [#1351](https://github.com/TileDB-Inc/TileDB-Py/pull/1351)
