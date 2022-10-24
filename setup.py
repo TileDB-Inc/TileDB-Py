@@ -21,7 +21,7 @@ from pybind11.setup_helpers import Pybind11Extension
 ### DO NOT USE ON CI
 
 # Target branch: Note that this should be set to the current core release, not `dev`
-TILEDB_VERSION = "2.12.0"
+TILEDB_VERSION = "96f90b520c3c611a3de9ab24b6227694914f5f2a"  # NOMERGE TESTING ONLY
 
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
