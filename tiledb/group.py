@@ -277,13 +277,12 @@ class Group(lt.Group):
 
     def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
-        cctx = lt.Context(self._ctx, False)
 
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
         query_type = Group._mode_to_query_type[mode]
 
-        super().__init__(cctx, uri, query_type)
+        super().__init__(self._ctx, uri, query_type)
 
         self._meta = self.GroupMetadata(self)
 
@@ -297,9 +296,8 @@ class Group(lt.Group):
         :param ctx: A TileDB context
         :type ctx: tiledb.Ctx
         """
-        _ctx = ctx or default_ctx()
-        cctx = lt.Context(_ctx, False)
-        lt.Group._create(cctx, uri)
+        ctx = ctx or default_ctx()
+        lt.Group._create(ctx, uri)
 
     def open(self, mode: str = "r"):
         """

@@ -16,6 +16,7 @@
 
 ## Improvements
 * Addition of Utility Function `get_last_ctx_err_str()` for C API [#1351](https://github.com/TileDB-Inc/TileDB-Py/pull/1351)
+* Move `Context` and `Config` from Cython to pure Python [#1379](https://github.com/TileDB-Inc/TileDB-Py/pull/1379)
 
 # TileDB-Py 0.17.5 Release Notes
 
