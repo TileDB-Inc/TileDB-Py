@@ -1181,25 +1181,6 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
 #                                                                             #
 ###############################################################################
 
-# cdef class Config(object):
-#     cdef tiledb_config_t* ptr
-
-#     @staticmethod
-#     cdef from_ptr(tiledb_config_t* ptr)
-
-# cdef class ConfigKeys(object):
-#     cdef ConfigItems config_items
-
-# cdef class ConfigItems(object):
-#     cdef Config config
-#     cdef tiledb_config_iter_t* ptr
-
-# cdef class ConfigValues(object):
-#     cdef ConfigItems config_items
-
-# cdef class Ctx(object):
-#     cdef tiledb_ctx_t* ptr
-
 cdef class Attr(object):
     cdef object ctx
     cdef tiledb_attribute_t* ptr
