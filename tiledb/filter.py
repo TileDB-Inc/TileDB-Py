@@ -830,7 +830,6 @@ class FilterList(lt.FilterList):
     def _getfilter(self, i: int) -> Filter:
         fil = self._filter(i)
         filtype = self.filter_type_cc_to_python[fil._type]
-        options = None
 
         if issubclass(filtype, CompressionFilter):
             options = [lt.FilterOption.COMPRESSION_LEVEL]
@@ -844,14 +843,15 @@ class FilterList(lt.FilterList):
                 lt.FilterOption.SCALE_FLOAT_OFFSET,
                 lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
             ]
+        else:
+            options = []
 
-        if options is not None:
-            _cctx = lt.Context(self._ctx.__capsule__(), False)
+        _cctx = lt.Context(self._ctx.__capsule__(), False)
 
-            opts = []
-            for opt in options:
-                opts.append(fil._get_option(_cctx, opt))
+        opts = []
+        for opt in options:
+            opts.append(fil._get_option(_cctx, opt))
 
-            filter = filtype(*opts, ctx=self._ctx)
+        fil = filtype(*opts, ctx=self._ctx)
 
-        return filter
+        return fil
