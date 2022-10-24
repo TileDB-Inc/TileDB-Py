@@ -31,7 +31,7 @@ cdef class PackedBuffer:
 
 cdef PackedBuffer pack_metadata_val(value):
     if isinstance(value, bytes):
-        return PackedBuffer(value, TILEDB_CHAR, len(value))
+        return PackedBuffer(value, TILEDB_BLOB, len(value))
 
     if isinstance(value, str):
         value = value.encode('UTF-8')
@@ -85,7 +85,7 @@ cdef object unpack_metadata_val(
     if value_type == TILEDB_STRING_UTF8:
         return value_ptr[:value_num].decode('UTF-8')  if value_ptr != NULL else ''
 
-    if value_type == TILEDB_CHAR or value_type == TILEDB_STRING_ASCII:
+    if value_type in (TILEDB_BLOB, TILEDB_CHAR, TILEDB_STRING_ASCII):
         return value_ptr[:value_num] if value_ptr != NULL else b''
 
     if value_ptr == NULL:
@@ -220,7 +220,7 @@ cdef object get_metadata(Array array, key, is_ndarray=False):
     return unpack_metadata(is_ndarray, value_type, value_num, value_ptr)
 
 
-def iter_metadata(Array array, keys_only):
+def iter_metadata(Array array, keys_only, dump=False):
     """
     Iterate over array metadata keys or (key, value) tuples
 
@@ -236,6 +236,10 @@ def iter_metadata(Array array, keys_only):
         tiledb_datatype_t value_type
         uint32_t value_num
         const char* value_ptr = NULL
+        const char* value_type_str = NULL
+    
+    if keys_only and dump:
+        raise ValueError("keys_only and dump cannot both be True")
 
     cdef int32_t rc = TILEDB_OK
     with nogil:
@@ -265,7 +269,20 @@ def iter_metadata(Array array, keys_only):
         else:
             value = unpack_metadata(key.startswith(_NP_DATA_PREFIX),
                                     value_type, value_num, value_ptr)
-            yield key, value
+
+            if dump:
+                rc = tiledb_datatype_to_str(value_type, &value_type_str)
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+
+                yield (
+                    "### Array Metadata ###\n"
+                    f"- Key: {key}\n"
+                    f"- Value: {value}\n"
+                    f"- Type: {value_type_str.decode('UTF-8')}\n"
+                )
+            else:
+                yield key, value
 
 
 cdef class Metadata:
@@ -497,3 +514,7 @@ cdef class Metadata:
             if shape is not None:
                 value = value.reshape(shape)
             yield key, value
+
+    def dump(self):
+        for metadata in iter_metadata(self.array, keys_only=False, dump=True):
+            print(metadata)
