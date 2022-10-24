@@ -135,8 +135,10 @@ class FragmentInfoList:
         warnings.warn(
             "FragmentInfoList.non_empty_domain is deprecated; "
             "please use FragmentInfoList.nonempty_domain",
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledb.version() < (0, 19, 0)
         return self.nonempty_domain
 
     @property
@@ -144,8 +146,10 @@ class FragmentInfoList:
         warnings.warn(
             "FragmentInfoList.to_vacuum_num is deprecated; "
             "please use len(FragmentInfoList.to_vacuum)",
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledb.version() < (0, 19, 0)
         return len(self.to_vacuum)
 
     @property
@@ -153,8 +157,10 @@ class FragmentInfoList:
         warnings.warn(
             "FragmentInfoList.to_vacuum_uri is deprecated; "
             "please use FragmentInfoList.to_vacuum",
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledb.version() < (0, 19, 0)
         return self.to_vacuum
 
     @property
@@ -162,8 +168,10 @@ class FragmentInfoList:
         warnings.warn(
             "FragmentInfoList.dense is deprecated; "
             "please use FragmentInfoList.sparse",
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledb.version() < (0, 19, 0)
         return list(~np.array(self.sparse))
 
     def __getattr__(self, name):
@@ -305,35 +313,43 @@ class FragmentInfo:
     def non_empty_domain(self):
         warnings.warn(
             "FragmentInfo.non_empty_domain is deprecated; "
-            "please use FragmentInfo.nonempty_domain",
+            "please use FragmentInfo.nonempty_domain. ",
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledb.version() < (0, 19, 0)
         return self.nonempty_domain
 
     @property
     def to_vacuum_num(self):
         warnings.warn(
             "FragmentInfo.to_vacuum_num is deprecated; "
-            "please use len(FragmentInfoList.to_vacuum)",
+            "please use len(FragmentInfoList.to_vacuum).",
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledb.version() < (0, 19, 0)
         return len(self._frags.to_vacuum)
 
     @property
     def to_vacuum_uri(self):
         warnings.warn(
             "FragmentInfo.to_vacuum_uri is deprecated; "
-            "please use FragmentInfoList.to_vacuum",
+            "please use FragmentInfoList.to_vacuum.",
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledb.version() < (0, 19, 0)
         return self._frags.to_vacuum
 
     @property
     def to_vacuum_uri(self):
         warnings.warn(
             "FragmentInfo.dense is deprecated; please use FragmentInfo.sparse",
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledb.version() < (0, 19, 0)
         return not self._frags.sparse
 
 
@@ -345,8 +361,11 @@ def FragmentsInfo(array_uri, ctx=None):
     """
 
     warnings.warn(
-        "FragmentsInfo is deprecated; please use FragmentInfoList", DeprecationWarning
+        "FragmentsInfo is deprecated; please use FragmentInfoList. "
+        "It is slated for removal in 0.19.0.",
+        DeprecationWarning,
     )
+    assert tiledb.version() < (0, 19, 0)
 
     if ctx is None:
         ctx = tiledb.default_ctx()
@@ -370,6 +389,13 @@ def delete_fragments(
     :param dry_run: (optional) Preview fragments to be deleted without
         running (default: False)
     """
+    warnings.warn(
+        "tiledb.delete_fragments is deprecated in lieu of Array.delete_fragments. "
+        "It is slated for removal in 0.19.0.",
+        DeprecationWarning,
+    )
+    assert tiledb.version() < (0, 19, 0)
+
     if not isinstance(timestamp_range, tuple) and len(timestamp_range) != 2:
         raise TypeError(
             "'timestamp_range' argument expects tuple(start: int, end: int)"

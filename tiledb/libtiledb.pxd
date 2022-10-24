@@ -42,6 +42,7 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_ARRAY
 
     ctypedef enum tiledb_query_type_t:
+        TILEDB_MODIFY_EXCLUSIVE
         TILEDB_READ
         TILEDB_WRITE
 
@@ -882,6 +883,13 @@ cdef extern from "tiledb/tiledb.h":
         const void* key_ptr,
         unsigned int key_len,
         tiledb_config_t* config) nogil
+
+    int tiledb_array_delete_fragments(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        const char* uri,
+        uint64_t timestamp_start,
+        uint64_t timestamp_end)
 
     int tiledb_array_get_schema(
         tiledb_ctx_t* ctx,

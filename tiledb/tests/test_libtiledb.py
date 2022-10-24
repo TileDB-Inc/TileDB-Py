@@ -1103,6 +1103,38 @@ class ArrayTest(DiskTestCase):
         with tiledb.open(path) as A:
             assert A.schema.version >= 15
 
+    def test_array_delete_fragments(self):
+        dshape = (1, 3)
+        num_writes = 10
+
+        def create_array(target_path, dshape):
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path, dshape, num_writes):
+            for i in range(1, num_writes + 1):
+                with tiledb.open(target_path, "w", timestamp=i) as A:
+                    A[[1, 2, 3]] = np.random.rand(dshape[1])
+
+        path = self.path("test_array_delete_fragments")
+
+        ts = tuple((t, t) for t in range(1, 11))
+
+        create_array(path, dshape)
+        write_fragments(path, dshape, num_writes)
+        frags = tiledb.array_fragments(path)
+        assert len(frags) == 10
+        assert frags.timestamp_range == ts
+
+        with tiledb.open(path, "m") as arr:
+            arr.delete_fragments(3, 6)
+
+        frags = tiledb.array_fragments(path)
+        assert len(frags) == 6
+        assert frags.timestamp_range == ts[:2] + ts[6:]
+
 
 class DenseArrayTest(DiskTestCase):
     def test_array_1d(self):

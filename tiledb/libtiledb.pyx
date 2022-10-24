@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from .ctx import default_ctx
 from .filter import FilterList
 from .vfs import VFS
+from .version import version_tuple as tiledbpy_version
 
 import tiledb.cc as lt
 from tiledb.cc import TileDBError
@@ -3334,8 +3335,10 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=None):
         query_type = TILEDB_READ
     elif mode == 'w':
         query_type = TILEDB_WRITE
+    elif mode == 'm':
+        query_type = TILEDB_MODIFY_EXCLUSIVE
     else:
-        raise ValueError("TileDB array mode must be 'r' or 'w'")
+        raise ValueError("TileDB array mode must be 'r', 'w', or 'm")
     # check the key, and convert the key to bytes
     if key is not None:
         if isinstance(key, str):
@@ -3503,7 +3506,7 @@ cdef class Array(object):
         :param str uri: URI at which to create the new empty array.
         :param ArraySchema schema: Schema for the array
         :param str key: (default None) Encryption key to use for array
-        :param bool oerwrite: (default False) Overwrite the array if it already exists
+        :param bool overwrite: (default False) Overwrite the array if it already exists
         :param ctx Ctx: (default None) Optional TileDB Ctx used when creating the array,
                         by default uses the ArraySchema's associated context
                         (*not* necessarily ``tiledb.default_ctx``).
@@ -3744,9 +3747,11 @@ cdef class Array(object):
 
         """
         warnings.warn(
-            "timestamp is deprecated; please use timestamp_range",
+            "timestamp is deprecated; please use timestamp_range. "
+            "It is slated for removal in 0.19.0.",
             DeprecationWarning,
         )
+        assert tiledbpy_version < (0, 19, 0)
 
         cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
         cdef tiledb_array_t* array_ptr = self.ptr
@@ -3794,9 +3799,12 @@ cdef class Array(object):
         warnings.warn(
             """`coords_dtype` is deprecated because combined coords have been removed from libtiledb.
             Currently it returns a record array of each individual dimension dtype, but it will
-            be removed because that is not applicable to split dimensions.""",
+            be removed because that is not applicable to split dimensions.
+            It is slated for removal in 0.19.0""",
             DeprecationWarning,
         )
+        assert tiledbpy_version < (0, 19, 0)
+
         # returns the record array dtype of the coordinate array
         return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
 
@@ -3827,6 +3835,55 @@ cdef class Array(object):
         :return: The array attribute at index or with the given name (label)
         :raises TypeError: invalid key type"""
         return self.schema.domain.dim(dim_id)
+    
+    def delete_fragments(self, timestamp_start, timestamp_end):
+        """
+        Delete a range of fragments from timestamp_start to timestamp_end.
+        The array needs to be opened in 'm' mode as shown in the example below.
+
+        :param timestamp_start: the first fragment to delete in the range
+        :type timestamp_start: int
+        :param timestamp_end: the last fragment to delete in the range
+        :type timestamp_end: int
+
+        **Example:**
+
+        >>> import tiledb, tempfile, numpy as np
+        >>> path = tempfile.mkdtemp()
+
+        >>> with tiledb.from_numpy(path, np.zeros(4), timestamp=1) as A:
+        ...     pass
+        >>> with tiledb.open(path, 'w', timestamp=2) as A:
+        ...     A[:] = np.ones(4, dtype=np.int64)
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A[:]
+        array([1., 1., 1., 1.])
+
+        >>> with tiledb.open(path, 'm') as A:
+        ...     A.delete_fragments(2, 2)
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A[:]
+        array([0., 0., 0., 0.])
+
+        """
+        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_array_t* array_ptr = self.ptr
+        cdef tiledb_query_t* query_ptr = NULL
+        cdef bytes buri = self.uri.encode('UTF-8')
+        
+        cdef int rc = TILEDB_OK
+
+        rc = tiledb_array_delete_fragments(
+                ctx_ptr, 
+                array_ptr, 
+                buri, 
+                timestamp_start, 
+                timestamp_end
+        )
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
     def nonempty_domain(self):
         """Return the minimum bounding domain which encompasses nonempty values.
@@ -4200,9 +4257,7 @@ cdef class Query(object):
 
     @property
     def attr_cond(self):
-        from tiledb import version as tiledbpy_version
-
-        assert tiledbpy_version() < (0, 19, 0)
+        assert tiledbpy_version < (0, 19, 0)
 
         warnings.warn(
             "`attr_cond` is now deprecated and is slated for removal in "
@@ -4464,9 +4519,7 @@ cdef class DenseArrayImpl(Array):
             raise TileDBError("DenseArray is not opened for reading")
 
         if attr_cond is not None:
-            from tiledb import version as tiledbpy_version
-
-            assert tiledbpy_version() < (0, 19, 0)
+            assert tiledbpy_version < (0, 19, 0)
 
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
@@ -4526,9 +4579,7 @@ cdef class DenseArrayImpl(Array):
             raise TileDBError("DenseArray is not opened for reading")
 
         if attr_cond is not None:
-            from tiledb import version as tiledbpy_version
-
-            assert tiledbpy_version() < (0, 19, 0)
+            assert tiledbpy_version < (0, 19, 0)
 
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
@@ -4607,8 +4658,7 @@ cdef class DenseArrayImpl(Array):
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
             elif isinstance(cond, QueryCondition):
-                from tiledb import version as tiledbpy_version
-                assert tiledbpy_version() < (0, 19, 0)
+                assert tiledbpy_version < (0, 19, 0)
                 warnings.warn(
                     "Passing `tiledb.QueryCondition` to `cond` is no longer "
                     "required and is slated for removal in version 0.19.0. "
@@ -4715,9 +4765,10 @@ cdef class DenseArrayImpl(Array):
         selection_tuple = (selection,) if not isinstance(selection, tuple) else selection
         if any(isinstance(s, np.ndarray) for s in selection_tuple):
             warnings.warn(
-                "Sparse writes to dense arrays is deprecated",
+                "Sparse writes to dense arrays is deprecated. It is slated for removal in 0.19.0.",
                 DeprecationWarning,
             )
+            assert tiledbpy_version < (0, 19, 0)
             _setitem_impl_sparse(self, selection, val, dict())
             return
 
@@ -5270,9 +5321,7 @@ cdef class SparseArrayImpl(Array):
             raise TileDBError("SparseArray is not opened")
         
         if attr_cond is not None:
-            from tiledb import version as tiledbpy_version
-
-            assert tiledbpy_version() < (0, 19, 0)
+            assert tiledbpy_version < (0, 19, 0)
 
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
@@ -5346,9 +5395,7 @@ cdef class SparseArrayImpl(Array):
             raise TileDBError("SparseArray is not opened for reading")
         
         if attr_cond is not None:
-            from tiledb import version as tiledbpy_version
-
-            assert tiledbpy_version() < (0, 19, 0)
+            assert tiledbpy_version < (0, 19, 0)
 
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
@@ -5422,8 +5469,7 @@ cdef class SparseArrayImpl(Array):
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
             elif isinstance(cond, QueryCondition):
-                from tiledb import version as tiledbpy_version
-                assert tiledbpy_version() < (0, 19, 0)
+                assert tiledbpy_version < (0, 19, 0)
                 warnings.warn(
                     "Passing `tiledb.QueryCondition` to `cond` is no longer "
                     "required and is slated for removal in version 0.19.0. "
