@@ -182,9 +182,6 @@ void init_query(py::module &m) {
              auto pyqc_c = (cond.attr("c_obj").attr("__qc_capsule__"))()
                                .cast<py::capsule>()
                                .get_pointer<tiledb_query_condition_t>();
-             tiledb_query_condition_t *qc_c =
-                 (tiledb_query_condition_t *)(pyqc_c);
-             // std::cout << " --- here3 " << std::endl;
              auto qc = new QueryCondition(ctx, pyqc_c);
              q.set_condition(*qc);
            })
