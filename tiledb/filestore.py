@@ -42,7 +42,7 @@ class Filestore:
 
         try:
             lt.Filestore._buffer_import(
-                lt.Context(self._ctx, False),
+                self._ctx,
                 self._filestore_uri,
                 buffer,
                 lt.Filestore._mime_type_from_str(mime_type),
@@ -69,7 +69,7 @@ class Filestore:
         size = max(size - offset, 0)
 
         return lt.Filestore._buffer_export(
-            lt.Context(self._ctx, False),
+            self._ctx,
             self._filestore_uri,
             offset,
             size,
@@ -109,7 +109,7 @@ class Filestore:
         ctx = ctx or default_ctx()
 
         lt.Filestore._uri_import(
-            lt.Context(ctx, False),
+            ctx,
             filestore_array_uri,
             file_uri,
             lt.Filestore._mime_type_from_str(mime_type),
@@ -137,7 +137,7 @@ class Filestore:
 
         ctx = ctx or default_ctx()
 
-        lt.Filestore._uri_export(lt.Context(ctx, False), filestore_array_uri, file_uri)
+        lt.Filestore._uri_export(ctx, filestore_array_uri, file_uri)
 
     def uri_import(self, file_uri: str, mime_type: str = "AUTODETECT") -> None:
         warnings.warn(
@@ -156,7 +156,7 @@ class Filestore:
             )
 
         lt.Filestore._uri_import(
-            lt.Context(self._ctx, False),
+            self._ctx,
             self._filestore_uri,
             file_uri,
             lt.Filestore._mime_type_from_str(mime_type),
@@ -168,4 +168,4 @@ class Filestore:
         :return: Bytes in the Filestore Array
 
         """
-        return lt.Filestore._size(lt.Context(self._ctx, False), self._filestore_uri)
+        return lt.Filestore._size(self._ctx, self._filestore_uri)
