@@ -24,7 +24,6 @@ class VFS(lt.VFS):
 
     def __init__(self, config: Union["Config", dict] = None, ctx: "Ctx" = None):
         ctx = ctx or default_ctx()
-        cctx = lt.Context(ctx.__capsule__(), False)
 
         if config:
             from .libtiledb import Config
@@ -38,9 +37,9 @@ class VFS(lt.VFS):
                     raise ValueError("`config` argument must be of type Config or dict")
 
             ccfg = lt.Config(config)
-            super().__init__(cctx, ccfg)
+            super().__init__(ctx, ccfg)
         else:
-            super().__init__(cctx)
+            super().__init__(ctx)
 
     def ctx(self) -> "Ctx":
         """
