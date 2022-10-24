@@ -512,3 +512,19 @@ class GroupMetadataTest(GroupTestCase):
 
         with tiledb.Group(foo, mode="r", ctx=ctx) as G:
             assert "bar" in G
+
+    def test_relative(self):
+        group1 = self.path("group1")
+        group2_1 = self.path("group1/group2_1")
+        group2_2 = self.path("group1/group2_2")
+
+        tiledb.group_create(group2_1)
+        tiledb.group_create(group2_2)
+
+        with tiledb.Group(group1, mode="w") as G:
+            G.add(group2_1, name="group2_1", relative=False)
+            G.add("group2_2", name="group2_2", relative=True)
+
+        with tiledb.Group(group1, mode="r") as G:
+            assert G.is_relative("group2_1") == False
+            assert G.is_relative("group2_2") == True

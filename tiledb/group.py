@@ -442,3 +442,12 @@ class Group(lt.Group):
         :rtype: str
         """
         return self._query_type_to_mode[self._query_type]
+
+    def is_relative(self, name: str) -> bool:
+        """
+        :param name: Name of member to retrieve associated relative indicator
+        :type name: str
+        :return: Whether the attribute is relative
+        :rtype: bool
+        """
+        return self._is_relative(name)
