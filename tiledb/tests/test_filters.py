@@ -92,13 +92,13 @@ class TestFilterTest(DiskTestCase):
 
         # make sure that repr works and round-trips correctly
         # some of these have attributes, so we just check the class name here
-        self.assertTrue(type(filter).__name__ in repr(filter))
+        self.assertTrue(filter.__name__ in repr(filter))
 
         tmp_globals = dict()
         setup = "from tiledb import *"
         exec(setup, tmp_globals)
 
-        filter_repr = repr(filter)
+        filter_repr = repr(filter())
         new_filter = None
         try:
             new_filter = eval(filter_repr, tmp_globals)
@@ -112,7 +112,7 @@ class TestFilterTest(DiskTestCase):
             warnings.warn(warn_str)
             raise
 
-        self.assertEqual(new_filter, filter)
+        self.assertEqual(new_filter, filter())
 
     def test_dictionary_encoding(self):
         path = self.path("test_dictionary_encoding")
