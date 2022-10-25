@@ -15,7 +15,7 @@ class Filter(lt.Filter):
     def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
 
-        super().__init__(lt.Context(self._ctx.__capsule__(), False), type)
+        super().__init__(self._ctx, type)
 
     def __repr__(self) -> str:
         output = io.StringIO()
@@ -84,17 +84,14 @@ class CompressionFilter(Filter):
 
         super().__init__(type, self._ctx)
         self._set_option(
-            lt.Context(self._ctx.__capsule__(), False),
+            self._ctx,
             lt.FilterOption.COMPRESSION_LEVEL,
             level,
         )
 
     @property
     def level(self):
-        return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.COMPRESSION_LEVEL,
-        )
+        return self._get_option(self._ctx, lt.FilterOption.COMPRESSION_LEVEL)
 
 
 class NoOpFilter(Filter):
@@ -409,7 +406,7 @@ class BitWidthReductionFilter(Filter):
 
         if window != -1:
             self._set_option(
-                lt.Context(self._ctx.__capsule__(), False),
+                self._ctx,
                 lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
                 window,
             )
@@ -419,10 +416,7 @@ class BitWidthReductionFilter(Filter):
 
     @property
     def window(self):
-        return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.BIT_WIDTH_MAX_WINDOW,
-        )
+        return self._get_option(self._ctx, lt.FilterOption.BIT_WIDTH_MAX_WINDOW)
 
 
 class PositiveDeltaFilter(Filter):
@@ -453,7 +447,7 @@ class PositiveDeltaFilter(Filter):
         super().__init__(lt.FilterType.POSITIVE_DELTA)
         if window != -1:
             self._set_option(
-                lt.Context(self._ctx.__capsule__(), False),
+                self._ctx,
                 lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
                 window,
             )
@@ -463,10 +457,7 @@ class PositiveDeltaFilter(Filter):
 
     @property
     def window(self):
-        return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,
-        )
+        return self._get_option(self._ctx, lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW)
 
 
 class ChecksumMD5Filter(Filter):
@@ -561,7 +552,7 @@ class FloatScaleFilter(Filter):
 
         if factor:
             self._set_option(
-                lt.Context(self._ctx.__capsule__(), False),
+                self._ctx,
                 lt.FilterOption.SCALE_FLOAT_FACTOR,
                 float(factor),
             )
@@ -570,21 +561,21 @@ class FloatScaleFilter(Filter):
             # 0 evals to false so we weren't actually setting here
             # if offset==0 :upside-down-face:
             self._set_option(
-                lt.Context(self._ctx.__capsule__(), False),
+                self._ctx,
                 lt.FilterOption.SCALE_FLOAT_OFFSET,
                 float(offset),
             )
 
         if bytewidth:
             self._set_option(
-                lt.Context(self._ctx.__capsule__(), False),
+                self._ctx,
                 lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
                 bytewidth,
             )
 
     def dump(self):
         self._dump(
-            lt.Context(self._ctx.__capsule__(), False),
+            self._ctx,
         )
 
     def _attrs_(self):
@@ -596,24 +587,15 @@ class FloatScaleFilter(Filter):
 
     @property
     def factor(self):
-        return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.SCALE_FLOAT_FACTOR,
-        )
+        return self._get_option(self._ctx, lt.FilterOption.SCALE_FLOAT_FACTOR)
 
     @property
     def offset(self):
-        return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.SCALE_FLOAT_OFFSET,
-        )
+        return self._get_option(self._ctx, lt.FilterOption.SCALE_FLOAT_OFFSET)
 
     @property
     def bytewidth(self):
-        return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
-        )
+        return self._get_option(self._ctx, lt.FilterOption.SCALE_FLOAT_BYTEWIDTH)
 
 
 class XORFilter(Filter):
@@ -698,7 +680,7 @@ class FilterList(lt.FilterList):
         is_capsule: bool = False,
     ):
         self._ctx = ctx or default_ctx()
-        _cctx = lt.Context(self._ctx.__capsule__(), False)
+        _cctx = self._ctx
 
         if is_capsule:
             super().__init__(_cctx, filters)
@@ -846,7 +828,7 @@ class FilterList(lt.FilterList):
         else:
             options = []
 
-        _cctx = lt.Context(self._ctx.__capsule__(), False)
+        _cctx = self._ctx
 
         opts = []
         for opt in options:

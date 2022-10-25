@@ -1169,7 +1169,7 @@ cdef extern from "tiledb/tiledb_experimental.h":
 
 # Free helper functions
 cpdef unicode ustring(object s)
-cpdef check_error(Ctx ctx, int rc)
+cpdef check_error(object ctx, int rc)
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr)
 cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc)
 
@@ -1181,42 +1181,23 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
 #                                                                             #
 ###############################################################################
 
-cdef class Config(object):
-    cdef tiledb_config_t* ptr
-
-    @staticmethod
-    cdef from_ptr(tiledb_config_t* ptr)
-
-cdef class ConfigKeys(object):
-    cdef ConfigItems config_items
-
-cdef class ConfigItems(object):
-    cdef Config config
-    cdef tiledb_config_iter_t* ptr
-
-cdef class ConfigValues(object):
-    cdef ConfigItems config_items
-
-cdef class Ctx(object):
-    cdef tiledb_ctx_t* ptr
-
 cdef class Attr(object):
-    cdef Ctx ctx
+    cdef object ctx
     cdef tiledb_attribute_t* ptr
 
     @staticmethod
-    cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx=*)
+    cdef from_ptr(const tiledb_attribute_t* ptr, object ctx=*)
     cdef unicode _get_name(Attr self)
     cdef unsigned int _cell_val_num(Attr self) except? 0
     cdef tiledb_datatype_t _get_type(Attr self) except? TILEDB_CHAR
 
 
 cdef class Dim(object):
-    cdef Ctx ctx
+    cdef object ctx
     cdef tiledb_dimension_t* ptr
 
     @staticmethod
-    cdef from_ptr(const tiledb_dimension_t* ptr, Ctx ctx=*)
+    cdef from_ptr(const tiledb_dimension_t* ptr, object ctx=*)
 
     cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR
     cdef unsigned int _cell_val_num(Dim self) except? 0
@@ -1225,24 +1206,24 @@ cdef class Dim(object):
     cdef _shape(self)
 
 cdef class Domain(object):
-    cdef Ctx ctx
+    cdef object ctx
     cdef tiledb_domain_t* ptr
 
     @staticmethod
-    cdef from_ptr(const tiledb_domain_t* ptr, Ctx ctx=*)
+    cdef from_ptr(const tiledb_domain_t* ptr, object ctx=*)
     cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR
     cdef _integer_domain(Domain self)
     cdef _is_homogeneous(Domain self)
     cdef _shape(Domain self)
 
 cdef class ArraySchema(object):
-    cdef Ctx ctx
+    cdef object ctx
     cdef tiledb_array_schema_t* ptr
 
     @staticmethod
-    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=*)
+    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, object ctx=*)
     # @staticmethod
-    # cdef from_file(const char* uri, Ctx ctx=*)
+    # cdef from_file(const char* uri, object ctx=*)
     cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr)
     cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr)
     cdef _attr_name(self, name)
@@ -1250,7 +1231,7 @@ cdef class ArraySchema(object):
 
 cdef class Array(object):
     cdef object __weakref__
-    cdef Ctx ctx
+    cdef object ctx
     cdef tiledb_array_t* ptr
     cdef unicode uri
     cdef unicode mode
