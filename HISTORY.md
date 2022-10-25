@@ -6,6 +6,7 @@
     * Deprecate `attr_cond` in favor of `cond`
     * Deprecate passing `tiledb.QueryCondition` to `cond` in favor of passing string directly
 * Add support for `XORFilter` [#1294](https://github.com/TileDB-Inc/TileDB-Py/pull/1294)
+* Addition of `Array.delete_fragments`; deprecate `tiledb.delete_fragments` [#1329](https://github.com/TileDB-Inc/TileDB-Py/pull/1329)
 * Array and Group metadata now store bytes as `TILEDB_BLOB` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
 * Addition of `{Array,Group}.metadata.dump()` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
 * Addition of `Group.is_relative` to check if the URI component of a group member is relative [#1386](https://github.com/TileDB-Inc/TileDB-Py/pull/1386)

@@ -654,7 +654,10 @@ class DeleteFragmentsTest(DiskTestCase):
         assert len(frags) == 10
         assert frags.timestamp_range == ts
 
-        tiledb.delete_fragments(path, (3, 6))
+        with pytest.warns(
+            DeprecationWarning, match="tiledb.delete_fragments is deprecated"
+        ):
+            tiledb.delete_fragments(path, (3, 6))
         frags = tiledb.array_fragments(path)
         assert len(frags) == 6
         assert frags.timestamp_range == ts[:2] + ts[6:]
@@ -690,7 +693,10 @@ class DeleteFragmentsTest(DiskTestCase):
             assert_array_equal(A[:]["a1"], ts2_data)
             assert_array_equal(A[:]["a2"], ts2_data)
 
-        tiledb.delete_fragments(path, (2, 2))
+        with pytest.warns(
+            DeprecationWarning, match="tiledb.delete_fragments is deprecated"
+        ):
+            tiledb.delete_fragments(path, (2, 2))
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 1

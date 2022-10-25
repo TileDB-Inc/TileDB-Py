@@ -5,6 +5,7 @@ import warnings
 
 import tiledb.cc as lt
 from .ctx import default_ctx
+from .version import version_tuple as tiledbpy_version
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx, Config
@@ -83,9 +84,10 @@ class VFS(lt.VFS):
         if isinstance(file, FileIO):
             warnings.warn(
                 f"`tiledb.VFS().open` now returns a a FileIO object. Use "
-                "`FileIO.close`.",
+                "`FileIO.close`. It is slated for removal in 0.19.0.",
                 DeprecationWarning,
             )
+            assert tiledbpy_version < (0, 19, 0)
         file.close()
         return file
 
@@ -101,9 +103,10 @@ class VFS(lt.VFS):
         if isinstance(file, FileIO):
             warnings.warn(
                 f"`tiledb.VFS().open` now returns a a FileIO object. Use "
-                "`FileIO.write`.",
+                "`FileIO.write`. It is slated for removal in 0.19.0.",
                 DeprecationWarning,
             )
+            assert tiledbpy_version < (0, 19, 0)
         if isinstance(buff, str):
             buff = buff.encode()
         file.write(buff)
@@ -122,9 +125,11 @@ class VFS(lt.VFS):
         if isinstance(file, FileIO):
             warnings.warn(
                 f"`tiledb.VFS().open` now returns a a FileIO object. Use "
-                "`FileIO.seek` and `FileIO.read`.",
+                "`FileIO.seek` and `FileIO.read`. It is slated for removal "
+                "in 0.19.0.",
                 DeprecationWarning,
             )
+            assert tiledbpy_version < (0, 19, 0)
             return file.read(nbytes)
 
         if nbytes == 0:
