@@ -1009,8 +1009,7 @@ cdef class Attr(object):
                  ctx=None):
         if not ctx:
             ctx = default_ctx()
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef const char* name_ptr = PyBytes_AS_STRING(bname)
@@ -1125,16 +1124,14 @@ cdef class Attr(object):
 
     cdef tiledb_datatype_t _get_type(Attr self) except? TILEDB_CHAR:
         cdef tiledb_datatype_t typ
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_attribute_get_type(ctx_ptr, self.ptr, &typ))
         return typ
 
     def dump(self):
         """Dumps a string representation of the Attr object to standard output (stdout)"""
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_attribute_dump(ctx_ptr, self.ptr, stdout))
         print('\n')
@@ -1148,8 +1145,7 @@ cdef class Attr(object):
 
         """
         cdef tiledb_datatype_t typ
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_attribute_get_type(ctx_ptr, self.ptr, &typ))
         cdef uint32_t ncells = 0
@@ -1207,8 +1203,7 @@ cdef class Attr(object):
         """
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         cdef int rc = TILEDB_OK
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_attribute_get_filter_list(
                         ctx_ptr, self.ptr, &filter_list_ptr))
@@ -1225,8 +1220,7 @@ cdef class Attr(object):
         """
         cdef const uint8_t* value_ptr = NULL
         cdef uint64_t size
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
             tiledb_attribute_get_fill_value(
                 ctx_ptr, self.ptr, <const void**>&value_ptr, &size))
@@ -1277,8 +1271,7 @@ cdef class Attr(object):
         """
         cdef uint8_t nullable = 0
         cdef int rc = TILEDB_OK
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(
             self.ctx,
             tiledb_attribute_get_nullable(ctx_ptr, self.ptr, &nullable))
@@ -1405,8 +1398,7 @@ cdef class Dim(object):
         if not ctx:
             ctx = default_ctx()
 
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
         if var is not None:
             if var and np.dtype(dtype) not in (np.str_, np.bytes_):
@@ -1556,8 +1548,7 @@ cdef class Dim(object):
 
     cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR:
         cdef tiledb_datatype_t typ
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_dimension_get_type(ctx_ptr, self.ptr, &typ))
         return typ
@@ -1581,8 +1572,7 @@ cdef class Dim(object):
 
         """
         cdef const char* name_ptr = NULL
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_dimension_get_name(ctx_ptr, self.ptr, &name_ptr))
         return name_ptr.decode('UTF-8', 'strict')
@@ -1618,8 +1608,7 @@ cdef class Dim(object):
         """
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         cdef int rc = TILEDB_OK
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_dimension_get_filter_list(
                         ctx_ptr, self.ptr, &filter_list_ptr))
@@ -1629,8 +1618,7 @@ cdef class Dim(object):
 
     cdef unsigned int _cell_val_num(Dim self) except? 0:
         cdef unsigned int ncells = 0
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_dimension_get_cell_val_num(
                         ctx_ptr,
@@ -1697,8 +1685,7 @@ cdef class Dim(object):
 
         """
         cdef const void* tile_ptr = NULL
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_dimension_get_tile_extent(ctx_ptr, self.ptr, &tile_ptr))
         if tile_ptr == NULL:
@@ -1741,8 +1728,7 @@ cdef class Dim(object):
         if self.dtype == np.dtype('S'):
             return None, None
         cdef const void* domain_ptr = NULL
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_dimension_get_domain(ctx_ptr,
                                                 self.ptr,
@@ -1794,8 +1780,7 @@ cdef class Domain(object):
 
     cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
         cdef tiledb_datatype_t typ
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_domain_get_type(ctx_ptr, self.ptr, &typ))
         return typ
@@ -1819,8 +1804,7 @@ cdef class Domain(object):
         if not ctx:
             ctx = default_ctx()
 
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
         # support passing a list of dims without splatting
         if len(dims) == 1 and isinstance(dims[0], list):
@@ -1920,8 +1904,7 @@ cdef class Domain(object):
 
         """
         cdef unsigned int ndim = 0
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_domain_get_ndim(ctx_ptr, self.ptr, &ndim))
         return ndim
@@ -1975,8 +1958,7 @@ cdef class Domain(object):
         cdef tiledb_dimension_t* dim_ptr = NULL
         cdef bytes uname
         cdef const char* name_ptr = NULL
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-            self.ctx.__capsule__(), "ctx")
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
 
         if isinstance(dim_id, (str, unicode)):
             uname = ustring(dim_id).encode('UTF-8')
@@ -2005,8 +1987,7 @@ cdef class Domain(object):
         :return:
         """
         cdef:
-            cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
-                self.ctx.__capsule__(), "ctx")
+            cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
             cdef tiledb_domain_t* dom_ptr = self.ptr
             int32_t has_dim = 0
             int32_t rc = TILEDB_OK
@@ -2025,7 +2006,7 @@ cdef class Domain(object):
 
     def dump(self):
         """Dumps a string representation of the domain object to standard output (STDOUT)"""
-        cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
             self.ctx.__capsule__(), "ctx")
         check_error(self.ctx,
                     tiledb_domain_dump(ctx_ptr, self.ptr, stdout))
@@ -5282,7 +5263,7 @@ def ls(path, func, ctx=None):
     if not ctx:
         ctx = default_ctx()
     cdef bytes bpath = unicode_path(path)
-    ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(ctx.__capsule__(), "ctx")
+    ctx_ptr = safe_ctx_ptr(ctx)
     check_error(ctx,
                 tiledb_object_ls(ctx_ptr, bpath, walk_callback, <void*> func))
     return
