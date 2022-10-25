@@ -1154,6 +1154,27 @@ cdef extern from "tiledb/tiledb_experimental.h":
         tiledb_config_t* config
     )
 
+cdef extern from "tiledb/tiledb_dimension_label.h":
+    # Types
+    ctypedef struct tiledb_dimension_label_schema_t:
+        pass
+    
+    # DimensionLabel
+    int tiledb_array_schema_add_dimension_label(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        const uint32_t dim_id,
+        const char* name,
+        tiledb_dimension_label_schema_t* dim_label_schema
+    )
+
+    int tiledb_array_schema_has_dimension_label(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_schema_t* array_schema,
+        const char* name,
+        int* has_dim_label
+    )
+
 # Free helper functions
 cpdef unicode ustring(object s)
 cpdef check_error(object ctx, int rc)

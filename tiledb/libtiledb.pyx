@@ -760,6 +760,7 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
 
     return tiledb_order_to_string[order]
 
+
 def index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
     if isinstance(idx, tuple):
@@ -941,6 +942,7 @@ cdef class ArraySchema(object):
 
     :param domain: Domain of schema
     :type attrs: tuple(tiledb.Attr, ...)
+    :type dim_labels: dict(str: tiledb.DimensionLabel, ...)
     :param cell_order:  TileDB label for cell layout
     :type cell_order: 'row-major' (default) or 'C', 'col-major' or 'F' or 'hilbert'
     :param tile_order:  TileDB label for tile layout
@@ -967,6 +969,7 @@ cdef class ArraySchema(object):
                  offsets_filters=None,
                  validity_filters=None,
                  allows_duplicates=False,
+                 dim_labels={},
                  sparse=False,
                  ctx=None):
         if ctx is None:
@@ -1084,6 +1087,23 @@ cdef class ArraySchema(object):
             if rc != TILEDB_OK:
                 tiledb_array_schema_free(&schema_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
+
+        cdef tiledb_dimension_label_schema_t* dim_label_ptr = NULL
+        cdef bytes bdim_lbl_name
+        for dim_id, dim_lbl_name in enumerate(dim_labels):
+            dim_lbl_schema = dim_labels[dim_lbl_name]
+            if not isinstance(dim_lbl_schema, lt.DimensionLabel):
+                raise TypeError("dim_labels values must be tiledb.DimensionLabel dtype")
+            dim_label_schema_ptr = <tiledb_dimension_label_schema_t*>PyCapsule_GetPointer(
+            dim_lbl_schema.__capsule__(), "dl")
+            bdim_lbl_name = ustring(dim_lbl_name).encode("UTF-8")
+            rc = tiledb_array_schema_add_dimension_label(
+                ctx_ptr, schema_ptr, dim_id,
+                bdim_lbl_name, dim_label_schema_ptr)
+            if rc != TILEDB_OK:
+                tiledb_array_schema_free(&schema_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
+
         rc = tiledb_array_schema_check(ctx_ptr, schema_ptr)
         if rc != TILEDB_OK:
             tiledb_array_schema_free(&schema_ptr)
@@ -1507,6 +1527,17 @@ cdef class ArraySchema(object):
             dtype = np.dtype((dtype, 1))
         return dtype
 
+    def has_dim_label(self, name):
+        cdef const void* domain_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
+        cdef bytes bname = name.encode("UTF-8")
+        cdef int has_label
+
+        check_error(self.ctx,
+                    tiledb_array_schema_has_dimension_label(
+                        ctx_ptr, self.ptr, bname, &has_label))
+
+        return bool(has_label)
 
     def dump(self):
         """Dumps a string representation of the array object to standard output (stdout)"""

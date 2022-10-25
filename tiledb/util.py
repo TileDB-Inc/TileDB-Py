@@ -187,6 +187,60 @@ def dtype_range(dtype: np.dtype) -> Tuple[Any]:
     return (dtype_min, dtype_max)
 
 
+def tiledb_cast_tile_extent(tile_extent: Any, dtype: np.dtype) -> np.array:
+    """Given a tile extent value, cast it to np.array of the given numpy dtype."""
+    # Special handling for datetime domains
+    if dtype.kind == "M":
+        date_unit = np.datetime_data(dtype)[0]
+        if isinstance(tile_extent, np.timedelta64):
+            extent_value = int(tile_extent / np.timedelta64(1, date_unit))
+            tile_size_array = np.array(np.int64(extent_value), dtype=np.int64)
+        else:
+            tile_size_array = np.array(tile_extent, dtype=np.int64)
+    else:
+        tile_size_array = np.array(tile_extent, dtype=dtype)
+
+    if tile_size_array.size != 1:
+        raise ValueError("tile extent must be a scalar")
+
+    return tile_size_array
+
+
+def _tiledb_cast_domain(
+    domain, tiledb_dtype: lt.DataType
+) -> Tuple[np.generic, np.generic]:
+    numpy_dtype = _numpy_dtype(tiledb_dtype)
+
+    if tiledb_type_is_datetime(tiledb_dtype):
+        date_unit = np.datetime_data(numpy_dtype)[0]
+        return (
+            np.datetime64(domain[0], date_unit),
+            np.datetime64(domain[1], date_unit),
+        )
+
+    if tiledb_dtype in (
+        lt.DataType.STRING_ASCII,
+        lt.DataType.STRING_UTF8,
+        lt.DataType.BLOB,
+    ):
+        return domain
+
+    return (numpy_dtype(domain[0]), numpy_dtype(domain[1]))
+
+
+def _tiledb_type_is_integer(tiledb_type: lt.DataType):
+    return tiledb_type in (
+        lt.DataType.UINT8,
+        lt.DataType.INT8,
+        lt.DataType.UINT16,
+        lt.DataType.INT16,
+        lt.DataType.UINT32,
+        lt.DataType.INT32,
+        lt.DataType.UINT64,
+        lt.DataType.INT64,
+    )
+
+
 def schema_from_dict(attrs: List[str], dims: List[str]) -> "ArraySchema":
     attr_infos = {k: ColumnInfo.from_values(v) for k, v in attrs.items()}
     dim_infos = {k: ColumnInfo.from_values(v) for k, v in dims.items()}

@@ -1,4 +1,5 @@
 #include <tiledb/tiledb>
+#include <tiledb/tiledb_dimension_label.h>
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -74,6 +75,11 @@ void init_enums(py::module &m) {
       .value("GLOBAL_ORDER", TILEDB_GLOBAL_ORDER)
       .value("UNORDERED", TILEDB_UNORDERED)
       .value("HILBERT", TILEDB_HILBERT);
+
+  py::enum_<tiledb_label_order_t>(m, "LabelOrder")
+      .value("INCREASING_LABELS", TILEDB_INCREASING_LABELS)
+      .value("DECREASING_LABELS", TILEDB_DECREASING_LABELS)
+      .value("UNORDERED_LABELS", TILEDB_UNORDERED_LABELS);
 
   py::enum_<tiledb_filter_type_t>(m, "FilterType")
       .value("NONE", TILEDB_FILTER_NONE)
