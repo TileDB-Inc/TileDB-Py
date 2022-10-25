@@ -3386,7 +3386,7 @@ cdef class Array(object):
         :return: The array attribute at index or with the given name (label)
         :raises TypeError: invalid key type"""
         return self.schema.domain.dim(dim_id)
-    
+
     def delete_fragments(self, timestamp_start, timestamp_end):
         """
         Delete a range of fragments from timestamp_start to timestamp_end.
@@ -3419,18 +3419,18 @@ cdef class Array(object):
         array([0., 0., 0., 0.])
 
         """
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef tiledb_query_t* query_ptr = NULL
         cdef bytes buri = self.uri.encode('UTF-8')
-        
+
         cdef int rc = TILEDB_OK
 
         rc = tiledb_array_delete_fragments(
-                ctx_ptr, 
-                array_ptr, 
-                buri, 
-                timestamp_start, 
+                ctx_ptr,
+                array_ptr,
+                buri,
+                timestamp_start,
                 timestamp_end
         )
         if rc != TILEDB_OK:
