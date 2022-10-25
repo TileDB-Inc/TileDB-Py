@@ -1,3 +1,4 @@
+from copy import copy
 import io
 from typing import List, Optional, Type, TYPE_CHECKING, Union
 from types import TracebackType
@@ -495,3 +496,28 @@ class FileIO(io.RawIOBase):
         self._nbytes += nbytes
         self._offset += nbytes
         return nbytes
+
+    def readinto(self, buff: bytes) -> int:
+        """
+        Read bytes into a pre-allocated, writable bytes-like object b, and return the number of bytes read.
+
+        :param buff bytes:
+        """
+        size = len(buff)
+        if not self.readable():
+            raise IOError("Cannot read from write-only FileIO handle")
+        if self.closed:
+            raise IOError("Cannot read from closed FileIO handle")
+
+        nbytes_left = self._nbytes - self._offset
+        nbytes = nbytes_left if size > nbytes_left else size
+        if nbytes == 0:
+            return None
+
+        buff_temp = self._fh._read(self._offset, nbytes)
+        self._offset += nbytes
+        buff[: len(buff_temp)] = buff_temp
+        return len(buff_temp)
+
+    def readinto1(self, b):
+        return self.readinto(b)

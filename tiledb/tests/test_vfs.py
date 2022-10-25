@@ -223,6 +223,12 @@ class TestVFS(DiskTestCase):
         self.assertEqual(fio.readall(), buffer[5:])
         self.assertEqual(fio.readall(), b"")
 
+        # Test readinto
+        fio.seek(0)
+        test_bytes = bytearray(10)
+        self.assertEqual(fio.readinto(test_bytes), 10)
+        self.assertEqual(test_bytes, buffer)
+
         # Reading from the end should return empty
         fio.seek(0)
         fio.read()
