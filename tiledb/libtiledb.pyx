@@ -2007,7 +2007,6 @@ cdef class Domain(object):
     def dump(self):
         """Dumps a string representation of the domain object to standard output (STDOUT)"""
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
-            self.ctx.__capsule__(), "ctx")
         check_error(self.ctx,
                     tiledb_domain_dump(ctx_ptr, self.ptr, stdout))
         print("\n")
