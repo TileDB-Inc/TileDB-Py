@@ -86,7 +86,7 @@ class Config(lt.Config):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        super().set(str(key), str(value))
+        self.set(str(key), str(value))
 
     def get(self, key: str, raise_keyerror: bool = True):
         try:
@@ -118,7 +118,7 @@ class Config(lt.Config):
         :raises TypeError: `key` cannot be encoded into a UTF-8 string
 
         """
-        super().unset(key)
+        self.unset(key)
 
     def __iter__(self):
         """Returns an iterator over the Config parameters (keys)"""
@@ -265,7 +265,7 @@ class Config(lt.Config):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        super().save_to_file(uri)
+        self.save_to_file(uri)
 
 
 class ConfigKeys:
@@ -364,14 +364,14 @@ class Ctx(lt.Context):
 
     def _set_default_tags(self):
         """Sets all default tags on the Ctx"""
-        super().set_tag("x-tiledb-api-language", "python")
-        super().set_tag(
+        self.set_tag("x-tiledb-api-language", "python")
+        self.set_tag(
             "x-tiledb-api-language-version",
             f"{sys.version_info.major}."
             f"{sys.version_info.minor}."
             f"{sys.version_info.micro}",
         )
-        super().set_tag("x-tiledb-api-sys-platform", sys.platform)
+        self.set_tag("x-tiledb-api-sys-platform", sys.platform)
 
     def get_stats(self, print_out: bool = True, json: bool = False):
         """Retrieves the stats from a TileDB context.
