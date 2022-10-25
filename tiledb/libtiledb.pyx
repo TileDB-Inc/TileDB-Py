@@ -3883,6 +3883,10 @@ cdef class Query(object):
             print(output)
         else:
             return output
+    
+    def submit(self):
+        """An alias for calling the regular indexer [:]"""
+        return self[:]
 
 
 cdef class DenseArrayImpl(Array):
@@ -4068,11 +4072,11 @@ cdef class DenseArrayImpl(Array):
                 DeprecationWarning,
             )
             cond = attr_cond
-
+        
         return Query(self, attrs=attrs, cond=cond, dims=dims,
-                     coords=coords, order=order, use_arrow=use_arrow,
-                     return_arrow=return_arrow,
-                     return_incomplete=return_incomplete)
+                      coords=coords, order=order, 
+                      use_arrow=use_arrow, return_arrow=return_arrow,
+                      return_incomplete=return_incomplete)
 
     def subarray(self, selection, attrs=None, cond=None, attr_cond=None,
                  coords=False, order=None):
@@ -4886,10 +4890,9 @@ cdef class SparseArrayImpl(Array):
             _coords = True
 
         return Query(self, attrs=attrs, cond=cond, dims=dims,
-                     coords=_coords, index_col=index_col, order=order, 
-                     use_arrow=use_arrow, return_arrow=return_arrow,
-                     return_incomplete=return_incomplete)
-
+                      coords=_coords, index_col=index_col, order=order, 
+                      use_arrow=use_arrow, return_arrow=return_arrow,
+                      return_incomplete=return_incomplete)
 
     def subarray(self, selection, coords=True, attrs=None, cond=None,
                  attr_cond=None, order=None):

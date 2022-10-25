@@ -696,7 +696,7 @@ class QueryDeleteTest(DiskTestCase):
                 tiledb.TileDBError,
                 match="SparseArray must be opened in read or delete mode",
             ):
-                A.query(cond=qc)
+                A.query(cond=qc).submit()
 
         with tiledb.open(path, "r") as A:
             assert_array_equal(data, A[:]["ints"])
@@ -706,9 +706,9 @@ class QueryDeleteTest(DiskTestCase):
                 tiledb.TileDBError,
                 match="Cannot initialize deletes; One condition is needed",
             ):
-                A.query()
+                A.query().submit()
 
-            A.query(cond=qc)
+            A.query(cond=qc).submit()
 
         with tiledb.open(path, "r") as A:
             assert all(A[:]["ints"] >= 5)
@@ -749,7 +749,7 @@ class QueryDeleteTest(DiskTestCase):
             assert_array_equal([1, 2, 3], A[:]["ints"])
 
         with tiledb.open(path, "d", timestamp=3) as A:
-            A.query(cond="ints == 1")
+            A.query(cond="ints == 1").submit()
 
         with tiledb.open(path, "r", timestamp=1) as A:
             assert_array_equal([1], A[:]["ints"])
@@ -792,7 +792,7 @@ class QueryDeleteTest(DiskTestCase):
             assert_array_equal([1, 2, 3], A[:]["ints"])
 
         with tiledb.open(path, "d", timestamp=3) as A:
-            A.query(cond="ints == 1")
+            A.query(cond="ints == 1").submit()
 
         with tiledb.open(path, "r", timestamp=1) as A:
             assert_array_equal([1], A[:]["ints"])
