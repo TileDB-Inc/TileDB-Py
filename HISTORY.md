@@ -1,4 +1,7 @@
-# In Progress
+# Release 0.18.0
+
+## TileDB Embedded updates:
+* TileDB-Py 0.18.0 includes TileDB Embedded [TileDB 2.12.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.0)
 
 ## API Changes
 * Changes to query conditions [#1341](https://github.com/TileDB-Inc/TileDB-Py/pull/1341)
@@ -11,14 +14,17 @@
 * Addition of `{Array,Group}.metadata.dump()` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
 * Addition of `Group.is_relative` to check if the URI component of a group member is relative [#1386](https://github.com/TileDB-Inc/TileDB-Py/pull/1386)
 * Addition of query deletes to delete data that satisifies a given query condition [#1309](https://github.com/TileDB-Inc/TileDB-Py/pull/1309)
-
-## Bug Fixes
-* Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
-* Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings [#1372](https://github.com/TileDB-Inc/TileDB-Py/pull/1372)
+* Addition of `FileIO.readinto` [#1389](https://github.com/TileDB-Inc/TileDB-Py/pull/1389)
 
 ## Improvements
 * Addition of Utility Function `get_last_ctx_err_str()` for C API [#1351](https://github.com/TileDB-Inc/TileDB-Py/pull/1351)
 * Move `Context` and `Config` from Cython to pure Python [#1379](https://github.com/TileDB-Inc/TileDB-Py/pull/1379)
+
+# TileDB-Py 0.17.6 Release Notes
+
+## Bug Fixes
+* Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
+* Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings [#1372](https://github.com/TileDB-Inc/TileDB-Py/pull/1372)
 
 # TileDB-Py 0.17.5 Release Notes
 
