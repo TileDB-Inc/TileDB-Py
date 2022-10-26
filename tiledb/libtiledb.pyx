@@ -2858,15 +2858,18 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, ctx=None):
     cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
     cdef void* key_ptr = NULL
     cdef unsigned int key_len = 0
+
     # convert python mode string to a query type
-    if mode == 'r':
-        query_type = TILEDB_READ
-    elif mode == 'w':
-        query_type = TILEDB_WRITE
-    elif mode == 'm':
-        query_type = TILEDB_MODIFY_EXCLUSIVE
-    else:
-        raise ValueError("TileDB array mode must be 'r', 'w', or 'm")
+    mode_to_query_type = {
+        "r": TILEDB_READ,
+        "w": TILEDB_WRITE,
+        "m": TILEDB_MODIFY_EXCLUSIVE,
+        "d": TILEDB_DELETE
+    }
+    if mode not in mode_to_query_type:
+        raise ValueError("TileDB array mode must be 'r', 'w', 'm', or 'd'")
+    query_type = mode_to_query_type[mode]
+
     # check the key, and convert the key to bytes
     if key is not None:
         if isinstance(key, str):
@@ -2938,7 +2941,7 @@ cdef class Array(object):
     an Array instance is initialized, the array is opened with the specified mode.
 
     :param str uri: URI of array to open
-    :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
+    :param str mode: (default 'r') Open the array object in read 'r', write 'w', or delete 'd' mode
     :param str key: (default None) If not None, encryption key to decrypt the array
     :param tuple timestamp: (default None) If int, open the array at a given TileDB
         timestamp. If tuple, open at the given start and end TileDB timestamps.
@@ -3719,11 +3722,10 @@ cdef class Query(object):
     """
 
     def __init__(self, array, attrs=None, cond=None, dims=None,
-                 coords=False, index_col=True,
-                 order=None, use_arrow=None, return_arrow=False,
-                 return_incomplete=False):
-        if array.mode != 'r':
-            raise ValueError("array mode must be read-only")
+                 coords=False, index_col=True, order=None, 
+                 use_arrow=None, return_arrow=False, return_incomplete=False):
+        if array.mode not in  ('r', 'd'):
+            raise ValueError("array mode must be read or delete mode")
 
         if dims is not None and coords == True:
             raise ValueError("Cannot pass both dims and coords=True to Query")
@@ -3881,6 +3883,10 @@ cdef class Query(object):
             print(output)
         else:
             return output
+    
+    def submit(self):
+        """An alias for calling the regular indexer [:]"""
+        return self[:]
 
 
 cdef class DenseArrayImpl(Array):
@@ -4015,6 +4021,7 @@ cdef class DenseArrayImpl(Array):
             then no dimensions are returned, unless coords=True.
         :param coords: if True, return array of coodinate value (default False).
         :param order: 'C', 'F', 'U', or 'G' (row-major, col-major, unordered, TileDB global order)
+        :param mode: "r" to read (default), "d" to delete
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
         :param return_incomplete: if True, initialize and return an iterable Query object over the indexed range.
@@ -4048,7 +4055,7 @@ cdef class DenseArrayImpl(Array):
 
         """
         if not self.isopen or self.mode != 'r':
-            raise TileDBError("DenseArray is not opened for reading")
+            raise TileDBError("DenseArray must be opened in read mode")
 
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
@@ -4065,11 +4072,11 @@ cdef class DenseArrayImpl(Array):
                 DeprecationWarning,
             )
             cond = attr_cond
-
+        
         return Query(self, attrs=attrs, cond=cond, dims=dims,
-                     coords=coords, order=order, use_arrow=use_arrow,
-                     return_arrow=return_arrow,
-                     return_incomplete=return_incomplete)
+                      coords=coords, order=order, 
+                      use_arrow=use_arrow, return_arrow=return_arrow,
+                      return_incomplete=return_incomplete)
 
     def subarray(self, selection, attrs=None, cond=None, attr_cond=None,
                  coords=False, order=None):
@@ -4108,7 +4115,7 @@ cdef class DenseArrayImpl(Array):
 
         """
         if not self.isopen or self.mode != 'r':
-            raise TileDBError("DenseArray is not opened for reading")
+            raise TileDBError("DenseArray must be opened in read mode")
 
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
@@ -4198,7 +4205,6 @@ cdef class DenseArrayImpl(Array):
                     "use `cond='expression'`.",
                     DeprecationWarning,
                 )
-                q.set_cond(cond)
             else:
                 raise TypeError("`cond` expects type str.")
 
@@ -4828,6 +4834,7 @@ cdef class SparseArrayImpl(Array):
             and only set specified index(es) in the final dataframe, or None.
         :param coords: (deprecated) if True, return array of coordinate value (default False).
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param mode: "r" to read
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
         :return: A proxy Query object that can be used for indexing into the SparseArray
@@ -4856,9 +4863,9 @@ cdef class SparseArrayImpl(Array):
         OrderedDict([('a1', array([1, 2]))])
 
         """
-        if not self.isopen:
-            raise TileDBError("SparseArray is not opened")
-
+        if not self.isopen or self.mode not in  ('r', 'd'):
+            raise TileDBError("SparseArray must be opened in read or delete mode")
+        
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
 
@@ -4883,9 +4890,9 @@ cdef class SparseArrayImpl(Array):
             _coords = True
 
         return Query(self, attrs=attrs, cond=cond, dims=dims,
-                     coords=_coords, index_col=index_col, order=order,
-                     use_arrow=use_arrow, return_arrow=return_arrow,
-                     return_incomplete=return_incomplete)
+                      coords=_coords, index_col=index_col, order=order, 
+                      use_arrow=use_arrow, return_arrow=return_arrow,
+                      return_incomplete=return_incomplete)
 
     def subarray(self, selection, coords=True, attrs=None, cond=None,
                  attr_cond=None, order=None):
@@ -4929,10 +4936,9 @@ cdef class SparseArrayImpl(Array):
         OrderedDict([('a1', array([1, 2]))])
 
         """
-
-        if not self.isopen or self.mode != 'r':
-            raise TileDBError("SparseArray is not opened for reading")
-
+        if not self.isopen or self.mode not in ('r', 'd'):
+            raise TileDBError("SparseArray is not opened in read or delete mode")
+        
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
 
@@ -5016,11 +5022,16 @@ cdef class SparseArrayImpl(Array):
                     "use `cond='expression'`.",
                     DeprecationWarning,
                 )
-                q.set_cond(cond)
             else:
                 raise TypeError("`cond` expects type str.")
-        q.set_ranges([list([x]) for x in subarray])
+        
+        if self.mode == "r":
+            q.set_ranges([list([x]) for x in subarray])
+        
         q.submit()
+
+        if self.mode == 'd':
+            return
 
         cdef object results = OrderedDict()
         results = q.results()

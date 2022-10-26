@@ -15,7 +15,7 @@ def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=No
         See the TileDB `time traveling <https://docs.tiledb.com/main/how-to/arrays/reading-arrays/time-traveling>`_
         documentation for detailed functionality description.
     :param key: encryption key, str or None
-    :param str mode: (default 'r') Open the array object in read 'r', write 'w', or  modify exclusive 'm' mode
+    :param str mode: (default 'r') Open the array object in read 'r', write 'w',  modify exclusive 'm' mode, or  delete 'd' mode
     :param attr: attribute name to select from a multi-attribute array, str or None
     :param config: TileDB config dictionary, dict or None
     :return: open TileDB {Sparse,Dense}Array object

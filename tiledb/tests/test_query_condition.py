@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_array_equal
 import string
+from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.tests.common import DiskTestCase, has_pandas
@@ -674,3 +675,139 @@ class QueryConditionTest(DiskTestCase):
 
             result = A.query(cond="2 <= data < 6 or 5 <= data < 9")[:]
             assert_array_equal(result["data"], A[2:9]["data"])
+
+
+class QueryDeleteTest(DiskTestCase):
+    def test_basic_sparse(self):
+        path = self.path("test_basic_sparse")
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
+        attrs = [tiledb.Attr("ints", dtype=np.uint32)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        data = np.random.randint(1, 10, 10)
+
+        qc = "ints < 5"
+
+        with tiledb.open(path, "w") as A:
+            A[np.arange(1, 11)] = data
+
+            with pytest.raises(
+                tiledb.TileDBError,
+                match="SparseArray must be opened in read or delete mode",
+            ):
+                A.query(cond=qc).submit()
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal(data, A[:]["ints"])
+
+        with tiledb.open(path, "d") as A:
+            with pytest.raises(
+                tiledb.TileDBError,
+                match="Cannot initialize deletes; One condition is needed",
+            ):
+                A.query().submit()
+
+            A.query(cond=qc).submit()
+
+        with tiledb.open(path, "r") as A:
+            assert all(A[:]["ints"] >= 5)
+
+    def test_basic_dense(self):
+        path = self.path("test_basic_dense")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1))
+        attrs = [tiledb.Attr("ints", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "d") as A:
+            with pytest.raises(
+                tiledb.TileDBError,
+                match="DenseArray must be opened in read mode",
+            ):
+                A.query()
+
+    def test_with_fragments(self):
+        path = self.path("test_with_fragments")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
+        attrs = [tiledb.Attr("ints", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w", timestamp=1) as A:
+            A[1] = 1
+
+        with tiledb.open(path, "w", timestamp=2) as A:
+            A[2] = 2
+
+        with tiledb.open(path, "w", timestamp=3) as A:
+            A[3] = 3
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal([1, 2, 3], A[:]["ints"])
+
+        with tiledb.open(path, "d", timestamp=3) as A:
+            A.query(cond="ints == 1").submit()
+
+        with tiledb.open(path, "r", timestamp=1) as A:
+            assert_array_equal([1], A[:]["ints"])
+
+        with tiledb.open(path, "r", timestamp=2) as A:
+            assert_array_equal([1, 2], A[:]["ints"])
+
+        with tiledb.open(path, "r", timestamp=3) as A:
+            assert_array_equal([2, 3], A[:]["ints"])
+
+        assert len(tiledb.array_fragments(path)) == 3
+
+        tiledb.consolidate(path)
+        tiledb.vacuum(path)
+
+        assert len(tiledb.array_fragments(path)) == 1
+
+        with tiledb.open(path, "r") as A:
+            assert A.nonempty_domain() == ((1, 3),)
+            assert_array_equal([2, 3], A[:]["ints"])
+
+    def test_purge_deleted_cells(self):
+        path = self.path("test_with_fragments")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
+        attrs = [tiledb.Attr("ints", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w", timestamp=1) as A:
+            A[1] = 1
+
+        with tiledb.open(path, "w", timestamp=2) as A:
+            A[2] = 2
+
+        with tiledb.open(path, "w", timestamp=3) as A:
+            A[3] = 3
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal([1, 2, 3], A[:]["ints"])
+
+        with tiledb.open(path, "d", timestamp=3) as A:
+            A.query(cond="ints == 1").submit()
+
+        with tiledb.open(path, "r", timestamp=1) as A:
+            assert_array_equal([1], A[:]["ints"])
+
+        with tiledb.open(path, "r", timestamp=2) as A:
+            assert_array_equal([1, 2], A[:]["ints"])
+
+        with tiledb.open(path, "r", timestamp=3) as A:
+            assert_array_equal([2, 3], A[:]["ints"])
+
+        cfg = tiledb.Config({"sm.consolidation.purge_deleted_cells": "true"})
+        with tiledb.scope_ctx(cfg):
+            tiledb.consolidate(path)
+        tiledb.vacuum(path)
+
+        with tiledb.open(path, "r") as A:
+            assert A.nonempty_domain() == ((2, 3),)
+            assert_array_equal([2, 3], A[:]["ints"])
