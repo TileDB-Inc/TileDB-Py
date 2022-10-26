@@ -54,7 +54,7 @@ void init_enums(py::module &m) {
                   DENUM(WEBP_QUALITY) DENUM(WEBP_LOSSLESS);
 
   py::enum_<tiledb_filter_webp_format_t>(m, "WebpInputFormat") DENUM(WEBP_NONE)
-          DENUM(WEBP_RGB) DENUM(WEBP_RGBA) DENUM(WEBP_BGR) DENUM(WEBP_BGRA);
+      DENUM(WEBP_RGB) DENUM(WEBP_RGBA) DENUM(WEBP_BGR) DENUM(WEBP_BGRA);
 
   py::enum_<tiledb_encryption_type_t>(m, "EncryptionType") DENUM(NO_ENCRYPTION)
       DENUM(AES_256_GCM);

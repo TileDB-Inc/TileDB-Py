@@ -623,18 +623,67 @@ class XORFilter(Filter):
 
 class WebpFilter(Filter):
     """
-    WebP filter.
+    The WebP filter provides three options: quality, format, and lossless
+
+    The quality option is used as quality_factor setting for WebP lossy
+    compression and expects a float value in the range of 0.0f - 100.0f
+    Quality of 0 corresponds to low quality and small output sizes, whereas 100
+    is the highest quality and largest output size.
+
+    The format option is used to define colorspace format of image data and
+    expects an enum of TILEDB_WEBP_RGB, TILEDB_WEBP_BGR, TILEDB_WEBP_RGBA, or
+    TILEDB_WEBP_BGRA.
+
+    The lossless option is used to enable(1) or disable(0) lossless compression.
+    With this option enabled, the quality setting will be ignored.
+
+    On write this filter takes raw colorspace values (RGB, RBGA, etc) and encodes
+    into WebP format before writing data to the array.
+
+    On read, this filter decodes WebP data and returns raw colorspace values to
+    the caller.
+
+    This filter expects the array to provide two dimensions for Y, X pixel
+    position. Dimensions may be defined with any name, but Y, X should be at
+    dimension index 0, 1 respectively.
+
+    :param quality: quality_factor setting for lossy WebP compression
+    :type quality: float in range [0.0, 100.0]
+    :param input_format: The input colorspace format of the image
+    :type input_format: np.uint8 corresponding to one of TILEDB_WEBP_{RGB, BGR, RGBA, BGRA}
+    :param lossless: Enable (1) or disable (0) lossless image compression
+    :type lossless: np.uint8
+    :param ctx: A TileDB Context
+    :type ctx: tiledb.Ctx
 
     **Example:**
-    TODO
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     # Using RGB colorspace format
+    ...     pixel_depth = 3  # For RGBA / BGRA pixel_depth is 4
+    ...     dims = (tiledb.Dim(name='Y',
+    ...                    domain=(1, img_height),
+    ...                    dtype=np.uint8,
+    ...                    tile=img_height / 2,),
+    ...             tiledb.Dim(name='X',
+    ...                    domain=(1, img_width * pixel_depth),
+    ...                    dtype=np.uint8,
+    ...                    tile=(img_width / 2) * pixel_depth,))
+    ...     dom = tiledb.Domain(*dims)
+    ...     rgb = tiledb.Attr(name="rgb", dtype=np.uint8,
+    ...                      filters=tiledb.FilterList([tiledb.WebpFilter(input_format=1, quality=100.0, lossless=1)]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(rgb,))
+    ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
+
     def __init__(
-            self,
-            input_format: int = None,
-            quality: float = None,
-            lossless: bool = None,
-            ctx: "Ctx" = None,
+        self,
+        input_format: int = None,
+        quality: float = None,
+        lossless: bool = None,
+        ctx: "Ctx" = None,
     ):
         self._input_format = input_format
         self._quality = quality
@@ -647,21 +696,21 @@ class WebpFilter(Filter):
             self._set_option(
                 lt.Context(self._ctx.__capsule__(), False),
                 lt.FilterOption.WEBP_INPUT_FORMAT,
-                input_format
+                input_format,
             )
 
         if quality is not None:
             self._set_option(
                 lt.Context(self._ctx.__capsule__(), False),
                 lt.FilterOption.WEBP_QUALITY,
-                float(quality)
+                float(quality),
             )
 
         if lossless is not None:
             self._set_option(
                 lt.Context(self._ctx.__capsule__(), False),
                 lt.FilterOption.WEBP_LOSSLESS,
-                lossless
+                lossless,
             )
 
     def _attrs_(self):

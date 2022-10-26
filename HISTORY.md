@@ -45,7 +45,7 @@
 * Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings [#1372](https://github.com/TileDB-Inc/TileDB-Py/pull/1372)
 
 ## API Changes
-* Add support for `WebpFilter` [#555](https://github.com/TileDB-Inc/TileDB-Py/pull/TODO)
+* Add support for `WebpFilter` [#1395](https://github.com/TileDB-Inc/TileDB-Py/pull/1395)
 
 # TileDB-Py 0.17.5 Release Notes
 
