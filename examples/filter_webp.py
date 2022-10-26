@@ -1,6 +1,7 @@
 import os
 import shutil
 import tiledb
+from tiledb import cc as lt
 import tifffile
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -46,9 +47,7 @@ def write_image(uri: str, image: np.ndarray) -> None:
             tiledb.Attr(
                 name="rgb",
                 dtype=image.dtype,
-                # filters=[tiledb.ZstdFilter(level=9)],
                 filters=[tiledb.WebpFilter(input_format=1, quality=100.0, lossless=lossless)],
-                # filters=[tiledb.WebpFilter(input_format=1, quality=100.0, lossless=lossless), tiledb.ZstdFilter(level=9)],
             )
         ],
     )
