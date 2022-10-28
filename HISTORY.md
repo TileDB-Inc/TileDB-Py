@@ -1,7 +1,7 @@
 # In Progress
 
 ## Bug Fixes
-* Properly handle whitespaces in a query condition as if it were a Python expression []()
+* Properly handle whitespaces in a query condition []()
 
 # Release 0.18.0
 
