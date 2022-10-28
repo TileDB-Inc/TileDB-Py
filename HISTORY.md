@@ -1,7 +1,7 @@
 # In Progress
 
 ## Bug Fixes
-* Properly handle whitespaces in a query condition []()
+* Properly handle whitespaces in a query condition [#1398](https://github.com/TileDB-Inc/TileDB-Py/pull/1398)
 
 # Release 0.18.0
 
