@@ -118,7 +118,7 @@ class QueryCondition:
 
     def __post_init__(self):
         try:
-            self.tree = ast.parse(self.expression, mode="eval")
+            self.tree = ast.parse(f"({self.expression})", mode="eval")
         except:
             raise TileDBError(
                 "Could not parse the given QueryCondition statement: "

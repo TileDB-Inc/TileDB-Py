@@ -676,6 +676,34 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="2 <= data < 6 or 5 <= data < 9")[:]
             assert_array_equal(result["data"], A[2:9]["data"])
 
+    def test_with_whitespace(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            result = A.query(cond="        d < 6")[:]
+            assert_array_equal(result["d"], A[:6]["d"])
+
+            result = A.query(cond="   (     d < 6)  ")[:]
+            assert_array_equal(result["d"], A[:6]["d"])
+
+            result = A.query(cond="   (  \n   d \n\t< 6)  ")[:]
+            assert_array_equal(result["d"], A[:6]["d"])
+
+            qc = """
+                U < 5   
+            or
+                                                I >= 5
+            """
+            result = A.query(cond=qc)[:]
+            assert all((result["U"] < 5) | (result["U"] > 5))
+
+            qc = """
+                
+                                                A == ' a'
+        
+            """
+            result = A.query(cond=qc)[:]
+            # ensures that ' a' does not match 'a'
+            assert len(result["A"]) == 0
+
 
 class QueryDeleteTest(DiskTestCase):
     def test_basic_sparse(self):
