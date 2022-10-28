@@ -684,6 +684,9 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="   (     d < 6)  ")[:]
             assert_array_equal(result["d"], A[:6]["d"])
 
+            result = A.query(cond="   (  \n   d \n\t< 6)  ")[:]
+            assert_array_equal(result["d"], A[:6]["d"])
+
             qc = """
                 U < 5   
             or
