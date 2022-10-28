@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Properly handle whitespaces in a query condition as if it were a Python expression []()
+
 # Release 0.18.0
 
 ## TileDB Embedded updates:
