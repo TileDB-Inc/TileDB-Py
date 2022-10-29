@@ -988,6 +988,16 @@ public:
       buf.data_vals_read += data_vals_num;
       buf.offsets_read += offset_elem_num;
       buf.validity_vals_read += validity_elem_num;
+
+      if (buf.data_vals_read > buf.data.size()) {
+        throw TileDBError("data buffer out of bounds: " + name);
+      }
+      if (buf.offsets_read > buf.offsets.size()) {
+        throw TileDBError("offsets buffer out of bounds: " + name);
+      }
+      if (buf.validity_vals_read > buf.validity.size()) {
+        throw TileDBError("validity buffer out of bounds: " + name);
+      }
     }
   }
 
@@ -1026,7 +1036,7 @@ public:
     tiledb_query_get_status_details(ctx_.ptr().get(), query_.get()->ptr().get(),
                                     &status_details);
 
-    if (status_details.incomplete_reason == TILEDB_REASON_USER_BUFFER_SIZE) {
+    if (status_details.incomplete_reason != TILEDB_REASON_MEMORY_BUDGET) {
 #else
     if (true) {
 #endif
