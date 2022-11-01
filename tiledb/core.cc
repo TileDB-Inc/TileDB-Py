@@ -801,9 +801,6 @@ public:
     tiledb_datatype_t type;
     uint32_t cell_val_num;
     std::tie(type, cell_val_num) = buffer_type(name);
-    uint64_t cell_nbytes = tiledb_datatype_size(type);
-    if (cell_val_num != TILEDB_VAR_NUM)
-      cell_nbytes *= cell_val_num;
     auto dtype = tiledb_dtype(type, cell_val_num);
 
     buffers_order_.push_back(name);
@@ -989,13 +986,13 @@ public:
       buf.offsets_read += offset_elem_num;
       buf.validity_vals_read += validity_elem_num;
 
-      if (buf.data_vals_read > buf.data.size()) {
+      if ((ssize_t)(buf.data_vals_read * buf.elem_nbytes) > (ssize_t)buf.data.size()) {
         throw TileDBError("data buffer out of bounds: " + name);
       }
-      if (buf.offsets_read > buf.offsets.size()) {
+      if ((ssize_t)buf.offsets_read > buf.offsets.size()) {
         throw TileDBError("offsets buffer out of bounds: " + name);
       }
-      if (buf.validity_vals_read > buf.validity.size()) {
+      if ((ssize_t)buf.validity_vals_read > buf.validity.size()) {
         throw TileDBError("validity buffer out of bounds: " + name);
       }
     }
