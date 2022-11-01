@@ -988,13 +988,16 @@ public:
 
       if ((Py_ssize_t)(buf.data_vals_read * buf.elem_nbytes) >
           (Py_ssize_t)buf.data.size()) {
-        throw TileDBError("After read query, data buffer out of bounds: " + name);
+        throw TileDBError("After read query, data buffer out of bounds: " +
+                          name);
       }
       if ((Py_ssize_t)buf.offsets_read > buf.offsets.size()) {
-        throw TileDBError("After read query, offsets buffer out of bounds: " + name);
+        throw TileDBError("After read query, offsets buffer out of bounds: " +
+                          name);
       }
       if ((Py_ssize_t)buf.validity_vals_read > buf.validity.size()) {
-        throw TileDBError("After read query, validity buffer out of bounds: " + name);
+        throw TileDBError("After read query, validity buffer out of bounds: " +
+                          name);
       }
     }
   }
