@@ -10,6 +10,7 @@
 
 ## Bug Fixes
 * Properly handle whitespaces in a query condition [#1398](https://github.com/TileDB-Inc/TileDB-Py/pull/1398)
+* Reintroduce moving `Attr` from Cython to pure Python
 
 # Release 0.18.0
 
