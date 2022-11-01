@@ -93,26 +93,42 @@ def make_domain(dtype, tile=10):
         raise NotImplementedError(dtype)
 
 
-def test_bitsort_roundtrip():
-    capacity = 100
-    ncells = 100000
+@pytest.mark.parametrize(
+    # ncells, tiling, capacity
+    "bounds",
+    [
+        (100, (10,), 2),
+        (10000, (100,), 5),
+        (100000, (100,), 999),
+        (100000, (1000,), 9999),
+    ],
+)
+@pytest.mark.parametrize(
+    "attr_filters",
+    [
+        [tiledb.BitSortFilter()],
+        [tiledb.BitSortFilter(), tiledb.ZstdFilter()],
+        [tiledb.BitSortFilter(), tiledb.XORFilter(), tiledb.ZstdFilter(7)],
+        [tiledb.BitSortFilter(), tiledb.XORFilter(), tiledb.Bzip2Filter()],
+    ],
+)
+def test_bitsort_roundtrip(bounds, attr_filters):
+    ncells, tiling, capacity = bounds
 
     gen = lambda dtype: make_data(dtype, ncells)
     coords = [gen(np.dtype("float32")), gen(np.dtype("float32"))]
-    filters = [tiledb.BitSortFilter(), None, tiledb.ZstdFilter()]
-    data = [gen(np.dtype("float32")), gen(np.dtype("int64"))]
+    input_data = [gen(np.dtype("float32")), gen(np.dtype("int64"))]
+    filters = {"attrs": attr_filters, "dims": None}
 
-    try_bitsort_roundtrip(coords, data, filters, capacity)
-
-
-def try_bitsort_roundtrip(coords, input_data, filters, capacity) -> bool:
     data = {}
 
     dims = []
     for i, c in enumerate(coords):
         name = f"d{i}"
         dim_domain = make_domain(c.dtype)
-        dims.append(tiledb.Dim(name=name, domain=dim_domain, dtype=c.dtype))
+        dims.append(
+            tiledb.Dim(name=name, tile=tiling, domain=dim_domain, dtype=c.dtype)
+        )
 
         data[name] = c
 
@@ -121,8 +137,8 @@ def try_bitsort_roundtrip(coords, input_data, filters, capacity) -> bool:
     attrs = []
     for i, a in enumerate(input_data):
         name = f"a{i}"
-        f = [filters[i]] if filters[i] else []
-        attrs.append(tiledb.Attr(name=name, dtype=a.dtype, filters=f))
+        filters = filters["attrs"] if i == 0 else None
+        attrs.append(tiledb.Attr(name=name, dtype=a.dtype, filters=filters))
         data[name] = a
 
     schema = tiledb.ArraySchema(
@@ -147,5 +163,5 @@ def try_bitsort_roundtrip(coords, input_data, filters, capacity) -> bool:
             assert_array_equal(np.sort(data[k]), np.sort(res[k]))
 
 
-test_bitsort_roundtrip()
+# test_bitsort_roundtrip()
 # %%
