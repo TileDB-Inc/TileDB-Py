@@ -11,7 +11,7 @@ FLOAT_DTYPES = ["f4", "f8"]
 SUPPORTED_DTYPES = INTEGER_DTYPES + STRING_DTYPES + FLOAT_DTYPES
 
 
-@pytest.fixture(scope="module", params=["hilbert", "row-major"])
+@pytest.fixture(scope="module", params=["hilbert", "row-major", "col-major"])
 def sparse_cell_order(request):
     yield request.param
 
