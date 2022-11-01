@@ -986,7 +986,8 @@ public:
       buf.offsets_read += offset_elem_num;
       buf.validity_vals_read += validity_elem_num;
 
-      if ((ssize_t)(buf.data_vals_read * buf.elem_nbytes) > (ssize_t)buf.data.size()) {
+      if ((ssize_t)(buf.data_vals_read * buf.elem_nbytes) >
+          (ssize_t)buf.data.size()) {
         throw TileDBError("data buffer out of bounds: " + name);
       }
       if ((ssize_t)buf.offsets_read > buf.offsets.size()) {
