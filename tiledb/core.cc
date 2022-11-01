@@ -1036,7 +1036,7 @@ public:
     tiledb_query_get_status_details(ctx_.ptr().get(), query_.get()->ptr().get(),
                                     &status_details);
 
-    if (status_details.incomplete_reason != TILEDB_REASON_MEMORY_BUDGET) {
+    if (status_details.incomplete_reason == TILEDB_REASON_USER_BUFFER_SIZE) {
 #else
     if (true) {
 #endif
