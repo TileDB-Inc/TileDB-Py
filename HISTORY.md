@@ -1,4 +1,7 @@
-# In Progress
+# Release 0.18.1
+
+## TileDB Embedded updates:
+* TileDB-Py 0.18.1 includes TileDB Embedded [TileDB 2.12.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.1)
 
 ## Bug Fixes
 * Properly handle whitespaces in a query condition [#1398](https://github.com/TileDB-Inc/TileDB-Py/pull/1398)
