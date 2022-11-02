@@ -36,7 +36,12 @@ def _direct_query_ranges(array: SparseArray, ranges, order):
         q = tiledb.main.PyQuery(ctx, array, ("a",), (), layout, False)
         q.set_ranges(ranges)
         q.submit()
-    return {k: v[0].view(array.attr(0).dtype) for k, v in q.results().items()}
+
+    if ranges == [[]]:
+        # empty range should give empty result
+        return {k: [] for k in q.results()}
+    else:
+        return {k: v[0].view(array.attr(0).dtype) for k, v in q.results().items()}
 
 
 # Compound strategies to build valid inputs for multi_index
@@ -84,7 +89,6 @@ class TestMultiIndexPropertySparse:
     def test_multi_index_two_way_query(self, order, sparse_array_1d, ranges):
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
-
         uri = sparse_array_1d
 
         assert isinstance(uri, str)
