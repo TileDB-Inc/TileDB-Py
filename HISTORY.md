@@ -1,3 +1,8 @@
+# TileDB-Py 0.17.7 Release Notes
+
+## Bug Fixes
+* Check Size of Data, Offset, and Validity Buffers in `update_read_elem_num` [#1402](https://github.com/TileDB-Inc/TileDB-Py/pull/1402)
+
 # TileDB-Py 0.17.6 Release Notes
 
 ## Bug Fixes
