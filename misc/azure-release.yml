@@ -73,8 +73,6 @@ stages:
               versionSpec: "3.10"
             condition: and(succeeded(), eq(variables['Agent.OS'], 'Darwin'))
 
-          - template: azure-libtiledb-darwin.yml
-
           - script: git tag -f $(TILEDBPY_VERSION)
 
           - task: DownloadPipelineArtifact@2
