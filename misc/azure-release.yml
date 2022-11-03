@@ -6,9 +6,9 @@ stages:
         LIBTILEDB_VERSION: dev
         LIBTILEDB_SHA: dev
       ${{ else }}:
-        TILEDBPY_VERSION: 0.18.0
-        LIBTILEDB_VERSION: 2.12.0
-        LIBTILEDB_SHA: ac8a0df61049d8c2fe512d79cc2b2c5549f8f8ea
+        TILEDBPY_VERSION: 0.18.1
+        LIBTILEDB_VERSION: 2.12.1
+        LIBTILEDB_SHA: 7a660857856d550f7553e6cbc3b78aa4031f80d1
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
@@ -68,6 +68,11 @@ stages:
           vmImage: $(imageName)
 
         steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.10"
+            condition: and(succeeded(), eq(variables['Agent.OS'], 'Darwin'))
+
           - script: git tag -f $(TILEDBPY_VERSION)
 
           - task: DownloadPipelineArtifact@2
