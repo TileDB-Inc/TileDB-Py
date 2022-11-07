@@ -2131,7 +2131,7 @@ cdef class ArraySchema(object):
         """Returns true if the given name is an Attribute of the ArraySchema
 
         :param name: attribute name
-        :rtype: boolean
+        :rtype: bool
         """
         cdef:
             int32_t has_attr = 0
@@ -2152,10 +2152,18 @@ cdef class ArraySchema(object):
 
         return bool(has_attr)
 
+    def has_dim(self, name):
+        """Returns True if the given name is a Dim of the ArraySchema
+
+        :param name: dimension name
+        :rtype: bool
+        """
+        return self.domain.has_dim(name)
+
     def attr_or_dim_dtype(self, unicode name):
         if self.has_attr(name):
             dtype = self.attr(name).dtype
-        elif self.domain.has_dim(name):
+        elif self.has_dim(name):
             dtype = self.domain.dim(name).dtype
         else:
             raise TileDBError(f"Unknown attribute or dimension ('{name}')")
