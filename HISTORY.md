@@ -1,3 +1,8 @@
+# In Progress
+
+## API Changes
+* Support for partial consolidation using a list of fragment URIs []()
+
 # Release 0.18.2
 
 ## TileDB Embedded updates:

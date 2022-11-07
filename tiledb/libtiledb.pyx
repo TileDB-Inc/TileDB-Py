@@ -5086,13 +5086,14 @@ cdef class SparseArrayImpl(Array):
         return dim_values
 
 
-def consolidate(uri, key=None, config=None, ctx=None, timestamp=None):
+def consolidate(uri, key=None, config=None, ctx=None, fragment_uris=None, timestamp=None):
     """Consolidates TileDB array fragments for improved read performance
 
     :param str uri: URI to the TileDB Array
     :param str key: (default None) Key to decrypt array if the array is encrypted
     :param tiledb.Config config: The TileDB Config with consolidation parameters set
     :param tiledb.Ctx ctx: (default None) The TileDB Context
+    :param fragment_uris: (default None) Consolidate the array using a list of fragment file names
     :param timestamp: (default None) If not None, consolidate the array using the given
         tuple(int, int) UNIX seconds range (inclusive)
     :rtype: str or bytes
@@ -5105,13 +5106,46 @@ def consolidate(uri, key=None, config=None, ctx=None, timestamp=None):
     `"sm.vacuum.timestamp_end"` which takes in a time in UNIX seconds. If both
     are set then this function's `timestamp` argument will be used.
 
+    **Example:**
+
+    >>> import tiledb, tempfile, numpy as np, os
+    >>> path = tempfile.mkdtemp()
+
+    >>> with tiledb.from_numpy(path, np.zeros(4), timestamp=1) as A:
+    ...     pass
+    >>> with tiledb.open(path, 'w', timestamp=2) as A:
+    ...     A[:] = np.ones(4, dtype=np.int64)
+    >>> with tiledb.open(path, 'w', timestamp=3) as A:
+    ...     A[:] = np.ones(4, dtype=np.int64)
+    >>> with tiledb.open(path, 'w', timestamp=4) as A:
+    ...     A[:] = np.ones(4, dtype=np.int64)
+    >>> len(tiledb.array_fragments(path))
+    4
+
+    >>> fragment_names = [
+    ...     os.path.basename(f) for f in tiledb.array_fragments(path).uri
+    ... ]
+    >>> array_uri = tiledb.consolidate(
+    ...    path, fragment_uris=[fragment_names[1], fragment_names[3]]
+    ... )
+    >>> len(tiledb.array_fragments(path))
+    3
+
     """
     if not ctx:
         ctx = default_ctx()
 
     cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
-    if timestamp:
+    cdef int rc = TILEDB_OK
+
+    if timestamp is not None:
+        warnings.warn(
+            "The `timestamp` argument is deprecated; pass a list of "
+            "fragment URIs to consolidate with `fragment_uris`",
+            DeprecationWarning,
+        )
+
         if config is None:
             config = Config()
 
@@ -5128,7 +5162,25 @@ def consolidate(uri, key=None, config=None, ctx=None, timestamp=None):
         config_ptr = <tiledb_config_t*>PyCapsule_GetPointer(
             config.__capsule__(), "config")
     cdef bytes buri = unicode_path(uri)
-    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
+    cdef const char* array_uri_ptr = PyBytes_AS_STRING(buri)
+
+    cdef const char **fragment_uri_buf = NULL
+
+    if fragment_uris is not None:
+        fragment_uri_buf = <const char **>malloc(len(fragment_uris) * sizeof(char *))
+
+        for i, frag_uri in enumerate(fragment_uris):
+            fragment_uri_buf[i] = PyUnicode_AsUTF8(frag_uri)
+
+        rc = tiledb_array_consolidate_fragments(
+            ctx_ptr, array_uri_ptr, fragment_uri_buf, len(fragment_uris), config_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        
+        free(fragment_uri_buf)
+
+        return uri
+
     # encryption key
     cdef:
         bytes bkey
@@ -5146,9 +5198,9 @@ def consolidate(uri, key=None, config=None, ctx=None, timestamp=None):
         #TODO: unsafe cast here ssize_t -> uint64_t
         key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
 
-    cdef int rc = TILEDB_OK
     with nogil:
-        rc = tiledb_array_consolidate_with_key(ctx_ptr, uri_ptr, key_type, key_ptr, key_len, config_ptr)
+        rc = tiledb_array_consolidate_with_key(
+            ctx_ptr, array_uri_ptr, key_type, key_ptr, key_len, config_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
     return uri
