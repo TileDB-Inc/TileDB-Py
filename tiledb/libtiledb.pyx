@@ -2835,6 +2835,44 @@ cdef class Array(object):
         )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+    
+    @staticmethod
+    def delete_array(uri, ctx=None):
+        """
+        Delete the given array.
+
+        :param str uri: The URI of the array
+        :param Ctx ctx: TileDB context
+
+        **Example:**
+
+        >>> import tiledb, tempfile, numpy as np
+        >>> path = tempfile.mkdtemp()
+
+        >>> with tiledb.from_numpy(path, np.zeros(4), timestamp=1) as A:
+        ...     pass
+        >>> tiledb.array_exists(path)
+        True
+
+        >>> tiledb.Array.delete_array(path)
+
+        >>> tiledb.array_exists(path)
+        False
+
+        """
+        if not ctx:
+            ctx = default_ctx()
+
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
+        cdef bytes buri = uri.encode('UTF-8')
+        cdef ArrayPtr preload_ptr = preload_array(uri, 'm', None, None)
+        cdef tiledb_array_t* array_ptr = preload_ptr.ptr
+
+        cdef int rc = TILEDB_OK
+
+        rc = tiledb_array_delete_array(ctx_ptr, array_ptr, buri)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
     def nonempty_domain(self):
         """Return the minimum bounding domain which encompasses nonempty values.

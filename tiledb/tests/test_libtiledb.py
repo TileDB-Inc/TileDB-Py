@@ -876,6 +876,21 @@ class ArrayTest(DiskTestCase):
         assert len(frags) == 6
         assert frags.timestamp_range == ts[:2] + ts[6:]
 
+    def test_array_delete(self):
+        uri = self.path("test_array_delete")
+        data = np.random.rand(10)
+
+        tiledb.from_numpy(uri, data)
+
+        with tiledb.open(uri) as A:
+            assert_array_equal(A[:], data)
+
+        assert tiledb.array_exists(uri) == True
+
+        tiledb.Array.delete_array(uri)
+
+        assert tiledb.array_exists(uri) == False
+
 
 class DenseArrayTest(DiskTestCase):
     def test_array_1d(self):
