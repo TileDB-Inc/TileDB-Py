@@ -3523,7 +3523,8 @@ cdef class Array(object):
         """
         if self.mode == 'r':
             raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
-        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, fragment_uris=fragment_uris, timestamp=timestamp)
+        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, 
+                           fragment_uris=fragment_uris, timestamp=timestamp)
 
     def upgrade_version(self, config=None):
         """
@@ -5134,9 +5135,56 @@ def consolidate(uri, key=None, config=None, ctx=None, fragment_uris=None, timest
     if not ctx:
         ctx = default_ctx()
 
+    if fragment_uris is not None:
+        if timestamp is not None:
+            warnings.warn(
+                "The `timestamp` argument will be ignored and only fragments "
+                "passed to `fragment_uris` will be consolidate",
+                DeprecationWarning,
+            )
+        return _consolidate_uris(
+            uri=uri, key=key, config=config, ctx=ctx, fragment_uris=fragment_uris)
+    else:
+        return _consolidate_timestamp(
+            uri=uri, key=key, config=config, ctx=ctx, timestamp=timestamp)
+
+def _consolidate_uris(uri, key=None, config=None, ctx=None, fragment_uris=None):
+    cdef int rc = TILEDB_OK
+
     cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
+    if config is None:
+        config = ctx.config()
+
+    cdef tiledb_config_t* config_ptr = NULL
+    if config is not None:
+        config_ptr = <tiledb_config_t*>PyCapsule_GetPointer(
+            config.__capsule__(), "config")
+    cdef bytes buri = unicode_path(uri)
+    cdef const char* array_uri_ptr = PyBytes_AS_STRING(buri)
+
+    cdef const char **fragment_uri_buf = <const char **>malloc(
+        len(fragment_uris) * sizeof(char *))
+
+    for i, frag_uri in enumerate(fragment_uris):
+        fragment_uri_buf[i] = PyUnicode_AsUTF8(frag_uri)
+
+    if key is not None:
+        config["sm.encryption_key"] = key
+
+    rc = tiledb_array_consolidate_fragments(
+        ctx_ptr, array_uri_ptr, fragment_uri_buf, len(fragment_uris), config_ptr)
+    if rc != TILEDB_OK:
+        _raise_ctx_err(ctx_ptr, rc)
+    
+    free(fragment_uri_buf)
+
+    return uri
+
+def _consolidate_timestamp(uri, key=None, config=None, ctx=None, timestamp=None):
     cdef int rc = TILEDB_OK
+
+    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
     if timestamp is not None:
         warnings.warn(
@@ -5146,7 +5194,7 @@ def consolidate(uri, key=None, config=None, ctx=None, fragment_uris=None, timest
         )
 
         if config is None:
-            config = Config()
+            config = ctx.config()
 
         if not isinstance(timestamp, tuple) and len(timestamp) != 2:
             raise TypeError("'timestamp' argument expects tuple(start: int, end: int)")
@@ -5162,23 +5210,6 @@ def consolidate(uri, key=None, config=None, ctx=None, fragment_uris=None, timest
             config.__capsule__(), "config")
     cdef bytes buri = unicode_path(uri)
     cdef const char* array_uri_ptr = PyBytes_AS_STRING(buri)
-
-    cdef const char **fragment_uri_buf = NULL
-
-    if fragment_uris is not None:
-        fragment_uri_buf = <const char **>malloc(len(fragment_uris) * sizeof(char *))
-
-        for i, frag_uri in enumerate(fragment_uris):
-            fragment_uri_buf[i] = PyUnicode_AsUTF8(frag_uri)
-
-        rc = tiledb_array_consolidate_fragments(
-            ctx_ptr, array_uri_ptr, fragment_uri_buf, len(fragment_uris), config_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        
-        free(fragment_uri_buf)
-
-        # return uri
 
     # encryption key
     cdef:
