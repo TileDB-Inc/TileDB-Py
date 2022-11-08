@@ -3817,13 +3817,22 @@ class ConsolidationTest(DiskTestCase):
         frags = tiledb.array_fragments(path)
         assert len(frags) == 10
 
-        tiledb.consolidate(
-            path, fragment_uris=[os.path.basename(f) for f in frags.uri[:4]]
-        )
+        frag_names = [os.path.basename(f) for f in frags.uri]
+
+        tiledb.consolidate(path, fragment_uris=frag_names[:4])
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 7
         assert len(frags.to_vacuum) == 4
+
+        with pytest.warns(
+            DeprecationWarning,
+            match=(
+                "The `timestamp` argument is deprecated; pass a list of "
+                "fragment URIs to consolidate with `fragment_uris`"
+            ),
+        ):
+            tiledb.consolidate(path, fragment_uris=frag_names[4:8], timestamp=(9, 10))
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Only run MemoryTest on linux")

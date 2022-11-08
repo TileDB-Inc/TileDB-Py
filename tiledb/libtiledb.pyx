@@ -3501,7 +3501,7 @@ cdef class Array(object):
 
         return tuple(results)
 
-    def consolidate(self, config=None, key=None, timestamp=None):
+    def consolidate(self, config=None, key=None, fragment_uris=None, timestamp=None):
         """
         Consolidates fragments of an array object for increased read performance.
 
@@ -3510,8 +3510,8 @@ cdef class Array(object):
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
         :param key: (default None) encryption key to decrypt an encrypted array
         :type key: str or bytes
-        :param timestamp: (default None) If not None, consolidate the array using the
-            given tuple(int, int) UNIX seconds range (inclusive)
+        :param fragment_uris: (default None) Consolidate the array using a list of fragment file names
+        :param timestamp: (default None) If not None, consolidate the array using the given tuple(int, int) UNIX seconds range (inclusive). This argument will be ignored if `fragment_uris` is passed.
         :type timestamp: tuple (int, int)
         :raises: :py:exc:`tiledb.TileDBError`
 
@@ -3523,7 +3523,7 @@ cdef class Array(object):
         """
         if self.mode == 'r':
             raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
-        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, timestamp=timestamp)
+        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, fragment_uris=fragment_uris, timestamp=timestamp)
 
     def upgrade_version(self, config=None):
         """
@@ -5094,8 +5094,7 @@ def consolidate(uri, key=None, config=None, ctx=None, fragment_uris=None, timest
     :param tiledb.Config config: The TileDB Config with consolidation parameters set
     :param tiledb.Ctx ctx: (default None) The TileDB Context
     :param fragment_uris: (default None) Consolidate the array using a list of fragment file names
-    :param timestamp: (default None) If not None, consolidate the array using the given
-        tuple(int, int) UNIX seconds range (inclusive)
+    :param timestamp: (default None) If not None, consolidate the array using the given tuple(int, int) UNIX seconds range (inclusive). This argument will be ignored if `fragment_uris` is passed.
     :rtype: str or bytes
     :return: path (URI) to the consolidated TileDB Array
     :raises TypeError: cannot convert path to unicode string
@@ -5179,7 +5178,7 @@ def consolidate(uri, key=None, config=None, ctx=None, fragment_uris=None, timest
         
         free(fragment_uri_buf)
 
-        return uri
+        # return uri
 
     # encryption key
     cdef:
