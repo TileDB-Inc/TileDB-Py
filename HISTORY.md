@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Fix `.df` and `.multi_index` always returning attributes applied in query conditions [#1433](https://github.com/TileDB-Inc/TileDB-Py/pull/1433)
+
 # Release 0.18.2
 
 ## TileDB Embedded updates:
