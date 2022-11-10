@@ -680,7 +680,7 @@ def _tiledb_cast_tile_extent(tile_extent, dtype):
 cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     """Return a numpy type num (int) given a tiledb_datatype_t enum value."""
     np_id_type = _tiledb_dtype_to_numpy_typeid_convert.get(tiledb_dtype, None)
-    if np_id_type:
+    if np_id_type is not None:
         return np_id_type
     return np.NPY_DATETIME if _tiledb_type_is_datetime(tiledb_dtype) else np.NPY_NOTYPE
 
