@@ -184,4 +184,4 @@ class AttributeTest(DiskTestCase):
             assert A.schema.attr(0).name == ""
             with pytest.raises(AttributeError) as exc:
                 A.schema.attr(0).name = "can't change"
-            assert str(exc.value) == "can't set attribute 'name'"
+            assert "can't set attribute" in str(exc.value)
