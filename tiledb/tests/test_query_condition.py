@@ -704,6 +704,25 @@ class QueryConditionTest(DiskTestCase):
             # ensures that ' a' does not match 'a'
             assert len(result["A"]) == 0
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    def test_do_not_return_attrs(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            cond = None
+            assert "D" in A.query(cond=cond, attrs=None)[:]
+            assert "D" not in A.query(cond=cond, attrs=[])[:]
+            assert "D" in A.query(cond=cond, attrs=None).df[:]
+            assert "D" not in A.query(cond=cond, attrs=[]).df[:]
+            assert "D" in A.query(cond=cond, attrs=None).multi_index[:]
+            assert "D" not in A.query(cond=cond, attrs=[]).multi_index[:]
+
+            cond = "D > 100"
+            assert "D" in A.query(cond=cond, attrs=None)[:]
+            assert "D" not in A.query(cond=cond, attrs=[])[:]
+            assert "D" in A.query(cond=cond, attrs=None).df[:]
+            assert "D" not in A.query(cond=cond, attrs=[]).df[:]
+            assert "D" in A.query(cond=cond, attrs=None).multi_index[:]
+            assert "D" not in A.query(cond=cond, attrs=[]).multi_index[:]
+
 
 class QueryDeleteTest(DiskTestCase):
     def test_basic_sparse(self):

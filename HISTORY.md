@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Fix `.df` and `.multi_index` always returning attributes applied in query conditions []()
+
 # Release 0.18.2
 
 ## TileDB Embedded updates:

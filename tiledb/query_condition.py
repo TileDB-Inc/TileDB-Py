@@ -141,8 +141,6 @@ class QueryCondition:
                 "be made up of one or more Boolean expressions."
             )
 
-        return query_attrs
-
 
 @dataclass
 class QueryConditionTree(ast.NodeVisitor):
@@ -325,9 +323,6 @@ class QueryConditionTree(ast.NodeVisitor):
 
             if node.func.id == "dim" and not self.schema.domain.has_dim(variable):
                 raise TileDBError(f"{node.func.id} is not a dimension.")
-
-        if self.schema.has_attr(variable) and variable not in self.query_attrs:
-            self.query_attrs.append(variable)
 
         return variable
 
