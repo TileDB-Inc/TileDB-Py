@@ -4,7 +4,7 @@ from tiledb.dataframe_ import ColumnInfo
 
 from collections import deque
 import numpy as np
-from typing import Any, Iterable, Optional, List, TYPE_CHECKING, Union
+from typing import Any, Iterable, Optional, List, Tuple, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .libtiledb import ArraySchema, Ctx
@@ -167,7 +167,7 @@ def array_type_ncells(dtype: np.dtype) -> lt.DataType:
     return tdb_type, ncells
 
 
-def dtype_range(dtype: np.dtype) -> tuple[Any]:
+def dtype_range(dtype: np.dtype) -> Tuple[Any]:
     """Return the range of a Numpy dtype"""
 
     if np.issubdtype(dtype, np.integer):
@@ -472,7 +472,7 @@ def _schema_like_numpy(array: np.array, ctx: Optional["Ctx"] = None, **kw):
     return tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
 
 
-def _regularize_tiling(tile: Union[Iterable, np.isscalar], ndim: int) -> tuple[Any]:
+def _regularize_tiling(tile: Union[Iterable, np.isscalar], ndim: int) -> Tuple[Any]:
     """
     Internal helper function for schema_like and schema_like_numpy to regularize tiling.
     """
