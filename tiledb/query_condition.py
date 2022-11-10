@@ -77,21 +77,21 @@ class QueryCondition:
             | val compare_op var
             | val compare_op var compare_op val``
 
-    If an attribute name has special characters in it, you can wrap ``namehere``
-    in ``attr("namehere")``.
-
     All comparison operators are supported.
 
         ``compare_op ::= < | > | <= | >= | == | !=``
 
-    A memership expression contains the membership operator, ``in``. The operator
+    If an attribute name has special characters in it, you can wrap ``namehere``
+    in ``attr("namehere")``.
+
+    A membership expression contains the membership operator, ``in``. The operator
     works on a TileDB variable and list of values.
 
         ``member_expr ::= var in <list>``
 
     TileDB variable names are Python valid variables or a ``attr()`` or ``dim()`` casted string.
 
-        ``var ::= <variable> | attr(<str>) | dim(<str>``
+        ``var ::= <variable> | attr(<str>) | dim(<str>)``
 
     Values are any Python-valid number or string. datetime64 values should first be
     cast to UNIX seconds. Values may also be casted with ``val()``.
