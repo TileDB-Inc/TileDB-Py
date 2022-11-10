@@ -1,5 +1,4 @@
 import io
-import numpy as np
 from typing import List, overload, Sequence, TYPE_CHECKING, Union
 
 import tiledb.cc as lt
@@ -14,7 +13,6 @@ class Filter(lt.Filter):
 
     def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
-
         super().__init__(self._ctx, type)
 
     def __repr__(self) -> str:
@@ -677,16 +675,20 @@ class FilterList(lt.FilterList):
         filters: Sequence[Filter] = None,
         chunksize: int = None,
         ctx: "Ctx" = None,
-        is_capsule: bool = False,
+        _lt_obj=None,
+        _capsule=None,
     ):
         self._ctx = ctx or default_ctx()
-        _cctx = self._ctx
 
-        if is_capsule:
-            super().__init__(_cctx, filters)
+        if _capsule is not None:
+            super().__init__(self._ctx, _capsule)
+        elif _lt_obj is not None:
+            super().__init__(self._ctx)
+            for i in range(_lt_obj._nfilters()):
+                self._add_filter(_lt_obj._filter(i))
+            chunksize = _lt_obj._chunksize
         else:
-            super().__init__(_cctx)
-
+            super().__init__(self._ctx)
             if filters is not None:
                 filters = list(filters)
                 for f in filters:
