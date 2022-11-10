@@ -1907,7 +1907,6 @@ cdef class ArraySchema(object):
             _raise_ctx_err(ctx_ptr, rc)
 
         cdef tiledb_attribute_t* attr_ptr = NULL
-        # cdef Attr attribute
         for attr in attrs:
             if not isinstance(attr, Attr):
                 raise TypeError("Cannot create schema with non-Attr value for 'attrs' argument")

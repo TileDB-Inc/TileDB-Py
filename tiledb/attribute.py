@@ -4,10 +4,9 @@ import warnings
 from typing import Any, Sequence, TYPE_CHECKING, Union
 
 import tiledb.cc as lt
-from .np2buf import array_type_ncells
 from .ctx import default_ctx
 from .filter import FilterList, Filter
-from .util import _numpy_dtype, _tiledb_type_is_datetime
+from .util import array_type_ncells, numpy_dtype, tiledb_type_is_datetime
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx
@@ -61,7 +60,7 @@ class Attr(lt.Attribute):
             elif _lt_obj._tiledb_dtype == lt.DataType.BLOB:
                 dtype = "blob"
             else:
-                dtype = np.dtype(_numpy_dtype(_lt_obj._tiledb_dtype, _lt_obj._ncell))
+                dtype = np.dtype(numpy_dtype(_lt_obj._tiledb_dtype, _lt_obj._ncell))
             nullable = _lt_obj._nullable
             if not nullable:
                 fill = self._get_fill(_lt_obj._fill, _lt_obj._tiledb_dtype)
@@ -151,7 +150,7 @@ class Attr(lt.Attribute):
         :rtype: numpy.dtype
 
         """
-        return np.dtype(_numpy_dtype(self._tiledb_dtype, self._ncell))
+        return np.dtype(numpy_dtype(self._tiledb_dtype, self._ncell))
 
     @property
     def name(self) -> str:
@@ -194,7 +193,7 @@ class Attr(lt.Attribute):
         if dtype in (lt.DataType.CHAR, lt.DataType.BLOB):
             return value.tobytes()
 
-        if _tiledb_type_is_datetime(dtype):
+        if tiledb_type_is_datetime(dtype):
             return value[0].astype(np.timedelta64)
 
         return value

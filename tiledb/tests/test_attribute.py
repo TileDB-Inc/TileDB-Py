@@ -72,11 +72,8 @@ class AttributeTest(DiskTestCase):
 
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.int64)
-
-        # <todo>
-        # compressor, level = attr.compressor
-        # self.assertEqual(compressor, "zstd")
-        # self.assertEqual(level, 10)
+        self.assertIsInstance(attr.filters[0], tiledb.ZstdFilter)
+        self.assertEqual(attr.filters[0].level, 10)
 
     def test_ncell_attribute(self):
         dtype = np.dtype([("", np.int32), ("", np.int32), ("", np.int32)])
@@ -177,3 +174,17 @@ class AttributeTest(DiskTestCase):
             assert A.schema.attr("A").dtype == np.bytes_
             assert A.schema.attr("A").isascii
             assert_array_equal(A[:]["A"], np.asarray(ascii_data, dtype=np.bytes_))
+
+    def test_modify_attribute_in_schema(self):
+        path = self.path("test_modify_attribute_in_schema")
+        tiledb.from_numpy(path, np.random.rand(10))
+
+        with tiledb.open(path, "r") as A:
+            assert A.schema.nattr == 1
+            
+            A.schema.attr[0] = tiledb.Attr(name="", dtype=np.int64)
+            
+            assert A.schema.attr(0).name == ""
+            with pytest.raises(AttributeError) as exc:
+                A.schema.attr(0).name = "can't change"
+            assert str(exc.value) == "can't set attribute 'name'"
