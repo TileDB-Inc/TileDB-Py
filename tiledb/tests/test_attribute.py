@@ -181,9 +181,6 @@ class AttributeTest(DiskTestCase):
 
         with tiledb.open(path, "r") as A:
             assert A.schema.nattr == 1
-            
-            A.schema.attr[0] = tiledb.Attr(name="", dtype=np.int64)
-            
             assert A.schema.attr(0).name == ""
             with pytest.raises(AttributeError) as exc:
                 A.schema.attr(0).name = "can't change"
