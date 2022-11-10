@@ -3153,7 +3153,7 @@ class PickleTest(DiskTestCase):
     @tiledb.scope_ctx({"vfs.s3.region": "kuyper-belt-1", "vfs.max_parallel_ops": "1"})
     def test_pickle_with_config(self):
         uri = self.path("pickle_config")
-        T = tiledb.DenseArray.from_numpy(uri, np.random.rand(3, 3))
+        T = tiledb.from_numpy(uri, np.random.rand(3, 3))
 
         with io.BytesIO() as buf:
             pickle.dump(T, buf)
@@ -3281,22 +3281,22 @@ class TestNumpyToArray(DiskTestCase):
         # Cannot create 0-dim arrays in TileDB
         np_array = np.array(1)
         with self.assertRaises(tiledb.TileDBError):
-            with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as A:
+            with tiledb.from_numpy(self.path("foo"), np_array) as A:
                 pass
 
     def test_to_array1d(self):
         np_array = np.array([1.0, 2.0, 3.0])
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_to_array2d(self):
         np_array = np.ones((100, 100), dtype="i8")
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_to_array3d(self):
         np_array = np.ones((1, 1, 1), dtype="i1")
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_bytes_to_array1d(self):
@@ -3304,7 +3304,7 @@ class TestNumpyToArray(DiskTestCase):
             [b"abcdef", b"gh", b"ijkl", b"mnopqrs", b"", b"1234545lkjalsdfj"],
             dtype=object,
         )
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
         with tiledb.DenseArray(self.path("foo")) as arr_reload:
@@ -3326,7 +3326,7 @@ class TestNumpyToArray(DiskTestCase):
             ],
             dtype=object,
         )
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
         with tiledb.DenseArray(self.path("foo")) as arr_reload:
@@ -3335,7 +3335,7 @@ class TestNumpyToArray(DiskTestCase):
     def test_array_interface(self):
         # Tests that __array__ interface works
         np_array1 = np.arange(1, 10)
-        with tiledb.DenseArray.from_numpy(self.path("arr1"), np_array1) as arr1:
+        with tiledb.from_numpy(self.path("arr1"), np_array1) as arr1:
             assert_array_equal(np.array(arr1), np_array1)
 
         # Test that __array__ interface throws an error when number of attributes > 1
@@ -3351,14 +3351,12 @@ class TestNumpyToArray(DiskTestCase):
     def test_array_getindex(self):
         # Tests that __getindex__ interface works
         np_array = np.arange(1, 10)
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[5:10], np_array[5:10])
 
     def test_to_array1d_attr_name(self):
         np_array = np.array([1.0, 2.0, 3.0])
-        with tiledb.DenseArray.from_numpy(
-            self.path("foo"), np_array, attr_name="a"
-        ) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array, attr_name="a") as arr:
             assert_array_equal(arr[:]["a"], np_array)
 
     def test_from_numpy_timestamp(self):
@@ -3374,7 +3372,7 @@ class TestNumpyToArray(DiskTestCase):
         uri = self.path("test_from_numpy_schema_only")
 
         arr1 = np.array([1.0, 2.0, 3.0])
-        with tiledb.DenseArray.from_numpy(uri, arr1, mode="schema_only") as arr:
+        with tiledb.from_numpy(uri, arr1, mode="schema_only") as arr:
             assert arr.nonempty_domain() is None
 
     def test_from_numpy_append(self):
@@ -3382,13 +3380,13 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.array([1.0, 2.0, 3.0])
 
-        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+        with tiledb.from_numpy(uri, arr1, full_domain=True) as A:
             assert A.nonempty_domain() == ((0, 2),)
             assert_array_equal(A[0:3], arr1)
 
         arr2 = np.array([4.0, 5.0, 6.0])
 
-        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append") as A:
+        with tiledb.from_numpy(uri, arr2, mode="append") as A:
             assert A.nonempty_domain() == ((0, 5),)
             assert_array_equal(A[0:6], np.append(arr1, arr2))
 
@@ -3397,13 +3395,13 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.array([1.0, 2.0, 3.0])
 
-        with tiledb.DenseArray.from_numpy(uri, arr1) as A:
+        with tiledb.from_numpy(uri, arr1) as A:
             assert A.nonempty_domain() == ((0, 2),)
             assert_array_equal(A[0:3], arr1)
 
         arr2 = np.array([4.0, 5.0, 6.0])
 
-        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append", start_idx=0) as A:
+        with tiledb.from_numpy(uri, arr2, mode="append", start_idx=0) as A:
             assert A.nonempty_domain() == ((0, 2),)
             assert_array_equal(A[0:3], arr2)
 
@@ -3412,23 +3410,23 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.random.rand(10, 5)
 
-        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+        with tiledb.from_numpy(uri, arr1, full_domain=True) as A:
             assert A.nonempty_domain() == ((0, 9), (0, 4))
             assert_array_equal(A[0:10, 0:5], arr1)
 
         # error out if number of dimensions do not match
         with self.assertRaises(ValueError):
             arr2 = np.random.rand(5)
-            tiledb.DenseArray.from_numpy(uri, arr2, mode="append")
+            tiledb.from_numpy(uri, arr2, mode="append")
 
         # error out if number of dimensions do not match
         with self.assertRaises(ValueError):
             arr2 = np.random.rand(4, 4)
-            tiledb.DenseArray.from_numpy(uri, arr2, mode="append")
+            tiledb.from_numpy(uri, arr2, mode="append")
 
         arr2 = np.random.rand(5, 5)
 
-        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append") as A:
+        with tiledb.from_numpy(uri, arr2, mode="append") as A:
             assert A.nonempty_domain() == ((0, 14), (0, 4))
             assert_array_equal(A[0:15, 0:5], np.append(arr1, arr2, axis=0))
 
@@ -3438,7 +3436,7 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.random.rand(2, 2, 2)
 
-        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+        with tiledb.from_numpy(uri, arr1, full_domain=True) as A:
             assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
             assert_array_equal(A[0:2, 0:2, 0:2], arr1)
 
@@ -3447,14 +3445,10 @@ class TestNumpyToArray(DiskTestCase):
         # error out if index is out of bounds
         if append_dim == 3:
             with self.assertRaises(IndexError):
-                tiledb.DenseArray.from_numpy(
-                    uri, arr2, mode="append", append_dim=append_dim
-                )
+                tiledb.from_numpy(uri, arr2, mode="append", append_dim=append_dim)
             return
 
-        with tiledb.DenseArray.from_numpy(
-            uri, arr2, mode="append", append_dim=append_dim
-        ) as A:
+        with tiledb.from_numpy(uri, arr2, mode="append", append_dim=append_dim) as A:
             if append_dim == 0:
                 assert A.nonempty_domain() == ((0, 3), (0, 1), (0, 1))
                 result = A[0:4, 0:2, 0:2]
@@ -3473,7 +3467,7 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.random.rand(2, 2, 2)
 
-        with tiledb.DenseArray.from_numpy(uri, arr1) as A:
+        with tiledb.from_numpy(uri, arr1) as A:
             assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
             assert_array_equal(A[0:2, 0:2, 0:2], arr1)
 
@@ -3482,12 +3476,10 @@ class TestNumpyToArray(DiskTestCase):
         # error out if index is out of bounds
         if append_dim == 3:
             with self.assertRaises(IndexError):
-                tiledb.DenseArray.from_numpy(
-                    uri, arr2, mode="append", append_dim=append_dim
-                )
+                tiledb.from_numpy(uri, arr2, mode="append", append_dim=append_dim)
             return
 
-        with tiledb.DenseArray.from_numpy(
+        with tiledb.from_numpy(
             uri, arr2, mode="append", append_dim=append_dim, start_idx=0
         ) as A:
             assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))

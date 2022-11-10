@@ -1,5 +1,8 @@
 # In Progress
 
+## Improvements
+* Move `from_numpy` out of Cython into pure Python []()
+
 ## Bug Fixes
 * Fix `.df` and `.multi_index` always returning attributes applied in query conditions [#1433](https://github.com/TileDB-Inc/TileDB-Py/pull/1433)
 

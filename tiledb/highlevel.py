@@ -1,9 +1,7 @@
 import tiledb
+from .util import sparse_array_from_numpy
 
 import numpy as np
-import os
-
-from tiledb import fragment
 
 
 def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=None):
@@ -96,13 +94,13 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
     >>> import tiledb, numpy as np, tempfile
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     # Creates array 'array' on disk.
-    ...     with tiledb.DenseArray.from_numpy(tmp + "/array",  np.array([1.0, 2.0, 3.0])) as A:
+    ...     with tiledb.from_numpy(tmp + "/array",  np.array([1.0, 2.0, 3.0])) as A:
     ...         pass
     """
     if not isinstance(array, np.ndarray):
         raise Exception("from_numpy is only currently supported for numpy.ndarray")
 
-    return tiledb.DenseArray.from_numpy(uri, array, ctx=_get_ctx(ctx, config), **kwargs)
+    return sparse_array_from_numpy(uri, array, ctx=_get_ctx(ctx, config), **kwargs)
 
 
 def array_exists(uri, isdense=False, issparse=False):
