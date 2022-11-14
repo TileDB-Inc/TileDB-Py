@@ -28,6 +28,7 @@ except ImportError:
     pyarrow = Table = None
 
 try:
+    import pandas as pd
     from pandas import DataFrame
 except ImportError:
     DataFrame = None
@@ -346,7 +347,34 @@ class DataFrameIndexer(_BaseIndexer):
             if self.query.return_arrow:
                 return table
 
-            df = table.to_pandas()
+            # setting integer_object_nulls=True prevents loss of precision when
+            # casting NULL integer to float64 back to integer
+            df = table.to_pandas(integer_object_nulls=True)
+
+            # this is a workaround for PyArrow's to_pandas function converting
+            # all integers with NULLs to float64:
+            # https://arrow.apache.org/docs/python/pandas.html#arrow-pandas-conversion
+            null_integer_type_mapper = {
+                pyarrow.uint8(): pd.UInt8Dtype(),
+                pyarrow.int8(): pd.Int8Dtype(),
+                pyarrow.uint16(): pd.UInt16Dtype(),
+                pyarrow.int16(): pd.Int16Dtype(),
+                pyarrow.uint32(): pd.UInt32Dtype(),
+                pyarrow.int32(): pd.Int32Dtype(),
+                pyarrow.uint64(): pd.UInt64Dtype(),
+                pyarrow.int64(): pd.Int64Dtype(),
+            }
+
+            # NULL integers in the dataframe are `object` dtype as set by
+            # integer_object_nulls=True above; check if the column in the
+            # Arrow table schema was originally an integer and cast to the
+            # associated Pandas extended dtype if so
+            for col in df.select_dtypes("object"):
+                field_idx = schema.get_field_index(col)
+                pa_type = schema[field_idx].type
+                if pa_type in null_integer_type_mapper:
+                    df[col] = df[col].astype(null_integer_type_mapper[pa_type])
+
         else:
             df = DataFrame(_get_pyquery_results(self.pyquery, self.array.schema))
 
