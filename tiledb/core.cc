@@ -29,7 +29,6 @@
 #include <tiledb/tiledb_serialization.h> // C
 #endif
 
-#include "../external/string_view.hpp"
 #include "../external/tsl/robin_map.h"
 
 #if !defined(NDEBUG)
@@ -1322,8 +1321,8 @@ public:
           if (!deduplicate_) {
             o = py::str(data_ptr, size);
           } else {
-            auto v = nonstd::string_view{data_ptr, size};
-            auto h = std::hash<nonstd::string_view>()(v);
+            auto v = std::string_view{data_ptr, size};
+            auto h = std::hash<std::string_view>()(v);
             auto needle = map.find(h);
             if (needle == map.end()) {
               o = py::str(data_ptr, size);
