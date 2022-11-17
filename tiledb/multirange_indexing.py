@@ -337,7 +337,7 @@ class DataFrameIndexer(_BaseIndexer):
 
                 tdb_attr = self.array.attr(pa_attr.name)
 
-                if tdb_attr.dtype == bool:
+                if np.issubdtype(tdb_attr.dtype, bool):
                     # this is a workaround to cast TILEDB_BOOL types from uint8
                     # representation in Arrow to Boolean
                     dtype = "uint8"
