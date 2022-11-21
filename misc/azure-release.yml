@@ -6,9 +6,9 @@ stages:
         LIBTILEDB_VERSION: dev
         LIBTILEDB_SHA: dev
       ${{ else }}:
-        TILEDBPY_VERSION: 0.17.5
-        LIBTILEDB_VERSION: 2.11.3
-        LIBTILEDB_SHA: a55a910446f947a6c58839ba4061bd3d50a1ec93
+        TILEDBPY_VERSION: 0.18.2
+        LIBTILEDB_VERSION: 2.12.2
+        LIBTILEDB_SHA: a9d60c8c8478990714ee6f5110fd80e901e1f63f
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
@@ -68,6 +68,11 @@ stages:
           vmImage: $(imageName)
 
         steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.10"
+            condition: and(succeeded(), eq(variables['Agent.OS'], 'Darwin'))
+
           - script: git tag -f $(TILEDBPY_VERSION)
 
           - task: DownloadPipelineArtifact@2
@@ -184,7 +189,7 @@ stages:
 
       - job: trigger_fail_build
         dependsOn: [build2_python]
-        condition: failed()
+        condition: and(failed(), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
         pool: server
         steps:
           - task: InvokeRESTAPI@1

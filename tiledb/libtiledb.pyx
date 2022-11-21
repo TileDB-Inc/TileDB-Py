@@ -13,10 +13,12 @@ import warnings
 from collections import OrderedDict
 from collections.abc import Sequence
 
-from .ctx import default_ctx
+from .attribute import Attr
+from .ctx import default_ctx, Ctx, Config
 from .filter import FilterList
 from .vfs import VFS
 from .version import version_tuple as tiledbpy_version
+from .util import sparse_array_from_numpy, dtype_range
 
 import tiledb.cc as lt
 from tiledb.cc import TileDBError
@@ -144,6 +146,15 @@ IF LIBTILEDB_VERSION_MAJOR >= 2:
     IF LIBTILEDB_VERSION_MINOR >= 10:
         _tiledb_dtype_to_numpy_dtype_convert[TILEDB_BOOL] = np.bool_
 
+cdef tiledb_ctx_t* unsafe_ctx_ptr(object ctx):
+    return <tiledb_ctx_t*>PyCapsule_GetPointer(
+            ctx.__capsule__(), "ctx")
+
+cdef tiledb_ctx_t* safe_ctx_ptr(object ctx):
+    if ctx is None:
+        raise TileDBError("internal error: invalid Ctx object")
+    return unsafe_ctx_ptr(ctx)
+
 def version():
     """Return the version of the linked ``libtiledb`` shared library
 
@@ -161,158 +172,6 @@ def version():
 def offset_size():
     """Return the offset size (TILEDB_OFFSET_SIZE)"""
     return tiledb_offset_size()
-
-
-def regularize_tiling(tile, ndim):
-    if not tile:
-        return None
-    elif np.isscalar(tile):
-        tiling = tuple(int(tile) for _ in range(ndim))
-    elif (tile is str) or (len(tile) != ndim):
-        raise ValueError("'tile' argument must be iterable "
-                         "and match array dimensionality")
-    else:
-        tiling = tuple(tile)
-    return tiling
-
-
-def schema_like(*args, shape=None, dtype=None, ctx=None, **kw):
-    """
-    Return an ArraySchema corresponding to a NumPy-like object or
-    `shape` and `dtype` kwargs. Users are encouraged to pass 'tile'
-    and 'capacity' keyword arguments as appropriate for a given
-    application.
-
-    :param A: NumPy array-like object, or TileDB reference URI, optional
-    :param tuple shape: array shape, optional
-    :param dtype: array dtype, optional
-    :param Ctx ctx: TileDB Ctx
-    :param kwargs: additional keyword arguments to pass through, optional
-    :return: tiledb.ArraySchema
-    """
-    if not ctx:
-        ctx = default_ctx()
-    def is_ndarray_like(obj):
-        return hasattr(arr, 'shape') and hasattr(arr, 'dtype') and hasattr(arr, 'ndim')
-
-    # support override of default dimension dtype
-    dim_dtype = kw.pop('dim_dtype', np.uint64)
-    if len(args) == 1:
-        arr = args[0]
-        if is_ndarray_like(arr):
-            tiling = regularize_tiling(kw.pop('tile', None), arr.ndim)
-            schema = schema_like_numpy(arr, tile=tiling, dim_dtype=dim_dtype, ctx=ctx)
-        else:
-            raise ValueError("expected ndarray-like object")
-    elif shape and dtype:
-        if np.issubdtype(np.bytes_, dtype):
-            dtype = np.dtype('S')
-        elif np.issubdtype(dtype, np.unicode_):
-            dtype = np.dtype('U')
-
-        ndim = len(shape)
-        tiling = regularize_tiling(kw.pop('tile', None), ndim)
-
-        dims = []
-        for d in range(ndim):
-            # support smaller tile extents by kw
-            # domain is based on full shape
-            tile_extent = tiling[d] if tiling else shape[d]
-            domain = (0, shape[d] - 1)
-            dims.append(Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
-
-        att = Attr(dtype=dtype, ctx=ctx)
-        dom = Domain(*dims, ctx=ctx)
-        schema = ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
-    elif kw is not None:
-        raise ValueError
-    else:
-        raise ValueError("Must provide either ndarray-like object or 'shape' "
-                         "and 'dtype' keyword arguments")
-
-    return schema
-
-def schema_like_numpy(array, ctx=None, **kw):
-    """create array schema from Numpy array-like object
-    internal function. tiledb.schema_like is exported and recommended
-    """
-    if not ctx:
-        ctx = default_ctx()
-    # create an ArraySchema from the numpy array object
-    tiling = regularize_tiling(kw.pop('tile', None), array.ndim)
-
-    attr_name = kw.pop('attr_name', '')
-    dim_dtype = kw.pop('dim_dtype', np.dtype("uint64"))
-    full_domain = kw.pop('full_domain', False)
-    dims = []
-
-    for (dim_num,d) in enumerate(range(array.ndim)):
-        # support smaller tile extents by kw
-        # domain is based on full shape
-        tile_extent = tiling[d] if tiling else array.shape[d]
-        if full_domain:
-            if dim_dtype not in (np.bytes_, np.str_):
-                # Use the full type domain, deferring to the constructor
-                dtype_min, dtype_max = dtype_range(dim_dtype)
-                dim_max = dtype_max
-                if dim_dtype.kind == "M":
-                    date_unit = np.datetime_data(dim_dtype)[0]
-                    dim_min = np.datetime64(dtype_min, date_unit)
-                    tile_max = np.iinfo(np.uint64).max - tile_extent
-                    if np.uint64(dtype_max - dtype_min) > tile_max:
-                        dim_max = np.datetime64(dtype_max - tile_extent, date_unit)
-                else:
-                    dim_min = dtype_min
-
-                if np.issubdtype(dim_dtype, np.integer):
-                    tile_max = np.iinfo(np.uint64).max - tile_extent
-                    if np.uint64(dtype_max - dtype_min) > tile_max:
-                        dim_max = dtype_max - tile_extent
-                domain = (dim_min, dim_max)
-            else:
-                domain = (None, None)
-
-            if np.issubdtype(dim_dtype, np.integer) or dim_dtype.kind == "M":
-                # we can't make a tile larger than the dimension range or lower than 1
-                tile_extent = max(1, min(tile_extent, np.uint64(dim_max - dim_min)))
-            elif np.issubdim_dtype(dim_dtype, np.floating):
-                # this difference can be inf
-                with np.errstate(over="ignore"):
-                    dim_range = dim_max - dim_min
-                if dim_range < tile_extent:
-                    tile_extent = np.ceil(dim_range)
-        else:
-            domain = (0, array.shape[d] - 1)
-
-        dims.append(Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
-
-    var = False
-    if array.dtype == object:
-        # for object arrays, we use the dtype of the first element
-        # consistency check should be done later, if needed
-        el0 = array.flat[0]
-        if type(el0) is bytes:
-            el_dtype = np.dtype('S')
-            var = True
-        elif type(el0) is str:
-            el_dtype = np.dtype('U')
-            var = True
-        elif type(el0) == np.ndarray:
-            if len(el0.shape) != 1:
-                raise TypeError("Unsupported sub-array type for Attribute: {} " \
-                                "(only string arrays and 1D homogeneous NumPy arrays are supported)".
-                                format(type(el0)))
-            el_dtype = el0.dtype
-        else:
-            raise TypeError("Unsupported sub-array type for Attribute: {} " \
-                            "(only strings and homogeneous-typed NumPy arrays are supported)".
-                            format(type(el0)))
-    else:
-        el_dtype = array.dtype
-
-    att = Attr(dtype=el_dtype, name=attr_name, var=var, ctx=ctx)
-    dom = Domain(*dims, ctx=ctx)
-    return ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
 
 # note: this function is cdef, so it must return a python object in order to
 #       properly forward python exceptions raised within the function. See:
@@ -576,8 +435,10 @@ cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc):
     _raise_tiledb_error(err_ptr)
 
 
-cpdef check_error(Ctx ctx, int rc):
-    _raise_ctx_err(ctx.ptr, rc)
+cpdef check_error(object ctx, int rc):
+    cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
+            ctx.__capsule__(), "ctx")
+    _raise_ctx_err(ctx_ptr, rc)
 
 def stats_enable():
     """Enable TileDB internal statistics."""
@@ -742,560 +603,11 @@ def safe_repr(obj):
     except:
         return "<repr failed>"
 
-def dtype_range(np.dtype dtype):
-    """Return the range of a Numpy dtype"""
-
-    if np.issubdtype(dtype, np.integer):
-        info = np.iinfo(dtype)
-        dtype_min, dtype_max = info.min, info.max
-    elif np.issubdtype(dtype, np.floating):
-        info = np.finfo(dtype)
-        dtype_min, dtype_max = info.min, info.max
-    elif dtype.kind == 'M':
-        info = np.iinfo(np.int64)
-        date_unit = np.datetime_data(dtype)[0]
-        # +1 to exclude NaT
-        dtype_min = np.datetime64(info.min + 1, date_unit)
-        dtype_max = np.datetime64(info.max, date_unit)
-    else:
-        raise TypeError("invalid Dim dtype {0!r}".format(dtype))
-    return (dtype_min, dtype_max)
-
 ###############################################################################
 #                                                                             #
 #    CLASS DEFINITIONS                                                        #
 #                                                                             #
 ###############################################################################
-
-cdef class Config(object):
-    """TileDB Config class
-
-    The Config object stores configuration parameters for both TileDB Embedded
-    and TileDB-Py.
-
-    For TileDB Embedded parameters, see:
-
-        https://docs.tiledb.com/main/how-to/configuration#configuration-parameters
-
-    The following configuration options are supported by TileDB-Py:
-
-        - `py.init_buffer_bytes`:
-
-           Initial allocation size in bytes for attribute and dimensions buffers.
-           If result size exceed the pre-allocated buffer(s), then the query will return
-           incomplete and TileDB-Py will allocate larger buffers and resubmit.
-           Specifying a sufficiently large buffer size will often improve performance.
-           Default 10 MB (1024**2 * 10).
-
-        - `py.use_arrow`:
-
-           Use `pyarrow` from the Apache Arrow project to convert
-           query results into Pandas dataframe format when requested.
-           Default `True`.
-
-        - `py.deduplicate`:
-
-           Attempt to deduplicate Python objects during buffer
-           conversion to Python. Deduplication may reduce memory usage for datasets
-           with many identical strings, at the cost of some performance reduction
-           due to hash calculation/lookup for each object.
-
-    Unknown parameters will be ignored!
-
-    :param dict params: Set parameter values from dict like object
-    :param str path: Set parameter values from persisted Config parameter file
-    """
-
-
-    def __cinit__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr != NULL:
-            tiledb_config_free(&self.ptr)
-
-    def __init__(self, params=None, path=None):
-        cdef tiledb_config_t* config_ptr = NULL
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_alloc(&config_ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        assert(config_ptr != NULL)
-        self.ptr = config_ptr
-        if path is not None:
-            self.load(path)
-        if params is not None:
-            self.update(params)
-
-    @staticmethod
-    cdef from_ptr(tiledb_config_t* ptr):
-        """Constructs a Config class instance from a (non-null) tiledb_config_t pointer"""
-        assert(ptr != NULL)
-        cdef Config config = Config.__new__(Config)
-        config.ptr = ptr
-        return config
-
-    @staticmethod
-    def load(object uri):
-        """Constructs a Config class instance from config parameters loaded from a local Config file
-
-        :parameter str uri: a local URI config file path
-        :rtype: tiledb.Config
-        :return: A TileDB Config instance with persisted parameter values
-        :raises TypeError: `uri` cannot be converted to a unicode string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef bytes buri = unicode_path(uri)
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        cdef Config config = Config.__new__(Config)
-        cdef tiledb_config_t* config_ptr = NULL
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_alloc(&config_ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        if rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        with nogil:
-            rc = tiledb_config_load_from_file(config_ptr, uri_ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            tiledb_config_free(&config_ptr)
-            raise MemoryError()
-        if rc == TILEDB_ERR:
-            tiledb_config_free(&config_ptr)
-            _raise_tiledb_error(err_ptr)
-        assert(config_ptr != NULL)
-        config.ptr = config_ptr
-        return config
-
-    def __setitem__(self, object key, object value):
-        """Sets a config parameter value.
-
-        :param str key: Name of parameter to set
-        :param str value: Value of parameter to set
-        :raises TypeError: `key` or `value` cannot be encoded into a UTF-8 string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        key, value = unicode(key), unicode(value)
-        cdef bytes bparam = key.encode('UTF-8')
-        cdef bytes bvalue = value.encode('UTF-8')
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_set(self.ptr, bparam, bvalue, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        return
-
-    def get(self, object key, raise_keyerror = True):
-        key = unicode(key)
-        cdef bytes bparam = key.encode('UTF-8')
-        cdef const char* value_ptr = NULL
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_get(self.ptr, bparam, &value_ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        if value_ptr == NULL:
-            if raise_keyerror:
-                raise KeyError(key)
-            else:
-                return None
-        cdef bytes value = PyBytes_FromString(value_ptr)
-        return value.decode('UTF-8')
-
-    def __getitem__(self, object key):
-        """Gets a config parameter value.
-
-        :param str key: Name of parameter to get
-        :return: Config parameter value string
-        :rtype str:
-        :raises TypeError: `key` cannot be encoded into a UTF-8 string
-        :raises KeyError: Config parameter not found
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        return self.get(key, True)
-
-    def __delitem__(self, object key):
-        """
-        Removes a configured parameter (resetting it to its default).
-
-        :param str key: Name of parameter to reset.
-        :raises TypeError: `key` cannot be encoded into a UTF-8 string
-
-        """
-        key = unicode(key)
-        cdef bytes bkey = ustring(key).encode("UTF-8")
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_unset(self.ptr, bkey, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        return
-
-    def __iter__(self):
-        """Returns an iterator over the Config parameters (keys)"""
-        return ConfigKeys(self)
-
-    def __len__(self):
-        """Returns the number of parameters (keys) held by the Config object"""
-        return sum(1 for _ in self)
-
-    def __eq__(self, object config):
-        if not isinstance(config, Config):
-            return False
-        keys = set(self.keys())
-        okeys = set(config.keys())
-        if keys != okeys:
-            return False
-        for k in keys:
-            val, oval = self[k], config[k]
-            if val != oval:
-                return False
-        return True
-
-    def __repr__(self):
-        colnames = ["Parameter", "Value"]
-        params = list(self.keys())
-        values = list(map(repr, self.values()))
-        colsizes = [max(len(colnames[0]), *map(len, (p for p in params))),
-                    max(len(colnames[1]), *map(len, (v for v in values)))]
-        format_str = ' | '.join("{{:<{}}}".format(i) for i in colsizes)
-        output = []
-        output.append(format_str.format(colnames[0], colnames[1]))
-        output.append(format_str.format('-' * colsizes[0], '-' * colsizes[1]))
-        output.extend(format_str.format(p, v) for p, v in zip(params, values))
-        return "\n".join(output)
-
-    def _repr_html_(self):
-        output = io.StringIO()
-
-        output.write("<table>")
-
-        output.write("<tr>")
-        output.write("<th>Parameter</th>")
-        output.write("<th>Value</th>")
-        output.write("</tr>")
-
-        params = list(self.keys())
-        values = list(map(repr, self.values()))
-
-        for p, v in zip(params, values):
-            output.write("<tr>")
-            output.write(f"<td>{p}</td>")
-            output.write(f"<td>{v}</td>")
-            output.write("</tr>")
-
-        output.write("</table>")
-
-        return output.getvalue()
-
-    def items(self, prefix=u""):
-        """Returns an iterator object over Config parameters, values
-
-        :param str prefix: return only parameters with a given prefix
-        :rtype: ConfigItems
-        :returns: iterator over Config parameter, value tuples
-
-        """
-        return ConfigItems(self, prefix=prefix)
-
-    def keys(self, prefix=u""):
-        """Returns an iterator object over Config parameters (keys)
-
-        :param str prefix: return only parameters with a given prefix
-        :rtype: ConfigKeys
-        :returns: iterator over Config parameter string keys
-
-        """
-        return ConfigKeys(self, prefix=prefix)
-
-    def values(self, prefix=u""):
-        """Returns an iterator object over Config values
-
-        :param str prefix: return only parameters with a given prefix
-        :rtype: ConfigValues
-        :returns: iterator over Config string values
-
-        """
-        return ConfigValues(self, prefix=prefix)
-
-    def dict(self, prefix=u""):
-        """Returns a dict representation of a Config object
-
-        :param str prefix: return only parameters with a given prefix
-        :rtype: dict
-        :return: Config parameter / values as a a Python dict
-
-        """
-        return dict(ConfigItems(self, prefix=prefix))
-
-    def clear(self):
-        """Unsets all Config parameters (returns them to their default values)"""
-        for k in self.keys():
-            del self[k]
-
-    def get(self, key, *args):
-        """Gets the value of a config parameter, or a default value.
-
-        :param str key: Config parameter
-        :param args: return `arg` if Config does not contain parameter `key`
-        :return: Parameter value, `arg` or None.
-
-        """
-        nargs = len(args)
-        if nargs > 1:
-            raise TypeError("get expected at most 2 arguments, got {}".format(nargs))
-        try:
-            return self[key]
-        except KeyError:
-            return args[0] if nargs == 1 else None
-
-    def update(self, object odict):
-        """Update a config object with parameter, values from a dict like object
-
-        :param odict: dict-like object containing parameter, values to update Config.
-
-        """
-        for (key, value) in odict.items():
-            self[key] = value
-        return
-
-    def from_file(self, path):
-        """Update a Config object with from a persisted config file
-
-        :param path: A local Config file path
-
-        """
-        config = Config.load(path)
-        self.update(config)
-
-    def save(self, uri):
-        """Persist Config parameter values to a config file
-
-        :parameter str uri: a local URI config file path
-        :raises TypeError: `uri` cannot be converted to a unicode string
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef bytes buri = unicode_path(uri)
-        cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-        cdef tiledb_config_t* config_ptr = self.ptr
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc
-        with nogil:
-            rc = tiledb_config_save_to_file(config_ptr, uri_ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        return
-
-
-cdef class ConfigKeys(object):
-    """
-    An iterator object over Config parameter strings (keys)
-    """
-
-    def __init__(self, Config config, prefix=u""):
-        self.config_items = ConfigItems(config, prefix=prefix)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        (k, _) = self.config_items.__next__()
-        return k
-
-
-cdef class ConfigValues(object):
-    """
-    An iterator object over Config parameter value strings
-    """
-
-    def __init__(self, Config config, prefix=u""):
-        self.config_items = ConfigItems(config, prefix=prefix)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        (_, v) = self.config_items.__next__()
-        return v
-
-
-cdef class ConfigItems(object):
-    """
-    An iterator object over Config parameter, values
-
-    :param config: TileDB Config object
-    :type config: tiledb.Config
-    :param prefix: (default "") Filter paramter names with given prefix
-    :type prefix: str
-
-    """
-
-    def __cinit__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr != NULL:
-            tiledb_config_iter_free(&self.ptr)
-
-    def __init__(self, Config config, prefix=u""):
-        cdef bytes bprefix = prefix.encode("UTF-8")
-        cdef const char* prefix_ptr = PyBytes_AS_STRING(bprefix)
-        cdef tiledb_config_iter_t* config_iter_ptr = NULL
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef rc = tiledb_config_iter_alloc(
-            config.ptr, prefix_ptr, &config_iter_ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        assert (config_iter_ptr != NULL)
-        self.config = config
-        self.ptr = config_iter_ptr
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        cdef int done = 0
-        cdef tiledb_error_t* err_ptr = NULL
-        cdef int rc = tiledb_config_iter_done(self.ptr, &done, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        if done > 0:
-            raise StopIteration()
-        cdef const char* param_ptr = NULL
-        cdef const char* value_ptr = NULL
-        rc = tiledb_config_iter_here(self.ptr, &param_ptr, &value_ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        cdef bytes bparam
-        cdef bytes bvalue
-        if param_ptr == NULL:
-            bparam = b''
-        else:
-            bparam = PyBytes_FromString(param_ptr)
-        if value_ptr == NULL:
-            bvalue = b''
-        else:
-            bvalue = PyBytes_FromString(value_ptr)
-        rc = tiledb_config_iter_next(self.ptr, &err_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            _raise_tiledb_error(err_ptr)
-        return (bparam.decode('UTF-8'), bvalue.decode('UTF-8'))
-
-
-cdef class Ctx(object):
-    """Class representing a TileDB context.
-
-    A TileDB context wraps a TileDB storage manager.
-
-    :param config: Initialize Ctx with given config parameters
-    :type config: tiledb.Config or dict
-
-    """
-
-    def __cinit__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr != NULL:
-            tiledb_ctx_free(&self.ptr)
-
-    def __capsule__(self):
-        if self.ptr == NULL:
-            raise TileDBError("internal error: cannot create capsule for uninitialized Ctx!")
-        cdef const char* name = "ctx"
-        cap = PyCapsule_New(<void *>(self.ptr), name, NULL)
-        return cap
-
-    def __init__(self, config=None):
-        cdef Config _config = Config()
-        if config is not None:
-            if isinstance(config, Config):
-                _config = config
-            else:
-                _config.update(config)
-        cdef tiledb_ctx_t* ctx_ptr = NULL
-        cdef int rc = tiledb_ctx_alloc(_config.ptr, &ctx_ptr)
-        if rc == TILEDB_OOM:
-            raise MemoryError()
-        elif rc == TILEDB_ERR:
-            # we assume that the ctx pointer is valid if not OOM
-            # the ctx object will be free'd when it goes out of scope
-            # after the exception is raised
-            _raise_ctx_err(ctx_ptr, rc)
-        self.ptr = ctx_ptr
-        self._set_default_tags()
-
-    def __repr__(self):
-        return "tiledb.Ctx() [see Ctx.config() for configuration]"
-
-    def config(self):
-        """Returns the Config instance associated with the Ctx."""
-        cdef tiledb_config_t* config_ptr = NULL
-        check_error(self,
-                    tiledb_ctx_get_config(self.ptr, &config_ptr))
-        return Config.from_ptr(config_ptr)
-
-    def set_tag(self, key, value):
-        """Sets a (string, string) "tag" on the Ctx (internal)."""
-        cdef tiledb_ctx_t* ctx_ptr = self.ptr
-        bkey = key.encode('UTF-8')
-        bvalue = value.encode('UTF-8')
-        cdef int rc = TILEDB_OK
-        rc = tiledb_ctx_set_tag(ctx_ptr, bkey, bvalue)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-
-    def _set_default_tags(self):
-        """Sets all default tags on the Ctx"""
-        self.set_tag('x-tiledb-api-language', 'python')
-        self.set_tag('x-tiledb-api-language-version', '{}.{}.{}'.format(*sys.version_info))
-        self.set_tag('x-tiledb-api-sys-platform', sys.platform)
-
-    def get_stats(self, print_out=True, json=False):
-        """Retrieves the stats from a TileDB context.
-
-        :param print_out: Print string to console (default True), or return as string
-        :param json: Return stats JSON object (default: False)
-        """
-        cdef tiledb_ctx_t* ctx_ptr = self.ptr
-        cdef int rc = TILEDB_OK
-        cdef char* stats_bytes
-        rc = tiledb_ctx_get_stats(ctx_ptr, &stats_bytes)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        cdef unicode stats = stats_bytes.decode('UTF-8', 'strict')
-
-        if json:
-            import json
-            output = json.loads(stats)
-        else:
-            output = stats
-
-        if print_out:
-            print(output)
-        else:
-            return output
-
-
 
 def _tiledb_datetime_extent(begin, end):
     """
@@ -1457,413 +769,6 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
 
     return tiledb_order_to_string[order]
 
-cdef class Attr(object):
-    """Class representing a TileDB array attribute.
-
-    :param tiledb.Ctx ctx: A TileDB Context
-    :param str name: Attribute name, empty if anonymous
-    :param dtype: Attribute value datatypes
-    :type dtype: numpy.dtype object or type or string
-    :param nullable: Attribute is nullable
-    :type bool:
-    :param fill: Fill value for unset cells.
-    :param var: Attribute is variable-length (automatic for byte/string types)
-    :type dtype: bool
-    :param filters: List of filters to apply
-    :type filters: FilterList
-    :raises TypeError: invalid dtype
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-
-    cdef unicode _get_name(Attr self):
-        cdef const char* c_name = NULL
-        check_error(self.ctx,
-                    tiledb_attribute_get_name(self.ctx.ptr, self.ptr, &c_name))
-        cdef unicode name = c_name.decode('UTF-8', 'strict')
-        return name
-
-    cdef unsigned int _cell_val_num(Attr self) except? 0:
-        cdef unsigned int ncells = 0
-        check_error(self.ctx,
-                    tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
-        return ncells
-
-    def __cinit__(self):
-        self.ptr = NULL
-
-    def __dealloc__(self):
-        if self.ptr != NULL:
-            tiledb_attribute_free(&self.ptr)
-
-    def __capsule__(self):
-        if self.ptr == NULL:
-            raise TileDBError("internal error: cannot create capsule for uninitialized Attr!")
-        cdef const char* name = "ctx"
-        cap = PyCapsule_New(<void *>(self.ptr), name, NULL)
-        return cap
-
-    @staticmethod
-    cdef from_ptr(const tiledb_attribute_t* ptr, Ctx ctx=None):
-        """Constructs an Attr class instance from a (non-null) tiledb_attribute_t pointer
-        """
-        if not ctx:
-            ctx = default_ctx()
-        assert(ptr != NULL)
-        cdef Attr attr = Attr.__new__(Attr)
-        attr.ctx = ctx
-        # need to cast away the const
-        attr.ptr = <tiledb_attribute_t*> ptr
-        return attr
-
-    def __init__(self,
-                 name=u"",
-                 dtype=np.float64,
-                 fill=None,
-                 var=None,
-                 nullable=False,
-                 filters=None,
-                 Ctx ctx=None):
-        if not ctx:
-            ctx = default_ctx()
-        cdef bytes bname = ustring(name).encode('UTF-8')
-        cdef const char* name_ptr = PyBytes_AS_STRING(bname)
-        cdef np.dtype _dtype = None
-        cdef tiledb_datatype_t tiledb_dtype
-        cdef uint32_t ncells
-
-        if isinstance(dtype, str) and dtype == "ascii":
-            tiledb_dtype = TILEDB_STRING_ASCII
-            ncells = TILEDB_VAR_NUM
-            if var is None:
-                var = True
-        else:
-            _dtype = np.dtype(dtype)
-            tiledb_dtype, ncells = array_type_ncells(_dtype)
-
-        # ensure that all unicode strings are var-length
-        if var or _dtype.kind == 'U':
-            var = True
-            ncells = TILEDB_VAR_NUM
-
-        if _dtype and _dtype.kind == 'S':
-            if var and 0 < _dtype.itemsize:
-                warnings.warn(
-                    f"Attr given `var=True` but `dtype` `{_dtype}` is fixed; "
-                    "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
-                    f"or `var=False`with `dtype={_dtype}`",
-                    DeprecationWarning,
-                )
-                _dtype = np.dtype("S0")
-
-            if _dtype.itemsize == 0:
-                if var == False:
-                    warnings.warn(
-                        f"Attr given `var=False` but `dtype` `S0` is var-length; "
-                        "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
-                        "with `dtype=S0`, or `var=False` with a fixed-width "
-                        "string `dtype=S<n>` where is  n>1",
-                        DeprecationWarning,
-                    )
-
-                var = True
-                ncells = TILEDB_VAR_NUM
-
-        var = var or False
-
-        # variable-length cell type
-        if ncells == TILEDB_VAR_NUM and not var:
-            raise TypeError("dtype is not compatible with var-length attribute")
-
-        if filters is not None:
-            if not isinstance(filters, FilterList):
-                try:
-                    filters = iter(filters)
-                except:
-                    raise TypeError("filters argument must be a tiledb.FilterList or iterable of Filters")
-                else:
-                    # we want this to raise a specific error if construction fails
-                    filters = FilterList(filters, ctx=ctx)
-            filter_list = filters
-
-        # alloc attribute object and set cell num / compressor
-        cdef tiledb_attribute_t* attr_ptr = NULL
-        cdef int rc = TILEDB_OK
-        rc = tiledb_attribute_alloc(ctx.ptr, name_ptr, tiledb_dtype, &attr_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx.ptr, rc)
-        rc = tiledb_attribute_set_cell_val_num(ctx.ptr, attr_ptr, ncells)
-        if rc != TILEDB_OK:
-            tiledb_attribute_free(&attr_ptr)
-            _raise_ctx_err(ctx.ptr, rc)
-
-        if nullable:
-            rc = tiledb_attribute_set_nullable(ctx.ptr, attr_ptr, 1)
-            if rc != TILEDB_OK:
-                tiledb_attribute_free(&attr_ptr)
-                _raise_ctx_err(ctx.ptr, rc)
-
-        cdef tiledb_filter_list_t* filter_list_ptr = NULL
-        if filters is not None:
-            filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
-                    filter_list.__capsule__(), "fl")
-            rc = tiledb_attribute_set_filter_list(ctx.ptr, attr_ptr, filter_list_ptr)
-            if rc != TILEDB_OK:
-                tiledb_attribute_free(&attr_ptr)
-                _raise_ctx_err(ctx.ptr, rc)
-
-        cdef void* fill_ptr
-        cdef uint64_t fill_nbytes
-        if fill is not None:
-            fill_array = np.array(fill, dtype=dtype)
-            fill_nbytes = fill_array.nbytes
-            fill_ptr = np.PyArray_DATA(fill_array)
-            rc = tiledb_attribute_set_fill_value(ctx.ptr,
-                                                 attr_ptr,
-                                                 fill_ptr,
-                                                 fill_nbytes)
-            if rc != TILEDB_OK:
-                tiledb_attribute_free(&attr_ptr)
-                _raise_ctx_err(ctx.ptr, rc)
-
-        self.ctx = ctx
-        self.ptr = attr_ptr
-
-    def __eq__(self, other):
-        if not isinstance(other, Attr):
-            return False
-        if (self.name != other.name or
-            self.dtype != other.dtype):
-            return False
-        return True
-
-    cdef tiledb_datatype_t _get_type(Attr self) except? TILEDB_CHAR:
-        cdef tiledb_datatype_t typ
-        check_error(self.ctx,
-                    tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
-        return typ
-
-    def dump(self):
-        """Dumps a string representation of the Attr object to standard output (stdout)"""
-        check_error(self.ctx,
-                    tiledb_attribute_dump(self.ctx.ptr, self.ptr, stdout))
-        print('\n')
-        return
-
-    @property
-    def dtype(self):
-        """Return numpy dtype object representing the Attr type
-
-        :rtype: numpy.dtype
-
-        """
-        cdef tiledb_datatype_t typ
-        check_error(self.ctx,
-                    tiledb_attribute_get_type(self.ctx.ptr, self.ptr, &typ))
-        cdef uint32_t ncells = 0
-        check_error(self.ctx,
-                    tiledb_attribute_get_cell_val_num(self.ctx.ptr, self.ptr, &ncells))
-
-        return np.dtype(_numpy_dtype(typ, ncells))
-
-    @property
-    def name(self):
-        """Attribute string name, empty string if the attribute is anonymous
-
-        :rtype: str
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        internal_name = self._get_name()
-        # handle __attr names from arrays written with libtiledb < 2
-        if internal_name == "__attr":
-            return u""
-        return internal_name
-
-    @property
-    def _internal_name(self):
-        return self._get_name()
-
-    @property
-    def isanon(self):
-        """True if attribute is an anonymous attribute
-
-        :rtype: bool
-
-        """
-        cdef unicode name = self._get_name()
-        return name == u"" or name.startswith(u"__attr")
-
-    @property
-    def compressor(self):
-        """String label of the attributes compressor and compressor level
-
-        :rtype: tuple(str, int)
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        # <todo> do we want to reimplement this on top of new API?
-        pass
-
-    @property
-    def filters(self):
-        """FilterList of the TileDB attribute
-
-        :rtype: tiledb.FilterList
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef tiledb_filter_list_t* filter_list_ptr = NULL
-        cdef int rc = TILEDB_OK
-        check_error(self.ctx,
-                    tiledb_attribute_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
-
-        return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL),
-            is_capsule=True, ctx=self.ctx)
-
-    @property
-    def fill(self):
-        """Fill value for unset cells of this attribute
-
-        :rtype: depends on dtype
-        :raises: :py:exc:`tiledb.TileDBERror`
-        """
-        cdef const uint8_t* value_ptr = NULL
-        cdef uint64_t size
-        check_error(self.ctx,
-            tiledb_attribute_get_fill_value(
-                self.ctx.ptr, self.ptr, <const void**>&value_ptr, &size))
-
-        if value_ptr == NULL:
-            return None
-
-        if size == 0:
-            raise TileDBError("Unexpected zero-length non-null fill value")
-
-        cdef np.npy_intp shape[1]
-        shape[0] = <np.npy_intp> 1
-        cdef tiledb_datatype_t tiledb_type = self._get_type()
-        cdef int typeid = _numpy_typeid(tiledb_type)
-        assert(typeid != np.NPY_NOTYPE)
-        cdef np.ndarray fill_array
-
-        if np.issubdtype(self.dtype, np.bytes_):
-            return (<char*>value_ptr)[:size]
-        elif np.issubdtype(self.dtype, np.unicode_):
-            return (<char*>value_ptr)[:size].decode('utf-8')
-        else:
-            fill_array = np.empty(1, dtype=self.dtype)
-            memcpy(np.PyArray_DATA(fill_array), value_ptr, size)
-
-        if _tiledb_type_is_datetime(tiledb_type):
-            # Coerce to np.int64
-            fill_array.dtype = np.int64
-            datetime_dtype = _tiledb_type_to_datetime(tiledb_type).dtype
-            date_unit = np.datetime_data(datetime_dtype)[0]
-            tmp_val = None
-            if fill_array[0] == 0:
-                # undefined should span the whole dimension domain
-                tmp_val = int(self.shape[0])
-            else:
-                tmp_val = int(fill_array[0])
-            return np.timedelta64(tmp_val, date_unit)
-
-        return fill_array
-
-    @property
-    def isnullable(self):
-        """True if the attribute is nullable
-
-        :rtype: bool
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef uint8_t nullable = 0
-        cdef int rc = TILEDB_OK
-        check_error(
-            self.ctx,
-            tiledb_attribute_get_nullable(self.ctx.ptr, self.ptr, &nullable))
-
-        return <bint>nullable
-
-    @property
-    def isvar(self):
-        """True if the attribute is variable length
-
-        :rtype: bool
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef unsigned int ncells = self._cell_val_num()
-        return ncells == TILEDB_VAR_NUM
-
-    @property
-    def ncells(self):
-        """The number of cells (scalar values) for a given attribute value
-
-        :rtype: int
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        cdef unsigned int ncells = self._cell_val_num()
-        assert (ncells != 0)
-        return int(ncells)
-
-    @property
-    def isascii(self):
-        """True if the attribute is TileDB dtype TILEDB_STRING_ASCII
-
-        :rtype: bool
-        :raises: :py:exc:`tiledb.TileDBError`
-
-        """
-        return self._get_type() == TILEDB_STRING_ASCII
-
-    def __repr__(self):
-        filters_str = ""
-        if self.filters:
-            filters_str = ", filters=FilterList(["
-            for f in self.filters:
-                filters_str +=  repr(f) + ", "
-            filters_str += "])"
-
-        attr_dtype = "ascii" if self.isascii else self.dtype
-
-        # filters_str must be last with no spaces
-        return (f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
-                f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
-                f"""{filters_str})""")
-
-    def _repr_html_(self):
-        output = io.StringIO()
-
-        output.write("<table>")
-        output.write("<tr>")
-        output.write("<th>Name</th>")
-        output.write("<th>Data Type</th>")
-        output.write("<th>Is Var-Len</th>")
-        output.write("<th>Is Nullable</th>")
-        output.write("<th>Filters</th>")
-        output.write("</tr>")
-        output.write(f"{self._repr_html_row_only_()}")
-        output.write("</table>")
-
-        return output.getvalue()
-
-    def _repr_html_row_only_(self):
-        output = io.StringIO()
-
-        output.write("<tr>")
-        output.write(f"<td>{self.name}</td>")
-        output.write(f"<td>{'ascii' if self.isascii else self.dtype}</td>")
-        output.write(f"<td>{self.isvar}</td>")
-        output.write(f"<td>{self.isnullable}</td>")
-        output.write(f"<td>{self.filters._repr_html_()}</td>")
-        output.write("</tr>")
-
-        return output.getvalue()
-
-
 cdef class Dim(object):
     """Class representing a dimension of a TileDB Array.
 
@@ -1891,7 +796,7 @@ cdef class Dim(object):
             tiledb_dimension_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(const tiledb_dimension_t* ptr, Ctx ctx=None):
+    cdef from_ptr(const tiledb_dimension_t* ptr, ctx=None):
         if not ctx:
             ctx = default_ctx()
         assert(ptr != NULL)
@@ -1902,9 +807,11 @@ cdef class Dim(object):
         return dim
 
     def __init__(self, name=u"__dim_0", domain=None, tile=None,
-                 filters=None, dtype=np.uint64, var=None, Ctx ctx=None):
+                 filters=None, dtype=np.uint64, var=None, ctx=None):
         if not ctx:
             ctx = default_ctx()
+
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
         if var is not None:
             if var and np.dtype(dtype) not in (np.str_, np.bytes_):
@@ -1964,7 +871,7 @@ cdef class Dim(object):
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         try:
             check_error(ctx,
-                        tiledb_dimension_alloc(ctx.ptr,
+                        tiledb_dimension_alloc(ctx_ptr,
                                                name_ptr,
                                                dim_datatype,
                                                domain_ptr,
@@ -1980,7 +887,7 @@ cdef class Dim(object):
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
-                    tiledb_dimension_set_filter_list(ctx.ptr, dim_ptr, filter_list_ptr))
+                    tiledb_dimension_set_filter_list(ctx_ptr, dim_ptr, filter_list_ptr))
         except:
             raise
 
@@ -2054,8 +961,9 @@ cdef class Dim(object):
 
     cdef tiledb_datatype_t _get_type(Dim self) except? TILEDB_CHAR:
         cdef tiledb_datatype_t typ
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_dimension_get_type(self.ctx.ptr, self.ptr, &typ))
+                    tiledb_dimension_get_type(ctx_ptr, self.ptr, &typ))
         return typ
 
     @property
@@ -2077,8 +985,9 @@ cdef class Dim(object):
 
         """
         cdef const char* name_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_dimension_get_name(self.ctx.ptr, self.ptr, &name_ptr))
+                    tiledb_dimension_get_name(ctx_ptr, self.ptr, &name_ptr))
         return name_ptr.decode('UTF-8', 'strict')
 
     @property
@@ -2112,17 +1021,19 @@ cdef class Dim(object):
         """
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
         cdef int rc = TILEDB_OK
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_dimension_get_filter_list(self.ctx.ptr, self.ptr, &filter_list_ptr))
+                    tiledb_dimension_get_filter_list(
+                        ctx_ptr, self.ptr, &filter_list_ptr))
 
-        return FilterList(PyCapsule_New(filter_list_ptr, "fl", NULL),
-            is_capsule=True, ctx=self.ctx)
+        return FilterList(self.ctx, _capsule=PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     cdef unsigned int _cell_val_num(Dim self) except? 0:
         cdef unsigned int ncells = 0
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_dimension_get_cell_val_num(
-                        self.ctx.ptr,
+                        ctx_ptr,
                         self.ptr,
                         &ncells))
         return ncells
@@ -2186,8 +1097,9 @@ cdef class Dim(object):
 
         """
         cdef const void* tile_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_dimension_get_tile_extent(self.ctx.ptr, self.ptr, &tile_ptr))
+                    tiledb_dimension_get_tile_extent(ctx_ptr, self.ptr, &tile_ptr))
         if tile_ptr == NULL:
             return None
         cdef np.npy_intp shape[1]
@@ -2228,8 +1140,9 @@ cdef class Dim(object):
         if self.dtype == np.dtype('S'):
             return None, None
         cdef const void* domain_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_dimension_get_domain(self.ctx.ptr,
+                    tiledb_dimension_get_domain(ctx_ptr,
                                                 self.ptr,
                                                 &domain_ptr))
         cdef np.npy_intp shape[1]
@@ -2267,7 +1180,7 @@ cdef class Domain(object):
             tiledb_domain_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(const tiledb_domain_t* ptr, Ctx ctx=None):
+    cdef from_ptr(const tiledb_domain_t* ptr, ctx=None):
         """Constructs an Domain class instance from a (non-null) tiledb_domain_t pointer"""
         if not ctx:
             ctx = default_ctx()
@@ -2279,8 +1192,9 @@ cdef class Domain(object):
 
     cdef tiledb_datatype_t _get_type(Domain self) except? TILEDB_CHAR:
         cdef tiledb_datatype_t typ
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_domain_get_type(self.ctx.ptr, self.ptr, &typ))
+                    tiledb_domain_get_type(ctx_ptr, self.ptr, &typ))
         return typ
 
     cdef _integer_domain(Domain self):
@@ -2298,9 +1212,11 @@ cdef class Domain(object):
     cdef _shape(Domain self):
         return tuple(self.dim(i).shape[0] for i in range(self.ndim))
 
-    def __init__(self, *dims, Ctx ctx=None):
+    def __init__(self, *dims, ctx=None):
         if not ctx:
             ctx = default_ctx()
+
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
         # support passing a list of dims without splatting
         if len(dims) == 1 and isinstance(dims[0], list):
@@ -2318,7 +1234,7 @@ cdef class Domain(object):
                 raise TileDBError("Mixed dimension naming: dimensions must be either all anonymous or all named.")
 
         cdef tiledb_domain_t* domain_ptr = NULL
-        cdef int rc = tiledb_domain_alloc(ctx.ptr, &domain_ptr)
+        cdef int rc = tiledb_domain_alloc(ctx_ptr, &domain_ptr)
         if rc != TILEDB_OK:
             check_error(ctx, rc)
         assert(domain_ptr != NULL)
@@ -2330,7 +1246,7 @@ cdef class Domain(object):
 
             dimension = dims[i]
             rc = tiledb_domain_add_dimension(
-                ctx.ptr, domain_ptr, dimension.ptr)
+                ctx_ptr, domain_ptr, dimension.ptr)
             if rc != TILEDB_OK:
                 tiledb_domain_free(&domain_ptr)
                 check_error(ctx, rc)
@@ -2400,8 +1316,9 @@ cdef class Domain(object):
 
         """
         cdef unsigned int ndim = 0
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_domain_get_ndim(self.ctx.ptr, self.ptr, &ndim))
+                    tiledb_domain_get_ndim(ctx_ptr, self.ptr, &ndim))
         return ndim
 
     @property
@@ -2453,17 +1370,18 @@ cdef class Domain(object):
         cdef tiledb_dimension_t* dim_ptr = NULL
         cdef bytes uname
         cdef const char* name_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
 
         if isinstance(dim_id, (str, unicode)):
             uname = ustring(dim_id).encode('UTF-8')
             name_ptr = uname
             check_error(self.ctx,
                         tiledb_domain_get_dimension_from_name(
-                            self.ctx.ptr, self.ptr, name_ptr, &dim_ptr))
+                            ctx_ptr, self.ptr, name_ptr, &dim_ptr))
         elif isinstance(dim_id, int):
             check_error(self.ctx,
                         tiledb_domain_get_dimension_from_index(
-                            self.ctx.ptr, self.ptr, dim_id, &dim_ptr))
+                            ctx_ptr, self.ptr, dim_id, &dim_ptr))
         else:
             raise ValueError("Unsupported dim identifier: '{}' (expected int or str)".format(
                 safe_repr(dim_id)
@@ -2481,7 +1399,7 @@ cdef class Domain(object):
         :return:
         """
         cdef:
-            cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+            cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
             cdef tiledb_domain_t* dom_ptr = self.ptr
             int32_t has_dim = 0
             int32_t rc = TILEDB_OK
@@ -2500,8 +1418,9 @@ cdef class Domain(object):
 
     def dump(self):
         """Dumps a string representation of the domain object to standard output (STDOUT)"""
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_domain_dump(self.ctx.ptr, self.ptr, stdout))
+                    tiledb_domain_dump(ctx_ptr, self.ptr, stdout))
         print("\n")
         return
 
@@ -2713,21 +1632,23 @@ cdef class ArraySchema(object):
                  validity_filters=None,
                  allows_duplicates=False,
                  sparse=False,
-                 Ctx ctx=None):
-        if not ctx:
+                 ctx=None):
+        if ctx is None:
             ctx = default_ctx()
+
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
         cdef tiledb_array_type_t array_type =\
             TILEDB_SPARSE if sparse else TILEDB_DENSE
         cdef tiledb_array_schema_t* schema_ptr = NULL
         check_error(ctx,
-                    tiledb_array_schema_alloc(ctx.ptr, array_type, &schema_ptr))
+                    tiledb_array_schema_alloc(ctx_ptr, array_type, &schema_ptr))
         cdef tiledb_layout_t cell_layout = TILEDB_ROW_MAJOR
         cdef tiledb_layout_t tile_layout = TILEDB_ROW_MAJOR
         try:
             cell_layout = _tiledb_layout(cell_order if cell_order else 'row-major')
             tile_layout = _tiledb_layout(tile_order if tile_order else 'row-major')
-            check_error(ctx, tiledb_array_schema_set_cell_order(ctx.ptr, schema_ptr, cell_layout))
-            check_error(ctx, tiledb_array_schema_set_tile_order(ctx.ptr, schema_ptr, tile_layout))
+            check_error(ctx, tiledb_array_schema_set_cell_order(ctx_ptr, schema_ptr, cell_layout))
+            check_error(ctx, tiledb_array_schema_set_tile_order(ctx_ptr, schema_ptr, tile_layout))
         except:
             tiledb_array_schema_free(&schema_ptr)
             raise
@@ -2736,7 +1657,7 @@ cdef class ArraySchema(object):
             try:
                 _capacity = <uint64_t> capacity
                 check_error(ctx,
-                    tiledb_array_schema_set_capacity(ctx.ptr, schema_ptr, _capacity))
+                    tiledb_array_schema_set_capacity(ctx_ptr, schema_ptr, _capacity))
             except:
                 tiledb_array_schema_free(&schema_ptr)
                 raise
@@ -2744,7 +1665,7 @@ cdef class ArraySchema(object):
         cdef bint ballows_dups = 0
         if allows_duplicates:
             ballows_dups = 1
-            tiledb_array_schema_set_allows_dups(ctx.ptr, schema_ptr, ballows_dups)
+            tiledb_array_schema_set_allows_dups(ctx_ptr, schema_ptr, ballows_dups)
 
         if not isinstance(domain, Domain):
             raise TypeError("'domain' must be an instance of Domain (domain is: '{}')".format(domain))
@@ -2761,7 +1682,7 @@ cdef class ArraySchema(object):
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
-                    tiledb_array_schema_set_offsets_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
+                    tiledb_array_schema_set_offsets_filter_list(ctx_ptr, schema_ptr, filter_list_ptr))
 
             if coords_filters is not None:
                 warnings.warn(
@@ -2774,10 +1695,10 @@ cdef class ArraySchema(object):
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
-                    tiledb_array_schema_set_coords_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
+                    tiledb_array_schema_set_coords_filter_list(ctx_ptr, schema_ptr, filter_list_ptr))
 
-                check_error(self.ctx,
-                    tiledb_domain_get_ndim(ctx.ptr, domain_ptr, &ndim))
+                check_error(ctx,
+                    tiledb_domain_get_ndim(ctx_ptr, domain_ptr, &ndim))
 
                 if not isinstance(coords_filters, FilterList):
                     coords_filters = FilterList(coords_filters, ctx=ctx)
@@ -2785,17 +1706,17 @@ cdef class ArraySchema(object):
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                 filter_list.__capsule__(), "fl")
 
-                tiledb_domain_alloc(ctx.ptr, &dom_with_coords_filters_ptr)
+                tiledb_domain_alloc(ctx_ptr, &dom_with_coords_filters_ptr)
                 for dim_id in range(ndim):
-                    check_error(self.ctx,
+                    check_error(ctx,
                             tiledb_domain_get_dimension_from_index(
-                                ctx.ptr, domain_ptr, dim_id, &dim_ptr))
-                    check_error(self.ctx,
+                                ctx_ptr, domain_ptr, dim_id, &dim_ptr))
+                    check_error(ctx,
                         tiledb_dimension_set_filter_list(
-                            ctx.ptr, dim_ptr, filter_list_ptr))
-                    check_error(self.ctx,
+                            ctx_ptr, dim_ptr, filter_list_ptr))
+                    check_error(ctx,
                         tiledb_domain_add_dimension(
-                            ctx.ptr, dom_with_coords_filters_ptr, dim_ptr))
+                            ctx_ptr, dom_with_coords_filters_ptr, dim_ptr))
                 domain_ptr = dom_with_coords_filters_ptr
 
             if validity_filters is not None:
@@ -2805,31 +1726,31 @@ cdef class ArraySchema(object):
                 filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
                         filter_list.__capsule__(), "fl")
                 check_error(ctx,
-                    tiledb_array_schema_set_validity_filter_list(ctx.ptr, schema_ptr, filter_list_ptr))
+                    tiledb_array_schema_set_validity_filter_list(ctx_ptr, schema_ptr, filter_list_ptr))
         except:
             tiledb_array_schema_free(&schema_ptr)
             raise
 
-        rc = tiledb_array_schema_set_domain(ctx.ptr, schema_ptr, domain_ptr)
+        rc = tiledb_array_schema_set_domain(ctx_ptr, schema_ptr, domain_ptr)
         if rc != TILEDB_OK:
             tiledb_array_schema_free(&schema_ptr)
-            _raise_ctx_err(ctx.ptr, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
         cdef tiledb_attribute_t* attr_ptr = NULL
-        cdef Attr attribute
         for attr in attrs:
             if not isinstance(attr, Attr):
                 raise TypeError("Cannot create schema with non-Attr value for 'attrs' argument")
             attribute = attr
-            attr_ptr = attribute.ptr
-            rc = tiledb_array_schema_add_attribute(ctx.ptr, schema_ptr, attr_ptr)
+            attr_ptr = <tiledb_attribute_t *>PyCapsule_GetPointer(
+                attr.__capsule__(), "attr")
+            rc = tiledb_array_schema_add_attribute(ctx_ptr, schema_ptr, attr_ptr)
             if rc != TILEDB_OK:
                 tiledb_array_schema_free(&schema_ptr)
-                _raise_ctx_err(ctx.ptr, rc)
-        rc = tiledb_array_schema_check(ctx.ptr, schema_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
+        rc = tiledb_array_schema_check(ctx_ptr, schema_ptr)
         if rc != TILEDB_OK:
             tiledb_array_schema_free(&schema_ptr)
-            _raise_ctx_err(ctx.ptr, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
         self.ctx = ctx
         self.ptr = schema_ptr
@@ -2842,7 +1763,7 @@ cdef class ArraySchema(object):
             tiledb_array_schema_free(&self.ptr)
 
     @staticmethod
-    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, Ctx ctx=None):
+    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, ctx=None):
         """
         Constructs a ArraySchema class instance from a
         Ctx and tiledb_array_schema_t pointer
@@ -2856,11 +1777,11 @@ cdef class ArraySchema(object):
         return schema
 
     @staticmethod
-    def load(uri, Ctx ctx=None, key=None):
+    def load(uri, ctx=None, key=None):
         if not ctx:
             ctx = default_ctx()
         cdef bytes buri = uri.encode('UTF-8')
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_array_schema_t* array_schema_ptr = NULL
         # encryption key
@@ -2886,19 +1807,20 @@ cdef class ArraySchema(object):
         return ArraySchema.from_ptr(array_schema_ptr, ctx=ctx)
 
     @staticmethod
-    def from_file(uri=None, Ctx ctx=None):
+    def from_file(uri=None, ctx=None):
         """Create an ArraySchema for a Filestore Array from a given file.
         If a uri is not given, then create a default schema."""
         if not ctx:
             ctx = default_ctx()
         cdef tiledb_array_schema_t* schema_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
         cdef const char* uri_ptr = NULL
         if uri is not None:
             uri_ptr = PyBytes_AS_STRING(uri.encode('UTF-8'))
 
         check_error(ctx, tiledb_filestore_schema_create(
-                         ctx.ptr, uri_ptr, &schema_ptr))
+                         ctx_ptr, uri_ptr, &schema_ptr))
 
         return ArraySchema.from_ptr(schema_ptr, ctx=ctx)
 
@@ -2938,8 +1860,9 @@ cdef class ArraySchema(object):
         :rtype: None
         :raises: :py:exc:`tiledb.TileDBError` if invalid
         """
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_array_schema_check(self.ctx.ptr, self.ptr))
+                    tiledb_array_schema_check(ctx_ptr, self.ptr))
 
     @property
     def sparse(self):
@@ -2950,19 +1873,21 @@ cdef class ArraySchema(object):
 
         """
         cdef tiledb_array_type_t typ = TILEDB_DENSE
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_array_schema_get_array_type(self.ctx.ptr, self.ptr, &typ))
+                    tiledb_array_schema_get_array_type(ctx_ptr, self.ptr, &typ))
         return typ == TILEDB_SPARSE
 
     @property
     def allows_duplicates(self):
         """Returns True if the (sparse) array allows duplicates."""
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
 
         if not self.sparse:
             raise TileDBError("ArraySchema.allows_duplicates does not apply to dense arrays")
 
         cdef int ballows_dups
-        tiledb_array_schema_get_allows_dups(self.ctx.ptr, self.ptr, &ballows_dups)
+        tiledb_array_schema_get_allows_dups(ctx_ptr, self.ptr, &ballows_dups)
         return bool(ballows_dups)
 
     @property
@@ -2974,13 +1899,15 @@ cdef class ArraySchema(object):
 
         """
         cdef uint64_t cap = 0
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_array_schema_get_capacity(self.ctx.ptr, self.ptr, &cap))
+                    tiledb_array_schema_get_capacity(ctx_ptr, self.ptr, &cap))
         return cap
 
     cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr):
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-            tiledb_array_schema_get_cell_order(self.ctx.ptr, self.ptr, cell_order_ptr))
+            tiledb_array_schema_get_cell_order(ctx_ptr, self.ptr, cell_order_ptr))
 
     @property
     def cell_order(self):
@@ -2990,8 +1917,9 @@ cdef class ArraySchema(object):
         return _tiledb_layout_string(order)
 
     cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr):
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-            tiledb_array_schema_get_tile_order(self.ctx.ptr, self.ptr, tile_order_ptr))
+            tiledb_array_schema_get_tile_order(ctx_ptr, self.ptr, tile_order_ptr))
 
     @property
     def tile_order(self):
@@ -3040,12 +1968,12 @@ cdef class ArraySchema(object):
         :raises: :py:exc:`tiledb.TileDBError`
         """
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
             tiledb_array_schema_get_offsets_filter_list(
-                self.ctx.ptr, self.ptr, &filter_list_ptr))
-        return FilterList(
-            PyCapsule_New(filter_list_ptr, "fl", NULL),
-                is_capsule=True, ctx=self.ctx)
+                ctx_ptr, self.ptr, &filter_list_ptr))
+        return FilterList(self.ctx,
+            _capsule=PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     @property
     def coords_filters(self):
@@ -3055,12 +1983,12 @@ cdef class ArraySchema(object):
         :raises: :py:exc:`tiledb.TileDBError`
         """
         cdef tiledb_filter_list_t* filter_list_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
             tiledb_array_schema_get_coords_filter_list(
-                self.ctx.ptr, self.ptr, &filter_list_ptr))
-        return FilterList(
-            PyCapsule_New(filter_list_ptr, "fl", NULL),
-                is_capsule=True, ctx=self.ctx)
+                ctx_ptr, self.ptr, &filter_list_ptr))
+        return FilterList(self.ctx,
+            _capsule=PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     @coords_filters.setter
     def coords_filters(self, value):
@@ -3078,12 +2006,12 @@ cdef class ArraySchema(object):
         :raises: :py:exc:`tiledb.TileDBError`
         """
         cdef tiledb_filter_list_t* validity_list_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
             tiledb_array_schema_get_validity_filter_list(
-                self.ctx.ptr, self.ptr, &validity_list_ptr))
-        return FilterList(
-            PyCapsule_New(validity_list_ptr, "fl", NULL),
-                is_capsule=True, ctx=self.ctx)
+                ctx_ptr, self.ptr, &validity_list_ptr))
+        return FilterList(self.ctx,
+            _capsule=PyCapsule_New(validity_list_ptr, "fl", NULL))
 
     @property
     def domain(self):
@@ -3094,8 +2022,9 @@ cdef class ArraySchema(object):
 
         """
         cdef tiledb_domain_t* dom = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_array_schema_get_domain(self.ctx.ptr, self.ptr, &dom))
+                    tiledb_array_schema_get_domain(ctx_ptr, self.ptr, &dom))
         return Domain.from_ptr(dom, self.ctx)
 
     @property
@@ -3107,8 +2036,9 @@ cdef class ArraySchema(object):
 
         """
         cdef unsigned int nattr = 0
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_array_schema_get_attribute_num(self.ctx.ptr, self.ptr, &nattr))
+                    tiledb_array_schema_get_attribute_num(ctx_ptr, self.ptr, &nattr))
         return nattr
 
     @property
@@ -3136,18 +2066,19 @@ cdef class ArraySchema(object):
         :raises :py:exc:`tiledb.TileDBError`
         """
         cdef uint32_t version
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_array_schema_get_version(
-                        self.ctx.ptr, self.ptr, &version))
+                    tiledb_array_schema_get_version(ctx_ptr, self.ptr, &version))
         return version
 
     def _make_invalid(self):
         """This is a helper function for testing schema.check: resets schema
         in order to make the schema invalid."""
         cdef tiledb_array_schema_t* schema_ptr = self.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         tiledb_array_schema_free(&schema_ptr)
         check_error(self.ctx,
-                    tiledb_array_schema_alloc(self.ctx.ptr, TILEDB_DENSE, &self.ptr))
+                    tiledb_array_schema_alloc(ctx_ptr, TILEDB_DENSE, &self.ptr))
 
     def _needs_var_buffer(self, unicode name):
         """
@@ -3165,17 +2096,19 @@ cdef class ArraySchema(object):
     cdef _attr_name(self, name):
         cdef bytes bname = ustring(name).encode('UTF-8')
         cdef tiledb_attribute_t* attr_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_name(
-                        self.ctx.ptr, self.ptr, bname, &attr_ptr))
-        return Attr.from_ptr(attr_ptr, self.ctx)
+                        ctx_ptr, self.ptr, bname, &attr_ptr))
+        return Attr(self.ctx, _capsule=PyCapsule_New(attr_ptr, "attr", NULL))
 
     cdef _attr_idx(self, int idx):
         cdef tiledb_attribute_t* attr_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_index(
-                        self.ctx.ptr, self.ptr, idx, &attr_ptr))
-        return Attr.from_ptr(attr_ptr, ctx=self.ctx)
+                        ctx_ptr, self.ptr, idx, &attr_ptr))
+        return Attr(self.ctx, _capsule=PyCapsule_New(attr_ptr, "attr", NULL))
 
     def attr(self, object key not None):
         """Returns an Attr instance given an int index or string label
@@ -3204,15 +2137,18 @@ cdef class ArraySchema(object):
             int32_t has_attr = 0
             int32_t rc = TILEDB_OK
             bytes bname = name.encode("UTF-8")
+            cdef tiledb_ctx_t* ctx_ptr = NULL
+
+        ctx_ptr = safe_ctx_ptr(self.ctx)
 
         rc = tiledb_array_schema_has_attribute(
-            self.ctx.ptr,
+            ctx_ptr,
             self.ptr,
             bname,
             &has_attr
         )
         if rc != TILEDB_OK:
-            _raise_ctx_err(self.ctx.ptr, rc)
+            _raise_ctx_err(ctx_ptr, rc)
 
         return bool(has_attr)
 
@@ -3232,8 +2168,9 @@ cdef class ArraySchema(object):
 
     def dump(self):
         """Dumps a string representation of the array object to standard output (stdout)"""
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
-                    tiledb_array_schema_dump(self.ctx.ptr, self.ptr, stdout))
+                    tiledb_array_schema_dump(ctx_ptr, self.ptr, stdout))
         print("\n")
         return
 
@@ -3314,12 +2251,12 @@ cdef class ArraySchema(object):
 cdef class ArrayPtr(object):
     cdef tiledb_array_t* ptr
 
-cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=None):
+cdef ArrayPtr preload_array(uri, mode, key, timestamp, ctx=None):
     """Open array URI without constructing specific type of Array object (internal)."""
     if not ctx:
         ctx = default_ctx()
     # ctx
-    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
     # uri
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
@@ -3330,15 +2267,18 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, Ctx ctx=None):
     cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
     cdef void* key_ptr = NULL
     cdef unsigned int key_len = 0
+
     # convert python mode string to a query type
-    if mode == 'r':
-        query_type = TILEDB_READ
-    elif mode == 'w':
-        query_type = TILEDB_WRITE
-    elif mode == 'm':
-        query_type = TILEDB_MODIFY_EXCLUSIVE
-    else:
-        raise ValueError("TileDB array mode must be 'r', 'w', or 'm")
+    mode_to_query_type = {
+        "r": TILEDB_READ,
+        "w": TILEDB_WRITE,
+        "m": TILEDB_MODIFY_EXCLUSIVE,
+        "d": TILEDB_DELETE
+    }
+    if mode not in mode_to_query_type:
+        raise ValueError("TileDB array mode must be 'r', 'w', 'm', or 'd'")
+    query_type = mode_to_query_type[mode]
+
     # check the key, and convert the key to bytes
     if key is not None:
         if isinstance(key, str):
@@ -3410,7 +2350,7 @@ cdef class Array(object):
     an Array instance is initialized, the array is opened with the specified mode.
 
     :param str uri: URI of array to open
-    :param str mode: (default 'r') Open the array object in read 'r' or write 'w' mode
+    :param str mode: (default 'r') Open the array object in read 'r', write 'w', or delete 'd' mode
     :param str key: (default None) If not None, encryption key to decrypt the array
     :param tuple timestamp: (default None) If int, open the array at a given TileDB
         timestamp. If tuple, open at the given start and end TileDB timestamps.
@@ -3419,11 +2359,11 @@ cdef class Array(object):
     :param Ctx ctx: TileDB context
     """
     def __init__(self, uri, mode='r', key=None, timestamp=None,
-                 attr=None, Ctx ctx=None):
+                 attr=None, ctx=None):
         if not ctx:
             ctx = default_ctx()
         # ctx
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
         # array
         cdef ArrayPtr preload_ptr
 
@@ -3500,7 +2440,7 @@ cdef class Array(object):
         return self.ctx
 
     @classmethod
-    def create(cls, uri, ArraySchema schema, key=None, overwrite=False, Ctx ctx=None):
+    def create(cls, uri, ArraySchema schema, key=None, overwrite=False, ctx=None):
         """Creates a TileDB Array at the given URI
 
         :param str uri: URI at which to create the new empty array.
@@ -3517,7 +2457,7 @@ cdef class Array(object):
         if issubclass(cls, SparseArrayImpl) and not schema.sparse:
             raise ValueError("Array.create `schema` argument must be a sparse schema for SparseArray and subclasses")
 
-        cdef tiledb_ctx_t* ctx_ptr = schema.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(schema.ctx)
         cdef bytes buri = unicode_path(uri)
         cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
         cdef tiledb_array_schema_t* schema_ptr = schema.ptr
@@ -3550,7 +2490,10 @@ cdef class Array(object):
                 warnings.warn("Overwrite set, but array does not exist")
 
         if ctx is not None:
-            ctx_ptr = ctx.ptr
+            if not isinstance(ctx, Ctx):
+                raise TypeError("tiledb.Array.create() expected tiledb.Ctx "
+                                "object to argument ctx")
+            ctx_ptr = safe_ctx_ptr(ctx)
         with nogil:
             rc = tiledb_array_create_with_key(ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
         if rc != TILEDB_OK:
@@ -3558,12 +2501,12 @@ cdef class Array(object):
         return
 
     @staticmethod
-    def load_typed(uri, mode='r', key=None, timestamp=None, attr=None, Ctx ctx=None):
+    def load_typed(uri, mode='r', key=None, timestamp=None, attr=None, ctx=None):
         """Return a {Dense,Sparse}Array instance from a pre-opened Array (internal)"""
         if not ctx:
             ctx = default_ctx()
         cdef int32_t rc = TILEDB_OK
-        cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
         cdef tiledb_array_schema_t* schema_ptr = NULL
         cdef tiledb_array_type_t array_type
         cdef Array new_array
@@ -3626,7 +2569,7 @@ cdef class Array(object):
 
     def close(self):
         """Closes this array, flushing all buffered data."""
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef int rc = TILEDB_OK
         with nogil:
@@ -3645,7 +2588,7 @@ cdef class Array(object):
         or just use ``reopen()`` without closing. ``reopen`` will be generally faster than
         a close-then-open.
         """
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef uint64_t _timestamp = 0
         cdef int rc = TILEDB_OK
@@ -3691,7 +2634,7 @@ cdef class Array(object):
     def isopen(self):
         """True if this array is currently open."""
         cdef int isopen = 0
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef int rc = TILEDB_OK
         rc = tiledb_array_is_open(ctx_ptr, array_ptr, &isopen)
@@ -3753,7 +2696,7 @@ cdef class Array(object):
         )
         assert tiledbpy_version < (0, 19, 0)
 
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef uint64_t timestamp = 0
         cdef int rc = TILEDB_OK
@@ -3771,7 +2714,7 @@ cdef class Array(object):
         :returns: tiledb timestamp range at which point the array was opened
 
         """
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef uint64_t timestamp_start = 0
         cdef uint64_t timestamp_end = 0
@@ -3835,7 +2778,7 @@ cdef class Array(object):
         :return: The array attribute at index or with the given name (label)
         :raises TypeError: invalid key type"""
         return self.schema.domain.dim(dim_id)
-    
+
     def delete_fragments(self, timestamp_start, timestamp_end):
         """
         Delete a range of fragments from timestamp_start to timestamp_end.
@@ -3868,18 +2811,18 @@ cdef class Array(object):
         array([0., 0., 0., 0.])
 
         """
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef tiledb_query_t* query_ptr = NULL
         cdef bytes buri = self.uri.encode('UTF-8')
-        
+
         cdef int rc = TILEDB_OK
 
         rc = tiledb_array_delete_fragments(
-                ctx_ptr, 
-                array_ptr, 
-                buri, 
-                timestamp_start, 
+                ctx_ptr,
+                array_ptr,
+                buri,
+                timestamp_start,
                 timestamp_end
         )
         if rc != TILEDB_OK:
@@ -3896,7 +2839,7 @@ cdef class Array(object):
         cdef list results = list()
         cdef Domain dom = self.schema.domain
 
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef int rc = TILEDB_OK
         cdef uint32_t dim_idx
@@ -3967,7 +2910,7 @@ cdef class Array(object):
 
         return tuple(results)
 
-    def consolidate(self, Config config=None, key=None, timestamp=None):
+    def consolidate(self, config=None, key=None, timestamp=None):
         """
         Consolidates fragments of an array object for increased read performance.
 
@@ -3990,8 +2933,8 @@ cdef class Array(object):
         if self.mode == 'r':
             raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
         return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, timestamp=timestamp)
-    
-    def upgrade_version(self, Config config=None):
+
+    def upgrade_version(self, config=None):
         """
         Upgrades an array to the latest format version.
 
@@ -4002,11 +2945,12 @@ cdef class Array(object):
         :raises: :py:exc:`tiledb.TileDBError`
         """
         cdef int rc = TILEDB_OK
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef bytes buri = self.uri.encode('UTF-8')
         cdef tiledb_config_t* config_ptr = NULL
         if config is not None:
-            config_ptr = config.ptr
+            config_ptr = <tiledb_config_t*>PyCapsule_GetPointer(
+                config.__capsule__(), "config")
 
         rc = tiledb_array_upgrade_version(
             ctx_ptr, buri, config_ptr)
@@ -4058,7 +3002,7 @@ cdef class Array(object):
         >>> import tiledb, tempfile, numpy as np
         >>>
         >>> with tempfile.TemporaryDirectory() as tmp:
-        ...    A = tiledb.DenseArray.from_numpy(tmp, np.eye(4) * [1,2,3,4])
+        ...    A = tiledb.from_numpy(tmp, np.eye(4) * [1,2,3,4])
         ...    A.multi_index[1]
         ...    A.multi_index[1,1]
         ...    # return row 0 and 2
@@ -4187,11 +3131,10 @@ cdef class Query(object):
     """
 
     def __init__(self, array, attrs=None, cond=None, dims=None,
-                 coords=False, index_col=True,
-                 order=None, use_arrow=None, return_arrow=False,
-                 return_incomplete=False):
-        if array.mode != 'r':
-            raise ValueError("array mode must be read-only")
+                 coords=False, index_col=True, order=None,
+                 use_arrow=None, return_arrow=False, return_incomplete=False):
+        if array.mode not in  ('r', 'd'):
+            raise ValueError("array mode must be read or delete mode")
 
         if dims is not None and coords == True:
             raise ValueError("Cannot pass both dims and coords=True to Query")
@@ -4266,7 +3209,7 @@ cdef class Query(object):
         )
 
         return self.cond
-    
+
     @property
     def cond(self):
         """QueryCondition used to filter attributes or dimensions in Query."""
@@ -4350,6 +3293,10 @@ cdef class Query(object):
         else:
             return output
 
+    def submit(self):
+        """An alias for calling the regular indexer [:]"""
+        return self[:]
+
 
 cdef class DenseArrayImpl(Array):
     """Class representing a dense TileDB array.
@@ -4365,45 +3312,15 @@ cdef class DenseArrayImpl(Array):
         return
 
     @staticmethod
-    def from_numpy(uri, np.ndarray array, Ctx ctx=None, **kw):
-        """Implementation of tiledb.from_numpy for dense arrays. See documentation
-        of tiledb.from_numpy
-        """
-        if not ctx:
-            ctx = default_ctx()
-        
-        mode = kw.pop("mode", "ingest")
-        timestamp = kw.pop("timestamp", None)
+    def from_numpy(uri, np.ndarray array, ctx=None, **kw):
+        warnings.warn(
+            "tiledb.DenseArray.from_numpy is deprecated and is slated for "
+            "removal in version 0.20.0. Use tiledb.from_numpy",
+            DeprecationWarning,
+        )
+        assert tiledbpy_version < (0, 20, 0)
 
-        if mode not in ("ingest", "schema_only", "append"):
-            raise TileDBError(f"Invalid mode specified ('{mode}')")
-
-        if mode in ("ingest", "schema_only"):
-            try:
-                with Array.load_typed(uri):
-                    raise TileDBError(f"Array URI '{uri}' already exists!")
-            except TileDBError:
-                pass
-        
-        if mode == "append":
-            kw["append_dim"] = kw.get("append_dim", 0)
-            if ArraySchema.load(uri).sparse:
-                raise TileDBError("Cannot append to sparse array")
-
-        if mode in ("ingest", "schema_only"):
-            schema = schema_like_numpy(array, ctx=ctx, **kw)
-            Array.create(uri, schema)
-
-        if mode in ("ingest", "append"):
-            kw["mode"] = mode
-            with DenseArray(uri, mode='w', ctx=ctx, timestamp=timestamp) as arr:
-                # <TODO> probably need better typecheck here
-                if array.dtype == object:
-                    arr[:] = array
-                else:
-                    arr.write_direct(np.ascontiguousarray(array), **kw)
-
-        return DenseArray(uri, mode='r', ctx=ctx)
+        return sparse_array_from_numpy(uri=uri, array=array, ctx=ctx, **kw)
 
     def __len__(self):
         return self.domain.shape[0]
@@ -4426,7 +3343,7 @@ cdef class DenseArrayImpl(Array):
         >>> import tiledb, numpy as np, tempfile
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     # Creates array 'array' on disk.
-        ...     A = tiledb.DenseArray.from_numpy(tmp + "/array",  np.ones((100, 100)))
+        ...     A = tiledb.from_numpy(tmp + "/array",  np.ones((100, 100)))
         ...     # Many aspects of Numpy's fancy indexing are supported:
         ...     A[1:10, ...].shape
         ...     A[1:10, 20:99].shape
@@ -4465,8 +3382,8 @@ cdef class DenseArrayImpl(Array):
         else:
             return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    def query(self, attrs=None, attr_cond=None, cond=None, dims=None, 
-              coords=False, order='C', use_arrow=None, return_arrow=False, 
+    def query(self, attrs=None, attr_cond=None, cond=None, dims=None,
+              coords=False, order='C', use_arrow=None, return_arrow=False,
               return_incomplete=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
@@ -4483,6 +3400,7 @@ cdef class DenseArrayImpl(Array):
             then no dimensions are returned, unless coords=True.
         :param coords: if True, return array of coodinate value (default False).
         :param order: 'C', 'F', 'U', or 'G' (row-major, col-major, unordered, TileDB global order)
+        :param mode: "r" to read (default), "d" to delete
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
         :param return_incomplete: if True, initialize and return an iterable Query object over the indexed range.
@@ -4514,30 +3432,30 @@ cdef class DenseArrayImpl(Array):
         ...         A.query(attrs=("a1",))[0:5]
         OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
 
-        """            
+        """
         if not self.isopen or self.mode != 'r':
-            raise TileDBError("DenseArray is not opened for reading")
+            raise TileDBError("DenseArray must be opened in read mode")
 
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
 
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`. `attr_cond` is now deprecated " 
+                    "Only use `cond`. `attr_cond` is now deprecated "
                     "and is slated for removal in version 0.19.0."
                 )
-            
+
             warnings.warn(
                 "`attr_cond` is now deprecated and is slated for removal in "
                 "version 0.19.0. Use `cond`.",
                 DeprecationWarning,
             )
             cond = attr_cond
-        
-        return Query(self, attrs=attrs, cond=cond, dims=dims,
-                     coords=coords, order=order, use_arrow=use_arrow,
-                     return_arrow=return_arrow,
-                     return_incomplete=return_incomplete)
+
+        return Query(self, attrs=attrs, cond=con, dims=dims,
+                      coords=coords, order=order,
+                      use_arrow=use_arrow, return_arrow=return_arrow,
+                      return_incomplete=return_incomplete)
 
     def subarray(self, selection, attrs=None, cond=None, attr_cond=None,
                  coords=False, order=None):
@@ -4576,17 +3494,17 @@ cdef class DenseArrayImpl(Array):
 
         """
         if not self.isopen or self.mode != 'r':
-            raise TileDBError("DenseArray is not opened for reading")
+            raise TileDBError("DenseArray must be opened in read mode")
 
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
 
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`. `attr_cond` is now deprecated " 
+                    "Only use `cond`. `attr_cond` is now deprecated "
                     "and is slated for removal in version 0.19.0."
                 )
-            
+
             warnings.warn(
                 "`attr_cond` is now deprecated and is slated for removal in "
                 "version 0.19.0. Use `cond`.",
@@ -4648,7 +3566,7 @@ cdef class DenseArrayImpl(Array):
                               bint include_coords):
 
         from tiledb.main import PyQuery
-        
+
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 
@@ -4666,7 +3584,6 @@ cdef class DenseArrayImpl(Array):
                     "use `cond='expression'`.",
                     DeprecationWarning,
                 )
-                q.set_cond(cond)
             else:
                 raise TypeError("`cond` expects type str.")
 
@@ -4741,7 +3658,7 @@ cdef class DenseArrayImpl(Array):
         >>> # Write to single-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     # Create an array initially with all zero values
-        ...     with tiledb.DenseArray.from_numpy(tmp + "/array",  np.zeros((2, 2))) as A:
+        ...     with tiledb.from_numpy(tmp + "/array",  np.zeros((2, 2))) as A:
         ...         pass
         ...     with tiledb.DenseArray(tmp + "/array", mode='w') as A:
         ...         # Write to the single (anonymous) attribute
@@ -4783,9 +3700,9 @@ cdef class DenseArrayImpl(Array):
         cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))
         idx,_drop = replace_scalars_slice(domain, idx)
         cdef object subarray = index_domain_subarray(self, domain, idx)
-        cdef Attr attr
         cdef list attributes = list()
         cdef list values = list()
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
 
         if isinstance(val, dict):
             for attr_idx in range(self.schema.nattr):
@@ -4852,7 +3769,7 @@ cdef class DenseArrayImpl(Array):
                     raise TypeError(f"Expected NumPy uint8 array for attribute '{key}' "
                                     f"validity bitmap, got {val.dtype}")
 
-        _write_array(self.ctx.ptr,
+        _write_array(ctx_ptr,
                      self.ptr, self,
                      subarray,
                      attributes,
@@ -4902,11 +3819,11 @@ cdef class DenseArrayImpl(Array):
         if not array.flags.c_contiguous and not array.flags.f_contiguous:
             raise ValueError("array is not contiguous")
 
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
 
         # attr name
-        cdef Attr attr = self.schema.attr(0)
+        attr = self.schema.attr(0)
         cdef bytes battr_name = attr._internal_name.encode('UTF-8')
         cdef const char* attr_name_ptr = PyBytes_AS_STRING(battr_name)
 
@@ -4914,7 +3831,11 @@ cdef class DenseArrayImpl(Array):
         cdef uint64_t buff_size = array.nbytes
         cdef np.ndarray subarray = np.zeros(2*array.ndim, np.uint64)
 
-        use_global_order = self.ctx.config().get("py.use_global_order_1d_write", False) == "true"
+        try:
+            use_global_order = self.ctx.config().get(
+                "py.use_global_order_1d_write") == "true"
+        except KeyError:
+            use_global_order = False
 
         cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
         if array.ndim == 1 and use_global_order:
@@ -4943,17 +3864,17 @@ cdef class DenseArrayImpl(Array):
 
                 if array.ndim <= append_dim:
                     raise IndexError("`append_dim` out of range")
-                
+
                 if array.ndim != len(ned):
                     raise ValueError(
                         "The number of dimension of the TileDB array and "
                         "Numpy array to append do not match"
                     )
 
-                for n in range(array.ndim): 
+                for n in range(array.ndim):
                     if n == append_dim:
                         if start_idx is not None:
-                            range_start_idx = start_idx 
+                            range_start_idx = start_idx
                             range_end_idx = array.shape[n] + start_idx -1
                         else:
                             range_start_idx = ned[n][1] + 1
@@ -4970,20 +3891,20 @@ cdef class DenseArrayImpl(Array):
                                 f"{n} has {array.shape[n]} dimension(s) and "
                                 f"the TileDB array has {ned[n][1]-ned[n][0]}."
                             )
-            
+
             rc = tiledb_query_set_subarray(
-                    ctx_ptr, 
-                    query_ptr, 
+                    ctx_ptr,
+                    query_ptr,
                     <void*>np.PyArray_DATA(subarray)
             )
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
             rc = tiledb_query_set_buffer(
-                    ctx_ptr, 
-                    query_ptr, 
-                    attr_name_ptr, 
-                    buff_ptr, 
+                    ctx_ptr,
+                    query_ptr,
+                    attr_name_ptr,
+                    buff_ptr,
                     &buff_size
             )
             if rc != TILEDB_OK:
@@ -5013,11 +3934,10 @@ cdef class DenseArrayImpl(Array):
         """
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
-        cdef Ctx ctx = self.ctx
-        cdef tiledb_ctx_t* ctx_ptr = self.ctx.ptr
+        ctx = self.ctx
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
 
-        cdef Attr attr
         cdef unicode attr_name
         if name is None and self.schema.nattr != 1:
             raise ValueError(
@@ -5090,6 +4010,8 @@ def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
     return idx
 
 def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
+    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
+
     if not self.isopen or self.mode != 'w':
         raise TileDBError("SparseArray is not opened for writing")
 
@@ -5101,7 +4023,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
 
     if set_dims_only:
         _write_array(
-            self.ctx.ptr, self.ptr, self,
+            ctx_ptr, self.ptr, self,
             sparse_coords,
             sparse_attributes,
             sparse_values,
@@ -5164,7 +4086,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         raise TileDBError("Sparse write input data count does not match number of attributes")
 
     _write_array(
-        self.ctx.ptr, self.ptr, self,
+        ctx_ptr, self.ptr, self,
         sparse_coords,
         sparse_attributes,
         sparse_values,
@@ -5269,8 +4191,8 @@ cdef class SparseArrayImpl(Array):
         """
         return self.subarray(selection)
 
-    def query(self, attrs=None, cond=None, attr_cond=None, dims=None, 
-              index_col=True, coords=None, order='U', use_arrow=None, 
+    def query(self, attrs=None, cond=None, attr_cond=None, dims=None,
+              index_col=True, coords=None, order='U', use_arrow=None,
               return_arrow=None, return_incomplete=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
@@ -5289,6 +4211,7 @@ cdef class SparseArrayImpl(Array):
             and only set specified index(es) in the final dataframe, or None.
         :param coords: (deprecated) if True, return array of coordinate value (default False).
         :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param mode: "r" to read
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
         :return: A proxy Query object that can be used for indexing into the SparseArray
@@ -5317,18 +4240,18 @@ cdef class SparseArrayImpl(Array):
         OrderedDict([('a1', array([1, 2]))])
 
         """
-        if not self.isopen:
-            raise TileDBError("SparseArray is not opened")
-        
+        if not self.isopen or self.mode not in  ('r', 'd'):
+            raise TileDBError("SparseArray must be opened in read or delete mode")
+
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
 
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`. `attr_cond` is now deprecated " 
+                    "Only use `cond`. `attr_cond` is now deprecated "
                     "and is slated for removal in version 0.19.0."
                 )
-            
+
             warnings.warn(
                 "`attr_cond` is now deprecated and is slated for removal in "
                 "version 0.19.0. Use `cond`.",
@@ -5344,11 +4267,11 @@ cdef class SparseArrayImpl(Array):
             _coords = True
 
         return Query(self, attrs=attrs, cond=cond, dims=dims,
-                     coords=_coords, index_col=index_col, order=order,
-                     use_arrow=use_arrow, return_arrow=return_arrow,
-                     return_incomplete=return_incomplete)
+                      coords=_coords, index_col=index_col, order=order,
+                      use_arrow=use_arrow, return_arrow=return_arrow,
+                      return_incomplete=return_incomplete)
 
-    def subarray(self, selection, coords=True, attrs=None, cond=None, 
+    def subarray(self, selection, coords=True, attrs=None, cond=None,
                  attr_cond=None, order=None):
         """
         Retrieve dimension and data cells for an item or region of the array.
@@ -5390,19 +4313,18 @@ cdef class SparseArrayImpl(Array):
         OrderedDict([('a1', array([1, 2]))])
 
         """
+        if not self.isopen or self.mode not in ('r', 'd'):
+            raise TileDBError("SparseArray is not opened in read or delete mode")
 
-        if not self.isopen or self.mode != 'r':
-            raise TileDBError("SparseArray is not opened for reading")
-        
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
 
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`. `attr_cond` is now deprecated " 
+                    "Only use `cond`. `attr_cond` is now deprecated "
                     "and is slated for removal in version 0.19.0."
                 )
-            
+
             warnings.warn(
                 "`attr_cond` is now deprecated and is slated for removal in "
                 "version 0.19.0. Use `cond`.",
@@ -5459,7 +4381,7 @@ cdef class SparseArrayImpl(Array):
         cdef Py_ssize_t nattr = len(attr_names)
 
         from tiledb.main import PyQuery
-        
+
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 
@@ -5477,11 +4399,16 @@ cdef class SparseArrayImpl(Array):
                     "use `cond='expression'`.",
                     DeprecationWarning,
                 )
-                q.set_cond(cond)
             else:
                 raise TypeError("`cond` expects type str.")
-        q.set_ranges([list([x]) for x in subarray])
+
+        if self.mode == "r":
+            q.set_ranges([list([x]) for x in subarray])
+
         q.submit()
+
+        if self.mode == 'd':
+            return
 
         cdef object results = OrderedDict()
         results = q.results()
@@ -5536,7 +4463,7 @@ cdef class SparseArrayImpl(Array):
         return dim_values
 
 
-def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None):
+def consolidate(uri, key=None, config=None, ctx=None, timestamp=None):
     """Consolidates TileDB array fragments for improved read performance
 
     :param str uri: URI to the TileDB Array
@@ -5559,7 +4486,7 @@ def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None)
     if not ctx:
         ctx = default_ctx()
 
-    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
 
     if timestamp:
         if config is None:
@@ -5575,7 +4502,8 @@ def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None)
 
     cdef tiledb_config_t* config_ptr = NULL
     if config is not None:
-        config_ptr = config.ptr
+        config_ptr = <tiledb_config_t*>PyCapsule_GetPointer(
+            config.__capsule__(), "config")
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
     # encryption key
@@ -5602,7 +4530,7 @@ def consolidate(uri, key=None, Config config=None, Ctx ctx=None, timestamp=None)
         _raise_ctx_err(ctx_ptr, rc)
     return uri
 
-def object_type(uri, Ctx ctx=None):
+def object_type(uri, ctx=None):
     """Returns the TileDB object type at the specified path (URI)
 
     :param str path: path (URI) of the TileDB resource
@@ -5615,7 +4543,7 @@ def object_type(uri, Ctx ctx=None):
     if not ctx:
         ctx = default_ctx()
     cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
     cdef bytes buri = unicode_path(uri)
     cdef const char* path_ptr = PyBytes_AS_STRING(buri)
     cdef tiledb_object_t obj = TILEDB_INVALID
@@ -5634,7 +4562,7 @@ def object_type(uri, Ctx ctx=None):
     return objtype
 
 
-def remove(uri, Ctx ctx=None):
+def remove(uri, ctx=None):
     """Removes (deletes) the TileDB object at the specified path (URI)
 
     :param str uri: URI of the TileDB resource
@@ -5646,7 +4574,7 @@ def remove(uri, Ctx ctx=None):
     if not ctx:
         ctx = default_ctx()
     cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
     with nogil:
@@ -5656,7 +4584,7 @@ def remove(uri, Ctx ctx=None):
     return
 
 
-def move(old_uri, new_uri, Ctx ctx=None):
+def move(old_uri, new_uri, ctx=None):
     """Moves a TileDB resource (group, array, key-value).
 
     :param tiledb.Ctx ctx: The TileDB Context
@@ -5668,7 +4596,7 @@ def move(old_uri, new_uri, Ctx ctx=None):
     if not ctx:
         ctx = default_ctx()
     cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = ctx.ptr
+    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
     cdef bytes b_old_path = unicode_path(old_uri)
     cdef bytes b_new_path = unicode_path(new_uri)
     cdef const char* old_path_ptr = PyBytes_AS_STRING(b_old_path)
@@ -5706,7 +4634,7 @@ cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     return 1
 
 
-def ls(path, func, Ctx ctx=None):
+def ls(path, func, ctx=None):
     """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
 
     :param str path: URI of TileDB group object
@@ -5717,15 +4645,18 @@ def ls(path, func, Ctx ctx=None):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
+    cdef tiledb_ctx_t* ctx_ptr = NULL
+
     if not ctx:
         ctx = default_ctx()
     cdef bytes bpath = unicode_path(path)
+    ctx_ptr = safe_ctx_ptr(ctx)
     check_error(ctx,
-                tiledb_object_ls(ctx.ptr, bpath, walk_callback, <void*> func))
+                tiledb_object_ls(ctx_ptr, bpath, walk_callback, <void*> func))
     return
 
 
-def walk(path, func, order="preorder", Ctx ctx=None):
+def walk(path, func, order="preorder", ctx=None):
     """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``path``
 
     :param str path: URI of TileDB group object
@@ -5738,6 +4669,7 @@ def walk(path, func, order="preorder", Ctx ctx=None):
     :raises: :py:exc:`tiledb.TileDBError`
 
     """
+    cdef tiledb_ctx_t* ctx_ptr = NULL
     if not ctx:
         ctx = default_ctx()
     cdef bytes bpath = unicode_path(path)
@@ -5748,11 +4680,12 @@ def walk(path, func, order="preorder", Ctx ctx=None):
         walk_order = TILEDB_PREORDER
     else:
         raise ValueError("unknown walk order {}".format(order))
+    ctx_ptr = safe_ctx_ptr(ctx)
     check_error(ctx,
-                tiledb_object_walk(ctx.ptr, bpath, walk_order, walk_callback, <void*> func))
+                tiledb_object_walk(ctx_ptr, bpath, walk_order, walk_callback, <void*> func))
     return
 
-def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
+def vacuum(uri, config=None, ctx=None, timestamp=None):
     """
     Vacuum underlying array fragments after consolidation.
 
@@ -5816,8 +4749,9 @@ def vacuum(uri, Config config=None, Ctx ctx=None, timestamp=None):
         if timestamp[1] is not None:
             config["sm.vacuum.timestamp_end"] = timestamp[1]
 
-    ctx_ptr = ctx.ptr
-    config_ptr = config.ptr if config is not None else NULL
+    ctx_ptr = safe_ctx_ptr(ctx)
+    config_ptr = <tiledb_config_t*>PyCapsule_GetPointer(
+        config.__capsule__(), "config") if config is not None else NULL
     cdef bytes buri = unicode_path(uri)
     cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
 

@@ -1,5 +1,32 @@
 # In Progress
 
+## Improvements
+* Move `from_numpy` out of Cython into pure Python [#1436](https://github.com/TileDB-Inc/TileDB-Py/pull/1436)
+
+## Bug Fixes
+* Fix `.df` and `.multi_index` always returning attributes applied in query conditions [#1433](https://github.com/TileDB-Inc/TileDB-Py/pull/1433)
+
+# Release 0.18.2
+
+## TileDB Embedded updates:
+* TileDB-Py 0.18.2 includes TileDB Embedded [TileDB 2.12.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.2)
+
+# Release 0.18.1
+
+## TileDB Embedded updates:
+* TileDB-Py 0.18.1 includes TileDB Embedded [TileDB 2.12.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.1)
+
+## Improvements
+* Reintroduce moving `Attr` from Cython to pure Python [#1411](https://github.com/TileDB-Inc/TileDB-Py/pull/1411)
+
+## Bug Fixes
+* Properly handle whitespaces in a query condition [#1398](https://github.com/TileDB-Inc/TileDB-Py/pull/1398)
+
+# Release 0.18.0
+
+## TileDB Embedded updates:
+* TileDB-Py 0.18.0 includes TileDB Embedded [TileDB 2.12.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.0)
+
 ## API Changes
 * Changes to query conditions [#1341](https://github.com/TileDB-Inc/TileDB-Py/pull/1341)
     * Support query conditions on sparse dimensions
@@ -10,13 +37,18 @@
 * Array and Group metadata now store bytes as `TILEDB_BLOB` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
 * Addition of `{Array,Group}.metadata.dump()` [#1384](https://github.com/TileDB-Inc/TileDB-Py/pull/1384)
 * Addition of `Group.is_relative` to check if the URI component of a group member is relative [#1386](https://github.com/TileDB-Inc/TileDB-Py/pull/1386)
+* Addition of query deletes to delete data that satisifies a given query condition [#1309](https://github.com/TileDB-Inc/TileDB-Py/pull/1309)
+* Addition of `FileIO.readinto` [#1389](https://github.com/TileDB-Inc/TileDB-Py/pull/1389)
+
+## Improvements
+* Addition of Utility Function `get_last_ctx_err_str()` for C API [#1351](https://github.com/TileDB-Inc/TileDB-Py/pull/1351)
+* Move `Context` and `Config` from Cython to pure Python [#1379](https://github.com/TileDB-Inc/TileDB-Py/pull/1379)
+
+# TileDB-Py 0.17.6 Release Notes
 
 ## Bug Fixes
 * Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
 * Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings [#1372](https://github.com/TileDB-Inc/TileDB-Py/pull/1372)
-
-## Improvements
-* Addition of Utility Function `get_last_ctx_err_str()` for C API [#1351](https://github.com/TileDB-Inc/TileDB-Py/pull/1351)
 
 # TileDB-Py 0.17.5 Release Notes
 
@@ -36,6 +68,7 @@
 
 ## API Changes
 * Addition of `FloatScaleFilter` [#1195](https://github.com/TileDB-Inc/TileDB-Py/pull/1195)
+* Addition of `d` mode for arrays to delete data that satisfies a given query condition [#1309](https://github.com/TileDB-Inc/TileDB-Py/pull/1309)
 
 ## Misc Updates
 * Wheels are minimally supported for macOS 10.15 Catalina [#1275](https://github.com/TileDB-Inc/TileDB-Py/pull/1275)

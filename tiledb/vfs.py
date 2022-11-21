@@ -1,3 +1,4 @@
+from copy import copy
 import io
 from typing import List, Optional, Type, TYPE_CHECKING, Union
 from types import TracebackType
@@ -24,7 +25,6 @@ class VFS(lt.VFS):
 
     def __init__(self, config: Union["Config", dict] = None, ctx: "Ctx" = None):
         ctx = ctx or default_ctx()
-        cctx = lt.Context(ctx.__capsule__(), False)
 
         if config:
             from .libtiledb import Config
@@ -38,9 +38,9 @@ class VFS(lt.VFS):
                     raise ValueError("`config` argument must be of type Config or dict")
 
             ccfg = lt.Config(config)
-            super().__init__(cctx, ccfg)
+            super().__init__(ctx, ccfg)
         else:
-            super().__init__(cctx)
+            super().__init__(ctx)
 
     def ctx(self) -> "Ctx":
         """
@@ -495,3 +495,28 @@ class FileIO(io.RawIOBase):
         self._nbytes += nbytes
         self._offset += nbytes
         return nbytes
+
+    def readinto(self, buff: bytes) -> int:
+        """
+        Read bytes into a pre-allocated, writable bytes-like object b, and return the number of bytes read.
+
+        :param buff bytes:
+        """
+        size = len(buff)
+        if not self.readable():
+            raise IOError("Cannot read from write-only FileIO handle")
+        if self.closed:
+            raise IOError("Cannot read from closed FileIO handle")
+
+        nbytes_left = self._nbytes - self._offset
+        nbytes = nbytes_left if size > nbytes_left else size
+        if nbytes == 0:
+            return None
+
+        buff_temp = self._fh._read(self._offset, nbytes)
+        self._offset += nbytes
+        buff[: len(buff_temp)] = buff_temp
+        return len(buff_temp)
+
+    def readinto1(self, b):
+        return self.readinto(b)

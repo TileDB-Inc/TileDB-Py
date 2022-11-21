@@ -170,7 +170,7 @@ class GroupTest(GroupTestCase):
         time.sleep(0.001)
         grp.close()
 
-    def test_group_members(self, capfd):
+    def test_group_members(self):
         grp_path = self.path("test_group_members")
         tiledb.Group.create(grp_path)
 

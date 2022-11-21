@@ -120,96 +120,6 @@ class StatsTest(DiskTestCase):
             assert "counters" in json_stats
 
 
-@pytest.mark.skipif(
-    "pytest.tiledb_vfs == 's3'", reason="Test not yet supported with S3"
-)
-class TestConfig(DiskTestCase):
-    def test_config(self):
-        config = tiledb.Config()
-        config["sm.tile_cache_size"] = 100
-        assert repr(config) is not None
-        tiledb.Ctx(config)
-
-    def test_ctx_config(self):
-        ctx = tiledb.Ctx({"sm.tile_cache_size": 100})
-        config = ctx.config()
-        self.assertEqual(config["sm.tile_cache_size"], "100")
-
-    def test_vfs_config(self):
-        config = tiledb.Config()
-        config["vfs.min_parallel_size"] = 1
-        ctx = tiledb.Ctx()
-        self.assertEqual(ctx.config()["vfs.min_parallel_size"], "10485760")
-        vfs = tiledb.VFS(config, ctx=ctx)
-        self.assertEqual(vfs.config()["vfs.min_parallel_size"], "1")
-
-    def test_config_iter(self):
-        config = tiledb.Config()
-        k, v = [], []
-        for p in config.items():
-            k.append(p[0])
-            v.append(p[1])
-        self.assertTrue(len(k) > 0)
-
-        k, v = [], []
-        for p in config.items("vfs.s3."):
-            k.append(p[0])
-            v.append(p[1])
-        self.assertTrue(len(k) > 0)
-
-    def test_config_bad_param(self):
-        config = tiledb.Config()
-        config["sm.foo"] = "bar"
-        ctx = tiledb.Ctx(config)
-        self.assertEqual(ctx.config()["sm.foo"], "bar")
-
-    def test_config_unset(self):
-        config = tiledb.Config()
-        config["sm.tile_cach_size"] = 100
-        del config["sm.tile_cache_size"]
-        # check that config parameter is default
-        self.assertEqual(
-            config["sm.tile_cache_size"], tiledb.Config()["sm.tile_cache_size"]
-        )
-
-    def test_config_from_file(self):
-        # skip: beacuse Config.load doesn't support VFS-supported URIs?
-        if pytest.tiledb_vfs == "s3":
-            pytest.skip(
-                "TODO need more plumbing to make pandas use TileDB VFS to read CSV files"
-            )
-
-        config_path = self.path("config")
-        with tiledb.FileIO(self.vfs, config_path, "wb") as fh:
-            fh.write("sm.tile_cache_size 100")
-        config = tiledb.Config.load(config_path)
-        self.assertEqual(config["sm.tile_cache_size"], "100")
-
-    def test_ctx_config_from_file(self):
-        config_path = self.path("config")
-        vfs = tiledb.VFS()
-        with tiledb.FileIO(vfs, config_path, "wb") as fh:
-            fh.write("sm.tile_cache_size 100")
-        ctx = tiledb.Ctx(config=tiledb.Config.load(config_path))
-        config = ctx.config()
-        self.assertEqual(config["sm.tile_cache_size"], "100")
-
-    def test_ctx_config_dict(self):
-        ctx = tiledb.Ctx(config={"sm.tile_cache_size": "100"})
-        config = ctx.config()
-        assert issubclass(type(config), tiledb.libtiledb.Config)
-        self.assertEqual(config["sm.tile_cache_size"], "100")
-
-    def test_config_repr_html(self):
-        config = tiledb.Config()
-        try:
-            assert xml.etree.ElementTree.fromstring(config._repr_html_()) is not None
-        except:
-            pytest.fail(
-                f"Could not parse config._repr_html_(). Saw {config._repr_html_()}"
-            )
-
-
 class DimensionTest(unittest.TestCase):
     def test_minimal_dimension(self):
         dim = tiledb.Dim(domain=(0, 4), tile=5)
@@ -388,177 +298,6 @@ class DomainTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError):
                 A[unicode_coords] = data
             A[ascii_coords] = data
-
-
-class AttributeTest(DiskTestCase):
-    def test_minimal_attribute(self):
-        attr = tiledb.Attr()
-        self.assertTrue(attr.isanon)
-        self.assertEqual(attr.name, "")
-        self.assertEqual(attr.dtype, np.float_)
-        # self.assertEqual(attr.compressor, (None, -1))
-        self.assertFalse(attr.isvar)
-        self.assertFalse(attr.isnullable)
-
-        try:
-            assert xml.etree.ElementTree.fromstring(attr._repr_html_()) is not None
-        except:
-            pytest.fail(f"Could not parse attr._repr_html_(). Saw {attr._repr_html_()}")
-
-    def test_attribute(self, capfd):
-        attr = tiledb.Attr("foo")
-
-        attr.dump()
-        assert_captured(capfd, "Name: foo")
-
-        assert attr.name == "foo"
-        assert attr.dtype == np.float64, "default attribute type is float64"
-        # compressor, level = attr.compressor
-        # self.assertEqual(compressor, None, "default to no compression")
-        # self.assertEqual(level, -1, "default compression level when none is specified")
-
-    @pytest.mark.parametrize(
-        "dtype, fill",
-        [
-            (np.dtype(bytes), b"abc"),
-            # (str, "defg"),
-            (np.float32, np.float32(0.4023573667780681)),
-            (np.float64, np.float64(0.0560602549760851)),
-            (np.dtype("M8[ns]"), np.timedelta64(11, "ns")),
-            (np.dtype([("f0", "<i4"), ("f1", "<i4"), ("f2", "<i4")]), (1, 2, 3)),
-        ],
-    )
-    def test_attribute_fill(self, dtype, fill):
-        attr = tiledb.Attr("", dtype=dtype, fill=fill)
-        assert np.array(attr.fill, dtype=dtype) == np.array(fill, dtype=dtype)
-
-        path = self.path()
-        dom = tiledb.Domain(tiledb.Dim(domain=(0, 0), tile=1, dtype=np.int64))
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,))
-        tiledb.DenseArray.create(path, schema)
-
-        with tiledb.open(path) as R:
-            assert R.multi_index[0][""] == np.array(fill, dtype=dtype)
-            assert R[0] == np.array(fill, dtype=dtype)
-            if has_pandas() and not hasattr(dtype, "fields"):
-                # record type unsupported for .df
-                assert R.df[0][""].values == np.array(fill, dtype=dtype)
-
-    def test_full_attribute(self, capfd):
-        filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
-        filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
-        attr = tiledb.Attr("foo", dtype=np.int64, filters=filter_list)
-
-        attr.dump()
-        assert_captured(capfd, "Name: foo")
-
-        self.assertEqual(attr.name, "foo")
-        self.assertEqual(attr.dtype, np.int64)
-
-        # <todo>
-        # compressor, level = attr.compressor
-        # self.assertEqual(compressor, "zstd")
-        # self.assertEqual(level, 10)
-
-    def test_ncell_attribute(self):
-        dtype = np.dtype([("", np.int32), ("", np.int32), ("", np.int32)])
-        attr = tiledb.Attr("foo", dtype=dtype)
-
-        self.assertEqual(attr.dtype, dtype)
-        self.assertEqual(attr.ncells, 3)
-
-        # dtype subarrays not supported
-        with self.assertRaises(TypeError):
-            tiledb.Attr("foo", dtype=np.dtype((np.int32, 2)))
-
-        # mixed type record arrays not supported
-        with self.assertRaises(TypeError):
-            tiledb.Attr("foo", dtype=np.dtype([("", np.float32), ("", np.int32)]))
-
-    def test_ncell_bytes_attribute(self):
-        dtype = np.dtype((np.bytes_, 10))
-        attr = tiledb.Attr("foo", dtype=dtype)
-
-        self.assertEqual(attr.dtype, dtype)
-        self.assertEqual(attr.ncells, 10)
-
-    def test_bytes_var_attribute(self):
-        with pytest.warns(DeprecationWarning, match="Attr given `var=True` but"):
-            attr = tiledb.Attr("foo", var=True, dtype="S1")
-            self.assertEqual(attr.dtype, np.dtype("S"))
-            self.assertTrue(attr.isvar)
-
-        with pytest.warns(DeprecationWarning, match="Attr given `var=False` but"):
-            attr = tiledb.Attr("foo", var=False, dtype="S")
-            self.assertEqual(attr.dtype, np.dtype("S"))
-            self.assertTrue(attr.isvar)
-
-        attr = tiledb.Attr("foo", var=True, dtype="S")
-        self.assertEqual(attr.dtype, np.dtype("S"))
-        self.assertTrue(attr.isvar)
-
-        attr = tiledb.Attr("foo", var=False, dtype="S1")
-        self.assertEqual(attr.dtype, np.dtype("S1"))
-        self.assertFalse(attr.isvar)
-
-        attr = tiledb.Attr("foo", dtype="S1")
-        self.assertEqual(attr.dtype, np.dtype("S1"))
-        self.assertFalse(attr.isvar)
-
-        attr = tiledb.Attr("foo", dtype="S")
-        self.assertEqual(attr.dtype, np.dtype("S"))
-        self.assertTrue(attr.isvar)
-
-    def test_nullable_attribute(self):
-        attr = tiledb.Attr("nullable", nullable=True, dtype=np.int32)
-        self.assertEqual(attr.dtype, np.dtype(np.int32))
-        self.assertTrue(attr.isnullable)
-
-    def test_datetime_attribute(self):
-        attr = tiledb.Attr("foo", dtype=np.datetime64("", "D"))
-        assert attr.dtype == np.dtype(np.datetime64("", "D"))
-        assert attr.dtype != np.dtype(np.datetime64("", "Y"))
-        assert attr.dtype != np.dtype(np.datetime64)
-
-    @pytest.mark.parametrize("sparse", [True, False])
-    def test_ascii_attribute(self, sparse, capfd):
-        path = self.path("test_ascii")
-        dom = tiledb.Domain(
-            tiledb.Dim(name="d", domain=(1, 4), tile=1, dtype=np.uint32)
-        )
-
-        with pytest.raises(TypeError) as exc_info:
-            tiledb.Attr(name="A", dtype="ascii", var=False)
-        assert (
-            str(exc_info.value) == "dtype is not compatible with var-length attribute"
-        )
-
-        attrs = [tiledb.Attr(name="A", dtype="ascii")]
-
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
-        tiledb.Array.create(path, schema)
-
-        ascii_data = ["a", "b", "c", "ABC"]
-        unicode_data = ["±", "×", "÷", "√"]
-
-        with tiledb.open(path, "w") as A:
-            if sparse:
-                with self.assertRaises(tiledb.TileDBError):
-                    A[np.arange(1, 5)] = unicode_data
-                A[np.arange(1, 5)] = ascii_data
-            else:
-                with self.assertRaises(tiledb.TileDBError):
-                    A[:] = unicode_data
-                A[:] = ascii_data
-
-        with tiledb.open(path, "r") as A:
-            assert A.schema.nattr == 1
-            A.schema.dump()
-            assert_captured(capfd, "Type: STRING_ASCII")
-            assert A.schema.attr("A").isvar
-            assert A.schema.attr("A").dtype == np.bytes_
-            assert A.schema.attr("A").isascii
-            assert_array_equal(A[:]["A"], np.asarray(ascii_data, dtype=np.bytes_))
 
 
 class ArraySchemaTest(DiskTestCase):
@@ -3414,7 +3153,7 @@ class PickleTest(DiskTestCase):
     @tiledb.scope_ctx({"vfs.s3.region": "kuyper-belt-1", "vfs.max_parallel_ops": "1"})
     def test_pickle_with_config(self):
         uri = self.path("pickle_config")
-        T = tiledb.DenseArray.from_numpy(uri, np.random.rand(3, 3))
+        T = tiledb.from_numpy(uri, np.random.rand(3, 3))
 
         with io.BytesIO() as buf:
             pickle.dump(T, buf)
@@ -3542,22 +3281,22 @@ class TestNumpyToArray(DiskTestCase):
         # Cannot create 0-dim arrays in TileDB
         np_array = np.array(1)
         with self.assertRaises(tiledb.TileDBError):
-            with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as A:
+            with tiledb.from_numpy(self.path("foo"), np_array) as A:
                 pass
 
     def test_to_array1d(self):
         np_array = np.array([1.0, 2.0, 3.0])
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_to_array2d(self):
         np_array = np.ones((100, 100), dtype="i8")
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_to_array3d(self):
         np_array = np.ones((1, 1, 1), dtype="i1")
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
     def test_bytes_to_array1d(self):
@@ -3565,7 +3304,7 @@ class TestNumpyToArray(DiskTestCase):
             [b"abcdef", b"gh", b"ijkl", b"mnopqrs", b"", b"1234545lkjalsdfj"],
             dtype=object,
         )
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
         with tiledb.DenseArray(self.path("foo")) as arr_reload:
@@ -3587,7 +3326,7 @@ class TestNumpyToArray(DiskTestCase):
             ],
             dtype=object,
         )
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[:], np_array)
 
         with tiledb.DenseArray(self.path("foo")) as arr_reload:
@@ -3596,7 +3335,7 @@ class TestNumpyToArray(DiskTestCase):
     def test_array_interface(self):
         # Tests that __array__ interface works
         np_array1 = np.arange(1, 10)
-        with tiledb.DenseArray.from_numpy(self.path("arr1"), np_array1) as arr1:
+        with tiledb.from_numpy(self.path("arr1"), np_array1) as arr1:
             assert_array_equal(np.array(arr1), np_array1)
 
         # Test that __array__ interface throws an error when number of attributes > 1
@@ -3612,14 +3351,12 @@ class TestNumpyToArray(DiskTestCase):
     def test_array_getindex(self):
         # Tests that __getindex__ interface works
         np_array = np.arange(1, 10)
-        with tiledb.DenseArray.from_numpy(self.path("foo"), np_array) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array) as arr:
             assert_array_equal(arr[5:10], np_array[5:10])
 
     def test_to_array1d_attr_name(self):
         np_array = np.array([1.0, 2.0, 3.0])
-        with tiledb.DenseArray.from_numpy(
-            self.path("foo"), np_array, attr_name="a"
-        ) as arr:
+        with tiledb.from_numpy(self.path("foo"), np_array, attr_name="a") as arr:
             assert_array_equal(arr[:]["a"], np_array)
 
     def test_from_numpy_timestamp(self):
@@ -3635,7 +3372,7 @@ class TestNumpyToArray(DiskTestCase):
         uri = self.path("test_from_numpy_schema_only")
 
         arr1 = np.array([1.0, 2.0, 3.0])
-        with tiledb.DenseArray.from_numpy(uri, arr1, mode="schema_only") as arr:
+        with tiledb.from_numpy(uri, arr1, mode="schema_only") as arr:
             assert arr.nonempty_domain() is None
 
     def test_from_numpy_append(self):
@@ -3643,13 +3380,13 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.array([1.0, 2.0, 3.0])
 
-        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+        with tiledb.from_numpy(uri, arr1, full_domain=True) as A:
             assert A.nonempty_domain() == ((0, 2),)
             assert_array_equal(A[0:3], arr1)
 
         arr2 = np.array([4.0, 5.0, 6.0])
 
-        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append") as A:
+        with tiledb.from_numpy(uri, arr2, mode="append") as A:
             assert A.nonempty_domain() == ((0, 5),)
             assert_array_equal(A[0:6], np.append(arr1, arr2))
 
@@ -3658,13 +3395,13 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.array([1.0, 2.0, 3.0])
 
-        with tiledb.DenseArray.from_numpy(uri, arr1) as A:
+        with tiledb.from_numpy(uri, arr1) as A:
             assert A.nonempty_domain() == ((0, 2),)
             assert_array_equal(A[0:3], arr1)
 
         arr2 = np.array([4.0, 5.0, 6.0])
 
-        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append", start_idx=0) as A:
+        with tiledb.from_numpy(uri, arr2, mode="append", start_idx=0) as A:
             assert A.nonempty_domain() == ((0, 2),)
             assert_array_equal(A[0:3], arr2)
 
@@ -3673,23 +3410,23 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.random.rand(10, 5)
 
-        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+        with tiledb.from_numpy(uri, arr1, full_domain=True) as A:
             assert A.nonempty_domain() == ((0, 9), (0, 4))
             assert_array_equal(A[0:10, 0:5], arr1)
 
         # error out if number of dimensions do not match
         with self.assertRaises(ValueError):
             arr2 = np.random.rand(5)
-            tiledb.DenseArray.from_numpy(uri, arr2, mode="append")
+            tiledb.from_numpy(uri, arr2, mode="append")
 
         # error out if number of dimensions do not match
         with self.assertRaises(ValueError):
             arr2 = np.random.rand(4, 4)
-            tiledb.DenseArray.from_numpy(uri, arr2, mode="append")
+            tiledb.from_numpy(uri, arr2, mode="append")
 
         arr2 = np.random.rand(5, 5)
 
-        with tiledb.DenseArray.from_numpy(uri, arr2, mode="append") as A:
+        with tiledb.from_numpy(uri, arr2, mode="append") as A:
             assert A.nonempty_domain() == ((0, 14), (0, 4))
             assert_array_equal(A[0:15, 0:5], np.append(arr1, arr2, axis=0))
 
@@ -3699,7 +3436,7 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.random.rand(2, 2, 2)
 
-        with tiledb.DenseArray.from_numpy(uri, arr1, full_domain=True) as A:
+        with tiledb.from_numpy(uri, arr1, full_domain=True) as A:
             assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
             assert_array_equal(A[0:2, 0:2, 0:2], arr1)
 
@@ -3708,14 +3445,10 @@ class TestNumpyToArray(DiskTestCase):
         # error out if index is out of bounds
         if append_dim == 3:
             with self.assertRaises(IndexError):
-                tiledb.DenseArray.from_numpy(
-                    uri, arr2, mode="append", append_dim=append_dim
-                )
+                tiledb.from_numpy(uri, arr2, mode="append", append_dim=append_dim)
             return
 
-        with tiledb.DenseArray.from_numpy(
-            uri, arr2, mode="append", append_dim=append_dim
-        ) as A:
+        with tiledb.from_numpy(uri, arr2, mode="append", append_dim=append_dim) as A:
             if append_dim == 0:
                 assert A.nonempty_domain() == ((0, 3), (0, 1), (0, 1))
                 result = A[0:4, 0:2, 0:2]
@@ -3734,7 +3467,7 @@ class TestNumpyToArray(DiskTestCase):
 
         arr1 = np.random.rand(2, 2, 2)
 
-        with tiledb.DenseArray.from_numpy(uri, arr1) as A:
+        with tiledb.from_numpy(uri, arr1) as A:
             assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
             assert_array_equal(A[0:2, 0:2, 0:2], arr1)
 
@@ -3743,12 +3476,10 @@ class TestNumpyToArray(DiskTestCase):
         # error out if index is out of bounds
         if append_dim == 3:
             with self.assertRaises(IndexError):
-                tiledb.DenseArray.from_numpy(
-                    uri, arr2, mode="append", append_dim=append_dim
-                )
+                tiledb.from_numpy(uri, arr2, mode="append", append_dim=append_dim)
             return
 
-        with tiledb.DenseArray.from_numpy(
+        with tiledb.from_numpy(
             uri, arr2, mode="append", append_dim=append_dim, start_idx=0
         ) as A:
             assert A.nonempty_domain() == ((0, 1), (0, 1), (0, 1))
@@ -4015,96 +3746,10 @@ class TestHighlevel(DiskTestCase):
                 start_threads = len(thisproc.threads())
 
 
-# Wrapper to execute specific code in subprocess so that we can ensure the thread count
-# init is correct. Necessary because multiprocess.get_context is only available in Python 3.4+,
-# and the multiprocessing method may be set to fork by other tests (e.g. dask).
-def init_test_wrapper(cfg=None):
-    python_exe = sys.executable
-    cmd = "from test_libtiledb import *; init_test_helper({})".format(cfg)
-    test_path = os.path.dirname(os.path.abspath(__file__))
-
-    sp_output = subprocess.check_output([python_exe, "-c", cmd], cwd=test_path)
-    return int(sp_output.decode("UTF-8").strip())
-
-
 def init_test_helper(cfg=None):
     tiledb.libtiledb.default_ctx(cfg)
     concurrency_level = tiledb.default_ctx().config()["sm.io_concurrency_level"]
     print(int(concurrency_level))
-
-
-class ContextTest(DiskTestCase):
-    def test_default_ctx(self):
-        ctx = tiledb.default_ctx()
-        self.assertIsInstance(ctx, tiledb.Ctx)
-        assert isinstance(ctx.config(), tiledb.libtiledb.Config)
-
-    def test_default_ctx_errors(self):
-        config = tiledb.Config()
-        ctx = tiledb.Ctx(config=config)
-
-        with pytest.raises(ValueError) as excinfo:
-            tiledb.default_ctx(ctx)
-        assert (
-            "default_ctx takes in `tiledb.Config` object or dictionary with "
-            "config parameters."
-        ) == str(excinfo.value)
-
-    def test_scope_ctx(self):
-        key = "sm.tile_cache_size"
-        ctx0 = tiledb.default_ctx()
-        new_config_dict = {key: 42}
-        new_config = tiledb.Config({key: 78})
-        new_ctx = tiledb.Ctx({key: 61})
-
-        assert tiledb.default_ctx() is ctx0
-        assert tiledb.default_ctx().config()[key] == "10000000"
-
-        with tiledb.scope_ctx(new_config_dict) as ctx1:
-            assert tiledb.default_ctx() is ctx1
-            assert tiledb.default_ctx().config()[key] == "42"
-            with tiledb.scope_ctx(new_config) as ctx2:
-                assert tiledb.default_ctx() is ctx2
-                assert tiledb.default_ctx().config()[key] == "78"
-                with tiledb.scope_ctx(new_ctx) as ctx3:
-                    assert tiledb.default_ctx() is ctx3 is new_ctx
-                    assert tiledb.default_ctx().config()[key] == "61"
-                assert tiledb.default_ctx() is ctx2
-                assert tiledb.default_ctx().config()[key] == "78"
-            assert tiledb.default_ctx() is ctx1
-            assert tiledb.default_ctx().config()[key] == "42"
-
-        assert tiledb.default_ctx() is ctx0
-        assert tiledb.default_ctx().config()[key] == "10000000"
-
-    def test_scope_ctx_error(self):
-        with pytest.raises(ValueError) as excinfo:
-            with tiledb.scope_ctx([]):
-                pass
-        assert (
-            "scope_ctx takes in `tiledb.Ctx` object, `tiledb.Config` object, "
-            "or dictionary with config parameters."
-        ) == str(excinfo.value)
-
-    @pytest.mark.skipif(
-        "pytest.tiledb_vfs == 's3'", reason="Test not yet supported with S3"
-    )
-    @pytest.mark.filterwarnings(
-        # As of 0.17.0, a warning is emitted for the aarch64 conda builds with
-        # the messsage:
-        #     <jemalloc>: MADV_DONTNEED does not work (memset will be used instead)
-        #     <jemalloc>: (This is the expected behaviour if you are running under QEMU)
-        # This can be ignored as this is being run in a Docker image / QEMU and
-        # is therefore expected behavior
-        "ignore:This is the expected behaviour if you are running under QEMU"
-    )
-    def test_init_config(self):
-        self.assertEqual(
-            int(tiledb.default_ctx().config()["sm.io_concurrency_level"]),
-            init_test_wrapper(),
-        )
-
-        self.assertEqual(3, init_test_wrapper({"sm.io_concurrency_level": 3}))
 
 
 class GetStatsTest(DiskTestCase):

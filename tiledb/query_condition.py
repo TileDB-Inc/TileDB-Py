@@ -81,14 +81,17 @@ class QueryCondition:
 
         ``compare_op ::= < | > | <= | >= | == | !=``
 
-    A memership expression contains the membership operator, ``in``. The operator
+    If an attribute name has special characters in it, you can wrap ``namehere``
+    in ``attr("namehere")``.
+
+    A membership expression contains the membership operator, ``in``. The operator
     works on a TileDB variable and list of values.
 
         ``member_expr ::= var in <list>``
 
     TileDB variable names are Python valid variables or a ``attr()`` or ``dim()`` casted string.
 
-        ``var ::= <variable> | attr(<str>) | dim(<str>``
+        ``var ::= <variable> | attr(<str>) | dim(<str>)``
 
     Values are any Python-valid number or string. datetime64 values should first be
     cast to UNIX seconds. Values may also be casted with ``val()``.
@@ -118,7 +121,7 @@ class QueryCondition:
 
     def __post_init__(self):
         try:
-            self.tree = ast.parse(self.expression, mode="eval")
+            self.tree = ast.parse(f"({self.expression})", mode="eval")
         except:
             raise TileDBError(
                 "Could not parse the given QueryCondition statement: "
@@ -140,8 +143,6 @@ class QueryCondition:
                 "Malformed query condition statement. A query condition must "
                 "be made up of one or more Boolean expressions."
             )
-
-        return query_attrs
 
 
 @dataclass
@@ -325,9 +326,6 @@ class QueryConditionTree(ast.NodeVisitor):
 
             if node.func.id == "dim" and not self.schema.domain.has_dim(variable):
                 raise TileDBError(f"{node.func.id} is not a dimension.")
-
-        if self.schema.has_attr(variable) and variable not in self.query_attrs:
-            self.query_attrs.append(variable)
 
         return variable
 
