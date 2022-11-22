@@ -90,7 +90,7 @@ void init_enums(py::module &m) {
       .value("SCALE_FLOAT", TILEDB_FILTER_SCALE_FLOAT)
       .value("DICTIONARY", TILEDB_FILTER_DICTIONARY)
       .value("XOR", TILEDB_FILTER_XOR)
-      .value("BITSORT", TILEDB_FILTER_BITSORT;
+      .value("BITSORT", TILEDB_FILTER_BITSORT);
 
   py::enum_<tiledb_filter_option_t>(m, "FilterOption")
       .value("COMPRESSION_LEVEL", TILEDB_COMPRESSION_LEVEL)

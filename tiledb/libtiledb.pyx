@@ -3452,7 +3452,7 @@ cdef class DenseArrayImpl(Array):
             )
             cond = attr_cond
 
-        return Query(self, attrs=attrs, cond=con, dims=dims,
+        return Query(self, attrs=attrs, cond=cond, dims=dims,
                       coords=coords, order=order,
                       use_arrow=use_arrow, return_arrow=return_arrow,
                       return_incomplete=return_incomplete)
