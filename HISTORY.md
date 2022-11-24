@@ -1,4 +1,7 @@
-# In Progress
+# Release 0.18.3
+
+## TileDB Embedded updates:
+* TileDB-Py 0.18.3 includes TileDB Embedded [TileDB 2.12.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.3)
 
 ## Improvements
 * Move `from_numpy` out of Cython into pure Python [#1436](https://github.com/TileDB-Inc/TileDB-Py/pull/1436)
