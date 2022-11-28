@@ -2,6 +2,7 @@
 
 ## Packaging Notes
 * Linux wheels now built on `manylinux2014`; previously built on `manylinux2010`
+* Windows wheels NOT AVAILABLE for this release
 
 ## TileDB Embedded updates:
 * TileDB-Py 0.18.3 includes TileDB Embedded [TileDB 2.12.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.3)
