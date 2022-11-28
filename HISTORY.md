@@ -448,7 +448,7 @@
 
 ## TileDB Embedded updates:
 * TileDB-Py 0.10.3 includes TileDB Embedded [TileDB 2.4.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.4.2)
-- Note that 2.4.1 was skipped due to accidental tagging of the 2.4.1 git tag during CI testing
+  - Note that 2.4.1 was skipped due to accidental tagging of the 2.4.1 git tag during CI testing
 
 ## API Changes
 * Addition of `overwrite` parameter to `Array.create` [#713](https://github.com/TileDB-Inc/TileDB-Py/pull/713)
@@ -479,7 +479,7 @@
 
 ## Improvements
 * Print a warning about ContextVar bug when running under ipykernel < 6.0. [#665](https://github.com/TileDB-Inc/TileDB-Py/pull/665)
-Please see https://github.com/TileDB-Inc/TileDB-Py/issues/667 for more information.
+  Please see https://github.com/TileDB-Inc/TileDB-Py/issues/667 for more information.
 * `tiledb.Dim` representation now displays `var=True` for dimensions with `bytes` datatype, consistent with `tiledb.Attr` [#669](https://github.com/TileDB-Inc/TileDB-Py/pull/669)
 
 ## Bug fixes
@@ -490,317 +490,317 @@ Please see https://github.com/TileDB-Inc/TileDB-Py/issues/667 for more informati
 
 ## TileDB Embedded updates:
 * TileDB-Py 0.10.0 includes TileDB Embedded [TileDB 2.4.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.4.0) with a number of
-new features and improvements, including:
+  new features and improvements, including:
     - new platform support: Apple M1
-- support for ArraySchema evolution (adding and removing attributes)
+    - support for ArraySchema evolution (adding and removing attributes)
     - support for Azure SAS (shared access signature) tokens
 
 ## API Changes
-    * When using `Array.multi_index`, an empty result is returned if the nonempty domain is empty [#656](https://github.com/TileDB-Inc/TileDB-Py/pull/656)
-    * Addition of `Array.set_query` to read array using a serialized query [#651](https://github.com/TileDB-Inc/TileDB-Py/pull/651)
+* When using `Array.multi_index`, an empty result is returned if the nonempty domain is empty [#656](https://github.com/TileDB-Inc/TileDB-Py/pull/656)
+* Addition of `Array.set_query` to read array using a serialized query [#651](https://github.com/TileDB-Inc/TileDB-Py/pull/651)
 
 ## Improvements
-    * Support numeric column names in `from_pandas` by casting to str dtype [#652](https://github.com/TileDB-Inc/TileDB-Py/pull/652)
-    * New `tiledb.ArraySchemaEvolution` API to add and drop attributes from an existing array [#657](https://github.com/TileDB-Inc/TileDB-Py/pull/657)
+* Support numeric column names in `from_pandas` by casting to str dtype [#652](https://github.com/TileDB-Inc/TileDB-Py/pull/652)
+* New `tiledb.ArraySchemaEvolution` API to add and drop attributes from an existing array [#657](https://github.com/TileDB-Inc/TileDB-Py/pull/657)
 
 ## Bug Fixes
-    * Correct listing of consolidated fragments to vacuum in the Fragment Info API by deprecating `FragmentInfoList.to_vacuum_uri`, `FragmentInfoList.to_vacuum_num`, `FragmentInfo.to_vacuum_uri`, and `FragmentInfo.to_vacuum_num` and replacing with `FragmentInfoList.to_vacuum` [#650](https://github.com/TileDB-Inc/TileDB-Py/pull/650)
-    * Correct issue where appending `None` to `FilterList` causes segfault by checking the `filter` argument [#653](https://github.com/TileDB-Inc/TileDB-Py/pull/653)
+* Correct listing of consolidated fragments to vacuum in the Fragment Info API by deprecating `FragmentInfoList.to_vacuum_uri`, `FragmentInfoList.to_vacuum_num`, `FragmentInfo.to_vacuum_uri`, and `FragmentInfo.to_vacuum_num` and replacing with `FragmentInfoList.to_vacuum` [#650](https://github.com/TileDB-Inc/TileDB-Py/pull/650)
+* Correct issue where appending `None` to `FilterList` causes segfault by checking the `filter` argument [#653](https://github.com/TileDB-Inc/TileDB-Py/pull/653)
 
 # TileDB-Py 0.9.5 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.9.5 includes TileDB Embedded [TileDB 2.3.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3.3)
+* TileDB-Py 0.9.5 includes TileDB Embedded [TileDB 2.3.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3.3)
 
 ## Improvements
-    * Consolidate `_nonempty_domain_var` into `nonempty_domain` [#632](https://github.com/TileDB-Inc/TileDB-Py/pull/632)
-    * Support more valid Python syntax for `QueryCondition` statements [#636](https://github.com/TileDB-Inc/TileDB-Py/pull/636)
-    * Addition of `ascii` dtype to `Attr` allows `QueryCondition` to support var-length strings [#637](https://github.com/TileDB-Inc/TileDB-Py/pull/637)
+* Consolidate `_nonempty_domain_var` into `nonempty_domain` [#632](https://github.com/TileDB-Inc/TileDB-Py/pull/632)
+* Support more valid Python syntax for `QueryCondition` statements [#636](https://github.com/TileDB-Inc/TileDB-Py/pull/636)
+* Addition of `ascii` dtype to `Attr` allows `QueryCondition` to support var-length strings [#637](https://github.com/TileDB-Inc/TileDB-Py/pull/637)
 
 # TileDB-Py 0.9.4 Release Notes
 
 ## Improvements
-    * Support pickling for arrays in write-mode [#626](https://github.com/TileDB-Inc/TileDB-Py/pull/626)
+* Support pickling for arrays in write-mode [#626](https://github.com/TileDB-Inc/TileDB-Py/pull/626)
 
 ## Bug Fixes
-    * Fixed multi-range indexer to default to explicitly pass in the non-empty domain if dimensions are unspecified [#630](https://github.com/TileDB-Inc/TileDB-Py/pull/630)
+* Fixed multi-range indexer to default to explicitly pass in the non-empty domain if dimensions are unspecified [#630](https://github.com/TileDB-Inc/TileDB-Py/pull/630)
 
 # TileDB-Py 0.9.3 Release Notes
 
 ## Packaging Notes
-    * Due to a packaging issue released with 0.9.3 (NumPy ABI compatibility with NumPy < 1.20 for Python 3.8), this section is intentionally left blank.
+* Due to a packaging issue released with 0.9.3 (NumPy ABI compatibility with NumPy < 1.20 for Python 3.8), this section is intentionally left blank.
 
 # TileDB-Py 0.9.2 Release Notes
 
 ## Packaging Notes
-    * Fixed release builder ordering issue which led to CRLF line endings in 0.9.1 source distribution.
+* Fixed release builder ordering issue which led to CRLF line endings in 0.9.1 source distribution.
 
 ## API Changes
-    * Deprecate `Array.timestamp` and replace with `Array.timestamp_range` [#616](https://github.com/TileDB-Inc/TileDB-Py/pull/616)
+* Deprecate `Array.timestamp` and replace with `Array.timestamp_range` [#616](https://github.com/TileDB-Inc/TileDB-Py/pull/616)
 
 ## Improvements
-    * Set `ArraySchema.tile_order=None` for Hilbert-ordered arrays [#609](https://github.com/TileDB-Inc/TileDB-Py/pull/609)
-    * Use CIBW to build release wheels on Linux [#613](https://github.com/TileDB-Inc/TileDB-Py/pull/613)
-    * Addition of Pickling functionality for `SparseArray` [#618](https://github.com/TileDB-Inc/TileDB-Py/pull/618)
+* Set `ArraySchema.tile_order=None` for Hilbert-ordered arrays [#609](https://github.com/TileDB-Inc/TileDB-Py/pull/609)
+* Use CIBW to build release wheels on Linux [#613](https://github.com/TileDB-Inc/TileDB-Py/pull/613)
+* Addition of Pickling functionality for `SparseArray` [#618](https://github.com/TileDB-Inc/TileDB-Py/pull/618)
 
 # TileDB-Py 0.9.1 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.9.1 includes TileDB Embedded [TileDB 2.3.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3.1)
+* TileDB-Py 0.9.1 includes TileDB Embedded [TileDB 2.3.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3.1)
 
 ## Improvements
-    * Support passing a timestamp range for consolidation and vacuuming [#603](https://github.com/TileDB-Inc/TileDB-Py/pull/603)
+* Support passing a timestamp range for consolidation and vacuuming [#603](https://github.com/TileDB-Inc/TileDB-Py/pull/603)
 
 ## Bug Fixes
-    * FragmentInfo API's to_vacuum_uri() function corrected to iterate through `to_vacuum_num` rather than `fragment_num`[#603](https://github.com/TileDB-Inc/TileDB-Py/pull/603)
-    * Return "NA" For ArraySchema.tile_order if "Hilbert" [#605](https://github.com/TileDB-Inc/TileDB-Py/pull/605)
+* FragmentInfo API's to_vacuum_uri() function corrected to iterate through `to_vacuum_num` rather than `fragment_num`[#603](https://github.com/TileDB-Inc/TileDB-Py/pull/603)
+* Return "NA" For ArraySchema.tile_order if "Hilbert" [#605](https://github.com/TileDB-Inc/TileDB-Py/pull/605)
 
 # TileDB-Py 0.9.0 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.9.0 includes TileDB Embedded [TileDB 2.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3) with a significant
-    number of new features and improvements.
+* TileDB-Py 0.9.0 includes TileDB Embedded [TileDB 2.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.3) with a significant
+  number of new features and improvements.
 
 ## Packaging Notes
-    * Windows wheels are now built with TileDB Cloud REST support enabled [#541](https://github.com/TileDB-Inc/TileDB-Py/pull/541)
+* Windows wheels are now built with TileDB Cloud REST support enabled [#541](https://github.com/TileDB-Inc/TileDB-Py/pull/541)
 
 ## Improvements
-    * Addition of `QueryCondition` API to filter query on attributes [#576](https://github.com/TileDB-Inc/TileDB-Py/pull/576)
+* Addition of `QueryCondition` API to filter query on attributes [#576](https://github.com/TileDB-Inc/TileDB-Py/pull/576)
 
 ## Bug Fixes
-    * Fixed `from_pandas` append error for sparse arrayse: no need to specify 'row_start_idx' [#593](https://github.com/TileDB-Inc/TileDB-Py/pull/593)
-    * Fixed 'index_dims' kwarg handling for `from_pandas` [#590](https://github.com/TileDB-Inc/TileDB-Py/pull/590)
+* Fixed `from_pandas` append error for sparse arrayse: no need to specify 'row_start_idx' [#593](https://github.com/TileDB-Inc/TileDB-Py/pull/593)
+* Fixed 'index_dims' kwarg handling for `from_pandas` [#590](https://github.com/TileDB-Inc/TileDB-Py/pull/590)
 
 ## API Changes
-    * `from_dataframe` function has been removed; deprecated in TileDB-Py 0.6 and replaced by `from_pandas`.
+* `from_dataframe` function has been removed; deprecated in TileDB-Py 0.6 and replaced by `from_pandas`.
 
-    ---
+---
 
 # TileDB-Py 0.8.11 Release Notes
 
 ## Bug fixes
-    * Fixed incorrect NumPy ABI target in Linux wheels [#590](https://github.com/TileDB-Inc/TileDB-Py/pull/590)
-    * QueryCondition API will cast condition values to the datatype of the corresponding attribute [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
-    * QueryCondition API errors out when there are mismatched attributes to `query`'s `attr_cond` and `attrs` arguments [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
-    * QueryCondition API can now parse negative numbers [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
+* Fixed incorrect NumPy ABI target in Linux wheels [#590](https://github.com/TileDB-Inc/TileDB-Py/pull/590)
+* QueryCondition API will cast condition values to the datatype of the corresponding attribute [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
+* QueryCondition API errors out when there are mismatched attributes to `query`'s `attr_cond` and `attrs` arguments [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
+* QueryCondition API can now parse negative numbers [#589](https://github.com/TileDB-Inc/TileDB-Py/pull/589)
 
 
 # TileDB-Py 0.8.10 Release Notes
 
 ## Improvements
-    * Disabled libtiledb Werror compilation argument for from-source builds via setup.py [#574](https://github.com/TileDB-Inc/TileDB-Py/pull/574)
-    * Relaxed NumPy version requirements for from-source builds via setup.py [#575](https://github.com/TileDB-Inc/TileDB-Py/pull/575)
+* Disabled libtiledb Werror compilation argument for from-source builds via setup.py [#574](https://github.com/TileDB-Inc/TileDB-Py/pull/574)
+* Relaxed NumPy version requirements for from-source builds via setup.py [#575](https://github.com/TileDB-Inc/TileDB-Py/pull/575)
 
 ## Bug fixes
-    * Fixed FragmentInfoList where context was not being passed to ArraySchema [#573](https://github.com/TileDB-Inc/TileDB-Py/pull/573)
-    * Fixed FragmentInfoList where context was not being passed to ArraySchema [#578](https://github.com/TileDB-Inc/TileDB-Py/pull/578)
-    * Fixed read bug due to large estimated result size [#579](https://github.com/TileDB-Inc/TileDB-Py/pull/579)
-    * Fixed bug reading nullable attributes due to missing buffer resize [#581](https://github.com/TileDB-Inc/TileDB-Py/pull/581)
-    * Fixed Python output for `tiledb.stats_dump` [#586](https://github.com/TileDB-Inc/TileDB-Py/pull/586)
+* Fixed FragmentInfoList where context was not being passed to ArraySchema [#573](https://github.com/TileDB-Inc/TileDB-Py/pull/573)
+  * Fixed FragmentInfoList where context was not being passed to ArraySchema [#578](https://github.com/TileDB-Inc/TileDB-Py/pull/578)
+* Fixed read bug due to large estimated result size [#579](https://github.com/TileDB-Inc/TileDB-Py/pull/579)
+* Fixed bug reading nullable attributes due to missing buffer resize [#581](https://github.com/TileDB-Inc/TileDB-Py/pull/581)
+* Fixed Python output for `tiledb.stats_dump` [#586](https://github.com/TileDB-Inc/TileDB-Py/pull/586)
 
 # TileDB-Py 0.8.9 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.8.9 includes TileDB Embedded [TileDB 2.2.9](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.9)
+* TileDB-Py 0.8.9 includes TileDB Embedded [TileDB 2.2.9](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.9)
 
 ## Improvements
-    * Support for iterating over incomplete query results [#548](https://github.com/TileDB-Inc/TileDB-Py/pull/548)
-    - This feature provides the capability to consume partial query results with a fixed maximum buffer size
+* Support for iterating over incomplete query results [#548](https://github.com/TileDB-Inc/TileDB-Py/pull/548)
+  - This feature provides the capability to consume partial query results with a fixed maximum buffer size
     rather than the the default behavior of resizing buffers and resubmitting to completion.
     Usage example: `examples/incomplete_iteration.py`
-(along with test in: `test_libtiledb.py:test_incomplete_return`)
-    * Rename FragmentsInfo to FragmentInfoList [#551](https://github.com/TileDB-Inc/TileDB-Py/pull/551)
-    * Dataframe creation uses Zstd default compression level (-1) [#552](https://github.com/TileDB-Inc/TileDB-Py/pull/552)
-    * Rename Fragment Info API's `non_empty_domain` attribute to `nonempty_domain` [#553](https://github.com/TileDB-Inc/TileDB-Py/pull/553)
-    * Added configuration option `py.alloc_max_bytes` to control maximum initial buffer allocation [#557](https://github.com/TileDB-Inc/TileDB-Py/pull/557)
+    (along with test in: `test_libtiledb.py:test_incomplete_return`)
+* Rename FragmentsInfo to FragmentInfoList [#551](https://github.com/TileDB-Inc/TileDB-Py/pull/551)
+* Dataframe creation uses Zstd default compression level (-1) [#552](https://github.com/TileDB-Inc/TileDB-Py/pull/552)
+* Rename Fragment Info API's `non_empty_domain` attribute to `nonempty_domain` [#553](https://github.com/TileDB-Inc/TileDB-Py/pull/553)
+* Added configuration option `py.alloc_max_bytes` to control maximum initial buffer allocation [#557](https://github.com/TileDB-Inc/TileDB-Py/pull/557)
 
 ## Bug fixes
-    * Fixed incorrected error raised in .df[] indexer when pyarrow not installed [#554](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
-    * Fixed `from_pandas(attr_filters=None, dim_filters=None)` (previously used internal defaults) [#564](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
-    * Fixed `from_pandas` write bug due to incorrect classification of str/bytes columns [#562](https://github.com/TileDB-Inc/TileDB-Py/pull/562)
-    * Fix segfault due to mismatched validity num and data buffer sizes [#567](https://github.com/TileDB-Inc/TileDB-Py/pull/567)
+* Fixed incorrected error raised in .df[] indexer when pyarrow not installed [#554](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
+* Fixed `from_pandas(attr_filters=None, dim_filters=None)` (previously used internal defaults) [#564](https://github.com/TileDB-Inc/TileDB-Py/pull/554)
+* Fixed `from_pandas` write bug due to incorrect classification of str/bytes columns [#562](https://github.com/TileDB-Inc/TileDB-Py/pull/562)
+* Fix segfault due to mismatched validity num and data buffer sizes [#567](https://github.com/TileDB-Inc/TileDB-Py/pull/567)
 
 # TileDB-Py 0.8.8 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.8.8 includes TileDB Embedded [TileDB 2.2.8](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.8)
+* TileDB-Py 0.8.8 includes TileDB Embedded [TileDB 2.2.8](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.8)
 
 # TileDB-Py 0.8.7 Release Notes
 
 ## Improvements
-    * ArraySchema support for `cell_order="hilbert"` [#535](https://github.com/TileDB-Inc/TileDB-Py/pull/535)
+* ArraySchema support for `cell_order="hilbert"` [#535](https://github.com/TileDB-Inc/TileDB-Py/pull/535)
 
 ## Bug fixes
-    * Fixed regression in `from_pandas` with string-valued index dimensions [#526](https://github.com/TileDB-Inc/TileDB-Py/pull/526)
-    * Fixed GC lifetime bug in string buffer conversion  [#525](https://github.com/TileDB-Inc/TileDB-Py/pull/526)
-    * Fixed `FilterList`'s `repr()` method [#528](https://github.com/TileDB-Inc/TileDB-Py/pull/528)
+* Fixed regression in `from_pandas` with string-valued index dimensions [#526](https://github.com/TileDB-Inc/TileDB-Py/pull/526)
+* Fixed GC lifetime bug in string buffer conversion  [#525](https://github.com/TileDB-Inc/TileDB-Py/pull/526)
+* Fixed `FilterList`'s `repr()` method [#528](https://github.com/TileDB-Inc/TileDB-Py/pull/528)
 
 # TileDB-Py 0.8.6 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.8.6 includes TileDB Embedded [TileDB 2.2.7](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.7)
+* TileDB-Py 0.8.6 includes TileDB Embedded [TileDB 2.2.7](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.7)
 
 ## Improvements
-    * Addition of `VFS()` functions `copy_file()` and `copy_dir()` [#507](https://github.com/TileDB-Inc/TileDB-Py/pull/507)
-    * Add support in `from_pandas` for storing Pandas extension types as variable-length attributes [#515](https://github.com/TileDB-Inc/TileDB-Py/pull/515)
-    * Add support for sparse writes to dense arrays [#521](https://github.com/TileDB-Inc/TileDB-Py/pull/521)
+* Addition of `VFS()` functions `copy_file()` and `copy_dir()` [#507](https://github.com/TileDB-Inc/TileDB-Py/pull/507)
+* Add support in `from_pandas` for storing Pandas extension types as variable-length attributes [#515](https://github.com/TileDB-Inc/TileDB-Py/pull/515)
+* Add support for sparse writes to dense arrays [#521](https://github.com/TileDB-Inc/TileDB-Py/pull/521)
 
 ## Bug fixes
-    * Multi-length attributes, regardless of fixed or var-length, do not work query properly with PyArrow enabled due to lack of Arrow List support. When using `.df[]` with PyArrow enabled, we are returning a clear message to the user to use `query(use_pyarrow=False)` [#513](https://github.com/TileDB-Inc/TileDB-Py/pull/513)
+* Multi-length attributes, regardless of fixed or var-length, do not work query properly with PyArrow enabled due to lack of Arrow List support. When using `.df[]` with PyArrow enabled, we are returning a clear message to the user to use `query(use_pyarrow=False)` [#513](https://github.com/TileDB-Inc/TileDB-Py/pull/513)
 
 # TileDB-Py 0.8.5 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.8.5 includes TileDB Embedded [TileDB 2.2.6](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.6)
+* TileDB-Py 0.8.5 includes TileDB Embedded [TileDB 2.2.6](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.6)
 
 ## Documentation Updates
-    * Added example reading/writing RGB (multi-component) array [#487](https://github.com/TileDB-Inc/TileDB-Py/pull/487)
+* Added example reading/writing RGB (multi-component) array [#487](https://github.com/TileDB-Inc/TileDB-Py/pull/487)
 
 ## Improvements
-    * Restore `tiledb.stats_dump` default to `verbose=True` [#491](https://github.com/TileDB-Inc/TileDB-Py/pull/491)
-    * Remove `non_empty_domain_var()` Fragment Info PyBind11 Function and only use `get_non_empty_domain()` for both fixed and var-length domains [#505](https://github.com/TileDB-Inc/TileDB-Py/pull/505)
+* Restore `tiledb.stats_dump` default to `verbose=True` [#491](https://github.com/TileDB-Inc/TileDB-Py/pull/491)
+* Remove `non_empty_domain_var()` Fragment Info PyBind11 Function and only use `get_non_empty_domain()` for both fixed and var-length domains [#505](https://github.com/TileDB-Inc/TileDB-Py/pull/505)
 
 # TileDB-Py 0.8.4 Release Notes
 
 ## Improvements
-    * Addition of high-level function `array_fragments()` that returns a `FragmentsInfo` object [#488](https://github.com/TileDB-Inc/TileDB-Py/pull/488)
-    * Added support for `from_pandas`/`df[]` round-trip of Pandas nullable integer and bool types [#480](https://github.com/TileDB-Inc/TileDB-Py/pull/480)
-    * Fragment info API example usage now provided at `examples/fragment_info.py` [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
-    * Fragment info API parameters have been rearranged to match the rest of the TileDB Python API such that the `uri` is provided first and `context`, an optional parameter that defaults to `tiledb.default_ctx()`, is provided second [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
+* Addition of high-level function `array_fragments()` that returns a `FragmentsInfo` object [#488](https://github.com/TileDB-Inc/TileDB-Py/pull/488)
+* Added support for `from_pandas`/`df[]` round-trip of Pandas nullable integer and bool types [#480](https://github.com/TileDB-Inc/TileDB-Py/pull/480)
+* Fragment info API example usage now provided at `examples/fragment_info.py` [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
+* Fragment info API parameters have been rearranged to match the rest of the TileDB Python API such that the `uri` is provided first and `context`, an optional parameter that defaults to `tiledb.default_ctx()`, is provided second [#479](https://github.com/TileDB-Inc/TileDB-Py/pull/479)
 
 ## Bug fixes
-    * Fix bug in `Attr` to ensure that all Unicode strings are automatically set to `var=True` [#495]https://github.com/TileDB-Inc/TileDB-Py/pull/495
-    * Fix bug in Array.multi_index slicing bug for sparse array with dimension range including 0 [#482](https://github.com/TileDB-Inc/TileDB-Py/pull/482)
+* Fix bug in `Attr` to ensure that all Unicode strings are automatically set to `var=True` [#495]https://github.com/TileDB-Inc/TileDB-Py/pull/495
+* Fix bug in Array.multi_index slicing bug for sparse array with dimension range including 0 [#482](https://github.com/TileDB-Inc/TileDB-Py/pull/482)
 
 # TileDB-Py 0.8.3 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.8.3 includes TileDB Embedded [TileDB 2.2.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.4)
+* TileDB-Py 0.8.3 includes TileDB Embedded [TileDB 2.2.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.4)
 
 ## Improvements
-    * Added `nullable` keyword argument to `Attr` constructor [#474](https://github.com/TileDB-Inc/TileDB-Py/pull/474)
+* Added `nullable` keyword argument to `Attr` constructor [#474](https://github.com/TileDB-Inc/TileDB-Py/pull/474)
 
 ## Bug fixes
-    * Fix bug in Array.multi_index with slice range including 0 (incorrectly used the nonempty domain as endpoint) [#473](https://github.com/TileDB-Inc/TileDB-Py/pull/473)
+* Fix bug in Array.multi_index with slice range including 0 (incorrectly used the nonempty domain as endpoint) [#473](https://github.com/TileDB-Inc/TileDB-Py/pull/473)
 
 # TileDB-Py 0.8.2 Release Notes
 
 ## Packaging Notes
-    * This is a version bump to fix numpy compatibility pinning in the wheel build system.
+* This is a version bump to fix numpy compatibility pinning in the wheel build system.
 
 # TileDB-Py 0.8.1 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.8.1 includes TileDB Embedded [TileDB 2.2.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.3)
+* TileDB-Py 0.8.1 includes TileDB Embedded [TileDB 2.2.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.3)
 
 ## Packaging Notes
-    * TileDB-Py 0.8 does not support Python 2.
+* TileDB-Py 0.8 does not support Python 2.
 
 # TileDB-Py 0.8.0 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.8.0 includes TileDB Embedded 2.2.2 featuring a number of significant
-    improvements in core storage engine functionality. See release notes for
-    [TileDB 2.2.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.1) and
-    [TileDB 2.2.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.2).
+* TileDB-Py 0.8.0 includes TileDB Embedded 2.2.2 featuring a number of significant
+  improvements in core storage engine functionality. See release notes for
+  [TileDB 2.2.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.1) and
+  [TileDB 2.2.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.2.2).
 
 ## Packaging Notes
-    * TileDB-Py 0.8 does not support Python 2.
+* TileDB-Py 0.8 does not support Python 2.
 
 ## Improvements
-    * Add initial `tiledb.from_parquet` functionality (beta) [[a90d5d9b1b](https://github.com/TileDB-Inc/TileDB-Py/commit/a90d5d9b1b6a39b48090592297fe98a7f33338fb)]
-    * Preload metadata in .df query path to reduce read latency for remote arrays [[79ab12fcf0](https://github.com/TileDB-Inc/TileDB-Py/commit/79ab12fcf0ede0cbac822392a30ee7640595e93c)]
+* Add initial `tiledb.from_parquet` functionality (beta) [[a90d5d9b1b](https://github.com/TileDB-Inc/TileDB-Py/commit/a90d5d9b1b6a39b48090592297fe98a7f33338fb)]
+* Preload metadata in .df query path to reduce read latency for remote arrays [[79ab12fcf0](https://github.com/TileDB-Inc/TileDB-Py/commit/79ab12fcf0ede0cbac822392a30ee7640595e93c)]
 
 ## Bug fixes
-    * Update py::dtype usage for compatibility with pybind11 2.6.2 [[9d3d3d3c43](https://github.com/TileDB-Inc/TileDB-Py/commit/9d3d3d3c430fbc058d04773f03ddc63bd47f79e3)]
+* Update py::dtype usage for compatibility with pybind11 2.6.2 [[9d3d3d3c43](https://github.com/TileDB-Inc/TileDB-Py/commit/9d3d3d3c430fbc058d04773f03ddc63bd47f79e3)]
 
 # TileDB-Py 0.7.7 Release Notes
 
 ## Bug fixes
-    * Cherry-pick commit 9d3d3d3c43 to ix runtime bug in conda packages built against pybind11 2.6.2 [9d3d3d3c430f](https://github.com/TileDB-Inc/TileDB-Py/commit/9d3d3d3c430fbc058d04773f03ddc63bd47f79e3)
+* Cherry-pick commit 9d3d3d3c43 to ix runtime bug in conda packages built against pybind11 2.6.2 [9d3d3d3c430f](https://github.com/TileDB-Inc/TileDB-Py/commit/9d3d3d3c430fbc058d04773f03ddc63bd47f79e3)
 
 # TileDB-Py 0.7.6 Release Notes
 
 ## Packaging Notes
-    * TileDB-Py 0.7.x will be the last version of TileDB-Py supporting Python 2.
+* TileDB-Py 0.7.x will be the last version of TileDB-Py supporting Python 2.
 
 ## Bug fixes
-    * Fix read compatibility for empty strings written with 2.1 or 2.2 [#462](https://github.com/TileDB-Inc/TileDB-Py/pull/462)
-    * Fix #457: make sure to fit automatic tile extent to dim range for date type [#464](https://github.com/TileDB-Inc/TileDB-Py/pull/464)
+* Fix read compatibility for empty strings written with 2.1 or 2.2 [#462](https://github.com/TileDB-Inc/TileDB-Py/pull/462)
+* Fix #457: make sure to fit automatic tile extent to dim range for date type [#464](https://github.com/TileDB-Inc/TileDB-Py/pull/464)
 
 # TileDB-Py 0.7.5 Release Notes
 
 ## Packaging Notes
-    * TileDB-Py 0.7.x will be the last version of TileDB-Py supporting Python 2.
+* TileDB-Py 0.7.x will be the last version of TileDB-Py supporting Python 2.
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.7.5 includes [TileDB Embedded 2.1.6](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.6)
+* TileDB-Py 0.7.5 includes [TileDB Embedded 2.1.6](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.6)
 
 ## Improvements
-    * FragmentInfo API by default returns information from all fragments and dimensions [#444](https://github.com/TileDB-Inc/TileDB-Py/pull/444)
-    * Add integer multi-indexing for NumPy datetime64 dimensions [#447](https://github.com/TileDB-Inc/TileDB-Py/pull/447)
-    * Add `from_csv/pandas` support for `timestamp` keyword argument to specify write timestamp [#450](https://github.com/TileDB-Inc/TileDB-Py/pull/450)
-    * Add verbosity option to `stats_dump()` [#452](https://github.com/TileDB-Inc/TileDB-Py/pull/452)
-    * Add `unique_dim_values()` to return unique dimension values for a given `SparseArray` [#454](https://github.com/TileDB-Inc/TileDB-Py/pull/454)
-    * Add support to `query()` for returning subsets of specified dimensions [#458](https://github.com/TileDB-Inc/TileDB-Py/pull/458)
-    * Optimize string array writes [#459](https://github.com/TileDB-Inc/TileDB-Py/pull/459)
+* FragmentInfo API by default returns information from all fragments and dimensions [#444](https://github.com/TileDB-Inc/TileDB-Py/pull/444)
+* Add integer multi-indexing for NumPy datetime64 dimensions [#447](https://github.com/TileDB-Inc/TileDB-Py/pull/447)
+* Add `from_csv/pandas` support for `timestamp` keyword argument to specify write timestamp [#450](https://github.com/TileDB-Inc/TileDB-Py/pull/450)
+* Add verbosity option to `stats_dump()` [#452](https://github.com/TileDB-Inc/TileDB-Py/pull/452)
+* Add `unique_dim_values()` to return unique dimension values for a given `SparseArray` [#454](https://github.com/TileDB-Inc/TileDB-Py/pull/454)
+* Add support to `query()` for returning subsets of specified dimensions [#458](https://github.com/TileDB-Inc/TileDB-Py/pull/458)
+* Optimize string array writes [#459](https://github.com/TileDB-Inc/TileDB-Py/pull/459)
 
 ## Bug fixes
-    * Fix `Dim.shape` for dense array with datetime dimension [#448](https://github.com/TileDB-Inc/TileDB-Py/pull/448)
+* Fix `Dim.shape` for dense array with datetime dimension [#448](https://github.com/TileDB-Inc/TileDB-Py/pull/448)
 
 # TileDB-Py 0.7.4 Release Notes
 
 ## Improvements
-    * Support selecting subset of dimensions in Array.query via new keyword argument `dims: List[String]`. The `coords=True` kwarg is still supported for compatibility, and continues to return all dimensions [#433](https://github.com/TileDB-Inc/TileDB-Py/pull/433)
-    * Support Dim(filters=FilterList) keyword argument to set filters on a per-Dim basis [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
-    * Support tiledb.from_csv setting attribute and dimension filters by dictionary of {name: filter} [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
-    * Add ArraySchema.check wrapping `tiledb_array_schema_check` [#435](https://github.com/TileDB-Inc/TileDB-Py/pull/435)
-    * Add support for attribute fill values `tiledb.Attr(fill=...)` and `Attr.fill` getter [#437](https://github.com/TileDB-Inc/TileDB-Py/pull/437)
+* Support selecting subset of dimensions in Array.query via new keyword argument `dims: List[String]`. The `coords=True` kwarg is still supported for compatibility, and continues to return all dimensions [#433](https://github.com/TileDB-Inc/TileDB-Py/pull/433)
+* Support Dim(filters=FilterList) keyword argument to set filters on a per-Dim basis [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
+* Support tiledb.from_csv setting attribute and dimension filters by dictionary of {name: filter} [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
+* Add ArraySchema.check wrapping `tiledb_array_schema_check` [#435](https://github.com/TileDB-Inc/TileDB-Py/pull/435)
+* Add support for attribute fill values `tiledb.Attr(fill=...)` and `Attr.fill` getter [#437](https://github.com/TileDB-Inc/TileDB-Py/pull/437)
 
 ## API Changes
-    * tiledb.from_csv keyword arg `attrs_filters` renamed to `attr_filters` [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
+* tiledb.from_csv keyword arg `attrs_filters` renamed to `attr_filters` [#434](https://github.com/TileDB-Inc/TileDB-Py/pull/434)
 
 ## Bug fixes
-    * Fix bug in `multi_index` slicing of dense arrays [#438](https://github.com/TileDB-Inc/TileDB-Py/pull/438)
+* Fix bug in `multi_index` slicing of dense arrays [#438](https://github.com/TileDB-Inc/TileDB-Py/pull/438)
 
 # TileDB-Py 0.7.3 Release Notes
 
 ## Improvements
-    * The default result layout for indexing/querying sparse arrays is now TILEDB_UNORDERED [#428](https://github.com/TileDB-Inc/TileDB-Py/pull/428), [#431](https://github.com/TileDB-Inc/TileDB-Py/pull/431)
-    * Added documentation for all TileDB-Py configuration parameters [#430](https://github.com/TileDB-Inc/TileDB-Py/pull/430)
-    * Fixed documentation rendering for `Array.query` [#430](https://github.com/TileDB-Inc/TileDB-Py/pull/430)
+* The default result layout for indexing/querying sparse arrays is now TILEDB_UNORDERED [#428](https://github.com/TileDB-Inc/TileDB-Py/pull/428), [#431](https://github.com/TileDB-Inc/TileDB-Py/pull/431)
+* Added documentation for all TileDB-Py configuration parameters [#430](https://github.com/TileDB-Inc/TileDB-Py/pull/430)
+* Fixed documentation rendering for `Array.query` [#430](https://github.com/TileDB-Inc/TileDB-Py/pull/430)
 
 ## Bug fixes
-    * Fix sparse dimension type selection when array type is not specified to from_pandas [#429](https://github.com/TileDB-Inc/TileDB-Py/pull/429)
-    * Don't pass allows_duplicates=True to dense array constructor (tiledb.from_csv) [#428](https://github.com/TileDB-Inc/TileDB-Py/pull/428)
+* Fix sparse dimension type selection when array type is not specified to from_pandas [#429](https://github.com/TileDB-Inc/TileDB-Py/pull/429)
+* Don't pass allows_duplicates=True to dense array constructor (tiledb.from_csv) [#428](https://github.com/TileDB-Inc/TileDB-Py/pull/428)
 
 # TileDB-Py 0.7.2 Release Notes
 
 ## TileDB Embedded updates:
-    * TileDB-Py 0.7.2 includes [TileDB Embedded 2.1.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.3)
-    Including a fix for issue [#409](https://github.com/TileDB-Inc/TileDB-Py/issues/409).
+* TileDB-Py 0.7.2 includes [TileDB Embedded 2.1.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.1.3)
+  Including a fix for issue [#409](https://github.com/TileDB-Inc/TileDB-Py/issues/409).
 
 ## Changes
-    * The default array type for `from_pandas` and `from_csv` is now dense, if unspecified, except when passing a dataframe with string indexes to `from_pandas` [#424](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
+* The default array type for `from_pandas` and `from_csv` is now dense, if unspecified, except when passing a dataframe with string indexes to `from_pandas` [#424](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
 
 ## Improvements
-    * Automatically determine column to dimension mapping for `tiledb.from_csv` append mode [#408](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
+* Automatically determine column to dimension mapping for `tiledb.from_csv` append mode [#408](https://github.com/TileDB-Inc/TileDB-Py/pull/408)
 
 ## Bug fixes
 * Fixed `tiledb.from_csv/dataframe` error when ingesting single-row/index datasets [#422]()
-    * Fixed intermittent `csv_sparse_col_to_dims` failure due to duplicate result ordering [#423](https://github.com/TileDB-Inc/TileDB-Py/pull/423)
+* Fixed intermittent `csv_sparse_col_to_dims` failure due to duplicate result ordering [#423](https://github.com/TileDB-Inc/TileDB-Py/pull/423)
 
 # TileDB-Py 0.7.1 Release Notes
 
 ## Improvements
-    * Added support for `df[]` indexing via `tiledb.Array.query` [#411](https://github.com/TileDB-Inc/TileDB-Py/pull/411)
-    * Modified `stats_dump` to return internal stats as string, allowing for output in Jupyter notebooks [#403](https://github.com/TileDB-Inc/TileDB-Py/pull/403)
-    * Added `__repr__` to `Array` and `Ctx` [#413](https://github.com/TileDB-Inc/TileDB-Py/pull/413)
-    * `tiledb.open` now supports `timestamp` keyword argument [#419](https://github.com/TileDB-Inc/TileDB-Py/pull/419)
-    * `tiledb.Domain` now supports passing a list of `Dim`s without unpacking [#419](https://github.com/TileDB-Inc/TileDB-Py/pull/419)
+* Added support for `df[]` indexing via `tiledb.Array.query` [#411](https://github.com/TileDB-Inc/TileDB-Py/pull/411)
+* Modified `stats_dump` to return internal stats as string, allowing for output in Jupyter notebooks [#403](https://github.com/TileDB-Inc/TileDB-Py/pull/403)
+* Added `__repr__` to `Array` and `Ctx` [#413](https://github.com/TileDB-Inc/TileDB-Py/pull/413)
+* `tiledb.open` now supports `timestamp` keyword argument [#419](https://github.com/TileDB-Inc/TileDB-Py/pull/419)
+* `tiledb.Domain` now supports passing a list of `Dim`s without unpacking [#419](https://github.com/TileDB-Inc/TileDB-Py/pull/419)
 
 ## Bug fixes
-    * Fixed PyPI wheels load error on newer macOS due to overlinkage against system libraries in build process (curl -> libintl) [#418](https://github.com/TileDB-Inc/TileDB-Py/pull/418)
+* Fixed PyPI wheels load error on newer macOS due to overlinkage against system libraries in build process (curl -> libintl) [#418](https://github.com/TileDB-Inc/TileDB-Py/pull/418)
 * Fixed PyPI wheels load error on Windows due to building against TBB [#419](https://github.com/TileDB-Inc/TileDB-Py/pull/419)
 * Fixed indexing of attribute named 'coords' [#414](https://github.com/TileDB-Inc/TileDB-Py/pull/414)
 * `open_dataframe` now uses the underlying Array's `nonempty_domain` to avoid errors opening unlimited domain arrays [#409](https://github.com/TileDB-Inc/TileDB-Py/pull/409)
