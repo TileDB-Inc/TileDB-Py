@@ -36,7 +36,7 @@ stages:
         timeoutInMinutes: 120
         pool:
           vmImage: "ubuntu-latest"
-        container: quay.io/pypa/manylinux2010_x86_64:2022-04-24-d28e73e
+        container: quay.io/pypa/manylinux2014_x86_64:2022-11-28-5d13db4
         variables:
           CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL10 -D__BIONIC__=1"
           CFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
