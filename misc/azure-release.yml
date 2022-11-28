@@ -46,7 +46,7 @@ stages:
 
       - job: build2_python
         dependsOn: [build1_libtiledb, build1_libtiledb_on_linux]
-        condition: succeeded()
+        condition: always()
         variables:
           cibw_test_requires: "pytest"
           USE_CIBW_VERSION: 2.3.0
