@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Fix issue where queries in delete mode error out on arrays with string dimensions []()
+
 # Release 0.18.3
 
 ## Packaging Notes
