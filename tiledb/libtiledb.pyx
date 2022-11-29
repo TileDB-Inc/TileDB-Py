@@ -1500,12 +1500,12 @@ def index_domain_subarray(array: Array, dom: Domain, idx: tuple):
         dim = dom.dim(r)
         dim_dtype = dim.dtype
 
-        if np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_):
+        if array.mode == 'r' and (np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_)):
+            # NED can only be retrieved in read mode
             ned = array.nonempty_domain()
             (dim_lb, dim_ub) = ned[r] if ned else (None, None)
         else:
             (dim_lb, dim_ub) = dim.domain
-
 
         dim_slice = idx[r]
         if not isinstance(dim_slice, slice):
