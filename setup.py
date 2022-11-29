@@ -185,6 +185,7 @@ def build_libtiledb(src_dir):
         cmake,
         "-DCMAKE_INSTALL_PREFIX={}".format(libtiledb_install_dir),
         "-DCMAKE_IGNORE_PREFIX_PATH=C:/Strawberry",
+        "-DCMAKE_IGNORE_PATH=C:/Strawberry/perl/bin;C:/Strawberry/c/lib",
         "-DTILEDB_TESTS=OFF",
         "-DTILEDB_S3=ON",
         "-DTILEDB_WERROR={}".format(werror),
