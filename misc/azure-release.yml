@@ -207,7 +207,7 @@ stages:
 
       - job: trigger_success_build
         dependsOn: [build2_python]
-        condition: succeeded()
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
         pool: server
         steps:
           - task: InvokeRESTAPI@1
