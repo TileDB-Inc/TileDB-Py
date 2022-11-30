@@ -50,7 +50,7 @@ jobs:
 
       - name: "Build TileDB and TileDB-Py extension (Windows)"
         run: |
-          $env:TILEDB_FORCE_ALL_DEPS=ON
+          export TILEDB_FORCE_ALL_DEPS=ON
           python setup.py build_ext --inplace
           python setup.py install
         if: matrix.os == 'windows-latest'
