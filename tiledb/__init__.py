@@ -27,10 +27,7 @@ try:
     from .libtiledb import Ctx
 except:
     try:
-        lib_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "native" if os.name == "posix" else "",
-        )
+        lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "native")
         ctypes.CDLL(os.path.join(lib_dir, lib_name))
     except OSError as e:
         # Otherwise try loading by name only.
