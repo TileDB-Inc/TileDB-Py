@@ -202,6 +202,7 @@ class MetadataTest(DiskTestCase):
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
         # test resetting a key with a ndarray value to a non-ndarray value
+        time.sleep(0.001)
         with tiledb.Array(path, "w") as A:
             A.meta["ndarray"] = 42
             test_vals["ndarray"] = 42
@@ -218,6 +219,7 @@ class MetadataTest(DiskTestCase):
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
         # test del ndarray key
+        time.sleep(0.001)
         with tiledb.Array(path, "w") as A:
             del A.meta["ndarray"]
             del test_vals["ndarray"]
@@ -226,6 +228,7 @@ class MetadataTest(DiskTestCase):
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
         # test update
+        time.sleep(0.001)
         with tiledb.Array(path, mode="w") as A:
             test_vals.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
             A.meta.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
