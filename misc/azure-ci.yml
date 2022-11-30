@@ -58,6 +58,7 @@ stages:
           - bash: |
               unset SYSTEM
               set -xeo pipefail
+              set TILEDB_FORCE_ALL_DEPS=ON
               python setup.py build_ext --inplace --werror
               python setup.py install
             displayName: "Build TileDB and TileDB-Py extension (POSIX)"
