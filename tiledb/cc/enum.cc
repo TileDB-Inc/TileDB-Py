@@ -99,16 +99,16 @@ void init_enums(py::module &m) {
       .value("SCALE_FLOAT_BYTEWIDTH", TILEDB_SCALE_FLOAT_BYTEWIDTH)
       .value("SCALE_FLOAT_FACTOR", TILEDB_SCALE_FLOAT_FACTOR)
       .value("SCALE_FLOAT_OFFSET", TILEDB_SCALE_FLOAT_OFFSET)
-      .value("WEBP_INPUT_FORMAT)
-      .value("WEBP_QUALITY")
-      .value("WEBP_LOSSLESS");
+      .value("WEBP_INPUT_FORMAT", TILEDB_WEBP_INPUT_FORMAT)
+      .value("WEBP_QUALITY", TILEDB_WEBP_QUALITY)
+      .value("WEBP_LOSSLESS", TILEDB_WEBP_LOSSLESS);
 
-  py::enum_<tiledb_filter_webp_format_t(m, "WebpInputFormat")
-      .value("WEBP_NONE")
-      .value("WEBP_RGB")
-      .value("WEBP_RGBA")
-      .value("WEBP_BGR")
-      .value("WEBP_BGRA");
+  py::enum_<tiledb_filter_webp_format_t>(m, "WebpInputFormat")
+      .value("WEBP_NONE", TILEDB_WEBP_NONE)
+      .value("WEBP_RGB", TILEDB_WEBP_RGB)
+      .value("WEBP_RGBA", TILEDB_WEBP_RGBA)
+      .value("WEBP_BGR", TILEDB_WEBP_BGR)
+      .value("WEBP_BGRA", TILEDB_WEBP_BGRA);
 
   py::enum_<tiledb_encryption_type_t>(m, "EncryptionType")
       .value("NO_ENCRYPTION", TILEDB_NO_ENCRYPTION)
