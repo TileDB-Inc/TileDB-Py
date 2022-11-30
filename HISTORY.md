@@ -1,5 +1,17 @@
 # In Progress
 
+## Bug Fixes
+* Fix issue where queries in delete mode error out on arrays with string dimensions [#1473](https://github.com/TileDB-Inc/TileDB-Py/pull/1473)
+
+# Release 0.18.3
+
+## Packaging Notes
+* Linux wheels now built on `manylinux2014`; previously built on `manylinux2010`
+* Windows wheels NOT AVAILABLE for this release
+
+## TileDB Embedded updates:
+* TileDB-Py 0.18.3 includes TileDB Embedded [TileDB 2.12.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.3)
+
 ## Improvements
 * Move `from_numpy` out of Cython into pure Python [#1436](https://github.com/TileDB-Inc/TileDB-Py/pull/1436)
 

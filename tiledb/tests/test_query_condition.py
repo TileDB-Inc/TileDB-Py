@@ -858,3 +858,31 @@ class QueryDeleteTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             assert A.nonempty_domain() == ((2, 3),)
             assert_array_equal([2, 3], A[:]["ints"])
+
+    def test_delete_with_string_dimension(self):
+        path = self.path("test_delete_with_string_dimension")
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim(name="d", dtype="|S0", var=True)),
+            attrs=[tiledb.Attr(name="a", dtype="uint32")],
+            sparse=True,
+        )
+
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as A:
+            A[["a", "b", "c"]] = [10, 20, 30]
+
+        with tiledb.open(path, "d") as A:
+            A.query(cond="a == 20").submit()
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal(A[:]["d"], [b"a", b"c"])
+            assert_array_equal(A[:]["a"], [10, 30])
+
+        with tiledb.open(path, "d") as A:
+            A.query(cond="d == 'a'").submit()
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal(A[:]["d"], [b"c"])
+            assert_array_equal(A[:]["a"], [30])

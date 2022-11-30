@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux2010_x86_64:2022-04-24-d28e73e
+FROM quay.io/pypa/manylinux2014_x86_64:2022-11-28-5d13db4
 
 ###############################################
 # version args
