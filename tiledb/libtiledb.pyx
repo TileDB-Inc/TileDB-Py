@@ -3680,15 +3680,6 @@ cdef class DenseArrayImpl(Array):
 
         """
         selection_tuple = (selection,) if not isinstance(selection, tuple) else selection
-        if any(isinstance(s, np.ndarray) for s in selection_tuple):
-            warnings.warn(
-                "Sparse writes to dense arrays is deprecated. It is slated for removal in 0.19.0.",
-                DeprecationWarning,
-            )
-            assert tiledbpy_version < (0, 19, 0)
-            _setitem_impl_sparse(self, selection, val, dict())
-            return
-
         self._setitem_impl(selection, val, dict())
 
     def _setitem_impl(self, object selection, object val, dict nullmaps):
