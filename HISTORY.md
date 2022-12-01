@@ -2,6 +2,7 @@
 
 ## API Changes
 * Support Boolean types for query conditions [#1432](https://github.com/TileDB-Inc/TileDB-Py/pull/1432)
+* Support for partial consolidation using a list of fragment URIs [#1431](https://github.com/TileDB-Inc/TileDB-Py/pull/1431)
 
 ## Bug Fixes
 * Fix issue where queries in delete mode error out on arrays with string dimensions [#1473](https://github.com/TileDB-Inc/TileDB-Py/pull/1473)
@@ -20,6 +21,7 @@
 
 ## Bug Fixes
 * Fix `.df` and `.multi_index` always returning attributes applied in query conditions [#1433](https://github.com/TileDB-Inc/TileDB-Py/pull/1433)
+* Fix representation of nullable integers in dataframe when using PyArrow path [#1439](https://github.com/TileDB-Inc/TileDB-Py/pull/1439)
 
 # Release 0.18.2
 

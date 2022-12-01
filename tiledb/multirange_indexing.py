@@ -28,6 +28,7 @@ except ImportError:
     pyarrow = Table = None
 
 try:
+    import pandas as pd
     from pandas import DataFrame
 except ImportError:
     DataFrame = None
@@ -328,20 +329,63 @@ class DataFrameIndexer(_BaseIndexer):
             with timing("buffer_conversion_time"):
                 table = self.pyquery._buffers_to_pa_table()
 
-            # this is a workaround to cast TILEDB_BOOL types from uint8
-            # representation in Arrow to Boolean
-            schema = table.schema
-            for attr_or_dim in schema:
-                if not self.array.schema.has_attr(attr_or_dim.name):
+            columns = []
+            pa_schema = table.schema
+            for pa_attr in pa_schema:
+                if not self.array.schema.has_attr(pa_attr.name):
                     continue
 
-                attr = self.array.attr(attr_or_dim.name)
-                if attr.dtype == bool:
-                    field_idx = schema.get_field_index(attr.name)
-                    field = pyarrow.field(attr.name, pyarrow.bool_())
-                    schema = schema.set(field_idx, field)
+                tdb_attr = self.array.attr(pa_attr.name)
 
-            table = table.cast(schema)
+                if np.issubdtype(tdb_attr.dtype, bool):
+                    # this is a workaround to cast TILEDB_BOOL types from uint8
+                    # representation in Arrow to Boolean
+                    dtype = "uint8"
+                elif tdb_attr.isnullable and np.issubdtype(tdb_attr.dtype, np.integer):
+                    # this is a workaround for PyArrow's to_pandas function
+                    # converting all integers with NULLs to float64:
+                    # https://arrow.apache.org/docs/python/pandas.html#arrow-pandas-conversion
+                    extended_dtype_mapping = {
+                        pyarrow.int8(): pd.Int8Dtype(),
+                        pyarrow.int16(): pd.Int16Dtype(),
+                        pyarrow.int32(): pd.Int32Dtype(),
+                        pyarrow.int64(): pd.Int64Dtype(),
+                        pyarrow.uint8(): pd.UInt8Dtype(),
+                        pyarrow.uint16(): pd.UInt16Dtype(),
+                        pyarrow.uint32(): pd.UInt32Dtype(),
+                        pyarrow.uint64(): pd.UInt64Dtype(),
+                    }
+                    dtype = extended_dtype_mapping[pa_attr.type]
+                else:
+                    continue
+
+                columns.append(
+                    {
+                        "field_name": tdb_attr.name,
+                        "name": tdb_attr.name,
+                        "numpy_type": f"{dtype}",
+                        "pandas_type": f"{dtype}",
+                    }
+                )
+
+            metadata = {
+                b"pandas": json.dumps(
+                    {
+                        "columns": columns,
+                        "index_columns": [
+                            {
+                                "kind": "range",
+                                "name": None,
+                                "start": 0,
+                                "step": 1,
+                                "stop": len(table),
+                            }
+                        ],
+                    }
+                ).encode()
+            }
+
+            table = table.cast(pyarrow.schema(pa_schema, metadata=metadata))
 
             if self.query.return_arrow:
                 return table

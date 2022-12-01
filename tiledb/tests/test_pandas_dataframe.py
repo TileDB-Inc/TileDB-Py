@@ -1399,6 +1399,47 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             dtype = np.uint8 if tiledb.libtiledb.version() < (2, 10) else bool
             assert A.schema.attr("flags").dtype == dtype
 
+    @pytest.mark.parametrize(
+        "np_dtype, pd_dtype",
+        [
+            ("uint8", pd.UInt8Dtype()),
+            ("int8", pd.Int8Dtype()),
+            ("uint16", pd.UInt16Dtype()),
+            ("int16", pd.Int16Dtype()),
+            ("uint32", pd.UInt32Dtype()),
+            ("int32", pd.Int32Dtype()),
+            ("uint64", pd.UInt64Dtype()),
+            ("int64", pd.Int64Dtype()),
+        ],
+    )
+    def test_nullable_integers_open_dataframe(self, np_dtype, pd_dtype):
+        path = self.path("test_nullable_integers_conversion")
+        dim = tiledb.Dim(
+            "d", domain=(0, ~np.uint64() - 10000), tile=10000, dtype="uint64"
+        )
+        attrs = [tiledb.Attr(name="a", dtype=np_dtype, nullable=True)]
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(dim), attrs=attrs, sparse=False
+        )
+        tiledb.Array.create(path, schema)
+
+        orig_df = pd.DataFrame(
+            {
+                "d": pd.Series([0, 1, 2], dtype=np.uint64),
+                "a": pd.Series([pd.NA, 0, 1], dtype=pd_dtype),
+            }
+        )
+
+        tiledb.from_pandas(
+            path, orig_df, mode="append", index_dims=["d"], row_start_idx=0
+        )
+
+        read_df = tiledb.open_dataframe(path)
+        assert read_df.equals(orig_df)
+
+        with tiledb.open(path) as A:
+            assert A.df[:].equals(orig_df)
+
 
 class TestFromPandasOptions(DiskTestCase):
     def test_filters_options(self):
