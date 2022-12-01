@@ -6,6 +6,9 @@ IF TILEDBPY_MODULAR:
 
 include "common.pxi"
 
+cdef extern from "Python.h":
+    char* PyUnicode_AsUTF8(object unicode)
+
 cdef extern from "tiledb/tiledb.h":
     # Constants
     enum: TILEDB_OK
@@ -1167,6 +1170,14 @@ cdef extern from "tiledb/tiledb_experimental.h":
         tiledb_ctx_t* ctx, 
         const char* array_uri, 
         tiledb_config_t* config) nogil
+    
+    int tiledb_array_consolidate_fragments(
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
+        const char** fragment_uris,
+        const uint64_t num_fragments,
+        tiledb_config_t* config
+    )
 
 # Free helper functions
 cpdef unicode ustring(object s)
