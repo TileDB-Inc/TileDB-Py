@@ -343,6 +343,9 @@ class QueryConditionTree(ast.NodeVisitor):
 
         if isinstance(value_node, ast.Constant):
             value = value_node.value
+        elif isinstance(value_node, ast.NameConstant):
+            # deprecated in 3.8
+            value = value_node.value
         elif isinstance(value_node, ast.Num):
             # deprecated in 3.8
             value = value_node.n
@@ -472,5 +475,9 @@ class QueryConditionTree(ast.NodeVisitor):
         return node
 
     def visit_Bytes(self, node: ast.Bytes) -> ast.Bytes:
+        # deprecated in 3.8
+        return node
+
+    def visit_NameConstant(self, node: ast.NameConstant) -> ast.NameConstant:
         # deprecated in 3.8
         return node
