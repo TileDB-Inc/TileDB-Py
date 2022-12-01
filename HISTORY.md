@@ -1,5 +1,8 @@
 # In Progress
 
+## API Changes
+* Support Boolean types for query conditions [#1432](https://github.com/TileDB-Inc/TileDB-Py/pull/1432)
+
 ## Bug Fixes
 * Fix issue where queries in delete mode error out on arrays with string dimensions [#1473](https://github.com/TileDB-Inc/TileDB-Py/pull/1473)
 
