@@ -21,7 +21,7 @@ from pybind11.setup_helpers import Pybind11Extension
 ### DO NOT USE ON CI
 
 # Target branch: Note that this should be set to the current core release, not `dev`
-TILEDB_VERSION = "2.12.3"
+TILEDB_VERSION = "2.13.0"
 
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
@@ -423,7 +423,7 @@ class LazyCommandClass(dict):
     """
 
     def __contains__(self, key):
-        if key in ("build_ext", "bdist_wheel", "bdist_egg"):
+        if key in ("build_ext", "bdist_wheel", "bdist_egg", "get_tiledb_version"):
             return True
         return super().__contains__(key)
 
@@ -439,6 +439,9 @@ class LazyCommandClass(dict):
             return self.make_bdist_wheel_cmd()
         elif key == "bdist_egg":
             return self.make_bdist_egg_cmd()
+        elif key == "get_tiledb_version":
+            print(TILEDB_VERSION)
+            exit()
         else:
             return super().__getitem__(key)
 
