@@ -3520,13 +3520,13 @@ class ConsolidationTest(DiskTestCase):
         create_array(path)
         write_fragments(path)
 
-        fi = tiledb.FragmentInfoList(path)
+        fi = tiledb.array_fragments(path)
         self.assertEqual(len(fi), num_writes)
 
         tiledb.consolidate(path)
         tiledb.vacuum(path)
 
-        fi = tiledb.FragmentInfoList(path)
+        fi = tiledb.array_fragments(path)
         self.assertEqual(len(fi), 1)
 
         # array #2
@@ -3534,7 +3534,7 @@ class ConsolidationTest(DiskTestCase):
         create_array(path2)
         write_fragments(path2)
 
-        fi = tiledb.FragmentInfoList(path2)
+        fi = tiledb.array_fragments(path2)
         self.assertEqual(fi.unconsolidated_metadata_num, num_writes)
 
         tiledb.consolidate(
@@ -3542,7 +3542,7 @@ class ConsolidationTest(DiskTestCase):
         )
         tiledb.vacuum(path2, config=tiledb.Config({"sm.vacuum.mode": "fragment_meta"}))
 
-        fi = tiledb.FragmentInfoList(path2)
+        fi = tiledb.array_fragments(path2)
         self.assertEqual(fi.unconsolidated_metadata_num, 0)
 
         # array #3
@@ -3550,14 +3550,14 @@ class ConsolidationTest(DiskTestCase):
         create_array(path3)
         write_fragments(path3)
 
-        fi = tiledb.FragmentInfoList(path3)
+        fi = tiledb.array_fragments(path3)
         self.assertEqual(fi.unconsolidated_metadata_num, num_writes)
 
         conf = tiledb.Config({"sm.consolidation.mode": "fragment_meta"})
         with tiledb.open(path3, "w") as A:
             A.consolidate(config=conf)
 
-        fi = tiledb.FragmentInfoList(path3)
+        fi = tiledb.array_fragments(path3)
         self.assertEqual(fi.unconsolidated_metadata_num, 0)
 
     def test_array_consolidate_with_timestamp(self):
@@ -3579,11 +3579,19 @@ class ConsolidationTest(DiskTestCase):
 
         create_array(path, dshape)
         write_fragments(path, dshape, num_writes)
-        frags = tiledb.FragmentInfoList(path)
+        frags = tiledb.array_fragments(path)
         assert len(frags) == 10
 
-        tiledb.consolidate(path, timestamp=(1, 4))
-        frags = tiledb.FragmentInfoList(path)
+        with pytest.warns(
+            DeprecationWarning,
+            match=(
+                "The `timestamp` argument is deprecated; pass a list of "
+                "fragment URIs to consolidate with `fragment_uris`"
+            ),
+        ):
+            tiledb.consolidate(path, timestamp=(1, 4))
+
+        frags = tiledb.array_fragments(path)
         assert len(frags) == 7
         assert len(frags.to_vacuum) == 4
 
@@ -3597,7 +3605,7 @@ class ConsolidationTest(DiskTestCase):
             tiledb.vacuum(path, timestamp=(1, 2))
 
         tiledb.vacuum(path)
-        frags = tiledb.FragmentInfoList(path)
+        frags = tiledb.array_fragments(path)
         assert len(frags.to_vacuum) == 0
 
         conf = tiledb.Config(
@@ -3605,8 +3613,75 @@ class ConsolidationTest(DiskTestCase):
         )
         tiledb.consolidate(path, config=conf)
         tiledb.vacuum(path)
-        frags = tiledb.FragmentInfoList(path)
-        assert len(frags.timestamp_range) == 3
+        assert len(tiledb.array_fragments(path)) == 3
+
+    def test_array_consolidate_with_uris(self):
+        dshape = (1, 3)
+        num_writes = 10
+
+        def create_array(target_path, dshape):
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path, dshape, num_writes):
+            for i in range(1, num_writes + 1):
+                with tiledb.open(target_path, "w", timestamp=i) as A:
+                    A[[1, 2, 3]] = np.random.rand(dshape[1])
+
+        path = self.path("test_array_consolidate_with_uris")
+
+        create_array(path, dshape)
+        write_fragments(path, dshape, num_writes)
+        frags = tiledb.array_fragments(path)
+        assert len(frags) == 10
+
+        frag_names = [os.path.basename(f) for f in frags.uri]
+
+        tiledb.consolidate(path, fragment_uris=frag_names[:4])
+
+        assert len(tiledb.array_fragments(path)) == 7
+
+        with pytest.warns(
+            DeprecationWarning,
+            match=(
+                "The `timestamp` argument will be ignored and only fragments "
+                "passed to `fragment_uris` will be consolidate"
+            ),
+        ):
+            tiledb.consolidate(path, fragment_uris=frag_names[4:8], timestamp=(9, 10))
+
+        assert len(tiledb.array_fragments(path)) == 4
+
+    def test_array_consolidate_with_key(self):
+        dshape = (1, 3)
+        num_writes = 10
+
+        path = self.path("test_array_consolidate_with_key")
+        key = b"0123456789abcdeF0123456789abcdeF"
+
+        def create_array(target_path, dshape):
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path, dshape, num_writes):
+            for i in range(1, num_writes + 1):
+                with tiledb.open(target_path, "w", timestamp=i) as A:
+                    A[[1, 2, 3]] = np.random.rand(dshape[1])
+
+        create_array(path, dshape)
+        write_fragments(path, dshape, num_writes)
+        frags = tiledb.array_fragments(path)
+        assert len(frags) == 10
+
+        frag_names = [os.path.basename(f) for f in frags.uri]
+
+        tiledb.consolidate(path, fragment_uris=frag_names[:4], key=key)
+
+        assert len(tiledb.array_fragments(path)) == 7
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Only run MemoryTest on linux")

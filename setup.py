@@ -423,7 +423,7 @@ class LazyCommandClass(dict):
     """
 
     def __contains__(self, key):
-        if key in ("build_ext", "bdist_wheel", "bdist_egg"):
+        if key in ("build_ext", "bdist_wheel", "bdist_egg", "get_tiledb_version"):
             return True
         return super().__contains__(key)
 
@@ -439,6 +439,9 @@ class LazyCommandClass(dict):
             return self.make_bdist_wheel_cmd()
         elif key == "bdist_egg":
             return self.make_bdist_egg_cmd()
+        elif key == "get_tiledb_version":
+            print(TILEDB_VERSION)
+            exit()
         else:
             return super().__getitem__(key)
 
