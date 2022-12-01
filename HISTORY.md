@@ -1,7 +1,25 @@
 # In Progress
 
 ## API Changes
-* Support for partial consolidation using a list of fragment URIs []()
+* Support for partial consolidation using a list of fragment URIs [#1431](https://github.com/TileDB-Inc/TileDB-Py/pull/1431)
+
+## Bug Fixes
+* Fix issue where queries in delete mode error out on arrays with string dimensions [#1473](https://github.com/TileDB-Inc/TileDB-Py/pull/1473)
+
+# Release 0.18.3
+
+## Packaging Notes
+* Linux wheels now built on `manylinux2014`; previously built on `manylinux2010`
+* Windows wheels NOT AVAILABLE for this release
+
+## TileDB Embedded updates:
+* TileDB-Py 0.18.3 includes TileDB Embedded [TileDB 2.12.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.3)
+
+## Improvements
+* Move `from_numpy` out of Cython into pure Python [#1436](https://github.com/TileDB-Inc/TileDB-Py/pull/1436)
+
+## Bug Fixes
+* Fix `.df` and `.multi_index` always returning attributes applied in query conditions [#1433](https://github.com/TileDB-Inc/TileDB-Py/pull/1433)
 
 # Release 0.18.2
 
@@ -12,6 +30,9 @@
 
 ## TileDB Embedded updates:
 * TileDB-Py 0.18.1 includes TileDB Embedded [TileDB 2.12.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.12.1)
+
+## Improvements
+* Reintroduce moving `Attr` from Cython to pure Python [#1411](https://github.com/TileDB-Inc/TileDB-Py/pull/1411)
 
 ## Bug Fixes
 * Properly handle whitespaces in a query condition [#1398](https://github.com/TileDB-Inc/TileDB-Py/pull/1398)

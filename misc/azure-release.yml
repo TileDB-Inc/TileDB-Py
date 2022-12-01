@@ -6,9 +6,9 @@ stages:
         LIBTILEDB_VERSION: dev
         LIBTILEDB_SHA: dev
       ${{ else }}:
-        TILEDBPY_VERSION: 0.18.2
-        LIBTILEDB_VERSION: 2.12.2
-        LIBTILEDB_SHA: a9d60c8c8478990714ee6f5110fd80e901e1f63f
+        TILEDBPY_VERSION: 0.18.3
+        LIBTILEDB_VERSION: 2.12.3
+        LIBTILEDB_SHA: fdfc2ee106caffe7e3a373b8728a04eabc4d89a5
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
@@ -36,7 +36,7 @@ stages:
         timeoutInMinutes: 120
         pool:
           vmImage: "ubuntu-latest"
-        container: quay.io/pypa/manylinux2010_x86_64:2022-04-24-d28e73e
+        container: quay.io/pypa/manylinux2014_x86_64:2022-11-28-5d13db4
         variables:
           CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL10 -D__BIONIC__=1"
           CFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
@@ -46,7 +46,7 @@ stages:
 
       - job: build2_python
         dependsOn: [build1_libtiledb, build1_libtiledb_on_linux]
-        condition: succeeded()
+        condition: always()
         variables:
           cibw_test_requires: "pytest"
           USE_CIBW_VERSION: 2.3.0
@@ -189,7 +189,7 @@ stages:
 
       - job: trigger_fail_build
         dependsOn: [build2_python]
-        condition: failed()
+        condition: and(failed(), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
         pool: server
         steps:
           - task: InvokeRESTAPI@1
@@ -207,7 +207,7 @@ stages:
 
       - job: trigger_success_build
         dependsOn: [build2_python]
-        condition: succeeded()
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
         pool: server
         steps:
           - task: InvokeRESTAPI@1

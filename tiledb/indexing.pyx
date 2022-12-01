@@ -41,8 +41,8 @@ cdef class DomainIndexer(object):
     def __getitem__(self, object idx):
         # implements domain-based indexing: slice by domain coordinates, not 0-based python indexing
 
-        cdef ArraySchema schema = self.array.schema
-        cdef Domain dom = schema.domain
+        schema = self.array.schema
+        dom = schema.domain
         cdef ndim = dom.ndim
         cdef list attr_names = list()
 
@@ -141,7 +141,6 @@ cdef dict execute_multi_index(Array array,
         unicode coord_name = (tiledb_coords()).decode('UTF-8')
 
     cdef:
-        Attr attr
         Py_ssize_t attr_idx
         bytes battr_name
         unicode attr_name
@@ -258,13 +257,13 @@ cdef dict execute_multi_index(Array array,
             repeat_query = False
             break
         elif query_status == TILEDB_FAILED:
-            raise TileDBError("Query returned TILEDB_FAILED")
+            raise lt.TileDBError("Query returned TILEDB_FAILED")
         elif query_status == TILEDB_INPROGRESS:
-            raise TileDBError("Query returned TILEDB_INPROGRESS")
+            raise lt.TileDBError("Query returned TILEDB_INPROGRESS")
         elif query_status == TILEDB_INCOMPLETE:
-            raise TileDBError("Query returned TILEDB_INCOMPLETE")
+            raise lt.TileDBError("Query returned TILEDB_INCOMPLETE")
         else:
-            raise TileDBError("internal error: unknown query status")
+            raise lt.TileDBError("internal error: unknown query status")
 
     # resize arrays to final bytes-read
     for attr_idx in range(nattr):
@@ -308,7 +307,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
         tiledb_query_free(&query_ptr)
         _raise_ctx_err(ctx_ptr, rc)
 
-    cdef Dim dim = array.schema.domain.dim(0)
+    dim = array.schema.domain.dim(0)
     cdef uint32_t c_dim_idx
     cdef void* start_ptr = NULL
     cdef void* end_ptr = NULL
@@ -333,7 +332,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
 
         for range_idx in range(len(dim_ranges)):
             if len(dim_ranges[range_idx]) != 2:
-                raise TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
+                raise lt.TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
 
             start = np.array(dim_ranges[range_idx][0], dtype=dim.dtype)
             end = np.array(dim_ranges[range_idx][1], dtype=dim.dtype)

@@ -48,6 +48,7 @@ stages:
             displayName: "Install dependencies"
 
           - script: |
+              set TILEDB_FORCE_ALL_DEPS=ON
               # vcvarsall is necessary so that numpy uses the correct compiler
               call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
               python setup.py build_ext --inplace

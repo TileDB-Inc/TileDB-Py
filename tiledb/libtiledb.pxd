@@ -1193,17 +1193,6 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
 #                                                                             #
 ###############################################################################
 
-cdef class Attr(object):
-    cdef object ctx
-    cdef tiledb_attribute_t* ptr
-
-    @staticmethod
-    cdef from_ptr(const tiledb_attribute_t* ptr, object ctx=*)
-    cdef unicode _get_name(Attr self)
-    cdef unsigned int _cell_val_num(Attr self) except? 0
-    cdef tiledb_datatype_t _get_type(Attr self) except? TILEDB_CHAR
-
-
 cdef class Dim(object):
     cdef object ctx
     cdef tiledb_dimension_t* ptr
