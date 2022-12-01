@@ -20,6 +20,7 @@
 
 ## Bug Fixes
 * Fix `.df` and `.multi_index` always returning attributes applied in query conditions [#1433](https://github.com/TileDB-Inc/TileDB-Py/pull/1433)
+* Fix representation of nullable integers in dataframe when using PyArrow path [#1439](https://github.com/TileDB-Inc/TileDB-Py/pull/1439)
 
 # Release 0.18.2
 
