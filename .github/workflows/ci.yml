@@ -41,40 +41,64 @@ jobs:
         run: pip debug --verbose
 
       - name: "Install dependencies"
-        run: |
-          python -m pip install --upgrade -r misc/requirements_ci.txt
+        run: python -m pip install --upgrade -r misc/requirements_ci.txt
 
-      - name: "Check build directory"
-        run: |
-            ls -Rl
+      - name: "Get TILEDB_VERSION"
+        run: echo "LIBTILEDB_VERSION=$(python setup.py get_tiledb_version | tail -n 1)" >> $GITHUB_ENV
 
-      - name: "Build TileDB and TileDB-Py extension (Windows)"
+      - name: "Get LIBTILEDB_SHA"
+        run: echo "LIBTILEDB_SHA=$(git ls-remote https://github.com/TileDB-Inc/TileDB $LIBTILEDB_VERSION | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: "Download TileDB From Zip And Build TileDB-Py (Windows)"
         run: |
-          python setup.py build_ext --inplace
-          python setup.py install
+          choco install wget --no-progress
+
+          if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-windows-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.zip; then
+            unzip tiledb-windows-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.zip -d /usr/local
+            cp /usr/local/bin/tiledb.dll tiledb
+            python setup.py develop --tiledb=/usr/local
+          else 
+            # Build from source as fallback
+            python setup.py build_ext --inplace
+            python setup.py develop
+          fi
+        env:
+          TILEDB_FORCE_ALL_DEPS: True
         if: matrix.os == 'windows-latest'
 
-      - name: "Build TileDB and TileDB-Py extension (POSIX)"
+      - name: "Download TileDB From Tarball And Build TileDB-Py (macOS)"
         run: |
           set -xeo pipefail
-          python setup.py build_ext --inplace --werror
-          python setup.py install
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-11'
+
+          if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-macos-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz; then
+            sudo tar -vzxf tiledb-macos-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz -C /usr/local
+            python setup.py develop --tiledb=/usr/local
+          else 
+            # Build from source as fallback
+            python setup.py build_ext --inplace
+            python setup.py install
+          fi
+        if: matrix.os == 'macos-11'
+
+      - name: "Download TileDB From Tarball And Build TileDB-Py (Linux)"
+        run: |
+          set -xeo pipefail
+
+          if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-linux-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz; then
+            sudo tar -vzxf tiledb-linux-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz -C /usr/local
+            python setup.py develop --tiledb=/usr/local
+          else 
+            # Build from source as fallback
+            python setup.py build_ext --inplace
+            python setup.py install
+          fi
+        if: matrix.os == 'ubuntu-latest'
+
+      - name: "Check build directory"
+        run: ls -Rl
 
       - name: "Run tests"
-        run: |
-          set -xeo pipefail
-
-          pytest -vv --showlocals
-
-          # Test wheel build, install, and run
-          python setup.py bdist_wheel
-          mkdir /tmp/wheel_test
-          cp dist/*.whl /tmp/wheel_test
-          pushd /tmp/wheel_test
-          ls
-          python -m pip install *.whl
-          python -c 'import tiledb ; tiledb.libtiledb.version()'
+        run: pytest -vv --showlocals
 
       - name: "Print log files (failed build only)"
         run: |
@@ -82,10 +106,10 @@ jobs:
           # Display log files if the build failed
           echo 'Dumping log files for failed build'
           echo '----------------------------------'
-          for f in $(find $BUILD_REPOSITORY_LOCALPATH/build -name *.log);
+          for f in $(find build -name *.log);
             do echo '------'
                echo $f
                echo '======'
                cat $f
             done;
-        if: ${{ failure() }}
+        if: failure()

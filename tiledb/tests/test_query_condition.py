@@ -723,6 +723,69 @@ class QueryConditionTest(DiskTestCase):
             assert "D" in A.query(cond=cond, attrs=None).multi_index[:]
             assert "D" not in A.query(cond=cond, attrs=[]).multi_index[:]
 
+    def test_boolean_sparse(self):
+        path = self.path("test_boolean_sparse")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
+        attrs = [
+            tiledb.Attr(name="a", dtype=np.bool_),
+            tiledb.Attr(name="b", dtype=np.bool_),
+            tiledb.Attr(name="c", dtype=np.bool_),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as arr:
+            arr[np.arange(1, 11)] = {
+                "a": np.random.randint(0, high=2, size=10),
+                "b": np.random.randint(0, high=2, size=10),
+                "c": np.random.randint(0, high=2, size=10),
+            }
+
+        with tiledb.open(path) as A:
+            result = A.query(cond="a == True")[:]
+            assert all(result["a"])
+
+            result = A.query(cond="a == False")[:]
+            assert all(~result["a"])
+
+            result = A.query(cond="a == True and b == True")[:]
+            assert all(result["a"])
+            assert all(result["b"])
+
+            result = A.query(cond="a == False and c == True")[:]
+            assert all(~result["a"])
+            assert all(result["c"])
+
+    def test_boolean_dense(self):
+        path = self.path("test_boolean_dense")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
+        attrs = [
+            tiledb.Attr(name="a", dtype=np.bool_),
+            tiledb.Attr(name="b", dtype=np.bool_),
+            tiledb.Attr(name="c", dtype=np.bool_),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as arr:
+            arr[:] = {
+                "a": np.random.randint(0, high=2, size=10),
+                "b": np.random.randint(0, high=2, size=10),
+                "c": np.random.randint(0, high=2, size=10),
+            }
+
+        with tiledb.open(path) as A:
+            mask = A.attr("a").fill
+
+            result = A.query(cond="a == True")[:]
+            assert all(self.filter_dense(result["a"], mask))
+
+            result = A.query(cond="a == True and b == True")[:]
+            assert all(self.filter_dense(result["a"], mask))
+            assert all(self.filter_dense(result["b"], mask))
+
 
 class QueryDeleteTest(DiskTestCase):
     def test_basic_sparse(self):

@@ -65,6 +65,8 @@ jobs:
         run: |
           python setup.py build_ext --inplace --werror
           python setup.py install
+        env:
+          TILEDB_FORCE_ALL_DEPS: True
 
       - name: Test TileDB-Py
         run: pytest -vv

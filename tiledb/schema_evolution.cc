@@ -52,12 +52,21 @@ void init_schema_evolution(py::module &m) {
                TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
              }
            })
-      .def("array_evolve", [](ArraySchemaEvolution &inst, std::string uri) {
-        int rc = tiledb_array_evolve(inst.ctx_, uri.c_str(), inst.evol_);
-        if (rc != TILEDB_OK) {
-          TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
-        }
-      });
+      .def("array_evolve",
+           [](ArraySchemaEvolution &inst, std::string uri) {
+             int rc = tiledb_array_evolve(inst.ctx_, uri.c_str(), inst.evol_);
+             if (rc != TILEDB_OK) {
+               TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
+             }
+           })
+      .def("set_timestamp_range",
+           [](ArraySchemaEvolution &inst, uint64_t timestamp) {
+             int rc = tiledb_array_schema_evolution_set_timestamp_range(
+                 inst.ctx_, inst.evol_, timestamp, timestamp);
+             if (rc != TILEDB_OK) {
+               TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
+             }
+           });
 }
 
 }; // namespace tiledbpy

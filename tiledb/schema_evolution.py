@@ -32,3 +32,10 @@ class ArraySchemaEvolution:
         """Apply ArraySchemaEvolution actions to Array at given URI."""
 
         self.ase.array_evolve(uri)
+
+    def timestamp(self, timestamp: int):
+        """Sets the timestamp of the schema file."""
+        if not isinstance(timestamp, int):
+            raise ValueError("'timestamp' argument expects int")
+
+        self.ase.set_timestamp_range(timestamp)
