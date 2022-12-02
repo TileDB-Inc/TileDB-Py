@@ -5,6 +5,7 @@
 * Support for partial consolidation using a list of fragment URIs [#1431](https://github.com/TileDB-Inc/TileDB-Py/pull/1431)
 * Addition of `ArraySchemaEvolution.timestamp` [#1480](https://github.com/TileDB-Inc/TileDB-Py/pull/1480)
 * Addition of `ArraySchema.has_dim` [#1430](https://github.com/TileDB-Inc/TileDB-Py/pull/1430)
+* Addition of `Array.delete_array` [#1428](https://github.com/TileDB-Inc/TileDB-Py/pull/1428)
 
 ## Bug Fixes
 * Fix issue where queries in delete mode error out on arrays with string dimensions [#1473](https://github.com/TileDB-Inc/TileDB-Py/pull/1473)

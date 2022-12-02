@@ -638,6 +638,11 @@ cdef extern from "tiledb/tiledb.h":
         const void* encryption_key,
         uint32_t key_length,
         tiledb_config_t* config) nogil
+    
+    int tiledb_array_delete_array(
+        tiledb_ctx_t* ctx, 
+        tiledb_array_t* array, 
+        const char* uri) nogil
 
     # Query
     int tiledb_query_alloc(
