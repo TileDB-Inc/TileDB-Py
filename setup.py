@@ -657,6 +657,7 @@ TILEDB_MAIN_SOURCES = [
     "tiledb/schema_evolution.cc",
     "tiledb/util.cc",
     "tiledb/tests/test_metadata.cc",
+    "tiledb/tests/test_webp.cc",
     # TODO currently included in core.cc due to dependency.
     #      need to un-comment after refactor.
     # "tiledb/query_condition.cc",
