@@ -3,6 +3,7 @@
 ## API Changes
 * Support Boolean types for query conditions [#1432](https://github.com/TileDB-Inc/TileDB-Py/pull/1432)
 * Support for partial consolidation using a list of fragment URIs [#1431](https://github.com/TileDB-Inc/TileDB-Py/pull/1431)
+* Addition of `ArraySchemaEvolution.timestamp` [#1480](https://github.com/TileDB-Inc/TileDB-Py/pull/1480)
 * Addition of `ArraySchema.has_dim` [#1430](https://github.com/TileDB-Inc/TileDB-Py/pull/1430)
 
 ## Bug Fixes

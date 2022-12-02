@@ -1,6 +1,7 @@
 import pytest
 import tiledb
 import numpy as np
+import os
 
 from numpy.testing import assert_array_equal
 
@@ -86,3 +87,30 @@ def test_schema_evolution(tmp_path):
     test_it2()
     tiledb.consolidate(uri)
     test_it2()
+
+
+def test_schema_evolution_timestamp(tmp_path):
+    ctx = tiledb.default_ctx()
+    se = tiledb.ArraySchemaEvolution(ctx)
+    vfs = tiledb.VFS()
+
+    uri = str(tmp_path)
+    schema_uri = os.path.join(uri, "__schema")
+
+    attrs = [tiledb.Attr(name="a1", dtype=np.float64)]
+    domain = tiledb.Domain(tiledb.Dim(domain=(0, 3), dtype=np.uint64))
+    schema = tiledb.ArraySchema(domain=domain, attrs=attrs, sparse=False)
+    tiledb.Array.create(uri, schema)
+
+    def get_schema_timestamps(schema_uri):
+        schema_files = vfs.ls(schema_uri)
+        return [int(os.path.basename(file).split("_")[2]) for file in schema_files]
+
+    assert 123456789 not in get_schema_timestamps(schema_uri)
+
+    newattr = tiledb.Attr("a2", dtype=np.int8)
+    se.timestamp(123456789)
+    se.add_attribute(newattr)
+    se.array_evolve(uri)
+
+    assert 123456789 in get_schema_timestamps(schema_uri)
