@@ -1,6 +1,7 @@
 # In Progress
 
 ## API Changes
+* Support Boolean types for query conditions [#1432](https://github.com/TileDB-Inc/TileDB-Py/pull/1432)
 * Support for partial consolidation using a list of fragment URIs [#1431](https://github.com/TileDB-Inc/TileDB-Py/pull/1431)
 
 ## Bug Fixes

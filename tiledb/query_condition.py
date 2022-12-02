@@ -343,6 +343,9 @@ class QueryConditionTree(ast.NodeVisitor):
 
         if isinstance(value_node, ast.Constant):
             value = value_node.value
+        elif isinstance(value_node, ast.NameConstant):
+            # deprecated in 3.8
+            value = value_node.value
         elif isinstance(value_node, ast.Num):
             # deprecated in 3.8
             value = value_node.n
@@ -365,19 +368,27 @@ class QueryConditionTree(ast.NodeVisitor):
                 # casted to numeric types
                 if isinstance(value, str):
                     raise TileDBError(f"Cannot cast `{value}` to {dtype}.")
+
                 if np.issubdtype(dtype, np.datetime64):
                     cast = getattr(np, "int64")
+                elif np.issubdtype(dtype, bool):
+                    cast = getattr(np, "uint8")
                 else:
                     cast = getattr(np, dtype)
+
                 value = cast(value)
+
             except ValueError:
                 raise TileDBError(f"Cannot cast `{value}` to {dtype}.")
 
         return value
 
     def init_pyqc(self, pyqc: PyQueryCondition, dtype: str) -> Callable:
-        if dtype != "string" and np.issubdtype(dtype, np.datetime64):
-            dtype = "int64"
+        if dtype != "string":
+            if np.issubdtype(dtype, np.datetime64):
+                dtype = "int64"
+            elif np.issubdtype(dtype, bool):
+                dtype = "uint8"
 
         init_fn_name = f"init_{dtype}"
 
@@ -464,5 +475,9 @@ class QueryConditionTree(ast.NodeVisitor):
         return node
 
     def visit_Bytes(self, node: ast.Bytes) -> ast.Bytes:
+        # deprecated in 3.8
+        return node
+
+    def visit_NameConstant(self, node: ast.NameConstant) -> ast.NameConstant:
         # deprecated in 3.8
         return node
