@@ -574,6 +574,8 @@ class ArraySchemaTest(DiskTestCase):
 
         self.assertTrue(schema.domain.has_dim("str_index"))
         self.assertFalse(schema.domain.has_dim("nonono_str_index"))
+        self.assertTrue(schema.has_dim("str_index"))
+        self.assertFalse(schema.has_dim("nonono_str_index"))
         self.assertTrue(schema.domain.dim("str_index").isvar)
         self.assertFalse(schema.domain.dim("dpos").isvar)
         self.assertEqual(schema.domain.dim("dpos").dtype, np.double)

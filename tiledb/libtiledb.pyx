@@ -680,7 +680,7 @@ def _tiledb_cast_tile_extent(tile_extent, dtype):
 cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
     """Return a numpy type num (int) given a tiledb_datatype_t enum value."""
     np_id_type = _tiledb_dtype_to_numpy_typeid_convert.get(tiledb_dtype, None)
-    if np_id_type:
+    if np_id_type is not None:
         return np_id_type
     return np.NPY_DATETIME if _tiledb_type_is_datetime(tiledb_dtype) else np.NPY_NOTYPE
 
@@ -2131,7 +2131,7 @@ cdef class ArraySchema(object):
         """Returns true if the given name is an Attribute of the ArraySchema
 
         :param name: attribute name
-        :rtype: boolean
+        :rtype: bool
         """
         cdef:
             int32_t has_attr = 0
@@ -2152,10 +2152,18 @@ cdef class ArraySchema(object):
 
         return bool(has_attr)
 
+    def has_dim(self, name):
+        """Returns True if the given name is a Dim of the ArraySchema
+
+        :param name: dimension name
+        :rtype: bool
+        """
+        return self.domain.has_dim(name)
+
     def attr_or_dim_dtype(self, unicode name):
         if self.has_attr(name):
             dtype = self.attr(name).dtype
-        elif self.domain.has_dim(name):
+        elif self.has_dim(name):
             dtype = self.domain.dim(name).dtype
         else:
             raise TileDBError(f"Unknown attribute or dimension ('{name}')")
@@ -3681,15 +3689,6 @@ cdef class DenseArrayImpl(Array):
 
         """
         selection_tuple = (selection,) if not isinstance(selection, tuple) else selection
-        if any(isinstance(s, np.ndarray) for s in selection_tuple):
-            warnings.warn(
-                "Sparse writes to dense arrays is deprecated. It is slated for removal in 0.19.0.",
-                DeprecationWarning,
-            )
-            assert tiledbpy_version < (0, 19, 0)
-            _setitem_impl_sparse(self, selection, val, dict())
-            return
-
         self._setitem_impl(selection, val, dict())
 
     def _setitem_impl(self, object selection, object val, dict nullmaps):
