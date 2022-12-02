@@ -574,6 +574,8 @@ class ArraySchemaTest(DiskTestCase):
 
         self.assertTrue(schema.domain.has_dim("str_index"))
         self.assertFalse(schema.domain.has_dim("nonono_str_index"))
+        self.assertTrue(schema.has_dim("str_index"))
+        self.assertFalse(schema.has_dim("nonono_str_index"))
         self.assertTrue(schema.domain.dim("str_index").isvar)
         self.assertFalse(schema.domain.dim("dpos").isvar)
         self.assertEqual(schema.domain.dim("dpos").dtype, np.double)
@@ -873,6 +875,21 @@ class ArrayTest(DiskTestCase):
         frags = tiledb.array_fragments(path)
         assert len(frags) == 6
         assert frags.timestamp_range == ts[:2] + ts[6:]
+
+    def test_array_delete(self):
+        uri = self.path("test_array_delete")
+        data = np.random.rand(10)
+
+        tiledb.from_numpy(uri, data)
+
+        with tiledb.open(uri) as A:
+            assert_array_equal(A[:], data)
+
+        assert tiledb.array_exists(uri) == True
+
+        tiledb.Array.delete_array(uri)
+
+        assert tiledb.array_exists(uri) == False
 
 
 class DenseArrayTest(DiskTestCase):
@@ -1998,24 +2015,28 @@ class TestSparseArray(DiskTestCase):
         with tiledb.SparseArray(ctx, self.path("foo"), mode="r") as T:
             assert_array_equal(T[[1, 2], [1, 2]], values)
 
-    @pytest.mark.xfail
     def test_simple3d_sparse_vector(self):
+        uri = self.path("simple3d_sparse_vector")
         dom = tiledb.Domain(
-            ctx,
-            tiledb.Dim(ctx, "x", domain=(0, 3), tile=4, dtype=int),
-            tiledb.Dim(ctx, "y", domain=(0, 3), tile=4, dtype=int),
-            tiledb.Dim(ctx, "z", domain=(0, 3), tile=4, dtype=int),
+            tiledb.Dim("x", domain=(0, 3), tile=4, dtype=int),
+            tiledb.Dim("y", domain=(0, 3), tile=4, dtype=int),
+            tiledb.Dim("z", domain=(0, 3), tile=4, dtype=int),
         )
-        attr = tiledb.Attr(ctx, dtype=float)
-        schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(attr,), sparse=True)
-        tiledb.SparseArray.create(self.path("foo"), schema)
+        attr = tiledb.Attr(dtype=float)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
+        tiledb.SparseArray.create(uri, schema)
 
         values = np.array([3, 4], dtype=float)
-        with tiledb.SparseArray(ctx, self.path("foo"), mode="w") as T:
-            T[[1, 2], [1, 2], [1, 2]] = values
+        coords = (1, 2), (1, 2), (1, 2)
+        with tiledb.SparseArray(uri, mode="w") as T:
+            T[coords] = values
 
-        with tiledb.SparseArray(ctx, self.path("foo"), mode="r") as T:
-            assert_array_equal(T[[1, 2], [1, 2], [1, 2]], values)
+        with tiledb.SparseArray(uri, mode="r") as T:
+            res = T.multi_index[coords]
+            assert_array_equal(res[""], values)
+            assert_array_equal(res["x"], coords[0])
+            assert_array_equal(res["y"], coords[1])
+            assert_array_equal(res["z"], coords[2])
 
     @pytest.mark.xfail
     def test_sparse_ordered_fp_domain(self):

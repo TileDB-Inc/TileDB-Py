@@ -145,7 +145,8 @@ void init_array(py::module &m) {
              bool has_it = self.has_metadata(key, &has_type);
              return py::make_tuple(has_it, has_type);
            })
-      .def("metadata_num", &Array::metadata_num);
+      .def("metadata_num", &Array::metadata_num)
+      .def("delete_array", &Array::delete_array);
 }
 
 } // namespace libtiledbcpp

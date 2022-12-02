@@ -1086,6 +1086,11 @@ public:
       py::gil_scoped_release release;
       query_->submit();
     }
+
+    if (query_->query_status() == Query::Status::UNINITIALIZED) {
+      TPY_ERROR_LOC("Unexpected state: Query::Submit returned uninitialized");
+    }
+
     update_read_elem_num();
 
     return;
@@ -1212,6 +1217,10 @@ public:
     {
       py::gil_scoped_release release;
       query_->submit();
+    }
+
+    if (query_->query_status() == Query::Status::UNINITIALIZED) {
+      TPY_ERROR_LOC("Unexpected state: Query::Submit returned uninitialized");
     }
 
     if (g_stats) {
@@ -1361,14 +1370,18 @@ public:
   void submit_write() {}
 
   void submit() {
-    if (array_->query_type() == TILEDB_READ)
+    if (array_->query_type() == TILEDB_READ) {
       submit_read();
-    else if (array_->query_type() == TILEDB_WRITE)
+    } else if (array_->query_type() == TILEDB_WRITE) {
       submit_write();
-    else if (array_->query_type() == TILEDB_DELETE)
+    } else if (array_->query_type() == TILEDB_DELETE) {
       query_->submit();
-    else
+      if (query_->query_status() == Query::Status::UNINITIALIZED) {
+        TPY_ERROR_LOC("Unexpected state: Query::Submit returned uninitialized");
+      }
+    } else {
       TPY_ERROR_LOC("Unknown query type!")
+    }
   }
 
   py::dict results() {
