@@ -52,10 +52,8 @@ def create_array(path):
 
 def read_array(path, cond):
     with tiledb.open(path) as arr:
-        qc = tiledb.QueryCondition(cond)
-
-        print("QueryCondition is: ", qc)
-        res = arr.query(attr_cond=qc)[:]
+        print("QueryCondition is: ", cond)
+        res = arr.query(cond=cond)[:]
         return res
 
 
