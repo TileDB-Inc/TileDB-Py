@@ -6,6 +6,7 @@ numpy==1.19.4 ; python_version == "3.9" and platform_machine !='aarch64'
 # NOTE: oldest-supported-numpy (1.19.2) had forward ABI compat problems
 numpy==1.20.* ; python_version < "3.10" and platform_machine=='aarch64'
 numpy==1.21.* ; python_version >= "3.10"
+numpy>=1.23.0 ; python_version >= "3.11"
 
 #-------------------------------
 # Note 11/23/2021: the current version of the AWS sdk does not work with cmake 3.22

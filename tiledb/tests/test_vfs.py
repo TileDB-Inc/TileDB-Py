@@ -141,21 +141,6 @@ class TestVFS(DiskTestCase):
         self.assertEqual(fio.read(3), buffer)
         fio.close()
 
-        buffer = b"abc"
-        fio = vfs.open(self.path("abc"), "wb")
-        with pytest.warns(DeprecationWarning, match="Use `FileIO.write`"):
-            vfs.write(fio, buffer)
-        with pytest.warns(DeprecationWarning, match="Use `FileIO.close`"):
-            vfs.close(fio)
-        self.assertEqual(vfs.file_size(self.path("abc")), 3)
-
-        fio = vfs.open(self.path("abc"), "rb")
-        with pytest.warns(
-            DeprecationWarning, match="Use `FileIO.seek` and `FileIO.read`"
-        ):
-            self.assertEqual(vfs.read(fio, 0, 3), buffer)
-        fio.close()
-
         # write / read empty input
         fio = vfs.open(self.path("baz"), "wb")
         fio.write(b"")

@@ -2690,29 +2690,11 @@ cdef class Array(object):
         """Deprecated in 0.9.2.
 
         Use `timestamp_range`
-
-        Returns the timestamp the array is opened at
-
-        :rtype: int
-        :returns: tiledb timestamp at which point the array was opened
-
         """
-        warnings.warn(
-            "timestamp is deprecated; please use timestamp_range. "
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+        raise TileDBError(
+            "timestamp is deprecated; you must use timestamp_range. "
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledbpy_version < (0, 19, 0)
-
-        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
-        cdef tiledb_array_t* array_ptr = self.ptr
-        cdef uint64_t timestamp = 0
-        cdef int rc = TILEDB_OK
-        rc = tiledb_array_get_timestamp(ctx_ptr, array_ptr, &timestamp)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
-        return int(timestamp)
-
 
     @property
     def timestamp_range(self):
@@ -2740,25 +2722,14 @@ cdef class Array(object):
 
     @property
     def coords_dtype(self):
-        """Returns the numpy record array dtype of the array coordinates
-
-        :rtype: numpy.dtype
-        :returns: coord array record dtype
-
         """
-        # deprecated in 0.8.10
-        warnings.warn(
-            """`coords_dtype` is deprecated because combined coords have been removed from libtiledb.
-            Currently it returns a record array of each individual dimension dtype, but it will
-            be removed because that is not applicable to split dimensions.
-            It is slated for removal in 0.19.0""",
-            DeprecationWarning,
+        Deprecated in 0.8.10
+        """
+        raise TileDBError(
+            "`coords_dtype` is deprecated because combined coords have been "
+            "removed from libtiledb. This message will be removed in 0.21.0.",
         )
-        assert tiledbpy_version < (0, 19, 0)
-
-        # returns the record array dtype of the coordinate array
-        return np.dtype([(str(dim.name), dim.dtype) for dim in self.schema.domain])
-
+        
     @property
     def uri(self):
         """Returns the URI of the array"""
@@ -3247,15 +3218,10 @@ cdef class Query(object):
 
     @property
     def attr_cond(self):
-        assert tiledbpy_version < (0, 19, 0)
-
-        warnings.warn(
-            "`attr_cond` is now deprecated and is slated for removal in "
-            "version 0.19.0. Use `cond`.",
-            DeprecationWarning,
+        raise TileDBError(
+            "`attr_cond` is no longer supported. You must use `cond`. "
+            "This message will be removed in 0.21.0."
         )
-
-        return self.cond
 
     @property
     def cond(self):
@@ -3484,20 +3450,15 @@ cdef class DenseArrayImpl(Array):
             raise TileDBError("DenseArray must be opened in read mode")
 
         if attr_cond is not None:
-            assert tiledbpy_version < (0, 19, 0)
-
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`. `attr_cond` is now deprecated "
-                    "and is slated for removal in version 0.19.0."
+                    "Only use `cond`."
                 )
 
-            warnings.warn(
-                "`attr_cond` is now deprecated and is slated for removal in "
-                "version 0.19.0. Use `cond`.",
-                DeprecationWarning,
+            raise TileDBError(
+                "`attr_cond` is no longer supported. You must use `cond`. "
+                "This message will be removed in 0.21.0."
             )
-            cond = attr_cond
 
         return Query(self, attrs=attrs, cond=cond, dims=dims,
                       coords=coords, order=order,
@@ -3544,20 +3505,15 @@ cdef class DenseArrayImpl(Array):
             raise TileDBError("DenseArray must be opened in read mode")
 
         if attr_cond is not None:
-            assert tiledbpy_version < (0, 19, 0)
-
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`. `attr_cond` is now deprecated "
-                    "and is slated for removal in version 0.19.0."
+                    "Only use `cond`."
                 )
 
-            warnings.warn(
-                "`attr_cond` is now deprecated and is slated for removal in "
-                "version 0.19.0. Use `cond`.",
-                DeprecationWarning,
+            raise TileDBError(
+                "`attr_cond` is no longer supported. You must use `cond`. "
+                "This message will be removed in 0.21.0."
             )
-            cond = attr_cond
 
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'C':
@@ -3623,13 +3579,12 @@ cdef class DenseArrayImpl(Array):
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
             elif isinstance(cond, QueryCondition):
-                assert tiledbpy_version < (0, 19, 0)
-                warnings.warn(
+                raise TileDBError(
                     "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "required and is slated for removal in version 0.19.0. "
-                    "Instead of `cond=tiledb.QueryCondition('expression')`, "
-                    "use `cond='expression'`.",
-                    DeprecationWarning,
+                    "supported as of 0.19.0. Instead of "
+                    "`cond=tiledb.QueryCondition('expression')` "
+                    "you must use `cond='expression'`. This message will be "
+                    "removed in 0.21.0.",
                 )
             else:
                 raise TypeError("`cond` expects type str.")
@@ -4282,20 +4237,15 @@ cdef class SparseArrayImpl(Array):
             raise TileDBError("SparseArray must be opened in read or delete mode")
 
         if attr_cond is not None:
-            assert tiledbpy_version < (0, 19, 0)
-
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`. `attr_cond` is now deprecated "
-                    "and is slated for removal in version 0.19.0."
+                    "Only use `cond`."
                 )
 
-            warnings.warn(
-                "`attr_cond` is now deprecated and is slated for removal in "
-                "version 0.19.0. Use `cond`.",
-                DeprecationWarning,
+            raise TileDBError(
+                "`attr_cond` is no longer supported. You must use `cond`. "
+                "This message will be removed in 0.21.0."
             )
-            cond = attr_cond
 
         # backwards compatibility
         _coords = coords
@@ -4355,20 +4305,15 @@ cdef class SparseArrayImpl(Array):
             raise TileDBError("SparseArray is not opened in read or delete mode")
 
         if attr_cond is not None:
-            assert tiledbpy_version < (0, 19, 0)
-
             if cond is not None:
                 raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`. `attr_cond` is now deprecated "
-                    "and is slated for removal in version 0.19.0."
+                    "`attr_cond` is no longer supported. You must use `cond`. "
                 )
 
-            warnings.warn(
-                "`attr_cond` is now deprecated and is slated for removal in "
-                "version 0.19.0. Use `cond`.",
-                DeprecationWarning,
+            raise TileDBError(
+                "`attr_cond` is no longer supported. You must use `cond`. "
+                "This message will be removed in 0.21.0.",
             )
-            cond = attr_cond
 
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'U':
@@ -4429,13 +4374,12 @@ cdef class SparseArrayImpl(Array):
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
             elif isinstance(cond, QueryCondition):
-                assert tiledbpy_version < (0, 19, 0)
-                warnings.warn(
+                raise TileDBError(
                     "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "required and is slated for removal in version 0.19.0. "
-                    "Instead of `cond=tiledb.QueryCondition('expression')`, "
-                    "use `cond='expression'`.",
-                    DeprecationWarning,
+                    "supported as of 0.19.0. Instead of "
+                    "`cond=tiledb.QueryCondition('expression')` "
+                    "you must use `cond='expression'`. This message will be "
+                    "removed in 0.21.0.",
                 )
             else:
                 raise TypeError("`cond` expects type str.")
