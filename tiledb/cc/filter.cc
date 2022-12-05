@@ -39,6 +39,15 @@ void init_filter(py::module &m) {
              case TILEDB_SCALE_FLOAT_OFFSET:
                filter.set_option(option, value.cast<double>());
                break;
+             case TILEDB_WEBP_INPUT_FORMAT:
+               filter.set_option(option, value.cast<uint8_t>());
+               break;
+             case TILEDB_WEBP_QUALITY:
+               filter.set_option(option, value.cast<float>());
+               break;
+             case TILEDB_WEBP_LOSSLESS:
+               filter.set_option(option, value.cast<uint8_t>());
+               break;
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _set_option");
              }
@@ -67,6 +76,21 @@ void init_filter(py::module &m) {
              case TILEDB_SCALE_FLOAT_FACTOR:
              case TILEDB_SCALE_FLOAT_OFFSET: {
                double value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_WEBP_INPUT_FORMAT: {
+               uint8_t value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_WEBP_QUALITY: {
+               float value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_WEBP_LOSSLESS: {
+               uint8_t value;
                filter.get_option(option, &value);
                return py::cast(value);
              }

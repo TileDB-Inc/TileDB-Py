@@ -14,6 +14,7 @@ void init_serialization(py::module &);
 void init_test_serialization(py::module &);
 #endif
 void init_test_metadata(py::module &);
+void init_test_webp_filter(py::module &);
 
 PYBIND11_MODULE(main, m) {
   init_core(m);
@@ -26,6 +27,7 @@ PYBIND11_MODULE(main, m) {
   init_test_serialization(m);
 #endif
   init_test_metadata(m);
+  init_test_webp_filter(m);
 }
 
 } // namespace tiledbpy

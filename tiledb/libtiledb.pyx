@@ -1972,7 +1972,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_offsets_filter_list(
                 ctx_ptr, self.ptr, &filter_list_ptr))
-        return FilterList(self.ctx, 
+        return FilterList(self.ctx,
             _capsule=PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     @property
@@ -3178,7 +3178,7 @@ cdef class Query(object):
     """
 
     def __init__(self, array, attrs=None, cond=None, dims=None,
-                 coords=False, index_col=True, order=None, 
+                 coords=False, index_col=True, order=None,
                  use_arrow=None, return_arrow=False, return_incomplete=False):
         if array.mode not in  ('r', 'd'):
             raise ValueError("array mode must be read or delete mode")
@@ -3339,7 +3339,7 @@ cdef class Query(object):
             print(output)
         else:
             return output
-    
+
     def submit(self):
         """An alias for calling the regular indexer [:]"""
         return self[:]
@@ -3498,9 +3498,9 @@ cdef class DenseArrayImpl(Array):
                 DeprecationWarning,
             )
             cond = attr_cond
-        
+
         return Query(self, attrs=attrs, cond=cond, dims=dims,
-                      coords=coords, order=order, 
+                      coords=coords, order=order,
                       use_arrow=use_arrow, return_arrow=return_arrow,
                       return_incomplete=return_incomplete)
 
@@ -4280,7 +4280,7 @@ cdef class SparseArrayImpl(Array):
         """
         if not self.isopen or self.mode not in  ('r', 'd'):
             raise TileDBError("SparseArray must be opened in read or delete mode")
-        
+
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
 
@@ -4305,7 +4305,7 @@ cdef class SparseArrayImpl(Array):
             _coords = True
 
         return Query(self, attrs=attrs, cond=cond, dims=dims,
-                      coords=_coords, index_col=index_col, order=order, 
+                      coords=_coords, index_col=index_col, order=order,
                       use_arrow=use_arrow, return_arrow=return_arrow,
                       return_incomplete=return_incomplete)
 
@@ -4353,7 +4353,7 @@ cdef class SparseArrayImpl(Array):
         """
         if not self.isopen or self.mode not in ('r', 'd'):
             raise TileDBError("SparseArray is not opened in read or delete mode")
-        
+
         if attr_cond is not None:
             assert tiledbpy_version < (0, 19, 0)
 
@@ -4439,10 +4439,10 @@ cdef class SparseArrayImpl(Array):
                 )
             else:
                 raise TypeError("`cond` expects type str.")
-        
+
         if self.mode == "r":
             q.set_ranges([list([x]) for x in subarray])
-        
+
         q.submit()
 
         if self.mode == 'd':

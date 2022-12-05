@@ -1,7 +1,7 @@
 import pytest
 
 ser_test = pytest.importorskip(
-    "tiledb.main.test_serialization", reason="Serialzation not enabled."
+    "tiledb.main.test_serialization", reason="Serialization not enabled."
 )
 
 import numpy as np

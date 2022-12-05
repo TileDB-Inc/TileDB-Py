@@ -89,7 +89,8 @@ void init_enums(py::module &m) {
       .value("CHECKSUM_SHA256", TILEDB_FILTER_CHECKSUM_SHA256)
       .value("SCALE_FLOAT", TILEDB_FILTER_SCALE_FLOAT)
       .value("DICTIONARY", TILEDB_FILTER_DICTIONARY)
-      .value("XOR", TILEDB_FILTER_XOR);
+      .value("XOR", TILEDB_FILTER_XOR)
+      .value("WEBP", TILEDB_FILTER_WEBP);
 
   py::enum_<tiledb_filter_option_t>(m, "FilterOption")
       .value("COMPRESSION_LEVEL", TILEDB_COMPRESSION_LEVEL)
@@ -97,7 +98,17 @@ void init_enums(py::module &m) {
       .value("POSITIVE_DELTA_MAX_WINDOW", TILEDB_POSITIVE_DELTA_MAX_WINDOW)
       .value("SCALE_FLOAT_BYTEWIDTH", TILEDB_SCALE_FLOAT_BYTEWIDTH)
       .value("SCALE_FLOAT_FACTOR", TILEDB_SCALE_FLOAT_FACTOR)
-      .value("SCALE_FLOAT_OFFSET", TILEDB_SCALE_FLOAT_OFFSET);
+      .value("SCALE_FLOAT_OFFSET", TILEDB_SCALE_FLOAT_OFFSET)
+      .value("WEBP_INPUT_FORMAT", TILEDB_WEBP_INPUT_FORMAT)
+      .value("WEBP_QUALITY", TILEDB_WEBP_QUALITY)
+      .value("WEBP_LOSSLESS", TILEDB_WEBP_LOSSLESS);
+
+  py::enum_<tiledb_filter_webp_format_t>(m, "WebpInputFormat")
+      .value("WEBP_NONE", TILEDB_WEBP_NONE)
+      .value("WEBP_RGB", TILEDB_WEBP_RGB)
+      .value("WEBP_RGBA", TILEDB_WEBP_RGBA)
+      .value("WEBP_BGR", TILEDB_WEBP_BGR)
+      .value("WEBP_BGRA", TILEDB_WEBP_BGRA);
 
   py::enum_<tiledb_encryption_type_t>(m, "EncryptionType")
       .value("NO_ENCRYPTION", TILEDB_NO_ENCRYPTION)
