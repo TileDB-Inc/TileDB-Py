@@ -9,14 +9,14 @@ stages:
           matrix:
             mac:
               imageName: "macOS-11"
-              python.version: "3.11"
+              python.version: "3.10"
               MACOSX_DEPLOYMENT_TARGET: 10.15
             windows:
               imageName: "windows-latest"
-              python.version: "3.11"
+              python.version: "3.10"
             linux_py3:
               imageName: "ubuntu-latest"
-              python.version: "3.11"
+              python.version: "3.10"
           maxParallel: 4
         timeoutInMinutes: 120
 
