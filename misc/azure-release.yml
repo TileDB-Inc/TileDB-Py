@@ -70,7 +70,7 @@ stages:
         steps:
           - task: UsePythonVersion@0
             inputs:
-              versionSpec: "3.11"
+              versionSpec: "3.10"
             condition: and(succeeded(), eq(variables['Agent.OS'], 'Darwin'))
 
           - script: git tag -f $(TILEDBPY_VERSION)
