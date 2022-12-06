@@ -49,7 +49,7 @@ stages:
         condition: always()
         variables:
           cibw_test_requires: "pytest"
-          USE_CIBW_VERSION: 2.3.0
+          USE_CIBW_VERSION: 2.11.3
         strategy:
           matrix:
             linux_py:
