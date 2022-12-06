@@ -69,10 +69,10 @@ git clone $TILEDB_PY_REPO TileDB-Py311
 git -C TileDB-Py311 checkout $TILEDBPY_VERSION
 
 cd /home/tiledb/TileDB-Py311
-/opt/python/cp311-cp311m/bin/python3.10 -m pip install -r misc/requirements_wheel.txt
-/opt/python/cp311-cp311/bin/python3.10 setup.py build_ext bdist_wheel --tiledb=/usr/local
+/opt/python/cp311-cp311m/bin/python3.11 -m pip install -r misc/requirements_wheel.txt
+/opt/python/cp311-cp311/bin/python3.11 setup.py build_ext bdist_wheel --tiledb=/usr/local
 auditwheel repair dist/*.whl
-/opt/python/cp311-cp311/bin/python3.10 -m pip install wheelhouse/*.whl
+/opt/python/cp311-cp311/bin/python3.11 -m pip install wheelhouse/*.whl
 cd tiledb/tests
 
 # copy build products out
