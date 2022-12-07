@@ -14,6 +14,7 @@ from collections import OrderedDict
 from collections.abc import Sequence
 
 from .attribute import Attr
+from .dimension_label_schema import DimLabelSchema
 from .ctx import default_ctx, Ctx, Config
 from .dimension import Dim
 from .domain import Domain
@@ -942,7 +943,7 @@ cdef class ArraySchema(object):
 
     :param domain: Domain of schema
     :type attrs: tuple(tiledb.Attr, ...)
-    :type dim_labels: dict(str: tiledb.DimensionLabel, ...)
+    :type dim_labels: dict(str: tiledb.DimLabelSchema, ...)
     :param cell_order:  TileDB label for cell layout
     :type cell_order: 'row-major' (default) or 'C', 'col-major' or 'F' or 'hilbert'
     :param tile_order:  TileDB label for tile layout
@@ -1088,21 +1089,22 @@ cdef class ArraySchema(object):
                 tiledb_array_schema_free(&schema_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
 
-        cdef tiledb_dimension_label_schema_t* dim_label_ptr = NULL
-        cdef bytes bdim_lbl_name
-        for dim_id, dim_lbl_name in enumerate(dim_labels):
-            dim_lbl_schema = dim_labels[dim_lbl_name]
-            if not isinstance(dim_lbl_schema, lt.DimensionLabel):
-                raise TypeError("dim_labels values must be tiledb.DimensionLabel dtype")
-            dim_label_schema_ptr = <tiledb_dimension_label_schema_t*>PyCapsule_GetPointer(
-            dim_lbl_schema.__capsule__(), "dl")
-            bdim_lbl_name = ustring(dim_lbl_name).encode("UTF-8")
+        cdef bytes bdim_label_name
+        for dim_label_name, dim_label_schema in dim_labels.items():
+            bdim_label_name = ustring(dim_label_name).encode("UTF-8")
+            if not isinstance(dim_label_schema, DimLabelSchema):
+                raise TypeError("dim_labels values must be tiledb.DimLabelSchema dtype")
+            dim_index = dim_label_schema.dimension_index
+            # TODO: Check original dtype matches dimension dtype
+            label_order = dim_label_schema._label_order
+            label_type = dim_label_schema._label_tiledb_dtype
             rc = tiledb_array_schema_add_dimension_label(
-                ctx_ptr, schema_ptr, dim_id,
-                bdim_lbl_name, dim_label_schema_ptr)
+                ctx_ptr, schema_ptr, dim_index, bdim_label_name, label_order, label_type)
             if rc != TILEDB_OK:
                 tiledb_array_schema_free(&schema_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
+            # TODO: Set tile extent
+            # TODO: Set filters
 
         rc = tiledb_array_schema_check(ctx_ptr, schema_ptr)
         if rc != TILEDB_OK:

@@ -102,6 +102,11 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_UNORDERED
         TILEDB_HILBERT
 
+    ctypedef enum tiledb_data_order_t:
+        TILEDB_UNORDERED_DATA
+        TILEDB_INCREASING_DATA
+        TILEDB_DECREASING_DATA
+
     ctypedef enum tiledb_encryption_type_t:
         TILEDB_NO_ENCRYPTION
         TILEDB_AES_256_GCM
@@ -1155,17 +1160,14 @@ cdef extern from "tiledb/tiledb_experimental.h":
     )
 
 cdef extern from "tiledb/tiledb_dimension_label.h":
-    # Types
-    ctypedef struct tiledb_dimension_label_schema_t:
-        pass
-    
     # DimensionLabel
     int tiledb_array_schema_add_dimension_label(
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
-        const uint32_t dim_id,
+        const uint32_t dim_index,
         const char* name,
-        tiledb_dimension_label_schema_t* dim_label_schema
+        tiledb_data_order_t label_order,
+        tiledb_datatype_t label_type
     )
 
     int tiledb_array_schema_has_dimension_label(

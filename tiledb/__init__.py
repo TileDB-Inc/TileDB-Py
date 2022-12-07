@@ -60,7 +60,7 @@ from .array import DenseArray, SparseArray
 
 from .attribute import Attr
 
-from .dimension_label import DimensionLabel
+from .dimension_label_schema import DimLabelSchema
 
 from .filter import (
     Filter,

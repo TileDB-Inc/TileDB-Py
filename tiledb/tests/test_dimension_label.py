@@ -10,8 +10,12 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
         dim_labels = {
-            "dim": tiledb.DimensionLabel(
-                (1, 10), 1, original_dtype=dim.dtype, new_dtype=dim.dtype
+            "dim": tiledb.DimLabelSchema(
+                0,
+                "increasing",
+                label_dtype=dim.dtype,
+                dim_dtype=dim.dtype,
+                dim_tile=10,
             )
         }
         sch = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)

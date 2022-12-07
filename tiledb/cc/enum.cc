@@ -76,10 +76,10 @@ void init_enums(py::module &m) {
       .value("UNORDERED", TILEDB_UNORDERED)
       .value("HILBERT", TILEDB_HILBERT);
 
-  py::enum_<tiledb_label_order_t>(m, "LabelOrder")
-      .value("INCREASING_LABELS", TILEDB_INCREASING_LABELS)
-      .value("DECREASING_LABELS", TILEDB_DECREASING_LABELS)
-      .value("UNORDERED_LABELS", TILEDB_UNORDERED_LABELS);
+  py::enum_<tiledb_data_order_t>(m, "DataOrder")
+      .value("UNORDERED_DATA", TILEDB_UNORDERED_DATA)
+      .value("INCREASING_DATA", TILEDB_INCREASING_DATA)
+      .value("DECREASING_DATA", TILEDB_DECREASING_DATA);
 
   py::enum_<tiledb_filter_type_t>(m, "FilterType")
       .value("NONE", TILEDB_FILTER_NONE)

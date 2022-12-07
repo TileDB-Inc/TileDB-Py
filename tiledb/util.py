@@ -206,28 +206,6 @@ def tiledb_cast_tile_extent(tile_extent: Any, dtype: np.dtype) -> np.array:
     return tile_size_array
 
 
-def _tiledb_cast_domain(
-    domain, tiledb_dtype: lt.DataType
-) -> Tuple[np.generic, np.generic]:
-    numpy_dtype = _numpy_dtype(tiledb_dtype)
-
-    if tiledb_type_is_datetime(tiledb_dtype):
-        date_unit = np.datetime_data(numpy_dtype)[0]
-        return (
-            np.datetime64(domain[0], date_unit),
-            np.datetime64(domain[1], date_unit),
-        )
-
-    if tiledb_dtype in (
-        lt.DataType.STRING_ASCII,
-        lt.DataType.STRING_UTF8,
-        lt.DataType.BLOB,
-    ):
-        return domain
-
-    return (numpy_dtype(domain[0]), numpy_dtype(domain[1]))
-
-
 def _tiledb_type_is_integer(tiledb_type: lt.DataType):
     return tiledb_type in (
         lt.DataType.UINT8,
