@@ -4033,6 +4033,7 @@ class IncompleteTest(DiskTestCase):
                 "sm.memory_budget_var": ncells,
                 "py.init_buffer_bytes": init_buffer_bytes,
                 "sm.query.sparse_unordered_with_dups.non_overlapping_ranges": non_overlapping_ranges,
+                "sm.skip_unary_partitioning_budget_check": True,
             }
         )
         self.assertEqual(config["py.init_buffer_bytes"], str(init_buffer_bytes))
