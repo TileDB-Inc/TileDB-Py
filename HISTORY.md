@@ -1,4 +1,10 @@
-# In Progress
+# Release 0.19.0
+
+## Packaging Notes
+* Added support for Python 3.11
+
+## TileDB Embedded updates:
+* TileDB-Py 0.19.0 includes TileDB Embedded [TileDB 2.13.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.13.0)
 
 ## API Changes
 * Support Boolean types for query conditions [#1432](https://github.com/TileDB-Inc/TileDB-Py/pull/1432)
@@ -10,6 +16,7 @@
 ## Bug Fixes
 * Fix issue where queries in delete mode error out on arrays with string dimensions [#1473](https://github.com/TileDB-Inc/TileDB-Py/pull/1473)
 * Fix representation of nullable integers in dataframe when using PyArrow path [#1439](https://github.com/TileDB-Inc/TileDB-Py/pull/1439)
+* Check for uninitialized query state after submit and error out if uninitialized [#1483](https://github.com/TileDB-Inc/TileDB-Py/pull/1483)
 
 # Release 0.18.3
 

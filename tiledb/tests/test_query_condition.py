@@ -107,25 +107,29 @@ class QueryConditionTest(DiskTestCase):
 
     def test_unsigned_sparse(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
-            with pytest.raises(DeprecationWarning) as exc_info:
-                result = A.query(cond=tiledb.QueryCondition("U < 5"), attrs=["U"])[:]
-                assert all(result["U"] < 5)
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond=tiledb.QueryCondition("U < 5"), attrs=["U"])[:]
             assert (
-                "Passing `tiledb.QueryCondition` to `cond` is no longer required"
+                "Passing `tiledb.QueryCondition` to `cond` is no longer supported"
                 in str(exc_info.value)
             )
+
+            result = A.query(cond="U < 5", attrs=["U"])[:]
+            assert all(result["U"] < 5)
 
     def test_unsigned_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask = A.attr("U").fill
 
-            with pytest.raises(DeprecationWarning) as exc_info:
-                result = A.query(cond=tiledb.QueryCondition("U < 5"), attrs=["U"])[:]
-                assert all(self.filter_dense(result["U"], mask) < 5)
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond=tiledb.QueryCondition("U < 5"), attrs=["U"])[:]
             assert (
-                "Passing `tiledb.QueryCondition` to `cond` is no longer required"
+                "Passing `tiledb.QueryCondition` to `cond` is no longer supported"
                 in str(exc_info.value)
             )
+
+            result = A.query(cond="U < 5", attrs=["U"])[:]
+            assert all(self.filter_dense(result["U"], mask) < 5)
 
     def test_signed_sparse(self):
         uri = self.create_input_array_UIDSA(sparse=True)
@@ -622,21 +626,21 @@ class QueryConditionTest(DiskTestCase):
                 A.query(cond=qc, attr_cond=qc)
             assert "Both `attr_cond` and `cond` were passed." in str(exc_info.value)
 
-            with pytest.raises(DeprecationWarning) as exc_info:
+            with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.query(attr_cond=qc)
-            assert "`attr_cond` is now deprecated" in str(exc_info.value)
+            assert "`attr_cond` is no longer supported" in str(exc_info.value)
 
-            with pytest.raises(DeprecationWarning) as exc_info:
+            with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.query(cond=qc).attr_cond
-            assert "`attr_cond` is now deprecated" in str(exc_info.value)
+            assert "`attr_cond` is no longer supported" in str(exc_info.value)
 
             with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.subarray(1, cond=qc, attr_cond=qc)
             assert "Both `attr_cond` and `cond` were passed." in str(exc_info.value)
 
-            with pytest.raises(DeprecationWarning) as exc_info:
+            with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.subarray(1, attr_cond=qc)
-            assert "`attr_cond` is now deprecated" in str(exc_info.value)
+            assert "`attr_cond` is no longer supported" in str(exc_info.value)
 
     def test_on_dense_dimensions(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:

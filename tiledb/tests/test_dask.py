@@ -53,6 +53,12 @@ class TestDaskSupport(DiskTestCase):
         # future releases.
         "ignore:make_current is deprecated"
     )
+    @pytest.mark.skipif(
+        condition=(
+            sys.version_info >= (3, 11) and (datetime.now() < datetime(2023, 1, 6))
+        ),
+        reason="https://github.com/dask/distributed/issues/6785",
+    )
     def test_dask_multiattr_2d(self):
         uri = self.path("multiattr")
 

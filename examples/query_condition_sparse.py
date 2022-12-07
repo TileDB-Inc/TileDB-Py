@@ -32,8 +32,6 @@
 import tiledb
 import numpy as np
 from pprint import pprint
-import tempfile
-import string
 
 uri = "query_condition_sparse"
 
@@ -67,10 +65,10 @@ def read_array(path):
         print()
 
     with tiledb.open(uri) as arr:
-        qc = tiledb.QueryCondition("(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)")
+        qc = "(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)"
         print(f"--- with query condition {qc}:")
         print()
-        res = arr.query(attr_cond=qc)[:]
+        res = arr.query(cond=qc)[:]
         pprint(res)
 
 

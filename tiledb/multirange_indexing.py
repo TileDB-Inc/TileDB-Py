@@ -7,7 +7,6 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from numbers import Real
 from dataclasses import dataclass
-import warnings
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
 
 
@@ -447,17 +446,12 @@ def _get_pyquery(
         if isinstance(query.cond, str):
             pyquery.set_cond(QueryCondition(query.cond))
         elif isinstance(query.cond, QueryCondition):
-            from tiledb import version as tiledbpy_version
-
-            assert tiledbpy_version() < (0, 19, 0)
-            warnings.warn(
-                "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                "required and is slated for removal in version 0.19.0. "
-                "Instead of `cond=tiledb.QueryCondition('expression')`, "
-                "use `cond='expression'`.",
-                DeprecationWarning,
+            raise TileDBError(
+                "Passing `tiledb.QueryCondition` to `cond` is no longer supported "
+                "as of 0.19.0. Instead of `cond=tiledb.QueryCondition('expression')` "
+                "you must use `cond='expression'`. This message will be "
+                "removed in 0.21.0.",
             )
-            pyquery.set_cond(query.cond)
         else:
             raise TypeError("`cond` expects type str.")
 

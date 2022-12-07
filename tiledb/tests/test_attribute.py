@@ -3,6 +3,7 @@ import xml.etree.ElementTree
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
+import sys
 
 import tiledb
 from tiledb.tests.common import assert_captured, DiskTestCase, has_pandas
@@ -184,4 +185,8 @@ class AttributeTest(DiskTestCase):
             assert A.schema.attr(0).name == ""
             with pytest.raises(AttributeError) as exc:
                 A.schema.attr(0).name = "can't change"
-            assert "can't set attribute" in str(exc.value)
+
+            if sys.version_info < (3, 11):
+                assert "can't set attribute" in str(exc.value)
+            else:
+                assert "object has no setter" in str(exc.value)

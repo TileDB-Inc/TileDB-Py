@@ -63,8 +63,21 @@ auditwheel repair dist/*.whl
 /opt/python/cp310-cp310/bin/python3.10 -m pip install wheelhouse/*.whl
 cd tiledb/tests
 
+# build python311 wheel
+cd /home/tiledb
+git clone $TILEDB_PY_REPO TileDB-Py311
+git -C TileDB-Py311 checkout $TILEDBPY_VERSION
+
+cd /home/tiledb/TileDB-Py311
+/opt/python/cp311-cp311m/bin/python3.11 -m pip install -r misc/requirements_wheel.txt
+/opt/python/cp311-cp311/bin/python3.11 setup.py build_ext bdist_wheel --tiledb=/usr/local
+auditwheel repair dist/*.whl
+/opt/python/cp311-cp311/bin/python3.11 -m pip install wheelhouse/*.whl
+cd tiledb/tests
+
 # copy build products out
 cp /home/tiledb/TileDB-Py37/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py38/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py39/wheelhouse/* /wheels
 cp /home/tiledb/TileDB-Py310/wheelhouse/* /wheels
+cp /home/tiledb/TileDB-Py311/wheelhouse/* /wheels
