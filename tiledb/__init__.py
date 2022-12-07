@@ -28,7 +28,12 @@ try:
 except:
     try:
         lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "native")
-        ctypes.CDLL(os.path.join(lib_dir, lib_name))
+        if os.name == "posix":
+            ctypes.CDLL(os.path.join(lib_dir, lib_name))
+        else:
+            # https://stackoverflow.com/a/64472088
+            # as of 3.8 on windows, use winmode=0 to specify loading for a fully named path.
+            ctypes.CDLL(os.path.join(lib_dir, lib_name), winmode=0)
     except OSError as e:
         # Otherwise try loading by name only.
         ctypes.CDLL(lib_name)
