@@ -7,6 +7,7 @@
 * TileDB-Py 0.19.0 includes TileDB Embedded [TileDB 2.13.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.13.0)
 
 ## API Changes
+* Add support for `WebpFilter` [#1395](https://github.com/TileDB-Inc/TileDB-Py/pull/1395)
 * Support Boolean types for query conditions [#1432](https://github.com/TileDB-Inc/TileDB-Py/pull/1432)
 * Support for partial consolidation using a list of fragment URIs [#1431](https://github.com/TileDB-Inc/TileDB-Py/pull/1431)
 * Addition of `ArraySchemaEvolution.timestamp` [#1480](https://github.com/TileDB-Inc/TileDB-Py/pull/1480)
@@ -76,9 +77,6 @@
 ## Bug Fixes
 * Correct writing empty/null strings to array. `tiledb.main.array_to_buffer` needs to resize data buffer at the end of `convert_unicode`; otherwise, last cell will be store with trailing nulls chars [#1339](https://github.com/TileDB-Inc/TileDB-Py/pull/1339)
 * Revert [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326) due to issues with `Context` lifetime with in multiprocess settings [#1372](https://github.com/TileDB-Inc/TileDB-Py/pull/1372)
-
-## API Changes
-* Add support for `WebpFilter` [#1395](https://github.com/TileDB-Inc/TileDB-Py/pull/1395)
 
 # TileDB-Py 0.17.5 Release Notes
 
