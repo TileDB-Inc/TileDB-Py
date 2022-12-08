@@ -12,13 +12,10 @@ namespace py = pybind11;
 
 void init_context(py::module &m) {
   py::class_<Context>(m, "Context")
+      .def(py::init<Context>())
       .def(py::init())
       .def(py::init<Config>())
       .def(py::init<py::capsule, bool>())
-      .def(py::init([](py::object ctx, bool own) {
-             return Context(py::capsule(ctx.attr("__capsule__")()), own);
-           }),
-           py::keep_alive<1, 2>())
 
       .def("__capsule__",
            [](Context &ctx) {
@@ -33,6 +30,7 @@ void init_context(py::module &m) {
 
 void init_config(py::module &m) {
   py::class_<tiledb::Config>(m, "Config")
+      .def(py::init<Config>())
       .def(py::init())
       .def(py::init<std::map<std::string, std::string>>())
       .def(py::init<std::string>())
