@@ -6,6 +6,23 @@
 ## TileDB Embedded updates:
 * TileDB-Py 0.19.0 includes TileDB Embedded [TileDB 2.13.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.13.0)
 
+## Deprecations
+* `FragmentInfoList.non_empty_domain` deprecated for `FragmentInfoList.nonempty_domain`
+* `FragmentInfoList.to_vacuum_num` deprecated for `len(FragmentInfoList.to_vacuum)`
+* `FragmentInfoList.to_vacuum_uri` deprecated for `FragmentInfoList.to_vacuum`
+* `FragmentInfoList.dense` deprecated for `not FragmentInfoList.dense`
+* `FragmentInfo.non_empty_domain` deprecated for `FragmentInfo.nonempty_domain`
+* `FragmentInfo.to_vacuum_num` deprecated for `len(FragmentInfo.to_vacuum)`
+* `FragmentInfo.to_vacuum_uri` deprecated for `FragmentInfo.to_vacuum`
+* `FragmentInfo.dense` deprecated for `not FragmentInfo.dense`
+* `FragmentsInfo` deprecated for `FragmentInfoList`
+* `tiledb.delete_fragments` deprecated for `Array.delete_fragments`
+* `Array.timestamp` deprecated for `Array.timestamp_range`
+* `Array.coords_dtype` deprecated with no replacement; combined coords have been removed from libtiledb
+* `Array.timestamp` deprecated for `Array.timestamp_range`
+* `Array.query(attr_cond=...)` deprecated for `Array.query(cond=...)`
+* `Array.query(cond=tiledb.QueryCondition('expression'))` deprecated for `Array.query(cond='expression')`
+
 ## API Changes
 * Add support for `WebpFilter` [#1395](https://github.com/TileDB-Inc/TileDB-Py/pull/1395)
 * Support Boolean types for query conditions [#1432](https://github.com/TileDB-Inc/TileDB-Py/pull/1432)
