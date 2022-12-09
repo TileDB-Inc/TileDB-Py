@@ -721,10 +721,12 @@ class WebpFilter(Filter):
 
     @property
     def input_format(self):
-        return lt.WebpInputFormat(self._get_option(
-            self._ctx,
-            lt.FilterOption.WEBP_INPUT_FORMAT,
-        ))
+        return lt.WebpInputFormat(
+            self._get_option(
+                self._ctx,
+                lt.FilterOption.WEBP_INPUT_FORMAT,
+            )
+        )
 
     @property
     def quality(self):
