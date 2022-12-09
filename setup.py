@@ -21,7 +21,8 @@ from pybind11.setup_helpers import Pybind11Extension
 ### DO NOT USE ON CI
 
 # Target branch: Note that this should be set to the current core release, not `dev`
-TILEDB_VERSION = "2.13.0"
+# TILEDB_VERSION = "2.13.0"
+TILEDB_VERSION = "dev"  # Remove before merging to dev
 
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
@@ -197,6 +198,7 @@ def build_libtiledb(src_dir):
         "-DTILEDB_SERIALIZATION:BOOL={}".format(
             "OFF" if TILEDB_DISABLE_SERIALIZATION else "ON"
         ),
+        "-DTILEDB_EXPERIMENTAL_FEATURES=ON",  # Remove before merging to dev
     ]
 
     deployment_target = os.environ.get("MACOSX_DEPLOYMENT_TARGET", None)
