@@ -12,6 +12,26 @@ import tiledb
     reason="Can't create WebP filter; built with TILEDB_WEBP=OFF",
 )
 @pytest.mark.parametrize(
+    "format, quality, lossless",
+    [
+        (tiledb.filter.lt.WebpInputFormat.WEBP_RGB, 100.0, False),  # Test setting format with enum values
+        (tiledb.filter.lt.WebpInputFormat.WEBP_BGR, 50.0, True),
+        (tiledb.filter.lt.WebpInputFormat.WEBP_RGBA, 25.5, False),
+        (4, 0.0, True),                                             # Test setting format with integral type
+    ],
+)
+def test_webp_ctor(format, quality, lossless):
+    webp_filter = tiledb.WebpFilter(input_format=format, quality=quality, lossless=lossless)
+    np.testing.assert_equal(webp_filter.input_format, tiledb.filter.lt.WebpInputFormat(format))
+    np.testing.assert_equal(webp_filter.quality, quality)
+    np.testing.assert_equal(webp_filter.lossless, lossless)
+
+
+@pytest.mark.skipif(
+    not main.test_webp_filter.webp_filter_exists(),
+    reason="Can't create WebP filter; built with TILEDB_WEBP=OFF",
+)
+@pytest.mark.parametrize(
     "attr_dtype, dim_dtype, var, sparse",
     [
         (np.int64, np.int64, None, True),  # Sparse arrays are not supported
