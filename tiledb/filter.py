@@ -510,11 +510,11 @@ class FloatScaleFilter(Filter):
     """
     Filter that stores floats as integers in a reduced representation via scaling.
     The reduced storage space is in lieu of some precision loss. The float scaling
-    filter takes three parameters: the scale, the offset, and the byte width.
-    On write, the float scaling filter applies the scale factor and offset,
-    and stores the value of round((raw_float - offset) / scale) as an
+    filter takes three parameters: the factor, the offset, and the bytewidth.
+    On write, the float scaling filter applies the factor (scaling factor) and offset,
+    and stores the value of round((raw_float - offset) / factor) as an
     integer with the specified NumPy dtype.
-    On read, the float scaling filter will reverse the scale factor and offset,
+    On read, the float scaling filter will reverse the factor and offset,
     and returns the floating point data, with a potential loss of precision.
     :param factor: the scaling factor used to translate the data
     :type factor: float
