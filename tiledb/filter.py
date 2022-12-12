@@ -679,7 +679,7 @@ class WebpFilter(Filter):
 
     def __init__(
         self,
-        input_format: int = None,
+        input_format: lt.WebpInputFormat = None,
         quality: float = None,
         lossless: bool = None,
         ctx: "Ctx" = None,
@@ -693,21 +693,21 @@ class WebpFilter(Filter):
 
         if input_format is not None:
             self._set_option(
-                lt.Context(self._ctx.__capsule__(), False),
+                self._ctx,
                 lt.FilterOption.WEBP_INPUT_FORMAT,
-                input_format,
+                lt.WebpInputFormat(input_format),
             )
 
         if quality is not None:
             self._set_option(
-                lt.Context(self._ctx.__capsule__(), False),
+                self._ctx,
                 lt.FilterOption.WEBP_QUALITY,
                 float(quality),
             )
 
         if lossless is not None:
             self._set_option(
-                lt.Context(self._ctx.__capsule__(), False),
+                self._ctx,
                 lt.FilterOption.WEBP_LOSSLESS,
                 lossless,
             )
@@ -721,22 +721,24 @@ class WebpFilter(Filter):
 
     @property
     def input_format(self):
-        return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
-            lt.FilterOption.WEBP_INPUT_FORMAT,
+        return lt.WebpInputFormat(
+            self._get_option(
+                self._ctx,
+                lt.FilterOption.WEBP_INPUT_FORMAT,
+            )
         )
 
     @property
     def quality(self):
         return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
+            self._ctx,
             lt.FilterOption.WEBP_QUALITY,
         )
 
     @property
     def lossless(self):
         return self._get_option(
-            lt.Context(self._ctx.__capsule__(), False),
+            self._ctx,
             lt.FilterOption.WEBP_LOSSLESS,
         )
 
