@@ -6,7 +6,7 @@ numpy >= 1.16.5
 cmake >= 3.23
 cython >= 0.27
 pybind11 >= 2.6.2
-setuptools>=42,<=59.4.0
+setuptools>=42,<=58.4.0
 setuptools_scm >= 1.5.4
 wheel >= 0.30
 contextvars ;python_version<"3.7"

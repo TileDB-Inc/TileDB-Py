@@ -1,8 +1,8 @@
 [build-system]
 
 # https://askubuntu.com/a/1407138
-# we encounter the above error in versions of setuptools<=59.4.0
-requires = ["setuptools>=42,<=59.4.0", "wheel", "pybind11>=2.6.2"]
+# we encounter the above error in versions of setuptools<=58.4.0
+requires = ["setuptools>=42,<=58.4.0", "wheel", "pybind11>=2.6.2"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
