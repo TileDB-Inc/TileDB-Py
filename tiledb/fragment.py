@@ -54,9 +54,9 @@ class FragmentInfoList:
     ...
     ...     # Write three fragments to the array
     ...     with tiledb.DenseArray(uri, mode="w") as A:
-    ...         A[1:3, 1:5] = np.array(([1, 2, 3, 4, 5, 6, 7, 8]))
+    ...         A[1:3, 1:5] = np.array(([[1, 2, 3, 4], [5, 6, 7, 8]]))
     ...     with tiledb.DenseArray(uri, mode="w") as A:
-    ...         A[2:4, 2:4] = np.array(([101, 102, 103, 104]))
+    ...         A[2:4, 2:4] = np.array(([101, 102], [103, 104]))
     ...     with tiledb.DenseArray(uri, mode="w") as A:
     ...         A[3:4, 4:5] = np.array(([202]))
     ...

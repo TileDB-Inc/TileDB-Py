@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Ensure NumPy array matches array schema dimensions for dense writes []()
+
 # Release 0.19.0
 
 ## Packaging Notes

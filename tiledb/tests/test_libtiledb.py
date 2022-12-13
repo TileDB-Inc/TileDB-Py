@@ -1659,6 +1659,23 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.open(path, mode="r") as T:
             assert_array_equal(data, T[:])
 
+    def test_match_numpy_schema_dimensions(self):
+        path = self.path("test_match_numpy_schema_dimensions")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="dim_0", domain=(1, 5), dtype=np.int64),
+            tiledb.Dim(name="dim_1", domain=(1, 10), dtype=np.int64),
+            tiledb.Dim(name="dim_2", domain=(1, 20), dtype=np.int64),
+        )
+        att = tiledb.Attr(name="a", dtype=np.int64)
+        schema = tiledb.ArraySchema(dom, (att,))
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as A:
+            with self.assertRaises(ValueError):
+                A[:] = np.zeros((10, 20, 5))
+            A[:] = np.zeros((5, 10, 20))
+
 
 class TestVarlen(DiskTestCase):
     def test_varlen_write_bytes(self):
@@ -1942,7 +1959,7 @@ class TestVarlen(DiskTestCase):
 
         tiledb.DenseArray.create(self.path("foo"), schema)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
-            with self.assertRaises(tiledb.TileDBError):
+            with self.assertRaises(ValueError):
                 T[:] = A
 
     def test_array_varlen_mismatched(self):
@@ -2297,12 +2314,12 @@ class TestSparseArray(DiskTestCase):
         )
         att = tiledb.Attr("", dtype=int)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=False)
-        tiledb.DenseArray.create(uri, schema)
+        tiledb.Array.create(uri, schema)
 
-        with tiledb.DenseArray(uri, mode="w") as A:
-            A[:, :] = np.arange(9)
+        with tiledb.open(uri, mode="w") as A:
+            A[:, :] = np.arange(9).reshape(3, 3)
 
-        with tiledb.DenseArray(uri, mode="r") as A:
+        with tiledb.open(uri, mode="r") as A:
             i = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]])
             j = np.array([[4, 5, 6], [4, 5, 6], [4, 5, 6]])
 
