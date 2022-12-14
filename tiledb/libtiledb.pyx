@@ -2729,7 +2729,7 @@ cdef class Array(object):
             "`coords_dtype` is deprecated because combined coords have been "
             "removed from libtiledb. This message will be removed in 0.21.0.",
         )
-        
+
     @property
     def uri(self):
         """Returns the URI of the array"""
@@ -2806,7 +2806,7 @@ cdef class Array(object):
         )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-    
+
     @staticmethod
     def delete_array(uri, ctx=None):
         """
@@ -2949,7 +2949,7 @@ cdef class Array(object):
         """
         if self.mode == 'r':
             raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
-        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, 
+        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx,
                            fragment_uris=fragment_uris, timestamp=timestamp)
 
     def upgrade_version(self, config=None):
@@ -3837,6 +3837,7 @@ cdef class DenseArrayImpl(Array):
             layout = TILEDB_COL_MAJOR
 
         cdef tiledb_query_t* query_ptr = NULL
+        cdef tiledb_subarray_t* subarray_ptr = NULL
         cdef int rc = TILEDB_OK
         rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
         if rc != TILEDB_OK:
@@ -3885,11 +3886,19 @@ cdef class DenseArrayImpl(Array):
                                 f"the TileDB array has {ned[n][1]-ned[n][0]}."
                             )
 
-            rc = tiledb_query_set_subarray(
+            rc = tiledb_subarray_alloc(ctx_ptr, array_ptr, &subarray_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_subarray_set_subarray(
                     ctx_ptr,
-                    query_ptr,
+                    subarray_ptr,
                     <void*>np.PyArray_DATA(subarray)
             )
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+
+            rc = tiledb_query_set_subarray_t(ctx_ptr, query_ptr, subarray_ptr)
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
@@ -3913,6 +3922,7 @@ cdef class DenseArrayImpl(Array):
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
         finally:
+            tiledb_subarray_free(&subarray_ptr)
             tiledb_query_free(&query_ptr)
         return
 
@@ -4534,7 +4544,7 @@ def _consolidate_uris(uri, key=None, config=None, ctx=None, fragment_uris=None):
         ctx_ptr, array_uri_ptr, fragment_uri_buf, len(fragment_uris), config_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
-    
+
     free(fragment_uri_buf)
 
     return uri

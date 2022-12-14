@@ -208,8 +208,13 @@ void init_query(py::module &m) {
 
              // Use the C API here because we are doing typecheck
              auto ctx = q.ctx(); // NB this requires libtiledb >=2.6
-             ctx.handle_error(tiledb_query_set_subarray(
-                 ctx.ptr().get(), q.ptr().get(), const_cast<void *>(a.data())));
+             tiledb_subarray_t *subarray;
+             ctx.handle_error(tiledb_query_get_subarray_t(
+                 ctx.ptr().get(), q.ptr().get(), &subarray));
+             ctx.handle_error(tiledb_subarray_set_subarray(
+                 ctx.ptr().get(), subarray, const_cast<void *>(a.data())));
+             ctx.handle_error(tiledb_query_set_subarray_t(
+                 ctx.ptr().get(), q.ptr().get(), subarray));
            })
       //.def("add_range", ([](Query& this, uint32_t dim_idx, py::object,
       // py::object) {

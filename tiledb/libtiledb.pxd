@@ -653,11 +653,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_query_type_t query_type,
         tiledb_query_t** query)
 
-    int tiledb_query_set_subarray(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const void* subarray)
-
     int tiledb_query_set_subarray_t(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
