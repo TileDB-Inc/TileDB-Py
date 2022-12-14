@@ -775,21 +775,6 @@ cdef extern from "tiledb/tiledb.h":
         uint64_t* t1,
         uint64_t* t2)
 
-    int tiledb_query_get_range(
-        tiledb_ctx_t* ctx,
-        const tiledb_query_t* query,
-        uint32_t dim_idx,
-        uint64_t range_idx,
-        const void** start,
-        const void** end,
-        const void** stride)
-
-    int tiledb_query_get_range_num(
-        tiledb_ctx_t* ctx,
-        const tiledb_query_t* query,
-        uint32_t dim_idx,
-        uint64_t * range_num)
-
     int tiledb_query_get_est_result_size(
         tiledb_ctx_t* ctx,
         const tiledb_query_t* query,
@@ -832,28 +817,6 @@ cdef extern from "tiledb/tiledb.h":
         uint64_t start_size,
         const void* end,
         uint64_t end_size)
-
-    int tiledb_subarray_get_range_num(
-        tiledb_ctx_t* ctx,
-        const tiledb_subarray_t* subarray,
-        uint32_t dim_idx,
-        uint64_t* range_num)
-
-    int tiledb_subarray_get_range_var_size(
-        tiledb_ctx_t* ctx,
-        const tiledb_subarray_t* subarray,
-        uint32_t dim_idx,
-        uint64_t range_idx,
-        uint64_t* start_size,
-        uint64_t* end_size)
-
-    int tiledb_subarray_get_range_var(
-        tiledb_ctx_t* ctx,
-        const tiledb_subarray_t* subarray,
-        uint32_t dim_idx,
-        uint64_t range_idx,
-        void* start,
-        void* end)
 
     int tiledb_subarray_set_subarray(
         tiledb_ctx_t* ctx,
