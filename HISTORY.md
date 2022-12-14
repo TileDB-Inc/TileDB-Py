@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Ensure NumPy array matches array schema dimensions for dense writes [#1514](https://github.com/TileDB-Inc/TileDB-Py/pull/1514)
+
 # Release 0.19.0
 
 ## Packaging Notes

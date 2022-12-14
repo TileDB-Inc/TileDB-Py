@@ -58,9 +58,9 @@ def create_array():
 
     schema = tiledb.ArraySchema(domain=domain, sparse=False, attrs=[attr])
 
-    tiledb.Array.create(img_uri, schema)
+    tiledb.Array.create(img_uri, schema, overwrite=True)
 
-    image_data_rgb = image_data.view(np.dtype("i4, i4, i4"))
+    image_data_rgb = image_data.view(np.dtype("i4, i4, i4")).reshape(img_shape)
 
     with tiledb.open(img_uri, "w") as A:
         # write data to 1st image_id slot

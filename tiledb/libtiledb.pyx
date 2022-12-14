@@ -3697,6 +3697,16 @@ cdef class DenseArrayImpl(Array):
         cdef list values = list()
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
 
+        if isinstance(val, np.ndarray):
+            subarray_shape = tuple(int(dim[1]-dim[0]+1) for dim in subarray)
+            try:
+                np.broadcast_shapes(subarray_shape, val.shape)
+            except ValueError:
+                raise ValueError(
+                    "shape mismatch; data dimensions do not match the domain "
+                    f"given in array schema ({subarray_shape} != {val.shape})"
+                )
+
         if isinstance(val, dict):
             for attr_idx in range(self.schema.nattr):
                 attr = self.schema.attr(attr_idx)
