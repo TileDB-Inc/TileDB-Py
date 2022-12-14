@@ -1,9 +1,6 @@
 import numpy as np
 import tiledb
-import hypothesis
-import time
 import tempfile
-import os
 
 from tiledb import cc as lt
 from tiledb.tests.common import paths_equal
@@ -55,7 +52,7 @@ def test_context():
     cfg = lt.Config()
     cfg["abc"] = "123"
     ctx = lt.Context(cfg)
-    assert ctx.config == cfg
+    assert ctx.config() == cfg
 
 
 # NOMERGE
@@ -103,6 +100,8 @@ def test_enums():
         for name, enum in enum_type.__members__.items():
             if name == "NONE":
                 assert lt._enum_string(enum) == "NOOP"
+            elif name == "DICTIONARY":
+                assert lt._enum_string(enum) == "DICTIONARY_ENCODING"
             else:
                 assert name == lt._enum_string(enum)
 
@@ -203,33 +202,32 @@ def test_attribute():
     ctx = lt.Context()
     attr = lt.Attribute(ctx, "a1", lt.DataType.FLOAT64)
 
-    assert attr.name == "a1"
-    assert attr.dtype == lt.DataType.FLOAT64
-    assert attr.cell_size == 8
-    assert attr.ncell == 1
-    attr.ncell = 5
-    assert attr.ncell == 5
-    assert attr.nullable == False
-    attr.nullable = True
-    assert attr.nullable == True
-    assert len(attr.filters) == 0
+    assert attr._name == "a1"
+    assert attr._tiledb_dtype == lt.DataType.FLOAT64
+    assert attr._cell_size == 8
+    assert attr._ncell == 1
+    attr._ncell = 5
+    assert attr._ncell == 5
+    assert attr._nullable == False
+    attr._nullable = True
+    assert attr._nullable == True
 
 
 def test_filter():
     ctx = lt.Context()
     fl = lt.FilterList(ctx)
 
-    fl.add_filter(lt.Filter(ctx, lt.FilterType.ZSTD))
-    assert fl.filter(0).type == lt.FilterType.ZSTD
-    assert len(fl) == 1
+    fl._add_filter(lt.Filter(ctx, lt.FilterType.ZSTD))
+    assert fl._filter(0)._type == lt.FilterType.ZSTD
+    assert fl._nfilters() == 1
 
     bzip_filter = lt.Filter(ctx, lt.FilterType.BZIP2)
-    bzip_filter.set_option(ctx, lt.FilterOption.COMPRESSION_LEVEL, 2)
-    assert bzip_filter.get_option(ctx, lt.FilterOption.COMPRESSION_LEVEL) == 2
+    bzip_filter._set_option(ctx, lt.FilterOption.COMPRESSION_LEVEL, 2)
+    assert bzip_filter._get_option(ctx, lt.FilterOption.COMPRESSION_LEVEL) == 2
 
-    fl.add_filter(bzip_filter)
-    assert fl.filter(1).type == lt.FilterType.BZIP2
-    assert len(fl) == 2
+    fl._add_filter(bzip_filter)
+    assert fl._filter(1)._type == lt.FilterType.BZIP2
+    assert fl._nfilters() == 2
 
     fl._chunksize = 100000
     assert fl._chunksize == 100000

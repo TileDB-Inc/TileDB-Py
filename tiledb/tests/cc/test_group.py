@@ -1,6 +1,5 @@
 import numpy as np
 from numpy.testing import assert_array_equal
-import pytest
 
 import os
 
@@ -18,25 +17,24 @@ def test_group_metadata(tmp_path):
     grp = lt.Group(ctx, grp_path, lt.QueryType.WRITE)
     grp._put_metadata("int", int_data)
     grp._put_metadata("flt", flt_data)
-    grp.close()
+    grp._close()
 
     grp._open(lt.QueryType.READ)
     assert grp._metadata_num() == 2
     assert grp._has_metadata("int")
-    assert_array_equal(grp._get_metadata("int"), int_data)
+    assert_array_equal(grp._get_metadata("int")[0], int_data)
     assert grp._has_metadata("flt")
-    assert_array_equal(grp._get_metadata("flt"), flt_data)
-    grp.close()
+    assert_array_equal(grp._get_metadata("flt")[0], flt_data)
+    grp._close()
 
-    # NOTE uncomment when deleting is "synced" in core
-    # grp.open(lt.QueryType.WRITE)
-    # grp._delete_metadata("int")
-    # grp.close()
+    grp._open(lt.QueryType.WRITE)
+    grp._delete_metadata("int")
+    grp._close()
 
-    # grp = lt.Group(ctx, grp_path, lt.QueryType.READ)
-    # assert grp.metadata_num() == 1
-    # assert not grp._has_metadata("int")
-    # grp.close()
+    grp = lt.Group(ctx, grp_path, lt.QueryType.READ)
+    assert grp._metadata_num() == 1
+    assert not grp._has_metadata("int")
+    grp._close()
 
 
 def test_group_members(tmp_path):
@@ -48,20 +46,20 @@ def test_group_members(tmp_path):
 
     subgrp_path = os.path.join(tmp_path, "test_group_0")
     lt.Group._create(ctx, subgrp_path)
-    grp.add(subgrp_path)
-    grp.close()
+    grp._add(subgrp_path)
+    grp._close()
 
     grp._open(lt.QueryType.READ)
-    assert grp.__len__() == 1
+    assert grp._member_count() == 1
     member = grp._member(0)
-    assert os.path.basename(member.uri) == os.path.basename(subgrp_path)
+    assert os.path.basename(member._uri) == os.path.basename(subgrp_path)
     assert member._type == lt.ObjectType.GROUP
-    grp.close()
+    grp._close()
 
     grp._open(lt.QueryType.WRITE)
-    grp.remove(subgrp_path)
-    grp.close()
+    grp._remove(subgrp_path)
+    grp._close()
 
     grp = lt.Group(ctx, grp_path, lt.QueryType.READ)
-    assert grp.__len__() == 0
-    grp.close()
+    assert grp._member_count() == 0
+    grp._close()
