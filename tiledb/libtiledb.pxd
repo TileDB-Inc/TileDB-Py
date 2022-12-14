@@ -141,6 +141,8 @@ cdef extern from "tiledb/tiledb.h":
         pass
     ctypedef struct tiledb_query_t:
         pass
+    ctypedef struct tiledb_subarray_t:
+        pass
     ctypedef struct tiledb_filter_list_t:
         pass
     ctypedef struct tiledb_vfs_t:
@@ -458,7 +460,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
         tiledb_filter_list_t* filter_list)
-    
+
     int tiledb_array_schema_set_validity_filter_list(
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
@@ -505,7 +507,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         tiledb_filter_list_t** filter_list)
-    
+
     int tiledb_array_schema_get_validity_filter_list(
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
@@ -557,10 +559,10 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         FILE* out)
-    
+
     int tiledb_array_schema_get_version(
         tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema, 
+        tiledb_array_schema_t* array_schema,
         uint32_t* version)
 
     int tiledb_array_get_open_timestamp_start(
@@ -638,10 +640,10 @@ cdef extern from "tiledb/tiledb.h":
         const void* encryption_key,
         uint32_t key_length,
         tiledb_config_t* config) nogil
-    
+
     int tiledb_array_delete_array(
-        tiledb_ctx_t* ctx, 
-        tiledb_array_t* array, 
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
         const char* uri) nogil
 
     # Query
@@ -655,6 +657,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
         const void* subarray)
+
+    int tiledb_query_set_subarray_t(
+        tiledb_ctx_t* ctx,
+        tiledb_query_t* query,
+        const tiledb_subarray_t*)
 
     int tiledb_query_set_buffer(
         tiledb_ctx_t* ctx,
@@ -740,6 +747,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_query_t* query,
         tiledb_query_status_t* status)
 
+    int tiledb_query_get_subarray_t(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        tiledb_subarray_t** subarray)
+
     int tiledb_query_get_type(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
@@ -816,7 +828,59 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_query_get_stats(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
-        char** stats_json);
+        char** stats_json)
+
+    # Subarray
+    int tiledb_subarray_alloc(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_t* array,
+        tiledb_subarray_t** subarray)
+
+    void tiledb_subarray_free(tiledb_subarray_t** subarray)
+
+    int tiledb_subarray_add_range(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        uint32_t dim_idx,
+        const void* start,
+        const void* end,
+        const void* stride)
+
+    int tiledb_subarray_add_range_var(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        uint32_t dim_idx,
+        const void* start,
+        uint64_t start_size,
+        const void* end,
+        uint64_t end_size)
+
+    int tiledb_subarray_get_range_num(
+        tiledb_ctx_t* ctx,
+        const tiledb_subarray_t* subarray,
+        uint32_t dim_idx,
+        uint64_t* range_num)
+
+    int tiledb_subarray_get_range_var_size(
+        tiledb_ctx_t* ctx,
+        const tiledb_subarray_t* subarray,
+        uint32_t dim_idx,
+        uint64_t range_idx,
+        uint64_t* start_size,
+        uint64_t* end_size)
+
+    int tiledb_subarray_get_range_var(
+        tiledb_ctx_t* ctx,
+        const tiledb_subarray_t* subarray,
+        uint32_t dim_idx,
+        uint64_t range_idx,
+        void* start,
+        void* end)
+
+    int tiledb_subarray_set_subarray(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        const void* subarray_v)
 
     # Array
     int tiledb_array_alloc(
@@ -1170,12 +1234,12 @@ cdef extern from "tiledb/tiledb_experimental.h":
         tiledb_ctx_t* ctx,
         const char* uri,
         tiledb_array_schema_t** array_schema) nogil
-    
+
     int tiledb_array_upgrade_version(
-        tiledb_ctx_t* ctx, 
-        const char* array_uri, 
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
         tiledb_config_t* config) nogil
-    
+
     int tiledb_array_consolidate_fragments(
         tiledb_ctx_t* ctx,
         const char* array_uri,
