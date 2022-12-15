@@ -1177,6 +1177,21 @@ cdef extern from "tiledb/tiledb_dimension_label.h":
         int* has_dim_label
     )
 
+    int tiledb_array_schema_set_dimension_label_filter_list(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        const char* label_name,
+        tiledb_filter_list_t* filter_list
+    )
+
+    int tiledb_array_schema_set_dimension_label_tile_extent(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        const char* label_name,
+        tiledb_datatype_t type,
+        const void* tile_extent
+    )
+
 # Free helper functions
 cpdef unicode ustring(object s)
 cpdef check_error(object ctx, int rc)

@@ -1089,22 +1089,41 @@ cdef class ArraySchema(object):
                 tiledb_array_schema_free(&schema_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
 
+        # Add dimension labels
         cdef bytes bdim_label_name
         for dim_label_name, dim_label_schema in dim_labels.items():
             bdim_label_name = ustring(dim_label_name).encode("UTF-8")
             if not isinstance(dim_label_schema, DimLabelSchema):
                 raise TypeError("dim_labels values must be tiledb.DimLabelSchema dtype")
+
+            # Add the dimension label
             dim_index = dim_label_schema.dimension_index
-            # TODO: Check original dtype matches dimension dtype
-            label_order = dim_label_schema._label_order
+            label_order = dim_label_schema._label_tiledb_order
             label_type = dim_label_schema._label_tiledb_dtype
             rc = tiledb_array_schema_add_dimension_label(
                 ctx_ptr, schema_ptr, dim_index, bdim_label_name, label_order, label_type)
             if rc != TILEDB_OK:
                 tiledb_array_schema_free(&schema_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
-            # TODO: Set tile extent
-            # TODO: Set filters
+
+            # Set the tile extent
+            if dim_label_schema._dimension_tile_extent is not None:
+                dim_type = dim_label_schema._dimension_tiledb_dtype
+                tile_size_ptr = np.PyArray_DATA(dim_label_schema._dimension_tile_extent)
+                rc = tiledb_array_schema_set_dimension_label_tile_extent(
+                    ctx_ptr, schema_ptr, bdim_label_name, dim_type, tile_size_ptr)
+                if rc != TILEDB_OK:
+                    tiledb_array_schema_free(&schema_ptr)
+                    _raise_ctx_err(ctx_ptr, rc)
+
+            # Set the label filters
+            label_filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
+                    dim_label_schema.label_filters.__capsule__(), "fl")
+            rc = tiledb_array_schema_set_dimension_label_filter_list(
+                ctx_ptr, schema_ptr, bdim_label_name, label_filter_list_ptr)
+            if rc != TILEDB_OK:
+                tiledb_array_schema_free(&schema_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
 
         rc = tiledb_array_schema_check(ctx_ptr, schema_ptr)
         if rc != TILEDB_OK:
