@@ -53,7 +53,7 @@ public:
     tiledb_query_alloc(ctx, array, TILEDB_READ, &query);
     tiledb_query_set_subarray(ctx, query, subarray);
     tiledb_query_set_layout(ctx, query, TILEDB_UNORDERED);
-    tiledb_query_set_buffer(ctx, query, "", data, &data_size);
+    tiledb_query_set_data_buffer(ctx, query, "", data, &data_size);
 
     tiledb_buffer_list_t *buff_list;
     tiledb_buffer_t *buff;

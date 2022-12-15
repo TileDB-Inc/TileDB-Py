@@ -2729,7 +2729,7 @@ cdef class Array(object):
             "`coords_dtype` is deprecated because combined coords have been "
             "removed from libtiledb. This message will be removed in 0.21.0.",
         )
-        
+
     @property
     def uri(self):
         """Returns the URI of the array"""
@@ -2806,7 +2806,7 @@ cdef class Array(object):
         )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
-    
+
     @staticmethod
     def delete_array(uri, ctx=None):
         """
@@ -2949,7 +2949,7 @@ cdef class Array(object):
         """
         if self.mode == 'r':
             raise TileDBError("cannot consolidate array opened in readonly mode (mode='r')")
-        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx, 
+        return consolidate(uri=self.uri, key=key, config=config, ctx=self.ctx,
                            fragment_uris=fragment_uris, timestamp=timestamp)
 
     def upgrade_version(self, config=None):
@@ -3903,7 +3903,7 @@ cdef class DenseArrayImpl(Array):
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
-            rc = tiledb_query_set_buffer(
+            rc = tiledb_query_set_data_buffer(
                     ctx_ptr,
                     query_ptr,
                     attr_name_ptr,
@@ -4544,7 +4544,7 @@ def _consolidate_uris(uri, key=None, config=None, ctx=None, fragment_uris=None):
         ctx_ptr, array_uri_ptr, fragment_uri_buf, len(fragment_uris), config_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
-    
+
     free(fragment_uri_buf)
 
     return uri

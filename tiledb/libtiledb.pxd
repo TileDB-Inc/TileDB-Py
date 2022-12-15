@@ -458,7 +458,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
         tiledb_filter_list_t* filter_list)
-    
+
     int tiledb_array_schema_set_validity_filter_list(
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
@@ -505,7 +505,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         tiledb_filter_list_t** filter_list)
-    
+
     int tiledb_array_schema_get_validity_filter_list(
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
@@ -557,10 +557,10 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
         FILE* out)
-    
+
     int tiledb_array_schema_get_version(
         tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema, 
+        tiledb_array_schema_t* array_schema,
         uint32_t* version)
 
     int tiledb_array_get_open_timestamp_start(
@@ -638,10 +638,10 @@ cdef extern from "tiledb/tiledb.h":
         const void* encryption_key,
         uint32_t key_length,
         tiledb_config_t* config) nogil
-    
+
     int tiledb_array_delete_array(
-        tiledb_ctx_t* ctx, 
-        tiledb_array_t* array, 
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
         const char* uri) nogil
 
     # Query
@@ -655,13 +655,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
         const void* subarray)
-
-    int tiledb_query_set_buffer(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const char* attribute,
-        void* buffer,
-        uint64_t* buffer_size)
 
     int32_t tiledb_query_set_data_buffer(
         tiledb_ctx_t* ctx,
@@ -683,35 +676,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* name,
         uint64_t* buffer,
         uint64_t* buffer_size)
-
-    int tiledb_query_set_buffer_var(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const char* attribute,
-        uint64_t* buffer_off,
-        uint64_t* buffer_off_size,
-        void* buffer_val,
-        uint64_t* buffer_val_size)
-
-    int tiledb_query_set_buffer_nullable(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const char* name,
-        void* buffer,
-        uint64_t* buffer_size,
-        uint8_t* buffer_validity_bytemap,
-        uint64_t* buffer_validity_bytemap_size)
-
-    int tiledb_query_set_buffer_var_nullable(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const char* name,
-        uint64_t* buffer_off,
-        uint64_t* buffer_off_size,
-        void* buffer_val,
-        uint64_t* buffer_val_size,
-        uint8_t* buffer_validity_bytemap,
-        uint64_t* buffer_validity_bytemap_size)
 
     int tiledb_query_set_layout(
         tiledb_ctx_t* ctx,
@@ -1170,12 +1134,12 @@ cdef extern from "tiledb/tiledb_experimental.h":
         tiledb_ctx_t* ctx,
         const char* uri,
         tiledb_array_schema_t** array_schema) nogil
-    
+
     int tiledb_array_upgrade_version(
-        tiledb_ctx_t* ctx, 
-        const char* array_uri, 
+        tiledb_ctx_t* ctx,
+        const char* array_uri,
         tiledb_config_t* config) nogil
-    
+
     int tiledb_array_consolidate_fragments(
         tiledb_ctx_t* ctx,
         const char* array_uri,
