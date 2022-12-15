@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import tiledb
 import tempfile
 
@@ -121,7 +122,7 @@ def test_array():
     ctx = lt.Context()
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
     assert arr.is_open()
-    assert paths_equal(arr.uri(), uri)
+    assert paths_equal(os.path.normpath(arr.uri()), os.path.normpath(uri))
     assert arr.schema == arr.schema
 
     # TODO test
