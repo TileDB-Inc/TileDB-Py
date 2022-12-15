@@ -122,7 +122,7 @@ def test_array():
     ctx = lt.Context()
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
     assert arr.is_open()
-    assert paths_equal(os.path.basename(arr.uri()), os.path.basename(uri))
+    assert os.path.basename(arr.uri()) == os.path.basename(uri)
     assert arr.schema == arr.schema
 
     # TODO test
