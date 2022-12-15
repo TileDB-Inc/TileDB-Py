@@ -208,7 +208,7 @@ void init_query(py::module &m) {
 
              // Use the C API here because we are doing typecheck
              auto ctx = q.ctx(); // NB this requires libtiledb >=2.6
-             tiledb_subarray_t *subarray;
+             tiledb_subarray_t *subarray = nullptr;
              ctx.handle_error(tiledb_query_get_subarray_t(
                  ctx.ptr().get(), q.ptr().get(), &subarray));
              ctx.handle_error(tiledb_subarray_set_subarray(
