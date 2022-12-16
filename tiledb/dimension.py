@@ -111,14 +111,9 @@ class Dim(lt.Dimension):
 
         """
         self._ctx = ctx or default_ctx()
-        _cctx = lt.Context(self._ctx, False)
 
         if _lt_obj is not None:
-            name = _lt_obj._name
-            dtype = np.dtype(numpy_dtype(_lt_obj._tiledb_dtype))
-            domain = _tiledb_cast_domain(_lt_obj._domain, _lt_obj._tiledb_dtype)
-            tile = _lt_obj._tile
-            filters = _lt_obj._filters
+            return super().__init__(_lt_obj)
 
         if var is not None:
             if var and np.dtype(dtype) not in (np.str_, np.bytes_):
@@ -174,13 +169,11 @@ class Dim(lt.Dimension):
                 if tile_size_array.size != 1:
                     raise ValueError("tile extent must be a scalar")
 
-        super().__init__(_cctx, name, dim_datatype, domain_array, tile_size_array)
+        super().__init__(self._ctx, name, dim_datatype, domain_array, tile_size_array)
 
         if filters is not None:
             if isinstance(filters, FilterList):
                 self._filters = filters
-            elif isinstance(filters, lt.FilterList):
-                self._filters = FilterList(_lt_obj=filters)
             else:
                 self._filters = FilterList(filters)
 

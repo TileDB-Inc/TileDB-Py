@@ -15,6 +15,8 @@ namespace py = pybind11;
 
 void init_domain(py::module &m) {
   py::class_<Dimension>(m, "Dimension")
+      .def(py::init<Dimension>())
+
       .def(py::init([](const Context &ctx, const std::string &name,
                        tiledb_datatype_t datatype, py::object domain,
                        py::object tile_extent) {
@@ -174,9 +176,11 @@ void init_domain(py::module &m) {
       .def("_domain_to_str", &Dimension::domain_to_str);
 
   py::class_<Domain>(m, "Domain")
-      .def(py::init<Context &>(), py::keep_alive<1, 2>())
+      .def(py::init<Domain>())
 
-      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
+      .def(py::init<Context &>())
+
+      .def(py::init<const Context &, py::capsule>())
 
       .def("__capsule__",
            [](Domain &dom) {

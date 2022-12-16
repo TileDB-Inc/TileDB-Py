@@ -38,7 +38,7 @@ class Domain(lt.Domain):
             return super().__init__(self._ctx, _capsule)
 
         if _lt_obj is not None:
-            dims = [Dim(_lt_obj=_lt_obj._dim(i)) for i in range(_lt_obj._ndim)]
+            return super().__init__(_lt_obj)
 
         super().__init__(self._ctx)
 

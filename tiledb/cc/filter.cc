@@ -16,8 +16,7 @@ namespace py = pybind11;
 
 void init_filter(py::module &m) {
   py::class_<Filter>(m, "Filter")
-      .def(py::init<const Context &, tiledb_filter_type_t>(),
-           py::keep_alive<1, 2>())
+      .def(py::init<const Context &, tiledb_filter_type_t>())
 
       .def_property_readonly("_type", &Filter::filter_type)
 
@@ -111,8 +110,8 @@ void init_filter(py::module &m) {
 
   py::class_<FilterList>(m, "FilterList")
       .def(py::init<FilterList>())
-      .def(py::init<const Context &>(), py::keep_alive<1, 2>())
-      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
+      .def(py::init<const Context &>())
+      .def(py::init<const Context &, py::capsule>())
 
       .def("__capsule__",
            [](FilterList &filterlist) {
