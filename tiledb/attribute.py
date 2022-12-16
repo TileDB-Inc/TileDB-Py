@@ -47,25 +47,13 @@ class Attr(lt.Attribute):
 
         """
         self._ctx = ctx or default_ctx()
-        _cctx = lt.Context(self._ctx, False)
         _dtype = None
 
         if _capsule is not None:
-            return super().__init__(_cctx, _capsule)
+            return super().__init__(self._ctx, _capsule)
 
         if _lt_obj is not None:
-            name = _lt_obj._name
-            if _lt_obj._tiledb_dtype == lt.DataType.STRING_ASCII:
-                dtype = "ascii"
-            elif _lt_obj._tiledb_dtype == lt.DataType.BLOB:
-                dtype = "blob"
-            else:
-                dtype = np.dtype(numpy_dtype(_lt_obj._tiledb_dtype, _lt_obj._ncell))
-            nullable = _lt_obj._nullable
-            if not nullable:
-                fill = self._get_fill(_lt_obj._fill, _lt_obj._tiledb_dtype)
-            var = _lt_obj._var
-            filters = _lt_obj._filters
+            return super().__init__(_lt_obj)
 
         if isinstance(dtype, str) and dtype == "ascii":
             tiledb_dtype = lt.DataType.STRING_ASCII
@@ -108,7 +96,7 @@ class Attr(lt.Attribute):
 
         var = var or False
 
-        super().__init__(_cctx, name, tiledb_dtype)
+        super().__init__(self._ctx, name, tiledb_dtype)
 
         if _ncell:
             self._ncell = _ncell
@@ -121,8 +109,6 @@ class Attr(lt.Attribute):
         if filters is not None:
             if isinstance(filters, FilterList):
                 self._filters = filters
-            elif isinstance(filters, lt.FilterList):
-                self._filters = FilterList(_lt_obj=filters)
             else:
                 self._filters = FilterList(filters)
 

@@ -141,6 +141,8 @@ cdef extern from "tiledb/tiledb.h":
         pass
     ctypedef struct tiledb_query_t:
         pass
+    ctypedef struct tiledb_subarray_t:
+        pass
     ctypedef struct tiledb_filter_list_t:
         pass
     ctypedef struct tiledb_vfs_t:
@@ -651,10 +653,10 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_query_type_t query_type,
         tiledb_query_t** query)
 
-    int tiledb_query_set_subarray(
+    int tiledb_query_set_subarray_t(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
-        const void* subarray)
+        const tiledb_subarray_t*)
 
     int32_t tiledb_query_set_data_buffer(
         tiledb_ctx_t* ctx,
@@ -704,6 +706,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_query_t* query,
         tiledb_query_status_t* status)
 
+    int tiledb_query_get_subarray_t(
+        tiledb_ctx_t* ctx,
+        const tiledb_query_t* query,
+        tiledb_subarray_t** subarray)
+
     int tiledb_query_get_type(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
@@ -732,38 +739,6 @@ cdef extern from "tiledb/tiledb.h":
         uint64_t* t1,
         uint64_t* t2)
 
-    int tiledb_query_add_range(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        uint32_t dim_idx,
-        const void * start,
-        const void * end,
-        const void * stride)
-
-    int tiledb_query_add_range_var(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        uint32_t dim_idx,
-        const void * start,
-        uint64_t start_size,
-        const void * end,
-        uint64_t end_size)
-
-    int tiledb_query_get_range(
-        tiledb_ctx_t* ctx,
-        const tiledb_query_t* query,
-        uint32_t dim_idx,
-        uint64_t range_idx,
-        const void** start,
-        const void** end,
-        const void** stride)
-
-    int tiledb_query_get_range_num(
-        tiledb_ctx_t* ctx,
-        const tiledb_query_t* query,
-        uint32_t dim_idx,
-        uint64_t * range_num)
-
     int tiledb_query_get_est_result_size(
         tiledb_ctx_t* ctx,
         const tiledb_query_t* query,
@@ -780,7 +755,37 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_query_get_stats(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
-        char** stats_json);
+        char** stats_json)
+
+    # Subarray
+    int tiledb_subarray_alloc(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_t* array,
+        tiledb_subarray_t** subarray)
+
+    void tiledb_subarray_free(tiledb_subarray_t** subarray)
+
+    int tiledb_subarray_add_range(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        uint32_t dim_idx,
+        const void* start,
+        const void* end,
+        const void* stride)
+
+    int tiledb_subarray_add_range_var(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        uint32_t dim_idx,
+        const void* start,
+        uint64_t start_size,
+        const void* end,
+        uint64_t end_size)
+
+    int tiledb_subarray_set_subarray(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        const void* subarray_v)
 
     # Array
     int tiledb_array_alloc(

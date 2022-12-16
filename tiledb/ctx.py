@@ -54,7 +54,7 @@ class Config(lt.Config):
 
     def __init__(self, params: dict = None, path: str = None, _lt_obj=None):
         if _lt_obj is not None:
-            return super().__init__(dict(_lt_obj._iter()))
+            return super().__init__(_lt_obj)
 
         super().__init__()
 

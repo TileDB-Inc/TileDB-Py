@@ -324,14 +324,9 @@ public:
 public:
   PyQuery() = delete;
 
-  PyQuery(py::object ctx, py::object array, py::iterable attrs,
-          py::iterable dims, py::object py_layout, py::object use_arrow) {
-
-    tiledb_ctx_t *c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
-    if (c_ctx_ == nullptr)
-      TPY_ERROR_LOC("Invalid context pointer!")
-    ctx_ = Context(c_ctx_, false);
-
+  PyQuery(const Context &ctx, py::object array, py::iterable attrs,
+          py::iterable dims, py::object py_layout, py::object use_arrow)
+      : ctx_(ctx) {
     init_config();
     // initialize arrow argument from user, if provided
     // call after init_config
@@ -1632,8 +1627,9 @@ void init_core(py::module &m) {
 
   auto pq =
       py::class_<PyQuery>(m, "PyQuery")
-          .def(py::init<py::object, py::object, py::iterable, py::iterable,
-                        py::object, py::object>())
+          .def(py::init<const Context &, py::object, py::iterable, py::iterable,
+                        py::object, py::object>(),
+               py::keep_alive<1, 2>())
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
           .def("set_ranges", &PyQuery::set_ranges)

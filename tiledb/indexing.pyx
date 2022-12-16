@@ -320,6 +320,14 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
     # we loop over the range tuple left to right and apply
     # (unspecified dimensions are excluded)
     cdef Py_ssize_t dim_idx, range_idx
+    cdef tiledb_subarray_t* subarray_ptr = NULL
+    cdef bint is_default = True
+
+    rc = tiledb_subarray_alloc(ctx_ptr, array_ptr, &subarray_ptr)
+    if rc != TILEDB_OK:
+        tiledb_subarray_free(&subarray_ptr)
+        tiledb_query_free(&query_ptr)
+        _raise_ctx_err(ctx_ptr, rc)
 
     for dim_idx in range(len(ranges)):
         c_dim_idx = <uint32_t>dim_idx
@@ -329,8 +337,11 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
         if len(dim_ranges) == 0:
             continue
 
+        is_default = False
         for range_idx in range(len(dim_ranges)):
             if len(dim_ranges[range_idx]) != 2:
+                tiledb_subarray_free(&subarray_ptr)
+                tiledb_query_free(&query_ptr)
                 raise lt.TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
 
             start = np.array(dim_ranges[range_idx][0], dtype=dim.dtype)
@@ -339,14 +350,21 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
             start_ptr = np.PyArray_DATA(start)
             end_ptr = np.PyArray_DATA(end)
 
-            rc = tiledb_query_add_range(ctx_ptr, query_ptr,
-                                        dim_idx,
-                                        start_ptr,
-                                        end_ptr,
-                                        NULL)
+            rc = tiledb_subarray_add_range(
+                    ctx_ptr, subarray_ptr, dim_idx, start_ptr, end_ptr, NULL)
 
             if rc != TILEDB_OK:
+                tiledb_subarray_free(&subarray_ptr)
+                tiledb_query_free(&query_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
+
+        if not is_default:
+            rc = tiledb_query_set_subarray_t(ctx_ptr, query_ptr, subarray_ptr)
+            if rc != TILEDB_OK:
+                tiledb_subarray_free(&subarray_ptr)
+                tiledb_query_free(&query_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
+
     try:
         if coords is None:
             coords = True

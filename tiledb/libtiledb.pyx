@@ -325,7 +325,13 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     cdef Domain dom = None
     cdef Dim dim = None
     cdef np.dtype dim_dtype = None
+    cdef tiledb_subarray_t* subarray_ptr = NULL
     if not issparse:
+        rc = tiledb_subarray_alloc(ctx_ptr, array_ptr, &subarray_ptr)
+        if rc != TILEDB_OK:
+            tiledb_subarray_free(&subarray_ptr)
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
         dom = tiledb_array.schema.domain
         for dim_idx,s_range in enumerate(coords_or_subarray):
             dim = dom.dim(dim_idx)
@@ -335,19 +341,26 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             s_start_ptr = np.PyArray_DATA(s_start)
             s_end_ptr = np.PyArray_DATA(s_end)
             if dim.isvar:
-                rc = tiledb_query_add_range_var(
-                    ctx_ptr, query_ptr, dim_idx,
+                rc = tiledb_subarray_add_range_var(
+                    ctx_ptr, subarray_ptr, dim_idx,
                     s_start_ptr,  s_start.nbytes,
                     s_end_ptr, s_end.nbytes)
-
             else:
-                rc = tiledb_query_add_range(
-                    ctx_ptr, query_ptr, dim_idx,
+                rc = tiledb_subarray_add_range(
+                    ctx_ptr, subarray_ptr, dim_idx,
                     s_start_ptr, s_end_ptr, NULL)
 
             if rc != TILEDB_OK:
+                tiledb_subarray_free(&subarray_ptr)
                 tiledb_query_free(&query_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_query_set_subarray_t(ctx_ptr, query_ptr, subarray_ptr)
+        if rc != TILEDB_OK:
+            tiledb_subarray_free(&subarray_ptr)
+            tiledb_query_free(&query_ptr)
+            _raise_ctx_err(ctx_ptr, rc)
+        tiledb_subarray_free(&subarray_ptr)
 
     try:
         for i in range(0, nattr):
@@ -3847,9 +3860,11 @@ cdef class DenseArrayImpl(Array):
             layout = TILEDB_COL_MAJOR
 
         cdef tiledb_query_t* query_ptr = NULL
+        cdef tiledb_subarray_t* subarray_ptr = NULL
         cdef int rc = TILEDB_OK
         rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
         if rc != TILEDB_OK:
+            tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
         try:
             rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
@@ -3895,11 +3910,18 @@ cdef class DenseArrayImpl(Array):
                                 f"the TileDB array has {ned[n][1]-ned[n][0]}."
                             )
 
-            rc = tiledb_query_set_subarray(
+            rc = tiledb_subarray_alloc(ctx_ptr, array_ptr, &subarray_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_subarray_set_subarray(
                     ctx_ptr,
-                    query_ptr,
+                    subarray_ptr,
                     <void*>np.PyArray_DATA(subarray)
             )
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_query_set_subarray_t(ctx_ptr, query_ptr, subarray_ptr)
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
@@ -3923,6 +3945,7 @@ cdef class DenseArrayImpl(Array):
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
         finally:
+            tiledb_subarray_free(&subarray_ptr)
             tiledb_query_free(&query_ptr)
         return
 
