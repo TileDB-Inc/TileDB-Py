@@ -127,7 +127,7 @@ def test_webp_filter(width, height, colorspace, lossless):
         3 if int(colorspace) < int(tiledb.filter.lt.WebpInputFormat.WEBP_RGBA) else 4
     )
     data = make_image_data(width, height, pixel_depth)
-    data = np.array(data, dtype=np.uint8)
+    data = np.array(data, dtype=np.uint8).reshape(height, width * pixel_depth)
 
     y_tile = round(height / 2)
     x_tile = round(width / 2) * pixel_depth
