@@ -3921,12 +3921,11 @@ cdef class DenseArrayImpl(Array):
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
-
             rc = tiledb_query_set_subarray_t(ctx_ptr, query_ptr, subarray_ptr)
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
-            rc = tiledb_query_set_buffer(
+            rc = tiledb_query_set_data_buffer(
                     ctx_ptr,
                     query_ptr,
                     attr_name_ptr,

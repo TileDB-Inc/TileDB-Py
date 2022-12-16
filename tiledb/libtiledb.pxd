@@ -658,13 +658,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_query_t* query,
         const tiledb_subarray_t*)
 
-    int tiledb_query_set_buffer(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const char* attribute,
-        void* buffer,
-        uint64_t* buffer_size)
-
     int32_t tiledb_query_set_data_buffer(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
@@ -685,35 +678,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* name,
         uint64_t* buffer,
         uint64_t* buffer_size)
-
-    int tiledb_query_set_buffer_var(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const char* attribute,
-        uint64_t* buffer_off,
-        uint64_t* buffer_off_size,
-        void* buffer_val,
-        uint64_t* buffer_val_size)
-
-    int tiledb_query_set_buffer_nullable(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const char* name,
-        void* buffer,
-        uint64_t* buffer_size,
-        uint8_t* buffer_validity_bytemap,
-        uint64_t* buffer_validity_bytemap_size)
-
-    int tiledb_query_set_buffer_var_nullable(
-        tiledb_ctx_t* ctx,
-        tiledb_query_t* query,
-        const char* name,
-        uint64_t* buffer_off,
-        uint64_t* buffer_off_size,
-        void* buffer_val,
-        uint64_t* buffer_val_size,
-        uint8_t* buffer_validity_bytemap,
-        uint64_t* buffer_validity_bytemap_size)
 
     int tiledb_query_set_layout(
         tiledb_ctx_t* ctx,

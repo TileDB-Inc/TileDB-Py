@@ -224,10 +224,9 @@ cdef dict execute_multi_index(Array array,
             buffer_sizes[attr_idx] = attr_array.nbytes - result_bytes_read[attr_idx]
             buffer_sizes_ptr = <uint64_t*>np.PyArray_DATA(buffer_sizes)
 
-            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr,
-                                         battr_name,
-                                         attr_array_ptr,
-                                         &(buffer_sizes_ptr[attr_idx]))
+            rc = tiledb_query_set_data_buffer(
+                    ctx_ptr, query_ptr, battr_name, attr_array_ptr,
+                    &(buffer_sizes_ptr[attr_idx]))
 
             if rc != TILEDB_OK:
                 # NOTE: query_ptr *must* only be freed in caller
