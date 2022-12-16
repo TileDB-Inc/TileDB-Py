@@ -808,10 +808,7 @@ class FilterList(lt.FilterList):
         if _capsule is not None:
             super().__init__(self._ctx, _capsule)
         elif _lt_obj is not None:
-            super().__init__(self._ctx)
-            for i in range(_lt_obj._nfilters()):
-                self._add_filter(_lt_obj._filter(i))
-            chunksize = _lt_obj._chunksize
+            super().__init__(_lt_obj)
         else:
             super().__init__(self._ctx)
             if filters is not None:
