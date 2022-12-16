@@ -122,15 +122,6 @@ private:
     }
   }
 
-  void load(tiledb_encryption_type_t encryption_type,
-            const string &encryption_key) const {
-    try {
-      fi_->load(encryption_type, encryption_key);
-    } catch (TileDBError &e) {
-      TPY_ERROR_LOC(e.what());
-    }
-  }
-
   void close() { fi_.reset(); }
 
   py::tuple fill_uri() const {
