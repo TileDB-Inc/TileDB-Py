@@ -244,7 +244,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             try:
                 values[i] = np.asarray(values[i], dtype=np.bytes_)
             except Exception as exc:
-                raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
+                raise TileDBError(f'dtype of attr {tiledb_array.schema.attr[i].name} is "ascii" but attr_val contains invalid ASCII characters')
 
         attr = tiledb_array.schema.attr(i)
 
@@ -4098,7 +4098,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             try:
                 np.asarray(attr_val, dtype=np.bytes_)
             except Exception as exc:
-                raise TileDBError(f'Attr\'s dtype is "ascii" but attr_val contains invalid ASCII characters')
+                raise TileDBError(f'dtype of attr {attr.name} is "ascii" but attr_val contains invalid ASCII characters')
 
         ncells = sparse_coords[0].shape[0]
         if attr_val.size != ncells:
