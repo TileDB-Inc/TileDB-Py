@@ -186,10 +186,20 @@ class _BaseIndexer(ABC):
 
     def __getitem__(self, idx):
         with timing("getitem_time"):
+
+            t1 = time.time()
             self._set_ranges(
                 getitem_ranges(self.array, idx) if idx is not EmptyRange else None
             )
-            return self if self.return_incomplete else self._run_query()
+            t2 = time.time()
+            print("PY:   MRIDX:__GETITEM__:_SET_RANGES %.3f SECONDS" % (t2-t1))
+
+            t1 = time.time()
+            retval = self if self.return_incomplete else self._run_query()
+            t2 = time.time()
+            print("PY:   MRIDX:__GETITEM__:_RUN_QUERY %.3f SECONDS" % (t2-t1))
+            return retval
+
 
     def estimated_result_sizes(self):
         """
@@ -273,6 +283,7 @@ class MultiRangeIndexer(_BaseIndexer):
             self.result_shape = None
 
     def _run_query(self) -> Dict[str, np.ndarray]:
+        t1 = time.time()
         if self.pyquery is None:
             return self._empty_results
 
@@ -282,6 +293,8 @@ class MultiRangeIndexer(_BaseIndexer):
             for arr in result_dict.values():
                 # TODO check/test layout
                 arr.shape = self.result_shape
+        t2 = time.time()
+        print("PY:   MRIDX:_RUN_QUERY %.3f SECONDS" % (t2-t1))
         return result_dict
 
 
@@ -432,6 +445,7 @@ def _get_pyquery(
         layout,
         use_arrow,
     )
+
     with timing("add_ranges"):
         if hasattr(pyquery, "set_ranges_bulk") and any(
             isinstance(r, np.ndarray) for r in ranges

@@ -8,6 +8,8 @@ from typing import Any, Callable, List, Tuple, Type, TYPE_CHECKING, Union
 import tiledb.main as qc
 from tiledb.main import PyQueryCondition
 
+import time
+
 from .ctx import default_ctx
 from tiledb.cc import TileDBError
 
@@ -135,8 +137,11 @@ class QueryCondition:
             )
 
     def init_query_condition(self, schema: "ArraySchema", query_attrs: List[str]):
+        t1 = time.time()
         qctree = QueryConditionTree(self.ctx, schema, query_attrs)
         self.c_obj = qctree.visit(self.tree.body)
+        t2 = time.time()
+        print("PY:   QC INIT_QUERY_CONDITION %.3f SECONDS" % (t2-t1))
 
         if not isinstance(self.c_obj, PyQueryCondition):
             raise TileDBError(
@@ -224,6 +229,7 @@ class QueryConditionTree(ast.NodeVisitor):
                 self.visit(node.left), qc.TILEDB_EQ, consts[0]
             )
 
+            # This is where an "in" condition is morphed into an "or" condition
             for val in consts[1:]:
                 value = self.aux_visit_Compare(self.visit(node.left), qc.TILEDB_EQ, val)
                 result = result.combine(value, qc.TILEDB_OR)
@@ -236,6 +242,10 @@ class QueryConditionTree(ast.NodeVisitor):
         op_node: qc.tiledb_query_condition_op_t,
         rhs: QueryConditionNodeElem,
     ) -> PyQueryCondition:
+        # When these are uncommented, they come out to about a millisecond per call.
+        # That's fine for an OR of 10 things; it adds up for an OR of 10,000 things.
+        # t1 = time.time()
+        # print("%.6f S" % t1)
         variable, value, op = self.order_nodes(lhs, rhs, op_node)
 
         variable = self.get_variable_from_node(variable)
@@ -247,6 +257,9 @@ class QueryConditionTree(ast.NodeVisitor):
 
         pyqc = PyQueryCondition(self.ctx)
         self.init_pyqc(pyqc, dtype)(variable, value, op)
+        t2 = time.time()
+        # print("%.6f E" % t2)
+        # print("aux_visit_Compare %.6f" % (t2-t1))
 
         return pyqc
 
