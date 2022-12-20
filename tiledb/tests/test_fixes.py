@@ -36,7 +36,7 @@ class FixesTest(DiskTestCase):
         # result array size, and asserts that the allocated buffers match
         # the expected result size rather than py.alloc_max_bytes.
         uri = self.path()
-        max_val = 1024**2 + 1
+        max_val = np.iinfo(np.uint8).max
         with tiledb.from_numpy(uri, np.uint8(range(max_val))):
             pass
         with tiledb.scope_ctx(
