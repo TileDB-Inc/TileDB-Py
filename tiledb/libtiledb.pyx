@@ -244,7 +244,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             try:
                 values[i] = np.asarray(values[i], dtype=np.bytes_)
             except Exception as exc:
-                raise TileDBError(f'dtype of attr {tiledb_array.schema.attr[i].name} is "ascii" but attr_val contains invalid ASCII characters')
+                raise TileDBError(f'dtype of attr {tiledb_array.schema.attr(i).name} is "ascii" but attr_val contains invalid ASCII characters')
 
         attr = tiledb_array.schema.attr(i)
 
