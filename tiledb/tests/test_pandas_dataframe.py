@@ -925,7 +925,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             df_bk = tiledb.open_dataframe(path)
             tm.assert_frame_equal(df_bk, df)
 
-        ### Test 1
+        # ### Test 1
         col_size = 10
         data = np.random.rand(col_size) * 100  # make some integers for the 2nd test
         data[4] = np.nan
@@ -936,7 +936,8 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
         with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
-            df.to_csv(fio, index=False, na_rep="NaN")
+            df = df.fillna(0)
+            df.to_csv(fio, index=False)
 
         tmp_array = os.path.join(tmp_dir, "array")
         # TODO: test Dense too
