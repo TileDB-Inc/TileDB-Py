@@ -1160,7 +1160,7 @@ cdef extern from "tiledb/tiledb_experimental.h":
     )
 
 cdef extern from "tiledb/tiledb_dimension_label.h":
-    # DimensionLabel
+    # ArraySchema: DimensionLabel
     int tiledb_array_schema_add_dimension_label(
         tiledb_ctx_t* ctx,
         tiledb_array_schema_t* array_schema,
@@ -1190,6 +1190,36 @@ cdef extern from "tiledb/tiledb_dimension_label.h":
         const char* label_name,
         tiledb_datatype_t type,
         const void* tile_extent
+    )
+
+    # Subarray: DimensionLabel
+    int tiledb_subarray_add_label_range(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        const char* label_name,
+        const void* start,
+        const void* end,
+        const void* stride
+    )
+
+    int tiledb_subarray_add_label_range_var(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        const char* label_name,
+        const void* start,
+        uint64_t start_size,
+        const void* end,
+        uint64_t end_size
+    )
+
+    int tiledb_subarray_add_label_range_var(
+        tiledb_ctx_t* ctx,
+        tiledb_subarray_t* subarray,
+        const char* label_name,
+        const void* start,
+        uint64_t start_size,
+        const void* end,
+        uint64_t end_size
     )
 
 # Free helper functions

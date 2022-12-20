@@ -12,7 +12,7 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
         dim_labels = {
-            "dim": tiledb.DimLabelSchema(
+            "label": tiledb.DimLabelSchema(
                 0,
                 "increasing",
                 label_dtype=dim.dtype,
@@ -22,15 +22,15 @@ class DimensionLabelTestCase(DiskTestCase):
         }
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
 
-        assert schema.has_dim_label("dim")
-        assert not schema.has_dim_label("dne")
+        assert schema.has_dim_label("label")
+        assert not schema.has_dim_label("fake_name")
 
     def test_add_to_array_schema_out_of_bounds(self):
-        dim = tiledb.Dim("dim", domain=(1, 10))
+        dim = tiledb.Dim("label", domain=(1, 10))
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
         dim_labels = {
-            "dim": tiledb.DimLabelSchema(
+            "label": tiledb.DimLabelSchema(
                 2,
                 "increasing",
                 label_dtype=dim.dtype,
