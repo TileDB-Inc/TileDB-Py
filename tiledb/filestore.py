@@ -12,6 +12,9 @@ class Filestore:
     """
     Functions to set and get data to and from a TileDB Filestore Array.
 
+    A Filestore Array may be created using `ArraySchema.from_file` combined
+    with `Array.create`.
+
     :param str uri: The URI to the TileDB Fileshare Array
     :param tiledb.Ctx ctx: A TileDB context
     """
