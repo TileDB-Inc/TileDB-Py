@@ -66,7 +66,7 @@ def make_range(dtype):
     if np.issubdtype(dtype, np.number):
         return np.array([0, 100.123]).astype(dtype), np.array([1]).astype(dtype)
     elif np.issubdtype(dtype, str) or np.issubdtype(dtype, bytes):
-        return np.array(["a", "z"]).astype(dtype), None
+        return None, None
     else:
         raise TypeError(f"Unsupported dtype '{dtype}'")
 
@@ -88,7 +88,6 @@ def test_dimension(dtype_str):
 
     if dtype_str == "S":
         tiledb_datatype = lt.DataType.STRING_ASCII
-        extent = np.array([], dtype=dtype)  # null extent
 
     dim = lt.Dimension(ctx, "foo", tiledb_datatype, range, extent)
     # print(dim)

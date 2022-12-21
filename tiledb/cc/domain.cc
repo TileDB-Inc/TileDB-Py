@@ -102,7 +102,6 @@ void init_domain(py::module &m) {
               return py::make_tuple(dom.first, dom.second);
             }
             case TILEDB_STRING_ASCII: {
-              // auto dom = dim.domain<std::string>();
               return py::make_tuple("", "");
             }
             default:
@@ -112,7 +111,7 @@ void init_domain(py::module &m) {
 
       .def_property_readonly(
           "_tile",
-          [](Dimension &dim) {
+          [](Dimension &dim) -> py::object {
             switch (dim.type()) {
             case TILEDB_UINT64: {
               return py::cast(dim.tile_extent<uint64_t>());
@@ -158,7 +157,7 @@ void init_domain(py::module &m) {
               return py::cast(dim.tile_extent<float>());
             }
             case TILEDB_STRING_ASCII: {
-              return py::cast("");
+              return py::none();
             }
             default:
               TPY_ERROR_LOC("Unsupported dtype  for Dimension's tile extent");
