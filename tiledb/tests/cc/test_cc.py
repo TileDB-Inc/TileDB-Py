@@ -66,7 +66,7 @@ def make_range(dtype):
     if np.issubdtype(dtype, np.number):
         return np.array([0, 100.123]).astype(dtype), np.array([1]).astype(dtype)
     elif np.issubdtype(dtype, str) or np.issubdtype(dtype, bytes):
-        return np.array(["a", "z"]).astype(dtype), None
+        return None, None
     else:
         raise TypeError(f"Unsupported dtype '{dtype}'")
 
@@ -88,9 +88,8 @@ def test_dimension(dtype_str):
 
     if dtype_str == "S":
         tiledb_datatype = lt.DataType.STRING_ASCII
-        extent = np.array([], dtype=dtype)  # null extent
 
-    dim = lt.Dimension.create(ctx, "foo", tiledb_datatype, range, extent)
+    dim = lt.Dimension(ctx, "foo", tiledb_datatype, range, extent)
     # print(dim)
 
 
@@ -189,13 +188,11 @@ def test_array():
 def test_domain():
     ctx = lt.Context()
     dom = lt.Domain(ctx)
-    dim = lt.Dimension.create(
-        ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9])
-    )
-    dom.add_dim(dim)
+    dim = lt.Dimension(ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9]))
+    dom._add_dim(dim)
 
-    assert dom.dtype == lt.DataType.INT32
-    assert dom.ncell == 10
+    assert dom._tiledb_dtype == lt.DataType.INT32
+    assert dom._ncell == 10
     # TODO assert dom.dimension("foo").domain() == ??? np.array?
 
 
@@ -263,24 +260,20 @@ def test_schema():
     # TODO assert schema.offsets_filter_list ==
 
     dom = lt.Domain(ctx)
-    dim = lt.Dimension.create(
-        ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9])
-    )
-    dom.add_dim(dim)
+    dim = lt.Dimension(ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9]))
+    dom._add_dim(dim)
 
     schema.domain = dom
     # TODO dom and dimension need full equality check
-    assert schema.domain.dim("foo").name == dim.name
+    assert schema.domain._dim("foo")._name == dim._name
 
 
 def test_query_string():
     def create_schema():
         schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
         dom = lt.Domain(ctx)
-        dim = lt.Dimension.create(
-            ctx, "foo", lt.DataType.STRING_ASCII, np.uint8([]), np.uint8([])
-        )
-        dom.add_dim(dim)
+        dim = lt.Dimension(ctx, "foo", lt.DataType.STRING_ASCII, None, None)
+        dom._add_dim(dim)
 
         schema.domain = dom
         return schema
@@ -303,10 +296,10 @@ def test_write_sparse():
         ctx = lt.Context()
         schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
         dom = lt.Domain(ctx)
-        dim = lt.Dimension.create(
+        dim = lt.Dimension(
             ctx, "x", lt.DataType.INT32, np.int32([0, 9]), np.int32([10])
         )
-        dom.add_dim(dim)
+        dom._add_dim(dim)
 
         attr = lt.Attribute(ctx, "a", lt.DataType.INT32)
         schema.add_attr(attr)
@@ -363,10 +356,10 @@ def test_write_dense():
         ctx = lt.Context()
         schema = lt.ArraySchema(ctx, lt.ArrayType.DENSE)
         dom = lt.Domain(ctx)
-        dim = lt.Dimension.create(
+        dim = lt.Dimension(
             ctx, "x", lt.DataType.UINT64, np.uint64([0, 9]), np.uint64([10])
         )
-        dom.add_dim(dim)
+        dom._add_dim(dim)
 
         attr = lt.Attribute(ctx, "a", lt.DataType.FLOAT32)
         schema.add_attr(attr)

@@ -15,7 +15,6 @@ class AttributeTest(DiskTestCase):
         self.assertTrue(attr.isanon)
         self.assertEqual(attr.name, "")
         self.assertEqual(attr.dtype, np.float_)
-        # self.assertEqual(attr.compressor, (None, -1))
         self.assertFalse(attr.isvar)
         self.assertFalse(attr.isnullable)
 
@@ -32,9 +31,6 @@ class AttributeTest(DiskTestCase):
 
         assert attr.name == "foo"
         assert attr.dtype == np.float64, "default attribute type is float64"
-        # compressor, level = attr.compressor
-        # self.assertEqual(compressor, None, "default to no compression")
-        # self.assertEqual(level, -1, "default compression level when none is specified")
 
     @pytest.mark.parametrize(
         "dtype, fill",
@@ -94,7 +90,6 @@ class AttributeTest(DiskTestCase):
     def test_ncell_bytes_attribute(self):
         dtype = np.dtype((np.bytes_, 10))
         attr = tiledb.Attr("foo", dtype=dtype)
-
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 10)
 

@@ -1628,8 +1628,7 @@ void init_core(py::module &m) {
   auto pq =
       py::class_<PyQuery>(m, "PyQuery")
           .def(py::init<const Context &, py::object, py::iterable, py::iterable,
-                        py::object, py::object>(),
-               py::keep_alive<1, 2>())
+                        py::object, py::object>())
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
           .def("set_ranges", &PyQuery::set_ranges)

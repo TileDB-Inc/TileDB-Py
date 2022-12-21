@@ -1,5 +1,8 @@
 # In Progress
 
+## Improvements
+* Move `Dim` and `Domain` from Cython to pure Python [#1327](https://github.com/TileDB-Inc/TileDB-Py/pull/1327)
+
 ## Bug Fixes
 * Ensure NumPy array matches array schema dimensions for dense writes [#1514](https://github.com/TileDB-Inc/TileDB-Py/pull/1514)
 
@@ -104,6 +107,7 @@
 
 ## Improvements
 * Move `Attr` from Cython to pure Python [#1326](https://github.com/TileDB-Inc/TileDB-Py/pull/1326)
+* Move `Domain` and `Dim` from Cython to pure Python [#1327](https://github.com/TileDB-Inc/TileDB-Py/pull/1327)
 
 ## API Changes
 * Permit true-ASCII attributes in non-from-pandas dataframes [#1337](https://github.com/TileDB-Inc/TileDB-Py/pull/1337)
