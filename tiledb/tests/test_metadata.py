@@ -152,8 +152,6 @@ class MetadataTest(DiskTestCase):
     @given(st_metadata)
     @settings(deadline=None)
     def test_basic(self, test_vals):
-        start = time.time()
-
         path = self.path()
         with tiledb.from_numpy(path, np.ones((5,), np.float64)):
             pass
@@ -169,8 +167,6 @@ class MetadataTest(DiskTestCase):
         with tiledb.Array(path, "w") as A:
             test_vals["bigblob"] = blob
             A.meta["bigblob"] = blob
-
-        hp.note(tiledb.stats_dump(print_out=False))
 
         with tiledb.Array(path) as A:
             self.assert_metadata_roundtrip(A.meta, test_vals)
@@ -190,16 +186,6 @@ class MetadataTest(DiskTestCase):
 
         with tiledb.Array(path) as A:
             self.assert_metadata_roundtrip(A.meta, test_vals)
-
-        duration = time.time() - start
-        hp.note(f"!!! test_basic duration: {duration}")
-        if duration > 2:
-            # Hypothesis setup is (maybe) causing deadline exceeded errors
-            # https://github.com/TileDB-Inc/TileDB-Py/issues/1194
-            # Set deadline=None and use internal timing instead.
-            pytest.fail(
-                f"!!! test_basic function body duration exceeded 2s: {duration}"
-            )
 
     @given(st_metadata, st_ndarray)
     @settings(deadline=None)
