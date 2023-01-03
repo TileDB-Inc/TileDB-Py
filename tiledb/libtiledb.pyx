@@ -216,7 +216,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   tiledb_array_t* array_ptr,
                   object tiledb_array,
                   list coords_or_subarray,
-                  list attributes,
+                  list buffer_names,
                   list values,
                   dict nullmaps,
                   dict fragment_info,
@@ -226,20 +226,21 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     import tiledb.main
 
     cdef bint isfortran = False
-    cdef Py_ssize_t nattr = len(attributes)
-    cdef Py_ssize_t nattr_alloc = nattr
+    cdef Py_ssize_t nattr = len(buffer_names)
 
-    # add 1 to nattr for sparse coordinates
+    # Create arrays to hold buffer sizes
+    cdef Py_ssize_t nbuffer = nattr
     if issparse:
-        nattr_alloc += tiledb_array.schema.ndim
+        nbuffer += tiledb_array.schema.ndim
+    cdef np.ndarray buffer_sizes = np.zeros((nbuffer,), dtype=np.uint64)
+    cdef np.ndarray buffer_offsets_sizes = np.zeros((nbuffer,),  dtype=np.uint64)
+    cdef np.ndarray nullmaps_sizes = np.zeros((nbuffer,), dtype=np.uint64)
 
-    # Set up buffers
-    cdef np.ndarray buffer_sizes = np.zeros((nattr_alloc,), dtype=np.uint64)
-    cdef np.ndarray buffer_offsets_sizes = np.zeros((nattr_alloc,),  dtype=np.uint64)
-    cdef np.ndarray nullmaps_sizes = np.zeros((nattr_alloc,), dtype=np.uint64)
+    # Create lists for data and offset buffers
     output_values = list()
     output_offsets = list()
 
+    # Set data and offset buffers for attributes
     for i in range(nattr):
         # if dtype is ASCII, ensure all characters are valid
         if tiledb_array.schema.attr(i).isascii:
@@ -264,78 +265,65 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         output_offsets.append(offsets)
 
     # Check value layouts
-    if len(values):
+    if len(values) and nattr > 1:
         value = output_values[0]
         isfortran = value.ndim > 1 and value.flags.f_contiguous
-        if nattr > 1:
-            for i in range(1, nattr):
-                value = values[i]
-                if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
-                    raise ValueError("mixed C and Fortran array layouts")
+        for value in values:
+            if value.ndim > 1 and value.flags.f_contiguous and not isfortran:
+                raise ValueError("mixed C and Fortran array layouts")
 
-    #### Allocate and fill query ####
+    # Set data and offsets buffers for dimensions (sparse arrays only)
+    if issparse:
+        for dim_idx, coords in enumerate(coords_or_subarray):
+            if tiledb_array.schema.domain.dim(dim_idx).isvar:
+                buffer, offsets = tiledb.main.array_to_buffer(coords, True, False)
+                buffer_sizes[nattr + dim_idx] = buffer.nbytes
+                buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
+            else:
+                buffer, offsets = coords, None
+                buffer_sizes[nattr + dim_idx] = buffer.nbytes
+            output_values.append(buffer)
+            output_offsets.append(offsets)
 
-    cdef tiledb_query_t* query_ptr = NULL
+            name = tiledb_array.schema.domain.dim(dim_idx).name
+            buffer_names.append(name)
+
+    # Allocate the query
     cdef int rc = TILEDB_OK
+    cdef tiledb_query_t* query_ptr = NULL
     rc = tiledb_query_alloc(ctx_ptr, array_ptr, TILEDB_WRITE, &query_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
 
-    cdef tiledb_layout_t layout = TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR
-
-    # Set coordinate buffer size and name, and layout for sparse writes
-    if issparse:
-        for dim_idx in range(tiledb_array.schema.ndim):
-            name = tiledb_array.schema.domain.dim(dim_idx).name
-            val = coords_or_subarray[dim_idx]
-            if tiledb_array.schema.domain.dim(dim_idx).isvar:
-                buffer, offsets = tiledb.main.array_to_buffer(val, True, False)
-                buffer_sizes[nattr + dim_idx] = buffer.nbytes
-                buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
-            else:
-                buffer, offsets = val, None
-                buffer_sizes[nattr + dim_idx] = buffer.nbytes
-
-            attributes.append(name)
-            output_values.append(buffer)
-            output_offsets.append(offsets)
-        nattr += tiledb_array.schema.ndim
-        layout = TILEDB_UNORDERED
-
-    # Create nullmaps sizes array if necessary
-
     # Set layout
+    cdef tiledb_layout_t layout = (
+            TILEDB_UNORDERED
+            if issparse
+            else (TILEDB_COL_MAJOR if isfortran else TILEDB_ROW_MAJOR)
+    )
     rc = tiledb_query_set_layout(ctx_ptr, query_ptr, layout)
     if rc != TILEDB_OK:
         tiledb_query_free(&query_ptr)
         _raise_ctx_err(ctx_ptr, rc)
 
-    cdef void* buffer_ptr = NULL
-    cdef uint8_t* nulmap_buffer_ptr = NULL
-    cdef uint
-    cdef bytes battr_name
-    cdef uint64_t* offsets_buffer_ptr = NULL
-    cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
-    cdef uint64_t* offsets_buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_offsets_sizes)
-    cdef uint64_t* nullmaps_sizes_ptr = <uint64_t*> np.PyArray_DATA(nullmaps_sizes)
-
-    # set subarray (ranges)
+    # Create and set the subarray for the query (dense arrays only)
     cdef np.ndarray s_start
     cdef np.ndarray s_end
+    cdef np.dtype dim_dtype = None
     cdef void* s_start_ptr = NULL
     cdef void* s_end_ptr = NULL
-    # cdef Domain dom = None
-    # cdef Dim dim = None
-    cdef np.dtype dim_dtype = None
     cdef tiledb_subarray_t* subarray_ptr = NULL
     if not issparse:
+        # Allocate the subarray
         rc = tiledb_subarray_alloc(ctx_ptr, array_ptr, &subarray_ptr)
         if rc != TILEDB_OK:
             tiledb_subarray_free(&subarray_ptr)
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
+
+        # Set the ranges on the subarray
         dom = tiledb_array.schema.domain
-        for dim_idx,s_range in enumerate(coords_or_subarray):
+        for dim_idx, s_range in enumerate(coords_or_subarray):
             dim = dom.dim(dim_idx)
             dim_dtype = dim.dtype
             s_start = np.asarray(s_range[0], dtype=dim_dtype)
@@ -351,12 +339,12 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 rc = tiledb_subarray_add_range(
                     ctx_ptr, subarray_ptr, dim_idx,
                     s_start_ptr, s_end_ptr, NULL)
-
             if rc != TILEDB_OK:
                 tiledb_subarray_free(&subarray_ptr)
                 tiledb_query_free(&query_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
 
+        # Set the subarray on the query
         rc = tiledb_query_set_subarray_t(ctx_ptr, query_ptr, subarray_ptr)
         if rc != TILEDB_OK:
             tiledb_subarray_free(&subarray_ptr)
@@ -364,40 +352,53 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
             _raise_ctx_err(ctx_ptr, rc)
         tiledb_subarray_free(&subarray_ptr)
 
+
+    # Set buffers on the query
+    cdef bytes bname
+    cdef void* buffer_ptr = NULL
+    cdef uint64_t* offsets_buffer_ptr = NULL
+    cdef uint8_t* nulmap_buffer_ptr = NULL
+    cdef uint64_t* buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_sizes)
+    cdef uint64_t* offsets_buffer_sizes_ptr = <uint64_t*> np.PyArray_DATA(buffer_offsets_sizes)
+    cdef uint64_t* nullmaps_sizes_ptr = <uint64_t*> np.PyArray_DATA(nullmaps_sizes)
     try:
-        for i in range(0, nattr):
-            battr_name = attributes[i].encode('UTF-8')
+        for i, buffer_name in enumerate(buffer_names):
+            # Get utf-8 version of the name for C-API calls
+            bname = buffer_name.encode('UTF-8')
+
+            # Set data buffer
             buffer_ptr = np.PyArray_DATA(output_values[i])
-
-            rc = tiledb_query_set_data_buffer(ctx_ptr, query_ptr, battr_name,
-                                         buffer_ptr, &(buffer_sizes_ptr[i]))
-
+            rc = tiledb_query_set_data_buffer(
+                    ctx_ptr, query_ptr, bname, buffer_ptr, &(buffer_sizes_ptr[i]))
             if rc != TILEDB_OK:
                 _raise_ctx_err(ctx_ptr, rc)
 
-            var = output_offsets[i] is not None
-            nullable = attributes[i] in nullmaps
-
-            if var:
+            # Set offsets buffer
+            if output_offsets[i] is not None:
                 offsets_buffer_ptr = <uint64_t*>np.PyArray_DATA(output_offsets[i])
-                rc = tiledb_query_set_offsets_buffer(ctx_ptr, query_ptr, battr_name,
-                                                 offsets_buffer_ptr, &(offsets_buffer_sizes_ptr[i]))
+                rc = tiledb_query_set_offsets_buffer(
+                        ctx_ptr,
+                        query_ptr,
+                        bname,
+                        offsets_buffer_ptr,
+                        &(offsets_buffer_sizes_ptr[i])
+                )
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
 
-            if attributes[i] in nullmaps:
+            # Set validity buffer
+            if buffer_name in nullmaps:
                 # NOTE: validity map is owned *by the caller*
-                nulmap = nullmaps[attributes[i]]
+                nulmap = nullmaps[buffer_name]
                 nullmaps_sizes[i] = len(nulmap)
                 nulmap_buffer_ptr = <uint8_t*>np.PyArray_DATA(nulmap)
                 rc = tiledb_query_set_validity_buffer(
                     ctx_ptr,
                     query_ptr,
-                    battr_name,
+                    bname,
                     nulmap_buffer_ptr,
                     &(nullmaps_sizes_ptr[i])
                 )
-
                 if rc != TILEDB_OK:
                     _raise_ctx_err(ctx_ptr, rc)
 
