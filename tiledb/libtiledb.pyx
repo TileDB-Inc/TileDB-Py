@@ -219,6 +219,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   list coords_or_subarray,
                   list buffer_names,
                   list values,
+                  dict labels,
                   dict nullmaps,
                   dict fragment_info,
                   bint issparse):
@@ -228,9 +229,10 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     cdef bint isfortran = False
     cdef Py_ssize_t nattr = len(buffer_names)
+    cdef Py_ssize_t nlabel = len(labels)
 
     # Create arrays to hold buffer sizes
-    cdef Py_ssize_t nbuffer = nattr
+    cdef Py_ssize_t nbuffer = nattr + nlabel
     if issparse:
         nbuffer += tiledb_array.schema.ndim
     cdef np.ndarray buffer_sizes = np.zeros((nbuffer,), dtype=np.uint64)
@@ -274,20 +276,39 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 raise ValueError("mixed C and Fortran array layouts")
 
     # Set data and offsets buffers for dimensions (sparse arrays only)
+    ibuffer = nattr
     if issparse:
         for dim_idx, coords in enumerate(coords_or_subarray):
+            # Append buffer name
+            buffer_names.append(tiledb_array.schema.domain.dim(dim_idx).name)
+            # Get the buffer and offsets buffer
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
-                buffer, offsets = tiledb.main.array_to_buffer(coords, True, False)
-                buffer_sizes[nattr + dim_idx] = buffer.nbytes
-                buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
+                data, offsets = tiledb.main.array_to_buffer(coords, True, False)
             else:
-                buffer, offsets = coords, None
-                buffer_sizes[nattr + dim_idx] = buffer.nbytes
-            output_values.append(buffer)
+                data, offsets = coords, None
+            # Set the buffer and size for the data and offsets buffer
+            buffer_sizes[ibuffer] = data.nbytes
+            if offsets is not None:
+                buffer_offsets_sizes[ibuffer] = offsets.nbytes
+            output_values.append(data)
             output_offsets.append(offsets)
+            ibuffer = ibuffer + 1
 
-            name = tiledb_array.schema.domain.dim(dim_idx).name
-            buffer_names.append(name)
+    for label_name, label_values in labels.items():
+        # Append buffer name
+        buffer_names.append(label_name)
+        # TODO: Fix this to allow variable dimension labels
+        # if dim_label.isvar:
+        #     data, offsets = tiledb.main.array_to_buffer(label_values, True, False)
+        # else:
+        #     data, offsets = label_values, None
+        data, offsets = label_values, None
+        buffer_sizes[ibuffer] = data.nbytes
+        if offsets is not None:
+            buffer_offsets_sizes[ibuffer] = offsets.nbytes
+        output_values.append(data)
+        output_offsets.append(offsets)
+        ibuffer = ibuffer + 1
 
     # Allocate the query
     cdef int rc = TILEDB_OK
@@ -1549,6 +1570,11 @@ cdef class ArraySchema(object):
         return dtype
 
     def has_dim_label(self, name):
+        """Returns True if the given name is a DimensionLabel of the ArraySchema
+
+        :param name: dimension label name
+        :rtype: bool
+        """
         cdef const void* domain_ptr = NULL
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef bytes bname = name.encode("UTF-8")
@@ -3033,7 +3059,7 @@ cdef class DenseArrayImpl(Array):
 
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifiying the selected subarray region for each dimension of the DenseArray.
-        :param value: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
+        :param value: a dictionary of array attribute and label values, values must able to be converted to n-d numpy arrays.\
             if the number of attributes is one, then a n-d numpy array is accepted.
         :type value: dict or :py:class:`numpy.ndarray`
         :raises IndexError: invalid or unsupported index selection
@@ -3081,6 +3107,7 @@ cdef class DenseArrayImpl(Array):
         cdef object subarray = index_domain_subarray(self, domain, idx)
         cdef list attributes = list()
         cdef list values = list()
+        cdef dict labels = dict()
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
 
         if isinstance(val, np.ndarray):
@@ -3094,16 +3121,24 @@ cdef class DenseArrayImpl(Array):
                 )
 
         if isinstance(val, dict):
+            # Create dictionary for label names and values from the dictionary
+            labels = {
+                name: data for name, data in val.items()
+                if self.schema.has_dim_label(name)
+            }
+
+            # Create a list of attribute names and attribute values from the dictionary
             for attr_idx in range(self.schema.nattr):
                 attr = self.schema.attr(attr_idx)
-                k = attr.name
-                v = val[k]
-                attr = self.schema.attr(k)
+                attr_name = attr.name
+                v = val[attr_name]
+                attr = self.schema.attr(attr_name)
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
                 if type(v) is np.ndarray and v.dtype is not np.dtype('O'):
                     v = np.ascontiguousarray(v, dtype=attr.dtype)
                 values.append(v)
+
         elif np.isscalar(val):
             for i in range(self.schema.nattr):
                 attr = self.schema.attr(i)
@@ -3146,23 +3181,24 @@ cdef class DenseArrayImpl(Array):
                              "assign multiple attributes)")
 
         if nullmaps:
-            for key,val in nullmaps.items():
-                if not self.schema.has_attr(key):
+            for attr_name, bitmap in nullmaps.items():
+                if not self.schema.has_attr(attr_name):
                     raise TileDBError("Cannot set validity for non-existent attribute.")
-                if not self.schema.attr(key).isnullable:
+                if not self.schema.attr(attr_name).isnullable:
                     raise ValueError("Cannot set validity map for non-nullable attribute.")
-                if not isinstance(val, np.ndarray):
-                    raise TypeError(f"Expected NumPy array for attribute '{key}' "
-                                    f"validity bitmap, got {type(val)}")
-                if val.dtype != np.uint8:
-                    raise TypeError(f"Expected NumPy uint8 array for attribute '{key}' "
-                                    f"validity bitmap, got {val.dtype}")
+                if not isinstance(bitmap, np.ndarray):
+                    raise TypeError(f"Expected NumPy array for attribute '{attr_name}' "
+                                    f"validity bitmap, got {type(bitmap)}")
+                if bitmap.dtype != np.uint8:
+                    raise TypeError(f"Expected NumPy uint8 array for attribute '{attr_name}' "
+                                    f"validity bitmap, got {bitmap.dtype}")
 
         _write_array(ctx_ptr,
                      self.ptr, self,
                      subarray,
                      attributes,
                      values,
+                     labels,
                      nullmaps,
                      self.last_fragment_info,
                      False)
@@ -3410,6 +3446,7 @@ def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
 
 def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
     cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
+    cdef dict labels = dict()
 
     if not self.isopen or self.mode != 'w':
         raise TileDBError("SparseArray is not opened for writing")
@@ -3426,6 +3463,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             sparse_coords,
             sparse_attributes,
             sparse_values,
+            labels,
             nullmaps,
             self.last_fragment_info,
             True
@@ -3437,6 +3475,12 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             raise ValueError("Expected dict-like object {name: value} for multi-attribute "
                              "array.")
         val = dict({self.attr(0).name: val})
+
+    # Create dictionary for label names and values from the dictionary
+    labels = {
+        name: data for name, data in val.items()
+        if self.schema.has_dim_label(name)
+    }
 
     # must iterate in Attr order to ensure that value order matches
     for attr_idx in range(self.schema.nattr):
@@ -3480,8 +3524,8 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         sparse_attributes.append(attr._internal_name)
         sparse_values.append(attr_val)
 
-    if (len(sparse_attributes) != len(val.keys())) \
-        or (len(sparse_values) != len(val.values())):
+    if (len(sparse_attributes) + len(labels) != len(val.keys())) \
+        or (len(sparse_values) + len(labels) != len(val.values())):
         raise TileDBError("Sparse write input data count does not match number of attributes")
 
     _write_array(
@@ -3489,6 +3533,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         sparse_coords,
         sparse_attributes,
         sparse_values,
+        labels,
         nullmaps,
         self.last_fragment_info,
         True
