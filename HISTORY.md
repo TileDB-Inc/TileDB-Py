@@ -1,4 +1,7 @@
-# In Progress
+# Release 0.19.1
+
+## TileDB Embedded updates:
+* TileDB-Py 0.19.1 includes TileDB Embedded [TileDB 2.13.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.13.1)
 
 ## Improvements
 * Move `Dim` and `Domain` from Cython to pure Python [#1327](https://github.com/TileDB-Inc/TileDB-Py/pull/1327)
