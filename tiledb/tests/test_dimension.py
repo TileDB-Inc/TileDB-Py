@@ -110,3 +110,7 @@ class DimensionTest(unittest.TestCase):
             "shape only valid for integer and datetime dimension domains",
         ):
             dim.shape
+
+    @pytest.mark.xfail
+    def test_fail_on_0_extent(self):
+        tiledb.Dim(domain=(0, 10), tile=0)
