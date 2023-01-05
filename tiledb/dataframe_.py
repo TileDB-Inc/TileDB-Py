@@ -250,8 +250,11 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
                 dim_min = dtype_min
 
             if np.issubdtype(dtype, np.integer):
-                tile_max = np.iinfo(np.uint64).max - tile
-                if np.uint64(dtype_max - dtype_min) > tile_max:
+                tile_max = np.iinfo(dtype).max - tile
+
+                if tile_max < 0:
+                    dim_max -= 1
+                elif dtype_max - dtype_min > tile_max:
                     dim_max = dtype_max - tile
         else:
             dim_min, dim_max = None, None
@@ -262,8 +265,12 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
         dim_max = np.max(values)
 
     if np.issubdtype(dtype, np.integer) or dtype.kind == "M":
-        # we can't make a tile larger than the dimension range or lower than 1
-        tile = max(1, min(tile, np.uint64(dim_max - dim_min)))
+        # when full_domain=True, the tile cannot exceed the max range of the
+        # datatype. when full_domain=False, the tile cannot exceed the max range
+        # of the dimensions. the tile extent must be at least 1.
+        dim_range = np.uint64(dim_max - dim_min)
+        tile_max = np.uint64(dtype_max) if full_domain else dim_range
+        tile = max(1, min(tile, tile_max))
     elif np.issubdtype(dtype, np.floating):
         # this difference can be inf
         with np.errstate(over="ignore"):
@@ -478,11 +485,18 @@ def _from_pandas(uri, dataframe, tiledb_args):
         elif mode != "ingest":
             raise TileDBError(f"Invalid mode specified ('{mode}')")
 
-    # TODO: disentangle the full_domain logic
     full_domain = tiledb_args.get("full_domain", False)
-    if sparse == False and (not index_dims or "index_col" not in kwargs):
+
+    if sparse == False and (not index_dims or "index_col" not in tiledb_args):
+        # for dense arrays, if there aren't any columns specified to use in
+        # creating the dimension (via `index_dims` or the Pandas `read_csv`
+        # argument `index_col`), then use the full domain
         full_domain = True
+
     if full_domain is None and tiledb_args.get("nrows"):
+        # Pandas `read_csv` argument `nrows` specifies to only read the first n
+        # rows of a CSV file resulting in a dimension that should have a domain
+        # length of n, not the full domain
         full_domain = False
 
     date_spec = tiledb_args.get("date_spec")
