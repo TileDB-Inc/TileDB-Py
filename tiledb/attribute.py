@@ -4,7 +4,7 @@ import warnings
 from typing import Any, Sequence, TYPE_CHECKING, Union
 
 import tiledb.cc as lt
-from .ctx import default_ctx
+from .ctx import CtxMixin
 from .filter import FilterList, Filter
 from .util import array_type_ncells, numpy_dtype, tiledb_type_is_datetime
 
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .libtiledb import Ctx
 
 
-class Attr(lt.Attribute):
+class Attr(CtxMixin, lt.Attribute):
     """
     Represents a TileDB attribute.
     """
@@ -46,15 +46,13 @@ class Attr(lt.Attribute):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        self._ctx = ctx or default_ctx()
-        _dtype = None
-
         if _capsule is not None:
-            return super().__init__(self._ctx, _capsule)
+            return super().__init__(ctx, _capsule)
 
         if _lt_obj is not None:
-            return super().__init__(_lt_obj)
+            return super().__init__(ctx, _lt_obj=_lt_obj)
 
+        _dtype = None
         if isinstance(dtype, str) and dtype == "ascii":
             tiledb_dtype = lt.DataType.STRING_ASCII
             _ncell = lt.TILEDB_VAR_NUM()
@@ -96,14 +94,7 @@ class Attr(lt.Attribute):
 
         var = var or False
 
-        try:
-            super().__init__(self._ctx, name, tiledb_dtype)
-        except lt.TileDBError as e:
-            # we set this here because if the super().__init__() constructor above
-            # fails, we want to check if self._ctx is None in __repr__ so we can
-            # perform a safe repr
-            self._ctx = None
-            raise lt.TileDBError(e) from None
+        super().__init__(ctx, name, tiledb_dtype)
 
         if _ncell:
             self._ncell = _ncell
@@ -180,7 +171,7 @@ class Attr(lt.Attribute):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return FilterList(_lt_obj=self._filters)
+        return FilterList(ctx=self._ctx, _lt_obj=self._filters)
 
     def _get_fill(self, value, dtype) -> Any:
         if dtype in (lt.DataType.CHAR, lt.DataType.BLOB):
@@ -241,11 +232,7 @@ class Attr(lt.Attribute):
         """
         return self._tiledb_dtype == lt.DataType.STRING_ASCII
 
-    def __repr__(self):
-        # use safe repr if pybind11 constructor failed
-        if self._ctx is None:
-            return object.__repr__(self)
-
+    def _repr(self):
         filters_str = ""
         if self.filters:
             filters_str = ", filters=FilterList(["
