@@ -2,14 +2,14 @@ from typing import MutableMapping, Union, TYPE_CHECKING
 import numpy as np
 
 import tiledb.cc as lt
-from .ctx import default_ctx
+from .ctx import CtxMixin, default_ctx
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx
     from .object import Object
 
 
-class Group(lt.Group):
+class Group(CtxMixin, lt.Group):
     """
     Support for organizing multiple arrays in arbitrary directory hierarchies.
 
@@ -276,13 +276,11 @@ class Group(lt.Group):
                 print(metadata)
 
     def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
-        self._ctx = ctx or default_ctx()
-
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
         query_type = Group._mode_to_query_type[mode]
 
-        super().__init__(self._ctx, uri, query_type)
+        super().__init__(ctx, uri, query_type)
 
         self._meta = self.GroupMetadata(self)
 
@@ -392,7 +390,7 @@ class Group(lt.Group):
         """
         return self._has_member(member)
 
-    def __repr__(self):
+    def _repr(self):
         return self._dump(True)
 
     def __enter__(self):
