@@ -394,6 +394,40 @@ class Ctx(lt.Context):
             return output
 
 
+class CtxMixin:
+    """
+    Base mixin class for pure Python classes that extend PyBind11 TileDB classes.
+
+    To use this class, a subclass must:
+    - Inherit from it first (i.e. `class Foo(CtxMixin, Bar)`, not `class Foo(Bar, CtxMixin)`
+    - Call super().__init__ by passing `ctx` (tiledb.Ctx or None) as first parameter and
+      - either zero or more pure Python positional parameters
+      - or a single `_lt_obj` PyBind11 parameter
+    - Override `_repr` method instead of `__repr__` to prevent segfaults in case of failed
+      initialization.
+    """
+
+    def __init__(self, ctx, *args, _lt_obj=None):
+        self._ctx = ctx or default_ctx()
+        try:
+            super().__init__(_lt_obj or self._ctx, *args)
+        except tiledb.TileDBError:
+            # we set this here because if the super().__init__() constructor above fails,
+            # we want to check if self._ctx is None in __repr__ so we can perform a safe repr
+            self._ctx = None
+            raise
+
+    def __repr__(self) -> str:
+        # use safe repr if pybind11 constructor failed
+        if self._ctx is None:
+            return object.__repr__(self)
+        else:
+            return self._repr()
+
+    def _repr(self) -> str:
+        return object.__repr__(self)
+
+
 def check_ipykernel_warn_once():
     """
     This function checks if we have imported ipykernel version < 6 in the
