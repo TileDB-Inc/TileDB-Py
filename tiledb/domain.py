@@ -2,7 +2,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 import tiledb.cc as lt
-from .ctx import default_ctx
+from .ctx import CtxMixin
 from .dimension import Dim
 from .util import numpy_dtype
 
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .libtiledb import Ctx
 
 
-class Domain(lt.Domain):
+class Domain(CtxMixin, lt.Domain):
     """
     Represents a TileDB domain.
     """
@@ -32,15 +32,13 @@ class Domain(lt.Domain):
         :param tiledb.Ctx ctx: A TileDB Context
 
         """
-        self._ctx = ctx or default_ctx()
-
         if _capsule is not None:
-            return super().__init__(self._ctx, _capsule)
+            return super().__init__(ctx, _capsule)
 
         if _lt_obj is not None:
-            return super().__init__(_lt_obj)
+            return super().__init__(ctx, _lt_obj=_lt_obj)
 
-        super().__init__(self._ctx)
+        super().__init__(ctx)
 
         # support passing a list of dims without splatting
         if len(dims) == 1 and isinstance(dims[0], list):
@@ -78,8 +76,8 @@ class Domain(lt.Domain):
                 )
             self._add_dim(d)
 
-    def __repr__(self):
-        dims = ",\n       ".join([repr(self.dim(i)) for i in range(self.ndim)])
+    def _repr(self):
+        dims = ",\n       ".join(repr(self.dim(i)) for i in range(self.ndim))
         return "Domain({0!s})".format(dims)
 
     def _repr_html_(self) -> str:
