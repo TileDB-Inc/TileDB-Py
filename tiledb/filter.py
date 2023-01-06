@@ -2,7 +2,7 @@ import io
 from typing import List, overload, Sequence, TYPE_CHECKING, Union
 
 import tiledb.cc as lt
-from .ctx import CtxMixin, default_ctx
+from .ctx import CtxMixin
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx
@@ -680,7 +680,7 @@ class WebpFilter(Filter):
 
 
 #
-class FilterList(lt.FilterList):
+class FilterList(CtxMixin, lt.FilterList):
     """
     An ordered list of Filter objects for filtering TileDB data.
 
@@ -739,30 +739,19 @@ class FilterList(lt.FilterList):
         _lt_obj: lt.FilterList = None,
         _capsule: "PyCapsule" = None,
     ):
-        self._ctx = ctx or default_ctx()
-
-        try:
-            if _capsule is not None:
-                super().__init__(self._ctx, _capsule)
-            elif _lt_obj is not None:
-                super().__init__(_lt_obj)
-            else:
-                super().__init__(self._ctx)
-                if filters is not None:
-                    filters = list(filters)
-                    for f in filters:
-                        if not isinstance(f, Filter):
-                            raise ValueError(
-                                "filters argument must be an iterable of TileDB filter objects"
-                            )
-                        self._add_filter(f)
-        except lt.TileDBError as e:
-            # we set this here because if the super().__init__() constructor above
-            # fails, we want to check if self._ctx is None in __repr__ so we can
-            # perform a safe repr
-            self._ctx = None
-            raise lt.TileDBError(e) from None
-
+        if _capsule is not None:
+            super().__init__(ctx, _capsule)
+        elif _lt_obj is not None:
+            super().__init__(ctx, _lt_obj=_lt_obj)
+        else:
+            super().__init__(ctx)
+            if filters is not None:
+                for f in filters:
+                    if not isinstance(f, Filter):
+                        raise ValueError(
+                            "filters argument must be an iterable of TileDB filter objects"
+                        )
+                    self._add_filter(f)
         if chunksize is not None:
             self._chunksize = chunksize
 
@@ -845,14 +834,8 @@ class FilterList(lt.FilterList):
             raise ValueError("filter argument must be a TileDB Filter object")
         self._add_filter(filter)
 
-    def __repr__(self) -> str:
-        # use safe repr if pybind11 constructor failed
-        if self._ctx is None:
-            return object.__repr__(self)
-
-        filters = ",\n       ".join(
-            [repr(self._getfilter(i)) for i in range(len(self))]
-        )
+    def _repr(self) -> str:
+        filters = ",\n       ".join(repr(self._getfilter(i)) for i in range(len(self)))
         return "FilterList([{0!s}])".format(filters)
 
     def _repr_html_(self) -> str:
@@ -899,12 +882,5 @@ class FilterList(lt.FilterList):
         else:
             options = []
 
-        _cctx = self._ctx
-
-        opts = []
-        for opt in options:
-            opts.append(fil._get_option(_cctx, opt))
-
-        fil = filtype(*opts, ctx=self._ctx)
-
-        return fil
+        ctx = self._ctx
+        return filtype(*(fil._get_option(ctx, opt) for opt in options), ctx=ctx)
