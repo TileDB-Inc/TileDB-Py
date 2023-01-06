@@ -1160,6 +1160,10 @@ cdef extern from "tiledb/tiledb_experimental.h":
     )
 
 cdef extern from "tiledb/tiledb_dimension_label.h":
+    # type
+    ctypedef struct tiledb_dimension_label_t:
+        pass
+
     # ArraySchema: DimensionLabel
     int tiledb_array_schema_add_dimension_label(
         tiledb_ctx_t* ctx,
@@ -1168,6 +1172,13 @@ cdef extern from "tiledb/tiledb_dimension_label.h":
         const char* name,
         tiledb_data_order_t label_order,
         tiledb_datatype_t label_type
+    )
+
+    int tiledb_array_schema_get_dimension_label_from_name(
+        tiledb_ctx_t* ctx,
+        tiledb_array_schema_t* array_schema,
+        const char* label_name,
+        tiledb_dimension_label_t** dim_label
     )
 
     int tiledb_array_schema_has_dimension_label(
@@ -1248,6 +1259,7 @@ cdef class ArraySchema(object):
     cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr)
     cdef _attr_name(self, name)
     cdef _attr_idx(self, int idx)
+    cdef _dim_label(self, name)
 
 cdef class Array(object):
     cdef object __weakref__

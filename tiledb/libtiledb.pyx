@@ -14,9 +14,10 @@ from collections import OrderedDict
 from collections.abc import Sequence
 
 from .attribute import Attr
-from .dimension_label_schema import DimLabelSchema
 from .ctx import default_ctx, Ctx, Config
 from .dimension import Dim
+from .dimension_label import DimLabel
+from .dimension_label_schema import DimLabelSchema
 from .domain import Domain
 from .filter import FilterList
 from .vfs import VFS
@@ -297,11 +298,11 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     for label_name, label_values in labels.items():
         # Append buffer name
         buffer_names.append(label_name)
-        # TODO: Fix this to allow variable dimension labels
-        # if dim_label.isvar:
-        #     data, offsets = tiledb.main.array_to_buffer(label_values, True, False)
-        # else:
-        #     data, offsets = label_values, None
+        dim_label = tiledb_array.schema.dim_label(label_name)
+        if dim_label.isvar:
+            data, offsets = tiledb.main.array_to_buffer(label_values, True, False)
+        else:
+            data, offsets = label_values, None
         data, offsets = label_values, None
         buffer_sizes[ibuffer] = data.nbytes
         if offsets is not None:
@@ -1506,6 +1507,16 @@ cdef class ArraySchema(object):
                         ctx_ptr, self.ptr, idx, &attr_ptr))
         return Attr.from_capsule(self.ctx, PyCapsule_New(attr_ptr, "attr", NULL))
 
+    cdef _dim_label(self, name):
+        cdef bytes bname = ustring(name).encode('UTF-8')
+        cdef tiledb_dimension_label_t* dim_label_ptr = NULL
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
+        check_error(self.ctx,
+                    tiledb_array_schema_get_dimension_label_from_name(
+                        ctx_ptr, self.ptr, bname, &dim_label_ptr))
+        return DimLabel(self.ctx, _capsule=PyCapsule_New(dim_label_ptr, "dim_label", NULL))
+
+
     def attr(self, object key not None):
         """Returns an Attr instance given an int index or string label
 
@@ -1569,8 +1580,19 @@ cdef class ArraySchema(object):
             dtype = np.dtype((dtype, 1))
         return dtype
 
+    def dim_label(self, name):
+        """Returns a DimLabel instance given a string name
+
+        :param key: dimension label name
+        :type key: str
+        :rtype: tiledb.DimLabel
+        :return: The ArraySchema attribute at index or with the given name
+
+        """
+        return self._dim_label(name)
+
     def has_dim_label(self, name):
-        """Returns True if the given name is a DimensionLabel of the ArraySchema
+        """Returns True if the given name is a DimLabel of the ArraySchema
 
         :param name: dimension label name
         :rtype: bool
