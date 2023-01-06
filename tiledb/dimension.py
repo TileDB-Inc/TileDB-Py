@@ -169,7 +169,16 @@ class Dim(lt.Dimension):
                 if tile_size_array.size != 1:
                     raise ValueError("tile extent must be a scalar")
 
-        super().__init__(self._ctx, name, dim_datatype, domain_array, tile_size_array)
+        try:
+            super().__init__(
+                self._ctx, name, dim_datatype, domain_array, tile_size_array
+            )
+        except lt.TileDBError as e:
+            # we set this here because if the super().__init__() constructor above
+            # fails, we want to check if self._ctx is None in __repr__ so we can
+            # perform a safe repr
+            self._ctx = None
+            raise lt.TileDBError(e) from None
 
         if filters is not None:
             if isinstance(filters, FilterList):
@@ -178,6 +187,10 @@ class Dim(lt.Dimension):
                 self._filters = FilterList(filters)
 
     def __repr__(self) -> str:
+        # use safe repr if pybind11 constructor failed
+        if self._ctx is None:
+            return object.__repr__(self)
+
         filters_str = ""
         if self.filters:
             filters_str = ", filters=FilterList(["
@@ -187,9 +200,7 @@ class Dim(lt.Dimension):
 
         # for consistency, print `var=True` for string-like types
         varlen = "" if not self.dtype in (np.str_, np.bytes_) else ", var=True"
-        return "Dim(name={0!r}, domain={1!s}, tile={2!r}, dtype='{3!s}'{4}{5})".format(
-            self.name, self.domain, self.tile, self.dtype, varlen, filters_str
-        )
+        return f"Dim(name={self.name!r}, domain={self.domain!s}, tile={self.tile!r}, dtype='{self.dtype!s}'{varlen}{filters_str})"
 
     def _repr_html_(self) -> str:
         output = io.StringIO()

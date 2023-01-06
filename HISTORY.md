@@ -1,3 +1,8 @@
+# In Progress
+
+## Bug Fixes
+* Introduce safe repr for classes for `Filter`, `FilterList`, `Dim`, `Domain`, and `Attr`
+
 # Release 0.19.1
 
 ## TileDB Embedded updates:

@@ -13,9 +13,21 @@ class Filter(lt.Filter):
 
     def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
         self._ctx = ctx or default_ctx()
-        super().__init__(self._ctx, type)
+
+        try:
+            super().__init__(self._ctx, type)
+        except lt.TileDBError as e:
+            # we set this here because if the super().__init__() constructor above
+            # fails, we want to check if self._ctx is None in __repr__ so we can
+            # perform a safe repr
+            self._ctx = None
+            raise lt.TileDBError(e) from None
 
     def __repr__(self) -> str:
+        # use safe repr if pybind11 constructor failed
+        if self._ctx is None:
+            return object.__repr__(self)
+
         output = io.StringIO()
         output.write(f"{type(self).__name__}(")
         if hasattr(self, "_attrs_"):
@@ -805,20 +817,27 @@ class FilterList(lt.FilterList):
     ):
         self._ctx = ctx or default_ctx()
 
-        if _capsule is not None:
-            super().__init__(self._ctx, _capsule)
-        elif _lt_obj is not None:
-            super().__init__(_lt_obj)
-        else:
-            super().__init__(self._ctx)
-            if filters is not None:
-                filters = list(filters)
-                for f in filters:
-                    if not isinstance(f, Filter):
-                        raise ValueError(
-                            "filters argument must be an iterable of TileDB filter objects"
-                        )
-                    self._add_filter(f)
+        try:
+            if _capsule is not None:
+                super().__init__(self._ctx, _capsule)
+            elif _lt_obj is not None:
+                super().__init__(_lt_obj)
+            else:
+                super().__init__(self._ctx)
+                if filters is not None:
+                    filters = list(filters)
+                    for f in filters:
+                        if not isinstance(f, Filter):
+                            raise ValueError(
+                                "filters argument must be an iterable of TileDB filter objects"
+                            )
+                        self._add_filter(f)
+        except lt.TileDBError as e:
+            # we set this here because if the super().__init__() constructor above
+            # fails, we want to check if self._ctx is None in __repr__ so we can
+            # perform a safe repr
+            self._ctx = None
+            raise lt.TileDBError(e) from None
 
         if chunksize is not None:
             self._chunksize = chunksize
@@ -903,6 +922,10 @@ class FilterList(lt.FilterList):
         self._add_filter(filter)
 
     def __repr__(self) -> str:
+        # use safe repr if pybind11 constructor failed
+        if self._ctx is None:
+            return object.__repr__(self)
+
         filters = ",\n       ".join(
             [repr(self._getfilter(i)) for i in range(len(self))]
         )
