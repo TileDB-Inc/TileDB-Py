@@ -52,15 +52,10 @@ class Config(lt.Config):
     :param str path: Set parameter values from persisted Config parameter file
     """
 
-    def __init__(self, params: dict = None, path: str = None, _lt_obj=None):
-        if _lt_obj is not None:
-            return super().__init__(_lt_obj)
-
+    def __init__(self, params: dict = None, path: str = None):
         super().__init__()
-
         if path is not None:
             self.load(path)
-
         if params is not None:
             self.update(params)
 
@@ -356,7 +351,10 @@ class Ctx(lt.Context):
 
     def config(self):
         """Returns the Config instance associated with the Ctx."""
-        return Config(_lt_obj=super().config())
+        new = Config.__new__(Config)
+        # bypass calling Config.__init__, call lt.Config.__init__ instead
+        lt.Config.__init__(new, super().config())
+        return new
 
     def set_tag(self, key: str, value: str):
         """Sets a (string, string) "tag" on the Ctx (internal)."""
