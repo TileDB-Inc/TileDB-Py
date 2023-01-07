@@ -732,15 +732,8 @@ class FilterList(CtxMixin, lt.FilterList):
     }
 
     def __init__(
-        self,
-        filters: Sequence[Filter] = None,
-        chunksize: int = None,
-        ctx: "Ctx" = None,
-        _lt_obj: lt.FilterList = None,
+        self, filters: Sequence[Filter] = None, chunksize: int = None, ctx: "Ctx" = None
     ):
-        if _lt_obj is not None:
-            return super().__init__(ctx, _lt_obj=_lt_obj)
-
         super().__init__(ctx)
         if filters is not None:
             for f in filters:

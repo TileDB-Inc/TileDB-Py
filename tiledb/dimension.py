@@ -91,28 +91,20 @@ class Dim(CtxMixin, lt.Dimension):
         dtype: np.dtype = np.uint64,
         var: bool = None,
         ctx: "Ctx" = None,
-        _lt_obj: lt.Dimension = None,
     ):
         """Class representing a dimension of a TileDB Array.
 
-        :param str name: the dimension name, empty if anonymous
-        :param domain:
-        :type domain: tuple(int, int) or tuple(float, float)
+        :param name: Dimension name, empty if anonymous
+        :param domain: TileDB domain
         :param tile: Tile extent
-        :type tile: int or float
         :param filters: List of filters to apply
-        :type filters: FilterList
-        :dtype: the Dim numpy dtype object, type object, or string \
-            that can be corerced into a numpy dtype object
+        :param dtype: Dimension value datatype
+        :param var: Dimension is variable-length (automatic for byte/string types)
+        :param ctx: A TileDB Context
         :raises ValueError: invalid domain or tile extent
         :raises TypeError: invalid domain, tile extent, or dtype type
-        :raises: :py:exc:`TileDBError`
-        :param tiledb.Ctx ctx: A TileDB Context
-
+        :raises tiledb.TileDBError:
         """
-        if _lt_obj is not None:
-            return super().__init__(ctx, _lt_obj=_lt_obj)
-
         if var is not None:
             if var and np.dtype(dtype) not in (np.str_, np.bytes_):
                 raise TypeError("'var=True' specified for non-str/bytes dtype")
@@ -288,7 +280,7 @@ class Dim(CtxMixin, lt.Dimension):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return FilterList(ctx=self._ctx, _lt_obj=self._filters)
+        return FilterList.from_pybind11(self._ctx, self._filters)
 
     @property
     def shape(self) -> Tuple["np.generic", "np.generic"]:

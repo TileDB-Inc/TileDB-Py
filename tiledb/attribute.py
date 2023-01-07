@@ -26,7 +26,6 @@ class Attr(CtxMixin, lt.Attribute):
         nullable: bool = False,
         filters: Union[FilterList, Sequence[Filter]] = None,
         ctx: "Ctx" = None,
-        _lt_obj: lt.Attribute = None,
     ):
         """Class representing a TileDB array attribute.
 
@@ -40,9 +39,6 @@ class Attr(CtxMixin, lt.Attribute):
         :raises TypeError: invalid dtype
         :raises tiledb.TileDBError:
         """
-        if _lt_obj is not None:
-            return super().__init__(ctx, _lt_obj=_lt_obj)
-
         _dtype = None
         if isinstance(dtype, str) and dtype == "ascii":
             tiledb_dtype = lt.DataType.STRING_ASCII
@@ -162,7 +158,7 @@ class Attr(CtxMixin, lt.Attribute):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return FilterList(ctx=self._ctx, _lt_obj=self._filters)
+        return FilterList.from_pybind11(self._ctx, self._filters)
 
     def _get_fill(self, value, dtype) -> Any:
         if dtype in (lt.DataType.CHAR, lt.DataType.BLOB):

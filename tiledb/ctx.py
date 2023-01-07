@@ -401,14 +401,18 @@ class CtxMixin:
     To use this class, a subclass must:
     - Inherit from it first (i.e. `class Foo(CtxMixin, Bar)`, not `class Foo(Bar, CtxMixin)`
     - Call super().__init__ by passing `ctx` (tiledb.Ctx or None) as first parameter and
-      - either zero or more pure Python positional parameters
-      - or a single `_lt_obj` PyBind11 parameter
+      zero or more pure Python positional parameters
     """
 
-    def __init__(self, ctx, *args, _lt_obj=None):
+    def __init__(self, ctx, *args, _pass_ctx_to_super=True):
         if not ctx:
             ctx = default_ctx()
-        super().__init__(_lt_obj or ctx, *args)
+
+        if _pass_ctx_to_super:
+            super().__init__(ctx, *args)
+        else:
+            super().__init__(*args)
+
         # we set this here because if the super().__init__() constructor above fails,
         # we don't want to set self._ctx
         self._ctx = ctx
@@ -416,9 +420,17 @@ class CtxMixin:
     @classmethod
     def from_capsule(cls, ctx, capsule):
         """Create an instance of this class from a PyCapsule instance"""
+        # bypass calling self.__init__, call CtxMixin.__init__ instead
         self = cls.__new__(cls)
-        # bypass cls.__init__ to call the __init__ of the superclass via CtxMixin.__init__
         CtxMixin.__init__(self, ctx, capsule)
+        return self
+
+    @classmethod
+    def from_pybind11(cls, ctx, lt_obj):
+        """Create an instance of this class from a PyBind11 instance"""
+        # bypass calling self.__init__, call CtxMixin.__init__ instead
+        self = cls.__new__(cls)
+        CtxMixin.__init__(self, ctx, lt_obj, _pass_ctx_to_super=False)
         return self
 
 
