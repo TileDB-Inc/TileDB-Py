@@ -22,19 +22,14 @@ class Domain(CtxMixin, lt.Domain):
         *dims: Dim,
         ctx: "Ctx" = None,
         _lt_obj: lt.Domain = None,
-        _capsule: "PyCapsule" = None,
     ):
         """Class representing the domain of a TileDB Array.
 
         :param *dims*: one or more tiledb.Dim objects up to the Domain's ndim
+        :param ctx: A TileDB Context
         :raises TypeError: All dimensions must have the same dtype
-        :raises: :py:exc:`TileDBError`
-        :param tiledb.Ctx ctx: A TileDB Context
-
+        :raises tiledb.TileDBError:
         """
-        if _capsule is not None:
-            return super().__init__(ctx, _capsule)
-
         if _lt_obj is not None:
             return super().__init__(ctx, _lt_obj=_lt_obj)
 

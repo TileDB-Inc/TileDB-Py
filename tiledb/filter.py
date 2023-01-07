@@ -737,21 +737,18 @@ class FilterList(CtxMixin, lt.FilterList):
         chunksize: int = None,
         ctx: "Ctx" = None,
         _lt_obj: lt.FilterList = None,
-        _capsule: "PyCapsule" = None,
     ):
-        if _capsule is not None:
-            super().__init__(ctx, _capsule)
-        elif _lt_obj is not None:
-            super().__init__(ctx, _lt_obj=_lt_obj)
-        else:
-            super().__init__(ctx)
-            if filters is not None:
-                for f in filters:
-                    if not isinstance(f, Filter):
-                        raise ValueError(
-                            "filters argument must be an iterable of TileDB filter objects"
-                        )
-                    self._add_filter(f)
+        if _lt_obj is not None:
+            return super().__init__(ctx, _lt_obj=_lt_obj)
+
+        super().__init__(ctx)
+        if filters is not None:
+            for f in filters:
+                if not isinstance(f, Filter):
+                    raise ValueError(
+                        "filters argument must be an iterable of TileDB filter objects"
+                    )
+                self._add_filter(f)
         if chunksize is not None:
             self._chunksize = chunksize
 

@@ -27,28 +27,19 @@ class Attr(CtxMixin, lt.Attribute):
         filters: Union[FilterList, Sequence[Filter]] = None,
         ctx: "Ctx" = None,
         _lt_obj: lt.Attribute = None,
-        _capsule: "PyCapsule" = None,
     ):
         """Class representing a TileDB array attribute.
 
-        :param tiledb.Ctx ctx: A TileDB Context
-        :param str name: Attribute name, empty if anonymous
-        :param dtype: Attribute value datatypes
-        :type dtype: numpy.dtype object or type or string
-        :param nullable: Attribute is nullable
-        :type bool:
-        :param fill: Fill value for unset cells.
+        :param name: Attribute name, empty if anonymous
+        :param dtype: Attribute value datatype
+        :param fill: Fill value for unset cells
         :param var: Attribute is variable-length (automatic for byte/string types)
-        :type dtype: bool
+        :param nullable: Attribute is nullable
         :param filters: List of filters to apply
-        :type filters: FilterList
+        :param ctx: A TileDB Context
         :raises TypeError: invalid dtype
-        :raises: :py:exc:`tiledb.TileDBError`
-
+        :raises tiledb.TileDBError:
         """
-        if _capsule is not None:
-            return super().__init__(ctx, _capsule)
-
         if _lt_obj is not None:
             return super().__init__(ctx, _lt_obj=_lt_obj)
 

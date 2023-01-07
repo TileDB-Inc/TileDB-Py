@@ -413,6 +413,14 @@ class CtxMixin:
         # we don't want to set self._ctx
         self._ctx = ctx
 
+    @classmethod
+    def from_capsule(cls, ctx, capsule):
+        """Create an instance of this class from a PyCapsule instance"""
+        self = cls.__new__(cls)
+        # bypass cls.__init__ to call the __init__ of the superclass via CtxMixin.__init__
+        CtxMixin.__init__(self, ctx, capsule)
+        return self
+
 
 def check_ipykernel_warn_once():
     """
