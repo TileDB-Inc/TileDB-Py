@@ -76,7 +76,7 @@ class Domain(CtxMixin, lt.Domain):
                 )
             self._add_dim(d)
 
-    def _repr(self):
+    def __repr__(self):
         dims = ",\n       ".join(repr(self.dim(i)) for i in range(self.ndim))
         return "Domain({0!s})".format(dims)
 

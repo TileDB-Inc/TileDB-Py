@@ -14,7 +14,7 @@ class Filter(CtxMixin, lt.Filter):
     def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
         super().__init__(ctx, type)
 
-    def _repr(self) -> str:
+    def __repr__(self) -> str:
         output = io.StringIO()
         output.write(f"{type(self).__name__}(")
         if hasattr(self, "_attrs_"):
@@ -834,7 +834,7 @@ class FilterList(CtxMixin, lt.FilterList):
             raise ValueError("filter argument must be a TileDB Filter object")
         self._add_filter(filter)
 
-    def _repr(self) -> str:
+    def __repr__(self) -> str:
         filters = ",\n       ".join(repr(self._getfilter(i)) for i in range(len(self)))
         return "FilterList([{0!s}])".format(filters)
 

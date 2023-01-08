@@ -232,7 +232,7 @@ class Attr(CtxMixin, lt.Attribute):
         """
         return self._tiledb_dtype == lt.DataType.STRING_ASCII
 
-    def _repr(self):
+    def __repr__(self):
         filters_str = ""
         if self.filters:
             filters_str = ", filters=FilterList(["

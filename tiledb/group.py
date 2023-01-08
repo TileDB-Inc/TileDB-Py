@@ -390,7 +390,7 @@ class Group(CtxMixin, lt.Group):
         """
         return self._has_member(member)
 
-    def _repr(self):
+    def __repr__(self):
         return self._dump(True)
 
     def __enter__(self):

@@ -175,7 +175,7 @@ class Dim(CtxMixin, lt.Dimension):
             else:
                 self._filters = FilterList(filters)
 
-    def _repr(self) -> str:
+    def __repr__(self) -> str:
         filters_str = ""
         if self.filters:
             filters_str = ", filters=FilterList(["
