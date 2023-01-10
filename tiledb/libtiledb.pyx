@@ -675,13 +675,6 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
         raise TypeError("np type is not a datetime {0!r}".format(date_unit))
     return tdb_dt
 
-cdef int _numpy_typeid(tiledb_datatype_t tiledb_dtype):
-    """Return a numpy type num (int) given a tiledb_datatype_t enum value."""
-    np_id_type = _tiledb_dtype_to_numpy_typeid_convert.get(tiledb_dtype, None)
-    if np_id_type is not None:
-        return np_id_type
-    return np.NPY_DATETIME if _tiledb_type_is_datetime(tiledb_dtype) else np.NPY_NOTYPE
-
 cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
     """Return a numpy type given a tiledb_datatype_t enum value."""
     cdef base_dtype
@@ -4033,17 +4026,6 @@ def move(old_uri, new_uri, ctx=None):
     if rc != TILEDB_OK:
         check_error(ctx, rc)
     return
-
-cdef int vfs_ls_callback(const char* path_ptr, void* py_list):
-    cdef list result_list
-    cdef unicode path
-    try:
-        result_list = <list?>py_list
-        path = path_ptr.decode('UTF-8')
-        result_list.append(path)
-    except StopIteration:
-        return 0
-    return 1
 
 cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
     objtype = None
