@@ -413,218 +413,6 @@ public:
 #endif
   }
 
-  void init_config() {
-    // get config parameters
-    std::string tmp_str;
-    if (config_has_key(ctx_.config(), "py.init_buffer_bytes")) {
-      tmp_str = ctx_.config().get("py.init_buffer_bytes");
-      try {
-        init_buffer_bytes_ = std::stoull(tmp_str);
-      } catch (const std::invalid_argument &e) {
-        (void)e;
-        throw std::invalid_argument(
-            "Failed to convert 'py.init_buffer_bytes' to uint64_t ('" +
-            tmp_str + "')");
-      }
-    }
-
-    if (config_has_key(ctx_.config(), "py.alloc_max_bytes")) {
-      tmp_str = ctx_.config().get("py.alloc_max_bytes");
-      try {
-        alloc_max_bytes_ = std::stoull(tmp_str);
-      } catch (const std::invalid_argument &e) {
-        (void)e;
-        throw std::invalid_argument(
-            "Failed to convert 'py.alloc_max_bytes' to uint64_t ('" + tmp_str +
-            "')");
-      }
-      if (alloc_max_bytes_ < pow(1024, 2)) {
-        throw std::invalid_argument("Invalid parameter: 'py.alloc_max_bytes' "
-                                    "must be >= 1 MB (1024 ** 2 bytes)");
-      };
-    }
-
-    if (config_has_key(ctx_.config(), "py.deduplicate")) {
-      tmp_str = ctx_.config().get("py.deduplicate");
-      if (tmp_str == "true") {
-        deduplicate_ = true;
-      } else if (tmp_str == "false") {
-        deduplicate_ = false;
-      } else {
-        throw std::invalid_argument(
-            "Failed to convert configuration 'py.deduplicate' to bool ('" +
-            tmp_str + "')");
-      }
-    }
-
-    if (config_has_key(ctx_.config(), "py.exact_init_buffer_bytes")) {
-      tmp_str = ctx_.config().get("py.exact_init_buffer_bytes");
-      if (tmp_str == "true") {
-        exact_init_bytes_ = true;
-      } else if (tmp_str == "false") {
-        exact_init_bytes_ = false;
-      } else {
-        throw std::invalid_argument("Failed to convert configuration "
-                                    "'py.exact_init_buffer_bytes' to bool ('" +
-                                    tmp_str + "')");
-      }
-    }
-
-    if (config_has_key(ctx_.config(), "py.use_arrow")) {
-      tmp_str = ctx_.config().get("py.use_arrow");
-      if (tmp_str == "True") {
-        use_arrow_ = true;
-      } else if (tmp_str == "False") {
-        use_arrow_ = false;
-      } else {
-        throw std::invalid_argument(
-            "Failed to convert configuration 'py.use_arrow' to bool ('" +
-            tmp_str + "')");
-      }
-    }
-  }
-
-  void add_dim_range(uint32_t dim_idx, py::tuple r) {
-    if (py::len(r) == 0)
-      return;
-    else if (py::len(r) != 2)
-      TPY_ERROR_LOC("Unexpected range len != 2");
-
-    auto r0 = r[0];
-    auto r1 = r[1];
-    // no type-check here, because we might allow cast-conversion
-    // if (r0.get_type() != r1.get_type())
-    //    TPY_ERROR_LOC("Mismatched type");
-
-    auto dim = domain_->dimension(dim_idx);
-
-    auto tiledb_type = dim.type();
-
-    try {
-      switch (tiledb_type) {
-      case TILEDB_INT32: {
-        using T = int32_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_INT64: {
-        using T = int64_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_INT8: {
-        using T = int8_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_UINT8: {
-        using T = uint8_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_INT16: {
-        using T = int16_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_UINT16: {
-        using T = uint16_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_UINT32: {
-        using T = uint32_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_UINT64: {
-        using T = uint64_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_FLOAT32: {
-        using T = float;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_FLOAT64: {
-        using T = double;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_STRING_ASCII:
-      case TILEDB_STRING_UTF8:
-      case TILEDB_CHAR: {
-        if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
-          TPY_ERROR_LOC(
-              "internal error: ranges must both be strings or (None, None)");
-        } else if (!py::isinstance<py::none>(r0) &&
-                   !py::isinstance<py::none>(r1) &&
-                   !py::isinstance<py::str>(r0) &&
-                   !py::isinstance<py::str>(r1) &&
-                   !py::isinstance<py::bytes>(r0) &&
-                   !py::isinstance<py::bytes>(r1)) {
-          TPY_ERROR_LOC(
-              "internal error: expected string type for var-length dim!");
-        }
-
-        if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0))
-          query_->add_range(dim_idx, r0.cast<string>(), r1.cast<string>());
-
-        break;
-      }
-      case TILEDB_DATETIME_YEAR:
-      case TILEDB_DATETIME_MONTH:
-      case TILEDB_DATETIME_WEEK:
-      case TILEDB_DATETIME_DAY:
-      case TILEDB_DATETIME_HR:
-      case TILEDB_DATETIME_MIN:
-      case TILEDB_DATETIME_SEC:
-      case TILEDB_DATETIME_MS:
-      case TILEDB_DATETIME_US:
-      case TILEDB_DATETIME_NS:
-      case TILEDB_DATETIME_PS:
-      case TILEDB_DATETIME_FS:
-      case TILEDB_DATETIME_AS: {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
-      case TILEDB_TIME_HR:
-      case TILEDB_TIME_MIN:
-      case TILEDB_TIME_SEC:
-      case TILEDB_TIME_MS:
-      case TILEDB_TIME_US:
-      case TILEDB_TIME_NS:
-      case TILEDB_TIME_PS:
-      case TILEDB_TIME_FS:
-      case TILEDB_TIME_AS:
-#endif
-        py::dtype dtype = tiledb_dtype(tiledb_type, 1);
-        auto dt0 = py::isinstance<py::int_>(r0) ? r0 : r0.attr("astype")(dtype);
-        auto dt1 = py::isinstance<py::int_>(r1) ? r1 : r1.attr("astype")(dtype);
-
-        // TODO, this is suboptimal, should define pybind converter
-        if (py::isinstance<py::int_>(dt0) && py::isinstance<py::int_>(dt1)) {
-          query_->add_range(dim_idx, py::cast<int64_t>(dt0),
-                            py::cast<int64_t>(dt1));
-        } else {
-          auto darray = py::array(py::make_tuple(dt0, dt1));
-          query_->add_range(dim_idx, *(int64_t *)darray.data(0),
-                            *(int64_t *)darray.data(1));
-        }
-
-        break;
-      }
-      default:
-        TPY_ERROR_LOC("Unknown dim type conversion!");
-      }
-    } catch (py::cast_error &e) {
-      (void)e;
-      std::string msg = "Failed to cast dim range '" + (string)py::repr(r) +
-                        "' to dim type " +
-                        tiledb::impl::type_to_str(tiledb_type);
-      TPY_ERROR_LOC(msg);
-    }
-  }
-
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
   void set_ranges_bulk(py::iterable ranges) {
     // ranges are specified as one iterable per dimension
@@ -668,22 +456,6 @@ public:
         add_dim_range(dim_idx, r_tuple);
       }
       dim_idx++;
-    }
-  }
-
-  void set_subarray(py::array subarray) {
-    auto ndim = domain_->ndim();
-    if (subarray.size() != (2 * ndim))
-      TPY_ERROR_LOC(
-          "internal error: failed to set subarray (mismatched dimension count");
-
-    py::object r0, r1;
-    for (unsigned dim_idx = 0; dim_idx < ndim; dim_idx++) {
-      auto r = subarray[py::int_(dim_idx)];
-      r0 = r[py::int_(0)];
-      r1 = r[py::int_(1)];
-
-      add_dim_range(dim_idx, py::make_tuple(r0, r1));
     }
   }
 
@@ -1535,7 +1307,221 @@ public:
   }
 
   std::string get_stats() { return query_->stats(); }
-}; // namespace tiledbpy
+
+private:
+  void init_config() {
+    // get config parameters
+    std::string tmp_str;
+    if (config_has_key(ctx_.config(), "py.init_buffer_bytes")) {
+      tmp_str = ctx_.config().get("py.init_buffer_bytes");
+      try {
+        init_buffer_bytes_ = std::stoull(tmp_str);
+      } catch (const std::invalid_argument &e) {
+        (void)e;
+        throw std::invalid_argument(
+            "Failed to convert 'py.init_buffer_bytes' to uint64_t ('" +
+            tmp_str + "')");
+      }
+    }
+
+    if (config_has_key(ctx_.config(), "py.alloc_max_bytes")) {
+      tmp_str = ctx_.config().get("py.alloc_max_bytes");
+      try {
+        alloc_max_bytes_ = std::stoull(tmp_str);
+      } catch (const std::invalid_argument &e) {
+        (void)e;
+        throw std::invalid_argument(
+            "Failed to convert 'py.alloc_max_bytes' to uint64_t ('" + tmp_str +
+            "')");
+      }
+      if (alloc_max_bytes_ < pow(1024, 2)) {
+        throw std::invalid_argument("Invalid parameter: 'py.alloc_max_bytes' "
+                                    "must be >= 1 MB (1024 ** 2 bytes)");
+      };
+    }
+
+    if (config_has_key(ctx_.config(), "py.deduplicate")) {
+      tmp_str = ctx_.config().get("py.deduplicate");
+      if (tmp_str == "true") {
+        deduplicate_ = true;
+      } else if (tmp_str == "false") {
+        deduplicate_ = false;
+      } else {
+        throw std::invalid_argument(
+            "Failed to convert configuration 'py.deduplicate' to bool ('" +
+            tmp_str + "')");
+      }
+    }
+
+    if (config_has_key(ctx_.config(), "py.exact_init_buffer_bytes")) {
+      tmp_str = ctx_.config().get("py.exact_init_buffer_bytes");
+      if (tmp_str == "true") {
+        exact_init_bytes_ = true;
+      } else if (tmp_str == "false") {
+        exact_init_bytes_ = false;
+      } else {
+        throw std::invalid_argument("Failed to convert configuration "
+                                    "'py.exact_init_buffer_bytes' to bool ('" +
+                                    tmp_str + "')");
+      }
+    }
+
+    if (config_has_key(ctx_.config(), "py.use_arrow")) {
+      tmp_str = ctx_.config().get("py.use_arrow");
+      if (tmp_str == "True") {
+        use_arrow_ = true;
+      } else if (tmp_str == "False") {
+        use_arrow_ = false;
+      } else {
+        throw std::invalid_argument(
+            "Failed to convert configuration 'py.use_arrow' to bool ('" +
+            tmp_str + "')");
+      }
+    }
+  }
+
+  void add_dim_range(uint32_t dim_idx, py::tuple r) {
+    if (py::len(r) == 0)
+      return;
+    else if (py::len(r) != 2)
+      TPY_ERROR_LOC("Unexpected range len != 2");
+
+    auto r0 = r[0];
+    auto r1 = r[1];
+    // no type-check here, because we might allow cast-conversion
+    // if (r0.get_type() != r1.get_type())
+    //    TPY_ERROR_LOC("Mismatched type");
+
+    auto dim = domain_->dimension(dim_idx);
+
+    auto tiledb_type = dim.type();
+
+    try {
+      switch (tiledb_type) {
+      case TILEDB_INT32: {
+        using T = int32_t;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_INT64: {
+        using T = int64_t;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_INT8: {
+        using T = int8_t;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_UINT8: {
+        using T = uint8_t;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_INT16: {
+        using T = int16_t;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_UINT16: {
+        using T = uint16_t;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_UINT32: {
+        using T = uint32_t;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_UINT64: {
+        using T = uint64_t;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_FLOAT32: {
+        using T = float;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_FLOAT64: {
+        using T = double;
+        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        break;
+      }
+      case TILEDB_STRING_ASCII:
+      case TILEDB_STRING_UTF8:
+      case TILEDB_CHAR: {
+        if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
+          TPY_ERROR_LOC(
+              "internal error: ranges must both be strings or (None, None)");
+        } else if (!py::isinstance<py::none>(r0) &&
+                   !py::isinstance<py::none>(r1) &&
+                   !py::isinstance<py::str>(r0) &&
+                   !py::isinstance<py::str>(r1) &&
+                   !py::isinstance<py::bytes>(r0) &&
+                   !py::isinstance<py::bytes>(r1)) {
+          TPY_ERROR_LOC(
+              "internal error: expected string type for var-length dim!");
+        }
+
+        if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0))
+          query_->add_range(dim_idx, r0.cast<string>(), r1.cast<string>());
+
+        break;
+      }
+      case TILEDB_DATETIME_YEAR:
+      case TILEDB_DATETIME_MONTH:
+      case TILEDB_DATETIME_WEEK:
+      case TILEDB_DATETIME_DAY:
+      case TILEDB_DATETIME_HR:
+      case TILEDB_DATETIME_MIN:
+      case TILEDB_DATETIME_SEC:
+      case TILEDB_DATETIME_MS:
+      case TILEDB_DATETIME_US:
+      case TILEDB_DATETIME_NS:
+      case TILEDB_DATETIME_PS:
+      case TILEDB_DATETIME_FS:
+      case TILEDB_DATETIME_AS: {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
+      case TILEDB_TIME_HR:
+      case TILEDB_TIME_MIN:
+      case TILEDB_TIME_SEC:
+      case TILEDB_TIME_MS:
+      case TILEDB_TIME_US:
+      case TILEDB_TIME_NS:
+      case TILEDB_TIME_PS:
+      case TILEDB_TIME_FS:
+      case TILEDB_TIME_AS:
+#endif
+        py::dtype dtype = tiledb_dtype(tiledb_type, 1);
+        auto dt0 = py::isinstance<py::int_>(r0) ? r0 : r0.attr("astype")(dtype);
+        auto dt1 = py::isinstance<py::int_>(r1) ? r1 : r1.attr("astype")(dtype);
+
+        // TODO, this is suboptimal, should define pybind converter
+        if (py::isinstance<py::int_>(dt0) && py::isinstance<py::int_>(dt1)) {
+          query_->add_range(dim_idx, py::cast<int64_t>(dt0),
+                            py::cast<int64_t>(dt1));
+        } else {
+          auto darray = py::array(py::make_tuple(dt0, dt1));
+          query_->add_range(dim_idx, *(int64_t *)darray.data(0),
+                            *(int64_t *)darray.data(1));
+        }
+
+        break;
+      }
+      default:
+        TPY_ERROR_LOC("Unknown dim type conversion!");
+      }
+    } catch (py::cast_error &e) {
+      (void)e;
+      std::string msg = "Failed to cast dim range '" + (string)py::repr(r) +
+                        "' to dim type " +
+                        tiledb::impl::type_to_str(tiledb_type);
+      TPY_ERROR_LOC(msg);
+    }
+  }
+
+}; // class PyQuery
 
 void init_stats() {
   g_stats.reset(new StatsInfo());
@@ -1635,7 +1621,6 @@ void init_core(py::module &m) {
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
           .def("set_ranges_bulk", &PyQuery::set_ranges_bulk)
 #endif
-          .def("set_subarray", &PyQuery::set_subarray)
           .def("set_cond", &PyQuery::set_cond)
 #if defined(TILEDB_SERIALIZATION)
           .def("set_serialized_query", &PyQuery::set_serialized_query)
