@@ -26,6 +26,7 @@ void init_group(py::module &);
 void init_object(py::module &m);
 void init_query(py::module &m);
 void init_schema(py::module &);
+void init_subarray(py::module &);
 void init_vfs(py::module &m);
 
 PYBIND11_MODULE(cc, m) {
@@ -43,6 +44,7 @@ PYBIND11_MODULE(cc, m) {
   init_object(m);
   init_query(m);
   init_schema(m);
+  init_subarray(m);
   init_vfs(m);
 
   py::register_exception<TileDBError>(m, "TileDBError");
