@@ -654,9 +654,11 @@ class WebpFilter(Filter):
     On read, this filter decodes WebP data and returns raw colorspace values to
     the caller.
 
-    This filter expects the array to provide two dimensions for Y, X pixel
-    position. Dimensions may be defined with any name, but Y, X should be at
-    dimension index 0, 1 respectively.
+    This filter expects the array to provide two dimensions for Y, X pixel position.
+    Dimensions may be defined with any name, but Y, X should be at dimension index 0, 1 respectively.
+    Dimensions can be any two matching integral types, such as `{uint64_t, uint64_t}` or `{int64_t, int64_t}`.
+
+    The WebP filter supports only the `uint8_t` type for attributes.
 
     :param quality: quality_factor setting for lossy WebP compression
     :type quality: float in range [0.0, 100.0]
