@@ -417,6 +417,8 @@ public:
   void set_ranges_bulk(py::iterable ranges) {
     // ranges are specified as one iterable per dimension
 
+    tiledb::Subarray subarray{ctx_, *array_};
+
     uint32_t dim_idx = 0;
     for (auto dim_range : ranges) {
       // py::print(dim_range);
@@ -424,39 +426,42 @@ public:
         auto tiledb_type = domain_->dimension(dim_idx).type();
         py::dtype dtype = tiledb_dtype(tiledb_type, 1);
         py::array r_array = dim_range.attr("astype")(dtype);
-        add_bulk_range(dim_idx, r_array);
+        add_bulk_range(subarray, dim_idx, r_array);
       } else {
         py::tuple dim_range_iter = dim_range.cast<py::iterable>();
         for (auto r : dim_range_iter) {
           py::tuple r_tuple = r.cast<py::tuple>();
-          add_dim_range(dim_idx, r_tuple);
+          add_dim_range(subarray, dim_idx, r_tuple);
         }
       }
       dim_idx++;
     }
+    query_->set_subarray(subarray);
   }
 
-  void add_bulk_range(uint32_t dim_idx, py::array ranges) {
+  void add_bulk_range(Subarray &subarray, uint32_t dim_idx, py::array ranges) {
     tiledb_ctx_t *c_ctx = ctx_.ptr().get();
-    tiledb_query_t *c_query = query_.get()->ptr().get();
+    tiledb_subarray_t *c_subarray = subarray.ptr().get();
 
-    ctx_.handle_error(tiledb_query_add_point_ranges(
-        c_ctx, c_query, dim_idx, (void *)ranges.data(), ranges.size()));
+    ctx_.handle_error(tiledb_subarray_add_point_ranges(
+        c_ctx, c_subarray, dim_idx, (void *)ranges.data(), ranges.size()));
   }
 #endif
 
   void set_ranges(py::iterable ranges) {
     // ranges are specified as one iterable per dimension
 
+    tiledb::Subarray subarray{ctx_, *array_};
     uint32_t dim_idx = 0;
     for (auto dim_range : ranges) {
       py::tuple dim_range_iter = dim_range.cast<py::iterable>();
       for (auto r : dim_range_iter) {
         py::tuple r_tuple = r.cast<py::tuple>();
-        add_dim_range(dim_idx, r_tuple);
+        add_dim_range(subarray, dim_idx, r_tuple);
       }
       dim_idx++;
     }
+    query_->set_subarray(subarray);
   }
 
 #if defined(TILEDB_SERIALIZATION)
@@ -1380,7 +1385,7 @@ private:
     }
   }
 
-  void add_dim_range(uint32_t dim_idx, py::tuple r) {
+  void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
     if (py::len(r) == 0)
       return;
     else if (py::len(r) != 2)
@@ -1392,60 +1397,58 @@ private:
     // if (r0.get_type() != r1.get_type())
     //    TPY_ERROR_LOC("Mismatched type");
 
-    auto dim = domain_->dimension(dim_idx);
-
-    auto tiledb_type = dim.type();
+    auto tiledb_type = domain_->dimension(dim_idx).type();
 
     try {
       switch (tiledb_type) {
       case TILEDB_INT32: {
         using T = int32_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_INT64: {
         using T = int64_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_INT8: {
         using T = int8_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_UINT8: {
         using T = uint8_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_INT16: {
         using T = int16_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_UINT16: {
         using T = uint16_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_UINT32: {
         using T = uint32_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_UINT64: {
         using T = uint64_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_FLOAT32: {
         using T = float;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_FLOAT64: {
         using T = double;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
+        subarray.add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
         break;
       }
       case TILEDB_STRING_ASCII:
@@ -1465,7 +1468,7 @@ private:
         }
 
         if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0))
-          query_->add_range(dim_idx, r0.cast<string>(), r1.cast<string>());
+          subarray.add_range(dim_idx, r0.cast<string>(), r1.cast<string>());
 
         break;
       }
@@ -1499,12 +1502,12 @@ private:
 
         // TODO, this is suboptimal, should define pybind converter
         if (py::isinstance<py::int_>(dt0) && py::isinstance<py::int_>(dt1)) {
-          query_->add_range(dim_idx, py::cast<int64_t>(dt0),
-                            py::cast<int64_t>(dt1));
+          subarray.add_range(dim_idx, py::cast<int64_t>(dt0),
+                             py::cast<int64_t>(dt1));
         } else {
           auto darray = py::array(py::make_tuple(dt0, dt1));
-          query_->add_range(dim_idx, *(int64_t *)darray.data(0),
-                            *(int64_t *)darray.data(1));
+          subarray.add_range(dim_idx, *(int64_t *)darray.data(0),
+                             *(int64_t *)darray.data(1));
         }
 
         break;
