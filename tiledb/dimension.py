@@ -3,7 +3,7 @@ from typing import Any, Sequence, Tuple, TYPE_CHECKING, Union
 import numpy as np
 
 import tiledb.cc as lt
-from .ctx import default_ctx
+from .ctx import CtxMixin
 from .filter import FilterList, Filter
 from .util import (
     dtype_to_tiledb,
@@ -77,7 +77,7 @@ def _tiledb_cast_domain(
     return (np_dtype(domain[0]), np_dtype(domain[1]))
 
 
-class Dim(lt.Dimension):
+class Dim(CtxMixin, lt.Dimension):
     """
     Represents a TileDB dimension.
     """
@@ -110,10 +110,8 @@ class Dim(lt.Dimension):
         :param tiledb.Ctx ctx: A TileDB Context
 
         """
-        self._ctx = ctx or default_ctx()
-
         if _lt_obj is not None:
-            return super().__init__(_lt_obj)
+            return super().__init__(ctx, _lt_obj=_lt_obj)
 
         if var is not None:
             if var and np.dtype(dtype) not in (np.str_, np.bytes_):
@@ -169,16 +167,7 @@ class Dim(lt.Dimension):
                 if tile_size_array.size != 1:
                     raise ValueError("tile extent must be a scalar")
 
-        try:
-            super().__init__(
-                self._ctx, name, dim_datatype, domain_array, tile_size_array
-            )
-        except lt.TileDBError as e:
-            # we set this here because if the super().__init__() constructor above
-            # fails, we want to check if self._ctx is None in __repr__ so we can
-            # perform a safe repr
-            self._ctx = None
-            raise lt.TileDBError(e) from None
+        super().__init__(ctx, name, dim_datatype, domain_array, tile_size_array)
 
         if filters is not None:
             if isinstance(filters, FilterList):
@@ -187,10 +176,6 @@ class Dim(lt.Dimension):
                 self._filters = FilterList(filters)
 
     def __repr__(self) -> str:
-        # use safe repr if pybind11 constructor failed
-        if self._ctx is None:
-            return object.__repr__(self)
-
         filters_str = ""
         if self.filters:
             filters_str = ", filters=FilterList(["
@@ -303,7 +288,7 @@ class Dim(lt.Dimension):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        return FilterList(_lt_obj=self._filters)
+        return FilterList(ctx=self._ctx, _lt_obj=self._filters)
 
     @property
     def shape(self) -> Tuple["np.generic", "np.generic"]:
