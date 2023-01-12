@@ -146,7 +146,7 @@ void init_array(py::module &m) {
              return py::make_tuple(has_it, has_type);
            })
       .def("metadata_num", &Array::metadata_num)
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 15
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 14
       .def("delete_array",
            py::overload_cast<const Context &, const std::string &>(
                &Array::delete_array));
