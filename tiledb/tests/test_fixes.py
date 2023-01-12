@@ -1,6 +1,8 @@
 import numpy as np
 import tiledb
 import concurrent, concurrent.futures
+import os
+import sys
 
 import pytest
 from tiledb.tests.common import DiskTestCase, has_pandas
@@ -143,3 +145,29 @@ class FixesTest(DiskTestCase):
         tiledb.from_pandas(uri, df)
         with tiledb.open(uri) as arr:
             tm.assert_frame_equal(arr.df[:], df)
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 14, 0),
+        reason="SC-23287 fix not implemented until libtiledb 2.14",
+    )
+    def test_sc23827_aws_region(self):
+        # Test for SC-23287
+        # The expected behavior here for `vfs.s3.region` is:
+        # - default to 'us-east-1' if no environment variables are set
+        # - empty if AWS_REGION or AWS_DEFAULT_REGION is set (to any value)
+
+        def get_config_with_env(env, key):
+            import subprocess
+
+            python_exe = sys.executable
+            cmd = "import tiledb; print(tiledb.Config()['{}'])".format(key)
+            test_path = os.path.dirname(os.path.abspath(__file__))
+
+            sp_output = subprocess.check_output(
+                [python_exe, "-c", cmd], cwd=test_path, env=env
+            )
+            return sp_output.decode("UTF-8").strip()
+
+        assert get_config_with_env({}, "vfs.s3.region") == "us-east-1"
+        assert get_config_with_env({"AWS_DEFAULT_REGION": ""}, "vfs.s3.region") == ""
+        assert get_config_with_env({"AWS_REGION": ""}, "vfs.s3.region") == ""
