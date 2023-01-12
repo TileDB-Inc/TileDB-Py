@@ -1139,13 +1139,14 @@ cdef class ArraySchema(object):
                     _raise_ctx_err(ctx_ptr, rc)
 
             # Set the label filters
-            label_filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
-                    dim_label_schema.label_filters.__capsule__(), "fl")
-            rc = tiledb_array_schema_set_dimension_label_filter_list(
-                ctx_ptr, schema_ptr, bdim_label_name, label_filter_list_ptr)
-            if rc != TILEDB_OK:
-                tiledb_array_schema_free(&schema_ptr)
-                _raise_ctx_err(ctx_ptr, rc)
+            if dim_label_schema.label_filters is not None:
+                label_filter_list_ptr = <tiledb_filter_list_t *>PyCapsule_GetPointer(
+                        dim_label_schema.label_filters.__capsule__(), "fl")
+                rc = tiledb_array_schema_set_dimension_label_filter_list(
+                    ctx_ptr, schema_ptr, bdim_label_name, label_filter_list_ptr)
+                if rc != TILEDB_OK:
+                    tiledb_array_schema_free(&schema_ptr)
+                    _raise_ctx_err(ctx_ptr, rc)
 
         rc = tiledb_array_schema_check(ctx_ptr, schema_ptr)
         if rc != TILEDB_OK:

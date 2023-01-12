@@ -28,7 +28,11 @@ class DimLabelSchema:
         dim_dtype: np.dtype = np.uint64,
         dim_tile: Any = None,
         label_filters: Union[FilterList, Sequence[Filter]] = None,
+        ctx: "Ctx" = None,
     ):
+        # Set context
+        self._ctx = ctx or default_ctx()
+
         # Set simple properties
         self._dim_index = dim_index
         self._label_order = str_to_tiledb_data_order(order)
@@ -62,12 +66,12 @@ class DimLabelSchema:
                     raise ValueError("dimension tile extent must be a scalar")
 
         # Set label filters
-        if isinstance(label_filters, FilterList):
-            self._label_filters = label_filters
-        elif isinstance(label_filters, lt.FilterList):
-            self._label_filters = FilterList(_lt_obj=label_filters)
-        else:
-            self._label_filters = FilterList(label_filters)
+        self._label_filters = None
+        if label_filters is not None:
+            if isinstance(label_filters, FilterList):
+                self._label_filters = label_filters
+            else:
+                self._label_filters = FilterList(label_filters)
 
     @property
     def _dimension_tiledb_dtype(self):
@@ -112,7 +116,11 @@ class DimLabelSchema:
         :rtype: tiledb.FilterList
         :raises: :py:exc:`tiledb.TileDBError`
         """
-        return FilterList(_lt_obj=self._label_filters)
+        return (
+            None
+            if self._label_filters is None
+            else FilterList(ctx=self._ctx, _lt_obj=self._label_filters)
+        )
 
     @property
     def label_dtype(self) -> np.dtype:
