@@ -48,6 +48,15 @@ class DimLabel(CtxMixin, lt.DimensionLabel):
         return output.getvalue()
 
     @property
+    def dim_index(self) -> int:
+        """Index of the dimension the labels are for.
+
+        :rtype: int
+
+        """
+        return self._dim_index
+
+    @property
     def dtype(self) -> np.dtype:
         """Numpy dtype representation of the label type.
 

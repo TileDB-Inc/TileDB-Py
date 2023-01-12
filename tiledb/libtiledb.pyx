@@ -1487,6 +1487,17 @@ cdef class Array(object):
     def dindex(self):
         return self.domain_index
 
+    def label_index(self, labels):
+        """Retrieve data cells with multi-range, domain-inclusive indexing by label.
+        Returns the cross-product of the ranges.
+
+
+        TODO: label_index docs
+        """
+        # Delayed to avoid circular import
+        from .multirange_indexing import LabelIndexer
+        return LabelIndexer(self, tuple(labels))
+
     @property
     def multi_index(self):
         """Retrieve data cells with multi-range, domain-inclusive indexing. Returns
@@ -1764,6 +1775,11 @@ cdef class Query(object):
     def domain_index(self):
         """Apply Array.domain_index with query parameters."""
         return self.domain_index
+
+    def label_index(self, labels):
+        """Apply Array.label_index with query parameters."""
+        from .multirange_indexer import LabelIndexer
+        return LabelIndexer(self.array, tuple(labels), query=self)
 
     @property
     def multi_index(self):

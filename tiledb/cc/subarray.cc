@@ -421,7 +421,7 @@ void add_label_range(const Context &ctx, Subarray &subarray,
       break;
     }
     default:
-      TPY_ERROR_LOC("Unknown dim type conversion!");
+      TPY_ERROR_LOC("Unknown dimension label type conversion!");
     }
   } catch (py::cast_error &e) {
     (void)e;

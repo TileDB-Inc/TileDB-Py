@@ -7,7 +7,17 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import numpy as np
 
@@ -15,6 +25,7 @@ from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
 from .libtiledb import Array, ArraySchema, Metadata, Query
 from .main import PyQuery, increment_stat, use_stats
+from .query import Query as QueryPlaceholder
 from .query_condition import QueryCondition
 from .subarray import Subarray
 
@@ -132,24 +143,73 @@ def iter_ranges(
         yield scalar, scalar
 
 
+def iter_label_range(sel: Union[Scalar, slice, Range, List[Scalar]]):
+    if isinstance(sel, slice):
+        if sel.start is None or sel.start is None:
+            raise NotImplementedError(
+                "partial and full indexing is not yet supported on dimension labels"
+            )
+
+        yield to_scalar(sel.start), to_scalar(sel.stop)
+
+    elif isinstance(sel, tuple):
+        assert len(sel) == 2
+        yield to_scalar(sel[0]), to_scalar(sel[1])
+
+    elif isinstance(sel, list):
+        for scalar in map(to_scalar, sel):
+            yield scalar, scalar
+
+    else:
+        scalar = to_scalar(sel)
+        yield scalar, scalar
+
+
+def dim_ranges_from_selection(selection, nonempty_domain, is_sparse):
+    # don't try to index nonempty_domain if None
+    if isinstance(selection, np.ndarray):
+        return selection
+    selection = selection if isinstance(selection, list) else [selection]
+    return tuple(
+        rng for sel in selection for rng in iter_ranges(sel, is_sparse, nonempty_domain)
+    )
+
+
+def label_ranges_from_selection(selection):
+    if isinstance(selection, np.ndarray):
+        return tuple(tuple(x, x) for x in selection)
+    selection = selection if isinstance(selection, list) else [selection]
+    return tuple(rng for sel in selection for rng in iter_label_range(sel))
+
+
 def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
     ned = array.nonempty_domain()
+    if ned is None:
+        ned = [None] * array.schema.domain.ndim
     is_sparse = array.schema.sparse
     for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
-        # don't try to index nonempty_domain if None
-        nonempty_domain = ned[i] if ned else None
-        if isinstance(dim_sel, np.ndarray):
-            ranges[i] = dim_sel
-            continue
-        elif not isinstance(dim_sel, list):
-            dim_sel = [dim_sel]
-        ranges[i] = tuple(
-            rng
-            for sel in dim_sel
-            for rng in iter_ranges(sel, is_sparse, nonempty_domain)
-        )
+        ranges[i] = dim_ranges_from_selection(dim_sel, ned[i], is_sparse)
     return tuple(ranges)
+
+
+def getitem_ranges_with_labels(
+    array: Array, labels: Dict[int, str], idx: Any
+) -> Tuple[Sequence[Sequence[Range]], Dict[str, Sequence[Range]]]:
+    dim_ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
+    label_ranges: Dict[str, Sequence[Range]] = {}
+    ned = array.nonempty_domain()
+    if ned is None:
+        ned = [None] * array.schema.domain.ndim
+    is_sparse = array.schema.sparse
+    for dim_idx, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
+        if dim_idx in labels.keys():
+            label_ranges[labels[dim_idx]] = label_ranges_from_selection(dim_sel)
+        else:
+            dim_ranges[dim_idx] = dim_ranges_from_selection(
+                dim_sel, ned[dim_idx], is_sparse
+            )
+    return dim_ranges, label_ranges
 
 
 class _BaseIndexer(ABC):
@@ -170,7 +230,8 @@ class _BaseIndexer(ABC):
         self.query = query
         self.use_arrow = use_arrow
         self.preload_metadata = preload_metadata
-        self.subarray = Subarray(array)
+        self.subarray = None
+        self.pyquery = None
 
     @property
     def array(self) -> Array:
@@ -187,9 +248,13 @@ class _BaseIndexer(ABC):
 
     def __getitem__(self, idx):
         with timing("getitem_time"):
-            self._set_ranges(
-                getitem_ranges(self.array, idx) if idx is not EmptyRange else None
-            )
+            if idx is EmptyRange:
+                self.pyquery = None
+                self.subarray = None
+            else:
+                self._set_pyquery()
+                self.subarray = Subarray(self.array)
+                self._set_ranges(idx)
             return self if self.return_incomplete else self._run_query()
 
     def estimated_result_sizes(self):
@@ -235,20 +300,24 @@ class _BaseIndexer(ABC):
     def _empty_results(self):
         return _get_empty_results(self.array.schema, self.query)
 
-    def _set_ranges(self, ranges):
-        if ranges is None:
-            self.pyquery = None
-            return
-        with timing("add_ranges"):
-            self.subarray.add_ranges(ranges)
+    def _set_pyquery(self):
         self.pyquery = _get_pyquery(
             self.array,
             self.query,
-            self.subarray,
             self.use_arrow,
             self.return_incomplete,
             self.preload_metadata,
         )
+
+    def _set_ranges(self, idx):
+        ranges = getitem_ranges(self.array, idx)
+        self._set_shape(ranges)
+        with timing("add_ranges"):
+            self.subarray.add_ranges(ranges)
+        self.pyquery.set_subarray(self.subarray)
+
+    def _set_shape(self, ranges):
+        pass
 
     @abstractmethod
     def _run_query(self):
@@ -266,10 +335,9 @@ class MultiRangeIndexer(_BaseIndexer):
         super().__init__(array, query)
         self.result_shape = None
 
-    def _set_ranges(self, ranges):
-        super()._set_ranges(ranges)
+    def _set_shape(self, ranges):
         schema = self.array.schema
-        if ranges is not None and not schema.sparse and len(schema.shape) > 1:
+        if not schema.sparse and len(schema.shape) > 1:
             self.result_shape = mr_dense_result_shape(ranges, schema.shape)
         else:
             self.result_shape = None
@@ -306,8 +374,8 @@ class DataFrameIndexer(_BaseIndexer):
         if use_arrow is None:
             use_arrow = pyarrow is not None
         # TODO: currently there is lack of support for Arrow list types. This prevents
-        # multi-value attributes, asides from strings, from being queried properly. Until
-        # list attributes are supported in core, error with a clear message.
+        # multi-value attributes, asides from strings, from being queried properly.
+        # Until list attributes are supported in core, error with a clear message.
         if use_arrow and any(
             (attr.isvar or len(attr.dtype) > 1)
             and attr.dtype not in (np.unicode_, np.bytes_)
@@ -399,10 +467,77 @@ class DataFrameIndexer(_BaseIndexer):
             return _update_df_from_meta(df, self.array.meta, self.query.index_col)
 
 
+class LabelIndexer(MultiRangeIndexer):
+    """
+    Implements multi-range indexing by label.
+    """
+
+    def __init__(
+        self, array: Array, labels: Sequence[str], query: Optional[Query] = None
+    ):
+        if array.schema.sparse:
+            raise NotImplementedError(
+                "querying sparse arrays by label is not yet implemented"
+            )
+        super().__init__(array, query)
+        self.label_query: Optional[QueryPlaceholder] = None
+        self._labels: Dict[int, str] = {}
+        for label_name in labels:
+            dim_label = array.schema.dim_label(label_name)
+            dim_idx = dim_label.dim_index
+            if dim_idx in self._labels:
+                raise TileDBError(
+                    f"cannot set labels `{self._labels[dim_idx]}` and "
+                    f"`{label_name}` defined on the same dimension"
+                )
+            self._labels[dim_idx] = label_name
+
+    def _set_ranges(self, idx):
+        dim_ranges, label_ranges = getitem_ranges_with_labels(
+            self.array, self._labels, idx
+        )
+        if label_ranges is None:
+            with timing("add_ranges"):
+                self.subarray.add_ranges(tuple(dim_ranges))
+            # No label query.
+            self.label_query = None
+            # All ranges are finalized: set shape and subarray now.
+            self._set_shape(dim_ranges)
+            self.pyquery.set_subarray(self.subarray)
+        else:
+            label_subarray = Subarray(self.array)
+            with timing("add_ranges"):
+                self.subarray.add_ranges(dim_ranges=dim_ranges)
+                label_subarray.add_ranges(label_ranges=label_ranges)
+            self.label_query = QueryPlaceholder(self.array)
+            self.label_query.set_subarray(label_subarray)
+
+    def _run_query(self) -> Dict[str, np.ndarray]:
+        # If querying by label and the label query is not yet complete, run the label
+        # query and update the pyquery with the actual dimensions.
+        if self.label_query is not None and not self.label_query.is_complete():
+            self.label_query.submit()
+            if not self.label_query.is_complete():
+                raise TileDBError("failed to get dimension ranges from labels")
+            label_subarray = self.label_query.subarray()
+            # Check that the label query returned results for all dimensions.
+            if any(
+                label_subarray.num_dim_ranges(dim_idx) == 0 for dim_idx in self._labels
+            ):
+                self.pyquery = None
+            else:
+                # Get the ranges from the label query and set to the
+                self.subarray.copy_ranges(
+                    self.label_query.subarray(), self._labels.keys()
+                )
+                self.pyquery.set_subarray(self.subarray)
+                # TODO: Set shape
+        return super()._run_query()
+
+
 def _get_pyquery(
     array: Array,
     query: Optional[Query],
-    subarray: Subarray,
     use_arrow: bool,
     return_incomplete: bool,
     preload_metadata: bool,
@@ -434,7 +569,6 @@ def _get_pyquery(
         layout,
         use_arrow,
     )
-    pyquery.set_subarray(subarray)
 
     pyquery._return_incomplete = return_incomplete
     pyquery._preload_metadata = preload_metadata
