@@ -146,6 +146,10 @@ class FixesTest(DiskTestCase):
         with tiledb.open(uri) as arr:
             tm.assert_frame_equal(arr.df[:], df)
 
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 14, 0),
+        reason="SC-23287 fix not implemented until libtiledb 2.14",
+    )
     def test_sc23827_aws_region(self):
         # Test for SC-23287
         # The expected behavior here for `vfs.s3.region` is:
