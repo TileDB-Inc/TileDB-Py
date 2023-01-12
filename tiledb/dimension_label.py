@@ -3,14 +3,14 @@ import numpy as np
 from typing import Any, Tuple, TYPE_CHECKING
 
 import tiledb.cc as lt
-from .ctx import default_ctx
+from .ctx import CtxMixin
 from .util import dtype_to_tiledb, numpy_dtype
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx
 
 
-class DimLabel(lt.DimensionLabel):
+class DimLabel(CtxMixin, lt.DimensionLabel):
     """
     Represents a TileDB dimension label.
     """
@@ -21,11 +21,10 @@ class DimLabel(lt.DimensionLabel):
         _lt_obj: lt.DimensionLabel = None,
         _capsule: "PyCapsule" = None,
     ):
-        self._ctx = ctx or default_ctx()
         if _capsule is not None:
-            return super().__init__(self._ctx, _capsule)
+            return super().__init__(ctx, _capsule)
         if _lt_obj is not None:
-            return super().__init__(_lt_obj)
+            return super().__init__(ctx, _lt_obj)
         raise ValueError("either _lt_obj or _capsule must be provided")
 
     def __repr__(self) -> str:
