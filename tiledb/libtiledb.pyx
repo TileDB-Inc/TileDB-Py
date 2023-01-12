@@ -1309,8 +1309,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_offsets_filter_list(
                 ctx_ptr, self.ptr, &filter_list_ptr))
-        return FilterList(self.ctx,
-            _capsule=PyCapsule_New(filter_list_ptr, "fl", NULL))
+        return FilterList.from_capsule(self.ctx, PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     @property
     def coords_filters(self):
@@ -1324,8 +1323,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_coords_filter_list(
                 ctx_ptr, self.ptr, &filter_list_ptr))
-        return FilterList(self.ctx,
-            _capsule=PyCapsule_New(filter_list_ptr, "fl", NULL))
+        return FilterList.from_capsule(self.ctx, PyCapsule_New(filter_list_ptr, "fl", NULL))
 
     @coords_filters.setter
     def coords_filters(self, value):
@@ -1347,8 +1345,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
             tiledb_array_schema_get_validity_filter_list(
                 ctx_ptr, self.ptr, &validity_list_ptr))
-        return FilterList(self.ctx,
-            _capsule=PyCapsule_New(validity_list_ptr, "fl", NULL))
+        return FilterList.from_capsule(self.ctx, PyCapsule_New(validity_list_ptr, "fl", NULL))
 
     @property
     def domain(self):
@@ -1362,7 +1359,7 @@ cdef class ArraySchema(object):
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         check_error(self.ctx,
                     tiledb_array_schema_get_domain(ctx_ptr, self.ptr, &dom))
-        return Domain(self.ctx, _capsule=PyCapsule_New(dom, "dom", NULL))
+        return Domain.from_capsule(self.ctx, PyCapsule_New(dom, "dom", NULL))
 
     @property
     def nattr(self):
@@ -1437,7 +1434,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_name(
                         ctx_ptr, self.ptr, bname, &attr_ptr))
-        return Attr(self.ctx, _capsule=PyCapsule_New(attr_ptr, "attr", NULL))
+        return Attr.from_capsule(self.ctx, PyCapsule_New(attr_ptr, "attr", NULL))
 
     cdef _attr_idx(self, int idx):
         cdef tiledb_attribute_t* attr_ptr = NULL
@@ -1445,7 +1442,7 @@ cdef class ArraySchema(object):
         check_error(self.ctx,
                     tiledb_array_schema_get_attribute_from_index(
                         ctx_ptr, self.ptr, idx, &attr_ptr))
-        return Attr(self.ctx, _capsule=PyCapsule_New(attr_ptr, "attr", NULL))
+        return Attr.from_capsule(self.ctx, PyCapsule_New(attr_ptr, "attr", NULL))
 
     def attr(self, object key not None):
         """Returns an Attr instance given an int index or string label

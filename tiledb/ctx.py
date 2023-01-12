@@ -52,15 +52,10 @@ class Config(lt.Config):
     :param str path: Set parameter values from persisted Config parameter file
     """
 
-    def __init__(self, params: dict = None, path: str = None, _lt_obj=None):
-        if _lt_obj is not None:
-            return super().__init__(_lt_obj)
-
+    def __init__(self, params: dict = None, path: str = None):
         super().__init__()
-
         if path is not None:
             self.load(path)
-
         if params is not None:
             self.update(params)
 
@@ -356,7 +351,10 @@ class Ctx(lt.Context):
 
     def config(self):
         """Returns the Config instance associated with the Ctx."""
-        return Config(_lt_obj=super().config())
+        new = Config.__new__(Config)
+        # bypass calling Config.__init__, call lt.Config.__init__ instead
+        lt.Config.__init__(new, super().config())
+        return new
 
     def set_tag(self, key: str, value: str):
         """Sets a (string, string) "tag" on the Ctx (internal)."""
@@ -401,17 +399,37 @@ class CtxMixin:
     To use this class, a subclass must:
     - Inherit from it first (i.e. `class Foo(CtxMixin, Bar)`, not `class Foo(Bar, CtxMixin)`
     - Call super().__init__ by passing `ctx` (tiledb.Ctx or None) as first parameter and
-      - either zero or more pure Python positional parameters
-      - or a single `_lt_obj` PyBind11 parameter
+      zero or more pure Python positional parameters
     """
 
-    def __init__(self, ctx, *args, _lt_obj=None):
+    def __init__(self, ctx, *args, _pass_ctx_to_super=True):
         if not ctx:
             ctx = default_ctx()
-        super().__init__(_lt_obj or ctx, *args)
+
+        if _pass_ctx_to_super:
+            super().__init__(ctx, *args)
+        else:
+            super().__init__(*args)
+
         # we set this here because if the super().__init__() constructor above fails,
         # we don't want to set self._ctx
         self._ctx = ctx
+
+    @classmethod
+    def from_capsule(cls, ctx, capsule):
+        """Create an instance of this class from a PyCapsule instance"""
+        # bypass calling self.__init__, call CtxMixin.__init__ instead
+        self = cls.__new__(cls)
+        CtxMixin.__init__(self, ctx, capsule)
+        return self
+
+    @classmethod
+    def from_pybind11(cls, ctx, lt_obj):
+        """Create an instance of this class from a PyBind11 instance"""
+        # bypass calling self.__init__, call CtxMixin.__init__ instead
+        self = cls.__new__(cls)
+        CtxMixin.__init__(self, ctx, lt_obj, _pass_ctx_to_super=False)
+        return self
 
 
 def check_ipykernel_warn_once():

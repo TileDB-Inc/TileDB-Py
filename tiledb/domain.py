@@ -17,27 +17,14 @@ class Domain(CtxMixin, lt.Domain):
     Represents a TileDB domain.
     """
 
-    def __init__(
-        self,
-        *dims: Dim,
-        ctx: "Ctx" = None,
-        _lt_obj: lt.Domain = None,
-        _capsule: "PyCapsule" = None,
-    ):
+    def __init__(self, *dims: Dim, ctx: "Ctx" = None):
         """Class representing the domain of a TileDB Array.
 
         :param *dims*: one or more tiledb.Dim objects up to the Domain's ndim
+        :param ctx: A TileDB Context
         :raises TypeError: All dimensions must have the same dtype
-        :raises: :py:exc:`TileDBError`
-        :param tiledb.Ctx ctx: A TileDB Context
-
+        :raises tiledb.TileDBError:
         """
-        if _capsule is not None:
-            return super().__init__(ctx, _capsule)
-
-        if _lt_obj is not None:
-            return super().__init__(ctx, _lt_obj=_lt_obj)
-
         super().__init__(ctx)
 
         # support passing a list of dims without splatting
@@ -105,7 +92,7 @@ class Domain(CtxMixin, lt.Domain):
 
     def __iter__(self):
         """Returns a generator object that iterates over the domain's dimension objects"""
-        return (Dim(_lt_obj=self._dim(i)) for i in range(self.ndim))
+        return (Dim.from_pybind11(self._ctx, self._dim(i)) for i in range(self.ndim))
 
     def __eq__(self, other):
         """Returns true if Domain is equal to self.
@@ -198,8 +185,7 @@ class Domain(CtxMixin, lt.Domain):
             raise ValueError(
                 f"Unsupported dim identifier: '{dim_id!r}' (expected int or str)"
             )
-
-        return Dim(_lt_obj=self._dim(dim_id))
+        return Dim.from_pybind11(self._ctx, self._dim(dim_id))
 
     def has_dim(self, name):
         """
