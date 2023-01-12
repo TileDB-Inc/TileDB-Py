@@ -554,12 +554,12 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
             )
             stats_str += f"- Number of attributes read: {attr_num}\n"
 
-            read_compute_est_result_size = stats_json_core["timers"][
-                "Context.StorageManager.Query.Subarray.read_compute_est_result_size.sum"
-            ]
-            stats_str += (
-                f"- Time to compute estimated result size: {read_compute_est_result_size}\n"
-            )
+            read_compute_est_result_size = stats_json_core["timers"].get(
+                "Context.StorageManager.Query.Subarray.read_compute_est_result_size.sum")
+            if read_compute_est_result_size is not None:
+                stats_str += (
+                    f"- Time to compute estimated result size: {read_compute_est_result_size}\n"
+                )
 
             read_tiles = stats_json_core["timers"][
                 "Context.StorageManager.Query.Reader.read_tiles.sum"
