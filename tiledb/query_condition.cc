@@ -72,6 +72,36 @@ public:
     }
   }
 
+  void init_in_cond(const string& attribute_name, const string& dtype,
+      const py::list& values) {
+    try {
+      tiledb_query_condition_t* cond_list[values.size()];
+      for(size_t i = 0; i < values.size(); ++i) {
+        uint64_t val = values[i].cast<uint64_t>();
+        tiledb_query_condition_alloc(ctx_.ptr().get(), &cond_list[i]);
+        tiledb_query_condition_init(
+            ctx_.ptr().get(),
+            cond_list[i],
+            attribute_name.c_str(),
+            &val,
+            sizeof(val),
+            TILEDB_EQ);
+      }
+      ctx_.handle_error(tiledb_query_condition_init_combined(
+          ctx_.ptr().get(),
+          qc_->ptr().get(),
+          cond_list,
+          values.size(),
+          TILEDB_OR
+        ));
+      for(size_t i = 0; i < values.size(); ++i) {
+        tiledb_query_condition_free(&cond_list[i]);
+      }
+    } catch (TileDBError &e) {
+      TPY_ERROR_LOC(e.what());
+    }
+  }
+
   shared_ptr<QueryCondition> ptr() { return qc_; }
 
   py::capsule __capsule__() { return py::capsule(&qc_, "qc", nullptr); }
@@ -167,6 +197,8 @@ void init_query_condition(py::module &m) {
                &PyQueryCondition::init))
 
       .def("init_combined", &PyQueryCondition::init_combined)
+
+      .def("init_in_cond", &PyQueryCondition::init_in_cond)
 
       .def("combine", &PyQueryCondition::combine)
 
