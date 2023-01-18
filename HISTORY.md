@@ -1,5 +1,11 @@
+# In Progress 
+
+## API Changes
+* Add support for UTF-8 Datatypes in query conditions []()
+
 # Release 0.20.0
 
+## TileDB Embedded updates
 * TileDB-Py 0.20.0 includes TileDB Embedded [TileDB 2.14.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.14.0)
 
 ## Bug Fixes
