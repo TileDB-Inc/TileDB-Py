@@ -114,6 +114,8 @@ from .schema import schema_like
 
 from .schema_evolution import ArraySchemaEvolution
 
+from .subarray import Subarray
+
 from .vfs import VFS, FileIO
 
 # TODO restricted imports

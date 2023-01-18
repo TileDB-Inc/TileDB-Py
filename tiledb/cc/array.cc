@@ -1,6 +1,8 @@
 #include <tiledb/tiledb.h> // for enums
 #include <tiledb/tiledb>   // C++
 
+#include "common.h"
+
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
@@ -18,6 +20,14 @@ void init_array(py::module &m) {
       .def(
           py::init<const Context &, const std::string &, tiledb_query_type_t>(),
           py::keep_alive<1, 2>() /* Array keeps Context alive */)
+
+      // Temporary initializer while Array is converted from Cython to PyBind.
+      .def(py::init([](const Context &ctx, py::object array) {
+             tiledb_array_t *c_array = (py::capsule)array.attr("__capsule__")();
+             return std::make_unique<Array>(ctx, c_array, false);
+           }),
+           py::keep_alive<1, 2>(), py::keep_alive<1, 3>())
+
       // TODO capsule Array(const Context& ctx, tiledb_array_t* carray,
       // tiledb_config_t* config)
       .def("is_open", &Array::is_open)
