@@ -56,6 +56,22 @@ public:
     }
   }
 
+  void init_combined(const py::list& conds,
+          tiledb_query_condition_combination_op_t combination_op) {
+    try {
+      tiledb_query_condition_t* cond_list[conds.size()];
+      for(size_t i = 0; i < conds.size(); ++i) {
+        auto sub_qc = conds[i].cast<PyQueryCondition>();
+        cond_list[i] = sub_qc.ptr()->ptr().get();
+      }
+      ctx_.handle_error(tiledb_query_condition_init_combined(
+          ctx_.ptr().get(), qc_->ptr().get(), cond_list, conds.size(),
+          combination_op));
+    } catch (TileDBError &e) {
+      TPY_ERROR_LOC(e.what());
+    }
+  }
+
   shared_ptr<QueryCondition> ptr() { return qc_; }
 
   py::capsule __capsule__() { return py::capsule(&qc_, "qc", nullptr); }
@@ -149,6 +165,8 @@ void init_query_condition(py::module &m) {
            static_cast<void (PyQueryCondition::*)(const string &, double,
                                                   tiledb_query_condition_op_t)>(
                &PyQueryCondition::init))
+
+      .def("init_combined", &PyQueryCondition::init_combined)
 
       .def("combine", &PyQueryCondition::combine)
 

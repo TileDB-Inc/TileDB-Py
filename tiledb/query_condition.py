@@ -219,14 +219,11 @@ class QueryConditionTree(ast.NodeVisitor):
                     f"`in` operator syntax must be written as `variable in ['l', 'i', 's', 't']`"
                 )
 
+            lhs = self.visit(node.left)
             consts = self.visit(rhs)
-            result = self.aux_visit_Compare(
-                self.visit(node.left), qc.TILEDB_EQ, consts[0]
-            )
-
-            for val in consts[1:]:
-                value = self.aux_visit_Compare(self.visit(node.left), qc.TILEDB_EQ, val)
-                result = result.combine(value, qc.TILEDB_OR)
+            qcs = [self.aux_visit_Compare(lhs, qc.TILEDB_EQ, c) for c in consts]
+            result = PyQueryCondition(self.ctx)
+            result.init_combined(qcs, qc.TILEDB_OR)
 
         return result
 
