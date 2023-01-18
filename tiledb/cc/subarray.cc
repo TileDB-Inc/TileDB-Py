@@ -150,6 +150,25 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
   }
 }
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
+void add_bulk_range(const Context &ctx, Subarray &subarray, uint32_t dim_idx,
+                    pybind11::handle dim_range) {
+
+  // Cast range object to appropriately typed py::array.
+  auto tiledb_type =
+      subarray.array().schema().domain().dimension(dim_idx).type();
+  py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
+  py::array ranges = dim_range.attr("astype")(dtype);
+
+  // Set point ranges using C-API.
+  tiledb_ctx_t *c_ctx = ctx.ptr().get();
+  tiledb_subarray_t *c_subarray = subarray.ptr().get();
+  ctx.handle_error(tiledb_subarray_add_point_ranges(
+      c_ctx, c_subarray, dim_idx, (void *)ranges.data(), ranges.size()));
+}
+#endif
+
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
 void add_label_range(const Context &ctx, Subarray &subarray,
                      const std::string &label_name, py::tuple r) {
   if (py::len(r) == 0)
@@ -226,32 +245,31 @@ void add_label_range(const Context &ctx, Subarray &subarray,
                                             r0.cast<T>(), r1.cast<T>());
       break;
     }
-    case TILEDB_STRING_ASCII:
-    case TILEDB_STRING_UTF8:
-    case TILEDB_CHAR: {
-      if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
-        TPY_ERROR_LOC(
-            "internal error: ranges must both be strings or (None, None)");
-      } else if (!py::isinstance<py::none>(r0) &&
-                 !py::isinstance<py::none>(r1) &&
-                 !py::isinstance<py::str>(r0) && !py::isinstance<py::str>(r1) &&
-                 !py::isinstance<py::bytes>(r0) &&
-                 !py::isinstance<py::bytes>(r1)) {
-        TPY_ERROR_LOC(
-            "internal error: expected string type for var-length label!");
-      }
+      /* TODO : FIX THIS
+case TILEDB_STRING_ASCII:
+case TILEDB_STRING_UTF8:
+case TILEDB_CHAR: {
+if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
+TPY_ERROR_LOC(
+"internal error: ranges must both be strings or (None, None)");
+} else if (!py::isinstance<py::none>(r0) &&
+!py::isinstance<py::none>(r1) &&
+!py::isinstance<py::str>(r0) && !py::isinstance<py::str>(r1) &&
+!py::isinstance<py::bytes>(r0) &&
+!py::isinstance<py::bytes>(r1)) {
+TPY_ERROR_LOC(
+"internal error: expected string type for var-length label!");
+}
 
-      /*
-       * TODO: FIX
-      if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0)) {
-        std::string r0_string = r0.cast<string>();
-        std::string r1_string = r1.cast<string>();
-        SubarrayExperimental::add_label_range(ctx_, subarray, label_name,
-                                              r0_string, r1_string);
-      }
-      break;
-      */
-    }
+if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0)) {
+std::string r0_string = r0.cast<std::string>();
+std::string r1_string = r1.cast<std::string>();
+SubarrayExperimental::add_label_range(ctx, subarray, label_name,
+                           r0_string, r1_string);
+}
+break;
+}
+*/
     case TILEDB_DATETIME_YEAR:
     case TILEDB_DATETIME_MONTH:
     case TILEDB_DATETIME_WEEK:
@@ -304,34 +322,75 @@ void add_label_range(const Context &ctx, Subarray &subarray,
     TPY_ERROR_LOC(msg);
   }
 }
+#endif
 
 void init_subarray(py::module &m) {
   py::class_<tiledb::Subarray>(m, "Subarray")
-      .def(py::init<Context &, Array &>())
+      .def(py::init<const Context &, const Array &>(),
+           py::keep_alive<1, 2>() /* Keep context alive. */,
+           py::keep_alive<1, 3>() /* Keep array alive. */)
 
-      .def("add_range",
+      .def("_add_dim_range",
            [](Subarray &subarray, uint32_t dim_idx, py::tuple range) {
              add_dim_range(subarray, dim_idx, range);
            })
 
-      // Note the static cast here. overload_cast *does not work*
-      //   https://github.com/pybind/pybind11/issues/1153
-      //   https://pybind11.readthedocs.io/en/latest/classes.html#overloaded-methods
-      .def("add_range",
-           static_cast<Subarray &(
-               Subarray::*)(const std::string &, const std::string &,
-                            const std::string &)>(&Subarray::add_range))
-
-      .def("add_label_range",
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+      .def("_add_label_range",
            [](Subarray &subarray, const Context &ctx,
               const std::string &label_name, py::tuple range) {
              add_label_range(ctx, subarray, label_name, range);
            })
+#else
+      .def("_add_label_range",
+           [](Subarray &, const Context &,
+              const std::string &, py::tuple) {
+           throw TileDBPyError("Setting dimension label ranges requires libtiledb version 2.15.0 or greater.");
+           })
+#endif
 
-      .def("range_num", py::overload_cast<const std::string &>(
-                            &Subarray::range_num, py::const_))
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
+      .def("_add_ranges_bulk",
+           [](Subarray &subarray, const Context &ctx, py::iterable ranges) {
+             uint32_t dim_idx = 0;
+             for (auto dim_range : ranges) {
+               if (py::isinstance<py::array>(dim_range)) {
+                 add_bulk_range(ctx, subarray, dim_idx, dim_range);
+               } else {
+                 py::tuple dim_range_iter = dim_range.cast<py::iterable>();
+                 for (auto r : dim_range_iter) {
+                   py::tuple range_tuple = r.cast<py::tuple>();
+                   add_dim_range(subarray, dim_idx, range_tuple);
+                 }
+               }
+               dim_idx++;
+             }
+           })
 
-      .def("range_num",
+      .def("_add_bulk_range",
+           [](Subarray &subarray, const Context &ctx, uint32_t dim_idx,
+              pybind11::handle dim_range) {
+             add_bulk_range(ctx, subarray, dim_idx, dim_range);
+           })
+#endif
+
+      .def("_add_ranges",
+           [](Subarray &subarray, const Context &ctx, py::iterable ranges) {
+             uint32_t dim_idx = 0;
+             for (auto dim_range : ranges) {
+               py::tuple dim_range_iter = dim_range.cast<py::iterable>();
+               for (auto r : dim_range_iter) {
+                 py::tuple r_tuple = r.cast<py::tuple>();
+                 add_dim_range(subarray, dim_idx, r_tuple);
+               }
+               dim_idx++;
+             }
+           })
+
+      .def("_range_num", py::overload_cast<const std::string &>(
+                             &Subarray::range_num, py::const_))
+
+      .def("_range_num",
            py::overload_cast<unsigned>(&Subarray::range_num, py::const_))
 
       // End definitions.

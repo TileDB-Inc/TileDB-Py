@@ -288,7 +288,9 @@ def test_query_string():
     q = lt.Query(ctx, arr, lt.QueryType.READ)
     assert q.query_type == lt.QueryType.READ
 
-    q.add_range("foo", "start", "end")
+    subarray = lt.Subarray(ctx, arr)
+    subarray._add_dim_range(0, ("start", "end"))
+    q.set_subarray(subarray)
 
 
 def test_write_sparse():
@@ -379,7 +381,7 @@ def test_write_dense():
         arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
 
         subarray = lt.Subarray(ctx, arr)
-        subarray.add_range(0, (0, 9))
+        subarray._add_dim_range(0, (0, 9))
 
         q = lt.Query(ctx, arr, lt.QueryType.WRITE)
         q.layout = lt.LayoutType.ROW_MAJOR
@@ -399,7 +401,7 @@ def test_write_dense():
         arr = lt.Array(ctx, uri, lt.QueryType.READ)
 
         subarray = lt.Subarray(ctx, arr)
-        subarray.add_range(0, (0, 9))
+        subarray._add_dim_range(0, (0, 9))
 
         q = lt.Query(ctx, arr, lt.QueryType.READ)
         q.layout = lt.LayoutType.ROW_MAJOR
