@@ -1,7 +1,10 @@
-# In Progress
+# Release 0.20.0
+
+* TileDB-Py 0.20.0 includes TileDB Embedded [TileDB 2.14.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.14.0)
 
 ## Bug Fixes
-* Introduce safe repr for classes for `Filter`, `FilterList`, `Dim`, `Domain`, and `Attr`
+
+* Introduce safe repr for classes for `Filter`, `FilterList`, `Dim`, `Domain`, and `Attr`. [#1545](https://github.com/TileDB-Inc/TileDB-Py/pull/1545), [#1555](https://github.com/TileDB-Inc/TileDB-Py/pull/1555)
 
 # Release 0.19.1
 
