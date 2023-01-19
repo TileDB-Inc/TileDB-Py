@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 class Filter(CtxMixin, lt.Filter):
     """Base class for all TileDB filters."""
 
+    options: Sequence[lt.FilterOption] = ()
+
     def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
         super().__init__(ctx, type)
 
@@ -73,6 +75,8 @@ class CompressionFilter(Filter):
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
+
+    options = (lt.FilterOption.COMPRESSION_LEVEL,)
 
     def __init__(self, type: lt.FilterType, level: int = -1, ctx: "Ctx" = None):
         if not isinstance(level, int):
@@ -371,6 +375,8 @@ class BitWidthReductionFilter(Filter):
 
     """
 
+    options = (lt.FilterOption.BIT_WIDTH_MAX_WINDOW,)
+
     def __init__(self, window: int = -1, ctx: "Ctx" = None):
         if not isinstance(window, int):
             raise ValueError("`window` argument must be a int")
@@ -407,6 +413,8 @@ class PositiveDeltaFilter(Filter):
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
+
+    options = (lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,)
 
     def __init__(self, window: int = -1, ctx: "Ctx" = None):
         if not isinstance(window, int):
@@ -499,6 +507,12 @@ class FloatScaleFilter(Filter):
     ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
     """
+
+    options = (
+        lt.FilterOption.SCALE_FLOAT_FACTOR,
+        lt.FilterOption.SCALE_FLOAT_OFFSET,
+        lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
+    )
 
     def __init__(
         self,
@@ -633,6 +647,12 @@ class WebpFilter(Filter):
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
+
+    options = (
+        lt.FilterOption.WEBP_INPUT_FORMAT,
+        lt.FilterOption.WEBP_QUALITY,
+        lt.FilterOption.WEBP_LOSSLESS,
+    )
 
     def __init__(
         self,
@@ -791,7 +811,7 @@ class FilterList(CtxMixin, lt.FilterList):
         filters = []
         (start, stop, step) = idx.indices(len(self))
         for i in range(start, stop, step):
-            filters.append(self._getfilter(i))
+            filters.append(self._filter(i))
 
         if len(filters) == 1:
             return filters[0]
@@ -827,7 +847,7 @@ class FilterList(CtxMixin, lt.FilterList):
         self._add_filter(filter)
 
     def __repr__(self) -> str:
-        filters = ",\n       ".join(repr(self._getfilter(i)) for i in range(len(self)))
+        filters = ",\n       ".join(repr(self._filter(i)) for i in range(len(self)))
         return "FilterList([{0!s}])".format(filters)
 
     def _repr_html_(self) -> str:
@@ -855,30 +875,8 @@ class FilterList(CtxMixin, lt.FilterList):
 
         return output.getvalue()
 
-    def _getfilter(self, i: int) -> Filter:
-        fil = self._filter(i)
+    def _filter(self, i: int) -> Filter:
+        fil = super()._filter(i)
         filtype = self.filter_type_cc_to_python[fil._type]
-
-        if issubclass(filtype, CompressionFilter):
-            options = [lt.FilterOption.COMPRESSION_LEVEL]
-        elif filtype == BitWidthReductionFilter:
-            options = [lt.FilterOption.BIT_WIDTH_MAX_WINDOW]
-        elif filtype == PositiveDeltaFilter:
-            options = [lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW]
-        elif filtype == FloatScaleFilter:
-            options = [
-                lt.FilterOption.SCALE_FLOAT_FACTOR,
-                lt.FilterOption.SCALE_FLOAT_OFFSET,
-                lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
-            ]
-        elif filtype == WebpFilter:
-            options = [
-                lt.FilterOption.WEBP_INPUT_FORMAT,
-                lt.FilterOption.WEBP_QUALITY,
-                lt.FilterOption.WEBP_LOSSLESS,
-            ]
-        else:
-            options = []
-
         ctx = self._ctx
-        return filtype(*(fil._get_option(ctx, opt) for opt in options), ctx=ctx)
+        return filtype(*(fil._get_option(ctx, opt) for opt in filtype.options), ctx=ctx)
