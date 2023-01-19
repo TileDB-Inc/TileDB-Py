@@ -160,7 +160,7 @@ class FixesTest(DiskTestCase):
             import subprocess
 
             python_exe = sys.executable
-            cmd = "import tiledb; print(tiledb.Config()['{}'])".format(key)
+            cmd = """import tiledb; print(tiledb.Config()[\"{}\"])""".format(key)
             test_path = os.path.dirname(os.path.abspath(__file__))
 
             sp_output = subprocess.check_output(
