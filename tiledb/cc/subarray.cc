@@ -148,11 +148,20 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
     }
   } catch (py::cast_error &e) {
     (void)e;
-    throw std::runtime_error("ohai?");
-    // std::cerr << "CAST ERROR" << std::endl;
-    // std::string msg = "Failed to cast dim range '" + (std::string)py::repr(r) +
-    //                   "' to dim type " + tiledb::impl::type_to_str(tiledb_type);
-    // TPY_ERROR_LOC(msg);
+    std::cerr << "CAST ERROR" << std::endl;
+    try {
+    std::string msg = "Failed to cast dim range '" + (std::string)py::repr(r) +
+                      "' to dim type " + tiledb::impl::type_to_str(tiledb_type);
+    } catch (...) {
+      std::cerr << "WTAF?" << std::endl;
+      throw;
+    }
+    try {
+      throw TileDBPyError("foo");
+    } catch(const TileDBPyError&) {
+      std::cerr << "Actually caught it" << std::endl;
+      throw;
+    }
   }
 }
 
