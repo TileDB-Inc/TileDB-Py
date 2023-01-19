@@ -34,7 +34,10 @@ def _direct_query_ranges(array: SparseArray, ranges, order):
     layout = order_map[order]
     with tiledb.scope_ctx() as ctx:
         q = tiledb.main.PyQuery(ctx, array, ("a",), (), layout, False)
-        q.set_ranges(ranges)
+        subarray = tiledb.Subarray(array)
+        subarray.add_ranges(ranges)
+        q.set_subarray(subarray)
+
         q.submit()
     return {k: v[0].view(array.attr(0).dtype) for k, v in q.results().items()}
 
