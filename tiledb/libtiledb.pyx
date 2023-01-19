@@ -2903,6 +2903,7 @@ cdef class DenseArrayImpl(Array):
                               bint include_coords):
 
         from tiledb.main import PyQuery
+        from tiledb.subarray import Subarray
 
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
@@ -2923,7 +2924,9 @@ cdef class DenseArrayImpl(Array):
             else:
                 raise TypeError("`cond` expects type str.")
 
-        q.set_ranges([list([x]) for x in subarray])
+        subarray_t = Subarray(self, self.ctx)
+        subarray_t.add_ranges([list([x]) for x in subarray])
+        q.set_subarray(subarray_t)
         q.submit()
         cdef object results = OrderedDict()
         results = q.results()
@@ -3718,6 +3721,7 @@ cdef class SparseArrayImpl(Array):
         cdef Py_ssize_t nattr = len(attr_names)
 
         from tiledb.main import PyQuery
+        from tiledb.subarray import Subarray
 
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
@@ -3739,7 +3743,9 @@ cdef class SparseArrayImpl(Array):
                 raise TypeError("`cond` expects type str.")
 
         if self.mode == "r":
-            q.set_ranges([list([x]) for x in subarray])
+            subarray_t = Subarray(self, self.ctx)
+            subarray_t.add_ranges([list([x]) for x in subarray])
+            q.set_subarray(subarray_t)
 
         q.submit()
 
