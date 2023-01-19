@@ -17,8 +17,10 @@ namespace py = pybind11;
 void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
   if (py::len(r) == 0)
     return;
-  else if (py::len(r) != 2)
+  else if (py::len(r) != 2) {
+    std::cerr << "BAD RANG LEN" << std::endl;
     TPY_ERROR_LOC("Unexpected range len != 2");
+  }
 
   auto r0 = r[0];
   auto r1 = r[1];
@@ -82,6 +84,7 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
     case TILEDB_STRING_UTF8:
     case TILEDB_CHAR: {
       if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
+        std::cerr << "not strings and none" << std::endl;
         TPY_ERROR_LOC(
             "internal error: ranges must both be strings or (None, None)");
       } else if (!py::isinstance<py::none>(r0) &&
@@ -89,6 +92,7 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
                  !py::isinstance<py::str>(r0) && !py::isinstance<py::str>(r1) &&
                  !py::isinstance<py::bytes>(r0) &&
                  !py::isinstance<py::bytes>(r1)) {
+        std::cerr << "string type var-length" << std::endl;
         TPY_ERROR_LOC(
             "internal error: expected string type for var-length dim!");
       }
@@ -144,9 +148,11 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
     }
   } catch (py::cast_error &e) {
     (void)e;
-    std::string msg = "Failed to cast dim range '" + (std::string)py::repr(r) +
-                      "' to dim type " + tiledb::impl::type_to_str(tiledb_type);
-    TPY_ERROR_LOC(msg);
+    throw std::runtime_error("ohai?");
+    // std::cerr << "CAST ERROR" << std::endl;
+    // std::string msg = "Failed to cast dim range '" + (std::string)py::repr(r) +
+    //                   "' to dim type " + tiledb::impl::type_to_str(tiledb_type);
+    // TPY_ERROR_LOC(msg);
   }
 }
 
@@ -171,8 +177,10 @@ void add_label_range(const Context &ctx, Subarray &subarray,
                      const std::string &label_name, py::tuple r) {
   if (py::len(r) == 0)
     return;
-  else if (py::len(r) != 2)
+  else if (py::len(r) != 2) {
+    std::cerr << "BAD LEN add_label_range" << std::endl;
     TPY_ERROR_LOC("Unexpected range len != 2");
+  }
 
   auto r0 = r[0];
   auto r1 = r[1];
@@ -310,10 +318,12 @@ break;
       break;
     }
     default:
+      std::cerr << "Unknown dim type" << std::endl;
       TPY_ERROR_LOC("Unknown dim type conversion!");
     }
   } catch (py::cast_error &e) {
     (void)e;
+    std::cerr << "cast error" << std::endl;
     std::string msg = "Failed to cast label range '" +
                       (std::string)py::repr(r) + "' to label type " +
                       tiledb::impl::type_to_str(tiledb_type);
@@ -348,6 +358,7 @@ void init_subarray(py::module &m) {
       .def("_add_label_range",
            [](Subarray &, const Context &,
               const std::string &, py::tuple) {
+            std::cerr << "version badness" << std::endl;
            throw TileDBPyError("Setting dimension label ranges requires libtiledb version 2.15.0 or greater.");
            })
 #endif

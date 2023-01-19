@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <exception>
 #include <future>
 #include <iostream>
 #include <map>
@@ -1485,18 +1486,34 @@ void init_core(py::module &m) {
       (py::object)py::module::import("tiledb").attr("TileDBError");
 
   py::register_exception_translator([](std::exception_ptr p) {
+    std::cerr << "Translating exception" << std::endl;
     try {
       if (p)
         std::rethrow_exception(p);
     } catch (const TileDBPyError &e) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
+    } catch (const TileDBPyError* e) {
+      PyErr_SetString(tiledb_py_error.ptr(), "omg pointer");
     } catch (const tiledb::TileDBError &e) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
-    } catch (py::builtin_exception &e) {
+    } catch (const py::builtin_exception &e) {
       // just forward the error
       throw;
       //} catch (std::runtime_error &e) {
       //  std::cout << "unexpected runtime_error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+      std::string msg = std::string("Type: ") + typeid(e).name();
+      msg += " What: ";
+      msg += e.what();
+      PyErr_SetString(tiledb_py_error.ptr(), msg.c_str());
+    } catch (const std::runtime_error& e) {
+      PyErr_SetString(tiledb_py_error.ptr(), "std::runtime_error&");
+    } catch (const std::string& e) {
+      PyErr_SetString(tiledb_py_error.ptr(), "std::string&");
+    } catch (const char* e) {
+      PyErr_SetString(tiledb_py_error.ptr(), "const char*");
+    } catch (...) {
+      PyErr_SetString(tiledb_py_error.ptr(), "le sigh");
     }
   });
 };
