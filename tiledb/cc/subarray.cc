@@ -150,9 +150,8 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
   }
 }
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
-void add_bulk_range(const Context &ctx, Subarray &subarray, uint32_t dim_idx,
-                    pybind11::handle dim_range) {
+void add_dim_point_ranges(const Context &ctx, Subarray &subarray,
+                          uint32_t dim_idx, pybind11::handle dim_range) {
 
   // Cast range object to appropriately typed py::array.
   auto tiledb_type =
@@ -166,7 +165,6 @@ void add_bulk_range(const Context &ctx, Subarray &subarray, uint32_t dim_idx,
   ctx.handle_error(tiledb_subarray_add_point_ranges(
       c_ctx, c_subarray, dim_idx, (void *)ranges.data(), ranges.size()));
 }
-#endif
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
 void add_label_range(const Context &ctx, Subarray &subarray,
@@ -330,6 +328,11 @@ void init_subarray(py::module &m) {
            py::keep_alive<1, 2>() /* Keep context alive. */,
            py::keep_alive<1, 3>() /* Keep array alive. */)
 
+      .def("__capsule__",
+           [](Subarray &subarray) {
+             return py::capsule(subarray.ptr().get(), "subarray", nullptr);
+           })
+
       .def("_add_dim_range",
            [](Subarray &subarray, uint32_t dim_idx, py::tuple range) {
              add_dim_range(subarray, dim_idx, range);
@@ -349,13 +352,12 @@ void init_subarray(py::module &m) {
            })
 #endif
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
       .def("_add_ranges_bulk",
            [](Subarray &subarray, const Context &ctx, py::iterable ranges) {
              uint32_t dim_idx = 0;
              for (auto dim_range : ranges) {
                if (py::isinstance<py::array>(dim_range)) {
-                 add_bulk_range(ctx, subarray, dim_idx, dim_range);
+                 add_dim_point_ranges(ctx, subarray, dim_idx, dim_range);
                } else {
                  py::tuple dim_range_iter = dim_range.cast<py::iterable>();
                  for (auto r : dim_range_iter) {
@@ -367,12 +369,11 @@ void init_subarray(py::module &m) {
              }
            })
 
-      .def("_add_bulk_range",
+      .def("_add_dim_point_ranges",
            [](Subarray &subarray, const Context &ctx, uint32_t dim_idx,
               pybind11::handle dim_range) {
-             add_bulk_range(ctx, subarray, dim_idx, dim_range);
+             add_dim_point_ranges(ctx, subarray, dim_idx, dim_range);
            })
-#endif
 
       .def("_add_ranges",
            [](Subarray &subarray, const Context &ctx, py::iterable ranges) {

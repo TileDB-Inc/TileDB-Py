@@ -413,6 +413,11 @@ public:
 #endif
   }
 
+  void set_subarray(py::object py_subarray) {
+    tiledb::Subarray *subarray = py_subarray.cast<tiledb::Subarray *>();
+    query_->set_subarray(*subarray);
+  }
+
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
   void set_ranges_bulk(py::iterable ranges) {
     // ranges are specified as one iterable per dimension
@@ -1620,6 +1625,7 @@ void init_core(py::module &m) {
                         py::object, py::object>())
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
+          .def("set_subarray", &PyQuery::set_subarray)
           .def("set_ranges", &PyQuery::set_ranges)
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
           .def("set_ranges_bulk", &PyQuery::set_ranges_bulk)
