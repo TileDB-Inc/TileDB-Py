@@ -150,6 +150,10 @@ class FixesTest(DiskTestCase):
         tiledb.libtiledb.version() < (2, 14, 0),
         reason="SC-23287 fix not implemented until libtiledb 2.14",
     )
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="TODO does not run on windows due to env passthrough",
+    )
     def test_sc23827_aws_region(self):
         # Test for SC-23287
         # The expected behavior here for `vfs.s3.region` is:
