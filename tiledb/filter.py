@@ -871,6 +871,12 @@ class FilterList(CtxMixin, lt.FilterList):
                 lt.FilterOption.SCALE_FLOAT_OFFSET,
                 lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
             ]
+        elif filtype == WebpFilter:
+            options = [
+                lt.FilterOption.WEBP_INPUT_FORMAT,
+                lt.FilterOption.WEBP_QUALITY,
+                lt.FilterOption.WEBP_LOSSLESS,
+            ]
         else:
             options = []
 
