@@ -138,7 +138,6 @@ cdef dict execute_multi_index(Array array,
 
     cdef:
         np.dtype coords_dtype
-        unicode coord_name = (tiledb_coords()).decode('UTF-8')
 
     cdef:
         Py_ssize_t attr_idx

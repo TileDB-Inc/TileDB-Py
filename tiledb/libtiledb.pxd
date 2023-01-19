@@ -18,6 +18,7 @@ cdef extern from "tiledb/tiledb.h":
     enum: TILEDB_VAR_NUM
     unsigned int tiledb_var_num()
 
+    # TODO: remove after TileDB 2.15
     enum: TILEDB_COORDS
     const char* tiledb_coords()
 
