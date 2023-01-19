@@ -32,9 +32,16 @@ try:
 except ImportError:
     DataFrame = None
 
-
-# sentinel value to denote selecting an empty range
 EmptyRange = object()
+
+
+def is_empty_range(idx: Any) -> bool:
+    if idx is not EmptyRange:
+        if hasattr(idx, "__len__") and len(idx) == 0 and idx != "":
+            return True
+        return False
+    return True
+
 
 # TODO: expand with more accepted scalar types
 Scalar = Real
@@ -187,7 +194,7 @@ class _BaseIndexer(ABC):
     def __getitem__(self, idx):
         with timing("getitem_time"):
             self._set_ranges(
-                getitem_ranges(self.array, idx) if idx is not EmptyRange else None
+                getitem_ranges(self.array, idx) if not is_empty_range(idx) else None
             )
             return self if self.return_incomplete else self._run_query()
 
