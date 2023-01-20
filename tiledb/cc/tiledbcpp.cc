@@ -5,6 +5,8 @@
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
+#include "common.h"
+
 namespace libtiledbcpp {
 
 using namespace tiledb;
@@ -46,6 +48,27 @@ PYBIND11_MODULE(cc, m) {
   init_vfs(m);
 
   py::register_exception<TileDBError>(m, "TileDBError");
+
+  // This causes a runtime error about Array already being
+  // registered.
+  // static auto tiledb_py_error =
+  //     (py::object)py::module::import("tiledb").attr("TileDBError");
+
+  py::register_exception_translator([](std::exception_ptr p) {
+    try {
+      if (p)
+        std::rethrow_exception(p);
+    } catch (const TileDBPyError &e) {
+      PyErr_SetString(PyExc_RuntimeError, e.what());
+    } catch (const tiledb::TileDBError &e) {
+      PyErr_SetString(PyExc_RuntimeError, e.what());
+    } catch (py::builtin_exception &e) {
+      // just forward the error
+      throw;
+      //} catch (std::runtime_error &e) {
+      //  std::cout << "unexpected runtime_error: " << e.what() << std::endl;
+    }
+  });
 }
 
 }; // namespace libtiledbcpp
