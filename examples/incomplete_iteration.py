@@ -33,8 +33,10 @@
 # to it, and read slices back by iteration over incomplete queries.
 #
 
-import numpy as np
 import sys
+
+import numpy as np
+
 import tiledb
 
 

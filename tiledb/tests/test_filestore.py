@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 import tiledb
-from tiledb.tests.common import assert_captured, DiskTestCase
+from tiledb.tests.common import DiskTestCase, assert_captured
 
 
 class FilestoreTest(DiskTestCase):

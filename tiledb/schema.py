@@ -1,7 +1,7 @@
+import numpy as np
+
 from .ctx import default_ctx
 from .libtiledb import ArraySchema, Attr, Dim, Domain
-
-import numpy as np
 
 
 def regularize_tiling(tile, ndim):

@@ -1,7 +1,8 @@
-import numpy as np
-from numpy.testing import assert_array_equal, assert_allclose
-import pytest
 import warnings
+
+import numpy as np
+import pytest
+from numpy.testing import assert_allclose, assert_array_equal
 
 import tiledb
 from tiledb.tests.common import DiskTestCase

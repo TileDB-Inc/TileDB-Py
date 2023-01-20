@@ -1,7 +1,8 @@
-from typing import ByteString, TYPE_CHECKING
 import warnings
+from typing import TYPE_CHECKING, ByteString
 
 import tiledb.cc as lt
+
 from .ctx import default_ctx
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ class Filestore:
             buffer = memoryview(buffer)
         except TypeError:
             raise TypeError(
-                f"Unexpected buffer type: buffer must support buffer protocol"
+                "Unexpected buffer type: buffer must support buffer protocol"
             )
 
         if not isinstance(mime_type, str):

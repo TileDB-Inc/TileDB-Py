@@ -1,6 +1,9 @@
-import tiledb
+import shutil
+import tempfile
+
 import numpy as np
-import tempfile, shutil
+
+import tiledb
 
 # TODO
 # [x] dense

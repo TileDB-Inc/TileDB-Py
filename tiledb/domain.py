@@ -1,12 +1,13 @@
-import numpy as np
+import io
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 import tiledb.cc as lt
+
 from .ctx import CtxMixin
 from .dimension import Dim
 from .util import numpy_dtype
-
-import io
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx

@@ -3,7 +3,6 @@
 import re
 
 import numpy as np
-
 from pandas.api.extensions import (
     ExtensionArray,
     ExtensionDtype,

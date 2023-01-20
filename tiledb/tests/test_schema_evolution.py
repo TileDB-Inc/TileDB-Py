@@ -1,9 +1,10 @@
-import pytest
-import tiledb
-import numpy as np
 import os
 
+import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
+
+import tiledb
 
 
 def test_schema_evolution(tmp_path):

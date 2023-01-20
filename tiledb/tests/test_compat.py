@@ -3,9 +3,9 @@ import io
 import tarfile
 
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
-import pytest
 import tiledb
 from tiledb.tests.common import DiskTestCase
 

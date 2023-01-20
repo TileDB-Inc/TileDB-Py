@@ -6,13 +6,13 @@ import os
 import pickle
 import random
 import re
-import urllib
 import subprocess
 import sys
 import tarfile
 import textwrap
 import time
 import unittest
+import urllib
 import warnings
 import xml.etree.ElementTree
 from collections import OrderedDict
@@ -23,23 +23,22 @@ import psutil
 import pytest
 from numpy.testing import assert_array_equal
 
-
 import tiledb
 from tiledb.tests.common import (
+    DiskTestCase,
     assert_captured,
     assert_subarrays_equal,
     assert_unordered_equal,
-    DiskTestCase,
     has_pandas,
     rand_ascii,
     rand_ascii_bytes,
     rand_utf8,
 )
-from tiledb.tests.fixtures import (
+from tiledb.tests.fixtures import (  # pyright: reportUnusedVariable=warning
+    INTEGER_DTYPES,
     sparse_cell_order,
     test_incomplete_return_array,
-    INTEGER_DTYPES,
-)  # pyright: reportUnusedVariable=warning
+)
 from tiledb.util import schema_from_dict
 
 
@@ -3950,9 +3949,10 @@ class IncompleteTest(DiskTestCase):
         indexer,
         non_overlapping_ranges,
     ):
-        import pyarrow as pa
-        from tiledb.multirange_indexing import EstimatedResultSize
         import pandas as pd
+        import pyarrow as pa
+
+        from tiledb.multirange_indexing import EstimatedResultSize
 
         path = test_incomplete_return_array
 

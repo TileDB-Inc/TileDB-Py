@@ -34,6 +34,7 @@
 #
 
 import numpy as np
+
 import tiledb
 
 # Name of array.

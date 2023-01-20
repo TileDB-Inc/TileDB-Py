@@ -1,4 +1,3 @@
-import tiledb
 import contextlib
 import datetime
 import glob
@@ -10,13 +9,14 @@ import subprocess
 import sys
 import tempfile
 import traceback
-import tiledb
-import uuid
 import urllib
+import uuid
 
 import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
+
+import tiledb
 
 SUPPORTED_DATETIME64_DTYPES = tuple(
     np.dtype(f"M8[{res}]") for res in "Y M W D h m s ms us ns".split()

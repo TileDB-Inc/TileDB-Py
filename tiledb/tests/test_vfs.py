@@ -1,9 +1,10 @@
 import io
-import numpy as np
 import os
-import pytest
 import random
 import sys
+
+import numpy as np
+import pytest
 
 import tiledb
 from tiledb.tests.common import DiskTestCase, rand_utf8

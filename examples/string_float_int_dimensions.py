@@ -33,9 +33,11 @@
 # to it, and read a slice of the data back.
 #
 
-import tiledb
-import numpy as np
 import random
+
+import numpy as np
+
+import tiledb
 
 path = "sparse_mixed_demo"
 

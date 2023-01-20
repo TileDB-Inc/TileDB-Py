@@ -33,9 +33,10 @@
 #
 
 
+import numpy as np
+
 #%%
 import tiledb
-import numpy as np
 from tiledb.tests.common import assert_subarrays_equal
 
 array_name = "variable_length_array"

@@ -2,29 +2,28 @@
 #cython: embedsignature=True
 #cython: auto_pickle=False
 
+from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid, PyCapsule_New
 from cpython.version cimport PY_MAJOR_VERSION
-from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPointer
 
 include "common.pxi"
-import io
 import html
+import io
 import sys
 import warnings
 from collections import OrderedDict
 from collections.abc import Sequence
 
-from .attribute import Attr
-from .ctx import default_ctx, Ctx, Config
-from .dimension import Dim
-from .domain import Domain
-from .filter import FilterList
-from .vfs import VFS
-from ._generated_version import version_tuple as tiledbpy_version
-from .util import sparse_array_from_numpy, dtype_range
-
 import tiledb.cc as lt
 from tiledb.cc import TileDBError
 
+from ._generated_version import version_tuple as tiledbpy_version
+from .attribute import Attr
+from .ctx import Config, Ctx, default_ctx
+from .dimension import Dim
+from .domain import Domain
+from .filter import FilterList
+from .util import dtype_range, sparse_array_from_numpy
+from .vfs import VFS
 
 ###############################################################################
 #     Numpy initialization code (critical)                                    #
@@ -503,6 +502,7 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
 
         if include_python:
             from json import dumps as json_dumps
+
             import tiledb.main
             stats_json_core["python"] = json_dumps(tiledb.main.python_internal_stats(True))
         if json:

@@ -1,15 +1,17 @@
 import io
-from typing import Any, Sequence, Tuple, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Sequence, Tuple, Union
+
 import numpy as np
 
 import tiledb.cc as lt
+
 from .ctx import CtxMixin
-from .filter import FilterList, Filter
+from .filter import Filter, FilterList
 from .util import (
     dtype_to_tiledb,
     numpy_dtype,
-    tiledb_type_is_integer,
     tiledb_type_is_datetime,
+    tiledb_type_is_integer,
 )
 
 if TYPE_CHECKING:
@@ -176,7 +178,7 @@ class Dim(CtxMixin, lt.Dimension):
             filters_str += "])"
 
         # for consistency, print `var=True` for string-like types
-        varlen = "" if not self.dtype in (np.str_, np.bytes_) else ", var=True"
+        varlen = "" if self.dtype not in (np.str_, np.bytes_) else ", var=True"
         return f"Dim(name={self.name!r}, domain={self.domain!s}, tile={self.tile!r}, dtype='{self.dtype!s}'{varlen}{filters_str})"
 
     def _repr_html_(self) -> str:

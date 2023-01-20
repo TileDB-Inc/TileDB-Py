@@ -1,11 +1,13 @@
 import os
-import pytest
-import xml
 import subprocess
 import sys
+import xml
+
+import pytest
 
 import tiledb
 from tiledb.tests.common import DiskTestCase
+
 
 # Wrapper to execute specific code in subprocess so that we can ensure the thread count
 # init is correct. Necessary because multiprocess.get_context is only available in Python 3.4+,

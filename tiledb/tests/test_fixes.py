@@ -1,12 +1,14 @@
-import numpy as np
-import tiledb
-import concurrent, concurrent.futures
+import concurrent
+import concurrent.futures
 import os
 import sys
 
+import numpy as np
 import pytest
-from tiledb.tests.common import DiskTestCase, has_pandas
 from numpy.testing import assert_array_equal
+
+import tiledb
+from tiledb.tests.common import DiskTestCase, has_pandas
 
 pd = pytest.importorskip("pandas")
 tm = pd._testing

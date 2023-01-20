@@ -1,12 +1,13 @@
 import io
-from typing import List, Optional, Type, TYPE_CHECKING, Union
 from types import TracebackType
+from typing import TYPE_CHECKING, List, Optional, Type, Union
 
 import tiledb.cc as lt
+
 from .ctx import default_ctx
 
 if TYPE_CHECKING:
-    from .libtiledb import Ctx, Config
+    from .libtiledb import Config, Ctx
 
 
 class VFS(lt.VFS):

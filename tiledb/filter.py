@@ -1,7 +1,8 @@
 import io
-from typing import List, overload, Sequence, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, List, Sequence, Union, overload
 
 import tiledb.cc as lt
+
 from .ctx import CtxMixin
 
 if TYPE_CHECKING:

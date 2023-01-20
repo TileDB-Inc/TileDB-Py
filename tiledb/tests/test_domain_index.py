@@ -1,8 +1,8 @@
 #%%
 
 import numpy as np
-import tiledb
 
+import tiledb
 from tiledb.tests.common import *
 
 

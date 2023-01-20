@@ -2,19 +2,18 @@
 # Property-based tests for Array.multi_index using Hypothesis
 #
 
-import tiledb
-from tiledb import SparseArray
-import numpy as np
-from numpy.testing import assert_array_equal
-
 import warnings
 
+import numpy as np
 import pytest
+from hypothesis import assume, given
+from hypothesis import strategies as st
+from numpy.testing import assert_array_equal
+
+import tiledb
+from tiledb import SparseArray
 from tiledb.tests.common import checked_path
 from tiledb.tests.strategies import bounded_ntuple, ranged_slices
-
-from hypothesis import given, assume
-from hypothesis import strategies as st
 
 
 def is_boundserror(exc: Exception):

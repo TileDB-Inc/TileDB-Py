@@ -1,15 +1,15 @@
-from datetime import date
 import itertools
-import numpy as np
-import pytest
 import sys
 import xml.etree.ElementTree
+from datetime import date
+
+import numpy as np
+import pytest
+from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.main import PyFragmentInfo
-
 from tiledb.tests.common import DiskTestCase
-from numpy.testing import assert_array_equal
 
 
 class FragmentInfoTest(DiskTestCase):

@@ -1,15 +1,14 @@
 import ast
 from dataclasses import dataclass, field
-import numpy as np
-from typing import Any, Callable, List, Tuple, Type, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple, Type, Union
 
-# import tiledb
+import numpy as np
 
 import tiledb.main as qc
+from tiledb.cc import TileDBError
 from tiledb.main import PyQueryCondition
 
 from .ctx import default_ctx
-from tiledb.cc import TileDBError
 
 if TYPE_CHECKING:
     from .libtiledb import ArraySchema, Ctx
@@ -216,7 +215,7 @@ class QueryConditionTree(ast.NodeVisitor):
             rhs = node.comparators[0]
             if not isinstance(rhs, ast.List):
                 raise TileDBError(
-                    f"`in` operator syntax must be written as `variable in ['l', 'i', 's', 't']`"
+                    "`in` operator syntax must be written as `variable in ['l', 'i', 's', 't']`"
                 )
 
             consts = self.visit(rhs)
@@ -429,7 +428,7 @@ class QueryConditionTree(ast.NodeVisitor):
             raise TileDBError(f"Unrecognized expression {node.func}.")
 
         if node.func.id not in ("attr", "dim", "val"):
-            raise TileDBError(f"Valid casts are attr(), dim(), or val()).")
+            raise TileDBError("Valid casts are attr(), dim(), or val()).")
 
         if len(node.args) != 1:
             raise TileDBError(

@@ -6,7 +6,9 @@ import sys
 import tempfile
 
 import pytest
+
 from tiledb.tests.common import has_pandas
+
 
 # override locally to avoid conflict with capsys used below
 @pytest.fixture(scope="function", autouse=True)

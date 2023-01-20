@@ -1,8 +1,7 @@
-import pytest
+import string
 
 import numpy as np
-from numpy.testing import assert_array_equal
-import string
+import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb

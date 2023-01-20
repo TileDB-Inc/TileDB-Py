@@ -1,7 +1,9 @@
-from typing import MutableMapping, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, MutableMapping, Union
+
 import numpy as np
 
 import tiledb.cc as lt
+
 from .ctx import CtxMixin, default_ctx
 
 if TYPE_CHECKING:

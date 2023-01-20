@@ -1,7 +1,9 @@
-import tiledb
 import ctypes
-import pytest
 import sys
+
+import pytest
+
+import tiledb
 
 if sys.platform != "win32":
 

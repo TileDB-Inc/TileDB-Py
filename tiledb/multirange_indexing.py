@@ -5,18 +5,18 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
 from contextvars import ContextVar
-from numbers import Real
 from dataclasses import dataclass
+from numbers import Real
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
-
 
 import numpy as np
 
-from tiledb import Array, ArraySchema, QueryCondition, TileDBError
-from tiledb.main import PyQuery, increment_stat, use_stats
+from tiledb import Array, ArraySchema, TileDBError
 from tiledb.libtiledb import Metadata, Query
+from tiledb.main import PyQuery, increment_stat, use_stats
 
 from .dataframe_ import check_dataframe_deps
+from .query_condition import QueryCondition
 
 current_timer: ContextVar[str] = ContextVar("timer_scope")
 

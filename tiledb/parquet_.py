@@ -1,5 +1,5 @@
-from os import PathLike
 from typing import TYPE_CHECKING
+
 import tiledb
 
 if TYPE_CHECKING:

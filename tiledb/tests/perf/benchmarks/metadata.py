@@ -1,7 +1,10 @@
-import tiledb
-import numpy as np
-import tempfile, shutil
+import shutil
+import tempfile
 import time
+
+import numpy as np
+
+import tiledb
 
 
 class MetadataTest:

@@ -35,8 +35,10 @@
 #
 
 
-import numpy as np
 import sys
+
+import numpy as np
+
 import tiledb
 
 # Name of the array to create.

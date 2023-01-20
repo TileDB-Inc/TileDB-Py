@@ -1,8 +1,10 @@
-from math import hypot
-import tiledb
 import time
+from math import hypot
+
 import numpy as np
 import pytest
+
+import tiledb
 
 pd = pytest.importorskip("pandas")
 tm = pd._testing

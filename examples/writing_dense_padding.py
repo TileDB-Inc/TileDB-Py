@@ -33,8 +33,10 @@
 # to it in a way that some space is empty, and read the entire array data back.
 #
 
-import numpy as np
 import sys
+
+import numpy as np
+
 import tiledb
 
 # Name of the array to create.

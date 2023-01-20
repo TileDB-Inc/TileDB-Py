@@ -1,10 +1,11 @@
 import os
 import time
 import warnings
+
 import numpy as np
 import pytest
-
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from hypothesis.extra import numpy as st_np
 
 import tiledb

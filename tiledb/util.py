@@ -1,10 +1,11 @@
+from collections import deque
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Tuple, Union
+
+import numpy as np
+
 import tiledb
 import tiledb.cc as lt
 from tiledb.dataframe_ import ColumnInfo
-
-from collections import deque
-import numpy as np
-from typing import Any, Iterable, Optional, List, Tuple, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .libtiledb import ArraySchema, Ctx

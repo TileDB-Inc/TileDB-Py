@@ -1,6 +1,6 @@
-import tiledb.cc as lt
-
 from typing import Optional
+
+import tiledb.cc as lt
 
 
 class Object(lt.Object):
@@ -8,8 +8,8 @@ class Object(lt.Object):
     Represents a TileDB object which may be of type Array, Group, or Invalid.
     """
 
-    from .libtiledb import Array
     from .group import Group
+    from .libtiledb import Array
 
     _obj_type_to_class = {
         lt.ObjectType.ARRAY: Array,

@@ -4,14 +4,14 @@ pd = pytest.importorskip("pandas")
 tm = pd._testing
 
 import copy
-from datetime import date
 import glob
 import os
-from pathlib import Path
 import random
 import string
 import tempfile
 import uuid
+from datetime import date
+from pathlib import Path
 
 import numpy as np
 from numpy.testing import assert_array_equal

@@ -1,4 +1,3 @@
-import numpy as np
 import os
 import pprint
 import warnings
@@ -322,7 +321,7 @@ class FragmentInfo:
         )
 
     @property
-    def to_vacuum_uri(self):
+    def dense(self):
         raise tiledb.TileDBError(
             "FragmentInfo.dense is deprecated; you must use FragmentInfo.sparse",
             "This message will be removed in 0.21.0.",

@@ -4,9 +4,12 @@ IF TILEDBPY_MODULAR:
 
 from libc.stdio cimport printf
 
-import numpy as np
-from .array import DenseArray, SparseArray
 import weakref
+
+import numpy as np
+
+from .array import DenseArray, SparseArray
+
 
 def _index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""

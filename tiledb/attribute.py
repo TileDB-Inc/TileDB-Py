@@ -1,11 +1,13 @@
 import io
-import numpy as np
 import warnings
-from typing import Any, Sequence, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Sequence, Union
+
+import numpy as np
 
 import tiledb.cc as lt
+
 from .ctx import CtxMixin
-from .filter import FilterList, Filter
+from .filter import Filter, FilterList
 from .util import array_type_ncells, numpy_dtype, tiledb_type_is_datetime
 
 if TYPE_CHECKING:
@@ -68,9 +70,9 @@ class Attr(CtxMixin, lt.Attribute):
                 _dtype = np.dtype("S0")
 
             if _dtype.itemsize == 0:
-                if var == False:
+                if var is False:
                     warnings.warn(
-                        f"Attr given `var=False` but `dtype` `S0` is var-length; "
+                        "Attr given `var=False` but `dtype` `S0` is var-length; "
                         "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
                         "with `dtype=S0`, or `var=False` with a fixed-width "
                         "string `dtype=S<n>` where is  n>1",

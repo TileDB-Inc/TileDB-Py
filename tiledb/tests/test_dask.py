@@ -2,13 +2,15 @@ import pytest
 
 da = pytest.importorskip("dask.array")
 
-from datetime import datetime
 import sys
+from datetime import datetime
+
+import numpy as np
+from numpy.testing import assert_approx_equal, assert_array_equal
+
 import tiledb
 from tiledb.tests.common import DiskTestCase
 
-import numpy as np
-from numpy.testing import assert_array_equal, assert_approx_equal
 
 # override the no_output fixture because it conflicts with these tests
 #   eg: "ResourceWarning: unclosed event loop"

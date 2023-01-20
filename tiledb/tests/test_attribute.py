@@ -1,12 +1,12 @@
+import sys
 import xml.etree.ElementTree
 
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-import sys
 
 import tiledb
-from tiledb.tests.common import assert_captured, DiskTestCase, has_pandas
+from tiledb.tests.common import DiskTestCase, assert_captured, has_pandas
 
 
 class AttributeTest(DiskTestCase):

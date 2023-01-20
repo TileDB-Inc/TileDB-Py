@@ -2,16 +2,16 @@ import os
 import time
 import warnings
 
-import tiledb
+import hypothesis as hp
 import numpy as np
 import pytest
-import hypothesis as hp
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from hypothesis.extra import numpy as st_np
 
-from tiledb.tests.common import assert_captured, DiskTestCase, rand_utf8
+import tiledb
 from tiledb.main import metadata_test_aux
-
+from tiledb.tests.common import DiskTestCase, assert_captured, rand_utf8
 
 MIN_INT = np.iinfo(np.int64).min
 MAX_INT = np.iinfo(np.int64).max

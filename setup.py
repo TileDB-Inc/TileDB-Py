@@ -1,18 +1,18 @@
-from ctypes import *
-import io
 import glob
+import io
 import multiprocessing
 import os
 import shutil
 import subprocess
 import sys
 import zipfile
+from ctypes import CDLL, POINTER, Structure, byref, c_char_p, c_int, c_void_p
 from urllib.error import URLError
 from urllib.request import urlopen
 
 from pkg_resources import resource_filename
-from setuptools import Extension, find_packages, setup
 from pybind11.setup_helpers import Pybind11Extension
+from setuptools import Extension, find_packages, setup
 
 ### DO NOT USE ON CI
 ## Optional multithreaded build
@@ -403,7 +403,7 @@ def find_or_install_libtiledb(setuptools_cmd):
     )
     with open(version_header) as header:
         lines = list(header)[-3:]
-        major, minor, patch = [int(l.split()[-1]) for l in lines]
+        major, minor, patch = [int(line.split()[-1]) for line in lines]
 
     ext_attr_update(
         "cython_compile_time_env",

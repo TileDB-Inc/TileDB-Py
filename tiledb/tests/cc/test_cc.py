@@ -1,12 +1,12 @@
-import numpy as np
 import os
-import tiledb
 import tempfile
 
+import numpy as np
+import pytest
+
+import tiledb
 from tiledb import cc as lt
 from tiledb.tests.common import paths_equal
-
-import pytest
 
 # from tiledb.tests.fixtures
 INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]

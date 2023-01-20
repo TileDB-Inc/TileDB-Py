@@ -24,104 +24,84 @@ else:
 # from .libtiledb
 try:
     import tiledb
+
     from .libtiledb import Ctx
+
+    del Ctx
 except:
     try:
         lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "native")
         ctypes.CDLL(os.path.join(lib_dir, lib_name))
-    except OSError as e:
+    except OSError:
         # Otherwise try loading by name only.
         ctypes.CDLL(lib_name)
 
-from .cc import TileDBError
-
-from .ctx import default_ctx, scope_ctx
-from .libtiledb import (
-    Array,
-    Ctx,
-    Config,
-    Dim,
-    Domain,
-    ArraySchema,
-    consolidate,
-    object_type,
-    ls,
-    walk,
-    remove,
-    move,
-    stats_enable,
-    stats_disable,
-    stats_reset,
-    stats_dump,
-    vacuum,
-)
-
 from .array import DenseArray, SparseArray
-
 from .attribute import Attr
-
+from .cc import TileDBError
+from .ctx import default_ctx, scope_ctx
+from .dataframe_ import from_csv, from_pandas, open_dataframe
+from .filestore import Filestore
 from .filter import (
-    Filter,
-    FilterList,
-    NoOpFilter,
-    GzipFilter,
-    ZstdFilter,
-    LZ4Filter,
-    Bzip2Filter,
-    RleFilter,
-    DoubleDeltaFilter,
-    WebpFilter,
-    DictionaryFilter,
-    XORFilter,
     BitShuffleFilter,
-    ByteShuffleFilter,
     BitWidthReductionFilter,
-    PositiveDeltaFilter,
+    ByteShuffleFilter,
+    Bzip2Filter,
     ChecksumMD5Filter,
     ChecksumSHA256Filter,
+    DictionaryFilter,
+    DoubleDeltaFilter,
+    Filter,
+    FilterList,
     FloatScaleFilter,
+    GzipFilter,
+    LZ4Filter,
+    NoOpFilter,
+    PositiveDeltaFilter,
+    RleFilter,
+    WebpFilter,
+    XORFilter,
+    ZstdFilter,
 )
-
-from .filestore import Filestore
-
 from .fragment import (
-    FragmentInfoList,
     FragmentInfo,
+    FragmentInfoList,
     FragmentsInfo,
     copy_fragments_to_existing_array,
-    delete_fragments,
     create_array_from_fragments,
+    delete_fragments,
 )
-
 from .group import Group
-
-group_create = Group.create
-
-from .object import Object
-
-from .highlevel import (
-    open,
-    save,
-    from_numpy,
-    empty_like,
-    array_exists,
-    array_fragments,
+from .highlevel import array_exists, array_fragments, empty_like, from_numpy, open, save
+from .libtiledb import (
+    Array,
+    ArraySchema,
+    Config,
+    Ctx,
+    Dim,
+    Domain,
+    consolidate,
+    ls,
+    move,
+    object_type,
+    remove,
+    stats_disable,
+    stats_dump,
+    stats_enable,
+    stats_reset,
+    vacuum,
+    walk,
 )
-
+from .multirange_indexing import EmptyRange
+from .object import Object
+from .parquet_ import from_parquet
 from .query_condition import QueryCondition
-
 from .schema import schema_like
-
 from .schema_evolution import ArraySchemaEvolution
-
+from .version_helper import version
 from .vfs import VFS, FileIO
 
-# TODO restricted imports
-from .dataframe_ import from_csv, from_pandas, open_dataframe
-from .multirange_indexing import EmptyRange
-from .parquet_ import from_parquet
-
-from .version_helper import version
+group_create = Group.create
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
 #       Therefore, 'tiledb/__init__.py' must *only* exist in this package.
