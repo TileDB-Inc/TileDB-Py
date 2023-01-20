@@ -11,8 +11,13 @@ if TYPE_CHECKING:
 
 class ArrayImpl(CtxMixin, lt.Array):
     """
-    TODO: Documentation for PyArray
+    Represents a TileDB array.
     """
 
     def __init__(self, array, ctx: "Ctx" = None):
+        """Class representing a TileDB Array.
+
+        :param array: Cython TileDB Array class.
+        :param ctx: A TileDB Context
+        """
         super().__init__(ctx, array)
