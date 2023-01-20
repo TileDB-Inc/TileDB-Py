@@ -243,31 +243,29 @@ void add_label_range(const Context &ctx, Subarray &subarray,
                                             r0.cast<T>(), r1.cast<T>());
       break;
     }
-      /* TODO : FIX THIS
-case TILEDB_STRING_ASCII:
-case TILEDB_STRING_UTF8:
-case TILEDB_CHAR: {
-if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
-TPY_ERROR_LOC(
-"internal error: ranges must both be strings or (None, None)");
-} else if (!py::isinstance<py::none>(r0) &&
-!py::isinstance<py::none>(r1) &&
-!py::isinstance<py::str>(r0) && !py::isinstance<py::str>(r1) &&
-!py::isinstance<py::bytes>(r0) &&
-!py::isinstance<py::bytes>(r1)) {
-TPY_ERROR_LOC(
-"internal error: expected string type for var-length label!");
-}
+    case TILEDB_STRING_ASCII:
+    case TILEDB_STRING_UTF8:
+    case TILEDB_CHAR: {
+      if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
+        TPY_ERROR_LOC(
+            "internal error: ranges must both be strings or (None, None)");
+      } else if (!py::isinstance<py::none>(r0) &&
+                 !py::isinstance<py::none>(r1) &&
+                 !py::isinstance<py::str>(r0) && !py::isinstance<py::str>(r1) &&
+                 !py::isinstance<py::bytes>(r0) &&
+                 !py::isinstance<py::bytes>(r1)) {
+        TPY_ERROR_LOC(
+            "internal error: expected string type for var-length label!");
+      }
 
-if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0)) {
-std::string r0_string = r0.cast<std::string>();
-std::string r1_string = r1.cast<std::string>();
-SubarrayExperimental::add_label_range(ctx, subarray, label_name,
-                           r0_string, r1_string);
-}
-break;
-}
-*/
+      if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0)) {
+        std::string r0_string = r0.cast<std::string>();
+        std::string r1_string = r1.cast<std::string>();
+        SubarrayExperimental::add_label_range(ctx, subarray, label_name,
+                                              r0_string, r1_string);
+      }
+      break;
+    }
     case TILEDB_DATETIME_YEAR:
     case TILEDB_DATETIME_MONTH:
     case TILEDB_DATETIME_WEEK:
