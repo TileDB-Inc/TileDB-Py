@@ -1,5 +1,6 @@
 #include <tiledb/tiledb> // C++
 
+#include "common.h"
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
@@ -48,6 +49,19 @@ PYBIND11_MODULE(cc, m) {
   init_vfs(m);
 
   py::register_exception<TileDBError>(m, "TileDBError");
+
+  py::register_exception_translator([](std::exception_ptr p) {
+    try {
+      if (p)
+        std::rethrow_exception(p);
+    } catch (const TileDBPyError &e) {
+      PyErr_SetString(PyExc_RuntimeError, e.what());
+    } catch (const tiledb::TileDBError &e) {
+      PyErr_SetString(PyExc_RuntimeError, e.what());
+    } catch (py::builtin_exception &e) {
+      throw;
+    };
+  });
 }
 
 }; // namespace libtiledbcpp
