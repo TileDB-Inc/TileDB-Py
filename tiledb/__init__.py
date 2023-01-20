@@ -121,11 +121,7 @@ from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .multirange_indexing import EmptyRange
 from .parquet_ import from_parquet
 
-from .version import version as __version__
-
-from .version_ import VersionHelper
-
-version = VersionHelper()
+from .version_helper import version
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
 #       Therefore, 'tiledb/__init__.py' must *only* exist in this package.
