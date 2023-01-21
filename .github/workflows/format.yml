@@ -6,13 +6,11 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
 
-      - name: Check Python Black Format
-        uses: psf/black@stable
-        with:
-          options: ". --check"
+      - name: Run pre-commit hooks on all files
+        run: python -m pip -v install pre-commit && pre-commit run -a -v
 
       - name: Check Clang-Format
         uses: DoozyX/clang-format-lint-action@v0.13
