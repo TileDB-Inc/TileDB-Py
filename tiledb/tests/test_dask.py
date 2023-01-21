@@ -10,12 +10,6 @@ from .common import DiskTestCase
 
 da = pytest.importorskip("dask.array")
 
-# override the no_output fixture because it conflicts with these tests
-#   eg: "ResourceWarning: unclosed event loop"
-@pytest.fixture(scope="function", autouse=True)
-def no_output():
-    pass
-
 
 @pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
 class TestDaskSupport(DiskTestCase):

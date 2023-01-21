@@ -54,12 +54,6 @@ def test_context():
     assert ctx.config() == cfg
 
 
-# NOMERGE
-@pytest.fixture(scope="function", autouse=True)
-def no_output(capfd):
-    pass
-
-
 def make_range(dtype):
     if np.issubdtype(dtype, np.number):
         return np.array([0, 100.123]).astype(dtype), np.array([1]).astype(dtype)
