@@ -1,6 +1,4 @@
-import shutil
 import tempfile
-import time
 
 import numpy as np
 

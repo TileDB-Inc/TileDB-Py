@@ -1,7 +1,6 @@
 import itertools
 import sys
 import xml.etree.ElementTree
-from datetime import date
 
 import numpy as np
 import pytest
@@ -9,7 +8,8 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.main import PyFragmentInfo
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
 
 
 class FragmentInfoTest(DiskTestCase):
@@ -20,7 +20,7 @@ class FragmentInfoTest(DiskTestCase):
 
     def test_uri_dne(self):
         with self.assertRaises(tiledb.TileDBError):
-            fragment_info = tiledb.array_fragments("does_not_exist")
+            tiledb.array_fragments("does_not_exist")
 
     def test_array_fragments(self):
         fragments = 3
@@ -53,9 +53,9 @@ class FragmentInfoTest(DiskTestCase):
 
         for idx, frag in enumerate(fi):
             assert frag.cell_num == 3
-            assert frag.has_consolidated_metadata == False
+            assert frag.has_consolidated_metadata is False
             assert frag.nonempty_domain == ((idx, idx),)
-            assert frag.sparse == False
+            assert frag.sparse is False
             assert frag.timestamp_range == (idx + 1, idx + 1)
             assert hasattr(frag, "version")  # don't pin to a specific version
             try:
@@ -139,7 +139,7 @@ class FragmentInfoTest(DiskTestCase):
                 (timestamp, timestamp),
             )
 
-            expected_uri = "__{ts}_{ts}".format(uri=uri, ts=timestamp)
+            expected_uri = f"__{timestamp}_{timestamp}"
             actual_uri = fragment_info.get_uri()[fragment_idx]
 
             all_expected_uris.append(expected_uri)
@@ -193,7 +193,7 @@ class FragmentInfoTest(DiskTestCase):
             if uri[0] != "/":
                 uri = "/" + uri.replace("\\", "/")
 
-            expected_uri = "/__{ts}_{ts}".format(uri=uri, ts=timestamp)
+            expected_uri = f"/__{timestamp}_{timestamp}"
             actual_uri = fragment_info.get_uri()[fragment_idx]
 
             all_expected_uris.append(expected_uri)

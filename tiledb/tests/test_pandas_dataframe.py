@@ -1,26 +1,20 @@
-import pytest
-
-pd = pytest.importorskip("pandas")
-tm = pd._testing
-
 import copy
 import glob
 import os
 import random
 import string
-import tempfile
 import uuid
-from datetime import date
-from pathlib import Path
 
 import numpy as np
+import pyarrow
+import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.dataframe_ import ColumnInfo
-from tiledb.tests.common import (
+
+from .common import (
     DiskTestCase,
-    checked_path,
     dtype_max,
     dtype_min,
     rand_ascii,
@@ -28,6 +22,10 @@ from tiledb.tests.common import (
     rand_datetime64_array,
     rand_utf8,
 )
+from .datatypes import RaggedDtype
+
+pd = pytest.importorskip("pandas")
+tm = pd._testing
 
 
 def make_dataframe_basic1(col_size=10):
@@ -356,8 +354,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
     def test_dataframe_csv_rt1(self):
         def rand_dtype(dtype, size):
-            import os
-
             nbytes = size * np.dtype(dtype).itemsize
 
             randbytes = os.urandom(nbytes)
@@ -498,7 +494,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         with tiledb.open(uri) as A:
             ned_time = A.nonempty_domain()[0]
-            ned_dbl = A.nonempty_domain()[1]
 
             res = A.multi_index[slice(*ned_time), :]
             assert_array_equal(res["time"], df_dict["time"])
@@ -771,8 +766,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         t0, t1 = df.time.min(), df.time.max()
 
-        import numpy
-
         with pytest.warns(
             DeprecationWarning,
             match="coords_filters is deprecated; set the FilterList for each dimension",
@@ -963,7 +956,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 sparse=True,
             )
             df_to_check = copy.deepcopy(df2)
-            tmp = tiledb.open_dataframe(tmp_array2)
+            tiledb.open_dataframe(tmp_array2)
             check_array(tmp_array2, df_to_check)
 
         col_size = 10
@@ -1049,7 +1042,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # test setting Attr and Dim filter list by override
         uri = self.path("test_df_attrs_filters1")
         bz_filter = [tiledb.Bzip2Filter(4)]
-        def_filter = [tiledb.GzipFilter(-1)]
         tiledb.from_pandas(uri, df, attr_filters=bz_filter, dim_filters=bz_filter)
         with tiledb.open(uri) as A:
             self.assertTrue(A.schema.attr("data").filters == bz_filter)
@@ -1211,8 +1203,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tm.assert_frame_equal(df, df_bk)
 
     def test_var_length(self):
-        from tiledb.tests.datatypes import RaggedDtype
-
         dtype = np.dtype("uint16")
         data = np.empty(100, dtype="O")
         data[:] = [
@@ -1230,8 +1220,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         with tiledb.open(uri) as A:
             # TODO: update the test when we support Arrow lists
-            import pyarrow
-
             with pytest.raises(pyarrow.lib.ArrowInvalid):
                 A.df[:]
 

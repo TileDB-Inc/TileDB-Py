@@ -1,6 +1,6 @@
 import os
 
-from tiledb import cc as lt
+import tiledb.cc as lt
 
 
 def test_dir(tmp_path):
@@ -10,10 +10,10 @@ def test_dir(tmp_path):
     path = os.path.join(tmp_path, "test_dir")
 
     vfs._create_dir(path)
-    assert vfs._is_dir(path) == True
+    assert vfs._is_dir(path) is True
     assert vfs._dir_size(path) == 0
     vfs._remove_dir(path)
-    assert vfs._is_dir(path) == False
+    assert vfs._is_dir(path) is False
 
 
 def test_file_handle(tmp_path):
@@ -34,4 +34,4 @@ def test_file_handle(tmp_path):
     fh = lt.FileHandle(ctx, vfs, path, lt.VFSMode.READ)
     assert fh._read(0, 13) == b"Hello, world!"
 
-    assert fh._closed == False
+    assert fh._closed is False

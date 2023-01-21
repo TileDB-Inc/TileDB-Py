@@ -6,7 +6,8 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, assert_captured, has_pandas
+
+from .common import DiskTestCase, assert_captured, has_pandas
 
 
 class AttributeTest(DiskTestCase):

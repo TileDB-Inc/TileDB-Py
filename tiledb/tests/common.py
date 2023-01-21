@@ -40,9 +40,6 @@ def assert_tail_equal(a, *rest, **kwargs):
 def create_vfs_dir(path):
     """Create a directory at the given scheme-prefixed path,
     first creating the base bucket if needed."""
-
-    import urllib
-
     split_uri = urllib.parse.urlsplit(path)
     scheme = split_uri.scheme
     bucket = split_uri.netloc
@@ -151,7 +148,7 @@ class DiskTestCase:
 
     @contextlib.contextmanager
     def assertFalse(self, a):
-        assert a == False
+        assert a is False
 
     @contextlib.contextmanager
     def assertIsInstance(self, v, t):
@@ -173,20 +170,6 @@ class DiskTestCase:
     @contextlib.contextmanager
     def assertAlmostEqual(self, a1, a2):
         assert_almost_equal(a1, a2)
-
-
-# fixture wrapper to use with pytest: mark.parametrize does not
-#   work with DiskTestCase subclasses (unittest.TestCase methods
-#   cannot take arguments)
-@pytest.fixture(scope="class")
-def checked_path():
-    dtc = DiskTestCase()
-
-    dtc.setup_method()
-
-    yield dtc
-
-    dtc.teardown_method()
 
 
 # exclude whitespace: if we generate unquoted newline then pandas will be confused
@@ -231,7 +214,7 @@ def dtype_max(dtype):
     elif np.issubdtype(dtype, np.datetime64):
         return np.datetime64(datetime.datetime.max)
 
-    raise "Unknown dtype for dtype_max '{}'".format(str(dtype))
+    raise f"Unknown dtype for dtype_max '{dtype}'"
 
 
 def dtype_min(dtype):
@@ -249,7 +232,7 @@ def dtype_min(dtype):
     elif np.issubdtype(dtype, np.datetime64):
         return np.datetime64(datetime.datetime.min)
 
-    raise "Unknown dtype for dtype_min '{dtype}'".format(str(dtype))
+    raise f"Unknown dtype for dtype_min '{dtype}'"
 
 
 def rand_int_sequential(size, dtype=np.uint64):
@@ -322,16 +305,6 @@ def intspace(start, stop, num=50, dtype=np.int64):
     return rval
 
 
-import pprint as _pprint
-
-pp = _pprint.PrettyPrinter(indent=4)
-
-
-def xprint(*x):
-    for xp in x:
-        pp.pprint(xp)
-
-
 def assert_unordered_equal(a1, a2, unordered=True):
     """Assert that arrays are equal after sorting if
     `unordered==True`"""
@@ -368,9 +341,7 @@ def assert_dict_arrays_equal(d1, d2):
 
 
 def assert_captured(cap, expected):
-    if sys.platform == "win32":
-        return
-    else:
+    if sys.platform != "win32":
         import ctypes
 
         libc = ctypes.CDLL(None)

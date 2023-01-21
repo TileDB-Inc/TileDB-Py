@@ -1,6 +1,7 @@
 import concurrent
 import concurrent.futures
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -8,7 +9,8 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, has_pandas
+
+from .common import DiskTestCase, has_pandas, has_pyarrow
 
 pd = pytest.importorskip("pandas")
 tm = pd._testing
@@ -124,7 +126,7 @@ class FixesTest(DiskTestCase):
 
         with tiledb.open(uri) as A:
             tiledb.stats_enable()
-            r = A[:]
+            A[:]
             assert (
                 """"Context.StorageManager.Query.Reader.loop_num": 1"""
                 in tiledb.stats_dump(print_out=False)
@@ -163,8 +165,6 @@ class FixesTest(DiskTestCase):
         # - empty if AWS_REGION or AWS_DEFAULT_REGION is set (to any value)
 
         def get_config_with_env(env, key):
-            import subprocess
-
             python_exe = sys.executable
             cmd = """import tiledb; print(tiledb.Config()[\"{}\"])""".format(key)
             test_path = os.path.dirname(os.path.abspath(__file__))

@@ -7,7 +7,8 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
 
 
 # This test writes to local filesystem, skip

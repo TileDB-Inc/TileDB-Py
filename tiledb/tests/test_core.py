@@ -7,14 +7,15 @@ from numpy.testing import assert_array_equal
 import tiledb
 import tiledb.main as core
 from tiledb import TileDBError
-from tiledb.tests.common import DiskTestCase, rand_ascii
+
+from .common import DiskTestCase, rand_ascii
 
 
 class CoreCCTest(DiskTestCase):
     def test_pyquery_basic(self):
         ctx = tiledb.Ctx()
         uri = self.path("test_pyquery_basic")
-        with tiledb.from_numpy(uri, np.random.rand(4)) as A:
+        with tiledb.from_numpy(uri, np.random.rand(4)):
             pass
 
         with tiledb.open(uri) as a:
@@ -69,7 +70,7 @@ class CoreCCTest(DiskTestCase):
             "py.alloc_max_bytes": str(intmax),
         }
         with tiledb.scope_ctx(config_dict) as ctx:
-            with tiledb.from_numpy(uri, np.random.rand(4)) as A:
+            with tiledb.from_numpy(uri, np.random.rand(4)):
                 pass
 
             with tiledb.open(uri) as a:

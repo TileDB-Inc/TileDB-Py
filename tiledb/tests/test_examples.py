@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-from tiledb.tests.common import has_pandas
+from .common import has_pandas
 
 
 # override locally to avoid conflict with capsys used below

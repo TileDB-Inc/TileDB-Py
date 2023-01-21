@@ -12,8 +12,8 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb import SparseArray
-from tiledb.tests.common import checked_path
-from tiledb.tests.strategies import bounded_ntuple, ranged_slices
+
+from .strategies import bounded_ntuple, ranged_slices
 
 
 def is_boundserror(exc: Exception):

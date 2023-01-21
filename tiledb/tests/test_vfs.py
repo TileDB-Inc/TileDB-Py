@@ -7,7 +7,8 @@ import numpy as np
 import pytest
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, rand_utf8
+
+from .common import DiskTestCase, rand_utf8
 
 
 class TestVFS(DiskTestCase):

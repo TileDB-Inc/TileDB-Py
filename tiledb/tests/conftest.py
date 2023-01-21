@@ -5,6 +5,20 @@ import pytest
 
 import tiledb
 
+from .common import DiskTestCase
+
+
+# fixture wrapper to use with pytest:
+# mark.parametrize does not work with DiskTestCase subclasses
+# (unittest.TestCase methods cannot take arguments)
+@pytest.fixture(scope="class")
+def checked_path():
+    dtc = DiskTestCase()
+    dtc.setup_method()
+    yield dtc
+    dtc.teardown_method()
+
+
 if sys.platform != "win32":
 
     @pytest.fixture(scope="function", autouse=True)
@@ -30,7 +44,7 @@ def pytest_configure(config):
     # a slowdown in the DenseArray/SparseArray.__new__ path when
     # running `tiledb.open`.
     try:
-        import tiledb.cloud
+        import tiledb.cloud  # noqa: F401
     except ImportError:
         pass
 

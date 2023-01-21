@@ -3,7 +3,7 @@ import os
 import pytest
 
 import tiledb
-from tiledb import cc as lt
+import tiledb.cc as lt
 
 
 @pytest.fixture

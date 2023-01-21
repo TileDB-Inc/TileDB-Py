@@ -1,25 +1,21 @@
 import time
-from math import hypot
 
+import hypothesis as hp
+import hypothesis.strategies as st
 import numpy as np
 import pytest
 
 import tiledb
 
+from .common import DiskTestCase
+
 pd = pytest.importorskip("pandas")
 tm = pd._testing
-
-import hypothesis as hp
-import hypothesis.strategies as st
-from hypothesis import given, reproduce_failure
-from numpy.testing import assert_array_equal
-
-from tiledb.tests.common import DiskTestCase, has_pandas
 
 
 class AttrDataTest(DiskTestCase):
     @hp.settings(deadline=None, verbosity=hp.Verbosity.verbose)
-    @given(st.binary())
+    @hp.given(st.binary())
     @pytest.mark.parametrize("mode", ["np", "df"])
     def test_bytes_npdf(self, mode, data):
         start = time.time()
@@ -48,7 +44,7 @@ class AttrDataTest(DiskTestCase):
 
         with tiledb.open(uri) as A:
             if mode == "np":
-                assert_array_equal(A.multi_index[:][""], array)
+                np.testing.assert_array_equal(A.multi_index[:][""], array)
             else:
                 tm.assert_frame_equal(A.df[:], df)
 

@@ -10,14 +10,14 @@ TODO
 
 import random
 
-import hypothesis.extra.numpy as npst
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.multirange_indexing import getitem_ranges, mr_dense_result_shape
-from tiledb.tests.common import (
+
+from .common import (
     SUPPORTED_DATETIME64_DTYPES,
     DiskTestCase,
     assert_dict_arrays_equal,
@@ -924,7 +924,7 @@ class TestMultiIndexND(DiskTestCase):
         # TODO support for dense?
         sparse = True  # ndarray indexing currently only supported for sparse
 
-        path = self.path(f"test_multi_index_ndarray")
+        path = self.path("test_multi_index_ndarray")
 
         ncells = 10
         data = np.arange(ncells - 1)
@@ -958,7 +958,7 @@ class TestMultiIndexND(DiskTestCase):
     def test_multi_index_ndarray_2d(self, dim_dtype):
         sparse = False
 
-        path = self.path(f"test_multi_index_ndarray_2d")
+        path = self.path("test_multi_index_ndarray_2d")
 
         ncells = 10
         ext = ncells - 1

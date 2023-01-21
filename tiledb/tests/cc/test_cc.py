@@ -5,10 +5,8 @@ import numpy as np
 import pytest
 
 import tiledb
-from tiledb import cc as lt
-from tiledb.tests.common import paths_equal
+import tiledb.cc as lt
 
-# from tiledb.tests.fixtures
 INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
 STRING_DTYPES = ["U", "S"]
 FLOAT_DTYPES = ["f4", "f8"]
@@ -89,7 +87,7 @@ def test_dimension(dtype_str):
     if dtype_str == "S":
         tiledb_datatype = lt.DataType.STRING_ASCII
 
-    dim = lt.Dimension(ctx, "foo", tiledb_datatype, range, extent)
+    lt.Dimension(ctx, "foo", tiledb_datatype, range, extent)
     # print(dim)
 
 
@@ -206,9 +204,9 @@ def test_attribute():
     assert attr._ncell == 1
     attr._ncell = 5
     assert attr._ncell == 5
-    assert attr._nullable == False
+    assert attr._nullable is False
     attr._nullable = True
-    assert attr._nullable == True
+    assert attr._nullable is True
 
 
 def test_filter():
@@ -233,7 +231,7 @@ def test_filter():
 
 def test_schema_dump(capfd):
     ctx = lt.Context()
-    schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
+    lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
     # schema.dump() # TODO FILE* target and capfd
 
 
@@ -367,7 +365,6 @@ def test_write_dense():
         schema.domain = dom
         return schema
 
-    coords = np.arange(10).astype(np.uint64)
     data = np.random.randint(0, 10, 10).astype(np.float32)
 
     def write():

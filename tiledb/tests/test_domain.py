@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, assert_captured
+
+from .common import DiskTestCase, assert_captured
 
 
 class DomainTest(DiskTestCase):

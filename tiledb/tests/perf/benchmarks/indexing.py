@@ -1,4 +1,3 @@
-import shutil
 import tempfile
 
 import numpy as np

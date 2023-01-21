@@ -3,7 +3,7 @@ import os
 import numpy as np
 from numpy.testing import assert_array_equal
 
-from tiledb import cc as lt
+import tiledb.cc as lt
 
 
 def test_group_metadata(tmp_path):
