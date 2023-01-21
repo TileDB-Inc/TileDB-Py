@@ -258,13 +258,13 @@ cdef dict execute_multi_index(Array array,
             repeat_query = False
             break
         elif query_status == TILEDB_FAILED:
-            raise lt.TileDBError("Query returned TILEDB_FAILED")
+            raise TileDBError("Query returned TILEDB_FAILED")
         elif query_status == TILEDB_INPROGRESS:
-            raise lt.TileDBError("Query returned TILEDB_INPROGRESS")
+            raise TileDBError("Query returned TILEDB_INPROGRESS")
         elif query_status == TILEDB_INCOMPLETE:
-            raise lt.TileDBError("Query returned TILEDB_INCOMPLETE")
+            raise TileDBError("Query returned TILEDB_INCOMPLETE")
         else:
-            raise lt.TileDBError("internal error: unknown query status")
+            raise TileDBError("internal error: unknown query status")
 
     # resize arrays to final bytes-read
     for attr_idx in range(nattr):
@@ -344,7 +344,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
             if len(dim_ranges[range_idx]) != 2:
                 tiledb_subarray_free(&subarray_ptr)
                 tiledb_query_free(&query_ptr)
-                raise lt.TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
+                raise TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
 
             start = np.array(dim_ranges[range_idx][0], dtype=dim.dtype)
             end = np.array(dim_ranges[range_idx][1], dtype=dim.dtype)

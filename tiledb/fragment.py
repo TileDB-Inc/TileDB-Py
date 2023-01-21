@@ -3,7 +3,8 @@ import pprint
 import warnings
 
 import tiledb
-from tiledb.main import PyFragmentInfo
+
+from .main import PyFragmentInfo
 
 """
 Classes and functions relating to TileDB fragments.
@@ -244,7 +245,6 @@ class FragmentInfo:
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
-        self._frags = fragments
         self.num = num
         self.uri = fragments.uri[num]
         self.version = fragments.version[num]

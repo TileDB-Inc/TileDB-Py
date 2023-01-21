@@ -1,16 +1,13 @@
 import io
-from typing import TYPE_CHECKING
+from typing import Optional
 
 import numpy as np
 
 import tiledb.cc as lt
 
-from .ctx import CtxMixin
+from .ctx import Ctx, CtxMixin
 from .dimension import Dim
 from .util import numpy_dtype
-
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
 
 
 class Domain(CtxMixin, lt.Domain):
@@ -18,7 +15,7 @@ class Domain(CtxMixin, lt.Domain):
     Represents a TileDB domain.
     """
 
-    def __init__(self, *dims: Dim, ctx: "Ctx" = None):
+    def __init__(self, *dims: Dim, ctx: Optional[Ctx] = None):
         """Class representing the domain of a TileDB Array.
 
         :param *dims*: one or more tiledb.Dim objects up to the Domain's ndim

@@ -1,17 +1,14 @@
 import io
 import warnings
-from typing import TYPE_CHECKING, Any, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 
 import tiledb.cc as lt
 
-from .ctx import CtxMixin
+from .ctx import Ctx, CtxMixin
 from .filter import Filter, FilterList
 from .util import array_type_ncells, numpy_dtype, tiledb_type_is_datetime
-
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
 
 
 class Attr(CtxMixin, lt.Attribute):
@@ -27,7 +24,7 @@ class Attr(CtxMixin, lt.Attribute):
         var: bool = None,
         nullable: bool = False,
         filters: Union[FilterList, Sequence[Filter]] = None,
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ):
         """Class representing a TileDB array attribute.
 

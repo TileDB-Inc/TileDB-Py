@@ -1,13 +1,10 @@
 import io
 from types import TracebackType
-from typing import TYPE_CHECKING, List, Optional, Type, Union
+from typing import List, Optional, Type, Union
 
 import tiledb.cc as lt
 
-from .ctx import default_ctx
-
-if TYPE_CHECKING:
-    from .libtiledb import Config, Ctx
+from .ctx import Config, Ctx, default_ctx
 
 
 class VFS(lt.VFS):
@@ -21,7 +18,7 @@ class VFS(lt.VFS):
 
     """
 
-    def __init__(self, config: Union["Config", dict] = None, ctx: "Ctx" = None):
+    def __init__(self, config: Union[Config, dict] = None, ctx: Optional[Ctx] = None):
         ctx = ctx or default_ctx()
 
         if config:
@@ -40,14 +37,14 @@ class VFS(lt.VFS):
         else:
             super().__init__(ctx)
 
-    def ctx(self) -> "Ctx":
+    def ctx(self) -> Ctx:
         """
         :rtype: tiledb.Ctx
         :return: context associated with the VFS object
         """
         return self._ctx
 
-    def config(self) -> "Config":
+    def config(self) -> Config:
         """
         :rtype: tiledb.Config
         :return: config associated with the VFS object

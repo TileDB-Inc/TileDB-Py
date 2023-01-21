@@ -1,7 +1,6 @@
 import numpy as np
 
-from .ctx import default_ctx
-from .libtiledb import ArraySchema, Attr, Dim, Domain
+import tiledb
 
 
 def regularize_tiling(tile, ndim):
@@ -23,19 +22,21 @@ def schema_like_numpy(array, ctx=None, **kw):
     internal function. tiledb.schema_like is exported and recommended
     """
     if not ctx:
-        ctx = default_ctx()
+        ctx = tiledb.default_ctx()
     # create an ArraySchema from the numpy array object
     tiling = regularize_tiling(kw.pop("tile", None), array.ndim)
 
     attr_name = kw.pop("attr_name", "")
     dim_dtype = kw.pop("dim_dtype", np.uint64)
     dims = []
-    for (dim_num, d) in enumerate(range(array.ndim)):
+    for d in range(array.ndim):
         # support smaller tile extents by kw
         # domain is based on full shape
         tile_extent = tiling[d] if tiling else array.shape[d]
         domain = (0, array.shape[d] - 1)
-        dims.append(Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
+        dims.append(
+            tiledb.Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx)
+        )
 
     var = False
     if array.dtype == object:
@@ -67,9 +68,9 @@ def schema_like_numpy(array, ctx=None, **kw):
     else:
         el_dtype = array.dtype
 
-    att = Attr(dtype=el_dtype, name=attr_name, var=var, ctx=ctx)
-    dom = Domain(*dims, ctx=ctx)
-    return ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+    att = tiledb.Attr(dtype=el_dtype, name=attr_name, var=var, ctx=ctx)
+    dom = tiledb.Domain(*dims, ctx=ctx)
+    return tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
 
 
 def schema_like(*args, shape=None, dtype=None, ctx=None, **kw):
@@ -87,7 +88,7 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kw):
     :return: tiledb.ArraySchema
     """
     if not ctx:
-        ctx = default_ctx()
+        ctx = tiledb.default_ctx()
 
     def is_ndarray_like(obj):
         return hasattr(arr, "shape") and hasattr(arr, "dtype") and hasattr(arr, "ndim")
@@ -116,11 +117,13 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kw):
             # domain is based on full shape
             tile_extent = tiling[d] if tiling else shape[d]
             domain = (0, shape[d] - 1)
-            dims.append(Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx))
+            dims.append(
+                tiledb.Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx)
+            )
 
-        att = Attr(dtype=dtype, ctx=ctx)
-        dom = Domain(*dims, ctx=ctx)
-        schema = ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
+        att = tiledb.Attr(dtype=dtype, ctx=ctx)
+        dom = tiledb.Domain(*dims, ctx=ctx)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kw)
     elif kw is not None:
         raise ValueError
     else:

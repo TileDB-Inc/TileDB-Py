@@ -41,6 +41,7 @@ from .attribute import Attr
 from .cc import TileDBError
 from .ctx import default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
+from .dimension import Dim
 from .filestore import Filestore
 from .filter import (
     BitShuffleFilter,
@@ -78,7 +79,6 @@ from .libtiledb import (
     ArraySchema,
     Config,
     Ctx,
-    Dim,
     Domain,
     consolidate,
     ls,

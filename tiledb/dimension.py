@@ -1,41 +1,19 @@
 import io
-from typing import TYPE_CHECKING, Any, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 import tiledb.cc as lt
 
-from .ctx import CtxMixin
+from .ctx import Ctx, CtxMixin
 from .filter import Filter, FilterList
 from .util import (
+    dtype_range,
     dtype_to_tiledb,
     numpy_dtype,
     tiledb_type_is_datetime,
     tiledb_type_is_integer,
 )
-
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
-
-
-def dtype_range(dtype: np.dtype) -> Tuple[Any, Any]:
-    """Return the range of a Numpy dtype"""
-
-    if np.issubdtype(dtype, np.integer):
-        info = np.iinfo(dtype)
-        dtype_min, dtype_max = info.min, info.max
-    elif np.issubdtype(dtype, np.floating):
-        info = np.finfo(dtype)
-        dtype_min, dtype_max = info.min, info.max
-    elif dtype.kind == "M":
-        info = np.iinfo(np.int64)
-        date_unit = np.datetime_data(dtype)[0]
-        # +1 to exclude NaT
-        dtype_min = np.datetime64(info.min + 1, date_unit)
-        dtype_max = np.datetime64(info.max, date_unit)
-    else:
-        raise TypeError(f"invalid Dim dtype {dtype!r}")
-    return (dtype_min, dtype_max)
 
 
 def _tiledb_cast_tile_extent(tile_extent: Any, dtype: np.dtype) -> np.array:
@@ -92,7 +70,7 @@ class Dim(CtxMixin, lt.Dimension):
         filters: Union[FilterList, Sequence[Filter]] = None,
         dtype: np.dtype = np.uint64,
         var: bool = None,
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ):
         """Class representing a dimension of a TileDB Array.
 

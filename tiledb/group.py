@@ -1,14 +1,11 @@
-from typing import TYPE_CHECKING, MutableMapping, Union
+from typing import MutableMapping, Optional, Union
 
 import numpy as np
 
 import tiledb.cc as lt
 
-from .ctx import CtxMixin, default_ctx
-
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
-    from .object import Object
+from .ctx import Ctx, CtxMixin, default_ctx
+from .object import Object
 
 
 class Group(CtxMixin, lt.Group):
@@ -277,7 +274,7 @@ class Group(CtxMixin, lt.Group):
             for metadata in self._iter(keys_only=False, dump=True):
                 print(metadata)
 
-    def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
+    def __init__(self, uri: str, mode: str = "r", ctx: Optional[Ctx] = None):
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
         query_type = Group._mode_to_query_type[mode]
@@ -287,7 +284,7 @@ class Group(CtxMixin, lt.Group):
         self._meta = self.GroupMetadata(self)
 
     @staticmethod
-    def create(uri: str, ctx: "Ctx" = None):
+    def create(uri: str, ctx: Optional[Ctx] = None):
         """
         Create a new Group.
 
@@ -334,7 +331,7 @@ class Group(CtxMixin, lt.Group):
         else:
             self._add(uri, relative)
 
-    def __getitem__(self, member: Union[int, str]) -> "Object":
+    def __getitem__(self, member: Union[int, str]) -> Object:
         """
         Retrieve a member from the Group as an Object.
 
@@ -343,8 +340,6 @@ class Group(CtxMixin, lt.Group):
         :return: The member as an Object
         :rtype: Object
         """
-        from .object import Object
-
         if not isinstance(member, (int, str)):
             raise TypeError(
                 f"Unexpected member type '{type(member)}': expected int or str"

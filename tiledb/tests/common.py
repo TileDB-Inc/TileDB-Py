@@ -236,7 +236,7 @@ def dtype_min(dtype):
 
 
 def rand_int_sequential(size, dtype=np.uint64):
-    dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dtype)
+    dtype_min, dtype_max = tiledb.util.dtype_range(dtype)
     arr = np.random.randint(dtype_min, high=dtype_max, size=size, dtype=dtype)
     return np.sort(arr)
 

@@ -11,11 +11,10 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, 
 
 import numpy as np
 
-from tiledb import Array, ArraySchema, TileDBError
-from tiledb.libtiledb import Metadata, Query
-from tiledb.main import PyQuery, increment_stat, use_stats
-
+from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
+from .libtiledb import Array, ArraySchema, Metadata, Query
+from .main import PyQuery, increment_stat, use_stats
 from .query_condition import QueryCondition
 
 current_timer: ContextVar[str] = ContextVar("timer_scope")
