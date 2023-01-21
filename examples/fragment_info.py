@@ -25,7 +25,6 @@
 # THE SOFTWARE.
 #
 
-import sys
 
 import numpy as np
 

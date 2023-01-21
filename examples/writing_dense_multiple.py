@@ -33,7 +33,6 @@
 # to it with two write queries, and read the entire array data back.
 #
 
-import sys
 
 import numpy as np
 

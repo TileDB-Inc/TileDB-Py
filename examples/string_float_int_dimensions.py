@@ -33,7 +33,6 @@
 # to it, and read a slice of the data back.
 #
 
-import random
 
 import numpy as np
 

@@ -33,7 +33,6 @@
 # to it in a way that some space is empty, and read the entire array data back.
 #
 
-import sys
 
 import numpy as np
 

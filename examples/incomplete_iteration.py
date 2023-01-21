@@ -33,7 +33,6 @@
 # to it, and read slices back by iteration over incomplete queries.
 #
 
-import sys
 
 import numpy as np
 

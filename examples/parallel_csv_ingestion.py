@@ -186,7 +186,6 @@ def from_csv_mp(
         )
 
     tasks = []
-    csv_chunks = []
     # high level ingestion timing
     start = time.time()
 

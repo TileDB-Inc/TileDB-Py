@@ -22,7 +22,7 @@ known_first_party = "tiledb"
 
 [tool.ruff]
 ignore = ["E501", "E722"]
-extend-exclude = ["examples", "doc"]
+extend-exclude = ["doc"]
 
 [tool.ruff.per-file-ignores]
 "tiledb/__init__.py" = ["F401"]

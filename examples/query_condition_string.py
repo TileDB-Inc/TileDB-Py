@@ -30,7 +30,6 @@
 # dataframe using the TileDB QueryCondition feature.
 
 import string
-import tempfile
 
 import numpy as np
 
