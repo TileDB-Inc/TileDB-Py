@@ -1,7 +1,7 @@
 # In Progress 
 
 ## API Changes
-* Add support for UTF-8 Datatypes in query conditions []()
+* Add support for UTF-8 Datatypes in query conditions [#1594](https://github.com/TileDB-Inc/TileDB-Py/pull/1594)
 
 # Release 0.20.0
 
