@@ -713,7 +713,7 @@ class QueryConditionTest(DiskTestCase):
             assert_array_equal(result["d"], A[:6]["d"])
 
             qc = """
-                U < 5
+                U < 5   
             or
                                                 I >= 5
             """
@@ -721,9 +721,9 @@ class QueryConditionTest(DiskTestCase):
             assert all((result["U"] < 5) | (result["U"] > 5))
 
             qc = """
-
+                
                                                 A == ' a'
-
+        
             """
             result = A.query(cond=qc)[:]
             # ensures that ' a' does not match 'a'
