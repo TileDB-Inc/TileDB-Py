@@ -16,13 +16,11 @@ filterwarnings = [
     "default::DeprecationWarning:distributed",
 ]
 
-[tool.isort]
-profile = "black"
-known_first_party = "tiledb"
-
 [tool.ruff]
 ignore = ["E501", "E722"]
+extend-select = ["I001"]
 extend-exclude = ["doc"]
+fix = true
 
 [tool.ruff.per-file-ignores]
 "tiledb/__init__.py" = ["F401"]
