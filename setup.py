@@ -779,7 +779,7 @@ setup(
     use_scm_version={
         "version_scheme": "guess-next-dev",
         "local_scheme": "dirty-tag",
-        "write_to": "tiledb/version.py",
+        "write_to": "tiledb/_generated_version.py",
     },
     ext_modules=__extensions,
     setup_requires=setup_requires(),

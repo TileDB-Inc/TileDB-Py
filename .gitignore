@@ -109,7 +109,7 @@ ENV/
 .mypy_cache/
 
 # setuptools-scm
-tiledb/version.py
+tiledb/_generated_version.py
 
 # IntelliJ
 .idea

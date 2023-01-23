@@ -19,7 +19,7 @@ from .dimension import Dim
 from .domain import Domain
 from .filter import FilterList
 from .vfs import VFS
-from .version import version_tuple as tiledbpy_version
+from ._generated_version import version_tuple as tiledbpy_version
 from .util import sparse_array_from_numpy, dtype_range
 
 import tiledb.cc as lt
