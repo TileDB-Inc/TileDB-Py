@@ -1660,7 +1660,7 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, ctx=None):
     rc = tiledb_array_alloc(ctx_ptr, uri_ptr, &array_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
-    
+
     cdef tiledb_config_t* config_ptr = NULL
     cdef tiledb_error_t* err_ptr = NULL
     if key is not None:
@@ -1676,9 +1676,13 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, ctx=None):
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
-        rc = tiledb_array_set_config(ctx_ptr, array_ptr, config_ptr)
-        if rc != TILEDB_OK:
-            _raise_ctx_err(ctx_ptr, rc)
+        try:
+          # note: tiledb_array_set_config copies the config
+          rc = tiledb_array_set_config(ctx_ptr, array_ptr, config_ptr)
+          if rc != TILEDB_OK:
+              _raise_ctx_err(ctx_ptr, rc)
+        finally:
+          tiledb_config_free(&config_ptr)
 
     try:
         if set_start:
