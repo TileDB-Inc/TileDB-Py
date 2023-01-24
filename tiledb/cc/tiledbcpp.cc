@@ -50,14 +50,22 @@ PYBIND11_MODULE(cc, m) {
 
   py::register_exception<TileDBError>(m, "TileDBError");
 
+  /*
+   We need to make sure C++ TileDBError is translated to a correctly-typed py
+   error. Note that using py::exception(..., "TileDBError") creates a new
+   exception in the *readquery* module, so we must import to reference.
+  */
   py::register_exception_translator([](std::exception_ptr p) {
+    auto tiledb_py_error =
+        (py::object)py::module::import("tiledb").attr("TileDBError");
+
     try {
       if (p)
         std::rethrow_exception(p);
     } catch (const TileDBPyError &e) {
-      PyErr_SetString(PyExc_RuntimeError, e.what());
+      PyErr_SetString(tiledb_py_error.ptr(), e.what());
     } catch (const tiledb::TileDBError &e) {
-      PyErr_SetString(PyExc_RuntimeError, e.what());
+      PyErr_SetString(tiledb_py_error.ptr(), e.what());
     } catch (py::builtin_exception &e) {
       throw;
     };
