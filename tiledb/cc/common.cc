@@ -200,7 +200,7 @@ py::size_t get_ncells(py::dtype type) {
   if (type == py::dtype("S"))
     return type.itemsize() == 0 ? TILEDB_VAR_NUM : type.itemsize();
 
-  if (type == py::dtype("U")) {
+  if (type.is(py::dtype("U"))) {
     auto np_unicode_size = py::dtype("U").itemsize();
     return type.itemsize() == 0 ? TILEDB_VAR_NUM
                                 : type.itemsize() / np_unicode_size;

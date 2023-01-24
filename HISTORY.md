@@ -1,5 +1,11 @@
+# In Progress 
+
+## Bug Fixes
+* Correct `Attr.fill` for UTF-8 [#1594](https://github.com/TileDB-Inc/TileDB-Py/pull/1594)
+
 # Release 0.20.0
 
+## TileDB Embedded updates
 * TileDB-Py 0.20.0 includes TileDB Embedded [TileDB 2.14.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.14.0)
 
 ## Bug Fixes
