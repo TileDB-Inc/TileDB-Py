@@ -1607,7 +1607,7 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, ctx=None):
     # key
     cdef bytes bkey
     cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-    cdef void* key_ptr = NULL
+    cdef const char* key_ptr = NULL
     cdef unsigned int key_len = 0
 
     # convert python mode string to a query type
@@ -1628,9 +1628,10 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, ctx=None):
         else:
             bkey = bytes(key)
         key_type = TILEDB_AES_256_GCM
-        key_ptr = <void *> PyBytes_AS_STRING(bkey)
+        key_ptr = <const char *> PyBytes_AS_STRING(bkey)
         #TODO: unsafe cast here ssize_t -> uint64_t
         key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+
     cdef uint64_t ts_start = 0
     cdef uint64_t ts_end = 0
     cdef bint set_start = False, set_end = False
@@ -1659,6 +1660,25 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, ctx=None):
     rc = tiledb_array_alloc(ctx_ptr, uri_ptr, &array_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
+    
+    cdef tiledb_config_t* config_ptr = NULL
+    cdef tiledb_error_t* err_ptr = NULL
+    if key is not None:
+        rc = tiledb_config_alloc(&config_ptr, &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_config_set(config_ptr, "sm.encryption_type", "AES_256_GCM", &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_config_set(config_ptr, "sm.encryption_key", key_ptr, &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_array_set_config(ctx_ptr, array_ptr, config_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
     try:
         if set_start:
@@ -1674,8 +1694,7 @@ cdef ArrayPtr preload_array(uri, mode, key, timestamp, ctx=None):
         raise
 
     with nogil:
-       rc = tiledb_array_open_with_key(
-           ctx_ptr, array_ptr, query_type, key_type, key_ptr, key_len)
+       rc = tiledb_array_open(ctx_ptr, array_ptr, query_type)
 
     if rc != TILEDB_OK:
         tiledb_array_free(&array_ptr)
@@ -1934,13 +1953,14 @@ cdef class Array(object):
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef uint64_t _timestamp = 0
         cdef int rc = TILEDB_OK
-        if timestamp is None:
-            with nogil:
-                rc = tiledb_array_reopen(ctx_ptr, array_ptr)
-        else:
+        if timestamp is not None:
             _timestamp = <uint64_t> timestamp
-            with nogil:
-                rc = tiledb_array_reopen_at(ctx_ptr, array_ptr, _timestamp)
+            rc = tiledb_array_set_open_timestamp_start(ctx_ptr, array_ptr, _timestamp)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+        with nogil:
+            rc = tiledb_array_reopen(ctx_ptr, array_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
