@@ -8,8 +8,6 @@ import weakref
 
 import numpy as np
 
-from .array import DenseArray, SparseArray
-
 
 def _index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -102,9 +100,9 @@ cdef class DomainIndexer(object):
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
 
-        if isinstance(self.array, SparseArray):
+        if isinstance(self.array, SparseArrayImpl):
             return (<SparseArrayImpl>self.array)._read_sparse_subarray(subarray, attr_names, attr_cond, layout)
-        elif isinstance(self.array, DenseArray):
+        elif isinstance(self.array, DenseArrayImpl):
             return (<DenseArrayImpl>self.array)._read_dense_subarray(subarray, attr_names, attr_cond, layout, coords)
         else:
             raise Exception("No handler for Array type: " + str(type(self.array)))
