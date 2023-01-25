@@ -426,7 +426,7 @@ cdef class Metadata:
         cdef const char* buri_ptr = <const char*>buri
 
         with nogil:
-            rc = tiledb_array_consolidate_metadata_with_key(
+            rc = tiledb_array_consolidate_with_key(
                     ctx_ptr,
                     buri_ptr,
                     key_type,
