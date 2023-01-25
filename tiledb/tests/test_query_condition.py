@@ -6,7 +6,7 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 
-from .common import DiskTestCase, has_pandas
+from .common import DiskTestCase, has_pandas, rand_utf8
 
 
 class QueryConditionTest(DiskTestCase):
@@ -19,6 +19,9 @@ class QueryConditionTest(DiskTestCase):
 
         if isinstance(mask, np.timedelta64):
             return data[np.invert(np.isnat(data))]
+
+        if isinstance(mask, (str, bytes)):
+            return data[np.invert(data == mask)]
 
         return data[data != mask]
 
@@ -34,6 +37,7 @@ class QueryConditionTest(DiskTestCase):
             tiledb.Attr(name="D", dtype=np.float64),
             tiledb.Attr(name="S", dtype=np.dtype("|S1"), var=False),
             tiledb.Attr(name="A", dtype="ascii", var=True),
+            tiledb.Attr(name="UTF", dtype=np.dtype("U"), var=True),
         ]
 
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
@@ -45,7 +49,14 @@ class QueryConditionTest(DiskTestCase):
                 "I": np.random.randint(-5, 5, 10),
                 "D": np.random.rand(10),
                 "S": np.array(list(string.ascii_lowercase[:10]), dtype="|S1"),
-                "A": np.array(list(string.ascii_lowercase[:10]), dtype="|S1"),
+                "A": np.array(
+                    list(string.ascii_lowercase[i] * (i + 1) for i in range(10)),
+                    dtype="|S",
+                ),
+                "UTF": np.array(
+                    ["$", "£$", "€ह£$", "한ह£", "£$𐍈"]
+                    + [rand_utf8(np.random.randint(1, 100)) for _ in range(5)]
+                ),
             }
 
             if sparse:
@@ -204,13 +215,23 @@ class QueryConditionTest(DiskTestCase):
             assert len(result["A"]) == 1
             assert result["A"][0] == b"a"
 
+            for t in A.query(attrs=["UTF"])[:]["UTF"]:
+                cond = f"UTF == '{t}'"
+                result = A.query(cond=cond, attrs=["UTF"])[:]
+                assert result["UTF"] == t
+
     def test_string_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
-            result = A.query(cond="S == 'c'", attrs=["S"])[:]
+            result = A.query(cond="S == 'ccc'", attrs=["S"])[:]
             assert all(self.filter_dense(result["S"], A.attr("S").fill) == b"c")
 
-            result = A.query(cond="A == 'a'", attrs=["A"])[:]
-            assert all(self.filter_dense(result["A"], A.attr("A").fill) == b"a")
+            result = A.query(cond="A == 'ccc'", attrs=["A"])[:]
+            assert all(self.filter_dense(result["A"], A.attr("A").fill) == b"ccc")
+
+            for t in A.query(attrs=["UTF"])[:]["UTF"]:
+                cond = f"UTF == '{t}'"
+                result = A.query(cond=cond, attrs=["UTF"])[:]
+                assert all(self.filter_dense(result["UTF"], A.attr("UTF").fill) == t)
 
     def test_combined_types_sparse(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:

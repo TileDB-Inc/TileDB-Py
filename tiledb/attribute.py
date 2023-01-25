@@ -97,7 +97,10 @@ class Attr(CtxMixin, lt.Attribute):
                 self._filters = FilterList(filters)
 
         if fill is not None:
-            self._fill = np.array([fill], dtype=self.dtype)
+            if self._tiledb_dtype == lt.DataType.STRING_UTF8:
+                self._fill = np.array([fill.encode("utf-8")], dtype="S")
+            else:
+                self._fill = np.array([fill], dtype=self.dtype)
 
         if nullable is not None:
             self._nullable = nullable
@@ -162,6 +165,9 @@ class Attr(CtxMixin, lt.Attribute):
     def _get_fill(self, value, dtype) -> Any:
         if dtype in (lt.DataType.CHAR, lt.DataType.BLOB):
             return value.tobytes()
+
+        if dtype == lt.DataType.STRING_UTF8:
+            return b"".join(value).decode("utf-8")
 
         if tiledb_type_is_datetime(dtype):
             return value[0].astype(np.timedelta64)

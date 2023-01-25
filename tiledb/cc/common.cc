@@ -107,6 +107,14 @@ bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
 } // namespace tiledbpy::common
 
 py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
+  if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
+      type == TILEDB_STRING_ASCII) {
+    std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
+    if (cell_val_num < TILEDB_VAR_NUM)
+      base_str += std::to_string(cell_val_num);
+    return py::dtype(base_str);
+  }
+
   if (cell_val_num == 1) {
     if (type == TILEDB_STRING_UTF16 || type == TILEDB_STRING_UTF32)
       TPY_ERROR_LOC("Unimplemented UTF16 or UTF32 string conversion!");
@@ -117,25 +125,17 @@ py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
       return py::dtype(_tdb_to_np_name_dtype[type]);
   }
 
-  else if (cell_val_num == 2) {
+  if (cell_val_num == 2) {
     if (type == TILEDB_FLOAT32)
       return py::dtype("complex64");
     if (type == TILEDB_FLOAT64)
       return py::dtype("complex128");
   }
 
-  else if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
-           type == TILEDB_STRING_ASCII) {
-    std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
-    if (cell_val_num < TILEDB_VAR_NUM)
-      base_str += std::to_string(cell_val_num);
-    return py::dtype(base_str);
-  }
-
-  else if (cell_val_num == TILEDB_VAR_NUM)
+  if (cell_val_num == TILEDB_VAR_NUM)
     return tdb_to_np_dtype(type, 1);
 
-  else if (cell_val_num > 1) {
+  if (cell_val_num > 1) {
     py::dtype base_dtype = tdb_to_np_dtype(type, 1);
     py::tuple rec_elem = py::make_tuple("", base_dtype);
     py::list rec_list;
@@ -200,7 +200,7 @@ py::size_t get_ncells(py::dtype type) {
   if (type == py::dtype("S"))
     return type.itemsize() == 0 ? TILEDB_VAR_NUM : type.itemsize();
 
-  if (type == py::dtype("U")) {
+  if (type.is(py::dtype("U"))) {
     auto np_unicode_size = py::dtype("U").itemsize();
     return type.itemsize() == 0 ? TILEDB_VAR_NUM
                                 : type.itemsize() / np_unicode_size;

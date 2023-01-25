@@ -266,13 +266,13 @@ def numpy_dtype(tiledb_dtype: lt.DataType, cell_size: int = 1) -> np.dtype:
 
     elif cell_val_num == lt.TILEDB_VAR_NUM():
         base_dtype = numpy_dtype(tiledb_dtype, cell_size=1)
+
         return base_dtype
 
     elif cell_val_num > 1:
         # construct anonymous record dtype
         base_dtype = numpy_dtype(tiledb_dtype, cell_size=1)
-        rec = np.dtype([("", base_dtype)] * cell_val_num)
-        return rec
+        return np.dtype([("", base_dtype)] * cell_val_num)
 
     raise TypeError("tiledb datatype not understood")
 
@@ -344,7 +344,7 @@ def schema_like(
     if not ctx:
         ctx = tiledb.default_ctx()
 
-    def is_ndarray_like():
+    def is_ndarray_like(arr):
         return hasattr(arr, "shape") and hasattr(arr, "dtype") and hasattr(arr, "ndim")
 
     # support override of default dimension dtype
@@ -495,3 +495,38 @@ def _regularize_tiling(tile: Union[Iterable, np.isscalar], ndim: int) -> Tuple[A
         raise ValueError("'tile' must be iterable and match array dimensionality")
 
     return tuple(tile)
+
+
+def tiledb_layout_string(order):
+    tiledb_order_to_string = {
+        lt.LayoutType.ROW_MAJOR: "row-major",
+        lt.LayoutType.COL_MAJOR: "col-major",
+        lt.LayoutType.GLOBAL_ORDER: "global",
+        lt.LayoutType.UNORDERED: "unordered",
+        lt.LayoutType.HILBERT: "hilbert",
+    }
+
+    if order not in tiledb_order_to_string:
+        raise ValueError(f"unknown tiledb layout: {order}")
+
+    return tiledb_order_to_string[order]
+
+
+def tiledb_layout(order):
+    string_to_tiledb_order = {
+        "row-major": lt.LayoutType.ROW_MAJOR,
+        "C": lt.LayoutType.ROW_MAJOR,
+        "col-major": lt.LayoutType.COL_MAJOR,
+        "R": lt.LayoutType.COL_MAJOR,
+        "global": lt.LayoutType.GLOBAL_ORDER,
+        "hilbert": lt.LayoutType.HILBERT,
+        "H": lt.LayoutType.HILBERT,
+        "unordered": lt.LayoutType.UNORDERED,
+        "U": lt.LayoutType.UNORDERED,
+        None: lt.LayoutType.UNORDERED,
+    }
+
+    if order not in string_to_tiledb_order:
+        raise ValueError(f"unknown tiledb layout: {order}")
+
+    return string_to_tiledb_order[order]

@@ -37,7 +37,7 @@ class AttributeTest(DiskTestCase):
         "dtype, fill",
         [
             (np.dtype(bytes), b"abc"),
-            # (str, "defg"),
+            (str, "defg"),
             (np.float32, np.float32(0.4023573667780681)),
             (np.float64, np.float64(0.0560602549760851)),
             (np.dtype("M8[ns]"), np.timedelta64(11, "ns")),
