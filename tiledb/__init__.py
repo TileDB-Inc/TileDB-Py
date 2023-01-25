@@ -110,9 +110,9 @@ from .highlevel import (
 
 from .query_condition import QueryCondition
 
-from .schema import schema_like
-
 from .schema_evolution import ArraySchemaEvolution
+
+from .util import schema_like
 
 from .vfs import VFS, FileIO
 

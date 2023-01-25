@@ -1173,19 +1173,6 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
 #                                                                             #
 ###############################################################################
 
-cdef class ArraySchema(object):
-    cdef object ctx
-    cdef tiledb_array_schema_t* ptr
-
-    @staticmethod
-    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, object ctx=*)
-    # @staticmethod
-    # cdef from_file(const char* uri, object ctx=*)
-    cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr)
-    cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr)
-    cdef _attr_name(self, name)
-    cdef _attr_idx(self, int idx)
-
 cdef class Array(object):
     cdef object __weakref__
     cdef object ctx

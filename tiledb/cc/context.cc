@@ -22,6 +22,11 @@ void init_context(py::module &m) {
              return py::capsule(ctx.ptr().get(), "ctx", nullptr);
            })
 
+      .def("__capsule__",
+           [](Context &ctx) {
+             return py::capsule(ctx.ptr().get(), "ctx", nullptr);
+           })
+
       .def("config", &Context::config)
       .def("set_tag", &Context::set_tag)
       .def("get_stats", &Context::stats)

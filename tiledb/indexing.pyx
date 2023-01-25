@@ -21,7 +21,7 @@ def _index_as_tuple(idx):
 cdef class DomainIndexer(object):
 
     @staticmethod
-    def with_schema(ArraySchema schema):
+    def with_schema(schema):
         cdef DomainIndexer indexer = DomainIndexer.__new__(DomainIndexer)
         indexer.array = None
         indexer.schema = schema
@@ -31,6 +31,10 @@ cdef class DomainIndexer(object):
         self.array_ref = weakref.ref(array)
         self.schema = array.schema
         self.query = query
+    
+    @property
+    def schema(self):
+        return self.array.array_ref().schema
 
     @property
     def array(self):
