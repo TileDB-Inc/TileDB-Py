@@ -1008,7 +1008,7 @@ cdef class Array(object):
 
             tiledb_array_schema_free(&schema_ptr)
 
-            from .array import DenseArray, SparseArray
+            from . import DenseArray, SparseArray
             if array_type == TILEDB_DENSE:
                 new_array_typed = DenseArray.__new__(DenseArray)
             else:
