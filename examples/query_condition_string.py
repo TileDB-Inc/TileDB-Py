@@ -29,10 +29,11 @@
 # writes sample data to the array, and then prints out a filtered
 # dataframe using the TileDB QueryCondition feature.
 
-import tiledb
-import numpy as np
-import tempfile
 import string
+
+import numpy as np
+
+import tiledb
 
 
 def create_array(path):

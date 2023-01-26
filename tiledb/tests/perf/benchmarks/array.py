@@ -1,6 +1,9 @@
-import tiledb
+import shutil
+import tempfile
+
 import numpy as np
-import tempfile, shutil
+
+import tiledb
 
 
 class Basic:
@@ -11,7 +14,7 @@ class Basic:
 
     def time_open(self):
         for i in range(5_000):
-            with tiledb.open(self.path) as A:
+            with tiledb.open(self.path):
                 pass
 
 

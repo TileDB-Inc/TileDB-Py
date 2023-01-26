@@ -1,7 +1,8 @@
-import tiledb.cc as lt
-
 from collections import deque
+
 import numpy as np
+
+import tiledb.cc as lt
 
 _dtype_to_tiledb = {
     "int32": lt.DataType.INT32,

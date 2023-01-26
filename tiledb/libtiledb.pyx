@@ -2,30 +2,25 @@
 #cython: embedsignature=True
 #cython: auto_pickle=False
 
+from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid, PyCapsule_New
 from cpython.version cimport PY_MAJOR_VERSION
-from cpython.pycapsule cimport PyCapsule_New, PyCapsule_IsValid, PyCapsule_GetPointer
 
 include "common.pxi"
 import io
-import html
-import sys
 import warnings
 from collections import OrderedDict
-from collections.abc import Sequence
+from json import dumps as json_dumps
+from json import loads as json_loads
 
+from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
 from .attribute import Attr
-from .ctx import default_ctx, Ctx, Config
-from .dimension import Dim
+from .cc import TileDBError
+from .ctx import Config, Ctx, default_ctx
 from .domain import Domain
 from .filter import FilterList
+from .util import sparse_array_from_numpy
 from .vfs import VFS
-from ._generated_version import version_tuple as tiledbpy_version
-from .util import sparse_array_from_numpy, dtype_range
-
-import tiledb.cc as lt
-from tiledb.cc import TileDBError
-
 
 ###############################################################################
 #     Numpy initialization code (critical)                                    #
@@ -224,7 +219,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   bint issparse):
 
     # used for buffer conversion (local import to avoid circularity)
-    import tiledb.main
+    from .main import array_to_buffer
 
     cdef bint isfortran = False
     cdef Py_ssize_t nattr = len(buffer_names)
@@ -254,7 +249,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
         if attr.isvar:
             try:
-                buffer, offsets = tiledb.main.array_to_buffer(values[i], True, False)
+                buffer, offsets = array_to_buffer(values[i], True, False)
             except Exception as exc:
                 raise type(exc)(f"Failed to convert buffer for attribute: '{attr.name}'") from exc
             buffer_offsets_sizes[i] = offsets.nbytes
@@ -277,7 +272,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     if issparse:
         for dim_idx, coords in enumerate(coords_or_subarray):
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
-                buffer, offsets = tiledb.main.array_to_buffer(coords, True, False)
+                buffer, offsets = array_to_buffer(coords, True, False)
                 buffer_sizes[nattr + dim_idx] = buffer.nbytes
                 buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
             else:
@@ -461,22 +456,22 @@ def stats_enable():
     """Enable TileDB internal statistics."""
     tiledb_stats_enable()
 
-    import tiledb.main
-    tiledb.main.init_stats()
+    from .main import init_stats
+    init_stats()
 
 def stats_disable():
     """Disable TileDB internal statistics."""
     tiledb_stats_disable()
 
-    import tiledb.main
-    tiledb.main.disable_stats()
+    from .main import disable_stats
+    disable_stats()
 
 def stats_reset():
     """Reset all TileDB internal statistics to 0."""
     tiledb_stats_reset()
 
-    import tiledb.main
-    tiledb.main.init_stats()
+    from .main import init_stats
+    init_stats()
 
 def stats_dump(version=True, print_out=True, include_python=True, json=False, verbose=True):
     """Return TileDB internal statistics as a string.
@@ -499,13 +494,10 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
     stats_str_core = stats_str_ptr.decode("UTF-8", "strict").strip()
 
     if json or not verbose:
-        from json import loads as json_loads
         stats_json_core = json_loads(stats_str_core)[0]
-
         if include_python:
-            from json import dumps as json_dumps
-            import tiledb.main
-            stats_json_core["python"] = json_dumps(tiledb.main.python_internal_stats(True))
+            from .main import python_internal_stats
+            stats_json_core["python"] = json_dumps(python_internal_stats(True))
         if json:
             return stats_json_core
 
@@ -585,8 +577,8 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
         stats_str += "\n"
 
     if include_python:
-        import tiledb.main
-        stats_str += tiledb.main.python_internal_stats()
+        from .main import python_internal_stats
+        stats_str += python_internal_stats()
 
     if print_out:
         print(stats_str)
@@ -1242,6 +1234,7 @@ cdef class Array(object):
 
             tiledb_array_schema_free(&schema_ptr)
 
+            from .array import DenseArray, SparseArray
             if array_type == TILEDB_DENSE:
                 new_array_typed = DenseArray.__new__(DenseArray)
             else:
@@ -1806,7 +1799,7 @@ cdef class Array(object):
         self._buffers = buffers
 
     def set_query(self, serialized_query):
-        from tiledb.main import PyQuery
+        from .main import PyQuery
         q = PyQuery(self._ctx_(), self, ("",), (), 0, False)
         q.set_serialized_query(serialized_query)
         q.submit()
@@ -2000,17 +1993,12 @@ cdef class Query(object):
         if pyquery is None:
             return ""
         stats = self.array.pyquery.get_stats()
-
         if json:
-            import json
-            output = json.loads(stats)
-        else:
-            output = stats
-
+            stats = json_loads(stats)
         if print_out:
-            print(output)
+            print(stats)
         else:
-            return output
+            return stats
 
     def submit(self):
         """An alias for calling the regular indexer [:]"""
@@ -2273,9 +2261,7 @@ cdef class DenseArrayImpl(Array):
     cdef _read_dense_subarray(self, list subarray, list attr_names,
                               object cond, tiledb_layout_t layout,
                               bint include_coords):
-
-        from tiledb.main import PyQuery
-
+        from .main import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 
@@ -3089,8 +3075,7 @@ cdef class SparseArrayImpl(Array):
         cdef np.npy_intp dims[1]
         cdef Py_ssize_t nattr = len(attr_names)
 
-        from tiledb.main import PyQuery
-
+        from .main import PyQuery
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 

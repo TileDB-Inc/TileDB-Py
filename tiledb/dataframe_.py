@@ -3,16 +3,11 @@ import json
 import os
 import warnings
 from dataclasses import dataclass
-from typing import List, Optional, TYPE_CHECKING, Union
-
-if TYPE_CHECKING:
-    import pandas as pd
+from typing import List, Optional, Union
 
 import numpy as np
 
 import tiledb
-from tiledb import libtiledb
-from tiledb.cc import TileDBError
 
 
 def check_dataframe_deps():
@@ -238,7 +233,7 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
     if full_domain:
         if dtype not in (np.bytes_, np.str_):
             # Use the full type domain, deferring to the constructor
-            dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dtype)
+            dtype_min, dtype_max = tiledb.util.dtype_range(dtype)
             dim_max = dtype_max
             if dtype.kind == "M":
                 date_unit = np.datetime_data(dtype)[0]
@@ -285,14 +280,16 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
 def _sparse_from_dtypes(dtypes, sparse=None):
     if any(dtype in (np.bytes_, np.str_) for dtype in dtypes):
         if sparse is False:
-            raise TileDBError("Cannot create dense array with string-typed dimensions")
+            raise tiledb.TileDBError(
+                "Cannot create dense array with string-typed dimensions"
+            )
         if sparse is None:
             return True
 
     dtype0 = next(iter(dtypes))
     if not all(dtype0 == dtype for dtype in dtypes):
         if sparse is False:
-            raise TileDBError(
+            raise tiledb.TileDBError(
                 "Cannot create dense array with heterogeneous dimension data types"
             )
         if sparse is None:
@@ -398,7 +395,7 @@ def _df_to_np_arrays(df, column_infos, fillna):
     return ret, nullmaps
 
 
-def from_pandas(uri: str, dataframe: "pd.DataFrame", **kwargs):
+def from_pandas(uri, dataframe, **kwargs):
     """Create TileDB array at given URI from a Pandas dataframe
 
     Supports most Pandas series types, including nullable integers and
@@ -457,7 +454,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
     mode = tiledb_args.get("mode", "ingest")
 
     if mode != "append" and tiledb.array_exists(uri):
-        raise TileDBError(f"Array URI '{uri}' already exists!")
+        raise tiledb.TileDBError(f"Array URI '{uri}' already exists!")
 
     sparse = tiledb_args["sparse"]
     index_dims = tiledb_args.get("index_dims") or ()
@@ -472,15 +469,15 @@ def _from_pandas(uri, dataframe, tiledb_args):
             create_array = False
             schema = tiledb.ArraySchema.load(uri)
             if not schema.sparse and row_start_idx is None:
-                raise TileDBError(
+                raise tiledb.TileDBError(
                     "Cannot append to dense array without 'row_start_idx'"
                 )
         elif mode != "ingest":
-            raise TileDBError(f"Invalid mode specified ('{mode}')")
+            raise tiledb.TileDBError(f"Invalid mode specified ('{mode}')")
 
     # TODO: disentangle the full_domain logic
     full_domain = tiledb_args.get("full_domain", False)
-    if sparse == False and (not index_dims or "index_col" not in kwargs):
+    if sparse is False and (not index_dims or "index_col" not in tiledb_args):
         full_domain = True
     if full_domain is None and tiledb_args.get("nrows"):
         full_domain = False
@@ -501,7 +498,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
 
     with tiledb.scope_ctx(tiledb_args.get("ctx")):
         if create_array:
-            with warnings.catch_warnings() as w:
+            with warnings.catch_warnings():
                 warnings.simplefilter("always")
                 _create_array(
                     uri,
@@ -549,7 +546,7 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
     )
 
     # create the ArraySchema
-    with warnings.catch_warnings() as w:
+    with warnings.catch_warnings():
         warnings.simplefilter("always")
         coord_filter = tiledb_args.get("coords_filters", True)
         schema = tiledb.ArraySchema(
@@ -604,7 +601,9 @@ def _write_array(
                 else:
                     coords.append(df.index.get_level_values(k))
             # TODO ensure correct col/dim ordering
-            libtiledb._setitem_impl_sparse(A, tuple(coords), write_dict, nullmaps)
+            tiledb.libtiledb._setitem_impl_sparse(
+                A, tuple(coords), write_dict, nullmaps
+            )
 
         else:
             if row_start_idx is None:
@@ -752,19 +751,21 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         # For schema_only mode we need to pass a max read count into
         #   pandas.read_csv
         # Note that 'nrows' is a pandas arg!
-        if mode == "schema_only" and not "nrows" in kwargs:
+        if mode == "schema_only" and "nrows" not in kwargs:
             pandas_args["nrows"] = 500
         elif mode not in ["ingest", "append"]:
-            raise TileDBError("Invalid mode specified ('{}')".format(mode))
+            raise tiledb.TileDBError("Invalid mode specified ('{}')".format(mode))
 
     if mode != "append" and tiledb.array_exists(uri):
-        raise TileDBError("Array URI '{}' already exists!".format(uri))
+        raise tiledb.TileDBError("Array URI '{}' already exists!".format(uri))
 
     # this is a pandas pass-through argument, do not pop!
     chunksize = kwargs.get("chunksize", None)
 
     if multi_file and not (chunksize or mode == "schema_only"):
-        raise TileDBError("Multiple input CSV files requires a 'chunksize' argument")
+        raise tiledb.TileDBError(
+            "Multiple input CSV files requires a 'chunksize' argument"
+        )
 
     if multi_file:
         input_csv_list = csv_file
@@ -777,16 +778,15 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
     # we need to use full-domain for multi or chunked reads, because we
     # won't get a chance to see the full range during schema creation
     if multi_file or chunksize is not None:
-        if not "nrows" in kwargs:
+        if "nrows" not in kwargs:
             tiledb_args["full_domain"] = True
 
     ##########################################################################
     # read path
     ##########################################################################
     if multi_file:
-        array_created = False
         if mode == "append":
-            array_created = True
+            pass
 
         rows_written = 0
 
@@ -798,7 +798,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
             if df_list is None:
                 break
             df = pandas.concat(df_list)
-            if not "index_col" in tiledb_args and df.index.name is None:
+            if "index_col" not in tiledb_args and df.index.name is None:
                 df.index.name = "__tiledb_rows"
 
             tiledb_args["row_start_idx"] = rows_written
@@ -817,7 +817,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         df_iter = pandas.read_csv(input_csv, **pandas_args)
         df = next(df_iter, None)
         while df is not None:
-            if not "index_col" in tiledb_args and df.index.name is None:
+            if "index_col" not in tiledb_args and df.index.name is None:
                 df.index.name = "__tiledb_rows"
 
             # tell from_pandas what row to start the next write
@@ -832,7 +832,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
 
     else:
         df = pandas.read_csv(csv_file, **kwargs)
-        if not "index_col" in tiledb_args and df.index.name is None:
+        if "index_col" not in tiledb_args and df.index.name is None:
             df.index.name = "__tiledb_rows"
 
         kwargs.update(tiledb_args)

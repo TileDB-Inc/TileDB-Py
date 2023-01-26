@@ -34,6 +34,7 @@
 #
 
 import numpy as np
+
 import tiledb
 
 # Name of array.
@@ -71,7 +72,7 @@ def read_array():
         # Read a slice of 3,000 rows.
         # Enable the stats for the read query, and print the report.
         tiledb.stats_enable()
-        data1 = A[1:3001, 1:12001]
+        print(A[1:3001, 1:12001])
         tiledb.stats_dump()
         tiledb.stats_disable()
 

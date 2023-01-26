@@ -4,9 +4,10 @@ IF TILEDBPY_MODULAR:
 
 from libc.stdio cimport printf
 
-import numpy as np
-from .array import DenseArray, SparseArray
 import weakref
+
+import numpy as np
+
 
 def _index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -103,9 +104,9 @@ cdef class DomainIndexer(object):
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
 
-        if isinstance(self.array, SparseArray):
+        if isinstance(self.array, SparseArrayImpl):
             return (<SparseArrayImpl>self.array)._read_sparse_subarray(subarray, attr_names, attr_cond, layout)
-        elif isinstance(self.array, DenseArray):
+        elif isinstance(self.array, DenseArrayImpl):
             return (<DenseArrayImpl>self.array)._read_dense_subarray(subarray, attr_names, attr_cond, layout, coords)
         else:
             raise Exception("No handler for Array type: " + str(type(self.array)))
@@ -259,13 +260,13 @@ cdef dict execute_multi_index(Array array,
             repeat_query = False
             break
         elif query_status == TILEDB_FAILED:
-            raise lt.TileDBError("Query returned TILEDB_FAILED")
+            raise TileDBError("Query returned TILEDB_FAILED")
         elif query_status == TILEDB_INPROGRESS:
-            raise lt.TileDBError("Query returned TILEDB_INPROGRESS")
+            raise TileDBError("Query returned TILEDB_INPROGRESS")
         elif query_status == TILEDB_INCOMPLETE:
-            raise lt.TileDBError("Query returned TILEDB_INCOMPLETE")
+            raise TileDBError("Query returned TILEDB_INCOMPLETE")
         else:
-            raise lt.TileDBError("internal error: unknown query status")
+            raise TileDBError("internal error: unknown query status")
 
     # resize arrays to final bytes-read
     for attr_idx in range(nattr):
@@ -345,7 +346,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
             if len(dim_ranges[range_idx]) != 2:
                 tiledb_subarray_free(&subarray_ptr)
                 tiledb_query_free(&query_ptr)
-                raise lt.TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
+                raise TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
 
             start = np.array(dim_ranges[range_idx][0], dtype=dim.dtype)
             end = np.array(dim_ranges[range_idx][1], dtype=dim.dtype)

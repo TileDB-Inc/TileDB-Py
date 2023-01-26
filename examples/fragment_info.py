@@ -25,8 +25,9 @@
 # THE SOFTWARE.
 #
 
+
 import numpy as np
-import sys
+
 import tiledb
 
 array_name = "fragment_info"

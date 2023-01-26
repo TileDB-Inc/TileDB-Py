@@ -1,19 +1,17 @@
-from typing import Sequence, Tuple, TYPE_CHECKING, Union
-
-import tiledb.cc as lt
-from .attribute import Attr
-from .ctx import default_ctx
-from .domain import Domain
-from .filter import FilterList, Filter
-from .util import tiledb_layout_string, tiledb_layout
-
 import io
 import numbers
-import numpy as np
 import warnings
+from typing import Sequence, Tuple, Union
 
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
+import numpy as np
+
+import tiledb.cc as lt
+
+from .attribute import Attr
+from .ctx import Ctx, default_ctx
+from .domain import Domain
+from .filter import Filter, FilterList
+from .util import tiledb_layout, tiledb_layout_string
 
 
 class ArraySchema(lt.ArraySchema):
@@ -51,10 +49,10 @@ class ArraySchema(lt.ArraySchema):
         validity_filters: Union[FilterList, Sequence[Filter]] = None,
         allows_duplicates: bool = False,
         sparse: bool = False,
-        ctx: "Ctx" = None,
+        ctx: Ctx = None,
         _uri: str = None,
         _lt_obj: lt.ArraySchema = None,
-        _capsule: "PyCapsule" = None,
+        _capsule=None,
     ):
         self._ctx = ctx or default_ctx()
 
@@ -113,7 +111,7 @@ class ArraySchema(lt.ArraySchema):
         self._check()
 
     @staticmethod
-    def load(uri, ctx: "Ctx" = None, key: str = None):
+    def load(uri, ctx: Ctx = None, key: str = None):
         _ctx = ctx or default_ctx()
 
         if key is None:
@@ -124,7 +122,7 @@ class ArraySchema(lt.ArraySchema):
         return ArraySchema(_lt_obj=schema)
 
     @staticmethod
-    def from_file(uri: str = None, ctx: "Ctx" = None):
+    def from_file(uri: str = None, ctx: Ctx = None):
         """Create an ArraySchema for a Filestore Array from a given file.
         If a uri is not given, then create a default schema."""
         _ctx = ctx or default_ctx()
@@ -164,7 +162,7 @@ class ArraySchema(lt.ArraySchema):
         return (self.attr(i) for i in range(self.nattr))
 
     @property
-    def ctx(self) -> "Ctx":
+    def ctx(self) -> Ctx:
         """The array schema's context
 
         :rtype: tiledb.Ctx

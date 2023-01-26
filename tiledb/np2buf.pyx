@@ -6,6 +6,7 @@ IF TILEDBPY_MODULAR:
 
 from collections import deque
 
+
 cdef _varlen_dtype_itemsize(object item):
     if (isinstance(item, np.dtype) and np.issubdtype(item, np.bytes_)):
         return sizeof(char)

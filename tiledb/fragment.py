@@ -1,10 +1,10 @@
-import numpy as np
 import os
 import pprint
 import warnings
 
 import tiledb
-from tiledb.main import PyFragmentInfo
+
+from .main import PyFragmentInfo
 
 """
 Classes and functions relating to TileDB fragments.
@@ -245,7 +245,6 @@ class FragmentInfo:
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
-        self._frags = fragments
         self.num = num
         self.uri = fragments.uri[num]
         self.version = fragments.version[num]
@@ -322,7 +321,7 @@ class FragmentInfo:
         )
 
     @property
-    def to_vacuum_uri(self):
+    def dense(self):
         raise tiledb.TileDBError(
             "FragmentInfo.dense is deprecated; you must use FragmentInfo.sparse",
             "This message will be removed in 0.21.0.",

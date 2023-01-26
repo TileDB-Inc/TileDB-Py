@@ -1,12 +1,12 @@
-import pytest
+import string
 
 import numpy as np
-from numpy.testing import assert_array_equal
-import string
+import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, has_pandas, rand_utf8
+
+from .common import DiskTestCase, has_pandas, rand_utf8
 
 
 class QueryConditionTest(DiskTestCase):
@@ -341,11 +341,11 @@ class QueryConditionTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        I = np.random.randint(-5, 5, 10)
-        D = np.random.rand(10)
-
         with tiledb.open(path, "w") as arr:
-            arr[np.arange(1, 11)] = {"64-bit integer": I, "double": D}
+            arr[np.arange(1, 11)] = {
+                "64-bit integer": np.random.randint(-5, 5, 10),
+                "double": np.random.rand(10),
+            }
 
         with tiledb.open(path) as arr:
             result = arr.query(cond="attr('64-bit integer') <= val(0)")[:]
@@ -424,9 +424,8 @@ class QueryConditionTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        create_array = lambda func: np.array(
-            [func[i - 1] * i for i in range(1, 6)], dtype=np.bytes_
-        )
+        def create_array(func):
+            return np.array([func[i - 1] * i for i in range(1, 6)], dtype=np.bytes_)
 
         ascii_data = create_array(string.ascii_lowercase)
         bytes_data = create_array(string.ascii_uppercase)

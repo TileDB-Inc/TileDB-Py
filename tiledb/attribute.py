@@ -1,15 +1,14 @@
 import io
-import numpy as np
 import warnings
-from typing import Any, Sequence, TYPE_CHECKING, Union
+from typing import Any, Optional, Sequence, Union
+
+import numpy as np
 
 import tiledb.cc as lt
-from .ctx import CtxMixin
-from .filter import FilterList, Filter
-from .util import array_type_ncells, numpy_dtype, tiledb_type_is_datetime
 
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
+from .ctx import Ctx, CtxMixin
+from .filter import Filter, FilterList
+from .util import array_type_ncells, numpy_dtype, tiledb_type_is_datetime
 
 
 class Attr(CtxMixin, lt.Attribute):
@@ -25,7 +24,7 @@ class Attr(CtxMixin, lt.Attribute):
         var: bool = None,
         nullable: bool = False,
         filters: Union[FilterList, Sequence[Filter]] = None,
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ):
         """Class representing a TileDB array attribute.
 
@@ -68,9 +67,9 @@ class Attr(CtxMixin, lt.Attribute):
                 _dtype = np.dtype("S0")
 
             if _dtype.itemsize == 0:
-                if var == False:
+                if var is False:
                     warnings.warn(
-                        f"Attr given `var=False` but `dtype` `S0` is var-length; "
+                        "Attr given `var=False` but `dtype` `S0` is var-length; "
                         "setting `var=True` and `dtype=S0`. Hint: set `var=False` "
                         "with `dtype=S0`, or `var=False` with a fixed-width "
                         "string `dtype=S<n>` where is  n>1",

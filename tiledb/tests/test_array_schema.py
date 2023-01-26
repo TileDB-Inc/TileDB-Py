@@ -5,12 +5,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import assert_captured, DiskTestCase
-from tiledb.tests.fixtures import (
-    sparse_cell_order,
-    test_incomplete_return_array,
-    INTEGER_DTYPES,
-)  # pyright: reportUnusedVariable=warning
+from tiledb.tests.common import DiskTestCase, assert_captured
 
 
 class ArraySchemaTest(DiskTestCase):
@@ -45,18 +40,18 @@ class ArraySchemaTest(DiskTestCase):
         )
         a1 = tiledb.Attr("val", dtype="f8")
         schema = tiledb.ArraySchema(domain=domain, attrs=(a1,))
-        assert schema.sparse == False
+        assert schema.sparse is False
         assert schema.cell_order == "row-major"
         assert schema.tile_order == "row-major"
         assert schema.domain == domain
         assert schema.ndim == 2
         assert schema.shape == (8, 8)
         assert schema.nattr == 1
-        assert schema.domain.homogeneous == True
+        assert schema.domain.homogeneous is True
         assert hasattr(schema, "version")  # don't pin to a specific version
         assert schema.attr(0) == a1
-        assert schema.has_attr("val") == True
-        assert schema.has_attr("nononoattr") == False
+        assert schema.has_attr("val") is True
+        assert schema.has_attr("nononoattr") is False
         assert schema == tiledb.ArraySchema(domain=domain, attrs=(a1,))
         assert schema != tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=True)
 
@@ -119,7 +114,7 @@ class ArraySchemaTest(DiskTestCase):
         # schema.dump()
         # assert_captured(capfd, "Array type: sparse")
 
-        assert schema.sparse == True
+        assert schema.sparse is True
         assert schema.capacity == 10
         assert schema.cell_order, "co == major"
         assert schema.tile_order, "ro == major"
@@ -137,7 +132,7 @@ class ArraySchemaTest(DiskTestCase):
         assert schema.nattr == 2
         assert schema.attr(0) == a1
         assert schema.attr("a2") == a2
-        assert schema.allows_duplicates == True
+        assert schema.allows_duplicates is True
 
         assert schema.domain.dim("d1").filters == coords_filters
         assert schema.domain.dim("d2").filters == coords_filters

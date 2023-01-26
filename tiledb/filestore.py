@@ -1,11 +1,9 @@
-from typing import ByteString, TYPE_CHECKING
 import warnings
+from typing import ByteString, Optional
 
 import tiledb.cc as lt
-from .ctx import default_ctx
 
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
+from .ctx import Ctx, default_ctx
 
 
 class Filestore:
@@ -19,7 +17,7 @@ class Filestore:
     :param tiledb.Ctx ctx: A TileDB context
     """
 
-    def __init__(self, uri: str, ctx: "Ctx" = None) -> None:
+    def __init__(self, uri: str, ctx: Optional[Ctx] = None) -> None:
         self._ctx = ctx or default_ctx()
         self._filestore_uri = uri
 
@@ -35,7 +33,7 @@ class Filestore:
             buffer = memoryview(buffer)
         except TypeError:
             raise TypeError(
-                f"Unexpected buffer type: buffer must support buffer protocol"
+                "Unexpected buffer type: buffer must support buffer protocol"
             )
 
         if not isinstance(mime_type, str):
@@ -83,7 +81,7 @@ class Filestore:
         filestore_array_uri: str,
         file_uri: str,
         mime_type: str = "AUTODETECT",
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ) -> None:
         """
         Copy data from a file to a Filestore Array.
@@ -119,7 +117,9 @@ class Filestore:
         )
 
     @staticmethod
-    def copy_to(filestore_array_uri: str, file_uri: str, ctx: "Ctx" = None) -> None:
+    def copy_to(
+        filestore_array_uri: str, file_uri: str, ctx: Optional[Ctx] = None
+    ) -> None:
         """
         Copy data from a Filestore Array to a file.
 
