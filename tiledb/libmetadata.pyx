@@ -8,6 +8,8 @@ from collections.abc import MutableMapping
 
 from cython.operator cimport dereference as deref
 
+from .util import array_type_ncells
+
 _NP_DATA_PREFIX = "__np_flat_"
 _NP_SHAPE_PREFIX = "__np_shape_"
 

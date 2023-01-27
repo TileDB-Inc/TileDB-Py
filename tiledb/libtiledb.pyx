@@ -37,10 +37,8 @@ np.import_array()
 IF TILEDBPY_MODULAR:
     from .indexing import DomainIndexer
     from .libmetadata import get_metadata, load_metadata, put_metadata
-    from .np2buf import array_type_ncells, dtype_to_tiledb
 ELSE:
     include "indexing.pyx"
-    include "np2buf.pyx"
     include "libmetadata.pyx"
 
 ###############################################################################
