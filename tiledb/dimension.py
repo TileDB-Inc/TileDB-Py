@@ -7,12 +7,19 @@ import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
 from .filter import Filter, FilterList
-from .util import (
-    dtype_range,
-    dtype_to_tiledb,
-    numpy_dtype,
-    tiledb_type_is_datetime,
-    tiledb_type_is_integer,
+from .util import dtype_range, dtype_to_tiledb, numpy_dtype, tiledb_type_is_datetime
+
+_integer_datatypes = frozenset(
+    [
+        lt.DataType.UINT8,
+        lt.DataType.INT8,
+        lt.DataType.UINT16,
+        lt.DataType.INT16,
+        lt.DataType.UINT32,
+        lt.DataType.INT32,
+        lt.DataType.UINT64,
+        lt.DataType.INT64,
+    ]
 )
 
 
@@ -272,9 +279,10 @@ class Dim(CtxMixin, lt.Dimension):
         :raises TypeError: floating point (inexact) domain
 
         """
-        if not tiledb_type_is_integer(
-            self._tiledb_dtype
-        ) and not tiledb_type_is_datetime(self._tiledb_dtype):
+        if (
+            self._tiledb_dtype not in _integer_datatypes
+            and not tiledb_type_is_datetime(self._tiledb_dtype)
+        ):
             raise TypeError(
                 "shape only valid for integer and datetime dimension domains"
             )
@@ -288,7 +296,7 @@ class Dim(CtxMixin, lt.Dimension):
         :raises TypeError: floating point (inexact) domain
 
         """
-        if not tiledb_type_is_integer(self._tiledb_dtype):
+        if self._tiledb_dtype not in _integer_datatypes:
             raise TypeError("size only valid for integer dimension domains")
         return int(self.shape[0])
 
