@@ -73,7 +73,15 @@ from .fragment import (
     delete_fragments,
 )
 from .group import Group
-from .highlevel import array_exists, array_fragments, empty_like, from_numpy, open, save
+from .highlevel import (
+    array_exists,
+    array_fragments,
+    empty_like,
+    from_numpy,
+    open,
+    save,
+    schema_like,
+)
 from .libtiledb import (
     Array,
     ArraySchema,
@@ -97,7 +105,6 @@ from .object import Object
 from .parquet_ import from_parquet
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
-from .util import schema_like
 from .version_helper import version
 from .vfs import VFS, FileIO
 

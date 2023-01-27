@@ -18,8 +18,8 @@ from .attribute import Attr
 from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
 from .domain import Domain
+from .highlevel import from_numpy
 from .filter import FilterList
-from .util import sparse_array_from_numpy
 from .vfs import VFS
 
 ###############################################################################
@@ -2029,7 +2029,7 @@ cdef class DenseArrayImpl(Array):
         )
         assert tiledbpy_version < (0, 20, 0)
 
-        return sparse_array_from_numpy(uri=uri, array=array, ctx=ctx, **kw)
+        return from_numpy(uri, array, ctx=ctx, **kw)
 
     def __len__(self):
         return self.domain.shape[0]
