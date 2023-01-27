@@ -8,7 +8,7 @@ from collections.abc import MutableMapping
 
 from cython.operator cimport dereference as deref
 
-from .util import array_type_ncells
+from .util import array_type_ncells, numpy_dtype
 
 _NP_DATA_PREFIX = "__np_flat_"
 _NP_SHAPE_PREFIX = "__np_shape_"
@@ -126,7 +126,7 @@ cdef object unpack_metadata_val(
 cdef np.ndarray unpack_metadata_ndarray(
         tiledb_datatype_t value_type, uint32_t value_num, const char* value_ptr
     ):
-    cdef np.dtype dtype = np.dtype(_numpy_dtype(value_type))
+    cdef np.dtype dtype = np.dtype(numpy_dtype(value_type))
     if value_ptr == NULL:
         return np.array((), dtype=dtype)
 

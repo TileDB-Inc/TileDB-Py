@@ -14,12 +14,8 @@ from json import loads as json_loads
 
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
-from .attribute import Attr
 from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
-from .domain import Domain
-from .highlevel import from_numpy
-from .filter import FilterList
 from .vfs import VFS
 
 ###############################################################################
@@ -36,7 +32,6 @@ np.import_array()
 
 IF TILEDBPY_MODULAR:
     from .indexing import DomainIndexer
-    from .libmetadata import get_metadata, load_metadata, put_metadata
 ELSE:
     include "indexing.pyx"
     include "libmetadata.pyx"
@@ -45,16 +40,6 @@ ELSE:
 #    Utility/setup                                                            #
 ###############################################################################
 
-# KB / MB in bytes
-_KB = 1024
-_MB = 1024 * _KB
-
-# Maximum number of retries for incomplete query
-_MAX_QUERY_RETRIES = 3
-
-# The native int type for this platform
-IntType = np.dtype(np.int_)
-
 # Integer types supported by Python / System
 _inttypes = (int, np.integer)
 
@@ -62,94 +47,11 @@ _inttypes = (int, np.integer)
 # https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
 np.import_array()
 
-# Conversion from TileDB dtype to Numpy datetime
-_tiledb_dtype_to_datetime_convert = {
-    TILEDB_DATETIME_YEAR: np.datetime64('', 'Y'),
-    TILEDB_DATETIME_MONTH: np.datetime64('', 'M'),
-    TILEDB_DATETIME_WEEK: np.datetime64('', 'W'),
-    TILEDB_DATETIME_DAY: np.datetime64('', 'D'),
-    TILEDB_DATETIME_HR: np.datetime64('', 'h'),
-    TILEDB_DATETIME_MIN: np.datetime64('', 'm'),
-    TILEDB_DATETIME_SEC: np.datetime64('', 's'),
-    TILEDB_DATETIME_MS: np.datetime64('', 'ms'),
-    TILEDB_DATETIME_US: np.datetime64('', 'us'),
-    TILEDB_DATETIME_NS: np.datetime64('', 'ns'),
-    TILEDB_DATETIME_PS: np.datetime64('', 'ps'),
-    TILEDB_DATETIME_FS: np.datetime64('', 'fs'),
-    TILEDB_DATETIME_AS: np.datetime64('', 'as')
-}
-
-# Conversion from Numpy datetime to TileDB dtype
-_datetime_tiledb_dtype_convert = {
-    'Y': TILEDB_DATETIME_YEAR,
-    'M': TILEDB_DATETIME_MONTH,
-    'W': TILEDB_DATETIME_WEEK,
-    'D': TILEDB_DATETIME_DAY,
-    'h': TILEDB_DATETIME_HR,
-    'm': TILEDB_DATETIME_MIN,
-    's': TILEDB_DATETIME_SEC,
-    'ms': TILEDB_DATETIME_MS,
-    'us': TILEDB_DATETIME_US,
-    'ns': TILEDB_DATETIME_NS,
-    'ps': TILEDB_DATETIME_PS,
-    'fs': TILEDB_DATETIME_FS,
-    'as': TILEDB_DATETIME_AS
-}
-
-# Conversion from TileDB dtype to Numpy typeid
-_tiledb_dtype_to_numpy_typeid_convert ={
-    TILEDB_INT32: np.NPY_INT32,
-    TILEDB_UINT32: np.NPY_UINT32,
-    TILEDB_INT64: np.NPY_INT64,
-    TILEDB_UINT64: np.NPY_UINT64,
-    TILEDB_FLOAT32: np.NPY_FLOAT32,
-    TILEDB_FLOAT64: np.NPY_FLOAT64,
-    TILEDB_INT8: np.NPY_INT8,
-    TILEDB_UINT8: np.NPY_UINT8,
-    TILEDB_INT16: np.NPY_INT16,
-    TILEDB_UINT16: np.NPY_UINT16,
-    TILEDB_CHAR: np.NPY_STRING,
-    TILEDB_STRING_ASCII: np.NPY_STRING,
-    TILEDB_STRING_UTF8: np.NPY_UNICODE,
-}
-IF LIBTILEDB_VERSION_MAJOR >= 2:
-    IF LIBTILEDB_VERSION_MINOR >= 9:
-        _tiledb_dtype_to_numpy_typeid_convert[TILEDB_BLOB] = np.NPY_BYTE
-IF LIBTILEDB_VERSION_MAJOR >= 2:
-    IF LIBTILEDB_VERSION_MINOR >= 10:
-        _tiledb_dtype_to_numpy_typeid_convert[TILEDB_BOOL] = np.NPY_BOOL
-
-# Conversion from TileDB dtype to Numpy dtype
-_tiledb_dtype_to_numpy_dtype_convert = {
-    TILEDB_INT32: np.int32,
-    TILEDB_UINT32: np.uint32,
-    TILEDB_INT64: np.int64,
-    TILEDB_UINT64: np.uint64,
-    TILEDB_FLOAT32: np.float32,
-    TILEDB_FLOAT64: np.float64,
-    TILEDB_INT8: np.int8,
-    TILEDB_UINT8: np.uint8,
-    TILEDB_INT16: np.int16,
-    TILEDB_UINT16: np.uint16,
-    TILEDB_CHAR: np.dtype('S1'),
-    TILEDB_STRING_ASCII: np.dtype('S'),
-    TILEDB_STRING_UTF8: np.dtype('U1'),
-}
-IF LIBTILEDB_VERSION_MAJOR >= 2:
-    IF LIBTILEDB_VERSION_MINOR >= 9:
-        _tiledb_dtype_to_numpy_dtype_convert[TILEDB_BLOB] = np.byte
-IF LIBTILEDB_VERSION_MAJOR >= 2:
-    IF LIBTILEDB_VERSION_MINOR >= 10:
-        _tiledb_dtype_to_numpy_dtype_convert[TILEDB_BOOL] = np.bool_
-
-cdef tiledb_ctx_t* unsafe_ctx_ptr(object ctx):
-    return <tiledb_ctx_t*>PyCapsule_GetPointer(
-            ctx.__capsule__(), "ctx")
 
 cdef tiledb_ctx_t* safe_ctx_ptr(object ctx):
     if ctx is None:
         raise TileDBError("internal error: invalid Ctx object")
-    return unsafe_ctx_ptr(ctx)
+    return <tiledb_ctx_t*>PyCapsule_GetPointer(ctx.__capsule__(), "ctx")
 
 def version():
     """Return the version of the linked ``libtiledb`` shared library
@@ -165,9 +67,6 @@ def version():
     tiledb_version(&major, &minor, &rev)
     return major, minor, rev
 
-def offset_size():
-    """Return the offset size (TILEDB_OFFSET_SIZE)"""
-    return tiledb_offset_size()
 
 # note: this function is cdef, so it must return a python object in order to
 #       properly forward python exceptions raised within the function. See:
@@ -604,14 +503,6 @@ cdef bytes unicode_path(object path):
     return ustring(path).encode('UTF-8')
 
 
-def safe_repr(obj):
-    """repr an object, without raising exception. Return placeholder string on failure"""
-
-    try:
-        return repr(obj)
-    except:
-        return "<repr failed>"
-
 ###############################################################################
 #                                                                             #
 #    CLASS DEFINITIONS                                                        #
@@ -635,123 +526,6 @@ def _tiledb_datetime_extent(begin, end):
     # Dividing a timedelta by 1 will convert the timedelta to an integer
     return int(extent / one)
 
-
-cdef bint _tiledb_type_is_datetime(tiledb_datatype_t tiledb_type) except? False:
-    """Returns True if the tiledb type is a datetime type"""
-    return tiledb_type in (TILEDB_DATETIME_YEAR, TILEDB_DATETIME_MONTH,
-        TILEDB_DATETIME_WEEK, TILEDB_DATETIME_DAY, TILEDB_DATETIME_HR,
-        TILEDB_DATETIME_MIN, TILEDB_DATETIME_SEC, TILEDB_DATETIME_MS,
-        TILEDB_DATETIME_US, TILEDB_DATETIME_NS, TILEDB_DATETIME_PS,
-        TILEDB_DATETIME_FS, TILEDB_DATETIME_AS)
-
-def _tiledb_type_to_datetime(tiledb_datatype_t tiledb_type):
-    """
-    Return a datetime64 with appropriate unit for the given
-    tiledb_datetype_t enum value
-    """
-    tdb_type = _tiledb_dtype_to_datetime_convert.get(tiledb_type, None)
-    if tdb_type is None:
-        raise TypeError("tiledb type is not a datetime {0!r}".format(tiledb_type))
-    return tdb_type
-
-cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DATETIME_YEAR:
-    """Return tiledb_datetype_t enum value for a given np.datetime64 dtype"""
-    if dtype.kind != 'M':
-        raise TypeError("data type {0!r} not a datetime".format(dtype))
-
-    date_unit = np.datetime_data(dtype)[0]
-    if date_unit == 'generic':
-        raise TypeError("datetime {0!r} does not specify a date unit".format(dtype))
-
-    tdb_dt = _datetime_tiledb_dtype_convert.get(date_unit, None)
-    if tdb_dt is None:
-        raise TypeError("np type is not a datetime {0!r}".format(date_unit))
-    return tdb_dt
-
-cdef _numpy_dtype(tiledb_datatype_t tiledb_dtype, cell_size = 1):
-    """Return a numpy type given a tiledb_datatype_t enum value."""
-    cdef base_dtype
-    cdef uint32_t cell_val_num = cell_size
-
-    if tiledb_dtype == TILEDB_BLOB:
-        return np.bytes_
-
-    elif cell_val_num == 1:
-        if tiledb_dtype in _tiledb_dtype_to_numpy_dtype_convert:
-            return _tiledb_dtype_to_numpy_dtype_convert[tiledb_dtype]
-        elif _tiledb_type_is_datetime(tiledb_dtype):
-            return _tiledb_type_to_datetime(tiledb_dtype)
-
-    elif cell_val_num == 2 and tiledb_dtype == TILEDB_FLOAT32:
-        return np.complex64
-
-    elif cell_val_num == 2 and tiledb_dtype == TILEDB_FLOAT64:
-        return np.complex128
-
-    elif tiledb_dtype in (TILEDB_CHAR, TILEDB_STRING_UTF8):
-        if tiledb_dtype == TILEDB_CHAR:
-            dtype_str = '|S'
-        elif tiledb_dtype == TILEDB_STRING_UTF8:
-            dtype_str = '|U'
-        if cell_val_num != TILEDB_VAR_NUM:
-            dtype_str += str(cell_val_num)
-        return np.dtype(dtype_str)
-
-    elif cell_val_num == TILEDB_VAR_NUM:
-        base_dtype = _numpy_dtype(tiledb_dtype, cell_size=1)
-        return base_dtype
-
-    elif cell_val_num > 1:
-        # construct anonymous record dtype
-        base_dtype = _numpy_dtype(tiledb_dtype, cell_size=1)
-        rec = np.dtype([('', base_dtype)] * cell_val_num)
-        return  rec
-
-    raise TypeError("tiledb datatype not understood")
-
-"""
-cdef _numpy_scalar(tiledb_datatype_t typ, void* data, uint64_t nbytes):
-    # Return a numpy scalar object from a tiledb_datatype_t enum type value and void pointer to scalar data
-    if typ == TILEDB_CHAR:
-        # bytes type, ensure a full copy
-        return PyBytes_FromStringAndSize(<char*> data, nbytes)
-    # fixed size numeric type
-    cdef int type_num = _numpy_type_num(typ)
-    return PyArray_Scalar(data, np.PyArray_DescrFromType(type_num), None)
-"""
-
-cdef tiledb_layout_t _tiledb_layout(object order) except TILEDB_UNORDERED:
-    """Return the tiledb_layout_t enum value given a layout string label."""
-    if order == "row-major" or order == 'C':
-        return TILEDB_ROW_MAJOR
-    elif order == "col-major" or order == 'F':
-        return TILEDB_COL_MAJOR
-    elif order == "global":
-        return TILEDB_GLOBAL_ORDER
-    elif order == "hilbert" or order == 'H':
-        return TILEDB_HILBERT
-    elif order == None or order == "unordered" or order == 'U':
-        return TILEDB_UNORDERED
-
-    raise ValueError("unknown tiledb layout: {0!r}".format(order))
-
-
-cdef unicode _tiledb_layout_string(tiledb_layout_t order):
-    """
-    Return the unicode string label given a tiledb_layout_t enum value
-    """
-    tiledb_order_to_string ={
-        TILEDB_ROW_MAJOR: u"row-major",
-        TILEDB_COL_MAJOR: u"col-major",
-        TILEDB_GLOBAL_ORDER: u"global",
-        TILEDB_UNORDERED: u"unordered",
-        TILEDB_HILBERT: u"hilbert"
-    }
-
-    if order not in tiledb_order_to_string:
-        raise ValueError("unknown tiledb order: {0!r}".format(order))
-
-    return tiledb_order_to_string[order]
 
 def index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -2018,17 +1792,6 @@ cdef class DenseArrayImpl(Array):
             raise ValueError(f"Array at {self.uri} is not a dense array")
         return
 
-    @staticmethod
-    def from_numpy(uri, np.ndarray array, ctx=None, **kw):
-        warnings.warn(
-            "tiledb.DenseArray.from_numpy is deprecated and is slated for "
-            "removal in version 0.20.0. Use tiledb.from_numpy",
-            DeprecationWarning,
-        )
-        assert tiledbpy_version < (0, 20, 0)
-
-        return from_numpy(uri, array, ctx=ctx, **kw)
-
     def __len__(self):
         return self.domain.shape[0]
 
@@ -2668,7 +2431,7 @@ cdef class DenseArrayImpl(Array):
         return out[attr_name]
 
 # point query index a tiledb array (zips) columnar index vectors
-def index_domain_coords(dom: Domain, idx: tuple, check_ndim: bool):
+def index_domain_coords(dom, idx, check_ndim):
     """
     Returns a (zipped) coordinate array representation
     given coordinate indices in numpy's point indexing format
