@@ -1,12 +1,10 @@
 from collections import deque
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable, Optional, Tuple, Union
 
 import numpy as np
 
 import tiledb
 import tiledb.cc as lt
-
-from .dataframe_ import ColumnInfo
 
 _dtype_to_tiledb = {
     "int32": lt.DataType.INT32,
@@ -181,35 +179,6 @@ def dtype_range(dtype: np.dtype) -> Tuple[Any]:
     else:
         raise TypeError("invalid Dim dtype {0!r}".format(dtype))
     return (dtype_min, dtype_max)
-
-
-def schema_from_dict(attrs: List[str], dims: List[str]) -> "tiledb.ArraySchema":
-    attr_infos = {k: ColumnInfo.from_values(v) for k, v in attrs.items()}
-    dim_infos = {k: ColumnInfo.from_values(v) for k, v in dims.items()}
-
-    dims = list()
-    for name, dim_info in dim_infos.items():
-        dim_dtype = np.bytes_ if dim_info.dtype == np.dtype("U") else dim_info.dtype
-        dtype_min, dtype_max = dtype_range(dim_info.dtype)
-
-        if np.issubdtype(dim_dtype, np.integer):
-            dtype_max = dtype_max - 1
-        if np.issubdtype(dim_dtype, np.integer) and dtype_min < 0:
-            dtype_min = dtype_min + 1
-
-        dims.append(
-            tiledb.Dim(
-                name=name, domain=(dtype_min, dtype_max), dtype=dim_dtype, tile=1
-            )
-        )
-
-    attrs = list()
-    for name, attr_info in attr_infos.items():
-        dtype_min, dtype_max = dtype_range(attr_info.dtype)
-
-        attrs.append(tiledb.Attr(name=name, dtype=dim_dtype))
-
-    return tiledb.ArraySchema(domain=tiledb.Domain(*dims), attrs=attrs, sparse=True)
 
 
 def tiledb_type_to_datetime(tiledb_type: lt.DataType):
