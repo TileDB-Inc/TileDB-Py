@@ -37,11 +37,13 @@ except:
         ctypes.CDLL(lib_name)
 
 from .array import DenseArray, SparseArray
+from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
-from .ctx import default_ctx, scope_ctx
+from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .dimension import Dim
+from .domain import Domain
 from .filestore import Filestore
 from .filter import (
     BitShuffleFilter,
@@ -84,10 +86,6 @@ from .highlevel import (
 )
 from .libtiledb import (
     Array,
-    ArraySchema,
-    Config,
-    Ctx,
-    Domain,
     consolidate,
     ls,
     move,
