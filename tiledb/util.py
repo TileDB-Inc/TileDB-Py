@@ -464,38 +464,3 @@ def _regularize_tiling(tile: Union[Iterable, np.isscalar], ndim: int) -> Tuple[A
         raise ValueError("'tile' must be iterable and match array dimensionality")
 
     return tuple(tile)
-
-
-def tiledb_layout_string(order):
-    tiledb_order_to_string = {
-        lt.LayoutType.ROW_MAJOR: "row-major",
-        lt.LayoutType.COL_MAJOR: "col-major",
-        lt.LayoutType.GLOBAL_ORDER: "global",
-        lt.LayoutType.UNORDERED: "unordered",
-        lt.LayoutType.HILBERT: "hilbert",
-    }
-
-    if order not in tiledb_order_to_string:
-        raise ValueError(f"unknown tiledb layout: {order}")
-
-    return tiledb_order_to_string[order]
-
-
-def tiledb_layout(order):
-    string_to_tiledb_order = {
-        "row-major": lt.LayoutType.ROW_MAJOR,
-        "C": lt.LayoutType.ROW_MAJOR,
-        "col-major": lt.LayoutType.COL_MAJOR,
-        "R": lt.LayoutType.COL_MAJOR,
-        "global": lt.LayoutType.GLOBAL_ORDER,
-        "hilbert": lt.LayoutType.HILBERT,
-        "H": lt.LayoutType.HILBERT,
-        "unordered": lt.LayoutType.UNORDERED,
-        "U": lt.LayoutType.UNORDERED,
-        None: lt.LayoutType.UNORDERED,
-    }
-
-    if order not in string_to_tiledb_order:
-        raise ValueError(f"unknown tiledb layout: {order}")
-
-    return string_to_tiledb_order[order]
