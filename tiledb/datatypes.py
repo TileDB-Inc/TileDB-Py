@@ -12,17 +12,48 @@ import tiledb.cc as lt
 class DataType:
     np_dtype: np.dtype
     tiledb_type: lt.DataType
+    ncells: int
     min: Any
     max: Any
 
     @classmethod
     def from_numpy(cls, dtype: np.dtype) -> DataType:
-        try:
-            tiledb_type = _NUMPY_TO_TILEDB[dtype]
-        except KeyError:
-            raise ValueError(f"{dtype!r} cannot be mapped to a DataType")
+        base_dtype = dtype = np.dtype(dtype)
+        ncells = 1
 
-        return cls(dtype, tiledb_type, *cls._get_min_max(dtype))
+        if dtype.kind == "V":
+            # fixed-size record dtypes
+            if dtype.shape != ():
+                raise TypeError("nested sub-array numpy dtypes are not supported")
+
+            # check that types are the same
+            field_dtypes = set(v[0] for v in dtype.fields.values())
+            if len(field_dtypes) > 1:
+                raise TypeError("heterogenous record numpy dtypes are not supported")
+
+            base_dtype = field_dtypes.pop()
+            ncells = len(dtype.fields)
+
+        elif np.issubdtype(dtype, np.character):
+            # - flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
+            # - character types are always stored as VAR because we don't want to store
+            #   the pad (numpy pads to max length for 'S' and 'U' dtypes)
+            base_dtype = np.dtype((dtype.kind, 1))
+            if dtype.itemsize == 0:
+                ncells = lt.TILEDB_VAR_NUM()
+            else:
+                ncells = dtype.itemsize // base_dtype.itemsize
+
+        elif np.issubdtype(dtype, np.complexfloating):
+            ncells = 2
+
+        try:
+            tiledb_type = _NUMPY_TO_TILEDB[base_dtype]
+        except KeyError:
+            raise TypeError(f"{dtype!r} cannot be mapped to a DataType")
+
+        dtype_min, dtype_max = cls._get_min_max(base_dtype)
+        return cls(dtype, tiledb_type, ncells, dtype_min, dtype_max)
 
     @staticmethod
     def _get_min_max(dtype: np.dtype) -> Tuple[Any, Any]:
@@ -47,7 +78,7 @@ class DataType:
         if np.issubdtype(dtype, np.character):
             return None, None
 
-        raise ValueError(f"Cannot determine min/max for {dtype!r}")
+        raise TypeError(f"Cannot determine min/max for {dtype!r}")
 
 
 # datatype pairs that have a 1-1 mapping between tiledb and numpy
