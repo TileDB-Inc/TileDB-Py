@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, Tuple
 
 import numpy as np
 
@@ -11,13 +12,42 @@ import tiledb.cc as lt
 class DataType:
     np_dtype: np.dtype
     tiledb_type: lt.DataType
+    min: Any
+    max: Any
 
     @classmethod
     def from_numpy(cls, dtype: np.dtype) -> DataType:
         try:
-            return cls(dtype, _NUMPY_TO_TILEDB[dtype])
+            tiledb_type = _NUMPY_TO_TILEDB[dtype]
         except KeyError:
-            raise TypeError(f"{dtype!r} cannot be mapped to a DataType")
+            raise ValueError(f"{dtype!r} cannot be mapped to a DataType")
+
+        return cls(dtype, tiledb_type, *cls._get_min_max(dtype))
+
+    @staticmethod
+    def _get_min_max(dtype: np.dtype) -> Tuple[Any, Any]:
+        if dtype.kind in ("M", "m"):
+            # datetime or timedelta
+            info = np.iinfo(np.int64)
+            dt_data = np.datetime_data(dtype)
+            # +1 to exclude NaT
+            return dtype.type(info.min + 1, dt_data), dtype.type(info.max, dt_data)
+
+        if np.issubdtype(dtype, np.integer):
+            info = np.iinfo(dtype)
+            return info.min, info.max
+
+        if np.issubdtype(dtype, np.inexact):
+            info = np.finfo(dtype)
+            return info.min, info.max
+
+        if np.issubdtype(dtype, np.bool_):
+            return False, True
+
+        if np.issubdtype(dtype, np.character):
+            return None, None
+
+        raise ValueError(f"Cannot determine min/max for {dtype!r}")
 
 
 # datatype pairs that have a 1-1 mapping between tiledb and numpy
