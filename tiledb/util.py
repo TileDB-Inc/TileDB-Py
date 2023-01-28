@@ -147,22 +147,8 @@ def array_type_ncells(dtype: np.dtype) -> lt.DataType:
 
 def dtype_range(dtype: np.dtype):
     """Return the range of a Numpy dtype"""
-
-    if np.issubdtype(dtype, np.integer):
-        info = np.iinfo(dtype)
-        dtype_min, dtype_max = info.min, info.max
-    elif np.issubdtype(dtype, np.floating):
-        info = np.finfo(dtype)
-        dtype_min, dtype_max = info.min, info.max
-    elif dtype.kind == "M":
-        info = np.iinfo(np.int64)
-        date_unit = np.datetime_data(dtype)[0]
-        # +1 to exclude NaT
-        dtype_min = np.datetime64(info.min + 1, date_unit)
-        dtype_max = np.datetime64(info.max, date_unit)
-    else:
-        raise TypeError("invalid Dim dtype {0!r}".format(dtype))
-    return (dtype_min, dtype_max)
+    dt = DataType.from_numpy(dtype)
+    return dt.min, dt.max
 
 
 def tiledb_cast_tile_extent(tile_extent: Any, dtype: np.dtype) -> np.array:
