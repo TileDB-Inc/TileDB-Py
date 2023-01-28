@@ -1,4 +1,3 @@
-from collections import deque
 from typing import Any
 
 import numpy as np
@@ -93,56 +92,8 @@ def array_type_ncells(dtype: np.dtype) -> lt.DataType:
     """
     Returns the TILEDB_{TYPE} and ncells corresponding to a given numpy dtype
     """
-    checked_dtype = np.dtype(dtype)
-
-    # - flexible datatypes of unknown size have an itemsize of 0 (str, bytes, etc.)
-    # - unicode and string types are always stored as VAR because we don't want to
-    #   store the pad (numpy pads to max length for 'S' and 'U' dtypes)
-
-    if np.issubdtype(checked_dtype, np.bytes_):
-        tdb_type = lt.DataType.CHAR
-        if checked_dtype.itemsize == 0:
-            ncells = lt.TILEDB_VAR_NUM()
-        else:
-            ncells = checked_dtype.itemsize
-
-    elif np.issubdtype(checked_dtype, np.unicode_):
-        np_unicode_size = np.dtype("U1").itemsize
-
-        # TODO depending on np_unicode_size, tdb_type may be UTF16 or UTF32
-        tdb_type = lt.DataType.STRING_UTF8
-
-        if checked_dtype.itemsize == 0:
-            ncells = lt.TILEDB_VAR_NUM()
-        else:
-            ncells = checked_dtype.itemsize // np_unicode_size
-
-    elif np.issubdtype(checked_dtype, np.complexfloating):
-        # handle complex dtypes
-        tdb_type = dtype_to_tiledb(checked_dtype)
-        ncells = 2
-
-    elif checked_dtype.kind == "V":
-        # handles n fixed-size record dtypes
-        if checked_dtype.shape != ():
-            raise TypeError("nested sub-array numpy dtypes are not supported")
-        # check that types are the same
-        # TODO: make sure this is not too slow for large record types
-        deq = deque(checked_dtype.fields.values())
-        typ0, _ = deq.popleft()
-        for typ, _ in deq:
-            if typ != typ0:
-                raise TypeError("heterogenous record numpy dtypes are not supported")
-
-        tdb_type = dtype_to_tiledb(typ0)
-        ncells = len(checked_dtype.fields.values())
-
-    else:
-        # scalar cell type
-        tdb_type = dtype_to_tiledb(checked_dtype)
-        ncells = 1
-
-    return tdb_type, ncells
+    dt = DataType.from_numpy(dtype)
+    return dt.tiledb_type, dt.ncells
 
 
 def dtype_range(dtype: np.dtype):
