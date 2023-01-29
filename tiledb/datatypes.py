@@ -13,8 +13,6 @@ class DataType:
     np_dtype: np.dtype
     tiledb_type: lt.DataType
     ncells: int
-    min: Any
-    max: Any
 
     @classmethod
     def from_numpy(cls, dtype: np.dtype) -> DataType:
@@ -52,8 +50,7 @@ class DataType:
         except KeyError:
             raise TypeError(f"{dtype!r} cannot be mapped to a DataType")
 
-        dtype_min, dtype_max = cls._get_min_max(base_dtype)
-        return cls(dtype, tiledb_type, ncells, dtype_min, dtype_max)
+        return cls(dtype, tiledb_type, ncells)
 
     @classmethod
     def from_tiledb(cls, tiledb_type: lt.DataType, ncells: int = 1) -> DataType:
@@ -70,13 +67,13 @@ class DataType:
             assert ncells > 1
             dtype = np.dtype([("", base_dtype)] * ncells)
 
-        dtype_min, dtype_max = cls._get_min_max(base_dtype)
-        return cls(dtype, tiledb_type, ncells, dtype_min, dtype_max)
+        return cls(dtype, tiledb_type, ncells)
 
-    @staticmethod
-    def _get_min_max(dtype: np.dtype) -> Tuple[Any, Any]:
-        if dtype.kind in ("M", "m"):
-            # datetime or timedelta
+    @property  # TODO: change to functools.cached_property in Python 3.8+
+    def domain(self) -> Tuple[Any, Any]:
+        dtype = self.np_dtype
+
+        if np.issubdtype(dtype, np.datetime64) or np.issubdtype(dtype, np.timedelta64):
             info = np.iinfo(np.int64)
             dt_data = np.datetime_data(dtype)
             # +1 to exclude NaT
