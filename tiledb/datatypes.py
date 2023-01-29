@@ -55,6 +55,24 @@ class DataType:
         dtype_min, dtype_max = cls._get_min_max(base_dtype)
         return cls(dtype, tiledb_type, ncells, dtype_min, dtype_max)
 
+    @classmethod
+    def from_tiledb(cls, tiledb_type: lt.DataType, ncells: int = 1) -> DataType:
+        base_dtype = _TILEDB_TO_NUMPY[tiledb_type]
+        if tiledb_type in (lt.DataType.CHAR, lt.DataType.STRING_UTF8):
+            kind = base_dtype.kind
+            dtype = np.dtype((kind, ncells) if ncells != lt.TILEDB_VAR_NUM() else kind)
+        elif ncells == 1 or ncells == lt.TILEDB_VAR_NUM():
+            dtype = base_dtype
+        elif ncells == 2 and np.issubdtype(base_dtype, np.floating):
+            dtype = np.dtype("complex64" if base_dtype.itemsize == 4 else "complex128")
+        else:
+            # construct anonymous record dtype
+            assert ncells > 1
+            dtype = np.dtype([("", base_dtype)] * ncells)
+
+        dtype_min, dtype_max = cls._get_min_max(base_dtype)
+        return cls(dtype, tiledb_type, ncells, dtype_min, dtype_max)
+
     @staticmethod
     def _get_min_max(dtype: np.dtype) -> Tuple[Any, Any]:
         if dtype.kind in ("M", "m"):
@@ -123,7 +141,6 @@ _COMMON_DATATYPES = [
     (np.dtype("<m8[as]"), lt.DataType.TIME_AS),
     # byte/string
     (np.dtype("S1"), lt.DataType.CHAR),
-    (np.dtype("S"), lt.DataType.STRING_ASCII),
     (np.dtype("<U1"), lt.DataType.STRING_UTF8),
 ]
 assert len(set(x for x, y in _COMMON_DATATYPES)) == len(_COMMON_DATATYPES)
@@ -133,3 +150,8 @@ assert len(set(y for x, y in _COMMON_DATATYPES)) == len(_COMMON_DATATYPES)
 _NUMPY_TO_TILEDB = {n: t for n, t in _COMMON_DATATYPES}
 _NUMPY_TO_TILEDB[np.dtype("complex64")] = lt.DataType.FLOAT32
 _NUMPY_TO_TILEDB[np.dtype("complex128")] = lt.DataType.FLOAT64
+
+# tiledb has STRING_ASCII and BLOB, numpy doesn't
+_TILEDB_TO_NUMPY = {t: n for n, t in _COMMON_DATATYPES}
+_TILEDB_TO_NUMPY[lt.DataType.STRING_ASCII] = np.dtype("S")
+_TILEDB_TO_NUMPY[lt.DataType.BLOB] = np.dtype("S")
