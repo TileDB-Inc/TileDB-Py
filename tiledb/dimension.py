@@ -6,49 +6,8 @@ import numpy as np
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
+from .datatypes import DataType
 from .filter import Filter, FilterList
-from .util import (
-    dtype_range,
-    dtype_to_tiledb,
-    numpy_dtype,
-    tiledb_cast_tile_extent,
-    tiledb_type_is_datetime,
-)
-
-_integer_datatypes = frozenset(
-    [
-        lt.DataType.UINT8,
-        lt.DataType.INT8,
-        lt.DataType.UINT16,
-        lt.DataType.INT16,
-        lt.DataType.UINT32,
-        lt.DataType.INT32,
-        lt.DataType.UINT64,
-        lt.DataType.INT64,
-    ]
-)
-
-
-def _tiledb_cast_domain(
-    domain, tiledb_dtype: lt.DataType
-) -> Tuple[np.generic, np.generic]:
-    np_dtype = numpy_dtype(tiledb_dtype)
-
-    if tiledb_type_is_datetime(tiledb_dtype):
-        date_unit = np.datetime_data(np_dtype)[0]
-        return (
-            np.datetime64(domain[0], date_unit),
-            np.datetime64(domain[1], date_unit),
-        )
-
-    if tiledb_dtype in (
-        lt.DataType.STRING_ASCII,
-        lt.DataType.STRING_UTF8,
-        lt.DataType.BLOB,
-    ):
-        return domain
-
-    return (np_dtype.type(domain[0]), np_dtype.type(domain[1]))
 
 
 class Dim(CtxMixin, lt.Dimension):
@@ -79,9 +38,11 @@ class Dim(CtxMixin, lt.Dimension):
         :raises TypeError: invalid domain, tile extent, or dtype type
         :raises tiledb.TileDBError:
         """
-        if var is not None:
-            if var and np.dtype(dtype) not in (np.str_, np.bytes_):
-                raise TypeError("'var=True' specified for non-str/bytes dtype")
+        if dtype != "ascii":
+            dtype = np.dtype(dtype)
+
+        if var and not np.issubdtype(dtype, np.character):
+            raise TypeError("'var=True' specified for non-str/bytes dtype")
 
         if domain is not None and len(domain) != 2:
             raise ValueError("invalid domain extent, must be a pair")
@@ -89,49 +50,43 @@ class Dim(CtxMixin, lt.Dimension):
         domain_array = None
         tile_size_array = None
 
-        if (isinstance(dtype, str) and dtype == "ascii") or np.dtype(dtype).kind == "S":
+        if dtype == "ascii" or np.issubdtype(dtype, np.bytes_):
             # Handle var-len dom type (currently only TILEDB_STRING_ASCII)
             # The dims's dom is implicitly formed as coordinates are written.
             dim_datatype = lt.DataType.STRING_ASCII
         else:
-            if dtype is not None:
-                dtype = np.dtype(dtype)
-                dtype_min, dtype_max = dtype_range(dtype)
+            dt = DataType.from_numpy(dtype)
+            dim_datatype = dt.tiledb_type
 
-                if domain == (None, None):
-                    # this means to use the full extent of the type
-                    domain = (dtype_min, dtype_max)
-                elif (
-                    domain[0] < dtype_min
-                    or domain[0] > dtype_max
-                    or domain[1] < dtype_min
-                    or domain[1] > dtype_max
-                ):
-                    raise TypeError(
-                        "invalid domain extent, domain cannot be safely"
-                        f" cast to dtype {dtype!r}"
-                    )
-
-            domain_array = np.asarray(domain, dtype=dtype)
-            domain_dtype = domain_array.dtype
-            dim_datatype = dtype_to_tiledb(domain_dtype)
+            dtype_min, dtype_max = dt.domain
+            if domain == (None, None):
+                # this means to use the full extent of the type
+                domain = (dtype_min, dtype_max)
+            elif (
+                domain[0] < dtype_min
+                or domain[0] > dtype_max
+                or domain[1] < dtype_min
+                or domain[1] > dtype_max
+            ):
+                raise TypeError(
+                    "invalid domain extent, domain cannot be safely"
+                    f" cast to dtype {dtype!r}"
+                )
 
             # check that the domain type is a valid dtype (integer / floating)
-            if (
-                not np.issubdtype(domain_dtype, np.integer)
-                and not np.issubdtype(domain_dtype, np.floating)
-                and not domain_dtype.kind == "M"
+            if not (
+                np.issubdtype(dtype, np.integer)
+                or np.issubdtype(dtype, np.floating)
+                or np.issubdtype(dtype, np.datetime64)
             ):
-                raise TypeError(f"invalid Dim dtype {domain_dtype!r}")
+                raise TypeError(f"invalid Dim dtype {dtype!r}")
 
-            if tiledb_type_is_datetime(dim_datatype):
-                domain_array = domain_array.astype(dtype=np.int64)
+            domain_array = np.asarray(domain, dtype)
+            if np.issubdtype(dtype, np.datetime64):
+                domain_array = domain_array.astype(np.int64)
 
-            # if the tile extent is specified, cast
             if tile is not None:
-                tile_size_array = tiledb_cast_tile_extent(tile, domain_dtype)
-                if tile_size_array.size != 1:
-                    raise ValueError("tile extent must be a scalar")
+                tile_size_array = dt.cast_tile_extent(tile)
 
         super().__init__(ctx, name, dim_datatype, domain_array, tile_size_array)
 
@@ -214,7 +169,7 @@ class Dim(CtxMixin, lt.Dimension):
         :rtype: numpy.dtype
 
         """
-        return np.dtype(numpy_dtype(self._tiledb_dtype))
+        return DataType.from_tiledb(self._tiledb_dtype).np_dtype
 
     @property
     def name(self) -> str:
@@ -266,9 +221,9 @@ class Dim(CtxMixin, lt.Dimension):
         :raises TypeError: floating point (inexact) domain
 
         """
-        if (
-            self._tiledb_dtype not in _integer_datatypes
-            and not tiledb_type_is_datetime(self._tiledb_dtype)
+        dtype = self.dtype
+        if not (
+            np.issubdtype(dtype, np.integer) or np.issubdtype(dtype, np.datetime64)
         ):
             raise TypeError(
                 "shape only valid for integer and datetime dimension domains"
@@ -283,7 +238,7 @@ class Dim(CtxMixin, lt.Dimension):
         :raises TypeError: floating point (inexact) domain
 
         """
-        if self._tiledb_dtype not in _integer_datatypes:
+        if not np.issubdtype(self.dtype, np.integer):
             raise TypeError("size only valid for integer dimension domains")
         return int(self.shape[0])
 
@@ -294,18 +249,13 @@ class Dim(CtxMixin, lt.Dimension):
         :rtype: numpy scalar or np.timedelta64
 
         """
-        if tiledb_type_is_datetime(self._tiledb_dtype):
-            date_unit = np.datetime_data(self.dtype)[0]
-            return np.timedelta64(self._tile, date_unit)
-
-        if self._tiledb_dtype in (
-            lt.DataType.STRING_ASCII,
-            lt.DataType.STRING_UTF8,
-            lt.DataType.BLOB,
-        ):
+        np_dtype = self.dtype
+        if np.issubdtype(np_dtype, np.character):
             return self._tile
-
-        return numpy_dtype(self._tiledb_dtype).type(self._tile)
+        if np.issubdtype(np_dtype, np.datetime64):
+            unit = np.datetime_data(np_dtype)[0]
+            return np.timedelta64(self._tile, unit)
+        return np_dtype.type(self._tile)
 
     @property
     def domain(self) -> Tuple["np.generic", "np.generic"]:
@@ -316,4 +266,14 @@ class Dim(CtxMixin, lt.Dimension):
         :rtype: tuple(numpy scalar, numpy scalar)
 
         """
-        return _tiledb_cast_domain(self._domain, self._tiledb_dtype)
+        np_dtype = self.dtype
+        if np.issubdtype(np_dtype, np.character):
+            return self._domain
+
+        min_args = [self._domain[0]]
+        max_args = [self._domain[1]]
+        if np.issubdtype(np_dtype, np.datetime64):
+            unit = np.datetime_data(np_dtype)[0]
+            min_args.append(unit)
+            max_args.append(unit)
+        return np_dtype.type(*min_args), np_dtype.type(*max_args)

@@ -19,8 +19,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.dataframe_ import ColumnInfo
-from tiledb.util import dtype_range
+from tiledb.datatypes import DataType
 
 from .common import (
     DiskTestCase,
@@ -32,35 +31,6 @@ from .common import (
     rand_ascii_bytes,
     rand_utf8,
 )
-
-
-def schema_from_dict(attrs, dims):
-    attr_infos = {k: ColumnInfo.from_values(v) for k, v in attrs.items()}
-    dim_infos = {k: ColumnInfo.from_values(v) for k, v in dims.items()}
-
-    dims = list()
-    for name, dim_info in dim_infos.items():
-        dim_dtype = np.bytes_ if dim_info.dtype == np.dtype("U") else dim_info.dtype
-        dtype_min, dtype_max = dtype_range(dim_info.dtype)
-
-        if np.issubdtype(dim_dtype, np.integer):
-            dtype_max = dtype_max - 1
-        if np.issubdtype(dim_dtype, np.integer) and dtype_min < 0:
-            dtype_min = dtype_min + 1
-
-        dims.append(
-            tiledb.Dim(
-                name=name, domain=(dtype_min, dtype_max), dtype=dim_dtype, tile=1
-            )
-        )
-
-    attrs = list()
-    for name, attr_info in attr_infos.items():
-        dtype_min, dtype_max = dtype_range(attr_info.dtype)
-
-        attrs.append(tiledb.Attr(name=name, dtype=dim_dtype))
-
-    return tiledb.ArraySchema(domain=tiledb.Domain(*dims), attrs=attrs, sparse=True)
 
 
 @pytest.fixture(scope="module", params=["hilbert", "row-major"])
@@ -1682,11 +1652,14 @@ class TestSparseArray(DiskTestCase):
     @pytest.mark.parametrize("dtype", ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"])
     def test_sparse_index_dtypes(self, dtype):
         path = self.path()
-        data = np.arange(0, 3).astype(dtype)
 
-        schema = schema_from_dict(attrs={"attr": data}, dims={"d0": data})
+        dtype_min, dtype_max = DataType.from_numpy(dtype).domain
+        dim = tiledb.Dim("d0", domain=(dtype_min, dtype_max - 1), dtype=dtype, tile=1)
+        attr = tiledb.Attr("attr", dtype=dtype)
+        schema = tiledb.ArraySchema(tiledb.Domain(dim), [attr], sparse=True)
         tiledb.SparseArray.create(path, schema)
 
+        data = np.arange(0, 3).astype(dtype)
         with tiledb.open(path, "w") as A:
             A[data] = data
 

@@ -9,6 +9,8 @@ import numpy as np
 
 import tiledb
 
+from .datatypes import DataType
+
 
 def check_dataframe_deps():
     pd_error = """Pandas version >= 1.0 required for dataframe functionality.
@@ -233,9 +235,9 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
     if full_domain:
         if dtype not in (np.bytes_, np.str_):
             # Use the full type domain, deferring to the constructor
-            dtype_min, dtype_max = tiledb.util.dtype_range(dtype)
+            dtype_min, dtype_max = DataType.from_numpy(dtype).domain
             dim_max = dtype_max
-            if dtype.kind == "M":
+            if np.issubdtype(dtype, np.datetime64):
                 date_unit = np.datetime_data(dtype)[0]
                 dim_min = np.datetime64(dtype_min, date_unit)
                 tile_max = np.iinfo(np.uint64).max - tile
@@ -256,7 +258,7 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
         dim_min = np.min(values)
         dim_max = np.max(values)
 
-    if np.issubdtype(dtype, np.integer) or dtype.kind == "M":
+    if np.issubdtype(dtype, np.integer) or np.issubdtype(dtype, np.datetime64):
         # we can't make a tile larger than the dimension range or lower than 1
         tile = max(1, min(tile, np.uint64(dim_max - dim_min)))
     elif np.issubdtype(dtype, np.floating):
