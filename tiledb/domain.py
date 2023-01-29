@@ -6,8 +6,8 @@ import numpy as np
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
+from .datatypes import DataType
 from .dimension import Dim
-from .util import numpy_dtype
 
 
 class Domain(CtxMixin, lt.Domain):
@@ -130,7 +130,7 @@ class Domain(CtxMixin, lt.Domain):
         :rtype: numpy.dtype
 
         """
-        return np.dtype(numpy_dtype(self._tiledb_dtype))
+        return DataType.from_tiledb(self._tiledb_dtype).np_dtype
 
     @property
     def shape(self):
@@ -150,17 +150,8 @@ class Domain(CtxMixin, lt.Domain):
         :raises TypeError: floating point (inexact) domain
 
         """
-        if self._tiledb_dtype not in (
-            lt.DataType.UINT8,
-            lt.DataType.INT8,
-            lt.DataType.UINT16,
-            lt.DataType.INT16,
-            lt.DataType.UINT32,
-            lt.DataType.INT32,
-            lt.DataType.UINT64,
-            lt.DataType.INT64,
-        ):
-            raise TypeError("shape valid only for integer domains")
+        if not np.issubdtype(self.dtype, self.integer):
+            raise TypeError("size valid only for integer domains")
         return np.product(self.shape)
 
     def _is_homogeneous(self):

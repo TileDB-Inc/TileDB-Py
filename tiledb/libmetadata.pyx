@@ -8,7 +8,7 @@ from collections.abc import MutableMapping
 
 from cython.operator cimport dereference as deref
 
-from .util import array_type_ncells, numpy_dtype
+from .datatypes import DataType
 
 _NP_DATA_PREFIX = "__np_flat_"
 _NP_SHAPE_PREFIX = "__np_shape_"
@@ -126,7 +126,7 @@ cdef object unpack_metadata_val(
 cdef np.ndarray unpack_metadata_ndarray(
         tiledb_datatype_t value_type, uint32_t value_num, const char* value_ptr
     ):
-    cdef np.dtype dtype = np.dtype(numpy_dtype(value_type))
+    cdef np.dtype dtype = DataType.from_tiledb(value_type).np_dtype
     if value_ptr == NULL:
         return np.array((), dtype=dtype)
 
@@ -166,10 +166,11 @@ cdef put_metadata(Array array, key, value):
         if value.ndim != 1:
             raise TypeError(f"Only 1D Numpy arrays can be stored as metadata")
 
-        tiledb_type, ncells = array_type_ncells(value.dtype)
-        if ncells != 1:
+        dt = DataType.from_numpy(value.dtype)
+        if dt.ncells != 1:
             raise TypeError(f"Unsupported dtype '{value.dtype}'")
 
+        tiledb_type = dt.tiledb_type
         value_num = len(value)
         # special case for TILEDB_STRING_UTF8: TileDB assumes size=1
         if tiledb_type == TILEDB_STRING_UTF8:

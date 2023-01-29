@@ -7,8 +7,8 @@ import numpy as np
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
+from .datatypes import DataType
 from .filter import Filter, FilterList
-from .util import array_type_ncells, numpy_dtype, tiledb_type_is_datetime
 
 
 class Attr(CtxMixin, lt.Attribute):
@@ -49,14 +49,16 @@ class Attr(CtxMixin, lt.Attribute):
             _ncell = 1
         else:
             _dtype = np.dtype(dtype)
-            tiledb_dtype, _ncell = array_type_ncells(_dtype)
+            dt = DataType.from_numpy(_dtype)
+            tiledb_dtype = dt.tiledb_type
+            _ncell = dt.ncells
 
         # ensure that all unicode strings are var-length
-        if var or (_dtype and _dtype.kind == "U"):
+        if var or np.issubdtype(_dtype, np.str_):
             var = True
             _ncell = lt.TILEDB_VAR_NUM()
 
-        if _dtype and _dtype.kind == "S":
+        if np.issubdtype(_dtype, np.bytes_):
             if var and 0 < _dtype.itemsize:
                 warnings.warn(
                     f"Attr given `var=True` but `dtype` `{_dtype}` is fixed; "
@@ -123,7 +125,7 @@ class Attr(CtxMixin, lt.Attribute):
         :rtype: numpy.dtype
 
         """
-        return np.dtype(numpy_dtype(self._tiledb_dtype, self._ncell))
+        return DataType.from_tiledb(self._tiledb_dtype, self._ncell).np_dtype
 
     @property
     def name(self) -> str:
@@ -162,18 +164,6 @@ class Attr(CtxMixin, lt.Attribute):
         """
         return FilterList.from_pybind11(self._ctx, self._filters)
 
-    def _get_fill(self, value, dtype) -> Any:
-        if dtype in (lt.DataType.CHAR, lt.DataType.BLOB):
-            return value.tobytes()
-
-        if dtype == lt.DataType.STRING_UTF8:
-            return b"".join(value).decode("utf-8")
-
-        if tiledb_type_is_datetime(dtype):
-            return value[0].astype(np.timedelta64)
-
-        return value
-
     @property
     def fill(self) -> Any:
         """Fill value for unset cells of this attribute
@@ -181,7 +171,14 @@ class Attr(CtxMixin, lt.Attribute):
         :rtype: depends on dtype
         :raises: :py:exc:`tiledb.TileDBERror`
         """
-        return self._get_fill(self._fill, self._tiledb_dtype)
+        dtype = self.dtype
+        if np.issubdtype(dtype, np.bytes_):
+            return self._fill.tobytes()
+        if np.issubdtype(dtype, np.str_):
+            return self._fill.tobytes().decode("utf-8")
+        if np.issubdtype(dtype, np.datetime64):
+            return self._fill[0].astype(np.timedelta64)
+        return self._fill
 
     @property
     def isnullable(self) -> bool:

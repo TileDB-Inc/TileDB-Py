@@ -5,7 +5,7 @@ import numpy as np
 import tiledb.cc as lt
 
 from .ctx import CtxMixin
-from .util import numpy_dtype
+from .datatypes import DataType
 
 
 class DimLabel(CtxMixin, lt.DimensionLabel):
@@ -54,7 +54,7 @@ class DimLabel(CtxMixin, lt.DimensionLabel):
         :rtype: numpy.dtype
 
         """
-        return np.dtype(numpy_dtype(self._tiledb_label_dtype))
+        return DataType.from_tiledb(self._tiledb_label_dtype).np_dtype
 
     @property
     def isvar(self) -> bool:

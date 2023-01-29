@@ -6,12 +6,7 @@ import pytest
 
 import tiledb
 import tiledb.cc as lt
-from tiledb.util import dtype_to_tiledb
-
-INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
-STRING_DTYPES = ["U", "S"]
-FLOAT_DTYPES = ["f4", "f8"]
-SUPPORTED_DTYPES = INTEGER_DTYPES + STRING_DTYPES + FLOAT_DTYPES
+from tiledb.datatypes import DataType
 
 
 def test_config():
@@ -55,33 +50,16 @@ def test_context():
     assert ctx.config() == cfg
 
 
-def make_range(dtype):
-    if np.issubdtype(dtype, np.number):
-        return np.array([0, 100.123]).astype(dtype), np.array([1]).astype(dtype)
-    elif np.issubdtype(dtype, str) or np.issubdtype(dtype, bytes):
-        return None, None
-    else:
-        raise TypeError(f"Unsupported dtype '{dtype}'")
-
-
-@pytest.mark.parametrize("dtype_str", SUPPORTED_DTYPES)
+@pytest.mark.parametrize(
+    "dtype_str", ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8", "f4", "f8"]
+)
 def test_dimension(dtype_str):
-    if dtype_str == "U":
-        # TODO this should assert TileDBError and continue
-        pytest.skip("dtype('U') not supported for dimension")
-
     ctx = lt.Context()
-    dtype = np.dtype(dtype_str)
-
-    # TODO move this to pybind11
-    if dtype_str == "S":
-        tiledb_datatype = lt.DataType.STRING_ASCII
-    else:
-        tiledb_datatype = lt.DataType(dtype_to_tiledb(dtype))
-
-    range, extent = make_range(dtype)
-
-    lt.Dimension(ctx, "foo", tiledb_datatype, range, extent)
+    dt = DataType.from_numpy(dtype_str)
+    domain = np.array([0, 100.123], dt.np_dtype)
+    lt.Dimension(ctx, "foo", dt.tiledb_type, domain, dt.cast_tile_extent(1))
+    # test STRING_ASCII
+    lt.Dimension(ctx, "bar", lt.DataType.STRING_ASCII, None, None)
 
 
 def test_enums():

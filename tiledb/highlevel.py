@@ -2,7 +2,7 @@ import numpy as np
 
 import tiledb
 
-from .util import dtype_range
+from .datatypes import DataType
 
 
 def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=None):
@@ -259,12 +259,13 @@ def _schema_like_numpy(array, ctx=None, **kwargs):
         # support smaller tile extents by kwargs
         # domain is based on full shape
         tile_extent = tiling[d] if tiling else array.shape[d]
+        # TODO: refactor with dataframe_.dim_for_column
         if full_domain:
             if dim_dtype not in (np.bytes_, np.str_):
                 # Use the full type domain, deferring to the constructor
-                dtype_min, dtype_max = dtype_range(dim_dtype)
+                dtype_min, dtype_max = DataType.from_numpy(dim_dtype).domain
                 dim_max = dtype_max
-                if dim_dtype.kind == "M":
+                if np.issubdtype(dim_dtype, np.datetime64):
                     date_unit = np.datetime_data(dim_dtype)[0]
                     dim_min = np.datetime64(dtype_min, date_unit)
                     tile_max = np.iinfo(np.uint64).max - tile_extent
