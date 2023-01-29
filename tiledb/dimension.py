@@ -48,7 +48,7 @@ def _tiledb_cast_domain(
     ):
         return domain
 
-    return (np_dtype(domain[0]), np_dtype(domain[1]))
+    return (np_dtype.type(domain[0]), np_dtype.type(domain[1]))
 
 
 class Dim(CtxMixin, lt.Dimension):
@@ -294,8 +294,6 @@ class Dim(CtxMixin, lt.Dimension):
         :rtype: numpy scalar or np.timedelta64
 
         """
-        np_dtype = numpy_dtype(self._tiledb_dtype)
-
         if tiledb_type_is_datetime(self._tiledb_dtype):
             date_unit = np.datetime_data(self.dtype)[0]
             return np.timedelta64(self._tile, date_unit)
@@ -307,7 +305,7 @@ class Dim(CtxMixin, lt.Dimension):
         ):
             return self._tile
 
-        return np_dtype(self._tile)
+        return numpy_dtype(self._tiledb_dtype).type(self._tile)
 
     @property
     def domain(self) -> Tuple["np.generic", "np.generic"]:
