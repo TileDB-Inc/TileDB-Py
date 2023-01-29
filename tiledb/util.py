@@ -50,8 +50,7 @@ def array_type_ncells(dtype: np.dtype) -> lt.DataType:
 
 def dtype_range(dtype: np.dtype):
     """Return the range of a Numpy dtype"""
-    dt = DataType.from_numpy(dtype)
-    return dt.min, dt.max
+    return DataType.from_numpy(dtype).domain
 
 
 def tiledb_cast_tile_extent(tile_extent: Any, dtype: np.dtype) -> np.array:
