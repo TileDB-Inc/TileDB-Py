@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Tuple
 
 import numpy as np
@@ -15,6 +16,7 @@ class DataType:
     ncells: int
 
     @classmethod
+    @lru_cache()
     def from_numpy(cls, dtype: np.dtype) -> DataType:
         base_dtype = dtype = np.dtype(dtype)
         ncells = 1
@@ -53,6 +55,7 @@ class DataType:
         return cls(dtype, tiledb_type, ncells)
 
     @classmethod
+    @lru_cache()
     def from_tiledb(cls, tiledb_type: lt.DataType, ncells: int = 1) -> DataType:
         base_dtype = _TILEDB_TO_NUMPY[tiledb_type]
         if tiledb_type in (lt.DataType.CHAR, lt.DataType.STRING_UTF8):
@@ -152,3 +155,9 @@ _NUMPY_TO_TILEDB[np.dtype("complex128")] = lt.DataType.FLOAT64
 _TILEDB_TO_NUMPY = {t: n for n, t in _COMMON_DATATYPES}
 _TILEDB_TO_NUMPY[lt.DataType.STRING_ASCII] = np.dtype("S")
 _TILEDB_TO_NUMPY[lt.DataType.BLOB] = np.dtype("S")
+
+# pre-populate the LRU caches with all ncell=1 datatypes
+list(map(DataType.from_numpy, _NUMPY_TO_TILEDB.keys()))
+assert DataType.from_numpy.cache_info().currsize == len(_NUMPY_TO_TILEDB)
+list(map(DataType.from_tiledb, _TILEDB_TO_NUMPY.keys()))
+assert DataType.from_tiledb.cache_info().currsize == len(_TILEDB_TO_NUMPY)
