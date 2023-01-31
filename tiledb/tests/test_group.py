@@ -1,14 +1,15 @@
 import os
 import time
-import warnings
+
 import numpy as np
 import pytest
-
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from hypothesis.extra import numpy as st_np
 
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
 
 MIN_INT = np.iinfo(np.int64).min
 MAX_INT = np.iinfo(np.int64).max
@@ -526,5 +527,5 @@ class GroupMetadataTest(GroupTestCase):
             G.add("group2_2", name="group2_2", relative=True)
 
         with tiledb.Group(group1, mode="r") as G:
-            assert G.is_relative("group2_1") == False
-            assert G.is_relative("group2_2") == True
+            assert G.is_relative("group2_1") is False
+            assert G.is_relative("group2_2") is True

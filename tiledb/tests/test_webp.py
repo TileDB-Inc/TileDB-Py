@@ -1,10 +1,12 @@
-import pytest
-import tiledb.main as main
-from numpy.testing import assert_array_equal, assert_allclose
-import numpy as np
 import shutil
 import tempfile
+
+import numpy as np
+import pytest
+from numpy.testing import assert_allclose, assert_array_equal
+
 import tiledb
+import tiledb.main as main
 
 
 @pytest.mark.skipif(

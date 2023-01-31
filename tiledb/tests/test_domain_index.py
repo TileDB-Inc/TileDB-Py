@@ -1,9 +1,10 @@
 #%%
 
 import numpy as np
+
 import tiledb
 
-from tiledb.tests.common import *
+from .common import DiskTestCase, assert_array_equal, assert_equal
 
 
 class DomainIndexingSparseTest(DiskTestCase):

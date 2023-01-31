@@ -29,9 +29,11 @@
 # writes sample data to the array, and then prints out a filtered
 # dataframe using the TileDB QueryCondition feature.
 
-import tiledb
-import numpy as np
 from pprint import pprint
+
+import numpy as np
+
+import tiledb
 
 uri = "query_condition_dense"
 

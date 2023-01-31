@@ -1,20 +1,14 @@
-import pytest
-
-da = pytest.importorskip("dask.array")
-
-from datetime import datetime
 import sys
-import tiledb
-from tiledb.tests.common import DiskTestCase
+from datetime import datetime
 
 import numpy as np
-from numpy.testing import assert_array_equal, assert_approx_equal
+import pytest
 
-# override the no_output fixture because it conflicts with these tests
-#   eg: "ResourceWarning: unclosed event loop"
-@pytest.fixture(scope="function", autouse=True)
-def no_output():
-    pass
+import tiledb
+
+from .common import DiskTestCase
+
+da = pytest.importorskip("dask.array")
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
@@ -27,10 +21,10 @@ class TestDaskSupport(DiskTestCase):
 
         with tiledb.open(uri) as T:
             D = da.from_tiledb(T)
-            assert_array_equal(D, A)
+            np.testing.assert_array_equal(D, A)
 
         D2 = da.from_tiledb(uri)
-        assert_array_equal(D2, A)
+        np.testing.assert_array_equal(D2, A)
         self.assertAlmostEqual(
             np.mean(A), D2.mean().compute(scheduler="single-threaded")
         )
@@ -71,7 +65,7 @@ class TestDaskSupport(DiskTestCase):
         with tiledb.DenseArray(uri, mode="r", attr="attr2") as T:
             # basic round-trip from dask.array
             D = da.from_tiledb(T, attribute="attr2")
-            assert_array_equal(ar2, np.array(D))
+            np.testing.assert_array_equal(ar2, np.array(D))
 
         # smoke-test computation
         # note: re-init from_tiledb each time, or else dask just uses the cached materialization
@@ -88,15 +82,15 @@ class TestDaskSupport(DiskTestCase):
         from dask.distributed import Client
 
         D = da.from_tiledb(uri, attribute="attr2")
-        with Client() as client:
-            assert_approx_equal(D.mean().compute(), np.mean(ar2))
+        with Client():
+            np.testing.assert_approx_equal(D.mean().compute(), np.mean(ar2))
 
     def test_dask_write(self):
         uri = self.path("dask_w")
         D = da.random.random(10, 10)
         D.to_tiledb(uri)
         DT = da.from_tiledb(uri)
-        assert_array_equal(D, DT)
+        np.testing.assert_array_equal(D, DT)
 
     def test_dask_overlap_blocks(self):
         uri = self.path("np_overlap_blocks")
@@ -106,15 +100,15 @@ class TestDaskSupport(DiskTestCase):
 
         with tiledb.open(uri) as T:
             D = da.from_tiledb(T)
-            assert_array_equal(D, A)
+            np.testing.assert_array_equal(D, A)
 
         D2 = da.from_tiledb(uri)
-        assert_array_equal(D2, A)
+        np.testing.assert_array_equal(D2, A)
 
         D3 = D2.map_overlap(
             lambda x: x + 1, depth={0: 0, 1: 1, 2: 1}, dtype=A.dtype, boundary="none"
         ).compute()
-        assert_array_equal(D2 * 2, D3)
+        np.testing.assert_array_equal(D2 * 2, D3)
 
     def test_labeled_dask_overlap_blocks(self):
         uri = self.path("np_labeled_overlap_blocks")
@@ -142,7 +136,7 @@ class TestDaskSupport(DiskTestCase):
         D3 = D2.map_overlap(
             lambda x: x + 1, depth={0: 0, 1: 1, 2: 1}, dtype=D2.dtype, boundary="none"
         ).compute()
-        assert_array_equal(D2 + 1, D3)
+        np.testing.assert_array_equal(D2 + 1, D3)
 
     def test_labeled_dask_blocks(self):
         uri = self.path("np_labeled_map_blocks")
@@ -169,4 +163,4 @@ class TestDaskSupport(DiskTestCase):
         D3 = D2.map_blocks(lambda x: x + 1, dtype=D2.dtype).compute(
             scheduler="processes"
         )
-        assert_array_equal(D2 + 1, D3)
+        np.testing.assert_array_equal(D2 + 1, D3)

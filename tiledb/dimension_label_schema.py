@@ -8,8 +8,8 @@ from .util import (
     dtype_to_tiledb,
     numpy_dtype,
     str_to_tiledb_data_order,
-    tiledb_data_order_to_str,
     tiledb_cast_tile_extent,
+    tiledb_data_order_to_str,
     tiledb_type_is_datetime,
 )
 

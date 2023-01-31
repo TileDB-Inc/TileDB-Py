@@ -1,5 +1,4 @@
 #include <tiledb/tiledb>
-#include <tiledb/tiledb_dimension_label.h>
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>

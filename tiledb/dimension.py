@@ -1,58 +1,20 @@
 import io
-from typing import Any, Sequence, Tuple, TYPE_CHECKING, Union
+from typing import Any, Optional, Sequence, Tuple, Union
+
 import numpy as np
 
 import tiledb.cc as lt
-from .ctx import CtxMixin
-from .filter import FilterList, Filter
+
+from .ctx import Ctx, CtxMixin
+from .filter import Filter, FilterList
 from .util import (
+    dtype_range,
     dtype_to_tiledb,
     numpy_dtype,
-    tiledb_type_is_integer,
+    tiledb_cast_tile_extent,
     tiledb_type_is_datetime,
+    tiledb_type_is_integer,
 )
-
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
-
-
-def dtype_range(dtype: np.dtype) -> Tuple[Any, Any]:
-    """Return the range of a Numpy dtype"""
-
-    if np.issubdtype(dtype, np.integer):
-        info = np.iinfo(dtype)
-        dtype_min, dtype_max = info.min, info.max
-    elif np.issubdtype(dtype, np.floating):
-        info = np.finfo(dtype)
-        dtype_min, dtype_max = info.min, info.max
-    elif dtype.kind == "M":
-        info = np.iinfo(np.int64)
-        date_unit = np.datetime_data(dtype)[0]
-        # +1 to exclude NaT
-        dtype_min = np.datetime64(info.min + 1, date_unit)
-        dtype_max = np.datetime64(info.max, date_unit)
-    else:
-        raise TypeError(f"invalid Dim dtype {dtype!r}")
-    return (dtype_min, dtype_max)
-
-
-def _tiledb_cast_tile_extent(tile_extent: Any, dtype: np.dtype) -> np.array:
-    """Given a tile extent value, cast it to np.array of the given numpy dtype."""
-    # Special handling for datetime domains
-    if dtype.kind == "M":
-        date_unit = np.datetime_data(dtype)[0]
-        if isinstance(tile_extent, np.timedelta64):
-            extent_value = int(tile_extent / np.timedelta64(1, date_unit))
-            tile_size_array = np.array(np.int64(extent_value), dtype=np.int64)
-        else:
-            tile_size_array = np.array(tile_extent, dtype=np.int64)
-    else:
-        tile_size_array = np.array(tile_extent, dtype=dtype)
-
-    if tile_size_array.size != 1:
-        raise ValueError("tile extent must be a scalar")
-
-    return tile_size_array
 
 
 def _tiledb_cast_domain(
@@ -90,7 +52,7 @@ class Dim(CtxMixin, lt.Dimension):
         filters: Union[FilterList, Sequence[Filter]] = None,
         dtype: np.dtype = np.uint64,
         var: bool = None,
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ):
         """Class representing a dimension of a TileDB Array.
 
@@ -155,7 +117,7 @@ class Dim(CtxMixin, lt.Dimension):
 
             # if the tile extent is specified, cast
             if tile is not None:
-                tile_size_array = _tiledb_cast_tile_extent(tile, domain_dtype)
+                tile_size_array = tiledb_cast_tile_extent(tile, domain_dtype)
                 if tile_size_array.size != 1:
                     raise ValueError("tile extent must be a scalar")
 
@@ -176,7 +138,7 @@ class Dim(CtxMixin, lt.Dimension):
             filters_str += "])"
 
         # for consistency, print `var=True` for string-like types
-        varlen = "" if not self.dtype in (np.str_, np.bytes_) else ", var=True"
+        varlen = "" if self.dtype not in (np.str_, np.bytes_) else ", var=True"
         return f"Dim(name={self.name!r}, domain={self.domain!s}, tile={self.tile!r}, dtype='{self.dtype!s}'{varlen}{filters_str})"
 
     def _repr_html_(self) -> str:

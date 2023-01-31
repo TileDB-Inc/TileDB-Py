@@ -30,11 +30,16 @@
 # with tiledb.from_csv and Python multiprocessing.
 #
 
-import tiledb
-import numpy as np
-import os, tempfile, time, glob
+import glob
 import multiprocessing
+import os
+import tempfile
+import time
 from concurrent.futures import ProcessPoolExecutor
+
+import numpy as np
+
+import tiledb
 
 # helper functions to generate data
 from tiledb.tests.common import rand_datetime64_array, rand_utf8
@@ -181,7 +186,6 @@ def from_csv_mp(
         )
 
     tasks = []
-    csv_chunks = []
     # high level ingestion timing
     start = time.time()
 

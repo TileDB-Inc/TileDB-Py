@@ -1,14 +1,12 @@
-import numpy as np
 import os
-import tiledb
 import tempfile
 
-from tiledb import cc as lt
-from tiledb.tests.common import paths_equal
-
+import numpy as np
 import pytest
 
-# from tiledb.tests.fixtures
+import tiledb
+import tiledb.cc as lt
+
 INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
 STRING_DTYPES = ["U", "S"]
 FLOAT_DTYPES = ["f4", "f8"]
@@ -56,12 +54,6 @@ def test_context():
     assert ctx.config() == cfg
 
 
-# NOMERGE
-@pytest.fixture(scope="function", autouse=True)
-def no_output(capfd):
-    pass
-
-
 def make_range(dtype):
     if np.issubdtype(dtype, np.number):
         return np.array([0, 100.123]).astype(dtype), np.array([1]).astype(dtype)
@@ -89,7 +81,7 @@ def test_dimension(dtype_str):
     if dtype_str == "S":
         tiledb_datatype = lt.DataType.STRING_ASCII
 
-    dim = lt.Dimension(ctx, "foo", tiledb_datatype, range, extent)
+    lt.Dimension(ctx, "foo", tiledb_datatype, range, extent)
     # print(dim)
 
 
@@ -206,9 +198,9 @@ def test_attribute():
     assert attr._ncell == 1
     attr._ncell = 5
     assert attr._ncell == 5
-    assert attr._nullable == False
+    assert attr._nullable is False
     attr._nullable = True
-    assert attr._nullable == True
+    assert attr._nullable is True
 
 
 def test_filter():
@@ -233,39 +225,39 @@ def test_filter():
 
 def test_schema_dump(capfd):
     ctx = lt.Context()
-    schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
-    # schema.dump() # TODO FILE* target and capfd
+    lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
+    # schema._dump() # TODO FILE* target and capfd
 
 
 def test_schema():
     ctx = lt.Context()
 
     schema = lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
-    assert schema.array_type == lt.ArrayType.SPARSE
+    assert schema._array_type == lt.ArrayType.SPARSE
 
-    schema.capacity = 101
-    assert schema.capacity == 101
+    schema._capacity = 101
+    assert schema._capacity == 101
 
-    schema.allows_dups = True
-    assert schema.allows_dups
+    schema._allows_dups = True
+    assert schema._allows_dups
 
     with pytest.raises(lt.TileDBError):
-        schema.tile_order = lt.LayoutType.HILBERT
-    schema.tile_order = lt.LayoutType.UNORDERED
-    assert schema.tile_order == lt.LayoutType.UNORDERED
+        schema._tile_order = lt.LayoutType.HILBERT
+    schema._tile_order = lt.LayoutType.UNORDERED
+    assert schema._tile_order == lt.LayoutType.UNORDERED
 
-    # TODO schema.set_coords_filter_list(...)
-    # TODO assert schema.coords_filter_list() == lt.FilterListType.NONE
-    # TODO schema.set_offsets_filter_list
-    # TODO assert schema.offsets_filter_list ==
+    # TODO schema._set_coords_filter_list(...)
+    # TODO assert schema._coords_filter_list() == lt.FilterListType.NONE
+    # TODO schema._set_offsets_filter_list
+    # TODO assert schema._offsets_filter_list ==
 
     dom = lt.Domain(ctx)
     dim = lt.Dimension(ctx, "foo", lt.DataType.INT32, np.int32([0, 9]), np.int32([9]))
     dom._add_dim(dim)
 
-    schema.domain = dom
+    schema._domain = dom
     # TODO dom and dimension need full equality check
-    assert schema.domain._dim("foo")._name == dim._name
+    assert schema._domain._dim("foo")._name == dim._name
 
 
 def test_query_string():
@@ -275,7 +267,7 @@ def test_query_string():
         dim = lt.Dimension(ctx, "foo", lt.DataType.STRING_ASCII, None, None)
         dom._add_dim(dim)
 
-        schema.domain = dom
+        schema._domain = dom
         return schema
 
     uri = tempfile.mkdtemp()
@@ -302,9 +294,9 @@ def test_write_sparse():
         dom._add_dim(dim)
 
         attr = lt.Attribute(ctx, "a", lt.DataType.INT32)
-        schema.add_attr(attr)
+        schema._add_attr(attr)
 
-        schema.domain = dom
+        schema._domain = dom
         return schema
 
     coords = np.arange(10).astype(np.int32)
@@ -362,12 +354,11 @@ def test_write_dense():
         dom._add_dim(dim)
 
         attr = lt.Attribute(ctx, "a", lt.DataType.FLOAT32)
-        schema.add_attr(attr)
+        schema._add_attr(attr)
 
-        schema.domain = dom
+        schema._domain = dom
         return schema
 
-    coords = np.arange(10).astype(np.uint64)
     data = np.random.randint(0, 10, 10).astype(np.float32)
 
     def write():

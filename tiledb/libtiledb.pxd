@@ -1,5 +1,5 @@
+from libc.stdint cimport uint32_t, uint64_t
 from libc.stdio cimport FILE
-from libc.stdint cimport uint64_t, uint32_t
 
 IF TILEDBPY_MODULAR:
     from .indexing cimport DomainIndexer
@@ -581,6 +581,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_array_t* array,
         uint64_t* timestamp_end)
 
+    int tiledb_array_set_config(
+        tiledb_ctx_t* ctx,
+        tiledb_array_t* array,
+        tiledb_config_t* config)
+
     int tiledb_array_set_open_timestamp_start(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
@@ -1159,80 +1164,6 @@ cdef extern from "tiledb/tiledb_experimental.h":
         tiledb_config_t* config
     )
 
-cdef extern from "tiledb/tiledb_dimension_label.h":
-    # type
-    ctypedef struct tiledb_dimension_label_t:
-        pass
-
-    # ArraySchema: DimensionLabel
-    int tiledb_array_schema_add_dimension_label(
-        tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema,
-        const uint32_t dim_index,
-        const char* name,
-        tiledb_data_order_t label_order,
-        tiledb_datatype_t label_type
-    )
-
-    int tiledb_array_schema_get_dimension_label_from_name(
-        tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema,
-        const char* label_name,
-        tiledb_dimension_label_t** dim_label
-    )
-
-    int tiledb_array_schema_has_dimension_label(
-        tiledb_ctx_t* ctx,
-        const tiledb_array_schema_t* array_schema,
-        const char* name,
-        int* has_dim_label
-    )
-
-    int tiledb_array_schema_set_dimension_label_filter_list(
-        tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema,
-        const char* label_name,
-        tiledb_filter_list_t* filter_list
-    )
-
-    int tiledb_array_schema_set_dimension_label_tile_extent(
-        tiledb_ctx_t* ctx,
-        tiledb_array_schema_t* array_schema,
-        const char* label_name,
-        tiledb_datatype_t type,
-        const void* tile_extent
-    )
-
-    # Subarray: DimensionLabel
-    int tiledb_subarray_add_label_range(
-        tiledb_ctx_t* ctx,
-        tiledb_subarray_t* subarray,
-        const char* label_name,
-        const void* start,
-        const void* end,
-        const void* stride
-    )
-
-    int tiledb_subarray_add_label_range_var(
-        tiledb_ctx_t* ctx,
-        tiledb_subarray_t* subarray,
-        const char* label_name,
-        const void* start,
-        uint64_t start_size,
-        const void* end,
-        uint64_t end_size
-    )
-
-    int tiledb_subarray_add_label_range_var(
-        tiledb_ctx_t* ctx,
-        tiledb_subarray_t* subarray,
-        const char* label_name,
-        const void* start,
-        uint64_t start_size,
-        const void* end,
-        uint64_t end_size
-    )
-
 # Free helper functions
 cpdef unicode ustring(object s)
 cpdef check_error(object ctx, int rc)
@@ -1246,20 +1177,6 @@ cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DAT
 #   TileDB-Py API declaration                                                 #
 #                                                                             #
 ###############################################################################
-
-cdef class ArraySchema(object):
-    cdef object ctx
-    cdef tiledb_array_schema_t* ptr
-
-    @staticmethod
-    cdef from_ptr(const tiledb_array_schema_t* schema_ptr, object ctx=*)
-    # @staticmethod
-    # cdef from_file(const char* uri, object ctx=*)
-    cdef _cell_order(ArraySchema self, tiledb_layout_t* cell_order_ptr)
-    cdef _tile_order(ArraySchema self, tiledb_layout_t* tile_order_ptr)
-    cdef _attr_name(self, name)
-    cdef _attr_idx(self, int idx)
-    cdef _dim_label(self, name)
 
 cdef class Array(object):
     cdef object __weakref__

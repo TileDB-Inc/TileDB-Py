@@ -32,7 +32,9 @@
 # When run, this program will create a 2D+1 multi-component (eg RGB) dense array, write some
 # data to it, and read the entire array data.
 
-import tiledb, numpy as np
+import numpy as np
+
+import tiledb
 
 img_shape = (100, 224, 224)
 img_uri = "writing_dense_rgb"

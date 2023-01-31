@@ -1,9 +1,8 @@
-from contextlib import contextmanager
-from contextvars import ContextVar
 import io
 import sys
-from typing import TYPE_CHECKING, Optional, Union
-
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Union
 
 import tiledb
 import tiledb.cc as lt
@@ -440,7 +439,8 @@ def check_ipykernel_warn_once():
     global already_warned
     if not already_warned:
         try:
-            import sys, warnings
+            import sys
+            import warnings
 
             if "ipykernel" in sys.modules and tuple(
                 map(int, sys.modules["ipykernel"].__version__.split("."))

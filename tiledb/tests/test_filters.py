@@ -1,10 +1,12 @@
-import numpy as np
-from numpy.testing import assert_array_equal, assert_allclose
-import pytest
 import warnings
 
+import numpy as np
+import pytest
+from numpy.testing import assert_allclose, assert_array_equal
+
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
 
 all_filter_types = [
     tiledb.NoOpFilter,
@@ -98,7 +100,7 @@ class TestFilterTest(DiskTestCase):
         new_filter = None
         try:
             new_filter = eval(filter_repr, tmp_globals)
-        except Exception as exc:
+        except Exception:
             warn_str = (
                 """Exception during FilterTest filter repr eval"""
                 + """, filter repr string was:\n"""

@@ -1,7 +1,8 @@
-import numpy as np
-import pytest
 import unittest
 import xml.etree.ElementTree
+
+import numpy as np
+import pytest
 
 import tiledb
 

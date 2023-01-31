@@ -32,9 +32,10 @@
 # This program explores the various TileDB VFS tools.
 #
 
-import struct
-import tiledb
 import os
+import struct
+
+import tiledb
 
 
 def path(p):

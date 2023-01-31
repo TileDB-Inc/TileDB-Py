@@ -1,11 +1,9 @@
 import io
-from typing import List, overload, Sequence, TYPE_CHECKING, Union
+from typing import List, Optional, Sequence, Union, overload
 
 import tiledb.cc as lt
-from .ctx import CtxMixin
 
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
+from .ctx import Ctx, CtxMixin
 
 
 class Filter(CtxMixin, lt.Filter):
@@ -13,7 +11,7 @@ class Filter(CtxMixin, lt.Filter):
 
     options: Sequence[lt.FilterOption] = ()
 
-    def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
+    def __init__(self, type: lt.FilterOption, ctx: Optional[Ctx] = None):
         super().__init__(ctx, type)
 
     def __repr__(self) -> str:
@@ -78,7 +76,7 @@ class CompressionFilter(Filter):
 
     options = (lt.FilterOption.COMPRESSION_LEVEL,)
 
-    def __init__(self, type: lt.FilterType, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, type: lt.FilterType, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -93,7 +91,7 @@ class CompressionFilter(Filter):
 class NoOpFilter(Filter):
     """A filter that does nothing."""
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.NONE, ctx)
 
     def _attrs_(self):
@@ -121,7 +119,7 @@ class GzipFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -152,7 +150,7 @@ class ZstdFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -183,7 +181,7 @@ class LZ4Filter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -212,7 +210,7 @@ class Bzip2Filter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -241,7 +239,7 @@ class RleFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -270,7 +268,7 @@ class DoubleDeltaFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -299,7 +297,7 @@ class DictionaryFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -325,7 +323,7 @@ class BitShuffleFilter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.BITSHUFFLE, ctx)
 
     def _attrs_(self):
@@ -348,7 +346,7 @@ class ByteShuffleFilter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.BYTESHUFFLE, ctx)
 
     def _attrs_(self):
@@ -377,7 +375,7 @@ class BitWidthReductionFilter(Filter):
 
     options = (lt.FilterOption.BIT_WIDTH_MAX_WINDOW,)
 
-    def __init__(self, window: int = -1, ctx: "Ctx" = None):
+    def __init__(self, window: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(window, int):
             raise ValueError("`window` argument must be a int")
 
@@ -416,7 +414,7 @@ class PositiveDeltaFilter(Filter):
 
     options = (lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,)
 
-    def __init__(self, window: int = -1, ctx: "Ctx" = None):
+    def __init__(self, window: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(window, int):
             raise ValueError("`window` argument must be a int")
 
@@ -450,7 +448,7 @@ class ChecksumMD5Filter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.CHECKSUM_MD5, ctx)
 
     def _attrs_(self):
@@ -473,7 +471,7 @@ class ChecksumSHA256Filter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.CHECKSUM_SHA256, ctx)
 
     def _attrs_(self):
@@ -519,7 +517,7 @@ class FloatScaleFilter(Filter):
         factor: float = None,
         offset: float = None,
         bytewidth: int = None,
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ):
         self._factor = factor
         self._offset = offset
@@ -582,7 +580,7 @@ class XORFilter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.XOR, ctx)
 
     def _attrs_(self):
@@ -659,7 +657,7 @@ class WebpFilter(Filter):
         input_format: lt.WebpInputFormat = None,
         quality: float = None,
         lossless: bool = None,
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ):
         self._input_format = input_format
         self._quality = quality
@@ -754,7 +752,10 @@ class FilterList(CtxMixin, lt.FilterList):
     }
 
     def __init__(
-        self, filters: Sequence[Filter] = None, chunksize: int = None, ctx: "Ctx" = None
+        self,
+        filters: Sequence[Filter] = None,
+        chunksize: int = None,
+        ctx: Optional[Ctx] = None,
     ):
         super().__init__(ctx)
         if filters is not None:
