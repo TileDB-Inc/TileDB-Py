@@ -274,35 +274,39 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     ibuffer = nattr
     if issparse:
         for dim_idx, coords in enumerate(coords_or_subarray):
-            # Append buffer name
-            buffer_names.append(tiledb_array.schema.domain.dim(dim_idx).name)
-            # Get the data buffer and offsets buffer for the coordinates
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
-                data_buffer, offsets_buffer = array_to_buffer(coords, True, False)
-                buffer_offsets_sizes[ibuffer] = offsets_buffer.nbytes
+                buffer, offsets = array_to_buffer(coords, True, False)
+                buffer_sizes[ibuffer] = buffer.nbytes
+                buffer_offsets_sizes[ibuffer] = offsets.nbytes
             else:
-                data_buffer, offsets_buffer = coords, None
-            buffer_sizes[ibuffer] = buffer.nbytes
-            output_values.append(data_buffer)
-            output_offsets.append(offsets_buffer)
-            # Update buffer index
+                buffer, offsets = coords, None
+                buffer_sizes[ibuffer] = buffer.nbytes
+            output_values.append(buffer)
+            output_offsets.append(offsets)
+
+            name = tiledb_array.schema.domain.dim(dim_idx).name
+            buffer_names.append(name)
+
             ibuffer = ibuffer + 1
 
     for label_name, label_values in labels.items():
         # Append buffer name
         buffer_names.append(label_name)
+        # Get label data buffer and offsets buffer for the labels
         dim_label = tiledb_array.schema.dim_label(label_name)
-        # Get the data buffer and offests buffers for the labels
         if dim_label.isvar:
-            data_buffer, offsets_buffer = array_to_buffer(label_values, True, False)
-            buffer_offsets_sizes[ibuffer] = offsets_buffer.nbytes
+            buffer, offsets = array_to_buffer(label_values, True, False)
+            buffer_sizes[ibuffer] = buffer.nbytes
+            buffer_offsets_sizes[ibuffer] = offsets.nbytes
         else:
-            data_buffer, offsets_buffer = label_values, None
-        buffer_sizes[ibuffer] = data_buffer.nbytes
-        output_values.append(data_buffer)
-        output_offsets.append(offsets_buffer)
-        # Update buffer index
+            buffer, offsets = label_values, None
+            buffer_sizes[ibuffer] = buffer.nbytes
+        # Append the buffers
+        output_values.append(buffer)
+        output_offsets.append(offsets)
+
         ibuffer = ibuffer + 1
+
 
     # Allocate the query
     cdef int rc = TILEDB_OK
@@ -774,7 +778,6 @@ cdef unicode _tiledb_layout_string(tiledb_layout_t order):
         raise ValueError("unknown tiledb order: {0!r}".format(order))
 
     return tiledb_order_to_string[order]
-
 
 def index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -2362,7 +2365,7 @@ cdef class DenseArrayImpl(Array):
 
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifiying the selected subarray region for each dimension of the DenseArray.
-        :param value: a dictionary of array attribute and label values, values must able to be converted to n-d numpy arrays.\
+        :param value: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
             if the number of attributes is one, then a n-d numpy array is accepted.
         :type value: dict or :py:class:`numpy.ndarray`
         :raises IndexError: invalid or unsupported index selection
@@ -2424,18 +2427,18 @@ cdef class DenseArrayImpl(Array):
                 )
 
         if isinstance(val, dict):
-            # Create dictionary for label names and values from the dictionary
+            # Create dictionary of label names and values
             labels = {
                 name: data for name, data in val.items()
                 if self.schema.has_dim_label(name)
             }
 
-            # Create a list of attribute names and attribute values from the dictionary
+            # Create list of attribute names and values
             for attr_idx in range(self.schema.nattr):
                 attr = self.schema.attr(attr_idx)
-                attr_name = attr.name
-                v = val[attr_name]
-                attr = self.schema.attr(attr_name)
+                k = attr.name
+                v = val[k]
+                attr = self.schema.attr(k)
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
                 if type(v) is np.ndarray and v.dtype is not np.dtype('O'):
@@ -2484,17 +2487,17 @@ cdef class DenseArrayImpl(Array):
                              "assign multiple attributes)")
 
         if nullmaps:
-            for attr_name, bitmap in nullmaps.items():
-                if not self.schema.has_attr(attr_name):
+            for key,val in nullmaps.items():
+                if not self.schema.has_attr(key):
                     raise TileDBError("Cannot set validity for non-existent attribute.")
-                if not self.schema.attr(attr_name).isnullable:
+                if not self.schema.attr(key).isnullable:
                     raise ValueError("Cannot set validity map for non-nullable attribute.")
-                if not isinstance(bitmap, np.ndarray):
-                    raise TypeError(f"Expected NumPy array for attribute '{attr_name}' "
-                                    f"validity bitmap, got {type(bitmap)}")
-                if bitmap.dtype != np.uint8:
-                    raise TypeError(f"Expected NumPy uint8 array for attribute '{attr_name}' "
-                                    f"validity bitmap, got {bitmap.dtype}")
+                if not isinstance(val, np.ndarray):
+                    raise TypeError(f"Expected NumPy array for attribute '{key}' "
+                                    f"validity bitmap, got {type(val)}")
+                if val.dtype != np.uint8:
+                    raise TypeError(f"Expected NumPy uint8 array for attribute '{key}' "
+                                    f"validity bitmap, got {val.dtype}")
 
         _write_array(ctx_ptr,
                      self.ptr, self,
