@@ -69,7 +69,6 @@ stages:
             #  CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
               imageName: "macOS-11"
-              CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS: "CIBW_ARCHS"
               CIBW_SKIP: "cp27-* cp35-* cp36-* cp37-* cp38-* cp39-* pp*"
