@@ -55,7 +55,8 @@ class QueryConditionTest(DiskTestCase):
                 ),
                 "UTF": np.array(
                     ["$", "£$", "€ह£$", "한ह£", "£$𐍈"]
-                    + [rand_utf8(np.random.randint(1, 100)) for _ in range(5)]
+                    + [rand_utf8(np.random.randint(1, 100)) for _ in range(5)],
+                    dtype="|U0",
                 ),
             }
 
@@ -216,7 +217,7 @@ class QueryConditionTest(DiskTestCase):
             assert result["A"][0] == b"a"
 
             for t in A.query(attrs=["UTF"])[:]["UTF"]:
-                cond = f"UTF == '{t}'"
+                cond = f"""UTF == '{t}'"""
                 result = A.query(cond=cond, attrs=["UTF"])[:]
                 assert result["UTF"] == t
 
@@ -229,7 +230,7 @@ class QueryConditionTest(DiskTestCase):
             assert all(self.filter_dense(result["A"], A.attr("A").fill) == b"ccc")
 
             for t in A.query(attrs=["UTF"])[:]["UTF"]:
-                cond = f"UTF == '{t}'"
+                cond = f"""UTF == '{t}'"""
                 result = A.query(cond=cond, attrs=["UTF"])[:]
                 assert all(self.filter_dense(result["UTF"], A.attr("UTF").fill) == t)
 
@@ -712,7 +713,7 @@ class QueryConditionTest(DiskTestCase):
             assert_array_equal(result["d"], A[:6]["d"])
 
             qc = """
-                U < 5   
+                U < 5
             or
                                                 I >= 5
             """
@@ -720,9 +721,9 @@ class QueryConditionTest(DiskTestCase):
             assert all((result["U"] < 5) | (result["U"] > 5))
 
             qc = """
-                
+
                                                 A == ' a'
-        
+
             """
             result = A.query(cond=qc)[:]
             # ensures that ' a' does not match 'a'

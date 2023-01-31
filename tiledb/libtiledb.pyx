@@ -553,7 +553,7 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
                     stats_json_core["READ"] + stats_json_core["READ_INIT_STATE"]
                 )
             )
-        else:
+        elif tiledb.libtiledb.version() < (2,15):
             loop_num = stats_json_core["counters"][
                 "Context.StorageManager.Query.Reader.loop_num"
             ]
@@ -591,6 +591,8 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
             stats_str += (
                 f"- Total read query time (array open + init state + read): {total_read}\n"
             )
+        else:
+          warnings.warn("TODO update this test for 2.15!")
     else:
         stats_str += "\n"
         stats_str += stats_str_core
