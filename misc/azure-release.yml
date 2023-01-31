@@ -30,6 +30,7 @@ stages:
               CMAKE_OSX_ARCHITECTURES: "arm64"
               MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_GCS: OFF
+              BUILD_MAGIC_MACOS_UNIVERSAL: "ON"
             #windows_libtiledb:
             #  imageName: "windows-latest"
         pool:
