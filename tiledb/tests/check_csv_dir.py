@@ -6,13 +6,15 @@
 # .csv files contained within are correctly round-tripped via
 # `tiledb.from_csv` and `tiledb.open_dataframe`
 
-import tiledb
 import os
 import sys
 import tempfile
+from glob import glob
+
 import pandas as pd
 import pandas._testing as tm
-from glob import glob
+
+import tiledb
 
 
 def check_csv_roundtrip(input_csv):

@@ -35,8 +35,10 @@
 #
 
 
-import numpy as np
 import sys
+
+import numpy as np
+
 import tiledb
 
 # Name of the array to create.
@@ -63,9 +65,9 @@ def write_array():
     # Open the array and write to it.
     with tiledb.SparseArray(array_name, mode="w") as A:
         # To write, the coordinates must be split into two vectors, one per dimension
-        I, J = [1, 1, 2, 1, 2, 2], [1, 2, 2, 4, 3, 4]
+        IJ = [1, 1, 2, 1, 2, 2], [1, 2, 2, 4, 3, 4]
         data = np.array(([1, 2, 3, 4, 5, 6]))
-        A[I, J] = data
+        A[IJ] = data
 
 
 def read_array(order):

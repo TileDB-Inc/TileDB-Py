@@ -8,7 +8,6 @@ from collections.abc import MutableMapping
 
 from cython.operator cimport dereference as deref
 
-
 _NP_DATA_PREFIX = "__np_flat_"
 _NP_SHAPE_PREFIX = "__np_shape_"
 
@@ -426,7 +425,7 @@ cdef class Metadata:
         cdef const char* buri_ptr = <const char*>buri
 
         with nogil:
-            rc = tiledb_array_consolidate_metadata_with_key(
+            rc = tiledb_array_consolidate_with_key(
                     ctx_ptr,
                     buri_ptr,
                     key_type,

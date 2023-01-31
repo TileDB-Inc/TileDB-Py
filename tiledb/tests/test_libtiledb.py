@@ -6,41 +6,64 @@ import os
 import pickle
 import random
 import re
-import urllib
-import subprocess
 import sys
 import tarfile
 import textwrap
 import time
-import unittest
 import warnings
-import xml.etree.ElementTree
 from collections import OrderedDict
-from contextlib import redirect_stdout
 
 import numpy as np
 import psutil
 import pytest
 from numpy.testing import assert_array_equal
 
-
 import tiledb
-from tiledb.tests.common import (
+from tiledb.util import schema_from_dict
+
+from .common import (
+    DiskTestCase,
     assert_captured,
     assert_subarrays_equal,
     assert_unordered_equal,
-    DiskTestCase,
     has_pandas,
     rand_ascii,
     rand_ascii_bytes,
     rand_utf8,
 )
-from tiledb.tests.fixtures import (
-    sparse_cell_order,
-    test_incomplete_return_array,
-    INTEGER_DTYPES,
-)  # pyright: reportUnusedVariable=warning
-from tiledb.util import schema_from_dict
+
+
+@pytest.fixture(scope="module", params=["hilbert", "row-major"])
+def sparse_cell_order(request):
+    yield request.param
+
+
+@pytest.fixture(scope="class")
+def test_incomplete_return_array(tmpdir_factory, request):
+    tmp_path = str(tmpdir_factory.mktemp("array"))
+    ncells = 20
+    nvals = 10
+
+    data = np.array([rand_utf8(nvals - i % 2) for i in range(ncells)], dtype="O")
+
+    dom = tiledb.Domain(tiledb.Dim(domain=(0, len(data) - 1), tile=len(data)))
+    att = tiledb.Attr(dtype=str, var=True)
+
+    allows_duplicates = request.param
+    schema = tiledb.ArraySchema(
+        dom, (att,), sparse=True, allows_duplicates=allows_duplicates
+    )
+
+    coords = np.arange(ncells)
+
+    tiledb.SparseArray.create(tmp_path, schema)
+    with tiledb.SparseArray(tmp_path, mode="w") as T:
+        T[coords] = data
+
+    with tiledb.SparseArray(tmp_path, mode="r") as T:
+        assert_subarrays_equal(data, T[:][""])
+
+    return tmp_path
 
 
 class VersionTest(DiskTestCase):
@@ -118,293 +141,6 @@ class StatsTest(DiskTestCase):
             assert "python" in json_stats
             assert "timers" in json_stats
             assert "counters" in json_stats
-
-
-class ArraySchemaTest(DiskTestCase):
-    def test_schema_basic(self):
-        dom = tiledb.Domain(
-            tiledb.Dim("d1", (1, 4), 2, dtype="u8"),
-            tiledb.Dim("d2", (1, 4), 2, dtype="u8"),
-        )
-
-        attr1 = tiledb.Attr("foo", dtype=float)
-        attr2 = tiledb.Attr("foo", dtype=int)
-
-        # test unique attributes
-        with self.assertRaises(tiledb.TileDBError):
-            tiledb.ArraySchema(domain=dom, attrs=(attr1, attr2))
-
-        # test schema.check
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attr1,))
-        # valid schema does not raise
-        schema.check()
-
-        try:
-            assert xml.etree.ElementTree.fromstring(schema._repr_html_()) is not None
-        except:
-            pytest.fail(
-                f"Could not parse schema._repr_html_(). Saw {schema._repr_html_()}"
-            )
-
-        with self.assertRaises(tiledb.TileDBError):
-            schema._make_invalid()
-            schema.check()
-
-    def test_dense_array_schema(self):
-        domain = tiledb.Domain(
-            tiledb.Dim(domain=(1, 8), tile=2), tiledb.Dim(domain=(1, 8), tile=2)
-        )
-        a1 = tiledb.Attr("val", dtype="f8")
-        schema = tiledb.ArraySchema(domain=domain, attrs=(a1,))
-        assert schema.sparse == False
-        assert schema.cell_order == "row-major"
-        assert schema.tile_order == "row-major"
-        assert schema.domain == domain
-        assert schema.ndim == 2
-        assert schema.shape == (8, 8)
-        assert schema.nattr == 1
-        assert schema.domain.homogeneous == True
-        assert hasattr(schema, "version")  # don't pin to a specific version
-        assert schema.attr(0) == a1
-        assert schema.has_attr("val") == True
-        assert schema.has_attr("nononoattr") == False
-        assert schema == tiledb.ArraySchema(domain=domain, attrs=(a1,))
-        assert schema != tiledb.ArraySchema(domain=domain, attrs=(a1,), sparse=True)
-
-        with self.assertRaises(tiledb.TileDBError):
-            schema.allows_duplicates
-        # test iteration over attributes
-        assert list(schema) == [a1]
-
-        with self.assertRaisesRegex(
-            tiledb.TileDBError,
-            "Cannot set cell order; Hilbert order is only applicable to sparse arrays",
-        ):
-            tiledb.ArraySchema(
-                domain=domain, attrs=(a1,), sparse=False, cell_order="hilbert"
-            )
-
-    def test_dense_array_schema_fp_domain_error(self):
-        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2, dtype=np.float64))
-        att = tiledb.Attr("val", dtype=np.float64)
-
-        with self.assertRaises(tiledb.TileDBError):
-            tiledb.ArraySchema(domain=dom, attrs=(att,))
-
-    def test_sparse_schema(self, capfd):
-        # create dimensions
-        d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
-        d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
-
-        # create domain
-        domain = tiledb.Domain(d1, d2)
-
-        # create attributes
-        a1 = tiledb.Attr("a1", dtype="int32,int32,int32")
-        a2 = tiledb.Attr(
-            "a2", filters=tiledb.FilterList([tiledb.GzipFilter(-1)]), dtype="float32"
-        )
-
-        # create sparse array with schema
-        coords_filters = tiledb.FilterList([tiledb.ZstdFilter(4)])
-        offsets_filters = tiledb.FilterList([tiledb.LZ4Filter(5)])
-        validity_filters = tiledb.FilterList([tiledb.GzipFilter(9)])
-
-        with pytest.warns(
-            DeprecationWarning,
-            match="coords_filters is deprecated; set the FilterList for each dimension",
-        ):
-            schema = tiledb.ArraySchema(
-                domain=domain,
-                attrs=(a1, a2),
-                capacity=10,
-                cell_order="col-major",
-                tile_order="row-major",
-                allows_duplicates=True,
-                sparse=True,
-                coords_filters=coords_filters,
-                offsets_filters=offsets_filters,
-                validity_filters=validity_filters,
-            )
-
-        schema.dump()
-        assert_captured(capfd, "Array type: sparse")
-
-        assert schema.sparse == True
-        assert schema.capacity == 10
-        assert schema.cell_order, "co == major"
-        assert schema.tile_order, "ro == major"
-
-        # <todo>
-        # assert schema.coords_compressor, ('zstd' == 4)
-        # assert schema.offsets_compressor, ('lz4' == 5)
-        assert len(schema.coords_filters) == 0
-        assert len(schema.offsets_filters) == 1
-        assert len(schema.validity_filters) == 1
-
-        assert schema.domain == domain
-        assert schema.ndim == 2
-        assert schema.shape, 1000 == 9900
-        assert schema.nattr == 2
-        assert schema.attr(0) == a1
-        assert schema.attr("a2") == a2
-        assert schema.allows_duplicates == True
-
-        assert schema.domain.dim("d1").filters == coords_filters
-        assert schema.domain.dim("d2").filters == coords_filters
-
-        with pytest.warns(
-            DeprecationWarning,
-            match="coords_filters is deprecated; set the FilterList for each dimension",
-        ):
-            schema2 = tiledb.ArraySchema(
-                domain=domain,
-                attrs=(a1, a2),
-                capacity=10,
-                cell_order="col-major",
-                tile_order="row-major",
-                allows_duplicates=True,
-                sparse=True,
-                coords_filters=coords_filters,
-                offsets_filters=offsets_filters,
-                validity_filters=validity_filters,
-            )
-        assert schema == schema2
-
-        # test iteration over attributes
-        assert list(schema) == [a1, a2]
-
-        with self.assertRaisesRegex(
-            tiledb.TileDBError,
-            "Cannot set tile order; Hilbert order is not applicable to tiles",
-        ):
-            tiledb.ArraySchema(
-                domain=domain, attrs=(a1,), sparse=True, tile_order="hilbert"
-            )
-
-    def test_sparse_schema_filter_list(self, capfd):
-        # create dimensions
-        d1 = tiledb.Dim("d1", domain=(1, 1000), tile=10, dtype="uint64")
-        d2 = tiledb.Dim("d2", domain=(101, 10000), tile=100, dtype="uint64")
-
-        # create domain
-        domain = tiledb.Domain(d1, d2)
-
-        # create attributes
-        a1 = tiledb.Attr("a1", dtype="int32,int32,int32")
-        filter_list = tiledb.FilterList([tiledb.GzipFilter()])
-        a2 = tiledb.Attr("a2", filters=filter_list, dtype="float32")
-
-        off_filters_pylist = [tiledb.ZstdFilter(level=10)]
-        off_filters = tiledb.FilterList(filters=off_filters_pylist, chunksize=2048)
-
-        coords_filters_pylist = [tiledb.Bzip2Filter(level=5)]
-        coords_filters = tiledb.FilterList(
-            filters=coords_filters_pylist, chunksize=4096
-        )
-
-        validity_filters_pylist = [tiledb.GzipFilter(level=9)]
-        validity_filters = tiledb.FilterList(
-            filters=validity_filters_pylist, chunksize=1024
-        )
-
-        # create sparse array with schema
-        with pytest.warns(
-            DeprecationWarning,
-            match="coords_filters is deprecated; set the FilterList for each dimension",
-        ):
-            schema = tiledb.ArraySchema(
-                domain=domain,
-                attrs=(a1, a2),
-                capacity=10,
-                cell_order="col-major",
-                tile_order="row-major",
-                coords_filters=coords_filters,
-                offsets_filters=off_filters,
-                validity_filters=validity_filters,
-                sparse=True,
-            )
-        self.assertTrue(schema.sparse)
-
-        assert len(schema.coords_filters) == 0
-
-        assert len(schema.domain.dim("d1").filters) == 1
-        assert schema.domain.dim("d1").filters[0] == tiledb.Bzip2Filter(level=5)
-        assert schema.domain.dim("d2").filters[0] == tiledb.Bzip2Filter(level=5)
-
-        assert len(schema.offsets_filters) == 1
-        assert schema.offsets_filters[0] == tiledb.ZstdFilter(level=10)
-
-        assert len(schema.validity_filters) == 1
-        assert schema.validity_filters[0] == tiledb.GzipFilter(level=9)
-
-        schema.dump()
-        assert_captured(capfd, "Array type: sparse")
-
-        # make sure we can construct ArraySchema with python lists of filters
-        with pytest.warns(
-            DeprecationWarning,
-            match="coords_filters is deprecated; set the FilterList for each dimension",
-        ):
-            schema2 = tiledb.ArraySchema(
-                domain=domain,
-                attrs=(a1, a2),
-                capacity=10,
-                cell_order="col-major",
-                tile_order="row-major",
-                coords_filters=coords_filters_pylist,
-                offsets_filters=off_filters,
-                validity_filters=validity_filters,
-                sparse=True,
-            )
-        assert len(schema2.coords_filters) == 0
-
-        assert schema.domain.dim("d1").filters == coords_filters_pylist
-        assert schema.domain.dim("d2").filters == coords_filters_pylist
-
-        assert len(schema2.domain.dim("d1").filters) == 1
-        assert schema2.domain.dim("d1").filters[0] == tiledb.Bzip2Filter(level=5)
-        assert schema2.domain.dim("d2").filters[0] == tiledb.Bzip2Filter(level=5)
-
-        assert len(schema2.offsets_filters) == 1
-        assert schema2.offsets_filters[0] == tiledb.ZstdFilter(level=10)
-
-        assert len(schema2.validity_filters) == 1
-        assert schema2.validity_filters[0] == tiledb.GzipFilter(level=9)
-
-    def test_none_filter_list(self):
-        with self.assertRaises(ValueError):
-            tiledb.FilterList([None])
-
-        with self.assertRaises(ValueError):
-            fl = tiledb.FilterList()
-            fl.append(None)
-
-    def test_mixed_string_schema(self):
-        path = self.path("test_mixed_string_schema")
-
-        dims = [
-            tiledb.Dim(name="dpos", domain=(-100.0, 100.0), tile=10, dtype=np.float64),
-            tiledb.Dim(name="str_index", tile=None, dtype=np.bytes_),
-        ]
-        dom = tiledb.Domain(*dims)
-        attrs = [tiledb.Attr(name="val", dtype=np.float64)]
-
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
-
-        self.assertTrue(schema.domain.has_dim("str_index"))
-        self.assertFalse(schema.domain.has_dim("nonono_str_index"))
-        self.assertTrue(schema.has_dim("str_index"))
-        self.assertFalse(schema.has_dim("nonono_str_index"))
-        self.assertTrue(schema.domain.dim("str_index").isvar)
-        self.assertFalse(schema.domain.dim("dpos").isvar)
-        self.assertEqual(schema.domain.dim("dpos").dtype, np.double)
-        self.assertEqual(schema.domain.dim("str_index").dtype, np.bytes_)
-        self.assertFalse(schema.domain.homogeneous)
-
-        tiledb.Array.create(path, schema)
-        with tiledb.open(path, "r") as arr:
-            assert_array_equal(arr[:]["str_index"], np.array([], dtype="|S1"))
 
 
 class ArrayTest(DiskTestCase):
@@ -705,11 +441,11 @@ class ArrayTest(DiskTestCase):
         with tiledb.open(uri) as A:
             assert_array_equal(A[:], data)
 
-        assert tiledb.array_exists(uri) == True
+        assert tiledb.array_exists(uri) is True
 
         tiledb.Array.delete_array(uri)
 
-        assert tiledb.array_exists(uri) == False
+        assert tiledb.array_exists(uri) is False
 
 
 class DenseArrayTest(DiskTestCase):
@@ -869,11 +605,11 @@ class DenseArrayTest(DiskTestCase):
         # TODO: handle queries like T[[2, 5, 10]] = ?
         pass
 
-    @pytest.mark.parametrize("dtype", INTEGER_DTYPES)
+    @pytest.mark.parametrize("dtype", ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"])
     def test_dense_index_dtypes(self, dtype):
         path = self.path()
         data = np.arange(0, 3).astype(dtype)
-        with tiledb.from_numpy(path, data) as A:
+        with tiledb.from_numpy(path, data):
             pass
         with tiledb.open(path) as B:
             assert_array_equal(B[:], data)
@@ -885,7 +621,7 @@ class DenseArrayTest(DiskTestCase):
     def test_dense_index_bool(self):
         path = self.path()
         data = np.random.randint(0, 1, 10, dtype=bool)
-        with tiledb.from_numpy(path, data) as A:
+        with tiledb.from_numpy(path, data):
             pass
         with tiledb.open(path) as B:
             assert_array_equal(B[:], data)
@@ -1246,7 +982,6 @@ class DenseArrayTest(DiskTestCase):
 
         # check setting attribute in different order from Attr definition
         #   https://github.com/TileDB-Inc/TileDB-Py/issues/299
-        V2 = {"floats": V_floats, "ints": V_ints}
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = V
 
@@ -1837,19 +1572,19 @@ class TestSparseArray(DiskTestCase):
 
     @pytest.mark.xfail
     def test_simple_2d_sparse_vector(self):
-        attr = tiledb.Attr(ctx, dtype=float)
+        attr = tiledb.Attr(dtype=float)
         dom = tiledb.Domain(
-            tiledb.Dim(ctx, domain=(0, 3), tile=4, dtype=int),
-            tiledb.Dim(ctx, domain=(0, 3), tile=4, dtype=int),
+            tiledb.Dim(domain=(0, 3), tile=4, dtype=int),
+            tiledb.Dim(domain=(0, 3), tile=4, dtype=int),
         )
-        schema = tiledb.ArraySchema(ctx, domain=dom, attrs=(attr,), sparse=True)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
         tiledb.SparseArray.create(self.path("foo"), schema)
 
         values = np.array([3, 4], dtype=float)
-        with tiledb.SparseArray(ctx, self.path("foo"), mode="w") as T:
+        with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[1, 2], [1, 2]] = values
 
-        with tiledb.SparseArray(ctx, self.path("foo"), mode="r") as T:
+        with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             assert_array_equal(T[[1, 2], [1, 2]], values)
 
     def test_simple3d_sparse_vector(self):
@@ -1917,17 +1652,16 @@ class TestSparseArray(DiskTestCase):
         )
         tiledb.SparseArray.create(self.path("foo"), schema)
 
-        I = np.array([1, 1, 1, 2, 3, 3, 3, 4])
-        J = np.array([1, 2, 4, 3, 1, 6, 7, 5])
+        IJ = (np.array([1, 1, 1, 2, 3, 3, 3, 4]), np.array([1, 2, 4, 3, 1, 6, 7, 5]))
 
         V_ints = np.array([0, 1, 2, 3, 4, 6, 7, 5])
         V_floats = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 5.0])
 
         V = {"ints": V_ints, "floats": V_floats}
         with tiledb.SparseArray(uri, mode="w") as T:
-            T[I, J] = V
+            T[IJ] = V
         with tiledb.SparseArray(uri, mode="r") as T:
-            R = T[I, J]
+            R = T[IJ]
         assert_array_equal(V["ints"], R["ints"])
         assert_array_equal(V["floats"], R["floats"])
 
@@ -1936,12 +1670,12 @@ class TestSparseArray(DiskTestCase):
         with tiledb.SparseArray(uri, mode="w") as T:
             V["foo"] = V["ints"].astype(np.int8)
             with self.assertRaises(tiledb.TileDBError):
-                T[I, J] = V
+                T[IJ] = V
 
             # check error ncells length
             V["ints"] = V["ints"][1:2].copy()
             with self.assertRaises(AttributeError):
-                T[I, J] = V
+                T[IJ] = V
 
     def test_query_real_multi_index(self, sparse_cell_order):
         uri = self.path("query_real_multi_index")
@@ -1976,7 +1710,7 @@ class TestSparseArray(DiskTestCase):
             )
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
-    @pytest.mark.parametrize("dtype", INTEGER_DTYPES)
+    @pytest.mark.parametrize("dtype", ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"])
     def test_sparse_index_dtypes(self, dtype):
         path = self.path()
         data = np.arange(0, 3).astype(dtype)
@@ -2234,7 +1968,7 @@ class TestSparseArray(DiskTestCase):
         with tiledb.SparseArray(self.path("foo"), mode="r") as T:
             self.assertIsNone(T.nonempty_domain())
 
-        A = np_array = np.array(
+        A = np.array(
             [
                 "1234545lkjalsdfj",
                 "mnopqrs",
@@ -3139,7 +2873,7 @@ class TestNumpyToArray(DiskTestCase):
         # Cannot create 0-dim arrays in TileDB
         np_array = np.array(1)
         with self.assertRaises(tiledb.TileDBError):
-            with tiledb.from_numpy(self.path("foo"), np_array) as A:
+            with tiledb.from_numpy(self.path("foo"), np_array):
                 pass
 
     def test_to_array1d(self):
@@ -3222,7 +2956,7 @@ class TestNumpyToArray(DiskTestCase):
         with tiledb.from_numpy(path, np.array([1, 2, 3]), timestamp=10) as A:
             pass
         with tiledb.open(path, timestamp=(0, 9)) as A:
-            assert A.nonempty_domain() == None
+            assert A.nonempty_domain() is None
         with tiledb.open(path, timestamp=(10, 10)) as A:
             assert A.nonempty_domain() == ((0, 2),)
 
@@ -3570,7 +3304,7 @@ class MemoryTest(DiskTestCase):
         with tiledb.DenseArray(path, mode="r") as data:
             data[:]
             initial = process.memory_info().rss
-            print("  initial RSS: {}".format(round(initial / (10**6)), 2))
+            print("  initial RSS: {}".format(round(initial / 1e6, 2)))
             for i in range(100):
                 # read but don't store: this memory should be freed
                 data[:]
@@ -3578,7 +3312,7 @@ class MemoryTest(DiskTestCase):
                 if i % 10 == 0:
                     print(
                         "    read iter {}, RSS (MB): {}".format(
-                            i, round(process.memory_info().rss / (10**6), 2)
+                            i, round(process.memory_info().rss / 1e6, 2)
                         )
                     )
 
@@ -3592,12 +3326,12 @@ class MemoryTest(DiskTestCase):
 
         process = psutil.Process(os.getpid())
         final = process.memory_info().rss
-        print("  final RSS: {}".format(round(final / (10**6)), 2))
+        print("  final RSS: {}".format(round(final / 1e6, 2)))
 
         gc.collect()
 
         final_gc = process.memory_info().rss
-        print("  final RSS after forced GC: {}".format(round(final_gc / (10**6)), 2))
+        print("  final RSS after forced GC: {}".format(round(final_gc / 1e6, 2)))
 
         assert_captured(capfd, "final RSS")
         self.assertTrue(final < (2 * initial))
@@ -3644,45 +3378,34 @@ class TestHighlevel(DiskTestCase):
             else "sm.compute_concurrency_level"
         )
         config = {threads: 128}
-        ll = list()
         uri = self.path("test_ctx_thread_cleanup")
         with tiledb.from_numpy(uri, np.random.rand(100)) as A:
             pass
 
         thisproc = psutil.Process(os.getpid())
 
-        for n in range(0, 10):
-            if n > 0:
-                retry = 0
-                while retry < 3:
-                    try:
-                        # checking exact thread count is unreliable, so
-                        # make sure we are holding < 2x per run.
-                        self.assertTrue(len(thisproc.threads()) < 2 * start_threads)
-                        break
-                    except AssertionError as exc:
-                        raise exc
-                    except RuntimeError as rterr:
-                        retry += 1
-                        if retry > 2:
-                            raise rterr
-                        warnings.warn(
-                            "Thread cleanup test RuntimeError: {} \n    on iteration: {}".format(
-                                str(rterr), n
-                            )
-                        )
+        with tiledb.DenseArray(uri, ctx=tiledb.Ctx(config)) as A:
+            A[:]
+        start_threads = len(thisproc.threads())
+
+        for n in range(1, 10):
+            retry = 0
+            while retry < 3:
+                try:
+                    # checking exact thread count is unreliable, so
+                    # make sure we are holding < 2x per run.
+                    self.assertTrue(len(thisproc.threads()) < 2 * start_threads)
+                    break
+                except RuntimeError as rterr:
+                    retry += 1
+                    if retry > 2:
+                        raise rterr
+                    warnings.warn(
+                        f"Thread cleanup test RuntimeError: {rterr} \n    on iteration: {n}"
+                    )
 
             with tiledb.DenseArray(uri, ctx=tiledb.Ctx(config)) as A:
-                res = A[:]
-
-            if n == 0:
-                start_threads = len(thisproc.threads())
-
-
-def init_test_helper(cfg=None):
-    tiledb.libtiledb.default_ctx(cfg)
-    concurrency_level = tiledb.default_ctx().config()["sm.io_concurrency_level"]
-    print(int(concurrency_level))
+                A[:]
 
 
 class GetStatsTest(DiskTestCase):
@@ -3797,7 +3520,7 @@ class ReprTest(DiskTestCase):
             new_schema = None
             try:
                 new_schema = eval(schema_repr, g)
-            except Exception as exc:
+            except Exception:
                 warn_str = (
                     """Exception during ReprTest schema eval"""
                     + """, schema string was:\n"""
@@ -3817,7 +3540,7 @@ class ReprTest(DiskTestCase):
         )
 
         assert schema.cell_order == "hilbert"
-        assert schema.tile_order == None
+        assert schema.tile_order is None
 
 
 class NullableIOTest(DiskTestCase):
@@ -3950,9 +3673,10 @@ class IncompleteTest(DiskTestCase):
         indexer,
         non_overlapping_ranges,
     ):
-        import pyarrow as pa
-        from tiledb.multirange_indexing import EstimatedResultSize
         import pandas as pd
+        import pyarrow as pa
+
+        from tiledb.multirange_indexing import EstimatedResultSize
 
         path = test_incomplete_return_array
 
@@ -4109,9 +3833,8 @@ class IncompleteTest(DiskTestCase):
 
         with tiledb.open(uri, mode="r", ctx=tiledb.Ctx(cfg)) as T:
             qry = T.query()
-            actual_data = qry[:][""]
+            qry[:][""]
             # assert_array_equal(actual_data, expected_data)
-            # print(tiledb.main.python_internal_stats())
 
         tiledb.stats_disable()
 
@@ -4130,11 +3853,3 @@ class TestTest(DiskTestCase):
     )
     def test_no_output(self):
         print("this test should fail")
-
-
-# if __name__ == '__main__':
-#    # run a single example for in-process debugging
-#    # better to use `pytest --gdb` if available
-#    t = DenseArrayTest()
-#    t.setUp()
-#    t.test_array_1d()

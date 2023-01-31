@@ -1,0 +1,10 @@
+repos:
+  - repo: https://github.com/ambv/black
+    rev: 22.12.0
+    hooks:
+    - id: black
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.226
+    hooks:
+    - id: ruff
+      args: ["--force-exclude"]

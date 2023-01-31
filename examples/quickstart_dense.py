@@ -34,8 +34,9 @@
 # to it, and read a slice of the data back.
 #
 
+
 import numpy as np
-import sys
+
 import tiledb
 
 # Name of the array to create.

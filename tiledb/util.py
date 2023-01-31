@@ -1,14 +1,12 @@
+from collections import deque
+from typing import Any, Iterable, List, Optional, Tuple, Union
+
+import numpy as np
+
 import tiledb
 import tiledb.cc as lt
-from tiledb.dataframe_ import ColumnInfo
 
-from collections import deque
-import numpy as np
-from typing import Any, Iterable, Optional, List, Tuple, TYPE_CHECKING, Union
-
-if TYPE_CHECKING:
-    from .libtiledb import ArraySchema, Ctx
-
+from .dataframe_ import ColumnInfo
 
 _dtype_to_tiledb = {
     "int32": lt.DataType.INT32,
@@ -150,9 +148,7 @@ def array_type_ncells(dtype: np.dtype) -> lt.DataType:
         # TODO: make sure this is not too slow for large record types
         deq = deque(checked_dtype.fields.values())
         typ0, _ = deq.popleft()
-        nfields = 1
-        for (typ, _) in deq:
-            nfields += 1
+        for typ, _ in deq:
             if typ != typ0:
                 raise TypeError("heterogenous record numpy dtypes are not supported")
 
@@ -187,7 +183,7 @@ def dtype_range(dtype: np.dtype) -> Tuple[Any]:
     return (dtype_min, dtype_max)
 
 
-def schema_from_dict(attrs: List[str], dims: List[str]) -> "ArraySchema":
+def schema_from_dict(attrs: List[str], dims: List[str]) -> "tiledb.ArraySchema":
     attr_infos = {k: ColumnInfo.from_values(v) for k, v in attrs.items()}
     dim_infos = {k: ColumnInfo.from_values(v) for k, v in dims.items()}
 
@@ -270,19 +266,19 @@ def numpy_dtype(tiledb_dtype: lt.DataType, cell_size: int = 1) -> np.dtype:
 
     elif cell_val_num == lt.TILEDB_VAR_NUM():
         base_dtype = numpy_dtype(tiledb_dtype, cell_size=1)
+
         return base_dtype
 
     elif cell_val_num > 1:
         # construct anonymous record dtype
         base_dtype = numpy_dtype(tiledb_dtype, cell_size=1)
-        rec = np.dtype([("", base_dtype)] * cell_val_num)
-        return rec
+        return np.dtype([("", base_dtype)] * cell_val_num)
 
     raise TypeError("tiledb datatype not understood")
 
 
 def sparse_array_from_numpy(
-    uri: str, array: np.array, ctx: Optional["Ctx"] = None, **kw
+    uri: str, array: np.array, ctx: Optional["tiledb.Ctx"] = None, **kw
 ):
     """
     Implementation of tiledb.from_numpy for dense arrays. See documentation
@@ -329,9 +325,9 @@ def schema_like(
     *args,
     shape: Optional[tuple] = None,
     dtype: Optional[np.dtype] = None,
-    ctx: Optional["Ctx"] = None,
+    ctx: Optional["tiledb.Ctx"] = None,
     **kw,
-) -> "ArraySchema":
+) -> "tiledb.ArraySchema":
     """
     Return an ArraySchema corresponding to a NumPy-like object or
     `shape` and `dtype` kwargs. Users are encouraged to pass 'tile'
@@ -348,7 +344,7 @@ def schema_like(
     if not ctx:
         ctx = tiledb.default_ctx()
 
-    def is_ndarray_like():
+    def is_ndarray_like(arr):
         return hasattr(arr, "shape") and hasattr(arr, "dtype") and hasattr(arr, "ndim")
 
     # support override of default dimension dtype
@@ -393,7 +389,7 @@ def schema_like(
     return schema
 
 
-def _schema_like_numpy(array: np.array, ctx: Optional["Ctx"] = None, **kw):
+def _schema_like_numpy(array: np.array, ctx: Optional["tiledb.Ctx"] = None, **kw):
     """
     Internal helper function for schema_like to create array schema from
     NumPy array-like object.
@@ -499,3 +495,38 @@ def _regularize_tiling(tile: Union[Iterable, np.isscalar], ndim: int) -> Tuple[A
         raise ValueError("'tile' must be iterable and match array dimensionality")
 
     return tuple(tile)
+
+
+def tiledb_layout_string(order):
+    tiledb_order_to_string = {
+        lt.LayoutType.ROW_MAJOR: "row-major",
+        lt.LayoutType.COL_MAJOR: "col-major",
+        lt.LayoutType.GLOBAL_ORDER: "global",
+        lt.LayoutType.UNORDERED: "unordered",
+        lt.LayoutType.HILBERT: "hilbert",
+    }
+
+    if order not in tiledb_order_to_string:
+        raise ValueError(f"unknown tiledb layout: {order}")
+
+    return tiledb_order_to_string[order]
+
+
+def tiledb_layout(order):
+    string_to_tiledb_order = {
+        "row-major": lt.LayoutType.ROW_MAJOR,
+        "C": lt.LayoutType.ROW_MAJOR,
+        "col-major": lt.LayoutType.COL_MAJOR,
+        "R": lt.LayoutType.COL_MAJOR,
+        "global": lt.LayoutType.GLOBAL_ORDER,
+        "hilbert": lt.LayoutType.HILBERT,
+        "H": lt.LayoutType.HILBERT,
+        "unordered": lt.LayoutType.UNORDERED,
+        "U": lt.LayoutType.UNORDERED,
+        None: lt.LayoutType.UNORDERED,
+    }
+
+    if order not in string_to_tiledb_order:
+        raise ValueError(f"unknown tiledb layout: {order}")
+
+    return string_to_tiledb_order[order]

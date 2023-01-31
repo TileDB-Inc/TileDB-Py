@@ -1,7 +1,8 @@
-import tiledb
-from .util import sparse_array_from_numpy
-
 import numpy as np
+
+import tiledb
+
+from .util import sparse_array_from_numpy
 
 
 def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=None):

@@ -1,17 +1,17 @@
 import io
-from typing import List, overload, Sequence, TYPE_CHECKING, Union
+from typing import List, Optional, Sequence, Union, overload
 
 import tiledb.cc as lt
-from .ctx import CtxMixin
 
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
+from .ctx import Ctx, CtxMixin
 
 
 class Filter(CtxMixin, lt.Filter):
     """Base class for all TileDB filters."""
 
-    def __init__(self, type: lt.FilterOption, ctx: "Ctx" = None):
+    options: Sequence[lt.FilterOption] = ()
+
+    def __init__(self, type: lt.FilterOption, ctx: Optional[Ctx] = None):
         super().__init__(ctx, type)
 
     def __repr__(self) -> str:
@@ -74,7 +74,9 @@ class CompressionFilter(Filter):
 
     """
 
-    def __init__(self, type: lt.FilterType, level: int = -1, ctx: "Ctx" = None):
+    options = (lt.FilterOption.COMPRESSION_LEVEL,)
+
+    def __init__(self, type: lt.FilterType, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -89,7 +91,7 @@ class CompressionFilter(Filter):
 class NoOpFilter(Filter):
     """A filter that does nothing."""
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.NONE, ctx)
 
     def _attrs_(self):
@@ -117,7 +119,7 @@ class GzipFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -148,7 +150,7 @@ class ZstdFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -179,7 +181,7 @@ class LZ4Filter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -208,7 +210,7 @@ class Bzip2Filter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -237,7 +239,7 @@ class RleFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -266,7 +268,7 @@ class DoubleDeltaFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -295,7 +297,7 @@ class DictionaryFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: "Ctx" = None):
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
@@ -321,7 +323,7 @@ class BitShuffleFilter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.BITSHUFFLE, ctx)
 
     def _attrs_(self):
@@ -344,7 +346,7 @@ class ByteShuffleFilter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.BYTESHUFFLE, ctx)
 
     def _attrs_(self):
@@ -371,7 +373,9 @@ class BitWidthReductionFilter(Filter):
 
     """
 
-    def __init__(self, window: int = -1, ctx: "Ctx" = None):
+    options = (lt.FilterOption.BIT_WIDTH_MAX_WINDOW,)
+
+    def __init__(self, window: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(window, int):
             raise ValueError("`window` argument must be a int")
 
@@ -408,7 +412,9 @@ class PositiveDeltaFilter(Filter):
 
     """
 
-    def __init__(self, window: int = -1, ctx: "Ctx" = None):
+    options = (lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW,)
+
+    def __init__(self, window: int = -1, ctx: Optional[Ctx] = None):
         if not isinstance(window, int):
             raise ValueError("`window` argument must be a int")
 
@@ -442,7 +448,7 @@ class ChecksumMD5Filter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.CHECKSUM_MD5, ctx)
 
     def _attrs_(self):
@@ -465,7 +471,7 @@ class ChecksumSHA256Filter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.CHECKSUM_SHA256, ctx)
 
     def _attrs_(self):
@@ -500,12 +506,18 @@ class FloatScaleFilter(Filter):
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
     """
 
+    options = (
+        lt.FilterOption.SCALE_FLOAT_FACTOR,
+        lt.FilterOption.SCALE_FLOAT_OFFSET,
+        lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
+    )
+
     def __init__(
         self,
         factor: float = None,
         offset: float = None,
         bytewidth: int = None,
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ):
         self._factor = factor
         self._offset = offset
@@ -568,7 +580,7 @@ class XORFilter(Filter):
 
     """
 
-    def __init__(self, ctx: "Ctx" = None):
+    def __init__(self, ctx: Optional[Ctx] = None):
         super().__init__(lt.FilterType.XOR, ctx)
 
     def _attrs_(self):
@@ -634,12 +646,18 @@ class WebpFilter(Filter):
 
     """
 
+    options = (
+        lt.FilterOption.WEBP_INPUT_FORMAT,
+        lt.FilterOption.WEBP_QUALITY,
+        lt.FilterOption.WEBP_LOSSLESS,
+    )
+
     def __init__(
         self,
         input_format: lt.WebpInputFormat = None,
         quality: float = None,
         lossless: bool = None,
-        ctx: "Ctx" = None,
+        ctx: Optional[Ctx] = None,
     ):
         self._input_format = input_format
         self._quality = quality
@@ -734,7 +752,10 @@ class FilterList(CtxMixin, lt.FilterList):
     }
 
     def __init__(
-        self, filters: Sequence[Filter] = None, chunksize: int = None, ctx: "Ctx" = None
+        self,
+        filters: Sequence[Filter] = None,
+        chunksize: int = None,
+        ctx: Optional[Ctx] = None,
     ):
         super().__init__(ctx)
         if filters is not None:
@@ -791,7 +812,7 @@ class FilterList(CtxMixin, lt.FilterList):
         filters = []
         (start, stop, step) = idx.indices(len(self))
         for i in range(start, stop, step):
-            filters.append(self._getfilter(i))
+            filters.append(self._filter(i))
 
         if len(filters) == 1:
             return filters[0]
@@ -827,7 +848,7 @@ class FilterList(CtxMixin, lt.FilterList):
         self._add_filter(filter)
 
     def __repr__(self) -> str:
-        filters = ",\n       ".join(repr(self._getfilter(i)) for i in range(len(self)))
+        filters = ",\n       ".join(repr(self._filter(i)) for i in range(len(self)))
         return "FilterList([{0!s}])".format(filters)
 
     def _repr_html_(self) -> str:
@@ -855,24 +876,8 @@ class FilterList(CtxMixin, lt.FilterList):
 
         return output.getvalue()
 
-    def _getfilter(self, i: int) -> Filter:
-        fil = self._filter(i)
+    def _filter(self, i: int) -> Filter:
+        fil = super()._filter(i)
         filtype = self.filter_type_cc_to_python[fil._type]
-
-        if issubclass(filtype, CompressionFilter):
-            options = [lt.FilterOption.COMPRESSION_LEVEL]
-        elif filtype == BitWidthReductionFilter:
-            options = [lt.FilterOption.BIT_WIDTH_MAX_WINDOW]
-        elif filtype == PositiveDeltaFilter:
-            options = [lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW]
-        elif filtype == FloatScaleFilter:
-            options = [
-                lt.FilterOption.SCALE_FLOAT_FACTOR,
-                lt.FilterOption.SCALE_FLOAT_OFFSET,
-                lt.FilterOption.SCALE_FLOAT_BYTEWIDTH,
-            ]
-        else:
-            options = []
-
         ctx = self._ctx
-        return filtype(*(fil._get_option(ctx, opt) for opt in options), ctx=ctx)
+        return filtype(*(fil._get_option(ctx, opt) for opt in filtype.options), ctx=ctx)

@@ -1,18 +1,14 @@
 import ast
 from dataclasses import dataclass, field
-import numpy as np
-from typing import Any, Callable, List, Tuple, Type, TYPE_CHECKING, Union
+from typing import Any, Callable, List, Tuple, Type, Union
 
-# import tiledb
+import numpy as np
 
 import tiledb.main as qc
-from tiledb.main import PyQueryCondition
 
-from .ctx import default_ctx
-from tiledb.cc import TileDBError
-
-if TYPE_CHECKING:
-    from .libtiledb import ArraySchema, Ctx
+from .cc import TileDBError
+from .ctx import Ctx, default_ctx
+from .libtiledb import ArraySchema
 
 """
 A high level wrapper around the Pybind11 query_condition.cc implementation for
@@ -115,9 +111,9 @@ class QueryCondition:
     """
 
     expression: str
-    ctx: "Ctx" = field(default_factory=default_ctx, repr=False)
+    ctx: Ctx = field(default_factory=default_ctx, repr=False)
     tree: ast.Expression = field(init=False, repr=False)
-    c_obj: PyQueryCondition = field(init=False, repr=False)
+    c_obj: qc.PyQueryCondition = field(init=False, repr=False)
 
     def __post_init__(self):
         try:
@@ -134,11 +130,11 @@ class QueryCondition:
                 "(Is this an empty expression?)"
             )
 
-    def init_query_condition(self, schema: "ArraySchema", query_attrs: List[str]):
+    def init_query_condition(self, schema: ArraySchema, query_attrs: List[str]):
         qctree = QueryConditionTree(self.ctx, schema, query_attrs)
         self.c_obj = qctree.visit(self.tree.body)
 
-        if not isinstance(self.c_obj, PyQueryCondition):
+        if not isinstance(self.c_obj, qc.PyQueryCondition):
             raise TileDBError(
                 "Malformed query condition statement. A query condition must "
                 "be made up of one or more Boolean expressions."
@@ -147,8 +143,8 @@ class QueryCondition:
 
 @dataclass
 class QueryConditionTree(ast.NodeVisitor):
-    ctx: "Ctx"
-    schema: "ArraySchema"
+    ctx: Ctx
+    schema: ArraySchema
     query_attrs: List[str]
 
     def visit_BitOr(self, node):
@@ -187,7 +183,7 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_List(self, node):
         return list(node.elts)
 
-    def visit_Compare(self, node: Type[ast.Compare]) -> PyQueryCondition:
+    def visit_Compare(self, node: Type[ast.Compare]) -> qc.PyQueryCondition:
         operator = self.visit(node.ops[0])
 
         if operator in (
@@ -216,7 +212,7 @@ class QueryConditionTree(ast.NodeVisitor):
             rhs = node.comparators[0]
             if not isinstance(rhs, ast.List):
                 raise TileDBError(
-                    f"`in` operator syntax must be written as `variable in ['l', 'i', 's', 't']`"
+                    "`in` operator syntax must be written as `variable in ['l', 'i', 's', 't']`"
                 )
 
             consts = self.visit(rhs)
@@ -235,7 +231,7 @@ class QueryConditionTree(ast.NodeVisitor):
         lhs: QueryConditionNodeElem,
         op_node: qc.tiledb_query_condition_op_t,
         rhs: QueryConditionNodeElem,
-    ) -> PyQueryCondition:
+    ) -> qc.PyQueryCondition:
         variable, value, op = self.order_nodes(lhs, rhs, op_node)
 
         variable = self.get_variable_from_node(variable)
@@ -245,7 +241,7 @@ class QueryConditionTree(ast.NodeVisitor):
         dtype = "string" if dt.kind in "SUa" else dt.name
         value = self.cast_value_to_dtype(value, dtype)
 
-        pyqc = PyQueryCondition(self.ctx)
+        pyqc = qc.PyQueryCondition(self.ctx)
         self.init_pyqc(pyqc, dtype)(variable, value, op)
 
         return pyqc
@@ -383,7 +379,7 @@ class QueryConditionTree(ast.NodeVisitor):
 
         return value
 
-    def init_pyqc(self, pyqc: PyQueryCondition, dtype: str) -> Callable:
+    def init_pyqc(self, pyqc: qc.PyQueryCondition, dtype: str) -> Callable:
         if dtype != "string":
             if np.issubdtype(dtype, np.datetime64):
                 dtype = "int64"
@@ -397,7 +393,7 @@ class QueryConditionTree(ast.NodeVisitor):
 
         return getattr(pyqc, init_fn_name)
 
-    def visit_BinOp(self, node: ast.BinOp) -> PyQueryCondition:
+    def visit_BinOp(self, node: ast.BinOp) -> qc.PyQueryCondition:
         try:
             op = self.visit(node.op)
         except KeyError:
@@ -412,7 +408,7 @@ class QueryConditionTree(ast.NodeVisitor):
 
         return result
 
-    def visit_BoolOp(self, node: ast.BoolOp) -> PyQueryCondition:
+    def visit_BoolOp(self, node: ast.BoolOp) -> qc.PyQueryCondition:
         try:
             op = self.visit(node.op)
         except KeyError:
@@ -429,7 +425,7 @@ class QueryConditionTree(ast.NodeVisitor):
             raise TileDBError(f"Unrecognized expression {node.func}.")
 
         if node.func.id not in ("attr", "dim", "val"):
-            raise TileDBError(f"Valid casts are attr(), dim(), or val()).")
+            raise TileDBError("Valid casts are attr(), dim(), or val()).")
 
         if len(node.args) != 1:
             raise TileDBError(

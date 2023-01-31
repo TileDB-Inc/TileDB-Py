@@ -1,22 +1,34 @@
 import os
-import pytest
-import xml
 import subprocess
 import sys
+import xml
+
+import pytest
 
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
+
 
 # Wrapper to execute specific code in subprocess so that we can ensure the thread count
 # init is correct. Necessary because multiprocess.get_context is only available in Python 3.4+,
 # and the multiprocessing method may be set to fork by other tests (e.g. dask).
 def init_test_wrapper(cfg=None):
     python_exe = sys.executable
-    cmd = "from test_libtiledb import *; init_test_helper({})".format(cfg)
+    cmd = (
+        f"from tiledb.tests.test_context_and_config import init_test_helper; "
+        f"init_test_helper({cfg})"
+    )
     test_path = os.path.dirname(os.path.abspath(__file__))
 
     sp_output = subprocess.check_output([python_exe, "-c", cmd], cwd=test_path)
     return int(sp_output.decode("UTF-8").strip())
+
+
+def init_test_helper(cfg=None):
+    tiledb.default_ctx(cfg)
+    concurrency_level = tiledb.default_ctx().config()["sm.io_concurrency_level"]
+    print(int(concurrency_level))
 
 
 class ContextTest(DiskTestCase):

@@ -1,4 +1,3 @@
-import tiledb
 import contextlib
 import datetime
 import glob
@@ -10,13 +9,14 @@ import subprocess
 import sys
 import tempfile
 import traceback
-import tiledb
-import uuid
 import urllib
+import uuid
 
 import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
+
+import tiledb
 
 SUPPORTED_DATETIME64_DTYPES = tuple(
     np.dtype(f"M8[{res}]") for res in "Y M W D h m s ms us ns".split()
@@ -40,9 +40,6 @@ def assert_tail_equal(a, *rest, **kwargs):
 def create_vfs_dir(path):
     """Create a directory at the given scheme-prefixed path,
     first creating the base bucket if needed."""
-
-    import urllib
-
     split_uri = urllib.parse.urlsplit(path)
     scheme = split_uri.scheme
     bucket = split_uri.netloc
@@ -151,7 +148,7 @@ class DiskTestCase:
 
     @contextlib.contextmanager
     def assertFalse(self, a):
-        assert a == False
+        assert a is False
 
     @contextlib.contextmanager
     def assertIsInstance(self, v, t):
@@ -173,20 +170,6 @@ class DiskTestCase:
     @contextlib.contextmanager
     def assertAlmostEqual(self, a1, a2):
         assert_almost_equal(a1, a2)
-
-
-# fixture wrapper to use with pytest: mark.parametrize does not
-#   work with DiskTestCase subclasses (unittest.TestCase methods
-#   cannot take arguments)
-@pytest.fixture(scope="class")
-def checked_path():
-    dtc = DiskTestCase()
-
-    dtc.setup_method()
-
-    yield dtc
-
-    dtc.teardown_method()
 
 
 # exclude whitespace: if we generate unquoted newline then pandas will be confused
@@ -231,7 +214,7 @@ def dtype_max(dtype):
     elif np.issubdtype(dtype, np.datetime64):
         return np.datetime64(datetime.datetime.max)
 
-    raise "Unknown dtype for dtype_max '{}'".format(str(dtype))
+    raise f"Unknown dtype for dtype_max '{dtype}'"
 
 
 def dtype_min(dtype):
@@ -249,13 +232,7 @@ def dtype_min(dtype):
     elif np.issubdtype(dtype, np.datetime64):
         return np.datetime64(datetime.datetime.min)
 
-    raise "Unknown dtype for dtype_min '{dtype}'".format(str(dtype))
-
-
-def rand_int_sequential(size, dtype=np.uint64):
-    dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dtype)
-    arr = np.random.randint(dtype_min, high=dtype_max, size=size, dtype=dtype)
-    return np.sort(arr)
+    raise f"Unknown dtype for dtype_min '{dtype}'"
 
 
 def rand_datetime64_array(
@@ -322,16 +299,6 @@ def intspace(start, stop, num=50, dtype=np.int64):
     return rval
 
 
-import pprint as _pprint
-
-pp = _pprint.PrettyPrinter(indent=4)
-
-
-def xprint(*x):
-    for xp in x:
-        pp.pprint(xp)
-
-
 def assert_unordered_equal(a1, a2, unordered=True):
     """Assert that arrays are equal after sorting if
     `unordered==True`"""
@@ -352,14 +319,6 @@ def assert_subarrays_equal(a, b, ordered=True):
         assert_array_equal(a_el, b_el)
 
 
-def assert_all_arrays_equal(*arrays):
-    # TODO this should display raise in the calling location if possible
-    assert len(arrays) % 2 == 0, "Expected even number of arrays"
-
-    for a1, a2 in zip(arrays[0::2], arrays[1::2]):
-        assert_array_equal(a1, a2)
-
-
 def assert_dict_arrays_equal(d1, d2):
     assert d1.keys() == d2.keys(), "Keys not equal"
 
@@ -368,9 +327,7 @@ def assert_dict_arrays_equal(d1, d2):
 
 
 def assert_captured(cap, expected):
-    if sys.platform == "win32":
-        return
-    else:
+    if sys.platform != "win32":
         import ctypes
 
         libc = ctypes.CDLL(None)
@@ -379,17 +336,3 @@ def assert_captured(cap, expected):
         out, err = cap.readouterr()
         assert not err
         assert expected in out
-
-
-def paths_equal(path1, path2):
-    p1 = urllib.parse.urlparse(path1)
-    p2 = urllib.parse.urlparse(path2)
-
-    if p1.scheme == p2.scheme:
-        pass
-    elif "file" in (p1.scheme, p2.scheme):
-        scheme_eq = p1.scheme == "file" or p1.scheme == ""
-        scheme_eq |= p2.scheme == "file" or p2.scheme == ""
-        return p1.path == p2.path and scheme_eq
-    else:
-        return p1.schema == p2.schema and p1.path == p2.path and p1.netloc == p2.netloc

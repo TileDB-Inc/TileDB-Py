@@ -34,8 +34,10 @@
 # and read the entire array data back.
 #
 
-import numpy as np
 import sys
+
+import numpy as np
+
 import tiledb
 
 array_name = "fragments_consolidation"
