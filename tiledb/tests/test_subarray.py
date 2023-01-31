@@ -1,6 +1,4 @@
-import io
 import numpy as np
-import pytest
 
 import tiledb
 from tiledb import TileDBError
@@ -31,7 +29,7 @@ class SubarrayTest(DiskTestCase):
 
     def test_add_ranges_basic(self):
         uri = self.path("test_pyquery_basic")
-        with tiledb.from_numpy(uri, np.random.rand(4)) as A:
+        with tiledb.from_numpy(uri, np.random.rand(4)):
             pass
 
         with tiledb.open(uri) as array:

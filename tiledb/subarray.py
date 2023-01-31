@@ -1,21 +1,17 @@
+from numbers import Real
 from typing import (
     TYPE_CHECKING,
-    Iterator,
-    Optional,
     Sequence,
     Tuple,
-    List,
-    Any,
-    Union,
-    cast,
 )
+
 import numpy as np
-from numbers import Real
 
 import tiledb.cc as lt
-from .libtiledb import Array
-from .ctx import CtxMixin
+
 from ._array import ArrayImpl
+from .ctx import CtxMixin
+from .libtiledb import Array
 
 if TYPE_CHECKING:
     from libtiledb import Ctx

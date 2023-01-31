@@ -1,10 +1,7 @@
-import io
 import numpy as np
-import pytest
 
 import tiledb
 from tiledb._array import ArrayImpl
-
 from tiledb.tests.common import DiskTestCase
 
 

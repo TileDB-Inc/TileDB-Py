@@ -4,7 +4,6 @@ import tiledb.cc as lt
 
 from .ctx import CtxMixin
 
-
 if TYPE_CHECKING:
     from libtiledb import Ctx
 
