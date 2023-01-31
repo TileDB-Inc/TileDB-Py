@@ -1,19 +1,18 @@
+from typing import TYPE_CHECKING, Any, Sequence, Union
+
 import numpy as np
-from typing import Any, Sequence, Tuple, TYPE_CHECKING, Union
 
 import tiledb.cc as lt
+
 from .ctx import default_ctx
+from .filter import Filter, FilterList
 from .util import (
-    dtype_range,
     dtype_to_tiledb,
     numpy_dtype,
     str_to_tiledb_data_order,
     tiledb_cast_tile_extent,
     tiledb_data_order_to_str,
-    tiledb_type_is_datetime,
 )
-
-from .filter import FilterList, Filter
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx

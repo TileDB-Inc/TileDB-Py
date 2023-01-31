@@ -9,9 +9,8 @@ import tiledb.cc as lt
 
 from .attribute import Attr
 from .ctx import Ctx, default_ctx
-from .domain import Domain
 from .dimension_label import DimLabel
-from .dimension_label_schema import DimLabelSchema
+from .domain import Domain
 from .filter import Filter, FilterList
 from .util import tiledb_layout, tiledb_layout_string
 

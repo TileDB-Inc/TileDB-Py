@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 
 import tiledb
 from tiledb.tests.common import DiskTestCase

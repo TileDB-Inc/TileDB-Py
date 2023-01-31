@@ -38,7 +38,6 @@ except:
 
 from .array import DenseArray, SparseArray
 from .attribute import Attr
-
 from .cc import TileDBError
 from .ctx import default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe

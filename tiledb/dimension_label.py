@@ -1,10 +1,12 @@
 import io
+from typing import TYPE_CHECKING
+
 import numpy as np
-from typing import Any, Tuple, TYPE_CHECKING
 
 import tiledb.cc as lt
+
 from .ctx import CtxMixin
-from .util import dtype_to_tiledb, numpy_dtype
+from .util import numpy_dtype
 
 if TYPE_CHECKING:
     from .libtiledb import Ctx
@@ -19,7 +21,7 @@ class DimLabel(CtxMixin, lt.DimensionLabel):
         self,
         ctx: "Ctx" = None,
         _lt_obj: lt.DimensionLabel = None,
-        _capsule: "PyCapsule" = None,
+        _capsule=None,
     ):
         if _capsule is not None:
             return super().__init__(ctx, _capsule)
