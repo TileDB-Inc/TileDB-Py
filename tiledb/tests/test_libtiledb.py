@@ -19,7 +19,8 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.util import schema_from_dict
+from tiledb.dataframe_ import ColumnInfo
+from tiledb.util import dtype_range
 
 from .common import (
     DiskTestCase,
@@ -31,6 +32,35 @@ from .common import (
     rand_ascii_bytes,
     rand_utf8,
 )
+
+
+def schema_from_dict(attrs, dims):
+    attr_infos = {k: ColumnInfo.from_values(v) for k, v in attrs.items()}
+    dim_infos = {k: ColumnInfo.from_values(v) for k, v in dims.items()}
+
+    dims = list()
+    for name, dim_info in dim_infos.items():
+        dim_dtype = np.bytes_ if dim_info.dtype == np.dtype("U") else dim_info.dtype
+        dtype_min, dtype_max = dtype_range(dim_info.dtype)
+
+        if np.issubdtype(dim_dtype, np.integer):
+            dtype_max = dtype_max - 1
+        if np.issubdtype(dim_dtype, np.integer) and dtype_min < 0:
+            dtype_min = dtype_min + 1
+
+        dims.append(
+            tiledb.Dim(
+                name=name, domain=(dtype_min, dtype_max), dtype=dim_dtype, tile=1
+            )
+        )
+
+    attrs = list()
+    for name, attr_info in attr_infos.items():
+        dtype_min, dtype_max = dtype_range(attr_info.dtype)
+
+        attrs.append(tiledb.Attr(name=name, dtype=dim_dtype))
+
+    return tiledb.ArraySchema(domain=tiledb.Domain(*dims), attrs=attrs, sparse=True)
 
 
 @pytest.fixture(scope="module", params=["hilbert", "row-major"])
@@ -80,67 +110,6 @@ class VersionTest(DiskTestCase):
         v = tiledb.version()
         self.assertIsInstance(v, tuple)
         self.assertTrue(3 <= len(v) <= 5)
-
-
-class StatsTest(DiskTestCase):
-    def test_stats(self, capfd):
-        tiledb.libtiledb.stats_enable()
-        tiledb.libtiledb.stats_reset()
-        tiledb.libtiledb.stats_disable()
-
-        tiledb.libtiledb.stats_enable()
-
-        path = self.path("test_stats")
-
-        with tiledb.from_numpy(path, np.arange(10)) as T:
-            pass
-
-        # basic output check for read stats
-        tiledb.libtiledb.stats_reset()
-        with tiledb.open(path) as T:
-            tiledb.libtiledb.stats_enable()
-            assert_array_equal(T, np.arange(10))
-
-            # test stdout version
-            tiledb.stats_dump()
-            assert_captured(capfd, "TileDB Embedded Version:")
-
-            # test string version
-            stats_v = tiledb.stats_dump(print_out=False)
-            if tiledb.libtiledb.version() < (2, 3):
-                self.assertTrue("==== READ ====" in stats_v)
-            else:
-                self.assertTrue('"timers": {' in stats_v)
-            self.assertTrue("==== Python Stats ====" in stats_v)
-
-            stats_quiet = tiledb.stats_dump(print_out=False, verbose=False)
-            if tiledb.libtiledb.version() < (2, 3):
-                self.assertTrue("Time to load array schema" not in stats_quiet)
-
-                # TODO seems to be a regression, no JSON
-                stats_json = tiledb.stats_dump(json=True)
-                self.assertTrue(isinstance(stats_json, dict))
-                self.assertTrue("CONSOLIDATE_COPY_ARRAY" in stats_json)
-            else:
-                self.assertTrue("==== READ ====" in stats_quiet)
-
-    def test_stats_include_python_json(self):
-        tiledb.libtiledb.stats_enable()
-
-        path = self.path("test_stats")
-
-        with tiledb.from_numpy(path, np.arange(10)) as T:
-            pass
-
-        tiledb.libtiledb.stats_reset()
-        with tiledb.open(path) as T:
-            tiledb.libtiledb.stats_enable()
-            assert_array_equal(T, np.arange(10))
-            json_stats = tiledb.stats_dump(print_out=False, json=True)
-            assert isinstance(json_stats, dict)
-            assert "python" in json_stats
-            assert "timers" in json_stats
-            assert "counters" in json_stats
 
 
 class ArrayTest(DiskTestCase):

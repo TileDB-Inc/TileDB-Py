@@ -12,7 +12,6 @@ from .ctx import Ctx, default_ctx
 from .dimension_label import DimLabel
 from .domain import Domain
 from .filter import Filter, FilterList
-from .util import tiledb_layout, tiledb_layout_string
 
 
 class ArraySchema(lt.ArraySchema):
@@ -79,8 +78,13 @@ class ArraySchema(lt.ArraySchema):
                     )
                 self._add_attr(att)
 
-        self._cell_order = tiledb_layout(cell_order)
-        self._tile_order = tiledb_layout(tile_order)
+        self._cell_order = _string_to_tiledb_order.get(cell_order)
+        if self._cell_order is None:
+            raise ValueError(f"unknown tiledb layout: {cell_order}")
+
+        self._tile_order = _string_to_tiledb_order.get(tile_order)
+        if self._tile_order is None:
+            raise ValueError(f"unknown tiledb layout: {tile_order}")
 
         if capacity > 0:
             self._capacity = capacity
@@ -235,7 +239,7 @@ class ArraySchema(lt.ArraySchema):
 
         :rtype: str
         """
-        return tiledb_layout_string(self._cell_order)
+        return _tiledb_order_to_string[self._cell_order]
 
     @property
     def tile_order(self) -> str:
@@ -245,11 +249,8 @@ class ArraySchema(lt.ArraySchema):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        layout_string = tiledb_layout_string(self._cell_order)
-        if self.cell_order == "hilbert":
-            layout_string = None
-
-        return layout_string
+        layout_string = _tiledb_order_to_string[self._tile_order]
+        return layout_string if self.cell_order != "hilbert" else None
 
     @property
     def offsets_filters(self) -> FilterList:
@@ -478,3 +479,23 @@ class ArraySchema(lt.ArraySchema):
         output.write("</table>")
 
         return output.getvalue()
+
+
+_tiledb_order_to_string = {
+    lt.LayoutType.ROW_MAJOR: "row-major",
+    lt.LayoutType.COL_MAJOR: "col-major",
+    lt.LayoutType.GLOBAL_ORDER: "global",
+    lt.LayoutType.UNORDERED: "unordered",
+    lt.LayoutType.HILBERT: "hilbert",
+}
+
+_string_to_tiledb_order = {v: k for k, v in _tiledb_order_to_string.items()}
+_string_to_tiledb_order.update(
+    {
+        "C": lt.LayoutType.ROW_MAJOR,
+        "R": lt.LayoutType.COL_MAJOR,
+        "H": lt.LayoutType.HILBERT,
+        "U": lt.LayoutType.UNORDERED,
+        None: lt.LayoutType.UNORDERED,
+    }
+)

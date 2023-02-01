@@ -36,14 +36,15 @@ except:
         # Otherwise try loading by name only.
         ctypes.CDLL(lib_name)
 
-from .array import DenseArray, SparseArray
+from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
-from .ctx import default_ctx, scope_ctx
+from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .dimension import Dim
 from .dimension_label import DimLabel
 from .dimension_label_schema import DimLabelSchema
+from .domain import Domain
 from .filestore import Filestore
 from .filter import (
     BitShuffleFilter,
@@ -75,13 +76,17 @@ from .fragment import (
     delete_fragments,
 )
 from .group import Group
-from .highlevel import array_exists, array_fragments, empty_like, from_numpy, open, save
+from .highlevel import (
+    array_exists,
+    array_fragments,
+    empty_like,
+    from_numpy,
+    open,
+    save,
+    schema_like,
+)
 from .libtiledb import (
     Array,
-    ArraySchema,
-    Config,
-    Ctx,
-    Domain,
     consolidate,
     ls,
     move,
@@ -94,12 +99,13 @@ from .libtiledb import (
     vacuum,
     walk,
 )
+from .libtiledb import DenseArrayImpl as DenseArray
+from .libtiledb import SparseArrayImpl as SparseArray
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
-from .util import schema_like
 from .version_helper import version
 from .vfs import VFS, FileIO
 
@@ -116,3 +122,18 @@ group_create = Group.create
 #
 # Note: 'pip -e' in particular will not work without this declaration:
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
+
+# If tiledb.cloud is installed, add CloudArray methods to TileDB arrays
+try:
+    from tiledb.cloud.cloudarray import CloudArray
+except ImportError:
+    pass
+else:
+
+    class DenseArray(DenseArray, CloudArray):
+        pass
+
+    class SparseArray(SparseArray, CloudArray):
+        pass
+
+    del CloudArray

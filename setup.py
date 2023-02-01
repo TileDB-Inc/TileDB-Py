@@ -646,7 +646,7 @@ with open("README.md") as f:
     README_MD = f.read()
 
 # Source files for build
-MODULAR_SOURCES = ["tiledb/np2buf.pyx", "tiledb/indexing.pyx", "tiledb/libmetadata.pyx"]
+MODULAR_SOURCES = ["tiledb/indexing.pyx", "tiledb/libmetadata.pyx"]
 MODULAR_HEADERS = ["tiledb/libtiledb.pxd", "tiledb/indexing.pxd"]
 
 TILEDB_MAIN_SOURCES = [

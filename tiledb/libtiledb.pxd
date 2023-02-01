@@ -1170,8 +1170,6 @@ cpdef check_error(object ctx, int rc)
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr)
 cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc)
 
-cdef tiledb_datatype_t _tiledb_dtype_datetime(np.dtype dtype) except? TILEDB_DATETIME_YEAR
-
 ###############################################################################
 #                                                                             #
 #   TileDB-Py API declaration                                                 #
