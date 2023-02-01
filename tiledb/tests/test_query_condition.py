@@ -216,10 +216,11 @@ class QueryConditionTest(DiskTestCase):
             assert len(result["A"]) == 1
             assert result["A"][0] == b"a"
 
-            for t in A.query(attrs=["UTF"])[:]["UTF"]:
-                cond = f"""UTF == '{t}'"""
-                result = A.query(cond=cond, attrs=["UTF"])[:]
-                assert result["UTF"] == t
+            if tiledb.libtiledb.version() > (2, 14):
+                for t in A.query(attrs=["UTF"])[:]["UTF"]:
+                    cond = f"""UTF == '{t}'"""
+                    result = A.query(cond=cond, attrs=["UTF"])[:]
+                    assert result["UTF"] == t
 
     def test_string_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
@@ -229,10 +230,13 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="A == 'ccc'", attrs=["A"])[:]
             assert all(self.filter_dense(result["A"], A.attr("A").fill) == b"ccc")
 
-            for t in A.query(attrs=["UTF"])[:]["UTF"]:
-                cond = f"""UTF == '{t}'"""
-                result = A.query(cond=cond, attrs=["UTF"])[:]
-                assert all(self.filter_dense(result["UTF"], A.attr("UTF").fill) == t)
+            if tiledb.libtiledb.version() > (2, 14):
+                for t in A.query(attrs=["UTF"])[:]["UTF"]:
+                    cond = f"""UTF == '{t}'"""
+                    result = A.query(cond=cond, attrs=["UTF"])[:]
+                    assert all(
+                        self.filter_dense(result["UTF"], A.attr("UTF").fill) == t
+                    )
 
     def test_combined_types_sparse(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
