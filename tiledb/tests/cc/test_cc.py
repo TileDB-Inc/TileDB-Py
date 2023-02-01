@@ -6,6 +6,7 @@ import pytest
 
 import tiledb
 import tiledb.cc as lt
+from tiledb.util import dtype_to_tiledb
 
 INTEGER_DTYPES = ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"]
 STRING_DTYPES = ["U", "S"]
@@ -70,19 +71,17 @@ def test_dimension(dtype_str):
         pytest.skip("dtype('U') not supported for dimension")
 
     ctx = lt.Context()
-
     dtype = np.dtype(dtype_str)
 
     # TODO move this to pybind11
-    tiledb_datatype = lt.DataType(tiledb.libtiledb.dtype_to_tiledb(dtype))
+    if dtype_str == "S":
+        tiledb_datatype = lt.DataType.STRING_ASCII
+    else:
+        tiledb_datatype = lt.DataType(dtype_to_tiledb(dtype))
 
     range, extent = make_range(dtype)
 
-    if dtype_str == "S":
-        tiledb_datatype = lt.DataType.STRING_ASCII
-
     lt.Dimension(ctx, "foo", tiledb_datatype, range, extent)
-    # print(dim)
 
 
 def test_enums():

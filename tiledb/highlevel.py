@@ -2,7 +2,7 @@ import numpy as np
 
 import tiledb
 
-from .util import sparse_array_from_numpy
+from .util import dtype_range
 
 
 def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=None):
@@ -60,9 +60,9 @@ def empty_like(uri, arr, config=None, key=None, tile=None, ctx=None, dtype=None)
     if isinstance(arr, tuple):
         if dtype is None:
             raise ValueError("dtype must be valid data type (e.g. np.int32), not None")
-        schema = tiledb.schema_like(shape=arr, tile=tile, ctx=ctx, dtype=dtype)
+        schema = schema_like(shape=arr, tile=tile, ctx=ctx, dtype=dtype)
     else:
-        schema = tiledb.schema_like(arr, tile=tile, ctx=ctx)
+        schema = schema_like(arr, tile=tile, ctx=ctx)
     tiledb.DenseArray.create(uri, schema, key=key, ctx=ctx)
     return tiledb.DenseArray(uri, mode="w", key=key, ctx=ctx)
 
@@ -101,7 +101,39 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
     if not isinstance(array, np.ndarray):
         raise Exception("from_numpy is only currently supported for numpy.ndarray")
 
-    return sparse_array_from_numpy(uri, array, ctx=_get_ctx(ctx, config), **kwargs)
+    ctx = _get_ctx(ctx, config)
+    mode = kwargs.pop("mode", "ingest")
+    timestamp = kwargs.pop("timestamp", None)
+
+    if mode not in ("ingest", "schema_only", "append"):
+        raise tiledb.TileDBError(f"Invalid mode specified ('{mode}')")
+
+    if mode in ("ingest", "schema_only"):
+        try:
+            with tiledb.Array.load_typed(uri):
+                raise tiledb.TileDBError(f"Array URI '{uri}' already exists!")
+        except tiledb.TileDBError:
+            pass
+
+    if mode == "append":
+        kwargs["append_dim"] = kwargs.get("append_dim", 0)
+        if tiledb.ArraySchema.load(uri).sparse:
+            raise tiledb.TileDBError("Cannot append to sparse array")
+
+    if mode in ("ingest", "schema_only"):
+        schema = _schema_like_numpy(array, ctx=ctx, **kwargs)
+        tiledb.Array.create(uri, schema)
+
+    if mode in ("ingest", "append"):
+        kwargs["mode"] = mode
+        with tiledb.open(uri, mode="w", ctx=ctx, timestamp=timestamp) as arr:
+            # <TODO> probably need better typecheck here
+            if array.dtype == object:
+                arr[:] = array
+            else:
+                arr.write_direct(np.ascontiguousarray(array), **kwargs)
+
+    return tiledb.DenseArray(uri, mode="r", ctx=ctx)
 
 
 def array_exists(uri, isdense=False, issparse=False):
@@ -144,6 +176,176 @@ def array_fragments(uri, include_mbrs=False, ctx=None):
     :return: FragmentInfoList
     """
     return tiledb.FragmentInfoList(uri, include_mbrs, ctx)
+
+
+def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):
+    """
+    Return an ArraySchema corresponding to a NumPy-like object or
+    `shape` and `dtype` kwargs. Users are encouraged to pass 'tile'
+    and 'capacity' keyword arguments as appropriate for a given
+    application.
+
+    :param A: NumPy array-like object, or TileDB reference URI, optional
+    :param tuple shape: array shape, optional
+    :param dtype: array dtype, optional
+    :param Ctx ctx: TileDB Ctx
+    :param kwargs: additional keyword arguments to pass through, optional
+    :return: tiledb.ArraySchema
+    """
+    if not ctx:
+        ctx = tiledb.default_ctx()
+
+    def is_ndarray_like(arr):
+        return hasattr(arr, "shape") and hasattr(arr, "dtype") and hasattr(arr, "ndim")
+
+    # support override of default dimension dtype
+    dim_dtype = kwargs.pop("dim_dtype", np.uint64)
+    if len(args) == 1:
+        arr = args[0]
+        if is_ndarray_like(arr):
+            tiling = _regularize_tiling(kwargs.pop("tile", None), arr.ndim)
+            schema = _schema_like_numpy(arr, tile=tiling, dim_dtype=dim_dtype, ctx=ctx)
+        else:
+            raise ValueError("expected ndarray-like object")
+    elif shape and dtype:
+        if np.issubdtype(np.bytes_, dtype):
+            dtype = np.dtype("S")
+        elif np.issubdtype(dtype, np.unicode_):
+            dtype = np.dtype("U")
+
+        ndim = len(shape)
+        tiling = _regularize_tiling(kwargs.pop("tile", None), ndim)
+
+        dims = []
+        for d in range(ndim):
+            # support smaller tile extents by kwargs
+            # domain is based on full shape
+            tile_extent = tiling[d] if tiling else shape[d]
+            domain = (0, shape[d] - 1)
+            dims.append(
+                tiledb.Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx)
+            )
+
+        att = tiledb.Attr(dtype=dtype, ctx=ctx)
+        dom = tiledb.Domain(*dims, ctx=ctx)
+        schema = tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kwargs)
+    elif kwargs is not None:
+        raise ValueError
+    else:
+        raise ValueError(
+            "Must provide either ndarray-like object or 'shape' "
+            "and 'dtype' keyword arguments"
+        )
+
+    return schema
+
+
+def _schema_like_numpy(array, ctx=None, **kwargs):
+    """
+    Internal helper function for schema_like to create array schema from
+    NumPy array-like object.
+    """
+    if not ctx:
+        ctx = tiledb.default_ctx()
+    # create an ArraySchema from the numpy array object
+    tiling = _regularize_tiling(kwargs.pop("tile", None), array.ndim)
+
+    attr_name = kwargs.pop("attr_name", "")
+    dim_dtype = kwargs.pop("dim_dtype", np.dtype("uint64"))
+    full_domain = kwargs.pop("full_domain", False)
+    dims = []
+
+    for d in range(array.ndim):
+        # support smaller tile extents by kwargs
+        # domain is based on full shape
+        tile_extent = tiling[d] if tiling else array.shape[d]
+        if full_domain:
+            if dim_dtype not in (np.bytes_, np.str_):
+                # Use the full type domain, deferring to the constructor
+                dtype_min, dtype_max = dtype_range(dim_dtype)
+                dim_max = dtype_max
+                if dim_dtype.kind == "M":
+                    date_unit = np.datetime_data(dim_dtype)[0]
+                    dim_min = np.datetime64(dtype_min, date_unit)
+                    tile_max = np.iinfo(np.uint64).max - tile_extent
+                    if np.uint64(dtype_max - dtype_min) > tile_max:
+                        dim_max = np.datetime64(dtype_max - tile_extent, date_unit)
+                else:
+                    dim_min = dtype_min
+
+                if np.issubdtype(dim_dtype, np.integer):
+                    tile_max = np.iinfo(np.uint64).max - tile_extent
+                    if np.uint64(dtype_max - dtype_min) > tile_max:
+                        dim_max = dtype_max - tile_extent
+                domain = (dim_min, dim_max)
+            else:
+                domain = (None, None)
+
+            if np.issubdtype(dim_dtype, np.integer) or dim_dtype.kind == "M":
+                # we can't make a tile larger than the dimension range or lower than 1
+                tile_extent = max(1, min(tile_extent, np.uint64(dim_max - dim_min)))
+            elif np.issubdim_dtype(dim_dtype, np.floating):
+                # this difference can be inf
+                with np.errstate(over="ignore"):
+                    dim_range = dim_max - dim_min
+                if dim_range < tile_extent:
+                    tile_extent = np.ceil(dim_range)
+        else:
+            domain = (0, array.shape[d] - 1)
+
+        dims.append(
+            tiledb.Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx)
+        )
+
+    var = False
+    if array.dtype == object:
+        # for object arrays, we use the dtype of the first element
+        # consistency check should be done later, if needed
+        el0 = array.flat[0]
+        if type(el0) is bytes:
+            el_dtype = np.dtype("S")
+            var = True
+        elif type(el0) is str:
+            el_dtype = np.dtype("U")
+            var = True
+        elif type(el0) == np.ndarray:
+            if len(el0.shape) != 1:
+                raise TypeError(
+                    "Unsupported sub-array type for Attribute: {} "
+                    "(only string arrays and 1D homogeneous NumPy arrays are supported)".format(
+                        type(el0)
+                    )
+                )
+            el_dtype = el0.dtype
+        else:
+            raise TypeError(
+                "Unsupported sub-array type for Attribute: {} "
+                "(only strings and homogeneous-typed NumPy arrays are supported)".format(
+                    type(el0)
+                )
+            )
+    else:
+        el_dtype = array.dtype
+
+    att = tiledb.Attr(dtype=el_dtype, name=attr_name, var=var, ctx=ctx)
+    dom = tiledb.Domain(*dims, ctx=ctx)
+    return tiledb.ArraySchema(ctx=ctx, domain=dom, attrs=(att,), **kwargs)
+
+
+def _regularize_tiling(tile, ndim):
+    """
+    Internal helper function for schema_like and _schema_like_numpy to regularize tiling.
+    """
+    if not tile:
+        return None
+
+    if np.isscalar(tile):
+        return tuple(int(tile) for _ in range(ndim))
+
+    if isinstance(tile, str) or len(tile) != ndim:
+        raise ValueError("'tile' must be iterable and match array dimensionality")
+
+    return tuple(tile)
 
 
 def _get_ctx(ctx=None, config=None):

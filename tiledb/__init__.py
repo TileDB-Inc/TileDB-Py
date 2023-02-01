@@ -37,11 +37,13 @@ except:
         ctypes.CDLL(lib_name)
 
 from .array import DenseArray, SparseArray
+from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
-from .ctx import default_ctx, scope_ctx
+from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .dimension import Dim
+from .domain import Domain
 from .filestore import Filestore
 from .filter import (
     BitShuffleFilter,
@@ -73,13 +75,17 @@ from .fragment import (
     delete_fragments,
 )
 from .group import Group
-from .highlevel import array_exists, array_fragments, empty_like, from_numpy, open, save
+from .highlevel import (
+    array_exists,
+    array_fragments,
+    empty_like,
+    from_numpy,
+    open,
+    save,
+    schema_like,
+)
 from .libtiledb import (
     Array,
-    ArraySchema,
-    Config,
-    Ctx,
-    Domain,
     consolidate,
     ls,
     move,
@@ -98,7 +104,6 @@ from .parquet_ import from_parquet
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
 from .subarray import Subarray
-from .util import schema_like
 from .version_helper import version
 from .vfs import VFS, FileIO
 
