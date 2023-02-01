@@ -31,7 +31,11 @@ class ExamplesTest:
         # - with exit status checking (should fail tests if example fails)
         requires_pd = [
             os.path.join(self.PROJECT_DIR, "examples", f"{fn}.py")
-            for fn in ["incomplete_iteration", "parallel_csv_ingestion"]
+            for fn in [
+                "incomplete_iteration",
+                "parallel_csv_ingestion",
+                "query_condition_datetime",
+            ]
         ]
         if not has_pandas() and path in requires_pd:
             pytest.mark.skip("pandas not installed")
