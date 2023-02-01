@@ -559,8 +559,10 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
             ]
             stats_str += f"- Read time: {read_tiles}\n"
 
+            reads_key = "Context.StorageManager.array_open_READ.sum" if tiledb.libtiledb.version() > (2,15) else "Context.StorageManager.array_open_for_reads.sum"
+
             total_read = (
-                stats_json_core["timers"]["Context.StorageManager.array_open_for_reads.sum"]
+                stats_json_core["timers"][reads_key]
                 + stats_json_core["timers"][
                     "Context.StorageManager.Query.Reader.init_state.sum"
                 ]
@@ -571,8 +573,6 @@ def stats_dump(version=True, print_out=True, include_python=True, json=False, ve
             stats_str += (
                 f"- Total read query time (array open + init state + read): {total_read}\n"
             )
-        else:
-          warnings.warn("TODO update this test for 2.15!")
     else:
         stats_str += "\n"
         stats_str += stats_str_core
