@@ -112,7 +112,6 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
     case TILEDB_DATETIME_PS:
     case TILEDB_DATETIME_FS:
     case TILEDB_DATETIME_AS: {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     case TILEDB_TIME_HR:
     case TILEDB_TIME_MIN:
     case TILEDB_TIME_SEC:
@@ -122,7 +121,6 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
     case TILEDB_TIME_PS:
     case TILEDB_TIME_FS:
     case TILEDB_TIME_AS:
-#endif
       py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
       auto dt0 = py::isinstance<py::int_>(r0) ? r0 : r0.attr("astype")(dtype);
       auto dt1 = py::isinstance<py::int_>(r1) ? r1 : r1.attr("astype")(dtype);
@@ -279,7 +277,6 @@ void add_label_range(const Context &ctx, Subarray &subarray,
     case TILEDB_DATETIME_PS:
     case TILEDB_DATETIME_FS:
     case TILEDB_DATETIME_AS: {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     case TILEDB_TIME_HR:
     case TILEDB_TIME_MIN:
     case TILEDB_TIME_SEC:
@@ -289,7 +286,6 @@ void add_label_range(const Context &ctx, Subarray &subarray,
     case TILEDB_TIME_PS:
     case TILEDB_TIME_FS:
     case TILEDB_TIME_AS:
-#endif
       py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
       auto dt0 = py::isinstance<py::int_>(r0) ? r0 : r0.attr("astype")(dtype);
       auto dt1 = py::isinstance<py::int_>(r1) ? r1 : r1.attr("astype")(dtype);
@@ -391,6 +387,22 @@ void init_subarray(py::module &m) {
 
       .def("_range_num",
            py::overload_cast<unsigned>(&Subarray::range_num, py::const_))
+
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+      .def("_label_range_num",
+           [](Subarray &subarray, const Context &ctx,
+              const std::string &label_name) {
+             return SubarrayExperimental::label_range_num(ctx, subarray,
+                                                          label_name);
+           })
+#else
+      .def("_label_range_num",
+           [](Subarray &, const Context &,
+              const std::string &) {
+           throw TileDBPyError("Setting dimension label ranges requires libtiledb version 2.15.0 or greater.");
+
+           })
+#endif
 
       // End definitions.
       ;
