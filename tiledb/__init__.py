@@ -36,7 +36,6 @@ except:
         # Otherwise try loading by name only.
         ctypes.CDLL(lib_name)
 
-from .array import DenseArray, SparseArray
 from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
@@ -98,6 +97,8 @@ from .libtiledb import (
     vacuum,
     walk,
 )
+from .libtiledb import DenseArrayImpl as DenseArray
+from .libtiledb import SparseArrayImpl as SparseArray
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet
@@ -119,3 +120,18 @@ group_create = Group.create
 #
 # Note: 'pip -e' in particular will not work without this declaration:
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
+
+# If tiledb.cloud is installed, add CloudArray methods to TileDB arrays
+try:
+    from tiledb.cloud.cloudarray import CloudArray
+except ImportError:
+    pass
+else:
+
+    class DenseArray(DenseArray, CloudArray):
+        pass
+
+    class SparseArray(SparseArray, CloudArray):
+        pass
+
+    del CloudArray
