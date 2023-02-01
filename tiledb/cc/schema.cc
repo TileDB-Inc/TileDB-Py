@@ -70,12 +70,20 @@ void init_schema(py::module &m) {
       .def("_attr",
            py::overload_cast<unsigned int>(&ArraySchema::attribute, py::const_))
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_dim_label",
            [](const ArraySchema &schema, const Context &context,
               const std::string &name) {
              return ArraySchemaExperimental::dimension_label(context, schema,
                                                              name);
            })
+#else
+      .def("_dim_label",
+           [](const ArraySchema &, const Context &,
+              const std::string &) {
+            throw TileDBError("Getting dimension labels require libtiledb version 2.15.0 or greater");
+           })
+#endif
 
       .def_property_readonly("_nattr", &ArraySchema::attribute_num)
 
@@ -84,6 +92,7 @@ void init_schema(py::module &m) {
 
       .def("_add_attr", &ArraySchema::add_attribute)
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_add_dim_label",
            [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
               const std::string &name, tiledb_data_order_t label_order,
@@ -91,7 +100,16 @@ void init_schema(py::module &m) {
              ArraySchemaExperimental::add_dimension_label(
                  ctx, schema, dim_idx, name, label_order, label_type);
            })
+#else
+      .def("_add_dim_label",
+           [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
+              const std::string &name, tiledb_data_order_t label_order,
+              tiledb_datatype_t label_type) {
+            throw TileDBError("Adding dimension labels require libtiledb version 2.15.0 or greater");
+           })
+#endif
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_add_dim_label",
            [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
               const std::string &name, tiledb_data_order_t label_order,
@@ -101,15 +119,31 @@ void init_schema(py::module &m) {
                  ctx, schema, dim_idx, name, label_order, label_type,
                  label_filters);
            })
+#else
+      .def("_add_dim_label",
+           [](ArraySchema &, const Context &, uint32_t ,
+              const std::string &, tiledb_data_order_t ,
+              tiledb_datatype_t ,
+              std::optional<FilterList> label_filters = std::nullopt) {
+            throw TileDBError("Adding dimension labels require libtiledb version 2.15.0 or greater");
+           })
+#endif
 
       .def("_check", &ArraySchema::check)
 
       .def("_has_attribute", &ArraySchema::has_attribute)
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_has_dim_label", [](const ArraySchema &schema, const Context &ctx,
                                 const std::string &name) {
         return ArraySchemaExperimental::has_dimension_label(ctx, schema, name);
       });
+#else
+      .def("_has_dim_label", [](const ArraySchema &, const Context &,
+                                const std::string &) {
+        return false; 
+      });
+#endif
 }
 
 } // namespace libtiledbcpp

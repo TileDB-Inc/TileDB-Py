@@ -384,6 +384,9 @@ class ArraySchema(lt.ArraySchema):
     def has_dim_label(self, name: str) -> bool:
         """Returns true if the given name is a DimensionLabel of the ArraySchema
 
+        Note: If using an version of libtiledb that does not support dimension labels
+        this will return false.
+
         :param name: dimension label name
         :rtype: boolean
         """

@@ -6,6 +6,10 @@ from tiledb.tests.common import DiskTestCase
 
 
 class DimensionLabelTestCase(DiskTestCase):
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        reason="dimension labels requires libtiledb version 2.15 or greater",
+    )
     def test_add_to_array_schema(self):
         dim = tiledb.Dim("dim", domain=(1, 10))
         dom = tiledb.Domain(dim)
@@ -30,6 +34,10 @@ class DimensionLabelTestCase(DiskTestCase):
         assert not dim_label.isascii
         assert dim_label.uri == "__labels/l0"
 
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        reason="dimension labels requires libtiledb version 2.15 or greater",
+    )
     def test_add_to_array_schema_out_of_bounds(self):
         dim = tiledb.Dim("label", domain=(1, 10))
         dom = tiledb.Domain(dim)
@@ -47,6 +55,10 @@ class DimensionLabelTestCase(DiskTestCase):
         with pytest.raises(tiledb.TileDBError):
             tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
 
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        reason="dimension labels requires libtiledb version 2.15 or greater",
+    )
     def test_dimension_label_round_trip_dense_array(self):
         # Create array schema with dimension labels
         dim = tiledb.Dim("index", domain=(1, 10))
@@ -81,6 +93,10 @@ class DimensionLabelTestCase(DiskTestCase):
             output_label_data = L1[:]["label"]
             np.testing.assert_array_equal(output_label_data, label_data)
 
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        reason="dimension labels requires libtiledb version 2.15 or greater",
+    )
     def test_dimension_label_round_trip_sparse_array(self):
         # Create array schema with dimension labels
         dim = tiledb.Dim("index", domain=(1, 10))

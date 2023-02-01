@@ -2427,6 +2427,7 @@ cdef class DenseArrayImpl(Array):
                 )
 
         if isinstance(val, dict):
+
             # Create dictionary of label names and values
             labels = {
                 name: data for name, data in val.items()
