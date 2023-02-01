@@ -1,7 +1,7 @@
 import numpy as np
 
 import tiledb
-from tiledb._array import ArrayImpl
+from tiledb._array import ArrayWrapper
 from tiledb.tests.common import DiskTestCase
 
 
@@ -16,5 +16,5 @@ class ArrayTest(DiskTestCase):
         tiledb.Array.create(uri, schema)
 
         with tiledb.open(uri, "w") as array:
-            cpp_array = ArrayImpl(array)
+            cpp_array = ArrayWrapper(array)
             assert cpp_array is not None

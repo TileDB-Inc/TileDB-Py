@@ -1,21 +1,13 @@
 from numbers import Real
-from typing import (
-    TYPE_CHECKING,
-    Sequence,
-    Tuple,
-)
+from typing import Sequence, Tuple, Union
 
 import numpy as np
 
 import tiledb.cc as lt
 
-from ._array import ArrayImpl
-from .ctx import CtxMixin
+from ._array import ArrayWrapper
+from .ctx import Ctx, CtxMixin
 from .libtiledb import Array
-
-if TYPE_CHECKING:
-    from libtiledb import Ctx
-
 
 Scalar = Real
 Range = Tuple[Scalar, Scalar]
@@ -29,7 +21,7 @@ class Subarray(CtxMixin, lt.Subarray):
     def __init__(
         self,
         array: Array,
-        ctx: "Ctx" = None,
+        ctx: Ctx = None,
     ):
         """Class representing a subarray of a TileDB Array.
 
@@ -37,16 +29,25 @@ class Subarray(CtxMixin, lt.Subarray):
         :param ctx: A TileDB Context
         """
         self._array = array
-        self._cpp_array = ArrayImpl(array)
-        super().__init__(ctx, self._cpp_array)
+        super().__init__(ctx, ArrayWrapper(array))
 
-    def nrange(self, key) -> np.uint64:
-        """Returns the number of ranges on a dimension.
+    def add_dim_range(self, dim_idx: int, dim_range: Range):
+        """Add a range to a dimension of the subarray.
 
-        :param key: dimension index (int) or name (str)
-        :rtype: np.uint64
+        :param dim_idx: dimension index (int) of the dimension to add the range to
+        :param range: tuple containing the inclusive range to query on
+        :raises: :py:exc:`tiledb.TileDBError`
         """
-        return self._range_num(key)
+        self._add_dim_range(dim_idx, dim_range)
+
+    def add_label_range(self, label: str, label_range: Range):
+        """Add a dimension label to a dimension of the subarray.
+
+        :param label: name (str) of the label to add a range to
+        :param range: tuple containing the inclusive range to query on
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        self._add_label_range(self._ctx, label, label_range)
 
     def add_ranges(self, ranges: Sequence[Sequence[Range]]):
         """Add ranges to the subarray.
@@ -61,20 +62,18 @@ class Subarray(CtxMixin, lt.Subarray):
         else:
             self._add_ranges(self._ctx, ranges)
 
-    def add_dim_range(self, dim_idx: int, range: Range):
-        """Add a range to a dimension of the subarray.
+    def num_dim_ranges(self, key: Union[int, str]) -> np.uint64:
+        """Returns the number of ranges on a dimension.
 
-        :param dim_idx: dimension index (int) of the dimension to add the range to
-        :param range: tuple containing the inclusive range to query on
-        :raises: :py:exc:`tiledb.TileDBError`
+        :param key: dimension index (int) or name (str)
+        :rtype: np.uint64
         """
-        self._add_dim_range(dim_idx, range)
+        return self._range_num(key)
 
-    def add_label_range(self, label: str, range: Range):
-        """Add a dimension label to a dimension of the subarray.
+    def num_label_ranges(self, label: str) -> np.uint64:
+        """Returns the number of ranges on a dimension label.
 
-        :param label: name (str) of the label to add a range to
-        :param range: tuple containing the inclusive range to query on
-        :raises: :py:exc:`tiledb.TileDBError`
+        :param key: dimensio label name
+        :rtype: np.uint64
         """
-        self._add_label_range(self, self._ctx, label, range)
+        return self._range_label_num(label)

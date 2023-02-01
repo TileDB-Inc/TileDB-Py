@@ -20,12 +20,18 @@ class SubarrayTest(DiskTestCase):
 
         with tiledb.open(uri, "r") as array:
             subarray1 = tiledb.Subarray(array)
-            assert subarray1.nrange(0) == 1
-            assert subarray1.nrange(1) == 1
 
+            # Check number of ranges: each dimension should have the default range.
+            assert subarray1.num_dim_ranges(0) == 1
+            assert subarray1.num_dim_ranges(1) == 1
+
+            # Add range to first dim and check still only 1 range (replace default).
             subarray1.add_dim_range(0, (1, 2))
+            assert subarray1.num_dim_ranges(0) == 1
+
+            # Add additional range to first dim and check 2 ranges.
             subarray1.add_dim_range(0, (4, 4))
-            assert subarray1.nrange(0) == 2
+            assert subarray1.num_dim_ranges(0) == 2
 
     def test_add_ranges_basic(self):
         uri = self.path("test_pyquery_basic")
