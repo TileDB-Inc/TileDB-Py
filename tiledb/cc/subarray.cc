@@ -318,6 +318,8 @@ void add_label_range(const Context &ctx, Subarray &subarray,
 
 void init_subarray(py::module &m) {
   py::class_<tiledb::Subarray>(m, "Subarray")
+      .def(py::init<Subarray>())
+
       .def(py::init<const Context &, const Array &>(),
            py::keep_alive<1, 2>() /* Keep context alive. */,
            py::keep_alive<1, 3>() /* Keep array alive. */)

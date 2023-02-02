@@ -23,33 +23,47 @@ void init_query(py::module &m) {
       //              py::object, py::object>())
 
       .def(py::init<Context &, Array &, tiledb_query_type_t>(),
-           py::keep_alive<1, 2>())
+           py::keep_alive<1, 2>() /* Keep context alive. */,
+           py::keep_alive<1, 3>() /* Keep array alive. */)
 
       .def(py::init<Context &, Array &>(),
-           py::keep_alive<1, 2>()) // TODO keepalive for the Array as well?
+           py::keep_alive<1, 2>() /* Keep context alive. */,
+           py::keep_alive<1, 3>() /* Keep array alive. */)
 
       // TODO .def("ptr", [&]() -> py::capsule)
 
-      .def_property_readonly("query_type", &Query::query_type)
-
       .def_property("layout", &Query::query_layout, &Query::set_layout)
 
-      .def("set_condition", &Query::set_condition)
+      .def_property_readonly("query_type", &Query::query_type)
+
+      .def_property_readonly("_subarray",
+                             [](Query &query) {
+                               // TODO: Before merge make sure the lifetime of
+                               // the resulting subarray is not tied to this
+                               // query.
+                               Subarray subarray(query.ctx(), query.array());
+                               query.update_subarray_from_query(&subarray);
+                               return subarray;
+                             })
 
       // TODO .def("array") -> Array&
 
-      .def("query_status", &Query::query_status)
-
       .def("has_results", &Query::has_results)
 
-      .def("submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
+      .def("is_complete",
+           [](const Query &query) {
+             return query.query_status() == Query::Status::COMPLETE;
+           })
 
       .def("finalize", &Query::finalize)
 
-      .def("set_subarray",
-           [](Query &query, const Subarray &subarray) {
-             return query.set_subarray(subarray);
-           })
+      .def("fragment_num", &Query::fragment_num)
+
+      .def("fragment_uri", &Query::fragment_uri)
+
+      .def("query_status", &Query::query_status)
+
+      .def("set_condition", &Query::set_condition)
 
       //.def("set_data_buffer",
       //     (Query& (Query::*)(const std::string&, void*,
@@ -69,6 +83,11 @@ void init_query(py::module &m) {
              q.set_offsets_buffer(name, (uint64_t *)(a.data()), a.size());
            })
 
+      .def("set_subarray",
+           [](Query &query, const Subarray &subarray) {
+             return query.set_subarray(subarray);
+           })
+
       .def("set_validity_buffer",
            [](Query &q, std::string name, py::array a) {
              // TODO check_type(a.dtype)
@@ -76,9 +95,7 @@ void init_query(py::module &m) {
              q.set_validity_buffer(name, (uint8_t *)(a.data()), a.size());
            })
 
-      .def("fragment_num", &Query::fragment_num)
-
-      .def("fragment_uri", &Query::fragment_uri)
+      .def("submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
 
       /** hackery from another branch... */
       //.def("set_fragment_uri", &Query::set_fragment_uri)
