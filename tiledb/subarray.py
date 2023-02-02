@@ -74,7 +74,9 @@ class Subarray(CtxMixin, lt.Subarray):
     def num_label_ranges(self, label: str) -> np.uint64:
         """Returns the number of ranges on a dimension label.
 
-        :param key: dimensio label name
+        :param key: dimension label name
         :rtype: np.uint64
         """
-        return self._range_label_num(label)
+        if not isinstance(label, str):
+            raise TypeError(f"invalid type {type(label)} for label")
+        return self._label_range_num(self._ctx, label)
