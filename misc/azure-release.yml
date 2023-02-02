@@ -72,7 +72,8 @@ stages:
               imageName: "macOS-11"
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: "arm64"
-              CIBW_SKIP: "cp27-* cp35-* cp36-* cp37-* cp38-* cp39-* pp*"
+              # NumPy is only available in CPython 3.8+ on macOS-arm64
+              CIBW_SKIP: "cp27-* cp35-* cp36-* cp37-* pp*"
             windows_py:
               imageName: "windows-latest"
               CIBW_SKIP: "cp27-* cp35-* cp36-* *-win32 pp*"
