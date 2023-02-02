@@ -187,8 +187,15 @@ def gen_chr(max, printable=False):
     return s
 
 
-def rand_utf8(size=5):
-    return "".join([gen_chr(0xD7FF) for _ in range(0, size)])
+def rand_utf8(size=5, printable=False):
+    # This is a hack to ensure that all UTF-8 is parseable. It would be nicer to
+    # exclude invalid surrogate pairs, but this will do.
+    while True:
+        try:
+            v = "".join([gen_chr(0xD007F, printable=printable) for _ in range(0, size)])
+            return v.encode("UTF-8").decode()
+        except UnicodeError:
+            continue
 
 
 def rand_ascii(size=5, printable=False):
