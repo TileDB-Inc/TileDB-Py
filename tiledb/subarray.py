@@ -5,8 +5,7 @@ import numpy as np
 
 import tiledb.cc as lt
 
-from ._array import ArrayWrapper
-from .ctx import Ctx, CtxMixin
+from .ctx import Ctx, CtxMixin, default_ctx
 from .libtiledb import Array
 
 Scalar = Real
@@ -29,7 +28,9 @@ class Subarray(CtxMixin, lt.Subarray):
         :param ctx: A TileDB Context
         """
         self._array = array
-        super().__init__(ctx, ArrayWrapper(array))
+        super().__init__(
+            ctx, lt.Array(ctx if ctx is not None else default_ctx(), array)
+        )
 
     def add_dim_range(self, dim_idx: int, dim_range: Range):
         """Add a range to a dimension of the subarray.
