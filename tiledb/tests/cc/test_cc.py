@@ -279,7 +279,9 @@ def test_query_string():
     q = lt.Query(ctx, arr, lt.QueryType.READ)
     assert q.query_type == lt.QueryType.READ
 
-    q.add_range("foo", "start", "end")
+    subarray = lt.Subarray(ctx, arr)
+    subarray._add_dim_range(0, ("start", "end"))
+    q.set_subarray(subarray)
 
 
 def test_write_sparse():
@@ -368,13 +370,17 @@ def test_write_dense():
         lt.Array.create(uri, schema)
         arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
 
+        subarray = lt.Subarray(ctx, arr)
+        subarray._add_dim_range(0, (0, 9))
+
         q = lt.Query(ctx, arr, lt.QueryType.WRITE)
         q.layout = lt.LayoutType.ROW_MAJOR
         assert q.query_type == lt.QueryType.WRITE
 
+        q.set_subarray(subarray)
+
         q.set_data_buffer("a", data)
         # q.set_data_buffer("x", coords)
-        q.set_subarray(np.uint64([0, 9]))
 
         assert q.submit() == lt.QueryStatus.COMPLETE
 
@@ -384,11 +390,14 @@ def test_write_dense():
         ctx = lt.Context()
         arr = lt.Array(ctx, uri, lt.QueryType.READ)
 
+        subarray = lt.Subarray(ctx, arr)
+        subarray._add_dim_range(0, (0, 9))
+
         q = lt.Query(ctx, arr, lt.QueryType.READ)
         q.layout = lt.LayoutType.ROW_MAJOR
         assert q.query_type == lt.QueryType.READ
 
-        q.add_range(0, (0, 9))
+        q.set_subarray(subarray)
 
         rdata = np.zeros(10).astype(np.float32)
 

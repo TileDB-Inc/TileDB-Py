@@ -16,6 +16,7 @@ from .dataframe_ import check_dataframe_deps
 from .libtiledb import Array, ArraySchema, Metadata, Query
 from .main import PyQuery, increment_stat, use_stats
 from .query_condition import QueryCondition
+from .subarray import Subarray
 
 current_timer: ContextVar[str] = ContextVar("timer_scope")
 
@@ -169,6 +170,7 @@ class _BaseIndexer(ABC):
         self.query = query
         self.use_arrow = use_arrow
         self.preload_metadata = preload_metadata
+        self.subarray = Subarray(array)
 
     @property
     def array(self) -> Array:
@@ -234,17 +236,18 @@ class _BaseIndexer(ABC):
         return _get_empty_results(self.array.schema, self.query)
 
     def _set_ranges(self, ranges):
-        self.pyquery = (
-            _get_pyquery(
-                self.array,
-                self.query,
-                ranges,
-                self.use_arrow,
-                self.return_incomplete,
-                self.preload_metadata,
-            )
-            if ranges is not None
-            else None
+        if ranges is None:
+            self.pyquery = None
+            return
+        with timing("add_ranges"):
+            self.subarray.add_ranges(ranges)
+        self.pyquery = _get_pyquery(
+            self.array,
+            self.query,
+            self.subarray,
+            self.use_arrow,
+            self.return_incomplete,
+            self.preload_metadata,
         )
 
     @abstractmethod
@@ -399,7 +402,7 @@ class DataFrameIndexer(_BaseIndexer):
 def _get_pyquery(
     array: Array,
     query: Optional[Query],
-    ranges: Sequence[Sequence[Range]],
+    subarray: Subarray,
     use_arrow: bool,
     return_incomplete: bool,
     preload_metadata: bool,
@@ -431,13 +434,7 @@ def _get_pyquery(
         layout,
         use_arrow,
     )
-    with timing("add_ranges"):
-        if hasattr(pyquery, "set_ranges_bulk") and any(
-            isinstance(r, np.ndarray) for r in ranges
-        ):
-            pyquery.set_ranges_bulk(ranges)
-        else:
-            pyquery.set_ranges(ranges)
+    pyquery.set_subarray(subarray)
 
     pyquery._return_incomplete = return_incomplete
     pyquery._preload_metadata = preload_metadata

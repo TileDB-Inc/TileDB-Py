@@ -51,7 +51,9 @@ class FixesTest(DiskTestCase):
             with tiledb.open(uri) as b:
                 q = tiledb.main.PyQuery(ctx3, b, ("",), (), 0, False)
                 q._return_incomplete = True
-                q.set_ranges([[(0, max_val - 1)]])
+                subarray = tiledb.Subarray(b, ctx3)
+                subarray.add_ranges([[(0, max_val - 1)]])
+                q.set_subarray(subarray)
                 q._allocate_buffers()
                 buffers = list(*q._get_buffers().values())
                 assert buffers[0].nbytes == max_val

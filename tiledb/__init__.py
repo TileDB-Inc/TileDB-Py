@@ -104,6 +104,7 @@ from .object import Object
 from .parquet_ import from_parquet
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
+from .subarray import Subarray
 from .version_helper import version
 from .vfs import VFS, FileIO
 

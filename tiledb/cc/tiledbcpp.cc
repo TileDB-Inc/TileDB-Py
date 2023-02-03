@@ -1,5 +1,6 @@
 #include <tiledb/tiledb> // C++
 
+#include "common.h"
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
@@ -26,6 +27,7 @@ void init_group(py::module &);
 void init_object(py::module &m);
 void init_query(py::module &m);
 void init_schema(py::module &);
+void init_subarray(py::module &);
 void init_vfs(py::module &m);
 
 PYBIND11_MODULE(cc, m) {
@@ -43,9 +45,31 @@ PYBIND11_MODULE(cc, m) {
   init_object(m);
   init_query(m);
   init_schema(m);
+  init_subarray(m);
   init_vfs(m);
 
   py::register_exception<TileDBError>(m, "TileDBError");
+
+  /*
+   We need to make sure C++ TileDBError is translated to a correctly-typed py
+   error. Note that using py::exception(..., "TileDBError") creates a new
+   exception in the *readquery* module, so we must import to reference.
+  */
+  py::register_exception_translator([](std::exception_ptr p) {
+    auto tiledb_py_error =
+        (py::object)py::module::import("tiledb").attr("TileDBError");
+
+    try {
+      if (p)
+        std::rethrow_exception(p);
+    } catch (const TileDBPyError &e) {
+      PyErr_SetString(tiledb_py_error.ptr(), e.what());
+    } catch (const tiledb::TileDBError &e) {
+      PyErr_SetString(tiledb_py_error.ptr(), e.what());
+    } catch (py::builtin_exception &e) {
+      throw;
+    };
+  });
 }
 
 }; // namespace libtiledbcpp
