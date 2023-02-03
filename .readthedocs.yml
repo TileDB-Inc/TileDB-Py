@@ -5,6 +5,10 @@ formats: []
 # https://docs.readthedocs.io/en/stable/config-file/v2.html
 version: 2
 
+# Set build OS to avoid build failures with old compiler
+build:
+  os: "ubuntu-22.04"
+
 sphinx:
   configuration: doc/source/conf.py
 
