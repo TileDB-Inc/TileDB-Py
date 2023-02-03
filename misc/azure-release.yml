@@ -13,7 +13,7 @@ stages:
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
       TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)"
-      MACOSX_DEPLOYMENT_TARGET: 10.15
+      TILEDB_GCS: ON # set here, override for macOS-arm64
     condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
 
     jobs:
@@ -23,6 +23,14 @@ stages:
           matrix:
             macOS_libtiledb:
               imageName: "macOS-11"
+              CMAKE_OSX_ARCHITECTURES: "x86_64"
+              MACOSX_DEPLOYMENT_TARGET: 10.15
+            macOS_libtiledb_arm64:
+              imageName: "macOS-11"
+              CMAKE_OSX_ARCHITECTURES: "arm64"
+              MACOSX_DEPLOYMENT_TARGET: 11
+              TILEDB_GCS: OFF
+              BUILD_MAGIC_MACOS_UNIVERSAL: "ON"
             windows_libtiledb:
               imageName: "windows-latest"
         pool:
@@ -60,6 +68,12 @@ stages:
               imageName: "macOS-11"
               CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
               CIBW_BUILD_VERBOSITY: 3
+            macOS_arm64_py:
+              imageName: "macOS-11"
+              CIBW_BUILD_VERBOSITY: 3
+              CIBW_ARCHS_MACOS: "arm64"
+              # NumPy is only available in CPython 3.8+ on macOS-arm64
+              CIBW_SKIP: "cp27-* cp35-* cp36-* cp37-* pp*"
             windows_py:
               imageName: "windows-latest"
               CIBW_SKIP: "cp27-* cp35-* cp36-* *-win32 pp*"
@@ -134,7 +148,9 @@ stages:
 
               export TILEDB_WHEEL_BUILD=1
               # use the requirements_wheel.txt with numpy pins to ensure ABI compatibility
-              export CIBW_TEST_COMMAND="python -c 'import tiledb'"
+              if [[ "$CIBW_ARCHS" != "arm64" ]]; then
+                export CIBW_TEST_COMMAND="python -c 'import tiledb'"
+              fi
               echo "${TILEDB_INSTALL}"
 
               python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
