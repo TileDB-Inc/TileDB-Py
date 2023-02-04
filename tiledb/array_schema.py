@@ -8,13 +8,13 @@ import numpy as np
 import tiledb.cc as lt
 
 from .attribute import Attr
-from .ctx import Ctx, default_ctx
+from .ctx import Ctx, CtxMixin, default_ctx
 from .dimension_label import DimLabel
 from .domain import Domain
 from .filter import Filter, FilterList
 
 
-class ArraySchema(lt.ArraySchema):
+class ArraySchema(CtxMixin, lt.ArraySchema):
     """
     Schema class for TileDB dense / sparse array representations
 
@@ -51,25 +51,8 @@ class ArraySchema(lt.ArraySchema):
         sparse: bool = False,
         dim_labels={},
         ctx: Ctx = None,
-        _uri: str = None,
-        _lt_obj: lt.ArraySchema = None,
-        _capsule=None,
     ):
-        self._ctx = ctx or default_ctx()
-
-        if _capsule is not None:
-            return super().__init__(self._ctx, _capsule)
-
-        if _uri is not None:
-            return super().__init__(self._ctx, _uri)
-
-        if _lt_obj is not None:
-            return super().__init__(_lt_obj)
-
-        _type = lt.ArrayType.SPARSE if sparse else lt.ArrayType.DENSE
-
-        super().__init__(self._ctx, _type)
-
+        super().__init__(ctx, lt.ArrayType.SPARSE if sparse else lt.ArrayType.DENSE)
         if attrs is not None:
             for att in attrs:
                 if not isinstance(att, Attr):
@@ -115,44 +98,34 @@ class ArraySchema(lt.ArraySchema):
         self._allows_dups = allows_duplicates
 
         for label_name, label_schema in dim_labels.items():
-            if label_schema.label_filters is None:
-                self._add_dim_label(
-                    self._ctx,
-                    label_schema.dimension_index,
-                    label_name,
-                    label_schema._label_tiledb_order,
-                    label_schema._label_tiledb_dtype,
-                )
-            else:
-                self._add_dim_label(
-                    self._ctx,
-                    label_schema.dimension_index,
-                    label_name,
-                    label_schema._label_tiledb_order,
-                    label_schema._label_tiledb_dtype,
-                    label_schema.label_filters,
-                )
+            self._add_dim_label(
+                self._ctx,
+                label_schema.dimension_index,
+                label_name,
+                label_schema._label_tiledb_order,
+                label_schema._label_tiledb_dtype,
+                label_schema.label_filters,
+            )
 
         self._check()
 
-    @staticmethod
-    def load(uri, ctx: Ctx = None, key: str = None):
-        _ctx = ctx or default_ctx()
+    @classmethod
+    def load(cls, uri, ctx: Ctx = None, key: str = None):
+        if not ctx:
+            ctx = default_ctx()
 
-        if key is None:
-            schema = lt.ArraySchema(_ctx, uri)
-        else:
-            schema = lt.ArraySchema(_ctx, uri, lt.EncryptionType.AES_256_GCM, key)
+        args = [ctx, uri]
+        if key is not None:
+            args.extend((lt.EncryptionType.AES_256_GCM, key))
 
-        return ArraySchema(_lt_obj=schema)
+        return cls.from_pybind11(ctx, lt.ArraySchema(*args))
 
-    @staticmethod
-    def from_file(uri: str = None, ctx: Ctx = None):
+    @classmethod
+    def from_file(cls, uri: str = None, ctx: Ctx = None):
         """Create an ArraySchema for a Filestore Array from a given file.
         If a uri is not given, then create a default schema."""
-        _ctx = ctx or default_ctx()
-
-        return ArraySchema(_lt_obj=lt.Filestore._schema_create(_ctx, uri))
+        schema = lt.Filestore._schema_create(ctx or default_ctx(), uri)
+        return cls.from_pybind11(ctx, schema)
 
     def __eq__(self, other):
         """Instance is equal to another ArraySchema"""
