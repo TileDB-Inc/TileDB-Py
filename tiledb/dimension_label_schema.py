@@ -1,21 +1,19 @@
-from typing import TYPE_CHECKING, Any, Sequence, Union
+from enum import Enum
+from typing import Any, Sequence, Union
 
 import numpy as np
 
 import tiledb.cc as lt
 
-from .ctx import default_ctx
+from .ctx import Ctx, default_ctx
 from .filter import Filter, FilterList
-from .util import (
-    dtype_to_tiledb,
-    numpy_dtype,
-    str_to_tiledb_data_order,
-    tiledb_cast_tile_extent,
-    tiledb_data_order_to_str,
-)
+from .util import dtype_to_tiledb, numpy_dtype, tiledb_cast_tile_extent
 
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
+
+class DataOrder(Enum):
+    increasing = lt.DataOrder.INCREASING_DATA
+    decreasing = lt.DataOrder.DECREASING_DATA
+    unordered = lt.DataOrder.UNORDERED_DATA
 
 
 class DimLabelSchema:
@@ -27,14 +25,14 @@ class DimLabelSchema:
         dim_dtype: np.dtype = np.uint64,
         dim_tile: Any = None,
         label_filters: Union[FilterList, Sequence[Filter]] = None,
-        ctx: "Ctx" = None,
+        ctx: Ctx = None,
     ):
         # Set context
         self._ctx = ctx or default_ctx()
 
         # Set simple properties
         self._dim_index = dim_index
-        self._label_order = str_to_tiledb_data_order(order)
+        self._label_order = DataOrder[order]
 
         # Compute and set the label datatype
         if isinstance(label_dtype, str) and label_dtype == "ascii":
@@ -86,7 +84,7 @@ class DimLabelSchema:
 
     @property
     def _label_tiledb_order(self):
-        return self._label_order
+        return self._label_order.value
 
     def __repr__(self):
         # TODO Add representation
@@ -135,4 +133,4 @@ class DimLabelSchema:
 
         :rtype: str
         """
-        return tiledb_data_order_to_str(self.label_order_)
+        return self._label_order.name
