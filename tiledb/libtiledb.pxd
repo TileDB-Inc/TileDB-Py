@@ -102,6 +102,11 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_UNORDERED
         TILEDB_HILBERT
 
+    ctypedef enum tiledb_data_order_t:
+        TILEDB_UNORDERED_DATA
+        TILEDB_INCREASING_DATA
+        TILEDB_DECREASING_DATA
+
     ctypedef enum tiledb_encryption_type_t:
         TILEDB_NO_ENCRYPTION
         TILEDB_AES_256_GCM

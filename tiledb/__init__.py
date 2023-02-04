@@ -42,6 +42,8 @@ from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .dimension import Dim
+from .dimension_label import DimLabel
+from .dimension_label_schema import DimLabelSchema
 from .domain import Domain
 from .filestore import Filestore
 from .filter import (

@@ -111,6 +111,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                   list coords_or_subarray,
                   list buffer_names,
                   list values,
+                  dict labels,
                   dict nullmaps,
                   dict fragment_info,
                   bint issparse):
@@ -120,9 +121,10 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
 
     cdef bint isfortran = False
     cdef Py_ssize_t nattr = len(buffer_names)
+    cdef Py_ssize_t nlabel = len(labels)
 
     # Create arrays to hold buffer sizes
-    cdef Py_ssize_t nbuffer = nattr
+    cdef Py_ssize_t nbuffer = nattr + nlabel
     if issparse:
         nbuffer += tiledb_array.schema.ndim
     cdef np.ndarray buffer_sizes = np.zeros((nbuffer,), dtype=np.uint64)
@@ -166,20 +168,42 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
                 raise ValueError("mixed C and Fortran array layouts")
 
     # Set data and offsets buffers for dimensions (sparse arrays only)
+    ibuffer = nattr
     if issparse:
         for dim_idx, coords in enumerate(coords_or_subarray):
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
                 buffer, offsets = array_to_buffer(coords, True, False)
-                buffer_sizes[nattr + dim_idx] = buffer.nbytes
-                buffer_offsets_sizes[nattr + dim_idx] = offsets.nbytes
+                buffer_sizes[ibuffer] = buffer.nbytes
+                buffer_offsets_sizes[ibuffer] = offsets.nbytes
             else:
                 buffer, offsets = coords, None
-                buffer_sizes[nattr + dim_idx] = buffer.nbytes
+                buffer_sizes[ibuffer] = buffer.nbytes
             output_values.append(buffer)
             output_offsets.append(offsets)
 
             name = tiledb_array.schema.domain.dim(dim_idx).name
             buffer_names.append(name)
+
+            ibuffer = ibuffer + 1
+
+    for label_name, label_values in labels.items():
+        # Append buffer name
+        buffer_names.append(label_name)
+        # Get label data buffer and offsets buffer for the labels
+        dim_label = tiledb_array.schema.dim_label(label_name)
+        if dim_label.isvar:
+            buffer, offsets = array_to_buffer(label_values, True, False)
+            buffer_sizes[ibuffer] = buffer.nbytes
+            buffer_offsets_sizes[ibuffer] = offsets.nbytes
+        else:
+            buffer, offsets = label_values, None
+            buffer_sizes[ibuffer] = buffer.nbytes
+        # Append the buffers
+        output_values.append(buffer)
+        output_offsets.append(offsets)
+
+        ibuffer = ibuffer + 1
+
 
     # Allocate the query
     cdef int rc = TILEDB_OK
@@ -2155,6 +2179,7 @@ cdef class DenseArrayImpl(Array):
         cdef object subarray = index_domain_subarray(self, domain, idx)
         cdef list attributes = list()
         cdef list values = list()
+        cdef dict labels = dict()
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
 
         if isinstance(val, np.ndarray):
@@ -2168,6 +2193,14 @@ cdef class DenseArrayImpl(Array):
                 )
 
         if isinstance(val, dict):
+
+            # Create dictionary of label names and values
+            labels = {
+                name: data for name, data in val.items()
+                if self.schema.has_dim_label(name)
+            }
+
+            # Create list of attribute names and values
             for attr_idx in range(self.schema.nattr):
                 attr = self.schema.attr(attr_idx)
                 k = attr.name
@@ -2178,6 +2211,7 @@ cdef class DenseArrayImpl(Array):
                 if type(v) is np.ndarray and v.dtype is not np.dtype('O'):
                     v = np.ascontiguousarray(v, dtype=attr.dtype)
                 values.append(v)
+
         elif np.isscalar(val):
             for i in range(self.schema.nattr):
                 attr = self.schema.attr(i)
@@ -2237,6 +2271,7 @@ cdef class DenseArrayImpl(Array):
                      subarray,
                      attributes,
                      values,
+                     labels,
                      nullmaps,
                      self.last_fragment_info,
                      False)
@@ -2484,6 +2519,7 @@ def index_domain_coords(dom, idx, check_ndim):
 
 def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
     cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
+    cdef dict labels = dict()
 
     if not self.isopen or self.mode != 'w':
         raise TileDBError("SparseArray is not opened for writing")
@@ -2500,6 +2536,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             sparse_coords,
             sparse_attributes,
             sparse_values,
+            labels,
             nullmaps,
             self.last_fragment_info,
             True
@@ -2511,6 +2548,12 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             raise ValueError("Expected dict-like object {name: value} for multi-attribute "
                              "array.")
         val = dict({self.attr(0).name: val})
+
+    # Create dictionary for label names and values from the dictionary
+    labels = {
+        name: data for name, data in val.items()
+        if self.schema.has_dim_label(name)
+    }
 
     # must iterate in Attr order to ensure that value order matches
     for attr_idx in range(self.schema.nattr):
@@ -2554,8 +2597,8 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         sparse_attributes.append(attr._internal_name)
         sparse_values.append(attr_val)
 
-    if (len(sparse_attributes) != len(val.keys())) \
-        or (len(sparse_values) != len(val.values())):
+    if (len(sparse_attributes) + len(labels) != len(val.keys())) \
+        or (len(sparse_values) + len(labels) != len(val.values())):
         raise TileDBError("Sparse write input data count does not match number of attributes")
 
     _write_array(
@@ -2563,6 +2606,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         sparse_coords,
         sparse_attributes,
         sparse_values,
+        labels,
         nullmaps,
         self.last_fragment_info,
         True

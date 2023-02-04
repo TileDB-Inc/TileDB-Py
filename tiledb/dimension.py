@@ -7,7 +7,13 @@ import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
 from .filter import Filter, FilterList
-from .util import dtype_range, dtype_to_tiledb, numpy_dtype, tiledb_type_is_datetime
+from .util import (
+    dtype_range,
+    dtype_to_tiledb,
+    numpy_dtype,
+    tiledb_cast_tile_extent,
+    tiledb_type_is_datetime,
+)
 
 _integer_datatypes = frozenset(
     [
@@ -21,25 +27,6 @@ _integer_datatypes = frozenset(
         lt.DataType.INT64,
     ]
 )
-
-
-def _tiledb_cast_tile_extent(tile_extent: Any, dtype: np.dtype) -> np.array:
-    """Given a tile extent value, cast it to np.array of the given numpy dtype."""
-    # Special handling for datetime domains
-    if dtype.kind == "M":
-        date_unit = np.datetime_data(dtype)[0]
-        if isinstance(tile_extent, np.timedelta64):
-            extent_value = int(tile_extent / np.timedelta64(1, date_unit))
-            tile_size_array = np.array(np.int64(extent_value), dtype=np.int64)
-        else:
-            tile_size_array = np.array(tile_extent, dtype=np.int64)
-    else:
-        tile_size_array = np.array(tile_extent, dtype=dtype)
-
-    if tile_size_array.size != 1:
-        raise ValueError("tile extent must be a scalar")
-
-    return tile_size_array
 
 
 def _tiledb_cast_domain(
@@ -142,7 +129,7 @@ class Dim(CtxMixin, lt.Dimension):
 
             # if the tile extent is specified, cast
             if tile is not None:
-                tile_size_array = _tiledb_cast_tile_extent(tile, domain_dtype)
+                tile_size_array = tiledb_cast_tile_extent(tile, domain_dtype)
                 if tile_size_array.size != 1:
                     raise ValueError("tile extent must be a scalar")
 

@@ -9,6 +9,7 @@ import tiledb.cc as lt
 
 from .attribute import Attr
 from .ctx import Ctx, default_ctx
+from .dimension_label import DimLabel
 from .domain import Domain
 from .filter import Filter, FilterList
 
@@ -48,6 +49,7 @@ class ArraySchema(lt.ArraySchema):
         validity_filters: Union[FilterList, Sequence[Filter]] = None,
         allows_duplicates: bool = False,
         sparse: bool = False,
+        dim_labels={},
         ctx: Ctx = None,
         _uri: str = None,
         _lt_obj: lt.ArraySchema = None,
@@ -111,6 +113,25 @@ class ArraySchema(lt.ArraySchema):
             self._validity_filters = FilterList(validity_filters)
 
         self._allows_dups = allows_duplicates
+
+        for label_name, label_schema in dim_labels.items():
+            if label_schema.label_filters is None:
+                self._add_dim_label(
+                    self._ctx,
+                    label_schema.dimension_index,
+                    label_name,
+                    label_schema._label_tiledb_order,
+                    label_schema._label_tiledb_dtype,
+                )
+            else:
+                self._add_dim_label(
+                    self._ctx,
+                    label_schema.dimension_index,
+                    label_name,
+                    label_schema._label_tiledb_order,
+                    label_schema._label_tiledb_dtype,
+                    label_schema.label_filters,
+                )
 
         self._check()
 
@@ -345,6 +366,14 @@ class ArraySchema(lt.ArraySchema):
             "or an integer index, not {0!r}".format(type(key))
         )
 
+    def dim_label(self, name: str) -> DimLabel:
+        """Returns a TileDB DimensionLabel given the label name
+
+        :param name: name of the dimensin label
+        :return: The dimension label associated with the given name
+        """
+        return DimLabel.from_pybind11(self._ctx, self._dim_label(self._ctx, name))
+
     def has_attr(self, name: str) -> bool:
         """Returns true if the given name is an Attribute of the ArraySchema
 
@@ -352,6 +381,17 @@ class ArraySchema(lt.ArraySchema):
         :rtype: boolean
         """
         return self._has_attribute(name)
+
+    def has_dim_label(self, name: str) -> bool:
+        """Returns true if the given name is a DimensionLabel of the ArraySchema
+
+        Note: If using an version of libtiledb that does not support dimension labels
+        this will return false.
+
+        :param name: dimension label name
+        :rtype: boolean
+        """
+        return self._has_dim_label(self._ctx, name)
 
     def attr_or_dim_dtype(self, name: str) -> bool:
         if self.has_attr(name):
