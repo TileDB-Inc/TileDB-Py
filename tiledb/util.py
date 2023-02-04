@@ -6,18 +6,6 @@ import tiledb.cc as lt
 
 from .datatypes import DataType
 
-_str_to_data_order = {
-    "unordered": lt.DataOrder.UNORDERED_DATA,
-    "increasing": lt.DataOrder.INCREASING_DATA,
-    "decreasing": lt.DataOrder.DECREASING_DATA,
-}
-
-_data_order_to_str = {
-    lt.DataOrder.INCREASING_DATA: "increasing",
-    lt.DataOrder.DECREASING_DATA: "decreasing",
-    lt.DataOrder.UNORDERED_DATA: "unordered",
-}
-
 
 def tiledb_type_is_datetime(tiledb_type):
     """Returns True if the tiledb type is a datetime type"""
@@ -26,18 +14,6 @@ def tiledb_type_is_datetime(tiledb_type):
 
 def dtype_to_tiledb(dtype: np.dtype) -> lt.DataType:
     return DataType.from_numpy(dtype).tiledb_type
-
-
-def str_to_tiledb_data_order(order: str) -> lt.DataOrder:
-    if order not in _str_to_data_order:
-        raise TypeError(f"data order {order!r} not understood")
-    return _str_to_data_order[order]
-
-
-def tiledb_data_order_to_str(order: lt.DataOrder) -> str:
-    if order not in _data_order_to_str:
-        raise TypeError("unknown data order")
-    return _data_order_to_str[order]
 
 
 def array_type_ncells(dtype: np.dtype) -> lt.DataType:
