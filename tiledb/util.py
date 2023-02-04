@@ -55,21 +55,7 @@ def dtype_range(dtype: np.dtype):
 
 def tiledb_cast_tile_extent(tile_extent: Any, dtype: np.dtype) -> np.array:
     """Given a tile extent value, cast it to np.array of the given numpy dtype."""
-    # Special handling for datetime domains
-    if dtype.kind == "M":
-        date_unit = np.datetime_data(dtype)[0]
-        if isinstance(tile_extent, np.timedelta64):
-            extent_value = int(tile_extent / np.timedelta64(1, date_unit))
-            tile_size_array = np.array(np.int64(extent_value), dtype=np.int64)
-        else:
-            tile_size_array = np.array(tile_extent, dtype=np.int64)
-    else:
-        tile_size_array = np.array(tile_extent, dtype=dtype)
-
-    if tile_size_array.size != 1:
-        raise ValueError("tile extent must be a scalar")
-
-    return tile_size_array
+    return DataType.from_numpy(dtype).cast_tile_extent(tile_extent)
 
 
 def numpy_dtype(tiledb_dtype: lt.DataType, cell_size: int = 1) -> np.dtype:

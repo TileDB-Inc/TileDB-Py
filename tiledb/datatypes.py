@@ -98,6 +98,21 @@ class DataType:
 
         raise TypeError(f"Cannot determine min/max for {dtype!r}")
 
+    def cast_tile_extent(self, tile_extent: Any) -> np.ndarray:
+        """Given a tile extent value, cast it to np.array of this datatype's np_dtype."""
+        if np.issubdtype(self.np_dtype, np.datetime64):
+            # Special handling for datetime domains
+            if isinstance(tile_extent, np.timedelta64):
+                unit = np.datetime_data(self.np_dtype)[0]
+                tile_extent /= np.timedelta64(1, unit)
+            tile_dtype = np.dtype(np.int64)
+        else:
+            tile_dtype = self.np_dtype
+        tile_size_array = np.array(tile_extent, tile_dtype)
+        if tile_size_array.size != 1:
+            raise ValueError("tile extent must be a scalar")
+        return tile_size_array
+
 
 # datatype pairs that have a 1-1 mapping between tiledb and numpy
 _COMMON_DATATYPES = [
