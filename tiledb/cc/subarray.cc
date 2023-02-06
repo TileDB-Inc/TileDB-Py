@@ -14,6 +14,28 @@ namespace libtiledbcpp {
 using namespace tiledb;
 namespace py = pybind11;
 
+template <typename T> struct RangeCopier {
+
+  static void copy(Subarray &subarray, Subarray &original, uint32_t dim_idx) {
+    for (uint64_t range_idx{0}; range_idx < original.range_num(dim_idx);
+         ++range_idx) {
+      std::array<T, 3> range = original.range<T>(dim_idx, range_idx);
+      subarray.add_range(dim_idx, range[0], range[1], range[2]);
+    }
+  }
+};
+
+template <> struct RangeCopier<std::string> {
+
+  static void copy(Subarray &subarray, Subarray &original, uint32_t dim_idx) {
+    for (uint64_t range_idx{0}; range_idx < original.range_num(dim_idx);
+         ++range_idx) {
+      std::array<std::string, 2> range = original.range(dim_idx, range_idx);
+      subarray.add_range(dim_idx, range[0], range[1]);
+    }
+  }
+};
+
 void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
   if (py::len(r) == 0)
     return;
@@ -145,6 +167,101 @@ void add_dim_range(Subarray &subarray, uint32_t dim_idx, py::tuple r) {
     std::string msg = "Failed to cast dim range '" + (std::string)py::repr(r) +
                       "' to dim type " + tiledb::impl::type_to_str(tiledb_type);
     TPY_ERROR_LOC(msg);
+  }
+}
+
+void copy_ranges_on_dim(Subarray &subarray, Subarray original,
+                        uint32_t dim_idx) {
+
+  auto tiledb_type =
+      subarray.array().schema().domain().dimension(dim_idx).type();
+
+  switch (tiledb_type) {
+  case TILEDB_INT32: {
+    using T = int32_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_INT64: {
+    using T = int64_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_INT8: {
+    using T = int8_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_UINT8: {
+    using T = uint8_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_INT16: {
+    using T = int16_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_UINT16: {
+    using T = uint16_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_UINT32: {
+    using T = uint32_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_UINT64: {
+    using T = uint64_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_FLOAT32: {
+    using T = float;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_FLOAT64: {
+    using T = double;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_STRING_ASCII:
+  case TILEDB_STRING_UTF8:
+  case TILEDB_CHAR: {
+    using T = std::string;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  case TILEDB_DATETIME_YEAR:
+  case TILEDB_DATETIME_MONTH:
+  case TILEDB_DATETIME_WEEK:
+  case TILEDB_DATETIME_DAY:
+  case TILEDB_DATETIME_HR:
+  case TILEDB_DATETIME_MIN:
+  case TILEDB_DATETIME_SEC:
+  case TILEDB_DATETIME_MS:
+  case TILEDB_DATETIME_US:
+  case TILEDB_DATETIME_NS:
+  case TILEDB_DATETIME_PS:
+  case TILEDB_DATETIME_FS:
+  case TILEDB_DATETIME_AS: {
+  case TILEDB_TIME_HR:
+  case TILEDB_TIME_MIN:
+  case TILEDB_TIME_SEC:
+  case TILEDB_TIME_MS:
+  case TILEDB_TIME_US:
+  case TILEDB_TIME_NS:
+  case TILEDB_TIME_PS:
+  case TILEDB_TIME_FS:
+  case TILEDB_TIME_AS:
+    using T = int64_t;
+    RangeCopier<T>::copy(subarray, original, dim_idx);
+    break;
+  }
+  default:
+    TPY_ERROR_LOC("Unknown dim type conversion!");
   }
 }
 
@@ -381,6 +498,13 @@ void init_subarray(py::module &m) {
                  add_dim_range(subarray, dim_idx, r_tuple);
                }
                dim_idx++;
+             }
+           })
+
+      .def("copy_ranges",
+           [](Subarray &subarray, Subarray &original, py::iterable dims) {
+             for (auto dim_idx : dims) {
+               copy_ranges_on_dim(subarray, original, dim_idx.cast<uint32_t>());
              }
            })
 
