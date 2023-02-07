@@ -66,10 +66,12 @@ stages:
               CIBW_BUILD_VERBOSITY: 3
             macOS_py:
               imageName: "macOS-11"
+              MACOSX_DEPLOYMENT_TARGET: 10.15
               CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
               imageName: "macOS-11"
+              MACOSX_DEPLOYMENT_TARGET: 11
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: "arm64"
               # NumPy is only available in CPython 3.8+ on macOS-arm64
