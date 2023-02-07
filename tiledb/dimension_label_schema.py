@@ -62,13 +62,10 @@ class DimLabelSchema:
                 if self._tile_extent_buffer.size != 1:
                     raise ValueError("dimension tile extent must be a scalar")
 
-        # Set label filters
-        self._label_filters = None
-        if label_filters is not None:
-            if isinstance(label_filters, FilterList):
-                self._label_filters = label_filters
-            else:
-                self._label_filters = FilterList(label_filters)
+        if label_filters is None or isinstance(label_filters, FilterList):
+            self._label_filters = label_filters
+        else:
+            self._label_filters = FilterList(label_filters)
 
     @property
     def _dimension_tiledb_dtype(self):
@@ -113,11 +110,8 @@ class DimLabelSchema:
         :rtype: tiledb.FilterList
         :raises: :py:exc:`tiledb.TileDBError`
         """
-        return (
-            None
-            if self._label_filters is None
-            else FilterList(ctx=self._ctx, _lt_obj=self._label_filters)
-        )
+        if self._label_filters is not None:
+            return FilterList.from_pybind11(self._ctx, self._label_filters)
 
     @property
     def label_dtype(self) -> np.dtype:

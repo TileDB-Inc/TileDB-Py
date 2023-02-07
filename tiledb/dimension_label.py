@@ -1,5 +1,4 @@
 import io
-from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -8,26 +7,11 @@ import tiledb.cc as lt
 from .ctx import CtxMixin
 from .util import numpy_dtype
 
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
-
 
 class DimLabel(CtxMixin, lt.DimensionLabel):
     """
     Represents a TileDB dimension label.
     """
-
-    def __init__(
-        self,
-        ctx: "Ctx" = None,
-        _lt_obj: lt.DimensionLabel = None,
-        _capsule=None,
-    ):
-        if _capsule is not None:
-            return super().__init__(ctx, _capsule)
-        if _lt_obj is not None:
-            return super().__init__(ctx, _lt_obj)
-        raise ValueError("either _lt_obj or _capsule must be provided")
 
     def __repr__(self) -> str:
         dtype = "ascii" if self.isascii else self.dtype
