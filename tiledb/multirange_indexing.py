@@ -23,9 +23,10 @@ import numpy as np
 
 from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
-from .libtiledb import Array, ArraySchema, Metadata, Query
+from .libtiledb import Array, ArraySchema, Metadata
+from .libtiledb import Query as QueryProxy
 from .main import PyQuery, increment_stat, use_stats
-from .query import Query as QueryPlaceholder
+from .query import Query
 from .query_condition import QueryCondition
 from .subarray import Subarray
 
@@ -220,7 +221,7 @@ class _BaseIndexer(ABC):
     def __init__(
         self,
         array: Array,
-        query: Optional[Query] = None,
+        query: Optional[QueryProxy] = None,
         use_arrow: bool = False,
         preload_metadata: bool = False,
     ):
@@ -329,7 +330,7 @@ class MultiRangeIndexer(_BaseIndexer):
     Implements multi-range indexing.
     """
 
-    def __init__(self, array: Array, query: Optional[Query] = None):
+    def __init__(self, array: Array, query: Optional[QueryProxy] = None):
         if query and query.return_arrow:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
         super().__init__(array, query)
@@ -364,13 +365,13 @@ class DataFrameIndexer(_BaseIndexer):
     def __init__(
         self,
         array: Array,
-        query: Optional[Query] = None,
+        query: Optional[QueryProxy] = None,
         use_arrow: Optional[bool] = None,
     ):
         check_dataframe_deps()
         # we need to use a Query in order to get coords for a dense array
         if not query:
-            query = Query(array, coords=True)
+            query = QueryProxy(array, coords=True)
         if use_arrow is None:
             use_arrow = pyarrow is not None
         # TODO: currently there is lack of support for Arrow list types. This prevents
@@ -473,14 +474,14 @@ class LabelIndexer(MultiRangeIndexer):
     """
 
     def __init__(
-        self, array: Array, labels: Sequence[str], query: Optional[Query] = None
+        self, array: Array, labels: Sequence[str], query: Optional[QueryProxy] = None
     ):
         if array.schema.sparse:
             raise NotImplementedError(
                 "querying sparse arrays by label is not yet implemented"
             )
         super().__init__(array, query)
-        self.label_query: Optional[QueryPlaceholder] = None
+        self.label_query: Optional[Query] = None
         self._labels: Dict[int, str] = {}
         for label_name in labels:
             dim_label = array.schema.dim_label(label_name)
@@ -509,7 +510,7 @@ class LabelIndexer(MultiRangeIndexer):
             with timing("add_ranges"):
                 self.subarray.add_ranges(dim_ranges=dim_ranges)
                 label_subarray.add_ranges(label_ranges=label_ranges)
-            self.label_query = QueryPlaceholder(self.array)
+            self.label_query = Query(self.array)
             self.label_query.set_subarray(label_subarray)
 
     def _run_query(self) -> Dict[str, np.ndarray]:
@@ -537,7 +538,7 @@ class LabelIndexer(MultiRangeIndexer):
 
 def _get_pyquery(
     array: Array,
-    query: Optional[Query],
+    query: Optional[QueryProxy],
     use_arrow: bool,
     return_incomplete: bool,
     preload_metadata: bool,
@@ -589,7 +590,7 @@ def _get_pyquery(
 
 
 def _iter_attr_names(
-    schema: ArraySchema, query: Optional[Query] = None
+    schema: ArraySchema, query: Optional[QueryProxy] = None
 ) -> Iterator[str]:
     if query is not None and query.attrs is not None:
         return iter(query.attrs)
@@ -597,7 +598,7 @@ def _iter_attr_names(
 
 
 def _iter_dim_names(
-    schema: ArraySchema, query: Optional[Query] = None
+    schema: ArraySchema, query: Optional[QueryProxy] = None
 ) -> Iterator[str]:
     if query is not None:
         if query.dims is not None:
@@ -625,7 +626,7 @@ def _get_pyquery_results(
 
 
 def _get_empty_results(
-    schema: ArraySchema, query: Optional[Query] = None
+    schema: ArraySchema, query: Optional[QueryProxy] = None
 ) -> Dict[str, np.ndarray]:
     names = []
     query_dims = frozenset(_iter_dim_names(schema, query))
