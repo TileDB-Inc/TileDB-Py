@@ -93,3 +93,17 @@ class Subarray(CtxMixin, lt.Subarray):
         if not isinstance(label, str):
             raise TypeError(f"invalid type {type(label)} for label")
         return self._label_range_num(self._ctx, label)
+
+    def shape(self) -> Optional[Sequence[tuple]]:
+        """Returns the shape of dense data using this subarray and ``None`` for sparse
+        arrays.
+
+        This does not support getting the shape of subarrays with label ranges.
+
+        :rtype: tuple(int, ...)
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        if self._array.schema.sparse:
+            return None
+        shape = self._shape(self._ctx)
+        return tuple(length for length in shape)

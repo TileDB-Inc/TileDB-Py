@@ -1,6 +1,7 @@
-#include <tiledb/tiledb.h>            // for enums
-#include <tiledb/tiledb>              // C++
-#include <tiledb/tiledb_experimental> // C++
+#include <tiledb/tiledb.h>              // for enums
+#include <tiledb/tiledb>                // C++
+#include <tiledb/tiledb_experimental.h> // for `tiledb_subarray_has_label_range`
+#include <tiledb/tiledb_experimental>   // C++
 
 #include "common.h"
 
@@ -14,7 +15,7 @@ namespace libtiledbcpp {
 using namespace tiledb;
 namespace py = pybind11;
 
-template <typename T> struct RangeCopier {
+template <typename T> struct SubarrayDimensionManipulator {
 
   static void copy(Subarray &subarray, Subarray &original, uint32_t dim_idx) {
     for (uint64_t range_idx{0}; range_idx < original.range_num(dim_idx);
@@ -23,9 +24,25 @@ template <typename T> struct RangeCopier {
       subarray.add_range(dim_idx, range[0], range[1], range[2]);
     }
   }
+
+  static py::ssize_t length(Subarray &subarray, uint32_t dim_idx) {
+    auto length = 0;
+    for (uint64_t range_idx{0}; range_idx < subarray.range_num(dim_idx);
+         ++range_idx) {
+      std::array<T, 3> range = subarray.range<T>(dim_idx, range_idx);
+      if (range[2] != 0 && range[1] != 1) {
+        throw TileDBPyError("Support for getting the lenght of ranges with a "
+                            "stride is not yet implemented.");
+      }
+      length += static_cast<py::ssize_t>(range[1] - range[0]) + 1;
+      // TODO: Before merging think though handling of potentital overflow
+      // errors
+    }
+    return length;
+  }
 };
 
-template <> struct RangeCopier<std::string> {
+template <> struct SubarrayDimensionManipulator<std::string> {
 
   static void copy(Subarray &subarray, Subarray &original, uint32_t dim_idx) {
     for (uint64_t range_idx{0}; range_idx < original.range_num(dim_idx);
@@ -33,6 +50,11 @@ template <> struct RangeCopier<std::string> {
       std::array<std::string, 2> range = original.range(dim_idx, range_idx);
       subarray.add_range(dim_idx, range[0], range[1]);
     }
+  }
+
+  static uint64_t length(Subarray &, uint32_t) {
+    throw TileDBPyError(
+        "Getting length of ranges is not supported on string dimensions.");
   }
 };
 
@@ -179,59 +201,59 @@ void copy_ranges_on_dim(Subarray &subarray, Subarray original,
   switch (tiledb_type) {
   case TILEDB_INT32: {
     using T = int32_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_INT64: {
     using T = int64_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_INT8: {
     using T = int8_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_UINT8: {
     using T = uint8_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_INT16: {
     using T = int16_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_UINT16: {
     using T = uint16_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_UINT32: {
     using T = uint32_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_UINT64: {
     using T = uint64_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_FLOAT32: {
     using T = float;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_FLOAT64: {
     using T = double;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_STRING_ASCII:
   case TILEDB_STRING_UTF8:
   case TILEDB_CHAR: {
     using T = std::string;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   case TILEDB_DATETIME_YEAR:
@@ -257,11 +279,80 @@ void copy_ranges_on_dim(Subarray &subarray, Subarray original,
   case TILEDB_TIME_FS:
   case TILEDB_TIME_AS:
     using T = int64_t;
-    RangeCopier<T>::copy(subarray, original, dim_idx);
+    SubarrayDimensionManipulator<T>::copy(subarray, original, dim_idx);
     break;
   }
   default:
     TPY_ERROR_LOC("Unknown dim type conversion!");
+  }
+}
+
+py::ssize_t length_ranges(Subarray &subarray, uint32_t dim_idx) {
+
+  auto tiledb_type =
+      subarray.array().schema().domain().dimension(dim_idx).type();
+
+  switch (tiledb_type) {
+  case TILEDB_INT32: {
+    using T = int32_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  case TILEDB_INT64: {
+    using T = int64_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  case TILEDB_INT8: {
+    using T = int8_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  case TILEDB_UINT8: {
+    using T = uint8_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  case TILEDB_INT16: {
+    using T = int16_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  case TILEDB_UINT16: {
+    using T = uint16_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  case TILEDB_UINT32: {
+    using T = uint32_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  case TILEDB_UINT64: {
+    using T = uint64_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  case TILEDB_DATETIME_YEAR:
+  case TILEDB_DATETIME_MONTH:
+  case TILEDB_DATETIME_WEEK:
+  case TILEDB_DATETIME_DAY:
+  case TILEDB_DATETIME_HR:
+  case TILEDB_DATETIME_MIN:
+  case TILEDB_DATETIME_SEC:
+  case TILEDB_DATETIME_MS:
+  case TILEDB_DATETIME_US:
+  case TILEDB_DATETIME_NS:
+  case TILEDB_DATETIME_PS:
+  case TILEDB_DATETIME_FS:
+  case TILEDB_DATETIME_AS: {
+  case TILEDB_TIME_HR:
+  case TILEDB_TIME_MIN:
+  case TILEDB_TIME_SEC:
+  case TILEDB_TIME_MS:
+  case TILEDB_TIME_US:
+  case TILEDB_TIME_NS:
+  case TILEDB_TIME_PS:
+  case TILEDB_TIME_FS:
+  case TILEDB_TIME_AS:
+    using T = int64_t;
+    return SubarrayDimensionManipulator<T>::length(subarray, dim_idx);
+  }
+  default:
+    TPY_ERROR_LOC("Dimension length not supported on a dimension with the "
+                  "given datatype.");
   }
 }
 
@@ -433,6 +524,20 @@ void add_label_range(const Context &ctx, Subarray &subarray,
 }
 #endif
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+bool has_label_range(const Context &ctx, Subarray &subarray, uint32_t dim_idx) {
+  int32_t has_label;
+  auto rc = tiledb_subarray_has_label_ranges(
+      ctx.ptr().get(), subarray.ptr().get(), dim_idx, &has_label);
+  if (rc == TILEDB_ERR) {
+    throw TileDBError("Failed to check dimension for label ranges");
+  }
+  return has_label == 1;
+}
+#else
+bool has_label_range(const Context &, Subarray &, uint32_t) { return false; }
+#endif
+
 void init_subarray(py::module &m) {
   py::class_<tiledb::Subarray>(m, "Subarray")
       .def(py::init<Subarray>())
@@ -529,6 +634,25 @@ void init_subarray(py::module &m) {
 
            })
 #endif
+
+      .def("_shape",
+           [](Subarray &subarray, const Context &ctx) {
+             auto ndim = subarray.array().schema().domain().ndim();
+             // Create numpy array and get pointer to data.
+             py::array_t<py::ssize_t> shape(ndim);
+             py::buffer_info shape_result = shape.request();
+             py::ssize_t *shape_ptr =
+                 static_cast<py::ssize_t *>(shape_result.ptr);
+             // Set size for each dimension.
+             for (uint32_t dim_idx{0}; dim_idx < ndim; ++dim_idx) {
+               if (has_label_range(ctx, subarray, dim_idx)) {
+                 throw TileDBPyError(
+                     "Cannot get the shape of a subarray with label ranges.");
+               }
+               shape_ptr[dim_idx] = length_ranges(subarray, dim_idx);
+             }
+             return shape;
+           })
 
       // End definitions.
       ;

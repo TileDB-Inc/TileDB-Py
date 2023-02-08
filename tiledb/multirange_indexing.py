@@ -531,7 +531,7 @@ class LabelIndexer(MultiRangeIndexer):
                     self.label_query.subarray(), self._labels.keys()
                 )
                 self.pyquery.set_subarray(self.subarray)
-                # TODO: Set shape
+            self.result_shape = self.subarray.shape()
         return super()._run_query()
 
 
