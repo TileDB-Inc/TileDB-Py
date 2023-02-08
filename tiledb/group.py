@@ -5,6 +5,7 @@ import numpy as np
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin, default_ctx
+from .datatypes import DataType
 from .object import Object
 
 
@@ -102,30 +103,21 @@ class Group(CtxMixin, lt.Group):
             # non-numpy value with a numpy value or vice versa)
             del self[key]
 
+            put_metadata = self._group._put_metadata
             if isinstance(value, np.ndarray):
-                self._group._put_metadata(
-                    f"{Group._NP_DATA_PREFIX}{key}", np.array(value)
-                )
-
+                put_metadata(f"{Group._NP_DATA_PREFIX}{key}", np.array(value))
             elif isinstance(value, bytes):
-                self._group._put_metadata(key, lt.DataType.BLOB, len(value), value)
-
+                put_metadata(key, lt.DataType.BLOB, len(value), value)
             elif isinstance(value, str):
                 value = value.encode("UTF-8")
-                self._group._put_metadata(
-                    key, lt.DataType.STRING_UTF8, len(value), value
-                )
-
+                put_metadata(key, lt.DataType.STRING_UTF8, len(value), value)
+            elif isinstance(value, (list, tuple)):
+                put_metadata(key, np.array(value))
             else:
-                if isinstance(value, (list, tuple)):
-                    _value = np.array(value)
-                else:
-                    if isinstance(value, (int, float)):
-                        np_dtype = np.int64 if isinstance(value, int) else np.float64
-                        value = np_dtype(value)
-                    _value = np.array([value])
-
-                self._group._put_metadata(key, _value)
+                if isinstance(value, int):
+                    # raise OverflowError too large to convert to int64
+                    value = np.int64(value)
+                put_metadata(key, np.array([value]))
 
         def __getitem__(self, key: str, include_type=False) -> GroupMetadataValueType:
             """
@@ -138,40 +130,25 @@ class Group(CtxMixin, lt.Group):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
             if self._group._has_metadata(key):
-                data, tdb_type = self._group._get_metadata(key)
-                if tdb_type == lt.DataType.STRING_UTF8:
-                    value = str(data.tobytes().decode("UTF-8"))
-                    return (value, tdb_type) if include_type else value
-                elif tdb_type in (
-                    lt.DataType.STRING_ASCII,
-                    lt.DataType.BLOB,
-                    lt.DataType.CHAR,
-                ):
-                    value = data.tobytes()
-                    return (value, tdb_type) if include_type else value
-                else:
-                    data = tuple(data)
-                    value = data[0] if len(data) == 1 else data
-                    return (value, tdb_type) if include_type else value
+                pass
             elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
-                data, tdb_type = self._group._get_metadata(
-                    f"{Group._NP_DATA_PREFIX}{key}"
-                )
-                if tdb_type == lt.DataType.STRING_UTF8:
-                    value = str(data.tobytes().decode("UTF-8"))
-                    return (value, tdb_type) if include_type else value
-                elif tdb_type in (
-                    lt.DataType.STRING_ASCII,
-                    lt.DataType.BLOB,
-                    lt.DataType.CHAR,
-                ):
-                    value = data.tobytes()
-                    return (value, tdb_type) if include_type else value
-                else:
-                    value = data
-                    return (value, tdb_type) if include_type else value
+                key = f"{Group._NP_DATA_PREFIX}{key}"
             else:
                 raise KeyError(f"KeyError: {key}")
+
+            data, tdb_type = self._group._get_metadata(key)
+            dtype = DataType.from_tiledb(tdb_type).np_dtype
+            if np.issubdtype(dtype, np.character):
+                value = data.tobytes()
+                if np.issubdtype(dtype, np.str_):
+                    value = value.decode("UTF-8")
+            elif key.startswith(Group._NP_DATA_PREFIX):
+                value = data
+            elif len(data) == 1:
+                value = data[0]
+            else:
+                value = tuple(data)
+            return (value, tdb_type) if include_type else value
 
         def __delitem__(self, key: str):
             """Removes the entry from the Group metadata.
