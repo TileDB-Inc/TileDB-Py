@@ -91,10 +91,20 @@ if __name__ == "__main__":
     # Name of the array to create.
     ARRAY_NAME = "quickstart_labels"
 
-    # Only create and write to the array if it doesn't already exist.
-    if tiledb.object_type(ARRAY_NAME) != "array":
-        create_array(ARRAY_NAME)
-        write_array(ARRAY_NAME)
+    LIBVERSION = tiledb.libtiledb.version()
 
-    # Read from the array and print output.
-    read_array(ARRAY_NAME)
+    if LIBVERSION[0] == 2 and LIBVERSION[1] < 15:
+        print(
+            f"Dimension labels requires libtiledb version >= 2.15.0. Current version is"
+            f" {LIBVERSION[0]}.{LIBVERSION[1]}.{LIBVERSION[2]}"
+        )
+
+    else:
+
+        # Only create and write to the array if it doesn't already exist.
+        if tiledb.object_type(ARRAY_NAME) != "array":
+            create_array(ARRAY_NAME)
+            write_array(ARRAY_NAME)
+
+        # Read from the array and print output.
+        read_array(ARRAY_NAME)
