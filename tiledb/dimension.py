@@ -38,8 +38,10 @@ class Dim(CtxMixin, lt.Dimension):
         :raises TypeError: invalid domain, tile extent, or dtype type
         :raises tiledb.TileDBError:
         """
-        if dtype != "ascii":
-            dtype = np.dtype(dtype)
+        dt = DataType.from_numpy(dtype)
+        dtype = dt.np_dtype
+        if dtype.kind not in ("i", "u", "f", "M", "S"):
+            raise TypeError(f"invalid Dim dtype {dtype!r}")
 
         if var and not np.issubdtype(dtype, np.character):
             raise TypeError("'var=True' specified for non-str/bytes dtype")
@@ -47,48 +49,34 @@ class Dim(CtxMixin, lt.Dimension):
         if domain is not None and len(domain) != 2:
             raise ValueError("invalid domain extent, must be a pair")
 
-        domain_array = None
-        tile_size_array = None
-
-        if dtype == "ascii" or np.issubdtype(dtype, np.bytes_):
+        if np.issubdtype(dtype, np.bytes_):
             # Handle var-len dom type (currently only TILEDB_STRING_ASCII)
             # The dims's dom is implicitly formed as coordinates are written.
-            dim_datatype = lt.DataType.STRING_ASCII
+            tiledb_type = lt.DataType.STRING_ASCII
+            # XXX: intentionally(?) ignore passed domain and tile
+            domain = tile = None
         else:
-            dt = DataType.from_numpy(dtype)
-            dim_datatype = dt.tiledb_type
+            tiledb_type = dt.tiledb_type
+            if domain is None or domain == (None, None):
+                domain = dt.domain
+            else:
+                dtype_min, dtype_max = dt.domain
+                if not (
+                    dtype_min <= domain[0] <= dtype_max
+                    and dtype_min <= domain[1] <= dtype_max
+                ):
+                    raise TypeError(
+                        f"invalid domain extent, domain cannot be safely cast to dtype {dtype!r}"
+                    )
 
-            dtype_min, dtype_max = dt.domain
-            if domain == (None, None):
-                # this means to use the full extent of the type
-                domain = (dtype_min, dtype_max)
-            elif (
-                domain[0] < dtype_min
-                or domain[0] > dtype_max
-                or domain[1] < dtype_min
-                or domain[1] > dtype_max
-            ):
-                raise TypeError(
-                    "invalid domain extent, domain cannot be safely"
-                    f" cast to dtype {dtype!r}"
-                )
-
-            # check that the domain type is a valid dtype (integer / floating)
-            if not (
-                np.issubdtype(dtype, np.integer)
-                or np.issubdtype(dtype, np.floating)
-                or np.issubdtype(dtype, np.datetime64)
-            ):
-                raise TypeError(f"invalid Dim dtype {dtype!r}")
-
-            domain_array = np.asarray(domain, dtype)
+            domain = np.asarray(domain, dtype)
             if np.issubdtype(dtype, np.datetime64):
-                domain_array = domain_array.astype(np.int64)
+                domain = domain.astype(np.int64)
 
             if tile is not None:
-                tile_size_array = dt.cast_tile_extent(tile)
+                tile = dt.cast_tile_extent(tile)
 
-        super().__init__(ctx, name, dim_datatype, domain_array, tile_size_array)
+        super().__init__(ctx, name, tiledb_type, domain, tile)
 
         if filters is not None:
             if isinstance(filters, FilterList):

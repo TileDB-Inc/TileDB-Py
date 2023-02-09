@@ -18,9 +18,13 @@ class DataType:
     @classmethod
     @lru_cache()
     def from_numpy(cls, dtype: np.dtype) -> DataType:
-        base_dtype = dtype = np.dtype(dtype)
-        ncells = 1
+        if dtype == "ascii":
+            return cls(np.dtype("S"), lt.DataType.STRING_ASCII, lt.TILEDB_VAR_NUM())
 
+        if dtype == "blob":
+            return cls(np.dtype("S"), lt.DataType.BLOB, 1)
+
+        dtype = np.dtype(dtype)
         if dtype.kind == "V":
             # fixed-size record dtypes
             if dtype.shape != ():
@@ -44,12 +48,12 @@ class DataType:
             else:
                 ncells = dtype.itemsize // base_dtype.itemsize
 
-        elif np.issubdtype(dtype, np.complexfloating):
-            ncells = 2
+        else:
+            base_dtype = dtype
+            ncells = 2 if np.issubdtype(dtype, np.complexfloating) else 1
 
-        try:
-            tiledb_type = _NUMPY_TO_TILEDB[base_dtype]
-        except KeyError:
+        tiledb_type = _NUMPY_TO_TILEDB.get(base_dtype)
+        if tiledb_type is None:
             raise TypeError(f"{dtype!r} cannot be mapped to a DataType")
 
         return cls(dtype, tiledb_type, ncells)

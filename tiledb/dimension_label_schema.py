@@ -27,30 +27,18 @@ class DimLabelSchema:
         label_filters: Union[FilterList, Sequence[Filter]] = None,
         ctx: Ctx = None,
     ):
-        # Set context
         self._ctx = ctx or default_ctx()
-
-        # Set simple properties
         self._dim_index = dim_index
         self._label_order = DataOrder[order]
+        self._label_dtype = DataType.from_numpy(label_dtype)
+        self._dim_dtype = DataType.from_numpy(dim_dtype)
 
-        # Compute and set the label datatype
-        if label_dtype == "ascii":
-            self._label_dtype = DataType.from_tiledb(lt.DataType.STRING_ASCII)
-        else:
-            self._label_dtype = DataType.from_numpy(label_dtype)
-
-        # Compute and set the dimension datatype and filter
-        if dim_dtype == "ascii":
-            self._dim_dtype = DataType.from_tiledb(lt.DataType.STRING_ASCII)
-            if dim_tile is not None:
+        if dim_tile is not None:
+            if np.issubdtype(self._dim_dtype.np_dtype, np.bytes_):
                 raise TypeError(
                     "invalid tile extent, cannot set a tile a string dimension"
                 )
-        else:
-            self._dim_dtype = DataType.from_numpy(dim_dtype)
-            if dim_tile is not None:
-                dim_tile = self._dim_dtype.cast_tile_extent(dim_tile)
+            dim_tile = self._dim_dtype.cast_tile_extent(dim_tile)
         self._dim_tile = dim_tile
 
         if label_filters is None or isinstance(label_filters, FilterList):
