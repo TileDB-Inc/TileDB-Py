@@ -2195,7 +2195,11 @@ cdef class DenseArrayImpl(Array):
 
             # Create dictionary of label names and values
             labels = {
-                name: data for name, data in val.items()
+                name:
+                (data
+                if not type(data) is np.ndarray or data.dtype is np.dtype('O')
+                else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype))
+                for name, data in val.items()
                 if self.schema.has_dim_label(name)
             }
 
@@ -2550,7 +2554,11 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
 
     # Create dictionary for label names and values from the dictionary
     labels = {
-        name: data for name, data in val.items()
+        name:
+        (data
+        if not type(data) is np.ndarray or data.dtype is np.dtype('O')
+        else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype))
+        for name, data in val.items()
         if self.schema.has_dim_label(name)
     }
 
