@@ -1,4 +1,5 @@
 import os
+import time
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -27,6 +28,7 @@ def test_group_metadata(tmp_path):
     assert_array_equal(grp._get_metadata("flt")[0], flt_data)
     grp._close()
 
+    time.sleep(0.001)
     grp._open(lt.QueryType.WRITE)
     grp._delete_metadata("int")
     grp._close()

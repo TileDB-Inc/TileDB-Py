@@ -49,14 +49,14 @@ class ContextTest(DiskTestCase):
         ) == str(excinfo.value)
 
     def test_scope_ctx(self):
-        key = "sm.tile_cache_size"
+        key = "sm.memory_budget"
         ctx0 = tiledb.default_ctx()
         new_config_dict = {key: 42}
         new_config = tiledb.Config({key: 78})
         new_ctx = tiledb.Ctx({key: 61})
 
         assert tiledb.default_ctx() is ctx0
-        assert tiledb.default_ctx().config()[key] == "10000000"
+        assert tiledb.default_ctx().config()[key] == "5368709120"
 
         with tiledb.scope_ctx(new_config_dict) as ctx1:
             assert tiledb.default_ctx() is ctx1
@@ -73,7 +73,7 @@ class ContextTest(DiskTestCase):
             assert tiledb.default_ctx().config()[key] == "42"
 
         assert tiledb.default_ctx() is ctx0
-        assert tiledb.default_ctx().config()[key] == "10000000"
+        assert tiledb.default_ctx().config()[key] == "5368709120"
 
     def test_scope_ctx_error(self):
         with pytest.raises(ValueError) as excinfo:
@@ -111,14 +111,14 @@ class ContextTest(DiskTestCase):
 class TestConfig(DiskTestCase):
     def test_config(self):
         config = tiledb.Config()
-        config["sm.tile_cache_size"] = 100
+        config["sm.memory_budget"] = 103
         assert repr(config) is not None
         tiledb.Ctx(config)
 
     def test_ctx_config(self):
-        ctx = tiledb.Ctx({"sm.tile_cache_size": 100})
+        ctx = tiledb.Ctx({"sm.memory_budget": 103})
         config = ctx.config()
-        self.assertEqual(config["sm.tile_cache_size"], "100")
+        self.assertEqual(config["sm.memory_budget"], "103")
 
     def test_vfs_config(self):
         config = tiledb.Config()
@@ -150,11 +150,11 @@ class TestConfig(DiskTestCase):
 
     def test_config_unset(self):
         config = tiledb.Config()
-        config["sm.tile_cach_size"] = 100
-        del config["sm.tile_cache_size"]
+        config["sm.memory_budget"] = 103
+        del config["sm.memory_budget"]
         # check that config parameter is default
         self.assertEqual(
-            config["sm.tile_cache_size"], tiledb.Config()["sm.tile_cache_size"]
+            config["sm.memory_budget"], tiledb.Config()["sm.memory_budget"]
         )
 
     def test_config_from_file(self):
@@ -166,24 +166,24 @@ class TestConfig(DiskTestCase):
 
         config_path = self.path("config")
         with tiledb.FileIO(self.vfs, config_path, "wb") as fh:
-            fh.write("sm.tile_cache_size 100")
+            fh.write("sm.memory_budget 100")
         config = tiledb.Config.load(config_path)
-        self.assertEqual(config["sm.tile_cache_size"], "100")
+        self.assertEqual(config["sm.memory_budget"], "100")
 
     def test_ctx_config_from_file(self):
         config_path = self.path("config")
         vfs = tiledb.VFS()
         with tiledb.FileIO(vfs, config_path, "wb") as fh:
-            fh.write("sm.tile_cache_size 100")
+            fh.write("sm.memory_budget 100")
         ctx = tiledb.Ctx(config=tiledb.Config.load(config_path))
         config = ctx.config()
-        self.assertEqual(config["sm.tile_cache_size"], "100")
+        self.assertEqual(config["sm.memory_budget"], "100")
 
     def test_ctx_config_dict(self):
-        ctx = tiledb.Ctx(config={"sm.tile_cache_size": "100"})
+        ctx = tiledb.Ctx(config={"sm.memory_budget": "100"})
         config = ctx.config()
         assert issubclass(type(config), tiledb.libtiledb.Config)
-        self.assertEqual(config["sm.tile_cache_size"], "100")
+        self.assertEqual(config["sm.memory_budget"], "100")
 
     def test_config_repr_html(self):
         config = tiledb.Config()
