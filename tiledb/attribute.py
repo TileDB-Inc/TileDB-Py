@@ -38,37 +38,22 @@ class Attr(CtxMixin, lt.Attribute):
         :raises TypeError: invalid dtype
         :raises tiledb.TileDBError:
         """
-        _dtype = None
-        if isinstance(dtype, str) and dtype == "ascii":
-            tiledb_dtype = lt.DataType.STRING_ASCII
-            _ncell = lt.TILEDB_VAR_NUM()
-            if var is None:
-                var = True
-        elif isinstance(dtype, str) and dtype == "blob":
-            tiledb_dtype = lt.DataType.BLOB
-            _ncell = 1
-        else:
-            _dtype = np.dtype(dtype)
-            dt = DataType.from_numpy(_dtype)
-            tiledb_dtype = dt.tiledb_type
-            _ncell = dt.ncells
+        dt = DataType.from_numpy(
+            np.dtype(dtype) if dtype not in ("ascii", "blob") else dtype
+        )
 
-        # ensure that all unicode strings are var-length
-        if var or np.issubdtype(_dtype, np.str_):
+        # ensure that all strings are var-length
+        if (var is None and dtype == "ascii") or np.issubdtype(dt.np_dtype, np.str_):
             var = True
-            _ncell = lt.TILEDB_VAR_NUM()
-
-        if np.issubdtype(_dtype, np.bytes_):
-            if var and 0 < _dtype.itemsize:
+        elif np.issubdtype(dt.np_dtype, np.bytes_):
+            if dt.np_dtype.itemsize > 0 and var:
                 warnings.warn(
-                    f"Attr given `var=True` but `dtype` `{_dtype}` is fixed; "
+                    f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
                     "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
-                    f"or `var=False`with `dtype={_dtype}`",
+                    f"or `var=False`with `dtype={dtype}`",
                     DeprecationWarning,
                 )
-                _dtype = np.dtype("S0")
-
-            if _dtype.itemsize == 0:
+            elif dt.np_dtype.itemsize == 0 and dtype != "ascii":
                 if var is False:
                     warnings.warn(
                         "Attr given `var=False` but `dtype` `S0` is var-length; "
@@ -78,18 +63,14 @@ class Attr(CtxMixin, lt.Attribute):
                         DeprecationWarning,
                     )
                 var = True
-                _ncell = lt.TILEDB_VAR_NUM()
 
-        var = var or False
+        super().__init__(ctx, name, dt.tiledb_type)
 
-        super().__init__(ctx, name, tiledb_dtype)
-
-        if _ncell:
-            self._ncell = _ncell
-
-        var = var or False
-
-        if self._ncell == lt.TILEDB_VAR_NUM() and not var:
+        if var:
+            self._ncell = lt.TILEDB_VAR_NUM()
+        elif dt.ncells != lt.TILEDB_VAR_NUM():
+            self._ncell = dt.ncells
+        else:
             raise TypeError("dtype is not compatible with var-length attribute")
 
         if filters is not None:
