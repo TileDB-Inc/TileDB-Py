@@ -59,6 +59,12 @@ def create_array(uri: str):
             label_dtype=np.int64,
             dim_dtype=d2.dtype,
         ),
+        "l3": tiledb.DimLabelSchema(
+            1,
+            "increasing",
+            label_dtype=np.float64,
+            dim_dtype=d2.dtype,
+        ),
     }
     schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
     tiledb.Array.create(uri, schema)
@@ -69,21 +75,30 @@ def write_array(uri: str):
     a1_data = np.reshape(np.arange(1, 26), (5, 5))
     l1_data = np.arange(5, 0, -1)
     l2_data = np.arange(-2, 3)
+    l3_data = np.linspace(-1.0, 1.0, 5)
     with tiledb.open(uri, "w") as array:
-        array[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data}
+        array[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
 
 
 def read_array(uri: str):
     """Read the array from the dimension label"""
+
     with tiledb.open(uri, "r") as array:
 
-        data1 = array.label_index(["l2"])[1, -2:2]
-        print("Reading attribute 'a1', using 'l2' [[1, -2:2]]")
-        print(data1["a1"])
+        data1 = array.label_index(["l2"])[1, -1:1]
+        print("Reading array on [[1, -1:1]] with label 'l2' on dim2")
+        for name, value in data1.items():
+            print(f"  '{name}'={value}")
 
-        data2 = array.label_index(["l1", "l2"])[5, -2:2]
-        print("Reading attribute 'a1', using 'l1' and 'l2' [[5, -2:2]]")
-        print(data2["a1"])
+        data2 = array.label_index(["l1", "l2"])[4:5, -2:2]
+        print("Reading array on [[4:5, -2:2]] with label 'l1' on dim1 and 'l2' on dim2")
+        for name, value in data2.items():
+            print(f"  '{name}'={value}")
+
+        data3 = array.label_index(["l3"])[1, 0.0:2.0]
+        print("Reading array on [[1, 0.0:2.0]] with label 'l3' on dim2")
+        for name, value in data3.items():
+            print(f"  '{name}'={value}")
 
 
 if __name__ == "__main__":
