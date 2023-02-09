@@ -2,7 +2,7 @@ import numpy as np
 
 import tiledb
 
-from .datatypes import DataType
+from .dataframe_ import create_dim
 
 
 def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=None):
@@ -121,7 +121,7 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
             raise tiledb.TileDBError("Cannot append to sparse array")
 
     if mode in ("ingest", "schema_only"):
-        schema = _schema_like_numpy(array, ctx=ctx, **kwargs)
+        schema = _schema_like_numpy(array, ctx, **kwargs)
         tiledb.Array.create(uri, schema)
 
     if mode in ("ingest", "append"):
@@ -192,8 +192,7 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):
     :param kwargs: additional keyword arguments to pass through, optional
     :return: tiledb.ArraySchema
     """
-    if not ctx:
-        ctx = tiledb.default_ctx()
+    ctx = _get_ctx(ctx)
 
     def is_ndarray_like(arr):
         return hasattr(arr, "shape") and hasattr(arr, "dtype") and hasattr(arr, "ndim")
@@ -202,11 +201,9 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):
     dim_dtype = kwargs.pop("dim_dtype", np.uint64)
     if len(args) == 1:
         arr = args[0]
-        if is_ndarray_like(arr):
-            tiling = _regularize_tiling(kwargs.pop("tile", None), arr.ndim)
-            schema = _schema_like_numpy(arr, tile=tiling, dim_dtype=dim_dtype, ctx=ctx)
-        else:
+        if not is_ndarray_like(arr):
             raise ValueError("expected ndarray-like object")
+        schema = _schema_like_numpy(arr, ctx, dim_dtype, tile=kwargs.pop("tile", None))
     elif shape and dtype:
         if np.issubdtype(np.bytes_, dtype):
             dtype = np.dtype("S")
@@ -240,64 +237,31 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):
     return schema
 
 
-def _schema_like_numpy(array, ctx=None, **kwargs):
+def _schema_like_numpy(
+    array,
+    ctx,
+    dim_dtype=np.uint64,
+    attr_name="",
+    full_domain=False,
+    tile=None,
+    **kwargs,
+):
     """
     Internal helper function for schema_like to create array schema from
     NumPy array-like object.
     """
-    if not ctx:
-        ctx = tiledb.default_ctx()
     # create an ArraySchema from the numpy array object
-    tiling = _regularize_tiling(kwargs.pop("tile", None), array.ndim)
-
-    attr_name = kwargs.pop("attr_name", "")
-    dim_dtype = kwargs.pop("dim_dtype", np.dtype("uint64"))
-    full_domain = kwargs.pop("full_domain", False)
-    dims = []
-
-    for d in range(array.ndim):
-        # support smaller tile extents by kwargs
-        # domain is based on full shape
-        tile_extent = tiling[d] if tiling else array.shape[d]
-        # TODO: refactor with dataframe_.dim_for_column
-        if full_domain:
-            if dim_dtype not in (np.bytes_, np.str_):
-                # Use the full type domain, deferring to the constructor
-                dtype_min, dtype_max = DataType.from_numpy(dim_dtype).domain
-                dim_max = dtype_max
-                if np.issubdtype(dim_dtype, np.datetime64):
-                    date_unit = np.datetime_data(dim_dtype)[0]
-                    dim_min = np.datetime64(dtype_min, date_unit)
-                    tile_max = np.iinfo(np.uint64).max - tile_extent
-                    if np.uint64(dtype_max - dtype_min) > tile_max:
-                        dim_max = np.datetime64(dtype_max - tile_extent, date_unit)
-                else:
-                    dim_min = dtype_min
-
-                if np.issubdtype(dim_dtype, np.integer):
-                    tile_max = np.iinfo(np.uint64).max - tile_extent
-                    if np.uint64(dtype_max - dtype_min) > tile_max:
-                        dim_max = dtype_max - tile_extent
-                domain = (dim_min, dim_max)
-            else:
-                domain = (None, None)
-
-            if np.issubdtype(dim_dtype, np.integer) or dim_dtype.kind == "M":
-                # we can't make a tile larger than the dimension range or lower than 1
-                tile_extent = max(1, min(tile_extent, np.uint64(dim_max - dim_min)))
-            elif np.issubdim_dtype(dim_dtype, np.floating):
-                # this difference can be inf
-                with np.errstate(over="ignore"):
-                    dim_range = dim_max - dim_min
-                if dim_range < tile_extent:
-                    tile_extent = np.ceil(dim_range)
-        else:
-            domain = (0, array.shape[d] - 1)
-
-        dims.append(
-            tiledb.Dim(domain=domain, tile=tile_extent, dtype=dim_dtype, ctx=ctx)
+    tiling = _regularize_tiling(tile, array.ndim)
+    dims = [
+        create_dim(
+            dtype=dim_dtype,
+            values=(0, array.shape[d] - 1),
+            full_domain=full_domain,
+            tile=tiling[d] if tiling else array.shape[d],
+            ctx=ctx,
         )
-
+        for d in range(array.ndim)
+    ]
     var = False
     if array.dtype == object:
         # for object arrays, we use the dtype of the first element
