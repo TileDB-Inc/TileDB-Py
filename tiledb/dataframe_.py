@@ -231,36 +231,31 @@ def _get_attrs(names, column_infos, attr_filters):
     return attrs, attr_reprs
 
 
-def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=None):
-    if full_domain:
-        if dtype not in (np.bytes_, np.str_):
-            # Use the full type domain, deferring to the constructor
-            dtype_min, dtype_max = DataType.from_numpy(dtype).domain
-            dim_max = dtype_max
-            if np.issubdtype(dtype, np.datetime64):
-                date_unit = np.datetime_data(dtype)[0]
-                dim_min = np.datetime64(dtype_min, date_unit)
-                tile_max = np.iinfo(np.uint64).max - tile
-                if np.uint64(dtype_max - dtype_min) > tile_max:
-                    dim_max = np.datetime64(dtype_max - tile, date_unit)
-            else:
-                dim_min = dtype_min
-
-            if np.issubdtype(dtype, np.integer):
-                tile_max = np.iinfo(np.uint64).max - tile
-                if np.uint64(dtype_max - dtype_min) > tile_max:
-                    dim_max = dtype_max - tile
-        else:
-            dim_min, dim_max = None, None
+def create_dim(dtype, values, full_domain, tile, **kwargs):
+    if not full_domain:
+        values = np.asarray(values)
+        dim_min = values.min()
+        dim_max = values.max()
+    elif not np.issubdtype(dtype, np.character):
+        dim_min, dim_max = dtype_min, dtype_max = DataType.from_numpy(dtype).domain
+        # TODO: simplify this logic and/or move to DataType.domain
+        if np.issubdtype(dtype, np.datetime64):
+            date_unit = np.datetime_data(dtype)[0]
+            dim_min = np.datetime64(dtype_min, date_unit)
+            tile_max = np.iinfo(np.uint64).max - tile
+            if np.uint64(dtype_max - dtype_min) > tile_max:
+                dim_max = np.datetime64(dtype_max - tile, date_unit)
+        elif np.issubdtype(dtype, np.integer):
+            tile_max = np.iinfo(np.uint64).max - tile
+            if np.uint64(dtype_max - dtype_min) > tile_max:
+                dim_max = dtype_max - tile
     else:
-        if not isinstance(values, np.ndarray):
-            values = values.values
-        dim_min = np.min(values)
-        dim_max = np.max(values)
+        dim_min, dim_max = None, None
 
+    # TODO: simplify this logic and/or move to DataType.cast_tile_extent
     if np.issubdtype(dtype, np.integer) or np.issubdtype(dtype, np.datetime64):
         # we can't make a tile larger than the dimension range or lower than 1
-        tile = max(1, min(tile, np.uint64(dim_max - dim_min)))
+        tile = max(1, min(tile, 1 + np.uint64(dim_max - dim_min)))
     elif np.issubdtype(dtype, np.floating):
         # this difference can be inf
         with np.errstate(over="ignore"):
@@ -269,13 +264,12 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
             tile = np.ceil(dim_range)
 
     return tiledb.Dim(
-        name=name,
         domain=(dim_min, dim_max),
         # libtiledb only supports TILEDB_ASCII dimensions, so we must use
         # nb.bytes_ which will force encoding on write
         dtype=np.bytes_ if dtype == np.str_ else dtype,
         tile=tile,
-        filters=dim_filters,
+        **kwargs,
     )
 
 
@@ -347,13 +341,13 @@ def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
         return dim_tile if dim_tile is not None else default_dim_tile
 
     dims = [
-        dim_for_column(
-            name,
-            values,
-            dtype,
-            tile=get_dim_tile(name),
+        create_dim(
+            dtype=dtype,
+            values=values,
             full_domain=full_domain,
-            dim_filters=_get_attr_dim_filters(name, filters),
+            tile=get_dim_tile(name),
+            name=name,
+            filters=_get_attr_dim_filters(name, filters),
         )
         for name, dtype, values in name_dtype_values
     ]
