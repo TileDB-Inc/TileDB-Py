@@ -71,10 +71,7 @@ class Subarray(CtxMixin, lt.Subarray):
             else:
                 self._add_ranges(self._ctx, dim_ranges)
         if label_ranges:
-            # TODO: Before merging move this to C++
-            for label_name, selection in label_ranges.items():
-                for rng in selection:
-                    self._add_label_range(self._ctx, label_name, rng)
+            self._add_label_ranges(self._ctx, label_ranges)
 
     def num_dim_ranges(self, key: Union[int, str]) -> np.uint64:
         """Returns the number of ranges on a dimension.

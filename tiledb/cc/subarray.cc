@@ -26,7 +26,7 @@ template <typename T> struct SubarrayDimensionManipulator {
   }
 
   static py::ssize_t length(Subarray &subarray, uint32_t dim_idx) {
-    auto length = 0;
+    uint64_t length = 0;
     for (uint64_t range_idx{0}; range_idx < subarray.range_num(dim_idx);
          ++range_idx) {
       std::array<T, 3> range = subarray.range<T>(dim_idx, range_idx);
@@ -34,11 +34,17 @@ template <typename T> struct SubarrayDimensionManipulator {
         throw TileDBPyError("Support for getting the lenght of ranges with a "
                             "stride is not yet implemented.");
       }
-      length += static_cast<py::ssize_t>(range[1] - range[0]) + 1;
-      // TODO: Before merging think though handling of potentital overflow
-      // errors
+
+      auto range_length = static_cast<uint64_t>(range[1] - range[0]);
+      if (length > std::numeric_limits<uint64_t>::max() - range_length - 1) {
+        throw TileDBPyError("Overflow error computing subarray shape");
+      }
+      length += range_length + 1;
     }
-    return length;
+    if (length > PY_SSIZE_T_MAX) {
+      throw TileDBPyError("Overflow error computing subarray shape");
+    }
+    return Py_SAFE_DOWNCAST(length, Py_ssize_t, uint64_t);
   }
 };
 
@@ -605,6 +611,26 @@ void init_subarray(py::module &m) {
                dim_idx++;
              }
            })
+
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+      .def("_add_label_ranges",
+           [](Subarray &subarray, const Context &ctx, py::iterable ranges) {
+             py::dict label_ranges = ranges.cast<py::dict>();
+             for (std::pair<py::handle, py::handle> pair : label_ranges) {
+               py::str label_name = pair.first.cast<py::str>();
+               py::tuple label_range_iter = pair.second.cast<py::iterable>();
+               for (auto r : label_range_iter) {
+                 py::tuple r_tuple = r.cast<py::tuple>();
+                 add_label_range(ctx, subarray, label_name, r_tuple);
+               }
+             }
+           })
+#else
+      .def("_add_label_ranges",
+           [](Subarray &, const Context &, py::iterable ) {
+           throw TileDBPyError("Setting dimension label ranges requires libtiledb version 2.15.0 or greater.");
+           })
+#endif
 
       .def("copy_ranges",
            [](Subarray &subarray, Subarray &original, py::iterable dims) {
