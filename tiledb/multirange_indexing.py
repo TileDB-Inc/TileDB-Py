@@ -350,9 +350,10 @@ class MultiRangeIndexer(_BaseIndexer):
         self.pyquery.submit()
         result_dict = _get_pyquery_results(self.pyquery, self.array.schema)
         if self.result_shape is not None:
-            for arr in result_dict.values():
+            for name, arr in result_dict.items():
                 # TODO check/test layout
-                arr.shape = self.result_shape
+                if not self.array.schema.has_dim_label(name):
+                    arr.shape = self.result_shape
         return result_dict
 
 
@@ -485,6 +486,10 @@ class LabelIndexer(MultiRangeIndexer):
         self._labels: Dict[int, str] = {}
         for label_name in labels:
             dim_label = array.schema.dim_label(label_name)
+            if dim_label.isvar:
+                raise NotImplementedError(
+                    "querying by variable length labels is not yet implemented"
+                )
             dim_idx = dim_label.dim_index
             if dim_idx in self._labels:
                 raise TileDBError(
@@ -533,6 +538,10 @@ class LabelIndexer(MultiRangeIndexer):
                 )
                 self.pyquery.set_subarray(self.subarray)
             self.result_shape = self.subarray.shape()
+            for dim_idx, label_name in self._labels.items():
+                if self.result_shape is None:
+                    raise TileDBError("failed to compute subarray shape")
+                self.pyquery.add_label_buffer(label_name, self.result_shape[dim_idx])
         return super()._run_query()
 
 
@@ -620,7 +629,11 @@ def _get_pyquery_results(
             arr = pyquery.unpack_buffer(name, item[0], item[1])
         else:
             arr = item[0]
-            arr.dtype = schema.attr_or_dim_dtype(name)
+            arr.dtype = (
+                schema.attr_or_dim_dtype(name)
+                if not schema.has_dim_label(name)
+                else schema.dim_label(name).dtype
+            )
         result_dict[name if name != "__attr" else ""] = arr
     return result_dict
 
