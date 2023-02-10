@@ -79,8 +79,8 @@ class DimensionLabelTestCase(DiskTestCase):
         tiledb.Array.create(uri, schema)
 
         # Write data to the array and the label
-        attr_data = np.arange(11, 21)
-        label_data = np.arange(-10, 0)
+        attr_data = np.arange(1, 11)
+        label_data = np.arange(-9, 10, 2)
         with tiledb.open(uri, "w") as array:
             array[:] = {"a1": attr_data, "l1": label_data}
 
@@ -97,13 +97,18 @@ class DimensionLabelTestCase(DiskTestCase):
         # Read and check the data using label indexer on parent array
         with tiledb.open(uri, "r") as array:
             indexer = array.label_index(["l1"])
-            output_attr_data = indexer[-100:100]["a1"]
-            np.testing.assert_array_equal(output_attr_data, attr_data)
+
+            # Read full array
+            result = indexer[-100:100]
+            np.testing.assert_array_equal(result["a1"], attr_data)
+            np.testing.assert_array_equal(result["l1"], label_data)
+
+            # Read each individual index
             for index in range(10):
                 label_index = label_data[index]
-                attr_value = indexer[label_index:label_index]["a1"][0]
-                assert attr_value == attr_data[index]
-            np.testing.assert_array_equal(output_label_data, label_data)
+                result = indexer[label_index:label_index]
+                assert result["a1"][0] == attr_data[index]
+                assert result["l1"][0] == label_index
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
@@ -119,7 +124,7 @@ class DimensionLabelTestCase(DiskTestCase):
             "x1": tiledb.DimLabelSchema(
                 0,
                 "increasing",
-                label_dtype=np.int64,
+                label_dtype=np.float64,
                 dim_dtype=dim1.dtype,
             ),
             "x2": tiledb.DimLabelSchema(
@@ -129,7 +134,7 @@ class DimensionLabelTestCase(DiskTestCase):
                 dim_dtype=dim1.dtype,
             ),
             "y1": tiledb.DimLabelSchema(
-                0,
+                1,
                 "increasing",
                 label_dtype=np.int64,
                 dim_dtype=dim2.dtype,
@@ -143,7 +148,7 @@ class DimensionLabelTestCase(DiskTestCase):
 
         # Write data to the array and the label
         attr_data = np.reshape(np.arange(1, 65), (8, 8))
-        x1_data = np.arange(9, 17)
+        x1_data = np.linspace(-1.0, 1.0, 8)
         x2_data = np.arange(8, 0, -1)
         y1_data = np.arange(9, 17)
         with tiledb.open(uri, "w") as array:
@@ -153,6 +158,33 @@ class DimensionLabelTestCase(DiskTestCase):
                 "y1": y1_data,
                 "x2": x2_data,
             }
+
+        # Test querying by label
+        with tiledb.open(uri, "r") as array:
+            # Read full array: labels on both ranges
+            result = array.label_index(["x1", "y1"])[-1.0:1.0, 9:17]
+            np.testing.assert_array_equal(result["value"], attr_data)
+            np.testing.assert_array_equal(result["x1"], x1_data)
+            np.testing.assert_array_equal(result["y1"], y1_data)
+            assert "x2" not in result
+
+            # Read full array: label only on first range
+            result = array.label_index(["x2"])[0:8]
+            np.testing.assert_array_equal(result["value"], attr_data)
+            np.testing.assert_array_equal(result["x2"], x2_data)
+            assert "x1" not in result
+            assert "y1" not in result
+
+            # Read full array: Label only on second range
+            result = array.label_index(["y1"])[:, 9:17]
+            np.testing.assert_array_equal(result["value"], attr_data)
+            np.testing.assert_array_equal(result["y1"], y1_data)
+            assert "x1" not in result
+            assert "x2" not in result
+
+            # Check conflicting labels are not allowed
+            with pytest.raises(tiledb.TileDBError):
+                array.label_index(["x1", "x2"])
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
