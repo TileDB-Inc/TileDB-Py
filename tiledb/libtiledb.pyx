@@ -1491,8 +1491,13 @@ cdef class Array(object):
         """Retrieve data cells with multi-range, domain-inclusive indexing by label.
         Returns the cross-product of the ranges.
 
-
-        TODO: label_index docs
+        :param labels: List of labels to use when querying. Can only use at most one
+            label per dimension.
+        :param list selection: Per dimension, a scalar, ``slice``, or  list of scalars.
+            Each item is iterpreted as a point (scalar) or range (``slice``) used to
+            query the array on the corresponding dimension.
+        :returns: dict of {'label/attribute': result}.
+        :raises: :py:exc:`tiledb.TileDBError`
         """
         # Delayed to avoid circular import
         from .multirange_indexing import LabelIndexer
