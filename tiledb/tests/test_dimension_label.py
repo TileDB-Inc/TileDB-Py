@@ -15,7 +15,7 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
         dim_labels = {
-            "label": tiledb.DimLabelSchema(
+            "l1": tiledb.DimLabelSchema(
                 0,
                 "increasing",
                 label_dtype=dim.dtype,
@@ -24,14 +24,14 @@ class DimensionLabelTestCase(DiskTestCase):
             )
         }
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
-        assert schema.has_dim_label("label")
+        assert schema.has_dim_label("l1")
         assert not schema.has_dim_label("fake_name")
 
         # Check the dimension label properties
-        dim_label = schema.dim_label("label")
-        assert dim_label.dtype == np.uint64
-        assert not dim_label.isvar
-        assert not dim_label.isascii
+        dim_label = schema.dim_label("l1")
+        assert dim_label.label_dtype == np.uint64
+        assert not dim_label.label_isvar
+        assert not dim_label.label_isascii
         assert dim_label.uri == "__labels/l0"
 
     @pytest.mark.skipif(
@@ -43,7 +43,7 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
         dim_labels = {
-            "label": tiledb.DimLabelSchema(
+            "l1": tiledb.DimLabelSchema(
                 2,
                 "increasing",
                 label_dtype=dim.dtype,
@@ -91,7 +91,7 @@ class DimensionLabelTestCase(DiskTestCase):
         # Read and check the data directly from the dimension label
         with tiledb.open(dim_label.uri, "r") as L1:
             output_data = L1[:]
-            output_label_data = output_data["label"]
+            output_label_data = output_data[dim_label.label_attr_name]
             np.testing.assert_array_equal(output_label_data, label_data)
 
         # Read and check the data using label indexer on parent array
@@ -196,7 +196,7 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("value", dtype=np.int64)
         dim_labels = {
-            "label": tiledb.DimLabelSchema(
+            "l1": tiledb.DimLabelSchema(
                 0,
                 "increasing",
                 label_dtype=np.int64,
@@ -216,13 +216,13 @@ class DimensionLabelTestCase(DiskTestCase):
         attr_data = np.arange(11, 21)
         label_data = np.arange(-10, 0)
         with tiledb.open(uri, "w") as array:
-            array[index_data] = {"value": attr_data, "label": label_data}
+            array[index_data] = {"value": attr_data, "l1": label_data}
 
         # Load the array schema and get the URI of the dimension label
         schema = tiledb.ArraySchema.load(uri)
-        dim_label = schema.dim_label("label")
+        dim_label = schema.dim_label("l1")
 
         # Read and check the data directly from the dimension label
-        with tiledb.open(dim_label.uri, "r") as L1:
-            output_label_data = L1[:]["label"]
+        with tiledb.open(dim_label.uri, "r") as label1:
+            output_label_data = label1[:][dim_label.label_attr_name]
             np.testing.assert_array_equal(output_label_data, label_data)

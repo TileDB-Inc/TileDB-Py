@@ -191,7 +191,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         buffer_names.append(label_name)
         # Get label data buffer and offsets buffer for the labels
         dim_label = tiledb_array.schema.dim_label(label_name)
-        if dim_label.isvar:
+        if dim_label.label_isvar:
             buffer, offsets = array_to_buffer(label_values, True, False)
             buffer_sizes[ibuffer] = buffer.nbytes
             buffer_offsets_sizes[ibuffer] = offsets.nbytes
@@ -2219,7 +2219,7 @@ cdef class DenseArrayImpl(Array):
                 name:
                 (data
                 if not type(data) is np.ndarray or data.dtype is np.dtype('O')
-                else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype))
+                else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).label_dtype))
                 for name, data in val.items()
                 if self.schema.has_dim_label(name)
             }
@@ -2578,7 +2578,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         name:
         (data
         if not type(data) is np.ndarray or data.dtype is np.dtype('O')
-        else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype))
+        else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).label_dtype))
         for name, data in val.items()
         if self.schema.has_dim_label(name)
     }

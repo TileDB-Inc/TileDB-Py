@@ -35,6 +35,11 @@ public:
         "Using dimension labels requires libtiledb version 2.15.0 or greater");
   }
 
+  std::string label_attr_name() const {
+    throw TileDBError(
+        "Using dimension labels requires libtiledb version 2.15.0 or greater");
+  }
+
   uint32_t label_cell_val_num() const {
     throw TileDBError(
         "Using dimension labels requires libtiledb version 2.15.0 or greater");
@@ -77,6 +82,9 @@ void init_dimension_label(py::module &m) {
            [](DimensionLabel &dim_label) {
              return py::capsule(dim_label.ptr().get(), "dim_label", nullptr);
            })
+
+      .def_property_readonly("label_attr_name",
+                             &DimensionLabel::label_attr_name)
 
       .def_property_readonly("_dim_index", &DimensionLabel::dimension_index)
 
