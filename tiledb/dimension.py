@@ -237,13 +237,8 @@ class Dim(CtxMixin, lt.Dimension):
         :rtype: numpy scalar or np.timedelta64
 
         """
-        np_dtype = self.dtype
-        if np.issubdtype(np_dtype, np.character):
-            return self._tile
-        if np.issubdtype(np_dtype, np.datetime64):
-            unit = np.datetime_data(np_dtype)[0]
-            return np.timedelta64(self._tile, unit)
-        return np_dtype.type(self._tile)
+        dim_dtype = DataType.from_tiledb(self._tiledb_dtype)
+        return dim_dtype.uncast_tile_extent(self._tile)
 
     @property
     def domain(self) -> Tuple["np.generic", "np.generic"]:

@@ -6,6 +6,31 @@ from tiledb.tests.common import DiskTestCase
 
 
 class DimensionLabelTestCase(DiskTestCase):
+    def test_dim_label_schema(self):
+        dim_label_schema = tiledb.DimLabelSchema(
+            0, "decreasing", label_dtype=np.float64, dim_dtype=np.int32
+        )
+        assert dim_label_schema.label_order == "decreasing"
+        assert dim_label_schema.label_dtype == np.float64
+        assert dim_label_schema.dim_dtype == np.int32
+        assert dim_label_schema.dim_tile is None
+        assert dim_label_schema.label_filters is None
+
+        filter = tiledb.FilterList()
+        dim_label_schema = tiledb.DimLabelSchema(
+            10,
+            "increasing",
+            label_dtype=np.float32,
+            dim_dtype=np.int64,
+            dim_tile=20,
+            label_filters=filter,
+        )
+        assert dim_label_schema.label_order == "increasing"
+        assert dim_label_schema.label_dtype == np.float32
+        assert dim_label_schema.dim_dtype == np.int64
+        assert dim_label_schema.dim_tile == 20
+        assert dim_label_schema.label_filters == filter
+
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",

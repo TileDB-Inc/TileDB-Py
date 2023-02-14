@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 
@@ -16,7 +16,7 @@ class DataOrder(Enum):
     unordered = lt.DataOrder.UNORDERED_DATA
 
 
-class DimLabelSchema:
+class DimLabelSchema(lt.DimensionLabelSchema):
     def __init__(
         self,
         dim_index: np.uint32,
@@ -28,57 +28,81 @@ class DimLabelSchema:
         ctx: Ctx = None,
     ):
         self._ctx = ctx or default_ctx()
-        self._dim_index = dim_index
-        self._label_order = DataOrder[order]
-        self._label_dtype = DataType.from_numpy(label_dtype)
-        self._dim_dtype = DataType.from_numpy(dim_dtype)
 
+        # Get DataType and DataOrder objects
+        _label_order = DataOrder[order]
+        _label_dtype = DataType.from_numpy(label_dtype)
+        _dim_dtype = DataType.from_numpy(dim_dtype)
+
+        # Convert the tile extent (if set)
         if dim_tile is not None:
-            if np.issubdtype(self._dim_dtype.np_dtype, np.bytes_):
+            if np.issubdtype(_dim_dtype.np_dtype, np.bytes_):
                 raise TypeError(
                     "invalid tile extent, cannot set a tile a string dimension"
                 )
-            dim_tile = self._dim_dtype.cast_tile_extent(dim_tile)
-        self._dim_tile = dim_tile
-
-        if label_filters is None or isinstance(label_filters, FilterList):
-            self._label_filters = label_filters
+            _dim_tile = _dim_dtype.cast_tile_extent(dim_tile)
         else:
-            self._label_filters = FilterList(label_filters)
+            _dim_tile = None
 
-    @property
-    def _dimension_tiledb_dtype(self) -> lt.DataType:
-        return self._dim_dtype.tiledb_type
-
-    @property
-    def _label_tiledb_dtype(self) -> lt.DataType:
-        return self._label_dtype.tiledb_type
-
-    @property
-    def _label_tiledb_order(self) -> lt.DataOrder:
-        return self._label_order.value
-
-    @property
-    def dimension_index(self) -> np.uint32:
-        """Index of the dimension the labels will be added to"""
-        return self._dim_index
+        # Create the PyBind superclass
+        if label_filters is None:
+            super().__init__(
+                dim_index,
+                _dim_dtype.tiledb_type,
+                _dim_tile,
+                _label_order.value,
+                _label_dtype.tiledb_type,
+            )
+        else:
+            _label_filters = (
+                label_filters
+                if isinstance(label_filters, FilterList)
+                else FilterList(label_filters)
+            )
+            super().__init__(
+                dim_index,
+                _dim_dtype.tiledb_type,
+                _dim_tile,
+                _label_order.value,
+                _label_dtype.tiledb_type,
+                _label_filters,
+            )
 
     @property
     def dim_dtype(self) -> np.dtype:
         """Numpy dtype object representing the dimension type"""
-        return self._dim_dtype.np_dtype
+        return DataType.from_tiledb(self._dim_dtype).np_dtype
 
     @property
-    def label_filters(self) -> FilterList:
+    def dim_tile(self) -> Optional[np.generic]:
+        """The tile extent of the dimension for the dimension label.
+
+        :rtype: numpy scalar of np.timedelta64
+
+        """
+        tile_extent = self._dim_tile_extent
+        if tile_extent is None:
+            return None
+        dim_dtype = DataType.from_tiledb(self._dim_dtype)
+        return (
+            None if tile_extent is None else dim_dtype.uncast_tile_extent(tile_extent)
+        )
+
+    @property
+    def label_filters(self) -> Optional[FilterList]:
         """FilterList of the labels"""
-        return self._label_filters
+        return (
+            FilterList.from_pybind11(self._ctx, self._label_filters)
+            if self._has_label_filters
+            else None
+        )
 
     @property
     def label_dtype(self) -> np.dtype:
         """Numpy dtype object representing the label type"""
-        return self._label_dtype.np_dtype
+        return DataType.from_tiledb(self._label_dtype).np_dtype
 
     @property
     def label_order(self) -> str:
         """Sort order of the labels on the dimension label"""
-        return self._label_order.name
+        return DataOrder(self._label_order).name

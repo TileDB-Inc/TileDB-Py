@@ -117,6 +117,15 @@ class DataType:
             raise ValueError("tile extent must be a scalar")
         return tile_size_array
 
+    def uncast_tile_extent(self, tile_extent: Any) -> np.generic:
+        """Given a tile extent value from PyBind, cast it to appropriate output."""
+        if np.issubdtype(self.np_dtype, np.character):
+            return tile_extent
+        if np.issubdtype(self.np_dtype, np.datetime64):
+            unit = np.datetime_data(self.np_dtype)[0]
+            return np.timedelta64(tile_extent, unit)
+        return self.np_dtype.type(tile_extent)
+
 
 # datatype pairs that have a 1-1 mapping between tiledb and numpy
 _COMMON_DATATYPES = [
