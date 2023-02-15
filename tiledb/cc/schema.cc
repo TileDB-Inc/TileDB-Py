@@ -58,7 +58,9 @@ public:
 
   tiledb_data_order_t label_order() const { return label_order_; }
 
-  const FilterList &label_filters() const { return label_filters_.value(); }
+  const std::optional<FilterList> &label_filters() const {
+    return label_filters_;
+  }
 
 private:
   uint32_t dim_index_;
@@ -89,7 +91,9 @@ void init_schema(py::module &m) {
       .def_property_readonly("_label_dtype", &DimensionLabelSchema::label_type)
 
       .def_property_readonly("_label_filters",
-                             &DimensionLabelSchema::label_filters)
+                             [](DimensionLabelSchema &dim_label_schema) {
+                               return dim_label_schema.label_filters().value();
+                             })
 
       .def_property_readonly("_label_order", &DimensionLabelSchema::label_order)
 
@@ -157,7 +161,10 @@ void init_schema(py::module &m) {
               return py::cast(*static_cast<const T *>(tile_extent));
             }
             case TILEDB_STRING_ASCII: {
-              return py::none();
+              // This should have already been caught in the check for a mullptr
+              // above.
+              throw TileDBError("Setting a tile extent on a string dimension "
+                                "is not supported for dimension labels");
             }
             default:
               throw TileDBError("Unsupported dtype for dimension tile extent");
@@ -246,37 +253,35 @@ void init_schema(py::module &m) {
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_add_dim_label",
-           [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
-              const std::string &name, tiledb_data_order_t label_order,
-              tiledb_datatype_t label_type) {
-             ArraySchemaExperimental::add_dimension_label(
-                 ctx, schema, dim_idx, name, label_order, label_type);
-           })
-#else
-      .def("_add_dim_label",
-           [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
-              const std::string &name, tiledb_data_order_t label_order,
-              tiledb_datatype_t label_type) {
-            throw TileDBError("Adding dimension labels require libtiledb version 2.15.0 or greater");
-           })
-#endif
+           [](ArraySchema &schema, const Context &ctx, const std::string &name,
+              const DimensionLabelSchema &dim_label_schema) {
+             // Check dimension datatype.
+             auto dim_idx = dim_label_schema.dim_index();
+             auto dim_type = schema.domain().dimension(dim_idx).type();
+             if (dim_label_schema.dim_type() != dim_type) {
+               throw TileDBError("Cannot add dimension label '" + name +
+                                 "'; The dimension datatype does not match the "
+                                 "datatype of the dimension in the array.");
+             }
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
-      .def("_add_dim_label",
-           [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
-              const std::string &name, tiledb_data_order_t label_order,
-              tiledb_datatype_t label_type,
-              std::optional<FilterList> label_filters = std::nullopt) {
+             // Add dimension label.
              ArraySchemaExperimental::add_dimension_label(
-                 ctx, schema, dim_idx, name, label_order, label_type,
-                 label_filters);
+                 ctx, schema, dim_label_schema.dim_index(), name,
+                 dim_label_schema.label_order(), dim_label_schema.label_type(),
+                 dim_label_schema.label_filters());
+
+             // If dimension tile extent is set, add dimension tile extent.
+             if (dim_label_schema.has_dim_tile_extent()) {
+               ctx.handle_error(
+                   tiledb_array_schema_set_dimension_label_tile_extent(
+                       ctx.ptr().get(), schema.ptr().get(), name.c_str(),
+                       dim_type, dim_label_schema.dim_tile_extent()));
+             }
            })
 #else
       .def("_add_dim_label",
-           [](ArraySchema &, const Context &, uint32_t ,
-              const std::string &, tiledb_data_order_t ,
-              tiledb_datatype_t ,
-              std::optional<FilterList> label_filters = std::nullopt) {
+           [](ArraySchema &, const Context ,
+              const std::string &, const DimensionLabelSchema&) {
             throw TileDBError("Adding dimension labels require libtiledb version 2.15.0 or greater");
            })
 #endif
