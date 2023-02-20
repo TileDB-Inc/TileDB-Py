@@ -11,6 +11,11 @@ steps:
     displayName: "Print files restored from cache"
 
   - bash: |
+      brew install pkg-config
+    displayName: "Homebrew setup"
+    condition: eq(variables['Agent.OS'], 'Darwin')
+
+  - bash: |
       set -xe pipefail
       unset SYSTEM
 
