@@ -191,7 +191,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
         buffer_names.append(label_name)
         # Get label data buffer and offsets buffer for the labels
         dim_label = tiledb_array.schema.dim_label(label_name)
-        if dim_label.isvar:
+        if dim_label.label_isvar:
             buffer, offsets = array_to_buffer(label_values, True, False)
             buffer_sizes[ibuffer] = buffer.nbytes
             buffer_offsets_sizes[ibuffer] = offsets.nbytes
@@ -1487,6 +1487,22 @@ cdef class Array(object):
     def dindex(self):
         return self.domain_index
 
+    def label_index(self, labels):
+        """Retrieve data cells with multi-range, domain-inclusive indexing by label.
+        Returns the cross-product of the ranges.
+
+        :param labels: List of labels to use when querying. Can only use at most one
+            label per dimension.
+        :param list selection: Per dimension, a scalar, ``slice``, or  list of scalars.
+            Each item is iterpreted as a point (scalar) or range (``slice``) used to
+            query the array on the corresponding dimension.
+        :returns: dict of {'label/attribute': result}.
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        # Delayed to avoid circular import
+        from .multirange_indexing import LabelIndexer
+        return LabelIndexer(self, tuple(labels))
+
     @property
     def multi_index(self):
         """Retrieve data cells with multi-range, domain-inclusive indexing. Returns
@@ -1764,6 +1780,11 @@ cdef class Query(object):
     def domain_index(self):
         """Apply Array.domain_index with query parameters."""
         return self.domain_index
+
+    def label_index(self, labels):
+        """Apply Array.label_index with query parameters."""
+        from .multirange_indexer import LabelIndexer
+        return LabelIndexer(self.array, tuple(labels), query=self)
 
     @property
     def multi_index(self):
@@ -2198,7 +2219,7 @@ cdef class DenseArrayImpl(Array):
                 name:
                 (data
                 if not type(data) is np.ndarray or data.dtype is np.dtype('O')
-                else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype))
+                else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).label_dtype))
                 for name, data in val.items()
                 if self.schema.has_dim_label(name)
             }
@@ -2557,7 +2578,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         name:
         (data
         if not type(data) is np.ndarray or data.dtype is np.dtype('O')
-        else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype))
+        else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).label_dtype))
         for name, data in val.items()
         if self.schema.has_dim_label(name)
     }

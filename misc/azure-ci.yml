@@ -47,6 +47,11 @@ stages:
               python -m pip install --upgrade -r misc/requirements_ci.txt
             displayName: "Install dependencies"
 
+          - bash: |
+              brew install pkg-config
+            displayName: "Homebrew setup"
+            condition: eq(variables['Agent.OS'], 'Darwin')
+
           - script: |
               set TILEDB_FORCE_ALL_DEPS=ON
               # vcvarsall is necessary so that numpy uses the correct compiler

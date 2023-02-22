@@ -56,9 +56,10 @@ class DimensionLabelTestCase(DiskTestCase):
 
         # Check the dimension label properties
         dim_label = schema.dim_label("l1")
-        assert dim_label.dtype == np.float64
-        assert not dim_label.isvar
-        assert not dim_label.isascii
+        assert dim_label.label_dtype == np.float64
+        breakpoint()
+        assert not dim_label.label_isvar
+        assert not dim_label.label_isascii
 
         # Create array check values in dimension label schema
         uri = self.path("array_with_label")
@@ -88,7 +89,7 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
         dim_labels = {
-            "label": tiledb.DimLabelSchema(
+            "l1": tiledb.DimLabelSchema(
                 2,
                 "increasing",
                 label_dtype=dim.dtype,
@@ -125,11 +126,11 @@ class DimensionLabelTestCase(DiskTestCase):
     )
     def test_dimension_label_round_trip_dense_array(self):
         # Create array schema with dimension labels
-        dim = tiledb.Dim("index", domain=(1, 10))
+        dim = tiledb.Dim("d1", domain=(1, 10))
         dom = tiledb.Domain(dim)
-        att = tiledb.Attr("value", dtype=np.int64)
+        att = tiledb.Attr("a1", dtype=np.int64)
         dim_labels = {
-            "label": tiledb.DimLabelSchema(
+            "l1": tiledb.DimLabelSchema(
                 0,
                 "increasing",
                 label_dtype=np.int64,
@@ -143,19 +144,112 @@ class DimensionLabelTestCase(DiskTestCase):
         tiledb.Array.create(uri, schema)
 
         # Write data to the array and the label
-        attr_data = np.arange(11, 21)
-        label_data = np.arange(-10, 0)
+        attr_data = np.arange(1, 11)
+        label_data = np.arange(-9, 10, 2)
         with tiledb.open(uri, "w") as array:
-            array[:] = {"value": attr_data, "label": label_data}
+            array[:] = {"a1": attr_data, "l1": label_data}
 
         # Load the array schema and get the URI of the dimension label
         schema = tiledb.ArraySchema.load(uri)
-        dim_label = schema.dim_label("label")
+        dim_label = schema.dim_label("l1")
 
         # Read and check the data directly from the dimension label
         with tiledb.open(dim_label.uri, "r") as L1:
-            output_label_data = L1[:]["label"]
+            output_data = L1[:]
+            output_label_data = output_data[dim_label.label_attr_name]
             np.testing.assert_array_equal(output_label_data, label_data)
+
+        # Read and check the data using label indexer on parent array
+        with tiledb.open(uri, "r") as array:
+            indexer = array.label_index(["l1"])
+
+            # Read full array
+            result = indexer[-100:100]
+            np.testing.assert_array_equal(result["a1"], attr_data)
+            np.testing.assert_array_equal(result["l1"], label_data)
+
+            # Read each individual index
+            for index in range(10):
+                label_index = label_data[index]
+                result = indexer[label_index:label_index]
+                assert result["a1"][0] == attr_data[index]
+                assert result["l1"][0] == label_index
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        reason="dimension labels requires libtiledb version 2.15 or greater",
+    )
+    def test_dimension_label_round_trip_multidim_dense_array(self):
+        # Create array schema with dimension labels
+        dim1 = tiledb.Dim("x_index", domain=(1, 8))
+        dim2 = tiledb.Dim("y_index", domain=(1, 8))
+        dom = tiledb.Domain(dim1, dim2)
+        att = tiledb.Attr("value", dtype=np.int64)
+        dim_labels = {
+            "x1": tiledb.DimLabelSchema(
+                0,
+                "increasing",
+                label_dtype=np.float64,
+                dim_dtype=dim1.dtype,
+            ),
+            "x2": tiledb.DimLabelSchema(
+                0,
+                "decreasing",
+                label_dtype=np.int64,
+                dim_dtype=dim1.dtype,
+            ),
+            "y1": tiledb.DimLabelSchema(
+                1,
+                "increasing",
+                label_dtype=np.int64,
+                dim_dtype=dim2.dtype,
+            ),
+        }
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
+
+        # Create array
+        uri = self.path("dense_array_with_label")
+        tiledb.Array.create(uri, schema)
+
+        # Write data to the array and the label
+        attr_data = np.reshape(np.arange(1, 65), (8, 8))
+        x1_data = np.linspace(-1.0, 1.0, 8)
+        x2_data = np.arange(8, 0, -1)
+        y1_data = np.arange(9, 17)
+        with tiledb.open(uri, "w") as array:
+            array[:, :] = {
+                "value": attr_data,
+                "x1": x1_data,
+                "y1": y1_data,
+                "x2": x2_data,
+            }
+
+        # Test querying by label
+        with tiledb.open(uri, "r") as array:
+            # Read full array: labels on both ranges
+            result = array.label_index(["x1", "y1"])[-1.0:1.0, 9:17]
+            np.testing.assert_array_equal(result["value"], attr_data)
+            np.testing.assert_array_equal(result["x1"], x1_data)
+            np.testing.assert_array_equal(result["y1"], y1_data)
+            assert "x2" not in result
+
+            # Read full array: label only on first range
+            result = array.label_index(["x2"])[0:8]
+            np.testing.assert_array_equal(result["value"], attr_data)
+            np.testing.assert_array_equal(result["x2"], x2_data)
+            assert "x1" not in result
+            assert "y1" not in result
+
+            # Read full array: Label only on second range
+            result = array.label_index(["y1"])[:, 9:17]
+            np.testing.assert_array_equal(result["value"], attr_data)
+            np.testing.assert_array_equal(result["y1"], y1_data)
+            assert "x1" not in result
+            assert "x2" not in result
+
+            # Check conflicting labels are not allowed
+            with pytest.raises(tiledb.TileDBError):
+                array.label_index(["x1", "x2"])
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
@@ -167,7 +261,7 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("value", dtype=np.int64)
         dim_labels = {
-            "label": tiledb.DimLabelSchema(
+            "l1": tiledb.DimLabelSchema(
                 0,
                 "increasing",
                 label_dtype=np.int64,
@@ -187,13 +281,13 @@ class DimensionLabelTestCase(DiskTestCase):
         attr_data = np.arange(11, 21)
         label_data = np.arange(-10, 0)
         with tiledb.open(uri, "w") as array:
-            array[index_data] = {"value": attr_data, "label": label_data}
+            array[index_data] = {"value": attr_data, "l1": label_data}
 
         # Load the array schema and get the URI of the dimension label
         schema = tiledb.ArraySchema.load(uri)
-        dim_label = schema.dim_label("label")
+        dim_label = schema.dim_label("l1")
 
         # Read and check the data directly from the dimension label
-        with tiledb.open(dim_label.uri, "r") as L1:
-            output_label_data = L1[:]["label"]
+        with tiledb.open(dim_label.uri, "r") as label1:
+            output_label_data = label1[:][dim_label.label_attr_name]
             np.testing.assert_array_equal(output_label_data, label_data)
