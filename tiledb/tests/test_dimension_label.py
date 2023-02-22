@@ -57,7 +57,6 @@ class DimensionLabelTestCase(DiskTestCase):
         # Check the dimension label properties
         dim_label = schema.dim_label("l1")
         assert dim_label.label_dtype == np.float64
-        breakpoint()
         assert not dim_label.label_isvar
         assert not dim_label.label_isascii
 
@@ -74,9 +73,7 @@ class DimensionLabelTestCase(DiskTestCase):
         label_dim = label_array_schema.domain.dim(0)
         assert label_dim.tile == 10
         assert label_dim.dtype == np.uint64
-        # TODO: Adjust the attr name to dim_label.label_attr_name after #1640
-        # is merged
-        label_attr = label_array_schema.attr("label")
+        label_attr = label_array_schema.attr(dim_label.label_attr_name)
         assert label_attr.dtype == np.float64
         assert label_attr.filters == filters
 
