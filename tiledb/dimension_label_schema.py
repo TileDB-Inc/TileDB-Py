@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Any, Optional, Sequence, Union
 
 import numpy as np
@@ -6,14 +5,9 @@ import numpy as np
 import tiledb.cc as lt
 
 from .ctx import Ctx, default_ctx
+from .data_order import DataOrder
 from .datatypes import DataType
 from .filter import Filter, FilterList
-
-
-class DataOrder(Enum):
-    increasing = lt.DataOrder.INCREASING_DATA
-    decreasing = lt.DataOrder.DECREASING_DATA
-    unordered = lt.DataOrder.UNORDERED_DATA
 
 
 class DimLabelSchema(lt.DimensionLabelSchema):

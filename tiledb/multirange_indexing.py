@@ -486,7 +486,7 @@ class LabelIndexer(MultiRangeIndexer):
         self._labels: Dict[int, str] = {}
         for label_name in labels:
             dim_label = array.schema.dim_label(label_name)
-            if dim_label.label_isvar:
+            if dim_label.isvar:
                 raise NotImplementedError(
                     "querying by variable length labels is not yet implemented"
                 )
@@ -632,7 +632,7 @@ def _get_pyquery_results(
             arr.dtype = (
                 schema.attr_or_dim_dtype(name)
                 if not schema.has_dim_label(name)
-                else schema.dim_label(name).label_dtype
+                else schema.dim_label(name).dtype
             )
         result_dict[name if name != "__attr" else ""] = arr
     return result_dict

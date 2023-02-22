@@ -56,9 +56,9 @@ class DimensionLabelTestCase(DiskTestCase):
 
         # Check the dimension label properties
         dim_label = schema.dim_label("l1")
-        assert dim_label.label_dtype == np.float64
-        assert not dim_label.label_isvar
-        assert not dim_label.label_isascii
+        assert dim_label.dtype == np.float64
+        assert not dim_label.isvar
+        assert not dim_label.isascii
 
         # Create array check values in dimension label schema
         uri = self.path("array_with_label")
