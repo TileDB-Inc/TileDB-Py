@@ -48,7 +48,16 @@ class DimLabel(CtxMixin, lt.DimensionLabel):
         return output.getvalue()
 
     @property
-    def dtype(self) -> np.dtype:
+    def dim_index(self) -> int:
+        """Index of the dimension the labels are for.
+
+        :rtype: int
+
+        """
+        return self._dim_index
+
+    @property
+    def label_dtype(self) -> np.dtype:
         """Numpy dtype representation of the label type.
 
         :rtype: numpy.dtype
@@ -57,7 +66,7 @@ class DimLabel(CtxMixin, lt.DimensionLabel):
         return DataType.from_tiledb(self._tiledb_label_dtype).np_dtype
 
     @property
-    def isvar(self) -> bool:
+    def label_isvar(self) -> bool:
         """True if the labels are variable length.
 
         :rtype: bool
@@ -66,7 +75,7 @@ class DimLabel(CtxMixin, lt.DimensionLabel):
         return self._label_ncell == lt.TILEDB_VAR_NUM()
 
     @property
-    def isascii(self) -> bool:
+    def label_isascii(self) -> bool:
         """True if the labels are variable length.
 
         :rtype: bool

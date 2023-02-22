@@ -104,6 +104,7 @@ from .libtiledb import SparseArrayImpl as SparseArray
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet
+from .query import Query
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
 from .subarray import Subarray

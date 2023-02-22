@@ -1,5 +1,5 @@
 from numbers import Real
-from typing import Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -50,18 +50,28 @@ class Subarray(CtxMixin, lt.Subarray):
         """
         self._add_label_range(self._ctx, label, label_range)
 
-    def add_ranges(self, ranges: Sequence[Sequence[Range]]):
+    def add_ranges(
+        self,
+        dim_ranges: Optional[Sequence[Sequence[Range]]] = None,
+        label_ranges: Optional[Dict[str, Sequence[Range]]] = None,
+    ):
         """Add ranges to the subarray.
 
-        :param ranges: A sequence of a sequence of ranges to add for each dimension on
-            the subarray. Each range may either be a tuple (inclusive range to query
+        :param dim_ranges: A sequence of a sequence of ranges to add for each dimension
+            on the subarray. Each range may either be a tuple (inclusive range to query
             on) or  numpy.ndarray (series of point ranges).
+        :param label_ranges: A dictionary of label name to a sequence of ranges for the
+            dimension label on the subarray. Each range must be a tuple (inclusive range
+            to query on).
         :raises: :py:exc:`tiledb.TileDBError`
         """
-        if any(isinstance(r, np.ndarray) for r in ranges):
-            self._add_ranges_bulk(self._ctx, ranges)
-        else:
-            self._add_ranges(self._ctx, ranges)
+        if dim_ranges:
+            if any(isinstance(r, np.ndarray) for r in dim_ranges):
+                self._add_ranges_bulk(self._ctx, dim_ranges)
+            else:
+                self._add_ranges(self._ctx, dim_ranges)
+        if label_ranges:
+            self._add_label_ranges(self._ctx, label_ranges)
 
     def num_dim_ranges(self, key: Union[int, str]) -> np.uint64:
         """Returns the number of ranges on a dimension.
@@ -74,7 +84,23 @@ class Subarray(CtxMixin, lt.Subarray):
     def num_label_ranges(self, label: str) -> np.uint64:
         """Returns the number of ranges on a dimension label.
 
-        :param key: dimensio label name
+        :param key: dimension label name
         :rtype: np.uint64
         """
-        return self._range_label_num(label)
+        if not isinstance(label, str):
+            raise TypeError(f"invalid type {type(label)} for label")
+        return self._label_range_num(self._ctx, label)
+
+    def shape(self) -> Optional[Sequence[tuple]]:
+        """Returns the shape of dense data using this subarray and ``None`` for sparse
+        arrays.
+
+        This does not support getting the shape of subarrays with label ranges.
+
+        :rtype: tuple(int, ...)
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        if self._array.schema.sparse:
+            return None
+        shape = self._shape(self._ctx)
+        return tuple(length for length in shape)

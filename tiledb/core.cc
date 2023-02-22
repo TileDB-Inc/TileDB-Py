@@ -18,6 +18,7 @@
 #include <tiledb/tiledb.h>              // C
 #include <tiledb/tiledb>                // C++
 #include <tiledb/tiledb_experimental.h> // C
+#include <tiledb/tiledb_experimental>   // C++
 
 // clang-format off
 // do not re-order these headers
@@ -311,6 +312,9 @@ private:
   uint64_t init_buffer_bytes_ = DEFAULT_INIT_BUFFER_BYTES;
   uint64_t alloc_max_bytes_ = DEFAULT_ALLOC_MAX_BYTES;
   tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
+
+  // label buffer list
+  std::vector<std::pair<string, uint64_t>> label_input_buffer_data_;
 
   py::object pyschema_;
 
@@ -615,6 +619,46 @@ public:
                           validity_num, var, nullable)});
   }
 
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+  void alloc_label_buffer(std::string &label_name, uint64_t ncells) {
+
+    auto dim_label = ArraySchemaExperimental::dimension_label(
+        ctx_, *array_schema_, label_name);
+
+    tiledb_datatype_t type = dim_label.label_type();
+    uint32_t cell_val_num = dim_label.label_cell_val_num();
+    uint64_t cell_nbytes = tiledb_datatype_size(type);
+    if (cell_val_num != TILEDB_VAR_NUM) {
+      cell_nbytes *= cell_val_num;
+    } else {
+      throw TileDBError(
+          "reading variable length dimension labels is not yet supported");
+    }
+    auto dtype = tiledb_dtype(type, cell_val_num);
+
+    uint64_t buf_nbytes = ncells * cell_nbytes;
+    uint64_t offsets_num = 0;
+    uint64_t validity_num = 0;
+
+    bool var = cell_val_num == TILEDB_VAR_NUM;
+    bool nullable = false;
+
+    buffers_order_.push_back(label_name);
+    buffers_.insert(
+        {label_name, BufferInfo(label_name, buf_nbytes, type, cell_val_num,
+                                offsets_num, validity_num, var, nullable)});
+  }
+#else
+  void alloc_label_buffer(std::string &, uint64_t) {
+    throw TileDBError(
+        "Using dimension labels requires libtiledb version 2.15.0 or greater");
+  }
+#endif
+
+  void add_label_buffer(std::string &label_name, uint64_t ncells) {
+    label_input_buffer_data_.push_back({label_name, ncells});
+  }
+
   py::object get_buffers() {
     py::dict rmap;
     for (auto &bp : buffers_) {
@@ -642,7 +686,13 @@ public:
       uint64_t data_nelem =
           (b.data.size() - (data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
 
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 15
+      // Experimental version of API call is needed to support type-checking
+      // on dimension label buffers.
+      QueryExperimental::set_data_buffer(*query_, b.name, data_ptr, data_nelem);
+#else
       query_->set_data_buffer(b.name, data_ptr, data_nelem);
+#endif
 
       if (b.isvar) {
         size_t offsets_size = b.offsets.size() - offsets_read;
@@ -883,6 +933,11 @@ public:
         continue;
       }
       alloc_buffer(dim.name());
+    }
+
+    // allocate buffers for label dimensions
+    for (auto &label_data : label_input_buffer_data_) {
+      alloc_label_buffer(label_data.first, label_data.second);
     }
 
     // allocate buffers for attributes
@@ -1433,6 +1488,7 @@ void init_core(py::module &m) {
       py::class_<PyQuery>(m, "PyQuery")
           .def(py::init<const Context &, py::object, py::iterable, py::iterable,
                         py::object, py::object>())
+          .def("add_label_buffer", &PyQuery::add_label_buffer)
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
           .def("set_subarray", &PyQuery::set_subarray)
