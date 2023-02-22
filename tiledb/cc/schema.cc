@@ -11,7 +11,166 @@ namespace libtiledbcpp {
 using namespace tiledb;
 namespace py = pybind11;
 
+class DimensionLabelSchema {
+public:
+  DimensionLabelSchema(uint32_t dim_index, tiledb_datatype_t dim_type,
+                       py::object dim_tile_extent,
+                       tiledb_data_order_t label_order,
+                       tiledb_datatype_t label_type)
+      : dim_index_{dim_index}, dim_type_{dim_type}, dim_tile_extent_{nullptr},
+        label_order_{label_order}, label_type_{label_type}, label_filters_{
+                                                                std::nullopt} {
+
+    if (!dim_tile_extent.is_none()) {
+      py::buffer tile_buffer = py::buffer(dim_tile_extent);
+      py::buffer_info tile_extent_info = tile_buffer.request();
+      dim_tile_extent_ = tile_extent_info.ptr;
+    }
+  }
+
+  DimensionLabelSchema(uint32_t dim_index, tiledb_datatype_t dim_type,
+                       py::object dim_tile_extent,
+                       tiledb_data_order_t label_order,
+                       tiledb_datatype_t label_type,
+                       const FilterList &label_filters)
+      : dim_index_{dim_index}, dim_type_{dim_type}, dim_tile_extent_{nullptr},
+        label_order_{label_order}, label_type_{label_type}, label_filters_{
+                                                                label_filters} {
+
+    if (!dim_tile_extent.is_none()) {
+      py::buffer tile_buffer = py::buffer(dim_tile_extent);
+      py::buffer_info tile_extent_info = tile_buffer.request();
+      dim_tile_extent_ = tile_extent_info.ptr;
+    }
+  }
+
+  uint32_t dim_index() const { return dim_index_; }
+
+  tiledb_datatype_t dim_type() const { return dim_type_; }
+
+  const void *dim_tile_extent() const { return dim_tile_extent_; }
+
+  bool has_dim_tile_extent() const { return dim_tile_extent_ != nullptr; }
+
+  bool has_label_filters() const { return label_filters_.has_value(); }
+
+  tiledb_datatype_t label_type() const { return label_type_; }
+
+  tiledb_data_order_t label_order() const { return label_order_; }
+
+  const std::optional<FilterList> &label_filters() const {
+    return label_filters_;
+  }
+
+private:
+  uint32_t dim_index_;
+  tiledb_datatype_t dim_type_;
+  void *dim_tile_extent_;
+  tiledb_data_order_t label_order_;
+  tiledb_datatype_t label_type_;
+  std::optional<FilterList> label_filters_;
+};
+
 void init_schema(py::module &m) {
+  py::class_<DimensionLabelSchema>(m, "DimensionLabelSchema")
+      .def(py::init<uint32_t, tiledb_datatype_t, py::object,
+                    tiledb_data_order_t, tiledb_datatype_t>())
+
+      .def(
+          py::init<uint32_t, tiledb_datatype_t, py::object, tiledb_data_order_t,
+                   tiledb_datatype_t, const FilterList &>())
+
+      .def_property_readonly("dimension_index",
+                             &DimensionLabelSchema::dim_index)
+
+      .def_property_readonly("_dim_dtype", &DimensionLabelSchema::dim_type)
+
+      .def_property_readonly("_has_label_filters",
+                             &DimensionLabelSchema::has_label_filters)
+
+      .def_property_readonly("_label_dtype", &DimensionLabelSchema::label_type)
+
+      .def_property_readonly("_label_filters",
+                             [](DimensionLabelSchema &dim_label_schema) {
+                               return dim_label_schema.label_filters().value();
+                             })
+
+      .def_property_readonly("_label_order", &DimensionLabelSchema::label_order)
+
+      .def_property_readonly(
+          "_dim_tile_extent",
+          [](DimensionLabelSchema &dim_label_schema) -> py::object {
+            const void *tile_extent = dim_label_schema.dim_tile_extent();
+            if (tile_extent == nullptr) {
+              return py::none();
+            }
+            auto dim_type = dim_label_schema.dim_type();
+
+            switch (dim_type) {
+            case TILEDB_UINT64: {
+              using T = uint64_t;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_DATETIME_YEAR:
+            case TILEDB_DATETIME_MONTH:
+            case TILEDB_DATETIME_WEEK:
+            case TILEDB_DATETIME_DAY:
+            case TILEDB_DATETIME_HR:
+            case TILEDB_DATETIME_MIN:
+            case TILEDB_DATETIME_SEC:
+            case TILEDB_DATETIME_MS:
+            case TILEDB_DATETIME_US:
+            case TILEDB_DATETIME_NS:
+            case TILEDB_DATETIME_PS:
+            case TILEDB_DATETIME_FS:
+            case TILEDB_DATETIME_AS:
+            case TILEDB_INT64: {
+              using T = int64_t;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_UINT32: {
+              using T = uint32_t;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_INT32: {
+              using T = int32_t;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_UINT16: {
+              using T = uint16_t;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_INT16: {
+              using T = int16_t;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_UINT8: {
+              using T = uint8_t;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_INT8: {
+              using T = int8_t;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_FLOAT64: {
+              using T = double;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_FLOAT32: {
+              using T = float;
+              return py::cast(*static_cast<const T *>(tile_extent));
+            }
+            case TILEDB_STRING_ASCII: {
+              // This should have already been caught in the check for a mullptr
+              // above.
+              throw TileDBError("Setting a tile extent on a string dimension "
+                                "is not supported for dimension labels");
+            }
+            default:
+              throw TileDBError("Unsupported dtype for dimension tile extent");
+            }
+          });
+
   py::class_<tiledb::ArraySchema>(m, "ArraySchema")
       .def(py::init<ArraySchema>())
 
@@ -94,37 +253,35 @@ void init_schema(py::module &m) {
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_add_dim_label",
-           [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
-              const std::string &name, tiledb_data_order_t label_order,
-              tiledb_datatype_t label_type) {
-             ArraySchemaExperimental::add_dimension_label(
-                 ctx, schema, dim_idx, name, label_order, label_type);
-           })
-#else
-      .def("_add_dim_label",
-           [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
-              const std::string &name, tiledb_data_order_t label_order,
-              tiledb_datatype_t label_type) {
-            throw TileDBError("Adding dimension labels require libtiledb version 2.15.0 or greater");
-           })
-#endif
+           [](ArraySchema &schema, const Context &ctx, const std::string &name,
+              const DimensionLabelSchema &dim_label_schema) {
+             // Check dimension datatype.
+             auto dim_idx = dim_label_schema.dim_index();
+             auto dim_type = schema.domain().dimension(dim_idx).type();
+             if (dim_label_schema.dim_type() != dim_type) {
+               throw TileDBError("Cannot add dimension label '" + name +
+                                 "'; The dimension datatype does not match the "
+                                 "datatype of the dimension in the array.");
+             }
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
-      .def("_add_dim_label",
-           [](ArraySchema &schema, const Context &ctx, uint32_t dim_idx,
-              const std::string &name, tiledb_data_order_t label_order,
-              tiledb_datatype_t label_type,
-              std::optional<FilterList> label_filters = std::nullopt) {
+             // Add dimension label.
              ArraySchemaExperimental::add_dimension_label(
-                 ctx, schema, dim_idx, name, label_order, label_type,
-                 label_filters);
+                 ctx, schema, dim_label_schema.dim_index(), name,
+                 dim_label_schema.label_order(), dim_label_schema.label_type(),
+                 dim_label_schema.label_filters());
+
+             // If dimension tile extent is set, add dimension tile extent.
+             if (dim_label_schema.has_dim_tile_extent()) {
+               ctx.handle_error(
+                   tiledb_array_schema_set_dimension_label_tile_extent(
+                       ctx.ptr().get(), schema.ptr().get(), name.c_str(),
+                       dim_type, dim_label_schema.dim_tile_extent()));
+             }
            })
 #else
       .def("_add_dim_label",
-           [](ArraySchema &, const Context &, uint32_t ,
-              const std::string &, tiledb_data_order_t ,
-              tiledb_datatype_t ,
-              std::optional<FilterList> label_filters = std::nullopt) {
+           [](ArraySchema &, const Context ,
+              const std::string &, const DimensionLabelSchema&) {
             throw TileDBError("Adding dimension labels require libtiledb version 2.15.0 or greater");
            })
 #endif

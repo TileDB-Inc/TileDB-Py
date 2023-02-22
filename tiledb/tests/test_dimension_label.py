@@ -6,6 +6,31 @@ from tiledb.tests.common import DiskTestCase
 
 
 class DimensionLabelTestCase(DiskTestCase):
+    def test_dim_label_schema(self):
+        dim_label_schema = tiledb.DimLabelSchema(
+            0, "decreasing", label_dtype=np.float64, dim_dtype=np.int32
+        )
+        assert dim_label_schema.label_order == "decreasing"
+        assert dim_label_schema.label_dtype == np.float64
+        assert dim_label_schema.dim_dtype == np.int32
+        assert dim_label_schema.dim_tile is None
+        assert dim_label_schema.label_filters is None
+
+        filter = tiledb.FilterList()
+        dim_label_schema = tiledb.DimLabelSchema(
+            10,
+            "increasing",
+            label_dtype=np.float32,
+            dim_dtype=np.int64,
+            dim_tile=20,
+            label_filters=filter,
+        )
+        assert dim_label_schema.label_order == "increasing"
+        assert dim_label_schema.label_dtype == np.float32
+        assert dim_label_schema.dim_dtype == np.int64
+        assert dim_label_schema.dim_tile == 20
+        assert dim_label_schema.label_filters == filter
+
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
@@ -14,13 +39,15 @@ class DimensionLabelTestCase(DiskTestCase):
         dim = tiledb.Dim("dim", domain=(1, 10))
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
+        filters = tiledb.FilterList([tiledb.ZstdFilter(10)])
         dim_labels = {
             "l1": tiledb.DimLabelSchema(
                 0,
                 "increasing",
-                label_dtype=dim.dtype,
+                label_dtype=np.float64,
                 dim_dtype=dim.dtype,
                 dim_tile=10,
+                label_filters=filters,
             )
         }
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
@@ -29,10 +56,26 @@ class DimensionLabelTestCase(DiskTestCase):
 
         # Check the dimension label properties
         dim_label = schema.dim_label("l1")
-        assert dim_label.label_dtype == np.uint64
+        assert dim_label.label_dtype == np.float64
         assert not dim_label.label_isvar
         assert not dim_label.label_isascii
-        assert dim_label.uri == "__labels/l0"
+
+        # Create array check values in dimension label schema
+        uri = self.path("array_with_label")
+        tiledb.Array.create(uri, schema)
+
+        # Load the array schema for the dimension label
+        base_array_schema = tiledb.ArraySchema.load(uri)
+        dim_label = base_array_schema.dim_label("l1")
+        label_array_schema = tiledb.ArraySchema.load(dim_label.uri)
+
+        # Chack the array schema for the dimension label
+        label_dim = label_array_schema.domain.dim(0)
+        assert label_dim.tile == 10
+        assert label_dim.dtype == np.uint64
+        label_attr = label_array_schema.attr(dim_label.label_attr_name)
+        assert label_attr.dtype == np.float64
+        assert label_attr.filters == filters
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
@@ -48,7 +91,26 @@ class DimensionLabelTestCase(DiskTestCase):
                 "increasing",
                 label_dtype=dim.dtype,
                 dim_dtype=dim.dtype,
-                dim_tile=10,
+            )
+        }
+
+        with pytest.raises(tiledb.TileDBError):
+            tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        reason="dimension labels requires libtiledb version 2.15 or greater",
+    )
+    def test_add_to_array_schema_dim_dtype_mismatch(self):
+        dim = tiledb.Dim("label", domain=(1, 10))
+        dom = tiledb.Domain(dim)
+        att = tiledb.Attr("val", dtype=np.uint64)
+        dim_labels = {
+            "label": tiledb.DimLabelSchema(
+                2,
+                "increasing",
+                label_dtype=dim.dtype,
+                dim_dtype=np.int32,
             )
         }
 

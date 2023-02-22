@@ -98,14 +98,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         self._allows_dups = allows_duplicates
 
         for label_name, label_schema in dim_labels.items():
-            self._add_dim_label(
-                self._ctx,
-                label_schema.dimension_index,
-                label_name,
-                label_schema._label_tiledb_order,
-                label_schema._label_tiledb_dtype,
-                label_schema.label_filters,
-            )
+            self._add_dim_label(self._ctx, label_name, label_schema)
 
         self._check()
 
