@@ -83,7 +83,7 @@ void init_dimension_label(py::module &m) {
              return py::capsule(dim_label.ptr().get(), "dim_label", nullptr);
            })
 
-      .def_property_readonly("label_attr_name",
+      .def_property_readonly("_label_attr_name",
                              &DimensionLabel::label_attr_name)
 
       .def_property_readonly("_dim_index", &DimensionLabel::dimension_index)
