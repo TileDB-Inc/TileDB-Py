@@ -50,6 +50,12 @@ jobs:
       - name: Print env
         run: printenv
 
+      # Remove after upstream PR fully-deployed:
+      # - https://github.com/actions/runner-images/pull/7125
+      - name: "Install homebrew dependencies"
+        run: brew install pkg-config
+        if: matrix.os == 'macos-11'
+
       - name: Use Oldest Version of NumPy
         run: python -m pip install numpy==${{ matrix.numpy-version }}
 
