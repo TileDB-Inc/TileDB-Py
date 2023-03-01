@@ -152,7 +152,6 @@ class Dim(CtxMixin, lt.Dimension):
 
     def create_label_schema(
         self,
-        dim_index: np.uint32,
         order: str = "increasing",
         dtype: np.dtype = np.uint64,
         tile: Any = None,
@@ -160,7 +159,6 @@ class Dim(CtxMixin, lt.Dimension):
     ):
         """Creates a dimension label schema for a dimension label on this dimension
 
-        :param dim_index: Index of this dimension in the array schema it is on.
         :param order: Order or sort of the label data ('increasing' or 'decreasing').
         :param dtype: Datatype of the label data.
         :param tile: Tile extent for the dimension of the dimension label. If
@@ -173,11 +171,10 @@ class Dim(CtxMixin, lt.Dimension):
         from .dimension_label_schema import DimLabelSchema
 
         return DimLabelSchema(
-            dim_index,
             order,
             dtype,
             self.dtype,
-            self.tile if tile is None else tile,
+            self.tile if tile is None and self.tile != 0 else tile,
             filters,
             self._ctx,
         )

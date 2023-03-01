@@ -8,7 +8,7 @@ from tiledb.tests.common import DiskTestCase
 class DimensionLabelTestCase(DiskTestCase):
     def test_dim_label_schema(self):
         dim_label_schema = tiledb.DimLabelSchema(
-            0, "decreasing", label_dtype=np.float64, dim_dtype=np.int32
+            "decreasing", label_dtype=np.float64, dim_dtype=np.int32
         )
         assert dim_label_schema.label_order == "decreasing"
         assert dim_label_schema.label_dtype == np.float64
@@ -18,7 +18,6 @@ class DimensionLabelTestCase(DiskTestCase):
 
         filter = tiledb.FilterList()
         dim_label_schema = tiledb.DimLabelSchema(
-            10,
             "increasing",
             label_dtype=np.float32,
             dim_dtype=np.int64,
@@ -33,7 +32,7 @@ class DimensionLabelTestCase(DiskTestCase):
 
     def test_dim_label_schema_from_dim(self):
         dim = tiledb.Dim("dim", domain=(1, 10), dtype=np.int32, tile=10)
-        dim_label_schema = dim.create_label_schema(0, "decreasing", np.float64)
+        dim_label_schema = dim.create_label_schema("decreasing", np.float64)
         assert dim_label_schema.label_order == "decreasing"
         assert dim_label_schema.label_dtype == np.float64
         assert dim_label_schema.dim_dtype == np.int32
@@ -42,7 +41,7 @@ class DimensionLabelTestCase(DiskTestCase):
 
         filter = tiledb.FilterList()
         dim_label_schema = dim.create_label_schema(
-            0, order="increasing", dtype=np.float32, tile=5, filters=filter
+            order="increasing", dtype=np.float32, tile=5, filters=filter
         )
         assert dim_label_schema.label_order == "increasing"
         assert dim_label_schema.label_dtype == np.float32
@@ -60,14 +59,15 @@ class DimensionLabelTestCase(DiskTestCase):
         att = tiledb.Attr("val", dtype=np.uint64)
         filters = tiledb.FilterList([tiledb.ZstdFilter(10)])
         dim_labels = {
-            "l1": tiledb.DimLabelSchema(
-                0,
-                "increasing",
-                label_dtype=np.float64,
-                dim_dtype=dim.dtype,
-                dim_tile=10,
-                label_filters=filters,
-            )
+            0: {
+                "l1": tiledb.DimLabelSchema(
+                    "increasing",
+                    label_dtype=np.float64,
+                    dim_dtype=dim.dtype,
+                    dim_tile=10,
+                    label_filters=filters,
+                )
+            }
         }
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
         assert schema.has_dim_label("l1")
@@ -105,12 +105,11 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
         dim_labels = {
-            "l1": tiledb.DimLabelSchema(
-                2,
-                "increasing",
-                label_dtype=dim.dtype,
-                dim_dtype=dim.dtype,
-            )
+            2: {
+                "l1": tiledb.DimLabelSchema(
+                    "increasing", label_dtype=dim.dtype, dim_dtype=dim.dtype
+                )
+            }
         }
 
         with pytest.raises(tiledb.TileDBError):
@@ -125,12 +124,11 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("val", dtype=np.uint64)
         dim_labels = {
-            "label": tiledb.DimLabelSchema(
-                2,
-                "increasing",
-                label_dtype=dim.dtype,
-                dim_dtype=np.int32,
-            )
+            2: {
+                "label": tiledb.DimLabelSchema(
+                    "increasing", label_dtype=dim.dtype, dim_dtype=np.int32
+                )
+            }
         }
 
         with pytest.raises(tiledb.TileDBError):
@@ -145,14 +143,7 @@ class DimensionLabelTestCase(DiskTestCase):
         dim = tiledb.Dim("d1", domain=(1, 10))
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("a1", dtype=np.int64)
-        dim_labels = {
-            "l1": tiledb.DimLabelSchema(
-                0,
-                "increasing",
-                label_dtype=np.int64,
-                dim_dtype=dim.dtype,
-            )
-        }
+        dim_labels = {0: {"l1": dim.create_label_schema("increasing", np.int64)}}
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
 
         # Create array
@@ -202,24 +193,13 @@ class DimensionLabelTestCase(DiskTestCase):
         dom = tiledb.Domain(dim1, dim2)
         att = tiledb.Attr("value", dtype=np.int64)
         dim_labels = {
-            "x1": tiledb.DimLabelSchema(
-                0,
-                "increasing",
-                label_dtype=np.float64,
-                dim_dtype=dim1.dtype,
-            ),
-            "x2": tiledb.DimLabelSchema(
-                0,
-                "decreasing",
-                label_dtype=np.int64,
-                dim_dtype=dim1.dtype,
-            ),
-            "y1": tiledb.DimLabelSchema(
-                1,
-                "increasing",
-                label_dtype=np.int64,
-                dim_dtype=dim2.dtype,
-            ),
+            0: {
+                "x1": dim1.create_label_schema("increasing", np.float64),
+                "x2": dim1.create_label_schema("decreasing", np.int64),
+            },
+            1: {
+                "y1": dim2.create_label_schema("increasing", np.int64),
+            },
         }
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
 
@@ -276,14 +256,7 @@ class DimensionLabelTestCase(DiskTestCase):
         dim = tiledb.Dim("index", domain=(1, 10))
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("value", dtype=np.int64)
-        dim_labels = {
-            "l1": tiledb.DimLabelSchema(
-                0,
-                "increasing",
-                label_dtype=np.int64,
-                dim_dtype=dim.dtype,
-            )
-        }
+        dim_labels = {0: {"l1": dim.create_label_schema("increasing", np.int64)}}
         schema = tiledb.ArraySchema(
             domain=dom, attrs=(att,), dim_labels=dim_labels, sparse=True
         )

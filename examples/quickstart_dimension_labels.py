@@ -42,29 +42,16 @@ import tiledb
 
 def create_array(uri: str):
     """Create array schema with dimension labels"""
-    d1 = tiledb.Dim("d1", domain=(1, 5))
-    d2 = tiledb.Dim("d2", domain=(1, 5))
-    dom = tiledb.Domain(d1, d2)
+    dim1 = tiledb.Dim("d1", domain=(1, 5))
+    dim2 = tiledb.Dim("d2", domain=(1, 5))
+    dom = tiledb.Domain(dim1, dim2)
     att = tiledb.Attr("a1", dtype=np.int64)
     dim_labels = {
-        "l1": tiledb.DimLabelSchema(
-            0,
-            "decreasing",
-            label_dtype=np.int64,
-            dim_dtype=d2.dtype,
-        ),
-        "l2": tiledb.DimLabelSchema(
-            1,
-            "increasing",
-            label_dtype=np.int64,
-            dim_dtype=d2.dtype,
-        ),
-        "l3": tiledb.DimLabelSchema(
-            1,
-            "increasing",
-            label_dtype=np.float64,
-            dim_dtype=d2.dtype,
-        ),
+        0: {"l1": dim1.create_label_schema("decreasing", np.int64)},
+        1: {
+            "l2": dim2.create_label_schema("increasing", np.int64),
+            "l3": dim2.create_label_schema("increasing", np.float64),
+        },
     }
     schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
     tiledb.Array.create(uri, schema)
