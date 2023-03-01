@@ -32,6 +32,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
     :param bool allows_duplicates: True if duplicates are allowed
     :param bool sparse: True if schema is sparse, else False \
         (set by SparseArray and DenseArray derived classes)
+    :param dim_labels: dict(dim_index, dict(dim_name, tiledb.DimSchema))
     :param tiledb.Ctx ctx: A TileDB Context
     :raises: :py:exc:`tiledb.TileDBError`
 
@@ -97,8 +98,9 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
 
         self._allows_dups = allows_duplicates
 
-        for label_name, label_schema in dim_labels.items():
-            self._add_dim_label(self._ctx, label_name, label_schema)
+        for dim_index, labels_on_dim in dim_labels.items():
+            for label_name, label_schema in labels_on_dim.items():
+                self._add_dim_label(self._ctx, label_name, dim_index, label_schema)
 
         self._check()
 

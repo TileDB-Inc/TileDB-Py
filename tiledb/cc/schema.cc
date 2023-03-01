@@ -13,11 +13,10 @@ namespace py = pybind11;
 
 class DimensionLabelSchema {
 public:
-  DimensionLabelSchema(uint32_t dim_index, tiledb_datatype_t dim_type,
-                       py::object dim_tile_extent,
+  DimensionLabelSchema(tiledb_datatype_t dim_type, py::object dim_tile_extent,
                        tiledb_data_order_t label_order,
                        tiledb_datatype_t label_type)
-      : dim_index_{dim_index}, dim_type_{dim_type}, dim_tile_extent_{nullptr},
+      : dim_type_{dim_type}, dim_tile_extent_{nullptr},
         label_order_{label_order}, label_type_{label_type}, label_filters_{
                                                                 std::nullopt} {
 
@@ -28,12 +27,11 @@ public:
     }
   }
 
-  DimensionLabelSchema(uint32_t dim_index, tiledb_datatype_t dim_type,
-                       py::object dim_tile_extent,
+  DimensionLabelSchema(tiledb_datatype_t dim_type, py::object dim_tile_extent,
                        tiledb_data_order_t label_order,
                        tiledb_datatype_t label_type,
                        const FilterList &label_filters)
-      : dim_index_{dim_index}, dim_type_{dim_type}, dim_tile_extent_{nullptr},
+      : dim_type_{dim_type}, dim_tile_extent_{nullptr},
         label_order_{label_order}, label_type_{label_type}, label_filters_{
                                                                 label_filters} {
 
@@ -43,8 +41,6 @@ public:
       dim_tile_extent_ = tile_extent_info.ptr;
     }
   }
-
-  uint32_t dim_index() const { return dim_index_; }
 
   tiledb_datatype_t dim_type() const { return dim_type_; }
 
@@ -63,7 +59,6 @@ public:
   }
 
 private:
-  uint32_t dim_index_;
   tiledb_datatype_t dim_type_;
   void *dim_tile_extent_;
   tiledb_data_order_t label_order_;
@@ -73,15 +68,11 @@ private:
 
 void init_schema(py::module &m) {
   py::class_<DimensionLabelSchema>(m, "DimensionLabelSchema")
-      .def(py::init<uint32_t, tiledb_datatype_t, py::object,
-                    tiledb_data_order_t, tiledb_datatype_t>())
+      .def(py::init<tiledb_datatype_t, py::object, tiledb_data_order_t,
+                    tiledb_datatype_t>())
 
-      .def(
-          py::init<uint32_t, tiledb_datatype_t, py::object, tiledb_data_order_t,
-                   tiledb_datatype_t, const FilterList &>())
-
-      .def_property_readonly("dimension_index",
-                             &DimensionLabelSchema::dim_index)
+      .def(py::init<tiledb_datatype_t, py::object, tiledb_data_order_t,
+                    tiledb_datatype_t, const FilterList &>())
 
       .def_property_readonly("_dim_dtype", &DimensionLabelSchema::dim_type)
 
@@ -254,10 +245,10 @@ void init_schema(py::module &m) {
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_add_dim_label",
            [](ArraySchema &schema, const Context &ctx, const std::string &name,
+              uint32_t dim_index,
               const DimensionLabelSchema &dim_label_schema) {
              // Check dimension datatype.
-             auto dim_idx = dim_label_schema.dim_index();
-             auto dim_type = schema.domain().dimension(dim_idx).type();
+             auto dim_type = schema.domain().dimension(dim_index).type();
              if (dim_label_schema.dim_type() != dim_type) {
                throw TileDBError("Cannot add dimension label '" + name +
                                  "'; The dimension datatype does not match the "
@@ -266,8 +257,8 @@ void init_schema(py::module &m) {
 
              // Add dimension label.
              ArraySchemaExperimental::add_dimension_label(
-                 ctx, schema, dim_label_schema.dim_index(), name,
-                 dim_label_schema.label_order(), dim_label_schema.label_type(),
+                 ctx, schema, dim_index, name, dim_label_schema.label_order(),
+                 dim_label_schema.label_type(),
                  dim_label_schema.label_filters());
 
              // If dimension tile extent is set, add dimension tile extent.
@@ -281,7 +272,7 @@ void init_schema(py::module &m) {
 #else
       .def("_add_dim_label",
            [](ArraySchema &, const Context ,
-              const std::string &, const DimensionLabelSchema&) {
+              const std::string &, uint32_t dim_index,  const DimensionLabelSchema&) {
             throw TileDBError("Adding dimension labels require libtiledb version 2.15.0 or greater");
            })
 #endif

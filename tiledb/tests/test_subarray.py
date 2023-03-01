@@ -76,14 +76,7 @@ class SubarrayTest(DiskTestCase):
         dim = tiledb.Dim("d1", domain=(1, 10), dtype=np.uint32)
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("a1", dtype=np.int64)
-        dim_labels = {
-            "l1": tiledb.DimLabelSchema(
-                0,
-                "increasing",
-                label_dtype=np.int64,
-                dim_dtype=dim.dtype,
-            )
-        }
+        dim_labels = {0: {"l1": dim.create_label_schema("increasing", np.int64)}}
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
 
         # Create array

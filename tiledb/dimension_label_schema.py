@@ -13,7 +13,6 @@ from .filter import Filter, FilterList
 class DimLabelSchema(lt.DimensionLabelSchema):
     def __init__(
         self,
-        dim_index: np.uint32,
         order: str = "increasing",
         label_dtype: np.dtype = np.uint64,
         dim_dtype: np.dtype = np.uint64,
@@ -23,7 +22,6 @@ class DimLabelSchema(lt.DimensionLabelSchema):
     ):
         """Class defining a dimension label to create as part of an array.
 
-        :param dim_index: Index of the target dimension the label is added to.
         :param order: Order or sort of the label data ('increasing' or 'decreasing').
         :param label_dtype: Datatype of the label data.
         :param dim_dtype: Datatype of the target dimension.
@@ -52,7 +50,6 @@ class DimLabelSchema(lt.DimensionLabelSchema):
         # Create the PyBind superclass
         if label_filters is None:
             super().__init__(
-                dim_index,
                 _dim_dtype.tiledb_type,
                 _dim_tile,
                 _label_order.value,
@@ -65,7 +62,6 @@ class DimLabelSchema(lt.DimensionLabelSchema):
                 else FilterList(label_filters)
             )
             super().__init__(
-                dim_index,
                 _dim_dtype.tiledb_type,
                 _dim_tile,
                 _label_order.value,
