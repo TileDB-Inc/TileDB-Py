@@ -31,6 +31,25 @@ class DimensionLabelTestCase(DiskTestCase):
         assert dim_label_schema.dim_tile == 20
         assert dim_label_schema.label_filters == filter
 
+    def test_dim_label_schema_from_dim(self):
+        dim = tiledb.Dim("dim", domain=(1, 10), dtype=np.int32, tile=10)
+        dim_label_schema = dim.create_label_schema(0, "decreasing", np.float64)
+        assert dim_label_schema.label_order == "decreasing"
+        assert dim_label_schema.label_dtype == np.float64
+        assert dim_label_schema.dim_dtype == np.int32
+        assert dim_label_schema.dim_tile == 10
+        assert dim_label_schema.label_filters is None
+
+        filter = tiledb.FilterList()
+        dim_label_schema = dim.create_label_schema(
+            0, order="increasing", dtype=np.float32, tile=5, filters=filter
+        )
+        assert dim_label_schema.label_order == "increasing"
+        assert dim_label_schema.label_dtype == np.float32
+        assert dim_label_schema.dim_dtype == np.int32
+        assert dim_label_schema.dim_tile == 5
+        assert dim_label_schema.label_filters == filter
+
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
