@@ -150,6 +150,38 @@ class Dim(CtxMixin, lt.Dimension):
         lb, ub = self.domain
         return np.arange(int(lb), int(ub) + 1, dtype=dtype if dtype else self.dtype)
 
+    def create_label_schema(
+        self,
+        dim_index: np.uint32,
+        order: str = "increasing",
+        dtype: np.dtype = np.uint64,
+        tile: Any = None,
+        filters: Union[FilterList, Sequence[Filter]] = None,
+    ):
+        """Creates a dimension label schema for a dimension label on this dimension
+
+        :param dim_index: Index of this dimension in the array schema it is on.
+        :param order: Order or sort of the label data ('increasing' or 'decreasing').
+        :param dtype: Datatype of the label data.
+        :param tile: Tile extent for the dimension of the dimension label. If
+            ``None``, it will use the tile extent of this dimension.
+        :param label_filters: Filter list for the attribute storing the label data.
+
+        :rtype: DimLabelSchema
+
+        """
+        from .dimension_label_schema import DimLabelSchema
+
+        return DimLabelSchema(
+            dim_index,
+            order,
+            dtype,
+            self.dtype,
+            self.tile if tile is None else tile,
+            filters,
+            self._ctx,
+        )
+
     @property
     def dtype(self) -> np.dtype:
         """Numpy dtype representation of the dimension type.

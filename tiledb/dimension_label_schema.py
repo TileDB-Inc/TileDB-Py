@@ -21,6 +21,17 @@ class DimLabelSchema(lt.DimensionLabelSchema):
         label_filters: Union[FilterList, Sequence[Filter]] = None,
         ctx: Ctx = None,
     ):
+        """Class defining a dimension label to create as part of an array.
+
+        :param dim_index: Index of the target dimension the label is added to.
+        :param order: Order or sort of the label data ('increasing' or 'decreasing').
+        :param label_dtype: Datatype of the label data.
+        :param dim_dtype: Datatype of the target dimension.
+        :param dim_tile: Tile extent for the dimension of the dimension label. If
+            ``None``, it will use the same tile extent as the target dimension.
+        :param label_filters: Filter list for the attribute storing the label data.
+        :param ctx: A TileDB Context.
+        """
         self._ctx = ctx or default_ctx()
 
         # Get DataType and DataOrder objects
