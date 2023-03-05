@@ -1,4 +1,7 @@
-# In Progress 
+# Release 0.21.0
+
+## TileDB Embedded updates
+* TileDB-Py 0.21.0 includes TileDB Embedded [2.15.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.15.0)
 
 ## Improvements
 * Move `ArraySchema` from Cython to pure Python [#1340](https://github.com/TileDB-Inc/TileDB-Py/pull/1340)
