@@ -12,7 +12,7 @@ stages:
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
-      TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)"
+      TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)" # UPDATE IN macOS sections below too!
       TILEDB_GCS: ON # set here, override for macOS-arm64
     condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
 
@@ -25,12 +25,14 @@ stages:
               imageName: "macOS-11"
               CMAKE_OSX_ARCHITECTURES: "x86_64"
               MACOSX_DEPLOYMENT_TARGET: 10.15
+              TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
             macOS_libtiledb_arm64:
               imageName: "macOS-11"
               CMAKE_OSX_ARCHITECTURES: "arm64"
               MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_GCS: OFF
               BUILD_MAGIC_MACOS_UNIVERSAL: "ON"
+              TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-arm64"
             windows_libtiledb:
               imageName: "windows-latest"
         pool:
