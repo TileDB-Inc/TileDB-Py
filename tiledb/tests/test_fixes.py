@@ -179,3 +179,68 @@ class FixesTest(DiskTestCase):
         assert get_config_with_env({}, "vfs.s3.region") == "us-east-1"
         assert get_config_with_env({"AWS_DEFAULT_REGION": ""}, "vfs.s3.region") == ""
         assert get_config_with_env({"AWS_REGION": ""}, "vfs.s3.region") == ""
+
+
+class SOMA919Test(DiskTestCase):
+    """
+    ORIGINAL CONTEXT:
+    https://github.com/single-cell-data/TileDB-SOMA/issues/919
+    https://gist.github.com/atolopko-czi/26683305258a9f77a57ccc364916338f
+
+    We've distilled @atolopko-czi's gist example using the TileDB-Py API directly.
+    """
+
+    def run_test(self):
+
+        import tempfile
+
+        import numpy as np
+
+        import tiledb
+
+        root_uri = tempfile.mkdtemp()
+
+        # this tiledb.Ctx is how we set the write timestamps for tiledb.Group
+        group_ctx100 = tiledb.Ctx(
+            {
+                "sm.group.timestamp_start": 100,
+                "sm.group.timestamp_end": 100,
+            }
+        )
+
+        # create the group and add a dummy subgroup "causes_bug"
+        tiledb.Group.create(root_uri, ctx=group_ctx100)
+        with tiledb.Group(root_uri, "w", ctx=group_ctx100) as expt:
+            tiledb.Group.create(root_uri + "/causes_bug", ctx=group_ctx100)
+            expt.add(name="causes_bug", uri=root_uri + "/causes_bug")
+
+        # add an array to the group (in a separate write operation)
+        with tiledb.Group(root_uri, mode="w", ctx=group_ctx100) as expt:
+            df_path = os.path.join(root_uri, "df")
+            tiledb.from_numpy(df_path, np.ones((100, 100)), timestamp=100)
+            expt.add(name="df", uri=df_path)
+
+        # check our view of the group at current time;
+        # (previously, "df" is sometimes missing (non-deterministic)
+        with tiledb.Group(root_uri) as expt:
+            assert "df" in expt
+
+        # IMPORTANT: commenting out either line 29 or 32 (individually) makes df always visible.
+        # That is, to invite the bug we must BOTH add the causes_bug sibling element AND then reopen
+        # the group write handle to add df. The separate reopen (line 32) simulates
+        # tiledbsoma.tdb_handles.Wrapper._flush_hack().
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 15, 0),
+        reason="SOMA919 fix implemented in libtiledb 2.15",
+    )
+    def test_soma919(self):
+        N = 100
+        fails = 0
+        for i in range(N):
+            try:
+                self.run_test()
+            except AssertionError:
+                fails += 1
+        if fails > 0:
+            pytest.fail(f"SOMA919 test, failure rate {100*fails/N}%")
