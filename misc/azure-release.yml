@@ -12,8 +12,11 @@ stages:
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
-      TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)" # UPDATE IN macOS sections below too!
       TILEDB_GCS: ON # set here, override for macOS-arm64
+      # UPDATE TILEDB_INSTALL:
+      # - IN macOS sections below too!
+      # - IN azure-libtiledb-darwin.yml 'path' input, if applicable
+      TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)"
     condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
 
     jobs:

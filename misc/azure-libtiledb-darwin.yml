@@ -2,7 +2,7 @@ steps:
   - task: Cache@2
     inputs:
       key: 'libtiledb v0 | "$(Agent.OS)" | "$(imageName)" | "$(LIBTILEDB_SHA)" | "$(CMAKE_OSX_ARCHITECTURES)" | setup.py | **/azure-*.yml, !tiledb_src/**, !tiledb_build/**'
-      path: $(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)
+      path: '$(TILEDB_INSTALL)'
       cacheHitVar: LIBTILEDB_CACHE_RESTORED
 
   - bash: |
