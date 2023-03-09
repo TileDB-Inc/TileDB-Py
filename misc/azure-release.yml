@@ -6,7 +6,7 @@ stages:
         LIBTILEDB_VERSION: dev
         LIBTILEDB_SHA: dev
       ${{ else }}:
-        TILEDBPY_VERSION: 0.21.0
+        TILEDBPY_VERSION: 0.21.1
         LIBTILEDB_VERSION: 2.15.0
         LIBTILEDB_SHA: 1fb59c4410823c5f615661997021437d7223041a
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
@@ -72,11 +72,13 @@ stages:
             macOS_py:
               imageName: "macOS-11"
               MACOSX_DEPLOYMENT_TARGET: 10.15
+              TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
               CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
               imageName: "macOS-11"
               MACOSX_DEPLOYMENT_TARGET: 11
+              TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-arm64"
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: "arm64"
               # NumPy is only available in CPython 3.8+ on macOS-arm64
