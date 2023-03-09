@@ -1,4 +1,6 @@
-# Release 0.21.0
+# Release 0.21.1
+
+*0.21.0 tag was invalid and thus deleted before PyPI release.*
 
 ## TileDB Embedded updates
 * TileDB-Py 0.21.0 includes TileDB Embedded [2.15.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.15.0)
