@@ -67,6 +67,7 @@ stages:
           matrix:
             linux_py:
               imageName: "ubuntu-latest"
+              ARCH_TAG: ""
               CIBW_SKIP: "cp27-* cp35-* cp36-* *_i686 pp* *musllinux*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_py:
@@ -74,6 +75,7 @@ stages:
               MACOSX_DEPLOYMENT_TARGET: 10.15
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
               CIBW_ARCHS_MACOS: "x86_64"
+              ARCH_TAG: "arm64"
               CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
@@ -81,6 +83,7 @@ stages:
               MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-arm64"
               CIBW_ARCHS_MACOS: "arm64"
+              ARCH_TAG: "arm64"
               CIBW_BUILD_VERBOSITY: 3
               # NumPy is only available in CPython 3.8+ on macOS-arm64
               CIBW_SKIP: "cp27-* cp35-* cp36-* cp37-* pp*"
@@ -88,6 +91,7 @@ stages:
               imageName: "windows-latest"
               CIBW_SKIP: "cp27-* cp35-* cp36-* *-win32 pp*"
               CIBW_BUILD_VERBOSITY: 3
+              ARCH_TAG: ""
         pool:
           vmImage: $(imageName)
 
@@ -102,7 +106,7 @@ stages:
           - task: DownloadPipelineArtifact@2
             displayName: "Download libtiledb artifact"
             inputs:
-              artifactName: "libtiledb-$(Agent.OS)$(CIBW_ARCHS_MACOS)"
+              artifactName: "libtiledb-$(Agent.OS)$(ARCH_TAG)"
               path: $(TILEDB_INSTALL)
 
           # we have to archive the files because azp breaks newlines in a bare directory restore
