@@ -24,11 +24,11 @@ stages:
         timeoutInMinutes: 120
         strategy:
           matrix:
-            macOS_libtiledb:
-              imageName: "macOS-11"
-              CMAKE_OSX_ARCHITECTURES: "x86_64"
-              MACOSX_DEPLOYMENT_TARGET: 10.15
-              TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
+            #macOS_libtiledb:
+            #  imageName: "macOS-11"
+            #  CMAKE_OSX_ARCHITECTURES: "x86_64"
+            #  MACOSX_DEPLOYMENT_TARGET: 10.15
+            #  TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
             macOS_libtiledb_arm64:
               imageName: "macOS-11"
               CMAKE_OSX_ARCHITECTURES: "arm64"
@@ -69,12 +69,12 @@ stages:
               imageName: "ubuntu-latest"
               CIBW_SKIP: "cp27-* cp35-* cp36-* *_i686 pp* *musllinux*"
               CIBW_BUILD_VERBOSITY: 3
-            macOS_py:
-              imageName: "macOS-11"
-              MACOSX_DEPLOYMENT_TARGET: 10.15
-              TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
-              CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
-              CIBW_BUILD_VERBOSITY: 3
+            #macOS_py:
+            #  imageName: "macOS-11"
+            #  MACOSX_DEPLOYMENT_TARGET: 10.15
+            #  TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
+            #  CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
+            #  CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
               imageName: "macOS-11"
               MACOSX_DEPLOYMENT_TARGET: 11
