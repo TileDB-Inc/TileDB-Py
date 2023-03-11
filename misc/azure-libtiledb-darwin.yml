@@ -1,7 +1,7 @@
 steps:
   - task: Cache@2
     inputs:
-      key: 'libtiledb v0 | "$(Agent.OS)" | "$(imageName)" | "$(LIBTILEDB_SHA)" | "$(CMAKE_OSX_ARCHITECTURES)" | setup.py | **/azure-*.yml, !tiledb_src/**, !tiledb_build/**'
+      key: 'libtiledb v0 | "$(Agent.OS)" | "$(imageName)" | "$(LIBTILEDB_SHA)" | "$(ARCH_TAG)" | setup.py | **/azure-*.yml, !tiledb_src/**, !tiledb_build/**'
       path: '$(TILEDB_INSTALL)'
       cacheHitVar: LIBTILEDB_CACHE_RESTORED
 
@@ -26,7 +26,7 @@ steps:
       cd $TILEDB_BUILD
 
       # note: CMAKE_OSX_ARCHITECTURES is ignored on non-macOS platforms
-      cmake -B $TILEDB_BUILD -S $TILEDB_SRC/ -DTILEDB_FORCE_ALL_DEPS=ON -DTILEDB_WERROR=OFF -DTILEDB_GCS=${TILEDB_GCS} -DTILEDB_S3=ON -DTILEDB_AZURE=ON -DCOMPILER_SUPPORTS_AVX2=FALSE -DTILEDB_TESTS=OFF -DTILEDB_STATIC=ON -DCMAKE_INSTALL_PREFIX=$TILEDB_INSTALL -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
+      cmake -B $TILEDB_BUILD -S $TILEDB_SRC/ -DTILEDB_FORCE_ALL_DEPS=ON -DTILEDB_WERROR=OFF -DTILEDB_GCS=${TILEDB_GCS} -DTILEDB_S3=ON -DTILEDB_AZURE=ON -DCOMPILER_SUPPORTS_AVX2=FALSE -DTILEDB_TESTS=OFF -DTILEDB_STATIC=ON -DCMAKE_INSTALL_PREFIX=$TILEDB_INSTALL -DCMAKE_OSX_ARCHITECTURES=${ARCH_TAG}
 
       cmake --build $TILEDB_BUILD --config Release -j3
       cmake --build $TILEDB_BUILD --target install-tiledb --config Release
@@ -72,7 +72,7 @@ steps:
   - task: PublishBuildArtifacts@1
     inputs:
       pathtoPublish: $(TILEDB_INSTALL)/libtiledb-$(LIBTILEDB_VERSION)-$(LIBTILEDB_SHA)
-      artifactName: libtiledb-$(Agent.OS)$(CMAKE_OSX_ARCHITECTURES)
+      artifactName: libtiledb-$(Agent.OS)$(ARCH_TAG)
 
   - bash: |
       set -x

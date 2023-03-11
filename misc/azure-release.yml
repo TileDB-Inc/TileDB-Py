@@ -26,18 +26,19 @@ stages:
           matrix:
             macOS_libtiledb:
               imageName: "macOS-11"
-              CMAKE_OSX_ARCHITECTURES: "x86_64"
+              ARCH_TAG: "x86_64"
               MACOSX_DEPLOYMENT_TARGET: 10.15
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
             macOS_libtiledb_arm64:
               imageName: "macOS-11"
-              CMAKE_OSX_ARCHITECTURES: "arm64"
+              ARCH_TAG: "arm64"
               MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_GCS: OFF
               BUILD_MAGIC_MACOS_UNIVERSAL: "ON"
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-arm64"
             windows_libtiledb:
               imageName: "windows-latest"
+              ARCH_TAG: "arm64"
         pool:
           vmImage: $(imageName)
 
@@ -106,7 +107,7 @@ stages:
           - task: DownloadPipelineArtifact@2
             displayName: "Download libtiledb artifact"
             inputs:
-              artifactName: "libtiledb-$(Agent.OS)$(ARCH_TAG)"
+              artifactName: libtiledb-$(Agent.OS)$(ARCH_TAG)
               path: $(TILEDB_INSTALL)
 
           # we have to archive the files because azp breaks newlines in a bare directory restore
