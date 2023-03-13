@@ -180,6 +180,26 @@ class FixesTest(DiskTestCase):
         assert get_config_with_env({"AWS_DEFAULT_REGION": ""}, "vfs.s3.region") == ""
         assert get_config_with_env({"AWS_REGION": ""}, "vfs.s3.region") == ""
 
+    @pytest.mark.parametrize("is_sparse", [True, False])
+    def test_sc1430_nonexisting_timestamp(self, is_sparse):
+        path = self.path("nonexisting_timestamp")
+
+        if is_sparse:
+            tiledb.from_pandas(
+                path, pd.DataFrame({"a": np.random.rand(4)}), sparse=True
+            )
+
+            with tiledb.open(path, timestamp=1) as A:
+                assert pd.DataFrame.equals(
+                    A.df[:]["a"], pd.Series([], dtype=np.float64)
+                )
+        else:
+            with tiledb.from_numpy(path, np.random.rand(4)) as A:
+                pass
+
+            with tiledb.open(path, timestamp=1) as A:
+                assert_array_equal(A[:], np.ones(4) * np.nan)
+
 
 class SOMA919Test(DiskTestCase):
     """
