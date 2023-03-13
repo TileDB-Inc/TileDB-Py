@@ -103,10 +103,6 @@ def test_array():
     assert arr.open_timestamp_start == 0
     assert arr.open_timestamp_end == 1
 
-    config = lt.Config({"foo": "bar"})
-    arr.set_config(config)
-    assert arr.config()["foo"] == "bar"
-
     arr.close()
     assert not arr.is_open()
 
@@ -152,6 +148,22 @@ def test_array():
         arr.get_metadata("key")
     assert not arr.has_metadata("key")[0]
     arr.close()
+
+
+def test_array_config():
+    uri = tempfile.mkdtemp()
+
+    # TODO BOOTSTRAP
+    tiledb.from_numpy(uri, np.random.rand(4)).close()
+
+    ctx = lt.Context()
+    arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    arr.close()
+
+    # TODO update this after SC-26938
+    config = lt.Config({"foo": "bar"})
+    arr.set_config(config)
+    assert arr.config()["foo"] == "bar"
 
 
 def test_domain():
