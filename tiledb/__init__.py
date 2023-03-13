@@ -111,6 +111,7 @@ from .subarray import Subarray
 from .version_helper import version
 from .vfs import VFS, FileIO
 
+__version__ = version.version
 group_create = Group.create
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
