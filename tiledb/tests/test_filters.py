@@ -15,6 +15,7 @@ all_filter_types = [
     tiledb.LZ4Filter,
     tiledb.RleFilter,
     tiledb.Bzip2Filter,
+    tiledb.DeltaFilter,
     tiledb.DoubleDeltaFilter,
     tiledb.DictionaryFilter,
     tiledb.BitWidthReductionFilter,
@@ -157,3 +158,23 @@ class TestFilterTest(DiskTestCase):
 
             # TODO compute the correct tolerance here
             assert_allclose(data, A[:][""], rtol=1, atol=1)
+
+    def test_delta_filter(self):
+        path = self.path("test_delta_filter")
+
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
+
+        filter = tiledb.DeltaFilter()
+
+        attr = tiledb.Attr(dtype=np.int64, filters=tiledb.FilterList([filter]))
+        schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=False)
+        tiledb.Array.create(path, schema)
+
+        data = np.random.randint(0, 10_000_000, size=10)
+
+        with tiledb.open(path, "w") as A:
+            A[:] = data
+
+        with tiledb.open(path) as A:
+            res = A[:]
+            assert_array_equal(res, data)

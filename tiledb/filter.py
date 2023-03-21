@@ -249,6 +249,35 @@ class RleFilter(CompressionFilter):
         return {}
 
 
+class DeltaFilter(CompressionFilter):
+    """
+    Filter that compresses using run-length encoding (RLE).
+
+    :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
+    :type level: int
+
+    **Example:**
+
+    >>> import tiledb, numpy as np, tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp:
+    ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
+    ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
+    ...                      filters=tiledb.FilterList([tiledb.RleFilter()]))
+    ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
+    ...     tiledb.DenseArray.create(tmp + "/array", schema)
+
+    """
+
+    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
+        if not isinstance(level, int):
+            raise ValueError("`level` argument must be a int")
+
+        super().__init__(lt.FilterType.DELTA, level, ctx)
+
+    def _attrs_(self):
+        return {}
+
+
 class DoubleDeltaFilter(CompressionFilter):
     """
     Filter that performs double-delta encoding.
@@ -737,6 +766,7 @@ class FilterList(CtxMixin, lt.FilterList):
         lt.FilterType.LZ4: LZ4Filter,
         lt.FilterType.BZIP2: Bzip2Filter,
         lt.FilterType.RLE: RleFilter,
+        lt.FilterType.DELTA: DeltaFilter,
         lt.FilterType.DOUBLE_DELTA: DoubleDeltaFilter,
         lt.FilterType.BIT_WIDTH_REDUCTION: BitWidthReductionFilter,
         lt.FilterType.BITSHUFFLE: BitShuffleFilter,
