@@ -87,6 +87,7 @@ void init_enums(py::module &m) {
       .value("LZ4", TILEDB_FILTER_LZ4)
       .value("RLE", TILEDB_FILTER_RLE)
       .value("BZIP2", TILEDB_FILTER_BZIP2)
+      .value("DELTA", TILEDB_FILTER_DELTA)
       .value("DOUBLE_DELTA", TILEDB_FILTER_DOUBLE_DELTA)
       .value("BIT_WIDTH_REDUCTION", TILEDB_FILTER_BIT_WIDTH_REDUCTION)
       .value("BITSHUFFLE", TILEDB_FILTER_BITSHUFFLE)

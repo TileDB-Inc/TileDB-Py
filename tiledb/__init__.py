@@ -53,6 +53,7 @@ from .filter import (
     Bzip2Filter,
     ChecksumMD5Filter,
     ChecksumSHA256Filter,
+    DeltaFilter,
     DictionaryFilter,
     DoubleDeltaFilter,
     Filter,
