@@ -24,6 +24,8 @@ class Group(CtxMixin, lt.Group):
     :type uri: str
     :param mode: Read mode ('r') or write mode ('w')
     :type mode: str
+    :param config: A TileDB config
+    :type config: Config or dict
     :param ctx: A TileDB context
     :type ctx: tiledb.Ctx
 
@@ -252,7 +254,7 @@ class Group(CtxMixin, lt.Group):
                 print(metadata)
 
     def __init__(
-        self, uri: str, mode: str = "r", close=False, ctx: Optional[Ctx] = None
+        self, uri: str, mode: str = "r", close=False, config: Config = None, ctx: Optional[Ctx] = None
     ):
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
@@ -261,6 +263,11 @@ class Group(CtxMixin, lt.Group):
         super().__init__(ctx, uri, query_type)
 
         self._meta = self.GroupMetadata(self)
+        
+        if config is not None:
+            self.close()
+            self._set_config(config)
+            self.open(mode)
 
         if close:
             self.close()
