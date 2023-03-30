@@ -4,7 +4,7 @@ import numpy as np
 
 import tiledb.cc as lt
 
-from .ctx import Ctx, CtxMixin, default_ctx
+from .ctx import Config, Ctx, CtxMixin, default_ctx
 from .datatypes import DataType
 from .object import Object
 
@@ -251,7 +251,7 @@ class Group(CtxMixin, lt.Group):
             for metadata in self._iter(keys_only=False, dump=True):
                 print(metadata)
 
-    def __init__(self, uri: str, mode: str = "r", ctx: Optional[Ctx] = None):
+    def __init__(self, uri: str, mode: str = "r", close=False, ctx: Optional[Ctx] = None):
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
         query_type = Group._mode_to_query_type[mode]
@@ -259,6 +259,9 @@ class Group(CtxMixin, lt.Group):
         super().__init__(ctx, uri, query_type)
 
         self._meta = self.GroupMetadata(self)
+        
+        if close:
+            self.close()
 
     @staticmethod
     def create(uri: str, ctx: Optional[Ctx] = None):
@@ -421,3 +424,13 @@ class Group(CtxMixin, lt.Group):
         :rtype: bool
         """
         return self._is_relative(name)
+    
+    def set_config(self, cfg: Config):
+        """
+        :param cfg: Config to set on the Group
+        :type cfg: Config
+        """
+        if self.isopen:
+            raise ValueError("`set_config` can only be used on closed groups. "
+                             "Use `group.cl0se()` or Group(.., closed=True)")
+        self._set_config(cfg)

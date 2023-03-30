@@ -529,3 +529,50 @@ class GroupMetadataTest(GroupTestCase):
         with tiledb.Group(group1, mode="r") as G:
             assert G.is_relative("group2_1") is False
             assert G.is_relative("group2_2") is True
+            
+    def test_set_config(self):
+        group_uri = self.path("foo")
+        array_uri_1 = self.path("foo/a")
+        array_uri_2 = self.path("foo/b")
+
+        tiledb.group_create(group_uri)
+
+        dom = tiledb.Domain(tiledb.Dim("id", dtype="ascii"))
+        attr = tiledb.Attr("value", dtype=np.int64)
+        sch = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
+
+        tiledb.Array.create(array_uri_1, sch)
+        tiledb.Array.create(array_uri_2, sch)
+
+        t1 = time.time()
+        
+        time.sleep(1)
+        with tiledb.Group(group_uri, "w") as G:
+            G.add(name="a", uri="a", relative=True)
+        time.sleep(1)
+
+        t2 = time.time()
+
+        time.sleep(1)
+        with tiledb.Group(group_uri, "w") as G:
+            G.add(name="b", uri="b", relative=True)
+        time.sleep(1)
+
+        t3 = time.time()
+
+        ms = np.array([t1, t2, t3], dtype=np.int64) * 1000 
+
+        for sz, m in enumerate(ms):
+            cfg = tiledb.Config({'sm.group.timestamp_end': m})
+            
+            # Cannot set config on open group
+            with self.assertRaises(ValueError):
+                G = tiledb.Group(group_uri)
+                G.set_config(cfg)
+            
+            G = tiledb.Group(group_uri, close=True)
+            G.set_config(cfg)
+            
+            G.open()
+            assert len(G) == sz
+            G.close()
