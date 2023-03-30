@@ -576,7 +576,7 @@ class GroupMetadataTest(GroupTestCase):
             G.open()
             assert len(G) == sz
             G.close()
-        
+
         for sz, m in enumerate(ms):
             cfg = tiledb.Config({"sm.group.timestamp_end": m})
 
