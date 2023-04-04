@@ -1,5 +1,4 @@
 import os
-import time
 
 import numpy as np
 import pytest
@@ -133,43 +132,37 @@ class GroupTest(GroupTestCase):
         grp_path = self.path("test_group_metadata")
         tiledb.Group.create(grp_path)
 
-        grp = tiledb.Group(grp_path, "w")
-        grp.meta["int"] = int_data
-        grp.meta["flt"] = flt_data
-        grp.meta["str"] = str_data
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        with tiledb.Group(grp_path, "w", cfg) as grp:
+            grp.meta["int"] = int_data
+            grp.meta["flt"] = flt_data
+            grp.meta["str"] = str_data
 
-        grp.open("r")
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        with tiledb.Group(grp_path, "r", cfg) as grp:
+            assert len(grp.meta) == 3
+            assert "int" in grp.meta
+            assert values_equal(grp.meta["int"], int_data)
+            assert "flt" in grp.meta
+            assert values_equal(grp.meta["flt"], flt_data)
+            assert "str" in grp.meta
+            assert values_equal(grp.meta["str"], str_data)
 
-        assert len(grp.meta) == 3
-        assert "int" in grp.meta
-        assert values_equal(grp.meta["int"], int_data)
-        assert "flt" in grp.meta
-        assert values_equal(grp.meta["flt"], flt_data)
-        assert "str" in grp.meta
-        assert values_equal(grp.meta["str"], str_data)
-        time.sleep(0.001)
+            grp.meta.dump()
+            metadata_dump = capfd.readouterr().out
 
-        grp.meta.dump()
-        metadata_dump = capfd.readouterr().out
+            assert "Type: DataType.FLOAT" in metadata_dump
+            assert "Type: DataType.INT" in metadata_dump
+            assert f"Type: DataType.{str_type}" in metadata_dump
 
-        assert "Type: DataType.FLOAT" in metadata_dump
-        assert "Type: DataType.INT" in metadata_dump
-        assert f"Type: DataType.{str_type}" in metadata_dump
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        with tiledb.Group(grp_path, "w", cfg) as grp:
+            del grp.meta["int"]
 
-        grp.close()
-
-        grp.open("w")
-        del grp.meta["int"]
-        time.sleep(0.001)
-        grp.close()
-
-        grp = tiledb.Group(grp_path, "r")
-        assert len(grp.meta) == 2
-        assert "int" not in grp.meta
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        with tiledb.Group(grp_path, "r", cfg) as grp:
+            assert len(grp.meta) == 2
+            assert "int" not in grp.meta
 
     def test_group_members(self):
         grp_path = self.path("test_group_members")
@@ -298,35 +291,31 @@ class GroupMetadataTest(GroupTestCase):
         grp_path = self.path("test_group_metadata")
         tiledb.Group.create(grp_path)
 
-        grp = tiledb.Group(grp_path, "w")
-        grp.meta["int"] = int_data
-        grp.meta["flt"] = flt_data
-        grp.meta["str"] = str_data
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        with tiledb.Group(grp_path, "w", cfg) as grp:
+            grp.meta["int"] = int_data
+            grp.meta["flt"] = flt_data
+            grp.meta["str"] = str_data
 
-        grp.open("r")
-        assert grp.meta.keys() == {"int", "flt", "str"}
-        assert len(grp.meta) == 3
-        assert "int" in grp.meta
-        assert values_equal(grp.meta["int"], int_data)
-        assert "flt" in grp.meta
-        assert values_equal(grp.meta["flt"], flt_data)
-        assert "str" in grp.meta
-        assert values_equal(grp.meta["str"], str_data)
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        with tiledb.Group(grp_path, "r", cfg) as grp:
+            assert grp.meta.keys() == {"int", "flt", "str"}
+            assert len(grp.meta) == 3
+            assert "int" in grp.meta
+            assert values_equal(grp.meta["int"], int_data)
+            assert "flt" in grp.meta
+            assert values_equal(grp.meta["flt"], flt_data)
+            assert "str" in grp.meta
+            assert values_equal(grp.meta["str"], str_data)
 
-        grp.open("w")
-        del grp.meta["int"]
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        with tiledb.Group(grp_path, "w", cfg) as grp:
+            del grp.meta["int"]
 
-        grp = tiledb.Group(grp_path, "r")
-        assert len(grp.meta) == 2
-        assert "int" not in grp.meta
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        with tiledb.Group(grp_path, "r", cfg) as grp:
+            assert len(grp.meta) == 2
+            assert "int" not in grp.meta
 
     def assert_equal_md_values(self, written_value, read_value):
         if isinstance(written_value, np.ndarray):
@@ -529,3 +518,49 @@ class GroupMetadataTest(GroupTestCase):
         with tiledb.Group(group1, mode="r") as G:
             assert G.is_relative("group2_1") is False
             assert G.is_relative("group2_2") is True
+
+    def test_set_config(self):
+        group_uri = self.path("foo")
+        array_uri_1 = self.path("foo/a")
+        array_uri_2 = self.path("foo/b")
+
+        tiledb.group_create(group_uri)
+
+        dom = tiledb.Domain(tiledb.Dim("id", dtype="ascii"))
+        attr = tiledb.Attr("value", dtype=np.int64)
+        sch = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
+
+        tiledb.Array.create(array_uri_1, sch)
+        tiledb.Array.create(array_uri_2, sch)
+
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2000})
+        with tiledb.Group(group_uri, "w", cfg) as G:
+            G.add(name="a", uri="a", relative=True)
+
+        cfg = tiledb.Config({"sm.group.timestamp_end": 3000})
+        with tiledb.Group(group_uri, "w", cfg) as G:
+            G.add(name="b", uri="b", relative=True)
+
+        ms = np.arange(1000, 4000, 1000, dtype=np.int64)
+
+        for sz, m in enumerate(ms):
+            cfg = tiledb.Config({"sm.group.timestamp_end": m})
+
+            G = tiledb.Group(group_uri)
+
+            # Cannot set config on open group
+            with self.assertRaises(ValueError):
+                G.set_config(cfg)
+
+            G.close()
+            G.set_config(cfg)
+
+            G.open()
+            assert len(G) == sz
+            G.close()
+
+        for sz, m in enumerate(ms):
+            cfg = tiledb.Config({"sm.group.timestamp_end": m})
+
+            with tiledb.Group(group_uri, config=cfg) as G:
+                assert len(G) == sz

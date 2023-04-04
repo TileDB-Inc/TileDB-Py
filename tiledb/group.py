@@ -4,7 +4,7 @@ import numpy as np
 
 import tiledb.cc as lt
 
-from .ctx import Ctx, CtxMixin, default_ctx
+from .ctx import Config, Ctx, CtxMixin, default_ctx
 from .datatypes import DataType
 from .object import Object
 
@@ -24,6 +24,8 @@ class Group(CtxMixin, lt.Group):
     :type uri: str
     :param mode: Read mode ('r') or write mode ('w')
     :type mode: str
+    :param config: A TileDB config
+    :type config: Config or dict
     :param ctx: A TileDB context
     :type ctx: tiledb.Ctx
 
@@ -251,12 +253,21 @@ class Group(CtxMixin, lt.Group):
             for metadata in self._iter(keys_only=False, dump=True):
                 print(metadata)
 
-    def __init__(self, uri: str, mode: str = "r", ctx: Optional[Ctx] = None):
+    def __init__(
+        self,
+        uri: str,
+        mode: str = "r",
+        config: Config = None,
+        ctx: Optional[Ctx] = None,
+    ):
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
         query_type = Group._mode_to_query_type[mode]
 
-        super().__init__(ctx, uri, query_type)
+        if config is None:
+            super().__init__(ctx, uri, query_type)
+        else:
+            super().__init__(ctx, uri, query_type, config)
 
         self._meta = self.GroupMetadata(self)
 
@@ -421,3 +432,15 @@ class Group(CtxMixin, lt.Group):
         :rtype: bool
         """
         return self._is_relative(name)
+
+    def set_config(self, cfg: Config):
+        """
+        :param cfg: Config to set on the Group
+        :type cfg: Config
+        """
+        if self.isopen:
+            raise ValueError(
+                "`set_config` can only be used on closed groups. "
+                "Use `group.cl0se()` or Group(.., closed=True)"
+            )
+        self._set_config(cfg)
