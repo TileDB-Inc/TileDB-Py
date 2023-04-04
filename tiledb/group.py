@@ -257,7 +257,6 @@ class Group(CtxMixin, lt.Group):
         self,
         uri: str,
         mode: str = "r",
-        close=False,
         config: Config = None,
         ctx: Optional[Ctx] = None,
     ):
@@ -265,17 +264,12 @@ class Group(CtxMixin, lt.Group):
             raise ValueError(f"invalid mode {mode}")
         query_type = Group._mode_to_query_type[mode]
 
-        super().__init__(ctx, uri, query_type)
+        if config is None:
+            super().__init__(ctx, uri, query_type)
+        else:
+            super().__init__(ctx, uri, query_type, config)
 
         self._meta = self.GroupMetadata(self)
-
-        if config is not None:
-            self.close()
-            self._set_config(config)
-            self.open(mode)
-
-        if close:
-            self.close()
 
     @staticmethod
     def create(uri: str, ctx: Optional[Ctx] = None):

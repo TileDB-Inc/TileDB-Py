@@ -565,12 +565,13 @@ class GroupMetadataTest(GroupTestCase):
         for sz, m in enumerate(ms):
             cfg = tiledb.Config({"sm.group.timestamp_end": m})
 
+            G = tiledb.Group(group_uri)
+
             # Cannot set config on open group
             with self.assertRaises(ValueError):
-                G = tiledb.Group(group_uri)
                 G.set_config(cfg)
 
-            G = tiledb.Group(group_uri, close=True)
+            G.close()
             G.set_config(cfg)
 
             G.open()

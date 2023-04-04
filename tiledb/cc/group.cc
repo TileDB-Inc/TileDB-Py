@@ -98,6 +98,9 @@ void init_group(py::module &m) {
       .def(
           py::init<const Context &, const std::string &, tiledb_query_type_t>(),
           py::keep_alive<1, 2>())
+      .def(py::init<const Context &, const std::string &, tiledb_query_type_t,
+                    const Config &>(),
+           py::keep_alive<1, 2>())
 
       .def("_open", &Group::open)
       .def("_set_config", &Group::set_config)
