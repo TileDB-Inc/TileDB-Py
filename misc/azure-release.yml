@@ -102,7 +102,7 @@ stages:
           - task: DownloadPipelineArtifact@2
             displayName: "Download libtiledb artifact"
             inputs:
-              artifactName: libtiledb-$(Agent.OS)$(CIBW_ARCHS_MACOS)
+              artifactName: libtiledb-$(Agent.OS)$[variables.CIBW_ARCHS_MACOS]
               path: $(TILEDB_INSTALL)
 
           # we have to archive the files because azp breaks newlines in a bare directory restore
