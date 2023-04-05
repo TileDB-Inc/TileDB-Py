@@ -72,7 +72,7 @@ steps:
   - task: PublishBuildArtifacts@1
     inputs:
       pathtoPublish: $(TILEDB_INSTALL)/libtiledb-$(LIBTILEDB_VERSION)-$(LIBTILEDB_SHA)
-      artifactName: libtiledb-$(Agent.OS)
+      artifactName: 'libtiledb-$(Agent.OS)$(CMAKE_OSX_ARCHITECTURES)'
 
   - bash: |
       set -x
