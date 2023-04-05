@@ -1,3 +1,13 @@
+# Release 0.21.2
+
+## TileDB Embedded updates
+
+* TileDB-Py 0.21.2 includes TileDB Embedded [2.15.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.15.1)
+
+## Improvements
+
+* Addition of `Group(config=...)` and `Group.set_config` [#1715](https://github.com/TileDB-Inc/TileDB-Py/pull/1715)
+
 # Release 0.21.1
 
 *0.21.0 tag was invalid and thus deleted before PyPI release.*
