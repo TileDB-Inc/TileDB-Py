@@ -73,6 +73,7 @@ stages:
               imageName: "macOS-11"
               MACOSX_DEPLOYMENT_TARGET: 10.15
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
+              CIBW_ARCHS_MACOS: "x86_64"
               CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
@@ -101,7 +102,7 @@ stages:
           - task: DownloadPipelineArtifact@2
             displayName: "Download libtiledb artifact"
             inputs:
-              artifactName: libtiledb-$(Agent.OS)
+              artifactName: libtiledb-$(Agent.OS)$(CIBW_ARCHS_MACOS)
               path: $(TILEDB_INSTALL)
 
           # we have to archive the files because azp breaks newlines in a bare directory restore
