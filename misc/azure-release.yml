@@ -38,6 +38,7 @@ stages:
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-arm64"
             windows_libtiledb:
               imageName: "windows-latest"
+              CMAKE_OSX_ARCHITECTURES: ""
         pool:
           vmImage: $(imageName)
 
@@ -53,6 +54,7 @@ stages:
         variables:
           CXXFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL10 -D__BIONIC__=1"
           CFLAGS: "-Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1"
+          CMAKE_OSX_ARCHITECTURES: ""
         steps:
           - task: UsePythonVersion@0
           - template: azure-libtiledb-darwin.yml
@@ -69,6 +71,7 @@ stages:
               imageName: "ubuntu-latest"
               CIBW_SKIP: "cp27-* cp35-* cp36-* *_i686 pp* *musllinux*"
               CIBW_BUILD_VERBOSITY: 3
+              CIBW_ARCHS_MACOS: ""
             macOS_py:
               imageName: "macOS-11"
               MACOSX_DEPLOYMENT_TARGET: 10.15
@@ -88,6 +91,7 @@ stages:
               imageName: "windows-latest"
               CIBW_SKIP: "cp27-* cp35-* cp36-* *-win32 pp*"
               CIBW_BUILD_VERBOSITY: 3
+              CIBW_ARCHS_MACOS: ""
         pool:
           vmImage: $(imageName)
 
@@ -102,7 +106,7 @@ stages:
           - task: DownloadPipelineArtifact@2
             displayName: "Download libtiledb artifact"
             inputs:
-              artifactName: libtiledb-$(Agent.OS)${{ variables.CIBW_ARCHS_MACOS }}
+              artifactName: 'libtiledb-$(Agent.OS)$(CIBW_ARCHS_MACOS)'
               path: $(TILEDB_INSTALL)
 
           # we have to archive the files because azp breaks newlines in a bare directory restore
