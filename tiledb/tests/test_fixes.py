@@ -200,6 +200,48 @@ class FixesTest(DiskTestCase):
             with tiledb.open(path, timestamp=1) as A:
                 assert_array_equal(A[:], np.ones(4) * np.nan)
 
+    def test_sc27374_hilbert_default_tile_order(self):
+        import os
+        import shutil
+
+        import tiledb
+
+        uri = "repro"
+        if os.path.exists(uri):
+            shutil.rmtree(uri)
+
+        dom = tiledb.Domain(
+            tiledb.Dim(
+                name="var_id",
+                domain=(None, None),
+                dtype="ascii",
+                filters=[tiledb.ZstdFilter(level=1)],
+            ),
+        )
+
+        attrs = []
+
+        sch = tiledb.ArraySchema(
+            domain=dom,
+            attrs=attrs,
+            sparse=True,
+            allows_duplicates=False,
+            offsets_filters=[
+                tiledb.DoubleDeltaFilter(),
+                tiledb.BitWidthReductionFilter(),
+                tiledb.ZstdFilter(),
+            ],
+            capacity=1000,
+            cell_order="hilbert",
+            tile_order=None,  # <-------------------- note
+        )
+
+        tiledb.Array.create(uri, sch)
+
+        with tiledb.open(uri) as A:
+            assert A.schema.cell_order == "hilbert"
+            assert A.schema.tile_order is None
+
 
 class SOMA919Test(DiskTestCase):
     """
