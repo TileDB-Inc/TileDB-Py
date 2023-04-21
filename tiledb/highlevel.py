@@ -142,6 +142,12 @@ def array_exists(uri, isdense=False, issparse=False):
 
     Optionally restrict to `isdense` or `issparse` array types.
     """
+    # note: we can't use *only* object_type here, because it returns 'array' even if
+    # no files exist in the __schema directory (eg after delete). See SC-27854
+    # but we need to use it first here, or else tiledb.open below will error out if
+    # the array does not exist.
+    if tiledb.object_type(uri) != "array":
+        return False
     try:
         with tiledb.open(uri) as a:
             if isdense:
@@ -149,8 +155,14 @@ def array_exists(uri, isdense=False, issparse=False):
             if issparse:
                 return a.schema.sparse
             return True
-    except tiledb.TileDBError:
-        return False
+    except tiledb.TileDBError as exc:
+        if (
+            exc.args[0]
+            == "[TileDB::Array] Error: Cannot open array; Array does not exist."
+        ):
+            return False
+        else:
+            raise
 
 
 def array_fragments(uri, include_mbrs=False, ctx=None):

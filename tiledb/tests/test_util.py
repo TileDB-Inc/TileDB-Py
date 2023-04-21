@@ -95,3 +95,9 @@ class UtilTest(DiskTestCase):
         self.assertTrue(tiledb.array_exists(uri))
         self.assertTrue(tiledb.array_exists(uri, issparse=True))
         self.assertFalse(tiledb.array_exists(uri, isdense=True))
+
+        uri3 = self.path("test_array_exists_deleted")
+        with tiledb.from_numpy(uri3, np.arange(0, 5)) as T:
+            self.assertTrue(tiledb.array_exists(uri3))
+        tiledb.Array.delete_array(uri3)
+        self.assertFalse(tiledb.array_exists(uri3))
