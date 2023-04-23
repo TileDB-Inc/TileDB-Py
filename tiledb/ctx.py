@@ -517,6 +517,14 @@ def default_ctx(config: Union["Config", dict] = None) -> "Ctx":
             "dictionary with config parameters."
         )
 
+    if config is not None and config.get("vfs.s3.ca_file") == "":
+        try:
+            import certifi
+
+            config["vfs.s3.ca_file"] = certifi.where()
+        except:
+            pass
+
     try:
         ctx = _ctx_var.get()
         if config is not None:
