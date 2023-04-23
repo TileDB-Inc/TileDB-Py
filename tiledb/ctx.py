@@ -518,6 +518,17 @@ def default_ctx(config: Union["Config", dict] = None) -> "Ctx":
         )
 
     try:
+        if config is None:
+            config = dict()
+        if config.get("vfs.s3.ca_file", "") == "":
+            # Use certifi certificates if available, to avoid stale certificates.
+            import certifi
+
+            config["vfs.s3.ca_file"] = certifi.where()
+    except:
+        pass
+
+    try:
         ctx = _ctx_var.get()
         if config is not None:
             raise tiledb.TileDBError("Global context already initialized!")
