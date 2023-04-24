@@ -97,7 +97,8 @@ void init_enums(py::module &m) {
       .value("SCALE_FLOAT", TILEDB_FILTER_SCALE_FLOAT)
       .value("DICTIONARY", TILEDB_FILTER_DICTIONARY)
       .value("XOR", TILEDB_FILTER_XOR)
-      .value("WEBP", TILEDB_FILTER_WEBP);
+      .value("WEBP", TILEDB_FILTER_WEBP)
+      .value("TYPED_VIEW", TILEDB_FILTER_TYPED_VIEW);
 
   py::enum_<tiledb_filter_option_t>(m, "FilterOption")
       .value("COMPRESSION_LEVEL", TILEDB_COMPRESSION_LEVEL)
@@ -108,7 +109,8 @@ void init_enums(py::module &m) {
       .value("SCALE_FLOAT_OFFSET", TILEDB_SCALE_FLOAT_OFFSET)
       .value("WEBP_INPUT_FORMAT", TILEDB_WEBP_INPUT_FORMAT)
       .value("WEBP_QUALITY", TILEDB_WEBP_QUALITY)
-      .value("WEBP_LOSSLESS", TILEDB_WEBP_LOSSLESS);
+      .value("WEBP_LOSSLESS", TILEDB_WEBP_LOSSLESS)
+      .value("TYPED_VIEW_OUTPUT_DATATYPE", TILEDB_TYPED_VIEW_OUTPUT_DATATYPE);
 
   py::enum_<tiledb_filter_webp_format_t>(m, "WebpInputFormat")
       .value("WEBP_NONE", TILEDB_WEBP_NONE)

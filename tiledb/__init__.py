@@ -63,6 +63,7 @@ from .filter import (
     NoOpFilter,
     PositiveDeltaFilter,
     RleFilter,
+    TypedViewFilter,
     WebpFilter,
     XORFilter,
     ZstdFilter,

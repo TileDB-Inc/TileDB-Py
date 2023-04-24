@@ -157,3 +157,23 @@ class TestFilterTest(DiskTestCase):
 
             # TODO compute the correct tolerance here
             assert_allclose(data, A[:][""], rtol=1, atol=1)
+
+    def test_typed_view(self):
+        path = self.path("test_typed_view")
+
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
+
+        filter = tiledb.TypedViewFilter(np.dtype("float64"))
+
+        attr = tiledb.Attr(dtype=np.float64, filters=tiledb.FilterList([filter]))
+        schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=True)
+        tiledb.Array.create(path, schema)
+
+        data = np.random.rand(10)
+
+        with tiledb.open(path, "w") as A:
+            A[np.arange(10)] = data
+
+        with tiledb.open(path, "r") as A:
+            filter = A.schema.attr("").filters[0]
+            assert isinstance(filter, tiledb.TypedViewFilter)

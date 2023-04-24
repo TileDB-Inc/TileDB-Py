@@ -47,6 +47,11 @@ void init_filter(py::module &m) {
              case TILEDB_WEBP_LOSSLESS:
                filter.set_option(option, value.cast<uint8_t>());
                break;
+             case TILEDB_TYPED_VIEW_OUTPUT_DATATYPE: {
+                tiledb_datatype_t datatype = np_to_tdb_dtype(value.cast<py::dtype>());
+                filter.set_option(option, (void*)&datatype);
+                break;
+             };
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _set_option");
              }
@@ -92,6 +97,11 @@ void init_filter(py::module &m) {
                uint8_t value;
                filter.get_option(option, &value);
                return py::cast(value);
+             }
+             case TILEDB_TYPED_VIEW_OUTPUT_DATATYPE: {
+                tiledb_datatype_t value;
+                filter.get_option(option, &value);
+                return py::cast(value);
              }
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _get_option");

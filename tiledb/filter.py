@@ -432,6 +432,20 @@ class PositiveDeltaFilter(Filter):
         return self._get_option(self._ctx, lt.FilterOption.POSITIVE_DELTA_MAX_WINDOW)
 
 
+class TypedViewFilter(Filter):
+    """A filter that changes the output type of another filter."""
+
+    def __init__(self, view_dtype, ctx: Optional[Ctx] = None):
+        super().__init__(lt.FilterType.TYPED_VIEW, ctx)
+
+        self._set_option(
+            self._ctx, lt.FilterOption.TYPED_VIEW_OUTPUT_DATATYPE, view_dtype
+        )
+
+    def _attrs_(self):
+        return {}
+
+
 class ChecksumMD5Filter(Filter):
     """
     MD5 checksum filter.
@@ -748,6 +762,7 @@ class FilterList(CtxMixin, lt.FilterList):
         lt.FilterType.SCALE_FLOAT: FloatScaleFilter,
         lt.FilterType.XOR: XORFilter,
         lt.FilterType.WEBP: WebpFilter,
+        lt.FilterType.TYPED_VIEW: TypedViewFilter,
         lt.FilterType.NONE: NoOpFilter,
     }
 
