@@ -106,7 +106,6 @@ void init_group(py::module &m) {
       .def("_set_config", &Group::set_config)
       .def("_config", &Group::config)
       .def("_close", &Group::close)
-      .def("_create", &Group::create)
 
       .def_property_readonly("_isopen", &Group::is_open)
       .def_property_readonly("_uri", &Group::uri)
@@ -131,7 +130,11 @@ void init_group(py::module &m) {
            static_cast<Object (Group::*)(std::string) const>(&Group::member))
       .def("_has_member", has_member)
       .def("_is_relative", &Group::is_relative)
-      .def("_dump", &Group::dump);
+      .def("_dump", &Group::dump)
+
+      /* static methods */
+      .def("_create", &Group::create)
+      .def("_delete_group", &Group::delete_group);
 }
 
 } // namespace libtiledbcpp

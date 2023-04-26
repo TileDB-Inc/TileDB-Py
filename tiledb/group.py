@@ -74,12 +74,12 @@ class Group(CtxMixin, lt.Group):
     _mode_to_query_type = {
         "r": lt.QueryType.READ,
         "w": lt.QueryType.WRITE,
+        "m": lt.QueryType.MODIFY_EXCLUSIVE,
     }
 
-    _query_type_to_mode = {
-        lt.QueryType.READ: "r",
-        lt.QueryType.WRITE: "w",
-    }
+    _query_type_to_mode = {t: m for m, t in _mode_to_query_type.items()}
+
+    __was_deleted__ = False
 
     class GroupMetadata(MutableMapping):
         """
@@ -319,6 +319,15 @@ class Group(CtxMixin, lt.Group):
         else:
             self._add(uri, relative)
 
+    def delete(self, recursive: bool = False):
+        """
+        Delete a Group.
+
+        :param uri: The URI of the group to delete
+        """
+        self._delete_group(self.uri, recursive)
+        self.__was_deleted__ = True
+
     def __getitem__(self, member: Union[int, str]) -> Object:
         """
         Retrieve a member from the Group as an Object.
@@ -390,7 +399,11 @@ class Group(CtxMixin, lt.Group):
         The `__enter__` and `__exit__` methods allow TileDB groups to be opened (and auto-closed)
         using with-as syntax.
         """
-        self.close()
+        # Don't close if this was a delete operation: the group will be closed
+        # automatically.
+        if not (hasattr(self, "__deleted") or self.__was_deleted__):
+            self.__was_deleted__ = False
+            self.close()
 
     @property
     def meta(self) -> GroupMetadata:
