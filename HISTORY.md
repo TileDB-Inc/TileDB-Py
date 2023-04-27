@@ -1,3 +1,18 @@
+# Release 0.21.3
+
+## TileDB Embedded updates
+
+* TileDB-Py 0.21.2 includes TileDB Embedded [2.15.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.15.2)
+
+## Improvements
+
+* Add support for Group.delete; fixes sc-28030. [#1754](https://github.com/TileDB-Inc/TileDB-Py/pull/1754)
+
+## Bug Fixes
+
+* Fix sc-27374: default order mapping fallback. [#1736](https://github.com/TileDB-Inc/TileDB-Py/pull/1736)
+* Fix for array_exists hiding errors; fixes SC-27849. [#1754](https://github.com/TileDB-Inc/TileDB-Py/pull/1754)
+
 # Release 0.21.2
 
 ## TileDB Embedded updates
