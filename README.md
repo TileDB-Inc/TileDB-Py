@@ -38,3 +38,17 @@ Dataframes functionality (`tiledb.from_pandas`, `Array.df[]`) requires [Pandas](
 We welcome contributions, please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for suggestions and
 development-build instructions. For larger features, please open an issue to discuss goals and
 approach in order to ensure a smooth PR integration and review process.
+
+# Development Quick Installation
+```bash
+pip install -r requirements_dev.txt 
+```
+or 
+```bash
+conda install --file requirements_dev.txt
+```
+And then:
+```bash
+python setup.py develop --tiledb=<tile-db path>
+python -m pytest tiledb
+```
