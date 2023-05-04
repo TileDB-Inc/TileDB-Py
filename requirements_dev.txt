@@ -9,5 +9,9 @@ pybind11 >= 2.6.2
 setuptools>=42,<=58.3.0
 setuptools_scm >= 1.5.4
 wheel >= 0.30
+pyarrow >= 1.0
+pandas >= 1.0
+hypothesis >= 6.75
+psutil >= 5.9
 contextvars ;python_version<"3.7"
 dataclasses ;python_version<"3.7"
