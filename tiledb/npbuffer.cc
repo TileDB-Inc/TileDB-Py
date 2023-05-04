@@ -320,14 +320,13 @@ if (PyUnicode_Check(u.ptr())) {
         auto arr = py::cast<py::array>(pyobj_p);
         sz = arr.nbytes();
         input_p = (const char *)arr.data();
-
       } else if (PyBool_Check(pyobj_p)) {
-  py::bool_ bool_obj = py::cast<py::bool_>(pyobj_p);
-  sz = sizeof(bool);
-  bool bool_value = bool_obj;
-  input_p = reinterpret_cast<const char*>(&bool_value);
-}
-else {
+        py::bool_ bool_obj = py::cast<py::bool_>(pyobj_p);
+        sz = sizeof(bool);
+        bool bool_value = bool_obj;
+        input_p = reinterpret_cast<const char*>(&bool_value);
+      }
+      else {
         // TODO add object type
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
       }
@@ -407,14 +406,13 @@ else {
         // handle (potentially) var-len embedded arrays
         sz = py::cast<py::array>(obj_p).nbytes();
       } else if (PyBool_Check(obj_p)) {
-  if (idx < 1)
-    first_dtype = py::dtype("bool");
+        if (idx < 1)
+            first_dtype = py::dtype("bool");
 
-  py::bool_ bool_obj = py::cast<py::bool_>(obj_p);
-  sz = sizeof(bool);
-bool bool_value = bool_obj;
+        py::bool_ bool_obj = py::cast<py::bool_>(obj_p);
+        sz = sizeof(bool);
+        bool bool_value = bool_obj;
         input_p = reinterpret_cast<const char*>(&bool_value);}
-
       else {
         auto errmsg =
             std::string("Unexpected object type in string conversion");
@@ -453,7 +451,6 @@ bool bool_value = bool_obj;
         sz = sizeof(bool);
         bool bool_value = bool_obj;
         input_p = reinterpret_cast<const char*>(&bool_value);
-
       }
     else {
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
