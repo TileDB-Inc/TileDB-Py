@@ -452,9 +452,10 @@ if (PyUnicode_Check(u.ptr())) {
         bool bool_value = bool_obj;
         input_p = reinterpret_cast<const char*>(&bool_value);
       }
-    else {
+      else {
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
       }
+      
       memcpy(output_p, input_p, sz);
       // increment the output pointer for the next object
       output_p += sz;
