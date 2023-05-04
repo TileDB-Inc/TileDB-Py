@@ -13,5 +13,6 @@ pyarrow >= 1.0
 pandas >= 1.0
 hypothesis >= 6.75
 psutil >= 5.9
+pytest >= 7.3
 contextvars ;python_version<"3.7"
 dataclasses ;python_version<"3.7"
