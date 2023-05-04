@@ -279,6 +279,14 @@ if (PyUnicode_Check(u.ptr())) {
         }
 
         sz = a.nbytes();
+      } else if (PyBool_Check(o)) {
+        if (idx < 1)
+           first_dtype = py::dtype("bool");
+
+        auto a = py::cast<py::bool_>(o);
+        sz = sizeof(bool);
+        bool bool_value = a;
+        input_p = reinterpret_cast<const char*>(&bool_value);
       } else {
         // TODO write the type in the error here
         // auto o_h = py::reinterpret_borrow<py::object>(o);
@@ -312,7 +320,14 @@ if (PyUnicode_Check(u.ptr())) {
         auto arr = py::cast<py::array>(pyobj_p);
         sz = arr.nbytes();
         input_p = (const char *)arr.data();
-      } else {
+
+      } else if (PyBool_Check(pyobj_p)) {
+  py::bool_ bool_obj = py::cast<py::bool_>(pyobj_p);
+  sz = sizeof(bool);
+  bool bool_value = bool_obj;
+  input_p = reinterpret_cast<const char*>(&bool_value);
+}
+else {
         // TODO add object type
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
       }
@@ -391,7 +406,16 @@ if (PyUnicode_Check(u.ptr())) {
       } else if (npy_api.PyArray_Check_(obj_p)) {
         // handle (potentially) var-len embedded arrays
         sz = py::cast<py::array>(obj_p).nbytes();
-      } else {
+      } else if (PyBool_Check(obj_p)) {
+  if (idx < 1)
+    first_dtype = py::dtype("bool");
+
+  py::bool_ bool_obj = py::cast<py::bool_>(obj_p);
+  sz = sizeof(bool);
+bool bool_value = bool_obj;
+        input_p = reinterpret_cast<const char*>(&bool_value);}
+
+      else {
         auto errmsg =
             std::string("Unexpected object type in string conversion");
         TPY_ERROR_LOC(errmsg);
@@ -424,10 +448,16 @@ if (PyUnicode_Check(u.ptr())) {
         auto o_a = py::cast<py::array>(obj_h);
         sz = o_a.nbytes();
         input_p = (const char *)o_a.data();
-      } else {
+      } else if (PyBool_Check(obj_p)) {
+        py::bool_ bool_obj = py::cast<py::bool_>(obj_p);
+        sz = sizeof(bool);
+        bool bool_value = bool_obj;
+        input_p = reinterpret_cast<const char*>(&bool_value);
+
+      }
+    else {
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
       }
-
       memcpy(output_p, input_p, sz);
       // increment the output pointer for the next object
       output_p += sz;

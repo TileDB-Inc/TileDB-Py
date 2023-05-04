@@ -154,6 +154,7 @@ cdef _write_array(
             try:
                 buffer, offsets = array_to_buffer(values[i], True, False)
             except Exception as exc:
+                print(exc)
                 raise type(exc)(f"Failed to convert buffer for attribute: '{attr.name}'") from exc
             buffer_offsets_sizes[i] = offsets.nbytes
         else:
@@ -2800,7 +2801,6 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                              "coordinate length ({})".format(attr_val.size, ncells))
         sparse_attributes.append(attr._internal_name)
         sparse_values.append(attr_val)
-
     if (len(sparse_attributes) + len(labels) != len(val.keys())) \
         or (len(sparse_values) + len(labels) != len(val.values())):
         raise TileDBError("Sparse write input data count does not match number of attributes")
