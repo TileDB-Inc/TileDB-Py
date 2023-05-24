@@ -71,7 +71,7 @@ def read_array(path):
         print(f"--- with query condition {qc}:")
 
         print(f"--- the fill value for attr1 is {arr.attr('attr1').fill}")
-        print(f"--- the fill value for attr1 is {arr.attr('attr2').fill}")
+        print(f"--- the fill value for attr2 is {arr.attr('attr2').fill}")
 
         print()
         res = arr.query(cond=qc)[:]
@@ -88,9 +88,9 @@ if __name__ == "__main__":
                 array([0.74476144, 0.47211544, 0.99054245, 0.36640416, 0.91699594,
         0.06216043, 0.58581863, 0.00505695, 0.7486192 , 0.87649422]))])
 
-    --- with query condition QueryCondition(expression='(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)'):
+    --- with query condition (2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85):
     --- the fill value for attr1 is [18446744073709551615]
-    --- the fill value for attr1 is [nan]
+    --- the fill value for attr2 is [nan]
 
     OrderedDict([('attr1',
                 array([18446744073709551615, 18446744073709551615, 18446744073709551615,

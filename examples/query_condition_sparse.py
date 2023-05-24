@@ -81,12 +81,12 @@ if __name__ == "__main__":
 
     OrderedDict([('attr1', array([2, 4, 4, 3, 4, 7, 5, 2, 2, 8], dtype=uint64)),
                 ('attr2',
-                array([0.62445071, 0.32415481, 0.39117764, 0.66609931, 0.48122102,
+                array([0.62445071, 0.32415481, 0.39117764 , 0.66609931, 0.66609931,
         0.93561984, 0.70998524, 0.10322076, 0.28343041, 0.33623958])),
                 ('coords',
                 array([ 1,  2,  3,  4,  5,  6,  7,  8,  9, 10], dtype=uint32))])
 
-    --- with query condition QueryCondition(expression='(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)'):
+    --- with query condition (2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85):
 
     OrderedDict([('attr1', array([4, 4, 4], dtype=uint64)),
                 ('attr2', array([0.32415481, 0.39117764, 0.48122102])),
