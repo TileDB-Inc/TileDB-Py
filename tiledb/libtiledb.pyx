@@ -2075,7 +2075,7 @@ cdef class DenseArrayImpl(Array):
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 
-        if cond is not None:
+        if cond is not None and cond != "":
             from .query_condition import QueryCondition
 
             if isinstance(cond, str):
@@ -2921,7 +2921,7 @@ cdef class SparseArrayImpl(Array):
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 
-        if cond is not None:
+        if cond is not None and cond != "":
             from .query_condition import QueryCondition
 
             if isinstance(cond, str):

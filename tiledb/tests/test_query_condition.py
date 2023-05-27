@@ -978,3 +978,33 @@ class QueryDeleteTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             assert_array_equal(A[:]["d"], [b"c"])
             assert_array_equal(A[:]["a"], [30])
+
+    def test_qc_dense_empty(self):
+        path = self.path("test_qc_dense_empty")
+
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 1), tile=1, dtype=np.uint8))
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as A:
+            A[:] = np.arange(1)
+
+        with tiledb.open(path) as A:
+            assert_array_equal(A.query(cond="")[:]["a"], [0])
+
+    def test_qc_sparse_empty(self):
+        path = self.path("test_qc_sparse_empty")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint8)
+        )
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as A:
+            A[1] = {"a": np.arange(1)}
+
+        with tiledb.open(path) as A:
+            assert_array_equal(A.query(cond="")[:]["a"], [0])
