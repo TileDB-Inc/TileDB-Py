@@ -4,6 +4,10 @@
 
 * TileDB-Py 0.21.5 includes TileDB Embedded [2.15.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.15.4)
 
+## Bug Fixes
+
+* Handle empty string passed to Query condition [#1774](https://github.com/TileDB-Inc/TileDB-Py/pull/1774)
+
 # Release 0.21.4
 
 ## TileDB Embedded updates
