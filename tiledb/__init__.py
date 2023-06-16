@@ -45,6 +45,7 @@ from .dimension import Dim
 from .dimension_label import DimLabel
 from .dimension_label_schema import DimLabelSchema
 from .domain import Domain
+from .enumeration import Enumeration
 from .filestore import Filestore
 from .filter import (
     BitShuffleFilter,
