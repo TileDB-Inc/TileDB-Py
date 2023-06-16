@@ -14,6 +14,7 @@ from json import loads as json_loads
 
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
+from .enumeration import Enumeration
 from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
 from .vfs import VFS
@@ -1253,6 +1254,24 @@ cdef class Array(object):
         :return: The array attribute at index or with the given name (label)
         :raises TypeError: invalid key type"""
         return self.schema.domain.dim(dim_id)
+
+    def enum(self, name):
+        """
+        Return the Enumeration from the attribute name.
+
+        :param name: attribute name
+        :type key: str
+        :rtype: `Enumeration`
+        """
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
+        cdef tiledb_array_t* array_ptr = self.ptr
+        cdef bytes bname = unicode_path(name)
+        cdef const char* name_ptr = PyBytes_AS_STRING(bname)
+        cdef tiledb_enumeration_t* enum_ptr = NULL
+        rc = tiledb_array_get_enumeration(ctx_ptr, array_ptr, name_ptr, &enum_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+        return Enumeration.from_capsule(self.ctx, PyCapsule_New(enum_ptr, "enum", NULL))
 
     def delete_fragments(self, timestamp_start, timestamp_end):
         """

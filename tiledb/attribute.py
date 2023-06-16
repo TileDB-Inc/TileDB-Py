@@ -202,6 +202,14 @@ class Attr(CtxMixin, lt.Attribute):
         """
         return self._tiledb_dtype == lt.DataType.STRING_ASCII
 
+    @property
+    def enum(self):
+        return self._get_enumeration_name(self._ctx)
+
+    @enum.setter
+    def enum(self, name):
+        self._set_enumeration_name(self._ctx, name)
+
     def __repr__(self):
         filters_str = ""
         if self.filters:
