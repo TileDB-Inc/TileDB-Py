@@ -8,7 +8,7 @@ import tiledb.main as qc
 
 from .cc import TileDBError
 from .ctx import Ctx, default_ctx
-from .libtiledb import ArraySchema
+from .libtiledb import Array
 
 """
 A high level wrapper around the Pybind11 query_condition.cc implementation for
@@ -130,8 +130,8 @@ class QueryCondition:
                 "(Is this an empty expression?)"
             )
 
-    def init_query_condition(self, schema: ArraySchema, query_attrs: List[str]):
-        qctree = QueryConditionTree(self.ctx, schema, query_attrs)
+    def init_query_condition(self, uri: str, query_attrs: List[str]):
+        qctree = QueryConditionTree(self.ctx, Array.load_typed(uri), query_attrs)
         self.c_obj = qctree.visit(self.tree.body)
 
         if not isinstance(self.c_obj, qc.PyQueryCondition):
@@ -144,7 +144,7 @@ class QueryCondition:
 @dataclass
 class QueryConditionTree(ast.NodeVisitor):
     ctx: Ctx
-    schema: ArraySchema
+    array: Array
     query_attrs: List[str]
 
     def visit_BitOr(self, node):
@@ -237,7 +237,15 @@ class QueryConditionTree(ast.NodeVisitor):
         variable = self.get_variable_from_node(variable)
         value = self.get_value_from_node(value)
 
-        dt = self.schema.attr_or_dim_dtype(variable)
+        if self.array.schema.has_attr(variable):
+            enum_label = self.array.attr(variable).enum_label
+            if enum_label is not None:
+                dt = self.array.enum(enum_label).dtype
+            else:
+                dt = self.array.attr(variable).dtype
+        else:
+            dt = self.array.schema.attr_or_dim_dtype(variable)
+
         dtype = "string" if dt.kind in "SUa" else dt.name
         value = self.cast_value_to_dtype(value, dtype)
 
@@ -310,17 +318,17 @@ class QueryConditionTree(ast.NodeVisitor):
                 f"Incorrect type for variable name: {ast.dump(variable_node)}"
             )
 
-        if self.schema.domain.has_dim(variable) and not self.schema.sparse:
+        if self.array.schema.domain.has_dim(variable) and not self.array.schema.sparse:
             raise TileDBError(
                 "Cannot apply query condition to dimensions on dense arrays. "
                 f"{variable} is a dimension."
             )
 
         if isinstance(node, ast.Call):
-            if node.func.id == "attr" and not self.schema.has_attr(variable):
+            if node.func.id == "attr" and not self.array.schema.has_attr(variable):
                 raise TileDBError(f"{node.func.id} is not an attribute.")
 
-            if node.func.id == "dim" and not self.schema.domain.has_dim(variable):
+            if node.func.id == "dim" and not self.array.schema.domain.has_dim(variable):
                 raise TileDBError(f"{node.func.id} is not a dimension.")
 
         return variable

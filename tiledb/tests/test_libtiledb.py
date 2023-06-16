@@ -2532,7 +2532,6 @@ class TestDatetimeSlicing(DiskTestCase):
 
         # Slice open spans
         with tiledb.DenseArray(uri, "r", attr="a1") as T:
-
             # Convert datetime interval to integer offset/length into original array
             read_offset = int(
                 (np.datetime64("2010-01-01") - start) / np.timedelta64(1, "D")

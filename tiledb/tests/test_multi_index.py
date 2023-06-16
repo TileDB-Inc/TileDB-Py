@@ -475,7 +475,6 @@ class TestMultiRange(DiskTestCase):
                 A[coords] = coords
 
             with tiledb.open(path) as A:
-
                 res = A.multi_index[slice(coords[0], coords[-1])]
                 assert_array_equal(res[attr_name], coords)
                 assert_array_equal(res["__dim_0"].astype(dtype), coords)

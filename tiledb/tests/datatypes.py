@@ -10,7 +10,6 @@ pd = pytest.importorskip("pandas")
 
 @pd.api.extensions.register_extension_dtype
 class RaggedDtype(pd.api.extensions.ExtensionDtype):
-
     type = np.ndarray
     na_value = None
 

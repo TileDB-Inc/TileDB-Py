@@ -51,9 +51,15 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         allows_duplicates: bool = False,
         sparse: bool = False,
         dim_labels={},
+        enums=None,
         ctx: Ctx = None,
     ):
         super().__init__(ctx, lt.ArrayType.SPARSE if sparse else lt.ArrayType.DENSE)
+
+        if enums is not None:
+            for enum_name in enums:
+                self._add_enumeration(self._ctx, enum_name)
+
         if attrs is not None:
             for att in attrs:
                 if not isinstance(att, Attr):

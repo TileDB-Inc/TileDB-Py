@@ -278,16 +278,23 @@ void init_schema(py::module &m) {
       .def("_has_attribute", &ArraySchema::has_attribute)
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
-      .def("_has_dim_label", [](const ArraySchema &schema, const Context &ctx,
-                                const std::string &name) {
-        return ArraySchemaExperimental::has_dimension_label(ctx, schema, name);
-      });
+      .def("_has_dim_label",
+           [](const ArraySchema &schema, const Context &ctx,
+              const std::string &name) {
+             return ArraySchemaExperimental::has_dimension_label(ctx, schema,
+                                                                 name);
+           })
 #else
       .def("_has_dim_label", [](const ArraySchema &, const Context &,
                                 const std::string &) {
         return false; 
-      });
+      })
 #endif
+
+      .def("_add_enumeration", [](const ArraySchema &schema, const Context &ctx,
+                                  const Enumeration &enmr) {
+        ArraySchemaExperimental::add_enumeration(ctx, schema, enmr);
+      });
 }
 
 } // namespace libtiledbcpp

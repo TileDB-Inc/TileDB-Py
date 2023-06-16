@@ -345,7 +345,7 @@ class MultiRangeIndexer(_BaseIndexer):
             return self._empty_results
 
         self.pyquery.submit()
-        result_dict = _get_pyquery_results(self.pyquery, self.array.schema)
+        result_dict = _get_pyquery_results(self.pyquery, self.array)
         if self.result_shape is not None:
             for name, arr in result_dict.items():
                 # TODO check/test layout
@@ -412,6 +412,17 @@ class DataFrameIndexer(_BaseIndexer):
 
                 tdb_attr = self.array.attr(pa_attr.name)
 
+                if tdb_attr.enum_label is not None:
+                    enmr = self.array.enum(tdb_attr.enum_label)
+                    col = pyarrow.DictionaryArray.from_arrays(
+                        indices=table[pa_attr.name].combine_chunks(),
+                        dictionary=enmr.values(),
+                    )
+                    idx = pa_schema.get_field_index(pa_attr.name)
+                    table = table.set_column(idx, pa_attr.name, col)
+                    pa_schema = table.schema
+                    continue
+
                 if np.issubdtype(tdb_attr.dtype, bool):
                     # this is a workaround to cast TILEDB_BOOL types from uint8
                     # representation in Arrow to Boolean
@@ -467,7 +478,7 @@ class DataFrameIndexer(_BaseIndexer):
 
             df = table.to_pandas()
         else:
-            df = pandas.DataFrame(_get_pyquery_results(self.pyquery, self.array.schema))
+            df = pandas.DataFrame(_get_pyquery_results(self.pyquery, self.array))
 
         with timing("pandas_index_update_time"):
             return _update_df_from_meta(df, self.array.meta, self.query.index_col)
@@ -621,9 +632,8 @@ def _iter_dim_names(
     return (dom.dim(i).name for i in range(dom.ndim))
 
 
-def _get_pyquery_results(
-    pyquery: PyQuery, schema: ArraySchema
-) -> Dict[str, np.ndarray]:
+def _get_pyquery_results(pyquery: PyQuery, array: Array) -> Dict[str, np.ndarray]:
+    schema = array.schema
     result_dict = OrderedDict()
     for name, item in pyquery.results().items():
         if len(item[1]) > 0:
@@ -635,6 +645,13 @@ def _get_pyquery_results(
                 if not schema.has_dim_label(name)
                 else schema.dim_label(name).dtype
             )
+
+        if schema.has_attr(name):
+            enum_label = schema.attr(name).enum_label
+            if enum_label is not None:
+                values = array.enum(enum_label).values()
+                arr = np.array([values[idx] for idx in arr])
+
         result_dict[name if name != "__attr" else ""] = arr
     return result_dict
 
