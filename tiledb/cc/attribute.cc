@@ -1,4 +1,5 @@
 #include <tiledb/tiledb>
+#include <tiledb/tiledb_experimental>
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -39,6 +40,16 @@ py::array get_fill_value(Attribute &attr) {
   return py::array(value_type, value_num, value);
 }
 
+void set_enumeration_name(Attribute &attr, const Context &ctx,
+                          const std::string &enumeration_name) {
+  AttributeExperimental::set_enumeration_name(ctx, attr, enumeration_name);
+}
+
+std::optional<std::string> get_enumeration_name(Attribute &attr,
+                                                const Context &ctx) {
+  return AttributeExperimental::get_enumeration_name(ctx, attr);
+}
+
 void init_attribute(py::module &m) {
   py::class_<tiledb::Attribute>(m, "Attribute")
       .def(py::init<Attribute>())
@@ -73,8 +84,11 @@ void init_attribute(py::module &m) {
 
       .def_property("_fill", get_fill_value, set_fill_value)
 
+      .def("_get_enumeration_name", get_enumeration_name)
+
+      .def("_set_enumeration_name", set_enumeration_name)
+
       .def("_dump", [](Attribute &attr) { attr.dump(); });
-  ;
 }
 
 } // namespace libtiledbcpp

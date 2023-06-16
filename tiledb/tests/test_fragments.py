@@ -546,6 +546,8 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
                 with tiledb.open(target_path, "w", timestamp=i) as A:
                     A[[1, 2, 3]] = np.random.rand(dshape[1])
 
+        tiledb.VFS()
+
         src_dshape = (1, 3)
         src_num_frags = 10
         src_path = self.path("test_copy_fragments_to_existing_array_src")
@@ -560,7 +562,7 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
 
         ts = tuple((t, t) for t in range(1, 21))
 
-        frags = tiledb.FragmentInfoList(dst_path)
+        frags = tiledb.array_fragments(dst_path)
         assert len(frags) == 10
         assert frags.timestamp_range == ts[10:]
 

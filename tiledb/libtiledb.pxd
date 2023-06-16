@@ -133,6 +133,8 @@ cdef extern from "tiledb/tiledb.h":
         pass
     ctypedef struct tiledb_config_iter_t:
         pass
+    ctypedef struct tiledb_enumeration_t:
+        pass
     ctypedef struct tiledb_error_t:
         pass
     ctypedef struct tiledb_array_t:
@@ -946,6 +948,12 @@ cdef extern from "tiledb/tiledb.h":
         void* start,
         void* end,
         int32_t* is_empty)
+
+    int32_t tiledb_array_get_enumeration(
+        tiledb_ctx_t* ctx,
+        const tiledb_array_t* array,
+        const char* name,
+        tiledb_enumeration_t** enumeration)
 
     int tiledb_array_vacuum(
         tiledb_ctx_t* ctx,
