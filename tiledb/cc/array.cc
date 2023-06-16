@@ -34,6 +34,7 @@ void init_array(py::module &m) {
       .def("uri", &Array::uri)
       .def("schema", &Array::schema)
       //.def("ptr", [](Array& arr){ return py::capsule(arr.ptr()); } )
+      .def("open", (void (Array::*)(tiledb_query_type_t)) & Array::open)
       // open with encryption key
       .def("open",
            (void (Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,

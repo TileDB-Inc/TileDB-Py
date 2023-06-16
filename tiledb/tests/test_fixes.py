@@ -253,7 +253,6 @@ class SOMA919Test(DiskTestCase):
     """
 
     def run_test(self):
-
         import tempfile
 
         import numpy as np

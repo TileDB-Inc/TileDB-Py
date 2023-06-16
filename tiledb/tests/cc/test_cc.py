@@ -120,13 +120,19 @@ def test_array():
 
     arr.close()
     ####
-    arrw = lt.Array(ctx, uri, lt.QueryType.WRITE)
+    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+    arr.set_open_timestamp_start(1)
+    arr.set_open_timestamp_end(1)
+    arr.close()
 
+    arr.open(lt.QueryType.WRITE)
     data = b"abcdef"
-    arrw.put_metadata("key", lt.DataType.STRING_ASCII, data)
-    arrw.close()
+    arr.put_metadata("key", lt.DataType.STRING_ASCII, data)
+    arr.close()
 
-    arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    arr.set_open_timestamp_start(1)
+    arr.set_open_timestamp_end(1)
+    arr.open(lt.QueryType.READ)
     assert arr.metadata_num() == 1
     assert arr.has_metadata("key")
     mv = arr.get_metadata("key")
@@ -139,11 +145,15 @@ def test_array():
         arr.get_metadata_from_index(1)
     arr.close()
 
-    arrw = lt.Array(ctx, uri, lt.QueryType.WRITE)
-    arrw.delete_metadata("key")
-    arrw.close()
+    arr.open(lt.QueryType.WRITE)
+    arr.set_open_timestamp_start(2)
+    arr.set_open_timestamp_end(2)
+    arr.delete_metadata("key")
+    arr.close()
 
-    arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    arr.set_open_timestamp_start(3)
+    arr.set_open_timestamp_end(3)
+    arr.open(lt.QueryType.READ)
     with pytest.raises(KeyError):
         arr.get_metadata("key")
     assert not arr.has_metadata("key")[0]

@@ -815,6 +815,36 @@ class QueryConditionTest(DiskTestCase):
             assert all(self.filter_dense(result["a"], mask))
             assert all(self.filter_dense(result["b"], mask))
 
+    def test_qc_enumeration(self):
+        uri = self.path("test_qc_enumeration")
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
+        enum1 = tiledb.Enumeration("enmr1", True, [0, 1, 2])
+        enum2 = tiledb.Enumeration("enmr2", False, ["a", "bb", "ccc"])
+        attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
+        attr2 = tiledb.Attr("attr2", dtype=np.int32, enum_label="enmr2")
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=(attr1, attr2), enums=(enum1, enum2)
+        )
+        tiledb.Array.create(uri, schema)
+
+        data1 = np.random.randint(0, 3, 8)
+        data2 = np.random.randint(0, 3, 8)
+
+        with tiledb.open(uri, "w") as A:
+            A[:] = {"attr1": data1, "attr2": data2}
+
+        with tiledb.open(uri, "r") as A:
+            mask = A.attr("attr1").fill
+            result = A.query(cond="attr1 < 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) < 2)
+
+            mask = A.attr("attr2").fill
+            result = A.query(cond="attr2 == 'bb'", attrs=["attr2"])[:]
+            assert all(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("bb")
+            )
+
 
 class QueryDeleteTest(DiskTestCase):
     def test_basic_sparse(self):

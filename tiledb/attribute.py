@@ -24,6 +24,7 @@ class Attr(CtxMixin, lt.Attribute):
         var: bool = None,
         nullable: bool = False,
         filters: Union[FilterList, Sequence[Filter]] = None,
+        enum_label: str = None,
         ctx: Optional[Ctx] = None,
     ):
         """Class representing a TileDB array attribute.
@@ -87,6 +88,9 @@ class Attr(CtxMixin, lt.Attribute):
 
         if nullable is not None:
             self._nullable = nullable
+
+        if enum_label is not None:
+            self._set_enumeration_name(self._ctx, enum_label)
 
     def __eq__(self, other):
         if not isinstance(other, Attr):
@@ -202,6 +206,10 @@ class Attr(CtxMixin, lt.Attribute):
         """
         return self._tiledb_dtype == lt.DataType.STRING_ASCII
 
+    @property
+    def enum_label(self):
+        return self._get_enumeration_name(self._ctx)
+
     def __repr__(self):
         filters_str = ""
         if self.filters:
@@ -217,11 +225,16 @@ class Attr(CtxMixin, lt.Attribute):
         else:
             attr_dtype = self.dtype
 
+        if self.enum_label is None:
+            enum_label = None
+        else:
+            enum_label = f"'{self.enum_label!s}'"
+
         # filters_str must be last with no spaces
         return (
             f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
-            f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
-            f"""{filters_str})"""
+            f"""var={self.isvar!s}, nullable={self.isnullable!s}, """
+            f"""enum_label={enum_label}{filters_str})"""
         )
 
     def _repr_html_(self):
