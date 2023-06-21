@@ -314,7 +314,7 @@ private:
   tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
 
   // label buffer list
-  std::vector<std::pair<string, uint64_t>> label_input_buffer_data_;
+  std::unordered_map<string, uint64_t> label_input_buffer_data_;
 
   py::object pyschema_;
 
@@ -467,6 +467,15 @@ public:
     return array_schema_->has_attribute(name);
   }
 
+  bool is_dimension_label(std::string name) {
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+    return ArraySchemaExperimental::has_dimension_label(ctx_, *array_schema_,
+                                                        name);
+#else
+    return false;
+#endif
+  }
+
   bool is_var(std::string name) {
     if (is_dimension(name)) {
       auto dim = domain_->dimension(name);
@@ -474,6 +483,12 @@ public:
     } else if (is_attribute(name)) {
       auto attr = array_schema_->attribute(name);
       return attr.cell_val_num() == TILEDB_VAR_NUM;
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+    } else if (is_dimension_label(name)) {
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
+      return dim_label.label_cell_val_num() == TILEDB_VAR_NUM;
+#endif
     } else {
       TPY_ERROR_LOC("Unknown buffer type for is_var check (expected attribute "
                     "or dimension)")
@@ -481,7 +496,7 @@ public:
   }
 
   bool is_nullable(std::string name) {
-    if (is_dimension(name)) {
+    if (is_dimension(name) || is_dimension_label(name)) {
       return false;
     }
 
@@ -498,6 +513,13 @@ public:
     } else if (is_attribute(name)) {
       type = array_schema_->attribute(name).type();
       cell_val_num = array_schema_->attribute(name).cell_val_num();
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+    } else if (is_dimension_label(name)) {
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
+      type = dim_label.label_type();
+      cell_val_num = dim_label.label_cell_val_num();
+#endif
     } else {
       TPY_ERROR_LOC("Unknown buffer '" + name + "'");
     }
@@ -543,51 +565,72 @@ public:
   }
 
   void alloc_buffer(std::string name) {
-
     tiledb_datatype_t type;
     uint32_t cell_val_num;
-    std::tie(type, cell_val_num) = buffer_type(name);
-    uint64_t cell_nbytes = tiledb_datatype_size(type);
-    if (cell_val_num != TILEDB_VAR_NUM)
-      cell_nbytes *= cell_val_num;
-    auto dtype = tiledb_dtype(type, cell_val_num);
-
+    uint64_t cell_nbytes;
+    bool var;
+    bool nullable;
     uint64_t buf_nbytes = 0;
     uint64_t offsets_num = 0;
     uint64_t validity_num = 0;
-
-    bool var = is_var(name);
-    bool nullable = is_nullable(name);
     bool dense = array_schema_->array_type() == TILEDB_DENSE;
+    if (is_dimension_label(name)) {
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
+      type = dim_label.label_type();
+      cell_val_num = dim_label.label_cell_val_num();
+      var = cell_val_num == TILEDB_VAR_NUM;
+      nullable = false;
 
-    if (retries_ < 1 && dense) {
-      // we must not call after submitting
-      if (nullable && var) {
-        auto sizes = query_->est_result_size_var_nullable(name);
-        offsets_num = sizes[0];
-        buf_nbytes = sizes[1];
-        validity_num = sizes[2] / sizeof(uint8_t);
-      } else if (nullable && !var) {
-        auto sizes = query_->est_result_size_nullable(name);
-        buf_nbytes = sizes[0];
-        validity_num = sizes[1] / sizeof(uint8_t);
-      } else if (!nullable && var) {
-        auto size_pair = query_->est_result_size_var(name);
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-        buf_nbytes = size_pair.first;
-        offsets_num = size_pair.second;
-#else
-        buf_nbytes = size_pair[0];
-        offsets_num = size_pair[1];
-#endif
-      } else { // !nullable && !var
-        buf_nbytes = query_->est_result_size(name);
+      cell_nbytes = tiledb_datatype_size(type);
+      uint64_t ncells = label_input_buffer_data_[name];
+
+      if (!var) {
+        cell_nbytes *= cell_val_num;
+      } else {
+        offsets_num = ncells;
       }
+      buf_nbytes = ncells * cell_nbytes;
+#endif
+    } else {
+      std::tie(type, cell_val_num) = buffer_type(name);
+      cell_nbytes = tiledb_datatype_size(type);
+      if (cell_val_num != TILEDB_VAR_NUM) {
+        cell_nbytes *= cell_val_num;
+      }
+      var = is_var(name);
+      nullable = is_nullable(name);
 
-      // Add extra offset to estimate in order to avoid incomplete resubmit
-      // libtiledb 2.7.* does not include extra element in estimate.
-      // Remove this section after resolution of SC-16301.
-      offsets_num += (var && use_arrow_) ? 1 : 0;
+      if (retries_ < 1 && dense) {
+        // we must not call after submitting
+        if (nullable && var) {
+          auto sizes = query_->est_result_size_var_nullable(name);
+          offsets_num = sizes[0];
+          buf_nbytes = sizes[1];
+          validity_num = sizes[2] / sizeof(uint8_t);
+        } else if (nullable && !var) {
+          auto sizes = query_->est_result_size_nullable(name);
+          buf_nbytes = sizes[0];
+          validity_num = sizes[1] / sizeof(uint8_t);
+        } else if (!nullable && var) {
+          auto size_pair = query_->est_result_size_var(name);
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
+          buf_nbytes = size_pair.first;
+          offsets_num = size_pair.second;
+#else
+          buf_nbytes = size_pair[0];
+          offsets_num = size_pair[1];
+#endif
+        } else { // !nullable && !var
+          buf_nbytes = query_->est_result_size(name);
+        }
+
+        // Add extra offset to estimate in order to avoid incomplete resubmit
+        // libtiledb 2.7.* does not include extra element in estimate.
+        // Remove this section after resolution of SC-16301.
+        offsets_num += (var && use_arrow_) ? 1 : 0;
+      }
     }
 
     // - for sparse arrays: don't try to allocate more than alloc_max_bytes_
@@ -619,44 +662,8 @@ public:
                           validity_num, var, nullable)});
   }
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
-  void alloc_label_buffer(std::string &label_name, uint64_t ncells) {
-
-    auto dim_label = ArraySchemaExperimental::dimension_label(
-        ctx_, *array_schema_, label_name);
-
-    tiledb_datatype_t type = dim_label.label_type();
-    uint32_t cell_val_num = dim_label.label_cell_val_num();
-    uint64_t cell_nbytes = tiledb_datatype_size(type);
-    if (cell_val_num != TILEDB_VAR_NUM) {
-      cell_nbytes *= cell_val_num;
-    } else {
-      throw TileDBError(
-          "reading variable length dimension labels is not yet supported");
-    }
-    auto dtype = tiledb_dtype(type, cell_val_num);
-
-    uint64_t buf_nbytes = ncells * cell_nbytes;
-    uint64_t offsets_num = 0;
-    uint64_t validity_num = 0;
-
-    bool var = cell_val_num == TILEDB_VAR_NUM;
-    bool nullable = false;
-
-    buffers_order_.push_back(label_name);
-    buffers_.insert(
-        {label_name, BufferInfo(label_name, buf_nbytes, type, cell_val_num,
-                                offsets_num, validity_num, var, nullable)});
-  }
-#else
-  void alloc_label_buffer(std::string &, uint64_t) {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-#endif
-
   void add_label_buffer(std::string &label_name, uint64_t ncells) {
-    label_input_buffer_data_.push_back({label_name, ncells});
+    label_input_buffer_data_[label_name] = ncells;
   }
 
   py::object get_buffers() {
@@ -712,7 +719,10 @@ public:
   }
 
   void update_read_elem_num() {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 16
+    auto result_elements =
+        QueryExperimental::result_buffer_elements_nullable_labels(*query_);
+#elif TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     // needs https://github.com/TileDB-Inc/TileDB/pull/2238
     auto result_elements = query_->result_buffer_elements_nullable();
 #else
@@ -763,16 +773,20 @@ public:
 
       if ((Py_ssize_t)(buf.data_vals_read * buf.elem_nbytes) >
           (Py_ssize_t)buf.data.size()) {
-        throw TileDBError("After read query, data buffer out of bounds: " +
-                          name);
+        throw TileDBError(
+            "After read query, data buffer out of bounds: " + name + " (" +
+            std::to_string(buf.data_vals_read * buf.elem_nbytes) + " > " +
+            std::to_string(buf.data.size()) + ")");
       }
       if ((Py_ssize_t)buf.offsets_read > buf.offsets.size()) {
         throw TileDBError("After read query, offsets buffer out of bounds: " +
-                          name);
+                          name + " (" + std::to_string(buf.offsets_read) +
+                          " > " + std::to_string(buf.offsets.size()) + ")");
       }
       if ((Py_ssize_t)buf.validity_vals_read > buf.validity.size()) {
         throw TileDBError("After read query, validity buffer out of bounds: " +
-                          name);
+                          name + " (" + std::to_string(buf.validity_vals_read) +
+                          " > " + std::to_string(buf.validity.size()) + ")");
       }
     }
   }
@@ -936,8 +950,8 @@ public:
     }
 
     // allocate buffers for label dimensions
-    for (auto &label_data : label_input_buffer_data_) {
-      alloc_label_buffer(label_data.first, label_data.second);
+    for (const auto &label_data : label_input_buffer_data_) {
+      alloc_buffer(label_data.first);
     }
 
     // allocate buffers for attributes
@@ -1394,7 +1408,7 @@ private:
     }
   }
 
-}; // class PyQuery
+}; // namespace tiledbpy
 
 void init_stats() {
   g_stats.reset(new StatsInfo());
