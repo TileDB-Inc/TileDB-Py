@@ -486,10 +486,6 @@ class LabelIndexer(MultiRangeIndexer):
         self._labels: Dict[int, str] = {}
         for label_name in labels:
             dim_label = array.schema.dim_label(label_name)
-            if dim_label.isvar:
-                raise NotImplementedError(
-                    "querying by variable length labels is not yet implemented"
-                )
             dim_idx = dim_label.dim_index
             if dim_idx in self._labels:
                 raise TileDBError(
@@ -523,6 +519,7 @@ class LabelIndexer(MultiRangeIndexer):
         # query and update the pyquery with the actual dimensions.
         if self.label_query is not None and not self.label_query.is_complete():
             self.label_query.submit()
+
             if not self.label_query.is_complete():
                 raise TileDBError("failed to get dimension ranges from labels")
             label_subarray = self.label_query.subarray()

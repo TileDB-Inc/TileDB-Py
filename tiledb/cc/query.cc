@@ -1,4 +1,5 @@
 #include <tiledb/tiledb> // C++
+#include <tiledb/tiledb_experimental>
 
 #include "common.h"
 
