@@ -35,6 +35,9 @@ class DimLabelSchema(lt.DimensionLabelSchema):
         # Get DataType and DataOrder objects
         _label_order = DataOrder[order]
         _label_dtype = DataType.from_numpy(label_dtype)
+        # TOOD: Fix from_numpy for np.bytes_ (?)
+        if _label_dtype.tiledb_type == lt.DataType.CHAR:
+            _label_dtype = DataType(np.bytes_, lt.DataType.STRING_ASCII, lt.TILEDB_VAR_NUM)
         _dim_dtype = DataType.from_numpy(dim_dtype)
 
         # Convert the tile extent (if set)

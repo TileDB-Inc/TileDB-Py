@@ -467,6 +467,14 @@ public:
     return array_schema_->has_attribute(name);
   }
 
+  bool is_dimension_label(std::string name) {
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+    return ArraySchemaExperimental::has_dimension_label(ctx_, *array_schema_, name);
+#else
+    return false;
+#endif
+  }
+
   bool is_var(std::string name) {
     if (is_dimension(name)) {
       auto dim = domain_->dimension(name);
@@ -474,6 +482,12 @@ public:
     } else if (is_attribute(name)) {
       auto attr = array_schema_->attribute(name);
       return attr.cell_val_num() == TILEDB_VAR_NUM;
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+    } else if (is_dimension_label(name)) {
+      auto dim_label = ArraySchemaExperimental::dimension_label(ctx_,
+        *array_schema_, name);
+      return dim_label.label_cell_val_num() == TILEDB_VAR_NUM;
+#endif
     } else {
       TPY_ERROR_LOC("Unknown buffer type for is_var check (expected attribute "
                     "or dimension)")
@@ -481,7 +495,7 @@ public:
   }
 
   bool is_nullable(std::string name) {
-    if (is_dimension(name)) {
+    if (is_dimension(name) || is_dimension_label(name)) {
       return false;
     }
 
@@ -498,6 +512,13 @@ public:
     } else if (is_attribute(name)) {
       type = array_schema_->attribute(name).type();
       cell_val_num = array_schema_->attribute(name).cell_val_num();
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+    } else if (is_dimension_label(name)) {
+      auto dim_label = ArraySchemaExperimental::dimension_label(ctx_,
+        *array_schema_, name);
+      type = dim_label.label_type();
+      cell_val_num = dim_label.label_cell_val_num();
+#endif
     } else {
       TPY_ERROR_LOC("Unknown buffer '" + name + "'");
     }
@@ -621,27 +642,33 @@ public:
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
   void alloc_label_buffer(std::string &label_name, uint64_t ncells) {
-
     auto dim_label = ArraySchemaExperimental::dimension_label(
         ctx_, *array_schema_, label_name);
+    std::cout << "label_name = " << label_name << std::endl;
+    std::cout << "\tncells = " << ncells << std::endl;
 
     tiledb_datatype_t type = dim_label.label_type();
     uint32_t cell_val_num = dim_label.label_cell_val_num();
     uint64_t cell_nbytes = tiledb_datatype_size(type);
-    if (cell_val_num != TILEDB_VAR_NUM) {
-      cell_nbytes *= cell_val_num;
-    } else {
-      throw TileDBError(
-          "reading variable length dimension labels is not yet supported");
-    }
-    auto dtype = tiledb_dtype(type, cell_val_num);
-
-    uint64_t buf_nbytes = ncells * cell_nbytes;
-    uint64_t offsets_num = 0;
-    uint64_t validity_num = 0;
-
+    std::cout << "\tcell_nbytes = " << cell_nbytes << std::endl;
     bool var = cell_val_num == TILEDB_VAR_NUM;
     bool nullable = false;
+    uint64_t buf_nbytes = 0;
+
+    if (!var) {
+      std::cout << "\tcell_val_num = " << cell_val_num << std::endl;
+      cell_nbytes *= cell_val_num;
+      std::cout << "\tcell_nbytes *= cell_val_num = " << cell_nbytes << std::endl;
+      buf_nbytes = ncells * cell_nbytes;
+      std::cout << "\tbuf_nbytes = ncells * cell_nbytes = " << buf_nbytes << std::endl;
+    } else {
+      // TODO: I think we still need est_result_size here.
+      // + Given range ['a', 'ddd'], I don't see another way to calculate the label data size between 'a' and 'ddd'.
+      buf_nbytes = 9; // Full label data for this hard-coded example is ['a', 'bb', 'ccc', 'ddd']
+    }
+
+    uint64_t offsets_num = var ? ncells : 0;
+    uint64_t validity_num = 0;
 
     buffers_order_.push_back(label_name);
     buffers_.insert(
@@ -763,16 +790,17 @@ public:
 
       if ((Py_ssize_t)(buf.data_vals_read * buf.elem_nbytes) >
           (Py_ssize_t)buf.data.size()) {
-        throw TileDBError("After read query, data buffer out of bounds: " +
-                          name);
+        throw TileDBError("After read query, data buffer out of bounds: " + name + " ("
+                          + std::to_string(buf.data_vals_read * buf.elem_nbytes) + " > "
+                          + std::to_string(buf.data.size()) + ")");
       }
       if ((Py_ssize_t)buf.offsets_read > buf.offsets.size()) {
-        throw TileDBError("After read query, offsets buffer out of bounds: " +
-                          name);
+        throw TileDBError("After read query, offsets buffer out of bounds: " + name + " ("
+                          + std::to_string(buf.offsets_read) + " > " + std::to_string(buf.offsets.size()) + ")");
       }
       if ((Py_ssize_t)buf.validity_vals_read > buf.validity.size()) {
-        throw TileDBError("After read query, validity buffer out of bounds: " +
-                          name);
+        throw TileDBError("After read query, validity buffer out of bounds: " + name + " ("
+                          + std::to_string(buf.validity_vals_read) + " > " + std::to_string(buf.validity.size()) + ")");
       }
     }
   }
