@@ -41,10 +41,9 @@ def create_array(uri: str):
     """Create array schema with dimension labels"""
     dim1 = tiledb.Dim("d1", domain=(1, 4), dtype=np.int32)
     dim2 = tiledb.Dim("d2", domain=(1, 5), dtype=np.int32)
-    # TODO: Using np.bytes_ here was not converting correctly in DataType.from_numpy()
-    # + dimension.py overrides bytes_->TILEDB_STRING_ASCII and does not use DataType.from_numpy()
+    # TODO: Test label query with N var-size labels.
     dim_labels = {
-        0: {"l1": dim1.create_label_schema("increasing", "ascii")},
+        0: {"l1": dim1.create_label_schema("increasing", np.bytes_)},
         1: {
             "l2": dim2.create_label_schema("increasing", np.int64),
             "l3": dim2.create_label_schema("increasing", np.float64),
@@ -137,15 +136,15 @@ def read_array(uri: str):
     """Read the array from the dimension label"""
 
     with tiledb.open(uri, "r") as array:
-        # data1 = array.label_index(["l2"])[1, 1:2]
-        # print("Reading array on [[1, -1:1]] with label 'l2' on dim2")
-        # for name, value in data1.items():
-        #     print(f"  '{name}'={value}")
+        data1 = array.label_index(["l2"])[1, 1:2]
+        print("Reading array on [[1, -1:1]] with label 'l2' on dim2")
+        for name, value in data1.items():
+            print(f"  '{name}'={value}")
 
-        # data2 = array.label_index(["l1", "l2"])[4:5, -2:2]
-        # print("Reading array on [[4:5, -2:2]] with label 'l1' on dim1 and 'l2' on dim2")
-        # for name, value in data2.items():
-        #     print(f"  '{name}'={value}")
+        data2 = array.label_index(["l1", "l2"])["a":"ddd", -2:2]
+        print("Reading array on [[4:5, -2:2]] with label 'l1' on dim1 and 'l2' on dim2")
+        for name, value in data2.items():
+            print(f"  '{name}'={value}")
 
         # Should read all data
         print("Reading array on [['a':'ddd']] with label 'l1' on dim1")

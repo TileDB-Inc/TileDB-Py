@@ -519,6 +519,12 @@ class LabelIndexer(MultiRangeIndexer):
         # query and update the pyquery with the actual dimensions.
         if self.label_query is not None and not self.label_query.is_complete():
             self.label_query.submit()
+
+            est_var_size = [0, 0]
+            for label_name in self._labels.values():
+                if self.array.schema.dim_label(label_name).isvar:
+                    est_var_size = self.label_query.est_result_size_var(label_name)
+
             if not self.label_query.is_complete():
                 raise TileDBError("failed to get dimension ranges from labels")
             label_subarray = self.label_query.subarray()
@@ -537,7 +543,7 @@ class LabelIndexer(MultiRangeIndexer):
             for dim_idx, label_name in self._labels.items():
                 if self.result_shape is None:
                     raise TileDBError("failed to compute subarray shape")
-                self.pyquery.add_label_buffer(label_name, self.result_shape[dim_idx])
+                self.pyquery.add_label_buffer(label_name, self.result_shape[dim_idx], est_var_size[1])
         return super()._run_query()
 
 
@@ -631,7 +637,9 @@ def _get_pyquery_results(
             if schema.has_dim_label(name):
                 if schema.dim_label(name).isvar:
                     # arr.dtype = np.uint8  # TODO: Revert all changes here. This is just hard-coded for POC.
-                    arr = pyquery.unpack_buffer(name, item[0], [0, 1, 3, 6])
+                    # arr = pyquery.unpack_buffer(name, item[0], [0, 1])  # 'bb'
+                    # arr = pyquery.unpack_buffer(name, item[0], [0, 1, 3])  # 'ccc'
+                    arr = pyquery.unpack_buffer(name, item[0], [0, 1, 3, 6])  # 'ddd'
                 else:
                     arr.dtype = schema.dim_label(name).dtype
             else:

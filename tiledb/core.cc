@@ -314,7 +314,7 @@ private:
   tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
 
   // label buffer list
-  std::vector<std::pair<string, uint64_t>> label_input_buffer_data_;
+  std::vector<std::tuple<string, uint64_t, uint64_t>> label_input_buffer_data_;
 
   py::object pyschema_;
 
@@ -641,34 +641,27 @@ public:
   }
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
-  void alloc_label_buffer(std::string &label_name, uint64_t ncells) {
+  void alloc_label_buffer(std::string &label_name, uint64_t ncells, uint64_t var_size) {
     auto dim_label = ArraySchemaExperimental::dimension_label(
         ctx_, *array_schema_, label_name);
-    std::cout << "label_name = " << label_name << std::endl;
-    std::cout << "\tncells = " << ncells << std::endl;
 
     tiledb_datatype_t type = dim_label.label_type();
     uint32_t cell_val_num = dim_label.label_cell_val_num();
     uint64_t cell_nbytes = tiledb_datatype_size(type);
-    std::cout << "\tcell_nbytes = " << cell_nbytes << std::endl;
     bool var = cell_val_num == TILEDB_VAR_NUM;
     bool nullable = false;
     uint64_t buf_nbytes = 0;
+    uint64_t offsets_num = 0;
+    uint64_t validity_num = 0;
 
     if (!var) {
-      std::cout << "\tcell_val_num = " << cell_val_num << std::endl;
       cell_nbytes *= cell_val_num;
-      std::cout << "\tcell_nbytes *= cell_val_num = " << cell_nbytes << std::endl;
       buf_nbytes = ncells * cell_nbytes;
-      std::cout << "\tbuf_nbytes = ncells * cell_nbytes = " << buf_nbytes << std::endl;
     } else {
-      // TODO: I think we still need est_result_size here.
-      // + Given range ['a', 'ddd'], I don't see another way to calculate the label data size between 'a' and 'ddd'.
-      buf_nbytes = 9; // Full label data for this hard-coded example is ['a', 'bb', 'ccc', 'ddd']
+      buf_nbytes = var_size;
+      offsets_num = ncells;
     }
 
-    uint64_t offsets_num = var ? ncells : 0;
-    uint64_t validity_num = 0;
 
     buffers_order_.push_back(label_name);
     buffers_.insert(
@@ -676,14 +669,14 @@ public:
                                 offsets_num, validity_num, var, nullable)});
   }
 #else
-  void alloc_label_buffer(std::string &, uint64_t) {
+  void alloc_label_buffer(std::string &, uint64_t, uint64_t) {
     throw TileDBError(
         "Using dimension labels requires libtiledb version 2.15.0 or greater");
   }
 #endif
 
-  void add_label_buffer(std::string &label_name, uint64_t ncells) {
-    label_input_buffer_data_.push_back({label_name, ncells});
+  void add_label_buffer(std::string &label_name, uint64_t ncells, uint64_t var_size) {
+    label_input_buffer_data_.push_back({label_name, ncells, var_size});
   }
 
   py::object get_buffers() {
@@ -965,7 +958,7 @@ public:
 
     // allocate buffers for label dimensions
     for (auto &label_data : label_input_buffer_data_) {
-      alloc_label_buffer(label_data.first, label_data.second);
+      alloc_label_buffer(std::get<0>(label_data), std::get<1>(label_data), std::get<2>(label_data));
     }
 
     // allocate buffers for attributes

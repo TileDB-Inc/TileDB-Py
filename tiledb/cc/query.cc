@@ -50,6 +50,8 @@ void init_query(py::module &m) {
 
       .def("has_results", &Query::has_results)
 
+      .def("est_result_size_var", &Query::est_result_size_var)
+
       .def("is_complete",
            [](const Query &query) {
              return query.query_status() == Query::Status::COMPLETE;
