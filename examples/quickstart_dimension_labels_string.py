@@ -136,13 +136,13 @@ def read_array(uri: str):
     """Read the array from the dimension label"""
 
     with tiledb.open(uri, "r") as array:
-        data1 = array.label_index(["l2"])[1, 1:2]
+        data1 = array.label_index(["l2"])[1, -1:1]
         print("Reading array on [[1, -1:1]] with label 'l2' on dim2")
         for name, value in data1.items():
             print(f"  '{name}'={value}")
 
         data2 = array.label_index(["l1", "l2"])["a":"ddd", -2:2]
-        print("Reading array on [[4:5, -2:2]] with label 'l1' on dim1 and 'l2' on dim2")
+        print("Reading array on [['a':'ddd', -2:2]] with label 'l1' on dim1 and 'l2' on dim2")
         for name, value in data2.items():
             print(f"  '{name}'={value}")
 

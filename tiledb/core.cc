@@ -314,7 +314,7 @@ private:
   tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
 
   // label buffer list
-  std::vector<std::tuple<string, uint64_t, uint64_t>> label_input_buffer_data_;
+  std::unordered_map<string, std::pair<uint64_t, uint64_t>> label_input_buffer_data_;
 
   py::object pyschema_;
 
@@ -564,51 +564,72 @@ public:
   }
 
   void alloc_buffer(std::string name) {
-
     tiledb_datatype_t type;
     uint32_t cell_val_num;
-    std::tie(type, cell_val_num) = buffer_type(name);
-    uint64_t cell_nbytes = tiledb_datatype_size(type);
-    if (cell_val_num != TILEDB_VAR_NUM)
-      cell_nbytes *= cell_val_num;
-    auto dtype = tiledb_dtype(type, cell_val_num);
-
+    uint64_t cell_nbytes;
+    bool var;
+    bool nullable;
     uint64_t buf_nbytes = 0;
     uint64_t offsets_num = 0;
     uint64_t validity_num = 0;
-
-    bool var = is_var(name);
-    bool nullable = is_nullable(name);
     bool dense = array_schema_->array_type() == TILEDB_DENSE;
+    if (is_dimension_label(name)) {
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
+      auto dim_label = ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
+      type = dim_label.label_type();
+      cell_val_num = dim_label.label_cell_val_num();
+      var = cell_val_num == TILEDB_VAR_NUM;
+      nullable = false;
 
-    if (retries_ < 1 && dense) {
-      // we must not call after submitting
-      if (nullable && var) {
-        auto sizes = query_->est_result_size_var_nullable(name);
-        offsets_num = sizes[0];
-        buf_nbytes = sizes[1];
-        validity_num = sizes[2] / sizeof(uint8_t);
-      } else if (nullable && !var) {
-        auto sizes = query_->est_result_size_nullable(name);
-        buf_nbytes = sizes[0];
-        validity_num = sizes[1] / sizeof(uint8_t);
-      } else if (!nullable && var) {
-        auto size_pair = query_->est_result_size_var(name);
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-        buf_nbytes = size_pair.first;
-        offsets_num = size_pair.second;
-#else
-        buf_nbytes = size_pair[0];
-        offsets_num = size_pair[1];
-#endif
-      } else { // !nullable && !var
-        buf_nbytes = query_->est_result_size(name);
+      cell_nbytes = tiledb_datatype_size(type);
+      uint64_t ncells = label_input_buffer_data_[name].first;
+
+      if (!var) {
+        cell_nbytes *= cell_val_num;
+        buf_nbytes = ncells * cell_nbytes;
+      } else {
+        buf_nbytes = label_input_buffer_data_[name].second;
+        offsets_num = ncells;
       }
+#endif
+    } else {
+      std::tie(type, cell_val_num) = buffer_type(name);
+      cell_nbytes = tiledb_datatype_size(type);
+      if (cell_val_num != TILEDB_VAR_NUM) {
+        cell_nbytes *= cell_val_num;
+      }
+      var = is_var(name);
+      nullable = is_nullable(name);
 
-      // Add extra offset to estimate in order to avoid incomplete resubmit
-      // libtiledb 2.7.* does not include extra element in estimate.
-      // Remove this section after resolution of SC-16301.
-      offsets_num += (var && use_arrow_) ? 1 : 0;
+      if (retries_ < 1 && dense) {
+        // we must not call after submitting
+        if (nullable && var) {
+          auto sizes = query_->est_result_size_var_nullable(name);
+          offsets_num = sizes[0];
+          buf_nbytes = sizes[1];
+          validity_num = sizes[2] / sizeof(uint8_t);
+        } else if (nullable && !var) {
+          auto sizes = query_->est_result_size_nullable(name);
+          buf_nbytes = sizes[0];
+          validity_num = sizes[1] / sizeof(uint8_t);
+        } else if (!nullable && var) {
+          auto size_pair = query_->est_result_size_var(name);
+#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
+          buf_nbytes = size_pair.first;
+          offsets_num = size_pair.second;
+#else
+          buf_nbytes = size_pair[0];
+          offsets_num = size_pair[1];
+#endif
+        } else { // !nullable && !var
+          buf_nbytes = query_->est_result_size(name);
+        }
+
+        // Add extra offset to estimate in order to avoid incomplete resubmit
+        // libtiledb 2.7.* does not include extra element in estimate.
+        // Remove this section after resolution of SC-16301.
+        offsets_num += (var && use_arrow_) ? 1 : 0;
+      }
     }
 
     // - for sparse arrays: don't try to allocate more than alloc_max_bytes_
@@ -640,43 +661,8 @@ public:
                           validity_num, var, nullable)});
   }
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
-  void alloc_label_buffer(std::string &label_name, uint64_t ncells, uint64_t var_size) {
-    auto dim_label = ArraySchemaExperimental::dimension_label(
-        ctx_, *array_schema_, label_name);
-
-    tiledb_datatype_t type = dim_label.label_type();
-    uint32_t cell_val_num = dim_label.label_cell_val_num();
-    uint64_t cell_nbytes = tiledb_datatype_size(type);
-    bool var = cell_val_num == TILEDB_VAR_NUM;
-    bool nullable = false;
-    uint64_t buf_nbytes = 0;
-    uint64_t offsets_num = 0;
-    uint64_t validity_num = 0;
-
-    if (!var) {
-      cell_nbytes *= cell_val_num;
-      buf_nbytes = ncells * cell_nbytes;
-    } else {
-      buf_nbytes = var_size;
-      offsets_num = ncells;
-    }
-
-
-    buffers_order_.push_back(label_name);
-    buffers_.insert(
-        {label_name, BufferInfo(label_name, buf_nbytes, type, cell_val_num,
-                                offsets_num, validity_num, var, nullable)});
-  }
-#else
-  void alloc_label_buffer(std::string &, uint64_t, uint64_t) {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-#endif
-
   void add_label_buffer(std::string &label_name, uint64_t ncells, uint64_t var_size) {
-    label_input_buffer_data_.push_back({label_name, ncells, var_size});
+    label_input_buffer_data_[label_name] = {ncells, var_size};
   }
 
   py::object get_buffers() {
@@ -957,8 +943,8 @@ public:
     }
 
     // allocate buffers for label dimensions
-    for (auto &label_data : label_input_buffer_data_) {
-      alloc_label_buffer(std::get<0>(label_data), std::get<1>(label_data), std::get<2>(label_data));
+    for (const auto &label_data : label_input_buffer_data_) {
+      alloc_buffer(label_data.first);
     }
 
     // allocate buffers for attributes
