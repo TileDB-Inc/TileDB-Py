@@ -354,6 +354,7 @@ class FileIO(io.RawIOBase):
         exc_tb: Optional[TracebackType],
     ) -> bool:
         self.flush()
+        self._fh._close()
 
     @property
     def mode(self) -> str:
