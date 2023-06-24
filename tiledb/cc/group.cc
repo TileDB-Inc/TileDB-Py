@@ -105,7 +105,7 @@ void init_group(py::module &m) {
       .def("_open", &Group::open)
       .def("_set_config", &Group::set_config)
       .def("_config", &Group::config)
-      .def("_close", &Group::close)
+      .def("_close", &Group::close, py::arg("should_throw") = true)
 
       .def_property_readonly("_isopen", &Group::is_open)
       .def_property_readonly("_uri", &Group::uri)

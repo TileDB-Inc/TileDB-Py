@@ -1,3 +1,9 @@
+# In Progress
+
+## Bug Fixes
+
+* `Group.close` now takes in `should_throw` argument; set default to True []()
+
 # Release 0.21.5
 
 ## TileDB Embedded updates
