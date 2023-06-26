@@ -141,8 +141,8 @@ def read_array(uri: str):
         for name, value in data1.items():
             print(f"  '{name}'={value}")
 
-        data2 = array.label_index(["l1", "l2"])["a":"ddd", -2:2]
-        print("Reading array on [['a':'ddd', -2:2]] with label 'l1' on dim1 and 'l2' on dim2")
+        data2 = array.label_index(["l1", "l2"])["a":"ccc", -2:2]
+        print("Reading array on [['a':'ccc', -2:2]] with label 'l1' on dim1 and 'l2' on dim2")
         for name, value in data2.items():
             print(f"  '{name}'={value}")
 

@@ -626,24 +626,16 @@ def _get_pyquery_results(
     pyquery: PyQuery, schema: ArraySchema
 ) -> Dict[str, np.ndarray]:
     result_dict = OrderedDict()
-    res = pyquery.results()
-    # TODO: There are no offsets at item[1] for the label result buffer, resulting in exception from numpy in else case.
-    # + Var size labels should have len(item[1]) > 0; We should not hit the else case below.
-    for name, item in res.items():
+    for name, item in pyquery.results().items():
         if len(item[1]) > 0:
             arr = pyquery.unpack_buffer(name, item[0], item[1])
         else:
             arr = item[0]
-            if schema.has_dim_label(name):
-                if schema.dim_label(name).isvar:
-                    # arr.dtype = np.uint8  # TODO: Revert all changes here. This is just hard-coded for POC.
-                    # arr = pyquery.unpack_buffer(name, item[0], [0, 1])  # 'bb'
-                    # arr = pyquery.unpack_buffer(name, item[0], [0, 1, 3])  # 'ccc'
-                    arr = pyquery.unpack_buffer(name, item[0], [0, 1, 3, 6])  # 'ddd'
-                else:
-                    arr.dtype = schema.dim_label(name).dtype
-            else:
-                arr.dtype = schema.attr_or_dim_dtype(name)
+            arr.dtype = (
+                schema.attr_or_dim_dtype(name)
+                if not schema.has_dim_label(name)
+                else schema.dim_label(name).dtype
+            )
         result_dict[name if name != "__attr" else ""] = arr
     return result_dict
 
