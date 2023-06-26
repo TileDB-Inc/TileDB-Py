@@ -26,9 +26,16 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+      
+      - run: rm -rf $RUNNER_TOOL_CACHE/Python/3.7.17
+        if: matrix.python-version == '3.7'
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.7.17
+        if: matrix.python-version == '3.7'
 
       - name: Print Python version
         run: |
