@@ -19,16 +19,23 @@ jobs:
       fail-fast: false
     env:
       # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
-      MACOSX_DEPLOYMENT_TARGET: "${{ os == 'macos-11' && python-version in ['3.7', '3.8'] && '11.7' || '10.15' }}"
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-11' && contains(fromJSON('["3.7", "3.8"]'), matrix.python-version) && '11.7' || '10.15' }}
       #MACOSX_DEPLOYMENT_TARGET: "10.15"
     steps:
       - name: Checkout TileDB-Py `dev`
         uses: actions/checkout@v2
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+      
+      - run: rm -rf $RUNNER_TOOL_CACHE/Python/3.7.17
+        if: matrix.os == 'macos-11' && matrix.python-version == '3.7'
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.7.17
+        if: matrix.os == 'macos-11' && matrix.python-version == '3.7'
 
       - name: Print Python version
         run: |
