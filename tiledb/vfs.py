@@ -76,11 +76,6 @@ class VFS(lt.VFS):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
-        if isinstance(file, FileIO):
-            raise lt.TileDBError(
-                "`tiledb.VFS().open` now returns a a FileIO object. Use "
-                "`FileIO.close`. This message will be removed in 0.21.0.",
-            )
         file.close()
         return file
 
@@ -354,6 +349,7 @@ class FileIO(io.RawIOBase):
         exc_tb: Optional[TracebackType],
     ) -> bool:
         self.flush()
+        self._fh._close()
 
     @property
     def mode(self) -> str:
