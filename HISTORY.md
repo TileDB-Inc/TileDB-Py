@@ -1,3 +1,10 @@
+# Release 0.21.6
+
+## Bug Fixes
+
+* Fix group.close to work on 2.16. [#1793](https://github.com/TileDB-Inc/TileDB-Py/pull/1793)
+* Fix sc-30787, VFS S3 write failure. [#1794](https://github.com/TileDB-Inc/TileDB-Py/pull/1794)
+
 # Release 0.21.5
 
 ## TileDB Embedded updates
