@@ -543,7 +543,9 @@ class LabelIndexer(MultiRangeIndexer):
             for dim_idx, label_name in self._labels.items():
                 if self.result_shape is None:
                     raise TileDBError("failed to compute subarray shape")
-                self.pyquery.add_label_buffer(label_name, self.result_shape[dim_idx], est_var_size[1])
+                self.pyquery.add_label_buffer(
+                    label_name, self.result_shape[dim_idx], est_var_size[1]
+                )
         return super()._run_query()
 
 

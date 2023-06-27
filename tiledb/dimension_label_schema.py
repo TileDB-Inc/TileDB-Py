@@ -35,10 +35,15 @@ class DimLabelSchema(lt.DimensionLabelSchema):
         # Get DataType and DataOrder objects
         _label_order = DataOrder[order]
         _label_dtype = DataType.from_numpy(
-            np.dtype(label_dtype) if label_dtype not in ("ascii", "blob") else label_dtype)
+            np.dtype(label_dtype)
+            if label_dtype not in ("ascii", "blob")
+            else label_dtype
+        )
         np_dtype = _label_dtype.np_dtype
         if np.issubdtype(np_dtype, np.bytes_) or np.issubdtype(np_dtype, np.str_):
-            _label_dtype = DataType(np_dtype, lt.DataType.STRING_ASCII, lt.TILEDB_VAR_NUM)
+            _label_dtype = DataType(
+                np_dtype, lt.DataType.STRING_ASCII, lt.TILEDB_VAR_NUM
+            )
 
         _dim_dtype = DataType.from_numpy(dim_dtype)
 

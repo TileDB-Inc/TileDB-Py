@@ -167,7 +167,9 @@ class DimensionLabelTestCase(DiskTestCase):
         attr_data = np.arange(1, 11)
         label_data = np.arange(-9, 10, 2)
         if var:
-            label_data = np.array([str(chr(ord('a') + c) * (10 - c)).encode("utf-8") for c in range(10)])
+            label_data = np.array(
+                [str(chr(ord("a") + c) * (10 - c)).encode("utf-8") for c in range(10)]
+            )
         with tiledb.open(uri, "w") as array:
             array[:] = {"a1": attr_data, "l1": label_data}
 
@@ -186,7 +188,7 @@ class DimensionLabelTestCase(DiskTestCase):
             indexer = array.label_index(["l1"])
 
             # Read full array
-            result = indexer[label_data[0]:label_data[-1]]
+            result = indexer[label_data[0] : label_data[-1]]
 
             np.testing.assert_array_equal(result["a1"], attr_data)
             np.testing.assert_array_equal(result["l1"], label_data)
@@ -200,7 +202,7 @@ class DimensionLabelTestCase(DiskTestCase):
 
             for index in range(10):
                 label_index = label_data[index:]
-                result = indexer[label_index[0]:label_index[-1]]
+                result = indexer[label_index[0] : label_index[-1]]
                 np.testing.assert_array_equal(result["a1"], attr_data[index:])
                 np.testing.assert_array_equal(result["l1"], label_index)
 
@@ -217,7 +219,9 @@ class DimensionLabelTestCase(DiskTestCase):
         att = tiledb.Attr("value", dtype=np.int64)
         dim_labels = {
             0: {
-                "x1": dim1.create_label_schema("increasing", np.float64 if not var else "U"),
+                "x1": dim1.create_label_schema(
+                    "increasing", np.float64 if not var else "U"
+                ),
                 "x2": dim1.create_label_schema("decreasing", np.int64),
             },
             1: {
@@ -234,7 +238,9 @@ class DimensionLabelTestCase(DiskTestCase):
         attr_data = np.reshape(np.arange(1, 65), (8, 8))
         x1_data = np.linspace(-1.0, 1.0, 8)
         if var:
-            x1_data = np.array([str(chr(ord('a') + c - 1) * c).encode('utf-8') for c in range(1, 9)])
+            x1_data = np.array(
+                [str(chr(ord("a") + c - 1) * c).encode("utf-8") for c in range(1, 9)]
+            )
         x2_data = np.arange(8, 0, -1)
         y1_data = np.arange(9, 17)
         with tiledb.open(uri, "w") as array:
@@ -248,7 +254,7 @@ class DimensionLabelTestCase(DiskTestCase):
         # Test querying by label
         with tiledb.open(uri, "r") as array:
             # Read full array: labels on both ranges
-            result = array.label_index(["x1", "y1"])[x1_data[0]:x1_data[-1], 9:17]
+            result = array.label_index(["x1", "y1"])[x1_data[0] : x1_data[-1], 9:17]
             np.testing.assert_array_equal(result["value"], attr_data)
             np.testing.assert_array_equal(result["x1"], x1_data)
             np.testing.assert_array_equal(result["y1"], y1_data)
@@ -282,7 +288,13 @@ class DimensionLabelTestCase(DiskTestCase):
         dim = tiledb.Dim("index", domain=(1, 10))
         dom = tiledb.Domain(dim)
         att = tiledb.Attr("value", dtype=np.int64)
-        dim_labels = {0: {"l1": dim.create_label_schema("increasing", np.int64 if not var else "ascii")}}
+        dim_labels = {
+            0: {
+                "l1": dim.create_label_schema(
+                    "increasing", np.int64 if not var else "ascii"
+                )
+            }
+        }
         schema = tiledb.ArraySchema(
             domain=dom, attrs=(att,), dim_labels=dim_labels, sparse=True
         )
@@ -296,7 +308,9 @@ class DimensionLabelTestCase(DiskTestCase):
         attr_data = np.arange(11, 21)
         label_data = np.arange(-10, 0)
         if var:
-            label_data = np.array([str(chr(ord('a') + c) * (10 - c)).encode('utf-8') for c in range(10)])
+            label_data = np.array(
+                [str(chr(ord("a") + c) * (10 - c)).encode("utf-8") for c in range(10)]
+            )
         with tiledb.open(uri, "w") as array:
             array[index_data] = {"value": attr_data, "l1": label_data}
 
@@ -341,17 +355,32 @@ class DimensionLabelTestCase(DiskTestCase):
 
         # Write data to the array and the label
         attr_data = np.array(
-            [[str(chr(ord('z') - c) * (10 - c)).encode('utf-8') for c in range(10)] for i in range(10)])
+            [
+                [str(chr(ord("z") - c) * (10 - c)).encode("utf-8") for c in range(10)]
+                for i in range(10)
+            ]
+        )
         l1_data = np.arange(10, dtype=np.float32)
         l2_data = np.arange(10, 0, -1, dtype=np.int32)
-        l3_data = np.array([str(chr(ord('a') + c) * (c + 1)).encode('utf-8') for c in range(10)])
+        l3_data = np.array(
+            [str(chr(ord("a") + c) * (c + 1)).encode("utf-8") for c in range(10)]
+        )
 
         with tiledb.open(uri, "w") as array:
-            array[:, :] = {"value": attr_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
+            array[:, :] = {
+                "value": attr_data,
+                "l1": l1_data,
+                "l2": l2_data,
+                "l3": l3_data,
+            }
 
         # Load the array schema and get the URI of the dimension label
         schema = tiledb.ArraySchema.load(uri)
-        for label_name, label_data in {"l1": l1_data, "l2": l2_data, "l3": l3_data}.items():
+        for label_name, label_data in {
+            "l1": l1_data,
+            "l2": l2_data,
+            "l3": l3_data,
+        }.items():
             dim_label = schema.dim_label(label_name)
             # Read and check the data directly from the dimension label
             with tiledb.open(dim_label.uri, "r") as label:
@@ -376,5 +405,9 @@ class DimensionLabelTestCase(DiskTestCase):
                         result = indexer[lower:upper]
                     else:
                         result = indexer[:, lower:upper]
-                    np.testing.assert_array_equal(result["value"][index:], attr_data[index:])
-                    np.testing.assert_array_equal(result[label_name][index:], label_index)
+                    np.testing.assert_array_equal(
+                        result["value"][index:], attr_data[index:]
+                    )
+                    np.testing.assert_array_equal(
+                        result[label_name][index:], label_index
+                    )
