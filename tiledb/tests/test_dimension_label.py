@@ -415,6 +415,4 @@ class DimensionLabelTestCase(DiskTestCase):
                         np.testing.assert_array_equal(
                             result["value"], attr_data[:, index:]
                         )
-                    np.testing.assert_array_equal(
-                        result[label_name], label_index
-                    )
+                    np.testing.assert_array_equal(result[label_name], label_index)

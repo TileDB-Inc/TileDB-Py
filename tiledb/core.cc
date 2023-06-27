@@ -314,7 +314,8 @@ private:
   tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
 
   // label buffer list
-  std::unordered_map<string, std::pair<uint64_t, uint64_t>> label_input_buffer_data_;
+  std::unordered_map<string, std::pair<uint64_t, uint64_t>>
+      label_input_buffer_data_;
 
   py::object pyschema_;
 
@@ -469,7 +470,8 @@ public:
 
   bool is_dimension_label(std::string name) {
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
-    return ArraySchemaExperimental::has_dimension_label(ctx_, *array_schema_, name);
+    return ArraySchemaExperimental::has_dimension_label(ctx_, *array_schema_,
+                                                        name);
 #else
     return false;
 #endif
@@ -484,8 +486,8 @@ public:
       return attr.cell_val_num() == TILEDB_VAR_NUM;
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
     } else if (is_dimension_label(name)) {
-      auto dim_label = ArraySchemaExperimental::dimension_label(ctx_,
-        *array_schema_, name);
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
       return dim_label.label_cell_val_num() == TILEDB_VAR_NUM;
 #endif
     } else {
@@ -514,8 +516,8 @@ public:
       cell_val_num = array_schema_->attribute(name).cell_val_num();
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
     } else if (is_dimension_label(name)) {
-      auto dim_label = ArraySchemaExperimental::dimension_label(ctx_,
-        *array_schema_, name);
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
       type = dim_label.label_type();
       cell_val_num = dim_label.label_cell_val_num();
 #endif
@@ -575,7 +577,8 @@ public:
     bool dense = array_schema_->array_type() == TILEDB_DENSE;
     if (is_dimension_label(name)) {
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
-      auto dim_label = ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
       type = dim_label.label_type();
       cell_val_num = dim_label.label_cell_val_num();
       var = cell_val_num == TILEDB_VAR_NUM;
@@ -661,7 +664,8 @@ public:
                           validity_num, var, nullable)});
   }
 
-  void add_label_buffer(std::string &label_name, uint64_t ncells, uint64_t var_size) {
+  void add_label_buffer(std::string &label_name, uint64_t ncells,
+                        uint64_t var_size) {
     label_input_buffer_data_[label_name] = {ncells, var_size};
   }
 
@@ -769,17 +773,20 @@ public:
 
       if ((Py_ssize_t)(buf.data_vals_read * buf.elem_nbytes) >
           (Py_ssize_t)buf.data.size()) {
-        throw TileDBError("After read query, data buffer out of bounds: " + name + " ("
-                          + std::to_string(buf.data_vals_read * buf.elem_nbytes) + " > "
-                          + std::to_string(buf.data.size()) + ")");
+        throw TileDBError(
+            "After read query, data buffer out of bounds: " + name + " (" +
+            std::to_string(buf.data_vals_read * buf.elem_nbytes) + " > " +
+            std::to_string(buf.data.size()) + ")");
       }
       if ((Py_ssize_t)buf.offsets_read > buf.offsets.size()) {
-        throw TileDBError("After read query, offsets buffer out of bounds: " + name + " ("
-                          + std::to_string(buf.offsets_read) + " > " + std::to_string(buf.offsets.size()) + ")");
+        throw TileDBError("After read query, offsets buffer out of bounds: " +
+                          name + " (" + std::to_string(buf.offsets_read) +
+                          " > " + std::to_string(buf.offsets.size()) + ")");
       }
       if ((Py_ssize_t)buf.validity_vals_read > buf.validity.size()) {
-        throw TileDBError("After read query, validity buffer out of bounds: " + name + " ("
-                          + std::to_string(buf.validity_vals_read) + " > " + std::to_string(buf.validity.size()) + ")");
+        throw TileDBError("After read query, validity buffer out of bounds: " +
+                          name + " (" + std::to_string(buf.validity_vals_read) +
+                          " > " + std::to_string(buf.validity.size()) + ")");
       }
     }
   }
