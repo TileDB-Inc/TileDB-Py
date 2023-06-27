@@ -104,9 +104,9 @@ if __name__ == "__main__":
     else:
 
         # Only create and write to the array if it doesn't already exist.
-        if tiledb.object_type(ARRAY_NAME) == "array":
-            tiledb.Array.delete_array(ARRAY_NAME)
-        create_array(ARRAY_NAME)
-        write_array(ARRAY_NAME)
+        if tiledb.object_type(ARRAY_NAME) != "array":
+            create_array(ARRAY_NAME)
+            write_array(ARRAY_NAME)
+
         # Read from the array and print output.
         read_array(ARRAY_NAME)

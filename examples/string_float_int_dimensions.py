@@ -39,9 +39,6 @@ import numpy as np
 import tiledb
 
 path = "sparse_mixed_demo"
-vfs = tiledb.VFS()
-if vfs.is_dir(path):
-    vfs.remove_dir(path)
 
 dom = tiledb.Domain(
     *[
