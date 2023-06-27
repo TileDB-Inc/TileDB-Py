@@ -21,7 +21,7 @@ from setuptools import Extension, find_packages, setup
 ### DO NOT USE ON CI
 
 # Target branch: Note that this should be set to the current core release, not `dev`
-TILEDB_VERSION = "smr/sc-29317/py-var-size-dim-labels"
+TILEDB_VERSION = "4903c723c194d4ba948cb2958e45f65e8369f287"  # TODO: Revert
 
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION

@@ -401,13 +401,20 @@ class DimensionLabelTestCase(DiskTestCase):
                 # Slice array with varying sizes.
                 for index in range(10):
                     label_index = label_data[index:]
+                    lower = min(label_index[0], label_index[-1])
+                    upper = max(label_index[0], label_index[-1])
                     if label_name == "l1":
                         result = indexer[lower:upper]
+                        # Check against dim1
+                        np.testing.assert_array_equal(
+                            result["value"], attr_data[index:, :]
+                        )
                     else:
                         result = indexer[:, lower:upper]
+                        # Check against dim2
+                        np.testing.assert_array_equal(
+                            result["value"], attr_data[:, index:]
+                        )
                     np.testing.assert_array_equal(
-                        result["value"][index:], attr_data[index:]
-                    )
-                    np.testing.assert_array_equal(
-                        result[label_name][index:], label_index
+                        result[label_name], label_index
                     )
