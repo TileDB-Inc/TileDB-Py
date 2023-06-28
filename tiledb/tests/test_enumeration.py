@@ -42,7 +42,7 @@ class EnumerationTest(DiskTestCase):
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
         enum = tiledb.Enumeration("enmr", False, np.random.rand(5))
         attr = tiledb.Attr("val", dtype="f8")
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), enum=enum)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), enums=(enum,))
         attr.enum = "enmr"
         tiledb.Array.create(uri, schema)
 
