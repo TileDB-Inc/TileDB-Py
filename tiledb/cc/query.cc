@@ -53,9 +53,11 @@ void init_query(py::module &m) {
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 16
       .def("est_result_size_var_label",
-            [](const Query & query, const std::string& attr_name, bool label_data) {
-              return QueryExperimental::est_result_size_var_label(query, attr_name, label_data);
-            })
+           [](const Query &query, const std::string &attr_name,
+              bool label_data) {
+             return QueryExperimental::est_result_size_var_label(
+                 query, attr_name, label_data);
+           })
 #else
       .def("est_result_size_var_label",
            [](const Query & query, const std::string& attr_name, bool label_data) {
@@ -64,7 +66,8 @@ void init_query(py::module &m) {
            })
 #endif
 
-      // For dimension labels, experimental variant above adds support to retrieve underlying data query estimates.
+      // For dimension labels, experimental variant above adds support to
+      // retrieve underlying data query estimates.
       .def("est_result_size_var", &Query::est_result_size_var)
 
       .def("is_complete",
