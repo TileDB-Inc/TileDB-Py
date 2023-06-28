@@ -51,7 +51,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         allows_duplicates: bool = False,
         sparse: bool = False,
         dim_labels={},
-        enum=None,
+        enums=None,
         ctx: Ctx = None,
     ):
         super().__init__(ctx, lt.ArrayType.SPARSE if sparse else lt.ArrayType.DENSE)
@@ -103,8 +103,9 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
             for label_name, label_schema in labels_on_dim.items():
                 self._add_dim_label(self._ctx, label_name, dim_index, label_schema)
 
-        if enum is not None:
-            self._add_enumeration(self._ctx, enum)
+        if enums is not None:
+            for enum_name in enums:
+                self._add_enumeration(self._ctx, enum_name)
 
         self._check()
 
