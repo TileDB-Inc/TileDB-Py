@@ -40,10 +40,14 @@ class EnumerationTest(DiskTestCase):
     def test_array_schema_enumeration(self):
         uri = self.path("test_array_schema_enumeration")
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
-        attr = tiledb.Attr("val", dtype="f8")
         enum = tiledb.Enumeration("enmr", False, np.random.rand(5))
+        attr = tiledb.Attr("val", dtype="f8")
         schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), enum=enum)
+        attr.enum = "enmr"
         tiledb.Array.create(uri, schema)
 
         with tiledb.open(uri, "r") as A:
             assert A.enum("enmr") == enum
+            assert attr.enum == "enmr"
+            # assert A.attr("val").enum == "enmr"
+    
