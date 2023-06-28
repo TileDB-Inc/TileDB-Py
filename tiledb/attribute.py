@@ -24,6 +24,7 @@ class Attr(CtxMixin, lt.Attribute):
         var: bool = None,
         nullable: bool = False,
         filters: Union[FilterList, Sequence[Filter]] = None,
+        enum: str = None,
         ctx: Optional[Ctx] = None,
     ):
         """Class representing a TileDB array attribute.
@@ -87,6 +88,9 @@ class Attr(CtxMixin, lt.Attribute):
 
         if nullable is not None:
             self._nullable = nullable
+        
+        if enum is not None:
+            self.enum = enum
 
     def __eq__(self, other):
         if not isinstance(other, Attr):
@@ -228,8 +232,8 @@ class Attr(CtxMixin, lt.Attribute):
         # filters_str must be last with no spaces
         return (
             f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
-            f"""var={self.isvar!s}, nullable={self.isnullable!s}"""
-            f"""{filters_str})"""
+            f"""var={self.isvar!s}, nullable={self.isnullable!s}, """
+            f"""enum={self.enum!s}{filters_str})"""
         )
 
     def _repr_html_(self):
