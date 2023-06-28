@@ -722,7 +722,9 @@ public:
   }
 
   void update_read_elem_num() {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 16
+    auto result_elements = QueryExperimental::result_buffer_elements_nullable(*query_);
+#elif TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     // needs https://github.com/TileDB-Inc/TileDB/pull/2238
     auto result_elements = query_->result_buffer_elements_nullable();
 #else
