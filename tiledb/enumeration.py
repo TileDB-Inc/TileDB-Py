@@ -97,8 +97,8 @@ class Enumeration(CtxMixin, lt.Enumeration):
             ]
         )
 
-    def __repr__(self):
-        return f"Enumeration(name='{self.name}', cell_val_num={self.cell_val_num}, ordered={self.ordered})"
+    # def __repr__(self):
+    #     return f"Enumeration(name='{self.name}', cell_val_num={self.cell_val_num}, ordered={self.ordered})"
 
     def _repr_html_(self):
         output = io.StringIO()
