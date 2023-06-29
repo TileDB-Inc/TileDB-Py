@@ -40,14 +40,18 @@ class EnumerationTest(DiskTestCase):
     def test_array_schema_enumeration(self):
         uri = self.path("test_array_schema_enumeration")
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
-        enum = tiledb.Enumeration("enmr", False, np.random.rand(5))
-        attr = tiledb.Attr("val", dtype="f8")
-        schema = tiledb.ArraySchema(domain=dom, attrs=(attr,), enums=(enum,))
-        attr.enum = "enmr"
+        enum1 = tiledb.Enumeration("enmr1", False, np.arange(8))
+        enum2 = tiledb.Enumeration("enmr2", False, range(8))
+        attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
+        attr2 = tiledb.Attr("attr2", dtype=np.int32, enum_label="enmr2")
+        schema = tiledb.ArraySchema(domain=dom, attrs=(attr1, attr2), enums=(enum1, enum2))
         tiledb.Array.create(uri, schema)
 
         with tiledb.open(uri, "r") as A:
-            assert A.enum("enmr") == enum
-            assert attr.enum == "enmr"
-            # assert A.attr("val").enum == "enmr"
+            assert A.enum("enmr1") == enum1
+            assert attr1.enum_label == "enmr1"
+            assert A.attr("attr1").enum_label == "enmr1"
+            assert A.enum("enmr2") == enum2
+            assert attr2.enum_label == "enmr2"
+            assert A.attr("attr2").enum_label == "enmr2"
     

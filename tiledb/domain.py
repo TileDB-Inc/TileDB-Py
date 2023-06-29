@@ -61,9 +61,9 @@ class Domain(CtxMixin, lt.Domain):
                 )
             self._add_dim(d)
 
-    def __repr__(self):
-        dims = ",\n       ".join(repr(self.dim(i)) for i in range(self.ndim))
-        return "Domain({0!s})".format(dims)
+    # def __repr__(self):
+    #     dims = ",\n       ".join(repr(self.dim(i)) for i in range(self.ndim))
+    #     return "Domain({0!s})".format(dims)
 
     def _repr_html_(self) -> str:
         output = io.StringIO()
