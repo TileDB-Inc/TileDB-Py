@@ -1,5 +1,5 @@
 import io
-from typing import Optional
+from typing import Optional, Any, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,7 +16,7 @@ class Enumeration(CtxMixin, lt.Enumeration):
     """
 
     def __init__(
-        self, name: str, ordered: bool, data: NDArray, ctx: Optional[Ctx] = None
+        self, name: str, ordered: bool, data: Sequence[Any], ctx: Optional[Ctx] = None
     ):
         """Class representing the TileDB Enumeration.
 
@@ -29,7 +29,8 @@ class Enumeration(CtxMixin, lt.Enumeration):
         :param ctx: A TileDB context
         :type ctx: tiledb.Ctx
         """
-        if data.dtype.kind in "US":
+        data = np.array(data)
+        if np.dtype(data.dtype).kind in "US":
             dtype = (
                 lt.DataType.STRING_UTF8
                 if data.dtype.kind == "U"
