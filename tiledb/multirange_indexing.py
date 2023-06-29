@@ -520,13 +520,6 @@ class LabelIndexer(MultiRangeIndexer):
         if self.label_query is not None and not self.label_query.is_complete():
             self.label_query.submit()
 
-            est_var_size = [0, 0]
-            for label_name in self._labels.values():
-                if self.array.schema.dim_label(label_name).isvar:
-                    est_var_size = self.label_query.est_result_size_var_label(
-                        label_name, False
-                    )
-
             if not self.label_query.is_complete():
                 raise TileDBError("failed to get dimension ranges from labels")
             label_subarray = self.label_query.subarray()
@@ -545,9 +538,7 @@ class LabelIndexer(MultiRangeIndexer):
             for dim_idx, label_name in self._labels.items():
                 if self.result_shape is None:
                     raise TileDBError("failed to compute subarray shape")
-                self.pyquery.add_label_buffer(
-                    label_name, self.result_shape[dim_idx], est_var_size[1]
-                )
+                self.pyquery.add_label_buffer(label_name, self.result_shape[dim_idx])
         return super()._run_query()
 
 

@@ -314,8 +314,7 @@ private:
   tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
 
   // label buffer list
-  std::unordered_map<string, std::pair<uint64_t, uint64_t>>
-      label_input_buffer_data_;
+  std::unordered_map<string, uint64_t> label_input_buffer_data_;
 
   py::object pyschema_;
 
@@ -585,15 +584,14 @@ public:
       nullable = false;
 
       cell_nbytes = tiledb_datatype_size(type);
-      uint64_t ncells = label_input_buffer_data_[name].first;
+      uint64_t ncells = label_input_buffer_data_[name];
 
       if (!var) {
         cell_nbytes *= cell_val_num;
-        buf_nbytes = ncells * cell_nbytes;
       } else {
-        buf_nbytes = label_input_buffer_data_[name].second;
         offsets_num = ncells;
       }
+      buf_nbytes = ncells * cell_nbytes;
 #endif
     } else {
       std::tie(type, cell_val_num) = buffer_type(name);
@@ -664,9 +662,8 @@ public:
                           validity_num, var, nullable)});
   }
 
-  void add_label_buffer(std::string &label_name, uint64_t ncells,
-                        uint64_t var_size) {
-    label_input_buffer_data_[label_name] = {ncells, var_size};
+  void add_label_buffer(std::string &label_name, uint64_t ncells) {
+    label_input_buffer_data_[label_name] = ncells;
   }
 
   py::object get_buffers() {
