@@ -210,27 +210,27 @@ class Attr(CtxMixin, lt.Attribute):
     def enum_label(self):
         return self._get_enumeration_name(self._ctx)
 
-    # def __repr__(self):
-    #     filters_str = ""
-    #     if self.filters:
-    #         filters_str = ", filters=FilterList(["
-    #         for f in self.filters:
-    #             filters_str += repr(f) + ", "
-    #         filters_str += "])"
+    def __repr__(self):
+        filters_str = ""
+        if self.filters:
+            filters_str = ", filters=FilterList(["
+            for f in self.filters:
+                filters_str += repr(f) + ", "
+            filters_str += "])"
 
-    #     if self._tiledb_dtype == lt.DataType.STRING_ASCII:
-    #         attr_dtype = "ascii"
-    #     elif self._tiledb_dtype == lt.DataType.BLOB:
-    #         attr_dtype = "blob"
-    #     else:
-    #         attr_dtype = self.dtype
+        if self._tiledb_dtype == lt.DataType.STRING_ASCII:
+            attr_dtype = "ascii"
+        elif self._tiledb_dtype == lt.DataType.BLOB:
+            attr_dtype = "blob"
+        else:
+            attr_dtype = self.dtype
 
-    #     # filters_str must be last with no spaces
-    #     return (
-    #         f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
-    #         f"""var={self.isvar!s}, nullable={self.isnullable!s}, """
-    #         f"""enum={self.enum!s}{filters_str})"""
-    #     )
+        # filters_str must be last with no spaces
+        return (
+            f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
+            f"""var={self.isvar!s}, nullable={self.isnullable!s}, """
+            f"""enum={self.enum!s}{filters_str})"""
+        )
 
     def _repr_html_(self):
         output = io.StringIO()
