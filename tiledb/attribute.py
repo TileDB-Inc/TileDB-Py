@@ -88,7 +88,7 @@ class Attr(CtxMixin, lt.Attribute):
 
         if nullable is not None:
             self._nullable = nullable
-        
+
         if enum_label is not None:
             self._set_enumeration_name(self._ctx, enum_label)
 

@@ -1,5 +1,5 @@
 import io
-from typing import Optional, Any, Sequence
+from typing import Any, Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
