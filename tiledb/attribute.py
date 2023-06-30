@@ -229,7 +229,7 @@ class Attr(CtxMixin, lt.Attribute):
         return (
             f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
             f"""var={self.isvar!s}, nullable={self.isnullable!s}, """
-            f"""enum={self.enum!s}{filters_str})"""
+            f"""enum_label={self.enum_label!s}{filters_str})"""
         )
 
     def _repr_html_(self):
