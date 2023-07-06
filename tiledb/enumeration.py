@@ -16,7 +16,7 @@ class Enumeration(CtxMixin, lt.Enumeration):
     """
 
     def __init__(
-        self, name: str, ordered: bool, data: Sequence[Any], ctx: Optional[Ctx] = None
+        self, name: str, ordered: bool, values: Sequence[Any], ctx: Optional[Ctx] = None
     ):
         """Class representing the TileDB Enumeration.
 
@@ -24,21 +24,21 @@ class Enumeration(CtxMixin, lt.Enumeration):
         :type name: str
         :param ordered: Whether or not to consider this enumeration ordered
         :type ordered: bool
-        :param data: A Numpy array of values for this enumeration
-        :type data: np.array
+        :param values: A Numpy array of values for this enumeration
+        :type values: np.array
         :param ctx: A TileDB context
         :type ctx: tiledb.Ctx
         """
-        data = np.array(data)
-        if np.dtype(data.dtype).kind in "US":
+        values = np.array(values)
+        if np.dtype(values.dtype).kind in "US":
             dtype = (
                 lt.DataType.STRING_UTF8
-                if data.dtype.kind == "U"
+                if values.dtype.kind == "U"
                 else lt.DataType.STRING_ASCII
             )
-            super().__init__(ctx, name, data, ordered, dtype)
+            super().__init__(ctx, name, values, ordered, dtype)
         else:
-            super().__init__(ctx, name, ordered, data, np.array([]))
+            super().__init__(ctx, name, ordered, values, np.array([]))
 
     @property
     def name(self) -> str:
@@ -99,7 +99,7 @@ class Enumeration(CtxMixin, lt.Enumeration):
         )
 
     def __repr__(self):
-        return f"Enumeration(name='{self.name}', cell_val_num={self.cell_val_num}, ordered={self.ordered})"
+        return f"Enumeration(name='{self.name}', cell_val_num={self.cell_val_num}, ordered={self.ordered}, values={list(self.values())})"
 
     def _repr_html_(self):
         output = io.StringIO()
