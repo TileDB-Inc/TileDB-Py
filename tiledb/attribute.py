@@ -225,11 +225,16 @@ class Attr(CtxMixin, lt.Attribute):
         else:
             attr_dtype = self.dtype
 
+        if self.enum_label is None:
+            enum_label = None
+        else:
+            enum_label = f"'{self.enum_label!s}'"
+
         # filters_str must be last with no spaces
         return (
             f"""Attr(name={repr(self.name)}, dtype='{attr_dtype!s}', """
             f"""var={self.isvar!s}, nullable={self.isnullable!s}, """
-            f"""enum_label={self.enum_label!s}{filters_str})"""
+            f"""enum_label={enum_label}{filters_str})"""
         )
 
     def _repr_html_(self):
