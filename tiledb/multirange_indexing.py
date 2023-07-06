@@ -348,13 +348,12 @@ class MultiRangeIndexer(_BaseIndexer):
             return self._empty_results
 
         self.pyquery.submit()
-        result_dict = _get_pyquery_results(self.pyquery, self.array.schema)
+        result_dict = _get_pyquery_results(self.pyquery, self.array)
         if self.result_shape is not None:
             for name, arr in result_dict.items():
                 # TODO check/test layout
                 if not self.array.schema.has_dim_label(name):
                     arr.shape = self.result_shape
-        print("result_dict:", result_dict)
         return result_dict
 
 
@@ -629,9 +628,8 @@ def _iter_dim_names(
     return (dom.dim(i).name for i in range(dom.ndim))
 
 
-def _get_pyquery_results(
-    pyquery: PyQuery, schema: ArraySchema
-) -> Dict[str, np.ndarray]:
+def _get_pyquery_results(pyquery: PyQuery, array: Array) -> Dict[str, np.ndarray]:
+    schema = array.schema
     result_dict = OrderedDict()
     for name, item in pyquery.results().items():
         if len(item[1]) > 0:
@@ -643,6 +641,13 @@ def _get_pyquery_results(
                 if not schema.has_dim_label(name)
                 else schema.dim_label(name).dtype
             )
+
+        if schema.has_attr(name):
+            enum_label = schema.attr(name).enum_label
+            if enum_label is not None:
+                values = array.enum(enum_label).values()
+                arr = np.array([values[idx] for idx in arr])
+
         result_dict[name if name != "__attr" else ""] = arr
     return result_dict
 

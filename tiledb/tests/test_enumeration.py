@@ -71,7 +71,13 @@ class EnumerationTest(DiskTestCase):
             assert " No enumeration named 'enmr3'" in str(excinfo.value)
             assert attr3.enum_label is None
             assert A.attr("attr3").enum_label is None
-            
+
             if has_pandas():
                 assert_array_equal(A.df[:]["attr1"].cat.codes, data1)
                 assert_array_equal(A.df[:]["attr2"].cat.codes, data2)
+
+                assert_array_equal(A.df[:]["attr1"], A.multi_index[:]["attr1"])
+                assert_array_equal(A.df[:]["attr2"], A.multi_index[:]["attr2"])
+
+                assert_array_equal(A.df[:]["attr1"], A[:]["attr1"])
+                assert_array_equal(A.df[:]["attr2"], A[:]["attr2"])
