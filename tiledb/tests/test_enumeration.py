@@ -4,7 +4,7 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 
-from .common import DiskTestCase
+from .common import DiskTestCase, has_pandas
 
 
 class EnumerationTest(DiskTestCase):
@@ -40,8 +40,8 @@ class EnumerationTest(DiskTestCase):
     def test_array_schema_enumeration(self):
         uri = self.path("test_array_schema_enumeration")
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
-        enum1 = tiledb.Enumeration("enmr1", False, np.arange(3))
-        enum2 = tiledb.Enumeration("enmr2", False, range(3))
+        enum1 = tiledb.Enumeration("enmr1", False, np.arange(3) * 10)
+        enum2 = tiledb.Enumeration("enmr2", False, ["a", "bb", "ccc"])
         attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
         attr2 = tiledb.Attr("attr2", dtype=np.int32, enum_label="enmr2")
         attr3 = tiledb.Attr("attr3", dtype=np.int32)
@@ -50,12 +50,12 @@ class EnumerationTest(DiskTestCase):
         )
         tiledb.Array.create(uri, schema)
 
+        data1 = np.random.randint(0, 3, 8)
+        data2 = np.random.randint(0, 3, 8)
+        data3 = np.random.randint(0, 3, 8)
+
         with tiledb.open(uri, "w") as A:
-            A[:] = {
-                "attr1": np.random.randint(0, 2, 8),
-                "attr2": np.random.randint(0, 2, 8),
-                "attr3": np.random.randint(0, 2, 8),
-            }
+            A[:] = {"attr1": data1, "attr2": data2, "attr3": data3}
 
         with tiledb.open(uri, "r") as A:
             assert A.enum("enmr1") == enum1
@@ -71,3 +71,7 @@ class EnumerationTest(DiskTestCase):
             assert " No enumeration named 'enmr3'" in str(excinfo.value)
             assert attr3.enum_label is None
             assert A.attr("attr3").enum_label is None
+            
+            if has_pandas():
+                assert_array_equal(A.df[:]["attr1"].cat.codes, data1)
+                assert_array_equal(A.df[:]["attr2"].cat.codes, data2)

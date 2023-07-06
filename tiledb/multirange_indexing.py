@@ -351,6 +351,7 @@ class MultiRangeIndexer(_BaseIndexer):
                 # TODO check/test layout
                 if not self.array.schema.has_dim_label(name):
                     arr.shape = self.result_shape
+        print("result_dict:", result_dict)
         return result_dict
 
 
@@ -411,6 +412,17 @@ class DataFrameIndexer(_BaseIndexer):
                     continue
 
                 tdb_attr = self.array.attr(pa_attr.name)
+
+                if tdb_attr.enum_label is not None:
+                    enmr = self.array.enum(tdb_attr.enum_label)
+                    col = pyarrow.DictionaryArray.from_arrays(
+                        indices=table[pa_attr.name].combine_chunks(),
+                        dictionary=enmr.values(),
+                    )
+                    idx = pa_schema.get_field_index(pa_attr.name)
+                    table = table.set_column(idx, pa_attr.name, col)
+                    pa_schema = table.schema
+                    continue
 
                 if np.issubdtype(tdb_attr.dtype, bool):
                     # this is a workaround to cast TILEDB_BOOL types from uint8
