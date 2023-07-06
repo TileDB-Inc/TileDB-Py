@@ -21,7 +21,7 @@ from setuptools import Extension, find_packages, setup
 ### DO NOT USE ON CI
 
 # Target branch: Note that this should be set to the current core release, not `dev`
-TILEDB_VERSION = "c1bf4e0eccf2b2fde72a32cdd240928b7da8a64a"  # TODO: Revert
+TILEDB_VERSION = "a2ab3c2d29296cb78e51c87888a45b2ed901d8a3"  # TODO: Revert
 
 # allow overriding w/ environment variable
 TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
