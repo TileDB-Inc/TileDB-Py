@@ -7,47 +7,57 @@ from tiledb.tests.common import DiskTestCase
 
 class DimensionLabelTestCase(DiskTestCase):
     def test_dim_label_schema(self):
-        dim_label_schema = tiledb.DimLabelSchema(
+        dim_label_schema1 = tiledb.DimLabelSchema(
             "decreasing", label_dtype=np.float64, dim_dtype=np.int32
         )
-        assert dim_label_schema.label_order == "decreasing"
-        assert dim_label_schema.label_dtype == np.float64
-        assert dim_label_schema.dim_dtype == np.int32
-        assert dim_label_schema.dim_tile is None
-        assert dim_label_schema.label_filters is None
-
         filter = tiledb.FilterList()
-        dim_label_schema = tiledb.DimLabelSchema(
+        dim_label_schema2 = tiledb.DimLabelSchema(
             "increasing",
             label_dtype=np.float32,
             dim_dtype=np.int64,
             dim_tile=20,
             label_filters=filter,
         )
-        assert dim_label_schema.label_order == "increasing"
-        assert dim_label_schema.label_dtype == np.float32
-        assert dim_label_schema.dim_dtype == np.int64
-        assert dim_label_schema.dim_tile == 20
-        assert dim_label_schema.label_filters == filter
+
+        assert dim_label_schema1.label_order == "decreasing"
+        assert dim_label_schema1.label_dtype == np.float64
+        assert dim_label_schema1.dim_dtype == np.int32
+        assert dim_label_schema1.dim_tile is None
+        assert dim_label_schema1.label_filters is None
+
+        assert dim_label_schema2.label_order == "increasing"
+        assert dim_label_schema2.label_dtype == np.float32
+        assert dim_label_schema2.dim_dtype == np.int64
+        assert dim_label_schema2.dim_tile == 20
+        assert dim_label_schema2.label_filters == filter
 
     def test_dim_label_schema_from_dim(self):
         dim = tiledb.Dim("dim", domain=(1, 10), dtype=np.int32, tile=10)
-        dim_label_schema = dim.create_label_schema("decreasing", np.float64)
-        assert dim_label_schema.label_order == "decreasing"
-        assert dim_label_schema.label_dtype == np.float64
-        assert dim_label_schema.dim_dtype == np.int32
-        assert dim_label_schema.dim_tile == 10
-        assert dim_label_schema.label_filters is None
-
+        dim_label_schema3 = dim.create_label_schema("decreasing", np.int32, tile=2)
         filter = tiledb.FilterList()
-        dim_label_schema = dim.create_label_schema(
+        dim_label_schema2 = dim.create_label_schema(
             order="increasing", dtype=np.float32, tile=5, filters=filter
         )
-        assert dim_label_schema.label_order == "increasing"
-        assert dim_label_schema.label_dtype == np.float32
-        assert dim_label_schema.dim_dtype == np.int32
-        assert dim_label_schema.dim_tile == 5
-        assert dim_label_schema.label_filters == filter
+        dim_label_schema1 = dim.create_label_schema("decreasing", np.float64, tile=None)
+
+        assert dim_label_schema1.label_order == "decreasing"
+        assert dim_label_schema1.label_dtype == np.float64
+        assert dim_label_schema1.dim_dtype == np.int32
+        assert dim_label_schema1.dim_tile == 10
+        assert dim_label_schema1.label_filters is None
+
+        assert dim_label_schema3.label_order == "decreasing"
+        assert dim_label_schema3.label_dtype == np.int32
+        assert dim_label_schema3.dim_dtype == np.int32
+        assert dim_label_schema3.dim_tile == 2
+        assert dim_label_schema3.label_filters is None
+
+        assert dim_label_schema2.label_order == "increasing"
+        assert dim_label_schema2.label_dtype == np.float32
+        assert dim_label_schema2.dim_dtype == np.int32
+        assert dim_label_schema2.dim_tile == 5
+        assert dim_label_schema2.label_filters == filter
+        assert dim.tile == 10
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
