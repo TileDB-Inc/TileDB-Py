@@ -1955,6 +1955,12 @@ cdef class DenseArrayImpl(Array):
             return result[self.view_attr]
         else:
             result = self.subarray(selection)
+            for i in range(self.schema.nattr):
+                attr = self.schema.attr(i)
+                enum_label = attr.enum_label
+                if enum_label is not None:
+                    values = self.enum(enum_label).values()
+                    result[attr.name] = np.array([values[idx] for idx in result[attr.name]])
             return result
 
     def __repr__(self):
@@ -2210,6 +2216,11 @@ cdef class DenseArrayImpl(Array):
                     arr = np.require(arr, requirements='F')
                 else:
                     arr.shape = np.prod(output_shape)
+
+                # enum_label = self.schema.attr(i).enum_label
+                # if enum_label is not None:
+                #     values = self.enum(enum_label).values()
+                #     arr = np.array([values[idx] for idx in arr])
 
                 out[name] = arr
         return out
@@ -2802,7 +2813,14 @@ cdef class SparseArrayImpl(Array):
         >>> # A[5.0:579.9]
 
         """
-        return self.subarray(selection)
+        result = self.subarray(selection)
+        for i in range(self.schema.nattr):
+            attr = self.schema.attr(i)
+            enum_label = attr.enum_label
+            if enum_label is not None:
+                values = self.enum(enum_label).values()
+                result[attr.name] = np.array([values[idx] for idx in result[attr.name]])
+        return result
 
     def query(self, attrs=None, cond=None, attr_cond=None, dims=None,
               index_col=True, coords=None, order='U', use_arrow=None,
@@ -3046,6 +3064,11 @@ cdef class SparseArrayImpl(Array):
                 else:
                     arr.dtype = el_dtype
                     out[final_name] = arr
+
+                # enum_label = self.schema.attr(i).enum_label
+                # if enum_label is not None:
+                #     values = self.enum(enum_label).values()
+                #     arr = np.array([values[idx] for idx in arr])                
 
         return out
 
