@@ -16,37 +16,31 @@ public:
   DimensionLabelSchema(tiledb_datatype_t dim_type, py::object dim_tile_extent,
                        tiledb_data_order_t label_order,
                        tiledb_datatype_t label_type)
-      : dim_type_{dim_type}, dim_tile_extent_{nullptr},
+      : dim_type_{dim_type}, dim_tile_extent_{dim_tile_extent},
         label_order_{label_order}, label_type_{label_type}, label_filters_{
-                                                                std::nullopt} {
-
-    if (!dim_tile_extent.is_none()) {
-      py::buffer tile_buffer = py::buffer(dim_tile_extent);
-      py::buffer_info tile_extent_info = tile_buffer.request();
-      dim_tile_extent_ = tile_extent_info.ptr;
-    }
-  }
+                                                                std::nullopt} {}
 
   DimensionLabelSchema(tiledb_datatype_t dim_type, py::object dim_tile_extent,
                        tiledb_data_order_t label_order,
                        tiledb_datatype_t label_type,
                        const FilterList &label_filters)
-      : dim_type_{dim_type}, dim_tile_extent_{nullptr},
-        label_order_{label_order}, label_type_{label_type}, label_filters_{
-                                                                label_filters} {
-
-    if (!dim_tile_extent.is_none()) {
-      py::buffer tile_buffer = py::buffer(dim_tile_extent);
-      py::buffer_info tile_extent_info = tile_buffer.request();
-      dim_tile_extent_ = tile_extent_info.ptr;
-    }
-  }
+      : dim_type_{dim_type}, dim_tile_extent_{dim_tile_extent},
+        label_order_{label_order}, label_type_{label_type},
+        label_filters_{label_filters} {}
 
   tiledb_datatype_t dim_type() const { return dim_type_; }
 
-  const void *dim_tile_extent() const { return dim_tile_extent_; }
+  const void *dim_tile_extent() const {
 
-  bool has_dim_tile_extent() const { return dim_tile_extent_ != nullptr; }
+    if (dim_tile_extent_.is_none()) {
+      return nullptr;
+    }
+    py::buffer tile_buffer = py::buffer(dim_tile_extent_);
+    py::buffer_info tile_extent_info = tile_buffer.request();
+    return tile_extent_info.ptr;
+  }
+
+  bool has_dim_tile_extent() const { return !dim_tile_extent_.is_none(); }
 
   bool has_label_filters() const { return label_filters_.has_value(); }
 
@@ -60,7 +54,7 @@ public:
 
 private:
   tiledb_datatype_t dim_type_;
-  void *dim_tile_extent_;
+  py::object dim_tile_extent_;
   tiledb_data_order_t label_order_;
   tiledb_datatype_t label_type_;
   std::optional<FilterList> label_filters_;
@@ -69,10 +63,12 @@ private:
 void init_schema(py::module &m) {
   py::class_<DimensionLabelSchema>(m, "DimensionLabelSchema")
       .def(py::init<tiledb_datatype_t, py::object, tiledb_data_order_t,
-                    tiledb_datatype_t>())
+                    tiledb_datatype_t>(),
+           py::keep_alive<1, 3>())
 
       .def(py::init<tiledb_datatype_t, py::object, tiledb_data_order_t,
-                    tiledb_datatype_t, const FilterList &>())
+                    tiledb_datatype_t, const FilterList &>(),
+           py::keep_alive<1, 3>())
 
       .def_property_readonly("_dim_dtype", &DimensionLabelSchema::dim_type)
 
