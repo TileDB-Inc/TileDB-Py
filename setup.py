@@ -20,7 +20,10 @@ from setuptools import Extension, find_packages, setup
 # ParallelCompile('10').install()
 ### DO NOT USE ON CI
 
-# Target branch: Note that this should be set to the current core release, not `dev`
+# Target branch. Note:
+# - this is for builds-from-source
+# - release builds are controlled by `misc/azure-release.yml`
+# - this should be set to the current core release, not `dev`
 TILEDB_VERSION = "2.15.4"
 
 # allow overriding w/ environment variable
