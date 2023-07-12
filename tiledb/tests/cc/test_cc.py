@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 
 import numpy as np
 import pytest
@@ -141,6 +142,7 @@ def test_array():
 
     arrw = lt.Array(ctx, uri, lt.QueryType.WRITE)
     arrw.delete_metadata("key")
+    time.sleep(0.1)
     arrw.close()
 
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
