@@ -148,9 +148,16 @@ def test_array():
 
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
     try:
+        import base64
         import subprocess
 
         print(subprocess.check_output(["tree", uri]).decode())
+
+        print("--- starting ---")
+        subprocess.check_output(["tar", "czvf", "/tmp/array.tgz", uri])
+        with open("/tmp/array.tgz", "rb") as f:
+            print(base64.b64encode(f.read()))
+        print("--- ending encoded array tgz ---")
     except Exception:
         print("failed")
         pass
