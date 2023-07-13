@@ -144,8 +144,15 @@ def test_array():
     arrw.delete_metadata("key")
     time.sleep(0.1)
     arrw.close()
+    time.sleep(0.1)
 
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
+    try:
+        import subprocess
+
+        subprocess.check_output(["tree", uri])
+    except Exception:
+        pass
     with pytest.raises(KeyError):
         arr.get_metadata("key")
     assert not arr.has_metadata("key")[0]
