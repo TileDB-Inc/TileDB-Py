@@ -150,8 +150,9 @@ def test_array():
     try:
         import subprocess
 
-        subprocess.check_output(["tree", uri])
+        print(subprocess.check_output(["tree", uri]).decode())
     except Exception:
+        print("failed")
         pass
     with pytest.raises(KeyError):
         arr.get_metadata("key")
