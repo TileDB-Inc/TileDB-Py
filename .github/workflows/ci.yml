@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - run: rm -rf $RUNNER_TOOL_CACHE/Python/3.7.17
         if: matrix.os == 'macos-11' && matrix.python-version == '3.7'
       - uses: actions/setup-python@v4
@@ -52,7 +52,7 @@ jobs:
       # Remove after upstream PR fully-deployed:
       # - https://github.com/actions/runner-images/pull/7125
       - name: "Install homebrew dependencies"
-        run: brew install pkg-config tar
+        run: brew install pkg-config
         if: matrix.os == 'macos-11'
 
       - name: "Install dependencies"
