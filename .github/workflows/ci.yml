@@ -52,7 +52,7 @@ jobs:
       # Remove after upstream PR fully-deployed:
       # - https://github.com/actions/runner-images/pull/7125
       - name: "Install homebrew dependencies"
-        run: brew install pkg-config
+        run: brew install pkg-config tar
         if: matrix.os == 'macos-11'
 
       - name: "Install dependencies"

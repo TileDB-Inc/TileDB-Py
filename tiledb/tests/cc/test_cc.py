@@ -159,8 +159,8 @@ def test_array():
         with open(path, "rb") as f:
             print(base64.b64encode(f.read()))
         print("--- ending encoded array tgz ---")
-    except Exception:
-        print("failed")
+    except Exception as exc:
+        print("failed: ", exc)
         pass
     with pytest.raises(KeyError):
         arr.get_metadata("key")
