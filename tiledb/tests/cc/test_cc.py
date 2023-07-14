@@ -153,9 +153,10 @@ def test_array():
 
         print(subprocess.check_output(["tree", uri]).decode())
 
-        print("--- starting ---")
-        subprocess.check_output(["tar", "czvf", "/tmp/array.tgz", uri])
-        with open("/tmp/array.tgz", "rb") as f:
+        path = os.path.join(tempfile.mkdtemp(), "array.tgz")
+        print("--- starting --- ", path)
+        subprocess.check_output(["tar", "czvf", path, uri])
+        with open(path, "rb") as f:
             print(base64.b64encode(f.read()))
         print("--- ending encoded array tgz ---")
     except Exception:
