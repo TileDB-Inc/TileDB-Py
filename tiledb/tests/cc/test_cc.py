@@ -151,7 +151,10 @@ def test_array():
         import base64
         import subprocess
 
-        print(subprocess.check_output(["tree", uri]).decode())
+        try:
+            print(subprocess.check_output(["tree", uri]).decode())
+        except Exception as e1:
+            print("tree got exception: ", e1)
 
         path = os.path.join(tempfile.mkdtemp(), "array.tgz")
         print("--- starting --- ", path)
