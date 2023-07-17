@@ -4,10 +4,11 @@ numpy >= 1.16.5
 # ** MUST sync with misc/requirements_wheel.txt **
 # ------------------------------------------------
 cmake >= 3.23
-cython >= 0.27
-pybind11 >= 2.6.2
+cython < 3.0
+pybind11 < 2.11.0
 setuptools>=42,<=58.3.0
 setuptools_scm >= 1.5.4
 wheel >= 0.30
 contextvars ;python_version<"3.7"
 dataclasses ;python_version<"3.7"
+pytest
