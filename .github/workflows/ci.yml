@@ -113,7 +113,9 @@ jobs:
         run: ls -Rl
 
       - name: "Run tests"
-        run: pytest -vv --showlocals
+        run: |
+          export TILEDB_LOG_LEVEL=trace
+          pytest -vv --showlocals -k test_cc
 
       - name: "Print log files (failed build only)"
         run: |
