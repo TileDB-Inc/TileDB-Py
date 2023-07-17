@@ -150,7 +150,7 @@ stages:
 
               python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
               git rev-parse HEAD
-              python3 -m pip install --upgrade pip pytest cython pybind11
+              python3 -m pip install --upgrade -r requirements_dev.txt
               python3 setup.py sdist --dist-dir wheelhouse
               pip3 install cibuildwheel==${USE_CIBW_VERSION}
               cibuildwheel --output-dir wheelhouse .
@@ -169,7 +169,7 @@ stages:
 
               python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
               git rev-parse HEAD
-              python3 -m pip install --upgrade pip pytest cython pybind11
+              python3 -m pip install --upgrade -r requirements_dev.txt
               python3 setup.py sdist --dist-dir wheelhouse
               pip3 install cibuildwheel==${USE_CIBW_VERSION}
               cibuildwheel --output-dir wheelhouse .
@@ -190,7 +190,7 @@ stages:
               :: this runs under cmd on windows, which we need to use vcvarsall
               call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
               git rev-parse HEAD
-              python -m pip install --upgrade pip pytest cython pybind11
+              python -m pip install --upgrade -r requirements_dev.txt
               python setup.py sdist --dist-dir wheelhouse
               pip install cibuildwheel==%USE_CIBW_VERSION%
               cibuildwheel --output-dir wheelhouse .
