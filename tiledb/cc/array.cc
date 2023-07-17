@@ -114,8 +114,8 @@ void init_array(py::module &m) {
       .def("get_metadata",
            [](Array &self, std::string &key) -> py::buffer {
              tiledb_datatype_t tdb_type;
-             uint32_t value_num;
-             const void *data_ptr;
+             uint32_t value_num = 0;
+             const void *data_ptr = nullptr;
 
              self.get_metadata(key, &tdb_type, &value_num, &data_ptr);
 
@@ -130,8 +130,8 @@ void init_array(py::module &m) {
       .def("get_metadata_from_index",
            [](Array &self, uint64_t index) -> py::tuple {
              tiledb_datatype_t tdb_type;
-             uint32_t value_num;
-             const void *data_ptr;
+             uint32_t value_num = 0;
+             const void *data_ptr = nullptr;
              std::string key;
 
              self.get_metadata_from_index(index, &key, &tdb_type, &value_num,
