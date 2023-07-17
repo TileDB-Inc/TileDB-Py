@@ -19,6 +19,7 @@ stages:
       TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)"
     condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
 
+# NFC build bump 1
     jobs:
       - job: build1_libtiledb
         timeoutInMinutes: 120

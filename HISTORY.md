@@ -1,3 +1,16 @@
+# Release 0.22.0
+
+* TileDB-Py 0.22.0 includes TileDB Embedded [2.16.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.16.0)
+
+## Improvements
+
+* Added support for variable-length dimension label reads [#1802](https://github.com/TileDB-Inc/TileDB-Py/pull/1802)
+
+## Bug Fixes
+
+* Fix online help typo, and clarify. [#1803](https://github.com/TileDB-Inc/TileDB-Py/pull/1803)
+* Fix bad memory access for dimension label tile. [#1804](https://github.com/TileDB-Inc/TileDB-Py/pull/1804)
+
 # Release 0.21.6
 
 ## Bug Fixes
