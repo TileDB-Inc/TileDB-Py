@@ -564,3 +564,15 @@ class GroupMetadataTest(GroupTestCase):
 
             with tiledb.Group(group_uri, config=cfg) as G:
                 assert len(G) == sz
+
+    def test_invalid_object_type(self):
+        path = self.path()
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim("id", dtype="ascii")),
+            attrs=(tiledb.Attr("value", dtype=np.int64),),
+            sparse=True,
+        )
+        tiledb.Array.create(path, schema)
+        with self.assertRaises(ValueError):
+            # Should return error that uri is not a Group
+            group = tiledb.Group(uri=path, mode="w")
