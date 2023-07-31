@@ -1,3 +1,7 @@
+# Release 0.22.1
+
+* TileDB-Py 0.22.1 includes TileDB Embedded [2.16.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.16.1)
+
 # Release 0.22.0
 
 * TileDB-Py 0.22.0 includes TileDB Embedded [2.16.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.16.0)
