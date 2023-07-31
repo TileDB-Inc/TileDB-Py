@@ -6,9 +6,9 @@ stages:
         LIBTILEDB_VERSION: dev
         LIBTILEDB_SHA: dev
       ${{ else }}:
-        TILEDBPY_VERSION: 0.22.0
-        LIBTILEDB_VERSION: 2.16.0
-        LIBTILEDB_SHA: d682dd09e36dd60c37070927ace5ab5dcfbd2cd1
+        TILEDBPY_VERSION: 0.22.1
+        LIBTILEDB_VERSION: 2.16.1
+        LIBTILEDB_SHA: 3abc68f2ea48281f734d2f8a584f287541f1da94
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
@@ -19,7 +19,6 @@ stages:
       TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)"
     condition: or(startsWith(variables['Build.SourceBranch'], 'refs/tags'), startsWith(variables['Build.SourceBranchName'], 'release-'), startsWith(variables['Build.SourceBranchName'], 'azure-wheel-test-'))
 
-# NFC build bump 1
     jobs:
       - job: build1_libtiledb
         timeoutInMinutes: 120
