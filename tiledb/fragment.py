@@ -540,7 +540,14 @@ def copy_fragments_to_existing_array(
             "arrays and both must be identical"
         )
     elif is_new_style:
-        if len(vfs.ls(dst_schema_dir)) != 1 or len(vfs.ls(src_schema_dir)) != 1:
+
+        def filtered_schema_dir(uri):
+            return [x for x in vfs.ls(uri) if "__enumerations" not in x]
+
+        if (
+            len(filtered_schema_dir(dst_schema_dir)) != 1
+            or len(filtered_schema_dir(src_schema_dir)) != 1
+        ):
             raise tiledb.TileDBError(
                 "Mutltiple evolved schemas detected. There can only be one "
                 "schema version present in both the source and destination "
