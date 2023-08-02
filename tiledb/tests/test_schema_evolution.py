@@ -104,7 +104,7 @@ def test_schema_evolution_timestamp(tmp_path):
     tiledb.Array.create(uri, schema)
 
     def get_schema_timestamps(schema_uri):
-        schema_files = vfs.ls(schema_uri)
+        schema_files = filter(lambda x: "__enumerations" not in x, vfs.ls(schema_uri))
         return [int(os.path.basename(file).split("_")[2]) for file in schema_files]
 
     assert 123456789 not in get_schema_timestamps(schema_uri)
