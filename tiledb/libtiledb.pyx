@@ -1512,6 +1512,7 @@ cdef class Array(object):
         ...     },
         ... }
         >>> schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
+        >>> uri = "label_index_example"
         >>> tiledb.Array.create(uri, schema)
         >>>
         >>> a1_data = np.reshape(np.arange(1, 13), (4, 3))
@@ -1519,18 +1520,25 @@ cdef class Array(object):
         >>> l2_data = np.arange(-1, 2)
         >>> l3_data = np.linspace(0, 1.0, 3)
         >>>
-        >>> with tiledb.open(uri, "w") as array:
-        ...     array[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
+        >>> with tiledb.open(uri, "w") as A:
+        ...     A[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
         >>>
-        >>> with tiledb.open(uri, "r") as A
+        >>> with tiledb.open(uri, "r") as A:
         ...     A.label_index(["l1"])[3:4]
         ...     A.label_index(["l1", "l3"])[2, 0.5:1.0]
         ...     A.label_index(["l2"])[:, -1:0]
         ...     A.label_index(["l3"])[:, 0.5:1.0]
-        OrderedDict([('l1', array([4, 3])), ('a1', array([[1, 2, 3], [4, 5, 6]]))])
-        OrderedDict([('l1', array([2])), ('l3', array([0.5, 1. ])), ('a1', array([[8, 9]]))])
-        OrderedDict([('l2', array([-1,  0])), ('a1', array([[ 1,  2], [ 4,  5], [ 7,  8], [10, 11]]))])
-        OrderedDict([('l3', array([0.5, 1. ])), ('a1', array([[ 2,  3], [ 5,  6], [ 8,  9], [11, 12]]))])
+        OrderedDict([('l1', array([4, 3])), ('a1', array([[1, 2, 3],
+               [4, 5, 6]]))])
+        OrderedDict([('l3', array([0.5, 1. ])), ('l1', array([2])), ('a1', array([[8, 9]]))])
+        OrderedDict([('l2', array([-1,  0])), ('a1', array([[ 1,  2],
+               [ 4,  5],
+               [ 7,  8],
+               [10, 11]]))])
+        OrderedDict([('l3', array([0.5, 1. ])), ('a1', array([[ 2,  3],
+               [ 5,  6],
+               [ 8,  9],
+               [11, 12]]))])
 
         :param labels: List of labels to use when querying. Can only use at most one
             label per dimension.
