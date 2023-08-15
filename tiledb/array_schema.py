@@ -394,7 +394,8 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
             f"  cell_order='{self.cell_order}',\n"
             f"  tile_order={repr(self.tile_order)},\n"
         )
-        output.write(f"  capacity={self.capacity},\n")
+        if self.sparse:
+            output.write(f"  capacity={self.capacity},\n")
         output.write(f"  sparse={self.sparse},\n")
         if self.sparse:
             output.write(f"  allows_duplicates={self.allows_duplicates},\n")
@@ -434,8 +435,9 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         output.write("<tr><th>Tile Order</th></tr>")
         output.write(f"<tr><td>{self.tile_order}</td></tr>")
 
-        output.write("<tr><th>Capacity</th></tr>")
-        output.write(f"<tr><td>{self.capacity}</td></tr>")
+        if self.sparse:
+            output.write("<tr><th>Capacity</th></tr>")
+            output.write(f"<tr><td>{self.capacity}</td></tr>")
 
         output.write("<tr><th>Sparse</th></tr>")
         output.write(f"<tr><td>{self.sparse}</td></tr>")
