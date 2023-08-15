@@ -1,3 +1,11 @@
+# Release 0.22.3
+
+* TileDB-Py 0.22.3 includes TileDB Embedded [2.16.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.16.3)
+
+## Improvements
+
+* Wrap Delta filter. [#1710](https://github.com/TileDB-Inc/TileDB-Py/pull/1710)
+
 # Release 0.22.2
 
 * TileDB-Py 0.22.2 includes TileDB Embedded [2.16.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.16.2)
