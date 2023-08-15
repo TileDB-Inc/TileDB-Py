@@ -1491,6 +1491,55 @@ cdef class Array(object):
         """Retrieve data cells with multi-range, domain-inclusive indexing by label.
         Returns the cross-product of the ranges.
 
+        Accepts a scalar, ``slice``, or list of scalars per-label for querying on the
+        corresponding dimensions. For multidimensional arrays querying by labels only on
+        a subset of dimensions, ``:`` should be passed in-place for any labels preceeding
+        custom ranges.
+
+        ** Example **
+
+        >>> import tiledb, numpy as np
+        >>>
+        >>> dim1 = tiledb.Dim("d1", domain=(1, 4))
+        >>> dim2 = tiledb.Dim("d2", domain=(1, 3))
+        >>> dom = tiledb.Domain(dim1, dim2)
+        >>> att = tiledb.Attr("a1", dtype=np.int64)
+        >>> dim_labels = {
+        ...     0: {"l1": dim1.create_label_schema("decreasing", np.int64)},
+        ...     1: {
+        ...         "l2": dim2.create_label_schema("increasing", np.int64),
+        ...         "l3": dim2.create_label_schema("increasing", np.float64),
+        ...     },
+        ... }
+        >>> schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
+        >>> uri = "label_index_example"
+        >>> tiledb.Array.create(uri, schema)
+        >>>
+        >>> a1_data = np.reshape(np.arange(1, 13), (4, 3))
+        >>> l1_data = np.arange(4, 0, -1)
+        >>> l2_data = np.arange(-1, 2)
+        >>> l3_data = np.linspace(0, 1.0, 3)
+        >>>
+        >>> with tiledb.open(uri, "w") as A:
+        ...     A[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
+        >>>
+        >>> with tiledb.open(uri, "r") as A:
+        ...     A.label_index(["l1"])[3:4]
+        ...     A.label_index(["l1", "l3"])[2, 0.5:1.0]
+        ...     A.label_index(["l2"])[:, -1:0]
+        ...     A.label_index(["l3"])[:, 0.5:1.0]
+        OrderedDict([('l1', array([4, 3])), ('a1', array([[1, 2, 3],
+               [4, 5, 6]]))])
+        OrderedDict([('l3', array([0.5, 1. ])), ('l1', array([2])), ('a1', array([[8, 9]]))])
+        OrderedDict([('l2', array([-1,  0])), ('a1', array([[ 1,  2],
+               [ 4,  5],
+               [ 7,  8],
+               [10, 11]]))])
+        OrderedDict([('l3', array([0.5, 1. ])), ('a1', array([[ 2,  3],
+               [ 5,  6],
+               [ 8,  9],
+               [11, 12]]))])
+
         :param labels: List of labels to use when querying. Can only use at most one
             label per dimension.
         :param list selection: Per dimension, a scalar, ``slice``, or  list of scalars.
