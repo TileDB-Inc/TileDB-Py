@@ -279,13 +279,13 @@ def _schema_like_numpy(
         # for object arrays, we use the dtype of the first element
         # consistency check should be done later, if needed
         el0 = array.flat[0]
-        if type(el0) is bytes:
+        if isinstance(el0, bytes):
             el_dtype = np.dtype("S")
             var = True
-        elif type(el0) is str:
+        elif isinstance(el0, str):
             el_dtype = np.dtype("U")
             var = True
-        elif type(el0) == np.ndarray:
+        elif isinstance(el0, np.ndarray):
             if len(el0.shape) != 1:
                 raise TypeError(
                     "Unsupported sub-array type for Attribute: {} "
