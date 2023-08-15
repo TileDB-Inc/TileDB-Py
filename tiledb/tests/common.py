@@ -343,3 +343,8 @@ def assert_captured(cap, expected):
         out, err = cap.readouterr()
         assert not err
         assert expected in out
+
+
+@pytest.fixture(scope="module", params=["hilbert", "row-major"])
+def fx_sparse_cell_order(request):
+    yield request.param
