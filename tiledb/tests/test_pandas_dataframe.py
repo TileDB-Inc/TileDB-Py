@@ -438,7 +438,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
                 # also ensure that string columns are converted to bytes
                 # b/c only TILEDB_ASCII supported for string dimension
-                if type(df[col][0]) is str:
+                if isinstance(df[col][0], str):
                     df[col] = [x.encode("UTF-8") for x in df[col]]
 
             new_df = df.drop_duplicates(subset=col)
