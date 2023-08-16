@@ -18,7 +18,7 @@ class ReprTest(DiskTestCase):
         attr = tiledb.Attr(name="itsanattr", dtype=np.float64)
         self.assertTrue(
             re.match(
-                r"Attr\(name=[u]?'itsanattr', dtype='float64', var=False, nullable=False\)",
+                r"Attr\(name=[u]?'itsanattr', dtype='float64', var=False, nullable=False, enum_label=None\)",
                 repr(attr),
             )
         )
