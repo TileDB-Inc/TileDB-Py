@@ -1,4 +1,4 @@
-#%%
+# %%
 
 import numpy as np
 
@@ -61,7 +61,6 @@ class DomainIndexingSparseTest(DiskTestCase):
             A[X, Y, Z] = data
 
         with tiledb.SparseArray(array_path) as A:
-
             # check direct slicing
             assert_array_equal(A.domain_index[X[0], Y[0], Z[0]]["data"], data[0])
 

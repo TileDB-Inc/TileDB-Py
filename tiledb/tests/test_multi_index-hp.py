@@ -107,7 +107,6 @@ class TestMultiIndexPropertySparse:
 
     @given(index_obj)
     def test_multi_index_inputs(self, sparse_array_1d, ind):
-
         # TODO
         # currently we don't have a comparison target/mockup to check
         # as there is no direct numpy equivalent for this indexing mode
