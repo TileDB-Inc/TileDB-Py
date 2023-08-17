@@ -77,7 +77,6 @@ def parse_tiledb_kwargs(kwargs):
 
 @dataclass(frozen=True)
 class ColumnInfo:
-
     dtype: np.dtype
     repr: Optional[str] = None
     nullable: bool = False
