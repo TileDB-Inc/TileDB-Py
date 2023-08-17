@@ -94,3 +94,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           filename: .github/workflows/daily-test-build-issue-template.md
+          update_existing: true

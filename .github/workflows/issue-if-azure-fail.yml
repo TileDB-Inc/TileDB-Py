@@ -30,3 +30,4 @@ jobs:
           AZURE_BUILD_ID: ${{ github.event.client_payload.data.build_id }}
         with:
           filename: .github/workflows/issue-if-azure-fail-template.md
+          update_existing: true
