@@ -436,9 +436,7 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(orig_array[-1], A.multi_index[30.0][attr_name])
             assert_array_equal(
                 orig_array[coords.size - 3 : coords.size],
-                A.multi_index[
-                    (28.0, 30.0),
-                ][attr_name],
+                A.multi_index[(28.0, 30.0),][attr_name],
             )
 
             res = A.multi_index[slice(0, 5)]
@@ -475,7 +473,6 @@ class TestMultiRange(DiskTestCase):
                 A[coords] = coords
 
             with tiledb.open(path) as A:
-
                 res = A.multi_index[slice(coords[0], coords[-1])]
                 assert_array_equal(res[attr_name], coords)
                 assert_array_equal(res["__dim_0"].astype(dtype), coords)

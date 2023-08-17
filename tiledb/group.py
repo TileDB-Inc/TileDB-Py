@@ -218,7 +218,6 @@ class Group(CtxMixin, lt.Group):
                             f"- Type: {val_dtype}\n"
                         )
                     else:
-
                         yield key, val
 
         def __iter__(self):
