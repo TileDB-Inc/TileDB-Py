@@ -49,6 +49,11 @@ void init_enumeration(py::module &m) {
 
       .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
 
+      .def("__capsule__",
+           [](Enumeration &enmr) {
+             return py::capsule(enmr.ptr().get(), "enmr", nullptr);
+           })
+
       .def_property_readonly("name", &Enumeration::name)
 
       .def_property_readonly("type", &Enumeration::type)
