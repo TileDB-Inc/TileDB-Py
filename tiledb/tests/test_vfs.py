@@ -1,5 +1,6 @@
 import io
 import os
+import pathlib
 import random
 import sys
 
@@ -135,11 +136,11 @@ class TestVFS(DiskTestCase):
         vfs = tiledb.VFS()
 
         buffer = b"bar"
-        fio = vfs.open(self.path("foo"), "wb")
+        fio = vfs.open(pathlib.Path(self.path("foo")), "wb")
         fio.write(buffer)
         self.assertEqual(vfs.file_size(self.path("foo")), 3)
 
-        fio = vfs.open(self.path("foo"), "rb")
+        fio = vfs.open(self.path("foo").encode("utf-8"), "rb")
         self.assertEqual(fio.read(3), buffer)
         fio.close()
 

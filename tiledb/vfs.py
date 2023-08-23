@@ -1,10 +1,13 @@
 import io
+import os
 from types import TracebackType
 from typing import List, Optional, Type, Union
 
 import tiledb.cc as lt
 
 from .ctx import Config, Ctx, default_ctx
+
+_AnyPath = Union[str, bytes, os.PathLike]
 
 
 class VFS(lt.VFS):
@@ -29,7 +32,7 @@ class VFS(lt.VFS):
             else:
                 try:
                     config = dict(config)
-                except:
+                except Exception:
                     raise ValueError("`config` argument must be of type Config or dict")
 
             ccfg = lt.Config(config)
@@ -51,7 +54,7 @@ class VFS(lt.VFS):
         """
         return self._config
 
-    def open(self, uri: str, mode: str = "rb"):
+    def open(self, uri: _AnyPath, mode: str = "rb"):
         """Opens a VFS file resource for reading / writing / appends at URI.
 
         If the file did not exist upon opening, a new file is created.
@@ -144,145 +147,145 @@ class VFS(lt.VFS):
 
         return self._ctx.is_supported_fs(scheme_to_fs_type[scheme])
 
-    def create_bucket(self, uri: str):
+    def create_bucket(self, uri: _AnyPath):
         """Creates an object store bucket with the input URI.
 
         :param str uri: Input URI of the bucket
 
         """
-        return self._create_bucket(uri)
+        return self._create_bucket(_to_path_str(uri))
 
-    def remove_bucket(self, uri: str):
+    def remove_bucket(self, uri: _AnyPath):
         """Deletes an object store bucket with the input URI.
 
         :param str uri: Input URI of the bucket
 
         """
-        return self._remove_bucket(uri)
+        return self._remove_bucket(_to_path_str(uri))
 
-    def is_bucket(self, uri: str) -> bool:
+    def is_bucket(self, uri: _AnyPath) -> bool:
         """
         :param str uri: Input URI of the bucket
         :rtype: bool
         :return: True if an object store bucket with the input URI exists, False otherwise
 
         """
-        return self._is_bucket(uri)
+        return self._is_bucket(_to_path_str(uri))
 
-    def empty_bucket(self, uri: str):
+    def empty_bucket(self, uri: _AnyPath):
         """Empty an object store bucket.
 
         :param str uri: Input URI of the bucket
 
         """
-        return self._empty_bucket(uri)
+        return self._empty_bucket(_to_path_str(uri))
 
-    def is_empty_bucket(self, uri: str) -> bool:
+    def is_empty_bucket(self, uri: _AnyPath) -> bool:
         """
         :param str uri: Input URI of the bucket
         :rtype: bool
         :return: True if an object store bucket is empty, False otherwise
 
         """
-        return self._is_empty_bucket(uri)
+        return self._is_empty_bucket(_to_path_str(uri))
 
-    def create_dir(self, uri: str):
+    def create_dir(self, uri: _AnyPath):
         """Check if an object store bucket is empty.
 
         :param str uri: Input URI of the bucket
 
         """
-        return self._create_dir(uri)
+        return self._create_dir(_to_path_str(uri))
 
-    def is_dir(self, uri: str) -> bool:
+    def is_dir(self, uri: _AnyPath) -> bool:
         """
         :param str uri: Input URI of the directory
         :rtype: bool
         :return: True if a directory with the input URI exists, False otherwise
 
         """
-        return self._is_dir(uri)
+        return self._is_dir(_to_path_str(uri))
 
-    def remove_dir(self, uri: str):
+    def remove_dir(self, uri: _AnyPath):
         """Removes a directory (recursively) with the input URI.
 
         :param str uri: Input URI of the directory
 
         """
-        return self._remove_dir(uri)
+        return self._remove_dir(_to_path_str(uri))
 
-    def dir_size(self, uri: str) -> int:
+    def dir_size(self, uri: _AnyPath) -> int:
         """
         :param str uri: Input URI of the directory
         :rtype: int
         :return: The size of a directory with the input URI
 
         """
-        return self._dir_size(uri)
+        return self._dir_size(_to_path_str(uri))
 
-    def move_dir(self, old_uri: str, new_uri: str):
+    def move_dir(self, old_uri: _AnyPath, new_uri: _AnyPath):
         """Renames a TileDB directory from an old URI to a new URI.
 
         :param str old_uri: Input of the old directory URI
         :param str new_uri: Input of the new directory URI
 
         """
-        return self._move_dir(old_uri, new_uri)
+        return self._move_dir(_to_path_str(old_uri), _to_path_str(new_uri))
 
-    def copy_dir(self, old_uri: str, new_uri: str):
+    def copy_dir(self, old_uri: _AnyPath, new_uri: _AnyPath):
         """Copies a TileDB directory from an old URI to a new URI.
 
         :param str old_uri: Input of the old directory URI
         :param str new_uri: Input of the new directory URI
 
         """
-        return self._copy_dir(old_uri, new_uri)
+        return self._copy_dir(_to_path_str(old_uri), _to_path_str(new_uri))
 
-    def is_file(self, uri: str) -> bool:
+    def is_file(self, uri: _AnyPath) -> bool:
         """
         :param str uri: Input URI of the file
         :rtype: bool
         :return: True if a file with the input URI exists, False otherwise
 
         """
-        return self._is_file(uri)
+        return self._is_file(_to_path_str(uri))
 
-    def remove_file(self, uri: str):
+    def remove_file(self, uri: _AnyPath):
         """Removes a file with the input URI.
 
         :param str uri: Input URI of the file
 
         """
-        return self._remove_file(uri)
+        return self._remove_file(_to_path_str(uri))
 
-    def file_size(self, uri: str) -> int:
+    def file_size(self, uri: _AnyPath) -> int:
         """
         :param str uri: Input URI of the file
         :rtype: int
         :return: The size of a file with the input URI
 
         """
-        return self._file_size(uri)
+        return self._file_size(_to_path_str(uri))
 
-    def move_file(self, old_uri: str, new_uri: str):
+    def move_file(self, old_uri: _AnyPath, new_uri: _AnyPath):
         """Renames a TileDB file from an old URI to a new URI.
 
         :param str old_uri: Input of the old file URI
         :param str new_uri: Input of the new file URI
 
         """
-        return self._move_file(old_uri, new_uri)
+        return self._move_file(_to_path_str(old_uri), _to_path_str(new_uri))
 
-    def copy_file(self, old_uri: str, new_uri: str):
+    def copy_file(self, old_uri: _AnyPath, new_uri: _AnyPath):
         """Copies a TileDB file from an old URI to a new URI.
 
         :param str old_uri: Input of the old file URI
         :param str new_uri: Input of the new file URI
 
         """
-        return self._copy_file(old_uri, new_uri)
+        return self._copy_file(_to_path_str(old_uri), _to_path_str(new_uri))
 
-    def ls(self, uri: str) -> List[str]:
+    def ls(self, uri: _AnyPath) -> List[str]:
         """Retrieves the children in directory `uri`. This function is
         non-recursive, i.e., it focuses in one level below `uri`.
 
@@ -291,22 +294,23 @@ class VFS(lt.VFS):
         :return: The children in directory `uri`
 
         """
-        return self._ls(uri)
+        return self._ls(_to_path_str(uri))
 
-    def touch(self, uri: str):
+    def touch(self, uri: _AnyPath):
         """Touches a file with the input URI, i.e., creates a new empty file.
 
         :param str uri: Input URI of the file
 
         """
-        return self._touch(uri)
+        return self._touch(_to_path_str(uri))
 
 
 class FileIO(io.RawIOBase):
     """TileDB FileIO class that encapsulates files opened by tiledb.VFS. The file
     operations are meant to mimic Python's built-in file I/O methods."""
 
-    def __init__(self, vfs: VFS, uri: str, mode: str = "rb"):
+    def __init__(self, vfs: VFS, uri: _AnyPath, mode: str = "rb"):
+        uri = _to_path_str(uri)
         self._vfs = vfs
 
         str_to_vfs_mode = {
@@ -324,8 +328,8 @@ class FileIO(io.RawIOBase):
         if self._mode == "rb":
             try:
                 self._nbytes = vfs.file_size(uri)
-            except:
-                raise lt.TileDBError(f"URI {uri} is not a valid file")
+            except Exception as e:
+                raise lt.TileDBError(f"URI {uri!r} is not a valid file") from e
 
         self._fh = lt.FileHandle(
             self._vfs._ctx, self._vfs, uri, str_to_vfs_mode[self._mode]
@@ -504,3 +508,14 @@ class FileIO(io.RawIOBase):
 
     def readinto1(self, b):
         return self.readinto(b)
+
+
+def _to_path_str(pth: _AnyPath) -> Union[str, bytes]:
+    if isinstance(pth, (str, bytes)):
+        return pth
+    try:
+        return pth.__fspath__()
+    except AttributeError as ae:
+        raise TypeError(
+            "VFS paths must be strings, bytes, or os.PathLike objects"
+        ) from ae
