@@ -19,15 +19,15 @@ jobs:
           branches: "azure-wheel-test-${{ steps.date.outputs.date }}-against-${{ env.LIBTILEDB_SHA }}"
 
   notify-fail:
+    permissions:
+      issues: write
     if: github.event.action == 'failed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Create Issue if Build Fails
-        uses: JasonEtco/create-an-issue@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AZURE_BUILD_ID: ${{ github.event.client_payload.data.build_id }}
+        uses: TileDB-Inc/github-actions/open-issue@main
         with:
-          filename: .github/workflows/issue-if-azure-fail-template.md
-          update_existing: true
+          name: nightly Azure wheel
+          label: bug,nightly-azure-failure
+          assignee: nguyenv,ihnorton
