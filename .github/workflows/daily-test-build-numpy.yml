@@ -81,16 +81,16 @@ jobs:
         run: pytest -vv
 
   create_issue_on_fail:
+    permissions:
+      issues: write
     runs-on: ubuntu-latest
     needs: test
     if: failure() || cancelled()
     steps:
-      - name: Checkout TileDB-Py `dev`
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
       - name: Create Issue if Build Fails
-        uses: JasonEtco/create-an-issue@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: TileDB-Inc/github-actions/open-issue@main
         with:
-          filename: .github/workflows/daily-test-build-issue-template.md
-          update_existing: true
+          name: nightly build with earilest supported numpy
+          label: bug,nightly-failure
+          assignee: nguyenv,ihnorton
