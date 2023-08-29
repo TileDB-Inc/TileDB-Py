@@ -6,6 +6,7 @@ on:
   schedule:
     # runs every day at 5:00 UTC (1:00AM EST / Midnight CST)
     - cron: "0 5 * * *"
+  workflow_dispatch:
 
 jobs:
   test:
