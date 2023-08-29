@@ -1,6 +1,6 @@
 name: Create Issue if Build Fails on Azure
 
-on: [repository_dispatch]
+on: [repository_dispatch, workflow_dispatch]
 
 jobs:
   clean-branch:
