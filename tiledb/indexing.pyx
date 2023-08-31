@@ -32,7 +32,7 @@ cdef class DomainIndexer(object):
         self.array_ref = weakref.ref(array)
         self.schema = array.schema
         self.query = query
-    
+
     @property
     def schema(self):
         return self.array.array_ref().schema
@@ -44,6 +44,7 @@ cdef class DomainIndexer(object):
         return self.array_ref()
 
     def __getitem__(self, object idx):
+        from .subarray import Subarray # prevent circular import
         # implements domain-based indexing: slice by domain coordinates, not 0-based python indexing
 
         schema = self.array.schema
@@ -68,11 +69,13 @@ cdef class DomainIndexer(object):
             else:
                 new_idx.append(dim_idx)
 
-        subarray = list()
+        dim_ranges = list()
 
         for i, subidx in enumerate(new_idx):
             assert isinstance(subidx, slice)
-            subarray.append((subidx.start, subidx.stop))
+            dim_ranges.append((subidx.start, subidx.stop))
+        subarray = Subarray(self.array)
+        subarray.add_ranges([list([x]) for x in dim_ranges])
 
         attr_names = list(schema.attr(i).name for i in range(schema.nattr))
         attr_cond = None

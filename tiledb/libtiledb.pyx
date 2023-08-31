@@ -2051,6 +2051,8 @@ cdef class DenseArrayImpl(Array):
         OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
 
         """
+        from .subarray import Subarray
+
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray must be opened in read mode")
 
@@ -2095,7 +2097,9 @@ cdef class DenseArrayImpl(Array):
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
-        subarray = index_domain_subarray(self, self.schema.domain, idx)
+        range_index  = index_domain_subarray(self, self.schema.domain, idx)
+        subarray = Subarray(self, self.ctx)
+        subarray.add_ranges([list([x]) for x in range_index])
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, cond, layout,
                                         coords)
@@ -2114,15 +2118,15 @@ cdef class DenseArrayImpl(Array):
         return out
 
 
-    cdef _read_dense_subarray(self, list subarray, list attr_names,
+    cdef _read_dense_subarray(self, object subarray, list attr_names,
                               object cond, tiledb_layout_t layout,
                               bint include_coords):
 
         from .main import PyQuery
-        from .subarray import Subarray
 
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
+
 
         if cond is not None and cond != "":
             from .query_condition import QueryCondition
@@ -2140,9 +2144,7 @@ cdef class DenseArrayImpl(Array):
             else:
                 raise TypeError("`cond` expects type str.")
 
-        subarray_t = Subarray(self, self.ctx)
-        subarray_t.add_ranges([list([x]) for x in subarray])
-        q.set_subarray(subarray_t)
+        q.set_subarray(subarray)
         q.submit()
         cdef object results = OrderedDict()
         results = q.results()
@@ -2150,17 +2152,7 @@ cdef class DenseArrayImpl(Array):
         out = OrderedDict()
 
         cdef tuple output_shape
-        domain_dtype = self.domain.dtype
-        is_datetime = domain_dtype.kind == 'M'
-        # Using the domain check is valid because dense arrays are homogeneous
-        if is_datetime:
-            output_shape = \
-                tuple(_tiledb_datetime_extent(subarray[r][0], subarray[r][1])
-                      for r in range(self.schema.ndim))
-        else:
-            output_shape = \
-                tuple(int(subarray[r][1]) - int(subarray[r][0]) + 1
-                      for r in range(self.schema.ndim))
+        output_shape = subarray.shape()
 
         cdef Py_ssize_t nattr = len(attr_names)
         cdef int i
@@ -2513,6 +2505,8 @@ cdef class DenseArrayImpl(Array):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        from .subarray import Subarray
+
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
         ctx = self.ctx
@@ -2539,7 +2533,9 @@ cdef class DenseArrayImpl(Array):
         domain = schema.domain
 
         idx = tuple(slice(None) for _ in range(domain.ndim))
-        subarray = index_domain_subarray(self, domain, idx)
+        range_index = index_domain_subarray(self, domain, idx)
+        subarray = Subarray(self, self.ctx)
+        subarray.add_ranges([list([x]) for x in range_index])
         out = self._read_dense_subarray(subarray, [attr_name,], None, cell_layout, False)
         return out[attr_name]
 
@@ -2902,6 +2898,7 @@ cdef class SparseArrayImpl(Array):
         OrderedDict([('a1', array([1, 2]))])
 
         """
+        from .subarray import Subarray
         if not self.isopen or self.mode not in ('r', 'd'):
             raise TileDBError("SparseArray is not opened in read or delete mode")
 
@@ -2947,7 +2944,9 @@ cdef class SparseArrayImpl(Array):
         idx = index_as_tuple(selection)
         idx = replace_ellipsis(dom.ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
-        subarray = index_domain_subarray(self, dom, idx)
+        dim_ranges = index_domain_subarray(self, dom, idx)
+        subarray = Subarray(self, self.ctx)
+        subarray.add_ranges([list([x]) for x in dim_ranges])
         return self._read_sparse_subarray(subarray, attr_names, cond, layout)
 
     def __repr__(self):
@@ -2957,7 +2956,7 @@ cdef class SparseArrayImpl(Array):
         else:
             return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    cdef _read_sparse_subarray(self, list subarray, list attr_names,
+    cdef _read_sparse_subarray(self, object subarray, list attr_names,
                                object cond, tiledb_layout_t layout):
         cdef object out = OrderedDict()
         # all results are 1-d vectors
@@ -2987,9 +2986,7 @@ cdef class SparseArrayImpl(Array):
                 raise TypeError("`cond` expects type str.")
 
         if self.mode == "r":
-            subarray_t = Subarray(self, self.ctx)
-            subarray_t.add_ranges([list([x]) for x in subarray])
-            q.set_subarray(subarray_t)
+            q.set_subarray(subarray)
 
         q.submit()
 
