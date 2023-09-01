@@ -95,7 +95,8 @@ class Subarray(CtxMixin, lt.Subarray):
         """Returns the shape of dense data using this subarray and ``None`` for sparse
         arrays.
 
-        This does not support getting the shape of subarrays with label ranges.
+        Warning: This is the shape of time dimension ranges. If a label range is set
+        and the dimension range has not been computed, it will return `0`.
 
         :rtype: tuple(int, ...)
         :raises: :py:exc:`tiledb.TileDBError`

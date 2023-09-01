@@ -632,6 +632,11 @@ void init_subarray(py::module &m) {
            })
 #endif
 
+      .def("_has_label_range",
+           [](Subarray &subarray, const Context &ctx, uint32_t dim_idx) {
+             return has_label_range(ctx, subarray, dim_idx);
+           })
+
       .def("copy_ranges",
            [](Subarray &subarray, Subarray &original, py::iterable dims) {
              for (auto dim_idx : dims) {
@@ -671,10 +676,6 @@ void init_subarray(py::module &m) {
                  static_cast<py::ssize_t *>(shape_result.ptr);
              // Set size for each dimension.
              for (uint32_t dim_idx{0}; dim_idx < ndim; ++dim_idx) {
-               if (has_label_range(ctx, subarray, dim_idx)) {
-                 throw TileDBPyError(
-                     "Cannot get the shape of a subarray with label ranges.");
-               }
                shape_ptr[dim_idx] = length_ranges(subarray, dim_idx);
              }
              return shape;
