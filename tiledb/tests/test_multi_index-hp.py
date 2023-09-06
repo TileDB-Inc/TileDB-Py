@@ -81,9 +81,11 @@ class TestMultiIndexPropertySparse:
 
         return uri
 
-    @pytest.mark.parametrize("order", ["C", "F", "U"])
-    @given(st.lists(bounded_ntuple(length=2, min_value=-100, max_value=100)))
-    def test_multi_index_two_way_query(self, order, sparse_array_1d, ranges):
+    @given(
+        order=st.sampled_from(["C", "F", "U"]),
+        ranges=st.lists(bounded_ntuple(length=2, min_value=-100, max_value=100)),
+    )
+    def test_multi_index_two_way_query(self, order, ranges, sparse_array_1d):
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
 
