@@ -29,7 +29,3 @@ class TestWriteSubarrayDense(DiskTestCase):
             result = array[...]
 
         assert_array_equal(result, data)
-        
-
-
-

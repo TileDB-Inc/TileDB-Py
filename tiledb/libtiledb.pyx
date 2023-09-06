@@ -2522,11 +2522,41 @@ cdef class DenseArrayImpl(Array):
 
     def read_subarray(self, subarray):
         from .main import PyQuery
+        from .query import Query
         from .subarray import Subarray
 
-        cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
+        # Precompute and label ranges: this step is only needed so the attribute
+        # buffer sizes are set correctly.
+        ndim = self.schema.domain.ndim
+        has_labels = any(
+            subarray.has_label_range(dim_idx) for dim_idx in range(ndim)
+        )
+        if has_labels:
+            label_query = Query(self, self.ctx)
+            label_query.set_subarray(subarray)
+            label_query.submit()
+            if not label_query.is_complete():
+                raise TileDBError("Failed to get dimension ranges from labels")
+            result_subarray = Subarray(self, self.ctx)
+            result_subarray.copy_ranges(label_query.subarray(), range(ndim))
+            return self.read_subarray(result_subarray)
 
-        # Create the PyQuery and set the subarray on it.
+        # If the subarray has shape of zero, return empty result without querying.
+        if subarray.shape() == 0:
+            if self.view_attr is not None:
+                return OrderedDict(
+                    (
+                        "" if self.view_attr == "__attr" else self.view_attr),
+                        np.array([], self.schema.attr_or_dim_dtype(self.view_attr),
+                    )
+                )
+            return OrderedDict(
+                ("" if attr.name  == "__attr" else attr.name, np.array([], attr.dtype))
+                for attr in self.schema.attrs
+            )
+
+        # Create the pyquery and set the subarray.
+        cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
         pyquery = PyQuery(
             self._ctx_(),
             self,

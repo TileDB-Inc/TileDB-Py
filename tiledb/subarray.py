@@ -73,6 +73,14 @@ class Subarray(CtxMixin, lt.Subarray):
         if label_ranges:
             self._add_label_ranges(self._ctx, label_ranges)
 
+    def has_label_range(self, dim_idx):
+        """Returns if dimension label ranges are set on the requested dimension.
+
+        :param dim_idx: Index (int) of the dimension to check for labels.
+        :rtype: int
+        """
+        return self._has_label_range(self._ctx, dim_idx)
+
     def num_dim_ranges(self, key: Union[int, str]) -> np.uint64:
         """Returns the number of ranges on a dimension.
 
