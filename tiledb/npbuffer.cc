@@ -498,7 +498,7 @@ public:
       }
     } else if (issubdtype(input_dtype, py::dtype("bytes"))) {
       convert_bytes();
-    } else if (!input_dtype.is(py::dtype("O"))) {
+    } else if (!input_dtype.equal(py::dtype("O"))) {
       // TODO TPY_ERROR_LOC
       throw std::runtime_error("expected object array");
     } else {

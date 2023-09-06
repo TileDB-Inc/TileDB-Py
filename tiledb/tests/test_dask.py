@@ -1,4 +1,5 @@
 import sys
+import warnings
 from datetime import datetime
 
 import numpy as np
@@ -8,6 +9,7 @@ import tiledb
 
 from .common import DiskTestCase
 
+# Skip this test if dask is unavailable
 da = pytest.importorskip("dask.array")
 
 
@@ -164,3 +166,58 @@ class TestDaskSupport(DiskTestCase):
             scheduler="processes"
         )
         np.testing.assert_array_equal(D2 + 1, D3)
+
+
+@pytest.mark.skipif(
+    sys.version_info[:2] == (3, 8),
+    reason="Fails on Python 3.8 due to dask worker restarts",
+)
+def test_sc33742_dask_array_object_dtype_conversion():
+    # This test verifies that an array can be converted to buffer after serialization
+    # through several dask.distributed compute steps. The original source of the issue
+    # was that a `dtype == dtype("O")` check was returning false, presumably because the
+    # dtype object was not === after serialization.
+    import random
+
+    import dask
+    import numpy as np
+    from dask.distributed import Client, LocalCluster
+
+    @dask.delayed
+    def get_data():
+        dd = dask.delayed(
+            lambda x=0: {
+                "Z": np.array(
+                    [
+                        np.zeros((random.randint(60, 100),), np.dtype("float64")),
+                        np.zeros((random.randint(1, 50),), np.dtype("float64")),
+                    ],
+                    dtype=np.dtype("O"),
+                )
+            }
+        )()
+        return dask.delayed([dd])
+
+    @dask.delayed
+    def use_data(data):
+        f = dask.compute(data, traverse=True)[0][0]
+
+        from tiledb import main
+
+        main.array_to_buffer(f["Z"], True, False)
+
+    # Various warnings are raised by dask.distributed in different Python versions and
+    # package combinations (eg Python 3.7 and older tornado), but they are not relevant to
+    # this test.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        global client
+        client = Client(LocalCluster(scheduler_port=9786, dashboard_address=9787))
+
+        w = []
+
+        data = dask.delayed(get_data)()
+        w.append(use_data(data))
+
+        futures = client.compute(w)
+        client.gather(futures)
