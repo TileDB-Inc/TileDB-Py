@@ -60,9 +60,9 @@ public:
 
   py::capsule __capsule__() { return py::capsule(&qc_, "qc", nullptr); }
 
-    
   void set_use_enumeration(bool use_enumeration) {
-    QueryConditionExperimental::set_use_enumeration(ctx_, *qc_, use_enumeration);
+    QueryConditionExperimental::set_use_enumeration(ctx_, *qc_,
+                                                    use_enumeration);
   }
 
   PyQueryCondition
@@ -156,7 +156,7 @@ void init_query_condition(py::module &m) {
                &PyQueryCondition::init))
 
       .def("__capsule__", &PyQueryCondition::__capsule__)
-      
+
       .def("combine", &PyQueryCondition::combine);
 
   py::enum_<tiledb_query_condition_op_t>(m, "tiledb_query_condition_op_t",
