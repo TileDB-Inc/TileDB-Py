@@ -55,7 +55,7 @@ class TestWriteSubarrayDense(DiskTestCase):
 
     def test_1d_full_write(self):
         # Create array.
-        uri = self.path(f"dense_write_subarray_1d_full_write")
+        uri = self.path("dense_write_subarray_1d_full_write")
         schema = tiledb.ArraySchema(
             tiledb.Domain(tiledb.Dim(name="d1", domain=(0, 999), tile=1000)),
             [tiledb.Attr(name="", dtype=np.float64)],
@@ -76,7 +76,7 @@ class TestWriteSubarrayDense(DiskTestCase):
 
     def test_1d_partial_write(self):
         # Create array.
-        uri = self.path(f"dense_write_subarray_1d_multiple_partial_writes")
+        uri = self.path("dense_write_subarray_1d_multiple_partial_writes")
         schema = tiledb.ArraySchema(
             tiledb.Domain(tiledb.Dim(name="d1", domain=(0, 99), tile=100)),
             [tiledb.Attr(name="", dtype=np.float32)],
@@ -97,7 +97,7 @@ class TestWriteSubarrayDense(DiskTestCase):
 
     def test_multidim_set_all_ranges(self):
         # Create array.
-        uri = self.path(f"dense_write_subarray_multidim_set_all_ranges")
+        uri = self.path("dense_write_subarray_multidim_set_all_ranges")
         schema = tiledb.ArraySchema(
             tiledb.Domain(
                 tiledb.Dim(name="d1", domain=(0, 99), tile=100),
@@ -135,7 +135,7 @@ class TestWriteSubarrayDense(DiskTestCase):
 
     def test_multidim_set_some_ranges(self):
         # Create array.
-        uri = self.path(f"dense_write_subarray_multidim_set_some_ranges")
+        uri = self.path("dense_write_subarray_multidim_set_some_ranges")
         schema = tiledb.ArraySchema(
             tiledb.Domain(
                 tiledb.Dim(name="d1", domain=(0, 99), tile=100),
@@ -163,7 +163,7 @@ class TestWriteSubarrayDense(DiskTestCase):
 
     def test_write_by_label(self):
         # Create array.
-        uri = self.path(f"dense_write_subarray_multidim_set_some_ranges")
+        uri = self.path("dense_write_subarray_multidim_set_some_ranges")
         dim1 = tiledb.Dim(name="d1", domain=(0, 10), tile=11)
         dim2 = tiledb.Dim(name="d2", domain=(0, 10), tile=11)
         schema = tiledb.ArraySchema(
