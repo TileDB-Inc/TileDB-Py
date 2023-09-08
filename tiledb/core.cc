@@ -316,7 +316,7 @@ private:
   // label buffer list
   std::unordered_map<string, uint64_t> label_input_buffer_data_;
 
-  py::object pyschema_;
+  std::string uri_;
 
 public:
   tiledb_ctx_t *c_ctx_;
@@ -349,7 +349,7 @@ public:
     domain_ =
         std::shared_ptr<tiledb::Domain>(new Domain(array_schema_->domain()));
 
-    pyschema_ = array.attr("schema");
+    uri_ = array.attr("uri").cast<std::string>();
 
     bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
 
@@ -450,7 +450,7 @@ public:
     py::object init_pyqc = cond.attr("init_query_condition");
 
     try {
-      init_pyqc(pyschema_, attrs_);
+      init_pyqc(uri_, attrs_);
     } catch (tiledb::TileDBError &e) {
       TPY_ERROR_LOC(e.what());
     } catch (py::error_already_set &e) {
