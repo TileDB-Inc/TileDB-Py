@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import time
 import weakref
@@ -8,6 +9,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from numbers import Real
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Iterator,
@@ -30,19 +32,14 @@ from .query import Query
 from .query_condition import QueryCondition
 from .subarray import Subarray
 
-current_timer: ContextVar[str] = ContextVar("timer_scope")
-
-try:
+if TYPE_CHECKING:
+    # We don't want to import these eagerly since importing Pandas in particular
+    # can add around half a second of import time even if we never use it.
+    import pandas
     import pyarrow
-    from pyarrow import Table
-except ImportError:
-    pyarrow = Table = None
 
-try:
-    import pandas as pd
-    from pandas import DataFrame
-except ImportError:
-    DataFrame = None
+
+current_timer: ContextVar[str] = ContextVar("timer_scope")
 
 
 # sentinel value to denote selecting an empty range
@@ -373,8 +370,12 @@ class DataFrameIndexer(_BaseIndexer):
         # we need to use a Query in order to get coords for a dense array
         if not query:
             query = QueryProxy(array, coords=True)
-        if use_arrow is None:
-            use_arrow = pyarrow is not None
+        use_arrow = (
+            bool(importlib.util.find_spec("pyarrow"))
+            if use_arrow is None
+            else use_arrow
+        )
+
         # TODO: currently there is lack of support for Arrow list types. This prevents
         # multi-value attributes, asides from strings, from being queried properly.
         # Until list attributes are supported in core, error with a clear message.
@@ -390,12 +391,15 @@ class DataFrameIndexer(_BaseIndexer):
             )
         super().__init__(array, query, use_arrow, preload_metadata=True)
 
-    def _run_query(self) -> Union[DataFrame, Table]:
+    def _run_query(self) -> Union["pandas.DataFrame", "pyarrow.Table"]:
+        import pandas
+        import pyarrow
+
         if self.pyquery is not None:
             self.pyquery.submit()
 
         if self.pyquery is None:
-            df = DataFrame(self._empty_results)
+            df = pandas.DataFrame(self._empty_results)
         elif self.use_arrow:
             with timing("buffer_conversion_time"):
                 table = self.pyquery._buffers_to_pa_table()
@@ -428,14 +432,14 @@ class DataFrameIndexer(_BaseIndexer):
                     # converting all integers with NULLs to float64:
                     # https://arrow.apache.org/docs/python/pandas.html#arrow-pandas-conversion
                     extended_dtype_mapping = {
-                        pyarrow.int8(): pd.Int8Dtype(),
-                        pyarrow.int16(): pd.Int16Dtype(),
-                        pyarrow.int32(): pd.Int32Dtype(),
-                        pyarrow.int64(): pd.Int64Dtype(),
-                        pyarrow.uint8(): pd.UInt8Dtype(),
-                        pyarrow.uint16(): pd.UInt16Dtype(),
-                        pyarrow.uint32(): pd.UInt32Dtype(),
-                        pyarrow.uint64(): pd.UInt64Dtype(),
+                        pyarrow.int8(): pandas.Int8Dtype(),
+                        pyarrow.int16(): pandas.Int16Dtype(),
+                        pyarrow.int32(): pandas.Int32Dtype(),
+                        pyarrow.int64(): pandas.Int64Dtype(),
+                        pyarrow.uint8(): pandas.UInt8Dtype(),
+                        pyarrow.uint16(): pandas.UInt16Dtype(),
+                        pyarrow.uint32(): pandas.UInt32Dtype(),
+                        pyarrow.uint64(): pandas.UInt64Dtype(),
                     }
                     dtype = extended_dtype_mapping[pa_attr.type]
                 else:
@@ -474,7 +478,7 @@ class DataFrameIndexer(_BaseIndexer):
 
             df = table.to_pandas()
         else:
-            df = DataFrame(_get_pyquery_results(self.pyquery, self.array))
+            df = pandas.DataFrame(_get_pyquery_results(self.pyquery, self.array))
 
         with timing("pandas_index_update_time"):
             return _update_df_from_meta(df, self.array.meta, self.query.index_col)
@@ -680,8 +684,10 @@ def _get_empty_results(
 
 
 def _update_df_from_meta(
-    df: DataFrame, array_meta: Metadata, index_col: Union[List[str], bool, None] = True
-) -> DataFrame:
+    df: "pandas.DataFrame",
+    array_meta: Metadata,
+    index_col: Union[List[str], bool, None] = True,
+) -> "pandas.DataFrame":
     col_dtypes = {}
     if "__pandas_attribute_repr" in array_meta:
         attr_dtypes = json.loads(array_meta["__pandas_attribute_repr"])
