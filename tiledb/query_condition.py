@@ -245,7 +245,7 @@ class QueryConditionTree(ast.NodeVisitor):
                 dt = self.array.attr(variable).dtype
         else:
             dt = self.array.schema.attr_or_dim_dtype(variable)
-            
+
         dtype = "string" if dt.kind in "SUa" else dt.name
         value = self.cast_value_to_dtype(value, dtype)
 
