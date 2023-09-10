@@ -832,7 +832,7 @@ class QueryConditionTest(DiskTestCase):
 
         with tiledb.open(uri, "w") as A:
             A[:] = {"attr1": data1, "attr2": data2}
-        
+
         with tiledb.open(uri, "r") as A:
             mask = A.attr("attr1").fill
             result = A.query(cond="attr1 < 2", attrs=["attr1"])[:]
@@ -840,7 +840,10 @@ class QueryConditionTest(DiskTestCase):
 
             mask = A.attr("attr2").fill
             result = A.query(cond="attr2 == 'bb'", attrs=["attr2"])[:]
-            assert all(self.filter_dense(result["attr2"], mask) == list(enum2.values()).index("bb"))
+            assert all(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("bb")
+            )
 
 
 class QueryDeleteTest(DiskTestCase):
