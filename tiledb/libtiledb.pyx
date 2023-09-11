@@ -2632,6 +2632,13 @@ cdef class DenseArrayImpl(Array):
         ...         )
 
         """
+        # Check for label ranges
+        for dim_idx in range(self.schema.ndim):
+            if subarray.has_label_range(dim_idx):
+                raise TileDBError(
+                    f"Label range on dimension {dim_idx}. Support for writing by label "
+                    f"ranges has not been implemented in the Python API."
+                )
         self._setitem_impl(subarray, values, dict())
 
 
