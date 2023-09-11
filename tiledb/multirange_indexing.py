@@ -478,7 +478,7 @@ class DataFrameIndexer(_BaseIndexer):
 
             df = table.to_pandas()
         else:
-            df = pandas.DataFrame(_get_pyquery_results(self.pyquery, self.array.schema))
+            df = pandas.DataFrame(_get_pyquery_results(self.pyquery, self.array))
 
         with timing("pandas_index_update_time"):
             return _update_df_from_meta(df, self.array.meta, self.query.index_col)
