@@ -25,7 +25,6 @@ SUPPORTED_INTEGER_DTYPES = (
 SUPPORTED_DATETIME64_RESOLUTION = ("Y", "M", "W", "D", "h", "m", "s", "ms", "us", "ns")
 
 
-@pytest.mark.parametrize("dim_dtype", (np.uint32,))
 @pytest.mark.parametrize("sparse", (True, False))
 class TestReadSubarray1D(DiskTestCase):
     data1 = np.random.rand(101)
@@ -33,7 +32,7 @@ class TestReadSubarray1D(DiskTestCase):
     label_data = np.linspace(-1.0, 1.0, 101)
 
     @pytest.fixture
-    def array_uri(self, sparse, dim_dtype):
+    def array_uri(self, sparse):
         """Create TileDB array, write data, and return the URI."""
         suffix = "1d_label_sparse" if sparse else "1d_label_dense"
         uri = self.path(f"read_subarray_{suffix}")
@@ -75,7 +74,7 @@ class TestReadSubarray1D(DiskTestCase):
 
         expected = OrderedDict()
         if sparse:
-            expected["d1"] = np.arange(101)
+            expected["d1"] = np.arange(101, dtype=np.int32)
         expected["a1"] = self.data1
         expected["a2"] = self.data2
 
@@ -90,7 +89,7 @@ class TestReadSubarray1D(DiskTestCase):
 
         expected = OrderedDict()
         if sparse:
-            expected["d1"] = np.arange(10, 21)
+            expected["d1"] = np.arange(10, 21, dtype=np.int32)
         expected["a1"] = self.data1[10:21]
         expected["a2"] = self.data2[10:21]
 
@@ -106,7 +105,7 @@ class TestReadSubarray1D(DiskTestCase):
             result = array.read_subarray(subarray)
 
         expected = OrderedDict()
-        d1_expected = np.array([3, 1, 2, 5, 6, 7, 8, 9, 10])
+        d1_expected = np.array([3, 1, 2, 5, 6, 7, 8, 9, 10], dtype=np.int32)
         if sparse:
             expected["d1"] = d1_expected
         expected["a1"] = self.data1[d1_expected]
@@ -123,7 +122,7 @@ class TestReadSubarray1D(DiskTestCase):
 
         expected = OrderedDict()
         if sparse:
-            expected["d1"] = np.arange(10, 21)
+            expected["d1"] = np.arange(10, 21, dtype=np.int32)
         expected["a1"] = self.data1[10:21]
 
         assert_dict_arrays_equal(result, expected, not sparse)
@@ -137,7 +136,7 @@ class TestReadSubarray1D(DiskTestCase):
 
         expected = OrderedDict()
         if sparse:
-            expected["d1"] = np.arange(101)
+            expected["d1"] = np.arange(101, dtype=np.int32)
         expected["a1"] = self.data1
         expected["a2"] = self.data2
 
@@ -152,7 +151,7 @@ class TestReadSubarray1D(DiskTestCase):
 
         expected = OrderedDict()
         if sparse:
-            expected["d1"] = np.arange(50, 101)
+            expected["d1"] = np.arange(50, 101, dtype=np.int32)
         expected["a1"] = self.data1[50:]
         expected["a2"] = self.data2[50:]
 
@@ -167,13 +166,13 @@ class TestReadSubarray1D(DiskTestCase):
 
         expected = OrderedDict()
         if sparse:
-            expected["d1"] = np.arange(51)
+            expected["d1"] = np.arange(51, dtype=np.int32)
         expected["a1"] = self.data1[:51]
         expected["a2"] = self.data2[:51]
 
         assert_dict_arrays_equal(result, expected, not sparse)
 
-    def test_read_by_label_no_data(self, array_uri, dim_dtype):
+    def test_read_by_label_no_data(self, array_uri):
         with tiledb.open(array_uri, "r") as array:
             subarray = tiledb.Subarray(array)
             subarray.add_label_range("l1", (0.01, 0.012))
