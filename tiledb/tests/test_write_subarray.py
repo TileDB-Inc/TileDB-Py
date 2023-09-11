@@ -1,9 +1,11 @@
+from collections import OrderedDict
+
 import numpy as np
 import pytest
 
 import tiledb
 
-from .common import DiskTestCase, assert_array_equal
+from .common import DiskTestCase, assert_array_equal, assert_dict_arrays_equal
 
 SUPPORTED_INTEGER_DTYPES = (
     np.uint8,
@@ -112,26 +114,26 @@ class TestWriteSubarrayDense(DiskTestCase):
         tiledb.Array.create(uri, schema)
 
         # Write data.
-        data1 = np.random.rand(1000).reshape((10, 10, 10))
-        data2 = np.random.rand(1000).reshape((10, 10, 10))
+        data = OrderedDict(
+            [
+                ("a1", np.random.rand(1000).reshape((10, 10, 10))),
+                ("a2", np.random.rand(1000).reshape((10, 10, 10))),
+            ]
+        )
 
         with tiledb.open(uri, "w") as array:
             subarray = tiledb.Subarray(array)
             subarray.add_dim_range(0, (0, 9))
             subarray.add_dim_range(1, (10, 19))
             subarray.add_dim_range(2, (20, 29))
-            array.write_subarray(subarray, {"a1": data1, "a2": data2})
+            array.write_subarray(subarray, data)
 
         # Check results.
         with tiledb.open(uri, "r") as array:
             nonempty = array.nonempty_domain()
-            assert nonempty[0] == (0, 9)
-            assert nonempty[1] == (10, 19)
-            assert nonempty[2] == (20, 29)
+            assert nonempty == ((0, 9), (10, 19), (20, 29))
             result = array[0:10, 10:20, 20:30]
-        assert len(result) == 2
-        assert_array_equal(result["a1"], data1)
-        assert_array_equal(result["a2"], data2)
+        assert_dict_arrays_equal(result, data)
 
     def test_multidim_set_some_ranges(self):
         # Create array.
@@ -158,12 +160,39 @@ class TestWriteSubarrayDense(DiskTestCase):
             assert nonempty[0] == (0, 99)
             assert nonempty[1] == (11, 20)
             result = array[:, 11:21]
-        assert len(result) == 1
-        assert_array_equal(result["a1"], data.reshape(100, 10))
+        assert_dict_arrays_equal(result, {"a1": data.reshape(100, 10)})
 
-    def test_write_by_label(self):
+    def test_with_negative_domain(self):
         # Create array.
-        uri = self.path("dense_write_subarray_multidim_set_some_ranges")
+        uri = self.path("dense_write_subarray_by_labels")
+        schema = tiledb.ArraySchema(
+            tiledb.Domain(
+                tiledb.Dim(name="d1", domain=(-100, 100), tile=201, dtype=np.int32)
+            ),
+            [tiledb.Attr(name="a1", dtype=np.float64)],
+        )
+        tiledb.Array.create(uri, schema)
+
+        # Define the data.
+        data = OrderedDict([("a1", np.random.rand(5))])
+
+        # Write full data and label data
+        with tiledb.open(uri, "w") as array:
+            subarray = tiledb.Subarray(array)
+            subarray.add_dim_range(0, (-2, 2))
+            array.write_subarray(subarray, data["a1"])
+
+        # Check results
+        with tiledb.open(uri, "r") as array:
+            nonempty = array.nonempty_domain()
+            assert nonempty[0] == (-2, 2)
+            result = array.multi_index[-2:2]
+
+        assert_dict_arrays_equal(result, data)
+
+    def test_with_labels(self):
+        # Create array.
+        uri = self.path("dense_write_subarray_with_labels")
         dim1 = tiledb.Dim(name="d1", domain=(0, 10), tile=11)
         dim2 = tiledb.Dim(name="d2", domain=(0, 10), tile=11)
         schema = tiledb.ArraySchema(
@@ -176,11 +205,13 @@ class TestWriteSubarrayDense(DiskTestCase):
         )
         tiledb.Array.create(uri, schema)
 
-        data = {
-            "a1": np.random.rand(121),
-            "l1": np.arange(-5, 6),
-            "l2": np.arange(5, -6, -1),
-        }
+        data = OrderedDict(
+            [
+                ("a1", np.random.rand(121).reshape(11, 11)),
+                ("l1", np.arange(-5, 6)),
+                ("l2", np.arange(5, -6, -1)),
+            ]
+        )
 
         # Write full data and label data
         with tiledb.open(uri, "w") as array:
@@ -189,9 +220,74 @@ class TestWriteSubarrayDense(DiskTestCase):
             subarray.add_dim_range(1, (0, 10))
             array.write_subarray(subarray, data)
 
+        # Check results
         with tiledb.open(uri, "r") as array:
             result = array.label_index(["l1", "l2"])[-5:5, -5:5]
-        assert len(result) == 3
-        assert_array_equal(result["a1"], data["a1"].reshape(11, 11))
-        assert_array_equal(result["l1"], data["l1"])
-        assert_array_equal(result["l2"], data["l2"])
+        assert_dict_arrays_equal(result, data)
+
+    def test_by_labels(self):
+        # Create array.
+        uri = self.path("dense_write_subarray_by_labels")
+        dim1 = tiledb.Dim(name="d1", domain=(0, 10), tile=11)
+        schema = tiledb.ArraySchema(
+            tiledb.Domain(dim1),
+            [tiledb.Attr(name="a1", dtype=np.float64)],
+            dim_labels={0: {"l1": dim1.create_label_schema("increasing", np.int32)}},
+        )
+        tiledb.Array.create(uri, schema)
+
+        # Define the data.
+        data = OrderedDict(
+            [("a1", np.random.rand(5)), ("l1", np.arange(-5, 6, dtype=np.int32))]
+        )
+
+        # Reload to get the label uris and write the labels.
+        schema = tiledb.ArraySchema.load(uri)
+        with tiledb.open(schema.dim_label("l1").uri, mode="w") as array:
+            array[:] = data["l1"]
+
+        # Write full data and label data
+        with tiledb.open(uri, "w") as array:
+            subarray = tiledb.Subarray(array)
+            subarray.add_label_range("l1", (-2, 2))
+            with pytest.raises(tiledb.TileDBError):
+                array.write_subarray(subarray, data["a1"])
+
+    def test_with_var_label(self):
+        # Create array.
+        uri = self.path("dense_write_subarray_by_var_label")
+        dim1 = tiledb.Dim(name="d1", domain=(0, 10), tile=11)
+        schema = tiledb.ArraySchema(
+            tiledb.Domain(dim1),
+            [tiledb.Attr(name="a1", dtype=np.float64)],
+            dim_labels={
+                0: {"l1": dim1.create_label_schema("increasing", "U")},
+            },
+        )
+        tiledb.Array.create(uri, schema)
+
+        # Write array.
+        data = OrderedDict(
+            [
+                ("a1", np.random.rand(5)),
+                (
+                    "l1",
+                    np.array(
+                        ["alpha", "beta", "gamma", "kappa", "sigma"], dtype=object
+                    ),
+                ),
+            ]
+        )
+        with tiledb.open(uri, "w") as array:
+            subarray = tiledb.Subarray(array)
+            subarray.add_dim_range(0, (3, 7))
+            array.write_subarray(subarray, data)
+
+        # Check results.
+        with tiledb.open(uri, "r") as array:
+            nonempty = array.nonempty_domain()
+            assert nonempty[0] == (3, 7)
+            with tiledb.open(array.schema.dim_label("l1").uri, "r") as label_array:
+                nonempty_label = label_array.nonempty_domain()
+                assert nonempty_label[0] == (3, 7)
+            array.label_index(["l1"])["alpha":"sigma"]
