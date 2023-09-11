@@ -450,7 +450,7 @@ class TestReadSubarraySparseArray1D(DiskTestCase):
 
     @pytest.fixture
     def array_uri(self):
-        uri = self.path(f"test_read_subarray_array_1d")
+        uri = self.path("test_read_subarray_array_1d")
         schema = tiledb.ArraySchema(
             domain=tiledb.Domain(
                 tiledb.Dim(name="d1", domain=(-1.0, 1.0), tile=2.0, dtype=np.float64)
