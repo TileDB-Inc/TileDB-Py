@@ -66,7 +66,7 @@ void init_enumeration(py::module &m) {
            [](Enumeration &enmr) {
              auto data = enmr.as_vector<std::byte>();
              auto dtype = tdb_to_np_dtype(enmr.type(), enmr.cell_val_num());
-             return py::array(dtype, data.size() / 8, data.data());
+             return py::array(dtype, data.size() / dtype.itemsize(), data.data());
            })
 
       .def("str_values",
