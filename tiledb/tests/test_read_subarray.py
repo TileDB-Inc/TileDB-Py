@@ -442,3 +442,47 @@ class TestReadSubarrayNegativeDomain2D(DiskTestCase):
         else:
             expected = {"a1": self.data_a1[:, 4:8], "a2": self.data_a2[:, 4:8]}
         assert_dict_arrays_equal(result, expected, not sparse)
+
+
+class TestReadSubarraySparseArray1D(DiskTestCase):
+    data_dim1 = np.linspace(-1.0, 1.0, 5)
+    data_attr1 = np.arange(5, dtype=np.uint32)
+
+    @pytest.fixture
+    def array_uri(self):
+        uri = self.path(f"test_read_subarray_array_1d")
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                tiledb.Dim(name="d1", domain=(-1.0, 1.0), tile=2.0, dtype=np.float64)
+            ),
+            attrs=[tiledb.Attr(name="a1", dtype=np.uint32)],
+            sparse=True,
+        )
+        tiledb.Array.create(uri, schema)
+        with tiledb.open(uri, "w") as array:
+            array[self.data_dim1] = self.data_attr1
+        return uri
+
+    def test_read_full_array(self, array_uri):
+        with tiledb.open(array_uri, "r") as array:
+            subarray = tiledb.Subarray(array)
+            subarray.add_dim_range(0, (-1.0, 1.0))
+            result = array.read_subarray(subarray)
+
+        expected = OrderedDict([("d1", self.data_dim1), ("a1", self.data_attr1)])
+
+        assert_dict_arrays_equal(result, expected, False)
+
+    def test_empty_result(self, array_uri):
+        with tiledb.open(array_uri, "r") as array:
+            subarray = tiledb.Subarray(array)
+            subarray.add_dim_range(0, (-0.9, -0.89))
+            result = array.read_subarray(subarray)
+
+        expected = OrderedDict(
+            [
+                ("d1", np.array([], dtype=np.float64)),
+                ("a1", np.array([], dtype=np.uint32)),
+            ]
+        )
+        assert_dict_arrays_equal(result, expected, True)
