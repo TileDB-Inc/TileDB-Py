@@ -273,7 +273,7 @@ class TestReadSubarray2D(DiskTestCase):
     @pytest.fixture
     def array_uri(self, sparse):
         """Create TileDB array, write data, and return the URI."""
-        suffix = "2d_label_sparse" if sparse else "2d_label_dense"
+        suffix = "2d_sparse" if sparse else "2d_dense"
         uri = self.path(f"read_subarray_{suffix}")
         dim1 = tiledb.Dim(name="d1", domain=(0, 3), tile=4, dtype=np.int32)
         dim2 = tiledb.Dim(name="d2", domain=(0, 3), tile=4, dtype=np.int32)
@@ -322,7 +322,11 @@ class TestReadSubarray2D(DiskTestCase):
             result = array.read_subarray(subarray)
         if sparse:
             # Construct the expected result
-            data_d1, data_d2 = np.meshgrid(np.arange(4), np.arange(4), indexing="ij")
+            data_d1, data_d2 = np.meshgrid(
+                np.arange(4, dtype=np.int32),
+                np.arange(4, dtype=np.int32),
+                indexing="ij",
+            )
             expected = {
                 "d1": data_d1.flatten(),
                 "d2": data_d2.flatten(),
@@ -340,7 +344,11 @@ class TestReadSubarray2D(DiskTestCase):
             subarray.add_dim_range(0, (0, 1))
             result = array.read_subarray(subarray)
         if sparse:
-            data_d1, data_d2 = np.meshgrid(np.arange(2), np.arange(4), indexing="ij")
+            data_d1, data_d2 = np.meshgrid(
+                np.arange(2, dtype=np.int32),
+                np.arange(4, dtype=np.int32),
+                indexing="ij",
+            )
             expected = {
                 "d1": data_d1.flatten(),
                 "d2": data_d2.flatten(),
@@ -349,4 +357,88 @@ class TestReadSubarray2D(DiskTestCase):
             }
         else:
             expected = {"a1": self.data_a1[0:2, :], "a2": self.data_a2[0:2, :]}
+        assert_dict_arrays_equal(result, expected, not sparse)
+
+
+@pytest.mark.parametrize("sparse", (True, False))
+class TestReadSubarrayNegativeDomain2D(DiskTestCase):
+    data_a1 = np.random.rand(121).reshape(11, 11)
+    data_a2 = np.random.randint(-1000, 1000, (11, 11), dtype=np.int16)
+
+    @pytest.fixture
+    def array_uri(self, sparse):
+        """Create TileDB array, write data, and return the URI."""
+        suffix = "_sparse" if sparse else "_dense"
+        uri = self.path(f"read_subarray_{suffix}")
+        dim1 = tiledb.Dim(name="d1", domain=(-5, 5), tile=4, dtype=np.int32)
+        dim2 = tiledb.Dim(name="d2", domain=(-5, 5), tile=4, dtype=np.int32)
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(dim1, dim2),
+            attrs=[
+                tiledb.Attr(name="a1", dtype=np.float64),
+                tiledb.Attr(name="a2", dtype=np.int16),
+            ],
+            sparse=sparse,
+        )
+        tiledb.Array.create(uri, schema)
+        if sparse:
+            data_d1, data_d2 = np.meshgrid(
+                np.arange(-5, 6), np.arange(-5, 6), indexing="ij"
+            )
+            with tiledb.open(uri, "w") as array:
+                array[data_d1.flatten(), data_d2.flatten()] = {
+                    "a1": self.data_a1,
+                    "a2": self.data_a2,
+                }
+        else:
+            with tiledb.open(uri, "w") as array:
+                array[...] = {"a1": self.data_a1, "a2": self.data_a2}
+
+        return uri
+
+    def test_read_full_array(self, array_uri):
+        with tiledb.open(array_uri) as array:
+            sparse = array.schema.sparse
+            subarray = tiledb.Subarray(array)
+            subarray.add_dim_range(0, (-5, 5))
+            subarray.add_dim_range(1, (-5, 5))
+            result = array.read_subarray(subarray)
+        if sparse:
+            # Construct the expected result
+            data_d1, data_d2 = np.meshgrid(
+                np.arange(-5, 6, dtype=np.int32),
+                np.arange(-5, 6, dtype=np.int32),
+                indexing="ij",
+            )
+            expected = {
+                "d1": data_d1.flatten(),
+                "d2": data_d2.flatten(),
+                "a1": self.data_a1.flatten(),
+                "a2": self.data_a2.flatten(),
+            }
+        else:
+            expected = {"a1": self.data_a1, "a2": self.data_a2}
+        assert_dict_arrays_equal(result, expected, not sparse)
+
+    def test_read_mixed_ranges(self, array_uri):
+        with tiledb.open(array_uri) as array:
+            sparse = array.schema.sparse
+            subarray = tiledb.Subarray(array)
+            subarray.add_dim_range(1, (-1, 2))
+            result = array.read_subarray(subarray)
+
+        if sparse:
+            data_d1, data_d2 = np.meshgrid(
+                np.arange(-5, 6, dtype=np.int32),
+                np.arange(-1, 3, dtype=np.int32),
+                indexing="ij",
+            )
+            expected = {
+                "d1": data_d1.flatten(),
+                "d2": data_d2.flatten(),
+                "a1": self.data_a1[:, 4:8].flatten(),
+                "a2": self.data_a2[:, 4:8].flatten(),
+            }
+        else:
+            expected = {"a1": self.data_a1[:, 4:8], "a2": self.data_a2[:, 4:8]}
         assert_dict_arrays_equal(result, expected, not sparse)
