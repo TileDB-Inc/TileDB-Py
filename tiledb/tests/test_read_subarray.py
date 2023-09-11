@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import numpy as np
 import pytest
 
@@ -6,7 +8,7 @@ import tiledb
 from .common import (
     DiskTestCase,
     assert_array_equal,
-    assert_unordered_equal,
+    assert_dict_arrays_equal,
 )
 
 SUPPORTED_INTEGER_DTYPES = (
@@ -70,13 +72,14 @@ class TestReadSubarray1D(DiskTestCase):
             subarray = tiledb.Subarray(array)
             subarray.add_dim_range(0, (0, 100))
             result = array.read_subarray(subarray)
-        assert_unordered_equal(result["a1"], self.data1, unordered=sparse)
-        assert_unordered_equal(result["a2"], self.data2, unordered=sparse)
+
+        expected = OrderedDict()
         if sparse:
-            assert_unordered_equal(result["d1"], np.arange(101), True)
-            assert len(result) == 3
-        else:
-            assert len(result) == 2
+            expected["d1"] = np.arange(101)
+        expected["a1"] = self.data1
+        expected["a2"] = self.data2
+
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_partial(self, array_uri):
         with tiledb.open(array_uri, "r") as array:
@@ -84,13 +87,14 @@ class TestReadSubarray1D(DiskTestCase):
             subarray = tiledb.Subarray(array)
             subarray.add_dim_range(0, (10, 20))
             result = array.read_subarray(subarray)
-        assert_unordered_equal(result["a1"], self.data1[10:21], unordered=sparse)
-        assert_unordered_equal(result["a2"], self.data2[10:21], unordered=sparse)
+
+        expected = OrderedDict()
         if sparse:
-            assert_unordered_equal(result["d1"], np.arange(10, 21), True)
-            assert len(result) == 3
-        else:
-            assert len(result) == 2
+            expected["d1"] = np.arange(10, 21)
+        expected["a1"] = self.data1[10:21]
+        expected["a2"] = self.data2[10:21]
+
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_multiple_ranges(self, array_uri):
         with tiledb.open(array_uri, "r") as array:
@@ -100,17 +104,15 @@ class TestReadSubarray1D(DiskTestCase):
             subarray.add_dim_range(0, (1, 2))
             subarray.add_dim_range(0, (5, 10))
             result = array.read_subarray(subarray)
-        if sparse:
-            assert len(result) == 3
-            a1_expected = self.data1[result["d1"]]
-            a2_expected = self.data2[result["d1"]]
-        else:
-            assert len(result) == 2
-            a1_expected = np.hstack((self.data1[3], self.data1[1:3], self.data1[5:11]))
-            a2_expected = np.hstack((self.data2[3], self.data2[1:3], self.data2[5:11]))
 
-        assert_array_equal(result["a1"], a1_expected)
-        assert_array_equal(result["a2"], a2_expected)
+        expected = OrderedDict()
+        d1_expected = np.array([3, 1, 2, 5, 6, 7, 8, 9, 10])
+        if sparse:
+            expected["d1"] = d1_expected
+        expected["a1"] = self.data1[d1_expected]
+        expected["a2"] = self.data2[d1_expected]
+
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_single_attr(self, array_uri):
         with tiledb.open(array_uri, attr="a1", mode="r") as array:
@@ -118,12 +120,13 @@ class TestReadSubarray1D(DiskTestCase):
             subarray = tiledb.Subarray(array)
             subarray.add_dim_range(0, (10, 20))
             result = array.read_subarray(subarray)
-        assert_unordered_equal(result["a1"], self.data1[10:21], unordered=sparse)
+
+        expected = OrderedDict()
         if sparse:
-            assert_unordered_equal(result["d1"], np.arange(10, 21), True)
-            assert len(result) == 2
-        else:
-            assert len(result) == 1
+            expected["d1"] = np.arange(10, 21)
+        expected["a1"] = self.data1[10:21]
+
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_full_array_by_increasing_label(self, array_uri):
         with tiledb.open(array_uri, "r") as array:
@@ -131,13 +134,14 @@ class TestReadSubarray1D(DiskTestCase):
             subarray = tiledb.Subarray(array)
             subarray.add_label_range("l1", (-1.0, 1.0))
             result = array.read_subarray(subarray)
-        assert_unordered_equal(result["a1"], self.data1, unordered=sparse)
-        assert_unordered_equal(result["a2"], self.data2, unordered=sparse)
+
+        expected = OrderedDict()
         if sparse:
-            assert_unordered_equal(result["d1"], np.arange(101), True)
-            assert len(result) == 3
-        else:
-            assert len(result) == 2
+            expected["d1"] = np.arange(101)
+        expected["a1"] = self.data1
+        expected["a2"] = self.data2
+
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_partial_by_increasing_label(self, array_uri):
         with tiledb.open(array_uri, "r") as array:
@@ -145,13 +149,14 @@ class TestReadSubarray1D(DiskTestCase):
             subarray = tiledb.Subarray(array)
             subarray.add_label_range("l1", (0.0, 1.0))
             result = array.read_subarray(subarray)
-        assert_unordered_equal(result["a1"], self.data1[50:], unordered=sparse)
-        assert_unordered_equal(result["a2"], self.data2[50:], unordered=sparse)
+
+        expected = OrderedDict()
         if sparse:
-            assert_unordered_equal(result["d1"], np.arange(50, 101), True)
-            assert len(result) == 3
-        else:
-            assert len(result) == 2
+            expected["d1"] = np.arange(50, 101)
+        expected["a1"] = self.data1[50:]
+        expected["a2"] = self.data2[50:]
+
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_partial_by_decreasing_label(self, array_uri):
         with tiledb.open(array_uri, "r") as array:
@@ -159,13 +164,14 @@ class TestReadSubarray1D(DiskTestCase):
             subarray = tiledb.Subarray(array)
             subarray.add_label_range("l2", (0.0, 1.0))
             result = array.read_subarray(subarray)
-        assert_unordered_equal(result["a1"], self.data1[:51], unordered=sparse)
-        assert_unordered_equal(result["a2"], self.data2[:51], unordered=sparse)
+
+        expected = OrderedDict()
         if sparse:
-            assert_unordered_equal(result["d1"], np.arange(51), True)
-            assert len(result) == 3
-        else:
-            assert len(result) == 2
+            expected["d1"] = np.arange(51)
+        expected["a1"] = self.data1[:51]
+        expected["a2"] = self.data2[:51]
+
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_by_label_no_data(self, array_uri, dim_dtype):
         with tiledb.open(array_uri, "r") as array:
@@ -215,15 +221,27 @@ class TestReadSubarrayDenseDatetime1D(DiskTestCase):
 
     def test_read_full_array(self, array_uri, dim_res):
         with tiledb.open(array_uri, "r") as array:
+            sparse = array.schema.sparse
             subarray = tiledb.Subarray(array)
             start_time = np.datetime64("2000-01-01", dim_res)
             domain = (start_time, start_time + np.timedelta64(99, dim_res))
             subarray.add_dim_range(0, domain)
             result = array.read_subarray(subarray)
-        assert_array_equal(result["a1"], self.data)
+
+        expected = OrderedDict()
+        if sparse:
+            expected["d1"] = np.arange(
+                start_time,
+                start_time + np.timedelta64(100, dim_res),
+                np.timedelta64(1, dim_res),
+            )
+        expected["a1"] = self.data
+
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_partial(self, array_uri, dim_res):
         with tiledb.open(array_uri, "r") as array:
+            sparse = array.schema.sparse
             subarray = tiledb.Subarray(array)
             start_time = np.datetime64("2000-01-01", dim_res)
             dim_range = (
@@ -234,21 +252,32 @@ class TestReadSubarrayDenseDatetime1D(DiskTestCase):
             result = array.read_subarray(subarray)
         assert_array_equal(result["a1"], self.data[10:21])
 
+        expected = OrderedDict()
+        if sparse:
+            expected["d1"] = np.arange(
+                start_time + np.timedelta64(10, dim_res),
+                start_time + np.timedelta64(21, dim_res),
+                np.timedelta64(1, dim_res),
+            )
+        expected["a1"] = self.data[10:21]
+
+        assert_dict_arrays_equal(result, expected, not sparse)
+
 
 @pytest.mark.parametrize("sparse", (True, False))
 class TestReadSubarray2D(DiskTestCase):
-    data_a1 = np.random.rand(121).reshape(11, 11)
-    data_a2 = np.random.randint(-1000, 1000, (11, 11), dtype=np.int16)
-    data_l1 = np.arange(-5, 6)
-    data_l2 = np.arange(5, -6, -1)
+    data_a1 = np.random.rand(16).reshape(4, 4)
+    data_a2 = np.random.randint(-1000, 1000, (4, 4), dtype=np.int16)
+    data_l1 = np.arange(-2, 2)
+    data_l2 = np.arange(1, -3, -1)
 
     @pytest.fixture
     def array_uri(self, sparse):
         """Create TileDB array, write data, and return the URI."""
         suffix = "2d_label_sparse" if sparse else "2d_label_dense"
         uri = self.path(f"read_subarray_{suffix}")
-        dim1 = tiledb.Dim(name="d1", domain=(0, 10), tile=11, dtype=np.int32)
-        dim2 = tiledb.Dim(name="d2", domain=(0, 10), tile=11, dtype=np.int32)
+        dim1 = tiledb.Dim(name="d1", domain=(0, 3), tile=4, dtype=np.int32)
+        dim2 = tiledb.Dim(name="d2", domain=(0, 3), tile=4, dtype=np.int32)
         schema = tiledb.ArraySchema(
             domain=tiledb.Domain(dim1, dim2),
             attrs=[
@@ -268,11 +297,9 @@ class TestReadSubarray2D(DiskTestCase):
                 label1[:] = self.data_l1
             with tiledb.open(_schema.dim_label("l2").uri, mode="w") as label2:
                 label2[:] = self.data_l2
-            coords_d1, coords_d2 = np.meshgrid(
-                np.arange(11), np.arange(11), indexing="ij"
-            )
+            data_d1, data_d2 = np.meshgrid(np.arange(4), np.arange(4), indexing="ij")
             with tiledb.open(uri, "w") as array:
-                array[coords_d1.flatten(), coords_d2.flatten()] = {
+                array[data_d1.flatten(), data_d2.flatten()] = {
                     "a1": self.data_a1,
                     "a2": self.data_a2,
                 }
@@ -291,37 +318,36 @@ class TestReadSubarray2D(DiskTestCase):
         with tiledb.open(array_uri) as array:
             sparse = array.schema.sparse
             subarray = tiledb.Subarray(array)
-            subarray.add_dim_range(0, (0, 10))
-            subarray.add_dim_range(0, (0, 10))
+            subarray.add_dim_range(0, (0, 3))
+            subarray.add_dim_range(1, (0, 3))
             result = array.read_subarray(subarray)
         if sparse:
-            assert_unordered_equal(
-                result["a1"], self.data_a1.flatten(), unordered=sparse
-            )
-            assert_unordered_equal(
-                result["a2"], self.data_a2.flatten(), unordered=sparse
-            )
-            data_d1, data_d2 = np.meshgrid(np.arange(11), np.arange(11), indexing="ij")
-            assert_unordered_equal(result["d1"], data_d1.flatten(), True)
-            assert_unordered_equal(result["d2"], data_d2.flatten(), True)
-            assert len(result) == 4
+            # Construct the expected result
+            data_d1, data_d2 = np.meshgrid(np.arange(4), np.arange(4), indexing="ij")
+            expected = {
+                "d1": data_d1.flatten(),
+                "d2": data_d2.flatten(),
+                "a1": self.data_a1.flatten(),
+                "a2": self.data_a2.flatten(),
+            }
         else:
-            assert len(result) == 2
+            expected = {"a1": self.data_a1, "a2": self.data_a2}
+        assert_dict_arrays_equal(result, expected, not sparse)
 
     def test_read_mixed_ranges(self, array_uri):
         with tiledb.open(array_uri) as array:
             sparse = array.schema.sparse
             subarray = tiledb.Subarray(array)
-            subarray.add_dim_range(0, (0, 2))
+            subarray.add_dim_range(0, (0, 1))
             result = array.read_subarray(subarray)
         if sparse:
-            data_d1, data_d2 = np.meshgrid(np.arange(3), np.arange(11), indexing="ij")
-            assert_unordered_equal(result["a1"], self.data_a1[0:3, :].flatten(), True)
-            assert_unordered_equal(result["a2"], self.data_a2[0:3, :].flatten(), True)
-            assert_unordered_equal(result["d1"], data_d1.flatten(), True)
-            assert_unordered_equal(result["d2"], data_d2.flatten(), True)
-            assert len(result) == 4
+            data_d1, data_d2 = np.meshgrid(np.arange(2), np.arange(4), indexing="ij")
+            expected = {
+                "d1": data_d1.flatten(),
+                "d2": data_d2.flatten(),
+                "a1": self.data_a1[0:2, :].flatten(),
+                "a2": self.data_a2[0:2, :].flatten(),
+            }
         else:
-            assert_unordered_equal(result["a1"], self.data_a1[0:3, :], unordered=sparse)
-            assert_unordered_equal(result["a2"], self.data_a2[0:3, :], unordered=sparse)
-            assert len(result) == 2
+            expected = {"a1": self.data_a1[0:2, :], "a2": self.data_a2[0:2, :]}
+        assert_dict_arrays_equal(result, expected, not sparse)
