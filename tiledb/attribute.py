@@ -1,20 +1,29 @@
+from dataclasses import dataclass
 import io
 import warnings
-from typing import Any, Optional, Sequence, Union
-
 import numpy as np
+from typing import Any, Optional, Sequence, Union
 
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
 from .datatypes import DataType
+from .enumeration import Enumeration
 from .filter import Filter, FilterList
-
-
+    
 class Attr(CtxMixin, lt.Attribute):
     """
     Represents a TileDB attribute.
     """
+    
+    @dataclass
+    class EnumInfo:
+        """Class that stores information about optional TileDB enumeration 
+        attached to the TileDB array attribute.
+        """
+        name: str
+        ordered: bool
+        dtype: np.dtype
 
     def __init__(
         self,
@@ -85,13 +94,15 @@ class Attr(CtxMixin, lt.Attribute):
                 self._fill = np.array([fill.encode("utf-8")], dtype="S")
             else:
                 self._fill = np.array([fill], dtype=self.dtype)
-
+                        
         if nullable is not None:
             self._nullable = nullable
-
+            
+        self._enum_info = None
+        
         if enum_label is not None:
             self._set_enumeration_name(self._ctx, enum_label)
-
+        
     def __eq__(self, other):
         if not isinstance(other, Attr):
             return False
@@ -205,10 +216,26 @@ class Attr(CtxMixin, lt.Attribute):
 
         """
         return self._tiledb_dtype == lt.DataType.STRING_ASCII
-
+    
     @property
-    def enum_label(self):
+    def enum_label(self) -> Optional[str]:
+        """Return the enumeration name if it exists. Else, None.
+
+        :rtype: str or None
+        """
         return self._get_enumeration_name(self._ctx)
+
+    def _set_enum_info(self, enmr: Enumeration):
+        self._enum_info = self.EnumInfo(enmr.name, enmr.ordered, enmr.dtype)
+    
+    @property
+    def enum_info(self) -> Optional[EnumInfo]:
+        """Return the enumeration label, whether it is ordered, and value dtype 
+        in the form of an EnumInfo if it exists. Else, None.
+
+        :rtype: EnumInfo or None
+        """
+        return self._enum_info
 
     def __repr__(self):
         filters_str = ""

@@ -287,3 +287,13 @@ class ArraySchemaTest(DiskTestCase):
         tiledb.Array.create(path, schema)
         with tiledb.open(path, "r") as arr:
             assert_array_equal(arr[:]["str_index"], np.array([], dtype="|S1"))
+            
+    def test_with_enumeration(self):
+        uri = self.path("test_with_enumeration")
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
+        enmr = [tiledb.Enumeration("enmr", True, np.arange(3) * 10)]
+        attr = [tiledb.Attr("attr", dtype=np.int32, enum_label="enmr")]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attr, enums=enmr)
+        tiledb.Array.create(uri, schema)
+        
+        print(schema.attr(0).enum_info())

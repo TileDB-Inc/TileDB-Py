@@ -321,6 +321,11 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const tiledb_attribute_t* attr,
         FILE* out)
+    
+    int tiledb_attribute_get_enumeration_name(
+        tiledb_ctx_t* ctx,
+        tiledb_attribute_t* attr,
+        const char** name)
 
     # Datatype
     uint64_t tiledb_datatype_size(

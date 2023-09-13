@@ -14,6 +14,7 @@ from json import loads as json_loads
 
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
+from .attribute import Attr
 from .enumeration import Enumeration
 from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
@@ -892,6 +893,8 @@ cdef class Array(object):
             raise
 
         # view on a single attribute
+        cdef const char* name_ptr = NULL
+        cdef tiledb_enumeration_t* enum_ptr = NULL
         if attr and not any(attr == schema.attr(i).name for i in range(schema.nattr)):
             tiledb_array_close(ctx_ptr, array_ptr)
             tiledb_array_free(&array_ptr)
@@ -899,6 +902,18 @@ cdef class Array(object):
             raise KeyError("No attribute matching '{}'".format(attr))
         else:
             self.view_attr = unicode(attr) if (attr is not None) else None
+
+        # TODO combine with above when finished
+        for i in range(schema.nattr):
+            # TODO we need to get the enum info here
+            this_attr = schema.attr(i)
+            if this_attr.enum_label is not None:
+                name_ptr = PyBytes_AS_STRING(this_attr.enum_label.encode('UTF-8'))
+                rc = tiledb_array_get_enumeration(ctx_ptr, array_ptr, name_ptr, &enum_ptr)
+                if rc != TILEDB_OK:
+                    _raise_ctx_err(ctx_ptr, rc)
+                enmr = Enumeration.from_capsule(ctx, PyCapsule_New(enum_ptr, "enmr", NULL))
+                this_attr._set_enum_info(enmr)
 
         self.ctx = ctx
         self.uri = unicode(uri)

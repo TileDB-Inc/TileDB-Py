@@ -335,10 +335,13 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
             return Attr.from_pybind11(self._ctx, self._attr(key))
         elif isinstance(key, numbers.Integral):
             return Attr.from_pybind11(self._ctx, self._attr(int(key)))
+
         raise TypeError(
             "attr indices must be a string name, "
             "or an integer index, not {0!r}".format(type(key))
         )
+        
+        return attr
 
     def dim_label(self, name: str) -> DimLabel:
         """Returns a TileDB DimensionLabel given the label name
