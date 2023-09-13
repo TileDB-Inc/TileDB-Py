@@ -14,11 +14,11 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-void set_fill_value(Attribute &attr, py::array value) {
+void set_fill_value(PyAttribute &attr, py::array value) {
   attr.set_fill_value(value.data(), value.nbytes());
 }
 
-py::array get_fill_value(Attribute &attr) {
+py::array get_fill_value(PyAttribute &attr) {
   const void *value;
   uint64_t size;
 
@@ -40,19 +40,20 @@ py::array get_fill_value(Attribute &attr) {
   return py::array(value_type, value_num, value);
 }
 
-void set_enumeration_name(Attribute &attr, const Context &ctx,
+void set_enumeration_name(PyAttribute &attr, const Context &ctx,
                           const std::string &enumeration_name) {
   AttributeExperimental::set_enumeration_name(ctx, attr, enumeration_name);
 }
 
-std::optional<std::string> get_enumeration_name(Attribute &attr,
+std::optional<std::string> get_enumeration_name(PyAttribute &attr,
                                                 const Context &ctx) {
   return AttributeExperimental::get_enumeration_name(ctx, attr);
 }
 
 void init_attribute(py::module &m) {
-  py::class_<tiledb::Attribute>(m, "Attribute")
-      .def(py::init<Attribute>())
+  py::class_<Attribute>(m, "Attribute");
+  py::class_<PyAttribute, Attribute>(m, "PyAttribute")
+      .def(py::init<PyAttribute>())
 
       .def(py::init<Context &, std::string &, tiledb_datatype_t>())
 
@@ -62,25 +63,25 @@ void init_attribute(py::module &m) {
       .def(py::init<const Context &, py::capsule>())
 
       .def("__capsule__",
-           [](Attribute &attr) {
+           [](PyAttribute &attr) {
              return py::capsule(attr.ptr().get(), "attr", nullptr);
            })
 
-      .def_property_readonly("_name", &Attribute::name)
+      .def_property_readonly("_name", &PyAttribute::name)
 
-      .def_property_readonly("_tiledb_dtype", &Attribute::type)
+      .def_property_readonly("_tiledb_dtype", &PyAttribute::type)
 
-      .def_property("_nullable", &Attribute::nullable, &Attribute::set_nullable)
+      .def_property("_nullable", &PyAttribute::nullable, &PyAttribute::set_nullable)
 
-      .def_property("_ncell", &Attribute::cell_val_num,
-                    &Attribute::set_cell_val_num)
+      .def_property("_ncell", &PyAttribute::cell_val_num,
+                    &PyAttribute::set_cell_val_num)
 
-      .def_property_readonly("_var", &Attribute::variable_sized)
+      .def_property_readonly("_var", &PyAttribute::variable_sized)
 
-      .def_property("_filters", &Attribute::filter_list,
-                    &Attribute::set_filter_list)
+      .def_property("_filters", &PyAttribute::filter_list,
+                    &PyAttribute::set_filter_list)
 
-      .def_property_readonly("_cell_size", &Attribute::cell_size)
+      .def_property_readonly("_cell_size", &PyAttribute::cell_size)
 
       .def_property("_fill", get_fill_value, set_fill_value)
 
@@ -88,7 +89,7 @@ void init_attribute(py::module &m) {
 
       .def("_set_enumeration_name", set_enumeration_name)
 
-      .def("_dump", [](Attribute &attr) { attr.dump(); });
+      .def("_dump", [](PyAttribute &attr) { attr.dump(); });
 }
 
 } // namespace libtiledbcpp

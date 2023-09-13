@@ -11,7 +11,7 @@ from .datatypes import DataType
 from .enumeration import Enumeration
 from .filter import Filter, FilterList
     
-class Attr(CtxMixin, lt.Attribute):
+class Attr(CtxMixin, lt.PyAttribute):
     """
     Represents a TileDB attribute.
     """
@@ -94,10 +94,10 @@ class Attr(CtxMixin, lt.Attribute):
                 self._fill = np.array([fill.encode("utf-8")], dtype="S")
             else:
                 self._fill = np.array([fill], dtype=self.dtype)
-                        
+
         if nullable is not None:
             self._nullable = nullable
-            
+
         self._enum_info = None
         
         if enum_label is not None:
@@ -216,7 +216,7 @@ class Attr(CtxMixin, lt.Attribute):
 
         """
         return self._tiledb_dtype == lt.DataType.STRING_ASCII
-    
+
     @property
     def enum_label(self) -> Optional[str]:
         """Return the enumeration name if it exists. Else, None.

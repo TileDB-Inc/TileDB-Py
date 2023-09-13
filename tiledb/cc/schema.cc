@@ -6,6 +6,9 @@
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
 
+#include "common.h"
+#include "tiledb/tiledb.h"
+
 namespace libtiledbcpp {
 
 using namespace tiledb;
@@ -59,6 +62,15 @@ private:
   tiledb_datatype_t label_type_;
   std::optional<FilterList> label_filters_;
 };
+
+PyAttribute get_attr(const ArraySchema &schema, const Context & ctx, const std::string& name) {
+  return PyAttribute(ctx, schema.attribute(name).ptr().get());
+}
+
+PyAttribute get_attr(const ArraySchema &schema, const Context & ctx, unsigned int i) {
+  return PyAttribute(ctx, schema.attribute(i).ptr().get());
+}
+
 
 void init_schema(py::module &m) {
   py::class_<DimensionLabelSchema>(m, "DimensionLabelSchema")
@@ -211,10 +223,10 @@ void init_schema(py::module &m) {
       .def_property("_validity_filters", &ArraySchema::validity_filter_list,
                     &ArraySchema::set_validity_filter_list)
 
-      .def("_attr", py::overload_cast<const std::string &>(
-                        &ArraySchema::attribute, py::const_))
+      .def("_attr", py::overload_cast<const ArraySchema &, const Context &,const std::string &>(
+                        get_attr))
       .def("_attr",
-           py::overload_cast<unsigned int>(&ArraySchema::attribute, py::const_))
+           py::overload_cast<const ArraySchema &, const Context &,unsigned int>(get_attr))
 
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_dim_label",

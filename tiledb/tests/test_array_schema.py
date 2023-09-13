@@ -296,4 +296,4 @@ class ArraySchemaTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attr, enums=enmr)
         tiledb.Array.create(uri, schema)
         
-        print(schema.attr(0).enum_info())
+        print(schema.attr(0))

@@ -34,6 +34,23 @@ bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
 
 } // namespace tiledbpy::common
 
+class PyAttribute : public tiledb::Attribute {
+  public:
+    bool enum_ordered;
+    tiledb_datatype_t enum_dtype;
+
+    using tiledb::Attribute::Attribute;
+
+    void set_cell_val_num(unsigned num){
+      Attribute::set_cell_val_num(num);
+    }
+
+    void set_nullable(unsigned num){
+      Attribute::set_nullable(num);
+    }
+};
+
+
 py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
 tiledb_datatype_t np_to_tdb_dtype(py::dtype type);
 

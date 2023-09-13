@@ -332,17 +332,14 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
 
         """
         if isinstance(key, str):
-            return Attr.from_pybind11(self._ctx, self._attr(key))
+            return Attr.from_pybind11(self._ctx, self._attr(self._ctx, key))
         elif isinstance(key, numbers.Integral):
-            return Attr.from_pybind11(self._ctx, self._attr(int(key)))
-
+            return Attr.from_pybind11(self._ctx, self._attr(self._ctx, int(key)))
         raise TypeError(
             "attr indices must be a string name, "
             "or an integer index, not {0!r}".format(type(key))
         )
         
-        return attr
-
     def dim_label(self, name: str) -> DimLabel:
         """Returns a TileDB DimensionLabel given the label name
 
@@ -387,31 +384,31 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         """Dumps a string representation of the array object to standard output (stdout)"""
         print(self._dump(), "\n")
 
-    def __repr__(self):
-        # TODO support/use __qualname__
-        output = io.StringIO()
-        output.write("ArraySchema(\n")
-        output.write("  domain=Domain(*[\n")
-        for i in range(self.domain.ndim):
-            output.write(f"    {repr(self.domain.dim(i))},\n")
-        output.write("  ]),\n")
-        output.write("  attrs=[\n")
-        for i in range(self.nattr):
-            output.write(f"    {repr(self.attr(i))},\n")
-        output.write("  ],\n")
-        output.write(
-            f"  cell_order='{self.cell_order}',\n"
-            f"  tile_order={repr(self.tile_order)},\n"
-        )
-        if self.sparse:
-            output.write(f"  capacity={self.capacity},\n")
-        output.write(f"  sparse={self.sparse},\n")
-        if self.sparse:
-            output.write(f"  allows_duplicates={self.allows_duplicates},\n")
+    # def __repr__(self):
+    #     # TODO support/use __qualname__
+    #     output = io.StringIO()
+    #     output.write("ArraySchema(\n")
+    #     output.write("  domain=Domain(*[\n")
+    #     for i in range(self.domain.ndim):
+    #         output.write(f"    {repr(self.domain.dim(i))},\n")
+    #     output.write("  ]),\n")
+    #     output.write("  attrs=[\n")
+    #     for i in range(self.nattr):
+    #         output.write(f"    {repr(self.attr(i))},\n")
+    #     output.write("  ],\n")
+    #     output.write(
+    #         f"  cell_order='{self.cell_order}',\n"
+    #         f"  tile_order={repr(self.tile_order)},\n"
+    #     )
+    #     if self.sparse:
+    #         output.write(f"  capacity={self.capacity},\n")
+    #     output.write(f"  sparse={self.sparse},\n")
+    #     if self.sparse:
+    #         output.write(f"  allows_duplicates={self.allows_duplicates},\n")
 
-        output.write(")\n")
+    #     output.write(")\n")
 
-        return output.getvalue()
+    #     return output.getvalue()
 
     def _repr_html_(self):
         output = io.StringIO()
