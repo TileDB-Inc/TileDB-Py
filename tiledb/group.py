@@ -325,7 +325,7 @@ class Group(CtxMixin, lt.Group):
 
     def delete(self, recursive: bool = False):
         """
-        Delete a Group.
+        Delete a Group. The group needs to be opened in 'm' mode.
 
         :param uri: The URI of the group to delete
         """
