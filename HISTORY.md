@@ -1,3 +1,18 @@
+# Release 0.23.0
+
+* TileDB-Py 0.23.0 includes TileDB Embedded [2.17.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.17.0)
+
+## Improvements
+
+* Support for "enumerated datatypes" (aka categoricals or factors). [#1790](https://github.com/TileDB-Inc/TileDB-Py/pull/1790)
+* Introduce `Array.read_subarray` and `Array.write_subarray` APIs. [#1824](https://github.com/TileDB-Inc/TileDB-Py/pull/1824)
+* Avoid importing Pandas until we actually use it. [#1825](https://github.com/TileDB-Inc/TileDB-Py/pull/1825)
+* Make VFS accept path-like objects to refer to files. [#1818](https://github.com/TileDB-Inc/TileDB-Py/pull/1818)
+
+## Bug Fies
+
+* Use object equality check in buffer conversion, fixes state serialization bug in distributed use-case. [#1822](https://github.com/TileDB-Inc/TileDB-Py/pull/1822)
+
 # Release 0.22.3
 
 * TileDB-Py 0.22.3 includes TileDB Embedded [2.16.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.16.3)
