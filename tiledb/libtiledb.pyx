@@ -105,16 +105,19 @@ cdef dict get_query_fragment_info(tiledb_ctx_t* ctx_ptr,
 
     return result
 
-cdef _write_array(tiledb_ctx_t* ctx_ptr,
-                  tiledb_array_t* array_ptr,
-                  object tiledb_array,
-                  list coords_or_subarray,
-                  list buffer_names,
-                  list values,
-                  dict labels,
-                  dict nullmaps,
-                  dict fragment_info,
-                  bint issparse):
+cdef _write_array(
+        tiledb_ctx_t* ctx_ptr,
+        tiledb_array_t* array_ptr,
+        object tiledb_array,
+        object subarray,
+        list coordinates,
+        list buffer_names,
+        list values,
+        dict labels,
+        dict nullmaps,
+        dict fragment_info,
+        bint issparse,
+    ):
 
     # used for buffer conversion (local import to avoid circularity)
     from .main import array_to_buffer
@@ -170,7 +173,7 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     # Set data and offsets buffers for dimensions (sparse arrays only)
     ibuffer = nattr
     if issparse:
-        for dim_idx, coords in enumerate(coords_or_subarray):
+        for dim_idx, coords in enumerate(coordinates):
             if tiledb_array.schema.domain.dim(dim_idx).isvar:
                 buffer, offsets = array_to_buffer(coords, True, False)
                 buffer_sizes[ibuffer] = buffer.nbytes
@@ -231,44 +234,13 @@ cdef _write_array(tiledb_ctx_t* ctx_ptr,
     cdef void* s_end_ptr = NULL
     cdef tiledb_subarray_t* subarray_ptr = NULL
     if not issparse:
-        # Allocate the subarray
-        rc = tiledb_subarray_alloc(ctx_ptr, array_ptr, &subarray_ptr)
-        if rc != TILEDB_OK:
-            tiledb_subarray_free(&subarray_ptr)
-            tiledb_query_free(&query_ptr)
-            _raise_ctx_err(ctx_ptr, rc)
-
-        # Set the ranges on the subarray
-        dom = tiledb_array.schema.domain
-        for dim_idx, s_range in enumerate(coords_or_subarray):
-            dim = dom.dim(dim_idx)
-            dim_dtype = dim.dtype
-            s_start = np.asarray(s_range[0], dtype=dim_dtype)
-            s_end = np.asarray(s_range[1], dtype=dim_dtype)
-            s_start_ptr = np.PyArray_DATA(s_start)
-            s_end_ptr = np.PyArray_DATA(s_end)
-            if dim.isvar:
-                rc = tiledb_subarray_add_range_var(
-                    ctx_ptr, subarray_ptr, dim_idx,
-                    s_start_ptr,  s_start.nbytes,
-                    s_end_ptr, s_end.nbytes)
-            else:
-                rc = tiledb_subarray_add_range(
-                    ctx_ptr, subarray_ptr, dim_idx,
-                    s_start_ptr, s_end_ptr, NULL)
-            if rc != TILEDB_OK:
-                tiledb_subarray_free(&subarray_ptr)
-                tiledb_query_free(&query_ptr)
-                _raise_ctx_err(ctx_ptr, rc)
-
+        subarray_ptr = <tiledb_subarray_t*>PyCapsule_GetPointer(
+                subarray.__capsule__(), "subarray")
         # Set the subarray on the query
         rc = tiledb_query_set_subarray_t(ctx_ptr, query_ptr, subarray_ptr)
         if rc != TILEDB_OK:
-            tiledb_subarray_free(&subarray_ptr)
             tiledb_query_free(&query_ptr)
             _raise_ctx_err(ctx_ptr, rc)
-        tiledb_subarray_free(&subarray_ptr)
-
 
     # Set buffers on the query
     cdef bytes bname
@@ -2051,6 +2023,8 @@ cdef class DenseArrayImpl(Array):
         OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
 
         """
+        from .subarray import Subarray
+
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray must be opened in read mode")
 
@@ -2095,7 +2069,9 @@ cdef class DenseArrayImpl(Array):
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
-        subarray = index_domain_subarray(self, self.schema.domain, idx)
+        dim_ranges  = index_domain_subarray(self, self.schema.domain, idx)
+        subarray = Subarray(self, self.ctx)
+        subarray.add_ranges([list([x]) for x in dim_ranges])
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, cond, layout,
                                         coords)
@@ -2114,15 +2090,15 @@ cdef class DenseArrayImpl(Array):
         return out
 
 
-    cdef _read_dense_subarray(self, list subarray, list attr_names,
+    cdef _read_dense_subarray(self, object subarray, list attr_names,
                               object cond, tiledb_layout_t layout,
                               bint include_coords):
 
         from .main import PyQuery
-        from .subarray import Subarray
 
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
+
 
         if cond is not None and cond != "":
             from .query_condition import QueryCondition
@@ -2140,9 +2116,7 @@ cdef class DenseArrayImpl(Array):
             else:
                 raise TypeError("`cond` expects type str.")
 
-        subarray_t = Subarray(self, self.ctx)
-        subarray_t.add_ranges([list([x]) for x in subarray])
-        q.set_subarray(subarray_t)
+        q.set_subarray(subarray)
         q.submit()
         cdef object results = OrderedDict()
         results = q.results()
@@ -2150,17 +2124,7 @@ cdef class DenseArrayImpl(Array):
         out = OrderedDict()
 
         cdef tuple output_shape
-        domain_dtype = self.domain.dtype
-        is_datetime = domain_dtype.kind == 'M'
-        # Using the domain check is valid because dense arrays are homogeneous
-        if is_datetime:
-            output_shape = \
-                tuple(_tiledb_datetime_extent(subarray[r][0], subarray[r][1])
-                      for r in range(self.schema.ndim))
-        else:
-            output_shape = \
-                tuple(int(subarray[r][1]) - int(subarray[r][0]) + 1
-                      for r in range(self.schema.ndim))
+        output_shape = subarray.shape()
 
         cdef Py_ssize_t nattr = len(attr_names)
         cdef int i
@@ -2239,20 +2203,27 @@ cdef class DenseArrayImpl(Array):
 
     def _setitem_impl(self, object selection, object val, dict nullmaps):
         """Implementation for setitem with optional support for validity bitmaps."""
+        from .subarray import Subarray
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
 
         domain = self.domain
         cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))
         idx,_drop = replace_scalars_slice(domain, idx)
-        cdef object subarray = index_domain_subarray(self, domain, idx)
         cdef list attributes = list()
         cdef list values = list()
         cdef dict labels = dict()
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
 
+        if isinstance(selection, Subarray):
+            subarray = selection
+        else:
+            dim_ranges = index_domain_subarray(self, domain, idx)
+            subarray = Subarray(self, self.ctx)
+            subarray.add_ranges([list([x]) for x in dim_ranges])
+
+        subarray_shape = subarray.shape()
         if isinstance(val, np.ndarray):
-            subarray_shape = tuple(int(dim[1]-dim[0]+1) for dim in subarray)
             try:
                 np.broadcast_shapes(subarray_shape, val.shape)
             except ValueError:
@@ -2288,8 +2259,6 @@ cdef class DenseArrayImpl(Array):
         elif np.isscalar(val):
             for i in range(self.schema.nattr):
                 attr = self.schema.attr(i)
-                subarray_shape = tuple(int(subarray[r][1] - subarray[r][0]) + 1
-                                       for r in range(len(subarray)))
                 attributes.append(attr._internal_name)
                 A = np.empty(subarray_shape, dtype=attr.dtype)
                 A[:] = val
@@ -2339,15 +2308,19 @@ cdef class DenseArrayImpl(Array):
                     raise TypeError(f"Expected NumPy uint8 array for attribute '{key}' "
                                     f"validity bitmap, got {val.dtype}")
 
-        _write_array(ctx_ptr,
-                     self.ptr, self,
-                     subarray,
-                     attributes,
-                     values,
-                     labels,
-                     nullmaps,
-                     self.last_fragment_info,
-                     False)
+        _write_array(
+            ctx_ptr,
+            self.ptr,
+            self,
+            subarray,
+            [],
+            attributes,
+            values,
+            labels,
+            nullmaps,
+            self.last_fragment_info,
+            False,
+        )
         return
 
     def __array__(self, dtype=None, **kw):
@@ -2513,6 +2486,8 @@ cdef class DenseArrayImpl(Array):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        from .subarray import Subarray
+
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray is not opened for reading")
         ctx = self.ctx
@@ -2539,9 +2514,133 @@ cdef class DenseArrayImpl(Array):
         domain = schema.domain
 
         idx = tuple(slice(None) for _ in range(domain.ndim))
-        subarray = index_domain_subarray(self, domain, idx)
+        range_index = index_domain_subarray(self, domain, idx)
+        subarray = Subarray(self, self.ctx)
+        subarray.add_ranges([list([x]) for x in range_index])
         out = self._read_dense_subarray(subarray, [attr_name,], None, cell_layout, False)
         return out[attr_name]
+
+    def read_subarray(self, subarray):
+        from .main import PyQuery
+        from .query import Query
+        from .subarray import Subarray
+
+        # Precompute and label ranges: this step is only needed so the attribute
+        # buffer sizes are set correctly.
+        ndim = self.schema.domain.ndim
+        has_labels = any(
+            subarray.has_label_range(dim_idx) for dim_idx in range(ndim)
+        )
+        if has_labels:
+            label_query = Query(self, self.ctx)
+            label_query.set_subarray(subarray)
+            label_query.submit()
+            if not label_query.is_complete():
+                raise TileDBError("Failed to get dimension ranges from labels")
+            result_subarray = Subarray(self, self.ctx)
+            result_subarray.copy_ranges(label_query.subarray(), range(ndim))
+            return self.read_subarray(result_subarray)
+
+        # If the subarray has shape of zero, return empty result without querying.
+        if subarray.shape() == 0:
+            if self.view_attr is not None:
+                return OrderedDict(
+                    (
+                        "" if self.view_attr == "__attr" else self.view_attr),
+                        np.array([], self.schema.attr_or_dim_dtype(self.view_attr),
+                    )
+                )
+            return OrderedDict(
+                ("" if attr.name  == "__attr" else attr.name, np.array([], attr.dtype))
+                for attr in self.schema.attrs
+            )
+
+        # Create the pyquery and set the subarray.
+        cdef tiledb_layout_t layout = TILEDB_ROW_MAJOR
+        pyquery = PyQuery(
+            self._ctx_(),
+            self,
+            tuple(
+                [self.view_attr]
+                if self.view_attr is not None
+                else (attr._internal_name for attr in self.schema)
+            ),
+            tuple(),
+            <int32_t>layout,
+            False,
+        )
+        pyquery.set_subarray(subarray)
+
+        # Set the array pyquery to this pyquery and submit.
+        self.pyquery = pyquery
+        pyquery.submit()
+
+        # Clean-up the results:
+        result_shape = subarray.shape()
+        result_dict = OrderedDict()
+        for name, item in pyquery.results().items():
+            if len(item[1]) > 0:
+                arr = pyquery.unpack_buffer(name, item[0], item[1])
+            else:
+                arr = item[0]
+                arr.dtype = (
+                    self.schema.attr_or_dim_dtype(name)
+                    if not self.schema.has_dim_label(name)
+                    else self.schema.dim_label(name).dtype
+                )
+            arr.shape = result_shape
+            result_dict[name if name != "__attr" else ""] = arr
+
+        return result_dict
+
+
+    def write_subarray(self, subarray, values):
+        """Set / update dense data cells
+
+        :param subarray: a subarray object that specifies the region to write
+            data to.
+        :param value: a dictionary of array attribute values, values must able to be
+            converted to n-d numpy arrays. If the number of attributes is one, then a
+            n-d numpy array is accepted.
+        :type subarray: :py:class:`tiledb.Subarray`
+        :type value: dict or :py:class:`numpy.ndarray`
+        :raises ValueError: value / coordinate length mismatch
+        :raises: :py:exc:`tiledb.TileDBError`
+
+        **Example:**
+
+        >>> # Write to multi-attribute 2D array
+        >>> with tempfile.TemporaryDirectory() as tmp:
+        ...     dom = tiledb.Domain(
+        ...         tiledb.Dim(domain=(0, 7), tile=8, dtype=np.uint64),
+        ...         tiledb.Dim(domain=(0, 7), tile=8, dtype=np.uint64))
+        ...     schema = tiledb.ArraySchema(domain=dom,
+        ...         attrs=(tiledb.Attr(name="a1", dtype=np.int64),
+        ...                tiledb.Attr(name="a2", dtype=np.int64)))
+        ...     tiledb.Array.create(tmp + "/array", schema)
+        ...     with tiledb.open(tmp + "/array", mode='w') as A:
+        ...         subarray = tiledb.Subarray(A)
+        ...         subarray.add_dim_range(0, (0, 1))
+        ...         subarray.add_dim_range(1, (0, 1))
+        ...         # Write to each attribute
+        ...         A.write_subarray(
+        ...             subarray,
+        ...             {
+        ...                 "a1": np.array(([-3, -4], [-5, -6])),
+        ...                 "a2": np.array(([1, 2], [3, 4])),
+        ...             }
+        ...         )
+
+        """
+        # Check for label ranges
+        for dim_idx in range(self.schema.ndim):
+            if subarray.has_label_range(dim_idx):
+                raise TileDBError(
+                    f"Label range on dimension {dim_idx}. Support for writing by label "
+                    f"ranges has not been implemented in the Python API."
+                )
+        self._setitem_impl(subarray, values, dict())
+
 
 # point query index a tiledb array (zips) columnar index vectors
 def index_domain_coords(dom, idx, check_ndim):
@@ -2605,14 +2704,17 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
 
     if set_dims_only:
         _write_array(
-            ctx_ptr, self.ptr, self,
+            ctx_ptr,
+            self.ptr,
+            self,
+            None,
             sparse_coords,
             sparse_attributes,
             sparse_values,
             labels,
             nullmaps,
             self.last_fragment_info,
-            True
+            True,
         )
         return
 
@@ -2679,14 +2781,17 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         raise TileDBError("Sparse write input data count does not match number of attributes")
 
     _write_array(
-        ctx_ptr, self.ptr, self,
+        ctx_ptr,
+        self.ptr,
+        self,
+        None,
         sparse_coords,
         sparse_attributes,
         sparse_values,
         labels,
         nullmaps,
         self.last_fragment_info,
-        True
+        True,
     )
     return
 
@@ -2860,6 +2965,48 @@ cdef class SparseArrayImpl(Array):
                       use_arrow=use_arrow, return_arrow=return_arrow,
                       return_incomplete=return_incomplete)
 
+    def read_subarray(self, subarray):
+        from .main import PyQuery
+        from .subarray import Subarray
+
+        # Set layout to UNORDERED for sparse query.
+        cdef tiledb_layout_t layout = TILEDB_UNORDERED
+
+        # Create the PyQuery and set the subarray on it.
+        pyquery = PyQuery(
+            self._ctx_(),
+            self,
+            tuple(
+                [self.view_attr]
+                if self.view_attr is not None
+                else (attr._internal_name for attr in self.schema)
+            ),
+            tuple(dim.name for dim in self.schema.domain),
+            <int32_t>layout,
+            False,
+        )
+        pyquery.set_subarray(subarray)
+
+        # Set the array pyquery to this pyquery and submit.
+        self.pyquery = pyquery
+        pyquery.submit()
+
+        # Clean-up the results.
+        result_dict = OrderedDict()
+        for name, item in pyquery.results().items():
+            if len(item[1]) > 0:
+                arr = pyquery.unpack_buffer(name, item[0], item[1])
+            else:
+                arr = item[0]
+                arr.dtype = (
+                    self.schema.attr_or_dim_dtype(name)
+                    if not self.schema.has_dim_label(name)
+                    else self.schema.dim_label(name).dtype
+                )
+            result_dict[name if name != "__attr" else ""] = arr
+        return result_dict
+
+
     def subarray(self, selection, coords=True, attrs=None, cond=None,
                  attr_cond=None, order=None):
         """
@@ -2902,6 +3049,7 @@ cdef class SparseArrayImpl(Array):
         OrderedDict([('a1', array([1, 2]))])
 
         """
+        from .subarray import Subarray
         if not self.isopen or self.mode not in ('r', 'd'):
             raise TileDBError("SparseArray is not opened in read or delete mode")
 
@@ -2947,7 +3095,9 @@ cdef class SparseArrayImpl(Array):
         idx = index_as_tuple(selection)
         idx = replace_ellipsis(dom.ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
-        subarray = index_domain_subarray(self, dom, idx)
+        dim_ranges = index_domain_subarray(self, dom, idx)
+        subarray = Subarray(self, self.ctx)
+        subarray.add_ranges([list([x]) for x in dim_ranges])
         return self._read_sparse_subarray(subarray, attr_names, cond, layout)
 
     def __repr__(self):
@@ -2957,7 +3107,7 @@ cdef class SparseArrayImpl(Array):
         else:
             return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    cdef _read_sparse_subarray(self, list subarray, list attr_names,
+    cdef _read_sparse_subarray(self, object subarray, list attr_names,
                                object cond, tiledb_layout_t layout):
         cdef object out = OrderedDict()
         # all results are 1-d vectors
@@ -2987,9 +3137,7 @@ cdef class SparseArrayImpl(Array):
                 raise TypeError("`cond` expects type str.")
 
         if self.mode == "r":
-            subarray_t = Subarray(self, self.ctx)
-            subarray_t.add_ranges([list([x]) for x in subarray])
-            q.set_subarray(subarray_t)
+            q.set_subarray(subarray)
 
         q.submit()
 

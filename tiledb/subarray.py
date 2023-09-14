@@ -73,6 +73,14 @@ class Subarray(CtxMixin, lt.Subarray):
         if label_ranges:
             self._add_label_ranges(self._ctx, label_ranges)
 
+    def has_label_range(self, dim_idx):
+        """Returns if dimension label ranges are set on the requested dimension.
+
+        :param dim_idx: Index (int) of the dimension to check for labels.
+        :rtype: int
+        """
+        return self._has_label_range(self._ctx, dim_idx)
+
     def num_dim_ranges(self, key: Union[int, str]) -> np.uint64:
         """Returns the number of ranges on a dimension.
 
@@ -95,7 +103,8 @@ class Subarray(CtxMixin, lt.Subarray):
         """Returns the shape of dense data using this subarray and ``None`` for sparse
         arrays.
 
-        This does not support getting the shape of subarrays with label ranges.
+        Warning: This is the shape of time dimension ranges. If a label range is set
+        and the dimension range has not been computed, it will return `0`.
 
         :rtype: tuple(int, ...)
         :raises: :py:exc:`tiledb.TileDBError`
