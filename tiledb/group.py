@@ -22,7 +22,7 @@ class Group(CtxMixin, lt.Group):
 
     :param uri: The URI to the Group
     :type uri: str
-    :param mode: Read mode ('r') or write mode ('w')
+    :param mode: Read mode ('r'), write mode ('w'), or modify exclusive ('m')
     :type mode: str
     :param config: A TileDB config
     :type config: Config or dict
@@ -66,6 +66,11 @@ class Group(CtxMixin, lt.Group):
     >>> # Remove the subgroup
     >>> grp.open("w")
     >>> grp.remove(subgrp_path)
+    >>> grp.close()
+    >>>
+    >>> # Delete the subgroup
+    >>> grp.open("m")
+    >>> grp.delete(subgrp_path)
     >>> grp.close()
     """
 
@@ -218,7 +223,6 @@ class Group(CtxMixin, lt.Group):
                             f"- Type: {val_dtype}\n"
                         )
                     else:
-
                         yield key, val
 
         def __iter__(self):
@@ -432,7 +436,7 @@ class Group(CtxMixin, lt.Group):
     @property
     def mode(self) -> str:
         """
-        :return: Read mode ('r') or write mode ('w')
+        :return: Read mode ('r'), write mode ('w'), or modify exclusive ('m')
         :rtype: str
         """
         return self._query_type_to_mode[self._query_type]
