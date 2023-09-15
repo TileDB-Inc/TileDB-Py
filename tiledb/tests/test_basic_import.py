@@ -5,23 +5,36 @@ import sys
 from packaging.version import Version
 
 
+def tiledb_cloud_eagerly_imports_pandas() -> bool:
+    try:
+        import pandas
+
+        import tiledb.cloud
+    except ImportError:
+        # Can't import something that's not installed.
+        return False
+    if Version(tiledb.cloud.__version__) < Version("0.10.21"):
+        # Old versions of tiledb-cloud will import Pandas eagerly.
+        return True
+    if Version(pandas.__version__) < Version("1.5"):
+        # If an old version of Pandas is installed, tiledb-cloud needs to
+        # import it eagerly to patch it.
+        return True
+    return False
+
+
 def test_dont_import_pandas() -> None:
     """Verifies that when we import TileDB, we don't import Pandas eagerly."""
 
-    # If tiledb.cloud < 0.10.21 is installed, we should prevent it from being imported
-    # before running the test; cloud-py eagerly imported pandas before that version.
-    # Note that we import tiledb.cloud within tiledb-py, if available, in order to hook
-    # Array.apply and other functionality.
-    try:
-        import tiledb.cloud
-
-        ver = tiledb.cloud.__version__
-    except ImportError:
-        ver = None
-    if ver and Version(ver) < Version("0.10.21"):
-        suppress_cloud = "sys.modules['tiledb.cloud'] = None;"
-    else:
-        suppress_cloud = ""
+    # We import tiledb.cloud within tiledb-py, if available, in order to hook
+    # Array.apply and other functionality.  If the version of tiledb-cloud
+    # we have installed would import Pandas eagerly on its own, we need to
+    # suppress its importation.
+    suppress_cloud = (
+        "sys.modules['tiledb.cloud'] = None;"
+        if tiledb_cloud_eagerly_imports_pandas()
+        else ""
+    )
     # Get a list of all modules from a completely fresh interpreter.
     all_mods_str = subprocess.check_output(
         (
