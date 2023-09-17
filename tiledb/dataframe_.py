@@ -3,7 +3,7 @@ import json
 import os
 import warnings
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 import numpy as np
 
@@ -75,15 +75,71 @@ def parse_tiledb_kwargs(kwargs):
     return parsed_args
 
 
+def _infer_dtype_from_pandas(values):
+    from pandas.api import types as pd_types
+
+    inferred_dtype = pd_types.infer_dtype(values)
+    if inferred_dtype == "bytes":
+        return np.bytes_
+    elif inferred_dtype == "string":
+        return "<U0"
+    elif inferred_dtype == "floating":
+        return np.float64
+    elif inferred_dtype == "integer":
+        return np.int64
+    elif inferred_dtype == "mixed-integer":
+        raise NotImplementedError("Pandas type 'mixed-integer' is not supported")
+    elif inferred_dtype == "mixed-integer-float":
+        raise NotImplementedError("Pandas type 'mixed-integer-float' is not supported")
+    elif inferred_dtype == "decimal":
+        return np.float64
+    elif inferred_dtype == "complex":
+        return np.complex128
+    elif inferred_dtype == "categorical":
+        raise NotImplementedError(
+            "Pandas type 'categorical of categorical' is not supported"
+        )
+    elif inferred_dtype == "boolean":
+        return np.bool_
+    elif inferred_dtype == "datetime64":
+        return np.datetime64
+    elif inferred_dtype == "datetime":
+        return np.datetime64
+    elif inferred_dtype == "date":
+        return np.datetime64
+    elif inferred_dtype == "timedelta64":
+        return np.timedelta64
+    elif inferred_dtype == "timedelta":
+        return np.timedelta64
+    elif inferred_dtype == "time":
+        return np.timedelta64
+    elif inferred_dtype == "period":
+        raise NotImplementedError("Pandas type 'period' is not supported")
+    elif inferred_dtype == "mixed":
+        raise NotImplementedError("Pandas type 'mixed' is not supported")
+    elif inferred_dtype == "unknown-array":
+        raise NotImplementedError("Pandas type 'unknown-array' is not supported")
+
+
+@dataclass(frozen=True)
+class EnumerationInfo:
+    dtype: np.dtype
+    ordered: bool = False
+    values: List[Any] = None
+
+
 @dataclass(frozen=True)
 class ColumnInfo:
     dtype: np.dtype
     repr: Optional[str] = None
     nullable: bool = False
     var: bool = False
+    enumeration: bool = False
+    enumeration_info: Optional[EnumerationInfo] = None
 
     @classmethod
     def from_values(cls, array_like, varlen_types=()):
+        from pandas import CategoricalDtype
         from pandas.api import types as pd_types
 
         if pd_types.is_object_dtype(array_like):
@@ -100,10 +156,30 @@ class ColumnInfo:
                 raise NotImplementedError(
                     f"{inferred_dtype} inferred dtype not supported"
                 )
+        elif hasattr(array_like, "dtype") and isinstance(
+            array_like.dtype, CategoricalDtype
+        ):
+            return cls.from_categorical(array_like.cat, array_like.dtype)
         else:
             if not hasattr(array_like, "dtype"):
                 array_like = np.asanyarray(array_like)
             return cls.from_dtype(array_like.dtype, varlen_types)
+
+    @classmethod
+    def from_categorical(cls, cat, dtype):
+        values = cat.categories.values
+        inferred_dtype = _infer_dtype_from_pandas(values)
+
+        return cls(
+            np.int32,
+            repr=dtype.name,
+            nullable=False,
+            var=False,
+            enumeration=True,
+            enumeration_info=EnumerationInfo(
+                values=values, ordered=cat.ordered, dtype=inferred_dtype
+            ),
+        )
 
     @classmethod
     def from_dtype(cls, dtype, varlen_types=()):
@@ -206,21 +282,54 @@ def _get_attr_dim_filters(name, filters):
         return _get_schema_filters(filters)
 
 
+def _get_enums(names, column_infos):
+    enums = []
+    for name in names:
+        column_info = column_infos[name]
+        if not column_info.enumeration:
+            continue
+        enums.append(
+            tiledb.Enumeration(
+                name=name,
+                # Pandas categoricals are always ordered
+                ordered=column_info.enumeration_info.ordered,
+                values=np.array(
+                    column_info.enumeration_info.values,
+                    dtype=column_info.enumeration_info.dtype,
+                ),
+            )
+        )
+
+    return enums
+
+
 def _get_attrs(names, column_infos, attr_filters):
     attrs = []
     attr_reprs = {}
     for name in names:
         filters = _get_attr_dim_filters(name, attr_filters)
         column_info = column_infos[name]
-        attrs.append(
-            tiledb.Attr(
-                name=name,
-                filters=filters,
-                dtype=column_info.dtype,
-                nullable=column_info.nullable,
-                var=column_info.var,
+        if column_info.enumeration:
+            attrs.append(
+                tiledb.Attr(
+                    name=name,
+                    filters=filters,
+                    dtype=np.int32,
+                    enum_label=name,
+                    nullable=column_info.nullable,
+                    var=column_info.var,
+                )
             )
-        )
+        else:
+            attrs.append(
+                tiledb.Attr(
+                    name=name,
+                    filters=filters,
+                    dtype=column_info.dtype,
+                    nullable=column_info.nullable,
+                    var=column_info.var,
+                )
+            )
 
         if column_info.repr is not None:
             attr_reprs[name] = column_info.repr
@@ -375,6 +484,7 @@ def _df_to_np_arrays(df, column_infos, fillna):
             column = column.fillna(fillna[name])
 
         to_numpy_kwargs = {}
+
         if not column_info.var:
             to_numpy_kwargs.update(dtype=column_info.dtype)
 
@@ -383,7 +493,11 @@ def _df_to_np_arrays(df, column_infos, fillna):
             to_numpy_kwargs.update(na_value=column_info.dtype.type())
             nullmaps[name] = (~column.isna()).to_numpy(dtype=np.uint8)
 
-        ret[name] = column.to_numpy(**to_numpy_kwargs)
+        if column_info.enumeration:
+            # Enumerations should get the numerical codes instead of converting enumeration values
+            ret[name] = column.cat.codes.to_numpy(**to_numpy_kwargs)
+        else:
+            ret[name] = column.to_numpy(**to_numpy_kwargs)
 
     return ret, nullmaps
 
@@ -537,6 +651,7 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
     attrs, attr_metadata = _get_attrs(
         attr_names, column_infos, tiledb_args.get("attr_filters", True)
     )
+    enums = _get_enums(attr_names, column_infos)
 
     # create the ArraySchema
     with warnings.catch_warnings():
@@ -546,6 +661,7 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
             sparse=sparse,
             domain=tiledb.Domain(*dims),
             attrs=attrs,
+            enums=enums,
             cell_order=tiledb_args["cell_order"],
             tile_order=tiledb_args["tile_order"],
             coords_filters=None
