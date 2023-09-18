@@ -106,6 +106,21 @@ def make_dataframe_basic3(col_size=10, time_range=(None, None)):
     return df
 
 
+def make_dataframe_categorical():
+    df = pd.DataFrame(
+        {
+            "int": [0, 1, 2, 3],
+            "categorical_string": pd.Series(["A", "B", "A", "B"], dtype="category"),
+            "categorical_int": pd.Series(
+                np.array([1, 2, 3, 4], dtype=np.int64), dtype="category"
+            ),
+            # 'categorical_bool': pd.Series([True, False, True, False], dtype="category"),
+        }
+    )
+
+    return df
+
+
 class TestColumnInfo:
     def assertColumnInfo(self, info, info_dtype, info_repr=None, info_nullable=False):
         assert isinstance(info.dtype, np.dtype)
@@ -345,6 +360,19 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df = make_dataframe_basic2()
 
         tiledb.from_pandas(uri, df, sparse=False)
+
+        df_readback = tiledb.open_dataframe(uri)
+        tm.assert_frame_equal(df, df_readback)
+
+        with tiledb.open(uri) as B:
+            tm.assert_frame_equal(df, B.df[:])
+
+    def test_dataframe_categorical(self):
+        uri = self.path("dataframe_categorical_rt")
+
+        df = make_dataframe_categorical()
+
+        tiledb.from_pandas(uri, df, sparse=True)
 
         df_readback = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df, df_readback)
