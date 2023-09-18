@@ -867,7 +867,7 @@ class QueryConditionTest(DiskTestCase):
 
         with tiledb.open(path, "r") as A:
             for k in A[:]["a"]:
-                assert k[0] == True
+                assert k[0] is True
 
 
 class QueryDeleteTest(DiskTestCase):
