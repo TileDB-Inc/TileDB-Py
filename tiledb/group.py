@@ -461,3 +461,39 @@ class Group(CtxMixin, lt.Group):
                 "Use `group.cl0se()` or Group(.., closed=True)"
             )
         self._set_config(cfg)
+
+    @staticmethod
+    def consolidate_metadata(
+        uri: str, config: Config = None, ctx: Optional[Ctx] = None
+    ):
+        """
+        Consolidate the group metadata.
+
+        :param uri: The URI of the TileDB group to be consolidated
+        :type uri: str
+        :param config: Optional configuration parameters for the consolidation
+        :type config: Config
+        :param ctx: Optional TileDB context
+        :type ctx: Ctx
+        """
+        if ctx is None:
+            ctx = default_ctx()
+
+        lt.Group._consolidate_metadata(ctx, uri, config)
+
+    @staticmethod
+    def vacuum_metadata(uri: str, config: Config = None, ctx: Optional[Ctx] = None):
+        """
+        Vacuum the group metadata.
+
+        :param uri: The URI of the TileDB group to be vacuum
+        :type uri: str
+        :param config: Optional configuration parameters for the vacuuming
+        :type config: Config
+        :param ctx: Optional TileDB context
+        :type ctx: Ctx
+        """
+        if ctx is None:
+            ctx = default_ctx()
+
+        lt.Group._vacuum_metadata(ctx, uri, config)

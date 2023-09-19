@@ -1,4 +1,5 @@
 import os
+import pathlib
 
 import numpy as np
 import pytest
@@ -265,6 +266,82 @@ class GroupTest(GroupTestCase):
         assert len(grp) == 0
         grp.close()
 
+    def test_pass_context(self):
+        foo = self.path("foo")
+        bar = self.path("foo/bar")
+
+        tiledb.group_create(foo)
+        tiledb.group_create(bar)
+
+        ctx = tiledb.Ctx()
+        with tiledb.Group(foo, mode="w", ctx=ctx) as G:
+            G.add(bar, name="bar")
+
+        with tiledb.Group(foo, mode="r", ctx=ctx) as G:
+            assert "bar" in G
+
+    def test_relative(self):
+        group1 = self.path("group1")
+        group2_1 = self.path("group1/group2_1")
+        group2_2 = self.path("group1/group2_2")
+
+        tiledb.group_create(group2_1)
+        tiledb.group_create(group2_2)
+
+        with tiledb.Group(group1, mode="w") as G:
+            G.add(group2_1, name="group2_1", relative=False)
+            G.add("group2_2", name="group2_2", relative=True)
+
+        with tiledb.Group(group1, mode="r") as G:
+            assert G.is_relative("group2_1") is False
+            assert G.is_relative("group2_2") is True
+
+    def test_set_config(self):
+        group_uri = self.path("foo")
+        array_uri_1 = self.path("foo/a")
+        array_uri_2 = self.path("foo/b")
+
+        tiledb.group_create(group_uri)
+
+        dom = tiledb.Domain(tiledb.Dim("id", dtype="ascii"))
+        attr = tiledb.Attr("value", dtype=np.int64)
+        sch = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
+
+        tiledb.Array.create(array_uri_1, sch)
+        tiledb.Array.create(array_uri_2, sch)
+
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2000})
+        with tiledb.Group(group_uri, "w", cfg) as G:
+            G.add(name="a", uri="a", relative=True)
+
+        cfg = tiledb.Config({"sm.group.timestamp_end": 3000})
+        with tiledb.Group(group_uri, "w", cfg) as G:
+            G.add(name="b", uri="b", relative=True)
+
+        ms = np.arange(1000, 4000, 1000, dtype=np.int64)
+
+        for sz, m in enumerate(ms):
+            cfg = tiledb.Config({"sm.group.timestamp_end": m})
+
+            G = tiledb.Group(group_uri)
+
+            # Cannot set config on open group
+            with self.assertRaises(ValueError):
+                G.set_config(cfg)
+
+            G.close()
+            G.set_config(cfg)
+
+            G.open()
+            assert len(G) == sz
+            G.close()
+
+        for sz, m in enumerate(ms):
+            cfg = tiledb.Config({"sm.group.timestamp_end": m})
+
+            with tiledb.Group(group_uri, config=cfg) as G:
+                assert len(G) == sz
+
 
 class GroupMetadataTest(GroupTestCase):
     @pytest.mark.parametrize(
@@ -489,78 +566,49 @@ class GroupMetadataTest(GroupTestCase):
         self.assert_metadata_roundtrip(grp.meta, test_vals)
         grp.close()
 
-    def test_pass_context(self):
-        foo = self.path("foo")
-        bar = self.path("foo/bar")
+    def test_consolidation_and_vac(self):
+        vfs = tiledb.VFS()
+        path = self.path("test_consolidation_and_vac")
+        tiledb.Group.create(path)
 
-        tiledb.group_create(foo)
-        tiledb.group_create(bar)
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        with tiledb.Group(path, "w", cfg) as grp:
+            grp.meta["meta"] = 1
 
-        ctx = tiledb.Ctx()
-        with tiledb.Group(foo, mode="w", ctx=ctx) as G:
-            G.add(bar, name="bar")
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        with tiledb.Group(path, "w", cfg) as grp:
+            grp.meta["meta"] = 2
 
-        with tiledb.Group(foo, mode="r", ctx=ctx) as G:
-            assert "bar" in G
+        cfg = tiledb.Config({"sm.group.timestamp_end": 3})
+        with tiledb.Group(path, "w", cfg) as grp:
+            grp.meta["meta"] = 3
 
-    def test_relative(self):
-        group1 = self.path("group1")
-        group2_1 = self.path("group1/group2_1")
-        group2_2 = self.path("group1/group2_2")
+        meta_path = pathlib.Path(path) / "__meta"
+        assert len(vfs.ls(meta_path)) == 3
 
-        tiledb.group_create(group2_1)
-        tiledb.group_create(group2_2)
+        tiledb.Group.consolidate_metadata(path, cfg)
+        tiledb.Group.vacuum_metadata(path, cfg)
 
-        with tiledb.Group(group1, mode="w") as G:
-            G.add(group2_1, name="group2_1", relative=False)
-            G.add("group2_2", name="group2_2", relative=True)
+        assert len(vfs.ls(meta_path)) == 1
 
-        with tiledb.Group(group1, mode="r") as G:
-            assert G.is_relative("group2_1") is False
-            assert G.is_relative("group2_2") is True
+    def test_consolidation_and_vac_no_config(self):
+        vfs = tiledb.VFS()
+        path = self.path("test_consolidation_and_vac")
+        tiledb.Group.create(path)
 
-    def test_set_config(self):
-        group_uri = self.path("foo")
-        array_uri_1 = self.path("foo/a")
-        array_uri_2 = self.path("foo/b")
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 1
 
-        tiledb.group_create(group_uri)
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 2
 
-        dom = tiledb.Domain(tiledb.Dim("id", dtype="ascii"))
-        attr = tiledb.Attr("value", dtype=np.int64)
-        sch = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 3
 
-        tiledb.Array.create(array_uri_1, sch)
-        tiledb.Array.create(array_uri_2, sch)
+        meta_path = pathlib.Path(path) / "__meta"
+        assert len(vfs.ls(meta_path)) == 3
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 2000})
-        with tiledb.Group(group_uri, "w", cfg) as G:
-            G.add(name="a", uri="a", relative=True)
+        tiledb.Group.consolidate_metadata(path)
+        tiledb.Group.vacuum_metadata(path)
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 3000})
-        with tiledb.Group(group_uri, "w", cfg) as G:
-            G.add(name="b", uri="b", relative=True)
-
-        ms = np.arange(1000, 4000, 1000, dtype=np.int64)
-
-        for sz, m in enumerate(ms):
-            cfg = tiledb.Config({"sm.group.timestamp_end": m})
-
-            G = tiledb.Group(group_uri)
-
-            # Cannot set config on open group
-            with self.assertRaises(ValueError):
-                G.set_config(cfg)
-
-            G.close()
-            G.set_config(cfg)
-
-            G.open()
-            assert len(G) == sz
-            G.close()
-
-        for sz, m in enumerate(ms):
-            cfg = tiledb.Config({"sm.group.timestamp_end": m})
-
-            with tiledb.Group(group_uri, config=cfg) as G:
-                assert len(G) == sz
+        assert len(vfs.ls(meta_path)) == 1
