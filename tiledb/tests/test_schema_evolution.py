@@ -116,6 +116,7 @@ def test_schema_evolution_timestamp(tmp_path):
 
     assert 123456789 in get_schema_timestamps(schema_uri)
 
+
 def test_schema_evolution_with_enmr(tmp_path):
     ctx = tiledb.default_ctx()
     se = tiledb.ArraySchemaEvolution(ctx)
@@ -138,7 +139,7 @@ def test_schema_evolution_with_enmr(tmp_path):
 
     with tiledb.open(uri, "w") as A:
         A[:] = data1
-        
+
     with tiledb.open(uri) as A:
         assert not A.schema.has_attr("a3")
 
@@ -148,22 +149,22 @@ def test_schema_evolution_with_enmr(tmp_path):
     with pytest.raises(tiledb.TileDBError) as excinfo:
         se.array_evolve(uri)
     assert " Attribute refers to an unknown enumeration" in str(excinfo.value)
-    
+
     se.add_enumeration(tiledb.Enumeration("e3", True, np.arange(0, 8)))
     se.array_evolve(uri)
-    
+
     with tiledb.open(uri) as A:
         assert A.schema.has_attr("a3")
         assert A.attr("a3").enum_label == "e3"
-    
+
     se.drop_enumeration("e3")
-    
+
     with pytest.raises(tiledb.TileDBError) as excinfo:
         se.array_evolve(uri)
     assert "the enumeration has not been loaded" in str(excinfo.value)
-    
+
     se.drop_attribute("a3")
     se.array_evolve(uri)
-    
+
     with tiledb.open(uri) as A:
         assert not A.schema.has_attr("a3")
