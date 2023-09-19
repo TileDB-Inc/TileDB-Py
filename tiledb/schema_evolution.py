@@ -3,6 +3,7 @@ from typing import Optional
 import tiledb
 
 from .main import ArraySchemaEvolution as ASE
+from .enumeration import Enumeration
 
 
 class ArraySchemaEvolution:
@@ -28,7 +29,21 @@ class ArraySchemaEvolution:
         only applied when `ArraySchemaEvolution.array_evolve` is called."""
 
         self.ase.drop_attribute(attr_name)
+    
+    def add_enumeration(self, enmr: Enumeration):
+        """Add the given enumeration to the schema evolution plan.
+        Note: this function does not apply any changes; the changes are
+        only applied when `ArraySchemaEvolution.array_evolve` is called."""
 
+        self.ase.add_enumeration(enmr)
+
+    def drop_enumeration(self, enmr_name: str):
+        """Drop the given enumeration (by name) in the schema evolution.
+        Note: this function does not apply any changes; the changes are
+        only applied when `ArraySchemaEvolution.array_evolve` is called."""
+
+        self.ase.drop_enumeration(enmr_name)
+    
     def array_evolve(self, uri: str):
         """Apply ArraySchemaEvolution actions to Array at given URI."""
 
