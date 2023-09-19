@@ -461,3 +461,19 @@ class Group(CtxMixin, lt.Group):
                 "Use `group.cl0se()` or Group(.., closed=True)"
             )
         self._set_config(cfg)
+
+    @staticmethod
+    def consolidate_metadata(
+        ctx: Optional[Ctx], uri: str, config: Config = None
+    ):
+        if ctx is None:
+            ctx = default_ctx()
+
+        lt.Group._consolidate_metadata(ctx, uri)
+
+    @staticmethod
+    def vacuum_metadata(ctx: Optional[Ctx], uri: str, config: Config = None):
+        if ctx is None:
+            ctx = default_ctx()
+
+        lt.Group._vacuum_metadata(ctx, uri)
