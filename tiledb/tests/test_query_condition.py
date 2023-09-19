@@ -845,6 +845,30 @@ class QueryConditionTest(DiskTestCase):
                 == list(enum2.values()).index("bb")
             )
 
+    def test_boolean_insert(self):
+        path = self.path("test_boolean_insert")
+        attr = tiledb.Attr("a", dtype=np.bool_, var=True)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
+        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=[attr])
+        tiledb.Array.create(path, schema)
+        a = np.array(
+            list(
+                [
+                    np.array([True], dtype=np.bool_),
+                    np.array([True], dtype=np.bool_),
+                    np.array([True], dtype=np.bool_),
+                    np.array([True], dtype=np.bool_),
+                ]
+            ),
+            dtype=object,
+        )
+        with tiledb.open(path, "w") as A:
+            A[range(1, len(a) + 1)] = {"a": a}
+
+        with tiledb.open(path, "r") as A:
+            for k in A[:]["a"]:
+                assert k[0] == True  # noqa: E712
+
 
 class QueryDeleteTest(DiskTestCase):
     def test_basic_sparse(self):
