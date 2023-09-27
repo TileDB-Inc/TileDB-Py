@@ -1925,20 +1925,26 @@ cdef class DenseArrayImpl(Array):
         if self.view_attr:
             result = self.subarray(selection, attrs=(self.view_attr,))
             return result[self.view_attr]
-        else:
-            result = self.subarray(selection)
-            for i in range(self.schema.nattr):
-                attr = self.schema.attr(i)
-                enum_label = attr.enum_label
-                if enum_label is not None:
-                    values = self.enum(enum_label).values()
+
+        result = self.subarray(selection)
+        for i in range(self.schema.nattr):
+            attr = self.schema.attr(i)
+            enum_label = attr.enum_label
+            if enum_label is not None:
+                values = self.enum(enum_label).values()
+                if attr.isnullable:
+                    data = np.array([values[idx] for idx in result[attr.name].data])
+                    result[attr.name] = np.ma.array(
+                        data, mask=~result[attr.name].mask)
+                else:
                     result[attr.name] = np.array(
-                        [
-                            values[idx] if idx < len(values) else None
-                            for idx in result[attr.name]
-                        ]
-                    )
-            return result
+                        [values[idx] for idx in result[attr.name]])
+            else:
+                if attr.isnullable:
+                    result[attr.name] = np.ma.array(result[attr.name].data, 
+                        mask=~result[attr.name].mask)
+
+        return result
 
     def __repr__(self):
         if self.isopen:
@@ -2187,6 +2193,10 @@ cdef class DenseArrayImpl(Array):
                     arr.shape = np.prod(output_shape)
 
                 out[name] = arr
+            
+            if self.schema.has_attr(name) and self.attr(name).isnullable:
+                out[name] = np.ma.array(out[name], mask=results[name][2].astype(bool))
+                
         return out
 
     def __setitem__(self, object selection, object val):
@@ -2277,14 +2287,33 @@ cdef class DenseArrayImpl(Array):
             # Create list of attribute names and values
             for attr_idx in range(self.schema.nattr):
                 attr = self.schema.attr(attr_idx)
-                k = attr.name
-                v = val[k]
-                attr = self.schema.attr(k)
+                name = attr.name
+                attr_val = val[name]
+
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
-                if type(v) is np.ndarray and v.dtype is not np.dtype('O'):
-                    v = np.ascontiguousarray(v, dtype=attr.dtype)
-                values.append(v)
+                if type(attr_val) is np.ndarray and attr_val.dtype is not np.dtype('O'):
+                    attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                
+                try:
+                    if attr.isvar:
+                        # ensure that the value is array-convertible, for example: pandas.Series
+                        attr_val = np.asarray(attr_val)
+                        if attr.isnullable and name not in nullmaps:
+                            nullmaps[name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
+                    else:
+                        if (np.issubdtype(attr.dtype, np.string_) and not
+                            (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
+                            raise ValueError("Cannot write a string value to non-string "
+                                            "typed attribute '{}'!".format(name))
+                        
+                        if attr.isnullable and name not in nullmaps:
+                            nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
+                        attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                except Exception as exc:
+                    raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
+                
+                values.append(attr_val)
 
         elif np.isscalar(val):
             for i in range(self.schema.nattr):
@@ -2295,10 +2324,28 @@ cdef class DenseArrayImpl(Array):
                 values.append(A)
         elif self.schema.nattr == 1:
             attr = self.schema.attr(0)
+            name = attr.name
             attributes.append(attr._internal_name)
             # object arrays are var-len and handled later
             if type(val) is np.ndarray and val.dtype is not np.dtype('O'):
                 val = np.ascontiguousarray(val, dtype=attr.dtype)
+            try:
+                if attr.isvar:
+                    # ensure that the value is array-convertible, for example: pandas.Series
+                    val = np.asarray(val)
+                    if attr.isnullable and name not in nullmaps:
+                        nullmaps[name] = np.array([int(v is not None) for v in val], dtype=np.uint8)
+                else:
+                    if (np.issubdtype(attr.dtype, np.string_) and not
+                        (np.issubdtype(val.dtype, np.string_) or val.dtype == np.dtype('O'))):
+                        raise ValueError("Cannot write a string value to non-string "
+                                        "typed attribute '{}'!".format(name))
+                    
+                    if attr.isnullable and name not in nullmaps:
+                        nullmaps[name] = ~np.ma.masked_invalid(val).mask
+                    val = np.ascontiguousarray(val, dtype=attr.dtype)
+            except Exception as exc:
+                raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
             values.append(val)
         elif self.view_attr is not None:
             # Support single-attribute assignment for multi-attr array
@@ -2334,9 +2381,6 @@ cdef class DenseArrayImpl(Array):
                 if not isinstance(val, np.ndarray):
                     raise TypeError(f"Expected NumPy array for attribute '{key}' "
                                     f"validity bitmap, got {type(val)}")
-                if val.dtype != np.uint8:
-                    raise TypeError(f"Expected NumPy uint8 array for attribute '{key}' "
-                                    f"validity bitmap, got {val.dtype}")
 
         _write_array(
             ctx_ptr,
@@ -2774,16 +2818,16 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             if attr.isvar:
                 # ensure that the value is array-convertible, for example: pandas.Series
                 attr_val = np.asarray(attr_val)
-                if attr.isnullable and attr.name not in nullmaps:
-                    nullmaps[attr.name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
+                if attr.isnullable and name not in nullmaps:
+                    nullmaps[name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
             else:
                 if (np.issubdtype(attr.dtype, np.string_) and not
                     (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
                     raise ValueError("Cannot write a string value to non-string "
                                      "typed attribute '{}'!".format(name))
                 
-                if attr.isnullable and attr.name not in nullmaps:
-                    nullmaps[attr.name] = ~np.ma.masked_invalid(attr_val).mask
+                if attr.isnullable and name not in nullmaps:
+                    nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
                 attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
 
         except Exception as exc:
@@ -2927,9 +2971,16 @@ cdef class SparseArrayImpl(Array):
                 values = self.enum(enum_label).values()
                 if attr.isnullable:
                     data = np.array([values[idx] for idx in result[attr.name].data])
-                    result[attr.name] = np.ma.array(data, mask=~result[attr.name].mask)
+                    result[attr.name] = np.ma.array(
+                        data, mask=~result[attr.name].mask)
                 else:
-                    result[attr.name] = np.array([values[idx] for idx in result[attr.name]])
+                    result[attr.name] = np.array(
+                        [values[idx] for idx in result[attr.name]])
+            else:
+                if attr.isnullable:
+                    result[attr.name] = np.ma.array(result[attr.name].data, 
+                        mask=~result[attr.name].mask)
+
         return result
 
     def query(self, attrs=None, cond=None, attr_cond=None, dims=None,

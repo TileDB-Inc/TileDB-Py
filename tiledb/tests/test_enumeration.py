@@ -86,21 +86,33 @@ class EnumerationTest(DiskTestCase):
         not has_pyarrow() or not has_pandas(),
         reason="pyarrow and/or pandas not installed",
     )
-    def test_array_schema_enumeration_nullable(self):
+    @pytest.mark.parametrize("sparse", [True, False])
+    @pytest.mark.parametrize("pass_df", [True, False])
+    def test_array_schema_enumeration_nullable(self, sparse, pass_df):
         import pyarrow as pa
 
         uri = self.path("test_array_schema_enumeration_nullable")
         enmr = tiledb.Enumeration("e", False, ["alpha", "beta", "gamma"])
-        dom = tiledb.Domain(tiledb.Dim("d", domain=(0, 2147483646), dtype="int64"))
+        dom = tiledb.Domain(tiledb.Dim("d", domain=(1, 5), dtype="int64"))
         att = tiledb.Attr("a", dtype="int8", nullable=True, enum_label="e")
-        schema = tiledb.ArraySchema(domain=dom, attrs=[att], enums=[enmr], sparse=True)
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=[att], enums=[enmr], sparse=sparse
+        )
         tiledb.Array.create(uri, schema)
 
         with tiledb.open(uri, "w") as A:
             dims = pa.array([1, 2, 3, 4, 5])
             data = pa.array([1.0, 2.0, None, 0, 1.0])
-            A[dims] = data
+            if pass_df:
+                dims = dims.to_pandas()
+                data = data.to_pandas()
+
+            if sparse:
+                A[dims] = data
+            else:
+                A[:] = data
 
         with tiledb.open(uri, "r") as A:
-            assert_array_equal(A[:]["a"].mask, [False, False, True, False, False])
-            assert_array_equal(A[:]["a"], A.df[:]["a"])
+            expected_validity = [False, False, True, False, False]
+            assert_array_equal(A[:]["a"].mask, expected_validity)
+            assert_array_equal(A.df[:]["a"].isna(), expected_validity)
