@@ -1183,7 +1183,8 @@ public:
     py::dict results;
     for (auto &buffer_name : buffers_order_) {
       auto bp = buffers_.at(buffer_name);
-      results[py::str(buffer_name)] = py::make_tuple(bp.data, bp.offsets);
+      results[py::str(buffer_name)] =
+          py::make_tuple(bp.data, bp.offsets, bp.validity);
     }
     return results;
   }

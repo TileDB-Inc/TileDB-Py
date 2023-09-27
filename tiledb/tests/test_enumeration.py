@@ -4,7 +4,7 @@ from numpy.testing import assert_array_equal
 
 import tiledb
 
-from .common import DiskTestCase, has_pandas
+from .common import DiskTestCase, has_pandas, has_pyarrow
 
 
 class EnumerationTest(DiskTestCase):
@@ -82,47 +82,25 @@ class EnumerationTest(DiskTestCase):
                 assert_array_equal(A.df[:]["attr1"], A[:]["attr1"])
                 assert_array_equal(A.df[:]["attr2"], A[:]["attr2"])
 
+    @pytest.mark.skipif(
+        not has_pyarrow() or not has_pandas(),
+        reason="pyarrow and/or pandas not installed",
+    )
     def test_array_schema_enumeration_nullable(self):
-        uri = self.path("test_array_schema_enumeration")
-        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
-        enum1 = tiledb.Enumeration("enmr1", False, np.arange(3) * 10)
-        enum2 = tiledb.Enumeration("enmr2", False, ["a", "bb", "ccc"])
-        attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
-        attr2 = tiledb.Attr("attr2", dtype=np.int32, enum_label="enmr2")
-        attr3 = tiledb.Attr("attr3", dtype=np.int32)
-        schema = tiledb.ArraySchema(
-            domain=dom, attrs=(attr1, attr2, attr3), enums=(enum1, enum2)
-        )
+        import pyarrow as pa
+
+        uri = self.path("test_array_schema_enumeration_nullable")
+        enmr = tiledb.Enumeration("e", False, ["alpha", "beta", "gamma"])
+        dom = tiledb.Domain(tiledb.Dim("d", domain=(0, 2147483646), dtype="int64"))
+        att = tiledb.Attr("a", dtype="int8", nullable=True, enum_label="e")
+        schema = tiledb.ArraySchema(domain=dom, attrs=[att], enums=[enmr], sparse=True)
         tiledb.Array.create(uri, schema)
 
-        data1 = np.random.randint(0, 3, 8)
-        data2 = np.random.randint(0, 3, 8)
-        data3 = np.random.randint(0, 3, 8)
-
         with tiledb.open(uri, "w") as A:
-            A[:] = {"attr1": data1, "attr2": data2, "attr3": data3}
+            dims = pa.array([1, 2, 3, 4, 5])
+            data = pa.array([1.0, 2.0, None, 0, 1.0])
+            A[dims] = data
 
         with tiledb.open(uri, "r") as A:
-            assert A.enum("enmr1") == enum1
-            assert attr1.enum_label == "enmr1"
-            assert A.attr("attr1").enum_label == "enmr1"
-
-            assert A.enum("enmr2") == enum2
-            assert attr2.enum_label == "enmr2"
-            assert A.attr("attr2").enum_label == "enmr2"
-
-            with self.assertRaises(tiledb.TileDBError) as excinfo:
-                assert A.enum("enmr3") == []
-            assert " No enumeration named 'enmr3'" in str(excinfo.value)
-            assert attr3.enum_label is None
-            assert A.attr("attr3").enum_label is None
-
-            if has_pandas():
-                assert_array_equal(A.df[:]["attr1"].cat.codes, data1)
-                assert_array_equal(A.df[:]["attr2"].cat.codes, data2)
-
-                assert_array_equal(A.df[:]["attr1"], A.multi_index[:]["attr1"])
-                assert_array_equal(A.df[:]["attr2"], A.multi_index[:]["attr2"])
-
-                assert_array_equal(A.df[:]["attr1"], A[:]["attr1"])
-                assert_array_equal(A.df[:]["attr2"], A[:]["attr2"])
+            assert_array_equal(A[:]["a"].mask, [False, False, True, False, False])
+            assert_array_equal(A[:]["a"], A.df[:]["a"])

@@ -1932,7 +1932,12 @@ cdef class DenseArrayImpl(Array):
                 enum_label = attr.enum_label
                 if enum_label is not None:
                     values = self.enum(enum_label).values()
-                    result[attr.name] = np.array([values[idx] for idx in result[attr.name]])
+                    result[attr.name] = np.array(
+                        [
+                            values[idx] if idx < len(values) else None
+                            for idx in result[attr.name]
+                        ]
+                    )
             return result
 
     def __repr__(self):
@@ -2769,16 +2774,17 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
             if attr.isvar:
                 # ensure that the value is array-convertible, for example: pandas.Series
                 attr_val = np.asarray(attr_val)
+                if attr.isnullable and attr.name not in nullmaps:
+                    nullmaps[attr.name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
             else:
                 if (np.issubdtype(attr.dtype, np.string_) and not
                     (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
                     raise ValueError("Cannot write a string value to non-string "
                                      "typed attribute '{}'!".format(name))
-
+                
+                if attr.isnullable and attr.name not in nullmaps:
+                    nullmaps[attr.name] = ~np.ma.masked_invalid(attr_val).mask
                 attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
-
-            if attr.isnullable and attr.name not in nullmaps:
-                nullmaps[attr.name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
 
         except Exception as exc:
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
@@ -2919,7 +2925,11 @@ cdef class SparseArrayImpl(Array):
             enum_label = attr.enum_label
             if enum_label is not None:
                 values = self.enum(enum_label).values()
-                result[attr.name] = np.array([values[idx] for idx in result[attr.name]])
+                if attr.isnullable:
+                    data = np.array([values[idx] for idx in result[attr.name].data])
+                    result[attr.name] = np.ma.array(data, mask=~result[attr.name].mask)
+                else:
+                    result[attr.name] = np.array([values[idx] for idx in result[attr.name]])
         return result
 
     def query(self, attrs=None, cond=None, attr_cond=None, dims=None,
@@ -3207,6 +3217,9 @@ cdef class SparseArrayImpl(Array):
                 else:
                     arr.dtype = el_dtype
                     out[final_name] = arr
+            
+            if self.schema.has_attr(final_name) and self.attr(final_name).isnullable:
+                out[final_name] = np.ma.array(out[final_name], mask=results[name][2])
 
         return out
 
