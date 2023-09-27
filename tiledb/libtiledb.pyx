@@ -2309,7 +2309,7 @@ cdef class DenseArrayImpl(Array):
                         
                         if attr.isnullable and name not in nullmaps:
                             nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
-                        attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                        attr_val = np.ascontiguousarray(np.nan_to_num(attr_val), dtype=attr.dtype)
                 except Exception as exc:
                     raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
                 
@@ -2342,8 +2342,8 @@ cdef class DenseArrayImpl(Array):
                                         "typed attribute '{}'!".format(name))
                     
                     if attr.isnullable and name not in nullmaps:
-                        nullmaps[name] = ~np.ma.masked_invalid(val).mask
-                    val = np.ascontiguousarray(val, dtype=attr.dtype)
+                        nullmaps[name] = ~np.ma.fix_invalid(val).mask
+                    val = np.ascontiguousarray(np.nan_to_num(val), dtype=attr.dtype)
             except Exception as exc:
                 raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
             values.append(val)
@@ -2828,7 +2828,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                 
                 if attr.isnullable and name not in nullmaps:
                     nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
-                attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                attr_val = np.ascontiguousarray(np.nan_to_num(attr_val), dtype=attr.dtype)
 
         except Exception as exc:
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
