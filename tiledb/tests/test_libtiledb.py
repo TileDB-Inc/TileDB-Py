@@ -27,6 +27,7 @@ from .common import (
     assert_unordered_equal,
     fx_sparse_cell_order,  # noqa: F401
     has_pandas,
+    has_pyarrow,
     rand_ascii,
     rand_ascii_bytes,
     rand_utf8,
@@ -380,6 +381,38 @@ class ArrayTest(DiskTestCase):
         tiledb.Array.delete_array(uri)
 
         assert tiledb.array_exists(uri) is False
+
+    @pytest.mark.skipif(
+        not has_pyarrow() or not has_pandas(),
+        reason="pyarrow and/or pandas not installed",
+    )
+    @pytest.mark.parametrize("sparse", [True, False])
+    @pytest.mark.parametrize("pass_df", [True, False])
+    def test_array_write_nullable(self, sparse, pass_df):
+        import pyarrow as pa
+
+        uri = self.path("test_array_write_nullable")
+        dom = tiledb.Domain(tiledb.Dim("d", domain=(1, 5), dtype="int64"))
+        att = tiledb.Attr("a", dtype="int8", nullable=True)
+        schema = tiledb.ArraySchema(domain=dom, attrs=[att], sparse=sparse)
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            dims = pa.array([1, 2, 3, 4, 5])
+            data = pa.array([1.0, 2.0, None, 0, 1.0])
+            if pass_df:
+                dims = dims.to_pandas()
+                data = data.to_pandas()
+
+            if sparse:
+                A[dims] = data
+            else:
+                A[:] = data
+
+        with tiledb.open(uri, "r") as A:
+            expected_validity = [False, False, True, False, False]
+            assert_array_equal(A[:]["a"].mask, expected_validity)
+            assert_array_equal(A.df[:]["a"].isna(), expected_validity)
 
 
 class DenseArrayTest(DiskTestCase):
