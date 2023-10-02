@@ -216,7 +216,7 @@ class QueryConditionTree(ast.NodeVisitor):
                 )
 
             variable = node.left.id
-            values = [val.value for val in self.visit(rhs)]
+            values = [self.get_value_from_node(val) for val in self.visit(rhs)]
 
             if self.array.schema.has_attr(variable):
                 enum_label = self.array.attr(variable).enum_label
