@@ -163,7 +163,7 @@ def test_schema_evolution_with_enmr(tmp_path):
 
     with pytest.raises(tiledb.TileDBError) as excinfo:
         se.array_evolve(uri)
-    assert "the enumeration has not been loaded" in str(excinfo.value)
+    assert "Unable to drop enumeration" in str(excinfo.value)
 
     se.drop_attribute("a3")
     se.array_evolve(uri)
