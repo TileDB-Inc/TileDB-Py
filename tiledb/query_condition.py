@@ -180,6 +180,9 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_In(self, node):
         return node
 
+    def visit_NotIn(self, node):
+        return node
+
     def visit_List(self, node):
         return list(node.elts)
 
@@ -208,7 +211,30 @@ class QueryConditionTree(ast.NodeVisitor):
                     self.visit(lhs), self.visit(op), self.visit(rhs)
                 )
                 result = result.combine(value, qc.TILEDB_AND)
+
         elif isinstance(operator, ast.In):
+            rhs = node.comparators[0]
+            if not isinstance(rhs, ast.List):
+                raise TileDBError(
+                    "`in` operator syntax must be written as `variable in ['l', 'i', 's', 't']`"
+                )
+
+            variable = node.left.id
+            values = [self.get_value_from_node(val) for val in self.visit(rhs)]
+
+            if self.array.schema.has_attr(variable):
+                enum_label = self.array.attr(variable).enum_label
+                if enum_label is not None:
+                    dt = self.array.enum(enum_label).dtype
+                else:
+                    dt = self.array.attr(variable).dtype
+            else:
+                dt = self.array.schema.attr_or_dim_dtype(variable)
+
+            dtype = "string" if dt.kind in "SUa" else dt.name
+            result = self.create_pyqc(dtype)(self.ctx, node.left.id, values)
+
+        elif isinstance(operator, ast.NotIn):
             rhs = node.comparators[0]
             if not isinstance(rhs, ast.List):
                 raise TileDBError(
