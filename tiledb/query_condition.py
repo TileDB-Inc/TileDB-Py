@@ -179,6 +179,9 @@ class QueryConditionTree(ast.NodeVisitor):
 
     def visit_In(self, node):
         return node
+    
+    def visit_NotIn(self, node):
+        return node
 
     def visit_List(self, node):
         return list(node.elts)
@@ -208,7 +211,7 @@ class QueryConditionTree(ast.NodeVisitor):
                     self.visit(lhs), self.visit(op), self.visit(rhs)
                 )
                 result = result.combine(value, qc.TILEDB_AND)
-        elif isinstance(operator, ast.In):
+        elif isinstance(operator, (ast.In, ast.NotIn)):
             rhs = node.comparators[0]
             if not isinstance(rhs, ast.List):
                 raise TileDBError(
@@ -228,7 +231,8 @@ class QueryConditionTree(ast.NodeVisitor):
                 dt = self.array.schema.attr_or_dim_dtype(variable)
 
             dtype = "string" if dt.kind in "SUa" else dt.name
-            result = self.create_pyqc(dtype)(self.ctx, node.left.id, values)
+            op = qc.TILEDB_IN if isinstance(operator, ast.In) else qc.TILEDB_NOT_IN
+            result = self.create_pyqc(dtype)(self.ctx, node.left.id, values, op)
 
         return result
 
