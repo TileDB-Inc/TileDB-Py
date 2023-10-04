@@ -546,7 +546,7 @@ class QueryConditionTest(DiskTestCase):
 
             result = A.query(cond="S in ['8']")[:]
             assert len(result["S"]) == 0
-            
+
             result = A.query(cond="U not in [5, 6, 7]")[:]
             for val in result["U"]:
                 assert val not in [5, 6, 7]
@@ -577,7 +577,7 @@ class QueryConditionTest(DiskTestCase):
 
             result = A.query(cond="S in ['8']")[:]
             assert len(self.filter_dense(result["S"], S_mask)) == 0
-            
+
             result = A.query(cond="U not in [5, 6, 7]")[:]
             for val in self.filter_dense(result["U"], U_mask):
                 assert val not in [5, 6, 7]

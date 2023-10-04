@@ -179,7 +179,7 @@ class QueryConditionTree(ast.NodeVisitor):
 
     def visit_In(self, node):
         return node
-    
+
     def visit_NotIn(self, node):
         return node
 
