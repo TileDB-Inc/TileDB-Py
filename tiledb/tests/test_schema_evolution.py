@@ -153,6 +153,8 @@ def test_schema_evolution_with_enmr(tmp_path):
     se.add_enumeration(tiledb.Enumeration("e3", True, np.arange(0, 8)))
     se.array_evolve(uri)
 
+    se = tiledb.ArraySchemaEvolution(ctx)
+
     with tiledb.open(uri) as A:
         assert A.schema.has_attr("a3")
         assert A.attr("a3").enum_label == "e3"
@@ -161,7 +163,7 @@ def test_schema_evolution_with_enmr(tmp_path):
 
     with pytest.raises(tiledb.TileDBError) as excinfo:
         se.array_evolve(uri)
-    assert "the enumeration has not been loaded" in str(excinfo.value)
+    assert "Unable to drop enumeration" in str(excinfo.value)
 
     se.drop_attribute("a3")
     se.array_evolve(uri)
