@@ -15,5 +15,5 @@ jobs:
       - name: Check Clang-Format
         uses: DoozyX/clang-format-lint-action@v0.13
         with:
-          clangFormatVersion: '11'
+          clangFormatVersion: '15'
           source: 'tiledb'
