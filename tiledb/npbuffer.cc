@@ -12,7 +12,7 @@
 #include <pybind11/pytypes.h>
 
 #if !defined(NDEBUG)
-//#include "debug.cc"
+// #include "debug.cc"
 #endif
 
 #include <tiledb/tiledb> // C++

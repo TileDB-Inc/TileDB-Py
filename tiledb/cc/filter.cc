@@ -1,5 +1,5 @@
 #include <tiledb/tiledb>
-//#include <tiledb/tiledb_experimental.h> // for filter_dump, not yet available
+// #include <tiledb/tiledb_experimental.h> // for filter_dump, not yet available
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
