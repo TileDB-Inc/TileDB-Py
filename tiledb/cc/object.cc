@@ -13,12 +13,16 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-void init_object(py::module &m) {
+void init_object(py::module& m) {
   py::class_<Object>(m, "Object")
-      .def(py::init<const Object::Type &, const std::string &,
-                    const std::optional<std::string> &>())
-      .def(py::init<tiledb_object_t, const std::string &,
-                    const std::optional<std::string> &>())
+      .def(py::init<
+           const Object::Type&,
+           const std::string&,
+           const std::optional<std::string>&>())
+      .def(py::init<
+           tiledb_object_t,
+           const std::string&,
+           const std::optional<std::string>&>())
 
       .def_property_readonly("_type", &Object::type)
       .def_property_readonly("_uri", &Object::uri)
@@ -30,4 +34,4 @@ void init_object(py::module &m) {
       .def_static("_move", &Object::move);
 }
 
-} // namespace libtiledbcpp
+}  // namespace libtiledbcpp

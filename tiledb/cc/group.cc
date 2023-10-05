@@ -14,11 +14,11 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-void put_metadata_numpy(Group &group, const std::string &key, py::array value) {
+void put_metadata_numpy(Group& group, const std::string& key, py::array value) {
   tiledb_datatype_t value_type;
   try {
     value_type = np_to_tdb_dtype(value.dtype());
-  } catch (const TileDBPyError &e) {
+  } catch (const TileDBPyError& e) {
     throw py::type_error(e.what());
   }
 
@@ -34,36 +34,39 @@ void put_metadata_numpy(Group &group, const std::string &key, py::array value) {
     throw py::type_error("Unsupported dtype for metadata");
 
   auto value_num = is_tdb_str(value_type) ? value.nbytes() : value.size();
-  group.put_metadata(key, value_type, value_num,
-                     value_num > 0 ? value.data() : nullptr);
+  group.put_metadata(
+      key, value_type, value_num, value_num > 0 ? value.data() : nullptr);
 }
 
-void put_metadata(Group &group, const std::string &key,
-                  tiledb_datatype_t value_type, uint32_t value_num,
-                  const char *value) {
+void put_metadata(
+    Group& group,
+    const std::string& key,
+    tiledb_datatype_t value_type,
+    uint32_t value_num,
+    const char* value) {
   group.put_metadata(key, value_type, value_num, value);
 }
 
-bool has_metadata(Group &group, const std::string &key) {
+bool has_metadata(Group& group, const std::string& key) {
   tiledb_datatype_t _unused_value_type;
   return group.has_metadata(key, &_unused_value_type);
 }
 
-std::string get_key_from_index(Group &group, uint64_t index) {
+std::string get_key_from_index(Group& group, uint64_t index) {
   std::string key;
   tiledb_datatype_t tdb_type;
   uint32_t value_num;
-  const void *value;
+  const void* value;
 
   group.get_metadata_from_index(index, &key, &tdb_type, &value_num, &value);
 
   return key;
 }
 
-py::tuple get_metadata(Group &group, const std::string &key) {
+py::tuple get_metadata(Group& group, const std::string& key) {
   tiledb_datatype_t tdb_type;
   uint32_t value_num;
-  const void *value;
+  const void* value;
 
   group.get_metadata(key, &tdb_type, &value_num, &value);
 
@@ -84,23 +87,27 @@ py::tuple get_metadata(Group &group, const std::string &key) {
   return py::make_tuple(py_buf, tdb_type);
 }
 
-bool has_member(Group &group, std::string obj) {
+bool has_member(Group& group, std::string obj) {
   try {
     group.member(obj);
-  } catch (const TileDBError &e) {
+  } catch (const TileDBError& e) {
     return false;
   }
   return true;
 }
 
-void init_group(py::module &m) {
+void init_group(py::module& m) {
   py::class_<Group>(m, "Group")
       .def(
-          py::init<const Context &, const std::string &, tiledb_query_type_t>(),
+          py::init<const Context&, const std::string&, tiledb_query_type_t>(),
           py::keep_alive<1, 2>())
-      .def(py::init<const Context &, const std::string &, tiledb_query_type_t,
-                    const Config &>(),
-           py::keep_alive<1, 2>())
+      .def(
+          py::init<
+              const Context&,
+              const std::string&,
+              tiledb_query_type_t,
+              const Config&>(),
+          py::keep_alive<1, 2>())
 
       .def("_open", &Group::open)
       .def("_set_config", &Group::set_config)
@@ -108,7 +115,7 @@ void init_group(py::module &m) {
 #if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 16
       .def("_close", &Group::close)
 #else
-      .def("_close", [](Group &self) { self.close(true); })
+      .def("_close", [](Group& self) { self.close(true); })
 #endif
       .def_property_readonly("_isopen", &Group::is_open)
       .def_property_readonly("_uri", &Group::uri)
@@ -123,14 +130,20 @@ void init_group(py::module &m) {
       .def("_get_metadata", get_metadata)
       .def("_get_key_from_index", get_key_from_index)
 
-      .def("_add", &Group::add_member, py::arg("uri"),
-           py::arg("relative") = false, py::arg("name") = std::nullopt)
+      .def(
+          "_add",
+          &Group::add_member,
+          py::arg("uri"),
+          py::arg("relative") = false,
+          py::arg("name") = std::nullopt)
       .def("_remove", &Group::remove_member)
       .def("_member_count", &Group::member_count)
-      .def("_member",
-           static_cast<Object (Group::*)(uint64_t) const>(&Group::member))
-      .def("_member",
-           static_cast<Object (Group::*)(std::string) const>(&Group::member))
+      .def(
+          "_member",
+          static_cast<Object (Group::*)(uint64_t) const>(&Group::member))
+      .def(
+          "_member",
+          static_cast<Object (Group::*)(std::string) const>(&Group::member))
       .def("_has_member", has_member)
       .def("_is_relative", &Group::is_relative)
       .def("_dump", &Group::dump)
@@ -140,4 +153,4 @@ void init_group(py::module &m) {
       .def("_delete_group", &Group::delete_group);
 }
 
-} // namespace libtiledbcpp
+}  // namespace libtiledbcpp

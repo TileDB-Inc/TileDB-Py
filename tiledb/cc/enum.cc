@@ -10,7 +10,7 @@ namespace libtiledbcpp {
 using namespace tiledb;
 namespace py = pybind11;
 
-void init_enums(py::module &m) {
+void init_enums(py::module& m) {
   // consts from tiledb.h
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR < 15
   m.def("TILEDB_COORDS", []() { return TILEDB_COORDS; });
@@ -136,8 +136,8 @@ void init_enums(py::module &m) {
       .value("DELETE", TILEDB_DELETE)
       .value("MODIFY_EXCLUSIVE", TILEDB_MODIFY_EXCLUSIVE);
 
-  py::enum_<tiledb_query_condition_op_t>(m, "QueryConditionOp",
-                                         py::module_local())
+  py::enum_<tiledb_query_condition_op_t>(
+      m, "QueryConditionOp", py::module_local())
       .value("LT", TILEDB_LT)
       .value("LE", TILEDB_LE)
       .value("GT", TILEDB_GT)
@@ -169,12 +169,15 @@ void init_enums(py::module &m) {
 
   // test helpers to check enum name against typed value
   m.def("_enum_string", &tiledb::impl::type_to_str);
-  m.def("_enum_string",
-        py::overload_cast<tiledb_array_type_t>(&tiledb::ArraySchema::to_str));
-  m.def("_enum_string",
-        py::overload_cast<tiledb_layout_t>(&tiledb::ArraySchema::to_str));
-  m.def("_enum_string",
-        py::overload_cast<tiledb_filter_type_t>(&tiledb::Filter::to_str));
+  m.def(
+      "_enum_string",
+      py::overload_cast<tiledb_array_type_t>(&tiledb::ArraySchema::to_str));
+  m.def(
+      "_enum_string",
+      py::overload_cast<tiledb_layout_t>(&tiledb::ArraySchema::to_str));
+  m.def(
+      "_enum_string",
+      py::overload_cast<tiledb_filter_type_t>(&tiledb::Filter::to_str));
   m.def("_enum_string", [](Query::Status status) {
     std::stringstream ss;
     ss << status;
@@ -182,4 +185,4 @@ void init_enums(py::module &m) {
   });
 }
 
-}; // namespace libtiledbcpp
+};  // namespace libtiledbcpp

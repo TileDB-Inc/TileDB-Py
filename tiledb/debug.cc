@@ -28,8 +28,8 @@ __attribute__((used)) static std::string pyrepr(py::object o) {
   return py::cast<std::string>(py::eval("repr(_v)", py::globals(), locals));
 }
 
-__attribute__((used)) static void pycall1(const char *expr,
-                                          pybind11::object o = py::none()) {
+__attribute__((used)) static void pycall1(
+    const char* expr, pybind11::object o = py::none()) {
   // this doesn't work in lldb
   // py::scoped_interpreter guard{};
 
@@ -53,16 +53,16 @@ __attribute__((used)) static void pycall1(const char *expr,
     if (!res.is(py::none())) {
       py::print(res);
     }
-  } catch (py::error_already_set &e) {
+  } catch (py::error_already_set& e) {
     std::cout << "pycall error_already_set: " << std::endl;
-  } catch (std::runtime_error &e) {
+  } catch (std::runtime_error& e) {
     std::cout << "pycall runtime_error: " << e.what() << std::endl;
   } catch (...) {
     std::cout << "pycall unknown exception" << std::endl;
   }
 }
 
-__attribute__((used)) static void pycall(const char *expr) {
+__attribute__((used)) static void pycall(const char* expr) {
   pycall1(expr, py::none());
 }
 
@@ -70,6 +70,6 @@ __attribute__((used)) static void pyerror() {
   // print the last py error, if any
 }
 }
-}; // namespace
+};  // namespace
 
 #endif

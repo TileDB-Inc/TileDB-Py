@@ -19,8 +19,8 @@ namespace py = pybind11;
 struct tiledb_dimension_label_t;
 
 class DimensionLabel {
-public:
-  DimensionLabel(const Context &, tiledb_dimension_label_t *) {
+ public:
+  DimensionLabel(const Context&, tiledb_dimension_label_t*) {
     throw TileDBError(
         "Using dimension labels requires libtiledb version 2.15.0 or greater");
   }
@@ -72,33 +72,34 @@ public:
 };
 #endif
 
-void init_dimension_label(py::module &m) {
+void init_dimension_label(py::module& m) {
   py::class_<DimensionLabel>(m, "DimensionLabel")
       .def(py::init<DimensionLabel>())
 
-      .def(py::init<const Context &, py::capsule>())
+      .def(py::init<const Context&, py::capsule>())
 
-      .def("__capsule__",
-           [](DimensionLabel &dim_label) {
-             return py::capsule(dim_label.ptr().get(), "dim_label", nullptr);
-           })
+      .def(
+          "__capsule__",
+          [](DimensionLabel& dim_label) {
+            return py::capsule(dim_label.ptr().get(), "dim_label", nullptr);
+          })
 
-      .def_property_readonly("_label_attr_name",
-                             &DimensionLabel::label_attr_name)
+      .def_property_readonly(
+          "_label_attr_name", &DimensionLabel::label_attr_name)
 
       .def_property_readonly("_dim_index", &DimensionLabel::dimension_index)
 
-      .def_property_readonly("_tiledb_label_order",
-                             &DimensionLabel::label_order)
+      .def_property_readonly(
+          "_tiledb_label_order", &DimensionLabel::label_order)
 
       .def_property_readonly("_tiledb_label_dtype", &DimensionLabel::label_type)
 
-      .def_property_readonly("_label_ncell",
-                             &DimensionLabel::label_cell_val_num)
+      .def_property_readonly(
+          "_label_ncell", &DimensionLabel::label_cell_val_num)
 
       .def_property_readonly("_name", &DimensionLabel::name)
 
       .def_property_readonly("_uri", &DimensionLabel::uri);
 }
 
-}; // namespace libtiledbcpp
+};  // namespace libtiledbcpp
