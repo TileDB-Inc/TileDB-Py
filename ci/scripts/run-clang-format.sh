@@ -44,7 +44,7 @@ else
   NUM_CORRECTIONS=`find "${SOURCE_PATHS[@]}" \( "${FIND_FILES[@]}" \) -print0 | xargs -0 -P8 $CLANG_FORMAT -output-replacements-xml | grep offset | wc -l`
 
   if [ "$NUM_CORRECTIONS" -gt "0" ]; then
-    echo "clang-format suggested changes, please run 'make format'!!!!"
+    echo "clang-format suggested changes"
 
     # If running on CI, print out the change-set
     if [ "$CI" = true ]; then
