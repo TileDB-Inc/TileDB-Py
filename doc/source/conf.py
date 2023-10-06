@@ -167,4 +167,4 @@ gensidebar.generate_sidebar(
 
 
 def setup(app):
-    app.add_stylesheet("custom.css")
+    app.add_css_file("custom.css")
