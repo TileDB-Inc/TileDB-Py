@@ -46,8 +46,8 @@ def create_array(uri: str):
     dom = tiledb.Domain(dim1, dim2)
     att = tiledb.Attr("values", dtype=np.int64)
     dim_labels = {
-        0: {"x1": dim1.create_label_schema("increasing", np.float64)},
-        1: {"x2": dim2.create_label_schema("increasing", np.float64)},
+        0: {"x1": dim1.create_label_schema("increasing", np.float64, tile=6)},
+        1: {"x2": dim2.create_label_schema("increasing", np.float64, tile=6)},
     }
     schema = tiledb.ArraySchema(
         domain=dom, attrs=(att,), dim_labels=dim_labels, sparse=True
