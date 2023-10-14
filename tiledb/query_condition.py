@@ -180,6 +180,9 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_In(self, node):
         return node
 
+    def visit_NotIn(self, node):
+        return node
+
     def visit_List(self, node):
         return list(node.elts)
 
@@ -208,21 +211,28 @@ class QueryConditionTree(ast.NodeVisitor):
                     self.visit(lhs), self.visit(op), self.visit(rhs)
                 )
                 result = result.combine(value, qc.TILEDB_AND)
-        elif isinstance(operator, ast.In):
+        elif isinstance(operator, (ast.In, ast.NotIn)):
             rhs = node.comparators[0]
             if not isinstance(rhs, ast.List):
                 raise TileDBError(
                     "`in` operator syntax must be written as `variable in ['l', 'i', 's', 't']`"
                 )
 
-            consts = self.visit(rhs)
-            result = self.aux_visit_Compare(
-                self.visit(node.left), qc.TILEDB_EQ, consts[0]
-            )
+            variable = node.left.id
+            values = [self.get_value_from_node(val) for val in self.visit(rhs)]
 
-            for val in consts[1:]:
-                value = self.aux_visit_Compare(self.visit(node.left), qc.TILEDB_EQ, val)
-                result = result.combine(value, qc.TILEDB_OR)
+            if self.array.schema.has_attr(variable):
+                enum_label = self.array.attr(variable).enum_label
+                if enum_label is not None:
+                    dt = self.array.enum(enum_label).dtype
+                else:
+                    dt = self.array.attr(variable).dtype
+            else:
+                dt = self.array.schema.attr_or_dim_dtype(variable)
+
+            dtype = "string" if dt.kind in "SUa" else dt.name
+            op = qc.TILEDB_IN if isinstance(operator, ast.In) else qc.TILEDB_NOT_IN
+            result = self.create_pyqc(dtype)(self.ctx, node.left.id, values, op)
 
         return result
 
@@ -400,6 +410,20 @@ class QueryConditionTree(ast.NodeVisitor):
             raise TileDBError(f"PyQueryCondition.{init_fn_name}() not found.")
 
         return getattr(pyqc, init_fn_name)
+
+    def create_pyqc(self, dtype: str) -> Callable:
+        if dtype != "string":
+            if np.issubdtype(dtype, np.datetime64):
+                dtype = "int64"
+            elif np.issubdtype(dtype, bool):
+                dtype = "uint8"
+
+        create_fn_name = f"create_{dtype}"
+
+        if not hasattr(qc.PyQueryCondition, create_fn_name):
+            raise TileDBError(f"PyQueryCondition.{create_fn_name}() not found.")
+
+        return getattr(qc.PyQueryCondition, create_fn_name)
 
     def visit_BinOp(self, node: ast.BinOp) -> qc.PyQueryCondition:
         try:
