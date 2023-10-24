@@ -19,6 +19,20 @@ void init_enumeration(py::module &m) {
       .def(py::init<Enumeration>())
 
       .def(py::init([](const Context &ctx, const std::string &name,
+                       py::dtype type, bool ordered) {
+        tiledb_datatype_t data_type;
+        try {
+          data_type = np_to_tdb_dtype(type);
+        } catch (const TileDBPyError &e) {
+          throw py::type_error(e.what());
+        }
+        py::size_t cell_val_num = get_ncells(type);
+
+        return Enumeration::create_empty(
+          ctx, name, data_type, cell_val_num, ordered);
+      }))
+
+      .def(py::init([](const Context &ctx, const std::string &name,
                        std::vector<std::string> &values, bool ordered,
                        tiledb_datatype_t type) {
         return Enumeration::create(ctx, name, values, ordered, type);
