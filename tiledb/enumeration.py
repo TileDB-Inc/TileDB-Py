@@ -16,7 +16,12 @@ class Enumeration(CtxMixin, lt.Enumeration):
     """
 
     def __init__(
-        self, name: str, ordered: bool, values: Optional[Sequence[Any]] = None, dtype: Optional[np.dtype] = None, ctx: Optional[Ctx] = None
+        self,
+        name: str,
+        ordered: bool,
+        values: Optional[Sequence[Any]] = None,
+        dtype: Optional[np.dtype] = None,
+        ctx: Optional[Ctx] = None,
     ):
         """Class representing the TileDB Enumeration.
 
@@ -33,7 +38,7 @@ class Enumeration(CtxMixin, lt.Enumeration):
             if dtype is None:
                 raise ValueError("dtype must be provied for empty enumeration")
             super().__init__(ctx, name, np.dtype(dtype), ordered)
-            
+
         values = np.array(values)
         if np.dtype(values.dtype).kind in "US":
             dtype = (

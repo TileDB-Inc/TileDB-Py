@@ -28,8 +28,8 @@ void init_enumeration(py::module &m) {
         }
         py::size_t cell_val_num = get_ncells(type);
 
-        return Enumeration::create_empty(
-          ctx, name, data_type, cell_val_num, ordered);
+        return Enumeration::create_empty(ctx, name, data_type, cell_val_num,
+                                         ordered);
       }))
 
       .def(py::init([](const Context &ctx, const std::string &name,

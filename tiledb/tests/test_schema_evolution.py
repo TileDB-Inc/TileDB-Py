@@ -171,6 +171,7 @@ def test_schema_evolution_with_enmr(tmp_path):
     with tiledb.open(uri) as A:
         assert not A.schema.has_attr("a3")
 
+
 def test_schema_evolution_extend_enmr(tmp_path):
     uri = str(tmp_path)
     enmr = tiledb.Enumeration("e", True, dtype=str)
@@ -183,12 +184,12 @@ def test_schema_evolution_extend_enmr(tmp_path):
         assert A.schema.has_attr("a")
         assert A.attr("a").enum_label == "e"
         assert A.enum("e") == enmr
-        
+
     se = tiledb.ArraySchemaEvolution()
     updated_enmr = tiledb.Enumeration("e", True, ["a", "b", "c"])
     se.extend_enumeration(updated_enmr)
     se.array_evolve(uri)
-    
+
     with tiledb.open(uri) as A:
         assert A.schema.has_attr("a")
         assert A.attr("a").enum_label == "e"
