@@ -86,25 +86,35 @@ void init_enumeration(py::module &m) {
 
       .def("str_values",
            [](Enumeration &enmr) { return enmr.as_vector<std::string>(); })
-      
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<int64_t>)>(&Enumeration::extend))
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<uint64_t>)>(&Enumeration::extend))
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<int32_t>)>(&Enumeration::extend))
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<uint32_t>)>(&Enumeration::extend))
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<int16_t>)>(&Enumeration::extend))
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<uint16_t>)>(&Enumeration::extend))
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<int8_t>)>(&Enumeration::extend))
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<uint8_t>)>(&Enumeration::extend))
-      .def("extend", static_cast<Enumeration (Enumeration::*)
-          (std::vector<std::string>&)>(&Enumeration::extend));
+
+      .def("extend",
+           static_cast<Enumeration (Enumeration::*)(std::vector<int64_t>)>(
+               &Enumeration::extend))
+      .def("extend",
+           static_cast<Enumeration (Enumeration::*)(std::vector<uint64_t>)>(
+               &Enumeration::extend))
+      .def("extend",
+           static_cast<Enumeration (Enumeration::*)(std::vector<int32_t>)>(
+               &Enumeration::extend))
+      .def("extend",
+           static_cast<Enumeration (Enumeration::*)(std::vector<uint32_t>)>(
+               &Enumeration::extend))
+      .def("extend",
+           static_cast<Enumeration (Enumeration::*)(std::vector<int16_t>)>(
+               &Enumeration::extend))
+      .def("extend",
+           static_cast<Enumeration (Enumeration::*)(std::vector<uint16_t>)>(
+               &Enumeration::extend))
+      .def("extend",
+           static_cast<Enumeration (Enumeration::*)(std::vector<int8_t>)>(
+               &Enumeration::extend))
+      .def("extend",
+           static_cast<Enumeration (Enumeration::*)(std::vector<uint8_t>)>(
+               &Enumeration::extend))
+      .def(
+          "extend",
+          static_cast<Enumeration (Enumeration::*)(std::vector<std::string> &)>(
+              &Enumeration::extend));
 }
 
 } // namespace libtiledbcpp

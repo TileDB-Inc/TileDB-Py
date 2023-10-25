@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import io
 from typing import Any, Optional, Sequence
 
@@ -94,10 +95,9 @@ class Enumeration(CtxMixin, lt.Enumeration):
             return np.array(super().str_values(), dtype=np.bytes_)
         else:
             return super().values()
-        
+
     def extend(self, values: Sequence[Any]) -> Enumeration:
         return Enumeration.from_pybind11(self._ctx, super().extend(values))
-        
 
     def __eq__(self, other):
         if not isinstance(other, Enumeration):
