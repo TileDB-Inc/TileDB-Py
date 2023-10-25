@@ -17,8 +17,8 @@ public:
                        tiledb_data_order_t label_order,
                        tiledb_datatype_t label_type)
       : dim_type_{dim_type}, dim_tile_extent_{dim_tile_extent},
-        label_order_{label_order}, label_type_{label_type}, label_filters_{
-                                                                std::nullopt} {}
+        label_order_{label_order}, label_type_{label_type},
+        label_filters_{std::nullopt} {}
 
   DimensionLabelSchema(tiledb_datatype_t dim_type, py::object dim_tile_extent,
                        tiledb_data_order_t label_order,
