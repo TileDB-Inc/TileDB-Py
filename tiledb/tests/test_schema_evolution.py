@@ -184,7 +184,7 @@ def test_schema_evolution_extend_enmr(tmp_path):
         assert A.schema.has_attr("a")
         assert A.attr("a").enum_label == "e"
         assert A.enum("e") == enmr
-        
+
     se = tiledb.ArraySchemaEvolution()
     with pytest.raises(tiledb.TileDBError):
         enmr.extend([1, 2, 3])
