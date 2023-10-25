@@ -186,7 +186,7 @@ def test_schema_evolution_extend_enmr(tmp_path):
         assert A.enum("e") == enmr
 
     se = tiledb.ArraySchemaEvolution()
-    updated_enmr = tiledb.Enumeration("e", True, ["a", "b", "c"])
+    updated_enmr = enmr.extend(["a", "b", "c"])
     se.extend_enumeration(updated_enmr)
     se.array_evolve(uri)
 
