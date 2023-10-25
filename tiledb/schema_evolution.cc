@@ -86,6 +86,18 @@ void init_schema_evolution(py::module &m) {
              if (rc != TILEDB_OK) {
                TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
              }
+           })
+      .def("extend_enumeration",
+           [](ArraySchemaEvolution &inst, py::object enum_py) {
+             tiledb_enumeration_t *enum_c =
+                 (py::capsule)enum_py.attr("__capsule__")();
+             if (enum_c == nullptr)
+               TPY_ERROR_LOC("Invalid Enumeration!");
+             int rc = tiledb_array_schema_evolution_extend_enumeration(
+                 inst.ctx_, inst.evol_, enum_c);
+             if (rc != TILEDB_OK) {
+               TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
+             }
            });
 }
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 from typing import Any, Optional, Sequence
 
@@ -16,7 +18,12 @@ class Enumeration(CtxMixin, lt.Enumeration):
     """
 
     def __init__(
-        self, name: str, ordered: bool, values: Sequence[Any], ctx: Optional[Ctx] = None
+        self,
+        name: str,
+        ordered: bool,
+        values: Optional[Sequence[Any]] = None,
+        dtype: Optional[np.dtype] = None,
+        ctx: Optional[Ctx] = None,
     ):
         """Class representing the TileDB Enumeration.
 
@@ -29,6 +36,11 @@ class Enumeration(CtxMixin, lt.Enumeration):
         :param ctx: A TileDB context
         :type ctx: tiledb.Ctx
         """
+        if values is None or len(values) == 0:
+            if dtype is None:
+                raise ValueError("dtype must be provied for empty enumeration")
+            super().__init__(ctx, name, np.dtype(dtype), ordered)
+
         values = np.array(values)
         if np.dtype(values.dtype).kind in "US":
             dtype = (
@@ -84,17 +96,20 @@ class Enumeration(CtxMixin, lt.Enumeration):
         else:
             return super().values()
 
+    def extend(self, values: Sequence[Any]) -> Enumeration:
+        return Enumeration.from_pybind11(self._ctx, super().extend(values))
+
     def __eq__(self, other):
         if not isinstance(other, Enumeration):
             return False
 
-        return any(
+        return all(
             [
                 self.name == other.name,
                 self.dtype == other.dtype,
-                self.dtype == other.dtype,
-                self.dtype == other.dtype,
-                self.values() == other.values(),
+                self.cell_val_num == other.cell_val_num,
+                self.ordered == other.ordered,
+                np.array_equal(self.values(), other.values()),
             ]
         )
 

@@ -44,6 +44,13 @@ class ArraySchemaEvolution:
 
         self.ase.drop_enumeration(enmr_name)
 
+    def extend_enumeration(self, enmr: Enumeration):
+        """Extend the existing enumeration (by name) in the schema evolution.
+        Note: this function does not apply any changes; the changes are
+        only applied when `ArraySchemaEvolution.array_evolve` is called."""
+
+        self.ase.extend_enumeration(enmr)
+
     def array_evolve(self, uri: str):
         """Apply ArraySchemaEvolution actions to Array at given URI."""
 
