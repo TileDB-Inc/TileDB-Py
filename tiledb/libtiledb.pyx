@@ -152,12 +152,15 @@ cdef _write_array(
 
         if attr.isvar:
             try:
-                if(np.issubdtype(attr.dtype, np.unicode_) 
-                    or np.issubdtype(attr.dtype, np.string_) 
-                    or np.issubdtype(attr.dtype, np.bytes_)):
-                    attr_val = np.array(["" if v is None else v for v in values[i]])
+                if attr.isnullable:
+                    if(np.issubdtype(attr.dtype, np.unicode_) 
+                        or np.issubdtype(attr.dtype, np.string_) 
+                        or np.issubdtype(attr.dtype, np.bytes_)):
+                        attr_val = np.array(["" if v is None else v for v in values[i]])
+                    else:
+                        attr_val = np.nan_to_num(values[i])
                 else:
-                    attr_val = np.nan_to_num(values[i])
+                    attr_val = values[i]
                 buffer, offsets = array_to_buffer(attr_val, True, False)
             except Exception as exc:
                 raise type(exc)(f"Failed to convert buffer for attribute: '{attr.name}'") from exc
