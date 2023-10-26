@@ -420,7 +420,7 @@ class ArrayTest(DiskTestCase):
             expected_validity2 = [False, False, True, True, False]
             assert_array_equal(A[:]["a2"].mask, expected_validity2)
             assert_array_equal(A.df[:]["a2"].isna(), expected_validity2)
-            
+
         with tiledb.open(uri, "w") as A:
             dims = pa.array([1, 2, 3, 4, 5])
             data1 = pa.array([None, None, None, None, None])
@@ -434,7 +434,7 @@ class ArrayTest(DiskTestCase):
                 A[dims] = {"a1": data1, "a2": data2}
             else:
                 A[:] = {"a1": data1, "a2": data2}
-        
+
         with tiledb.open(uri, "r") as A:
             expected_validity1 = [True, True, True, True, True]
             assert_array_equal(A[:]["a1"].mask, expected_validity1)
