@@ -429,9 +429,6 @@ class ArrayTest(DiskTestCase):
                 dims = dims.to_pandas()
                 data1 = data1.to_pandas()
                 data2 = data2.to_pandas()
-            
-            print(data1)
-            print(type(data1))
 
             if sparse:
                 A[dims] = {"a1": data1, "a2": data2}

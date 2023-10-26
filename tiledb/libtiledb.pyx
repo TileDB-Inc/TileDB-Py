@@ -2311,7 +2311,9 @@ cdef class DenseArrayImpl(Array):
                         attr_val = np.asarray(attr_val)
                         if attr.isnullable and name not in nullmaps:
                             nullmaps[name] = np.array(
-                                [int(v is not None) for v in attr_val], dtype=np.uint8)
+                                [int(v is not None) for v in attr_val], 
+                                dtype=np.uint8
+                            )
                     else:
                         if (np.issubdtype(attr.dtype, np.string_) and not
                             (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
@@ -2322,14 +2324,19 @@ cdef class DenseArrayImpl(Array):
                             try:
                                 nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
                             except Exception as exc:
+                                attr_val = np.asarray(attr_val)
                                 nullmaps[name] = np.array(
-                                    [int(v is not None) for v in attr_val], dtype=np.uint8)
+                                    [int(v is not None) for v in attr_val], 
+                                    dtype=np.uint8
+                                )
 
                             if np.issubdtype(attr.dtype, np.string_):
-                                attr_val = np.array(["" if v is None else v for v in attr_val])
+                                attr_val = np.array(
+                                    ["" if v is None else v for v in attr_val])
                             else:
                                 attr_val = np.nan_to_num(attr_val)
-                                attr_val = np.array([0 if v is None else v for v in attr_val])
+                                attr_val = np.array(
+                                    [0 if v is None else v for v in attr_val])
                         attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
                 except Exception as exc:
                     raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
