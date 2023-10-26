@@ -1,3 +1,14 @@
+# Release 0.23.2
+
+* TileDB-Py 0.23.2 includes TileDB Embedded [2.17.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.17.3)
+
+## Improvements
+
+* Add support for enumeration extension API. [#1847](https://github.com/TileDB-Inc/TileDB-Py/pull/1847)
+* Support new set membership query condition. [#1837](https://github.com/TileDB-Inc/TileDB-Py/pull/1837)
+* Create `ArraySchemaEvolution` for new operation. [#1839](https://github.com/TileDB-Inc/TileDB-Py/pull/1839)
+* Add sparse dimension label example. [#1843](https://github.com/TileDB-Inc/TileDB-Py/pull/1843)
+
 # Release 0.23.1
 
 * TileDB-Py 0.23.1 includes TileDB Embedded [2.17.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.17.1)
