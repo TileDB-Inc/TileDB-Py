@@ -463,9 +463,7 @@ class Group(CtxMixin, lt.Group):
         self._set_config(cfg)
 
     @staticmethod
-    def consolidate_metadata(
-        ctx: Optional[Ctx], uri: str, config: Config = None
-    ):
+    def consolidate_metadata(ctx: Optional[Ctx], uri: str, config: Config = None):
         if ctx is None:
             ctx = default_ctx()
 

@@ -138,11 +138,11 @@ void init_group(py::module &m) {
 
       /* static methods */
       .def_static("_create", &Group::create)
-      .def_static("_consolidate_metadata", &Group::consolidate_metadata, 
-            py::arg("ctx"), py::arg("uri"), py::arg("config") = (Config*)nullptr)
-      .def_static("_vacuum_metadata", &Group::vacuum_metadata, 
-            py::arg("ctx"), py::arg("uri"), py::arg("config") = (Config*)nullptr);
-
+      .def_static("_consolidate_metadata", &Group::consolidate_metadata,
+                  py::arg("ctx"), py::arg("uri"),
+                  py::arg("config") = (Config *)nullptr)
+      .def_static("_vacuum_metadata", &Group::vacuum_metadata, py::arg("ctx"),
+                  py::arg("uri"), py::arg("config") = (Config *)nullptr);
 }
 
 } // namespace libtiledbcpp
