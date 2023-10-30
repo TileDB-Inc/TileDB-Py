@@ -174,11 +174,7 @@ def test_schema_evolution_with_enmr(tmp_path):
 
 @pytest.mark.parametrize(
     "type,data",
-    (
-        ("int", [0]),
-        ("bool", [True, False]),
-        ("str", ["abc", "defghi", "jk"])
-    ),
+    (("int", [0]), ("bool", [True, False]), ("str", ["abc", "defghi", "jk"])),
 )
 def test_schema_evolution_extend_enmr(tmp_path, type, data):
     uri = str(tmp_path)
@@ -203,8 +199,26 @@ def test_schema_evolution_extend_enmr(tmp_path, type, data):
         assert A.attr("a").enum_label == "e"
         assert A.enum("e") == updated_enmr
 
+
 def test_schema_evolution_extend_check_bad_type():
     enmr = tiledb.Enumeration("e", True, dtype=str)
     with pytest.raises(tiledb.TileDBError):
         enmr.extend([1, 2, 3])
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend([True, False])
     enmr.extend(["a", "b"])
+    
+    enmr = tiledb.Enumeration("e", True, dtype=int)
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend(["a", "b"])
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend([True, False])
+    enmr.extend([1, 2, 3])
+
+    enmr = tiledb.Enumeration("e", True, dtype=bool)
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend(["a", "b"])
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend([1, 2, 3])
+    enmr.extend([True, False])
+    

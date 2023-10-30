@@ -101,7 +101,14 @@ class Enumeration(CtxMixin, lt.Enumeration):
         
         :rtype: Enumeration
         """
-        return Enumeration.from_pybind11(self._ctx, super().extend(np.array(values)))
+        values = np.array(values)
+        if self.dtype.kind in "US" and values.dtype.kind not in "US":
+            raise lt.TileDBError("Passed in enumeration must be string type")
+        
+        if np.issubdtype(self.dtype.kind, np.integer) and not np.issubdtype(values.dtype.kind, np.integer):
+            raise lt.TileDBError("Passed in enumeration must be integer type")
+        
+        return Enumeration.from_pybind11(self._ctx, super().extend(values))
 
     def __eq__(self, other):
         if not isinstance(other, Enumeration):

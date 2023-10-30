@@ -86,13 +86,13 @@ void init_enumeration(py::module &m) {
       .def("str_values",
            [](Enumeration &enmr) { return enmr.as_vector<std::string>(); })
 
-      .def("extend", static_cast<Enumeration (Enumeration::*)(
-            std::vector<std::string> &)>(&Enumeration::extend)
-      )
-      .def("extend", [](Enumeration &enmr, py::array data){
-            return enmr.extend(data.data(), data.nbytes(), nullptr, 0);
-      })
-      ;
+      .def(
+          "extend",
+          static_cast<Enumeration (Enumeration::*)(std::vector<std::string> &)>(
+              &Enumeration::extend))
+      .def("extend", [](Enumeration &enmr, py::array data) {
+        return enmr.extend(data.data(), data.nbytes(), nullptr, 0);
+      });
 }
 
 } // namespace libtiledbcpp
