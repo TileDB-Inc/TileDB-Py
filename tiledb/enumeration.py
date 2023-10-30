@@ -97,7 +97,11 @@ class Enumeration(CtxMixin, lt.Enumeration):
             return super().values()
 
     def extend(self, values: Sequence[Any]) -> Enumeration:
-        return Enumeration.from_pybind11(self._ctx, super().extend(values))
+        """Add additional values to the enumeration.
+        
+        :rtype: Enumeration
+        """
+        return Enumeration.from_pybind11(self._ctx, super().extend(np.array(values)))
 
     def __eq__(self, other):
         if not isinstance(other, Enumeration):
