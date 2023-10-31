@@ -207,7 +207,7 @@ def test_schema_evolution_extend_check_bad_type():
     with pytest.raises(tiledb.TileDBError):
         enmr.extend([True, False])
     enmr.extend(["a", "b"])
-    
+
     enmr = tiledb.Enumeration("e", True, dtype=int)
     with pytest.raises(tiledb.TileDBError):
         enmr.extend(["a", "b"])
@@ -221,4 +221,3 @@ def test_schema_evolution_extend_check_bad_type():
     with pytest.raises(tiledb.TileDBError):
         enmr.extend([1, 2, 3])
     enmr.extend([True, False])
-    
