@@ -172,9 +172,13 @@ def test_schema_evolution_with_enmr(tmp_path):
         assert not A.schema.has_attr("a3")
 
 
-def test_schema_evolution_extend_enmr(tmp_path):
+@pytest.mark.parametrize(
+    "type,data",
+    (("int", [0]), ("bool", [True, False]), ("str", ["abc", "defghi", "jk"])),
+)
+def test_schema_evolution_extend_enmr(tmp_path, type, data):
     uri = str(tmp_path)
-    enmr = tiledb.Enumeration("e", True, dtype=str)
+    enmr = tiledb.Enumeration("e", True, dtype=type)
     attrs = [tiledb.Attr(name="a", dtype=int, enum_label="e")]
     domain = tiledb.Domain(tiledb.Dim(domain=(0, 3), dtype=np.uint64))
     schema = tiledb.ArraySchema(domain=domain, attrs=attrs, enums=[enmr])
@@ -186,9 +190,7 @@ def test_schema_evolution_extend_enmr(tmp_path):
         assert A.enum("e") == enmr
 
     se = tiledb.ArraySchemaEvolution()
-    with pytest.raises(tiledb.TileDBError):
-        enmr.extend([1, 2, 3])
-    updated_enmr = enmr.extend(["a", "b", "c"])
+    updated_enmr = enmr.extend(data)
     se.extend_enumeration(updated_enmr)
     se.array_evolve(uri)
 
@@ -196,3 +198,26 @@ def test_schema_evolution_extend_enmr(tmp_path):
         assert A.schema.has_attr("a")
         assert A.attr("a").enum_label == "e"
         assert A.enum("e") == updated_enmr
+
+
+def test_schema_evolution_extend_check_bad_type():
+    enmr = tiledb.Enumeration("e", True, dtype=str)
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend([1, 2, 3])
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend([True, False])
+    enmr.extend(["a", "b"])
+
+    enmr = tiledb.Enumeration("e", True, dtype=int)
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend(["a", "b"])
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend([True, False])
+    enmr.extend([1, 2, 3])
+
+    enmr = tiledb.Enumeration("e", True, dtype=bool)
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend(["a", "b"])
+    with pytest.raises(tiledb.TileDBError):
+        enmr.extend([1, 2, 3])
+    enmr.extend([True, False])

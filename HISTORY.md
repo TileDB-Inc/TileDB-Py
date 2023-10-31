@@ -1,5 +1,11 @@
 # Release 0.23.2
 
+## Bug Fixes
+
+* Correct `Enumeration.extend` to handle integers, include Booleans, of different sizes
+
+# Release 0.23.2
+
 * TileDB-Py 0.23.2 includes TileDB Embedded [2.17.3](https://github.com/TileDB-Inc/TileDB/releases/tag/2.17.3)
 
 ## Improvements
@@ -24,7 +30,7 @@
 * Avoid importing Pandas until we actually use it. [#1825](https://github.com/TileDB-Inc/TileDB-Py/pull/1825)
 * Make VFS accept path-like objects to refer to files. [#1818](https://github.com/TileDB-Inc/TileDB-Py/pull/1818)
 
-## Bug Fies
+## Bug Fixes
 
 * Use object equality check in buffer conversion, fixes state serialization bug in distributed use-case. [#1822](https://github.com/TileDB-Inc/TileDB-Py/pull/1822)
 
