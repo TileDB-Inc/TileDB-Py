@@ -133,14 +133,23 @@ class EnumerationTest(DiskTestCase):
         ],
     )
     def test_enum_dtypes(self, dtype, values):
-        # empty
+        # create empty
         enmr = tiledb.Enumeration("e", False, dtype=dtype)
         if dtype in (np.dtype("S"), np.dtype("U")):
             assert enmr.dtype.kind == enmr.values().dtype.kind == dtype.kind
         else:
             assert enmr.dtype == enmr.values().dtype == dtype
+            assert_array_equal(enmr.values(), [])
+            
+        # then extend with values
+        enmr = enmr.extend(values)
+        if dtype in (np.dtype("S"), np.dtype("U")):
+            assert enmr.dtype.kind == enmr.values().dtype.kind == dtype.kind
+        else:
+            assert enmr.dtype == enmr.values().dtype == dtype
+            assert_array_equal(enmr.values(), values)
 
-        # with values
+        # create with values
         enmr = tiledb.Enumeration("e", False, values=values)
         if dtype in (np.dtype("S"), np.dtype("U")):
             assert enmr.dtype.kind == enmr.values().dtype.kind == dtype.kind
