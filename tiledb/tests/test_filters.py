@@ -85,6 +85,30 @@ class TestFilterTest(DiskTestCase):
         attr = tiledb.Attr(filters=filter_list2, dtype=attr_type)
         self.assertEqual(len(attr.filters), 1)
 
+    @pytest.mark.parametrize(
+        "filter_type,name",
+        [
+            (tiledb.NoOpFilter, "NONE"),
+            (tiledb.GzipFilter, "GZIP"),
+            (tiledb.ZstdFilter, "ZSTD"),
+            (tiledb.LZ4Filter, "LZ4"),
+            (tiledb.RleFilter, "RLE"),
+            (tiledb.Bzip2Filter, "BZIP2"),
+            (tiledb.DeltaFilter, "DELTA"),
+            (tiledb.DoubleDeltaFilter, "DOUBLE_DELTA"),
+            (tiledb.DictionaryFilter, "DICTIONARY"),
+            (tiledb.BitWidthReductionFilter, "BIT_WIDTH_REDUCTION"),
+            (tiledb.BitShuffleFilter, "BITSHUFFLE"),
+            (tiledb.ByteShuffleFilter, "BYTESHUFFLE"),
+            (tiledb.PositiveDeltaFilter, "POSITIVE_DELTA"),
+            (tiledb.ChecksumSHA256Filter, "CHECKSUM_SHA256"),
+            (tiledb.ChecksumMD5Filter, "CHECKSUM_MD5"),
+            (tiledb.FloatScaleFilter, "SCALE_FLOAT"),
+        ],
+    )
+    def test_filter_name(self, filter_type, name):
+        assert filter_type().filter_name == name
+
     @pytest.mark.parametrize("filter", all_filter_types)
     def test_all_filters(self, filter):
         # test initialization
