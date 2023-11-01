@@ -90,11 +90,11 @@ class Enumeration(CtxMixin, lt.Enumeration):
         :rtype: NDArray
         """
         if self.dtype.kind == "U":
-            return np.array(super().str_values())
+            return np.array(super().str_values(), dtype=np.str_)
         elif self.dtype.kind == "S":
             return np.array(super().str_values(), dtype=np.bytes_)
         else:
-            return super().values()
+            return np.array(super().values(), dtype=self.dtype)
 
     def extend(self, values: Sequence[Any]) -> Enumeration:
         """Add additional values to the enumeration.
