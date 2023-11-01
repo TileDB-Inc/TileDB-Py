@@ -105,8 +105,8 @@ class Enumeration(CtxMixin, lt.Enumeration):
         if self.dtype.kind in "US" and values.dtype.kind not in "US":
             raise lt.TileDBError("Passed in enumeration must be string type")
 
-        if np.issubdtype(self.dtype.kind, np.integer) and not np.issubdtype(
-            values.dtype.kind, np.integer
+        if np.issubdtype(self.dtype, np.integer) and not np.issubdtype(
+            values.dtype, np.integer
         ):
             raise lt.TileDBError("Passed in enumeration must be integer type")
 
