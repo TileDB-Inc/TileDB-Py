@@ -468,7 +468,7 @@ class Group(CtxMixin, lt.Group):
     ):
         """
         Consolidate the group metadata.
-        
+
         :param uri: The URI of the TileDB group to be consolidated
         :type uri: str
         :param config: Optional configuration parameters for the consolidation
@@ -485,7 +485,7 @@ class Group(CtxMixin, lt.Group):
     def vacuum_metadata(uri: str, config: Config = None, ctx: Optional[Ctx] = None):
         """
         Vacuum the group metadata.
-        
+
         :param uri: The URI of the TileDB group to be vacuum
         :type uri: str
         :param config: Optional configuration parameters for the vacuuming
