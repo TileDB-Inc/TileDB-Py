@@ -159,18 +159,64 @@ class TestFilterTest(DiskTestCase):
             # TODO compute the correct tolerance here
             assert_allclose(data, A[:][""], rtol=1, atol=1)
 
-    def test_delta_filter(self):
+    @pytest.mark.parametrize(
+        "attr_dtype,reinterp_dtype",
+        [
+            (np.uint64, None),
+            (np.float64, np.uint64),
+            (np.float64, tiledb.cc.DataType.UINT64),
+        ],
+    )
+    def test_delta_filter(self, attr_dtype, reinterp_dtype):
         path = self.path("test_delta_filter")
 
         dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
 
-        filter = tiledb.DeltaFilter()
+        if reinterp_dtype is None:
+            filter = tiledb.DeltaFilter()
+        else:
+            filter = tiledb.DeltaFilter(reinterp_dtype=reinterp_dtype)
 
-        attr = tiledb.Attr(dtype=np.int64, filters=tiledb.FilterList([filter]))
+        attr = tiledb.Attr(dtype=attr_dtype, filters=tiledb.FilterList([filter]))
         schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=False)
         tiledb.Array.create(path, schema)
 
         data = np.random.randint(0, 10_000_000, size=10)
+        if attr_dtype == np.float64:
+            data = data.astype(np.float64)
+
+        with tiledb.open(path, "w") as A:
+            A[:] = data
+
+        with tiledb.open(path) as A:
+            res = A[:]
+            assert_array_equal(res, data)
+
+    @pytest.mark.parametrize(
+        "attr_dtype,reinterp_dtype",
+        [
+            (np.uint64, None),
+            (np.float64, np.uint64),
+            (np.float64, tiledb.cc.DataType.UINT64),
+        ],
+    )
+    def test_double_delta_filter(self, attr_dtype, reinterp_dtype):
+        path = self.path("test_delta_filter")
+
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
+
+        if reinterp_dtype is None:
+            filter = tiledb.DoubleDeltaFilter()
+        else:
+            filter = tiledb.DoubleDeltaFilter(reinterp_dtype=reinterp_dtype)
+
+        attr = tiledb.Attr(dtype=attr_dtype, filters=tiledb.FilterList([filter]))
+        schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=False)
+        tiledb.Array.create(path, schema)
+
+        data = np.random.randint(0, 10_000_000, size=10)
+        if attr_dtype == np.float64:
+            data = data.astype(np.float64)
 
         with tiledb.open(path, "w") as A:
             A[:] = data
