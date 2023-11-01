@@ -139,7 +139,7 @@ class EnumerationTest(DiskTestCase):
             assert enmr.dtype.kind == enmr.values().dtype.kind == dtype.kind
         else:
             assert enmr.dtype == enmr.values().dtype == dtype
-            
+
         # with values
         enmr = tiledb.Enumeration("e", False, values=values)
         if dtype in (np.dtype("S"), np.dtype("U")):
