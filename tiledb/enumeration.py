@@ -154,3 +154,6 @@ class Enumeration(CtxMixin, lt.Enumeration):
         output.write("</tr>")
 
         return output.getvalue()
+
+
+# testing CI
