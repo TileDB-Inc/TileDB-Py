@@ -174,7 +174,12 @@ def test_schema_evolution_with_enmr(tmp_path):
 
 @pytest.mark.parametrize(
     "type,data",
-    (("int", [0]), ("bool", [True, False]), ("str", ["abc", "defghi", "jk"])),
+    (
+        ("int", [0]),
+        ("bool", [True, False]),
+        ("str", ["abc", "defghi", "jk"]),
+        ("bytes", [b"abc", b"defghi", b"jk"]),
+    ),
 )
 def test_schema_evolution_extend_enmr(tmp_path, type, data):
     uri = str(tmp_path)
