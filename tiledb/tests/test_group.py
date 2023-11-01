@@ -586,7 +586,29 @@ class GroupMetadataTest(GroupTestCase):
         meta_path = pathlib.Path(path) / "__meta"
         assert len(vfs.ls(meta_path)) == 3
 
-        tiledb.Group.consolidate_metadata(tiledb.default_ctx(), path)
-        tiledb.Group.vacuum_metadata(tiledb.default_ctx(), path)
+        tiledb.Group.consolidate_metadata(path, cfg)
+        tiledb.Group.vacuum_metadata(path, cfg)
+
+        assert len(vfs.ls(meta_path)) == 1
+
+    def test_consolidation_and_vac_no_config(self):
+        vfs = tiledb.VFS()
+        path = self.path("test_consolidation_and_vac")
+        tiledb.Group.create(path)
+
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 1
+
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 2
+
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 3
+
+        meta_path = pathlib.Path(path) / "__meta"
+        assert len(vfs.ls(meta_path)) == 3
+
+        tiledb.Group.consolidate_metadata(path)
+        tiledb.Group.vacuum_metadata(path)
 
         assert len(vfs.ls(meta_path)) == 1
