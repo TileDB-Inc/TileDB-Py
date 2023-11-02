@@ -1,12 +1,12 @@
 # Release 0.23.3
 
-* Pandas 2+ fix: use `pa.schema.with_metadata`, replacing passing metadata to `pa.schema` constructor
+* Pandas 2+ fix: use `pa.schema.with_metadata`, replacing passing metadata to `pa.schema` constructor [#1858](https://github.com/TileDB-Inc/TileDB-Py/pull/1858)
 
 # Release 0.23.2
 
 ## Bug Fixes
 
-* Correct `Enumeration.extend` to handle integers, include Booleans, of different sizes
+* Correct `Enumeration.extend` to handle integers, include Booleans, of different sizes [#1850](https://github.com/TileDB-Inc/TileDB-Py/pull/1850)
 
 # Release 0.23.2
 
