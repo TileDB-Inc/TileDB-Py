@@ -1,3 +1,7 @@
+# Release 0.23.3
+
+* Pandas 2+ fix: use `pa.schema.with_metadata`, replacing passing metadata to `pa.schema` constructor
+
 # Release 0.23.2
 
 ## Bug Fixes

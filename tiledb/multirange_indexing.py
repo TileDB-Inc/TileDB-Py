@@ -471,7 +471,7 @@ class DataFrameIndexer(_BaseIndexer):
                 ).encode()
             }
 
-            table = table.cast(pyarrow.schema(pa_schema, metadata=metadata))
+            table = table.cast(pyarrow.schema(pa_schema).with_metadata(metadata))
 
             if self.query.return_arrow:
                 return table
