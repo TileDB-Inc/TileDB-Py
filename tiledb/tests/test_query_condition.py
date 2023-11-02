@@ -855,7 +855,7 @@ class QueryConditionTest(DiskTestCase):
 
     def test_boolean_insert(self):
         path = self.path("test_boolean_insert")
-        attr = tiledb.Attr("a", dtype=np.bool_, var=True)
+        attr = tiledb.Attr("a", dtype=np.bool_, var=False)
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
         schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=[attr])
         tiledb.Array.create(path, schema)
@@ -875,7 +875,7 @@ class QueryConditionTest(DiskTestCase):
 
         with tiledb.open(path, "r") as A:
             for k in A[:]["a"]:
-                assert k[0] == True  # noqa: E712
+                assert k == True  # noqa: E712
 
 
 class QueryDeleteTest(DiskTestCase):
