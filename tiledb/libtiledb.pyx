@@ -152,7 +152,16 @@ cdef _write_array(
 
         if attr.isvar:
             try:
-                buffer, offsets = array_to_buffer(values[i], True, False)
+                if attr.isnullable:
+                    if(np.issubdtype(attr.dtype, np.unicode_) 
+                        or np.issubdtype(attr.dtype, np.string_) 
+                        or np.issubdtype(attr.dtype, np.bytes_)):
+                        attr_val = np.array(["" if v is None else v for v in values[i]])
+                    else:
+                        attr_val = np.nan_to_num(values[i])
+                else:
+                    attr_val = values[i]
+                buffer, offsets = array_to_buffer(attr_val, True, False)
             except Exception as exc:
                 raise type(exc)(f"Failed to convert buffer for attribute: '{attr.name}'") from exc
             buffer_offsets_sizes[i] = offsets.nbytes
@@ -2241,6 +2250,7 @@ cdef class DenseArrayImpl(Array):
         selection_tuple = (selection,) if not isinstance(selection, tuple) else selection
         self._setitem_impl(selection, val, dict())
 
+
     def _setitem_impl(self, object selection, object val, dict nullmaps):
         """Implementation for setitem with optional support for validity bitmaps."""
         from .subarray import Subarray
@@ -2300,7 +2310,10 @@ cdef class DenseArrayImpl(Array):
                         # ensure that the value is array-convertible, for example: pandas.Series
                         attr_val = np.asarray(attr_val)
                         if attr.isnullable and name not in nullmaps:
-                            nullmaps[name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
+                            nullmaps[name] = np.array(
+                                [int(v is not None) for v in attr_val], 
+                                dtype=np.uint8
+                            )
                     else:
                         if (np.issubdtype(attr.dtype, np.string_) and not
                             (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
@@ -2308,8 +2321,22 @@ cdef class DenseArrayImpl(Array):
                                             "typed attribute '{}'!".format(name))
                         
                         if attr.isnullable and name not in nullmaps:
-                            nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
-                            attr_val = np.nan_to_num(attr_val)
+                            try:
+                                nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
+                            except Exception as exc:
+                                attr_val = np.asarray(attr_val)
+                                nullmaps[name] = np.array(
+                                    [int(v is not None) for v in attr_val], 
+                                    dtype=np.uint8
+                                )
+
+                            if np.issubdtype(attr.dtype, np.string_):
+                                attr_val = np.array(
+                                    ["" if v is None else v for v in attr_val])
+                            else:
+                                attr_val = np.nan_to_num(attr_val)
+                                attr_val = np.array(
+                                    [0 if v is None else v for v in attr_val])
                         attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
                 except Exception as exc:
                     raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
@@ -2335,7 +2362,7 @@ cdef class DenseArrayImpl(Array):
                     # ensure that the value is array-convertible, for example: pandas.Series
                     val = np.asarray(val)
                     if attr.isnullable and name not in nullmaps:
-                        nullmaps[name] = np.array([int(v is not None) for v in val], dtype=np.uint8)
+                        nullmaps[name] = np.array([int(v is None) for v in val], dtype=np.uint8)
                 else:
                     if (np.issubdtype(attr.dtype, np.string_) and not
                         (np.issubdtype(val.dtype, np.string_) or val.dtype == np.dtype('O'))):
@@ -2817,22 +2844,34 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
         attr_val = val[name]
 
         try:
+            # ensure that the value is array-convertible, for example: pandas.Series
+            attr_val = np.asarray(attr_val)
+
             if attr.isvar:
-                # ensure that the value is array-convertible, for example: pandas.Series
-                attr_val = np.asarray(attr_val)
                 if attr.isnullable and name not in nullmaps:
-                    nullmaps[name] = np.array([int(v is not None) for v in attr_val], dtype=np.uint8)
+                    nullmaps[name] = np.array(
+                        [int(v is not None) for v in attr_val], dtype=np.uint8)
             else:
-                if (np.issubdtype(attr.dtype, np.string_) and not
-                    (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
+                if (np.issubdtype(attr.dtype, np.string_) 
+                    and not (np.issubdtype(attr_val.dtype, np.string_) 
+                    or attr_val.dtype == np.dtype('O'))):
                     raise ValueError("Cannot write a string value to non-string "
-                                     "typed attribute '{}'!".format(name))
+                                        "typed attribute '{}'!".format(name))
                 
                 if attr.isnullable and name not in nullmaps:
-                    nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
-                    attr_val = np.nan_to_num(attr_val)
-                attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                    try:
+                        nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
+                    except Exception as exc:
+                        nullmaps[name] = np.array(
+                            [int(v is not None) for v in attr_val], dtype=np.uint8)
 
+                    if np.issubdtype(attr.dtype, np.string_):
+                        attr_val = np.array(["" if v is None else v for v in attr_val])
+                    else:
+                        attr_val = np.nan_to_num(attr_val)
+                        attr_val = np.array([0 if v is None else v for v in attr_val])
+                attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+            
         except Exception as exc:
             raise ValueError(f"NumPy array conversion check failed for attr '{name}'") from exc
 

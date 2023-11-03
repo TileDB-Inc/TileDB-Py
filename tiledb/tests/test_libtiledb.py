@@ -393,26 +393,56 @@ class ArrayTest(DiskTestCase):
 
         uri = self.path("test_array_write_nullable")
         dom = tiledb.Domain(tiledb.Dim("d", domain=(1, 5), dtype="int64"))
-        att = tiledb.Attr("a", dtype="int8", nullable=True)
-        schema = tiledb.ArraySchema(domain=dom, attrs=[att], sparse=sparse)
+        att1 = tiledb.Attr("a1", dtype="int8", nullable=True)
+        att2 = tiledb.Attr("a2", dtype="str", nullable=True)
+        schema = tiledb.ArraySchema(domain=dom, attrs=[att1, att2], sparse=sparse)
         tiledb.Array.create(uri, schema)
 
         with tiledb.open(uri, "w") as A:
             dims = pa.array([1, 2, 3, 4, 5])
-            data = pa.array([1.0, 2.0, None, 0, 1.0])
+            data1 = pa.array([1.0, 2.0, None, 0, 1.0])
+            data2 = pa.array(["a", "b", None, None, "c"])
             if pass_df:
                 dims = dims.to_pandas()
-                data = data.to_pandas()
+                data1 = data1.to_pandas()
+                data2 = data2.to_pandas()
 
             if sparse:
-                A[dims] = data
+                A[dims] = {"a1": data1, "a2": data2}
             else:
-                A[:] = data
+                A[:] = {"a1": data1, "a2": data2}
 
         with tiledb.open(uri, "r") as A:
-            expected_validity = [False, False, True, False, False]
-            assert_array_equal(A[:]["a"].mask, expected_validity)
-            assert_array_equal(A.df[:]["a"].isna(), expected_validity)
+            expected_validity1 = [False, False, True, False, False]
+            assert_array_equal(A[:]["a1"].mask, expected_validity1)
+            assert_array_equal(A.df[:]["a1"].isna(), expected_validity1)
+
+            expected_validity2 = [False, False, True, True, False]
+            assert_array_equal(A[:]["a2"].mask, expected_validity2)
+            assert_array_equal(A.df[:]["a2"].isna(), expected_validity2)
+
+        with tiledb.open(uri, "w") as A:
+            dims = pa.array([1, 2, 3, 4, 5])
+            data1 = pa.array([None, None, None, None, None])
+            data2 = pa.array([None, None, None, None, None])
+            if pass_df:
+                dims = dims.to_pandas()
+                data1 = data1.to_pandas()
+                data2 = data2.to_pandas()
+
+            if sparse:
+                A[dims] = {"a1": data1, "a2": data2}
+            else:
+                A[:] = {"a1": data1, "a2": data2}
+
+        with tiledb.open(uri, "r") as A:
+            expected_validity1 = [True, True, True, True, True]
+            assert_array_equal(A[:]["a1"].mask, expected_validity1)
+            assert_array_equal(A.df[:]["a1"].isna(), expected_validity1)
+
+            expected_validity2 = [True, True, True, True, True]
+            assert_array_equal(A[:]["a2"].mask, expected_validity2)
+            assert_array_equal(A.df[:]["a2"].isna(), expected_validity2)
 
 
 class DenseArrayTest(DiskTestCase):
