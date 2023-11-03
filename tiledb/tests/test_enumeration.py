@@ -116,3 +116,43 @@ class EnumerationTest(DiskTestCase):
             expected_validity = [False, False, True, False, False]
             assert_array_equal(A[:]["a"].mask, expected_validity)
             assert_array_equal(A.df[:]["a"].isna(), expected_validity)
+
+    @pytest.mark.parametrize(
+        "dtype, values",
+        [
+            (np.int8, np.array([1, 2, 3], np.int8)),
+            (np.uint8, np.array([1, 2, 3], np.uint8)),
+            (np.int16, np.array([1, 2, 3], np.int16)),
+            (np.uint16, np.array([1, 2, 3], np.uint16)),
+            (np.int32, np.array([1, 2, 3], np.int32)),
+            (np.uint32, np.array([1, 2, 3], np.uint32)),
+            (np.int64, np.array([1, 2, 3], np.int64)),
+            (np.uint64, np.array([1, 2, 3], np.uint64)),
+            (np.dtype("S"), np.array(["a", "b", "c"], np.dtype("S"))),
+            (np.dtype("U"), np.array(["a", "b", "c"], np.dtype("U"))),
+        ],
+    )
+    def test_enum_dtypes(self, dtype, values):
+        # create empty
+        enmr = tiledb.Enumeration("e", False, dtype=dtype)
+        if dtype in (np.dtype("S"), np.dtype("U")):
+            assert enmr.dtype.kind == enmr.values().dtype.kind == dtype.kind
+        else:
+            assert enmr.dtype == enmr.values().dtype == dtype
+            assert_array_equal(enmr.values(), [])
+
+        # then extend with values
+        enmr = enmr.extend(values)
+        if dtype in (np.dtype("S"), np.dtype("U")):
+            assert enmr.dtype.kind == enmr.values().dtype.kind == dtype.kind
+        else:
+            assert enmr.dtype == enmr.values().dtype == dtype
+            assert_array_equal(enmr.values(), values)
+
+        # create with values
+        enmr = tiledb.Enumeration("e", False, values=values)
+        if dtype in (np.dtype("S"), np.dtype("U")):
+            assert enmr.dtype.kind == enmr.values().dtype.kind == dtype.kind
+        else:
+            assert enmr.dtype == enmr.values().dtype == dtype
+            assert_array_equal(enmr.values(), values)
