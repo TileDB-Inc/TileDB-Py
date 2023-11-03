@@ -54,6 +54,10 @@ class Filter(CtxMixin, lt.Filter):
                 return False
         return True
 
+    @property
+    def filter_name(self):
+        return self._type.name
+
 
 class CompressionFilter(Filter):
     """
