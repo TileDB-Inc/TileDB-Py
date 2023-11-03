@@ -1,8 +1,20 @@
-# Release 0.23.3
+# Release 0.23.4
 
+* TileDB-Py 0.23.4 includes TileDB Embedded [2.17.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.17.4)
+
+## Improvements
+
+* Add `COMPRESSION_REINTERPRET_DATATYPE` to allowed `FilterOption` [#1855](https://github.com/TileDB-Inc/TileDB-Py/pull/1855)
+* Add `filter_name` to `Filter` class [#1856](https://github.com/TileDB-Inc/TileDB-Py/pull/1856)
+
+## Bug Fixes
+
+* Do not use `dtype.kind` in enumeration extend type checking [#1853](https://github.com/TileDB-Inc/TileDB-Py/pull/1853)
+* Empty enumerations should be casted to the dtype of the enumeration [#1854](https://github.com/TileDB-Inc/TileDB-Py/pull/1854)
+* Correct writing nullable string attributes and all nulled data [#1848](https://github.com/TileDB-Inc/TileDB-Py/pull/1848)
 * Pandas 2+ fix: use `pa.schema.with_metadata`, replacing passing metadata to `pa.schema` constructor [#1858](https://github.com/TileDB-Inc/TileDB-Py/pull/1858)
 
-# Release 0.23.2
+# Release 0.23.3
 
 ## Bug Fixes
 
