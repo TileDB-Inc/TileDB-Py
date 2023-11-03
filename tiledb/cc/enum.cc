@@ -109,7 +109,9 @@ void init_enums(py::module &m) {
       .value("SCALE_FLOAT_OFFSET", TILEDB_SCALE_FLOAT_OFFSET)
       .value("WEBP_INPUT_FORMAT", TILEDB_WEBP_INPUT_FORMAT)
       .value("WEBP_QUALITY", TILEDB_WEBP_QUALITY)
-      .value("WEBP_LOSSLESS", TILEDB_WEBP_LOSSLESS);
+      .value("WEBP_LOSSLESS", TILEDB_WEBP_LOSSLESS)
+      .value("COMPRESSION_REINTERPRET_DATATYPE",
+             TILEDB_COMPRESSION_REINTERPRET_DATATYPE);
 
   py::enum_<tiledb_filter_webp_format_t>(m, "WebpInputFormat")
       .value("WEBP_NONE", TILEDB_WEBP_NONE)

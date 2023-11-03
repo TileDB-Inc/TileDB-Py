@@ -47,6 +47,9 @@ void init_filter(py::module &m) {
              case TILEDB_WEBP_LOSSLESS:
                filter.set_option(option, value.cast<uint8_t>());
                break;
+             case TILEDB_COMPRESSION_REINTERPRET_DATATYPE:
+               filter.set_option(option, value.cast<uint8_t>());
+               break;
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _set_option");
              }
@@ -92,6 +95,9 @@ void init_filter(py::module &m) {
                uint8_t value;
                filter.get_option(option, &value);
                return py::cast(value);
+             }
+             case TILEDB_COMPRESSION_REINTERPRET_DATATYPE: {
+               return py::cast(filter.get_option<uint8_t>(option));
              }
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _get_option");

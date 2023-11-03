@@ -1,9 +1,12 @@
 import io
 from typing import List, Optional, Sequence, Union, overload
 
+import numpy as np
+
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
+from .datatypes import DataType
 
 
 class Filter(CtxMixin, lt.Filter):
@@ -259,27 +262,53 @@ class DeltaFilter(CompressionFilter):
 
     :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
     :type level: int
-
+    :param reinterp_dtype: (optional) sets the compressor to compress the data treating
+    as the new datatype.
+    :type reinterp_dtype: numpy, lt.DataType
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
     ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList([tiledb.RleFilter()]))
+    ...                      filters=tiledb.FilterList([tiledb.DeltaFilter()]))
     ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
     """
 
-    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
+    def __init__(
+        self,
+        level: int = -1,
+        reinterp_dtype: Optional[np.dtype] = None,
+        ctx: Optional[Ctx] = None,
+    ):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
         super().__init__(lt.FilterType.DELTA, level, ctx)
 
+        if reinterp_dtype is not None:
+            if isinstance(reinterp_dtype, lt.DataType):
+                dtype = reinterp_dtype
+            else:
+                dtype = DataType.from_numpy(reinterp_dtype).tiledb_type
+            self._set_option(
+                self._ctx, lt.FilterOption.COMPRESSION_REINTERPRET_DATATYPE, dtype
+            )
+
     def _attrs_(self):
-        return {}
+        return {"reinterp_dtype": self.reinterp_dtype}
+
+    @property
+    def reinterp_dtype(self):
+        tiledb_dtype = self._get_option(
+            self._ctx, lt.FilterOption.COMPRESSION_REINTERPRET_DATATYPE
+        )
+        if tiledb_dtype == lt.DataType.ANY:
+            return None
+        dtype = DataType.from_tiledb(tiledb_dtype)
+        return dtype.np_dtype
 
 
 class DoubleDeltaFilter(CompressionFilter):
@@ -288,6 +317,8 @@ class DoubleDeltaFilter(CompressionFilter):
 
     :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
     :type level: int
+    :param reinterp_dtype: (optional) sets the compressor to compress the data treating
+    as the new datatype.
 
     **Example:**
 
@@ -301,14 +332,38 @@ class DoubleDeltaFilter(CompressionFilter):
 
     """
 
-    def __init__(self, level: int = -1, ctx: Optional[Ctx] = None):
+    def __init__(
+        self,
+        level: int = -1,
+        reinterp_dtype: Optional[np.dtype] = None,
+        ctx: Optional[Ctx] = None,
+    ):
         if not isinstance(level, int):
             raise ValueError("`level` argument must be a int")
 
         super().__init__(lt.FilterType.DOUBLE_DELTA, level, ctx)
 
+        if reinterp_dtype is not None:
+            if isinstance(reinterp_dtype, lt.DataType):
+                dtype = reinterp_dtype
+            else:
+                dtype = DataType.from_numpy(reinterp_dtype).tiledb_type
+            self._set_option(
+                self._ctx, lt.FilterOption.COMPRESSION_REINTERPRET_DATATYPE, dtype
+            )
+
     def _attrs_(self):
-        return {}
+        return {"reinterp_dtype": self.reinterp_dtype}
+
+    @property
+    def reinterp_dtype(self):
+        tiledb_dtype = self._get_option(
+            self._ctx, lt.FilterOption.COMPRESSION_REINTERPRET_DATATYPE
+        )
+        if tiledb_dtype == lt.DataType.ANY:
+            return None
+        dtype = DataType.from_tiledb(tiledb_dtype)
+        return dtype.np_dtype
 
 
 class DictionaryFilter(CompressionFilter):
