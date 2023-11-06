@@ -184,14 +184,14 @@ class TestFilterTest(DiskTestCase):
             assert_allclose(data, A[:][""], rtol=1, atol=1)
 
     @pytest.mark.parametrize(
-        "attr_dtype,reinterp_dtype",
+        "attr_dtype,reinterp_dtype,expected_reinterp_dtype",
         [
-            (np.uint64, None),
-            (np.float64, np.uint64),
-            (np.float64, tiledb.cc.DataType.UINT64),
+            (np.uint64, None, None),
+            (np.float64, np.uint64, np.uint64),
+            (np.float64, tiledb.cc.DataType.UINT64, np.uint64),
         ],
     )
-    def test_delta_filter(self, attr_dtype, reinterp_dtype):
+    def test_delta_filter(self, attr_dtype, reinterp_dtype, expected_reinterp_dtype):
         path = self.path("test_delta_filter")
 
         dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
@@ -200,8 +200,12 @@ class TestFilterTest(DiskTestCase):
             filter = tiledb.DeltaFilter()
         else:
             filter = tiledb.DeltaFilter(reinterp_dtype=reinterp_dtype)
+        assert filter.reinterp_dtype == expected_reinterp_dtype
 
         attr = tiledb.Attr(dtype=attr_dtype, filters=tiledb.FilterList([filter]))
+
+        assert attr.filters[0].reinterp_dtype == expected_reinterp_dtype
+
         schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=False)
         tiledb.Array.create(path, schema)
 
@@ -217,14 +221,16 @@ class TestFilterTest(DiskTestCase):
             assert_array_equal(res, data)
 
     @pytest.mark.parametrize(
-        "attr_dtype,reinterp_dtype",
+        "attr_dtype,reinterp_dtype,expected_reinterp_dtype",
         [
-            (np.uint64, None),
-            (np.float64, np.uint64),
-            (np.float64, tiledb.cc.DataType.UINT64),
+            (np.uint64, None, None),
+            (np.float64, np.uint64, np.uint64),
+            (np.float64, tiledb.cc.DataType.UINT64, np.uint64),
         ],
     )
-    def test_double_delta_filter(self, attr_dtype, reinterp_dtype):
+    def test_double_delta_filter(
+        self, attr_dtype, reinterp_dtype, expected_reinterp_dtype
+    ):
         path = self.path("test_delta_filter")
 
         dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
@@ -233,8 +239,10 @@ class TestFilterTest(DiskTestCase):
             filter = tiledb.DoubleDeltaFilter()
         else:
             filter = tiledb.DoubleDeltaFilter(reinterp_dtype=reinterp_dtype)
+        assert filter.reinterp_dtype == expected_reinterp_dtype
 
         attr = tiledb.Attr(dtype=attr_dtype, filters=tiledb.FilterList([filter]))
+        assert attr.filters[0].reinterp_dtype == expected_reinterp_dtype
         schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=False)
         tiledb.Array.create(path, schema)
 

@@ -277,10 +277,15 @@ class DeltaFilter(CompressionFilter):
 
     """
 
+    options = (
+        lt.FilterOption.COMPRESSION_LEVEL,
+        lt.FilterOption.COMPRESSION_REINTERPRET_DATATYPE,
+    )
+
     def __init__(
         self,
         level: int = -1,
-        reinterp_dtype: Optional[np.dtype] = None,
+        reinterp_dtype: Optional[Union[np.dtype, lt.DataType]] = None,
         ctx: Optional[Ctx] = None,
     ):
         if not isinstance(level, int):
@@ -332,10 +337,15 @@ class DoubleDeltaFilter(CompressionFilter):
 
     """
 
+    options = (
+        lt.FilterOption.COMPRESSION_LEVEL,
+        lt.FilterOption.COMPRESSION_REINTERPRET_DATATYPE,
+    )
+
     def __init__(
         self,
         level: int = -1,
-        reinterp_dtype: Optional[np.dtype] = None,
+        reinterp_dtype: Optional[Union[np.dtype, lt.DataType]] = None,
         ctx: Optional[Ctx] = None,
     ):
         if not isinstance(level, int):
