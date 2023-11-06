@@ -97,7 +97,8 @@ void init_filter(py::module &m) {
                return py::cast(value);
              }
              case TILEDB_COMPRESSION_REINTERPRET_DATATYPE: {
-               return py::cast(filter.get_option<uint8_t>(option));
+               auto value = filter.get_option<uint8_t>(option);
+               return py::cast(static_cast<tiledb_datatype_t>(value));
              }
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _get_option");
