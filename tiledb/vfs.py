@@ -352,7 +352,6 @@ class FileIO(io.RawIOBase):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> bool:
-        self.flush()
         self._fh._close()
 
     @property
