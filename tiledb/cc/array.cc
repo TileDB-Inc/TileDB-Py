@@ -56,11 +56,13 @@ void init_array(py::module &m) {
       .def("close", &Array::close)
       .def("consolidate",
            py::overload_cast<const Context &, const std::string &,
-                             Config *const>(&Array::consolidate))
+                             Config *const>(&Array::consolidate),
+           py::call_guard<py::gil_scoped_release>())
       .def("consolidate",
            py::overload_cast<const Context &, const std::string &,
                              tiledb_encryption_type_t, const std::string &,
-                             Config *const>(&Array::consolidate))
+                             Config *const>(&Array::consolidate),
+           py::call_guard<py::gil_scoped_release>())
       //(void (Array::*)(const Context&, const std::string&,
       //                 tiledb_encryption_type_t, const std::string&,
       //                 Config* const)&Array::consolidate)&Array::consolidate)
