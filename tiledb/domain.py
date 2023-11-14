@@ -40,7 +40,9 @@ class Domain(CtxMixin, lt.Domain):
                         name=name,
                         domain=dim.domain,
                         tile=dim.tile,
+                        filters=dim.filters,
                         dtype=dim.dtype,
+                        var=dim.isvar,
                         ctx=dim._ctx,
                     )
 
@@ -99,20 +101,9 @@ class Domain(CtxMixin, lt.Domain):
         """
         if not isinstance(other, Domain):
             return False
-
-        same_dtype = self._is_homogeneous()
-
-        if same_dtype and self.shape != other.shape:
+        if self.ndim != other.ndim:
             return False
-
-        ndim = self.ndim
-        if ndim != other.ndim:
-            return False
-
-        for i in range(ndim):
-            if self.dim(i) != other.dim(i):
-                return False
-        return True
+        return all(self.dim(index) == other.dim(index) for index in range(self.ndim))
 
     @property
     def ndim(self):
