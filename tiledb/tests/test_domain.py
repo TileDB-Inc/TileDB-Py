@@ -49,6 +49,7 @@ class DomainTest(DiskTestCase):
             dtype=np.datetime64("", "D"),
         )
         dom = tiledb.Domain(dim)
+        self.assertEqual(dom, dom)
         self.assertEqual(dom.dtype, np.datetime64("", "D"))
 
     def test_domain_mixed_names_error(self):
@@ -65,6 +66,7 @@ class DomainTest(DiskTestCase):
         assert dim.dtype == np.bytes_
 
         dom = tiledb.Domain(dim)
+        self.assertEqual(dom, dom)
         dom.dump()
         assert_captured(capfd, "Type: STRING_ASCII")
 
