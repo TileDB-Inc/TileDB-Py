@@ -133,14 +133,14 @@ class Dim(CtxMixin, lt.Dimension):
     def __eq__(self, other) -> bool:
         if not isinstance(other, Dim):
             return False
-        if (
-            self.name != other.name
-            or self.domain != other.domain
-            or self.tile != other.tile
-            or self.dtype != other.dtype
-        ):
-            return False
-        return True
+        return (
+            self.name == other.name
+            and self.domain == other.domain
+            and self.tile == other.tile
+            and self.dtype == other.dtype
+            and self.isvar == other.isvar
+            and self.filters == other.filters
+        )
 
     def __array__(self, dtype=None, **kw) -> np.array:
         if not self._integer_domain():
