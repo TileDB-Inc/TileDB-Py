@@ -13,12 +13,14 @@ class DimensionTest(unittest.TestCase):
         self.assertEqual(dim.name, "__dim_0", "automatic dimension name is incorrect")
         self.assertEqual(dim.shape, (5,))
         self.assertEqual(dim.tile, 5)
+        self.assertEqual(dim, dim)
 
     def test_dimension(self):
         dim = tiledb.Dim(name="d1", domain=(0, 3), tile=2)
         self.assertEqual(dim.name, "d1")
         self.assertEqual(dim.shape, (4,))
         self.assertEqual(dim.tile, 2)
+        self.assertEqual(dim, dim)
         try:
             assert xml.etree.ElementTree.fromstring(dim._repr_html_()) is not None
         except:
@@ -28,10 +30,12 @@ class DimensionTest(unittest.TestCase):
         filters = [tiledb.GzipFilter(2)]
         dim = tiledb.Dim(name="df", domain=(0, 2), tile=1, filters=filters)
         self.assertEqual(dim.filters, filters)
+        self.assertEqual(dim, dim)
 
         filter_list = tiledb.FilterList(filters)
         dim = tiledb.Dim(name="df", domain=(0, 2), tile=1, filters=filter_list)
         self.assertEqual(dim.filters, filter_list)
+        self.assertEqual(dim, dim)
 
         with self.assertRaises(TypeError):
             tiledb.Dim(name="df", domain=(0, 2), tile=1, filters=1)
@@ -44,6 +48,7 @@ class DimensionTest(unittest.TestCase):
             tile=np.timedelta64(20, "D"),
             dtype=np.datetime64("", "D"),
         )
+        self.assertEqual(dim, dim)
         self.assertEqual(dim.dtype, np.dtype(np.datetime64("", "D")))
         self.assertEqual(dim.tile, np.timedelta64(20, "D"))
         self.assertNotEqual(dim.tile, np.timedelta64(21, "D"))
@@ -69,6 +74,7 @@ class DimensionTest(unittest.TestCase):
             tile=20,
             dtype=np.datetime64("", "D"),
         )
+        self.assertEqual(dim, dim)
         self.assertEqual(dim.dtype, np.dtype(np.datetime64("", "D")))
         self.assertEqual(dim.tile, np.timedelta64(20, "D"))
 
@@ -79,6 +85,7 @@ class DimensionTest(unittest.TestCase):
             tile=5,
             dtype=np.datetime64("", "Y"),
         )
+        self.assertEqual(dim, dim)
         self.assertEqual(dim.dtype, np.dtype(np.datetime64("", "Y")))
         self.assertEqual(dim.tile, np.timedelta64(5, "Y"))
         self.assertTupleEqual(
@@ -92,6 +99,7 @@ class DimensionTest(unittest.TestCase):
             tile=2,
             dtype=np.datetime64("", "D"),
         )
+        self.assertEqual(dim, dim)
         self.assertEqual(dim.tile, np.timedelta64(2, "D"))
         self.assertTupleEqual(
             dim.domain,

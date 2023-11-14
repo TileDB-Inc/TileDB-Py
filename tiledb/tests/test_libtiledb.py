@@ -80,8 +80,10 @@ class VersionTest(DiskTestCase):
 
 class ArrayTest(DiskTestCase):
     def create_array_schema(self):
+        filters = tiledb.FilterList([tiledb.ZstdFilter(level=5)])
         domain = tiledb.Domain(
-            tiledb.Dim(domain=(1, 8), tile=2), tiledb.Dim(domain=(1, 8), tile=2)
+            tiledb.Dim(domain=(1, 8), tile=2, filters=filters),
+            tiledb.Dim(domain=(1, 8), tile=2, filters=filters),
         )
         a1 = tiledb.Attr("val", dtype="f8")
         return tiledb.ArraySchema(domain=domain, attrs=(a1,))
