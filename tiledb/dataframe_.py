@@ -865,8 +865,9 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         elif mode not in ["ingest", "append"]:
             raise tiledb.TileDBError("Invalid mode specified ('{}')".format(mode))
 
-    if mode != "append" and tiledb.array_exists(uri):
-        raise tiledb.TileDBError("Array URI '{}' already exists!".format(uri))
+    with tiledb.scope_ctx(ctx):
+        if mode != "append" and tiledb.array_exists(uri):
+            raise tiledb.TileDBError("Array URI '{}' already exists!".format(uri))
 
     # this is a pandas pass-through argument, do not pop!
     chunksize = kwargs.get("chunksize", None)
