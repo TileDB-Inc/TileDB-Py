@@ -1,14 +1,10 @@
 import glob
-import io
 import multiprocessing
 import os
 import shutil
 import subprocess
 import sys
-import zipfile
 from ctypes import CDLL, POINTER, Structure, byref, c_char_p, c_int, c_void_p
-from urllib.error import URLError
-from urllib.request import urlopen
 
 from pkg_resources import resource_filename
 from pybind11.setup_helpers import Pybind11Extension
@@ -150,22 +146,42 @@ def download_libtiledb():
     :return: Path to extracted source directory.
     """
     dest_name = "TileDB-{}".format(TILEDB_VERSION)
-    dest = os.path.join(BUILD_DIR, dest_name)
+    os.path.join(BUILD_DIR, dest_name)
+    os.path.join(BUILD_DIR, f"TileDB-{TILEDB_VERSION[:8]}")
+
+    os.path.join(BUILD_DIR, dest_name)
     build_dir = os.path.join(BUILD_DIR, f"TileDB-{TILEDB_VERSION[:8]}")
+    # note that this will only run once locally
     if not os.path.exists(build_dir):
-        url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(
-            TILEDB_VERSION
-        )
-        print("Downloading TileDB package from {}...".format(TILEDB_VERSION))
-        try:
-            with zipfile.ZipFile(io.BytesIO(urlopen(url).read())) as z:
-                z.extractall(BUILD_DIR)
-        except URLError:
-            # try falling back to wget, maybe SSL is broken
-            subprocess.check_call(["wget", url], shell=True)
-            with zipfile.ZipFile("{}.zip".format(TILEDB_VERSION)) as z:
-                z.extractall(BUILD_DIR)
-        shutil.move(dest, build_dir)
+
+        # ----
+        #   restore for 2.19: https://github.com/TileDB-Inc/TileDB/pull/4484
+        # url = "https://github.com/TileDB-Inc/TileDB/archive/{}.zip".format(
+        #    TILEDB_VERSION
+        # )
+        # print("Downloading TileDB package from {}...".format(TILEDB_VERSION))
+        # try:
+        #    with zipfile.ZipFile(io.BytesIO(urlopen(url).read())) as z:
+        #        z.extractall(BUILD_DIR)
+        # except URLError:
+        #    # try falling back to wget, maybe SSL is broken
+        #    subprocess.check_call(["wget", url], shell=True)
+        #    with zipfile.ZipFile("{}.zip".format(TILEDB_VERSION)) as z:
+        #        z.extractall(BUILD_DIR)
+        # shutil.move(dest, build_dir)
+        # ----
+
+        # NOTE: build_dir is where we want the source
+        args = [
+            "git",
+            "clone",
+            "--depth=1",
+            "--branch",
+            TILEDB_VERSION,
+            "https://github.com/TileDB-Inc/TileDB",
+            build_dir,
+        ]
+        subprocess.check_output(args)
 
     return build_dir
 
