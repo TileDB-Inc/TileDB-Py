@@ -6,10 +6,10 @@ stages:
         LIBTILEDB_VERSION: dev
         LIBTILEDB_SHA: dev
       ${{ else }}:
-        TILEDBPY_VERSION: 0.23.4
+        TILEDBPY_VERSION: 0.24.0
         # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
-        LIBTILEDB_VERSION: 2.17.4
-        LIBTILEDB_SHA: a1f648ebef5e520f72e51a4f23d5b37921105d96
+        LIBTILEDB_VERSION: 2.18.0
+        LIBTILEDB_SHA: 71ca8b4ddc615e2ad124fb76427df65667850e5e
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
@@ -26,12 +26,12 @@ stages:
         strategy:
           matrix:
             macOS_libtiledb:
-              imageName: "macOS-11"
+              imageName: "macOS-12"
               CMAKE_OSX_ARCHITECTURES: "x86_64"
-              MACOSX_DEPLOYMENT_TARGET: 10.15
+              MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
             macOS_libtiledb_arm64:
-              imageName: "macOS-11"
+              imageName: "macOS-12"
               CMAKE_OSX_ARCHITECTURES: "arm64"
               MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_GCS: OFF
@@ -74,14 +74,15 @@ stages:
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: ""
             macOS_py:
-              imageName: "macOS-11"
-              MACOSX_DEPLOYMENT_TARGET: 10.15
+              imageName: "macOS-12"
+              MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
               CIBW_ARCHS_MACOS: "x86_64"
               CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
+              CIBW_TEST_SKIP: "cp37-*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
-              imageName: "macOS-11"
+              imageName: "macOS-12"
               MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-arm64"
               CIBW_BUILD_VERBOSITY: 3
@@ -152,7 +153,7 @@ stages:
               python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
               git rev-parse HEAD
               python3 -m pip install --upgrade -r requirements_dev.txt
-              python3 setup.py sdist --dist-dir wheelhouse
+              python3 -m build . --sdist --outdir wheelhouse
               pip3 install cibuildwheel==${USE_CIBW_VERSION}
               cibuildwheel --output-dir wheelhouse .
             displayName: "Build and test wheels (Linux)"
@@ -162,6 +163,7 @@ stages:
               set -xe pipefail
 
               export TILEDB_WHEEL_BUILD=1
+              export SYSTEM_VERSION_COMPAT=0 # https://github.com/numba/numba-benchmark/issues/14#issuecomment-1167675905
               # use the requirements_wheel.txt with numpy pins to ensure ABI compatibility
               if [[ "$CIBW_ARCHS" != "arm64" ]]; then
                 export CIBW_TEST_COMMAND="python -c 'import tiledb'"
@@ -171,7 +173,7 @@ stages:
               python -c "import os; print(os.environ.get('CIBW_ENVIRONMENT', None))"
               git rev-parse HEAD
               python3 -m pip install --upgrade -r requirements_dev.txt
-              python3 setup.py sdist --dist-dir wheelhouse
+              python3 -m build . --sdist --outdir wheelhouse
               pip3 install cibuildwheel==${USE_CIBW_VERSION}
               cibuildwheel --output-dir wheelhouse .
             displayName: "Build and test wheels (macOS)"
@@ -192,7 +194,7 @@ stages:
               call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
               git rev-parse HEAD
               python -m pip install --upgrade -r requirements_dev.txt
-              python setup.py sdist --dist-dir wheelhouse
+              python3 -m build . --sdist --outdir wheelhouse
               pip install cibuildwheel==%USE_CIBW_VERSION%
               cibuildwheel --output-dir wheelhouse .
               :: delete the sdist because we *do not* want files with CRLF endings

@@ -8,9 +8,9 @@ stages:
         strategy:
           matrix:
             mac:
-              imageName: "macOS-11"
+              imageName: "macOS-12"
               python.version: "3.10"
-              MACOSX_DEPLOYMENT_TARGET: 10.15
+              MACOSX_DEPLOYMENT_TARGET: 11
             windows:
               imageName: "windows-latest"
               python.version: "3.10"
@@ -56,16 +56,14 @@ stages:
               set TILEDB_FORCE_ALL_DEPS=ON
               # vcvarsall is necessary so that numpy uses the correct compiler
               call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-              python setup.py build_ext --inplace
-              python setup.py install
+              pip install -e -vv .
             displayName: "Build TileDB and TileDB-Py extension (Windows)"
             condition: eq(variables['Agent.OS'], 'Windows_NT')
 
           - bash: |
               unset SYSTEM
               set -xeo pipefail
-              python setup.py build_ext --inplace --werror
-              python setup.py install
+              pip install -e -vv .
             displayName: "Build TileDB and TileDB-Py extension (POSIX)"
             condition: ne(variables['Agent.OS'], 'Windows_NT')
 
