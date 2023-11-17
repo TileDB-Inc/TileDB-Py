@@ -28,7 +28,7 @@ stages:
             macOS_libtiledb:
               imageName: "macOS-11"
               CMAKE_OSX_ARCHITECTURES: "x86_64"
-              MACOSX_DEPLOYMENT_TARGET: 10.15
+              MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
             macOS_libtiledb_arm64:
               imageName: "macOS-11"
@@ -75,7 +75,7 @@ stages:
               CIBW_ARCHS_MACOS: ""
             macOS_py:
               imageName: "macOS-11"
-              MACOSX_DEPLOYMENT_TARGET: 10.15
+              MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
               CIBW_ARCHS_MACOS: "x86_64"
               CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
