@@ -10,7 +10,7 @@ stages:
             mac:
               imageName: "macOS-11"
               python.version: "3.10"
-              MACOSX_DEPLOYMENT_TARGET: 10.15
+              MACOSX_DEPLOYMENT_TARGET: 11
             windows:
               imageName: "windows-latest"
               python.version: "3.10"

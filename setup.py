@@ -56,7 +56,7 @@ TILEDB_PKG_DIR = os.path.join(CONTAINING_DIR, "tiledb")
 #   set MACOSX_DEPLOYMENT_TARGET before calling setup.py
 if sys.platform == "darwin":
     if "MACOSX_DEPLOYMENT_TARGET" not in os.environ:
-        os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.15"
+        os.environ["MACOSX_DEPLOYMENT_TARGET"] = "11"
 
 # Is this process building a wheel?
 WHEEL_BUILD = ("bdist_wheel" in sys.argv) or ("TILEDB_WHEEL_BUILD" in os.environ)
