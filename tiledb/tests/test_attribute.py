@@ -13,6 +13,7 @@ from .common import DiskTestCase, assert_captured, has_pandas
 class AttributeTest(DiskTestCase):
     def test_minimal_attribute(self):
         attr = tiledb.Attr()
+        self.assertEqual(attr, attr)
         self.assertTrue(attr.isanon)
         self.assertEqual(attr.name, "")
         self.assertEqual(attr.dtype, np.float_)
@@ -30,6 +31,7 @@ class AttributeTest(DiskTestCase):
         attr.dump()
         assert_captured(capfd, "Name: foo")
 
+        assert attr == attr
         assert attr.name == "foo"
         assert attr.dtype == np.float64, "default attribute type is float64"
 
@@ -46,6 +48,7 @@ class AttributeTest(DiskTestCase):
     )
     def test_attribute_fill(self, dtype, fill):
         attr = tiledb.Attr("", dtype=dtype, fill=fill)
+        assert attr == attr
         assert np.array(attr.fill, dtype=dtype) == np.array(fill, dtype=dtype)
 
         path = self.path()
@@ -68,6 +71,7 @@ class AttributeTest(DiskTestCase):
         attr.dump()
         assert_captured(capfd, "Name: foo")
 
+        self.assertEqual(attr, attr)
         self.assertEqual(attr.name, "foo")
         self.assertEqual(attr.dtype, np.int64)
         self.assertIsInstance(attr.filters[0], tiledb.ZstdFilter)
@@ -77,6 +81,7 @@ class AttributeTest(DiskTestCase):
         dtype = np.dtype([("", np.int32), ("", np.int32), ("", np.int32)])
         attr = tiledb.Attr("foo", dtype=dtype)
 
+        self.assertEqual(attr, attr)
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 3)
 
@@ -125,9 +130,27 @@ class AttributeTest(DiskTestCase):
         assert attr.fill == attr.fill
         assert attr.ncells == 2
 
+    def test_ncell_double_attribute(self):
+        dtype = np.dtype([("", np.double), ("", np.double), ("", np.double)])
+        fill = np.array((0, np.nan, np.inf), dtype=dtype)
+        attr = tiledb.Attr("foo", dtype=dtype, fill=fill)
+
+        self.assertEqual(attr, attr)
+        self.assertEqual(attr.dtype, dtype)
+        self.assertEqual(attr.ncells, 3)
+
+    def test_ncell_not_equal_fill_attribute(self):
+        dtype = np.dtype([("", np.double), ("", np.double), ("", np.double)])
+        fill1 = np.array((0, np.nan, np.inf), dtype=dtype)
+        fill2 = np.array((np.nan, -1, np.inf), dtype=dtype)
+        attr1 = tiledb.Attr("foo", dtype=dtype, fill=fill1)
+        attr2 = tiledb.Attr("foo", dtype=dtype, fill=fill2)
+        assert attr1 != attr2
+
     def test_ncell_bytes_attribute(self):
         dtype = np.dtype((np.bytes_, 10))
         attr = tiledb.Attr("foo", dtype=dtype)
+        self.assertEqual(attr, attr)
         self.assertEqual(attr.dtype, dtype)
         self.assertEqual(attr.ncells, 10)
 
@@ -143,28 +166,34 @@ class AttributeTest(DiskTestCase):
             self.assertTrue(attr.isvar)
 
         attr = tiledb.Attr("foo", var=True, dtype="S")
+        self.assertEqual(attr, attr)
         self.assertEqual(attr.dtype, np.dtype("S"))
         self.assertTrue(attr.isvar)
 
         attr = tiledb.Attr("foo", var=False, dtype="S1")
+        self.assertEqual(attr, attr)
         self.assertEqual(attr.dtype, np.dtype("S1"))
         self.assertFalse(attr.isvar)
 
         attr = tiledb.Attr("foo", dtype="S1")
+        self.assertEqual(attr, attr)
         self.assertEqual(attr.dtype, np.dtype("S1"))
         self.assertFalse(attr.isvar)
 
         attr = tiledb.Attr("foo", dtype="S")
+        self.assertEqual(attr, attr)
         self.assertEqual(attr.dtype, np.dtype("S"))
         self.assertTrue(attr.isvar)
 
     def test_nullable_attribute(self):
         attr = tiledb.Attr("nullable", nullable=True, dtype=np.int32)
+        self.assertEqual(attr, attr)
         self.assertEqual(attr.dtype, np.dtype(np.int32))
         self.assertTrue(attr.isnullable)
 
     def test_datetime_attribute(self):
         attr = tiledb.Attr("foo", dtype=np.datetime64("", "D"))
+        self.assertEqual(attr, attr)
         assert attr.dtype == np.dtype(np.datetime64("", "D"))
         assert attr.dtype != np.dtype(np.datetime64("", "Y"))
         assert attr.dtype != np.dtype(np.datetime64)

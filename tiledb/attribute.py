@@ -108,9 +108,44 @@ class Attr(CtxMixin, lt.Attribute):
     def __eq__(self, other):
         if not isinstance(other, Attr):
             return False
-        if self.name != other.name or self.dtype != other.dtype:
+        if self.isnullable != other.isnullable or self.dtype != other.dtype:
             return False
-        return True
+        if not self.isnullable:
+            # Check the fill values are equal.
+            def equal_or_nan(x, y):
+                return x == y or (np.isnan(x) and np.isnan(y))
+
+            if self.ncells == 1:
+                if not equal_or_nan(self.fill, other.fill):
+                    return False
+            elif np.issubdtype(self.dtype, np.bytes_) or np.issubdtype(
+                self.dtype, np.str_
+            ):
+                if self.fill != other.fill:
+                    return False
+            elif self.dtype in {np.dtype("complex64"), np.dtype("complex128")}:
+                if not (
+                    equal_or_nan(np.real(self.fill), np.real(other.fill))
+                    and equal_or_nan(np.imag(self.fill), np.imag(other.fill))
+                ):
+                    return False
+            else:
+                if not all(
+                    equal_or_nan(x, y)
+                    or (
+                        isinstance(x, str)
+                        and x.lower() == "nat"
+                        and isinstance(y, str)
+                        and y.lower() == "nat"
+                    )
+                    for x, y in zip(self.fill[0], other.fill[0])
+                ):
+                    return False
+        return (
+            self._internal_name == other._internal_name
+            and self.isvar == other.isvar
+            and self.filters == other.filters
+        )
 
     def dump(self):
         """Dumps a string representation of the Attr object to standard output (stdout)"""
