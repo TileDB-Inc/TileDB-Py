@@ -130,8 +130,10 @@ class QueryCondition:
                 "(Is this an empty expression?)"
             )
 
-    def init_query_condition(self, uri: str, query_attrs: List[str]):
-        qctree = QueryConditionTree(self.ctx, Array.load_typed(uri), query_attrs)
+    def init_query_condition(self, uri: str, query_attrs: List[str], ctx):
+        qctree = QueryConditionTree(
+            self.ctx, Array.load_typed(uri, ctx=ctx), query_attrs
+        )
         self.c_obj = qctree.visit(self.tree.body)
 
         if not isinstance(self.c_obj, qc.PyQueryCondition):
