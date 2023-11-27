@@ -83,6 +83,19 @@ class Attr(CtxMixin, lt.Attribute):
         if fill is not None:
             if self._tiledb_dtype == lt.DataType.STRING_UTF8:
                 self._fill = np.array([fill.encode("utf-8")], dtype="S")
+            elif self.dtype == np.dtype("complex64") or self.dtype == np.dtype(
+                "complex128"
+            ):
+                if hasattr(fill, "dtype") and fill.dtype in {
+                    np.dtype("f4, f4"),
+                    np.dtype("f8, f8"),
+                }:
+                    _fill = fill["f0"] + fill["f1"] * 1j
+                elif hasattr(fill, "__len__") and len(fill) == 2:
+                    _fill = fill[0] + fill[1] * 1j
+                else:
+                    _fill = fill
+                self._fill = np.array(_fill, dtype=self.dtype)
             else:
                 self._fill = np.array([fill], dtype=self.dtype)
 

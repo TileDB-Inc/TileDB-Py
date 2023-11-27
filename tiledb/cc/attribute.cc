@@ -37,6 +37,12 @@ py::array get_fill_value(Attribute &attr) {
     value_num = 1;
   }
 
+  // complex type - both cell values fit in a single complex element
+  if (value_type == py::dtype("complex64") ||
+      value_type == py::dtype("complex128")) {
+    value_num = 1;
+  }
+
   return py::array(value_type, value_num, value);
 }
 
