@@ -88,6 +88,43 @@ class AttributeTest(DiskTestCase):
         with self.assertRaises(TypeError):
             tiledb.Attr("foo", dtype=np.dtype([("", np.float32), ("", np.int32)]))
 
+    def test_complex64_attribute(self):
+        attr = tiledb.Attr("foo", fill=(0 + 1j), dtype=np.dtype("complex64"))
+        assert attr == attr
+        assert attr.fill == attr.fill
+        assert attr.dtype == np.complex64
+        assert attr.ncells == 2
+
+    def test_complex128_attribute(self):
+        dtype = np.dtype([("", np.double), ("", np.double)])
+        attr = tiledb.Attr("foo", fill=(2.0, 2.0), dtype=dtype)
+
+        assert attr == attr
+        assert attr.fill == attr.fill
+        assert attr.dtype == np.complex128
+        assert attr.ncells == 2
+
+    @pytest.mark.parametrize(
+        "fill", [(1.0, 1.0), np.array((1.0, 1.0), dtype=np.dtype("f4, f4"))]
+    )
+    def test_two_cell_float_attribute(self, fill):
+        attr = tiledb.Attr("foo", fill=fill, dtype=np.dtype("f4, f4"))
+
+        assert attr == attr
+        assert attr.dtype == np.complex64
+        assert attr.fill == attr.fill
+        assert attr.ncells == 2
+
+    @pytest.mark.parametrize(
+        "fill", [(1.0, 1.0), np.array((1.0, 1.0), dtype=np.dtype("f8, f8"))]
+    )
+    def test_two_cell_double_attribute(self, fill):
+        attr = tiledb.Attr("foo", fill=fill, dtype=np.dtype("f8, f8"))
+        assert attr == attr
+        assert attr.dtype == np.complex128
+        assert attr.fill == attr.fill
+        assert attr.ncells == 2
+
     def test_ncell_bytes_attribute(self):
         dtype = np.dtype((np.bytes_, 10))
         attr = tiledb.Attr("foo", dtype=dtype)
