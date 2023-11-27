@@ -450,7 +450,7 @@ public:
     py::object init_pyqc = cond.attr("init_query_condition");
 
     try {
-      init_pyqc(uri_, attrs_);
+      init_pyqc(uri_, attrs_, ctx_);
     } catch (tiledb::TileDBError &e) {
       TPY_ERROR_LOC(e.what());
     } catch (py::error_already_set &e) {
