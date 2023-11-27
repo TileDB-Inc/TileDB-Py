@@ -11,6 +11,7 @@ steps:
     displayName: "Print files restored from cache"
 
   - bash: |
+      # TMP bump hash
       brew install pkg-config
     displayName: "Homebrew setup"
     condition: eq(variables['Agent.OS'], 'Darwin')
