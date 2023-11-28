@@ -126,7 +126,6 @@ void init_group(py::module &m) {
       .def("_add", &Group::add_member, py::arg("uri"),
            py::arg("relative") = false, py::arg("name") = std::nullopt)
       .def("_remove", &Group::remove_member)
-      .def("_delete_group", &Group::delete_group)
       .def("_member_count", &Group::member_count)
       .def("_member",
            static_cast<Object (Group::*)(uint64_t) const>(&Group::member))
@@ -137,12 +136,8 @@ void init_group(py::module &m) {
       .def("_dump", &Group::dump)
 
       /* static methods */
-      .def_static("_create", &Group::create)
-      .def_static("_consolidate_metadata", &Group::consolidate_metadata,
-                  py::arg("ctx"), py::arg("uri"),
-                  py::arg("config") = (Config *)nullptr)
-      .def_static("_vacuum_metadata", &Group::vacuum_metadata, py::arg("ctx"),
-                  py::arg("uri"), py::arg("config") = (Config *)nullptr);
+      .def("_create", &Group::create)
+      .def("_delete_group", &Group::delete_group);
 }
 
 } // namespace libtiledbcpp
