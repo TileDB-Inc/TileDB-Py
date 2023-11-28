@@ -1,16 +1,3 @@
-# Release 0.24.0
-
-* TileDB-Py 0.24.0 includes TileDB Embedded [2.18.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.18.0)
-
-## Improvements
-
-* Release the GIL while consolidation. [#1865](https://github.com/TileDB-Inc/TileDB-Py/pull/1864)
-* Add Group Metadata Consolidation and Vacuuming. [#1833](https://github.com/TileDB-Inc/TileDB-Py/pull/1833)
-* Fix domain equality check. [#1866](https://github.com/TileDB-Inc/TileDB-Py/pull/1866)
-* Fix reading DeltaFilter and DoubleDeltaFilter options for FilterList. [#1862](https://github.com/TileDB-Inc/TileDB-Py/pull/1862)
-* Do not flush VFS handles on closing. [#1863](https://github.com/TileDB-Inc/TileDB-Py/pull/1863)
-* Add context manager before enter `.array_exists`. [#1868](https://github.com/TileDB-Inc/TileDB-Py/pull/1868) (thanks, new contributor `p4perf4ce`!)
-
 # Release 0.23.4
 
 * TileDB-Py 0.23.4 includes TileDB Embedded [2.17.4](https://github.com/TileDB-Inc/TileDB/releases/tag/2.17.4)
