@@ -591,6 +591,10 @@ class GroupMetadataTest(GroupTestCase):
 
         assert len(vfs.ls(meta_path)) == 1
 
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 18, 0),
+        reason="Group consolidation and vacuuming not available < 2.18",
+    )
     def test_consolidation_and_vac_no_config(self):
         vfs = tiledb.VFS()
         path = self.path("test_consolidation_and_vac")
