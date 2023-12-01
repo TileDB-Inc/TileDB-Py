@@ -823,7 +823,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 tile_order="row-major",
                 capacity=1001,
                 sparse=True,
-                allows_duplicates=False,
+                allows_duplicates=True,
             )
             # note: filters omitted
 
