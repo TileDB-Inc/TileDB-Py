@@ -222,6 +222,9 @@ class QueryConditionTree(ast.NodeVisitor):
 
             variable = node.left.id
             values = [self.get_value_from_node(val) for val in self.visit(rhs)]
+            if len(values) == 0:
+                raise TileDBError("At least one value must be provided to "
+                                  "the set membership")
 
             if self.array.schema.has_attr(variable):
                 enum_label = self.array.attr(variable).enum_label
