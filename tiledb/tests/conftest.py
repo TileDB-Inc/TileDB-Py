@@ -108,4 +108,7 @@ def isolate_os_fork(monkeypatch):
     # value of os.fork, i.e. <built-in function fork>, and then
     # restore it at the end of every test. Calling Ctx() may patch
     # os.fork at runtime.
-    monkeypatch.setattr(os, "fork", os.fork)
+    if sys.platform == "win32":
+        pass
+    else:
+        monkeypatch.setattr(os, "fork", os.fork)
