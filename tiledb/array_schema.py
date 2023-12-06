@@ -132,22 +132,21 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         """Instance is equal to another ArraySchema"""
         if not isinstance(other, ArraySchema):
             return False
-        nattr = self.nattr
-        if nattr != other.nattr:
-            return False
-        if (
-            self.sparse != other.sparse
-            or self.cell_order != other.cell_order
-            or self.tile_order != other.tile_order
+        if not (
+            self.sparse == other.sparse
+            and self.cell_order == other.cell_order
+            and self.tile_order == other.tile_order
+            and self.capacity == other.capacity
+            and self.coords_filters == other.coords_filters
+            and self.offsets_filters == other.offsets_filters
+            and self.validity_filters == other.validity_filters
+            and self.nattr == other.nattr
+            and self.domain == other.domain
         ):
             return False
-        if self.capacity != other.capacity:
+        if self.sparse and self.allows_duplicates != other.allows_duplicates:
             return False
-        if self.domain != other.domain:
-            return False
-        if self.coords_filters != other.coords_filters:
-            return False
-        for i in range(nattr):
+        for i in range(self.nattr):
             if self.attr(i) != other.attr(i):
                 return False
         return True
