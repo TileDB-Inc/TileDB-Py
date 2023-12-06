@@ -34,11 +34,12 @@ def test_os_warn_at_fork():
         def wrapper():
             warnings.warn(
                 "TileDB is a multithreading library and deadlocks are "
-                "likely if fork() is called after a TileDB array has "
-                "been created or accessed. "
+                "likely if fork() is called after a TileDB context has "
+                "been created (such as for array access). "
                 "To safely use TileDB with multiprocessing or "
                 "concurrent.futures, choose 'spawn' as the start "
-                "method for child processes.",
+                "method for child processes. For example: "
+                "multiprocessing.set_start_method('spawn').",
                 UserWarning,
             )
             return os_fork()
@@ -81,11 +82,12 @@ def test_multiprocessing_warn_at_fork():
         def wrapper():
             warnings.warn(
                 "TileDB is a multithreading library and deadlocks are "
-                "likely if fork() is called after a TileDB array has "
-                "been created or accessed. "
+                "likely if fork() is called after a TileDB context has "
+                "been created (such as for array access). "
                 "To safely use TileDB with multiprocessing or "
                 "concurrent.futures, choose 'spawn' as the start "
-                "method for child processes.",
+                "method for child processes. For example: "
+                "multiprocessing.set_start_method('spawn').",
                 UserWarning,
             )
             return os_fork()

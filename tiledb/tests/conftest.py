@@ -1,4 +1,5 @@
 import ctypes
+import os
 import sys
 
 import pytest
@@ -98,3 +99,13 @@ def vfs_config(pytestconfig):
 
     tiledb.Ctx = PatchedCtx
     tiledb.Config = PatchedConfig
+
+
+@pytest.fixture(scope="function", autouse=True)
+def isolate_os_fork(monkeypatch):
+    # Use monkeypatch to set an attribute to itself, what?
+    # This makes sure that before any test is run, we save the original
+    # value of os.fork, i.e. <built-in function fork>, and then
+    # restore it at the end of every test. Calling Ctx() may patch
+    # os.fork at runtime.
+    monkeypatch.setattr(os, "fork", os.fork)
