@@ -551,6 +551,12 @@ class QueryConditionTest(DiskTestCase):
             for val in result["U"]:
                 assert val not in [5, 6, 7]
 
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="U not in []")[:]
+            assert "At least one value must be provided to the set membership" in str(
+                exc_info.value
+            )
+
     def test_in_operator_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             U_mask = A.attr("U").fill
@@ -581,6 +587,12 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="U not in [5, 6, 7]")[:]
             for val in self.filter_dense(result["U"], U_mask):
                 assert val not in [5, 6, 7]
+
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="U not in []")[:]
+            assert "At least one value must be provided to the set membership" in str(
+                exc_info.value
+            )
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_dense_datetime(self):
