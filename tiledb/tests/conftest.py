@@ -102,13 +102,19 @@ def vfs_config(pytestconfig):
 
 
 @pytest.fixture(scope="function", autouse=True)
-def isolate_os_fork(monkeypatch):
-    # Use monkeypatch to set an attribute to itself, what?
-    # This makes sure that before any test is run, we save the original
-    # value of os.fork, i.e. <built-in function fork>, and then
-    # restore it at the end of every test. Calling Ctx() may patch
-    # os.fork at runtime.
-    if sys.platform == "win32":
-        pass
-    else:
-        monkeypatch.setattr(os, "fork", os.fork)
+def isolate_os_fork(original_os_fork):
+    """Guarantee that tests start and finish with no os.fork patch."""
+    # Python 3.12 warns about fork() and threads. Tiledb only patches
+    # os.fork for Pythons 3.8-3.11.
+    if sys.platform != "win32" and sys.version_info < (3, 12):
+        tiledb.ctx._needs_fork_wrapper = True
+        os.fork = original_os_fork
+        yield
+        tiledb.ctx._needs_fork_wrapper = True
+        os.fork = original_os_fork
+
+
+@pytest.fixture(scope="session")
+def original_os_fork():
+    """Provides the original unpatched os.fork."""
+    return os.fork
