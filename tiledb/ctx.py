@@ -531,6 +531,15 @@ def default_ctx(config: Union["Config", dict] = None) -> "Ctx":
         ctx = _ctx_var.get()
         if config is not None:
             raise tiledb.TileDBError("Global context already initialized!")
+
+        # The core tiledb library uses threads and it's easy
+        # to experience deadlocks when forking a process that is using
+        # tiledb.  The project doesn't have a solution for this at the
+        # moment other than to avoid using fork(), which is the same
+        # recommendation that Python makes. Python 3.12 warns if you
+        # fork() when multiple threads are detected and Python 3.14 will
+        # make it so you never accidentally fork(): multiprocessing will
+        # default to "spawn" on Linux.
         _ensure_os_fork_wrap()
     except LookupError:
         ctx = tiledb.Ctx(config)
