@@ -109,7 +109,8 @@ def isolate_os_fork(original_os_fork):
     if original_os_fork:
         tiledb.ctx._needs_fork_wrapper = True
         os.fork = original_os_fork
-        yield
+    yield
+    if original_os_fork:
         tiledb.ctx._needs_fork_wrapper = True
         os.fork = original_os_fork
 
@@ -117,5 +118,5 @@ def isolate_os_fork(original_os_fork):
 @pytest.fixture(scope="session")
 def original_os_fork():
     """Provides the original unpatched os.fork."""
-    if sys.platform != "win32" and sys.version_info < (3, 12):
+    if sys.platform != "win32":
         return os.fork
