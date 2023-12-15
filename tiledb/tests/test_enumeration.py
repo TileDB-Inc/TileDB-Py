@@ -156,3 +156,40 @@ class EnumerationTest(DiskTestCase):
         else:
             assert enmr.dtype == enmr.values().dtype == dtype
             assert_array_equal(enmr.values(), values)
+
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    def test_from_pandas_dtype_mismatch(self):
+        import pandas as pd
+
+        schema = tiledb.ArraySchema(
+            enums=[
+                tiledb.Enumeration(name="enum1", values=["a", "b", "c"], ordered=False)
+            ],
+            domain=tiledb.Domain(
+                tiledb.Dim(name="dim1", dtype=np.int32, domain=(0, 1))
+            ),
+            attrs=[tiledb.Attr(name="attr1", dtype=np.int32, enum_label="enum1")],
+            sparse=True,
+        )
+
+        # Pandas category's categories matches the TileDB enumeration's values
+        df1 = pd.DataFrame(data={"dim1": [0, 1], "attr1": ["b", "c"]})
+        df1["attr1"] = pd.Categorical(values=df1.attr1, categories=["a", "b", "c"])
+
+        array_path = self.path("arr1")
+        tiledb.Array.create(array_path, schema)
+        tiledb.from_pandas(array_path, df1, schema=schema, mode="append")
+
+        actual_values = tiledb.open(array_path).df[:]["attr1"].values.tolist()
+        assert actual_values == ["b", "c"]
+
+        # Pandas category's categories does not match the TileDB enumeration's values
+        df2 = pd.DataFrame(data={"dim1": [0, 1], "attr1": ["b", "c"]})
+        df2["attr1"] = df2["attr1"].astype("category")
+
+        array_path = self.path("arr2")
+        tiledb.Array.create(array_path, schema)
+        tiledb.from_pandas(array_path, df2, schema=schema, mode="append")
+
+        actual_values = tiledb.open(array_path).df[:]["attr1"].values.tolist()
+        assert actual_values == ["b", "c"]
