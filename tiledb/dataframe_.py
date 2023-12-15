@@ -693,8 +693,7 @@ def _write_array(
     row_start_idx=None,
     timestamp=None,
 ):
-    import pandas as pd 
-    
+
     with tiledb.open(uri, "w", timestamp=timestamp) as A:
         for j in range(A.schema.nattr):
             attr = A.schema.attr(j)
@@ -702,7 +701,7 @@ def _write_array(
                 enmr = A.enum(attr.enum_label).values()
                 df[attr.name] = df[attr.name].cat.set_categories(enmr)
                 write_dict[attr.name] = df[attr.name].cat.codes
-             
+
         if A.schema.sparse:
             coords = []
             for k in range(A.schema.ndim):
