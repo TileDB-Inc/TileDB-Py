@@ -839,7 +839,7 @@ class QueryConditionTest(DiskTestCase):
         uri = self.path("test_qc_enumeration")
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
         enum1 = tiledb.Enumeration("enmr1", True, [0, 1, 2])
-        enum2 = tiledb.Enumeration("enmr2", False, ["a", "bb", "ccc"])
+        enum2 = tiledb.Enumeration("enmr2", True, ["a", "bb", "ccc"])
         attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
         attr2 = tiledb.Attr("attr2", dtype=np.int32, enum_label="enmr2")
         schema = tiledb.ArraySchema(
@@ -858,11 +858,59 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="attr1 < 2", attrs=["attr1"])[:]
             assert all(self.filter_dense(result["attr1"], mask) < 2)
 
+            result = A.query(cond="attr1 <= 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) <= 2)
+
+            result = A.query(cond="attr1 > 0", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) > 0)
+
+            result = A.query(cond="attr1 != 1", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) != 1)
+
             mask = A.attr("attr2").fill
             result = A.query(cond="attr2 == 'bb'", attrs=["attr2"])[:]
             assert all(
                 self.filter_dense(result["attr2"], mask)
                 == list(enum2.values()).index("bb")
+            )
+
+            mask = A.attr("attr2").fill
+            result = A.query(cond="attr2 < 'ccc'", attrs=["attr2"])[:]
+            assert list(enum2.values()).index("ccc") not in self.filter_dense(
+                result["attr2"], mask
+            )
+
+            result = A.query(cond="attr2 == 'b'", attrs=["attr2"])[:]
+            assert all(self.filter_dense(result["attr2"], mask) == [])
+
+            result = A.query(cond="attr2 in ['b']", attrs=["attr2"])[:]
+            assert all(self.filter_dense(result["attr2"], mask) == [])
+
+            result = A.query(cond="attr2 not in ['b']", attrs=["attr2"])[:]
+            assert len(result["attr2"]) == len(data2)
+
+            result = A.query(cond="attr2 not in ['b', 'ccc']", attrs=["attr2"])[:]
+            assert list(enum2.values()).index("ccc") not in self.filter_dense(
+                result["attr2"], mask
+            )
+
+            result = A.query(
+                cond="attr1 < 2 and attr2 == 'bb'", attrs=["attr1", "attr2"]
+            )[:]
+            assert all(self.filter_dense(result["attr1"], mask) < 2) and all(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("bb")
+            )
+
+            result = A.query(cond="attr1 == 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) == 2)
+
+            result = A.query(
+                cond="attr1 == 0 or attr2 == 'ccc'", attrs=["attr1", "attr2"]
+            )[:]
+            assert any(self.filter_dense(result["attr1"], mask) == 0) or any(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("ccc")
             )
 
     def test_boolean_insert(self):
@@ -888,6 +936,36 @@ class QueryConditionTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             for k in A[:]["a"]:
                 assert k == True  # noqa: E712
+
+    def test_qc_dense_empty(self):
+        path = self.path("test_qc_dense_empty")
+
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 1), tile=1, dtype=np.uint8))
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as A:
+            A[:] = np.arange(1)
+
+        with tiledb.open(path) as A:
+            assert_array_equal(A.query(cond="")[:]["a"], [0])
+
+    def test_qc_sparse_empty(self):
+        path = self.path("test_qc_sparse_empty")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint8)
+        )
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as A:
+            A[1] = {"a": np.arange(1)}
+
+        with tiledb.open(path) as A:
+            assert_array_equal(A.query(cond="")[:]["a"], [0])
 
 
 class QueryDeleteTest(DiskTestCase):
@@ -1052,33 +1130,3 @@ class QueryDeleteTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             assert_array_equal(A[:]["d"], [b"c"])
             assert_array_equal(A[:]["a"], [30])
-
-    def test_qc_dense_empty(self):
-        path = self.path("test_qc_dense_empty")
-
-        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 1), tile=1, dtype=np.uint8))
-        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
-        tiledb.Array.create(path, schema)
-
-        with tiledb.open(path, mode="w") as A:
-            A[:] = np.arange(1)
-
-        with tiledb.open(path) as A:
-            assert_array_equal(A.query(cond="")[:]["a"], [0])
-
-    def test_qc_sparse_empty(self):
-        path = self.path("test_qc_sparse_empty")
-
-        dom = tiledb.Domain(
-            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint8)
-        )
-        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
-        tiledb.Array.create(path, schema)
-
-        with tiledb.open(path, mode="w") as A:
-            A[1] = {"a": np.arange(1)}
-
-        with tiledb.open(path) as A:
-            assert_array_equal(A.query(cond="")[:]["a"], [0])
