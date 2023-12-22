@@ -10,6 +10,7 @@ import tiledb.cc as lt
 _ctx_var = ContextVar("ctx")
 
 already_warned = False
+_needs_fork_wrapper = sys.platform != "win32" and sys.version_info < (3, 12)
 
 
 class Config(lt.Config):
@@ -345,6 +346,16 @@ class Ctx(lt.Context):
 
         self._set_default_tags()
 
+        # The core tiledb library uses threads and it's easy
+        # to experience deadlocks when forking a process that is using
+        # tiledb.  The project doesn't have a solution for this at the
+        # moment other than to avoid using fork(), which is the same
+        # recommendation that Python makes. Python 3.12 warns if you
+        # fork() when multiple threads are detected and Python 3.14 will
+        # make it so you never accidentally fork(): multiprocessing will
+        # default to "spawn" on Linux.
+        _ensure_os_fork_wrap()
+
     def __repr__(self):
         return "tiledb.Ctx() [see Ctx.config() for configuration]"
 
@@ -439,7 +450,6 @@ def check_ipykernel_warn_once():
     global already_warned
     if not already_warned:
         try:
-            import sys
             import warnings
 
             if "ipykernel" in sys.modules and tuple(
@@ -521,7 +531,46 @@ def default_ctx(config: Union["Config", dict] = None) -> "Ctx":
         ctx = _ctx_var.get()
         if config is not None:
             raise tiledb.TileDBError("Global context already initialized!")
+
+        # The core tiledb library uses threads and it's easy
+        # to experience deadlocks when forking a process that is using
+        # tiledb.  The project doesn't have a solution for this at the
+        # moment other than to avoid using fork(), which is the same
+        # recommendation that Python makes. Python 3.12 warns if you
+        # fork() when multiple threads are detected and Python 3.14 will
+        # make it so you never accidentally fork(): multiprocessing will
+        # default to "spawn" on Linux.
+        _ensure_os_fork_wrap()
     except LookupError:
         ctx = tiledb.Ctx(config)
         _ctx_var.set(ctx)
     return ctx
+
+
+def _ensure_os_fork_wrap():
+    global _needs_fork_wrapper
+    if _needs_fork_wrapper:
+        import os
+        import warnings
+        from functools import wraps
+
+        def warning_wrapper(func):
+            @wraps(func)
+            def wrapper():
+                warnings.warn(
+                    "TileDB is a multithreading library and deadlocks "
+                    "are likely if fork() is called after a TileDB "
+                    "context has been created (such as for array "
+                    "access). To safely use TileDB with "
+                    "multiprocessing or concurrent.futures, choose "
+                    "'spawn' as the start method for child processes. "
+                    "For example: "
+                    "multiprocessing.set_start_method('spawn').",
+                    UserWarning,
+                )
+                return func()
+
+            return wrapper
+
+        os.fork = warning_wrapper(os.fork)
+        _needs_fork_wrapper = False

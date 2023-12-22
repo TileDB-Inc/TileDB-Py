@@ -1,4 +1,5 @@
 import ctypes
+import os
 import sys
 
 import pytest
@@ -98,3 +99,24 @@ def vfs_config(pytestconfig):
 
     tiledb.Ctx = PatchedCtx
     tiledb.Config = PatchedConfig
+
+
+@pytest.fixture(scope="function", autouse=True)
+def isolate_os_fork(original_os_fork):
+    """Guarantee that tests start and finish with no os.fork patch."""
+    # Python 3.12 warns about fork() and threads. Tiledb only patches
+    # os.fork for Pythons 3.8-3.11.
+    if original_os_fork:
+        tiledb.ctx._needs_fork_wrapper = True
+        os.fork = original_os_fork
+    yield
+    if original_os_fork:
+        tiledb.ctx._needs_fork_wrapper = True
+        os.fork = original_os_fork
+
+
+@pytest.fixture(scope="session")
+def original_os_fork():
+    """Provides the original unpatched os.fork."""
+    if sys.platform != "win32":
+        return os.fork
