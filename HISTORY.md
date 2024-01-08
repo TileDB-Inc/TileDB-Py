@@ -6,6 +6,18 @@
 
 # Release 0.24.0
 
+* TileDB-Py 0.25.0 includes TileDB Embedded [2.19.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.19.0)
+
+## Improvements
+
+* Fix fill value for complex attributes [1872](https://github.com/TileDB-Inc/TileDB-Py/pull/1872)
+* Update current-release nightly target [1873](https://github.com/TileDB-Inc/TileDB-Py/pull/1873)
+* Add full check of attribute properties in __eq__ method [1874](https://github.com/TileDB-Inc/TileDB-Py/pull/1874)
+* Add all array properties to ArraySchema.__eq__ [1875](https://github.com/TileDB-Inc/TileDB-Py/pull/1875)
+* Error out if query condition given empty set [1877](https://github.com/TileDB-Inc/TileDB-Py/pull/1877)
+
+# Release 0.24.0
+
 * TileDB-Py 0.24.0 includes TileDB Embedded [2.18.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.18.2)
 
 ## Improvements
