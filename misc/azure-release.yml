@@ -6,7 +6,7 @@ stages:
         LIBTILEDB_VERSION: dev
         LIBTILEDB_SHA: dev
       ${{ else }}:
-        TILEDBPY_VERSION: 0.25.0
+        TILEDBPY_VERSION: 0.25.1
         # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
         LIBTILEDB_VERSION: 2.19.0
         LIBTILEDB_SHA: fa30a88abc5504ed8387e25937744afcd3802232
