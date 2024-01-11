@@ -122,7 +122,7 @@ void init_filter(py::module &m) {
 
       .def("__capsule__",
            [](FilterList &filterlist) {
-             return py::capsule(filterlist.ptr().get(), "fl", nullptr);
+             return py::capsule(filterlist.ptr().get(), "fl");
            })
 
       .def_property("_chunksize", &FilterList::max_chunk_size,

@@ -173,7 +173,7 @@ void init_schema(py::module &m) {
 
       .def("__capsule__",
            [](ArraySchema &schema) {
-             return py::capsule(schema.ptr().get(), "schema", nullptr);
+             return py::capsule(schema.ptr().get(), "schema");
            })
 
       .def("_dump", &ArraySchema::dump)

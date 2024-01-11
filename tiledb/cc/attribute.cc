@@ -69,7 +69,7 @@ void init_attribute(py::module &m) {
 
       .def("__capsule__",
            [](Attribute &attr) {
-             return py::capsule(attr.ptr().get(), "attr", nullptr);
+             return py::capsule(attr.ptr().get(), "attr");
            })
 
       .def_property_readonly("_name", &Attribute::name)
