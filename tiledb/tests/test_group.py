@@ -341,6 +341,11 @@ class GroupTest(GroupTestCase):
 
             with tiledb.Group(group_uri, config=cfg) as G:
                 assert len(G) == sz
+    
+    def test_group_does_not_exist(self):
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Group("does-not-exist")
+
 
 
 class GroupMetadataTest(GroupTestCase):
@@ -616,3 +621,4 @@ class GroupMetadataTest(GroupTestCase):
         tiledb.Group.vacuum_metadata(path)
 
         assert len(vfs.ls(meta_path)) == 1
+    

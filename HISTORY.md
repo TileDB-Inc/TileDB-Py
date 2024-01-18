@@ -1,5 +1,9 @@
 # Next
 
+## Bug Fixes
+
+* Add safe `Group.__repr__` []()
+
 ## Improvements
 
 * Warn when `os.fork()` is used in the presence of a Tiledb context [#1876](https://github.com/TileDB-Inc/TileDB-Py/pull/1876/files).
