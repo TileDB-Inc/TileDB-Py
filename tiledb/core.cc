@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <functional>
 #include <future>
 #include <iostream>
 #include <map>
@@ -473,7 +474,7 @@ public:
 
   ChannelOperation create_aggregate(const std::string &output_field,
                                     const std::string &operation_label) {
-    using AggregateFunc = ChannelOperation (*)(const Query &, const std::string &);
+    using AggregateFunc = std::function<ChannelOperation(const Query &, const std::string &)>;
 
     std::unordered_map<std::string, AggregateFunc> label_to_aggregate_func =
         {

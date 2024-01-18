@@ -16,7 +16,7 @@ namespace py = pybind11;
 
 void init_query_channel(py::module &m) {
   py::class_<QueryChannel>(m, "QueryChannel");
-  py::class_<ChannelOperation>(m, "ChannelOperation").def(py::init<>());
+  py::class_<ChannelOperation>(m, "ChannelOperation");
 }
 
 } // namespace libtiledbcpp
