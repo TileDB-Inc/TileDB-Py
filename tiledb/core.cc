@@ -467,6 +467,37 @@ public:
     query_->set_condition(*qc);
   }
 
+  QueryChannel get_default_channel() {
+    return QueryExperimental::get_default_channel(*query_);
+  }
+
+  ChannelOperation create_aggregate(const std::string &output_field,
+                                    const std::string &operation_label) {
+    using AggregateFunc = ChannelOperation (*)(const Query &, const std::string &);
+
+    std::unordered_map<std::string, AggregateFunc> label_to_aggregate_func =
+        {
+            {"sum", QueryExperimental::create_unary_aggregate<SumOperator>},
+            {"min", QueryExperimental::create_unary_aggregate<MinOperator>},
+            {"max", QueryExperimental::create_unary_aggregate<MaxOperator>},
+            {"mean", QueryExperimental::create_unary_aggregate<MeanOperator>},
+            {"null_count",
+             QueryExperimental::create_unary_aggregate<NullCountOperator>},
+        };
+
+    if (label_to_aggregate_func.find(operation_label) !=
+        label_to_aggregate_func.end()) {
+      AggregateFunc create_unary_aggregate =
+          label_to_aggregate_func.at(operation_label);
+      return create_unary_aggregate(*query_, output_field);
+    } else if (operation_label == "count") {
+      return CountOperation();
+    }
+
+    TPY_ERROR_LOC("Invalid channel operation " + operation_label +
+                  " passed to create_aggregate.");
+  }
+
   bool is_dimension(std::string name) { return domain_->has_dimension(name); }
 
   bool is_attribute(std::string name) {
