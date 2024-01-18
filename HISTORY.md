@@ -2,7 +2,7 @@
 
 ## Bug Fixes
 
-* Add safe `Group.__repr__` []()
+* Add safe `Group.__repr__` [#1890](https://github.com/TileDB-Inc/TileDB-Py/pull/1890)
 
 ## Improvements
 
