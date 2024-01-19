@@ -342,6 +342,10 @@ class GroupTest(GroupTestCase):
             with tiledb.Group(group_uri, config=cfg) as G:
                 assert len(G) == sz
 
+    def test_group_does_not_exist(self):
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Group("does-not-exist")
+
 
 class GroupMetadataTest(GroupTestCase):
     @pytest.mark.parametrize(
