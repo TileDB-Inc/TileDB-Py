@@ -969,7 +969,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # Test roundtrip a Int64Dtype in newer pandas versions
         tmp_csv2 = os.path.join(tmp_dir, "generated.csv")
         df2 = pd.DataFrame({"v": pd.Series(np.int64(df["v"]), dtype=pd.Int64Dtype())})
-        df2["v"][4] = None
+        df2.loc[4] = None
 
         with tiledb.FileIO(self.vfs, tmp_csv2, "wb") as fio:
             df2.to_csv(fio, index=False)
