@@ -569,7 +569,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tm.assert_frame_equal(df, df_copy)
 
         # update the value in the original dataframe to match what we expect on read-back
-        df["v"][4] = -1
+        df.loc[4] = -1
         df_bk = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df_bk, df)
 
@@ -941,7 +941,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         def check_array(path, df):
             # update the value in the original dataframe to match what we expect on read-back
-            df["v"][4] = 0
+            df.loc[4] = 0
 
             df_bk = tiledb.open_dataframe(path)
             tm.assert_frame_equal(df_bk, df)
