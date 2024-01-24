@@ -12,6 +12,9 @@ filterwarnings = [
     "error",
     "default::pytest.PytestWarning",
     "default::DeprecationWarning:distributed",
+    # Pyarrow emits a warning regarding use of deprecated Pandas function
+    # Remove this once we bump Pyarrow version
+    "ignore:Passing a BlockManager to DataFrame is deprecated:DeprecationWarning"
 ]
 
 [tool.ruff]

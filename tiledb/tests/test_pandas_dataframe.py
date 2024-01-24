@@ -569,7 +569,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tm.assert_frame_equal(df, df_copy)
 
         # update the value in the original dataframe to match what we expect on read-back
-        df["v"][4] = -1
+        df.loc[4] = -1
         df_bk = tiledb.open_dataframe(uri)
         tm.assert_frame_equal(df_bk, df)
 
@@ -941,7 +941,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         def check_array(path, df):
             # update the value in the original dataframe to match what we expect on read-back
-            df["v"][4] = 0
+            df.loc[4] = 0
 
             df_bk = tiledb.open_dataframe(path)
             tm.assert_frame_equal(df_bk, df)
@@ -969,7 +969,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # Test roundtrip a Int64Dtype in newer pandas versions
         tmp_csv2 = os.path.join(tmp_dir, "generated.csv")
         df2 = pd.DataFrame({"v": pd.Series(np.int64(df["v"]), dtype=pd.Int64Dtype())})
-        df2["v"][4] = None
+        df2.loc[4] = None
 
         with tiledb.FileIO(self.vfs, tmp_csv2, "wb") as fio:
             df2.to_csv(fio, index=False)
