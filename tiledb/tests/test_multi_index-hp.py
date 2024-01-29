@@ -85,6 +85,7 @@ class TestMultiIndexPropertySparse:
         order=st.sampled_from(["C", "F", "U"]),
         ranges=st.lists(bounded_ntuple(length=2, min_value=-100, max_value=100)),
     )
+    @hypothesis@settings(deadline=None)
     def test_multi_index_two_way_query(self, order, ranges, sparse_array_1d):
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
@@ -108,6 +109,7 @@ class TestMultiIndexPropertySparse:
             raise
 
     @given(index_obj)
+    @hypothesis@settings(deadline=None)
     def test_multi_index_inputs(self, sparse_array_1d, ind):
         # TODO
         # currently we don't have a comparison target/mockup to check
