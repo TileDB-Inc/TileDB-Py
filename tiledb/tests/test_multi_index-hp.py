@@ -4,9 +4,9 @@
 
 import warnings
 
+import hypothesis as hp
 import numpy as np
 import pytest
-import hypothesis as hp
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from numpy.testing import assert_array_equal
