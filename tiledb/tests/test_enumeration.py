@@ -144,7 +144,7 @@ class EnumerationTest(DiskTestCase):
         # then extend with values
         enmr = enmr.extend(values)
         if dtype in (np.dtype("S"), np.dtype("U")):
-            assert enmr.dtype.kind == enmr.values().dtype.kind == dtype.kind
+            assert enmr.dtype == enmr.values().dtype == dtype
         else:
             assert enmr.dtype == enmr.values().dtype == dtype
             assert_array_equal(enmr.values(), values)

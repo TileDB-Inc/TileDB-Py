@@ -8,6 +8,7 @@ from cpython.version cimport PY_MAJOR_VERSION
 include "common.pxi"
 import io
 import warnings
+import collections.abc
 from collections import OrderedDict
 from json import dumps as json_dumps
 from json import loads as json_loads
@@ -15,7 +16,7 @@ from json import loads as json_loads
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
 from .enumeration import Enumeration
-from .cc import TileDBError
+from .cc import TileDBError, ChannelOperation
 from .ctx import Config, Ctx, default_ctx
 from .vfs import VFS
 
@@ -1675,7 +1676,7 @@ cdef class Array(object):
             arr.dtype = q.buffer_dtype(name)
             out[name] = arr
         return out
-
+    
     # pickling support: this is a lightweight pickle for distributed use.
     #   simply treat as wrapper around URI, not actual data.
     def __getstate__(self):
@@ -1762,15 +1763,71 @@ cdef class Query(object):
 
         self.domain_index = DomainIndexer(array, query=self)
 
+        self.__aggregate_query = False
+
     def __getitem__(self, object selection):
         if self.return_arrow:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
 
-        return self.array.subarray(selection,
-                                   attrs=self.attrs,
-                                   cond=self.cond,
-                                   coords=self.coords if self.coords else self.dims,
-                                   order=self.order)
+        if self.__aggregate_query:
+            from .subarray import Subarray
+
+            q = self.array.pyquery
+
+            selection = index_as_tuple(selection)
+            dom = self.array.schema.domain
+            idx = replace_ellipsis(dom.ndim, selection)
+            idx, drop_axes = replace_scalars_slice(dom, idx)
+            dim_ranges  = index_domain_subarray(self.array, dom, idx)
+
+            subarray = Subarray(self.array, self.array.ctx)
+            subarray.add_ranges([list([x]) for x in dim_ranges])
+            q.set_subarray(subarray)
+
+            result = q.get_aggregate()
+
+            # If there was only one attribute, just show the aggregate results
+            if len(result) == 1:
+                result = result[list(result.keys())[0]]
+
+                # If there was only one aggregate, just show the value
+                if len(result) == 1:
+                    result = result[list(result.keys())[0]]
+
+            return result
+        else:
+            return self.array.subarray(selection,
+                                    attrs=self.attrs,
+                                    cond=self.cond,
+                                    coords=self.coords if self.coords else self.dims,
+                                    order=self.order)
+    
+    def agg(self, aggs):
+        self.__aggregate_query = True
+
+        schema = self.array.schema
+
+        # TODO documentation
+        attr_to_aggs_map = {}
+        if isinstance(aggs, dict):
+            attr_to_aggs_map = {
+                a: (
+                    tuple([aggs[a]]) 
+                    if isinstance(aggs[a], str) 
+                    else tuple(aggs[a])
+                )
+                for a in aggs
+            }
+        elif isinstance(aggs, str):
+            attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
+            attr_to_aggs_map = {a: (aggs,) for a in attrs}
+        elif isinstance(aggs, collections.abc.Sequence):
+            attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
+            attr_to_aggs_map = {a: tuple(aggs) for a in attrs}
+    
+        self.array.pyquery.set_aggregate(attr_to_aggs_map)
+
+        return self
 
     @property
     def attrs(self):
