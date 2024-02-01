@@ -1,0 +1,145 @@
+import numpy as np
+import pytest
+
+import tiledb
+
+from .common import DiskTestCase
+
+class AggregateTest(DiskTestCase):
+    @pytest.mark.parametrize("sparse", [True, False])
+    @pytest.mark.parametrize("dtype", [np.uint8, np.int8, np.uint16, np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64])
+    def test_basic(self, sparse, dtype):
+        path = self.path("test_basic")
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
+        attrs = [tiledb.Attr(name="a", dtype=dtype)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
+        tiledb.Array.create(path, schema)
+        
+        data = np.random.randint(1, 10, size=10)
+
+        # write data
+        with tiledb.open(path, "w") as A:
+            if sparse:
+                A[np.arange(0, 10)] = data
+            else:
+                A[:] = data
+                
+        all_aggregates = ("count", "sum", "min", "max", "mean")
+        
+        with tiledb.open(path, "r") as A:            
+            # entire column
+            expected = A[:]["a"]
+            
+            with pytest.raises(tiledb.TileDBError):
+                A.query().agg("bad")[:]
+            
+            with pytest.raises(tiledb.TileDBError):
+                A.query().agg("null_count")[:]
+                        
+            assert A.query().agg("sum")[:] == sum(expected)
+            assert A.query().agg("min")[:] == min(expected)
+            assert A.query().agg("max")[:] == max(expected)
+            assert A.query().agg("mean")[:] == sum(expected)/len(expected)
+            assert A.query().agg("count")[:] == len(expected)
+            
+            assert A.query().agg({"a": "sum"})[:] == sum(expected)
+            assert A.query().agg({"a": "min"})[:] == min(expected)
+            assert A.query().agg({"a": "max"})[:] == max(expected)
+            assert A.query().agg({"a": "mean"})[:] == sum(expected)/len(expected)
+            assert A.query().agg({"a": "count"})[:] == len(expected)
+            
+            actual = A.query().agg(all_aggregates)[:]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected)/len(expected)
+            assert actual["count"] == len(expected)
+            
+            actual = A.query().agg({"a": all_aggregates})[:]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected)/len(expected)
+            assert actual["count"] == len(expected)
+            
+            # subarray
+            expected = A[4:7]["a"]
+                        
+            assert A.query().agg("sum")[4:7] == sum(expected)
+            assert A.query().agg("min")[4:7] == min(expected)
+            assert A.query().agg("max")[4:7] == max(expected)
+            assert A.query().agg("mean")[4:7] == sum(expected)/len(expected)
+            assert A.query().agg("count")[4:7] == len(expected)
+            
+            assert A.query().agg({"a": "sum"})[4:7] == sum(expected)
+            assert A.query().agg({"a": "min"})[4:7] == min(expected)
+            assert A.query().agg({"a": "max"})[4:7] == max(expected)
+            assert A.query().agg({"a": "mean"})[4:7] == sum(expected)/len(expected)
+            assert A.query().agg({"a": "count"})[4:7] == len(expected)
+                        
+            actual = A.query().agg(all_aggregates)[4:7]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected)/len(expected)
+            assert actual["count"] == len(expected)
+            
+            actual = A.query().agg({"a": all_aggregates})[4:7]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected)/len(expected)
+            assert actual["count"] == len(expected)
+    
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_nullable(self, sparse):
+        path = self.path("test_basic")
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
+        attrs = [tiledb.Attr(name="a", nullable=True, dtype=float)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
+        tiledb.Array.create(path, schema)
+        
+        # set index 5 and 7 to be null
+        data = np.random.rand(10)
+        data[5], data[7] = np.nan, np.nan
+
+        # write data
+        with tiledb.open(path, "w") as A:
+            if sparse:
+                A[np.arange(0, 10)] = data
+            else:
+                A[:] = data
+                        
+        with tiledb.open(path, "r") as A:
+            assert A.query().agg("null_count")[0] == 0
+            assert A.query().agg("null_count")[:6] == 1
+            assert A.query().agg("null_count")[5:8] == 2
+            assert A.query().agg("null_count")[5] == 1
+            assert A.query().agg("null_count")[6:] == 1
+            assert A.query().agg("null_count")[7] == 1
+            assert A.query().agg("null_count")[:] == 2
+            
+            # TODO requires validity buffer?
+            # print(A.query().agg("sum")[:])
+            # print(A.query().agg("min")[:])
+            # print(A.query().agg("max")[:])
+            # print(A.query().agg("mean")[:])
+            # print(A.query().agg("count")[:])
+            
+            # all_aggregates = ("count", "sum", "min", "max", "mean")
+            # actual = A.query().agg({"a": all_aggregates})[:]
+            # expected = A[:]["a"]
+            # assert actual["sum"] == sum(expected)
+            # assert actual["min"] == min(expected)
+            # assert actual["max"] == max(expected)
+            # assert actual["mean"] == sum(expected)/len(expected)
+            # assert actual["count"] == len(expected)
+
+    
+    # TODO
+    # all aggregate functions - still need null count
+    # nullable and not nullable
+    # test multiple attributes
+    # test multiple operations
+    # with query condition
+    # test incorrect dtypes
