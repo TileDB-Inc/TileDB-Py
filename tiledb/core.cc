@@ -305,7 +305,8 @@ private:
   shared_ptr<tiledb::ArraySchema> array_schema_;
   shared_ptr<tiledb::Array> array_;
   shared_ptr<tiledb::Query> query_;
-  map<string, map<string, py::array_t<uint8_t>>> buffers_;
+  map<string, map<string, py::array_t<uint8_t>>> result_buffers_;
+  map<string, map<string, py::array_t<uint8_t>>> validity_buffers_;
 
   tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
 
@@ -345,22 +346,31 @@ public:
       auto attr_type = array_schema_->attribute(attr_name).type();
       auto attr_ncell = array_schema_->attribute(attr_name).cell_size();
       auto attr_nullable = array_schema_->attribute(attr_name).nullable();
-      
+
       for (auto agg : attr_to_aggs.second) {
         // TODO separate into its own function
         std::string agg_name(agg.cast<string>());
         _apply_agg_to_attr(agg_name, attr_name);
 
-        auto* agg_buf = &buffers_[attr_name][agg_name];
+        auto* res_buf = &result_buffers_[attr_name][agg_name];
         if("count" == agg_name or "null_count" == agg_name or "mean" == agg_name){
           // count and null_count use uint64 and mean uses float64
-          *agg_buf = py::array(py::dtype("uint8"), 8);
+          *res_buf = py::array(py::dtype("uint8"), 8);
         }else{
           // max, min, and sum use the dtype of the attribute
           py::dtype dt(tiledb_dtype(attr_type, attr_ncell));
-          *agg_buf = py::array(py::dtype("uint8"), dt.itemsize()); 
+          *res_buf = py::array(py::dtype("uint8"), dt.itemsize()); 
         }
-        query_->set_data_buffer(agg_name, (void*)agg_buf->data(), 1);
+        query_->set_data_buffer(agg_name, (void*)res_buf->data(), 1);
+
+        // If the requested data contains all NULL values, we will not get an
+        // aggregate value back. We need to check the validity buffer beforehand
+        // to see if we had a valid result
+        if(attr_nullable and !("count" == agg_name or "null_count" == agg_name)){
+          auto* val_buf = &validity_buffers_[attr_name][agg_name];
+          *val_buf = py::array(py::dtype("uint8"), 1); 
+          query_->set_validity_buffer(agg_name, (uint8_t*)val_buf->data(), 1);
+        }
       }
     }
   }
@@ -399,14 +409,27 @@ public:
 
     // Cast the results to the correct dtype and output this as a Python dictionary
     py::dict result;
-    for (auto attr : buffers_) {
+    for (auto attr : result_buffers_) {
         py::str attr_name(attr.first);
         result[attr_name] = py::dict();
+
         auto attr_type = array_schema_->attribute(attr_name).type();
+        auto attr_nullable = array_schema_->attribute(attr_name).nullable();
 
         for (auto agg : attr.second) {
           py::str agg_name(agg.first);
           const void* agg_value = agg.second.data();
+
+          if(attr_nullable and !("count" == agg.first or "null_count" == agg.first)){
+            uint8_t* val_value = (uint8_t*)(validity_buffers_[attr_name][agg_name].data());
+            bool no_result = *val_value == 0;
+
+            if (no_result){
+              result[attr_name][agg_name] = py::none();
+              continue;
+            }
+          }
+
           if ("mean" == agg.first) {
             result[attr_name][agg_name] = *((double*)agg_value);
           } else if ("count" == agg.first or "null_count" == agg.first) {

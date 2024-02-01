@@ -134,25 +134,25 @@ class AggregateTest(DiskTestCase):
             assert A.query().agg("null_count")[7] == 1
             assert A.query().agg("null_count")[:] == 2
 
-            # TODO requires validity buffer?
-            # print(A.query().agg("sum")[:])
-            # print(A.query().agg("min")[:])
-            # print(A.query().agg("max")[:])
-            # print(A.query().agg("mean")[:])
-            # print(A.query().agg("count")[:])
-
-            # all_aggregates = ("count", "sum", "min", "max", "mean")
-            # actual = A.query().agg({"a": all_aggregates})[:]
-            # expected = A[:]["a"]
-            # assert actual["sum"] == sum(expected)
-            # assert actual["min"] == min(expected)
-            # assert actual["max"] == max(expected)
-            # assert actual["mean"] == sum(expected)/len(expected)
-            # assert actual["count"] == len(expected)
+            all_aggregates = ("count", "sum", "min", "max", "mean")
+            actual = A.query().agg({"a": all_aggregates})[:]
+            expected = A[:]["a"]
+            expected_no_null = A[:]["a"].compressed()
+            assert actual["sum"] == sum(expected_no_null)
+            assert actual["min"] == min(expected_no_null)
+            assert actual["max"] == max(expected_no_null)
+            assert actual["mean"] == sum(expected_no_null)/len(expected_no_null)
+            assert actual["count"] == len(expected)
+            
+            # no valid values
+            actual = A.query().agg({"a": all_aggregates})[5]
+            assert actual["sum"] is None
+            assert actual["min"] is None
+            assert actual["max"] is None
+            assert actual["mean"] is None
+            assert actual["count"] == 1
 
     # TODO
-    # all aggregate functions - still need null count
-    # nullable and not nullable
     # test multiple attributes
     # test multiple operations
     # with query condition
