@@ -16,7 +16,7 @@ from json import loads as json_loads
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
 from .enumeration import Enumeration
-from .cc import TileDBError, ChannelOperation
+from .cc import TileDBError 
 from .ctx import Config, Ctx, default_ctx
 from .vfs import VFS
 
