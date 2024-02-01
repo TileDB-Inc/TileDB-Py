@@ -1763,13 +1763,13 @@ cdef class Query(object):
 
         self.domain_index = DomainIndexer(array, query=self)
 
-        self.__aggregate_query = False
-
     def __getitem__(self, object selection):
+        from .main import PyAgg
+
         if self.return_arrow:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
 
-        if self.__aggregate_query:
+        if isinstance(self.array.pyquery, PyAgg):
             from .subarray import Subarray
 
             q = self.array.pyquery
@@ -1803,10 +1803,10 @@ cdef class Query(object):
                                     order=self.order)
     
     def agg(self, aggs):
-        self.__aggregate_query = True
+        from .main import PyAgg
 
         schema = self.array.schema
-
+        
         # TODO documentation
         attr_to_aggs_map = {}
         if isinstance(aggs, dict):
@@ -1824,8 +1824,25 @@ cdef class Query(object):
         elif isinstance(aggs, collections.abc.Sequence):
             attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
             attr_to_aggs_map = {a: tuple(aggs) for a in attrs}
+
+        self.attrs = list(attr_to_aggs_map.keys())
+        
+        cdef tiledb_layout_t layout = TILEDB_UNORDERED if schema.sparse else TILEDB_ROW_MAJOR
+        if self.order is None or self.order == 'C':
+            layout = TILEDB_ROW_MAJOR
+        elif self.order == 'F':
+            layout = TILEDB_COL_MAJOR
+        elif self.order == 'G':
+            layout = TILEDB_GLOBAL_ORDER
+        elif self.order == 'U':
+            layout = TILEDB_UNORDERED
+        else:
+            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
+                             "'F' (TILEDB_COL_MAJOR), "\
+                             "'G' (TILEDB_GLOBAL_ORDER), "\
+                             "or 'U' (TILEDB_UNORDERED)")
     
-        self.array.pyquery.set_aggregate(attr_to_aggs_map)
+        self.array.pyquery = PyAgg(self.array._ctx_(), self.array, <int32_t>layout,     attr_to_aggs_map)
 
         return self
 

@@ -1225,7 +1225,6 @@ cdef class Query(object):
     cdef DomainIndexer domain_index
     cdef object multi_index
     cdef object df
-    cdef object __aggregate_query
 
 cdef class ReadQuery(object):
     cdef object _buffers
