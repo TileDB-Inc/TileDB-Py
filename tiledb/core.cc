@@ -308,10 +308,6 @@ private:
   map<string, map<string, py::array_t<uint8_t>>> result_buffers_;
   map<string, map<string, py::array_t<uint8_t>>> validity_buffers_;
 
-  tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
-
-  string uri_;
-
 public:
   PyAgg() = delete;
 
@@ -326,18 +322,16 @@ public:
     array_schema_ =
         std::shared_ptr<tiledb::ArraySchema>(new ArraySchema(array_->schema()));
 
-    uri_ = array.attr("uri").cast<std::string>();
-
     // We cannot apply aggregates to a channel with an instantiated Query
     // so we "reset" the Query object here
     query_ = shared_ptr<tiledb::Query>(new Query(ctx_, *array_, TILEDB_READ));
 
     bool issparse = array_schema_->array_type() == TILEDB_SPARSE;
-    layout_ = (tiledb_layout_t)py_layout.cast<int32_t>();
-    if (!issparse && layout_ == TILEDB_UNORDERED) {
+    tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
+    if (!issparse && layout == TILEDB_UNORDERED) {
       TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
     }
-    query_->set_layout(layout_);
+    query_->set_layout(layout);
         
     // Set the data buffers for each attribute & aggregation function passed in 
     // by the user
