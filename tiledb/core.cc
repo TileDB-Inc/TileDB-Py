@@ -304,7 +304,6 @@ private:
   Context ctx_;
   shared_ptr<tiledb::ArraySchema> array_schema_;
   shared_ptr<tiledb::Array> array_;
-  shared_ptr<tiledb::Subarray> subarray_;
   shared_ptr<tiledb::Query> query_;
   map<string, map<string, py::array_t<uint8_t>>> buffers_;
 
@@ -362,9 +361,6 @@ public:
           *agg_buf = py::array(py::dtype("uint8"), dt.itemsize()); 
         }
         query_->set_data_buffer(agg_name, (void*)agg_buf->data(), 1);
-
-        if(attr_nullable)
-          
       }
     }
   }
@@ -399,7 +395,6 @@ public:
   }
 
   py::dict get_aggregate(){
-    query_->set_subarray(*subarray_);
     query_->submit();
 
     // Cast the results to the correct dtype and output this as a Python dictionary
@@ -462,9 +457,7 @@ public:
   }
 
   void set_subarray(py::object py_subarray) {
-    subarray_ = std::shared_ptr<tiledb::Subarray>(
-        new Subarray(*py_subarray.cast<tiledb::Subarray *>()));
-    query_->set_subarray(*subarray_);
+    query_->set_subarray(*py_subarray.cast<tiledb::Subarray *>());
   }
 };
 
@@ -475,7 +468,6 @@ private:
   shared_ptr<tiledb::Domain> domain_;
   shared_ptr<tiledb::ArraySchema> array_schema_;
   shared_ptr<tiledb::Array> array_;
-  shared_ptr<tiledb::Subarray> subarray_;
   shared_ptr<tiledb::Query> query_;
   vector<string> attrs_;
   vector<string> dims_;
@@ -596,9 +588,7 @@ public:
   }
 
   void set_subarray(py::object py_subarray) {
-    subarray_ = std::shared_ptr<tiledb::Subarray>(
-        new Subarray(*py_subarray.cast<tiledb::Subarray *>()));
-    query_->set_subarray(*subarray_);
+    query_->set_subarray(*py_subarray.cast<tiledb::Subarray *>());
   }
 
 #if defined(TILEDB_SERIALIZATION)
