@@ -300,9 +300,9 @@ uint64_t count_zeros(py::array_t<uint8_t> a) {
 
 class PyAgg {
 
-using ByteBuffer = py::array_t<uint8_t>;
-using AggToBufferMap = std::map<std::string, ByteBuffer>;
-using AttrToBuffersMap = std::map<std::string, AggToBufferMap>;
+  using ByteBuffer = py::array_t<uint8_t>;
+  using AggToBufferMap = std::map<std::string, ByteBuffer>;
+  using AttrToBuffersMap = std::map<std::string, AggToBufferMap>;
 
 private:
   Context ctx_;
@@ -317,10 +317,9 @@ private:
 public:
   PyAgg() = delete;
 
-  PyAgg(const Context &ctx, py::object py_array, py::object py_layout, 
+  PyAgg(const Context &ctx, py::object py_array, py::object py_layout,
         py::dict attr_to_aggs_input)
-      : ctx_(ctx)
-      , original_input_(attr_to_aggs_input) {
+      : ctx_(ctx), original_input_(attr_to_aggs_input) {
     tiledb_array_t *c_array_ = (py::capsule)py_array.attr("__capsule__")();
 
     // We never own this pointer; pass own=false
@@ -333,169 +332,174 @@ public:
       TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
     }
     query_->set_layout(layout);
-        
+
     // Iterate through the requested attributes
     for (auto attr_to_aggs : attr_to_aggs_input) {
       auto attr_name = attr_to_aggs.first.cast<std::string>();
-      auto aggregates_vec = attr_to_aggs.second.cast<std::vector<std::string>>();
-      std::set<std::string> aggregates(aggregates_vec.begin(), aggregates_vec.end());
+      auto aggs = attr_to_aggs.second.cast<std::vector<std::string>>();
 
-      // For all aggregation calculations, we also want to check the count.
-      // If we have a count == 0, it means the any aggregation calculation is
-      // invalid as this is an empty input set. For nullable attributes, just 
-      // checking count will not work because we could have null values. 
-      // In that case, we fallback on checking the validity buffer. 
-      //
-      // We save a copy of attr_to_aggs_input to keep track of the original 
-      // original_input_ because if the user did not request the count aggregate, 
-      // we don't want to return that in the final output
-      aggregates.insert("count");
-      
       tiledb::Attribute attr = array_->schema().attribute(attr_name);
       attrs_.push_back(attr_name);
 
+      // For non-nullable attributes, applying max and min to the empty set is
+      // undefined. To check for this, we need to also run the count aggregate
+      // to make sure count != 0
+      bool requested_max =
+          std::find(aggs.begin(), aggs.end(), "max") != aggs.end();
+      bool requested_min =
+          std::find(aggs.begin(), aggs.end(), "min") != aggs.end();
+      if (!attr.nullable() and (requested_max or requested_min)) {
+        // If the user already also requested count, then we don't need to
+        // request it again
+        if (std::find(aggs.begin(), aggs.end(), "count") == aggs.end()) {
+          aggs.push_back("count");
+        }
+      }
+
       // Iterate through the aggreate operations to apply on the given attribute
-      for (auto agg_name : aggregates) {
+      for (auto agg_name : aggs) {
         _apply_agg_operator_to_attr(agg_name, attr_name);
 
-        // Set the buffer for the aggregation query
-        auto* res_buf = &result_buffers_[attr_name][agg_name];
-        if("count" == agg_name or "null_count" == agg_name or "mean" == agg_name){
+        // Set the result data buffers
+        auto *res_buf = &result_buffers_[attr_name][agg_name];
+        if ("count" == agg_name or "null_count" == agg_name or
+            "mean" == agg_name) {
           // count and null_count use uint64 and mean uses float64
           *res_buf = py::array(py::dtype("uint8"), 8);
-        }else{
+        } else {
           // max, min, and sum use the dtype of the attribute
           py::dtype dt(tiledb_dtype(attr.type(), attr.cell_size()));
-          *res_buf = py::array(py::dtype("uint8"), dt.itemsize()); 
+          *res_buf = py::array(py::dtype("uint8"), dt.itemsize());
         }
-        query_->set_data_buffer(agg_name, (void*)res_buf->data(), 1);
+        query_->set_data_buffer(attr_name + agg_name, (void *)res_buf->data(),
+                                1);
 
-        // For nullable attributes, if the input set for the aggregation contains
-        // all NULL values, we will not get an aggregate value back as this 
-        // operation is undefined. We need to check the validity buffer beforehand
-        // to see if we had a valid result
-        if(attr.nullable() and !("count" == agg_name or "null_count" == agg_name)){
-          auto* val_buf = &validity_buffers_[attr_name][agg_name];
-          *val_buf = py::array(py::dtype("uint8"), 1); 
-          query_->set_validity_buffer(agg_name, (uint8_t*)val_buf->data(), 1);
+        if (attr.nullable()) {
+          // For nullable attributes, if the input set for the aggregation
+          // contains all NULL values, we will not get an aggregate value back
+          // as this operation is undefined. We need to check the validity
+          // buffer beforehand to see if we had a valid result
+          if (!("count" == agg_name or "null_count" == agg_name)) {
+            auto *val_buf = &validity_buffers_[attr.name()][agg_name];
+            *val_buf = py::array(py::dtype("uint8"), 1);
+            query_->set_validity_buffer(attr_name + agg_name,
+                                        (uint8_t *)val_buf->data(), 1);
+          }
         }
       }
     }
   }
 
-  void _apply_agg_operator_to_attr(
-      const std::string &op_label, const std::string &attr_name) {
-    using AggregateFunc = std::function<ChannelOperation(
-      const Query &, const std::string &)>;
+  void _apply_agg_operator_to_attr(const std::string &op_label,
+                                   const std::string &attr_name) {
+    using AggregateFunc =
+        std::function<ChannelOperation(const Query &, const std::string &)>;
 
-    std::unordered_map<std::string, AggregateFunc> label_to_agg_func =
-        {
-            {"sum", QueryExperimental::create_unary_aggregate<SumOperator>},
-            {"min", QueryExperimental::create_unary_aggregate<MinOperator>},
-            {"max", QueryExperimental::create_unary_aggregate<MaxOperator>},
-            {"mean", QueryExperimental::create_unary_aggregate<MeanOperator>},
-            {"null_count",
-              QueryExperimental::create_unary_aggregate<NullCountOperator>},
-        };
+    std::unordered_map<std::string, AggregateFunc> label_to_agg_func = {
+        {"sum", QueryExperimental::create_unary_aggregate<SumOperator>},
+        {"min", QueryExperimental::create_unary_aggregate<MinOperator>},
+        {"max", QueryExperimental::create_unary_aggregate<MaxOperator>},
+        {"mean", QueryExperimental::create_unary_aggregate<MeanOperator>},
+        {"null_count",
+         QueryExperimental::create_unary_aggregate<NullCountOperator>},
+    };
 
-    QueryChannel default_channel = QueryExperimental::get_default_channel(*query_);
+    QueryChannel default_channel =
+        QueryExperimental::get_default_channel(*query_);
 
     if (label_to_agg_func.find(op_label) != label_to_agg_func.end()) {
       AggregateFunc create_unary_aggregate = label_to_agg_func.at(op_label);
       ChannelOperation op = create_unary_aggregate(*query_, attr_name);
-      default_channel.apply_aggregate(op_label, op);
+      default_channel.apply_aggregate(attr_name + op_label, op);
     } else if ("count" == op_label) {
-      default_channel.apply_aggregate(op_label, CountOperation());
+      default_channel.apply_aggregate(attr_name + op_label, CountOperation());
     } else {
       TPY_ERROR_LOC("Invalid channel operation " + op_label +
                     " passed to apply_aggregate.");
     }
   }
 
-  py::dict get_aggregate(){
+  py::dict get_aggregate() {
     query_->submit();
 
     // Cast the results to the correct dtype and output this as a Python dict
-    py::dict result;
+    py::dict output;
     for (auto attr_to_agg : original_input_) {
-        // Only Python str can be keys for a Python dict, not C++ strings
-        std::string attr_cpp_name = attr_to_agg.first.cast<string>();
-        py::str attr_py_name(attr_cpp_name);
+      // Be clear in our variable names for strings as py::dict uses py::str
+      // keys whereas std::map uses std::string keys
+      std::string attr_cpp_name = attr_to_agg.first.cast<string>();
 
-        tiledb::Attribute attr = array_->schema().attribute(attr_cpp_name);
-        result[attr_py_name] = py::dict();
+      py::str attr_py_name(attr_cpp_name);
+      output[attr_py_name] = py::dict();
 
-        for (auto agg_py_name : original_input_[attr_py_name]) {
-          std::string agg_cpp_name = agg_py_name.cast<string>();
+      tiledb::Attribute attr = array_->schema().attribute(attr_cpp_name);
 
-          if (_is_invalid_result(attr, agg_cpp_name)){
-            result[attr_py_name][agg_py_name] = py::none();
-            continue;
-          }
+      for (auto agg_py_name : original_input_[attr_py_name]) {
+        std::string agg_cpp_name = agg_py_name.cast<string>();
 
-          const void* agg_buf = result_buffers_[attr_cpp_name][agg_cpp_name].data();
-
-          if ("mean" == agg_cpp_name) {
-            result[attr_py_name][agg_py_name] = *((double*)agg_buf);
-          } else if ("count" == agg_cpp_name or "null_count" == agg_cpp_name) {
-            result[attr_py_name][agg_py_name] = *((uint64_t*)agg_buf);
-          } else {
-            switch(attr.type()){
-              case TILEDB_FLOAT32:
-                if ("sum" == agg_cpp_name){
-                  result[attr_py_name][agg_py_name] = *((double*)agg_buf);
-                } else {
-                  result[attr_py_name][agg_py_name] = *((float*)agg_buf);
-                }
-                break;
-              case TILEDB_FLOAT64:
-                result[attr_py_name][agg_py_name] = *((double*)agg_buf);
-                break;
-              case TILEDB_INT8:
-                result[attr_py_name][agg_py_name] = *((int8_t*)agg_buf);
-                break;
-              case TILEDB_UINT8:
-                result[attr_py_name][agg_py_name] = *((uint8_t*)agg_buf);
-                break;
-              case TILEDB_INT16:
-                result[attr_py_name][agg_py_name] = *((int16_t*)agg_buf);
-                break;
-              case TILEDB_UINT16:
-                result[attr_py_name][agg_py_name] = *((uint8_t*)agg_buf);
-                break;
-              case TILEDB_UINT32:
-                result[attr_py_name][agg_py_name] = *((uint32_t*)agg_buf);
-                break;
-              case TILEDB_INT32:
-                result[attr_py_name][agg_py_name] = *((int32_t*)agg_buf);
-                break;
-              case TILEDB_INT64:
-                result[attr_py_name][agg_py_name] = *((int64_t*)agg_buf);
-                break;
-              case TILEDB_UINT64:
-                result[attr_py_name][agg_py_name] = *((uint64_t*)agg_buf);
-                break;
-              default:
-                TPY_ERROR_LOC("[get_aggregate] Invalid tiledb dtype for aggregation result")
-            }
-          }
+        if (_is_invalid(attr, agg_cpp_name)) {
+          output[attr_py_name][agg_py_name] = py::none();
+        } else {
+          output[attr_py_name][agg_py_name] = _set_result(attr, agg_cpp_name);
         }
+      }
     }
-    return result;
+    return output;
   }
 
-  bool _is_invalid_result(tiledb::Attribute attr, std::string agg_name){
+  bool _is_invalid(tiledb::Attribute attr, std::string agg_name) {
     if (attr.nullable()) {
-      if("count" == agg_name or "null_count" == agg_name)
+      if ("count" == agg_name or "null_count" == agg_name)
         return false;
 
-      // For nullable attributes, check if the validity buffer returned false      
-      const void* val_buf = validity_buffers_[attr.name()][agg_name].data();
-      return *((uint8_t*)(val_buf)) == 0;
+      // For nullable attributes, check if the validity buffer returned false
+      const void *val_buf = validity_buffers_[attr.name()][agg_name].data();
+      return *((uint8_t *)(val_buf)) == 0;
     } else {
-      // For non-nullable attributes, check if the count is 0
-      const void* count_buf = result_buffers_[attr.name()]["count"].data();
-      return *((uint64_t*)(count_buf)) == 0;
+      // For non-nullable attributes, max and min are undefined for the empty
+      // set, so we must check the count == 0
+      if ("max" == agg_name or "min" == agg_name) {
+        const void *count_buf = result_buffers_[attr.name()]["count"].data();
+        return *((uint64_t *)(count_buf)) == 0;
+      }
+      return false;
+    }
+  }
+
+  py::object _set_result(tiledb::Attribute attr, std::string agg_name) {
+    const void *agg_buf = result_buffers_[attr.name()][agg_name].data();
+
+    if ("mean" == agg_name)
+      return py::cast(*((double *)agg_buf));
+
+    if ("count" == agg_name or "null_count" == agg_name)
+      return py::cast(*((uint64_t *)agg_buf));
+
+    switch (attr.type()) {
+    case TILEDB_FLOAT32:
+      return py::cast("sum" == agg_name ? *((double *)agg_buf)
+                                        : *((float *)agg_buf));
+    case TILEDB_FLOAT64:
+      return py::cast(*((double *)agg_buf));
+    case TILEDB_INT8:
+      return py::cast(*((int8_t *)agg_buf));
+    case TILEDB_UINT8:
+      return py::cast(*((uint8_t *)agg_buf));
+    case TILEDB_INT16:
+      return py::cast(*((int16_t *)agg_buf));
+    case TILEDB_UINT16:
+      return py::cast(*((uint16_t *)agg_buf));
+    case TILEDB_UINT32:
+      return py::cast(*((uint32_t *)agg_buf));
+    case TILEDB_INT32:
+      return py::cast(*((int32_t *)agg_buf));
+    case TILEDB_INT64:
+      return py::cast(*((int64_t *)agg_buf));
+    case TILEDB_UINT64:
+      return py::cast(*((uint64_t *)agg_buf));
+    default:
+      TPY_ERROR_LOC(
+          "[_cast_agg_result] Invalid tiledb dtype for aggregation result")
     }
   }
 
@@ -1754,10 +1758,7 @@ void init_core(py::module &m) {
 
   py::class_<PyAgg>(m, "PyAgg")
       .def(py::init<const Context &, py::object, py::object, py::dict>(),
-           "ctx"_a, 
-           "py_array"_a, 
-           "py_layout"_a, 
-           "attr_to_aggs_input"_a)
+           "ctx"_a, "py_array"_a, "py_layout"_a, "attr_to_aggs_input"_a)
       .def("set_subarray", &PyAgg::set_subarray)
       .def("set_cond", &PyAgg::set_cond)
       .def("get_aggregate", &PyAgg::get_aggregate);

@@ -32,7 +32,6 @@ class AggregateTest(DiskTestCase):
 
         data = np.random.randint(1, 10, size=10)
 
-        # write data
         with tiledb.open(path, "w") as A:
             if sparse:
                 A[np.arange(0, 10)] = data
@@ -105,8 +104,7 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] == max(expected)
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
-    
-    
+
     @pytest.mark.parametrize(
         "dtype",
         [
@@ -131,7 +129,7 @@ class AggregateTest(DiskTestCase):
 
         with tiledb.open(path, "w") as A:
             A[np.arange(0, 10)] = np.random.randint(1, 10, size=10)
-            
+
         all_aggregates = ("count", "sum", "min", "max", "mean")
 
         with tiledb.open(path, "r") as A:
@@ -142,20 +140,20 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] == max(expected)
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
-            
+
             # no value matches query condition
-            invalid_aggregates = ("sum", "min", "max", "mean")
+            invalid_aggregates = ("count", "sum", "min", "max", "mean")
             expected = A.query(cond="a > 10")[:]
             actual = A.query(cond="a > 10").agg(invalid_aggregates)[:]
-            assert actual["sum"] is None
+            assert actual["sum"] == 0
             assert actual["min"] is None
             assert actual["max"] is None
-            assert actual["mean"] is None
-            assert "count" not in actual
-            
+            assert np.isnan(actual["mean"])
+            assert actual["count"] == 1
+
     @pytest.mark.parametrize("sparse", [True, False])
     def test_nullable(self, sparse):
-        path = self.path("test_basic")
+        path = self.path("test_nullable")
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
         attrs = [tiledb.Attr(name="a", nullable=True, dtype=float)]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
@@ -188,10 +186,10 @@ class AggregateTest(DiskTestCase):
             assert actual["sum"] == sum(expected_no_null)
             assert actual["min"] == min(expected_no_null)
             assert actual["max"] == max(expected_no_null)
-            assert actual["mean"] == sum(expected_no_null)/len(expected_no_null)
+            assert actual["mean"] == sum(expected_no_null) / len(expected_no_null)
             assert actual["count"] == len(expected)
             assert actual["null_count"] == np.count_nonzero(expected.mask)
-            
+
             # no valid values
             actual = A.query().agg({"a": all_aggregates})[5]
             assert actual["sum"] is None
@@ -200,9 +198,9 @@ class AggregateTest(DiskTestCase):
             assert actual["mean"] is None
             assert actual["count"] == 1
             assert actual["null_count"] == 1
-            
+
     def test_empty_sparse(self):
-        path = self.path("test_basic")
+        path = self.path("test_empty_sparse")
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
         attrs = [tiledb.Attr(name="a", dtype=float)]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
@@ -210,17 +208,66 @@ class AggregateTest(DiskTestCase):
 
         with tiledb.open(path, "w") as A:
             A[np.arange(0, 5)] = np.random.rand(5)
-            
+
         with tiledb.open(path, "r") as A:
             invalid_aggregates = ("sum", "min", "max", "mean")
             actual = A.query().agg(invalid_aggregates)[6:]
-            assert actual["sum"] is None
+            assert actual["sum"] == 0
             assert actual["min"] is None
             assert actual["max"] is None
-            assert actual["mean"] is None
+            assert np.isnan(actual["mean"])
             assert "count" not in actual
+
+    def test_multiple_attrs(self):
+        path = self.path("test_multiple_attrs")
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
+        attrs = [
+            tiledb.Attr(name="integer", dtype=int),
+            tiledb.Attr(name="float", dtype=float),
+            tiledb.Attr(name="string", dtype=str),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+        
+        with tiledb.open(path, "w") as A:
+            A[np.arange(0, 10)] = {
+                "integer": np.random.randint(1, 10, size=10),
+                "float": np.random.randint(1, 10, size=10),
+                "string": np.random.randint(1, 10, size=10).astype(str),
+            }
+        
+        with tiledb.open(path, "r") as A:
+            actual = A.query()[:]
+             
+            assert A.query().agg({"string": "count"})[:] == len(actual["string"])
+            invalid_aggregates = ("sum", "min", "max", "mean")
+            for agg in invalid_aggregates:
+                with pytest.raises(tiledb.TileDBError):
+                    A.query().agg({"string": agg})[:]
+                    
+            result = A.query().agg("count")[:]
+            assert result["integer"]["count"] == len(actual["integer"])
+            assert result["float"]["count"] == len(actual["float"])
+            assert result["string"]["count"] == len(actual["string"])
             
-    # TODO
-    # test multiple attributes
-    # test multiple operations
-    # test incorrect dtypes
+            with pytest.raises(tiledb.TileDBError):
+                A.query().agg("sum")[:]
+            
+            result = A.query().agg({"integer": "sum", "float": "sum"})[:]
+            assert "string" not in result
+            assert result["integer"]["sum"] == sum(actual["integer"])
+            assert result["float"]["sum"] == sum(actual["float"])
+            
+            result = A.query().agg(
+                {
+                    "string": ("count",),
+                    "integer": "sum",
+                    "float": ["max", "min", "sum", "mean"]
+                }
+            )[:]
+            assert result["string"]["count"] == len(actual["string"])
+            assert result["integer"]["sum"] == sum(actual["integer"])
+            assert result["float"]["max"] == max(actual["float"])
+            assert result["float"]["min"] == min(actual["float"])
+            assert result["float"]["sum"] == sum(actual["float"])
+            assert result["float"]["mean"] == sum(actual["float"])/len(actual["float"])

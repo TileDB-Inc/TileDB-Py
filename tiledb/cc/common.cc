@@ -168,8 +168,8 @@ tiledb_datatype_t np_to_tdb_dtype(py::dtype type) {
   if (kind == py::str("U"))
     return TILEDB_STRING_UTF8;
 
-  TPY_ERROR_LOC("could not handle numpy dtype: " 
-                  + py::getattr(type, "name").cast<std::string>());
+  TPY_ERROR_LOC("could not handle numpy dtype: " +
+                py::getattr(type, "name").cast<std::string>());
 }
 
 bool is_tdb_num(tiledb_datatype_t type) {
