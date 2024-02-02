@@ -128,11 +128,11 @@ class AggregateTest(DiskTestCase):
         tiledb.Array.create(path, schema)
 
         with tiledb.open(path, "w") as A:
-            # hardcode the first value to be 1 to ensure that the a < 5 
+            # hardcode the first value to be 1 to ensure that the a < 5
             # query condition always returns a non-empty result
             data = np.random.randint(1, 10, size=10)
             data[0] = 1
-            
+
             A[np.arange(0, 10)] = np.random.randint(1, 10, size=10)
 
         all_aggregates = ("count", "sum", "min", "max", "mean")
