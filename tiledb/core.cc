@@ -302,17 +302,17 @@ class PyAgg {
 
   using ByteBuffer = py::array_t<uint8_t>;
   using AggToBufferMap = std::map<std::string, ByteBuffer>;
-  using AttrToBuffersMap = std::map<std::string, AggToBufferMap>;
+  using AttrToAggsMap = std::map<std::string, AggToBufferMap>;
 
 private:
   Context ctx_;
   std::shared_ptr<tiledb::Array> array_;
   std::shared_ptr<tiledb::Query> query_;
-  std::vector<std::string> attrs_;
-  AttrToBuffersMap result_buffers_;
-  AttrToBuffersMap validity_buffers_;
+  AttrToAggsMap result_buffers_;
+  AttrToAggsMap validity_buffers_;
 
   py::dict original_input_;
+  std::vector<std::string> attrs_;
 
 public:
   PyAgg() = delete;
