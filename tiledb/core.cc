@@ -41,7 +41,6 @@
 
 namespace tiledbpy {
 
-using namespace std;
 using namespace tiledb;
 namespace py = pybind11;
 using namespace pybind11::literals;

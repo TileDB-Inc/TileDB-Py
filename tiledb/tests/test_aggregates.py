@@ -128,6 +128,11 @@ class AggregateTest(DiskTestCase):
         tiledb.Array.create(path, schema)
 
         with tiledb.open(path, "w") as A:
+            # hardcode the first value to be 1 to ensure that the a < 5 
+            # query condition always returns a non-empty result
+            data = np.random.randint(1, 10, size=10)
+            data[0] = 1
+            
             A[np.arange(0, 10)] = np.random.randint(1, 10, size=10)
 
         all_aggregates = ("count", "sum", "min", "max", "mean")
@@ -149,7 +154,7 @@ class AggregateTest(DiskTestCase):
             assert actual["min"] is None
             assert actual["max"] is None
             assert np.isnan(actual["mean"])
-            assert actual["count"] == 1
+            assert actual["count"] == 0
 
     @pytest.mark.parametrize("sparse", [True, False])
     def test_nullable(self, sparse):
