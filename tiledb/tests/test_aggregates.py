@@ -105,7 +105,53 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] == max(expected)
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
+    
+    
+    @pytest.mark.parametrize(
+        "dtype",
+        [
+            np.uint8,
+            np.int8,
+            np.uint16,
+            np.int16,
+            np.uint32,
+            np.int32,
+            np.uint64,
+            np.int64,
+            np.float32,
+            np.float64,
+        ],
+    )
+    def test_with_query_condition(self, dtype):
+        path = self.path("test_with_query_condition")
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
+        attrs = [tiledb.Attr(name="a", dtype=dtype)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
 
+        with tiledb.open(path, "w") as A:
+            A[np.arange(0, 10)] = np.random.randint(1, 10, size=10)
+            
+        all_aggregates = ("count", "sum", "min", "max", "mean")
+
+        with tiledb.open(path, "r") as A:
+            expected = A.query(cond="a < 5")[:]["a"]
+            actual = A.query(cond="a < 5").agg(all_aggregates)[:]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected) / len(expected)
+            assert actual["count"] == len(expected)
+            
+            # no value matches query condition
+            expected = A.query(cond="a > 10")[:]
+            actual = A.query(cond="a > 10").agg(all_aggregates)[:]
+            assert actual["sum"] == 0
+            assert actual["min"] == 0
+            assert actual["max"] == 0
+            assert np.isnan(actual["mean"])
+            assert actual["count"] == 0
+            
     @pytest.mark.parametrize("sparse", [True, False])
     def test_nullable(self, sparse):
         path = self.path("test_basic")
@@ -134,7 +180,7 @@ class AggregateTest(DiskTestCase):
             assert A.query().agg("null_count")[7] == 1
             assert A.query().agg("null_count")[:] == 2
 
-            all_aggregates = ("count", "sum", "min", "max", "mean")
+            all_aggregates = ("count", "sum", "min", "max", "mean", "null_count")
             actual = A.query().agg({"a": all_aggregates})[:]
             expected = A[:]["a"]
             expected_no_null = A[:]["a"].compressed()
@@ -143,6 +189,7 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] == max(expected_no_null)
             assert actual["mean"] == sum(expected_no_null)/len(expected_no_null)
             assert actual["count"] == len(expected)
+            assert actual["null_count"] == np.count_nonzero(expected.mask)
             
             # no valid values
             actual = A.query().agg({"a": all_aggregates})[5]
@@ -151,9 +198,28 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] is None
             assert actual["mean"] is None
             assert actual["count"] == 1
+            assert actual["null_count"] == 1
+            
+    def test_empty_sparse(self):
+        path = self.path("test_basic")
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
+        attrs = [tiledb.Attr(name="a", dtype=float)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
 
+        with tiledb.open(path, "w") as A:
+            A[np.arange(0, 5)] = np.random.rand(5)
+            
+        with tiledb.open(path, "r") as A:
+            all_aggregates = ("count", "sum", "min", "max", "mean")
+            actual = A.query().agg(all_aggregates)[6:]
+            assert actual["sum"] == 0
+            assert actual["min"] == 0
+            assert actual["max"] == 0
+            assert np.isnan(actual["mean"])
+            assert actual["count"] == 0
+            
     # TODO
     # test multiple attributes
     # test multiple operations
-    # with query condition
     # test incorrect dtypes

@@ -1738,7 +1738,10 @@ cdef class Query(object):
                 if not array.schema.has_attr(name):
                     raise TileDBError(f"Selected attribute does not exist: '{name}'")
         self.attrs = attrs
-        self.cond = cond
+
+        if cond is not None and not isinstance(cond, str):
+            raise TypeError("`cond` expects type str.")
+        self.cond = None if cond == "" else cond
 
         if order == None:
             if array.schema.sparse:
@@ -1784,7 +1787,15 @@ cdef class Query(object):
             subarray.add_ranges([list([x]) for x in dim_ranges])
             q.set_subarray(subarray)
 
+            if self.cond is not None:
+                from .query_condition import QueryCondition
+                q.set_cond(QueryCondition(self.cond))
+
             result = q.get_aggregate()
+
+            # Clear the pyquery after calculating the aggregates, otherwise the
+            # PyAgg object sticks around when calling subsequent Array.query
+            self.array.pyquery = None
 
             # If there was only one attribute, just show the aggregate results
             if len(result) == 1:
@@ -1842,7 +1853,8 @@ cdef class Query(object):
                              "'G' (TILEDB_GLOBAL_ORDER), "\
                              "or 'U' (TILEDB_UNORDERED)")
     
-        self.array.pyquery = PyAgg(self.array._ctx_(), self.array, <int32_t>layout,     attr_to_aggs_map)
+        self.array.pyquery = PyAgg(self.array._ctx_(), self.array, 
+                                   <int32_t>layout, attr_to_aggs_map)
 
         return self
 
@@ -2218,22 +2230,9 @@ cdef class DenseArrayImpl(Array):
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 
-
-        if cond is not None and cond != "":
+        if cond is not None:
             from .query_condition import QueryCondition
-
-            if isinstance(cond, str):
-                q.set_cond(QueryCondition(cond))
-            elif isinstance(cond, QueryCondition):
-                raise TileDBError(
-                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "supported as of 0.19.0. Instead of "
-                    "`cond=tiledb.QueryCondition('expression')` "
-                    "you must use `cond='expression'`. This message will be "
-                    "removed in 0.21.0.",
-                )
-            else:
-                raise TypeError("`cond` expects type str.")
+            q.set_cond(QueryCondition(self.cond))
 
         q.set_subarray(subarray)
         q.submit()
@@ -3329,21 +3328,9 @@ cdef class SparseArrayImpl(Array):
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 
-        if cond is not None and cond != "":
+        if cond is not None:
             from .query_condition import QueryCondition
-
-            if isinstance(cond, str):
-                q.set_cond(QueryCondition(cond))
-            elif isinstance(cond, QueryCondition):
-                raise TileDBError(
-                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "supported as of 0.19.0. Instead of "
-                    "`cond=tiledb.QueryCondition('expression')` "
-                    "you must use `cond='expression'`. This message will be "
-                    "removed in 0.21.0.",
-                )
-            else:
-                raise TypeError("`cond` expects type str.")
+            q.set_cond(QueryCondition(cond))
 
         if self.mode == "r":
             q.set_subarray(subarray)

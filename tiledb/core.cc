@@ -300,67 +300,68 @@ uint64_t count_zeros(py::array_t<uint8_t> a) {
 
 class PyAgg {
 
+using ByteBuffer = py::array_t<uint8_t>;
+using AggToBufferMap = std::map<std::string, ByteBuffer>;
+using AttrToBuffersMap = std::map<std::string, AggToBufferMap>;
+
 private:
   Context ctx_;
-  shared_ptr<tiledb::ArraySchema> array_schema_;
-  shared_ptr<tiledb::Array> array_;
-  shared_ptr<tiledb::Query> query_;
-  map<string, map<string, py::array_t<uint8_t>>> result_buffers_;
-  map<string, map<string, py::array_t<uint8_t>>> validity_buffers_;
+  std::shared_ptr<tiledb::Array> array_;
+  std::shared_ptr<tiledb::Query> query_;
+  std::vector<std::string> attrs_;
+  AttrToBuffersMap result_buffers_;
+  AttrToBuffersMap validity_buffers_;
 
 public:
   PyAgg() = delete;
 
-  PyAgg(const Context &ctx, py::object array, py::object py_layout, 
-        py::dict attr_to_aggs_map)
+  PyAgg(const Context &ctx, py::object py_array, py::object py_layout, 
+        py::dict attr_to_aggs_input)
       : ctx_(ctx){
-    tiledb_array_t *c_array_ = (py::capsule)array.attr("__capsule__")();
+    tiledb_array_t *c_array_ = (py::capsule)py_array.attr("__capsule__")();
 
-    // we never own this pointer, pass own=false
-    array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false));
+    // We never own this pointer; pass own=false
+    array_ = std::make_shared<tiledb::Array>(ctx_, c_array_, false);
+    query_ = std::make_shared<tiledb::Query>(ctx_, *array_, TILEDB_READ);
 
-    array_schema_ =
-        std::shared_ptr<tiledb::ArraySchema>(new ArraySchema(array_->schema()));
-
-    // We cannot apply aggregates to a channel with an instantiated Query
-    // so we "reset" the Query object here
-    query_ = shared_ptr<tiledb::Query>(new Query(ctx_, *array_, TILEDB_READ));
-
-    bool issparse = array_schema_->array_type() == TILEDB_SPARSE;
+    bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
     tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
     if (!issparse && layout == TILEDB_UNORDERED) {
       TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
     }
     query_->set_layout(layout);
         
-    // Set the data buffers for each attribute & aggregation function passed in 
-    // by the user
-    for (auto attr_to_aggs : attr_to_aggs_map) {
-      std::string attr_name(attr_to_aggs.first.cast<string>());
-      auto attr_type = array_schema_->attribute(attr_name).type();
-      auto attr_ncell = array_schema_->attribute(attr_name).cell_size();
-      auto attr_nullable = array_schema_->attribute(attr_name).nullable();
+    // Iterate through the requested attributes
+    for (auto attr_to_aggs : attr_to_aggs_input) {
+      auto attr_name = attr_to_aggs.first.cast<string>();
+      auto aggregates = attr_to_aggs.second;
+      
+      tiledb::Attribute attr = array_->schema().attribute(attr_name);
+      attrs_.push_back(attr_name);
 
-      for (auto agg : attr_to_aggs.second) {
-        // TODO separate into its own function
-        std::string agg_name(agg.cast<string>());
-        _apply_agg_to_attr(agg_name, attr_name);
+      // Iterate through the aggreate operations to apply on the given attribute
+      for (auto agg : aggregates) {
+        auto agg_name = agg.cast<string>();
 
+        _apply_agg_operator_to_attr(agg_name, attr_name);
+
+        // Set the buffer for the aggregation query
         auto* res_buf = &result_buffers_[attr_name][agg_name];
         if("count" == agg_name or "null_count" == agg_name or "mean" == agg_name){
           // count and null_count use uint64 and mean uses float64
           *res_buf = py::array(py::dtype("uint8"), 8);
         }else{
           // max, min, and sum use the dtype of the attribute
-          py::dtype dt(tiledb_dtype(attr_type, attr_ncell));
+          py::dtype dt(tiledb_dtype(attr.type(), attr.cell_size()));
           *res_buf = py::array(py::dtype("uint8"), dt.itemsize()); 
         }
         query_->set_data_buffer(agg_name, (void*)res_buf->data(), 1);
 
-        // If the requested data contains all NULL values, we will not get an
-        // aggregate value back. We need to check the validity buffer beforehand
+        // For nullable attributes, if the input set for the aggregation contains
+        // all NULL values, we will not get an aggregate value back as this 
+        // operation is undefined. We need to check the validity buffer beforehand
         // to see if we had a valid result
-        if(attr_nullable and !("count" == agg_name or "null_count" == agg_name)){
+        if(attr.nullable() and !("count" == agg_name or "null_count" == agg_name)){
           auto* val_buf = &validity_buffers_[attr_name][agg_name];
           *val_buf = py::array(py::dtype("uint8"), 1); 
           query_->set_validity_buffer(agg_name, (uint8_t*)val_buf->data(), 1);
@@ -369,7 +370,7 @@ public:
     }
   }
 
-  void _apply_agg_to_attr(
+  void _apply_agg_operator_to_attr(
       const std::string &op_label, const std::string &attr_name) {
     using AggregateFunc = std::function<ChannelOperation(
       const Query &, const std::string &)>;
@@ -390,11 +391,11 @@ public:
       AggregateFunc create_unary_aggregate = label_to_agg_func.at(op_label);
       ChannelOperation op = create_unary_aggregate(*query_, attr_name);
       default_channel.apply_aggregate(op_label, op);
-    } else if (op_label == "count") {
+    } else if ("count" == op_label) {
       default_channel.apply_aggregate(op_label, CountOperation());
     } else {
       TPY_ERROR_LOC("Invalid channel operation " + op_label +
-                " passed to apply_aggregate.");
+                    " passed to apply_aggregate.");
     }
   }
 
@@ -407,8 +408,8 @@ public:
         py::str attr_name(attr.first);
         result[attr_name] = py::dict();
 
-        auto attr_type = array_schema_->attribute(attr_name).type();
-        auto attr_nullable = array_schema_->attribute(attr_name).nullable();
+        auto attr_type = array_->schema().attribute(attr_name).type();
+        auto attr_nullable = array_->schema().attribute(attr_name).nullable();
 
         for (auto agg : attr.second) {
           py::str agg_name(agg.first);
@@ -476,20 +477,35 @@ public:
   void set_subarray(py::object py_subarray) {
     query_->set_subarray(*py_subarray.cast<tiledb::Subarray *>());
   }
+
+  void set_cond(py::object cond) {
+    py::object init_pyqc = cond.attr("init_query_condition");
+
+    try {
+      init_pyqc(array_->uri(), attrs_, ctx_);
+    } catch (tiledb::TileDBError &e) {
+      TPY_ERROR_LOC(e.what());
+    } catch (py::error_already_set &e) {
+      TPY_ERROR_LOC(e.what());
+    }
+    auto pyqc = (cond.attr("c_obj")).cast<PyQueryCondition>();
+    auto qc = pyqc.ptr().get();
+    query_->set_condition(*qc);
+  }
 };
 
 class PyQuery {
 
 private:
   Context ctx_;
-  shared_ptr<tiledb::Domain> domain_;
-  shared_ptr<tiledb::ArraySchema> array_schema_;
-  shared_ptr<tiledb::Array> array_;
-  shared_ptr<tiledb::Query> query_;
-  vector<string> attrs_;
-  vector<string> dims_;
-  map<string, BufferInfo> buffers_;
-  vector<string> buffers_order_;
+  std::shared_ptr<tiledb::Domain> domain_;
+  std::shared_ptr<tiledb::ArraySchema> array_schema_;
+  std::shared_ptr<tiledb::Array> array_;
+  std::shared_ptr<tiledb::Query> query_;
+  std::vector<std::string> attrs_;
+  std::vector<std::string> dims_;
+  std::map<std::string, BufferInfo> buffers_;
+  std::vector<std::string> buffers_order_;
 
   bool deduplicate_ = true;
   bool use_arrow_ = false;
@@ -502,8 +518,6 @@ private:
 
   // label buffer list
   unordered_map<string, uint64_t> label_input_buffer_data_;
-
-  string uri_;
 
 public:
   tiledb_ctx_t *c_ctx_;
@@ -528,15 +542,11 @@ public:
     tiledb_array_t *c_array_ = (py::capsule)array.attr("__capsule__")();
 
     // we never own this pointer, pass own=false
-    array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false));
+    array_ = std::make_shared<tiledb::Array>(ctx_, c_array_, false);
 
-    array_schema_ =
-        std::shared_ptr<tiledb::ArraySchema>(new ArraySchema(array_->schema()));
+    array_schema_ = std::make_shared<tiledb::ArraySchema>(array_->schema());
 
-    domain_ =
-        std::shared_ptr<tiledb::Domain>(new Domain(array_schema_->domain()));
-
-    uri_ = array.attr("uri").cast<std::string>();
+    domain_ = std::make_shared<tiledb::Domain>(array_schema_->domain());
 
     bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
 
@@ -579,8 +589,7 @@ public:
       }
     }
 
-    query_ =
-        std::shared_ptr<tiledb::Query>(new Query(ctx_, *array_, query_mode));
+    query_ = std::make_shared<tiledb::Query>(ctx_, *array_, query_mode);
     //        [](Query* p){} /* note: no deleter*/);
 
     if (query_mode == TILEDB_READ) {
@@ -636,7 +645,7 @@ public:
     py::object init_pyqc = cond.attr("init_query_condition");
 
     try {
-      init_pyqc(uri_, attrs_, ctx_);
+      init_pyqc(array_->uri(), attrs_, ctx_);
     } catch (tiledb::TileDBError &e) {
       TPY_ERROR_LOC(e.what());
     } catch (py::error_already_set &e) {
@@ -1718,10 +1727,20 @@ void init_core(py::module &m) {
                                  &PyQuery::_test_alloc_max_bytes)
           .def_readonly("retries", &PyQuery::retries_);
 
-      py::class_<PyAgg>(m, "PyAgg")
-        .def(py::init<const Context &, py::object, py::object, py::dict>())
-        .def("set_subarray", &PyAgg::set_subarray)
-        .def("get_aggregate", &PyAgg::get_aggregate);
+  py::class_<PyAgg>(m, "PyAgg")
+      .def(py::init<const Context &, py::object, py::object, py::dict>(),
+           "ctx"_a, 
+           "py_array"_a, 
+           "py_layout"_a, 
+           "attr_to_aggs_input"_a)
+      .def("set_subarray", &PyAgg::set_subarray)
+      .def("set_cond", &PyAgg::set_cond)
+      .def("get_aggregate", &PyAgg::get_aggregate);
+
+  py::class_<PAPair>(m, "PAPair")
+      .def(py::init())
+      .def("get_array", &PAPair::get_array)
+      .def("get_schema", &PAPair::get_schema);
 
   m.def("array_to_buffer", &convert_np);
 
@@ -1732,11 +1751,6 @@ void init_core(py::module &m) {
   m.def("increment_stat", &increment_stat);
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);
-
-  py::class_<PAPair>(m, "PAPair")
-      .def(py::init())
-      .def("get_array", &PAPair::get_array)
-      .def("get_schema", &PAPair::get_schema);
 
   /*
    We need to make sure C++ TileDBError is translated to a correctly-typed py
