@@ -228,41 +228,41 @@ class AggregateTest(DiskTestCase):
         ]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
-        
+
         with tiledb.open(path, "w") as A:
             A[np.arange(0, 10)] = {
                 "integer": np.random.randint(1, 10, size=10),
                 "float": np.random.randint(1, 10, size=10),
                 "string": np.random.randint(1, 10, size=10).astype(str),
             }
-        
+
         with tiledb.open(path, "r") as A:
             actual = A.query()[:]
-             
+
             assert A.query().agg({"string": "count"})[:] == len(actual["string"])
             invalid_aggregates = ("sum", "min", "max", "mean")
             for agg in invalid_aggregates:
                 with pytest.raises(tiledb.TileDBError):
                     A.query().agg({"string": agg})[:]
-                    
+
             result = A.query().agg("count")[:]
             assert result["integer"]["count"] == len(actual["integer"])
             assert result["float"]["count"] == len(actual["float"])
             assert result["string"]["count"] == len(actual["string"])
-            
+
             with pytest.raises(tiledb.TileDBError):
                 A.query().agg("sum")[:]
-            
+
             result = A.query().agg({"integer": "sum", "float": "sum"})[:]
             assert "string" not in result
             assert result["integer"]["sum"] == sum(actual["integer"])
             assert result["float"]["sum"] == sum(actual["float"])
-            
+
             result = A.query().agg(
                 {
                     "string": ("count",),
                     "integer": "sum",
-                    "float": ["max", "min", "sum", "mean"]
+                    "float": ["max", "min", "sum", "mean"],
                 }
             )[:]
             assert result["string"]["count"] == len(actual["string"])
@@ -270,4 +270,6 @@ class AggregateTest(DiskTestCase):
             assert result["float"]["max"] == max(actual["float"])
             assert result["float"]["min"] == min(actual["float"])
             assert result["float"]["sum"] == sum(actual["float"])
-            assert result["float"]["mean"] == sum(actual["float"])/len(actual["float"])
+            assert result["float"]["mean"] == sum(actual["float"]) / len(
+                actual["float"]
+            )
