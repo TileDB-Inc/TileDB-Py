@@ -144,13 +144,14 @@ class AggregateTest(DiskTestCase):
             assert actual["count"] == len(expected)
             
             # no value matches query condition
+            invalid_aggregates = ("sum", "min", "max", "mean")
             expected = A.query(cond="a > 10")[:]
-            actual = A.query(cond="a > 10").agg(all_aggregates)[:]
-            assert actual["sum"] == 0
-            assert actual["min"] == 0
-            assert actual["max"] == 0
-            assert np.isnan(actual["mean"])
-            assert actual["count"] == 0
+            actual = A.query(cond="a > 10").agg(invalid_aggregates)[:]
+            assert actual["sum"] is None
+            assert actual["min"] is None
+            assert actual["max"] is None
+            assert actual["mean"] is None
+            assert "count" not in actual
             
     @pytest.mark.parametrize("sparse", [True, False])
     def test_nullable(self, sparse):
@@ -211,13 +212,13 @@ class AggregateTest(DiskTestCase):
             A[np.arange(0, 5)] = np.random.rand(5)
             
         with tiledb.open(path, "r") as A:
-            all_aggregates = ("count", "sum", "min", "max", "mean")
-            actual = A.query().agg(all_aggregates)[6:]
-            assert actual["sum"] == 0
-            assert actual["min"] == 0
-            assert actual["max"] == 0
-            assert np.isnan(actual["mean"])
-            assert actual["count"] == 0
+            invalid_aggregates = ("sum", "min", "max", "mean")
+            actual = A.query().agg(invalid_aggregates)[6:]
+            assert actual["sum"] is None
+            assert actual["min"] is None
+            assert actual["max"] is None
+            assert actual["mean"] is None
+            assert "count" not in actual
             
     # TODO
     # test multiple attributes
