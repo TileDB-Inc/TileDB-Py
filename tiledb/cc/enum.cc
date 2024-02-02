@@ -62,7 +62,9 @@ void init_enums(py::module &m) {
       .value("TIME_PS", TILEDB_TIME_PS)
       .value("TIME_FS", TILEDB_TIME_FS)
       .value("TIME_AS", TILEDB_TIME_AS)
-      .value("BLOB", TILEDB_BLOB);
+      .value("BLOB", TILEDB_BLOB)
+      .value("GEOM_WKB", TILEDB_GEOM_WKB)
+      .value("GEOM_WKT", TILEDB_GEOM_WKT);
 
   py::enum_<tiledb_array_type_t>(m, "ArrayType")
       .value("DENSE", TILEDB_DENSE)
