@@ -24,6 +24,13 @@ class DataType:
         if dtype == "blob":
             return cls(np.dtype("S"), lt.DataType.BLOB, 1)
 
+        if hasattr(lt.DataType, "GEOM_WKB"):
+            if dtype == "wkb":
+                return cls(np.dtype("S"), lt.DataType.GEOM_WKB, 1)
+
+            if dtype == "wkt":
+                return cls(np.dtype("S"), lt.DataType.GEOM_WKT, 1)
+
         dtype = np.dtype(dtype)
         if dtype.kind == "V":
             # fixed-size record dtypes
@@ -179,10 +186,13 @@ _NUMPY_TO_TILEDB = {n: t for n, t in _COMMON_DATATYPES}
 _NUMPY_TO_TILEDB[np.dtype("complex64")] = lt.DataType.FLOAT32
 _NUMPY_TO_TILEDB[np.dtype("complex128")] = lt.DataType.FLOAT64
 
-# tiledb has STRING_ASCII and BLOB, numpy doesn't
+# tiledb has STRING_ASCII, BLOB, WKB and WKT types, numpy doesn't
 _TILEDB_TO_NUMPY = {t: n for n, t in _COMMON_DATATYPES}
 _TILEDB_TO_NUMPY[lt.DataType.STRING_ASCII] = np.dtype("S")
 _TILEDB_TO_NUMPY[lt.DataType.BLOB] = np.dtype("S")
+if hasattr(lt.DataType, "GEOM_WKB"):
+    _TILEDB_TO_NUMPY[lt.DataType.GEOM_WKB] = np.dtype("S")
+    _TILEDB_TO_NUMPY[lt.DataType.GEOM_WKT] = np.dtype("S")
 
 # pre-populate the LRU caches with all ncell=1 datatypes
 list(map(DataType.from_numpy, _NUMPY_TO_TILEDB.keys()))
