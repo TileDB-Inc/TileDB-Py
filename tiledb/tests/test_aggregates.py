@@ -42,34 +42,25 @@ class AggregateTest(DiskTestCase):
 
         with tiledb.open(path, "r") as A:
             # entire column
-            expected = A[:]["a"]
+            q = A.query()
+            expected = q[:]["a"]
 
             with pytest.raises(tiledb.TileDBError):
-                A.query().agg("bad")[:]
+                q.agg("bad")[:]
 
             with pytest.raises(tiledb.TileDBError):
-                A.query().agg("null_count")[:]
+                q.agg("null_count")[:]
 
-            assert A.query().agg("sum")[:] == sum(expected)
-            assert A.query().agg("min")[:] == min(expected)
-            assert A.query().agg("max")[:] == max(expected)
-            assert A.query().agg("mean")[:] == sum(expected) / len(expected)
-            assert A.query().agg("count")[:] == len(expected)
+            with pytest.raises(NotImplementedError):
+                q.agg("count").df[:]
 
-            assert A.query().agg({"a": "sum"})[:] == sum(expected)
-            assert A.query().agg({"a": "min"})[:] == min(expected)
-            assert A.query().agg({"a": "max"})[:] == max(expected)
-            assert A.query().agg({"a": "mean"})[:] == sum(expected) / len(expected)
-            assert A.query().agg({"a": "count"})[:] == len(expected)
+            assert q.agg("sum")[:] == sum(expected)
+            assert q.agg("min")[:] == min(expected)
+            assert q.agg("max")[:] == max(expected)
+            assert q.agg("mean")[:] == sum(expected) / len(expected)
+            assert q.agg("count")[:] == len(expected)
 
-            actual = A.query().agg(all_aggregates)[:]
-            assert actual["sum"] == sum(expected)
-            assert actual["min"] == min(expected)
-            assert actual["max"] == max(expected)
-            assert actual["mean"] == sum(expected) / len(expected)
-            assert actual["count"] == len(expected)
-
-            actual = A.query().agg({"a": all_aggregates})[:]
+            actual = q.agg(all_aggregates)[:]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
             assert actual["max"] == max(expected)
@@ -79,26 +70,114 @@ class AggregateTest(DiskTestCase):
             # subarray
             expected = A[4:7]["a"]
 
-            assert A.query().agg("sum")[4:7] == sum(expected)
-            assert A.query().agg("min")[4:7] == min(expected)
-            assert A.query().agg("max")[4:7] == max(expected)
-            assert A.query().agg("mean")[4:7] == sum(expected) / len(expected)
-            assert A.query().agg("count")[4:7] == len(expected)
+            assert q.agg("sum")[4:7] == sum(expected)
+            assert q.agg("min")[4:7] == min(expected)
+            assert q.agg("max")[4:7] == max(expected)
+            assert q.agg("mean")[4:7] == sum(expected) / len(expected)
+            assert q.agg("count")[4:7] == len(expected)
 
-            assert A.query().agg({"a": "sum"})[4:7] == sum(expected)
-            assert A.query().agg({"a": "min"})[4:7] == min(expected)
-            assert A.query().agg({"a": "max"})[4:7] == max(expected)
-            assert A.query().agg({"a": "mean"})[4:7] == sum(expected) / len(expected)
-            assert A.query().agg({"a": "count"})[4:7] == len(expected)
-
-            actual = A.query().agg(all_aggregates)[4:7]
+            actual = q.agg(all_aggregates)[4:7]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
             assert actual["max"] == max(expected)
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
 
-            actual = A.query().agg({"a": all_aggregates})[4:7]
+    @pytest.mark.parametrize("sparse", [True, False])
+    @pytest.mark.parametrize(
+        "dtype",
+        [
+            np.uint8,
+            np.int8,
+            np.uint16,
+            np.int16,
+            np.uint32,
+            np.int32,
+            np.uint64,
+            np.int64,
+            np.float32,
+            np.float64,
+        ],
+    )
+    def test_multi_index(self, sparse, dtype):
+        path = self.path("test_multi_index")
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
+        attrs = [tiledb.Attr(name="a", dtype=dtype)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
+        tiledb.Array.create(path, schema)
+
+        data = np.random.randint(1, 10, size=10)
+
+        with tiledb.open(path, "w") as A:
+            if sparse:
+                A[np.arange(0, 10)] = data
+            else:
+                A[:] = data
+
+        all_aggregates = ("count", "sum", "min", "max", "mean")
+
+        with tiledb.open(path, "r") as A:
+            # entire column
+            q = A.query()
+            expected = q.multi_index[:]["a"]
+
+            with pytest.raises(tiledb.TileDBError):
+                q.agg("bad")[:]
+
+            with pytest.raises(tiledb.TileDBError):
+                q.agg("null_count")[:]
+
+            assert q.agg("sum").multi_index[:] == sum(expected)
+            assert q.agg("min").multi_index[:] == min(expected)
+            assert q.agg("max").multi_index[:] == max(expected)
+            assert q.agg("mean").multi_index[:] == sum(expected) / len(expected)
+            assert q.agg("count").multi_index[:] == len(expected)
+
+            assert q.agg({"a": "sum"}).multi_index[:] == sum(expected)
+            assert q.agg({"a": "min"}).multi_index[:] == min(expected)
+            assert q.agg({"a": "max"}).multi_index[:] == max(expected)
+            assert q.agg({"a": "mean"}).multi_index[:] == sum(expected) / len(expected)
+            assert q.agg({"a": "count"}).multi_index[:] == len(expected)
+
+            actual = q.agg(all_aggregates).multi_index[:]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected) / len(expected)
+            assert actual["count"] == len(expected)
+
+            actual = q.agg({"a": all_aggregates}).multi_index[:]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected) / len(expected)
+            assert actual["count"] == len(expected)
+
+            # subarray
+            expected = A.multi_index[4:7]["a"]
+
+            assert q.agg("sum").multi_index[4:7] == sum(expected)
+            assert q.agg("min").multi_index[4:7] == min(expected)
+            assert q.agg("max").multi_index[4:7] == max(expected)
+            assert q.agg("mean").multi_index[4:7] == sum(expected) / len(expected)
+            assert q.agg("count").multi_index[4:7] == len(expected)
+
+            assert q.agg({"a": "sum"}).multi_index[4:7] == sum(expected)
+            assert q.agg({"a": "min"}).multi_index[4:7] == min(expected)
+            assert q.agg({"a": "max"}).multi_index[4:7] == max(expected)
+            assert q.agg({"a": "mean"}).multi_index[4:7] == sum(expected) / len(
+                expected
+            )
+            assert q.agg({"a": "count"}).multi_index[4:7] == len(expected)
+
+            actual = q.agg(all_aggregates).multi_index[4:7]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected) / len(expected)
+            assert actual["count"] == len(expected)
+
+            actual = q.agg({"a": all_aggregates}).multi_index[4:7]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
             assert actual["max"] == max(expected)

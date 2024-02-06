@@ -1702,6 +1702,90 @@ cdef class Array(object):
         self.__init__(uri, mode=mode, key=key, attr=view_attr,
                       timestamp=timestamp_range, ctx=ctx)
 
+cdef class Aggregation(object):
+    """
+    Proxy object returned by Query.agg to calculate aggregations.
+    """
+
+    def __init__(self, query=None, attr_to_aggs={}):
+        if query is None:
+            raise ValueError("must pass in a query object")
+        
+        self.query = query
+        self.attr_to_aggs = attr_to_aggs
+
+    def __getitem__(self, object selection):
+        from .main import PyAgg
+        from .subarray import Subarray
+
+        array = self.query.array
+        order = self.query.order
+
+        cdef tiledb_layout_t layout = TILEDB_UNORDERED if array.schema.sparse else TILEDB_ROW_MAJOR
+        if order is None or order == 'C':
+            layout = TILEDB_ROW_MAJOR
+        elif order == 'F':
+            layout = TILEDB_COL_MAJOR
+        elif order == 'G':
+            layout = TILEDB_GLOBAL_ORDER
+        elif order == 'U':
+            layout = TILEDB_UNORDERED
+        else:
+            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
+                             "'F' (TILEDB_COL_MAJOR), "\
+                             "'G' (TILEDB_GLOBAL_ORDER), "\
+                             "or 'U' (TILEDB_UNORDERED)")
+    
+        q = PyAgg(array._ctx_(), array, <int32_t>layout, self.attr_to_aggs)
+
+        selection = index_as_tuple(selection)
+        dom = array.schema.domain
+        idx = replace_ellipsis(dom.ndim, selection)
+        idx, drop_axes = replace_scalars_slice(dom, idx)
+        dim_ranges  = index_domain_subarray(array, dom, idx)
+
+        subarray = Subarray(array, array.ctx)
+        subarray.add_ranges([list([x]) for x in dim_ranges])
+        q.set_subarray(subarray)
+
+        if self.query.cond is not None:
+            from .query_condition import QueryCondition
+            q.set_cond(QueryCondition(self.query.cond))
+
+        result = q.get_aggregate()
+
+        # If there was only one attribute, just show the aggregate results
+        if len(result) == 1:
+            result = result[list(result.keys())[0]]
+
+            # If there was only one aggregate, just show the value
+            if len(result) == 1:
+                result = result[list(result.keys())[0]]
+
+        return result
+
+    @property
+    def multi_index(self):
+        """Apply Array.multi_index with query parameters."""
+        # Delayed to avoid circular import
+        from .multirange_indexing import MultiRangeAggregation
+        return MultiRangeAggregation(self.query.array, query=self)
+
+    @property
+    def df(self):
+        raise NotImplementedError(".df indexer not supported for Aggregations")
+    
+    @property
+    def attr_to_aggs(self):
+        """Return the attribute and aggregration input mapping"""
+        return self.attr_to_aggs
+
+    @property
+    def query(self):
+        """Return the underlying Query object"""
+        return self.query
+
+
 cdef class Query(object):
     """
     Proxy object returned by query() to index into original array
@@ -1767,58 +1851,18 @@ cdef class Query(object):
         self.domain_index = DomainIndexer(array, query=self)
 
     def __getitem__(self, object selection):
-        from .main import PyAgg
-
         if self.return_arrow:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
 
-        if isinstance(self.array.pyquery, PyAgg):
-            from .subarray import Subarray
-
-            q = self.array.pyquery
-
-            selection = index_as_tuple(selection)
-            dom = self.array.schema.domain
-            idx = replace_ellipsis(dom.ndim, selection)
-            idx, drop_axes = replace_scalars_slice(dom, idx)
-            dim_ranges  = index_domain_subarray(self.array, dom, idx)
-
-            subarray = Subarray(self.array, self.array.ctx)
-            subarray.add_ranges([list([x]) for x in dim_ranges])
-            q.set_subarray(subarray)
-
-            if self.cond is not None:
-                from .query_condition import QueryCondition
-                q.set_cond(QueryCondition(self.cond))
-
-            result = q.get_aggregate()
-
-            # Clear the pyquery after calculating the aggregates, otherwise the
-            # PyAgg object sticks around when calling subsequent Array.query
-            self.array.pyquery = None
-
-            # If there was only one attribute, just show the aggregate results
-            if len(result) == 1:
-                result = result[list(result.keys())[0]]
-
-                # If there was only one aggregate, just show the value
-                if len(result) == 1:
-                    result = result[list(result.keys())[0]]
-
-            return result
-        else:
-            return self.array.subarray(selection,
-                                    attrs=self.attrs,
-                                    cond=self.cond,
-                                    coords=self.coords if self.coords else self.dims,
-                                    order=self.order)
+        return self.array.subarray(selection,
+                                attrs=self.attrs,
+                                cond=self.cond,
+                                coords=self.coords if self.coords else self.dims,
+                                order=self.order)
     
     def agg(self, aggs):
-        from .main import PyAgg
-
-        schema = self.array.schema
-        
         # TODO documentation
+        schema = self.array.schema
         attr_to_aggs_map = {}
         if isinstance(aggs, dict):
             attr_to_aggs_map = {
@@ -1836,27 +1880,7 @@ cdef class Query(object):
             attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
             attr_to_aggs_map = {a: tuple(aggs) for a in attrs}
 
-        self.attrs = list(attr_to_aggs_map.keys())
-        
-        cdef tiledb_layout_t layout = TILEDB_UNORDERED if schema.sparse else TILEDB_ROW_MAJOR
-        if self.order is None or self.order == 'C':
-            layout = TILEDB_ROW_MAJOR
-        elif self.order == 'F':
-            layout = TILEDB_COL_MAJOR
-        elif self.order == 'G':
-            layout = TILEDB_GLOBAL_ORDER
-        elif self.order == 'U':
-            layout = TILEDB_UNORDERED
-        else:
-            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
-                             "'F' (TILEDB_COL_MAJOR), "\
-                             "'G' (TILEDB_GLOBAL_ORDER), "\
-                             "or 'U' (TILEDB_UNORDERED)")
-    
-        self.array.pyquery = PyAgg(self.array._ctx_(), self.array, 
-                                   <int32_t>layout, attr_to_aggs_map)
-
-        return self
+        return Aggregation(self, attr_to_aggs_map)
 
     @property
     def attrs(self):
