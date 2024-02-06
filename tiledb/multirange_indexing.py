@@ -636,18 +636,7 @@ def _get_pyquery(
     pyquery._return_incomplete = return_incomplete
     pyquery._preload_metadata = preload_metadata
     if query and query.cond is not None:
-        if isinstance(query.cond, str):
-            pyquery.set_cond(QueryCondition(query.cond))
-        elif isinstance(query.cond, QueryCondition):
-            raise TileDBError(
-                "Passing `tiledb.QueryCondition` to `cond` is no longer supported "
-                "as of 0.19.0. Instead of `cond=tiledb.QueryCondition('expression')` "
-                "you must use `cond='expression'`. This message will be "
-                "removed in 0.21.0.",
-            )
-        else:
-            raise TypeError("`cond` expects type str.")
-
+        pyquery.set_cond(QueryCondition(query.cond))
     return pyquery
 
 
@@ -667,7 +656,12 @@ def _get_pyagg(array: Array, agg: Optional[AggregationProxy]) -> PyAgg:
             "'U' (TILEDB_UNORDERED), or 'G' (TILEDB_GLOBAL_ORDER)"
         )
 
-    return PyAgg(array._ctx_(), array, layout, agg.attr_to_aggs)
+    pyagg = PyAgg(array._ctx_(), array, layout, agg.attr_to_aggs)
+    
+    if agg.query.cond is not None:
+        pyagg.set_cond(QueryCondition(agg.query.cond))
+
+    return pyagg
 
 
 def _iter_attr_names(
