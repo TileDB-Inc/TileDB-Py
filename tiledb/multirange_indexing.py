@@ -640,13 +640,8 @@ def _get_pyquery(
     return pyquery
 
 
-def _get_pyagg(array: Array, agg: Optional[AggregationProxy]) -> PyAgg:
-    schema = array.schema
-    if agg:
-        order = agg.query.order
-    else:
-        # set default order:  TILEDB_UNORDERED for sparse,  TILEDB_ROW_MAJOR for dense
-        order = "U" if schema.sparse else "C"
+def _get_pyagg(array: Array, agg: AggregationProxy) -> PyAgg:
+    order = agg.query.order
 
     try:
         layout = "CFGU".index(order)
@@ -657,10 +652,8 @@ def _get_pyagg(array: Array, agg: Optional[AggregationProxy]) -> PyAgg:
         )
 
     pyagg = PyAgg(array._ctx_(), array, layout, agg.attr_to_aggs)
-
     if agg.query.cond is not None:
         pyagg.set_cond(QueryCondition(agg.query.cond))
-
     return pyagg
 
 
