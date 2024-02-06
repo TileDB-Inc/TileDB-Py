@@ -222,16 +222,18 @@ class AggregateTest(DiskTestCase):
         all_aggregates = ("count", "sum", "min", "max", "mean")
 
         with tiledb.open(path, "r") as A:
-            expected = A.query(cond="a < 5")[:]["a"]
-            actual = A.query(cond="a < 5").agg(all_aggregates)[:]
+            q = A.query(cond="a < 5")
+
+            expected = q[:]["a"]
+            actual = q.agg(all_aggregates)[:]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
             assert actual["max"] == max(expected)
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
 
-            expected = A.query(cond="a < 5").multi_index[:]["a"]
-            actual = A.query(cond="a < 5").agg(all_aggregates).multi_index[:]
+            expected = q.multi_index[:]["a"]
+            actual = q.agg(all_aggregates).multi_index[:]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
             assert actual["max"] == max(expected)
@@ -239,17 +241,18 @@ class AggregateTest(DiskTestCase):
             assert actual["count"] == len(expected)
 
             # no value matches query condition
-            invalid_aggregates = ("count", "sum", "min", "max", "mean")
-            expected = A.query(cond="a > 10")[:]
-            actual = A.query(cond="a > 10").agg(invalid_aggregates)[:]
+            q = A.query(cond="a > 10")
+
+            expected = q[:]
+            actual = q.agg(all_aggregates)[:]
             assert actual["sum"] == 0
             assert actual["min"] is None
             assert actual["max"] is None
             assert np.isnan(actual["mean"])
             assert actual["count"] == 0
 
-            expected = A.query(cond="a > 10").multi_index[:]
-            actual = A.query(cond="a > 10").agg(invalid_aggregates).multi_index[:]
+            expected = q.multi_index[:]
+            actual = q.agg(all_aggregates).multi_index[:]
             assert actual["sum"] == 0
             assert actual["min"] is None
             assert actual["max"] is None
@@ -276,16 +279,18 @@ class AggregateTest(DiskTestCase):
                 A[:] = data
 
         with tiledb.open(path, "r") as A:
-            assert A.query().agg("null_count")[0] == 0
-            assert A.query().agg("null_count")[:6] == 1
-            assert A.query().agg("null_count")[5:8] == 2
-            assert A.query().agg("null_count")[5] == 1
-            assert A.query().agg("null_count")[6:] == 1
-            assert A.query().agg("null_count")[7] == 1
-            assert A.query().agg("null_count")[:] == 2
+            agg = A.query().agg
+
+            assert agg("null_count")[0] == 0
+            assert agg("null_count")[:6] == 1
+            assert agg("null_count")[5:8] == 2
+            assert agg("null_count")[5] == 1
+            assert agg("null_count")[6:] == 1
+            assert agg("null_count")[7] == 1
+            assert agg("null_count")[:] == 2
 
             all_aggregates = ("count", "sum", "min", "max", "mean", "null_count")
-            actual = A.query().agg({"a": all_aggregates})[:]
+            actual = agg({"a": all_aggregates})[:]
             expected = A[:]["a"]
             expected_no_null = A[:]["a"].compressed()
             assert actual["sum"] == sum(expected_no_null)
@@ -296,7 +301,7 @@ class AggregateTest(DiskTestCase):
             assert actual["null_count"] == np.count_nonzero(expected.mask)
 
             # no valid values
-            actual = A.query().agg({"a": all_aggregates})[5]
+            actual = agg({"a": all_aggregates})[5]
             assert actual["sum"] is None
             assert actual["min"] is None
             assert actual["max"] is None
@@ -343,27 +348,28 @@ class AggregateTest(DiskTestCase):
 
         with tiledb.open(path, "r") as A:
             actual = A.query()[:]
+            agg = A.query().agg
 
-            assert A.query().agg({"string": "count"})[:] == len(actual["string"])
+            assert agg({"string": "count"})[:] == len(actual["string"])
             invalid_aggregates = ("sum", "min", "max", "mean")
             for agg in invalid_aggregates:
                 with pytest.raises(tiledb.TileDBError):
-                    A.query().agg({"string": agg})[:]
+                    agg({"string": agg})[:]
 
-            result = A.query().agg("count")[:]
+            result = agg("count")[:]
             assert result["integer"]["count"] == len(actual["integer"])
             assert result["float"]["count"] == len(actual["float"])
             assert result["string"]["count"] == len(actual["string"])
 
             with pytest.raises(tiledb.TileDBError):
-                A.query().agg("sum")[:]
+                agg("sum")[:]
 
-            result = A.query().agg({"integer": "sum", "float": "sum"})[:]
+            result = agg({"integer": "sum", "float": "sum"})[:]
             assert "string" not in result
             assert result["integer"]["sum"] == sum(actual["integer"])
             assert result["float"]["sum"] == sum(actual["float"])
 
-            result = A.query().agg(
+            result = agg(
                 {
                     "string": ("count",),
                     "integer": "sum",
