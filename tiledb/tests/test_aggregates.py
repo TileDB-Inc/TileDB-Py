@@ -229,7 +229,7 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] == max(expected)
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
-            
+
             expected = A.query(cond="a < 5").multi_index[:]["a"]
             actual = A.query(cond="a < 5").agg(all_aggregates).multi_index[:]
             assert actual["sum"] == sum(expected)
@@ -247,7 +247,7 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] is None
             assert np.isnan(actual["mean"])
             assert actual["count"] == 0
-            
+
             expected = A.query(cond="a > 10").multi_index[:]
             actual = A.query(cond="a > 10").agg(invalid_aggregates).multi_index[:]
             assert actual["sum"] == 0

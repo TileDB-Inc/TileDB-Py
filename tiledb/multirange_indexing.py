@@ -657,7 +657,7 @@ def _get_pyagg(array: Array, agg: Optional[AggregationProxy]) -> PyAgg:
         )
 
     pyagg = PyAgg(array._ctx_(), array, layout, agg.attr_to_aggs)
-    
+
     if agg.query.cond is not None:
         pyagg.set_cond(QueryCondition(agg.query.cond))
 
