@@ -9,7 +9,7 @@ stages:
         TILEDBPY_VERSION: 0.26.0
         # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
         LIBTILEDB_VERSION: 2.20.0
-        LIBTILEDB_SHA: 16b321d88f6419bb2a2da206621861939864dda7
+        LIBTILEDB_SHA: 9a3c2dcf47c682e626133586d4b836d3fe57a5f8
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
