@@ -60,7 +60,20 @@ class AggregateTest(DiskTestCase):
             assert q.agg("mean")[:] == sum(expected) / len(expected)
             assert q.agg("count")[:] == len(expected)
 
+            assert q.agg({"a": "sum"})[:] == sum(expected)
+            assert q.agg({"a": "min"})[:] == min(expected)
+            assert q.agg({"a": "max"})[:] == max(expected)
+            assert q.agg({"a": "mean"})[:] == sum(expected) / len(expected)
+            assert q.agg({"a": "count"})[:] == len(expected)
+
             actual = q.agg(all_aggregates)[:]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected) / len(expected)
+            assert actual["count"] == len(expected)
+
+            actual = q.agg({"a": all_aggregates})[:]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
             assert actual["max"] == max(expected)
@@ -76,7 +89,20 @@ class AggregateTest(DiskTestCase):
             assert q.agg("mean")[4:7] == sum(expected) / len(expected)
             assert q.agg("count")[4:7] == len(expected)
 
+            assert q.agg({"a": "sum"})[4:7] == sum(expected)
+            assert q.agg({"a": "min"})[4:7] == min(expected)
+            assert q.agg({"a": "max"})[4:7] == max(expected)
+            assert q.agg({"a": "mean"})[4:7] == sum(expected) / len(expected)
+            assert q.agg({"a": "count"})[4:7] == len(expected)
+
             actual = q.agg(all_aggregates)[4:7]
+            assert actual["sum"] == sum(expected)
+            assert actual["min"] == min(expected)
+            assert actual["max"] == max(expected)
+            assert actual["mean"] == sum(expected) / len(expected)
+            assert actual["count"] == len(expected)
+
+            actual = q.agg({"a": all_aggregates})[4:7]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
             assert actual["max"] == max(expected)
@@ -133,12 +159,6 @@ class AggregateTest(DiskTestCase):
             assert q.agg("mean").multi_index[:] == sum(expected) / len(expected)
             assert q.agg("count").multi_index[:] == len(expected)
 
-            assert q.agg({"a": "sum"}).multi_index[:] == sum(expected)
-            assert q.agg({"a": "min"}).multi_index[:] == min(expected)
-            assert q.agg({"a": "max"}).multi_index[:] == max(expected)
-            assert q.agg({"a": "mean"}).multi_index[:] == sum(expected) / len(expected)
-            assert q.agg({"a": "count"}).multi_index[:] == len(expected)
-
             actual = q.agg(all_aggregates).multi_index[:]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
@@ -162,22 +182,7 @@ class AggregateTest(DiskTestCase):
             assert q.agg("mean").multi_index[4:7] == sum(expected) / len(expected)
             assert q.agg("count").multi_index[4:7] == len(expected)
 
-            assert q.agg({"a": "sum"}).multi_index[4:7] == sum(expected)
-            assert q.agg({"a": "min"}).multi_index[4:7] == min(expected)
-            assert q.agg({"a": "max"}).multi_index[4:7] == max(expected)
-            assert q.agg({"a": "mean"}).multi_index[4:7] == sum(expected) / len(
-                expected
-            )
-            assert q.agg({"a": "count"}).multi_index[4:7] == len(expected)
-
             actual = q.agg(all_aggregates).multi_index[4:7]
-            assert actual["sum"] == sum(expected)
-            assert actual["min"] == min(expected)
-            assert actual["max"] == max(expected)
-            assert actual["mean"] == sum(expected) / len(expected)
-            assert actual["count"] == len(expected)
-
-            actual = q.agg({"a": all_aggregates}).multi_index[4:7]
             assert actual["sum"] == sum(expected)
             assert actual["min"] == min(expected)
             assert actual["max"] == max(expected)
