@@ -13,6 +13,23 @@ from .dimension_label import DimLabel
 from .domain import Domain
 from .filter import Filter, FilterList
 
+_tiledb_order_to_string = {
+    lt.LayoutType.ROW_MAJOR: "row-major",
+    lt.LayoutType.COL_MAJOR: "col-major",
+    lt.LayoutType.GLOBAL_ORDER: "global",
+    lt.LayoutType.UNORDERED: "unordered",
+    lt.LayoutType.HILBERT: "hilbert",
+}
+
+_string_to_tiledb_order = {v: k for k, v in _tiledb_order_to_string.items()}
+_string_to_tiledb_order.update(
+    {
+        "C": lt.LayoutType.ROW_MAJOR,
+        "R": lt.LayoutType.COL_MAJOR,
+        "H": lt.LayoutType.HILBERT,
+        "U": lt.LayoutType.UNORDERED,
+    }
+)
 
 class ArraySchema(CtxMixin, lt.ArraySchema):
     """
@@ -68,12 +85,14 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
                     )
                 self._add_attr(att)
 
-        self._cell_order = _string_to_tiledb_order.get(cell_order)
-        if self._cell_order is None:
+        try:
+            self._cell_order = _string_to_tiledb_order.get(cell_order)
+        except (TypeError, ValueError):
             raise ValueError(f"unknown tiledb layout: {cell_order}")
 
-        self._tile_order = _string_to_tiledb_order.get(tile_order)
-        if self._tile_order is None:
+        try:
+            self._tile_order = _string_to_tiledb_order.get(tile_order)
+        except (TypeError, ValueError):
             raise ValueError(f"unknown tiledb layout: {tile_order}")
 
         if capacity > 0:
@@ -384,6 +403,11 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         print(self._dump(), "\n")
 
     def __repr__(self):
+        # use safe repr if pybind11 constructor failed or the array schema did
+        # not construct properly
+        if self._ctx is None or not self._check():
+            return object.__repr__(self)
+            
         # TODO support/use __qualname__
         output = io.StringIO()
         output.write("ArraySchema(\n")
@@ -454,23 +478,3 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         output.write("</table>")
 
         return output.getvalue()
-
-
-_tiledb_order_to_string = {
-    lt.LayoutType.ROW_MAJOR: "row-major",
-    lt.LayoutType.COL_MAJOR: "col-major",
-    lt.LayoutType.GLOBAL_ORDER: "global",
-    lt.LayoutType.UNORDERED: "unordered",
-    lt.LayoutType.HILBERT: "hilbert",
-}
-
-_string_to_tiledb_order = {v: k for k, v in _tiledb_order_to_string.items()}
-_string_to_tiledb_order.update(
-    {
-        "C": lt.LayoutType.ROW_MAJOR,
-        "R": lt.LayoutType.COL_MAJOR,
-        "H": lt.LayoutType.HILBERT,
-        "U": lt.LayoutType.UNORDERED,
-        None: lt.LayoutType.ROW_MAJOR,  # default (fixed in SC-27374)
-    }
-)

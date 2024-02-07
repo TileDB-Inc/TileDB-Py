@@ -74,6 +74,16 @@ class ArraySchemaTest(DiskTestCase):
 
         with self.assertRaises(tiledb.TileDBError):
             tiledb.ArraySchema(domain=dom, attrs=(att,))
+    
+    def test_dense_array_schema_invalid_cell_and_tile_order(self):
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2, dtype=np.float64))
+        att = tiledb.Attr("val", dtype=np.float64)
+
+        with self.assertRaises(ValueError):
+            tiledb.ArraySchema(domain=dom, attrs=(att,), cell_order="invalid")
+            
+        with self.assertRaises(ValueError):
+            tiledb.ArraySchema(domain=dom, attrs=(att,), tile_order="invalid")
 
     def test_sparse_schema(self):
         # create dimensions
