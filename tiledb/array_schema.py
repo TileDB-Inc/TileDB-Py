@@ -31,6 +31,7 @@ _string_to_tiledb_order.update(
     }
 )
 
+
 class ArraySchema(CtxMixin, lt.ArraySchema):
     """
     Schema class for TileDB dense / sparse array representations
@@ -407,7 +408,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         # not construct properly
         if self._ctx is None or not self._check():
             return object.__repr__(self)
-            
+
         # TODO support/use __qualname__
         output = io.StringIO()
         output.write("ArraySchema(\n")

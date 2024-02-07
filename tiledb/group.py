@@ -233,7 +233,7 @@ class Group(CtxMixin, lt.Group):
             # use safe repr if pybind11 constructor failed
             if self._ctx is None:
                 return object.__repr__(self)
-            
+
             return str(dict(self._iter(keys_only=False)))
 
         def setdefault(self, key, default=None):

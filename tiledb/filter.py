@@ -21,7 +21,7 @@ class Filter(CtxMixin, lt.Filter):
         # use safe repr if pybind11 constructor failed
         if self._ctx is None:
             return object.__repr__(self)
-        
+
         output = io.StringIO()
         output.write(f"{type(self).__name__}(")
         if hasattr(self, "_attrs_"):
