@@ -28,6 +28,7 @@ _string_to_tiledb_order.update(
         "R": lt.LayoutType.COL_MAJOR,
         "H": lt.LayoutType.HILBERT,
         "U": lt.LayoutType.UNORDERED,
+        None: lt.LayoutType.ROW_MAJOR,  # default (fixed in SC-27374)
     }
 )
 
@@ -406,7 +407,12 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
     def __repr__(self):
         # use safe repr if pybind11 constructor failed or the array schema did
         # not construct properly
-        if self._ctx is None or not self._check():
+        try:
+            self._check()
+        except lt.TileDBError:
+            return object.__repr__(self)
+        
+        if self._ctx is None:
             return object.__repr__(self)
 
         # TODO support/use __qualname__
