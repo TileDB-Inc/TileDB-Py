@@ -411,7 +411,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
             self._check()
         except lt.TileDBError:
             return object.__repr__(self)
-        
+
         if self._ctx is None:
             return object.__repr__(self)
 
