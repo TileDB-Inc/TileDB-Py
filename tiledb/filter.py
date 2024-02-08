@@ -18,6 +18,10 @@ class Filter(CtxMixin, lt.Filter):
         super().__init__(ctx, type)
 
     def __repr__(self) -> str:
+        # use safe repr if pybind11 constructor failed
+        if self._ctx is None:
+            return object.__repr__(self)
+
         output = io.StringIO()
         output.write(f"{type(self).__name__}(")
         if hasattr(self, "_attrs_"):

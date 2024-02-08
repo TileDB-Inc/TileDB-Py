@@ -259,6 +259,10 @@ class Attr(CtxMixin, lt.Attribute):
         return self._get_enumeration_name(self._ctx)
 
     def __repr__(self):
+        # use safe repr if pybind11 constructor failed
+        if self._ctx is None:
+            return object.__repr__(self)
+
         filters_str = ""
         if self.filters:
             filters_str = ", filters=FilterList(["
