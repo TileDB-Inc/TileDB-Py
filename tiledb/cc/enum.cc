@@ -63,8 +63,11 @@ void init_enums(py::module &m) {
       .value("TIME_FS", TILEDB_TIME_FS)
       .value("TIME_AS", TILEDB_TIME_AS)
       .value("BLOB", TILEDB_BLOB)
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
       .value("GEOM_WKB", TILEDB_GEOM_WKB)
-      .value("GEOM_WKT", TILEDB_GEOM_WKT);
+      .value("GEOM_WKT", TILEDB_GEOM_WKT)
+#endif
+      ; // line continuation for ifdef
 
   py::enum_<tiledb_array_type_t>(m, "ArrayType")
       .value("DENSE", TILEDB_DENSE)
