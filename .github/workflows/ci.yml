@@ -69,10 +69,11 @@ jobs:
           choco install wget --no-progress
 
           if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-windows-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.zip; then
-            unzip tiledb-windows-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.zip -d /usr/local
-            cp /usr/local/bin/tiledb.dll tiledb
-            python setup.py develop --tiledb=/usr/local
-          else 
+            mkdir libtiledb
+            unzip tiledb-windows-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.zip -d libtiledb
+            cp libtiledb/bin/tiledb.dll tiledb
+            python setup.py develop --tiledb=libtiledb
+          else
             # Build from source as fallback
             python setup.py build_ext --inplace
             python setup.py develop
@@ -86,9 +87,10 @@ jobs:
           set -xeo pipefail
 
           if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-macos-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz; then
-            sudo tar -vzxf tiledb-macos-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz -C /usr/local
-            python setup.py develop --tiledb=/usr/local
-          else 
+            mkdir libtiledb
+            sudo tar -vzxf tiledb-macos-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz -C libtiledb
+            python setup.py develop --tiledb=libtiledb
+          else
             # Build from source as fallback
             python setup.py build_ext --inplace
             python setup.py develop
@@ -100,9 +102,10 @@ jobs:
           set -xeo pipefail
 
           if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-linux-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz; then
-            sudo tar -vzxf tiledb-linux-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz -C /usr/local
-            python setup.py develop --tiledb=/usr/local
-          else 
+            mkdir libtiledb
+            sudo tar -vzxf tiledb-linux-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz -C libtiledb
+            python setup.py develop --tiledb=libtiledb
+          else
             # Build from source as fallback
             python setup.py build_ext --inplace
             python setup.py develop
