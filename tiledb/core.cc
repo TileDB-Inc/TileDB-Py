@@ -347,7 +347,7 @@ public:
           std::find(aggs.begin(), aggs.end(), "max") != aggs.end();
       bool requested_min =
           std::find(aggs.begin(), aggs.end(), "min") != aggs.end();
-      if (!attr.nullable() and (requested_max or requested_min)) {
+      if (!attr.nullable() && (requested_max || requested_min)) {
         // If the user already also requested count, then we don't need to
         // request it again
         if (std::find(aggs.begin(), aggs.end(), "count") == aggs.end()) {
@@ -361,7 +361,7 @@ public:
 
         // Set the result data buffers
         auto *res_buf = &result_buffers_[attr_name][agg_name];
-        if ("count" == agg_name or "null_count" == agg_name or
+        if ("count" == agg_name || "null_count" == agg_name ||
             "mean" == agg_name) {
           // count and null_count use uint64 and mean uses float64
           *res_buf = py::array(py::dtype("uint8"), 8);
@@ -378,7 +378,7 @@ public:
           // contains all NULL values, we will not get an aggregate value back
           // as this operation is undefined. We need to check the validity
           // buffer beforehand to see if we had a valid result
-          if (!("count" == agg_name or "null_count" == agg_name)) {
+          if (!("count" == agg_name || "null_count" == agg_name)) {
             auto *val_buf = &validity_buffers_[attr.name()][agg_name];
             *val_buf = py::array(py::dtype("uint8"), 1);
             query_->set_validity_buffer(attr_name + agg_name,
@@ -448,7 +448,7 @@ public:
 
   bool _is_invalid(tiledb::Attribute attr, std::string agg_name) {
     if (attr.nullable()) {
-      if ("count" == agg_name or "null_count" == agg_name)
+      if ("count" == agg_name || "null_count" == agg_name)
         return false;
 
       // For nullable attributes, check if the validity buffer returned false
@@ -457,7 +457,7 @@ public:
     } else {
       // For non-nullable attributes, max and min are undefined for the empty
       // set, so we must check the count == 0
-      if ("max" == agg_name or "min" == agg_name) {
+      if ("max" == agg_name || "min" == agg_name) {
         const void *count_buf = result_buffers_[attr.name()]["count"].data();
         return *((uint64_t *)(count_buf)) == 0;
       }
@@ -471,7 +471,7 @@ public:
     if ("mean" == agg_name)
       return py::cast(*((double *)agg_buf));
 
-    if ("count" == agg_name or "null_count" == agg_name)
+    if ("count" == agg_name || "null_count" == agg_name)
       return py::cast(*((uint64_t *)agg_buf));
 
     switch (attr.type()) {
