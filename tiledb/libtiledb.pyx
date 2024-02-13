@@ -1676,7 +1676,7 @@ cdef class Array(object):
             arr.dtype = q.buffer_dtype(name)
             out[name] = arr
         return out
-    
+
     # pickling support: this is a lightweight pickle for distributed use.
     #   simply treat as wrapper around URI, not actual data.
     def __getstate__(self):
@@ -1836,7 +1836,7 @@ cdef class Query(object):
                     raise TileDBError(f"Selected attribute does not exist: '{name}'")
         self.attrs = attrs
         self.cond = cond
-        
+
         if order == None:
             if array.schema.sparse:
                 self.order = 'U' # unordered
