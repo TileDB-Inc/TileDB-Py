@@ -352,9 +352,9 @@ class AggregateTest(DiskTestCase):
 
             assert agg({"string": "count"})[:] == len(actual["string"])
             invalid_aggregates = ("sum", "min", "max", "mean")
-            for agg in invalid_aggregates:
+            for invalid_agg in invalid_aggregates:
                 with pytest.raises(tiledb.TileDBError):
-                    agg({"string": agg})[:]
+                    agg({"string": invalid_agg})[:]
 
             result = agg("count")[:]
             assert result["integer"]["count"] == len(actual["integer"])
