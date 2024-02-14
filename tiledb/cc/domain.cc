@@ -182,9 +182,7 @@ void init_domain(py::module &m) {
       .def(py::init<const Context &, py::capsule>())
 
       .def("__capsule__",
-           [](Domain &dom) {
-             return py::capsule(dom.ptr().get(), "dom", nullptr);
-           })
+           [](Domain &dom) { return py::capsule(dom.ptr().get(), "dom"); })
 
       .def_property_readonly("_ncell",
                              [](Domain &dom) { return dom.cell_num(); })

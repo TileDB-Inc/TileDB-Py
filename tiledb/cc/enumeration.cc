@@ -65,7 +65,7 @@ void init_enumeration(py::module &m) {
 
       .def("__capsule__",
            [](Enumeration &enmr) {
-             return py::capsule(enmr.ptr().get(), "enmr", nullptr);
+             return py::capsule(enmr.ptr().get(), "enmr");
            })
 
       .def_property_readonly("name", &Enumeration::name)

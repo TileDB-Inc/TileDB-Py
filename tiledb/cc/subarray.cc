@@ -554,7 +554,7 @@ void init_subarray(py::module &m) {
 
       .def("__capsule__",
            [](Subarray &subarray) {
-             return py::capsule(subarray.ptr().get(), "subarray", nullptr);
+             return py::capsule(subarray.ptr().get(), "subarray");
            })
 
       .def("_add_dim_range",
