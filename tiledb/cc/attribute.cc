@@ -67,10 +67,9 @@ void init_attribute(py::module &m) {
 
       .def(py::init<const Context &, py::capsule>())
 
-      .def("__capsule__",
-           [](Attribute &attr) {
-             return py::capsule(attr.ptr().get(), "attr", nullptr);
-           })
+      .def(
+          "__capsule__",
+          [](Attribute &attr) { return py::capsule(attr.ptr().get(), "attr"); })
 
       .def_property_readonly("_name", &Attribute::name)
 

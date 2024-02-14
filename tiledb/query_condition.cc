@@ -58,7 +58,7 @@ public:
 
   shared_ptr<QueryCondition> ptr() { return qc_; }
 
-  py::capsule __capsule__() { return py::capsule(&qc_, "qc", nullptr); }
+  py::capsule __capsule__() { return py::capsule(&qc_, "qc"); }
 
   void set_use_enumeration(bool use_enumeration) {
     QueryConditionExperimental::set_use_enumeration(ctx_, *qc_,

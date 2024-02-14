@@ -18,14 +18,10 @@ void init_context(py::module &m) {
       .def(py::init<py::capsule, bool>())
 
       .def("__capsule__",
-           [](Context &ctx) {
-             return py::capsule(ctx.ptr().get(), "ctx", nullptr);
-           })
+           [](Context &ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
 
       .def("__capsule__",
-           [](Context &ctx) {
-             return py::capsule(ctx.ptr().get(), "ctx", nullptr);
-           })
+           [](Context &ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
 
       .def("config", &Context::config)
       .def("set_tag", &Context::set_tag)
@@ -42,7 +38,7 @@ void init_config(py::module &m) {
 
       .def("__capsule__",
            [](Config &config) {
-             return py::capsule(config.ptr().get(), "config", nullptr);
+             return py::capsule(config.ptr().get(), "config");
            })
 
       .def("set", &Config::set)
