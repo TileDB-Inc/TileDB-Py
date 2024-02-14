@@ -18,14 +18,10 @@ void init_context(py::module &m) {
       .def(py::init<py::capsule, bool>())
 
       .def("__capsule__",
-           [](Context &ctx) {
-             return py::capsule(ctx.ptr().get(), "ctx");
-           })
+           [](Context &ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
 
       .def("__capsule__",
-           [](Context &ctx) {
-             return py::capsule(ctx.ptr().get(), "ctx");
-           })
+           [](Context &ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
 
       .def("config", &Context::config)
       .def("set_tag", &Context::set_tag)
