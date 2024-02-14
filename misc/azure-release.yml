@@ -34,7 +34,6 @@ stages:
               imageName: "macOS-12"
               CMAKE_OSX_ARCHITECTURES: "arm64"
               MACOSX_DEPLOYMENT_TARGET: 11
-              TILEDB_GCS: OFF
               BUILD_MAGIC_MACOS_UNIVERSAL: "ON"
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-arm64"
             windows_libtiledb:
