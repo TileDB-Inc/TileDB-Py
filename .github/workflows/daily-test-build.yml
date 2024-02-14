@@ -32,7 +32,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-12, windows-latest]
-        libtiledb_version: ["dev", "release-2.18"]
+        libtiledb_version: ["dev", "release-2.19", "release-2.20"]
         uninstall_pandas: [true, false]
       fail-fast: false
 

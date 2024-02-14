@@ -230,6 +230,12 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     case TILEDB_BOOL:
       return py::dtype("bool");
 #endif
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
+    case TILEDB_GEOM_WKB:
+      return py::dtype("byte");
+    case TILEDB_GEOM_WKT:
+      return py::dtype("S1");
+#endif
 
     case TILEDB_ANY:
       break;
