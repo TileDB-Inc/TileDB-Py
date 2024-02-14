@@ -64,6 +64,10 @@ class Domain(CtxMixin, lt.Domain):
             self._add_dim(d)
 
     def __repr__(self):
+        # use safe repr if pybind11 constructor failed
+        if self._ctx is None:
+            return object.__repr__(self)
+
         dims = ",\n       ".join(repr(self.dim(i)) for i in range(self.ndim))
         return "Domain({0!s})".format(dims)
 
