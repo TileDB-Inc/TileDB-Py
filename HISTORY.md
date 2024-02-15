@@ -1,14 +1,18 @@
-# Next
+# Release 0.26.0
+
+* TileDB-Py 0.26.0 includes TileDB Embedded [2.20.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.20.0)
 
 ## Bug Fixes
 
 * Add safe `Group.__repr__` [#1890](https://github.com/TileDB-Inc/TileDB-Py/pull/1890)
+* Use safe repr if ArraySchema was not properly constructed [#1896](https://github.com/TileDB-Inc/TileDB-Py/pull/1896)
 
 ## Improvements
 
 * Warn when `os.fork()` is used in the presence of a Tiledb context [#1876](https://github.com/TileDB-Inc/TileDB-Py/pull/1876/files).
+* Enable GCS in osx-arm64 wheel builds [#1899](https://github.com/TileDB-Inc/TileDB-Py/pull/1899)
 
-# Release 0.24.0
+# Release 0.25.0
 
 * TileDB-Py 0.25.0 includes TileDB Embedded [2.19.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.19.0)
 

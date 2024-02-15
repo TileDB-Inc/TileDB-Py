@@ -20,10 +20,14 @@ from setuptools import Extension, find_packages, setup
 # - this is for builds-from-source
 # - release builds are controlled by `misc/azure-release.yml`
 # - this should be set to the current core release, not `dev`
-TILEDB_VERSION = "2.19.0"
+TILEDB_VERSION = "2.20.0"
 
 # allow overriding w/ environment variable
-TILEDB_VERSION = os.environ.get("TILEDB_VERSION") or TILEDB_VERSION
+TILEDB_VERSION = (
+    os.environ.get("TILEDB_VERSION")
+    or os.environ.get("LIBTILEDB_VERSION")  # For CI override
+    or TILEDB_VERSION
+)
 
 # Use `setup.py [] --debug` for a debug build of libtiledb
 TILEDB_DEBUG_BUILD = False
