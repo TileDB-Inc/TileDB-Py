@@ -2422,6 +2422,16 @@ cdef class DenseArrayImpl(Array):
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
                 if type(attr_val) is np.ndarray and attr_val.dtype is not np.dtype('O'):
+                    if attr.isnullable and name not in nullmaps:
+                        try:
+                            nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
+                            attr_val = np.nan_to_num(attr_val)
+                        except Exception as exc:
+                            attr_val = np.asarray(attr_val)
+                            nullmaps[name] = np.array(
+                                [int(v is not None) for v in attr_val], 
+                                dtype=np.uint8
+                            )
                     attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
                 
                 try:

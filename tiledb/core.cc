@@ -437,7 +437,8 @@ public:
         std::string agg_cpp_name = agg_py_name.cast<string>();
 
         if (_is_invalid(attr, agg_cpp_name)) {
-          output[attr_py_name][agg_py_name] = py::none();
+          output[attr_py_name][agg_py_name] =
+              _is_integer_dtype(attr) ? py::none() : py::cast(NAN);
         } else {
           output[attr_py_name][agg_py_name] = _set_result(attr, agg_cpp_name);
         }
@@ -461,6 +462,22 @@ public:
         const void *count_buf = result_buffers_[attr.name()]["count"].data();
         return *((uint64_t *)(count_buf)) == 0;
       }
+      return false;
+    }
+  }
+
+  bool _is_integer_dtype(tiledb::Attribute attr) {
+    switch (attr.type()) {
+    case TILEDB_INT8:
+    case TILEDB_INT16:
+    case TILEDB_UINT8:
+    case TILEDB_INT32:
+    case TILEDB_INT64:
+    case TILEDB_UINT16:
+    case TILEDB_UINT32:
+    case TILEDB_UINT64:
+      return true;
+    default:
       return false;
     }
   }

@@ -246,16 +246,24 @@ class AggregateTest(DiskTestCase):
             expected = q[:]
             actual = q.agg(all_aggregates)[:]
             assert actual["sum"] == 0
-            assert actual["min"] is None
-            assert actual["max"] is None
+            if dtype in (np.float32, np.float64):
+                assert np.isnan(actual["min"])
+                assert np.isnan(actual["max"])
+            else:
+                assert actual["min"] is None
+                assert actual["max"] is None
             assert np.isnan(actual["mean"])
             assert actual["count"] == 0
 
             expected = q.multi_index[:]
             actual = q.agg(all_aggregates).multi_index[:]
             assert actual["sum"] == 0
-            assert actual["min"] is None
-            assert actual["max"] is None
+            if dtype in (np.float32, np.float64):
+                assert np.isnan(actual["min"])
+                assert np.isnan(actual["max"])
+            else:
+                assert actual["min"] is None
+                assert actual["max"] is None
             assert np.isnan(actual["mean"])
             assert actual["count"] == 0
 
@@ -263,7 +271,10 @@ class AggregateTest(DiskTestCase):
     def test_nullable(self, sparse):
         path = self.path("test_nullable")
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
-        attrs = [tiledb.Attr(name="a", nullable=True, dtype=float)]
+        attrs = [
+            tiledb.Attr(name="integer", nullable=True, dtype=int),
+            tiledb.Attr(name="float", nullable=True, dtype=float),
+        ]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
         tiledb.Array.create(path, schema)
 
@@ -274,59 +285,106 @@ class AggregateTest(DiskTestCase):
         # write data
         with tiledb.open(path, "w") as A:
             if sparse:
-                A[np.arange(0, 10)] = data
+                A[np.arange(0, 10)] = {"integer": data, "float": data}
             else:
-                A[:] = data
+                A[:] = {"integer": data, "float": data}
 
         with tiledb.open(path, "r") as A:
             agg = A.query().agg
 
-            assert agg("null_count")[0] == 0
-            assert agg("null_count")[:6] == 1
-            assert agg("null_count")[5:8] == 2
-            assert agg("null_count")[5] == 1
-            assert agg("null_count")[6:] == 1
-            assert agg("null_count")[7] == 1
-            assert agg("null_count")[:] == 2
+            result = agg("null_count")
+            assert result[0]["integer"]["null_count"] == 0
+            assert result[:6]["integer"]["null_count"] == 1
+            assert result[5:8]["integer"]["null_count"] == 2
+            assert result[5]["integer"]["null_count"] == 1
+            assert result[6:]["integer"]["null_count"] == 1
+            assert result[7]["integer"]["null_count"] == 1
+            assert result[:]["integer"]["null_count"] == 2
+
+            assert result[0]["float"]["null_count"] == 0
+            assert result[:6]["float"]["null_count"] == 1
+            assert result[5:8]["float"]["null_count"] == 2
+            assert result[5]["float"]["null_count"] == 1
+            assert result[6:]["float"]["null_count"] == 1
+            assert result[7]["float"]["null_count"] == 1
+            assert result[:]["float"]["null_count"] == 2
 
             all_aggregates = ("count", "sum", "min", "max", "mean", "null_count")
-            actual = agg({"a": all_aggregates})[:]
-            expected = A[:]["a"]
-            expected_no_null = A[:]["a"].compressed()
-            assert actual["sum"] == sum(expected_no_null)
-            assert actual["min"] == min(expected_no_null)
-            assert actual["max"] == max(expected_no_null)
-            assert actual["mean"] == sum(expected_no_null) / len(expected_no_null)
-            assert actual["count"] == len(expected)
-            assert actual["null_count"] == np.count_nonzero(expected.mask)
+
+            actual = agg({"integer": all_aggregates, "float": all_aggregates})[:]
+
+            expected = A[:]["integer"]
+            expected_no_null = A[:]["integer"].compressed()
+            assert actual["integer"]["sum"] == sum(expected_no_null)
+            assert actual["integer"]["min"] == min(expected_no_null)
+            assert actual["integer"]["max"] == max(expected_no_null)
+            assert actual["integer"]["mean"] == sum(expected_no_null) / len(
+                expected_no_null
+            )
+            assert actual["integer"]["count"] == len(expected)
+            assert actual["integer"]["null_count"] == np.count_nonzero(expected.mask)
+
+            expected = A[:]["float"]
+            expected_no_null = A[:]["float"].compressed()
+            assert actual["float"]["sum"] == sum(expected_no_null)
+            assert actual["float"]["min"] == min(expected_no_null)
+            assert actual["float"]["max"] == max(expected_no_null)
+            assert actual["float"]["mean"] == sum(expected_no_null) / len(
+                expected_no_null
+            )
+            assert actual["float"]["count"] == len(expected)
+            assert actual["float"]["null_count"] == np.count_nonzero(expected.mask)
 
             # no valid values
-            actual = agg({"a": all_aggregates})[5]
-            assert actual["sum"] is None
-            assert actual["min"] is None
-            assert actual["max"] is None
-            assert actual["mean"] is None
-            assert actual["count"] == 1
-            assert actual["null_count"] == 1
+            actual = agg({"integer": all_aggregates, "float": all_aggregates})[5]
 
-    def test_empty_sparse(self):
+            assert actual["integer"]["sum"] is None
+            assert actual["integer"]["min"] is None
+            assert actual["integer"]["max"] is None
+            assert actual["integer"]["mean"] is None
+            assert actual["integer"]["count"] == 1
+            assert actual["integer"]["null_count"] == 1
+
+            assert np.isnan(actual["float"]["sum"])
+            assert np.isnan(actual["float"]["min"])
+            assert np.isnan(actual["float"]["max"])
+            assert np.isnan(actual["float"]["mean"])
+            assert actual["float"]["count"] == 1
+            assert actual["float"]["null_count"] == 1
+
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_empty(self, sparse):
         path = self.path("test_empty_sparse")
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
-        attrs = [tiledb.Attr(name="a", dtype=float)]
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        attrs = [
+            tiledb.Attr(name="integer", nullable=True, dtype=int),
+            tiledb.Attr(name="float", nullable=True, dtype=float),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
         tiledb.Array.create(path, schema)
 
+        data = np.random.rand(5)
+
+        # write data
         with tiledb.open(path, "w") as A:
-            A[np.arange(0, 5)] = np.random.rand(5)
+            if sparse:
+                A[np.arange(0, 5)] = {"integer": data, "float": data}
+            else:
+                A[:5] = {"integer": data, "float": data}
 
         with tiledb.open(path, "r") as A:
             invalid_aggregates = ("sum", "min", "max", "mean")
             actual = A.query().agg(invalid_aggregates)[6:]
-            assert actual["sum"] == 0
-            assert actual["min"] is None
-            assert actual["max"] is None
-            assert np.isnan(actual["mean"])
-            assert "count" not in actual
+
+            assert actual["integer"]["sum"] is None
+            assert actual["integer"]["min"] is None
+            assert actual["integer"]["max"] is None
+            assert actual["integer"]["mean"] is None
+
+            assert np.isnan(actual["float"]["sum"])
+            assert np.isnan(actual["float"]["min"])
+            assert np.isnan(actual["float"]["max"])
+            assert np.isnan(actual["float"]["mean"])
 
     def test_multiple_attrs(self):
         path = self.path("test_multiple_attrs")
