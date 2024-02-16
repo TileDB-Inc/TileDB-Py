@@ -19,28 +19,42 @@ void set_fill_value(Attribute &attr, py::array value) {
 }
 
 py::array get_fill_value(Attribute &attr) {
+  // Get the fill value from the C++ API as a void* value.
   const void *value;
   uint64_t size;
-
   attr.get_fill_value(&value, &size);
 
+  // If this is a string type, we want to return each value as a single cell.
+  if (is_tdb_str(attr.type())) {
+    auto value_type = py::dtype("|S1");
+    return py::array(value_type, size, value);
+  }
+
+  // If this is a record type (void), return a single cell.
+  // If this is a blob-like type, we want to return each value as a single byte
+  // cell.
+  auto tdb_type = attr.type();
+  if (tdb_type == TILEDB_BLOB
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
+      || tdb_type == TILEDB_GEOM_WKB || tdb_type == TILEDB_GEOM_WKT
+#endif
+  ) {
+    auto value_type = py::dtype("S");
+    return py::array(value_type, size, value);
+  }
+
+  // Get the number of values in a cell and the Python datatype.
   auto value_num = attr.cell_val_num();
   auto value_type = tdb_to_np_dtype(attr.type(), value_num);
 
-  if (is_tdb_str(attr.type())) {
-    value_type = py::dtype("|S1");
-    value_num = size;
-  }
-
-  // record type
   if (py::str(value_type.attr("kind")) == py::str("V")) {
-    value_num = 1;
+    return py::array(value_type, 1, value);
   }
 
-  // complex type - both cell values fit in a single complex element
+  // If this is a complex type both cell values fit in a single complex element.
   if (value_type == py::dtype("complex64") ||
       value_type == py::dtype("complex128")) {
-    value_num = 1;
+    return py::array(value_type, 1, value);
   }
 
   return py::array(value_type, value_num, value);
