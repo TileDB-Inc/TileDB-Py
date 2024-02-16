@@ -25,7 +25,7 @@ class AttributeTest(DiskTestCase):
         except:
             pytest.fail(f"Could not parse attr._repr_html_(). Saw {attr._repr_html_()}")
 
-    def test_attribute(self, capfd):
+    def test_attribute_name_only(self, capfd):
         attr = tiledb.Attr("foo")
 
         attr.dump()
@@ -197,6 +197,16 @@ class AttributeTest(DiskTestCase):
         assert attr.dtype == np.dtype(np.datetime64("", "D"))
         assert attr.dtype != np.dtype(np.datetime64("", "Y"))
         assert attr.dtype != np.dtype(np.datetime64)
+
+    @pytest.mark.parametrize("dtype", ["ascii", "blob", "wkb", "wkt"])
+    def test_nonnumpy_dtype_attribute(self, dtype):
+        # Do not test wkb/wkt if not yet implemented in linked libtiledb.
+        if not hasattr(tiledb.cc.DataType, "GEOM_WKB") and (
+            dtype == "wkb" or dtype == "wkt"
+        ):
+            return
+        attr = tiledb.Attr("non-numpy_dtype", dtype=dtype)
+        self.assertEqual(attr, attr)
 
     @pytest.mark.parametrize("sparse", [True, False])
     def test_ascii_attribute(self, sparse, capfd):
