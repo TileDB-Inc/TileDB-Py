@@ -1871,7 +1871,50 @@ cdef class Query(object):
                                 order=self.order)
     
     def agg(self, aggs):
-        # TODO documentation
+        """
+        Calculate an aggregate operation for a given attribute. Available 
+        operations are sum, min, max, mean, count, and null_count (for nullable
+        attributes only). Aggregates may be combined with other query operations 
+        such as query conditions and slicing.
+
+        The input may be a single operation, a list of operations, or a 
+        dictionary with attribute mapping to a single operation or list of 
+        operations.
+
+        For undefined operations on max and min, which can occur when a nullable
+        attribute contains only nulled data at the given coordinates or when 
+        there is no data read for the given query (e.g. query conditions that do
+        not match any values or coordinates that contain no data)), invalid
+        results are represented as np.nan for attributes of floating point types
+        and None for integer types.
+
+        >>> import tiledb, tempfile, numpy as np
+        >>> path = tempfile.mkdtemp()
+
+        >>> with tiledb.from_numpy(path, np.arange(1, 10)) as A:
+        ...     pass
+
+        >>> # Note that tiledb.from_numpy creates anonymous attributes, so the
+        >>> # name of the attribute is represented as an empty string
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query().agg("sum")[:]
+        45
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query(cond="attr('') < 5").agg(["count", "mean"])[:]
+        {'count': 9, 'mean': 2.5}
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query().agg({"": ["max", "min"]})[2:7]
+        {'max': 7, 'min': 3}
+
+        :param agg: The input attributes and operations to apply aggregations on
+        :returns: single value for single operation on one attribute, a dictionary
+            of attribute keys associated with a single value for a single operation
+            across multiple attributes, or a dictionary of attribute keys that maps
+            to a dictionary of operation labels with the associated value
+        """
         schema = self.array.schema
         attr_to_aggs_map = {}
         if isinstance(aggs, dict):
