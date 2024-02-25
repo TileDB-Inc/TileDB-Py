@@ -11,7 +11,7 @@ export LIBTILEDB_VERSION=2.5.3
 export TILEDBPY_VERSION=0.11.5
 
 export CIBW_MANYLINUX_AARCH64_IMAGE=wheel-host-aarch64.manylinux2014-$LIBTILEDB_VERSION
-export CIBW_SKIP='cp27-* cp35-* cp36-* cp310-* pp-* *_i686 pp* *-musllinux*'
+export CIBW_SKIP='cp36-* cp310-* pp-* *_i686 pp* *-musllinux*'
 export CIBW_PLATFORM='linux'
 export CIBW_ENVIRONMENT='TILEDB_PATH=/usr/local/'
 export CIBW_BUILD_VERBOSITY=1
