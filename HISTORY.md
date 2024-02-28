@@ -2,8 +2,11 @@
 
 ## Improvements
 
-* For compatibility with fsspec, `isdir()`, `isfile()`, and `size()` aliases
-  have been added to the `VFS` class (#).
+* For compatibility with fsspec and rasterio, `isdir()`, `isfile()`, and `size()` aliases have been added to the `VFS` class (#1902).
+
+# Release 0.26.1
+
+* TileDB-Py 0.26.1 includes TileDB Embedded [2.20.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.20.1)
 
 # Release 0.26.0
 
