@@ -21,9 +21,24 @@ jobs:
       # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-12' && contains(fromJSON('["3.7", "3.8"]'), matrix.python-version) && '11.7' || '11' }}
       #MACOSX_DEPLOYMENT_TARGET: "10.11"
+      # On windows-2019 we are using the Visual Studio generator, which is multi-config and places the build artifacts in a subdirectory
     steps:
       - name: Checkout TileDB-Py `dev`
         uses: actions/checkout@v3
+
+      # By default Visual Studio chooses the earliest installed toolset version
+      # for the main build and vcpkg chooses the latest. Force it to use the
+      # latest (14.39 currently).
+      - name: Setup MSVC toolset (VS 2022)
+        uses: TheMrMilchmann/setup-msvc-dev@v3
+        if: matrix.os == 'windows-latest'
+        with:
+          arch: x64
+          toolset: 14.39
+
+      - name: Install Ninja (VS 2022)
+        uses: seanmiddleditch/gha-setup-ninja@v4
+        if: matrix.os == 'windows-latest'
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -80,6 +95,7 @@ jobs:
           fi
         env:
           TILEDB_FORCE_ALL_DEPS: True
+          CMAKE_GENERATOR: "Ninja"
         if: matrix.os == 'windows-latest'
 
       - name: "Download TileDB From Tarball And Build TileDB-Py (macOS)"
