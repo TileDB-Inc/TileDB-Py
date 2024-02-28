@@ -36,10 +36,15 @@ import numpy as np
 
 import tiledb
 
+# Create TileDB VFS
+vfs = tiledb.VFS()
+
+file = "mem://myarray"
 data = np.random.rand(10, 10)
 
-with tiledb.from_numpy("mem://myarray", data):
-    pass
+if not vfs.is_file(file):
+    with tiledb.from_numpy(file, data):
+        pass
 
-with tiledb.open("mem://myarray") as A:
+with tiledb.open(file) as A:
     print(np.all(A[:] == data))
