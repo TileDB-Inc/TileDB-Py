@@ -409,7 +409,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         csv_array_uri = os.path.join(uri, "tiledb_csv")
         tiledb.from_csv(
-            csv_array_uri, csv_uri, index_col=0, parse_dates=[1], sparse=False
+            csv_array_uri,
+            csv_uri,
+            index_col=0,
+            parse_dates=[1],
+            date_format="%Y-%m-%d %H:%M:%S.%f",
+            sparse=False,
         )
 
         df_from_array = tiledb.open_dataframe(csv_array_uri)
@@ -420,7 +425,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.FileIO(tiledb.VFS(), csv_uri, "rb") as fio:
             csv_array_uri2 = os.path.join(csv_array_uri + "_2")
             tiledb.from_csv(
-                csv_array_uri2, csv_uri, index_col=0, parse_dates=[1], sparse=False
+                csv_array_uri2,
+                csv_uri,
+                index_col=0,
+                parse_dates=[1],
+                sparse=False,
+                date_format="%Y-%m-%d %H:%M:%S.%f",
             )
 
             df_from_array2 = tiledb.open_dataframe(csv_array_uri2)
@@ -697,6 +707,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             sparse=True,
             index_col=["time", "double_range"],
             parse_dates=["time"],
+            date_format="%Y-%m-%d %H:%M:%S.%f",
         )
 
         df_bk = tiledb.open_dataframe(tmp_array)
@@ -734,6 +745,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             tmp_csv2,
             index_col=["int_vals"],
             parse_dates=["time"],
+            date_format="%Y-%m-%d %H:%M:%S.%f",
             sparse=True,
             allows_duplicates=True,
             float_precision="round_trip",
@@ -784,6 +796,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 tmp_csv,
                 index_col=["time", "double_range"],
                 parse_dates=["time"],
+                date_format="%Y-%m-%d %H:%M:%S.%f",
                 mode="schema_only",
                 capacity=1001,
                 sparse=True,
@@ -876,7 +889,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             tmp_csv,
             index_col=["double_range"],
             parse_dates=["time"],
-            date_spec={"time": "%Y-%m-%dT%H:%M:%S.%f"},
+            date_format="%Y-%m-%d %H:%M:%S.%f",
             chunksize=10,
             sparse=True,
             quotechar='"',
@@ -893,7 +906,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # Test dense chunked
         tmp_array_dense = os.path.join(tmp_dir, "array_dense")
         tiledb.from_csv(
-            tmp_array_dense, tmp_csv, parse_dates=["time"], sparse=False, chunksize=25
+            tmp_array_dense,
+            tmp_csv,
+            parse_dates=["time"],
+            date_format="%Y-%m-%d %H:%M:%S.%f",
+            sparse=False,
+            chunksize=25,
         )
 
         with tiledb.open(tmp_array_dense) as A:
@@ -1016,6 +1034,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             csv_paths,
             index_col=["time"],
             parse_dates=["time"],
+            date_format="%Y-%m-%d %H:%M:%S.%f",
             chunksize=25,
             sparse=True,
         )
