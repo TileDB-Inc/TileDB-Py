@@ -287,3 +287,26 @@ class TestVFS(DiskTestCase):
             with self.assertRaises(IOError):
                 fio.write(b"foo")
             self.assertEqual(fio.read(len(buffer)), buffer)
+
+
+def test_vfs_isdir(tmp_path):
+    """isdir is an alias for is_dir."""
+    fs = tiledb.VFS()
+    assert fs.isdir(tmp_path.as_posix())
+
+
+def test_vfs_isfile(tmp_path):
+    """isfile is an alias for is_file."""
+    tmp_file = tmp_path.joinpath("foo")
+    tmp_file.touch()
+    fs = tiledb.VFS()
+    assert fs.isfile(tmp_file.as_posix())
+
+
+def test_vfs_size(tmp_path):
+    """size is an alias for file_size."""
+    tmp_file = tmp_path.joinpath("foo")
+    buffer = b"0123456789"
+    tmp_file.write_bytes(buffer)
+    fs = tiledb.VFS()
+    assert fs.size(tmp_file.as_posix()) == len(buffer)

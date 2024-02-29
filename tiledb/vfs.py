@@ -304,6 +304,11 @@ class VFS(lt.VFS):
         """
         return self._touch(_to_path_str(uri))
 
+    # Aliases for compatibility with fsspec's AbstractFileSystem.
+    isdir = is_dir
+    isfile = is_file
+    size = file_size
+
 
 class FileIO(io.RawIOBase):
     """TileDB FileIO class that encapsulates files opened by tiledb.VFS. The file
