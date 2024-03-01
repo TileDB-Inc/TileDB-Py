@@ -29,6 +29,9 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       matrix:
         os: [ubuntu-latest, macos-12, windows-latest]
@@ -91,9 +94,7 @@ jobs:
 
       - name: Build TileDB-Py
         run: |
-          echo "CMAKE_GENERATOR=${CMAKE_GENERATOR}"
-          echo "env.CMAKE_GENERATOR=${env.CMAKE_GENERATOR}"
-          export CMAKE_GENERATOR="${env.CMAKE_GENERATOR}"
+          echo "CMAKE_GENERATOR=$CMAKE_GENERATOR"
           python setup.py build_ext --inplace --werror
           python setup.py develop
         env:

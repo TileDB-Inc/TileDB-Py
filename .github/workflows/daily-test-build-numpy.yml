@@ -55,7 +55,6 @@ jobs:
 
       - name: "Set CMAKE_GENERATOR"
         run: export CMAKE_GENERATOR="Ninja"
-        shell: bash
         if: matrix.os == 'windows-latest'
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -86,7 +85,7 @@ jobs:
 
       - name: Build TileDB-Py
         run: |
-          echo "CMAKE_GENERATOR=${CMAKE_GENERATOR}"
+          echo "CMAKE_GENERATOR=$CMAKE_GENERATOR"
           python setup.py build_ext --inplace --werror
           python setup.py develop
 
