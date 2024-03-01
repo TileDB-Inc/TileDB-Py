@@ -67,7 +67,7 @@ class Filestore:
 
         if size == -1:
             size = len(self)
-        size = max(size - offset, 0)
+        size = min(size, len(self) - offset)
 
         return lt.Filestore._buffer_export(
             self._ctx,
