@@ -91,11 +91,10 @@ jobs:
 
       - name: Build TileDB-Py
         run: |
-          echo "CMAKE_GENERATOR=${CMAKE_GENERATOR}"
-          echo "env.CMAKE_GENERATOR=${env.CMAKE_GENERATOR}"
-          export CMAKE_GENERATOR="${env.CMAKE_GENERATOR}"
+          echo "CMAKE_GENERATOR=$CMAKE_GENERATOR"
           python setup.py build_ext --inplace --werror
           python setup.py develop
+        shell: bash
         env:
           TILEDB_FORCE_ALL_DEPS: True
 
