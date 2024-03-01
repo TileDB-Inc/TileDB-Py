@@ -35,6 +35,7 @@ jobs:
       # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
       #MACOSX_DEPLOYMENT_TARGET: "10.15"
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-11' && contains(fromJson('["3.7", "3.8"]'), matrix.python-version) && '11.7' || '11' }}
+      VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
     steps:
       - name: Checkout TileDB-Py `dev`
         uses: actions/checkout@v3
@@ -52,6 +53,13 @@ jobs:
       - name: Install Ninja (VS 2022)
         uses: seanmiddleditch/gha-setup-ninja@v4
         if: matrix.os == 'windows-latest'
+
+      - name: Enable vcpkg binary caching
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: "Set CMAKE_GENERATOR"
         run: export CMAKE_GENERATOR="Ninja"

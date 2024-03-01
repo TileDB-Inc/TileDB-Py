@@ -42,6 +42,7 @@ jobs:
     env:
       TILEDB_VERSION: ${{ matrix.libtiledb_version }}
       MACOSX_DEPLOYMENT_TARGET: "11"
+      VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
 
     steps:
       # By default Visual Studio chooses the earliest installed toolset version
@@ -53,6 +54,13 @@ jobs:
         with:
           arch: x64
           toolset: 14.39
+
+      - name: Enable vcpkg binary caching
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Install Ninja (VS 2022)
         uses: seanmiddleditch/gha-setup-ninja@v4
