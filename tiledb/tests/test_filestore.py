@@ -35,11 +35,32 @@ class FilestoreTest(DiskTestCase):
         schema.attr(0).dump()
         assert_captured(capfd, "Type: BLOB")
 
-        data = b"buffer"
-
         fs = tiledb.Filestore(path)
         fs.write(data)
         assert bytes(data) == fs.read()
+
+    def test_small_buffer(self, capfd):
+        path = self.path("test_small_buffer")
+        # create a 4 byte array
+        data = b"abcd"
+
+        fs = tiledb.Filestore(path)
+
+        with self.assertRaises(tiledb.TileDBError):
+            fs.write(data)
+
+        schema = tiledb.ArraySchema.from_file()
+        tiledb.Array.create(path, schema)
+
+        assert schema.attr(0).name == "contents"
+        assert schema.attr(0).dtype == np.bytes_
+
+        schema.attr(0).dump()
+        assert_captured(capfd, "Type: BLOB")
+
+        fs = tiledb.Filestore(path)
+        fs.write(data)
+        assert data[3:4] == fs.read(offset=3, size=1)
 
     def test_uri(self, text_fname):
         path = self.path("test_uri")
