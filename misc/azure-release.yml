@@ -8,8 +8,10 @@ stages:
       ${{ else }}:
         TILEDBPY_VERSION: 0.26.0
         # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
-        LIBTILEDB_VERSION: "2.20.0"
-        LIBTILEDB_SHA: 40552aa786ef4d4a3d7d72c384e46474df4cbb57
+        LIBTILEDB_VERSION: "2.20.1"
+        # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
+        LIBTILEDB_SHA: 249c02481ed261a643b7fc63b748a90bce060e70
+      # kick the hash
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
@@ -69,7 +71,7 @@ stages:
           matrix:
             linux_py:
               imageName: "ubuntu-latest"
-              CIBW_SKIP: "cp27-* cp35-* cp36-* *_i686 pp* *musllinux*"
+              CIBW_SKIP: "cp36-* *_i686 pp* *musllinux*"
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: ""
             macOS_py:
@@ -77,7 +79,7 @@ stages:
               MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
               CIBW_ARCHS_MACOS: "x86_64"
-              CIBW_SKIP: "cp27-* cp35-* cp36-* pp*"
+              CIBW_SKIP: "cp36-* pp*"
               CIBW_TEST_SKIP: "cp37-*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
@@ -87,10 +89,10 @@ stages:
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: "arm64"
               # NumPy is only available in CPython 3.8+ on macOS-arm64
-              CIBW_SKIP: "cp27-* cp35-* cp36-* cp37-* pp*"
+              CIBW_SKIP: "cp36-* cp37-* pp*"
             windows_py:
               imageName: "windows-latest"
-              CIBW_SKIP: "cp27-* cp35-* cp36-* *-win32 pp*"
+              CIBW_SKIP: "cp36-* *-win32 pp*"
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: ""
         pool:
