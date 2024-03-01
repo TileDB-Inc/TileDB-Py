@@ -29,6 +29,9 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       matrix:
         os: [ubuntu-latest, macos-12, windows-latest]
@@ -39,8 +42,34 @@ jobs:
     env:
       TILEDB_VERSION: ${{ matrix.libtiledb_version }}
       MACOSX_DEPLOYMENT_TARGET: "11"
+      VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
 
     steps:
+      # By default Visual Studio chooses the earliest installed toolset version
+      # for the main build and vcpkg chooses the latest. Force it to use the
+      # latest (14.39 currently).
+      - name: Setup MSVC toolset (VS 2022)
+        uses: TheMrMilchmann/setup-msvc-dev@v3
+        if: matrix.os == 'windows-latest'
+        with:
+          arch: x64
+          toolset: 14.39
+
+      - name: Enable vcpkg binary caching
+        uses: actions/github-script@v6
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Install Ninja (VS 2022)
+        uses: seanmiddleditch/gha-setup-ninja@v4
+        if: matrix.os == 'windows-latest'
+
+      - name: "Set CMAKE_GENERATOR"
+        run: echo "CMAKE_GENERATOR=Ninja" >> $GITHUB_ENV
+        if: matrix.os == 'windows-latest'
+
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
@@ -73,6 +102,7 @@ jobs:
 
       - name: Build TileDB-Py
         run: |
+          echo "CMAKE_GENERATOR=$CMAKE_GENERATOR"
           python setup.py build_ext --inplace --werror
           python setup.py develop
         env:
