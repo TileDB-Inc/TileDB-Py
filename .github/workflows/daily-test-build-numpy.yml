@@ -32,6 +32,7 @@ jobs:
             numpy-version: "1.16.5"
       fail-fast: false
     env:
+      TILEDB_VERSION: 'release-2.20'
       # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
       #MACOSX_DEPLOYMENT_TARGET: "10.15"
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-11' && contains(fromJson('["3.7", "3.8"]'), matrix.python-version) && '11.7' || '11' }}
