@@ -43,6 +43,7 @@ TILEDBPY_MODULAR = False
 # Allow to override TILEDB_FORCE_ALL_DEPS with environment variable
 TILEDB_FORCE_ALL_DEPS = "TILEDB_FORCE_ALL_DEPS" in os.environ
 TILEDB_DISABLE_SERIALIZATION = "TILEDB_DISABLE_SERIALIZATION" in os.environ
+CMAKE_ARCHITECTURE = os.environ.get("CMAKE_ARCHITECTURE", None)
 CMAKE_GENERATOR = os.environ.get("CMAKE_GENERATOR", None)
 
 # Directory containing this file
@@ -240,7 +241,10 @@ def build_libtiledb(src_dir):
     cmake_cmd.append("-DCMAKE_BUILD_TYPE={}".format(build_type))
 
     if os.name == "nt":
-        cmake_cmd.extend(["-A", "x64", "-DMSVC_MP_FLAG=/MP4"])
+        cmake_cmd.extend(["-DMSVC_MP_FLAG=/MP4"])
+
+    if CMAKE_ARCHITECTURE:
+        cmake_cmd.extend(["-A", CMAKE_ARCHITECTURE])
 
     if CMAKE_GENERATOR:
         cmake_cmd.extend(["-G", CMAKE_GENERATOR])
