@@ -217,7 +217,7 @@ class AggregateTest(DiskTestCase):
             data = np.random.randint(1, 10, size=10)
             data[0] = 1
 
-            A[np.arange(0, 10)] = np.random.randint(1, 10, size=10)
+            A[np.arange(0, 10)] = data
 
         all_aggregates = ("count", "sum", "min", "max", "mean")
 
