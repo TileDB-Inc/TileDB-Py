@@ -42,8 +42,10 @@ class AggregateTest(DiskTestCase):
 
         with tiledb.open(path, "r") as A:
             # entire column
-            q = A.query()
-            expected = q[:]["a"]
+            q = A.query(dims=["d"])
+            results = q[:]
+            expected = results["a"]
+            expected_dimension = results["d"]
 
             with pytest.raises(tiledb.TileDBError):
                 q.agg("bad")[:]
@@ -80,8 +82,17 @@ class AggregateTest(DiskTestCase):
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
 
+            if sparse:
+                actual = q.agg({"d": all_aggregates})[:]
+                assert actual["sum"] == sum(expected_dimension)
+                assert actual["min"] == min(expected_dimension)
+                assert actual["max"] == max(expected_dimension)
+                assert actual["mean"] == sum(expected_dimension) / len(expected_dimension)
+                assert actual["count"] == len(expected_dimension)
+
             # subarray
             expected = A[4:7]["a"]
+            expected_dimension = A.query(dims=["d"], attrs=[])[4:7]["d"]
 
             assert q.agg("sum")[4:7] == sum(expected)
             assert q.agg("min")[4:7] == min(expected)
@@ -108,6 +119,15 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] == max(expected)
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
+
+            # dimension
+            if sparse:
+                actual = q.agg({"d": all_aggregates})[4:7]
+                assert actual["sum"] == sum(expected_dimension)
+                assert actual["min"] == min(expected_dimension)
+                assert actual["max"] == max(expected_dimension)
+                assert actual["mean"] == sum(expected_dimension) / len(expected_dimension)
+                assert actual["count"] == len(expected_dimension)
 
     @pytest.mark.parametrize("sparse", [True, False])
     @pytest.mark.parametrize(
@@ -146,6 +166,7 @@ class AggregateTest(DiskTestCase):
             # entire column
             q = A.query()
             expected = q.multi_index[:]["a"]
+            expected_dimension = A.query(dims=["d"], attrs=[]).multi_index[:]["d"]
 
             with pytest.raises(tiledb.TileDBError):
                 q.agg("bad")[:]
@@ -173,8 +194,19 @@ class AggregateTest(DiskTestCase):
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
 
+            # dimension
+            actual = q.agg({"d": all_aggregates}).multi_index[:]
+            assert actual["sum"] == sum(expected_dimension)
+            assert actual["min"] == min(expected_dimension)
+            assert actual["max"] == max(expected_dimension)
+            assert actual["mean"] == sum(expected_dimension) / len(expected_dimension)
+            assert actual["count"] == len(expected_dimension)
+
             # subarray
             expected = A.multi_index[4:7]["a"]
+            expected_dimension = A.query(dims=["d"], attrs=[]).multi_index[4:7][
+                "d"
+            ]
 
             assert q.agg("sum").multi_index[4:7] == sum(expected)
             assert q.agg("min").multi_index[4:7] == min(expected)
@@ -188,6 +220,14 @@ class AggregateTest(DiskTestCase):
             assert actual["max"] == max(expected)
             assert actual["mean"] == sum(expected) / len(expected)
             assert actual["count"] == len(expected)
+
+            # dimension
+            actual = q.agg({"d": all_aggregates})[4:7]
+            assert actual["sum"] == sum(expected_dimension)
+            assert actual["min"] == min(expected_dimension)
+            assert actual["max"] == max(expected_dimension)
+            assert actual["mean"] == sum(expected_dimension) / len(expected_dimension)
+            assert actual["count"] == len(expected_dimension)
 
     @pytest.mark.parametrize(
         "dtype",
@@ -442,3 +482,52 @@ class AggregateTest(DiskTestCase):
             assert result["float"]["mean"] == sum(actual["float"]) / len(
                 actual["float"]
             )
+
+    def test_strings(self):
+        all_dim_aggregates = ("count", "min", "max", "mean")
+        all_aggregates = ("count", "min", "max", "mean", "null_count")
+
+        path = self.path("test_string_sparse")
+        dom = tiledb.Domain(tiledb.Dim(name="d", dtype="ascii"))
+        attrs = [
+            tiledb.Attr(name="ascii", nullable=True, dtype="ascii"),
+            tiledb.Attr(name="utf8", nullable=True, dtype="S0"),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        dim_data = ["1", "2", "3", "4", "5"]
+        data = ["a", "bb", "ccc", "dddd", "eeeee"]
+
+        # write data
+        with tiledb.open(path, "w") as A:
+            A[dim_data] = {"ascii": data, "utf8": data}
+
+        with tiledb.open(path, "r") as A:
+            invalid_aggregates = ("sum", "min", "max", "mean")
+            actual = A.query().agg(invalid_aggregates)["6":]
+
+            assert actual["ascii"]["min"] is None
+            assert actual["ascii"]["max"] is None
+            assert actual["ascii"]["mean"] is None
+
+            # entire column
+            q = A.query()
+            expected = q.multi_index[:]
+            actual = q.agg({"ascii": all_aggregates})[:]
+            assert actual["min"] == min(expected["ascii"])
+            assert actual["max"] == max(expected["ascii"])
+            assert actual["mean"] == sum(expected["ascii"]) / len(expected["ascii"])
+            assert actual["count"] == len(expected["ascii"])
+
+            actual = q.agg({"utf8": all_aggregates})[:]
+            assert actual["min"] == min(expected["utf8"])
+            assert actual["max"] == max(expected["utf8"])
+            assert actual["mean"] == sum(expected["utf8"]) / len(expected["utf8"])
+            assert actual["count"] == len(expected["utf8"])
+
+            actual = q.agg({"d": all_dim_aggregates})[:]
+            assert actual["min"] == min(expected["utf8"])
+            assert actual["max"] == max(expected["utf8"])
+            assert actual["mean"] == sum(expected["utf8"]) / len(expected["utf8"])
+            assert actual["count"] == len(expected["utf8"])

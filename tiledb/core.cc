@@ -308,6 +308,7 @@ private:
   std::shared_ptr<tiledb::Array> array_;
   std::shared_ptr<tiledb::Query> query_;
   AttrToAggsMap result_buffers_;
+  AttrToAggsMap result_var_buffers_;
   AttrToAggsMap validity_buffers_;
 
   py::dict original_input_;
@@ -332,13 +333,32 @@ public:
     }
     query_->set_layout(layout);
 
+    tiledb::ArraySchema schema = array_->schema();
+    tiledb::Domain domain = schema.domain();
+
     // Iterate through the requested attributes
     for (auto attr_to_aggs : attr_to_aggs_input) {
       auto attr_name = attr_to_aggs.first.cast<std::string>();
       auto aggs = attr_to_aggs.second.cast<std::vector<std::string>>();
 
-      tiledb::Attribute attr = array_->schema().attribute(attr_name);
-      attrs_.push_back(attr_name);
+      tiledb_datatype_t type;
+      bool nullable;
+      uint64_t cell_size;
+      bool variable_sized;
+      if (schema.has_attribute(attr_name)) {
+        tiledb::Attribute attr = schema.attribute(attr_name);
+        attrs_.push_back(attr_name);
+        type = attr.type();
+        cell_size = attr.cell_size();
+        variable_sized = attr.variable_sized();
+        nullable = attr.nullable();
+      } else {
+        tiledb::Dimension dim = domain.dimension(attr_name);
+        type = dim.type();
+        cell_size = tiledb_datatype_size(type);
+        variable_sized = dim.cell_val_num() == TILEDB_VAR_NUM;
+        nullable = false;
+      }
 
       // For non-nullable attributes, applying max and min to the empty set is
       // undefined. To check for this, we need to also run the count aggregate
@@ -347,7 +367,7 @@ public:
           std::find(aggs.begin(), aggs.end(), "max") != aggs.end();
       bool requested_min =
           std::find(aggs.begin(), aggs.end(), "min") != aggs.end();
-      if (!attr.nullable() && (requested_max || requested_min)) {
+      if (!nullable && (requested_max || requested_min)) {
         // If the user already also requested count, then we don't need to
         // request it again
         if (std::find(aggs.begin(), aggs.end(), "count") == aggs.end()) {
@@ -361,25 +381,38 @@ public:
 
         // Set the result data buffers
         auto *res_buf = &result_buffers_[attr_name][agg_name];
+        auto *res_var_buf = &result_var_buffers_[attr_name][agg_name];
         if ("count" == agg_name || "null_count" == agg_name ||
             "mean" == agg_name) {
           // count and null_count use uint64 and mean uses float64
           *res_buf = py::array(py::dtype("uint8"), 8);
+          query_->set_data_buffer(attr_name + agg_name, (void *)res_buf->data(),
+                                1);
         } else {
           // max, min, and sum use the dtype of the attribute
-          py::dtype dt(tiledb_dtype(attr.type(), attr.cell_size()));
-          *res_buf = py::array(py::dtype("uint8"), dt.itemsize());
-        }
-        query_->set_data_buffer(attr_name + agg_name, (void *)res_buf->data(),
-                                1);
+          py::dtype dt(tiledb_dtype(type, cell_size));
+          if (variable_sized) {
+            // TODO: Handle ability to resize buffer
+            *res_buf = py::array(py::dtype("uint8"), 256);
+            *res_var_buf = py::array(py::dtype("uint64"), 1);
 
-        if (attr.nullable()) {
+            query_->set_offsets_buffer(attr_name + agg_name, (uint64_t *)res_var_buf->data(), 1);
+            query_->set_data_buffer(attr_name + agg_name, (void *)res_buf->data(),
+                                256);
+          } else {
+          *res_buf = py::array(py::dtype("uint8"), dt.itemsize());
+          query_->set_data_buffer(attr_name + agg_name, (void *)res_buf->data(),
+                                1);
+          }
+        }
+
+        if (nullable) {
           // For nullable attributes, if the input set for the aggregation
           // contains all NULL values, we will not get an aggregate value back
           // as this operation is undefined. We need to check the validity
           // buffer beforehand to see if we had a valid result
           if (!("count" == agg_name || "null_count" == agg_name)) {
-            auto *val_buf = &validity_buffers_[attr.name()][agg_name];
+            auto *val_buf = &validity_buffers_[attr_name][agg_name];
             *val_buf = py::array(py::dtype("uint8"), 1);
             query_->set_validity_buffer(attr_name + agg_name,
                                         (uint8_t *)val_buf->data(), 1);
@@ -421,6 +454,9 @@ public:
   py::dict get_aggregate() {
     query_->submit();
 
+    tiledb::ArraySchema schema = array_->schema();
+    tiledb::Domain domain = schema.domain();
+
     // Cast the results to the correct dtype and output this as a Python dict
     py::dict output;
     for (auto attr_to_agg : original_input_) {
@@ -431,43 +467,53 @@ public:
       py::str attr_py_name(attr_cpp_name);
       output[attr_py_name] = py::dict();
 
-      tiledb::Attribute attr = array_->schema().attribute(attr_cpp_name);
+      bool nullable;
+      tiledb_datatype_t type;
+      if (schema.has_attribute(attr_cpp_name)) {
+        tiledb::Attribute attr = schema.attribute(attr_cpp_name);
+        nullable = attr.nullable();
+        type = attr.type();
+      } else {
+        tiledb::Dimension dim = domain.dimension(attr_cpp_name);
+        nullable = false;
+        type = dim.type();
+      }
 
       for (auto agg_py_name : original_input_[attr_py_name]) {
         std::string agg_cpp_name = agg_py_name.cast<string>();
 
-        if (_is_invalid(attr, agg_cpp_name)) {
+        if (_is_invalid(attr_cpp_name, nullable, agg_cpp_name)) {
           output[attr_py_name][agg_py_name] =
-              _is_integer_dtype(attr) ? py::none() : py::cast(NAN);
+              _is_integer_dtype(type) ? py::none() : py::cast(NAN);
         } else {
-          output[attr_py_name][agg_py_name] = _set_result(attr, agg_cpp_name);
+          output[attr_py_name][agg_py_name] = _set_result(attr_cpp_name, type, agg_cpp_name);
         }
       }
     }
     return output;
   }
 
-  bool _is_invalid(tiledb::Attribute attr, std::string agg_name) {
-    if (attr.nullable()) {
+  bool _is_invalid(const std::string attr_name, bool nullable, const std::string agg_name) {
+    if (nullable) {
       if ("count" == agg_name || "null_count" == agg_name)
         return false;
 
       // For nullable attributes, check if the validity buffer returned false
-      const void *val_buf = validity_buffers_[attr.name()][agg_name].data();
+      const void *val_buf = validity_buffers_[attr_name][agg_name].data();
       return *((uint8_t *)(val_buf)) == 0;
     } else {
       // For non-nullable attributes, max and min are undefined for the empty
       // set, so we must check the count == 0
       if ("max" == agg_name || "min" == agg_name) {
-        const void *count_buf = result_buffers_[attr.name()]["count"].data();
+        const void *count_buf = result_buffers_[attr_name]["count"].data();
         return *((uint64_t *)(count_buf)) == 0;
       }
       return false;
     }
   }
 
-  bool _is_integer_dtype(tiledb::Attribute attr) {
-    switch (attr.type()) {
+  bool _is_integer_dtype(const tiledb_datatype_t type) {
+    switch (type) {
     case TILEDB_INT8:
     case TILEDB_INT16:
     case TILEDB_UINT8:
@@ -482,8 +528,8 @@ public:
     }
   }
 
-  py::object _set_result(tiledb::Attribute attr, std::string agg_name) {
-    const void *agg_buf = result_buffers_[attr.name()][agg_name].data();
+  py::object _set_result(const std::string& attr_name, const tiledb_datatype_t type, const std::string& agg_name) {
+    const void *agg_buf = result_buffers_[attr_name][agg_name].data();
 
     if ("mean" == agg_name)
       return py::cast(*((double *)agg_buf));
@@ -491,7 +537,7 @@ public:
     if ("count" == agg_name || "null_count" == agg_name)
       return py::cast(*((uint64_t *)agg_buf));
 
-    switch (attr.type()) {
+    switch (type) {
     case TILEDB_FLOAT32:
       return py::cast("sum" == agg_name ? *((double *)agg_buf)
                                         : *((float *)agg_buf));
@@ -513,6 +559,10 @@ public:
       return py::cast(*((int64_t *)agg_buf));
     case TILEDB_UINT64:
       return py::cast(*((uint64_t *)agg_buf));
+    case TILEDB_CHAR:
+    case TILEDB_STRING_ASCII:
+    case TILEDB_STRING_UTF8:
+      return py::cast(*((char *)agg_buf));
     default:
       TPY_ERROR_LOC(
           "[_cast_agg_result] Invalid tiledb dtype for aggregation result")
