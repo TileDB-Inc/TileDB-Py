@@ -41,6 +41,7 @@ stages:
             windows_libtiledb:
               imageName: "windows-latest"
               CMAKE_OSX_ARCHITECTURES: ""
+              CMAKE_GENERATOR: "Ninja"
         pool:
           vmImage: $(imageName)
 
@@ -95,6 +96,7 @@ stages:
               CIBW_SKIP: "cp36-* *-win32 pp*"
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: ""
+              CMAKE_GENERATOR: "Ninja"
         pool:
           vmImage: $(imageName)
 
