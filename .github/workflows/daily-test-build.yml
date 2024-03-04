@@ -1,12 +1,11 @@
 name: Daily Test Build TileDB-Py Against Core
 
-#on: [push]
-
 on:
-  workflow_dispatch:
-  schedule:
-    # runs every day at 5:00 UTC (1:00AM EST / Midnight CST)
-    - cron: "0 5 * * *"
+  workflow_call:
+    inputs:
+      libtiledb_version:
+        required: true
+        type: string
 
 jobs:
   test-wheels-on-azure:
@@ -32,12 +31,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-12, windows-latest]
-        libtiledb_version: ["dev", "release-2.19", "release-2.20"]
         uninstall_pandas: [true, false]
       fail-fast: false
 
     env:
-      TILEDB_VERSION: ${{ matrix.libtiledb_version }}
+      TILEDB_VERSION: ${{ github.event.inputs.libtiledb_version }}
       MACOSX_DEPLOYMENT_TARGET: "11"
 
     steps:
