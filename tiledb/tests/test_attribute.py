@@ -199,13 +199,18 @@ class AttributeTest(DiskTestCase):
         assert attr.dtype != np.dtype(np.datetime64)
 
     @pytest.mark.parametrize("dtype", ["ascii", "blob", "wkb", "wkt"])
-    def test_nonnumpy_dtype_attribute(self, dtype):
+    def test_nonnumpy_dtype_attribute(self, dtype, capfd):
         # Do not test wkb/wkt if not yet implemented in linked libtiledb.
         if not hasattr(tiledb.cc.DataType, "GEOM_WKB") and (
             dtype == "wkb" or dtype == "wkt"
         ):
             return
-        attr = tiledb.Attr("non-numpy_dtype", dtype=dtype)
+        attr = tiledb.Attr("example_attr", dtype=dtype)
+        self.assertEqual(attr, attr)
+
+        attr.dump()
+        assert_captured(capfd, "Name: example_attr")
+
         self.assertEqual(attr, attr)
 
     @pytest.mark.parametrize("sparse", [True, False])
