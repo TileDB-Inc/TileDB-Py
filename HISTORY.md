@@ -1,8 +1,9 @@
-# Next
+# Release 0.26.1
 
 ## Improvements
 
-* For compatibility with fsspec and rasterio, `isdir()`, `isfile()`, and `size()` aliases have been added to the `VFS` class (#1902).
+* Added API support for TileDB aggregates. [#1889](https://github.com/TileDB-Inc/TileDB-Py/pull/1889)
+* For compatibility with fsspec and rasterio, `isdir()`, `isfile()`, and `size()` aliases have been added to the `VFS` class. [#1902](https://github.com/TileDB-Inc/TileDB-Py/pull/1902).
 
 # Release 0.26.1
 
