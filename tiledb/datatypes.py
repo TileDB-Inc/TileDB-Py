@@ -28,6 +28,7 @@ class DataType:
             if dtype == "wkb":
                 return cls(np.dtype("S"), lt.DataType.GEOM_WKB, 1)
 
+        if hasattr(lt.DataType, "GEOM_WKT"):
             if dtype == "wkt":
                 return cls(np.dtype("S"), lt.DataType.GEOM_WKT, 1)
 
