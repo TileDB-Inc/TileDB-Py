@@ -8,6 +8,7 @@ from cpython.version cimport PY_MAJOR_VERSION
 include "common.pxi"
 import io
 import warnings
+import collections.abc
 from collections import OrderedDict
 from json import dumps as json_dumps
 from json import loads as json_loads
@@ -15,7 +16,7 @@ from json import loads as json_loads
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
 from .enumeration import Enumeration
-from .cc import TileDBError
+from .cc import TileDBError 
 from .ctx import Config, Ctx, default_ctx
 from .vfs import VFS
 
@@ -1701,6 +1702,103 @@ cdef class Array(object):
         self.__init__(uri, mode=mode, key=key, attr=view_attr,
                       timestamp=timestamp_range, ctx=ctx)
 
+cdef class Aggregation(object):
+    """
+    Proxy object returned by Query.agg to calculate aggregations.
+    """
+
+    def __init__(self, query=None, attr_to_aggs={}):
+        if query is None:
+            raise ValueError("must pass in a query object")
+        
+        self.query = query
+        self.attr_to_aggs = attr_to_aggs
+
+    def __getitem__(self, object selection):
+        from .main import PyAgg
+        from .subarray import Subarray
+
+        array = self.query.array
+        order = self.query.order
+
+        cdef tiledb_layout_t layout = TILEDB_UNORDERED if array.schema.sparse else TILEDB_ROW_MAJOR
+        if order is None or order == 'C':
+            layout = TILEDB_ROW_MAJOR
+        elif order == 'F':
+            layout = TILEDB_COL_MAJOR
+        elif order == 'G':
+            layout = TILEDB_GLOBAL_ORDER
+        elif order == 'U':
+            layout = TILEDB_UNORDERED
+        else:
+            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
+                             "'F' (TILEDB_COL_MAJOR), "\
+                             "'G' (TILEDB_GLOBAL_ORDER), "\
+                             "or 'U' (TILEDB_UNORDERED)")
+    
+        q = PyAgg(array._ctx_(), array, <int32_t>layout, self.attr_to_aggs)
+
+        selection = index_as_tuple(selection)
+        dom = array.schema.domain
+        idx = replace_ellipsis(dom.ndim, selection)
+        idx, drop_axes = replace_scalars_slice(dom, idx)
+        dim_ranges  = index_domain_subarray(array, dom, idx)
+
+        subarray = Subarray(array, array.ctx)
+        subarray.add_ranges([list([x]) for x in dim_ranges])
+        q.set_subarray(subarray)
+
+        cond = self.query.cond
+        if cond is not None and cond != "":
+            from .query_condition import QueryCondition
+
+            if isinstance(cond, str):
+                q.set_cond(QueryCondition(cond))
+            elif isinstance(cond, QueryCondition):
+                raise TileDBError(
+                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
+                    "supported as of 0.19.0. Instead of "
+                    "`cond=tiledb.QueryCondition('expression')` "
+                    "you must use `cond='expression'`. This message will be "
+                    "removed in 0.21.0.",
+                )
+            else:
+                raise TypeError("`cond` expects type str.")        
+
+        result = q.get_aggregate()
+
+        # If there was only one attribute, just show the aggregate results
+        if len(result) == 1:
+            result = result[list(result.keys())[0]]
+
+            # If there was only one aggregate, just show the value
+            if len(result) == 1:
+                result = result[list(result.keys())[0]]
+
+        return result
+
+    @property
+    def multi_index(self):
+        """Apply Array.multi_index with query parameters."""
+        # Delayed to avoid circular import
+        from .multirange_indexing import MultiRangeAggregation
+        return MultiRangeAggregation(self.query.array, query=self)
+
+    @property
+    def df(self):
+        raise NotImplementedError(".df indexer not supported for Aggregations")
+    
+    @property
+    def attr_to_aggs(self):
+        """Return the attribute and aggregration input mapping"""
+        return self.attr_to_aggs
+
+    @property
+    def query(self):
+        """Return the underlying Query object"""
+        return self.query
+
+
 cdef class Query(object):
     """
     Proxy object returned by query() to index into original array
@@ -1767,10 +1865,75 @@ cdef class Query(object):
             raise TileDBError("`return_arrow=True` requires .df indexer`")
 
         return self.array.subarray(selection,
-                                   attrs=self.attrs,
-                                   cond=self.cond,
-                                   coords=self.coords if self.coords else self.dims,
-                                   order=self.order)
+                                attrs=self.attrs,
+                                cond=self.cond,
+                                coords=self.coords if self.coords else self.dims,
+                                order=self.order)
+    
+    def agg(self, aggs):
+        """
+        Calculate an aggregate operation for a given attribute. Available 
+        operations are sum, min, max, mean, count, and null_count (for nullable
+        attributes only). Aggregates may be combined with other query operations 
+        such as query conditions and slicing.
+
+        The input may be a single operation, a list of operations, or a 
+        dictionary with attribute mapping to a single operation or list of 
+        operations.
+
+        For undefined operations on max and min, which can occur when a nullable
+        attribute contains only nulled data at the given coordinates or when 
+        there is no data read for the given query (e.g. query conditions that do
+        not match any values or coordinates that contain no data)), invalid
+        results are represented as np.nan for attributes of floating point types
+        and None for integer types.
+
+        >>> import tiledb, tempfile, numpy as np
+        >>> path = tempfile.mkdtemp()
+
+        >>> with tiledb.from_numpy(path, np.arange(1, 10)) as A:
+        ...     pass
+
+        >>> # Note that tiledb.from_numpy creates anonymous attributes, so the
+        >>> # name of the attribute is represented as an empty string
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query().agg("sum")[:]
+        45
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query(cond="attr('') < 5").agg(["count", "mean"])[:]
+        {'count': 9, 'mean': 2.5}
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query().agg({"": ["max", "min"]})[2:7]
+        {'max': 7, 'min': 3}
+
+        :param agg: The input attributes and operations to apply aggregations on
+        :returns: single value for single operation on one attribute, a dictionary
+            of attribute keys associated with a single value for a single operation
+            across multiple attributes, or a dictionary of attribute keys that maps
+            to a dictionary of operation labels with the associated value
+        """
+        schema = self.array.schema
+        attr_to_aggs_map = {}
+        if isinstance(aggs, dict):
+            attr_to_aggs_map = {
+                a: (
+                    tuple([aggs[a]]) 
+                    if isinstance(aggs[a], str) 
+                    else tuple(aggs[a])
+                )
+                for a in aggs
+            }
+        elif isinstance(aggs, str):
+            attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
+            attr_to_aggs_map = {a: (aggs,) for a in attrs}
+        elif isinstance(aggs, collections.abc.Sequence):
+            attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
+            attr_to_aggs_map = {a: tuple(aggs) for a in attrs}
+
+        return Aggregation(self, attr_to_aggs_map)
 
     @property
     def attrs(self):
@@ -2144,7 +2307,6 @@ cdef class DenseArrayImpl(Array):
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
 
-
         if cond is not None and cond != "":
             from .query_condition import QueryCondition
 
@@ -2303,6 +2465,16 @@ cdef class DenseArrayImpl(Array):
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
                 if type(attr_val) is np.ndarray and attr_val.dtype is not np.dtype('O'):
+                    if attr.isnullable and name not in nullmaps:
+                        try:
+                            nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
+                            attr_val = np.nan_to_num(attr_val)
+                        except Exception as exc:
+                            attr_val = np.asarray(attr_val)
+                            nullmaps[name] = np.array(
+                                [int(v is not None) for v in attr_val], 
+                                dtype=np.uint8
+                            )
                     attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
                 
                 try:
