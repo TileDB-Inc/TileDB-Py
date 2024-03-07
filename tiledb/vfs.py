@@ -494,6 +494,7 @@ class FileIO(io.RawIOBase):
 
         :param buff bytes:
         """
+        buff = memoryview(buff).cast("b")
         size = len(buff)
         if not self.readable():
             raise IOError("Cannot read from write-only FileIO handle")
@@ -507,7 +508,7 @@ class FileIO(io.RawIOBase):
 
         buff_temp = self._fh._read(self._offset, nbytes)
         self._offset += nbytes
-        buff[: len(buff_temp)] = buff_temp
+        buff[: len(buff_temp)] = memoryview(buff_temp).cast("b")
         return len(buff_temp)
 
     def readinto1(self, b):
