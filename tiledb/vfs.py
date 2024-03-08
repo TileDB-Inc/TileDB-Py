@@ -3,6 +3,8 @@ import os
 from types import TracebackType
 from typing import List, Optional, Type, Union
 
+import numpy as np
+
 import tiledb.cc as lt
 
 from .ctx import Config, Ctx, default_ctx
@@ -483,12 +485,13 @@ class FileIO(io.RawIOBase):
         self._offset += nbytes
         return nbytes
 
-    def readinto(self, buff: bytes) -> int:
+    def readinto(self, buff: np.ndarray) -> int:
         """
         Read bytes into a pre-allocated, writable bytes-like object b, and return the number of bytes read.
 
         :param buff bytes:
         """
+        buff = memoryview(buff).cast("b")
         size = len(buff)
         if not self.readable():
             raise IOError("Cannot read from write-only FileIO handle")
@@ -502,7 +505,7 @@ class FileIO(io.RawIOBase):
 
         buff_temp = self._fh._read(self._offset, nbytes)
         self._offset += nbytes
-        buff[: len(buff_temp)] = buff_temp
+        buff[: len(buff_temp)] = memoryview(buff_temp).cast("b")
         return len(buff_temp)
 
     def readinto1(self, b):
