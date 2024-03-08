@@ -217,6 +217,13 @@ class TestVFS(DiskTestCase):
         self.assertEqual(fio.readinto(test_bytes), 10)
         self.assertEqual(test_bytes, buffer)
 
+        # Test readinto with random np.float32
+        fio.seek(0)
+        test_np_array = np.empty(10, dtype=np.float32)
+        n_bytes = fio.readinto(test_np_array)
+        self.assertEqual(n_bytes, 10)
+        self.assertEqual(test_np_array.tobytes()[:n_bytes], buffer)
+
         # Reading from the end should return empty
         fio.seek(0)
         fio.read()
