@@ -3,6 +3,8 @@ import os
 from types import TracebackType
 from typing import List, Optional, Type, Union
 
+import numpy as np
+
 import tiledb.cc as lt
 
 from .ctx import Config, Ctx, default_ctx
@@ -488,7 +490,7 @@ class FileIO(io.RawIOBase):
         self._offset += nbytes
         return nbytes
 
-    def readinto(self, buff: bytes) -> int:
+    def readinto(self, buff: np.ndarray) -> int:
         """
         Read bytes into a pre-allocated, writable bytes-like object b, and return the number of bytes read.
 
