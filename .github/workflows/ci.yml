@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
     env:
       # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-12' && matrix.python-version == '3.8' ? '11.7' : '11' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-12' && matrix.python-version == '3.8' && '11.7' || '11' }}
       #MACOSX_DEPLOYMENT_TARGET: "10.11"
       # On windows-2019 we are using the Visual Studio generator, which is multi-config and places the build artifacts in a subdirectory
     steps:
