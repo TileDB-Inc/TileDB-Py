@@ -71,7 +71,7 @@ stages:
           matrix:
             linux_py:
               imageName: "ubuntu-latest"
-              CIBW_SKIP: "cp36-* *_i686 pp* *musllinux*"
+              CIBW_SKIP: "cp36-* cp37-* *_i686 pp* *musllinux*"
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: ""
             macOS_py:
@@ -79,7 +79,7 @@ stages:
               MACOSX_DEPLOYMENT_TARGET: 11
               TILEDB_INSTALL: "$(Pipeline.Workspace)/.libtiledb_dist/$(LIBTILEDB_SHA)-macos-x86_64"
               CIBW_ARCHS_MACOS: "x86_64"
-              CIBW_SKIP: "cp36-* pp*"
+              CIBW_SKIP: "cp36-* cp37-* pp*"
               CIBW_TEST_SKIP: "cp37-*"
               CIBW_BUILD_VERBOSITY: 3
             macOS_arm64_py:
@@ -92,7 +92,7 @@ stages:
               CIBW_SKIP: "cp36-* cp37-* pp*"
             windows_py:
               imageName: "windows-latest"
-              CIBW_SKIP: "cp36-* *-win32 pp*"
+              CIBW_SKIP: "cp36-* cp37-* *-win32 pp*"
               CIBW_BUILD_VERBOSITY: 3
               CIBW_ARCHS_MACOS: ""
         pool:
