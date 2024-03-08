@@ -224,6 +224,21 @@ class TestVFS(DiskTestCase):
         self.assertEqual(n_bytes, 10)
         self.assertEqual(test_np_array.tobytes()[:n_bytes], buffer)
 
+        # Test readinto with np.int32 buffer trying to write bytes that cannot be converted to int32
+        buffer = b"012\x00\x01"
+        with tiledb.FileIO(vfs, self.path("foo"), mode="wb") as fio:
+            fio.write(buffer)
+            fio.flush()
+            self.assertEqual(fio.tell(), len(buffer))
+
+        fio = tiledb.FileIO(vfs, self.path("foo"), mode="rb")
+
+        fio.seek(0)
+        test_np_array = np.empty(5, dtype=np.int32)
+        n_bytes = fio.readinto(test_np_array)
+        self.assertEqual(n_bytes, 5)
+        self.assertEqual(test_np_array.tobytes()[:n_bytes], buffer)
+
         # Reading from the end should return empty
         fio.seek(0)
         fio.read()
