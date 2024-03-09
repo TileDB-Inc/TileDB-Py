@@ -1,4 +1,12 @@
-# Release 0.26.1
+# Release 0.26.3
+
+## Improvements
+
+* Fix vfs readinto when buff is not bytes. [#1915](https://github.com/TileDB-Inc/TileDB-Py/pull/1915)
+* Update daily test builds to use single source of truth for libtiledb target versions. [1910](https://github.com/TileDB-Inc/TileDB-Py/pull/1910)
+* Remove Python 3.7 CI jobs. [1916](https://github.com/TileDB-Inc/TileDB-Py/pull/1916)
+
+# Release 0.26.2
 
 ## Improvements
 
