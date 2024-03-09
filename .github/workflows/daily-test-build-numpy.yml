@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-12, windows-latest]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
         include:
           # https://github.com/scipy/oldest-supported-numpy/blob/main/setup.cfg
           - python-version: "3.11"
@@ -27,14 +27,12 @@ jobs:
             numpy-version: "1.19.3"
           - python-version: "3.8"
             numpy-version: "1.17.3"
-          - python-version: "3.7"
-            numpy-version: "1.16.5"
       fail-fast: false
     env:
       TILEDB_VERSION: ${{ github.event.inputs.libtiledb_version }}
       # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
       #MACOSX_DEPLOYMENT_TARGET: "10.15"
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-11' && contains(fromJson('["3.7", "3.8"]'), matrix.python-version) && '11.7' || '11' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-12' && matrix.python-version == '3.8' ? '11.7' : '11' }}
       VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
     steps:
       - name: Checkout TileDB-Py `dev`
