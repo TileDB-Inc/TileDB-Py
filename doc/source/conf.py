@@ -8,6 +8,7 @@ import os
 import sys
 from os.path import abspath, dirname, join
 import sphinx_rtd_theme
+from importlib.metadata import version as get_version
 
 sys.path.insert(0, abspath(join(dirname(__file__))))
 
@@ -25,10 +26,10 @@ project = "TileDB-Py"
 copyright = "2024, TileDB, Inc."
 author = "TileDB, Inc."
 
-# The short X.Y version
-version = "0.26"
 # The full version, including alpha/beta/rc tags
-release = "0.26.3"
+release: str = get_version("tiledb")
+# The short X.Y version
+version: str = ".".join(release.split(".")[:2])
 
 
 # -- General configuration ---------------------------------------------------
@@ -74,7 +75,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = "en"
+language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

@@ -669,9 +669,6 @@ if TILEDB_PATH != "" and TILEDB_PATH != "source":
     if sys.platform == "darwin":
         LFLAGS += ["-Wl,-rpath,{}".format(p) for p in LIB_DIRS]
 
-with open("README.md") as f:
-    README_MD = f.read()
-
 # Source files for build
 MODULAR_SOURCES = ["tiledb/indexing.pyx", "tiledb/libmetadata.pyx"]
 MODULAR_HEADERS = ["tiledb/libtiledb.pxd", "tiledb/indexing.pxd"]
@@ -793,15 +790,6 @@ elif TILEDB_PATH != "":
 
 setup(
     name="tiledb",
-    description="Pythonic interface to the TileDB array storage manager",
-    long_description=README_MD,
-    long_description_content_type="text/markdown",
-    author="TileDB, Inc.",
-    author_email="help@tiledb.io",
-    maintainer="TileDB, Inc.",
-    maintainer_email="help@tiledb.io",
-    url="https://github.com/TileDB-Inc/TileDB-Py",
-    license="MIT",
     platforms=["any"],
     use_scm_version={
         "version_scheme": "guess-next-dev",
