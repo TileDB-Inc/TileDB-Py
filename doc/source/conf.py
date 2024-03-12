@@ -7,6 +7,7 @@
 import os
 import sys
 from os.path import abspath, dirname, join
+import sphinx_rtd_theme
 
 sys.path.insert(0, abspath(join(dirname(__file__))))
 
@@ -21,13 +22,13 @@ rtd_version = rtd_version if rtd_version in ["stable", "latest"] else "stable"
 # -- Project information -----------------------------------------------------
 
 project = "TileDB-Py"
-copyright = "2020, TileDB, Inc."
+copyright = "2024, TileDB, Inc."
 author = "TileDB, Inc."
 
 # The short X.Y version
-version = "0.6"
+version = "0.26"
 # The full version, including alpha/beta/rc tags
-release = "0.6.5"
+release = "0.26.3"
 
 
 # -- General configuration ---------------------------------------------------
@@ -73,7 +74,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -90,13 +91,8 @@ html_static_path = ["_static"]
 html_logo = "_static/tiledb-logo_color_no_margin_@4x.png"
 html_favicon = "_static/favicon.ico"
 
-if readthedocs:
-    html_theme = "default"
-else:
-    import sphinx_rtd_theme
-
-    html_theme = "sphinx_rtd_theme"
-    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = "sphinx_rtd_theme"
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
