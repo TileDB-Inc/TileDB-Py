@@ -1,10 +1,12 @@
-# Next
+# Release 0.25.1
+
+* TileDB-Py 0.25.1 includes TileDB Embedded. [2.19.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.19.2)
 
 ## Improvements
 
-* Warn when `os.fork()` is used in the presence of a Tiledb context [#1876](https://github.com/TileDB-Inc/TileDB-Py/pull/1876/files).
+* Fix vfs readinto when buffer is not `bytes`. [#1915](https://github.com/TileDB-Inc/TileDB-Py/pull/1915)
 
-# Release 0.24.0
+# Release 0.25.0
 
 * TileDB-Py 0.25.0 includes TileDB Embedded [2.19.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.19.0)
 
