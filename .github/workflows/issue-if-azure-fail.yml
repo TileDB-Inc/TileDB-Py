@@ -30,4 +30,4 @@ jobs:
         with:
           name: nightly Azure wheel
           label: bug,nightly-azure-failure
-          assignee: nguyenv,ihnorton
+          assignee: KiterLuc,kounelisagis,nguyenc,ihnorton
