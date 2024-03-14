@@ -789,13 +789,7 @@ elif TILEDB_PATH != "":
     ext_attr_update("tiledb_path", TILEDB_PATH)
 
 setup(
-    name="tiledb",
     platforms=["any"],
-    use_scm_version={
-        "version_scheme": "guess-next-dev",
-        "local_scheme": "dirty-tag",
-        "write_to": "tiledb/_generated_version.py",
-    },
     ext_modules=__extensions,
     setup_requires=setup_requires(),
     install_requires=install_requires(),

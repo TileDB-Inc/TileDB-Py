@@ -494,7 +494,7 @@ class FileIO(io.RawIOBase):
         """
         Read bytes into a pre-allocated, writable bytes-like object b, and return the number of bytes read.
 
-        :param buff bytes:
+        :param buff np.ndarray: A pre-allocated, writable bytes-like object
         """
         buff = memoryview(buff).cast("b")
         size = len(buff)
