@@ -7,8 +7,8 @@ build
 cmake >= 3.23
 cython < 3.0
 pybind11
-setuptools>=42
-setuptools_scm >= 1.5.4
+setuptools >= 64
+setuptools_scm >= 8
 wheel >= 0.30
 contextvars ;python_version<"3.7"
 dataclasses ;python_version<"3.7"
