@@ -242,6 +242,12 @@ class FixesTest(DiskTestCase):
             assert A.schema.cell_order == "hilbert"
             assert A.schema.tile_order is None
 
+    def test_sc43221(self):
+        # GroupMeta object did not have a representation test; repr failed due to non-existent attribute access in check.
+        tiledb.Group.create("mem://tmp1")
+        a = tiledb.Group("mem://tmp1")
+        repr(a.meta)
+
 
 class SOMA919Test(DiskTestCase):
     """
