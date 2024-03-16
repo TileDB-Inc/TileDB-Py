@@ -3732,7 +3732,7 @@ def move(old_uri, new_uri, ctx=None):
         check_error(ctx, rc)
     return
 
-cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc):
+cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc) noexcept:
     objtype = None
     if obj == TILEDB_GROUP:
         objtype = "group"

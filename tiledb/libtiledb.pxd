@@ -711,7 +711,7 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_query_submit_async(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
-        void* (*callback)(void*),
+        void* (*callback)(void*) noexcept,
         void* callback_data)
 
     int tiledb_query_get_status(
@@ -979,13 +979,13 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const char* path,
         tiledb_walk_order_t order,
-        int (*callback)(const char*, tiledb_object_t, void*),
+        int (*callback)(const char*, tiledb_object_t, void*) noexcept,
         void* data)
 
     int tiledb_object_ls(
         tiledb_ctx_t* ctx,
         const char* path,
-        int (*callback)(const char*, tiledb_object_t, void*),
+        int (*callback)(const char*, tiledb_object_t, void*) noexcept,
         void* data)
 
     # VFS
@@ -1067,7 +1067,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t * ctx,
         tiledb_vfs_t * vfs,
         const char * path,
-        int (*callback)(const char *, void *),
+        int (*callback)(const char *, void *) noexcept,
         void * data)
 
     int tiledb_vfs_move_file(
