@@ -33,6 +33,9 @@ classifiers=[
 ]
 dynamic = ["version", "dependencies"]
 
+[tool.setuptools.packages.find]
+exclude = ["*.pyc"]
+
 [tool.setuptools.dynamic]
 dependencies = {file = "requirements_wheel.txt"}
 
@@ -41,7 +44,7 @@ homepage = "https://github.com/TileDB-Inc/TileDB-Py"
 
 [tool.setuptools_scm]
 version_scheme = "guess-next-dev"
-local_scheme = "dirty-tag"
+local_scheme = "no-local-version"
 version_file = "tiledb/_generated_version.py"
 
 [tool.pytest.ini_options]
