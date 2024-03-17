@@ -453,8 +453,8 @@ class FileIO(io.RawIOBase):
         :return: The bytes in the file
 
         """
-        if not isinstance(size, int):
-            raise TypeError(f"size must be an integer or None (got type {type(size)})")
+        # if not isinstance(size, int):
+        #     raise TypeError(f"size must be an integer or None (got type {type(size)})")
         if not self.readable():
             raise IOError("Cannot read from write-only FileIO handle")
         if self.closed:
