@@ -142,6 +142,11 @@ class TestVFS(DiskTestCase):
 
         fio = vfs.open(self.path("foo").encode("utf-8"), "rb")
         self.assertEqual(fio.read(3), buffer)
+        # test read with numpy integers
+        fio.seek(np.int64(0))
+        self.assertEqual(fio.read(np.int32(3)), buffer)
+        fio.seek(np.int64(0))
+        self.assertEqual(fio.read(np.uint64(3)), buffer)
         fio.close()
 
         # write / read empty input
