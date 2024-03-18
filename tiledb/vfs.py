@@ -418,7 +418,7 @@ class FileIO(io.RawIOBase):
         beginning of the file, 1 uses the current file position, and 2 uses the
         end of the file as the reference point. whence can be omitted and defaults to 0.
         """
-        if not isinstance(offset, int):
+        if not np.issubdtype(type(offset), np.integer):
             raise TypeError(
                 f"Offset must be an integer or None (got type {type(offset)})"
             )
@@ -459,7 +459,7 @@ class FileIO(io.RawIOBase):
         :return: The bytes in the file
 
         """
-        if not isinstance(size, int):
+        if not np.issubdtype(type(size), np.integer):
             raise TypeError(f"size must be an integer or None (got type {type(size)})")
         if not self.readable():
             raise IOError("Cannot read from write-only FileIO handle")
