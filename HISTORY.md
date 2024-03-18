@@ -1,3 +1,10 @@
+# Release 0.26.4
+
+## Bug Fixes
+
+* Fix VFS `read`, `seek` with numpy integer sizes. [#1927](https://github.com/TileDB-Inc/TileDB-Py/pull/1927)
+* Remove erroneous `_ctx` check for GroupMetadata [#1925](https://github.com/TileDB-Inc/TileDB-Py/pull/1925)
+
 # Release 0.26.3
 
 ## Improvements
