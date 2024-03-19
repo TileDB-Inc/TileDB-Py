@@ -858,6 +858,15 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="attr1 < 2", attrs=["attr1"])[:]
             assert all(self.filter_dense(result["attr1"], mask) < 2)
 
+            result = A.query(cond="attr1 <= 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) <= 2)
+
+            result = A.query(cond="attr1 > 0", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) > 0)
+
+            result = A.query(cond="attr1 != 1", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) != 1)
+
             mask = A.attr("attr2").fill
             result = A.query(cond="attr2 == 'bb'", attrs=["attr2"])[:]
             assert all(
@@ -883,6 +892,25 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="attr2 not in ['b', 'ccc']", attrs=["attr2"])[:]
             assert list(enum2.values()).index("ccc") not in self.filter_dense(
                 result["attr2"], mask
+            )
+
+            result = A.query(
+                cond="attr1 < 2 and attr2 == 'bb'", attrs=["attr1", "attr2"]
+            )[:]
+            assert all(self.filter_dense(result["attr1"], mask) < 2) and all(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("bb")
+            )
+
+            result = A.query(cond="attr1 == 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) == 2)
+
+            result = A.query(
+                cond="attr1 == 0 or attr2 == 'ccc'", attrs=["attr1", "attr2"]
+            )[:]
+            assert any(self.filter_dense(result["attr1"], mask) == 0) or any(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("ccc")
             )
 
     def test_boolean_insert(self):
