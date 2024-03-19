@@ -1453,9 +1453,7 @@ cdef class Array(object):
         """
         Upgrades an array to the latest format version.
 
-        :param ctx The TileDB context.
-        :param array_uri The uri of the array.
-        :param config Configuration parameters for the upgrade
+        :param config: (default None) Configuration parameters for the upgrade
             (`nullptr` means default, which will use the config from `ctx`).
         :raises: :py:exc:`tiledb.TileDBError`
         """
