@@ -1,9 +1,11 @@
 #include <tiledb/tiledb>
+#include <tiledb/tiledb_experimental>
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
+#include <pybind11/functional.h>
 
 #include "common.h"
 
@@ -41,6 +43,7 @@ void init_vfs(py::module &m) {
       .def("_copy_file", &VFS::copy_file)
 
       .def("_ls", &VFS::ls)
+      .def_static("_ls_recursive", &VFSExperimental::ls_recursive)
       .def("_touch", &VFS::touch);
 }
 

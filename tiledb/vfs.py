@@ -1,7 +1,7 @@
 import io
 import os
 from types import TracebackType
-from typing import List, Optional, Type, Union
+from typing import Callable, List, Optional, Type, Union
 
 import numpy as np
 
@@ -297,6 +297,22 @@ class VFS(lt.VFS):
 
         """
         return self._ls(_to_path_str(uri))
+
+    def ls_recursive(self, uri: _AnyPath, callback: Callable[[str, int], bool]):
+        """Recursively lists objects at the input URI, invoking the provided callback
+        on each entry gathered. The callback is passed the data pointer provided
+        on each invocation and is responsible for writing the collected results
+        into this structure. If the callback returns True, the walk will continue.
+        If False, the walk will stop. If an error is thrown, the walk will stop and
+        the error will be propagated to the caller using std::throw_with_nested.
+
+        Currently only S3 is supported, and the `path` must be a valid S3 URI.
+
+        :param str uri: Input URI of the directory
+        :param callback: Callback function to invoke on each entry
+
+        """
+        return VFS._ls_recursive(self._ctx, self, _to_path_str(uri), callback)
 
     def touch(self, uri: _AnyPath):
         """Touches a file with the input URI, i.e., creates a new empty file.
