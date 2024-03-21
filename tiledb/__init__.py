@@ -39,6 +39,7 @@ except:
 from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
+from .consolidation_plan import ConsolidationPlan
 from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .dimension import Dim
