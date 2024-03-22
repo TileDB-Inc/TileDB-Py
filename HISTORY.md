@@ -1,6 +1,12 @@
 # Release 0.27.1
 
+## TileDB Embedded updates
+
 * TileDB-Py 0.27.1 includes TileDB Embedded [2.21.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.21.1)
+
+## Improvements
+
+* Add tests to ensure empty result on query condition for invalid enum. [1882](https://github.com/TileDB-Inc/TileDB-Py/pull/1882)
 
 # Release 0.27.0
 
