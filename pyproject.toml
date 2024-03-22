@@ -34,7 +34,7 @@ classifiers=[
 dynamic = ["version", "dependencies"]
 
 [tool.setuptools.packages.find]
-exclude = ["*.pyc"]
+exclude = ["*.pyc", ".pytest_cache/*", ".hypothesis/*"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = "requirements_wheel.txt"}
