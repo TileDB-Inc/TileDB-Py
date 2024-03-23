@@ -2174,7 +2174,8 @@ cdef class DenseArrayImpl(Array):
         OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
 
         """
-        if not self.isopen or self.mode != 'r':
+        #if not self.isopen or self.mode != 'r':
+        if not self.isopen or self.mode not in  ('r', 'd'):
             raise TileDBError("DenseArray must be opened in read mode")
 
         if attr_cond is not None:
@@ -2231,7 +2232,8 @@ cdef class DenseArrayImpl(Array):
         """
         from .subarray import Subarray
 
-        if not self.isopen or self.mode != 'r':
+        #if not self.isopen or self.mode != 'r':
+        if not self.isopen or self.mode not in  ('r', 'd'):
             raise TileDBError("DenseArray must be opened in read mode")
 
         if attr_cond is not None:
