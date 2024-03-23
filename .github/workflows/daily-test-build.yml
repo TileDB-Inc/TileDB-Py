@@ -122,4 +122,4 @@ jobs:
         with:
           name: nightly build
           label: bug,nightly-failure
-          assignee: nguyenv,ihnorton
+          assignee: kounelisagis,nguyenv,KiterLuc,ihnorton
