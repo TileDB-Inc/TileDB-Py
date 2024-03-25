@@ -199,6 +199,10 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
   case TILEDB_FLOAT64:
     return ArrowInfo("g");
   case TILEDB_BLOB:
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
+  case TILEDB_GEOM_WKB:
+  case TILEDB_GEOM_WKT:
+#endif
     return ArrowInfo("B");
   case TILEDB_INT8:
     return ArrowInfo("c");

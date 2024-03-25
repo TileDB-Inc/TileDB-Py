@@ -40,7 +40,7 @@ class Attr(CtxMixin, lt.Attribute):
         :raises tiledb.TileDBError:
         """
         dt = DataType.from_numpy(
-            np.dtype(dtype) if dtype not in ("ascii", "blob") else dtype
+            np.dtype(dtype) if dtype not in ("ascii", "blob", "wkb", "wkt") else dtype
         )
 
         # ensure that all strings are var-length
@@ -274,6 +274,16 @@ class Attr(CtxMixin, lt.Attribute):
             attr_dtype = "ascii"
         elif self._tiledb_dtype == lt.DataType.BLOB:
             attr_dtype = "blob"
+        elif (
+            hasattr(lt.DataType, "GEOM_WKB")
+            and self._tiledb_dtype == lt.DataType.GEOM_WKB
+        ):
+            attr_dtype = "wkb"
+        elif (
+            hasattr(lt.DataType, "GEOM_WKT")
+            and self._tiledb_dtype == lt.DataType.GEOM_WKT
+        ):
+            attr_dtype = "wkt"
         else:
             attr_dtype = self.dtype
 
