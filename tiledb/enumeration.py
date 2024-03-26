@@ -33,6 +33,8 @@ class Enumeration(CtxMixin, lt.Enumeration):
         :type ordered: bool
         :param values: A Numpy array of values for this enumeration
         :type values: np.array
+        :param dtype: The Numpy data type for this enumeration
+        :type dtype: np.dtype
         :param ctx: A TileDB context
         :type ctx: tiledb.Ctx
         """

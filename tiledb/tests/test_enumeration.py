@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
@@ -36,6 +38,28 @@ class EnumerationTest(DiskTestCase):
         attr = tiledb.Attr()
         attr.enum = "enum"
         assert attr.enum == "enum"
+
+    def test_enumeration_repr(self):
+        """Doesn't check exact string, just makes sure each component is matched, in case order is changed in the future."""
+        enmr = tiledb.Enumeration("e", False, [1, 2, 3])
+        # Get its string representation
+        repr_str = repr(enmr)
+
+        # Define patterns to match each component in the representation
+        patterns = {
+            "Enumeration": r"Enumeration",
+            "name": r"name='e'",
+            # use regex because it is depending on platform
+            "dtype": r"dtype=int\d+",
+            "dtype_name": r"dtype_name='int\d+'",
+            "cell_val_num": r"cell_val_num=1",
+            "ordered": r"ordered=False",
+            "values": r"values=\[1, 2, 3\]",
+        }
+
+        # Check that each pattern is found in the representation string
+        for key, pattern in patterns.items():
+            assert re.search(pattern, repr_str), f"{key} not found or incorrect in repr"
 
     def test_array_schema_enumeration(self):
         uri = self.path("test_array_schema_enumeration")
