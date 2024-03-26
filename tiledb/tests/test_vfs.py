@@ -291,6 +291,36 @@ class TestVFS(DiskTestCase):
             ),
         )
 
+    @pytest.mark.skipif(pytest.tiledb_vfs != "s3", reason="S3 specific test")
+    def test_ls_recursive(self):
+        basepath = self.path("test_vfs_ls_recursive")
+        self.vfs.create_dir(basepath)
+        for id in (1, 2, 3):
+            dir = os.path.join(basepath, "dir" + str(id))
+            self.vfs.create_dir(dir)
+            fname = os.path.join(basepath, "file_" + str(id))
+            with tiledb.FileIO(self.vfs, fname, "wb") as fio:
+                fio.write(b"")
+
+        expected = ("file_1", "file_2", "file_3")
+
+        callback_results = []
+
+        def callback(uri, is_dir):
+            callback_results.append(uri)
+            return True
+
+        self.vfs.ls_recursive(basepath, callback)
+        self.assertSetEqual(
+            set(expected),
+            set(
+                map(
+                    lambda x: os.path.basename(x.split("test_vfs_ls_recursive")[1]),
+                    callback_results,
+                )
+            ),
+        )
+
     def test_dir_size(self):
         vfs = tiledb.VFS()
 
