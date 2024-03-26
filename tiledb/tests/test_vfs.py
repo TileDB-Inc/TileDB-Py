@@ -295,14 +295,39 @@ class TestVFS(DiskTestCase):
     def test_ls_recursive(self):
         basepath = self.path("test_vfs_ls_recursive")
         self.vfs.create_dir(basepath)
+        # Create a nested directory structure to test recursive listing
         for id in (1, 2, 3):
             dir = os.path.join(basepath, "dir" + str(id))
             self.vfs.create_dir(dir)
-            fname = os.path.join(basepath, "file_" + str(id))
-            with tiledb.FileIO(self.vfs, fname, "wb") as fio:
-                fio.write(b"")
-
-        expected = ("file_1", "file_2", "file_3")
+            for id2 in (1, 2, 3):
+                dir2 = os.path.join(dir, "dir" + str(id2))
+                self.vfs.create_dir(dir2)
+                fname = os.path.join(dir, "file_" + str(id2))
+                with tiledb.FileIO(self.vfs, fname, "wb") as fio:
+                    fio.write(b"")
+        expected = [
+            "file_1",
+            "file_2",
+            "file_3",
+            "dir1/file_1",
+            "dir1/file_2",
+            "dir1/file_3",
+            "dir1/dir1/file_1",
+            "dir1/dir1/file_2",
+            "dir1/dir1/file_3",
+            "dir2/file_1",
+            "dir2/file_2",
+            "dir2/file_3",
+            "dir2/dir2/file_1",
+            "dir2/dir2/file_2",
+            "dir2/dir2/file_3",
+            "dir3/file_1",
+            "dir3/file_2",
+            "dir3/file_3",
+            "dir3/dir3/file_1",
+            "dir3/dir3/file_2",
+            "dir3/dir3/file_3",
+        ]
 
         callback_results = []
 
@@ -317,6 +342,17 @@ class TestVFS(DiskTestCase):
                 map(
                     lambda x: os.path.basename(x.split("test_vfs_ls_recursive")[1]),
                     callback_results,
+                )
+            ),
+        )
+
+        # Can also be called by calling ls with recursive=True
+        self.assertSetEqual(
+            set(expected),
+            set(
+                map(
+                    lambda x: os.path.basename(x.split("test_vfs_ls_recursive")[1]),
+                    self.vfs.ls(basepath, recursive=True),
                 )
             ),
         )

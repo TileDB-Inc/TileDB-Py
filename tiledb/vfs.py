@@ -287,16 +287,27 @@ class VFS(lt.VFS):
         """
         return self._copy_file(_to_path_str(old_uri), _to_path_str(new_uri))
 
-    def ls(self, uri: _AnyPath) -> List[str]:
+    def ls(self, uri: _AnyPath, recursive: bool = False) -> List[str]:
         """Retrieves the children in directory `uri`. This function is
         non-recursive, i.e., it focuses in one level below `uri`.
 
         :param str uri: Input URI of the directory
+        :param bool recursive: If True, recursively list all children in the directory
         :rtype: List[str]
         :return: The children in directory `uri`
 
         """
-        return self._ls(_to_path_str(uri))
+        if recursive:
+            children = []
+
+            def callback(name, _):
+                children.append(name)
+                return True
+
+            self.ls_recursive(uri, callback)
+            return children
+        else:
+            return self._ls(_to_path_str(uri))
 
     def ls_recursive(self, uri: _AnyPath, callback: Callable[[str, int], bool]):
         """Recursively lists objects at the input URI, invoking the provided callback
