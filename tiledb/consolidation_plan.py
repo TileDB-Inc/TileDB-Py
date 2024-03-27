@@ -8,14 +8,14 @@ class ConsolidationPlan(CtxMixin, lt.ConsolidationPlan):
     """Represents TileDB ConsolidationPlan class"""
 
     def __init__(self, ctx: Ctx, array: lt.Array, fragment_size: int):
-        """Class representing the consolidation plan for an array.
+        """Class representing the consolidation plan for an array. The plan divides the fragments of the array into different nodes that need to be consolidated together.
 
         :param ctx: A TileDB Context
         :param array: The array
         :param fragment_size: The desired fragment size
         :raises TypeError: All dimensions must have the same dtype
         """
-        if not ctx:
+        if ctx is None:
             ctx = default_ctx()
 
         if not isinstance(array, Array):
