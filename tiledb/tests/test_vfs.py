@@ -270,7 +270,7 @@ class TestVFS(DiskTestCase):
         basepath = self.path("test_vfs_ls")
         self.vfs.create_dir(basepath)
         for id in (1, 2, 3):
-            dir = os.path.join(basepath, "dir" + str(id))
+            dir = os.path.join(basepath, f"dir{id}")
             self.vfs.create_dir(dir)
             fname = os.path.join(basepath, "file_" + str(id))
             with tiledb.FileIO(self.vfs, fname, "wb") as fio:
@@ -297,12 +297,12 @@ class TestVFS(DiskTestCase):
         self.vfs.create_dir(basepath)
         # Create a nested directory structure to test recursive listing
         for id in (1, 2, 3):
-            dir = os.path.join(basepath, "dir" + str(id))
+            dir = os.path.join(basepath, f"dir{id}")
             self.vfs.create_dir(dir)
             for id2 in (1, 2, 3):
-                dir2 = os.path.join(dir, "dir" + str(id2))
+                dir2 = os.path.join(dir, f"dir{id2}")
                 self.vfs.create_dir(dir2)
-                fname = os.path.join(dir, "file_" + str(id2))
+                fname = os.path.join(dir, f"dir{id2}")
                 with tiledb.FileIO(self.vfs, fname, "wb") as fio:
                     fio.write(b"")
         expected = [
