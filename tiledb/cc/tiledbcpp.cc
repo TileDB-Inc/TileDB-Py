@@ -18,6 +18,7 @@ void init_array(py::module &);
 void init_attribute(py::module &);
 void init_context(py::module &);
 void init_config(py::module &);
+void init_consolidation_plan(py::module &m);
 void init_enums(py::module &);
 void init_enumeration(py::module &);
 void init_dimension_label(py::module &m);
@@ -38,6 +39,7 @@ PYBIND11_MODULE(cc, m) {
   init_attribute(m);
   init_context(m);
   init_config(m);
+  init_consolidation_plan(m);
   init_dimension_label(m);
   init_domain(m);
   init_enums(m);
