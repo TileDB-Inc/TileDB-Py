@@ -15,7 +15,14 @@ Thanks for your interest in TileDB-Py. The notes below give some pointers for fi
 ### Contribution Workflow
 
 - Quick steps to build locally:
-  - install prerequisites via pip or conda: `pybind11` `cython` `numpy` `pandas` `pyarrow`
+  - install prerequisites via pip:
+    ```
+    pip install -r requirements_dev.txt 
+    ```
+    or conda: 
+    ```
+    conda install --file requirements_dev.txt
+    ```
   - recommended: install TileDB embedded (libtiledb)
     
     NOTE: if libtiledb path is not specified with `--tiledb`, it will be built automatically by `setup.py`. However, this build
@@ -44,5 +51,5 @@ Thanks for your interest in TileDB-Py. The notes below give some pointers for fi
 
 - Make changes locally, then rebuild with `python setup.py develop [--tiledb=<>]`
 - Make sure to run `pytest` to verify changes against tests (add new tests where applicable).
-  - Execute the tests as `pytest tiledb` from the top-level directory or `pytest` in the `tiledb/` directory.
+  - Execute the tests as `python -m pytest tiledb` from the top-level directory or `python -m pytest` in the `tiledb/` directory.
 - Please submit [pull requests](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) against the default [`dev` branch of TileDB-Py](https://github.com/TileDB-Inc/TileDB-Py/tree/dev)
