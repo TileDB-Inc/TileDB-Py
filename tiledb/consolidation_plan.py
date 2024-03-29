@@ -13,7 +13,6 @@ class ConsolidationPlan(CtxMixin, lt.ConsolidationPlan):
         :param ctx: A TileDB Context
         :param array: The array
         :param fragment_size: The desired fragment size
-        :raises TypeError: All dimensions must have the same dtype
         """
         if ctx is None:
             ctx = default_ctx()
