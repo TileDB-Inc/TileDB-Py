@@ -490,11 +490,12 @@ class FileIO(io.RawIOBase):
         self._offset += nbytes
         return nbytes
 
-    def readinto(self, buff: np.ndarray) -> int:
+    def readinto(self, buff: Union[bytes, bytearray, memoryview]) -> int:
         """
-        Read bytes into a pre-allocated, writable bytes-like object b, and return the number of bytes read.
-
-        :param buff np.ndarray: A pre-allocated, writable bytes-like object
+        Read bytes into a pre-allocated, writable, bytes-like object, and return the number of bytes read.
+        :param buff bytes | bytearray | memoryview: A pre-allocated, writable object that supports the byte buffer protocol
+        :rtype: int
+        :return: The number of bytes read
         """
         buff = memoryview(buff).cast("b")
         size = len(buff)
