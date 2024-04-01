@@ -6,6 +6,8 @@ from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid, PyCapsul
 from cpython.version cimport PY_MAJOR_VERSION
 
 include "common.pxi"
+include "indexing.pyx"
+include "libmetadata.pyx"
 import io
 import warnings
 import collections.abc
@@ -26,17 +28,6 @@ from .vfs import VFS
 
 # https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
 np.import_array()
-
-
-###############################################################################
-#    MODULAR IMPORTS                                                 #
-###############################################################################
-
-IF TILEDBPY_MODULAR:
-    from .indexing import DomainIndexer
-ELSE:
-    include "indexing.pyx"
-    include "libmetadata.pyx"
 
 ###############################################################################
 #    Utility/setup                                                            #
