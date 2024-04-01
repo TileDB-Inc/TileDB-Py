@@ -1,8 +1,3 @@
-IF TILEDBPY_MODULAR:
-    include "common.pxi"
-    from .libtiledb import *
-    from .libtiledb cimport *
-
 import weakref
 from collections.abc import MutableMapping
 

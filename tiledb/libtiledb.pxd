@@ -1,9 +1,6 @@
 from libc.stdint cimport uint32_t, uint64_t
 from libc.stdio cimport FILE
-
-IF TILEDBPY_MODULAR:
-    from .indexing cimport DomainIndexer
-
+include "indexing.pxd"
 include "common.pxi"
 
 cdef extern from "Python.h":
@@ -1237,5 +1234,3 @@ cdef class ReadQuery(object):
 cdef class Metadata(object):
     cdef object array_ref
 
-IF (not TILEDBPY_MODULAR):
-    include "indexing.pxd"
