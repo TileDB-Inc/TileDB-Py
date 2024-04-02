@@ -1,3 +1,5 @@
+import pprint
+
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin, default_ctx
@@ -24,6 +26,59 @@ class ConsolidationPlan(CtxMixin, lt.ConsolidationPlan):
             raise ValueError("`fragment_size` argument must be of type int")
 
         super().__init__(ctx, lt.Array(ctx, array), fragment_size)
+
+    def __len__(self):
+        """Returns the number of nodes in the consolidation plan"""
+        return self.num_nodes
+
+    def __repr__(self):
+        attrs = {
+            "num_nodes": self.num_nodes,
+            "fragments": {
+                f"node_{node_idx}": {
+                    "num_fragments": self.num_fragments(node_idx),
+                    "fragment_uris": [
+                        self.fragment_uri(node_idx, fragment_idx)
+                        for fragment_idx in range(self.num_fragments(node_idx))
+                    ],
+                }
+                for node_idx in range(self.num_nodes)
+            },
+        }
+
+        return pprint.PrettyPrinter().pformat(attrs)
+
+    def _repr_html_(self):
+        from io import StringIO
+
+        output = StringIO()
+        output.write("<section>\n")
+
+        output.write("<h3>Consolidation Plan</h3>\n")
+        output.write("<table>\n")
+        output.write(
+            "<tr><th>Node</th><th>Num Fragments</th><th>Fragment URIs</th></tr>\n"
+        )
+        for node_idx in range(self.num_nodes):
+            output.write(
+                f"<tr><td>{node_idx}</td><td>{self.num_fragments(node_idx)}</td><td>{', '.join(self.fragment_uri(node_idx, fragment_idx) for fragment_idx in range(self.num_fragments(node_idx)))}</td></tr>\n"
+            )
+        output.write("</table>\n")
+
+        output.write("</section>\n")
+        return output.getvalue()
+
+    def __getitem__(self, idx):
+        if idx < 0 or idx >= self.num_nodes:
+            raise IndexError("Index out of bounds")
+
+        return {
+            "num_fragments": self.num_fragments(idx),
+            "fragment_uris": [
+                self.fragment_uri(idx, fragment_idx)
+                for fragment_idx in range(self.num_fragments(idx))
+            ],
+        }
 
     @property
     def num_nodes(self) -> int:
