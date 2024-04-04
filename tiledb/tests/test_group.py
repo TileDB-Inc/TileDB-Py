@@ -171,7 +171,7 @@ class GroupTest(GroupTestCase):
 
         grp = tiledb.Group(grp_path, "w")
         assert os.path.basename(grp.uri) == os.path.basename(grp_path)
-        array_path = self.path("test_group_members")
+        array_path = self.path("test_group_members_array")
         domain = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
         a1 = tiledb.Attr("val", dtype="f8")
         schema = tiledb.ArraySchema(domain=domain, attrs=(a1,))
@@ -203,7 +203,7 @@ class GroupTest(GroupTestCase):
         assert grp[1].name is None
 
         assert "test_group_members GROUP" in repr(grp)
-        assert "|-- test_group_members ARRAY" in repr(grp)
+        assert "|-- test_group_members_array ARRAY" in repr(grp)
         assert "|-- test_group_0 GROUP" in repr(grp)
 
         grp.close()
@@ -341,6 +341,17 @@ class GroupTest(GroupTestCase):
 
             with tiledb.Group(group_uri, config=cfg) as G:
                 assert len(G) == sz
+
+    def test_invalid_object_type(self):
+        path = self.path()
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim("id", dtype="ascii")),
+            attrs=(tiledb.Attr("value", dtype=np.int64),),
+            sparse=True,
+        )
+        tiledb.Array.create(path, schema)
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Group(uri=path, mode="w")
 
     def test_group_does_not_exist(self):
         with self.assertRaises(tiledb.TileDBError):
