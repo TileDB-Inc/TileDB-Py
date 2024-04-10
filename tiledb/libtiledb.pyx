@@ -1424,7 +1424,7 @@ cdef class Array(object):
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
         :param key: (default None) encryption key to decrypt an encrypted array
         :type key: str or bytes
-        :param fragment_uris: (default None) Consolidate the array using a list of fragment file names
+        :param fragment_uris: (default None) Consolidate the array using a list of fragment _names_ (note: the `__ts1_ts2_<label>_<ver>` fragment name form alone, not the full path(s))
         :param timestamp: (default None) If not None, consolidate the array using the given tuple(int, int) UNIX seconds range (inclusive). This argument will be ignored if `fragment_uris` is passed.
         :type timestamp: tuple (int, int)
         :raises: :py:exc:`tiledb.TileDBError`
