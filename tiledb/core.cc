@@ -51,17 +51,7 @@ struct StatsInfo {
 };
 
 bool config_has_key(tiledb::Config config, std::string key) {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
   return config.contains(key);
-#else
-  try {
-    config.get(key);
-  } catch (TileDBError &e) {
-    (void)e;
-    return false;
-  }
-  return true;
-#endif
 }
 
 struct PAPair {
@@ -201,7 +191,6 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     case TILEDB_DATETIME_AS:
       return py::dtype("M8[as]");
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     /* duration types map to timedelta */
     case TILEDB_TIME_HR:
       return py::dtype("m8[h]");
@@ -221,15 +210,10 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
       return py::dtype("m8[fs]");
     case TILEDB_TIME_AS:
       return py::dtype("m8[as]");
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
     case TILEDB_BLOB:
       return py::dtype("byte");
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
     case TILEDB_BOOL:
       return py::dtype("bool");
-#endif
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
     case TILEDB_GEOM_WKB:
       return py::dtype("byte");
@@ -645,7 +629,6 @@ public:
       query_->set_layout(layout_);
     }
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
     if (use_arrow_) {
       // enable arrow mode in the Query
       auto tmp_config = ctx_.config();
@@ -655,7 +638,6 @@ public:
       ctx_.handle_error(tiledb_query_set_config(
           ctx_.ptr().get(), query_->ptr().get(), tmp_config.ptr().get()));
     }
-#endif
   }
 
   void set_subarray(py::object py_subarray) {
@@ -708,12 +690,8 @@ public:
   }
 
   bool is_dimension_label(std::string name) {
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
     return ArraySchemaExperimental::has_dimension_label(ctx_, *array_schema_,
                                                         name);
-#else
-    return false;
-#endif
   }
 
   bool is_var(std::string name) {
@@ -723,12 +701,10 @@ public:
     } else if (is_attribute(name)) {
       auto attr = array_schema_->attribute(name);
       return attr.cell_val_num() == TILEDB_VAR_NUM;
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
     } else if (is_dimension_label(name)) {
       auto dim_label =
           ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
       return dim_label.label_cell_val_num() == TILEDB_VAR_NUM;
-#endif
     } else {
       TPY_ERROR_LOC("Unknown buffer type for is_var check (expected attribute "
                     "or dimension)")
@@ -753,13 +729,11 @@ public:
     } else if (is_attribute(name)) {
       type = array_schema_->attribute(name).type();
       cell_val_num = array_schema_->attribute(name).cell_val_num();
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
     } else if (is_dimension_label(name)) {
       auto dim_label =
           ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
       type = dim_label.label_type();
       cell_val_num = dim_label.label_cell_val_num();
-#endif
     } else {
       TPY_ERROR_LOC("Unknown buffer '" + name + "'");
     }
@@ -815,7 +789,6 @@ public:
     uint64_t validity_num = 0;
     bool dense = array_schema_->array_type() == TILEDB_DENSE;
     if (is_dimension_label(name)) {
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       auto dim_label =
           ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
       type = dim_label.label_type();
@@ -832,7 +805,6 @@ public:
         offsets_num = ncells;
       }
       buf_nbytes = ncells * cell_nbytes;
-#endif
     } else {
       std::tie(type, cell_val_num) = buffer_type(name);
       cell_nbytes = tiledb_datatype_size(type);
@@ -855,13 +827,8 @@ public:
           validity_num = sizes[1] / sizeof(uint8_t);
         } else if (!nullable && var) {
           auto size_pair = query_->est_result_size_var(name);
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-          buf_nbytes = size_pair.first;
-          offsets_num = size_pair.second;
-#else
           buf_nbytes = size_pair[0];
           offsets_num = size_pair[1];
-#endif
         } else { // !nullable && !var
           buf_nbytes = query_->est_result_size(name);
         }
@@ -933,13 +900,9 @@ public:
       uint64_t data_nelem =
           (b.data.size() - (data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 15
       // Experimental version of API call is needed to support type-checking
       // on dimension label buffers.
       QueryExperimental::set_data_buffer(*query_, b.name, data_ptr, data_nelem);
-#else
-      query_->set_data_buffer(b.name, data_ptr, data_nelem);
-#endif
 
       if (b.isvar) {
         size_t offsets_size = b.offsets.size() - offsets_read;
@@ -959,28 +922,14 @@ public:
   }
 
   void update_read_elem_num() {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 16
     auto result_elements =
         QueryExperimental::result_buffer_elements_nullable_labels(*query_);
-#elif TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
-    // needs https://github.com/TileDB-Inc/TileDB/pull/2238
-    auto result_elements = query_->result_buffer_elements_nullable();
-#else
-    auto result_elements = query_->result_buffer_elements_nullable();
-    auto result_offsets_tmp = query_->result_buffer_elements();
-#endif
 
     for (const auto &read_info : result_elements) {
       auto name = read_info.first;
       uint64_t offset_elem_num = 0, data_vals_num = 0, validity_elem_num = 0;
       std::tie(offset_elem_num, data_vals_num, validity_elem_num) =
           read_info.second;
-
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR < 3
-      // we need to fix-up the offset count b/c incorrect before 2.3
-      // (https://github.com/TileDB-Inc/TileDB/pull/2238)
-      offset_elem_num = result_offsets_tmp[name].first;
-#endif
 
       BufferInfo &buf = buffers_.at(name);
 
@@ -1061,15 +1010,11 @@ public:
   }
 
   void resubmit_read() {
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
     tiledb_query_status_details_t status_details;
     tiledb_query_get_status_details(ctx_.ptr().get(), query_.get()->ptr().get(),
                                     &status_details);
 
     if (status_details.incomplete_reason == TILEDB_REASON_USER_BUFFER_SIZE) {
-#else
-    if (true) {
-#endif
       auto start_incomplete_buffer_update =
           std::chrono::high_resolution_clock::now();
       for (auto &bp : buffers_) {
@@ -1433,11 +1378,7 @@ public:
     if (query_->query_status() != tiledb::Query::Status::COMPLETE)
       TPY_ERROR_LOC("Cannot convert buffers unless Query is complete");
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-    tiledb::arrow::ArrowAdapter adapter(query_);
-#else
     tiledb::arrow::ArrowAdapter adapter(&ctx_, query_.get());
-#endif
 
     std::unique_ptr<PAPair> pa_pair(new PAPair());
 
@@ -1454,11 +1395,7 @@ public:
     auto pa = py::module::import("pyarrow");
     auto pa_array_import = pa.attr("Array").attr("_import_from_c");
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-    tiledb::arrow::ArrowAdapter adapter(query_);
-#else
     tiledb::arrow::ArrowAdapter adapter(&ctx_, query_.get());
-#endif
 
     py::list names;
     py::list results;

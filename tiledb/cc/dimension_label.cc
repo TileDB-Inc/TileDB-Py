@@ -14,64 +14,6 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 15
-
-struct tiledb_dimension_label_t;
-
-class DimensionLabel {
-public:
-  DimensionLabel(const Context &, tiledb_dimension_label_t *) {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  DimensionLabel() {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  uint32_t dimension_index() const {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  std::string label_attr_name() const {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  uint32_t label_cell_val_num() const {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  tiledb_data_order_t label_order() const {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  tiledb_datatype_t label_type() const {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  std::string name() const {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  std::shared_ptr<tiledb_dimension_label_t> ptr() const {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-
-  std::string uri() const {
-    throw TileDBError(
-        "Using dimension labels requires libtiledb version 2.15.0 or greater");
-  }
-};
-#endif
-
 void init_dimension_label(py::module &m) {
   py::class_<DimensionLabel>(m, "DimensionLabel")
       .def(py::init<DimensionLabel>())
