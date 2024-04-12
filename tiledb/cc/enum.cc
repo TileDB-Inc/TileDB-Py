@@ -12,9 +12,6 @@ namespace py = pybind11;
 
 void init_enums(py::module &m) {
   // consts from tiledb.h
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR < 15
-  m.def("TILEDB_COORDS", []() { return TILEDB_COORDS; });
-#endif
   m.def("TILEDB_VAR_NUM", []() { return TILEDB_VAR_NUM; });
   m.def("TILEDB_MAX_PATH", []() { return TILEDB_MAX_PATH; });
   m.def("TILEDB_OFFSET_SIZE", []() { return TILEDB_OFFSET_SIZE; });
