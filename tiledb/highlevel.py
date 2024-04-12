@@ -89,6 +89,11 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
         * **append_dim** - The dimension along which the Numpy array is append (default: 0).
         * **start_idx** - The starting index to append to. By default, append to the end of the existing data.
         * **timestamp** - Write TileDB array at specific timestamp.
+        * **dim_dtype** - Dimension data type, default np.uint64
+        * **attr_name** - Attribute name, default empty string
+        * **tile** - Tile extent for each dimension, default None
+
+        Additionally, arguments accepted by ArraySchema constructor can also be passed to customize the underlying array schema.
 
     **Example:**
 
