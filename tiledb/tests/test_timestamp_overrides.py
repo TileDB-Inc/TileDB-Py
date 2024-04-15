@@ -36,7 +36,7 @@ class TimestampOverridesTest(DiskTestCase):
 
         try:
             # "+x0" is the time multiplier, which makes the time freeze during the test
-            subprocess.run(
+            subprocess.check_output(
                 ["faketime", "-f", "+x0", python_exe, "-c", cmd], cwd=test_path
             )
         except subprocess.CalledProcessError as e:
@@ -61,6 +61,11 @@ class TimestampOverridesTest(DiskTestCase):
             with tiledb.DenseArray(uri, mode="w") as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
+            # Read the data back immediately after writing to ensure it is correct
+            with tiledb.DenseArray(uri, mode="r") as T:
+                read_data = T[fragment_idx : fragment_idx + 1]
+            self.assertEqual(read_data, np.array([fragment_idx]))
+
             fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
             uris = fragment_info.get_uri()
             new_uris = set(uris) - uris_seen
@@ -68,10 +73,31 @@ class TimestampOverridesTest(DiskTestCase):
             chronological_order.extend(new_uris)
 
         end_datetime = datetime.datetime.now()
-        self.assertTrue(start_datetime == end_datetime)
+        self.assertEqual(start_datetime, end_datetime)
 
-        # check if fragment_info.get_uri() returns the uris in chronological order
+        # Check if fragment_info.get_uri() returns the uris in chronological order
         fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
         final_uris = fragment_info.get_uri()
-        for uri1, uri2 in zip(chronological_order, final_uris):
-            assert uri1 == uri2
+
+        # Keep only the last part of the uris
+        final_uris = [os.path.basename(uri) for uri in final_uris]
+        chronological_order = [os.path.basename(uri) for uri in chronological_order]
+
+        # Check that timestamps are the same (faketime is working)
+        timestamps = set()
+        for uri in final_uris:
+            parts = uri.split("_")
+            timestamps.add((parts[2], parts[3]))
+
+        self.assertEqual(len(timestamps), 1)
+
+        # Check that UUIDs are unique
+        uuids = set()
+        for uri in final_uris:
+            parts = uri.split("_")
+            uuids.add(parts[4])
+
+        self.assertEqual(len(uuids), fragments)
+
+        # Sort order for the fragment info matches the write order
+        self.assertEqual(final_uris, chronological_order)
