@@ -30,7 +30,8 @@ class TimestampOverridesTest(DiskTestCase):
         python_exe = sys.executable
         cmd = (
             f"from tiledb.tests.test_timestamp_overrides import TimestampOverridesTest; "
-            f"TimestampOverridesTest().helper('{uri}')"
+            f"TimestampOverridesTest().helper_fragments('{uri}'); "
+            f"TimestampOverridesTest().helper_group_metadata('{uri}')"
         )
         test_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -42,7 +43,7 @@ class TimestampOverridesTest(DiskTestCase):
         except subprocess.CalledProcessError as e:
             raise e
 
-    def helper(self, uri):
+    def helper_fragments(self, uri):
         start_datetime = datetime.datetime.now()
 
         fragments = 25
@@ -68,14 +69,13 @@ class TimestampOverridesTest(DiskTestCase):
 
             fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
             uris = fragment_info.get_uri()
-            new_uris = set(uris) - uris_seen
+            new_uri = set(uris) - uris_seen
             uris_seen.update(uris)
-            chronological_order.extend(new_uris)
+            chronological_order.extend(new_uri)
 
         end_datetime = datetime.datetime.now()
         self.assertEqual(start_datetime, end_datetime)
 
-        # Check if fragment_info.get_uri() returns the uris in chronological order
         fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
         final_uris = fragment_info.get_uri()
 
@@ -98,6 +98,58 @@ class TimestampOverridesTest(DiskTestCase):
             uuids.add(parts[4])
 
         self.assertEqual(len(uuids), fragments)
+
+        # Sort order for the fragment info matches the write order
+        self.assertEqual(final_uris, chronological_order)
+
+    def helper_group_metadata(self, uri):
+        vfs = tiledb.VFS()
+
+        start_datetime = datetime.datetime.now()
+
+        tiledb.Group.create(uri)
+        loop_count = 30
+        uris_seen = set()
+        chronological_order = []
+        meta_path = f"{uri}/__meta"
+
+        for i in range(loop_count):
+            with tiledb.Group(uri, "w") as grp:
+                grp.meta["meta"] = i
+
+            # Read the data back immediately after writing to ensure it is correct
+            with tiledb.Group(uri, "r") as grp:
+                self.assertEqual(grp.meta["meta"], i)
+
+            uris = vfs.ls(meta_path)
+            new_uri = set(uris) - uris_seen
+            uris_seen.update(uris)
+            chronological_order.extend(new_uri)
+
+        end_datetime = datetime.datetime.now()
+        self.assertEqual(start_datetime, end_datetime)
+
+        final_uris = vfs.ls(meta_path)
+
+        # Keep only the last part of the uris
+        final_uris = [os.path.basename(uri) for uri in final_uris]
+        chronological_order = [os.path.basename(uri) for uri in chronological_order]
+
+        # Check that timestamps are the same (faketime is working)
+        timestamps = set()
+        for uri in final_uris:
+            parts = uri.split("_")
+            timestamps.add((parts[2], parts[3]))
+
+        self.assertEqual(len(timestamps), 1)
+
+        # Check that UUIDs are unique
+        uuids = set()
+        for uri in final_uris:
+            parts = uri.split("_")
+            uuids.add(parts[4])
+
+        self.assertEqual(len(uuids), loop_count)
 
         # Sort order for the fragment info matches the write order
         self.assertEqual(final_uris, chronological_order)
