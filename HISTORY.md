@@ -1,3 +1,26 @@
+# Release 0.28.0
+
+## TileDB Embedded updates
+
+* TileDB-Py 0.28.0 includes TileDB Embedded [2.22.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.22.0)
+
+## Improvements
+
+* Update type signature for VFS::readinto by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1937
+* Show enumerated value-types in enum-printer by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1936
+* Add wrapping for new consolidation plan API by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1935
+* Add test for Group constructor invalid uri object type by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1941
+* Update doc for tiledb.consolidate by @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1946
+* Improve documentation of from_numpy function by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1942
+
+## Build system changes
+
+* Exclude .pytest_cache and .hypothesis files by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1932
+* Remove modular building option by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1938
+* Fix wrong version number for Python API docs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1947
+* Remove conditional code for TileDB < 2.16 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1949
+* Update nightly test target to 2.21 by @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1950
+
 # Release 0.27.1
 
 ## TileDB Embedded updates
