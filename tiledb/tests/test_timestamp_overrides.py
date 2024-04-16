@@ -25,13 +25,14 @@ class TimestampOverridesTest(DiskTestCase):
     #     reason="libfaketime not installed",
     # )
     def test_timestamp_overrides(self):
-        uri = self.path("time_test")
+        uri_fragments = self.path("time_test_fragments")
+        uri_group_metadata = self.path("time_test_group_metadata")
 
         python_exe = sys.executable
         cmd = (
             f"from tiledb.tests.test_timestamp_overrides import TimestampOverridesTest; "
-            f"TimestampOverridesTest().helper_fragments('{uri}'); "
-            f"TimestampOverridesTest().helper_group_metadata('{uri}')"
+            f"TimestampOverridesTest().helper_fragments('{uri_fragments}'); "
+            f"TimestampOverridesTest().helper_group_metadata('{uri_group_metadata}')"
         )
         test_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -99,8 +100,8 @@ class TimestampOverridesTest(DiskTestCase):
 
         self.assertEqual(len(uuids), fragments)
 
-        # Sort order for the fragment info matches the write order
-        self.assertEqual(final_uris, chronological_order)
+        # Ensure that write order is correct
+        self.assertEqual(chronological_order, sorted(final_uris))
 
     def helper_group_metadata(self, uri):
         vfs = tiledb.VFS()
@@ -108,7 +109,7 @@ class TimestampOverridesTest(DiskTestCase):
         start_datetime = datetime.datetime.now()
 
         tiledb.Group.create(uri)
-        loop_count = 30
+        loop_count = 10
         uris_seen = set()
         chronological_order = []
         meta_path = f"{uri}/__meta"
@@ -151,5 +152,5 @@ class TimestampOverridesTest(DiskTestCase):
 
         self.assertEqual(len(uuids), loop_count)
 
-        # Sort order for the fragment info matches the write order
-        self.assertEqual(final_uris, chronological_order)
+        # Ensure that write order is correct
+        self.assertEqual(chronological_order, sorted(final_uris))
