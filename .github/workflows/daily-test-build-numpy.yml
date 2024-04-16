@@ -16,9 +16,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-12, windows-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
           # https://github.com/scipy/oldest-supported-numpy/blob/main/setup.cfg
+          - python-version: "3.12"
+            numpy-version: "1.26.4"
           - python-version: "3.11"
             numpy-version: "1.23.2"
           - python-version: "3.10"
