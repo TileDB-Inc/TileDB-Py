@@ -10,7 +10,7 @@ stages:
         # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
         LIBTILEDB_VERSION: "2.22.0"
         # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
-        LIBTILEDB_SHA: d252feaa295bc59d91780ed7ab7d947f1fcb2d0a104ff25c062dac5663051089
+        LIBTILEDB_SHA: 52e981ee9ce92eaceaf13a79a5a95820eca0673b
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
       TILEDB_SRC: "$(Build.Repository.Localpath)/tiledb_src"
       TILEDB_BUILD: "$(Build.Repository.Localpath)/tiledb_build"
