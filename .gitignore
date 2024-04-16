@@ -114,4 +114,7 @@ tiledb/_generated_version.py
 # IntelliJ
 .idea
 
+# Visual Studio Code
+.vscode/
+
 *.DS_Store
