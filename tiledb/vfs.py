@@ -298,18 +298,13 @@ class VFS(lt.VFS):
 
         """
         if recursive:
-            children = []
+            return VFS._ls_recursive(self, _to_path_str(uri), None)
 
-            def callback(name, _):
-                children.append(name)
-                return True
+        return self._ls(_to_path_str(uri))
 
-            self.ls_recursive(uri, callback)
-            return children
-        else:
-            return self._ls(_to_path_str(uri))
-
-    def ls_recursive(self, uri: _AnyPath, callback: Callable[[str, int], bool]):
+    def ls_recursive(
+        self, uri: _AnyPath, callback: Optional[Callable[[str, int], bool]] = None
+    ):
         """Recursively lists objects at the input URI, invoking the provided callback
         on each entry gathered. The callback is passed the data pointer provided
         on each invocation and is responsible for writing the collected results
@@ -323,7 +318,7 @@ class VFS(lt.VFS):
         :param callback: Callback function to invoke on each entry
 
         """
-        return VFS._ls_recursive(self._ctx, self, _to_path_str(uri), callback)
+        return VFS._ls_recursive(self, _to_path_str(uri), callback)
 
     def touch(self, uri: _AnyPath):
         """Touches a file with the input URI, i.e., creates a new empty file.
