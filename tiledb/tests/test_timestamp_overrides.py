@@ -11,8 +11,13 @@ from tiledb.main import PyFragmentInfo
 
 from .common import DiskTestCase
 
-# def has_libfaketime():
-#     find a way to check if libfaketime is installed
+
+def has_libfaketime():
+    try:
+        subprocess.check_output(["which", "faketime"])
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
 
 class TimestampOverridesTest(DiskTestCase):
@@ -20,10 +25,10 @@ class TimestampOverridesTest(DiskTestCase):
         sys.platform == "win32",
         reason="libfaketime is not supported on Windows",
     )
-    # @pytest.mark.skipif(
-    #     not has_libfaketime(),
-    #     reason="libfaketime not installed",
-    # )
+    @pytest.mark.skipif(
+        not has_libfaketime(),
+        reason="libfaketime not installed.",
+    )
     def test_timestamp_overrides(self):
         uri_fragments = self.path("time_test_fragments")
         uri_group_metadata = self.path("time_test_group_metadata")
