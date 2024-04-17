@@ -346,8 +346,10 @@ class TestVFS(DiskTestCase):
             set(expected),
             set(
                 map(
-                    # keep only the part after basepath
-                    lambda x: x.split(basepath)[1][1:],
+                    # # Keep only the paths after the basepath and normalize them to work on all platforms
+                    lambda x: os.path.normpath(
+                        x.split("test_vfs_ls_recursive/")[1]
+                    ).replace("\\", "/"),
                     self.vfs.ls_recursive(basepath),
                 )
             ),
@@ -366,8 +368,10 @@ class TestVFS(DiskTestCase):
             set(expected),
             set(
                 map(
-                    # keep only the part after basepath
-                    lambda x: x.split(basepath)[1][1:],
+                    # Keep only the paths after the basepath and normalize them to work on all platforms
+                    lambda x: os.path.normpath(
+                        x.split("test_vfs_ls_recursive/")[1]
+                    ).replace("\\", "/"),
                     callback_results,
                 )
             ),
@@ -378,8 +382,10 @@ class TestVFS(DiskTestCase):
             set(expected),
             set(
                 map(
-                    # keep only the part after basepath
-                    lambda x: x.split(basepath)[1][1:],
+                    # Keep only the paths after the basepath and normalize them to work on all platforms
+                    lambda x: os.path.normpath(
+                        x.split("test_vfs_ls_recursive/")[1]
+                    ).replace("\\", "/"),
                     self.vfs.ls(basepath, recursive=True),
                 )
             ),
