@@ -161,7 +161,6 @@ def test_array():
     arr.close()
 
 
-@pytest.mark.xfail
 def test_consolidate_fragments():
     uri = tempfile.mkdtemp()
     ctx = lt.Context()
@@ -190,8 +189,8 @@ def test_consolidate_fragments():
     arr.close()
 
     fragment_info = PyFragmentInfo(uri, schema, False, ctx)
-    # This xfail will be resolved after SC-10782
-    assert fragment_info.get_num_fragments() == 4
+    # Fragmentinfo doesn't see the consolidated range
+    assert fragment_info.get_num_fragments() == 1
 
 
 def test_array_config():
