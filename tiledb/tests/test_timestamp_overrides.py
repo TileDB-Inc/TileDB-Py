@@ -8,8 +8,7 @@ import pytest
 
 import tiledb
 from tiledb.main import PyFragmentInfo
-
-from .common import DiskTestCase
+from tiledb.tests.common import DiskTestCase
 
 
 def has_libfaketime():
@@ -20,7 +19,7 @@ def has_libfaketime():
         return False
 
 
-class TimestampOverridesTest(DiskTestCase):
+class TestTimestampOverrides(DiskTestCase):
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="libfaketime is not supported on Windows",
@@ -35,9 +34,9 @@ class TimestampOverridesTest(DiskTestCase):
 
         python_exe = sys.executable
         cmd = (
-            f"from tiledb.tests.test_timestamp_overrides import TimestampOverridesTest; "
-            f"TimestampOverridesTest().helper_fragments('{uri_fragments}'); "
-            f"TimestampOverridesTest().helper_group_metadata('{uri_group_metadata}')"
+            f"from tiledb.tests.test_timestamp_overrides import TestTimestampOverrides; "
+            f"TestTimestampOverrides().helper_fragments('{uri_fragments}'); "
+            f"TestTimestampOverrides().helper_group_metadata('{uri_group_metadata}')"
         )
         test_path = os.path.dirname(os.path.abspath(__file__))
 
