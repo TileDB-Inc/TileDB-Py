@@ -83,6 +83,18 @@ void init_array(py::module &m) {
       // TODO non_empty_domain_var
 
       .def("query_type", &Array::query_type)
+      .def("consolidate_fragments",
+           [](Array &self, const Context &ctx,
+              const std::vector<std::string> &fragment_uris, Config *config) {
+             std::vector<const char *> c_strings;
+             c_strings.reserve(fragment_uris.size());
+             for (const auto &str : fragment_uris) {
+               c_strings.push_back(str.c_str());
+             }
+             ctx.handle_error(tiledb_array_consolidate_fragments(
+                 ctx.ptr().get(), self.uri().c_str(), c_strings.data(),
+                 fragment_uris.size(), config->ptr().get()));
+           })
       .def("consolidate_metadata",
            py::overload_cast<const Context &, const std::string &,
                              tiledb_encryption_type_t, const std::string &,
