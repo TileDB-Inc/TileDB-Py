@@ -1019,7 +1019,8 @@ class QueryDeleteTest(DiskTestCase):
             ):
                 A.query()
 
-    def test_with_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_with_fragments(self, use_timestamps):
         path = self.path("test_with_fragments")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
@@ -1027,28 +1028,36 @@ class QueryDeleteTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        with tiledb.open(path, "w", timestamp=1) as A:
-            A[1] = 1
+        if use_timestamps:
+            with tiledb.open(path, "w", timestamp=1) as A:
+                A[1] = 1
 
-        with tiledb.open(path, "w", timestamp=2) as A:
-            A[2] = 2
+            with tiledb.open(path, "w", timestamp=2) as A:
+                A[2] = 2
 
-        with tiledb.open(path, "w", timestamp=3) as A:
-            A[3] = 3
+            with tiledb.open(path, "w", timestamp=3) as A:
+                A[3] = 3
+        else:
+            with tiledb.open(path, "w") as A:
+                A[1] = 1
+                A[2] = 2
+                A[3] = 3
 
         with tiledb.open(path, "r") as A:
             assert_array_equal([1, 2, 3], A[:]["ints"])
 
-        with tiledb.open(path, "d", timestamp=3) as A:
+        timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+
+        with tiledb.open(path, "d", timestamp=timestamps[2]) as A:
             A.query(cond="ints == 1").submit()
 
-        with tiledb.open(path, "r", timestamp=1) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[0]) as A:
             assert_array_equal([1], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=2) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[1]) as A:
             assert_array_equal([1, 2], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=3) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[2]) as A:
             assert_array_equal([2, 3], A[:]["ints"])
 
         assert len(tiledb.array_fragments(path)) == 3
@@ -1062,7 +1071,8 @@ class QueryDeleteTest(DiskTestCase):
             assert A.nonempty_domain() == ((1, 3),)
             assert_array_equal([2, 3], A[:]["ints"])
 
-    def test_purge_deleted_cells(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_purge_deleted_cells(self, use_timestamps):
         path = self.path("test_with_fragments")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
@@ -1070,28 +1080,36 @@ class QueryDeleteTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        with tiledb.open(path, "w", timestamp=1) as A:
-            A[1] = 1
+        if use_timestamps:
+            with tiledb.open(path, "w", timestamp=1) as A:
+                A[1] = 1
 
-        with tiledb.open(path, "w", timestamp=2) as A:
-            A[2] = 2
+            with tiledb.open(path, "w", timestamp=2) as A:
+                A[2] = 2
 
-        with tiledb.open(path, "w", timestamp=3) as A:
-            A[3] = 3
+            with tiledb.open(path, "w", timestamp=3) as A:
+                A[3] = 3
+        else:
+            with tiledb.open(path, "w") as A:
+                A[1] = 1
+                A[2] = 2
+                A[3] = 3
 
         with tiledb.open(path, "r") as A:
             assert_array_equal([1, 2, 3], A[:]["ints"])
 
-        with tiledb.open(path, "d", timestamp=3) as A:
+        timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+
+        with tiledb.open(path, "d", timestamp=timestamps[2]) as A:
             A.query(cond="ints == 1").submit()
 
-        with tiledb.open(path, "r", timestamp=1) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[0]) as A:
             assert_array_equal([1], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=2) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[1]) as A:
             assert_array_equal([1, 2], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=3) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[2]) as A:
             assert_array_equal([2, 3], A[:]["ints"])
 
         cfg = tiledb.Config({"sm.consolidation.purge_deleted_cells": "true"})
