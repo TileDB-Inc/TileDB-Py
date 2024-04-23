@@ -19,15 +19,11 @@ def has_libfaketime():
         return False
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32" or not has_libfaketime(),
+    reason=f"libfaketime not installed. {'Not supported on Windows.' if sys.platform == 'win32' else ''}",
+)
 class TestTimestampOverrides(DiskTestCase):
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="libfaketime is not supported on Windows",
-    )
-    @pytest.mark.skipif(
-        not has_libfaketime(),
-        reason="libfaketime not installed.",
-    )
     def test_timestamp_overrides(self):
         uri_fragments = self.path("time_test_fragments")
         uri_group_metadata = self.path("time_test_group_metadata")
