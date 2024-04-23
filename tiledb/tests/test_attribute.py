@@ -198,21 +198,6 @@ class AttributeTest(DiskTestCase):
         assert attr.dtype != np.dtype(np.datetime64("", "Y"))
         assert attr.dtype != np.dtype(np.datetime64)
 
-    @pytest.mark.parametrize("dtype", ["ascii", "blob", "wkb", "wkt"])
-    def test_nonnumpy_dtype_attribute(self, dtype, capfd):
-        # Do not test wkb/wkt if not yet implemented in linked libtiledb.
-        if not hasattr(tiledb.cc.DataType, "GEOM_WKB") and (
-            dtype == "wkb" or dtype == "wkt"
-        ):
-            return
-        attr = tiledb.Attr("example_attr", dtype=dtype)
-        self.assertEqual(attr, attr)
-
-        attr.dump()
-        assert_captured(capfd, "Name: example_attr")
-
-        self.assertEqual(attr, attr)
-
     @pytest.mark.parametrize("sparse", [True, False])
     def test_ascii_attribute(self, sparse, capfd):
         path = self.path("test_ascii")
@@ -267,3 +252,52 @@ class AttributeTest(DiskTestCase):
                 assert "can't set attribute" in str(exc.value)
             else:
                 assert "object has no setter" in str(exc.value)
+
+    def test_wkt_attribute(self):
+        A = np.array(
+            ["POINT (30 10)", "POLYGON ((3 1, 4 5, 2 2, 1 2, 3 1))"],
+            dtype="S",
+        )
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 1), tile=2))
+        att = tiledb.Attr(dtype="wkt", var=True)
+
+        schema = tiledb.ArraySchema(dom, (att,))
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
+            T[:] = A
+
+        # read back the data
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
+            for i in range(2):
+                assert_array_equal(T[:][i].tobytes(), A[i])
+
+    def test_wkb_attribute(self):
+        A = np.array(
+            [
+                # representation of POINT (30 10)
+                b"\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00>@\x00\x00\x00\x00\x00\x00$@",
+                # representation of POLYGON ((3 1, 4 5, 2 2, 1 2, 3 1))
+                (
+                    b"\x01\x03\x00\x00\x00\x01\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08@"
+                    b"\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x10@\x00\x00\x00\x00\x00\x00\x14@"
+                    b"\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\xf0?"
+                    b"\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x08@\x00\x00\x00\x00\x00\x00\xf0?"
+                ),
+            ],
+        )
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 1), tile=2))
+        att = tiledb.Attr(dtype="wkb", var=True)
+
+        schema = tiledb.ArraySchema(dom, (att,))
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
+            T[:] = A
+
+        # read back the data
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
+            for i in range(2):
+                assert_array_equal(T[:][i].tobytes(), A[i])
