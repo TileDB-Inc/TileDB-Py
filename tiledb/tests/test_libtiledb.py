@@ -367,12 +367,10 @@ class ArrayTest(DiskTestCase):
             assert frags.timestamp_range == ts
 
         if use_timestamps:
-            with tiledb.open(path, "m") as arr:
-                arr.delete_fragments(3, 6)
+            tiledb.Array.delete_fragments(path, 3, 6)
         else:
             timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
-            with tiledb.open(path, "m") as arr:
-                arr.delete_fragments(timestamps[2], timestamps[5])
+            tiledb.Array.delete_fragments(path, timestamps[2], timestamps[5])
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 6

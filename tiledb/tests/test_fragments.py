@@ -704,13 +704,12 @@ class DeleteFragmentsTest(DiskTestCase):
         if use_timestamps:
             assert frags.timestamp_range == ts
 
-        with tiledb.open(path, "m") as A:
-            if use_timestamps:
-                A.delete_fragments(3, 6)
-            else:
-                A.delete_fragments(
-                    frags.timestamp_range[2][0], frags.timestamp_range[5][1]
-                )
+        if use_timestamps:
+            tiledb.Array.delete_fragments(path, 3, 6)
+        else:
+            tiledb.Array.delete_fragments(
+                path, frags.timestamp_range[2][0], frags.timestamp_range[5][1]
+            )
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 6
@@ -755,13 +754,12 @@ class DeleteFragmentsTest(DiskTestCase):
             assert_array_equal(A[:]["a1"], ts2_data)
             assert_array_equal(A[:]["a2"], ts2_data)
 
-        with tiledb.open(path, "m") as A:
-            if use_timestamps:
-                A.delete_fragments(2, 2)
-            else:
-                A.delete_fragments(
-                    frags.timestamp_range[1][0], frags.timestamp_range[1][1]
-                )
+        if use_timestamps:
+            tiledb.Array.delete_fragments(path, 2, 2)
+        else:
+            tiledb.Array.delete_fragments(
+                path, frags.timestamp_range[1][0], frags.timestamp_range[1][1]
+            )
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 1
