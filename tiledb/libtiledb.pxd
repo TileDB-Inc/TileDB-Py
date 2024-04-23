@@ -651,9 +651,8 @@ cdef extern from "tiledb/tiledb.h":
         uint32_t key_length,
         tiledb_config_t* config) nogil
 
-    int tiledb_array_delete_array(
+    int tiledb_array_delete(
         tiledb_ctx_t* ctx,
-        tiledb_array_t* array,
         const char* uri) nogil
 
     # Query
@@ -875,6 +874,12 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_array_delete_fragments(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
+        const char* uri,
+        uint64_t timestamp_start,
+        uint64_t timestamp_end)
+
+    int tiledb_array_delete_fragments_v2(
+        tiledb_ctx_t* ctx,
         const char* uri,
         uint64_t timestamp_start,
         uint64_t timestamp_end)

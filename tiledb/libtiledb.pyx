@@ -1278,6 +1278,10 @@ cdef class Array(object):
         array([0., 0., 0., 0.])
 
         """
+        warnings.warn(
+            "The `tiledb.Array.delete_fragments` instance method is deprecated. Use the static method with the same name instead.",
+            DeprecationWarning,
+        )
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
         cdef tiledb_array_t* array_ptr = self.ptr
         cdef tiledb_query_t* query_ptr = NULL
@@ -1288,6 +1292,55 @@ cdef class Array(object):
         rc = tiledb_array_delete_fragments(
                 ctx_ptr,
                 array_ptr,
+                buri,
+                timestamp_start,
+                timestamp_end
+        )
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+    @staticmethod
+    def delete_fragments(uri, timestamp_start, timestamp_end, ctx=None):
+        """
+        Delete a range of fragments from timestamp_start to timestamp_end.
+        The array needs to be opened in 'm' mode as shown in the example below.
+
+        :param timestamp_start: the first fragment to delete in the range
+        :type timestamp_start: int
+        :param timestamp_end: the last fragment to delete in the range
+        :type timestamp_end: int
+
+        **Example:**
+
+        >>> import tiledb, tempfile, numpy as np
+        >>> path = tempfile.mkdtemp()
+
+        >>> with tiledb.from_numpy(path, np.zeros(4), timestamp=1) as A:
+        ...     pass
+        >>> with tiledb.open(path, 'w', timestamp=2) as A:
+        ...     A[:] = np.ones(4, dtype=np.int64)
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A[:]
+        array([1., 1., 1., 1.])
+
+        >>> tiledb.Array.delete_fragments(path, 2, 2)
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A[:]
+        array([0., 0., 0., 0.])
+
+        """
+        if not ctx:
+            ctx = default_ctx()
+
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
+        cdef bytes buri = uri.encode('UTF-8')
+
+        cdef int rc = TILEDB_OK
+
+        rc = tiledb_array_delete_fragments_v2(
+                ctx_ptr,
                 buri,
                 timestamp_start,
                 timestamp_end
@@ -1324,12 +1377,10 @@ cdef class Array(object):
 
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
         cdef bytes buri = uri.encode('UTF-8')
-        cdef ArrayPtr preload_ptr = preload_array(uri, 'm', None, None)
-        cdef tiledb_array_t* array_ptr = preload_ptr.ptr
 
         cdef int rc = TILEDB_OK
 
-        rc = tiledb_array_delete_array(ctx_ptr, array_ptr, buri)
+        rc = tiledb_array_delete(ctx_ptr, buri)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
