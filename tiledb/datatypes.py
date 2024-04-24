@@ -24,13 +24,11 @@ class DataType:
         if dtype == "blob":
             return cls(np.dtype("S"), lt.DataType.BLOB, 1)
 
-        if hasattr(lt.DataType, "GEOM_WKB"):
-            if dtype == "wkb":
-                return cls(np.dtype("S"), lt.DataType.GEOM_WKB, 1)
+        if hasattr(lt.DataType, "GEOM_WKB") and dtype == "wkb":
+            return cls(np.dtype("S"), lt.DataType.GEOM_WKB, 1)
 
-        if hasattr(lt.DataType, "GEOM_WKT"):
-            if dtype == "wkt":
-                return cls(np.dtype("S"), lt.DataType.GEOM_WKT, 1)
+        if hasattr(lt.DataType, "GEOM_WKT") and dtype == "wkt":
+            return cls(np.dtype("S"), lt.DataType.GEOM_WKT, 1)
 
         dtype = np.dtype(dtype)
         if dtype.kind == "V":
