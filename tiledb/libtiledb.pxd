@@ -845,14 +845,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* uri,
         const tiledb_array_schema_t* array_schema) nogil
 
-    int tiledb_array_create_with_key(
-        tiledb_ctx_t* ctx,
-        const char* uri,
-        const tiledb_array_schema_t* array_schema,
-        tiledb_encryption_type_t key_type,
-        const void* key,
-        unsigned int key_len) nogil
-
     int tiledb_array_is_open(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,

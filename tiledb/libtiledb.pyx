@@ -940,9 +940,11 @@ cdef class Array(object):
 
         cdef bytes bkey
         cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        cdef void* key_ptr = NULL
+        cdef const char* key_ptr = NULL
         cdef unsigned int key_len = 0
 
+        cdef tiledb_config_t* config_ptr = NULL
+        cdef tiledb_error_t* err_ptr = NULL
         cdef int rc = TILEDB_OK
 
         if key is not None:
@@ -951,9 +953,24 @@ cdef class Array(object):
             else:
                 bkey = bytes(key)
             key_type = TILEDB_AES_256_GCM
-            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            key_ptr = <const char *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+
+            rc = tiledb_config_alloc(&config_ptr, &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_config_set(config_ptr, "sm.encryption_type", "AES_256_GCM", &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_config_set(config_ptr, "sm.encryption_key", key_ptr, &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_ctx_alloc(config_ptr, &ctx_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
 
         if overwrite:
             if object_type(uri) == "array":
@@ -971,7 +988,7 @@ cdef class Array(object):
                                 "object to argument ctx")
             ctx_ptr = safe_ctx_ptr(ctx)
         with nogil:
-            rc = tiledb_array_create_with_key(ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
+            rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
