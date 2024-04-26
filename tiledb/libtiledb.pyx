@@ -3647,8 +3647,9 @@ def _consolidate_timestamp(uri, key=None, config=None, ctx=None, timestamp=None)
     cdef:
         bytes bkey
         tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        void* key_ptr = NULL
+        const char* key_ptr = NULL
         unsigned int key_len = 0
+        tiledb_error_t* err_ptr = NULL
 
     if key is not None:
         if isinstance(key, str):
@@ -3656,13 +3657,25 @@ def _consolidate_timestamp(uri, key=None, config=None, ctx=None, timestamp=None)
         else:
             bkey = bytes(key)
         key_type = TILEDB_AES_256_GCM
-        key_ptr = <void *> PyBytes_AS_STRING(bkey)
+        key_ptr = <const char *> PyBytes_AS_STRING(bkey)
         #TODO: unsafe cast here ssize_t -> uint64_t
         key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+    
+        rc = tiledb_config_alloc(&config_ptr, &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_config_set(config_ptr, "sm.encryption_type", "AES_256_GCM", &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_config_set(config_ptr, "sm.encryption_key", key_ptr, &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
     with nogil:
-        rc = tiledb_array_consolidate_with_key(
-            ctx_ptr, array_uri_ptr, key_type, key_ptr, key_len, config_ptr)
+        rc = tiledb_array_consolidate(
+            ctx_ptr, array_uri_ptr, config_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
     return uri

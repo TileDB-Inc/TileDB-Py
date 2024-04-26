@@ -855,14 +855,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* array_path,
         tiledb_config_t* config) nogil
 
-    int tiledb_array_consolidate_with_key(
-        tiledb_ctx_t* ctx,
-        const char* uri,
-        tiledb_encryption_type_t key_type,
-        const void* key_ptr,
-        unsigned int key_len,
-        tiledb_config_t* config) nogil
-
     int tiledb_array_delete_fragments(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
