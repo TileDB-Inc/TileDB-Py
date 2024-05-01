@@ -15,7 +15,7 @@ jobs:
   ci2:
     uses: ./.github/workflows/daily-test-build.yml
     with:
-      libtiledb_version: 'release-2.20'
+      libtiledb_version: 'release-2.22'
 
   ci3:
     uses: ./.github/workflows/daily-test-build.yml
