@@ -6,8 +6,6 @@
 #include "util.h"
 #include <tiledb/tiledb> // C++
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 2
-
 #if !defined(NDEBUG)
 // #include "debug.cc"
 #endif
@@ -247,5 +245,3 @@ void init_query_condition(py::module &m) {
       .export_values();
 }
 }; // namespace tiledbpy
-
-#endif

@@ -337,7 +337,8 @@ class ArrayTest(DiskTestCase):
         with tiledb.open(path) as A:
             assert A.schema.version >= 15
 
-    def test_array_delete_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_array_delete_fragments(self, use_timestamps):
         dshape = (1, 3)
         num_writes = 10
 
@@ -349,7 +350,9 @@ class ArrayTest(DiskTestCase):
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
-                with tiledb.open(target_path, "w", timestamp=i) as A:
+                with tiledb.open(
+                    target_path, "w", timestamp=i if use_timestamps else None
+                ) as A:
                     A[[1, 2, 3]] = np.random.rand(dshape[1])
 
         path = self.path("test_array_delete_fragments")
@@ -360,14 +363,21 @@ class ArrayTest(DiskTestCase):
         write_fragments(path, dshape, num_writes)
         frags = tiledb.array_fragments(path)
         assert len(frags) == 10
-        assert frags.timestamp_range == ts
+        if use_timestamps:
+            assert frags.timestamp_range == ts
 
-        with tiledb.open(path, "m") as arr:
-            arr.delete_fragments(3, 6)
+        if use_timestamps:
+            with tiledb.open(path, "m") as arr:
+                arr.delete_fragments(3, 6)
+        else:
+            timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+            with tiledb.open(path, "m") as arr:
+                arr.delete_fragments(timestamps[2], timestamps[5])
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 6
-        assert frags.timestamp_range == ts[:2] + ts[6:]
+        if use_timestamps:
+            assert frags.timestamp_range == ts[:2] + ts[6:]
 
     def test_array_delete(self):
         uri = self.path("test_array_delete")
@@ -802,7 +812,8 @@ class DenseArrayTest(DiskTestCase):
                 assert_array_equal(T, R)
                 assert_array_equal(T, R.multi_index[0:2][""])
 
-    def test_open_with_timestamp(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_open_with_timestamp(self, use_timestamps):
         A = np.zeros(3)
 
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
@@ -821,8 +832,9 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(T[1], 0)
             self.assertEqual(T[2], 0)
 
-        # sleep 200ms and write
-        time.sleep(0.2)
+        if use_timestamps:
+            # sleep 200ms and write
+            time.sleep(0.2)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[0:1] = 1
 
@@ -831,8 +843,9 @@ class DenseArrayTest(DiskTestCase):
             read2_timestamp = T.timestamp_range
             self.assertTrue(read2_timestamp > read1_timestamp)
 
-        # sleep 200ms and write
-        time.sleep(0.2)
+        if use_timestamps:
+            # sleep 200ms and write
+            time.sleep(0.2)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[1:2] = 2
 
@@ -865,7 +878,8 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(T[1], 2)
             self.assertEqual(T[2], 0)
 
-    def test_open_timestamp_range(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_open_timestamp_range(self, use_timestamps):
         A = np.zeros(3)
         path = self.path("open_timestamp_range")
 
@@ -875,33 +889,42 @@ class DenseArrayTest(DiskTestCase):
         tiledb.DenseArray.create(path, schema)
 
         # write
-        with tiledb.DenseArray(path, timestamp=1, mode="w") as T:
-            T[:] = A * 1
-        with tiledb.DenseArray(path, timestamp=2, mode="w") as T:
-            T[:] = A * 2
-        with tiledb.DenseArray(path, timestamp=3, mode="w") as T:
-            T[:] = A * 3
-        with tiledb.DenseArray(path, timestamp=4, mode="w") as T:
-            T[:] = A * 4
+        if use_timestamps:
+            with tiledb.DenseArray(path, mode="w", timestamp=1) as T:
+                T[:] = A * 1
+            with tiledb.DenseArray(path, mode="w", timestamp=2) as T:
+                T[:] = A * 2
+            with tiledb.DenseArray(path, mode="w", timestamp=3) as T:
+                T[:] = A * 3
+            with tiledb.DenseArray(path, mode="w", timestamp=4) as T:
+                T[:] = A * 4
+        else:
+            with tiledb.DenseArray(path, mode="w") as T:
+                T[:] = A * 1
+                T[:] = A * 2
+                T[:] = A * 3
+                T[:] = A * 4
 
         def assert_ts(timestamp, result):
             with tiledb.DenseArray(path, mode="r", timestamp=timestamp) as T:
                 assert_array_equal(T, result)
 
+        timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+
         assert_ts(0, A * np.nan)
-        assert_ts(1, A * 1)
-        assert_ts(2, A * 2)
-        assert_ts(3, A * 3)
-        assert_ts((1, 2), A * 2)
-        assert_ts((0, 3), A * 3)
-        assert_ts((1, 3), A * 3)
-        assert_ts((2, 3), A * 3)
-        assert_ts((2, 4), A * 3)
-        assert_ts((None, 2), A * 2)
-        assert_ts((None, 3), A * 3)
-        assert_ts((2, None), A * 3)
-        assert_ts((3, None), A * 3)
-        assert_ts((3, None), A * 3)
+        assert_ts(timestamps[0], A * 1)
+        assert_ts(timestamps[1], A * 2)
+        assert_ts(timestamps[2], A * 3)
+        assert_ts((timestamps[0], timestamps[1]), A * 2)
+        assert_ts((0, timestamps[2]), A * 3)
+        assert_ts((timestamps[0], timestamps[2]), A * 3)
+        assert_ts((timestamps[1], timestamps[2]), A * 3)
+        assert_ts((timestamps[1], timestamps[3]), A * 3)
+        assert_ts((None, timestamps[1]), A * 2)
+        assert_ts((None, timestamps[2]), A * 3)
+        assert_ts((timestamps[1], None), A * 3)
+        assert_ts((timestamps[2], None), A * 3)
+        assert_ts((timestamps[2], None), A * 3)
 
     def test_open_attr(self):
         uri = self.path("test_open_attr")
@@ -1174,7 +1197,8 @@ class DenseArrayTest(DiskTestCase):
         ):
             D[np.array([1, 2]), np.array([0, 0])] = np.array([0, 2])
 
-    def test_reopen_dense_array(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_reopen_dense_array(self, use_timestamps):
         uri = self.path("test_reopen_dense_array")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=np.int64))
@@ -1184,13 +1208,18 @@ class DenseArrayTest(DiskTestCase):
 
         data = np.arange(0, 10, dtype=np.int64)
 
-        with tiledb.DenseArray(uri, mode="w", timestamp=1) as T:
-            T[:] = data
+        if use_timestamps:
+            with tiledb.DenseArray(uri, mode="w", timestamp=1) as T:
+                T[:] = data
+            with tiledb.DenseArray(uri, mode="w", timestamp=2) as T:
+                T[:] = data * 2
+        else:
+            with tiledb.DenseArray(uri, mode="w") as T:
+                T[:] = data
+                T[:] = data * 2
 
-        with tiledb.DenseArray(uri, mode="w", timestamp=2) as T:
-            T[:] = data * 2
-
-        T = tiledb.DenseArray(uri, mode="r", timestamp=1)
+        timestamps = [t[0] for t in tiledb.array_fragments(uri).timestamp_range]
+        T = tiledb.DenseArray(uri, mode="r", timestamp=timestamps[0])
         assert_array_equal(T[:], data)
 
         T.reopen()
@@ -2762,7 +2791,8 @@ class PickleTest(DiskTestCase):
         T2.close()
 
     @pytest.mark.parametrize("sparse", [True, False])
-    def test_pickle_with_tuple_timestamps(self, sparse):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_pickle_with_tuple_timestamps(self, sparse, use_timestamps):
         A = np.random.randint(10, size=3)
         path = self.path("test_pickle_with_tuple_timestamps")
 
@@ -2772,13 +2802,16 @@ class PickleTest(DiskTestCase):
         tiledb.libtiledb.Array.create(path, schema)
 
         for ts in range(1, 5):
-            with tiledb.open(path, timestamp=ts, mode="w") as T:
+            with tiledb.open(
+                path, timestamp=ts if use_timestamps else None, mode="w"
+            ) as T:
                 if sparse:
                     T[[0, 1, 2]] = A * ts
                 else:
                     T[:] = A * ts
 
-        with tiledb.open(path, timestamp=(2, 3), mode="r") as T:
+        timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+        with tiledb.open(path, timestamp=(timestamps[1], timestamps[2]), mode="r") as T:
             with io.BytesIO() as buf:
                 pickle.dump(T, buf)
                 buf.seek(0)
@@ -2787,9 +2820,11 @@ class PickleTest(DiskTestCase):
                         assert_array_equal(T[:][""], T2[:][""])
                     else:
                         assert_array_equal(T[:], T2[:])
-                    assert T2.timestamp_range == (2, 3)
+                    assert T2.timestamp_range == (timestamps[1], timestamps[2])
 
-            with io.BytesIO() as buf, tiledb.open(path, timestamp=(2, 3)) as V:
+            with io.BytesIO() as buf, tiledb.open(
+                path, timestamp=(timestamps[1], timestamps[2])
+            ) as V:
                 pickle.dump(V, buf)
                 buf.seek(0)
                 with pickle.load(buf) as V2:
@@ -2798,7 +2833,7 @@ class PickleTest(DiskTestCase):
                         assert_array_equal(V[:][""], V2[:][""])
                     else:
                         assert_array_equal(V[:], V2[:])
-                    assert V2.timestamp_range == (2, 3)
+                    assert V2.timestamp_range == (timestamps[1], timestamps[2])
 
 
 class ArrayViewTest(DiskTestCase):
@@ -3208,7 +3243,8 @@ class ConsolidationTest(DiskTestCase):
         tiledb.vacuum(path)
         assert len(tiledb.array_fragments(path)) == 3
 
-    def test_array_consolidate_with_uris(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_array_consolidate_with_uris(self, use_timestamps):
         dshape = (1, 3)
         num_writes = 10
 
@@ -3220,7 +3256,9 @@ class ConsolidationTest(DiskTestCase):
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
-                with tiledb.open(target_path, "w", timestamp=i) as A:
+                with tiledb.open(
+                    target_path, "w", timestamp=i if use_timestamps else None
+                ) as A:
                     A[[1, 2, 3]] = np.random.rand(dshape[1])
 
         path = self.path("test_array_consolidate_with_uris")
@@ -3243,7 +3281,12 @@ class ConsolidationTest(DiskTestCase):
                 "passed to `fragment_uris` will be consolidate"
             ),
         ):
-            tiledb.consolidate(path, fragment_uris=frag_names[4:8], timestamp=(9, 10))
+            timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+            tiledb.consolidate(
+                path,
+                fragment_uris=frag_names[4:8],
+                timestamp=(timestamps[5], timestamps[6]),
+            )
 
         assert len(tiledb.array_fragments(path)) == 4
 

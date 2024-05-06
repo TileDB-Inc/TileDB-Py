@@ -378,7 +378,6 @@ void add_dim_point_ranges(const Context &ctx, Subarray &subarray,
       c_ctx, c_subarray, dim_idx, (void *)ranges.data(), ranges.size()));
 }
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
 void add_label_range(const Context &ctx, Subarray &subarray,
                      const std::string &label_name, py::tuple r) {
   if (py::len(r) == 0)
@@ -528,9 +527,7 @@ void add_label_range(const Context &ctx, Subarray &subarray,
     TPY_ERROR_LOC(msg);
   }
 }
-#endif
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
 bool has_label_range(const Context &ctx, Subarray &subarray, uint32_t dim_idx) {
   int32_t has_label;
   auto rc = tiledb_subarray_has_label_ranges(
@@ -540,9 +537,6 @@ bool has_label_range(const Context &ctx, Subarray &subarray, uint32_t dim_idx) {
   }
   return has_label == 1;
 }
-#else
-bool has_label_range(const Context &, Subarray &, uint32_t) { return false; }
-#endif
 
 void init_subarray(py::module &m) {
   py::class_<tiledb::Subarray>(m, "Subarray")
@@ -562,19 +556,11 @@ void init_subarray(py::module &m) {
              add_dim_range(subarray, dim_idx, range);
            })
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_add_label_range",
            [](Subarray &subarray, const Context &ctx,
               const std::string &label_name, py::tuple range) {
              add_label_range(ctx, subarray, label_name, range);
            })
-#else
-      .def("_add_label_range",
-           [](Subarray &, const Context &,
-              const std::string &, py::tuple) {
-           throw TileDBPyError("Setting dimension label ranges requires libtiledb version 2.15.0 or greater.");
-           })
-#endif
 
       .def("_add_ranges_bulk",
            [](Subarray &subarray, const Context &ctx, py::iterable ranges) {
@@ -612,7 +598,6 @@ void init_subarray(py::module &m) {
              }
            })
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_add_label_ranges",
            [](Subarray &subarray, const Context &ctx, py::iterable ranges) {
              py::dict label_ranges = ranges.cast<py::dict>();
@@ -625,12 +610,6 @@ void init_subarray(py::module &m) {
                }
              }
            })
-#else
-      .def("_add_label_ranges",
-           [](Subarray &, const Context &, py::iterable ) {
-           throw TileDBPyError("Setting dimension label ranges requires libtiledb version 2.15.0 or greater.");
-           })
-#endif
 
       .def("_has_label_range",
            [](Subarray &subarray, const Context &ctx, uint32_t dim_idx) {
@@ -650,21 +629,12 @@ void init_subarray(py::module &m) {
       .def("_range_num",
            py::overload_cast<unsigned>(&Subarray::range_num, py::const_))
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 15
       .def("_label_range_num",
            [](Subarray &subarray, const Context &ctx,
               const std::string &label_name) {
              return SubarrayExperimental::label_range_num(ctx, subarray,
                                                           label_name);
            })
-#else
-      .def("_label_range_num",
-           [](Subarray &, const Context &,
-              const std::string &) {
-           throw TileDBPyError("Setting dimension label ranges requires libtiledb version 2.15.0 or greater.");
-
-           })
-#endif
 
       .def("_shape",
            [](Subarray &subarray, const Context &ctx) {

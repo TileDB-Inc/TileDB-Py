@@ -839,7 +839,7 @@ class QueryConditionTest(DiskTestCase):
         uri = self.path("test_qc_enumeration")
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
         enum1 = tiledb.Enumeration("enmr1", True, [0, 1, 2])
-        enum2 = tiledb.Enumeration("enmr2", False, ["a", "bb", "ccc"])
+        enum2 = tiledb.Enumeration("enmr2", True, ["a", "bb", "ccc"])
         attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
         attr2 = tiledb.Attr("attr2", dtype=np.int32, enum_label="enmr2")
         schema = tiledb.ArraySchema(
@@ -858,11 +858,59 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="attr1 < 2", attrs=["attr1"])[:]
             assert all(self.filter_dense(result["attr1"], mask) < 2)
 
+            result = A.query(cond="attr1 <= 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) <= 2)
+
+            result = A.query(cond="attr1 > 0", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) > 0)
+
+            result = A.query(cond="attr1 != 1", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) != 1)
+
             mask = A.attr("attr2").fill
             result = A.query(cond="attr2 == 'bb'", attrs=["attr2"])[:]
             assert all(
                 self.filter_dense(result["attr2"], mask)
                 == list(enum2.values()).index("bb")
+            )
+
+            mask = A.attr("attr2").fill
+            result = A.query(cond="attr2 < 'ccc'", attrs=["attr2"])[:]
+            assert list(enum2.values()).index("ccc") not in self.filter_dense(
+                result["attr2"], mask
+            )
+
+            result = A.query(cond="attr2 == 'b'", attrs=["attr2"])[:]
+            assert all(self.filter_dense(result["attr2"], mask) == [])
+
+            result = A.query(cond="attr2 in ['b']", attrs=["attr2"])[:]
+            assert all(self.filter_dense(result["attr2"], mask) == [])
+
+            result = A.query(cond="attr2 not in ['b']", attrs=["attr2"])[:]
+            assert len(result["attr2"]) == len(data2)
+
+            result = A.query(cond="attr2 not in ['b', 'ccc']", attrs=["attr2"])[:]
+            assert list(enum2.values()).index("ccc") not in self.filter_dense(
+                result["attr2"], mask
+            )
+
+            result = A.query(
+                cond="attr1 < 2 and attr2 == 'bb'", attrs=["attr1", "attr2"]
+            )[:]
+            assert all(self.filter_dense(result["attr1"], mask) < 2) and all(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("bb")
+            )
+
+            result = A.query(cond="attr1 == 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) == 2)
+
+            result = A.query(
+                cond="attr1 == 0 or attr2 == 'ccc'", attrs=["attr1", "attr2"]
+            )[:]
+            assert any(self.filter_dense(result["attr1"], mask) == 0) or any(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("ccc")
             )
 
     def test_boolean_insert(self):
@@ -888,6 +936,36 @@ class QueryConditionTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             for k in A[:]["a"]:
                 assert k == True  # noqa: E712
+
+    def test_qc_dense_empty(self):
+        path = self.path("test_qc_dense_empty")
+
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 1), tile=1, dtype=np.uint8))
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as A:
+            A[:] = np.arange(1)
+
+        with tiledb.open(path) as A:
+            assert_array_equal(A.query(cond="")[:]["a"], [0])
+
+    def test_qc_sparse_empty(self):
+        path = self.path("test_qc_sparse_empty")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint8)
+        )
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as A:
+            A[1] = {"a": np.arange(1)}
+
+        with tiledb.open(path) as A:
+            assert_array_equal(A.query(cond="")[:]["a"], [0])
 
 
 class QueryDeleteTest(DiskTestCase):
@@ -941,7 +1019,8 @@ class QueryDeleteTest(DiskTestCase):
             ):
                 A.query()
 
-    def test_with_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_with_fragments(self, use_timestamps):
         path = self.path("test_with_fragments")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
@@ -949,28 +1028,36 @@ class QueryDeleteTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        with tiledb.open(path, "w", timestamp=1) as A:
-            A[1] = 1
+        if use_timestamps:
+            with tiledb.open(path, "w", timestamp=1) as A:
+                A[1] = 1
 
-        with tiledb.open(path, "w", timestamp=2) as A:
-            A[2] = 2
+            with tiledb.open(path, "w", timestamp=2) as A:
+                A[2] = 2
 
-        with tiledb.open(path, "w", timestamp=3) as A:
-            A[3] = 3
+            with tiledb.open(path, "w", timestamp=3) as A:
+                A[3] = 3
+        else:
+            with tiledb.open(path, "w") as A:
+                A[1] = 1
+                A[2] = 2
+                A[3] = 3
 
         with tiledb.open(path, "r") as A:
             assert_array_equal([1, 2, 3], A[:]["ints"])
 
-        with tiledb.open(path, "d", timestamp=3) as A:
+        timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+
+        with tiledb.open(path, "d", timestamp=timestamps[2]) as A:
             A.query(cond="ints == 1").submit()
 
-        with tiledb.open(path, "r", timestamp=1) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[0]) as A:
             assert_array_equal([1], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=2) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[1]) as A:
             assert_array_equal([1, 2], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=3) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[2]) as A:
             assert_array_equal([2, 3], A[:]["ints"])
 
         assert len(tiledb.array_fragments(path)) == 3
@@ -984,7 +1071,8 @@ class QueryDeleteTest(DiskTestCase):
             assert A.nonempty_domain() == ((1, 3),)
             assert_array_equal([2, 3], A[:]["ints"])
 
-    def test_purge_deleted_cells(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_purge_deleted_cells(self, use_timestamps):
         path = self.path("test_with_fragments")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
@@ -992,28 +1080,36 @@ class QueryDeleteTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        with tiledb.open(path, "w", timestamp=1) as A:
-            A[1] = 1
+        if use_timestamps:
+            with tiledb.open(path, "w", timestamp=1) as A:
+                A[1] = 1
 
-        with tiledb.open(path, "w", timestamp=2) as A:
-            A[2] = 2
+            with tiledb.open(path, "w", timestamp=2) as A:
+                A[2] = 2
 
-        with tiledb.open(path, "w", timestamp=3) as A:
-            A[3] = 3
+            with tiledb.open(path, "w", timestamp=3) as A:
+                A[3] = 3
+        else:
+            with tiledb.open(path, "w") as A:
+                A[1] = 1
+                A[2] = 2
+                A[3] = 3
 
         with tiledb.open(path, "r") as A:
             assert_array_equal([1, 2, 3], A[:]["ints"])
 
-        with tiledb.open(path, "d", timestamp=3) as A:
+        timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+
+        with tiledb.open(path, "d", timestamp=timestamps[2]) as A:
             A.query(cond="ints == 1").submit()
 
-        with tiledb.open(path, "r", timestamp=1) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[0]) as A:
             assert_array_equal([1], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=2) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[1]) as A:
             assert_array_equal([1, 2], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=3) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[2]) as A:
             assert_array_equal([2, 3], A[:]["ints"])
 
         cfg = tiledb.Config({"sm.consolidation.purge_deleted_cells": "true"})
@@ -1052,33 +1148,3 @@ class QueryDeleteTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             assert_array_equal(A[:]["d"], [b"c"])
             assert_array_equal(A[:]["a"], [30])
-
-    def test_qc_dense_empty(self):
-        path = self.path("test_qc_dense_empty")
-
-        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 1), tile=1, dtype=np.uint8))
-        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
-        tiledb.Array.create(path, schema)
-
-        with tiledb.open(path, mode="w") as A:
-            A[:] = np.arange(1)
-
-        with tiledb.open(path) as A:
-            assert_array_equal(A.query(cond="")[:]["a"], [0])
-
-    def test_qc_sparse_empty(self):
-        path = self.path("test_qc_sparse_empty")
-
-        dom = tiledb.Domain(
-            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint8)
-        )
-        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
-        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
-        tiledb.Array.create(path, schema)
-
-        with tiledb.open(path, mode="w") as A:
-            A[1] = {"a": np.arange(1)}
-
-        with tiledb.open(path) as A:
-            assert_array_equal(A.query(cond="")[:]["a"], [0])

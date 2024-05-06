@@ -124,6 +124,14 @@ jobs:
       - name: "Check build directory"
         run: ls -Rl
 
+      - name: "Install libfaketime (linux and macOS)"
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-12'
+        run: |
+          git clone https://github.com/wolfcw/libfaketime/
+          cd libfaketime
+          sudo make install
+          cd ..
+
       - name: "Run tests"
         run: pytest -vv --showlocals
 

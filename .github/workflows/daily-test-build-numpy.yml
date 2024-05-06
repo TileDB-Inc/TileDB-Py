@@ -111,4 +111,4 @@ jobs:
         with:
           name: nightly build with earliest supported numpy
           label: bug,nightly-failure
-          assignee: nguyenv,ihnorton
+          assignee: kounelisagis,nguyenv,KiterLuc,ihnorton

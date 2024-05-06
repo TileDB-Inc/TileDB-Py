@@ -34,12 +34,6 @@ TILEDB_DEBUG_BUILD = False
 # Use `setup.py [] --release-symbols` for a release build with symbols libtiledb
 TILEDB_SYMBOLS_BUILD = False
 
-# Use `setup.py [] --modular` for a modular build of libtiledb_py
-#   Each .pyx file will be built as a separate shared library for faster
-#   compilation. This is disabled by default to avoid distributing multiple
-#   shared libraries.
-TILEDBPY_MODULAR = False
-
 # Allow to override TILEDB_FORCE_ALL_DEPS with environment variable
 TILEDB_FORCE_ALL_DEPS = "TILEDB_FORCE_ALL_DEPS" in os.environ
 TILEDB_DISABLE_SERIALIZATION = "TILEDB_DISABLE_SERIALIZATION" in os.environ
@@ -435,7 +429,6 @@ def find_or_install_libtiledb(setuptools_cmd):
     ext_attr_update(
         "cython_compile_time_env",
         {
-            "TILEDBPY_MODULAR": TILEDBPY_MODULAR,
             "LIBTILEDB_VERSION_MAJOR": major,
             "LIBTILEDB_VERSION_MINOR": minor,
             "LIBTILEDB_VERSION_PATCH": patch,
@@ -626,9 +619,6 @@ for arg in args:
     if arg.find("--release-symbols") == 0:
         TILEDB_SYMBOLS_BUILD = True
         sys.argv.remove(arg)
-    if arg.find("--modular") == 0:
-        TILEDBPY_MODULAR = True
-        sys.argv.remove(arg)
     TILEDBPY_WERROR = False
     if arg.find("--werror") == 0:
         TILEDBPY_WERROR = True
@@ -729,29 +719,7 @@ __extensions = [
     ),
 ]
 
-
-if TILEDBPY_MODULAR:
-    for source in MODULAR_SOURCES:
-        module_name = os.path.splitext(os.path.split(source)[-1])[0]
-        if module_name + ".pxd" in MODULAR_HEADERS:
-            deps = module_name + ".pxd"
-        else:
-            deps = None
-        ext = Extension(
-            "tiledb.{}".format(module_name),
-            include_dirs=INC_DIRS,
-            define_macros=DEF_MACROS,
-            sources=[source],
-            depends=[deps] if deps else [],
-            library_dirs=LIB_DIRS,
-            libraries=LIBS,
-            extra_link_args=LFLAGS,
-            extra_compile_args=CXXFLAGS,
-            language="c++",
-        )
-        __extensions.append(ext)
-else:
-    __extensions[0].depends += MODULAR_SOURCES
+__extensions[0].depends += MODULAR_SOURCES
 
 # Helper to set Extension attributes correctly based on python version
 def ext_attr_update(attr, value):

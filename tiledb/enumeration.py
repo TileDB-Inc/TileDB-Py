@@ -33,6 +33,8 @@ class Enumeration(CtxMixin, lt.Enumeration):
         :type ordered: bool
         :param values: A Numpy array of values for this enumeration
         :type values: np.array
+        :param dtype: The Numpy data type for this enumeration
+        :type dtype: np.dtype
         :param ctx: A TileDB context
         :type ctx: tiledb.Ctx
         """
@@ -131,7 +133,7 @@ class Enumeration(CtxMixin, lt.Enumeration):
         if self._ctx is None:
             return object.__repr__(self)
 
-        return f"Enumeration(name='{self.name}', cell_val_num={self.cell_val_num}, ordered={self.ordered}, values={list(self.values())})"
+        return f"Enumeration(name='{self.name}', dtype={self.dtype}, dtype_name='{self.dtype.name}', cell_val_num={self.cell_val_num}, ordered={self.ordered}, values={list(self.values())})"
 
     def _repr_html_(self):
         output = io.StringIO()

@@ -9,8 +9,6 @@
 #include "util.h"
 #include <tiledb/tiledb> // C++
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 2
-
 #if !defined(NDEBUG)
 // #include "debug.cc"
 #endif
@@ -76,10 +74,8 @@ public:
     to_vacuum_ = fill_to_vacuum_uri();
     array_schema_name_ = fill_array_schema_name();
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 5
     if (include_mbrs)
       mbrs_ = fill_mbr();
-#endif
 
     close();
   }
@@ -235,7 +231,6 @@ private:
     return py::tuple(l);
   }
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 5
   py::tuple fill_mbr() const {
     py::list all_frags;
     uint32_t nfrag = fragment_num();
@@ -286,8 +281,6 @@ private:
   py::tuple fill_array_schema_name() const {
     return for_all_fid(&FragmentInfo::array_schema_name);
   }
-
-#endif
 };
 
 void init_fragment(py::module &m) {
@@ -305,13 +298,9 @@ void init_fragment(py::module &m) {
       .def("get_has_consolidated_metadata",
            &PyFragmentInfo::get_has_consolidated_metadata)
       .def("get_to_vacuum", &PyFragmentInfo::get_to_vacuum)
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 5
       .def("get_mbrs", &PyFragmentInfo::get_mbrs)
       .def("get_array_schema_name", &PyFragmentInfo::get_array_schema_name)
-#endif
       .def("dump", &PyFragmentInfo::dump);
 }
 
 }; // namespace tiledbpy
-
-#endif
