@@ -141,6 +141,8 @@ class TestConfig(DiskTestCase):
             k.append(p[0])
             v.append(p[1])
         self.assertTrue(len(k) > 0)
+        # Validate the prefix is not included
+        self.assertTrue("vfs.s3." not in k[0])
 
     def test_config_bad_param(self):
         config = tiledb.Config()
