@@ -327,7 +327,10 @@ class ArrayTest(DiskTestCase):
         path = self.path("test_upgrade_version")
 
         with tarfile.open(fileobj=io.BytesIO(base64.b64decode(tgz_sparse))) as tf:
-            tf.extractall(path)
+            try:
+                tf.extractall(path, filter="fully_trusted")
+            except TypeError:
+                tf.extractall(path)
 
         with tiledb.open(path) as A:
             assert A.schema.version == 5

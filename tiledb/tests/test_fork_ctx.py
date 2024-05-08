@@ -36,6 +36,7 @@ def test_no_warning_fork_without_ctx():
 @pytest.mark.skipif(
     sys.platform == "win32", reason="fork() is not available on Windows"
 )
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_warning_fork_with_ctx():
     """Get a warning if we fork after creating a tiledb context."""
     _ = tiledb.Ctx()
@@ -50,6 +51,7 @@ def test_warning_fork_with_ctx():
 @pytest.mark.skipif(
     sys.platform == "win32", reason="fork() is not available on Windows"
 )
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_warning_fork_with_default_ctx():
     """Get a warning if we fork after creating a default context."""
     _ = tiledb.default_ctx()
@@ -59,8 +61,6 @@ def test_warning_fork_with_default_ctx():
             os._exit(0)
         else:
             os.wait()
-
-    pass
 
 
 @pytest.mark.skipif(
@@ -79,6 +79,7 @@ def test_no_warning_multiprocessing_without_ctx():
 @pytest.mark.skipif(
     sys.platform == "win32", reason="fork() is not available on Windows"
 )
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_warning_multiprocessing_with_ctx():
     """Get a warning if we fork after creating a tiledb context."""
     _ = tiledb.Ctx()
@@ -92,6 +93,7 @@ def test_warning_multiprocessing_with_ctx():
 @pytest.mark.skipif(
     sys.platform == "win32", reason="fork() is not available on Windows"
 )
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_warning_multiprocessing_with_default_ctx():
     """Get a warning if we fork after creating a default context."""
     _ = tiledb.default_ctx()
