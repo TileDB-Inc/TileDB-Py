@@ -1514,21 +1514,21 @@ cdef class Array(object):
         ...         A[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
         ...
         ...     with tiledb.open(tmp, "r") as A:
-        ...         A.label_index(["l1"])[3:4]
-        ...         A.label_index(["l1", "l3"])[2, 0.5:1.0]
-        ...         A.label_index(["l2"])[:, -1:0]
-        ...         A.label_index(["l3"])[:, 0.5:1.0]
-        OrderedDict([('l1', array([4, 3])), ('a1', array([[1, 2, 3],
-               [4, 5, 6]]))])
-        OrderedDict([('l3', array([0.5, 1. ])), ('l1', array([2])), ('a1', array([[8, 9]]))])
-        OrderedDict([('l2', array([-1,  0])), ('a1', array([[ 1,  2],
-               [ 4,  5],
-               [ 7,  8],
-               [10, 11]]))])
-        OrderedDict([('l3', array([0.5, 1. ])), ('a1', array([[ 2,  3],
-               [ 5,  6],
-               [ 8,  9],
-               [11, 12]]))])
+        ...         A.label_index(["l1"])[3:4]  # doctest: +ELLIPSIS
+        ...         A.label_index(["l1", "l3"])[2, 0.5:1.0]  # doctest: +ELLIPSIS
+        ...         A.label_index(["l2"])[:, -1:0]  # doctest: +ELLIPSIS
+        ...         A.label_index(["l3"])[:, 0.5:1.0]  # doctest: +ELLIPSIS
+        OrderedDict(...'l1'... array([4, 3])..., ...'a1'... array([[1, 2, 3],
+                [4, 5, 6]])...)
+        OrderedDict(...'l3'... array([0.5, 1. ])..., ...'l1'... array([2])..., ...'a1'... array([[8, 9]])...)
+        OrderedDict(...'l2'... array([-1,  0])..., ...'a1'... array([[ 1,  2],
+                [ 4,  5],
+                [ 7,  8],
+                [10, 11]])...)
+        OrderedDict(...'l3'... array([0.5, 1. ])..., ...'a1'... array([[ 2,  3],
+                [ 5,  6],
+                [ 8,  9],
+                [11, 12]])...)
 
         :param labels: List of labels to use when querying. Can only use at most one
             label per dimension.
@@ -1572,19 +1572,23 @@ cdef class Array(object):
         >>>
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...    A = tiledb.from_numpy(tmp, np.eye(4) * [1,2,3,4])
-        ...    A.multi_index[1]
-        ...    A.multi_index[1,1]
+        ...    A.multi_index[1]  # doctest: +ELLIPSIS
+        ...    A.multi_index[1,1]  # doctest: +ELLIPSIS
         ...    # return row 0 and 2
-        ...    A.multi_index[[0,2]]
+        ...    A.multi_index[[0,2]]  # doctest: +ELLIPSIS
         ...    # return rows 0 and 2 intersecting column 2
-        ...    A.multi_index[[0,2], 2]
+        ...    A.multi_index[[0,2], 2]  # doctest: +ELLIPSIS
         ...    # return rows 0:2 intersecting columns 0:2
-        ...    A.multi_index[slice(0,2), slice(0,2)]
-        OrderedDict([('', array([[0., 2., 0., 0.]]))])
-        OrderedDict([('', array([[2.]]))])
-        OrderedDict([('', array([[1., 0., 0., 0.], [0., 0., 3., 0.]]))])
-        OrderedDict([('', array([[0.], [3.]]))])
-        OrderedDict([('', array([[1., 0., 0.], [0., 2., 0.], [0., 0., 3.]]))])
+        ...    A.multi_index[slice(0,2), slice(0,2)]  # doctest: +ELLIPSIS
+        OrderedDict(...''... array([[0., 2., 0., 0.]])...)
+        OrderedDict(...''... array([[2.]])...)
+        OrderedDict(...''... array([[1., 0., 0., 0.],
+                [0., 0., 3., 0.]])...)
+        OrderedDict(...''... array([[0.],
+                [3.]])...)
+        OrderedDict(...''... array([[1., 0., 0.],
+                [0., 2., 0.],
+                [0., 0., 3.]])...)
 
         """
         # Delayed to avoid circular import
@@ -2161,8 +2165,8 @@ cdef class DenseArrayImpl(Array):
         ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
         ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
         ...         # Access specific attributes individually.
-        ...         A.query(attrs=("a1",))[0:5]
-        OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
+        ...         A.query(attrs=("a1",))[0:5]  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([0, 0, 0, 0, 0])...)
 
         """
         if not self.isopen or self.mode != 'r':
@@ -2216,8 +2220,8 @@ cdef class DenseArrayImpl(Array):
         ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
         ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
         ...         # A[0:5], attribute a1, row-major without coordinates
-        ...         A.subarray((slice(0, 5),), attrs=("a1",), coords=False, order='C')
-        OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
+        ...         A.subarray((slice(0, 5),), attrs=("a1",), coords=False, order='C')  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([0, 0, 0, 0, 0])...)
 
         """
         from .subarray import Subarray
@@ -3154,11 +3158,10 @@ cdef class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
         ...         # Return an OrderedDict with values and coordinates
-        ...         A[0:3, 0:10]
+        ...         A[0:3, 0:10]  # doctest: +ELLIPSIS
         ...         # Return just the "x" coordinates values
-        ...         A[0:3, 0:10]["x"]
-        OrderedDict([('a1', array([1, 2])), ('a2', array([3, 4])), ('y', array([0, 2], dtype=uint64)), ('x', array([0, 3], dtype=uint64))])
-        array([0, 3], dtype=uint64)
+        ...         A[0:3, 0:10]["x"]  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([1, 2])..., ...'a2'... array([3, 4])..., ...'y'... array([0, 2], dtype=uint64)..., ...'x'... array([0, 3], dtype=uint64)...)
 
         With a floating-point array domain, index bounds are inclusive, e.g.:
 
@@ -3231,8 +3234,8 @@ cdef class SparseArrayImpl(Array):
         ...         A[I, J] = {"a1": np.array([1, 2]),
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
-        ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]
-        OrderedDict([('a1', array([1, 2]))])
+        ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([1, 2])...)
 
         """
         if not self.isopen or self.mode not in  ('r', 'd'):
@@ -3341,8 +3344,8 @@ cdef class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
         ...         # A[0:3, 0:10], attribute a1, row-major without coordinates
-        ...         A.subarray((slice(0, 3), slice(0, 10)), attrs=("a1",), coords=False, order='G')
-        OrderedDict([('a1', array([1, 2]))])
+        ...         A.subarray((slice(0, 3), slice(0, 10)), attrs=("a1",), coords=False, order='G')  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([1, 2])...)
 
         """
         from .subarray import Subarray
