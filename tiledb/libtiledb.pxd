@@ -651,9 +651,8 @@ cdef extern from "tiledb/tiledb.h":
         uint32_t key_length,
         tiledb_config_t* config) nogil
 
-    int tiledb_array_delete_array(
+    int tiledb_array_delete(
         tiledb_ctx_t* ctx,
-        tiledb_array_t* array,
         const char* uri) nogil
 
     # Query
@@ -846,14 +845,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* uri,
         const tiledb_array_schema_t* array_schema) nogil
 
-    int tiledb_array_create_with_key(
-        tiledb_ctx_t* ctx,
-        const char* uri,
-        const tiledb_array_schema_t* array_schema,
-        tiledb_encryption_type_t key_type,
-        const void* key,
-        unsigned int key_len) nogil
-
     int tiledb_array_is_open(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
@@ -864,17 +855,15 @@ cdef extern from "tiledb/tiledb.h":
         const char* array_path,
         tiledb_config_t* config) nogil
 
-    int tiledb_array_consolidate_with_key(
-        tiledb_ctx_t* ctx,
-        const char* uri,
-        tiledb_encryption_type_t key_type,
-        const void* key_ptr,
-        unsigned int key_len,
-        tiledb_config_t* config) nogil
-
     int tiledb_array_delete_fragments(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
+        const char* uri,
+        uint64_t timestamp_start,
+        uint64_t timestamp_end)
+
+    int tiledb_array_delete_fragments_v2(
+        tiledb_ctx_t* ctx,
         const char* uri,
         uint64_t timestamp_start,
         uint64_t timestamp_end)

@@ -940,9 +940,11 @@ cdef class Array(object):
 
         cdef bytes bkey
         cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        cdef void* key_ptr = NULL
+        cdef const char* key_ptr = NULL
         cdef unsigned int key_len = 0
 
+        cdef tiledb_config_t* config_ptr = NULL
+        cdef tiledb_error_t* err_ptr = NULL
         cdef int rc = TILEDB_OK
 
         if key is not None:
@@ -951,9 +953,24 @@ cdef class Array(object):
             else:
                 bkey = bytes(key)
             key_type = TILEDB_AES_256_GCM
-            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            key_ptr = <const char *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+
+            rc = tiledb_config_alloc(&config_ptr, &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_config_set(config_ptr, "sm.encryption_type", "AES_256_GCM", &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_config_set(config_ptr, "sm.encryption_key", key_ptr, &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_ctx_alloc(config_ptr, &ctx_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
 
         if overwrite:
             if object_type(uri) == "array":
@@ -971,7 +988,7 @@ cdef class Array(object):
                                 "object to argument ctx")
             ctx_ptr = safe_ctx_ptr(ctx)
         with nogil:
-            rc = tiledb_array_create_with_key(ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
+            rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
@@ -1246,7 +1263,8 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         return Enumeration.from_capsule(self.ctx, PyCapsule_New(enum_ptr, "enum", NULL))
 
-    def delete_fragments(self, timestamp_start, timestamp_end):
+    @staticmethod
+    def delete_fragments(uri, timestamp_start, timestamp_end, ctx=None):
         """
         Delete a range of fragments from timestamp_start to timestamp_end.
         The array needs to be opened in 'm' mode as shown in the example below.
@@ -1270,24 +1288,31 @@ cdef class Array(object):
         ...     A[:]
         array([1., 1., 1., 1.])
 
-        >>> with tiledb.open(path, 'm') as A:
-        ...     A.delete_fragments(2, 2)
+        >>> tiledb.Array.delete_fragments(path, 2, 2)
 
         >>> with tiledb.open(path, 'r') as A:
         ...     A[:]
         array([0., 0., 0., 0.])
 
         """
-        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
-        cdef tiledb_array_t* array_ptr = self.ptr
-        cdef tiledb_query_t* query_ptr = NULL
-        cdef bytes buri = self.uri.encode('UTF-8')
+        # If uri is an instance of Array (user calls the old instance method), issue a warning
+        if isinstance(uri, Array):
+            warnings.warn(
+                "The `tiledb.Array.delete_fragments` instance method is deprecated. Use the static method with the same name instead.",
+                DeprecationWarning,
+            )
+            uri = uri.uri
+
+        if not ctx:
+            ctx = default_ctx()
+
+        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
+        cdef bytes buri = uri.encode('UTF-8')
 
         cdef int rc = TILEDB_OK
 
-        rc = tiledb_array_delete_fragments(
+        rc = tiledb_array_delete_fragments_v2(
                 ctx_ptr,
-                array_ptr,
                 buri,
                 timestamp_start,
                 timestamp_end
@@ -1324,12 +1349,10 @@ cdef class Array(object):
 
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
         cdef bytes buri = uri.encode('UTF-8')
-        cdef ArrayPtr preload_ptr = preload_array(uri, 'm', None, None)
-        cdef tiledb_array_t* array_ptr = preload_ptr.ptr
 
         cdef int rc = TILEDB_OK
 
-        rc = tiledb_array_delete_array(ctx_ptr, array_ptr, buri)
+        rc = tiledb_array_delete(ctx_ptr, buri)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -3627,8 +3650,9 @@ def _consolidate_timestamp(uri, key=None, config=None, ctx=None, timestamp=None)
     cdef:
         bytes bkey
         tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        void* key_ptr = NULL
+        const char* key_ptr = NULL
         unsigned int key_len = 0
+        tiledb_error_t* err_ptr = NULL
 
     if key is not None:
         if isinstance(key, str):
@@ -3636,13 +3660,25 @@ def _consolidate_timestamp(uri, key=None, config=None, ctx=None, timestamp=None)
         else:
             bkey = bytes(key)
         key_type = TILEDB_AES_256_GCM
-        key_ptr = <void *> PyBytes_AS_STRING(bkey)
+        key_ptr = <const char *> PyBytes_AS_STRING(bkey)
         #TODO: unsafe cast here ssize_t -> uint64_t
         key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+    
+        rc = tiledb_config_alloc(&config_ptr, &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_config_set(config_ptr, "sm.encryption_type", "AES_256_GCM", &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_config_set(config_ptr, "sm.encryption_key", key_ptr, &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
     with nogil:
-        rc = tiledb_array_consolidate_with_key(
-            ctx_ptr, array_uri_ptr, key_type, key_ptr, key_len, config_ptr)
+        rc = tiledb_array_consolidate(
+            ctx_ptr, array_uri_ptr, config_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
     return uri
