@@ -1,3 +1,21 @@
+# Release 0.29.0
+
+* TileDB-Py 0.29.0 includes TileDB Embedded [2.23.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.23.0)
+
+## Improvements
+
+* Add wrapping for ls_recursive by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1933
+* Migrate away from deprecated TileDB C++ APIs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1958
+* Pybind11 Config should honor prefix for iter by @Shelnutt2 in https://github.com/TileDB-Inc/TileDB-Py/pull/1962
+* Fix test skipping by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1957
+* Make timestamp overrides optional in tests and add faketime test by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1953
+* Wrap tiledb_array_consolidate_fragments from pybind11 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1948
+
+## Build system changes
+
+* Enable python 3.12 by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/1959
+* Add .vscode to .gitignore by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1952
+
 # Release 0.28.0
 
 ## TileDB Embedded updates
