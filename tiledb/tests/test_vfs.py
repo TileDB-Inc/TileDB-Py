@@ -270,7 +270,7 @@ class TestVFS(DiskTestCase):
         basepath = self.path("test_vfs_ls")
         self.vfs.create_dir(basepath)
         for id in (1, 2, 3):
-            dir = os.path.join(basepath, "dir" + str(id))
+            dir = os.path.join(basepath, f"dir{id}")
             self.vfs.create_dir(dir)
             fname = os.path.join(basepath, "file_" + str(id))
             with tiledb.FileIO(self.vfs, fname, "wb") as fio:
@@ -287,6 +287,106 @@ class TestVFS(DiskTestCase):
                 map(
                     lambda x: os.path.basename(x.split("test_vfs_ls")[1]),
                     self.vfs.ls(basepath),
+                )
+            ),
+        )
+
+    @pytest.mark.skipif(
+        pytest.tiledb_vfs not in ["s3", "file"], reason="Only test on S3 and local"
+    )
+    def test_ls_recursive(self):
+        # Create a nested directory structure to test recursive listing
+        basepath = self.path("test_vfs_ls_recursive")
+        self.vfs.create_dir(basepath)
+
+        dir = os.path.join(basepath, "dir1")
+        self.vfs.create_dir(dir)
+
+        fname = os.path.join(dir, "file_1")
+        with tiledb.FileIO(self.vfs, fname, "wb") as fio:
+            fio.write(b"")
+
+        fname = os.path.join(dir, "file_2")
+        with tiledb.FileIO(self.vfs, fname, "wb") as fio:
+            fio.write(b"")
+
+        dir = os.path.join(basepath, "dir2")
+        self.vfs.create_dir(dir)
+
+        dir2 = os.path.join(dir, "dir2_1")
+        self.vfs.create_dir(dir2)
+
+        fname = os.path.join(dir2, "file_1")
+        with tiledb.FileIO(self.vfs, fname, "wb") as fio:
+            fio.write(b"")
+        fname = os.path.join(dir2, "file_2")
+        with tiledb.FileIO(self.vfs, fname, "wb") as fio:
+            fio.write(b"")
+
+        dir2 = os.path.join(dir, "dir2_2")
+        self.vfs.create_dir(dir2)
+
+        fname = os.path.join(dir2, "file_1")
+        with tiledb.FileIO(self.vfs, fname, "wb") as fio:
+            fio.write(b"")
+
+        expected = [
+            "dir1",
+            "dir1/file_1",
+            "dir1/file_2",
+            "dir2",
+            "dir2/dir2_1",
+            "dir2/dir2_1/file_1",
+            "dir2/dir2_1/file_2",
+            "dir2/dir2_2",
+            "dir2/dir2_2/file_1",
+        ]
+
+        self.assertSetEqual(
+            set(expected),
+            set(
+                map(
+                    # # Keep only the paths after the basepath and normalize them to work on all platforms
+                    lambda x: os.path.normpath(
+                        x.split("test_vfs_ls_recursive/")[1]
+                    ).replace("\\", "/"),
+                    self.vfs.ls_recursive(basepath),
+                )
+            ),
+        )
+
+        # Check with user provided callback
+        callback_results = []
+
+        def callback(uri, _):  # we don't use the second argument 'is_dir'
+            callback_results.append(uri)
+            return True
+
+        self.vfs.ls_recursive(basepath, callback)
+
+        self.assertSetEqual(
+            set(expected),
+            set(
+                map(
+                    # Keep only the paths after the basepath and normalize them to work on all platforms
+                    lambda x: os.path.normpath(
+                        x.split("test_vfs_ls_recursive/")[1]
+                    ).replace("\\", "/"),
+                    callback_results,
+                )
+            ),
+        )
+
+        # Can also be called by calling ls with recursive=True
+        self.assertSetEqual(
+            set(expected),
+            set(
+                map(
+                    # Keep only the paths after the basepath and normalize them to work on all platforms
+                    lambda x: os.path.normpath(
+                        x.split("test_vfs_ls_recursive/")[1]
+                    ).replace("\\", "/"),
+                    self.vfs.ls(basepath, recursive=True),
                 )
             ),
         )
