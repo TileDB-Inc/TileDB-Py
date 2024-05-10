@@ -4,7 +4,6 @@
 
 ## Improvements
 
-* Add wrapping for ls_recursive by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1933
 * Migrate away from deprecated TileDB C++ APIs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1958
 * Pybind11 Config should honor prefix for iter by @Shelnutt2 in https://github.com/TileDB-Inc/TileDB-Py/pull/1962
 * Fix test skipping by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1957
