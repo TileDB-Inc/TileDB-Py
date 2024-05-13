@@ -115,23 +115,26 @@ Array
 Dense Array
 -----------
 
-.. autoclass:: tiledb.DenseArray
+.. autoclass:: tiledb.libtiledb.DenseArrayImpl
    :members:
 
    .. automethod:: __getitem__(selection)
    .. automethod:: __setitem__(selection, value)
-   .. automethod:: query
-   .. automethod:: from_numpy(uri, array, ctx=None, **kwargs)
 
 Sparse Array
 ------------
 
-.. autoclass:: tiledb.SparseArray
+.. autoclass:: tiledb.libtiledb.SparseArrayImpl
    :members:
 
    .. automethod:: __getitem__(selection)
    .. automethod:: __setitem__(selection, value)
-   .. automethod:: query
+
+Query
+---------------
+
+.. autoclass:: tiledb.libtiledb.Query
+   :members:
 
 Query Condition
 ---------------
