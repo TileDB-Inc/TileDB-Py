@@ -68,7 +68,7 @@ Filters
    .. automethod:: __getitem__(idx)
    .. automethod:: __len__
 
-.. autoclass:: tiledb.libtiledb.CompressionFilter
+.. autoclass:: tiledb.CompressionFilter
    :members:
 .. autoclass:: tiledb.GzipFilter
    :members:

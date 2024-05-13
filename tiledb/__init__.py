@@ -60,6 +60,7 @@ from .filter import (
     DoubleDeltaFilter,
     Filter,
     FilterList,
+    CompressionFilter,
     FloatScaleFilter,
     GzipFilter,
     LZ4Filter,
