@@ -341,28 +341,6 @@ def FragmentsInfo(array_uri, ctx=None):
     )
 
 
-def delete_fragments(
-    uri, timestamp_range, config=None, ctx=None, verbose=False, dry_run=False
-):
-    """
-    Delete fragments from an array located at uri that falls within a given
-    timestamp_range.
-
-    :param str uri: URI for the TileDB array (any supported TileDB URI)
-    :param (int, int) timestamp_range: (default None) If not None, vacuum the
-        array using the given range (inclusive)
-    :param config: Override the context configuration. Defaults to ctx.config()
-    :param ctx: (optional) TileDB Ctx
-    :param verbose: (optional) Print fragments being deleted (default: False)
-    :param dry_run: (optional) Preview fragments to be deleted without
-        running (default: False)
-    """
-    raise tiledb.TileDBError(
-        "tiledb.delete_fragments is deprecated; you must use Array.delete_fragments. "
-        "This message will be removed in 0.21.0."
-    )
-
-
 def create_array_from_fragments(
     src_uri,
     dst_uri,
