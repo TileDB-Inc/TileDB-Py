@@ -326,8 +326,7 @@ class DoubleDeltaFilter(CompressionFilter):
 
     :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
     :type level: int
-    :param reinterp_dtype: (optional) sets the compressor to compress the data treating
-    as the new datatype.
+    :param reinterp_dtype: (optional) sets the compressor to compress the data treating as the new datatype.
 
     **Example:**
 
@@ -501,7 +500,8 @@ class PositiveDeltaFilter(Filter):
     :param ctx: A TileDB Context
     :type ctx: tiledb.Ctx
     :param window: -1 (default) sets the max window size for the filter to the default window size as specified in TileDB core. Otherwise, sets the compressor level to the given value.
-     :type window: int
+    :type window: int
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile

@@ -322,7 +322,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         """The array's schema (storage) version.
 
         :rtype: int
-        :raises :py:exc:`tiledb.TileDBError`
+        :raises: :py:exc:`tiledb.TileDBError`
         """
         return self._version
 
