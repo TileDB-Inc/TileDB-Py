@@ -234,7 +234,7 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     case TILEDB_GEOM_WKB:
       return py::dtype("byte");
     case TILEDB_GEOM_WKT:
-      return py::dtype("S1");
+      return py::dtype("S");
 #endif
 
     case TILEDB_ANY:

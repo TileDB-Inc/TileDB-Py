@@ -271,7 +271,7 @@ class AttributeTest(DiskTestCase):
         # read back the data
         with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             for i in range(2):
-                assert_array_equal(T[:][i].tobytes(), A[i])
+                assert_array_equal(T[i], A[i])
 
     def test_wkb_attribute(self):
         A = np.array(

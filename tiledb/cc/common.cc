@@ -49,7 +49,7 @@ std::unordered_map<tiledb_datatype_t, std::string> _tdb_to_np_name_dtype = {
 #endif
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
     {TILEDB_GEOM_WKB, "byte"},
-    {TILEDB_GEOM_WKT, "S1"},
+    {TILEDB_GEOM_WKT, "S"},
 #endif
 };
 
