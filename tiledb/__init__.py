@@ -76,7 +76,6 @@ from .fragment import (
     FragmentsInfo,
     copy_fragments_to_existing_array,
     create_array_from_fragments,
-    delete_fragments,
 )
 from .group import Group
 from .highlevel import (

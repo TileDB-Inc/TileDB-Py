@@ -18,7 +18,7 @@ from json import loads as json_loads
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
 from .enumeration import Enumeration
-from .cc import TileDBError 
+from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
 from .vfs import VFS
 
@@ -1263,8 +1263,7 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         return Enumeration.from_capsule(self.ctx, PyCapsule_New(enum_ptr, "enum", NULL))
 
-    @staticmethod
-    def delete_fragments(uri, timestamp_start, timestamp_end, ctx=None):
+    def delete_fragments(self_or_uri, timestamp_start, timestamp_end, ctx=None):
         """
         Delete a range of fragments from timestamp_start to timestamp_end.
         The array needs to be opened in 'm' mode as shown in the example below.
@@ -1295,28 +1294,43 @@ cdef class Array(object):
         array([0., 0., 0., 0.])
 
         """
-        # If uri is an instance of Array (user calls the old instance method), issue a warning
-        if isinstance(uri, Array):
+        cdef tiledb_ctx_t* ctx_ptr
+        cdef tiledb_array_t* array_ptr
+        cdef tiledb_query_t* query_ptr
+        cdef bytes buri
+        cdef int rc = TILEDB_OK
+
+        if isinstance(self_or_uri, str):
+            uri = self_or_uri
+            if not ctx:
+                ctx = default_ctx()
+
+            ctx_ptr = safe_ctx_ptr(ctx)
+            buri = uri.encode('UTF-8')
+
+            rc = tiledb_array_delete_fragments_v2(
+                    ctx_ptr,
+                    buri,
+                    timestamp_start,
+                    timestamp_end
+            )
+        else:
+            array_instance = self_or_uri
             warnings.warn(
                 "The `tiledb.Array.delete_fragments` instance method is deprecated. Use the static method with the same name instead.",
                 DeprecationWarning,
             )
-            uri = uri.uri
+            ctx_ptr = safe_ctx_ptr(array_instance.ctx)
+            array_ptr = <tiledb_array_t*>array_instance.ptr
+            buri = array_instance.uri.encode('UTF-8')
 
-        if not ctx:
-            ctx = default_ctx()
-
-        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
-        cdef bytes buri = uri.encode('UTF-8')
-
-        cdef int rc = TILEDB_OK
-
-        rc = tiledb_array_delete_fragments_v2(
-                ctx_ptr,
-                buri,
-                timestamp_start,
-                timestamp_end
-        )
+            rc = tiledb_array_delete_fragments(
+                    ctx_ptr,
+                    array_ptr,
+                    buri,
+                    timestamp_start,
+                    timestamp_end
+            )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
