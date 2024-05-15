@@ -1053,8 +1053,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t * ctx,
         tiledb_vfs_t * vfs,
         const char * path,
-        int (*callback)(const char *, void *) noexcept,
-        void * data)
+        void * data) nogil
 
     int tiledb_vfs_move_file(
         tiledb_ctx_t* ctx,
