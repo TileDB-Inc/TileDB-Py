@@ -60,6 +60,8 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_FLOAT32
         TILEDB_FLOAT64
         TILEDB_BLOB
+        TILEDB_GEOM_WKB
+        TILEDB_GEOM_WKT
         TILEDB_CHAR
         TILEDB_INT8
         TILEDB_UINT8

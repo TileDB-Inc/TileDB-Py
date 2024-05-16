@@ -25,7 +25,7 @@ class AttributeTest(DiskTestCase):
         except:
             pytest.fail(f"Could not parse attr._repr_html_(). Saw {attr._repr_html_()}")
 
-    def test_attribute(self, capfd):
+    def test_attribute_name_only(self, capfd):
         attr = tiledb.Attr("foo")
 
         attr.dump()
@@ -252,3 +252,52 @@ class AttributeTest(DiskTestCase):
                 assert "can't set attribute" in str(exc.value)
             else:
                 assert "object has no setter" in str(exc.value)
+
+    def test_wkt_attribute(self):
+        A = np.array(
+            ["POINT (30 10)", "POLYGON ((3 1, 4 5, 2 2, 1 2, 3 1))"],
+            dtype="S",
+        )
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 1), tile=2))
+        att = tiledb.Attr(dtype="wkt", var=True)
+
+        schema = tiledb.ArraySchema(dom, (att,))
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
+            T[:] = A
+
+        # read back the data
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
+            for i in range(2):
+                assert_array_equal(T[i], A[i])
+
+    def test_wkb_attribute(self):
+        A = np.array(
+            [
+                # representation of POINT (30 10)
+                b"\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00>@\x00\x00\x00\x00\x00\x00$@",
+                # representation of POLYGON ((3 1, 4 5, 2 2, 1 2, 3 1))
+                (
+                    b"\x01\x03\x00\x00\x00\x01\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08@"
+                    b"\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x10@\x00\x00\x00\x00\x00\x00\x14@"
+                    b"\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\xf0?"
+                    b"\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x08@\x00\x00\x00\x00\x00\x00\xf0?"
+                ),
+            ],
+        )
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 1), tile=2))
+        att = tiledb.Attr(dtype="wkb", var=True)
+
+        schema = tiledb.ArraySchema(dom, (att,))
+
+        tiledb.DenseArray.create(self.path("foo"), schema)
+        with tiledb.DenseArray(self.path("foo"), mode="w") as T:
+            T[:] = A
+
+        # read back the data
+        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
+            for i in range(2):
+                assert_array_equal(T[:][i].tobytes(), A[i])
