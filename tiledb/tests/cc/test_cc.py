@@ -275,8 +275,10 @@ def test_schema():
 
     with pytest.raises(lt.TileDBError):
         schema._tile_order = lt.LayoutType.HILBERT
-    schema._tile_order = lt.LayoutType.UNORDERED
-    assert schema._tile_order == lt.LayoutType.UNORDERED
+    with pytest.raises(lt.TileDBError):
+        schema._tile_order = lt.LayoutType.UNORDERED
+    schema._tile_order = lt.LayoutType.ROW_MAJOR
+    assert schema._tile_order == lt.LayoutType.ROW_MAJOR
 
     # TODO schema._set_coords_filter_list(...)
     # TODO assert schema._coords_filter_list() == lt.FilterListType.NONE
