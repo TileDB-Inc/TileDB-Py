@@ -1,7 +1,56 @@
 [build-system]
-
-requires = ["setuptools>=42", "wheel", "pybind11", "Cython<3.0"]
+requires = ["setuptools>=64", "wheel", "pybind11", "Cython"]
 build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">=3.8"
+name = "tiledb"
+description = "Pythonic interface to the TileDB array storage manager"
+readme = "README.md"
+authors = [
+  {name = "TileDB, Inc.", email = "help@tiledb.io"}
+]
+maintainers = [
+  {name = "TileDB, Inc.", email = "help@tiledb.io"}
+]
+license = {text = "MIT"}
+classifiers=[
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: Unix",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy==1.17.*,<2.0 ; python_version == '3.8' and platform_machine != 'aarch64'",
+    "numpy==1.19.4,<2.0 ; python_version == '3.9' and platform_machine != 'aarch64'",
+    "numpy==1.20.*,<2.0 ; python_version < '3.10' and platform_machine == 'aarch64'",
+    "numpy==1.21.*,<2.0 ; python_version == '3.10'",
+    "numpy>=1.23.2,<2.0 ; python_version >= '3.11'",
+]
+dynamic = ["version"]
+
+[tool.setuptools.packages.find]
+exclude = ["*.pyc", ".pytest_cache/*", ".hypothesis/*"]
+
+[project.urls]
+homepage = "https://github.com/TileDB-Inc/TileDB-Py"
+
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
+version_file = "tiledb/_generated_version.py"
 
 [tool.pytest.ini_options]
 python_classes = "*Test*"

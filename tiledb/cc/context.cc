@@ -75,7 +75,7 @@ void init_config(py::module &m) {
       .def(
           "_iter",
           [](Config &cfg, std::string prefix) {
-            return py::make_iterator(cfg.begin(), cfg.end());
+            return py::make_iterator(cfg.begin(prefix), cfg.end());
           },
           py::keep_alive<0, 1>(), py::arg("prefix") = "")
       .def("unset", &Config::unset);

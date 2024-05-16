@@ -242,6 +242,12 @@ class FixesTest(DiskTestCase):
             assert A.schema.cell_order == "hilbert"
             assert A.schema.tile_order is None
 
+    def test_sc43221(self):
+        # GroupMeta object did not have a representation test; repr failed due to non-existent attribute access in check.
+        tiledb.Group.create("mem://tmp1")
+        a = tiledb.Group("mem://tmp1")
+        repr(a.meta)
+
 
 class SOMA919Test(DiskTestCase):
     """
@@ -252,7 +258,7 @@ class SOMA919Test(DiskTestCase):
     We've distilled @atolopko-czi's gist example using the TileDB-Py API directly.
     """
 
-    def run_test(self):
+    def run_test(self, use_timestamps):
         import tempfile
 
         import numpy as np
@@ -261,13 +267,17 @@ class SOMA919Test(DiskTestCase):
 
         root_uri = tempfile.mkdtemp()
 
-        # this tiledb.Ctx is how we set the write timestamps for tiledb.Group
-        group_ctx100 = tiledb.Ctx(
-            {
-                "sm.group.timestamp_start": 100,
-                "sm.group.timestamp_end": 100,
-            }
-        )
+        if use_timestamps:
+            group_ctx100 = tiledb.Ctx(
+                {
+                    "sm.group.timestamp_start": 100,
+                    "sm.group.timestamp_end": 100,
+                }
+            )
+            timestamp = 100
+        else:
+            group_ctx100 = tiledb.Ctx()
+            timestamp = None
 
         # create the group and add a dummy subgroup "causes_bug"
         tiledb.Group.create(root_uri, ctx=group_ctx100)
@@ -278,7 +288,7 @@ class SOMA919Test(DiskTestCase):
         # add an array to the group (in a separate write operation)
         with tiledb.Group(root_uri, mode="w", ctx=group_ctx100) as expt:
             df_path = os.path.join(root_uri, "df")
-            tiledb.from_numpy(df_path, np.ones((100, 100)), timestamp=100)
+            tiledb.from_numpy(df_path, np.ones((100, 100)), timestamp=timestamp)
             expt.add(name="df", uri=df_path)
 
         # check our view of the group at current time;
@@ -295,12 +305,13 @@ class SOMA919Test(DiskTestCase):
         tiledb.libtiledb.version() < (2, 15, 0),
         reason="SOMA919 fix implemented in libtiledb 2.15",
     )
-    def test_soma919(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_soma919(self, use_timestamps):
         N = 100
         fails = 0
         for i in range(N):
             try:
-                self.run_test()
+                self.run_test(use_timestamps)
             except AssertionError:
                 fails += 1
         if fails > 0:

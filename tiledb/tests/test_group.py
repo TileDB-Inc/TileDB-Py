@@ -117,7 +117,10 @@ class GroupTest(GroupTestCase):
             ),
         ),
     )
-    def test_group_metadata(self, int_data, flt_data, str_data, str_type, capfd):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_group_metadata(
+        self, int_data, flt_data, str_data, str_type, capfd, use_timestamps
+    ):
         def values_equal(lhs, rhs):
             if isinstance(lhs, np.ndarray):
                 if not isinstance(rhs, np.ndarray):
@@ -133,13 +136,13 @@ class GroupTest(GroupTestCase):
         grp_path = self.path("test_group_metadata")
         tiledb.Group.create(grp_path)
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
         with tiledb.Group(grp_path, "w", cfg) as grp:
             grp.meta["int"] = int_data
             grp.meta["flt"] = flt_data
             grp.meta["str"] = str_data
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
         with tiledb.Group(grp_path, "r", cfg) as grp:
             assert len(grp.meta) == 3
             assert "int" in grp.meta
@@ -156,11 +159,11 @@ class GroupTest(GroupTestCase):
             assert "Type: DataType.INT" in metadata_dump
             assert f"Type: DataType.{str_type}" in metadata_dump
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
         with tiledb.Group(grp_path, "w", cfg) as grp:
             del grp.meta["int"]
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
         with tiledb.Group(grp_path, "r", cfg) as grp:
             assert len(grp.meta) == 2
             assert "int" not in grp.meta
@@ -171,7 +174,7 @@ class GroupTest(GroupTestCase):
 
         grp = tiledb.Group(grp_path, "w")
         assert os.path.basename(grp.uri) == os.path.basename(grp_path)
-        array_path = self.path("test_group_members")
+        array_path = self.path("test_group_members_array")
         domain = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
         a1 = tiledb.Attr("val", dtype="f8")
         schema = tiledb.ArraySchema(domain=domain, attrs=(a1,))
@@ -203,7 +206,7 @@ class GroupTest(GroupTestCase):
         assert grp[1].name is None
 
         assert "test_group_members GROUP" in repr(grp)
-        assert "|-- test_group_members ARRAY" in repr(grp)
+        assert "|-- test_group_members_array ARRAY" in repr(grp)
         assert "|-- test_group_0 GROUP" in repr(grp)
 
         grp.close()
@@ -342,6 +345,17 @@ class GroupTest(GroupTestCase):
             with tiledb.Group(group_uri, config=cfg) as G:
                 assert len(G) == sz
 
+    def test_invalid_object_type(self):
+        path = self.path()
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim("id", dtype="ascii")),
+            attrs=(tiledb.Attr("value", dtype=np.int64),),
+            sparse=True,
+        )
+        tiledb.Array.create(path, schema)
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Group(uri=path, mode="w")
+
     def test_group_does_not_exist(self):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.Group("does-not-exist")
@@ -356,7 +370,8 @@ class GroupMetadataTest(GroupTestCase):
             (np.array([1, 2, 3]), np.array([1.5, 2.5, 3.5]), np.array(["x"])),
         ),
     )
-    def test_group_metadata(self, int_data, flt_data, str_data):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_group_metadata(self, int_data, flt_data, str_data, use_timestamps):
         def values_equal(lhs, rhs):
             if isinstance(lhs, np.ndarray):
                 if not isinstance(rhs, np.ndarray):
@@ -372,13 +387,13 @@ class GroupMetadataTest(GroupTestCase):
         grp_path = self.path("test_group_metadata")
         tiledb.Group.create(grp_path)
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
         with tiledb.Group(grp_path, "w", cfg) as grp:
             grp.meta["int"] = int_data
             grp.meta["flt"] = flt_data
             grp.meta["str"] = str_data
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
         with tiledb.Group(grp_path, "r", cfg) as grp:
             assert grp.meta.keys() == {"int", "flt", "str"}
             assert len(grp.meta) == 3
@@ -389,11 +404,11 @@ class GroupMetadataTest(GroupTestCase):
             assert "str" in grp.meta
             assert values_equal(grp.meta["str"], str_data)
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
         with tiledb.Group(grp_path, "w", cfg) as grp:
             del grp.meta["int"]
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
         with tiledb.Group(grp_path, "r", cfg) as grp:
             assert len(grp.meta) == 2
             assert "int" not in grp.meta
@@ -570,20 +585,21 @@ class GroupMetadataTest(GroupTestCase):
         self.assert_metadata_roundtrip(grp.meta, test_vals)
         grp.close()
 
-    def test_consolidation_and_vac(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_consolidation_and_vac(self, use_timestamps):
         vfs = tiledb.VFS()
         path = self.path("test_consolidation_and_vac")
         tiledb.Group.create(path)
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 1})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
         with tiledb.Group(path, "w", cfg) as grp:
             grp.meta["meta"] = 1
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 2})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
         with tiledb.Group(path, "w", cfg) as grp:
             grp.meta["meta"] = 2
 
-        cfg = tiledb.Config({"sm.group.timestamp_end": 3})
+        cfg = tiledb.Config({"sm.group.timestamp_end": 3} if use_timestamps else {})
         with tiledb.Group(path, "w", cfg) as grp:
             grp.meta["meta"] = 3
 

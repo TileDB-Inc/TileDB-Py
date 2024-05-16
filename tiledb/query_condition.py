@@ -15,9 +15,7 @@ A high level wrapper around the Pybind11 query_condition.cc implementation for
 filtering query results on attribute and dimension values.
 """
 
-QueryConditionNodeElem = Union[
-    ast.Name, ast.Constant, ast.Call, ast.Num, ast.Str, ast.Bytes
-]
+QueryConditionNodeElem = Union[ast.Name, ast.Constant, ast.Call]
 
 
 @dataclass
@@ -280,8 +278,8 @@ class QueryConditionTree(ast.NodeVisitor):
 
             return (
                 isinstance(variable.args[0], ast.Constant)
-                or isinstance(variable.args[0], ast.Str)
-                or isinstance(variable.args[0], ast.Bytes)
+                or isinstance(variable.args[0], ast.Constant)
+                or isinstance(variable.args[0], ast.Constant)
             )
 
         return isinstance(variable, ast.Name)
@@ -326,7 +324,9 @@ class QueryConditionTree(ast.NodeVisitor):
             variable = variable_node.id
         elif isinstance(variable_node, ast.Constant):
             variable = variable_node.value
-        elif isinstance(variable_node, ast.Str) or isinstance(variable_node, ast.Bytes):
+        elif isinstance(variable_node, ast.Constant) or isinstance(
+            variable_node, ast.Constant
+        ):
             # deprecated in 3.8
             variable = variable_node.s
         else:
@@ -363,13 +363,15 @@ class QueryConditionTree(ast.NodeVisitor):
 
         if isinstance(value_node, ast.Constant):
             value = value_node.value
-        elif isinstance(value_node, ast.NameConstant):
+        elif isinstance(value_node, ast.Constant):
             # deprecated in 3.8
             value = value_node.value
-        elif isinstance(value_node, ast.Num):
+        elif isinstance(value_node, ast.Constant):
             # deprecated in 3.8
             value = value_node.n
-        elif isinstance(value_node, ast.Str) or isinstance(value_node, ast.Bytes):
+        elif isinstance(value_node, ast.Constant) or isinstance(
+            value_node, ast.Constant
+        ):
             # deprecated in 3.8
             value = value_node.s
         else:
@@ -491,7 +493,7 @@ class QueryConditionTree(ast.NodeVisitor):
         else:
             if isinstance(node.operand, ast.Constant):
                 node.operand.value *= sign
-            elif isinstance(node.operand, ast.Num):
+            elif isinstance(node.operand, ast.Constant):
                 node.operand.n *= sign
             else:
                 raise TileDBError(
@@ -500,18 +502,18 @@ class QueryConditionTree(ast.NodeVisitor):
 
             return node.operand
 
-    def visit_Num(self, node: ast.Num) -> ast.Num:
+    def visit_Num(self, node: ast.Constant) -> ast.Constant:
         # deprecated in 3.8
         return node
 
-    def visit_Str(self, node: ast.Str) -> ast.Str:
+    def visit_Str(self, node: ast.Constant) -> ast.Constant:
         # deprecated in 3.8
         return node
 
-    def visit_Bytes(self, node: ast.Bytes) -> ast.Bytes:
+    def visit_Bytes(self, node: ast.Constant) -> ast.Constant:
         # deprecated in 3.8
         return node
 
-    def visit_NameConstant(self, node: ast.NameConstant) -> ast.NameConstant:
+    def visit_NameConstant(self, node: ast.Constant) -> ast.Constant:
         # deprecated in 3.8
         return node

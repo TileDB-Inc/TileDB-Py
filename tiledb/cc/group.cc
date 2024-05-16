@@ -105,11 +105,7 @@ void init_group(py::module &m) {
       .def("_open", &Group::open)
       .def("_set_config", &Group::set_config)
       .def("_config", &Group::config)
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 16
-      .def("_close", &Group::close)
-#else
       .def("_close", [](Group &self) { self.close(true); })
-#endif
       .def_property_readonly("_isopen", &Group::is_open)
       .def_property_readonly("_uri", &Group::uri)
       .def_property_readonly("_query_type", &Group::query_type)

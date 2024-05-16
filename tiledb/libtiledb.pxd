@@ -1,9 +1,6 @@
 from libc.stdint cimport uint32_t, uint64_t
 from libc.stdio cimport FILE
-
-IF TILEDBPY_MODULAR:
-    from .indexing cimport DomainIndexer
-
+include "indexing.pxd"
 include "common.pxi"
 
 cdef extern from "Python.h":
@@ -656,9 +653,8 @@ cdef extern from "tiledb/tiledb.h":
         uint32_t key_length,
         tiledb_config_t* config) nogil
 
-    int tiledb_array_delete_array(
+    int tiledb_array_delete(
         tiledb_ctx_t* ctx,
-        tiledb_array_t* array,
         const char* uri) nogil
 
     # Query
@@ -713,7 +709,7 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_query_submit_async(
         tiledb_ctx_t* ctx,
         tiledb_query_t* query,
-        void* (*callback)(void*),
+        void* (*callback)(void*) noexcept,
         void* callback_data)
 
     int tiledb_query_get_status(
@@ -851,14 +847,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* uri,
         const tiledb_array_schema_t* array_schema) nogil
 
-    int tiledb_array_create_with_key(
-        tiledb_ctx_t* ctx,
-        const char* uri,
-        const tiledb_array_schema_t* array_schema,
-        tiledb_encryption_type_t key_type,
-        const void* key,
-        unsigned int key_len) nogil
-
     int tiledb_array_is_open(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
@@ -869,17 +857,15 @@ cdef extern from "tiledb/tiledb.h":
         const char* array_path,
         tiledb_config_t* config) nogil
 
-    int tiledb_array_consolidate_with_key(
-        tiledb_ctx_t* ctx,
-        const char* uri,
-        tiledb_encryption_type_t key_type,
-        const void* key_ptr,
-        unsigned int key_len,
-        tiledb_config_t* config) nogil
-
     int tiledb_array_delete_fragments(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array,
+        const char* uri,
+        uint64_t timestamp_start,
+        uint64_t timestamp_end)
+
+    int tiledb_array_delete_fragments_v2(
+        tiledb_ctx_t* ctx,
         const char* uri,
         uint64_t timestamp_start,
         uint64_t timestamp_end)
@@ -981,13 +967,13 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const char* path,
         tiledb_walk_order_t order,
-        int (*callback)(const char*, tiledb_object_t, void*),
+        int (*callback)(const char*, tiledb_object_t, void*) noexcept,
         void* data)
 
     int tiledb_object_ls(
         tiledb_ctx_t* ctx,
         const char* path,
-        int (*callback)(const char*, tiledb_object_t, void*),
+        int (*callback)(const char*, tiledb_object_t, void*) noexcept,
         void* data)
 
     # VFS
@@ -1069,7 +1055,7 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t * ctx,
         tiledb_vfs_t * vfs,
         const char * path,
-        int (*callback)(const char *, void *),
+        int (*callback)(const char *, void *) noexcept,
         void * data)
 
     int tiledb_vfs_move_file(
@@ -1213,6 +1199,10 @@ cdef class SparseArrayImpl(Array):
 cdef class DenseArrayImpl(Array):
     cdef _read_dense_subarray(self, object subarray, list attr_names, object cond, tiledb_layout_t layout, bint include_coords)
 
+cdef class Aggregation(object):
+    cdef Query query
+    cdef object attr_to_aggs
+
 cdef class Query(object):
     cdef Array array
     cdef object attrs
@@ -1235,5 +1225,3 @@ cdef class ReadQuery(object):
 cdef class Metadata(object):
     cdef object array_ref
 
-IF (not TILEDBPY_MODULAR):
-    include "indexing.pxd"

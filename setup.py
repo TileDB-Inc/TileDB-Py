@@ -20,7 +20,7 @@ from setuptools import Extension, find_packages, setup
 # - this is for builds-from-source
 # - release builds are controlled by `misc/azure-release.yml`
 # - this should be set to the current core release, not `dev`
-TILEDB_VERSION = "2.22.0"
+TILEDB_VERSION = "2.23.0"
 
 # allow overriding w/ environment variable
 TILEDB_VERSION = (
@@ -33,12 +33,6 @@ TILEDB_VERSION = (
 TILEDB_DEBUG_BUILD = False
 # Use `setup.py [] --release-symbols` for a release build with symbols libtiledb
 TILEDB_SYMBOLS_BUILD = False
-
-# Use `setup.py [] --modular` for a modular build of libtiledb_py
-#   Each .pyx file will be built as a separate shared library for faster
-#   compilation. This is disabled by default to avoid distributing multiple
-#   shared libraries.
-TILEDBPY_MODULAR = False
 
 # Allow to override TILEDB_FORCE_ALL_DEPS with environment variable
 TILEDB_FORCE_ALL_DEPS = "TILEDB_FORCE_ALL_DEPS" in os.environ
@@ -435,7 +429,6 @@ def find_or_install_libtiledb(setuptools_cmd):
     ext_attr_update(
         "cython_compile_time_env",
         {
-            "TILEDBPY_MODULAR": TILEDBPY_MODULAR,
             "LIBTILEDB_VERSION_MAJOR": major,
             "LIBTILEDB_VERSION_MINOR": minor,
             "LIBTILEDB_VERSION_PATCH": patch,
@@ -626,9 +619,6 @@ for arg in args:
     if arg.find("--release-symbols") == 0:
         TILEDB_SYMBOLS_BUILD = True
         sys.argv.remove(arg)
-    if arg.find("--modular") == 0:
-        TILEDBPY_MODULAR = True
-        sys.argv.remove(arg)
     TILEDBPY_WERROR = False
     if arg.find("--werror") == 0:
         TILEDBPY_WERROR = True
@@ -668,9 +658,6 @@ if TILEDB_PATH != "" and TILEDB_PATH != "source":
     INC_DIRS += [os.path.join(TILEDB_PATH, "include")]
     if sys.platform == "darwin":
         LFLAGS += ["-Wl,-rpath,{}".format(p) for p in LIB_DIRS]
-
-with open("README.md") as f:
-    README_MD = f.read()
 
 # Source files for build
 MODULAR_SOURCES = ["tiledb/indexing.pyx", "tiledb/libmetadata.pyx"]
@@ -732,29 +719,7 @@ __extensions = [
     ),
 ]
 
-
-if TILEDBPY_MODULAR:
-    for source in MODULAR_SOURCES:
-        module_name = os.path.splitext(os.path.split(source)[-1])[0]
-        if module_name + ".pxd" in MODULAR_HEADERS:
-            deps = module_name + ".pxd"
-        else:
-            deps = None
-        ext = Extension(
-            "tiledb.{}".format(module_name),
-            include_dirs=INC_DIRS,
-            define_macros=DEF_MACROS,
-            sources=[source],
-            depends=[deps] if deps else [],
-            library_dirs=LIB_DIRS,
-            libraries=LIBS,
-            extra_link_args=LFLAGS,
-            extra_compile_args=CXXFLAGS,
-            language="c++",
-        )
-        __extensions.append(ext)
-else:
-    __extensions[0].depends += MODULAR_SOURCES
+__extensions[0].depends += MODULAR_SOURCES
 
 # Helper to set Extension attributes correctly based on python version
 def ext_attr_update(attr, value):
@@ -792,44 +757,11 @@ elif TILEDB_PATH != "":
     ext_attr_update("tiledb_path", TILEDB_PATH)
 
 setup(
-    name="tiledb",
-    description="Pythonic interface to the TileDB array storage manager",
-    long_description=README_MD,
-    long_description_content_type="text/markdown",
-    author="TileDB, Inc.",
-    author_email="help@tiledb.io",
-    maintainer="TileDB, Inc.",
-    maintainer_email="help@tiledb.io",
-    url="https://github.com/TileDB-Inc/TileDB-Py",
-    license="MIT",
     platforms=["any"],
-    use_scm_version={
-        "version_scheme": "guess-next-dev",
-        "local_scheme": "dirty-tag",
-        "write_to": "tiledb/_generated_version.py",
-    },
     ext_modules=__extensions,
     setup_requires=setup_requires(),
     install_requires=install_requires(),
     packages=find_packages(),
     cmdclass=LazyCommandClass(),
     zip_safe=False,
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Information Technology",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python",
-        "Topic :: Software Development :: Libraries :: Python Modules",
-        "Operating System :: Unix",
-        "Operating System :: POSIX :: Linux",
-        "Operating System :: MacOS :: MacOS X",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-    ],
 )

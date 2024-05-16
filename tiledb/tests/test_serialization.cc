@@ -13,8 +13,6 @@
 #include <tiledb/tiledb>                 // C++
 #include <tiledb/tiledb_serialization.h> // C
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 2
-
 #if !defined(NDEBUG)
 // #include "debug.cc"
 #endif
@@ -95,5 +93,3 @@ void init_test_serialization(py::module &m) {
 }
 
 }; // namespace tiledbpy
-
-#endif

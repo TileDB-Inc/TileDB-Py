@@ -1,7 +1,3 @@
-IF TILEDBPY_MODULAR:
-  include "common.pxi"
-  from .libtiledb cimport *
-
 from libc.stdio cimport printf
 
 import weakref

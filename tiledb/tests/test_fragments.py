@@ -22,7 +22,8 @@ class FragmentInfoTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.array_fragments("does_not_exist")
 
-    def test_array_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_array_fragments(self, use_timestamps):
         fragments = 3
 
         A = np.zeros(fragments)
@@ -34,10 +35,15 @@ class FragmentInfoTest(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
-        for fragment_idx in range(fragments):
-            timestamp = fragment_idx + 1
-            with tiledb.DenseArray(uri, mode="w", timestamp=timestamp) as T:
-                T[fragment_idx : fragment_idx + 1] = fragment_idx
+        if use_timestamps:
+            for fragment_idx in range(fragments):
+                timestamp = fragment_idx + 1
+                with tiledb.DenseArray(uri, mode="w", timestamp=timestamp) as T:
+                    T[fragment_idx : fragment_idx + 1] = fragment_idx
+        else:
+            for fragment_idx in range(fragments):
+                with tiledb.DenseArray(uri, mode="w") as T:
+                    T[fragment_idx : fragment_idx + 1] = fragment_idx
 
         fi = tiledb.array_fragments(uri)
 
@@ -47,7 +53,8 @@ class FragmentInfoTest(DiskTestCase):
         assert fi.has_consolidated_metadata == (False, False, False)
         assert fi.nonempty_domain == (((0, 0),), ((1, 1),), ((2, 2),))
         assert fi.sparse == (False, False, False)
-        assert fi.timestamp_range == ((1, 1), (2, 2), (3, 3))
+        if use_timestamps:  # timestamps cannot be predicted if not used on write
+            assert fi.timestamp_range == ((1, 1), (2, 2), (3, 3))
         assert fi.to_vacuum == ()
         assert hasattr(fi, "version")  # don't pin to a specific version
 
@@ -56,7 +63,8 @@ class FragmentInfoTest(DiskTestCase):
             assert frag.has_consolidated_metadata is False
             assert frag.nonempty_domain == ((idx, idx),)
             assert frag.sparse is False
-            assert frag.timestamp_range == (idx + 1, idx + 1)
+            if use_timestamps:  # timestamps cannot be predicted if not used on write
+                assert frag.timestamp_range == (idx + 1, idx + 1)
             assert hasattr(frag, "version")  # don't pin to a specific version
             try:
                 assert xml.etree.ElementTree.fromstring(frag._repr_html_()) is not None
@@ -70,7 +78,8 @@ class FragmentInfoTest(DiskTestCase):
         except:
             pytest.fail(f"Could not parse fi._repr_html_(). Saw {fi._repr_html_()}")
 
-    def test_array_fragments_var(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_array_fragments_var(self, use_timestamps):
         fragments = 3
 
         uri = self.path("test_array_fragments_var")
@@ -86,18 +95,28 @@ class FragmentInfoTest(DiskTestCase):
         tiledb.SparseArray.create(uri, schema)
 
         for fragment_idx in range(fragments):
-            timestamp = fragment_idx + 1
 
             data = np.array(
                 [
-                    np.array([timestamp] * 1, dtype=np.int32),
-                    np.array([timestamp] * 2, dtype=np.int32),
-                    np.array([timestamp] * 3, dtype=np.int32),
+                    np.array(
+                        [fragment_idx + 1] * 1,
+                        dtype=np.int32,
+                    ),
+                    np.array(
+                        [fragment_idx + 1] * 2,
+                        dtype=np.int32,
+                    ),
+                    np.array(
+                        [fragment_idx + 1] * 3,
+                        dtype=np.int32,
+                    ),
                 ],
                 dtype="O",
             )
 
-            with tiledb.SparseArray(uri, mode="w", timestamp=timestamp) as T:
+            with tiledb.SparseArray(
+                uri, mode="w", timestamp=fragment_idx + 1 if use_timestamps else None
+            ) as T:
                 T[["zero", "one", "two"]] = data
 
         fragments_info = tiledb.array_fragments(uri)
@@ -110,7 +129,8 @@ class FragmentInfoTest(DiskTestCase):
         for frag in fragments_info:
             self.assertEqual(frag.nonempty_domain, (("one", "zero"),))
 
-    def test_dense_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_dense_fragments(self, use_timestamps):
         fragments = 3
 
         A = np.zeros(fragments)
@@ -123,45 +143,48 @@ class FragmentInfoTest(DiskTestCase):
         tiledb.DenseArray.create(uri, schema)
 
         for fragment_idx in range(fragments):
-            timestamp = fragment_idx + 1
+            timestamp = fragment_idx + 1 if use_timestamps else None
             with tiledb.DenseArray(uri, mode="w", timestamp=timestamp) as T:
                 T[fragment_idx : fragment_idx + 1] = fragment_idx
 
             fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
             self.assertEqual(fragment_info.get_num_fragments(), fragment_idx + 1)
 
-        all_expected_uris = []
-        for fragment_idx in range(fragments):
-            timestamp = fragment_idx + 1
+        if use_timestamps:  # asserts are not predictable without timestamps
+            all_expected_uris = []
+            for fragment_idx in range(fragments):
+                timestamp = fragment_idx + 1
+
+                self.assertEqual(
+                    fragment_info.get_timestamp_range()[fragment_idx],
+                    (timestamp, timestamp),
+                )
+
+                expected_uri = f"__{timestamp}_{timestamp}"
+                actual_uri = fragment_info.get_uri()[fragment_idx]
+
+                all_expected_uris.append(expected_uri)
+
+                self.assertTrue(expected_uri in actual_uri)
+                self.assertTrue(
+                    actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
+                )
+                self.assertFalse(fragment_info.get_sparse()[fragment_idx])
+
+            all_actual_uris = fragment_info.get_uri()
+            for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
+                self.assertTrue(expected_uri in actual_uri)
+                self.assertTrue(
+                    actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
+                )
 
             self.assertEqual(
-                fragment_info.get_timestamp_range()[fragment_idx],
-                (timestamp, timestamp),
+                fragment_info.get_timestamp_range(), ((1, 1), (2, 2), (3, 3))
             )
+            self.assertEqual(fragment_info.get_sparse(), (False, False, False))
 
-            expected_uri = f"__{timestamp}_{timestamp}"
-            actual_uri = fragment_info.get_uri()[fragment_idx]
-
-            all_expected_uris.append(expected_uri)
-
-            # use .contains because the protocol can vary
-            self.assertTrue(expected_uri in actual_uri)
-            self.assertTrue(
-                actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
-            )
-            self.assertFalse(fragment_info.get_sparse()[fragment_idx])
-
-        all_actual_uris = fragment_info.get_uri()
-        for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
-            self.assertTrue(expected_uri in actual_uri)
-            self.assertTrue(
-                actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
-            )
-
-        self.assertEqual(fragment_info.get_timestamp_range(), ((1, 1), (2, 2), (3, 3)))
-        self.assertEqual(fragment_info.get_sparse(), (False, False, False))
-
-    def test_sparse_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_sparse_fragments(self, use_timestamps):
         fragments = 3
 
         A = np.zeros(fragments)
@@ -174,45 +197,48 @@ class FragmentInfoTest(DiskTestCase):
         tiledb.SparseArray.create(uri, schema)
 
         for fragment_idx in range(fragments):
-            timestamp = fragment_idx + 1
+            timestamp = fragment_idx + 1 if use_timestamps else None
             with tiledb.SparseArray(uri, mode="w", timestamp=timestamp) as T:
                 T[fragment_idx] = fragment_idx
 
             fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
             self.assertEqual(fragment_info.get_num_fragments(), fragment_idx + 1)
 
-        all_expected_uris = []
-        for fragment_idx in range(fragments):
-            timestamp = fragment_idx + 1
+        if use_timestamps:  # asserts are not predictable without timestamps
+            all_expected_uris = []
+            for fragment_idx in range(fragments):
+                timestamp = fragment_idx + 1
+
+                self.assertEqual(
+                    fragment_info.get_timestamp_range()[fragment_idx],
+                    (timestamp, timestamp),
+                )
+
+                if uri[0] != "/":
+                    uri = "/" + uri.replace("\\", "/")
+
+                expected_uri = f"/__{timestamp}_{timestamp}"
+                actual_uri = fragment_info.get_uri()[fragment_idx]
+
+                all_expected_uris.append(expected_uri)
+
+                self.assertTrue(expected_uri in actual_uri)
+                self.assertTrue(
+                    actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
+                )
+                self.assertTrue(fragment_info.get_sparse()[fragment_idx])
+
+            all_actual_uris = fragment_info.get_uri()
+            for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
+                self.assertTrue(expected_uri in actual_uri)
+                self.assertTrue(
+                    actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
+                )
 
             self.assertEqual(
-                fragment_info.get_timestamp_range()[fragment_idx],
-                (timestamp, timestamp),
+                fragment_info.get_timestamp_range(), ((1, 1), (2, 2), (3, 3))
             )
-
-            if uri[0] != "/":
-                uri = "/" + uri.replace("\\", "/")
-
-            expected_uri = f"/__{timestamp}_{timestamp}"
-            actual_uri = fragment_info.get_uri()[fragment_idx]
-
-            all_expected_uris.append(expected_uri)
-
-            self.assertTrue(expected_uri in actual_uri)
-            self.assertTrue(
-                actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
-            )
-            self.assertTrue(fragment_info.get_sparse()[fragment_idx])
-
-        all_actual_uris = fragment_info.get_uri()
-        for actual_uri, expected_uri in zip(all_actual_uris, all_expected_uris):
-            self.assertTrue(expected_uri in actual_uri)
-            self.assertTrue(
-                actual_uri.endswith(str(fragment_info.get_version()[fragment_idx]))
-            )
-
-        self.assertEqual(fragment_info.get_timestamp_range(), ((1, 1), (2, 2), (3, 3)))
-        self.assertEqual(fragment_info.get_sparse(), (True, True, True))
+            self.assertEqual(fragment_info.get_sparse(), (True, True, True))
 
     def test_nonempty_domain(self):
         uri = self.path("test_nonempty_domain")
@@ -408,7 +434,8 @@ class FragmentInfoTest(DiskTestCase):
             "tiledb.libtiledb.version() < (2, 5, 0)"
         ),
     )
-    def test_get_mbr(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_get_mbr(self, use_timestamps):
         fragments = 3
 
         uri = self.path("test_get_mbr")
@@ -419,7 +446,9 @@ class FragmentInfoTest(DiskTestCase):
 
         for fragi in range(fragments):
             timestamp = fragi + 1
-            with tiledb.open(uri, mode="w", timestamp=timestamp) as T:
+            with tiledb.open(
+                uri, mode="w", timestamp=timestamp if use_timestamps else None
+            ) as T:
                 T[np.array(range(0, fragi + 1))] = [fragi] * (fragi + 1)
 
         expected_mbrs = ((((0, 0),),), (((0, 1),),), (((0, 2),),))
@@ -453,7 +482,8 @@ class FragmentInfoTest(DiskTestCase):
             "tiledb.libtiledb.version() < (2, 5, 0)"
         ),
     )
-    def test_get_var_sized_dim_mbrs(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_get_var_sized_dim_mbrs(self, use_timestamps):
         fragments = 3
 
         uri = self.path("test_get_var_sized_dim_mbrs")
@@ -464,7 +494,9 @@ class FragmentInfoTest(DiskTestCase):
 
         for fragi in range(fragments):
             timestamp = fragi + 1
-            with tiledb.open(uri, mode="w", timestamp=timestamp) as T:
+            with tiledb.open(
+                uri, mode="w", timestamp=timestamp if use_timestamps else None
+            ) as T:
                 coords = [chr(i) * (fragi + 1) for i in range(97, fragi + 98)]
                 T[np.array(coords)] = [fragi] * (fragi + 1)
 
@@ -497,7 +529,8 @@ class CreateArrayFromFragmentsTest(DiskTestCase):
     @pytest.mark.skipif(
         sys.platform == "win32", reason="VFS.copy() does not run on windows"
     )
-    def test_create_array_from_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_create_array_from_fragments(self, use_timestamps):
         dshape = (1, 3)
         num_frags = 10
 
@@ -509,7 +542,9 @@ class CreateArrayFromFragmentsTest(DiskTestCase):
 
         def write_fragments(target_path, dshape, num_frags):
             for i in range(1, num_frags + 1):
-                with tiledb.open(target_path, "w", timestamp=i) as A:
+                with tiledb.open(
+                    target_path, "w", timestamp=i if use_timestamps else None
+                ) as A:
                     A[[1, 2, 3]] = np.random.rand(dshape[1])
 
         src_path = self.path("test_create_array_from_fragments_src")
@@ -521,13 +556,22 @@ class CreateArrayFromFragmentsTest(DiskTestCase):
         write_fragments(src_path, dshape, num_frags)
         frags = tiledb.FragmentInfoList(src_path)
         assert len(frags) == 10
-        assert frags.timestamp_range == ts
+        if use_timestamps:
+            assert frags.timestamp_range == ts
 
-        tiledb.create_array_from_fragments(src_path, dst_path, (3, 6))
+        if use_timestamps:
+            tiledb.create_array_from_fragments(src_path, dst_path, (3, 6))
+        else:
+            tiledb.create_array_from_fragments(
+                src_path,
+                dst_path,
+                (frags.timestamp_range[2][0], frags.timestamp_range[5][1]),
+            )
 
         frags = tiledb.FragmentInfoList(dst_path)
         assert len(frags) == 4
-        assert frags.timestamp_range == ts[2:6]
+        if use_timestamps:
+            assert frags.timestamp_range == ts[2:6]
 
 
 class CopyFragmentsToExistingArrayTest(DiskTestCase):
@@ -631,7 +675,8 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
 
 
 class DeleteFragmentsTest(DiskTestCase):
-    def test_delete_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_delete_fragments(self, use_timestamps):
         dshape = (1, 3)
         num_writes = 10
 
@@ -643,7 +688,9 @@ class DeleteFragmentsTest(DiskTestCase):
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
-                with tiledb.open(target_path, "w", timestamp=i) as A:
+                with tiledb.open(
+                    target_path, "w", timestamp=i if use_timestamps else None
+                ) as A:
                     A[[1, 2, 3]] = np.random.rand(dshape[1])
 
         path = self.path("test_delete_fragments")
@@ -654,16 +701,23 @@ class DeleteFragmentsTest(DiskTestCase):
         write_fragments(path, dshape, num_writes)
         frags = tiledb.array_fragments(path)
         assert len(frags) == 10
-        assert frags.timestamp_range == ts
+        if use_timestamps:
+            assert frags.timestamp_range == ts
 
-        with tiledb.open(path, "m") as A:
-            A.delete_fragments(3, 6)
+        if use_timestamps:
+            tiledb.Array.delete_fragments(path, 3, 6)
+        else:
+            tiledb.Array.delete_fragments(
+                path, frags.timestamp_range[2][0], frags.timestamp_range[5][1]
+            )
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 6
-        assert frags.timestamp_range == ts[:2] + ts[6:]
+        if use_timestamps:
+            assert frags.timestamp_range == ts[:2] + ts[6:]
 
-    def test_delete_fragments_with_schema_evolution(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_delete_fragments_with_schema_evolution(self, use_timestamps):
         path = self.path("test_delete_fragments_with_schema_evolution")
         dshape = (1, 3)
 
@@ -673,8 +727,12 @@ class DeleteFragmentsTest(DiskTestCase):
         tiledb.libtiledb.Array.create(path, schema)
 
         ts1_data = np.random.rand(3)
-        with tiledb.open(path, "w", timestamp=1) as A:
-            A[[1, 2, 3]] = ts1_data
+        if use_timestamps:
+            with tiledb.open(path, "w", timestamp=1) as A:
+                A[[1, 2, 3]] = ts1_data
+        else:
+            with tiledb.open(path, "w") as A:
+                A[[1, 2, 3]] = ts1_data
 
         ctx = tiledb.default_ctx()
         se = tiledb.ArraySchemaEvolution(ctx)
@@ -682,8 +740,12 @@ class DeleteFragmentsTest(DiskTestCase):
         se.array_evolve(path)
 
         ts2_data = np.random.rand(3)
-        with tiledb.open(path, "w", timestamp=2) as A:
-            A[[1, 2, 3]] = {"a1": ts2_data, "a2": ts2_data}
+        if use_timestamps:
+            with tiledb.open(path, "w", timestamp=2) as A:
+                A[[1, 2, 3]] = {"a1": ts2_data, "a2": ts2_data}
+        else:
+            with tiledb.open(path, "w") as A:
+                A[[1, 2, 3]] = {"a1": ts2_data, "a2": ts2_data}
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 2
@@ -692,8 +754,12 @@ class DeleteFragmentsTest(DiskTestCase):
             assert_array_equal(A[:]["a1"], ts2_data)
             assert_array_equal(A[:]["a2"], ts2_data)
 
-        with tiledb.open(path, "m") as A:
-            A.delete_fragments(2, 2)
+        if use_timestamps:
+            tiledb.Array.delete_fragments(path, 2, 2)
+        else:
+            tiledb.Array.delete_fragments(
+                path, frags.timestamp_range[1][0], frags.timestamp_range[1][1]
+            )
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 1

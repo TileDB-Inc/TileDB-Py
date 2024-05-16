@@ -1,8 +1,78 @@
-# Next
+# Release 0.29.0
+
+* TileDB-Py 0.29.0 includes TileDB Embedded [2.23.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.23.0)
 
 ## Improvements
 
-* For compatibility with fsspec and rasterio, `isdir()`, `isfile()`, and `size()` aliases have been added to the `VFS` class (#1902).
+* Migrate away from deprecated TileDB C++ APIs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1958
+* Pybind11 Config should honor prefix for iter by @Shelnutt2 in https://github.com/TileDB-Inc/TileDB-Py/pull/1962
+* Fix test skipping by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1957
+* Make timestamp overrides optional in tests and add faketime test by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1953
+* Wrap tiledb_array_consolidate_fragments from pybind11 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1948
+
+## Build system changes
+
+* Enable python 3.12 by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/1959
+* Add .vscode to .gitignore by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1952
+
+# Release 0.28.0
+
+## TileDB Embedded updates
+
+* TileDB-Py 0.28.0 includes TileDB Embedded [2.22.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.22.0)
+
+## Improvements
+
+* Update type signature for VFS::readinto by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1937
+* Show enumerated value-types in enum-printer by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1936
+* Add wrapping for new consolidation plan API by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1935
+* Add test for Group constructor invalid uri object type by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1941
+* Update doc for tiledb.consolidate by @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1946
+* Improve documentation of from_numpy function by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1942
+
+## Build system changes
+
+* Exclude .pytest_cache and .hypothesis files by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1932
+* Remove modular building option by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1938
+* Fix wrong version number for Python API docs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1947
+* Remove conditional code for TileDB < 2.16 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1949
+* Update nightly test target to 2.21 by @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1950
+
+# Release 0.27.1
+
+## TileDB Embedded updates
+
+* TileDB-Py 0.27.1 includes TileDB Embedded [2.21.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.21.1)
+
+## Improvements
+
+* Add tests to ensure empty result on query condition for invalid enum. [1882](https://github.com/TileDB-Inc/TileDB-Py/pull/1882)
+
+# Release 0.27.0
+
+* TileDB-Py 0.27.0 includes TileDB Embedded [2.21.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.21.0)
+
+# Release 0.26.4
+
+## Bug Fixes
+
+* Fix VFS `read`, `seek` with numpy integer sizes. [#1927](https://github.com/TileDB-Inc/TileDB-Py/pull/1927)
+* Remove erroneous `_ctx` check for GroupMetadata [#1925](https://github.com/TileDB-Inc/TileDB-Py/pull/1925)
+
+# Release 0.26.3
+
+## Improvements
+
+* Fix vfs readinto when buff is not bytes. [#1915](https://github.com/TileDB-Inc/TileDB-Py/pull/1915)
+* Update daily test builds to use single source of truth for libtiledb target versions. [1910](https://github.com/TileDB-Inc/TileDB-Py/pull/1910)
+* Remove Python 3.7 CI jobs. [1916](https://github.com/TileDB-Inc/TileDB-Py/pull/1916)
+
+# Release 0.26.2
+
+## Improvements
+
+* Added API support for TileDB aggregates. [#1889](https://github.com/TileDB-Inc/TileDB-Py/pull/1889)
+* For compatibility with fsspec and rasterio, `isdir()`, `isfile()`, and `size()` aliases have been added to the `VFS` class. [#1902](https://github.com/TileDB-Inc/TileDB-Py/pull/1902).
 
 # Release 0.26.1
 

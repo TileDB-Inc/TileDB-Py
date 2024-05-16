@@ -29,7 +29,6 @@ std::unordered_map<tiledb_datatype_t, std::string> _tdb_to_np_name_dtype = {
     {TILEDB_DATETIME_PS, "M8[ps]"},
     {TILEDB_DATETIME_FS, "M8[fs]"},
     {TILEDB_DATETIME_AS, "M8[as]"},
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     /* duration types map to timedelta */
     {TILEDB_TIME_HR, "m8[h]"},
     {TILEDB_TIME_MIN, "m8[m]"},
@@ -40,13 +39,8 @@ std::unordered_map<tiledb_datatype_t, std::string> _tdb_to_np_name_dtype = {
     {TILEDB_TIME_PS, "m8[ps]"},
     {TILEDB_TIME_FS, "m8[fs]"},
     {TILEDB_TIME_AS, "m8[as]"},
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
     {TILEDB_BLOB, "byte"},
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
     {TILEDB_BOOL, "bool"},
-#endif
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
     {TILEDB_GEOM_WKB, "byte"},
     {TILEDB_GEOM_WKT, "S"},
@@ -77,7 +71,6 @@ std::unordered_map<std::string, tiledb_datatype_t> _np_name_to_tdb_dtype = {
     {"datetime64[ps]", TILEDB_DATETIME_PS},
     {"datetime64[fs]", TILEDB_DATETIME_FS},
     {"datetime64[as]", TILEDB_DATETIME_AS},
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     /* duration types map to timedelta */
     {"timedelta64[h]", TILEDB_TIME_HR},
     {"timedelta64[m]", TILEDB_TIME_MIN},
@@ -88,10 +81,7 @@ std::unordered_map<std::string, tiledb_datatype_t> _np_name_to_tdb_dtype = {
     {"timedelta64[ps]", TILEDB_TIME_PS},
     {"timedelta64[fs]", TILEDB_TIME_FS},
     {"timedelta64[as]", TILEDB_TIME_AS},
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
     {"bool", TILEDB_BOOL},
-#endif
 };
 
 namespace tiledbpy::common {
@@ -168,7 +158,8 @@ tiledb_datatype_t np_to_tdb_dtype(py::dtype type) {
   if (kind == py::str("U"))
     return TILEDB_STRING_UTF8;
 
-  TPY_ERROR_LOC("could not handle numpy dtype");
+  TPY_ERROR_LOC("could not handle numpy dtype: " +
+                py::getattr(type, "name").cast<std::string>());
 }
 
 bool is_tdb_num(tiledb_datatype_t type) {

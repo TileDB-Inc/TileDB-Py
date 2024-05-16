@@ -6,8 +6,11 @@ from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid, PyCapsul
 from cpython.version cimport PY_MAJOR_VERSION
 
 include "common.pxi"
+include "indexing.pyx"
+include "libmetadata.pyx"
 import io
 import warnings
+import collections.abc
 from collections import OrderedDict
 from json import dumps as json_dumps
 from json import loads as json_loads
@@ -25,17 +28,6 @@ from .vfs import VFS
 
 # https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
 np.import_array()
-
-
-###############################################################################
-#    MODULAR IMPORTS                                                 #
-###############################################################################
-
-IF TILEDBPY_MODULAR:
-    from .indexing import DomainIndexer
-ELSE:
-    include "indexing.pyx"
-    include "libmetadata.pyx"
 
 ###############################################################################
 #    Utility/setup                                                            #
@@ -948,9 +940,11 @@ cdef class Array(object):
 
         cdef bytes bkey
         cdef tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        cdef void* key_ptr = NULL
+        cdef const char* key_ptr = NULL
         cdef unsigned int key_len = 0
 
+        cdef tiledb_config_t* config_ptr = NULL
+        cdef tiledb_error_t* err_ptr = NULL
         cdef int rc = TILEDB_OK
 
         if key is not None:
@@ -959,9 +953,24 @@ cdef class Array(object):
             else:
                 bkey = bytes(key)
             key_type = TILEDB_AES_256_GCM
-            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            key_ptr = <const char *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+
+            rc = tiledb_config_alloc(&config_ptr, &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_config_set(config_ptr, "sm.encryption_type", "AES_256_GCM", &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_config_set(config_ptr, "sm.encryption_key", key_ptr, &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+            rc = tiledb_ctx_alloc(config_ptr, &ctx_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
 
         if overwrite:
             if object_type(uri) == "array":
@@ -979,7 +988,7 @@ cdef class Array(object):
                                 "object to argument ctx")
             ctx_ptr = safe_ctx_ptr(ctx)
         with nogil:
-            rc = tiledb_array_create_with_key(ctx_ptr, uri_ptr, schema_ptr, key_type, key_ptr, key_len)
+            rc = tiledb_array_create(ctx_ptr, uri_ptr, schema_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
         return
@@ -1254,7 +1263,7 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
         return Enumeration.from_capsule(self.ctx, PyCapsule_New(enum_ptr, "enum", NULL))
 
-    def delete_fragments(self, timestamp_start, timestamp_end):
+    def delete_fragments(self_or_uri, timestamp_start, timestamp_end, ctx=None):
         """
         Delete a range of fragments from timestamp_start to timestamp_end.
         The array needs to be opened in 'm' mode as shown in the example below.
@@ -1278,28 +1287,50 @@ cdef class Array(object):
         ...     A[:]
         array([1., 1., 1., 1.])
 
-        >>> with tiledb.open(path, 'm') as A:
-        ...     A.delete_fragments(2, 2)
+        >>> tiledb.Array.delete_fragments(path, 2, 2)
 
         >>> with tiledb.open(path, 'r') as A:
         ...     A[:]
         array([0., 0., 0., 0.])
 
         """
-        cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(self.ctx)
-        cdef tiledb_array_t* array_ptr = self.ptr
-        cdef tiledb_query_t* query_ptr = NULL
-        cdef bytes buri = self.uri.encode('UTF-8')
-
+        cdef tiledb_ctx_t* ctx_ptr
+        cdef tiledb_array_t* array_ptr
+        cdef tiledb_query_t* query_ptr
+        cdef bytes buri
         cdef int rc = TILEDB_OK
 
-        rc = tiledb_array_delete_fragments(
-                ctx_ptr,
-                array_ptr,
-                buri,
-                timestamp_start,
-                timestamp_end
-        )
+        if isinstance(self_or_uri, str):
+            uri = self_or_uri
+            if not ctx:
+                ctx = default_ctx()
+
+            ctx_ptr = safe_ctx_ptr(ctx)
+            buri = uri.encode('UTF-8')
+
+            rc = tiledb_array_delete_fragments_v2(
+                    ctx_ptr,
+                    buri,
+                    timestamp_start,
+                    timestamp_end
+            )
+        else:
+            array_instance = self_or_uri
+            warnings.warn(
+                "The `tiledb.Array.delete_fragments` instance method is deprecated. Use the static method with the same name instead.",
+                DeprecationWarning,
+            )
+            ctx_ptr = safe_ctx_ptr(array_instance.ctx)
+            array_ptr = <tiledb_array_t*>array_instance.ptr
+            buri = array_instance.uri.encode('UTF-8')
+
+            rc = tiledb_array_delete_fragments(
+                    ctx_ptr,
+                    array_ptr,
+                    buri,
+                    timestamp_start,
+                    timestamp_end
+            )
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -1332,12 +1363,10 @@ cdef class Array(object):
 
         cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
         cdef bytes buri = uri.encode('UTF-8')
-        cdef ArrayPtr preload_ptr = preload_array(uri, 'm', None, None)
-        cdef tiledb_array_t* array_ptr = preload_ptr.ptr
 
         cdef int rc = TILEDB_OK
 
-        rc = tiledb_array_delete_array(ctx_ptr, array_ptr, buri)
+        rc = tiledb_array_delete(ctx_ptr, buri)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 
@@ -1432,7 +1461,7 @@ cdef class Array(object):
         :param tiledb.Config config: The TileDB Config with consolidation parameters set
         :param key: (default None) encryption key to decrypt an encrypted array
         :type key: str or bytes
-        :param fragment_uris: (default None) Consolidate the array using a list of fragment file names
+        :param fragment_uris: (default None) Consolidate the array using a list of fragment _names_ (note: the `__ts1_ts2_<label>_<ver>` fragment name form alone, not the full path(s))
         :param timestamp: (default None) If not None, consolidate the array using the given tuple(int, int) UNIX seconds range (inclusive). This argument will be ignored if `fragment_uris` is passed.
         :type timestamp: tuple (int, int)
         :raises: :py:exc:`tiledb.TileDBError`
@@ -1452,9 +1481,7 @@ cdef class Array(object):
         """
         Upgrades an array to the latest format version.
 
-        :param ctx The TileDB context.
-        :param array_uri The uri of the array.
-        :param config Configuration parameters for the upgrade
+        :param config: (default None) Configuration parameters for the upgrade
             (`nullptr` means default, which will use the config from `ctx`).
         :raises: :py:exc:`tiledb.TileDBError`
         """
@@ -1524,21 +1551,21 @@ cdef class Array(object):
         ...         A[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
         ...
         ...     with tiledb.open(tmp, "r") as A:
-        ...         A.label_index(["l1"])[3:4]
-        ...         A.label_index(["l1", "l3"])[2, 0.5:1.0]
-        ...         A.label_index(["l2"])[:, -1:0]
-        ...         A.label_index(["l3"])[:, 0.5:1.0]
-        OrderedDict([('l1', array([4, 3])), ('a1', array([[1, 2, 3],
-               [4, 5, 6]]))])
-        OrderedDict([('l3', array([0.5, 1. ])), ('l1', array([2])), ('a1', array([[8, 9]]))])
-        OrderedDict([('l2', array([-1,  0])), ('a1', array([[ 1,  2],
-               [ 4,  5],
-               [ 7,  8],
-               [10, 11]]))])
-        OrderedDict([('l3', array([0.5, 1. ])), ('a1', array([[ 2,  3],
-               [ 5,  6],
-               [ 8,  9],
-               [11, 12]]))])
+        ...         A.label_index(["l1"])[3:4]  # doctest: +ELLIPSIS
+        ...         A.label_index(["l1", "l3"])[2, 0.5:1.0]  # doctest: +ELLIPSIS
+        ...         A.label_index(["l2"])[:, -1:0]  # doctest: +ELLIPSIS
+        ...         A.label_index(["l3"])[:, 0.5:1.0]  # doctest: +ELLIPSIS
+        OrderedDict(...'l1'... array([4, 3])..., ...'a1'... array([[1, 2, 3],
+                [4, 5, 6]])...)
+        OrderedDict(...'l3'... array([0.5, 1. ])..., ...'l1'... array([2])..., ...'a1'... array([[8, 9]])...)
+        OrderedDict(...'l2'... array([-1,  0])..., ...'a1'... array([[ 1,  2],
+                [ 4,  5],
+                [ 7,  8],
+                [10, 11]])...)
+        OrderedDict(...'l3'... array([0.5, 1. ])..., ...'a1'... array([[ 2,  3],
+                [ 5,  6],
+                [ 8,  9],
+                [11, 12]])...)
 
         :param labels: List of labels to use when querying. Can only use at most one
             label per dimension.
@@ -1582,19 +1609,23 @@ cdef class Array(object):
         >>>
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...    A = tiledb.from_numpy(tmp, np.eye(4) * [1,2,3,4])
-        ...    A.multi_index[1]
-        ...    A.multi_index[1,1]
+        ...    A.multi_index[1]  # doctest: +ELLIPSIS
+        ...    A.multi_index[1,1]  # doctest: +ELLIPSIS
         ...    # return row 0 and 2
-        ...    A.multi_index[[0,2]]
+        ...    A.multi_index[[0,2]]  # doctest: +ELLIPSIS
         ...    # return rows 0 and 2 intersecting column 2
-        ...    A.multi_index[[0,2], 2]
+        ...    A.multi_index[[0,2], 2]  # doctest: +ELLIPSIS
         ...    # return rows 0:2 intersecting columns 0:2
-        ...    A.multi_index[slice(0,2), slice(0,2)]
-        OrderedDict([('', array([[0., 2., 0., 0.]]))])
-        OrderedDict([('', array([[2.]]))])
-        OrderedDict([('', array([[1., 0., 0., 0.], [0., 0., 3., 0.]]))])
-        OrderedDict([('', array([[0.], [3.]]))])
-        OrderedDict([('', array([[1., 0., 0.], [0., 2., 0.], [0., 0., 3.]]))])
+        ...    A.multi_index[slice(0,2), slice(0,2)]  # doctest: +ELLIPSIS
+        OrderedDict(...''... array([[0., 2., 0., 0.]])...)
+        OrderedDict(...''... array([[2.]])...)
+        OrderedDict(...''... array([[1., 0., 0., 0.],
+                [0., 0., 3., 0.]])...)
+        OrderedDict(...''... array([[0.],
+                [3.]])...)
+        OrderedDict(...''... array([[1., 0., 0.],
+                [0., 2., 0.],
+                [0., 0., 3.]])...)
 
         """
         # Delayed to avoid circular import
@@ -1701,6 +1732,103 @@ cdef class Array(object):
         self.__init__(uri, mode=mode, key=key, attr=view_attr,
                       timestamp=timestamp_range, ctx=ctx)
 
+cdef class Aggregation(object):
+    """
+    Proxy object returned by Query.agg to calculate aggregations.
+    """
+
+    def __init__(self, query=None, attr_to_aggs={}):
+        if query is None:
+            raise ValueError("must pass in a query object")
+        
+        self.query = query
+        self.attr_to_aggs = attr_to_aggs
+
+    def __getitem__(self, object selection):
+        from .main import PyAgg
+        from .subarray import Subarray
+
+        array = self.query.array
+        order = self.query.order
+
+        cdef tiledb_layout_t layout = TILEDB_UNORDERED if array.schema.sparse else TILEDB_ROW_MAJOR
+        if order is None or order == 'C':
+            layout = TILEDB_ROW_MAJOR
+        elif order == 'F':
+            layout = TILEDB_COL_MAJOR
+        elif order == 'G':
+            layout = TILEDB_GLOBAL_ORDER
+        elif order == 'U':
+            layout = TILEDB_UNORDERED
+        else:
+            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
+                             "'F' (TILEDB_COL_MAJOR), "\
+                             "'G' (TILEDB_GLOBAL_ORDER), "\
+                             "or 'U' (TILEDB_UNORDERED)")
+    
+        q = PyAgg(array._ctx_(), array, <int32_t>layout, self.attr_to_aggs)
+
+        selection = index_as_tuple(selection)
+        dom = array.schema.domain
+        idx = replace_ellipsis(dom.ndim, selection)
+        idx, drop_axes = replace_scalars_slice(dom, idx)
+        dim_ranges  = index_domain_subarray(array, dom, idx)
+
+        subarray = Subarray(array, array.ctx)
+        subarray.add_ranges([list([x]) for x in dim_ranges])
+        q.set_subarray(subarray)
+
+        cond = self.query.cond
+        if cond is not None and cond != "":
+            from .query_condition import QueryCondition
+
+            if isinstance(cond, str):
+                q.set_cond(QueryCondition(cond))
+            elif isinstance(cond, QueryCondition):
+                raise TileDBError(
+                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
+                    "supported as of 0.19.0. Instead of "
+                    "`cond=tiledb.QueryCondition('expression')` "
+                    "you must use `cond='expression'`. This message will be "
+                    "removed in 0.21.0.",
+                )
+            else:
+                raise TypeError("`cond` expects type str.")        
+
+        result = q.get_aggregate()
+
+        # If there was only one attribute, just show the aggregate results
+        if len(result) == 1:
+            result = result[list(result.keys())[0]]
+
+            # If there was only one aggregate, just show the value
+            if len(result) == 1:
+                result = result[list(result.keys())[0]]
+
+        return result
+
+    @property
+    def multi_index(self):
+        """Apply Array.multi_index with query parameters."""
+        # Delayed to avoid circular import
+        from .multirange_indexing import MultiRangeAggregation
+        return MultiRangeAggregation(self.query.array, query=self)
+
+    @property
+    def df(self):
+        raise NotImplementedError(".df indexer not supported for Aggregations")
+    
+    @property
+    def attr_to_aggs(self):
+        """Return the attribute and aggregration input mapping"""
+        return self.attr_to_aggs
+
+    @property
+    def query(self):
+        """Return the underlying Query object"""
+        return self.query
+
+
 cdef class Query(object):
     """
     Proxy object returned by query() to index into original array
@@ -1767,10 +1895,75 @@ cdef class Query(object):
             raise TileDBError("`return_arrow=True` requires .df indexer`")
 
         return self.array.subarray(selection,
-                                   attrs=self.attrs,
-                                   cond=self.cond,
-                                   coords=self.coords if self.coords else self.dims,
-                                   order=self.order)
+                                attrs=self.attrs,
+                                cond=self.cond,
+                                coords=self.coords if self.coords else self.dims,
+                                order=self.order)
+    
+    def agg(self, aggs):
+        """
+        Calculate an aggregate operation for a given attribute. Available 
+        operations are sum, min, max, mean, count, and null_count (for nullable
+        attributes only). Aggregates may be combined with other query operations 
+        such as query conditions and slicing.
+
+        The input may be a single operation, a list of operations, or a 
+        dictionary with attribute mapping to a single operation or list of 
+        operations.
+
+        For undefined operations on max and min, which can occur when a nullable
+        attribute contains only nulled data at the given coordinates or when 
+        there is no data read for the given query (e.g. query conditions that do
+        not match any values or coordinates that contain no data)), invalid
+        results are represented as np.nan for attributes of floating point types
+        and None for integer types.
+
+        >>> import tiledb, tempfile, numpy as np
+        >>> path = tempfile.mkdtemp()
+
+        >>> with tiledb.from_numpy(path, np.arange(1, 10)) as A:
+        ...     pass
+
+        >>> # Note that tiledb.from_numpy creates anonymous attributes, so the
+        >>> # name of the attribute is represented as an empty string
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query().agg("sum")[:]
+        45
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query(cond="attr('') < 5").agg(["count", "mean"])[:]
+        {'count': 9, 'mean': 2.5}
+
+        >>> with tiledb.open(path, 'r') as A:
+        ...     A.query().agg({"": ["max", "min"]})[2:7]
+        {'max': 7, 'min': 3}
+
+        :param agg: The input attributes and operations to apply aggregations on
+        :returns: single value for single operation on one attribute, a dictionary
+            of attribute keys associated with a single value for a single operation
+            across multiple attributes, or a dictionary of attribute keys that maps
+            to a dictionary of operation labels with the associated value
+        """
+        schema = self.array.schema
+        attr_to_aggs_map = {}
+        if isinstance(aggs, dict):
+            attr_to_aggs_map = {
+                a: (
+                    tuple([aggs[a]]) 
+                    if isinstance(aggs[a], str) 
+                    else tuple(aggs[a])
+                )
+                for a in aggs
+            }
+        elif isinstance(aggs, str):
+            attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
+            attr_to_aggs_map = {a: (aggs,) for a in attrs}
+        elif isinstance(aggs, collections.abc.Sequence):
+            attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
+            attr_to_aggs_map = {a: tuple(aggs) for a in attrs}
+
+        return Aggregation(self, attr_to_aggs_map)
 
     @property
     def attrs(self):
@@ -2009,8 +2202,8 @@ cdef class DenseArrayImpl(Array):
         ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
         ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
         ...         # Access specific attributes individually.
-        ...         A.query(attrs=("a1",))[0:5]
-        OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
+        ...         A.query(attrs=("a1",))[0:5]  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([0, 0, 0, 0, 0])...)
 
         """
         if not self.isopen or self.mode != 'r':
@@ -2064,8 +2257,8 @@ cdef class DenseArrayImpl(Array):
         ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
         ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
         ...         # A[0:5], attribute a1, row-major without coordinates
-        ...         A.subarray((slice(0, 5),), attrs=("a1",), coords=False, order='C')
-        OrderedDict([('a1', array([0, 0, 0, 0, 0]))])
+        ...         A.subarray((slice(0, 5),), attrs=("a1",), coords=False, order='C')  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([0, 0, 0, 0, 0])...)
 
         """
         from .subarray import Subarray
@@ -2143,7 +2336,6 @@ cdef class DenseArrayImpl(Array):
 
         q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), <int32_t>layout, False)
         self.pyquery = q
-
 
         if cond is not None and cond != "":
             from .query_condition import QueryCondition
@@ -2303,6 +2495,16 @@ cdef class DenseArrayImpl(Array):
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
                 if type(attr_val) is np.ndarray and attr_val.dtype is not np.dtype('O'):
+                    if attr.isnullable and name not in nullmaps:
+                        try:
+                            nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
+                            attr_val = np.nan_to_num(attr_val)
+                        except Exception as exc:
+                            attr_val = np.asarray(attr_val)
+                            nullmaps[name] = np.array(
+                                [int(v is not None) for v in attr_val], 
+                                dtype=np.uint8
+                            )
                     attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
                 
                 try:
@@ -2993,11 +3195,10 @@ cdef class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
         ...         # Return an OrderedDict with values and coordinates
-        ...         A[0:3, 0:10]
+        ...         A[0:3, 0:10]  # doctest: +ELLIPSIS
         ...         # Return just the "x" coordinates values
-        ...         A[0:3, 0:10]["x"]
-        OrderedDict([('a1', array([1, 2])), ('a2', array([3, 4])), ('y', array([0, 2], dtype=uint64)), ('x', array([0, 3], dtype=uint64))])
-        array([0, 3], dtype=uint64)
+        ...         A[0:3, 0:10]["x"]  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([1, 2])..., ...'a2'... array([3, 4])..., ...'y'... array([0, 2], dtype=uint64)..., ...'x'... array([0, 3], dtype=uint64)...)
 
         With a floating-point array domain, index bounds are inclusive, e.g.:
 
@@ -3070,8 +3271,8 @@ cdef class SparseArrayImpl(Array):
         ...         A[I, J] = {"a1": np.array([1, 2]),
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
-        ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]
-        OrderedDict([('a1', array([1, 2]))])
+        ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([1, 2])...)
 
         """
         if not self.isopen or self.mode not in  ('r', 'd'):
@@ -3180,8 +3381,8 @@ cdef class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
         ...         # A[0:3, 0:10], attribute a1, row-major without coordinates
-        ...         A.subarray((slice(0, 3), slice(0, 10)), attrs=("a1",), coords=False, order='G')
-        OrderedDict([('a1', array([1, 2]))])
+        ...         A.subarray((slice(0, 3), slice(0, 10)), attrs=("a1",), coords=False, order='G')  # doctest: +ELLIPSIS
+        OrderedDict(...'a1'... array([1, 2])...)
 
         """
         from .subarray import Subarray
@@ -3463,8 +3664,9 @@ def _consolidate_timestamp(uri, key=None, config=None, ctx=None, timestamp=None)
     cdef:
         bytes bkey
         tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-        void* key_ptr = NULL
+        const char* key_ptr = NULL
         unsigned int key_len = 0
+        tiledb_error_t* err_ptr = NULL
 
     if key is not None:
         if isinstance(key, str):
@@ -3472,13 +3674,25 @@ def _consolidate_timestamp(uri, key=None, config=None, ctx=None, timestamp=None)
         else:
             bkey = bytes(key)
         key_type = TILEDB_AES_256_GCM
-        key_ptr = <void *> PyBytes_AS_STRING(bkey)
+        key_ptr = <const char *> PyBytes_AS_STRING(bkey)
         #TODO: unsafe cast here ssize_t -> uint64_t
         key_len = <unsigned int> PyBytes_GET_SIZE(bkey)
+    
+        rc = tiledb_config_alloc(&config_ptr, &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_config_set(config_ptr, "sm.encryption_type", "AES_256_GCM", &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
+
+        rc = tiledb_config_set(config_ptr, "sm.encryption_key", key_ptr, &err_ptr)
+        if rc != TILEDB_OK:
+            _raise_ctx_err(ctx_ptr, rc)
 
     with nogil:
-        rc = tiledb_array_consolidate_with_key(
-            ctx_ptr, array_uri_ptr, key_type, key_ptr, key_len, config_ptr)
+        rc = tiledb_array_consolidate(
+            ctx_ptr, array_uri_ptr, config_ptr)
     if rc != TILEDB_OK:
         _raise_ctx_err(ctx_ptr, rc)
     return uri

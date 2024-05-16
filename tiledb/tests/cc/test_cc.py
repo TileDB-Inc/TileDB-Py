@@ -7,6 +7,7 @@ import pytest
 import tiledb
 import tiledb.cc as lt
 from tiledb.datatypes import DataType
+from tiledb.main import PyFragmentInfo
 
 
 def test_config():
@@ -158,6 +159,38 @@ def test_array():
         arr.get_metadata("key")
     assert not arr.has_metadata("key")[0]
     arr.close()
+
+
+def test_consolidate_fragments():
+    uri = tempfile.mkdtemp()
+    ctx = lt.Context()
+    config = lt.Config()
+
+    tiledb.from_numpy(uri, np.random.rand(4)).close()
+
+    with tiledb.open(uri, "w") as A:
+        A[:] = np.random.rand(4)
+
+    with tiledb.open(uri, "w") as A:
+        A[:] = np.random.rand(4)
+
+    schema = tiledb.ArraySchema.load(uri, ctx=ctx)
+    fragment_info = PyFragmentInfo(uri, schema, False, ctx)
+
+    assert fragment_info.get_num_fragments() == 3
+
+    uris = fragment_info.get_uri()
+    # get fragment name form alone, not the full path(s) (the part of each uri after the last /)
+    # https://github.com/TileDB-Inc/TileDB-Py/pull/1946
+    uris = [uri.split("/")[-1] for uri in uris]
+
+    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+    arr.consolidate_fragments(ctx, uris, config)
+    arr.close()
+
+    fragment_info = PyFragmentInfo(uri, schema, False, ctx)
+    # Fragmentinfo doesn't see the consolidated range
+    assert fragment_info.get_num_fragments() == 1
 
 
 def test_array_config():

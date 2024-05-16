@@ -25,9 +25,10 @@ import numpy as np
 
 from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
+from .libtiledb import Aggregation as AggregationProxy
 from .libtiledb import Array, ArraySchema, Metadata
 from .libtiledb import Query as QueryProxy
-from .main import PyQuery, increment_stat, use_stats
+from .main import PyAgg, PyQuery, increment_stat, use_stats
 from .query import Query
 from .query_condition import QueryCondition
 from .subarray import Subarray
@@ -354,6 +355,46 @@ class MultiRangeIndexer(_BaseIndexer):
         return result_dict
 
 
+class MultiRangeAggregation(_BaseIndexer):
+    def __init__(self, array: Array, query: Optional[AggregationProxy] = None):
+        super().__init__(array, query)
+        self.result_shape = None
+
+    def _set_shape(self, ranges):
+        schema = self.array.schema
+        if not schema.sparse and len(schema.shape) > 1:
+            self.result_shape = mr_dense_result_shape(ranges, schema.shape)
+        else:
+            self.result_shape = None
+
+    def __getitem__(self, idx):
+        with timing("getitem_time"):
+            if idx is EmptyRange:
+                self.pyquery = None
+                self.subarray = None
+            else:
+                self.pyquery = _get_pyagg(self.array, self.query)
+                self.subarray = Subarray(self.array)
+                self._set_ranges(idx)
+            return self._run_query()
+
+    def _run_query(self) -> Dict[str, np.ndarray]:
+        if self.pyquery is None:
+            return self._empty_results
+
+        result = self.pyquery.get_aggregate()
+
+        # If there was only one attribute, just show the aggregate results
+        if len(result) == 1:
+            result = result[list(result.keys())[0]]
+
+            # If there was only one aggregate, just show the value
+            if len(result) == 1:
+                result = result[list(result.keys())[0]]
+
+        return result
+
+
 class DataFrameIndexer(_BaseIndexer):
     """
     Implements `.df[]` indexing to directly return a dataframe
@@ -608,6 +649,23 @@ def _get_pyquery(
             raise TypeError("`cond` expects type str.")
 
     return pyquery
+
+
+def _get_pyagg(array: Array, agg: AggregationProxy) -> PyAgg:
+    order = agg.query.order
+
+    try:
+        layout = "CFGU".index(order)
+    except ValueError:
+        raise ValueError(
+            "order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR),  "
+            "'U' (TILEDB_UNORDERED), or 'G' (TILEDB_GLOBAL_ORDER)"
+        )
+
+    pyagg = PyAgg(array._ctx_(), array, layout, agg.attr_to_aggs)
+    if agg.query.cond is not None:
+        pyagg.set_cond(QueryCondition(agg.query.cond))
+    return pyagg
 
 
 def _iter_attr_names(
