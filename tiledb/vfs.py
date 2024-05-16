@@ -95,7 +95,7 @@ class VFS(lt.VFS):
         """
         if isinstance(file, FileIO):
             raise lt.TileDBError(
-                "`tiledb.VFS().open` now returns a a FileIO object. Use "
+                "`tiledb.VFS().open` now returns a FileIO object. Use "
                 "`FileIO.write`. This message will be removed in 0.21.0.",
             )
         if isinstance(buff, str):
@@ -115,7 +115,7 @@ class VFS(lt.VFS):
         """
         if isinstance(file, FileIO):
             raise lt.TileDBError(
-                "`tiledb.VFS().open` now returns a a FileIO object. Use "
+                "`tiledb.VFS().open` now returns a FileIO object. Use "
                 "`FileIO.seek` and `FileIO.read`. This message will be removed "
                 "in 0.21.0."
             )
