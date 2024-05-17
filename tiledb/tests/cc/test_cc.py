@@ -275,8 +275,9 @@ def test_schema():
 
     with pytest.raises(lt.TileDBError):
         schema._tile_order = lt.LayoutType.HILBERT
-    with pytest.raises(lt.TileDBError):
-        schema._tile_order = lt.LayoutType.UNORDERED
+    if tiledb.libtiledb.version() >= (2, 24, 0):
+        with pytest.raises(lt.TileDBError):
+            schema._tile_order = lt.LayoutType.UNORDERED
     schema._tile_order = lt.LayoutType.ROW_MAJOR
     assert schema._tile_order == lt.LayoutType.ROW_MAJOR
 
