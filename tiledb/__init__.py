@@ -91,6 +91,8 @@ from .highlevel import (
 )
 from .libtiledb import (
     Array,
+    DenseArrayImpl,
+    SparseArrayImpl,
     consolidate,
     ls,
     move,
@@ -103,8 +105,6 @@ from .libtiledb import (
     vacuum,
     walk,
 )
-from .libtiledb import DenseArrayImpl as DenseArray
-from .libtiledb import SparseArrayImpl as SparseArray
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet
@@ -134,13 +134,19 @@ __path__ = __import__("pkgutil").extend_path(__path__, __name__)
 try:
     from tiledb.cloud.cloudarray import CloudArray
 except ImportError:
-    pass
-else:
 
-    class DenseArray(DenseArray, CloudArray):
+    class DenseArray(DenseArrayImpl):
         pass
 
-    class SparseArray(SparseArray, CloudArray):
+    class SparseArray(SparseArrayImpl):
+        pass
+
+else:
+
+    class DenseArray(DenseArrayImpl, CloudArray):
+        pass
+
+    class SparseArray(SparseArrayImpl, CloudArray):
         pass
 
     del CloudArray

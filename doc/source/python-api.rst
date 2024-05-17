@@ -115,7 +115,7 @@ Array
 Dense Array
 -----------
 
-.. autoclass:: tiledb.libtiledb.DenseArrayImpl
+.. autoclass:: tiledb.DenseArray
    :members:
 
    .. automethod:: __getitem__(selection)
@@ -124,7 +124,7 @@ Dense Array
 Sparse Array
 ------------
 
-.. autoclass:: tiledb.libtiledb.SparseArrayImpl
+.. autoclass:: tiledb.SparseArray
    :members:
 
    .. automethod:: __getitem__(selection)
