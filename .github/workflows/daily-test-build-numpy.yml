@@ -34,7 +34,7 @@ jobs:
       TILEDB_VERSION: ${{ github.event.inputs.libtiledb_version }}
       # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
       #MACOSX_DEPLOYMENT_TARGET: "10.15"
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-12' && matrix.python-version == '3.8' ? '11.7' : '11' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-12' && matrix.python-version == '3.8' && '11.7' || '11' }}
       VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
     steps:
       - name: Checkout TileDB-Py `dev`
