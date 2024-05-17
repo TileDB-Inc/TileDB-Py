@@ -6,7 +6,7 @@ import subprocess
 import sys
 from ctypes import CDLL, POINTER, Structure, byref, c_char_p, c_int, c_void_p
 
-from pkg_resources import resource_filename
+import numpy as np
 from pybind11.setup_helpers import Pybind11Extension
 from setuptools import Extension, find_packages, setup
 
@@ -478,16 +478,8 @@ class LazyCommandClass(dict):
             """
 
             def build_extensions(self):
-                """
-                Lazily append numpy's include directory to Extension includes.
-
-                This is done here rather than at module scope because setup.py
-                may be run before numpy has been installed, in which case
-                importing numpy and calling `numpy.get_include()` will fail.
-                """
-                numpy_incl = resource_filename("numpy", "core/include")
                 for ext in self.extensions:
-                    ext.include_dirs.append(numpy_incl)
+                    ext.include_dirs.append(np.get_include())
 
                 find_or_install_libtiledb(self)
 

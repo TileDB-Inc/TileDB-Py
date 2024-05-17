@@ -422,7 +422,7 @@ class DataFrameIndexer(_BaseIndexer):
         # Until list attributes are supported in core, error with a clear message.
         if use_arrow and any(
             (attr.isvar or len(attr.dtype) > 1)
-            and attr.dtype not in (np.unicode_, np.bytes_)
+            and attr.dtype not in (np.str_, np.bytes_)
             for attr in map(array.attr, query.attrs or ())
         ):
             raise TileDBError(
