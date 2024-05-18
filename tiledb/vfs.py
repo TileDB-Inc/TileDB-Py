@@ -95,7 +95,7 @@ class VFS(lt.VFS):
         """
         if isinstance(file, FileIO):
             raise lt.TileDBError(
-                "`tiledb.VFS().open` now returns a a FileIO object. Use "
+                "`tiledb.VFS().open` now returns a FileIO object. Use "
                 "`FileIO.write`. This message will be removed in 0.21.0.",
             )
         if isinstance(buff, str):
@@ -115,7 +115,7 @@ class VFS(lt.VFS):
         """
         if isinstance(file, FileIO):
             raise lt.TileDBError(
-                "`tiledb.VFS().open` now returns a a FileIO object. Use "
+                "`tiledb.VFS().open` now returns a FileIO object. Use "
                 "`FileIO.seek` and `FileIO.read`. This message will be removed "
                 "in 0.21.0."
             )
@@ -436,9 +436,7 @@ class FileIO(io.RawIOBase):
     def seek(self, offset: int, whence: int = 0):
         """
         :param int offset: Byte position to set the file pointer
-        :param int whence: Reference point. A whence value of 0 measures from the
-        beginning of the file, 1 uses the current file position, and 2 uses the
-        end of the file as the reference point. whence can be omitted and defaults to 0.
+        :param int whence: Reference point. A whence value of 0 measures from the beginning of the file, 1 uses the current file position, and 2 uses the end of the file as the reference point. whence can be omitted and defaults to 0.
         """
         if not np.issubdtype(type(offset), np.integer):
             raise TypeError(
@@ -475,8 +473,7 @@ class FileIO(io.RawIOBase):
         """
         Read the file from the current pointer position.
 
-        :param int size: Number of bytes to read. By default, size is set to -1
-        which will read until the end of the file.
+        :param int size: Number of bytes to read. By default, size is set to -1 which will read until the end of the file.
         :rtype: bytes
         :return: The bytes in the file
 

@@ -209,7 +209,7 @@ class Config(lt.Config):
 
         :param str prefix: return only parameters with a given prefix
         :rtype: dict
-        :return: Config parameter / values as a a Python dict
+        :return: Config parameter / values as a Python dict
 
         """
         return dict(ConfigItems(self, prefix=prefix))
