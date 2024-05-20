@@ -22,6 +22,12 @@ target_link_libraries(
     TileDB::tiledb_shared
 )
 
+target_compile_features(
+    libtiledb
+    PUBLIC
+    cxx_std_20
+)
+
 # Pybind11
 
 pybind11_add_module(
@@ -42,6 +48,12 @@ target_link_libraries(
     main
     PUBLIC
     TileDB::tiledb_shared
+)
+
+target_compile_features(
+    main
+    PUBLIC
+    cxx_std_20
 )
 
 install(TARGETS main libtiledb DESTINATION tiledb)

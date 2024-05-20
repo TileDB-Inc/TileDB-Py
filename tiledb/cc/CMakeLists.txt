@@ -27,6 +27,12 @@ target_link_libraries(
     TileDB::tiledb_shared
 )
 
+target_compile_features(
+    cc
+    PUBLIC
+    cxx_std_20
+)
+
 install(TARGETS cc DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)
