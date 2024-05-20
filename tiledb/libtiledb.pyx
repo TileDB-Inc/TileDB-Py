@@ -1895,6 +1895,10 @@ cdef class Query(object):
             if not use_arrow:
                 raise TileDBError("Cannot initialize return_arrow with use_arrow=False")
         self.use_arrow = use_arrow
+
+        if return_incomplete and not array.schema.sparse:
+            raise TileDBError("Incomplete queries are only supported for sparse arrays at this time")
+
         self.return_incomplete = return_incomplete
 
         self.domain_index = DomainIndexer(array, query=self)
