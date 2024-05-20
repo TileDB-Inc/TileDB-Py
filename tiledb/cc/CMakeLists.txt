@@ -29,8 +29,10 @@ target_link_libraries(
 
 install(TARGETS cc DESTINATION tiledb)
 
-if (APPLE)
-set_target_properties(cc PROPERTIES INSTALL_RPATH "@loader_path/lib")
-elseif(UNIX)
-set_target_properties(cc PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+if(TILEDB_DOWNLOADED)
+    if (APPLE)
+    set_target_properties(cc PROPERTIES INSTALL_RPATH "@loader_path/lib")
+    elseif(UNIX)
+    set_target_properties(cc PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+    endif()
 endif()

@@ -46,14 +46,18 @@ target_link_libraries(
 
 install(TARGETS main libtiledb DESTINATION tiledb)
 
-install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared DESTINATION tiledb/lib)
+if(TILEDB_DOWNLOADED)
+    message(STATUS "Adding libtiledb.so into install group")
 
-if (APPLE)
-set_target_properties(main PROPERTIES INSTALL_RPATH "@loader_path/lib")
-set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "@loader_path/lib")
-elseif(UNIX)
-set_target_properties(main PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
-set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+    install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared DESTINATION tiledb/lib)
+
+    if (APPLE)
+        set_target_properties(main PROPERTIES INSTALL_RPATH "@loader_path/lib")
+        set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "@loader_path/lib")
+    elseif(UNIX)
+        set_target_properties(main PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+        set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+    endif()
 endif()
 
 add_subdirectory(cc)

@@ -14,6 +14,7 @@ find_package(
 find_package(pybind11 CONFIG REQUIRED)
 
 # In the future we should use vcpkg
+set(TileDB_DIR $ENV{TILEDB_PATH})
 find_package(TileDB)
 if (NOT TileDB_FOUND)
     include(cmake/DownloadTileDB.cmake)
@@ -22,6 +23,7 @@ if (NOT TileDB_FOUND)
             RELLIST_HASH SHA256=2221b0ee2af2675d69f9cb31bc22062d3f379eeecc83b5fc713d00fa03d6e56f
     )
     find_package(TileDB REQUIRED)
+    set(TILEDB_DOWNLOADED)
 endif()
 
 add_subdirectory(tiledb)
