@@ -53,7 +53,7 @@ jobs:
           # This command should be just `pytest`, however, our tests require test data and those are only in the
           # original {project} folder. The cibuildwheel logic unfortunately creates an empty folder for tests, changes
           # directory there and so our tests will search for data folder in a completely different working directory.
-          CIBW_TEST_COMMAND: "pytest"
+          CIBW_TEST_COMMAND: "pytest {project}"
           CIBW_ENVIRONMENT: TILEDB_REST_TOKEN=${{ secrets.TILEDB_CLOUD_HELPER_VAR }}
           SYSTEM_VERSION_COMPAT: ${{ startsWith(matrix.os, 'macos-') }}
         with:
