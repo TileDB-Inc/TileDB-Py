@@ -17,12 +17,12 @@ import tiledb.main as main
     "format, quality, lossless",
     [
         (
-            tiledb.filter.lt.WebpInputFormat.WEBP_RGB,
+            tiledb.filter.WebpFilter.WebpInputFormat.WEBP_RGB,
             100.0,
             False,
         ),  # Test setting format with enum values
-        (tiledb.filter.lt.WebpInputFormat.WEBP_BGR, 50.0, True),
-        (tiledb.filter.lt.WebpInputFormat.WEBP_RGBA, 25.5, False),
+        (tiledb.filter.WebpFilter.WebpInputFormat.WEBP_BGR, 50.0, True),
+        (tiledb.filter.WebpFilter.WebpInputFormat.WEBP_RGBA, 25.5, False),
         (4, 0.0, True),  # Test setting format with integral type
     ],
 )
@@ -31,7 +31,7 @@ def test_webp_ctor(format, quality, lossless):
         input_format=format, quality=quality, lossless=lossless
     )
     np.testing.assert_equal(
-        webp_filter.input_format, tiledb.filter.lt.WebpInputFormat(format)
+        webp_filter.input_format, tiledb.filter.WebpFilter.WebpInputFormat(format)
     )
     np.testing.assert_equal(webp_filter.quality, quality)
     np.testing.assert_equal(webp_filter.lossless, lossless)
@@ -117,16 +117,18 @@ def make_image_data(width, height, pixel_depth):
 @pytest.mark.parametrize(
     "colorspace",
     [
-        tiledb.filter.lt.WebpInputFormat.WEBP_RGB,
-        tiledb.filter.lt.WebpInputFormat.WEBP_BGR,
-        tiledb.filter.lt.WebpInputFormat.WEBP_RGBA,
-        tiledb.filter.lt.WebpInputFormat.WEBP_BGRA,
+        tiledb.filter.WebpFilter.WebpInputFormat.WEBP_RGB,
+        tiledb.filter.WebpFilter.WebpInputFormat.WEBP_BGR,
+        tiledb.filter.WebpFilter.WebpInputFormat.WEBP_RGBA,
+        tiledb.filter.WebpFilter.WebpInputFormat.WEBP_BGRA,
     ],
 )
 @pytest.mark.parametrize("lossless", [True, False])
 def test_webp_filter(width, height, colorspace, lossless):
     pixel_depth = (
-        3 if int(colorspace) < int(tiledb.filter.lt.WebpInputFormat.WEBP_RGBA) else 4
+        3
+        if int(colorspace) < int(tiledb.filter.WebpFilter.WebpInputFormat.WEBP_RGBA)
+        else 4
     )
     data = make_image_data(width, height, pixel_depth)
     data = np.array(data, dtype=np.uint8).reshape(height, width * pixel_depth)

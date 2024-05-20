@@ -754,6 +754,9 @@ class WebpFilter(Filter):
         lt.FilterOption.WEBP_LOSSLESS,
     )
 
+    # Expose WebP enums at the top level
+    WebpInputFormat = lt.WebpInputFormat
+
     def __init__(
         self,
         input_format: lt.WebpInputFormat = None,
