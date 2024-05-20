@@ -3598,6 +3598,22 @@ class IncompleteTest(DiskTestCase):
                 T2.multi_index[101:105][""], np.array([], dtype=np.dtype("<U"))
             )
 
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_query_return_incomplete_error(self, sparse):
+        path = self.path("test_query_return_incomplete_error")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
+        attrs = [tiledb.Attr("ints", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "r") as A:
+            if sparse:
+                A.query(return_incomplete=True)[:]
+            else:
+                with self.assertRaises(tiledb.TileDBError):
+                    A.query(return_incomplete=True)[:]
+
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     @pytest.mark.parametrize(
         "use_arrow, return_arrow, indexer",
