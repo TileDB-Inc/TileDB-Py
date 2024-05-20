@@ -12,8 +12,7 @@ import io
 import warnings
 import collections.abc
 from collections import OrderedDict
-from json import dumps as json_dumps
-from json import loads as json_loads
+from json import dumps as json_dumps, loads as json_loads
 
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
@@ -35,10 +34,7 @@ np.import_array()
 
 # Integer types supported by Python / System
 _inttypes = (int, np.integer)
-
-# Numpy initialization code (critical)
-# https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
-np.import_array()
+np.set_printoptions(legacy='1.21') # use unified numpy printing
 
 
 cdef tiledb_ctx_t* safe_ctx_ptr(object ctx):
@@ -145,8 +141,7 @@ cdef _write_array(
         if attr.isvar:
             try:
                 if attr.isnullable:
-                    if(np.issubdtype(attr.dtype, np.unicode_) 
-                        or np.issubdtype(attr.dtype, np.string_) 
+                    if(np.issubdtype(attr.dtype, np.str_) 
                         or np.issubdtype(attr.dtype, np.bytes_)):
                         attr_val = np.array(["" if v is None else v for v in values[i]])
                     else:
@@ -601,7 +596,7 @@ def index_domain_subarray(array: Array, dom, idx: tuple):
         dim = dom.dim(r)
         dim_dtype = dim.dtype
 
-        if array.mode == 'r' and (np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_)):
+        if array.mode == 'r' and (np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_)):
             # NED can only be retrieved in read mode
             ned = array.nonempty_domain()
             (dim_lb, dim_ub) = ned[r] if ned else (None, None)
@@ -612,7 +607,11 @@ def index_domain_subarray(array: Array, dom, idx: tuple):
         if not isinstance(dim_slice, slice):
             raise IndexError("invalid index type: {!r}".format(type(dim_slice)))
 
+        # numpy2 doesn't allow addition beween int and np.int64 - NEP 50
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
+        start = np.int64(start) if isinstance(start, int) else start
+        stop = np.int64(stop) if isinstance(stop, int) else stop
+        step = np.int64(step) if isinstance(step, int) else step
 
         if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
             if start is None or stop is None:
@@ -1503,7 +1502,7 @@ cdef class Array(object):
 
     cdef _ndarray_is_varlen(self, np.ndarray array):
         return  (np.issubdtype(array.dtype, np.bytes_) or
-                 np.issubdtype(array.dtype, np.unicode_) or
+                 np.issubdtype(array.dtype, np.str_) or
                  array.dtype == object)
 
     @property
@@ -2526,8 +2525,8 @@ cdef class DenseArrayImpl(Array):
                                 dtype=np.uint8
                             )
                     else:
-                        if (np.issubdtype(attr.dtype, np.string_) and not
-                            (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
+                        if (np.issubdtype(attr.dtype, np.bytes_) and not
+                            (np.issubdtype(attr_val.dtype, np.bytes_) or attr_val.dtype == np.dtype('O'))):
                             raise ValueError("Cannot write a string value to non-string "
                                             "typed attribute '{}'!".format(name))
                         
@@ -2541,7 +2540,7 @@ cdef class DenseArrayImpl(Array):
                                     dtype=np.uint8
                                 )
 
-                            if np.issubdtype(attr.dtype, np.string_):
+                            if np.issubdtype(attr.dtype, np.bytes_):
                                 attr_val = np.array(
                                     ["" if v is None else v for v in attr_val])
                             else:
@@ -2575,8 +2574,8 @@ cdef class DenseArrayImpl(Array):
                     if attr.isnullable and name not in nullmaps:
                         nullmaps[name] = np.array([int(v is None) for v in val], dtype=np.uint8)
                 else:
-                    if (np.issubdtype(attr.dtype, np.string_) and not
-                        (np.issubdtype(val.dtype, np.string_) or val.dtype == np.dtype('O'))):
+                    if (np.issubdtype(attr.dtype, np.bytes_) and not
+                        (np.issubdtype(val.dtype, np.bytes_) or val.dtype == np.dtype('O'))):
                         raise ValueError("Cannot write a string value to non-string "
                                         "typed attribute '{}'!".format(name))
                     
@@ -3063,8 +3062,8 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                     nullmaps[name] = np.array(
                         [int(v is not None) for v in attr_val], dtype=np.uint8)
             else:
-                if (np.issubdtype(attr.dtype, np.string_) 
-                    and not (np.issubdtype(attr_val.dtype, np.string_) 
+                if (np.issubdtype(attr.dtype, np.bytes_) 
+                    and not (np.issubdtype(attr_val.dtype, np.bytes_) 
                     or attr_val.dtype == np.dtype('O'))):
                     raise ValueError("Cannot write a string value to non-string "
                                         "typed attribute '{}'!".format(name))
@@ -3076,7 +3075,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                         nullmaps[name] = np.array(
                             [int(v is not None) for v in attr_val], dtype=np.uint8)
 
-                    if np.issubdtype(attr.dtype, np.string_):
+                    if np.issubdtype(attr.dtype, np.bytes_):
                         attr_val = np.array(["" if v is None else v for v in attr_val])
                     else:
                         attr_val = np.nan_to_num(attr_val)

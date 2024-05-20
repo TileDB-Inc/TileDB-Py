@@ -16,7 +16,7 @@ class AttributeTest(DiskTestCase):
         self.assertEqual(attr, attr)
         self.assertTrue(attr.isanon)
         self.assertEqual(attr.name, "")
-        self.assertEqual(attr.dtype, np.float_)
+        self.assertEqual(attr.dtype, np.float64)
         self.assertFalse(attr.isvar)
         self.assertFalse(attr.isnullable)
 
