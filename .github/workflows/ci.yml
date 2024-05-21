@@ -57,6 +57,9 @@ jobs:
       - name: Print pip debug info
         run: pip debug --verbose
 
+      - name: Install testing dependencies
+        run: pip install pytest hypothesis psutil pyarrow
+
       # Remove after upstream PR fully-deployed:
       # - https://github.com/actions/runner-images/pull/7125
       - name: "Install homebrew dependencies"
