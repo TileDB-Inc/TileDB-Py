@@ -51,7 +51,14 @@ version_file = "tiledb/_generated_version.py"
 wheel.expand-macos-universal-tags = true
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 wheel.packages = ["tiledb"]
-wheel.exclude = ["tiledb/cc/", "tiledb/*.cc", "tiledb/*.cmake"]
+wheel.exclude = [
+    "tiledb/cc/",
+    "tiledb/*.cc",
+    "tiledb/*.cmake",
+    "tiledb/*.pyx",
+    "tiledb/*.pxd",
+    "tiledb/*.pxi",
+]
 
 [tool.pytest.ini_options]
 python_classes = "*Test*"
@@ -75,3 +82,12 @@ fix = true
 
 [tool.ruff.per-file-ignores]
 "tiledb/__init__.py" = ["F401"]
+
+[tool.cibuildwheel]
+test-requires = [
+    "pytest",
+    "hypothesis",
+    "psutil",
+    "pyarrow",
+]
+test-command = "pytest {project}"

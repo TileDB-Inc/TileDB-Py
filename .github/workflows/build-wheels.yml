@@ -49,10 +49,6 @@ jobs:
           # __init__.py interferes with the tests and is included as local file instead of
           # used from wheel
           CIBW_BEFORE_TEST: rm {project}/tiledb/__init__.py
-          CIBW_TEST_REQUIRES: pytest hypothesis psutil pyarrow
-          CIBW_TEST_COMMAND: pytest {project}/tiledb/tests
-          CIBW_ENVIRONMENT: TILEDB_REST_TOKEN=${{ secrets.TILEDB_CLOUD_HELPER_VAR }}
-          SYSTEM_VERSION_COMPAT: ${{ startsWith(matrix.os, 'macos-') }}
         with:
           output-dir: wheelhouse
 
