@@ -41,9 +41,6 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[tool.setuptools.packages.find]
-exclude = ["*.pyc", ".pytest_cache/*", ".hypothesis/*"]
-
 [project.urls]
 homepage = "https://github.com/TileDB-Inc/TileDB-Py"
 
