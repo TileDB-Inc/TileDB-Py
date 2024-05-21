@@ -1,3 +1,19 @@
+# Release 0.29.1
+
+## Improvements
+
+* Expose WebP enums by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1974
+* Add Array.query in docs and improve docs in general by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1965
+* Add support for creating WKB/WKT attributes by @jp-dark in https://github.com/TileDB-Inc/TileDB-Py/pull/1912
+* Add wrapping for ls recursive by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1968
+* Fix compatibility for delete_fragments by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1966
+
+## Build system changes
+
+* Add support for numpy2 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1969
+* Fix syntax error in nightly build workflow by @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1970
+* Set an upper bound for numpy to dodge 2.0 by @sgillies in https://github.com/TileDB-Inc/TileDB-Py/pull/1963
+
 # Release 0.29.0
 
 * TileDB-Py 0.29.0 includes TileDB Embedded [2.23.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.23.0)
