@@ -19,23 +19,7 @@ if os.name == "posix":
 else:
     lib_name = "tiledb"
 
-# On Windows and whl builds, we may have a shared library already linked, or
-# adjacent to, the cython .pyd shared object. In this case, we can import directly
-# from .libtiledb
-try:
-    import tiledb
-
-    from .libtiledb import Ctx
-
-    del Ctx
-except:
-    try:
-        lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "native")
-        ctypes.CDLL(os.path.join(lib_dir, lib_name))
-    except OSError:
-        # Otherwise try loading by name only.
-        ctypes.CDLL(lib_name)
-
+from .libtiledb import Ctx
 from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
