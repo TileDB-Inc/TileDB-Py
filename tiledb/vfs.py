@@ -312,7 +312,7 @@ class VFS(lt.VFS):
         If False, the walk will stop. If an error is thrown, the walk will stop and
         the error will be propagated to the caller using std::throw_with_nested.
 
-        Currently only S3 is supported, and the `path` must be a valid S3 URI.
+        Currently only local, S3 and Azure are supported.
 
         :param str uri: Input URI of the directory
         :param callback: Callback function to invoke on each entry
