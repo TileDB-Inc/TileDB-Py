@@ -2317,6 +2317,12 @@ cdef class DenseArrayImpl(Array):
             attr_names.extend(self.schema.attr(a).name for a in attrs)
 
         selection = index_as_tuple(selection)
+
+        for dim, sel in zip(self.schema.domain, selection):
+            if dim.domain[0] < 0 and sel != slice(None, None, None):
+                raise TileDBError("Must use full indexer for arrays containing "
+                                  "dimensions with negative integers.")
+
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         dim_ranges  = index_domain_subarray(self, self.schema.domain, idx)
@@ -2460,6 +2466,11 @@ cdef class DenseArrayImpl(Array):
         from .subarray import Subarray
         if not self.isopen or self.mode != 'w':
             raise TileDBError("DenseArray is not opened for writing")
+        
+        for dim, sel in zip(self.schema.domain, index_as_tuple(selection)):
+            if dim.domain[0] < 0 and sel != slice(None, None, None):
+                raise TileDBError("Must use full indexer for arrays containing "
+                                  "dimensions with signed integers.")
 
         domain = self.domain
         cdef tuple idx = replace_ellipsis(domain.ndim, index_as_tuple(selection))

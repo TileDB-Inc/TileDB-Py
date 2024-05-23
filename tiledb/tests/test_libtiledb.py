@@ -2554,6 +2554,64 @@ class TestDenseIndexing(DiskTestCase):
                 with self.assertRaises(IndexError):
                     T[idx]
 
+    def test_dense_array_with_negative_domain(self):
+        path = self.path("test_dense_array_with_negative_domain")
+        attr = tiledb.Attr(dtype=np.uint8)
+        dom = tiledb.Domain(tiledb.Dim("X", domain=(-10, 10), dtype=np.int64))
+        schema = tiledb.ArraySchema(domain=dom, sparse=False, attrs=[attr])
+        tiledb.Array.create(path, schema)
+        data = np.random.randint(10, size=21)
+
+        with tiledb.open(path, "w") as A:
+            with pytest.raises(tiledb.TileDBError):
+                A[-5:5] = np.random.randint(10, size=11)
+            with pytest.raises(tiledb.TileDBError):
+                A[:0] = np.random.randint(10, size=11)
+            with pytest.raises(tiledb.TileDBError):
+                A[0:] = np.random.randint(10, size=11)
+            with pytest.raises(tiledb.TileDBError):
+                A[0] = np.random.randint(10, size=1)
+            A[:] = data
+
+        with tiledb.open(path, "r") as A:
+            with pytest.raises(tiledb.TileDBError):
+                A[-5:5]
+            with pytest.raises(tiledb.TileDBError):
+                A[:0]
+            with pytest.raises(tiledb.TileDBError):
+                A[0:]
+            with pytest.raises(tiledb.TileDBError):
+                A[0]
+            assert_array_equal(A[:], data[:])
+
+    def test_dense_array_with_2d_negative_domain(self):
+        path = self.path("test_dense_array_with_2d_negative_domain")
+        attr = tiledb.Attr(dtype=np.uint8)
+        dim1 = tiledb.Dim("X", domain=(-10, 10), dtype=np.int64)
+        dim2 = tiledb.Dim("Y", domain=(0, 10), dtype=np.int64)
+        dom = tiledb.Domain(dim1, dim2)
+        schema = tiledb.ArraySchema(domain=dom, sparse=False, attrs=[attr])
+        tiledb.Array.create(path, schema)
+        data = np.random.randint(10, size=(21, 11))
+
+        with tiledb.open(path, "w") as A:
+            with pytest.raises(tiledb.TileDBError):
+                A[:, -5:5] = np.random.randint(10, size=11)
+            with pytest.raises(tiledb.TileDBError):
+                A[:0, :] = np.random.randint(10, size=11)
+            with pytest.raises(tiledb.TileDBError):
+                A[0] = np.random.randint(10, size=1)
+            A[:] = data
+
+        with tiledb.open(path, "r") as A:
+            with pytest.raises(tiledb.TileDBError):
+                A[:, -5:5]
+            with pytest.raises(tiledb.TileDBError):
+                A[:0, :]
+            with pytest.raises(tiledb.TileDBError):
+                A[0]
+            assert_array_equal(A[:], data[:])
+
 
 class TestDatetimeSlicing(DiskTestCase):
     def test_dense_datetime_vector(self):
