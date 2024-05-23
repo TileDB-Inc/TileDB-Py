@@ -1,7 +1,11 @@
 [build-system]
-requires = ["setuptools>=64", "wheel", "pybind11", "Cython",
-    "numpy==1.17.*,<2.0 ; python_version == '3.8' and platform_machine != 'aarch64'",
-    "numpy>=1.25 ; python_version >= '3.9"
+requires = [
+    "setuptools>=64",
+    "wheel",
+    "pybind11",
+    "Cython",
+    "numpy== 1.17.*,<2.0 ; python_version == '3.8' and platform_machine != 'aarch64'",
+    "numpy>=1.25 ; python_version >= '3.9'",
 ]
 build-backend = "setuptools.build_meta"
 
