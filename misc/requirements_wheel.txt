@@ -1,12 +1,8 @@
-# numpy pinning for ABI forward-compatibility
-numpy==1.16.5 ; python_version < "3.8" and platform_machine !='aarch64'
-numpy==1.17.* ; python_version == "3.8" and platform_machine !='aarch64'
-numpy==1.19.4 ; python_version == "3.9" and platform_machine !='aarch64'
-
-# NOTE: oldest-supported-numpy (1.19.2) had forward ABI compat problems
-numpy==1.20.* ; python_version < "3.10" and platform_machine=='aarch64'
-numpy==1.21.* ; python_version == "3.10"
-numpy>=1.23.2 ; python_version >= "3.11"
+numpy>=1.17,<2.0 ; python_version == '3.8' and platform_machine != 'aarch64'
+numpy>=1.19.4,<2.0 ; python_version == '3.9' and platform_machine != 'aarch64'
+numpy>=1.20,<2.0 ; python_version < '3.10' and platform_machine == 'aarch64'
+numpy>=1.21,<2.0 ; python_version == '3.10'
+numpy>=1.23.2,<2.0 ; python_version >= '3.11'
 
 #-------------------------------
 
