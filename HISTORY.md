@@ -10,7 +10,7 @@
 
 ## Build system changes
 
-* Fix ModuleNotFoundError: No module named 'numpy' on build by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1979
+* Update numpy versions everywhere by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1981
 * Add support for numpy2 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1969
 * Fix syntax error in nightly build workflow by @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1970
 * Set an upper bound for numpy to dodge 2.0 by @sgillies in https://github.com/TileDB-Inc/TileDB-Py/pull/1963
