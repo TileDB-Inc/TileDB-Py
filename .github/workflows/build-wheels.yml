@@ -47,7 +47,7 @@ jobs:
           CIBW_PRERELEASE_PYTHONS: True
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
           # __init__.py interferes with the tests and is included as local file instead of
-          # used from wheel
+          # used from wheels. To be honest, tests should not be in the source folder at all.
           CIBW_BEFORE_TEST: rm {project}/tiledb/__init__.py
         with:
           output-dir: wheelhouse

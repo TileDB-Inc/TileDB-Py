@@ -19,7 +19,6 @@ if os.name == "posix":
 else:
     lib_name = "tiledb"
 
-from .libtiledb import Ctx
 from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
@@ -74,6 +73,7 @@ from .highlevel import (
 )
 from .libtiledb import (
     Array,
+    Ctx,
     DenseArrayImpl,
     SparseArrayImpl,
     consolidate,
