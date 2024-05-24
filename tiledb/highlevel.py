@@ -224,7 +224,7 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):
     elif shape and dtype:
         if np.issubdtype(np.bytes_, dtype):
             dtype = np.dtype("S")
-        elif np.issubdtype(dtype, np.unicode_):
+        elif np.issubdtype(dtype, np.str_):
             dtype = np.dtype("U")
 
         ndim = len(shape)

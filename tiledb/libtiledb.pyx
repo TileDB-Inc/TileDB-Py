@@ -12,8 +12,7 @@ import io
 import warnings
 import collections.abc
 from collections import OrderedDict
-from json import dumps as json_dumps
-from json import loads as json_loads
+from json import dumps as json_dumps, loads as json_loads
 
 from ._generated_version import version_tuple as tiledbpy_version
 from .array_schema import ArraySchema
@@ -35,10 +34,7 @@ np.import_array()
 
 # Integer types supported by Python / System
 _inttypes = (int, np.integer)
-
-# Numpy initialization code (critical)
-# https://docs.scipy.org/doc/numpy/reference/c-api.array.html#c.import_array
-np.import_array()
+np.set_printoptions(legacy='1.21') # use unified numpy printing
 
 
 cdef tiledb_ctx_t* safe_ctx_ptr(object ctx):
@@ -145,8 +141,7 @@ cdef _write_array(
         if attr.isvar:
             try:
                 if attr.isnullable:
-                    if(np.issubdtype(attr.dtype, np.unicode_) 
-                        or np.issubdtype(attr.dtype, np.string_) 
+                    if(np.issubdtype(attr.dtype, np.str_) 
                         or np.issubdtype(attr.dtype, np.bytes_)):
                         attr_val = np.array(["" if v is None else v for v in values[i]])
                     else:
@@ -601,7 +596,7 @@ def index_domain_subarray(array: Array, dom, idx: tuple):
         dim = dom.dim(r)
         dim_dtype = dim.dtype
 
-        if array.mode == 'r' and (np.issubdtype(dim_dtype, np.unicode_) or np.issubdtype(dim_dtype, np.bytes_)):
+        if array.mode == 'r' and (np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_)):
             # NED can only be retrieved in read mode
             ned = array.nonempty_domain()
             (dim_lb, dim_ub) = ned[r] if ned else (None, None)
@@ -612,7 +607,11 @@ def index_domain_subarray(array: Array, dom, idx: tuple):
         if not isinstance(dim_slice, slice):
             raise IndexError("invalid index type: {!r}".format(type(dim_slice)))
 
+        # numpy2 doesn't allow addition beween int and np.int64 - NEP 50
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
+        start = np.int64(start) if isinstance(start, int) else start
+        stop = np.int64(stop) if isinstance(stop, int) else stop
+        step = np.int64(step) if isinstance(step, int) else step
 
         if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
             if start is None or stop is None:
@@ -1503,7 +1502,7 @@ cdef class Array(object):
 
     cdef _ndarray_is_varlen(self, np.ndarray array):
         return  (np.issubdtype(array.dtype, np.bytes_) or
-                 np.issubdtype(array.dtype, np.unicode_) or
+                 np.issubdtype(array.dtype, np.str_) or
                  array.dtype == object)
 
     @property
@@ -1525,8 +1524,8 @@ cdef class Array(object):
 
         ** Example **
 
-        >>> import tiledb, numpy as np
-        >>>
+        >>> import tiledb, numpy as np, tempfile
+        >>> from collections import OrderedDict
         >>> dim1 = tiledb.Dim("d1", domain=(1, 4))
         >>> dim2 = tiledb.Dim("d2", domain=(1, 3))
         >>> dom = tiledb.Domain(dim1, dim2)
@@ -1551,21 +1550,30 @@ cdef class Array(object):
         ...         A[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
         ...
         ...     with tiledb.open(tmp, "r") as A:
-        ...         A.label_index(["l1"])[3:4]  # doctest: +ELLIPSIS
-        ...         A.label_index(["l1", "l3"])[2, 0.5:1.0]  # doctest: +ELLIPSIS
-        ...         A.label_index(["l2"])[:, -1:0]  # doctest: +ELLIPSIS
-        ...         A.label_index(["l3"])[:, 0.5:1.0]  # doctest: +ELLIPSIS
-        OrderedDict(...'l1'... array([4, 3])..., ...'a1'... array([[1, 2, 3],
-                [4, 5, 6]])...)
-        OrderedDict(...'l3'... array([0.5, 1. ])..., ...'l1'... array([2])..., ...'a1'... array([[8, 9]])...)
-        OrderedDict(...'l2'... array([-1,  0])..., ...'a1'... array([[ 1,  2],
-                [ 4,  5],
-                [ 7,  8],
-                [10, 11]])...)
-        OrderedDict(...'l3'... array([0.5, 1. ])..., ...'a1'... array([[ 2,  3],
-                [ 5,  6],
-                [ 8,  9],
-                [11, 12]])...)
+        ...         np.testing.assert_equal(
+        ...             A.label_index(["l1"])[3:4],
+        ...             OrderedDict({"l1": [4, 3], "a1": [[1, 2, 3], [4, 5, 6]]}),
+        ...         )
+        ...         np.testing.assert_equal(
+        ...             A.label_index(["l1", "l3"])[2, 0.5:1.0],
+        ...             OrderedDict(
+        ...                 {"l3": [0.5, 1.0], "l1": [2], "a1": [[8, 9]]}
+        ...             ),
+        ...         )
+        ...         np.testing.assert_equal(
+        ...             A.label_index(["l2"])[:, -1:0],
+        ...             OrderedDict(
+        ...                 {"l2": [-1, 0],
+        ...                 "a1": [[1, 2], [4, 5], [7, 8], [10, 11]]},
+        ...             ),
+        ...         )
+        ...         np.testing.assert_equal(
+        ...             A.label_index(["l3"])[:, 0.5:1.0],
+        ...             OrderedDict(
+        ...                 {"l3": [0.5, 1.],
+        ...                 "a1": [[2, 3], [5, 6], [8, 9], [11, 12]]},
+        ...             ),
+        ...         )
 
         :param labels: List of labels to use when querying. Can only use at most one
             label per dimension.
@@ -1574,6 +1582,7 @@ cdef class Array(object):
             query the array on the corresponding dimension.
         :returns: dict of {'label/attribute': result}.
         :raises: :py:exc:`tiledb.TileDBError`
+
         """
         # Delayed to avoid circular import
         from .multirange_indexing import LabelIndexer
@@ -1886,6 +1895,10 @@ cdef class Query(object):
             if not use_arrow:
                 raise TileDBError("Cannot initialize return_arrow with use_arrow=False")
         self.use_arrow = use_arrow
+
+        if return_incomplete and not array.schema.sparse:
+            raise TileDBError("Incomplete queries are only supported for sparse arrays at this time")
+
         self.return_incomplete = return_incomplete
 
         self.domain_index = DomainIndexer(array, query=self)
@@ -2158,8 +2171,7 @@ cdef class DenseArrayImpl(Array):
     def query(self, attrs=None, attr_cond=None, cond=None, dims=None,
               coords=False, order='C', use_arrow=None, return_arrow=False,
               return_incomplete=False):
-        """
-        Construct a proxy Query object for easy subarray queries of cells
+        """Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
 
         Optionally subselect over attributes, return dense result coordinate values,
@@ -2202,8 +2214,8 @@ cdef class DenseArrayImpl(Array):
         ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
         ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
         ...         # Access specific attributes individually.
-        ...         A.query(attrs=("a1",))[0:5]  # doctest: +ELLIPSIS
-        OrderedDict(...'a1'... array([0, 0, 0, 0, 0])...)
+        ...         np.testing.assert_equal(A.query(attrs=("a1",))[0:5],
+        ...                {"a1": np.zeros(5)})
 
         """
         if not self.isopen or self.mode != 'r':
@@ -2257,8 +2269,8 @@ cdef class DenseArrayImpl(Array):
         ...         A[0:10] = {"a1": np.zeros((10)), "a2": np.ones((10))}
         ...     with tiledb.DenseArray(tmp + "/array", mode='r') as A:
         ...         # A[0:5], attribute a1, row-major without coordinates
-        ...         A.subarray((slice(0, 5),), attrs=("a1",), coords=False, order='C')  # doctest: +ELLIPSIS
-        OrderedDict(...'a1'... array([0, 0, 0, 0, 0])...)
+        ...         np.testing.assert_equal(A.subarray((slice(0, 5),), attrs=("a1",), coords=False, order='C'),
+        ...                 OrderedDict({'a1': np.zeros(5)}))
 
         """
         from .subarray import Subarray
@@ -2517,8 +2529,8 @@ cdef class DenseArrayImpl(Array):
                                 dtype=np.uint8
                             )
                     else:
-                        if (np.issubdtype(attr.dtype, np.string_) and not
-                            (np.issubdtype(attr_val.dtype, np.string_) or attr_val.dtype == np.dtype('O'))):
+                        if (np.issubdtype(attr.dtype, np.bytes_) and not
+                            (np.issubdtype(attr_val.dtype, np.bytes_) or attr_val.dtype == np.dtype('O'))):
                             raise ValueError("Cannot write a string value to non-string "
                                             "typed attribute '{}'!".format(name))
                         
@@ -2532,7 +2544,7 @@ cdef class DenseArrayImpl(Array):
                                     dtype=np.uint8
                                 )
 
-                            if np.issubdtype(attr.dtype, np.string_):
+                            if np.issubdtype(attr.dtype, np.bytes_):
                                 attr_val = np.array(
                                     ["" if v is None else v for v in attr_val])
                             else:
@@ -2566,8 +2578,8 @@ cdef class DenseArrayImpl(Array):
                     if attr.isnullable and name not in nullmaps:
                         nullmaps[name] = np.array([int(v is None) for v in val], dtype=np.uint8)
                 else:
-                    if (np.issubdtype(attr.dtype, np.string_) and not
-                        (np.issubdtype(val.dtype, np.string_) or val.dtype == np.dtype('O'))):
+                    if (np.issubdtype(attr.dtype, np.bytes_) and not
+                        (np.issubdtype(val.dtype, np.bytes_) or val.dtype == np.dtype('O'))):
                         raise ValueError("Cannot write a string value to non-string "
                                         "typed attribute '{}'!".format(name))
                     
@@ -3054,8 +3066,8 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                     nullmaps[name] = np.array(
                         [int(v is not None) for v in attr_val], dtype=np.uint8)
             else:
-                if (np.issubdtype(attr.dtype, np.string_) 
-                    and not (np.issubdtype(attr_val.dtype, np.string_) 
+                if (np.issubdtype(attr.dtype, np.bytes_) 
+                    and not (np.issubdtype(attr_val.dtype, np.bytes_) 
                     or attr_val.dtype == np.dtype('O'))):
                     raise ValueError("Cannot write a string value to non-string "
                                         "typed attribute '{}'!".format(name))
@@ -3067,7 +3079,7 @@ def _setitem_impl_sparse(self: Array, selection, val, dict nullmaps):
                         nullmaps[name] = np.array(
                             [int(v is not None) for v in attr_val], dtype=np.uint8)
 
-                    if np.issubdtype(attr.dtype, np.string_):
+                    if np.issubdtype(attr.dtype, np.bytes_):
                         attr_val = np.array(["" if v is None else v for v in attr_val])
                     else:
                         attr_val = np.nan_to_num(attr_val)
@@ -3178,6 +3190,7 @@ cdef class SparseArrayImpl(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
+        >>> from collections import OrderedDict
         >>> # Write to multi-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     dom = tiledb.Domain(
@@ -3195,10 +3208,12 @@ cdef class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
         ...         # Return an OrderedDict with values and coordinates
-        ...         A[0:3, 0:10]  # doctest: +ELLIPSIS
+        ...         np.testing.assert_equal(A[0:3, 0:10], OrderedDict({'a1': np.array([1, 2]),
+        ...                'a2': np.array([3, 4]), 'y': np.array([0, 2], dtype=np.uint64),
+        ...                 'x': np.array([0, 3], dtype=np.uint64)}))
         ...         # Return just the "x" coordinates values
-        ...         A[0:3, 0:10]["x"]  # doctest: +ELLIPSIS
-        OrderedDict(...'a1'... array([1, 2])..., ...'a2'... array([3, 4])..., ...'y'... array([0, 2], dtype=uint64)..., ...'x'... array([0, 3], dtype=uint64)...)
+        ...         A[0:3, 0:10]["x"]
+        array([0, 3], dtype=uint64)
 
         With a floating-point array domain, index bounds are inclusive, e.g.:
 
@@ -3255,6 +3270,7 @@ cdef class SparseArrayImpl(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
+        >>> from collections import OrderedDict
         >>> # Write to multi-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     dom = tiledb.Domain(
@@ -3271,8 +3287,8 @@ cdef class SparseArrayImpl(Array):
         ...         A[I, J] = {"a1": np.array([1, 2]),
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
-        ...         A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10]  # doctest: +ELLIPSIS
-        OrderedDict(...'a1'... array([1, 2])...)
+        ...         np.testing.assert_equal(A.query(attrs=("a1",), coords=False, order='G')[0:3, 0:10],
+        ...                    OrderedDict({'a1': np.array([1, 2])}))
 
         """
         if not self.isopen or self.mode not in  ('r', 'd'):
@@ -3364,6 +3380,7 @@ cdef class SparseArrayImpl(Array):
         **Example:**
 
         >>> import tiledb, numpy as np, tempfile
+        >>> from collections import OrderedDict
         >>> # Write to multi-attribute 2D array
         >>> with tempfile.TemporaryDirectory() as tmp:
         ...     dom = tiledb.Domain(
@@ -3381,8 +3398,10 @@ cdef class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
         ...     with tiledb.SparseArray(tmp + "/array", mode='r') as A:
         ...         # A[0:3, 0:10], attribute a1, row-major without coordinates
-        ...         A.subarray((slice(0, 3), slice(0, 10)), attrs=("a1",), coords=False, order='G')  # doctest: +ELLIPSIS
-        OrderedDict(...'a1'... array([1, 2])...)
+        ...         np.testing.assert_equal(
+        ...                    A.subarray((slice(0, 3), slice(0, 10)), attrs=("a1",), coords=False, order='G'),
+        ...                    OrderedDict({'a1': np.array([1, 2])})
+        ...         )
 
         """
         from .subarray import Subarray

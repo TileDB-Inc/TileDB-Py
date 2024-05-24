@@ -79,7 +79,7 @@ class CompressionFilter(Filter):
     >>> with tempfile.TemporaryDirectory() as tmp:
     ...     dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=2, dtype=np.uint64))
     ...     a1 = tiledb.Attr(name="a1", dtype=np.int64,
-    ...                      filters=tiledb.FilterList([tiledb.GzipFilter(level=10)]))
+    ...                      filters=tiledb.FilterList([tiledb.CompressionFilter(level=10)]))
     ...     schema = tiledb.ArraySchema(domain=dom, attrs=(a1,))
     ...     tiledb.DenseArray.create(tmp + "/array", schema)
 
@@ -326,8 +326,7 @@ class DoubleDeltaFilter(CompressionFilter):
 
     :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
     :type level: int
-    :param reinterp_dtype: (optional) sets the compressor to compress the data treating
-    as the new datatype.
+    :param reinterp_dtype: (optional) sets the compressor to compress the data treating as the new datatype.
 
     **Example:**
 
@@ -501,7 +500,8 @@ class PositiveDeltaFilter(Filter):
     :param ctx: A TileDB Context
     :type ctx: tiledb.Ctx
     :param window: -1 (default) sets the max window size for the filter to the default window size as specified in TileDB core. Otherwise, sets the compressor level to the given value.
-     :type window: int
+    :type window: int
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
@@ -753,6 +753,9 @@ class WebpFilter(Filter):
         lt.FilterOption.WEBP_QUALITY,
         lt.FilterOption.WEBP_LOSSLESS,
     )
+
+    # Expose WebP enums at the top level
+    WebpInputFormat = lt.WebpInputFormat
 
     def __init__(
         self,

@@ -1324,8 +1324,10 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         data[validity_idx] = None
 
         # TODO - not supported
-        # str_data = np.array([rand_utf8(random.randint(0, n)) for n in range(ncells)],
-        #                dtype=np.unicode_)
+        # str_data = np.array(
+        #     [rand_utf8(random.randint(0, n)) for n in range(ncells)],
+        #     dtype=np.str_,
+        # )
         # str_data[validity_idx] = None
 
         df = pd.DataFrame({"int64": pd.Series(data, dtype=pd.Int64Dtype())})

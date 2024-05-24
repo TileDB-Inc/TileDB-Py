@@ -1230,10 +1230,10 @@ class DenseArrayTest(DiskTestCase):
 
     def test_data_begins_with_null_chars(self):
         path = self.path("test_data_begins_with_null_chars")
-        data = np.array(["", "", "", "a", "", "", "", "", "", "b"], dtype=np.unicode_)
+        data = np.array(["", "", "", "a", "", "", "", "", "", "b"], dtype=np.str_)
 
         dom = tiledb.Domain(tiledb.Dim(domain=(1, len(data)), tile=len(data)))
-        att = tiledb.Attr(dtype=np.unicode_, var=True)
+        att = tiledb.Attr(dtype=np.str_, var=True)
         schema = tiledb.ArraySchema(dom, (att,))
         tiledb.Array.create(path, schema)
 
@@ -1325,12 +1325,12 @@ class TestVarlen(DiskTestCase):
                 "",
                 "hhhhhhhhhh",
             ],
-            dtype=np.unicode_,
+            dtype=np.str_,
         )
 
         # basic write
         dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
-        att = tiledb.Attr(dtype=np.unicode_, var=True)
+        att = tiledb.Attr(dtype=np.str_, var=True)
 
         schema = tiledb.ArraySchema(dom, (att,))
 
@@ -1487,7 +1487,7 @@ class TestVarlen(DiskTestCase):
 
         # basic write
         dom = tiledb.Domain(tiledb.Dim(domain=(1, len(A)), tile=len(A)))
-        att = tiledb.Attr(dtype=np.unicode_)
+        att = tiledb.Attr(dtype=np.str_)
 
         schema = tiledb.ArraySchema(dom, (att,))
 
@@ -1991,7 +1991,7 @@ class TestSparseArray(DiskTestCase):
 
     def test_sparse_unicode(self, fx_sparse_cell_order):
         dom = tiledb.Domain(tiledb.Dim("x", domain=(1, 10000), tile=100, dtype=int))
-        att = tiledb.Attr("", var=True, dtype=np.unicode_)
+        att = tiledb.Attr("", var=True, dtype=np.str_)
         schema = tiledb.ArraySchema(
             domain=dom, attrs=(att,), sparse=True, cell_order=fx_sparse_cell_order
         )
@@ -3514,11 +3514,11 @@ class IncompleteTest(DiskTestCase):
         ncells = 10
         path = self.path("incomplete_dense_varlen")
         str_data = [rand_utf8(random.randint(0, n)) for n in range(ncells)]
-        data = np.array(str_data, dtype=np.unicode_)
+        data = np.array(str_data, dtype=np.str_)
 
         # basic write
         dom = tiledb.Domain(tiledb.Dim(domain=(1, len(data)), tile=len(data)))
-        att = tiledb.Attr(dtype=np.unicode_, var=True)
+        att = tiledb.Attr(dtype=np.str_, var=True)
 
         schema = tiledb.ArraySchema(dom, (att,))
 
@@ -3556,12 +3556,12 @@ class IncompleteTest(DiskTestCase):
 
         path = self.path("incomplete_sparse_varlen")
         str_data = [rand_utf8(random.randint(0, n)) for n in range(ncells)]
-        data = np.array(str_data, dtype=np.unicode_)
+        data = np.array(str_data, dtype=np.str_)
         coords = np.arange(ncells)
 
         # basic write
         dom = tiledb.Domain(tiledb.Dim(domain=(0, len(data) + 100), tile=len(data)))
-        att = tiledb.Attr(dtype=np.unicode_, var=True)
+        att = tiledb.Attr(dtype=np.str_, var=True)
 
         schema = tiledb.ArraySchema(
             dom, (att,), sparse=True, allows_duplicates=allows_duplicates
@@ -3597,6 +3597,22 @@ class IncompleteTest(DiskTestCase):
             assert_array_equal(
                 T2.multi_index[101:105][""], np.array([], dtype=np.dtype("<U"))
             )
+
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_query_return_incomplete_error(self, sparse):
+        path = self.path("test_query_return_incomplete_error")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
+        attrs = [tiledb.Attr("ints", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "r") as A:
+            if sparse:
+                A.query(return_incomplete=True)[:]
+            else:
+                with self.assertRaises(tiledb.TileDBError):
+                    A.query(return_incomplete=True)[:]
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     @pytest.mark.parametrize(

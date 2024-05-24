@@ -80,6 +80,9 @@ extend-select = ["I001"]
 extend-exclude = ["doc"]
 fix = true
 
+[tool.ruff.lint]
+select = ["NPY201"]
+
 [tool.ruff.per-file-ignores]
 "tiledb/__init__.py" = ["F401"]
 
