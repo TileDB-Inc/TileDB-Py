@@ -18,5 +18,5 @@ python:
   install:
     # this order is important: we need to get cmake
     - requirements: doc/requirements_doc.txt
-    - method: setuptools
+    - method: pip
       path: .
