@@ -74,6 +74,9 @@ jobs:
       - name: "Build TileDB-Py"
         run: pip install --verbose .
 
+      - name: "Install test dependencies"
+        run: pip install pytest hypothesis psutil pyarrow
+
       - name: "Run tests"
         run: |
           PROJECT_CWD=$PWD
