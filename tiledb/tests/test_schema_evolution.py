@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-import Path from pathlib
+from pathlib import Path
 
 import tiledb
 
