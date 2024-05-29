@@ -14,12 +14,12 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-12, windows-latest]
+        os: [ubuntu-latest, macos-13, windows-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
       fail-fast: false
     env:
       # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-12' && matrix.python-version == '3.8' && '11.7' || '11' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-13' && matrix.python-version == '3.8' && '11.7' || '11' }}
       #MACOSX_DEPLOYMENT_TARGET: "10.11"
       # On windows-2019 we are using the Visual Studio generator, which is multi-config and places the build artifacts in a subdirectory
     steps:
@@ -61,10 +61,10 @@ jobs:
       # - https://github.com/actions/runner-images/pull/7125
       - name: "Install homebrew dependencies"
         run: brew install pkg-config
-        if: matrix.os == 'macos-12'
+        if: matrix.os == 'macos-13'
 
       - name: "Install libfaketime (linux and macOS)"
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-12'
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-13'
         run: |
           git clone https://github.com/wolfcw/libfaketime/
           cd libfaketime
