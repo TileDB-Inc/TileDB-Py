@@ -2489,7 +2489,8 @@ class TestDenseIndexing(DiskTestCase):
             for idx in self.warn_and_bad_index_1d:
                 with pytest.warns(
                     DeprecationWarning,
-                    match="Floats will be soon not supported in selection",
+                    match="The use of floats in selection is deprecated. "
+                    "It is slated for removal in 0.31.0.",
                 ):
                     with self.assertRaises(IndexError):
                         T[idx]
@@ -2570,7 +2571,8 @@ class TestDenseIndexing(DiskTestCase):
             for idx in self.warn_and_bad_index_2d:
                 with pytest.warns(
                     DeprecationWarning,
-                    match="Floats will be soon not supported in selection",
+                    match="The use of floats in selection is deprecated. "
+                    "It is slated for removal in 0.31.0.",
                 ):
                     with self.assertRaises(IndexError):
                         T[idx]

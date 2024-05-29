@@ -2335,7 +2335,8 @@ cdef class DenseArrayImpl(Array):
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         if check_for_floats(selection):
             warnings.warn(
-                "Floats will be soon not supported in selection. ",
+                "The use of floats in selection is deprecated. "
+                "It is slated for removal in 0.31.0.",
                 DeprecationWarning,
             )
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
@@ -3471,7 +3472,8 @@ cdef class SparseArrayImpl(Array):
         idx = replace_ellipsis(dom.ndim, idx)
         if check_for_floats(selection):
             warnings.warn(
-                "Floats will be soon not supported in selection. ",
+                "The use of floats in selection is deprecated. "
+                "It is slated for removal in 0.31.0.",
                 DeprecationWarning,
             )
         idx, drop_axes = replace_scalars_slice(dom, idx)

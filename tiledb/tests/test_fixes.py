@@ -33,7 +33,8 @@ class FixesTest(DiskTestCase):
                 assert T[:][""] == b"hello"
                 with pytest.warns(
                     DeprecationWarning,
-                    match="Floats will be soon not supported in selection",
+                    match="The use of floats in selection is deprecated. "
+                    "It is slated for removal in 0.31.0.",
                 ):
                     assert T[50.4][""] == b"hello"
 
