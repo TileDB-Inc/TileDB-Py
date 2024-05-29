@@ -580,6 +580,26 @@ def replace_scalars_slice(dom, idx: tuple):
     return tuple(new_idx), tuple(drop_axes)
 
 
+def check_for_floats(selection):
+    """
+    Check if a selection object contains floating point values
+
+    :param selection: selection object
+    :return: True if selection contains floating point values
+    :rtype: bool
+    """
+    if isinstance(selection, float):
+        return True
+    if isinstance(selection, slice):
+        if isinstance(selection.start, float) or isinstance(selection.stop, float):
+            return True
+    elif isinstance(selection, tuple):
+        for s in selection:
+            if check_for_floats(s):
+                return True
+    return False
+
+
 def index_domain_subarray(array: Array, dom, idx: tuple):
     """
     Return a numpy array representation of the tiledb subarray buffer
@@ -2284,11 +2304,6 @@ cdef class DenseArrayImpl(Array):
                     "Only use `cond`."
                 )
 
-            raise TileDBError(
-                "`attr_cond` is no longer supported. You must use `cond`. "
-                "This message will be removed in 0.21.0."
-            )
-
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'C':
             layout = TILEDB_ROW_MAJOR
@@ -2318,6 +2333,12 @@ cdef class DenseArrayImpl(Array):
 
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
+        if check_for_floats(selection):
+            warnings.warn(
+                "The use of floats in selection is deprecated. "
+                "It is slated for removal in 0.31.0.",
+                DeprecationWarning,
+            )
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         dim_ranges  = index_domain_subarray(self, self.schema.domain, idx)
         subarray = Subarray(self, self.ctx)
@@ -3449,6 +3470,12 @@ cdef class SparseArrayImpl(Array):
         dom = self.schema.domain
         idx = index_as_tuple(selection)
         idx = replace_ellipsis(dom.ndim, idx)
+        if check_for_floats(selection):
+            warnings.warn(
+                "The use of floats in selection is deprecated. "
+                "It is slated for removal in 0.31.0.",
+                DeprecationWarning,
+            )
         idx, drop_axes = replace_scalars_slice(dom, idx)
         dim_ranges = index_domain_subarray(self, dom, idx)
         subarray = Subarray(self, self.ctx)
