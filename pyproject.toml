@@ -60,7 +60,11 @@ wheel.exclude = [
 python_classes = "*Test*"
 python_files = "test_*.py"
 testpaths = ["tiledb/tests"]
-addopts = "--ignore=tiledb/tests/perf --ignore=tiledb/tests/__pycache__"
+addopts = [
+    "--import-mode=importlib",
+    "--ignore=tiledb/tests/perf",
+    "--ignore=tiledb/tests/__pycache__",
+]
 filterwarnings = [
     "error",
     "default::pytest.PytestWarning",
@@ -68,9 +72,6 @@ filterwarnings = [
     # Pyarrow emits a warning regarding use of deprecated Pandas function
     # Remove this once we bump Pyarrow version
     "ignore:Passing a BlockManager to DataFrame is deprecated:DeprecationWarning"
-]
-addopts = [
-    "--import-mode=importlib",
 ]
 
 [tool.ruff]
