@@ -69,6 +69,9 @@ filterwarnings = [
     # Remove this once we bump Pyarrow version
     "ignore:Passing a BlockManager to DataFrame is deprecated:DeprecationWarning"
 ]
+addopts = [
+    "--import-mode=importlib",
+]
 
 [tool.ruff]
 ignore = ["E501", "E722"]
