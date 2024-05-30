@@ -82,7 +82,7 @@ function(detect_artifact_name OUT_VAR)
                 SET(${OUT_VAR} TILEDB_WINDOWS-X86_64 PARENT_SCOPE)
                 message(STATUS WINDOWS)
         elseif(APPLE) # OSX
-                if (DEFINED CMAKE_OSX_ARCHITECTURES)
+                if (CMAKE_OSX_ARCHITECTURES)
                         set(ACTUAL_TARGET ${CMAKE_OSX_ARCHITECTURES})
                 else()
                         set(ACTUAL_TARGET ${CMAKE_SYSTEM_PROCESSOR})
@@ -90,6 +90,7 @@ function(detect_artifact_name OUT_VAR)
 
                 message(STATUS APPLE)
                 message(STATUS ${ACTUAL_TARGET})
+                message(STATUS ${CMAKE_OSX_ARCHITECTURES})
                 message(STATUS ${CMAKE_SYSTEM_PROCESSOR})
                 message(STATUS ${CMAKE_HOST_SYSTEM_PROCESSOR})
 
