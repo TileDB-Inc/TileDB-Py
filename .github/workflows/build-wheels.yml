@@ -107,9 +107,13 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
+          sparse-checkout-cone-mode: false
           sparse-checkout: |
             pyproject.toml
             tiledb/tests
+
+      - name: DEBUG
+        run: ls -R
 
       - name: Install test dependencies
         run: pip install pytest hypothesis psutil pyarrow
@@ -118,7 +122,7 @@ jobs:
         run: pytest -vv --showlocals
 
   upload_pypi:
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels, test_sdist]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
