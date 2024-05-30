@@ -68,7 +68,41 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: sdist
           path: dist/*.tar.gz
+
+  test_sdist:
+    name: Test source distribution package
+    strategy:
+      matrix:
+        os:
+          - macos-13
+          - macos-14
+          - windows-2022
+          - ubuntu-22.04
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Download sdist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+      - name: Install sdist artifact
+        run: pip install dist/*.tar.gz
+
+      - name: Run tests
+        run: |
+          PROJECT_CWD=$PWD
+          rm tiledb/__init__.py
+          cd /tmp
+          pytest -vv --showlocals $PROJECT_CWD
 
   upload_pypi:
     needs: [build_wheels, build_sdist]
