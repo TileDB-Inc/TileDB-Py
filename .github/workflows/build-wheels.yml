@@ -105,6 +105,8 @@ jobs:
       - name: Install sdist artifact
         run: pip install dist/${{ needs.build_sdist.outputs.sdist_name }}
 
+      - uses: actions/checkout@v3
+
       - name: Run tests
         run: |
           PROJECT_CWD=$PWD
