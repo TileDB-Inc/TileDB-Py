@@ -90,6 +90,8 @@ function(detect_artifact_name OUT_VAR)
 
                 message(STATUS APPLE)
                 message(STATUS ${ACTUAL_TARGET})
+                message(STATUS ${CMAKE_SYSTEM_PROCESSOR})
+                message(STATUS ${CMAKE_HOST_SYSTEM_PROCESSOR})
 
                 if (ACTUAL_TARGET MATCHES "(x86_64)|(AMD64|amd64)|(^i.86$)")
                         SET(${OUT_VAR} TILEDB_MACOS-X86_64 PARENT_SCOPE)
