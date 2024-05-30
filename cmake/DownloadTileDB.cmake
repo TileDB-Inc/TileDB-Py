@@ -73,14 +73,12 @@ function(fetch_tiledb_release_list VERSION)
                 set(RELEASE_VAR TILEDB_${PLATFORM})
                 set(URL_${RELEASE_VAR} ${URL} PARENT_SCOPE)
                 set(HASH_${RELEASE_VAR} ${SHA} PARENT_SCOPE)
-                message(STATUS ${RELEASE_VAR})
         endforeach()
 endfunction()
 
 function(detect_artifact_name OUT_VAR)
         if (WIN32) # Windows
                 SET(${OUT_VAR} TILEDB_WINDOWS-X86_64 PARENT_SCOPE)
-                message(STATUS WINDOWS)
         elseif(APPLE) # OSX
                 if (CMAKE_OSX_ARCHITECTURES)
                         set(ACTUAL_TARGET ${CMAKE_OSX_ARCHITECTURES})
@@ -88,19 +86,12 @@ function(detect_artifact_name OUT_VAR)
                         set(ACTUAL_TARGET ${CMAKE_SYSTEM_PROCESSOR})
                 endif()
 
-                message(STATUS APPLE)
-                message(STATUS ${ACTUAL_TARGET})
-                message(STATUS ${CMAKE_OSX_ARCHITECTURES})
-                message(STATUS ${CMAKE_SYSTEM_PROCESSOR})
-                message(STATUS ${CMAKE_HOST_SYSTEM_PROCESSOR})
-
                 if (ACTUAL_TARGET MATCHES "(x86_64)|(AMD64|amd64)|(^i.86$)")
                         SET(${OUT_VAR} TILEDB_MACOS-X86_64 PARENT_SCOPE)
                 elseif (ACTUAL_TARGET STREQUAL arm64 OR ACTUAL_TARGET MATCHES "^aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
                         SET(${OUT_VAR} TILEDB_MACOS-ARM64 PARENT_SCOPE)
                 endif()
         else() # Linux
-                message(STATUS LINUX)
                 SET(${OUT_VAR} TILEDB_LINUX-X86_64 PARENT_SCOPE)
         endif()
 endfunction()
@@ -123,8 +114,6 @@ function(fetch_prebuilt_tiledb)
                 detect_artifact_name(FETCH_PREBUILT_TILEDB_ARTIFACT_NAME)
         endif()
 
-        message(STATUS HASH_${FETCH_PREBUILT_TILEDB_ARTIFACT_NAME})
-        message(STATUS ${HASH_${FETCH_PREBUILT_TILEDB_ARTIFACT_NAME}})
         string(STRIP ${HASH_${FETCH_PREBUILT_TILEDB_ARTIFACT_NAME}} HASH_${FETCH_PREBUILT_TILEDB_ARTIFACT_NAME})
         FetchContent_Declare(
             tiledb
