@@ -73,6 +73,7 @@ jobs:
 
   test_sdist:
     name: Test source distribution package
+    needs: [build_sdist]
     strategy:
       matrix:
         os:
