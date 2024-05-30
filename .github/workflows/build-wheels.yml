@@ -106,20 +106,16 @@ jobs:
         run: pip install dist/${{ needs.build_sdist.outputs.sdist_name }}
 
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            pyproject.toml
-            tiledb/tests
-
-      - name: DEBUG
-        run: ls -R
 
       - name: Install test dependencies
         run: pip install pytest hypothesis psutil pyarrow
 
       - name: Run tests
-        run: pytest -vv --showlocals
+        run: |
+          PROJECT_CWD=$PWD
+          rm tiledb/__init__.py
+          cd /tmp
+          pytest -vv --showlocals $PROJECT_CWD
 
   upload_pypi:
     needs: [build_wheels, test_sdist]
