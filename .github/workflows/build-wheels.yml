@@ -111,10 +111,11 @@ jobs:
         run: pip install pytest hypothesis psutil pyarrow
 
       - name: Run tests
+        shell: bash
         run: |
           PROJECT_CWD=$PWD
           rm tiledb/__init__.py
-          cd /tmp
+          cd ..
           pytest -vv --showlocals $PROJECT_CWD
 
   upload_pypi:
