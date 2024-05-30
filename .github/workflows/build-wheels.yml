@@ -26,7 +26,7 @@ jobs:
         python: ["cp39", "cp310", "cp311", "cp312"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Brew setup on macOS" # x-ref c8e49ba8f8b9ce
         if: ${{ startsWith(matrix.os, 'macos-') == true }}
@@ -63,7 +63,7 @@ jobs:
     outputs:
       sdist_name: ${{ steps.get_sdist_name.outputs.sdist_name }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Build sdist
         run: pipx run build --sdist
@@ -105,14 +105,14 @@ jobs:
       - name: Install sdist artifact
         run: pip install dist/${{ needs.build_sdist.outputs.sdist_name }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            pyproject.toml
+            tiledb/tests
 
       - name: Run tests
-        run: |
-          PROJECT_CWD=$PWD
-          rm tiledb/__init__.py
-          cd /tmp
-          pytest -vv --showlocals $PROJECT_CWD
+        run: pytest -vv --showlocals
 
   upload_pypi:
     needs: [build_wheels, build_sdist]
