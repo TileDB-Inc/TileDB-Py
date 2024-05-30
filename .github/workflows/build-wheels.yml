@@ -111,6 +111,9 @@ jobs:
             pyproject.toml
             tiledb/tests
 
+      - name: Install test dependencies
+        run: pip install pytest hypothesis psutil pyarrow
+
       - name: Run tests
         run: pytest -vv --showlocals
 
