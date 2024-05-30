@@ -103,7 +103,7 @@ jobs:
           path: dist
 
       - name: Install sdist artifact
-        run: pip install dist/${{ needs.build_sdist.outputs.sdist_name }}
+        run: pip install --verbose dist/${{ needs.build_sdist.outputs.sdist_name }}
 
       - uses: actions/checkout@v4
 
