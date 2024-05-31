@@ -99,7 +99,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Build TileDB-Py
-        run: pip install --no-deps --verbose .
+        run: pip install --no-deps --no-build-isolation --verbose .
 
       - name: Install test dependencies
         run: pip install pytest hypothesis psutil pyarrow
