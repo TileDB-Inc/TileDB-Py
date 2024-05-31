@@ -92,14 +92,20 @@ jobs:
       - name: Use Oldest Version of NumPy
         run: python -m pip install numpy==${{ matrix.numpy-version }}
 
+      - name: Print installed Python dependencies
+        run: pip list
+
       - name: Checkout TileDB-Py `dev`
         uses: actions/checkout@v3
 
       - name: Build TileDB-Py
-        run: pip install --verbose .
+        run: pip install --no-deps --verbose .
 
       - name: Install test dependencies
         run: pip install pytest hypothesis psutil pyarrow
+
+      - name: Print installed Python dependencies
+        run: pip list
 
       - name: Run tests
         run: |
