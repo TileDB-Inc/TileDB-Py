@@ -32,14 +32,14 @@ jobs:
       # latest (14.39 currently).
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
-        if: startsWith(matris.os, 'windows')
+        if: startsWith(matrix.os, 'windows')
         with:
           arch: x64
           toolset: 14.39
 
       - name: Install Ninja (VS 2022)
         uses: seanmiddleditch/gha-setup-ninja@v4
-        if: startsWith(matris.os, 'windows')
+        if: startsWith(matrix.os, 'windows')
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -62,7 +62,7 @@ jobs:
       # - https://github.com/actions/runner-images/pull/7125
       - name: "Install homebrew dependencies"
         run: brew install pkg-config
-        if: startsWith(matris.os, 'macos')
+        if: startsWith(matrix.os, 'macos')
 
       - name: "Install libfaketime (linux and macOS)"
         if: !startsWith(matrix.os, 'windows')
