@@ -65,7 +65,7 @@ jobs:
         if: startsWith(matrix.os, 'macos')
 
       - name: "Install libfaketime (linux and macOS)"
-        if: !startsWith(matrix.os, 'windows')
+        if: ${{ ! startsWith(matrix.os, 'windows') }}
         run: |
           git clone https://github.com/wolfcw/libfaketime/
           cd libfaketime
