@@ -59,7 +59,7 @@ target_compile_features(
 install(TARGETS main libtiledb DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)
-    message(STATUS "Adding libtiledb.so into install group")
+    message(STATUS "Adding \"libtiledb\" into install group")
 
     install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared DESTINATION tiledb)
 
@@ -70,6 +70,13 @@ if(TILEDB_DOWNLOADED)
         set_target_properties(main PROPERTIES INSTALL_RPATH "\$ORIGIN")
         set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "\$ORIGIN")
     endif()
+else()
+    # If using external TileDB core library force it to be linked at runtime using RPATH
+    get_property(TILEDB_LOCATION TARGET TileDB::tiledb_shared PROPERTY LOCATION)
+    get_filename_component(TILEDB_LOCATION ${TILEDB_LOCATION} DIRECTORY)
+    message(STATUS "Setting RPATH for targets \"main\" and \"libtiledb\" to ${TILEDB_LOCATION}")
+    set_target_properties(main PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
+    set_target_properties(libtiledb PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
 endif()
 
 add_subdirectory(cc)

@@ -12,8 +12,13 @@ find_package(
 
 find_package(pybind11 CONFIG REQUIRED)
 
+if ($ENV{TILEDB_PATH})
+    # If TILEDB_PATH environment variable is present prepend it to the CMAKE_PREFIX_PATH
+    # so that find_package will be able to find TileDB core library there
+    set(CMAKE_PREFIX_PATH "$ENV{TILEDB_PATH};${CMAKE_PREFIX_PATH}")
+endif ()
+
 # In the future we should use vcpkg
-set(TileDB_DIR $ENV{TILEDB_PATH})
 find_package(TileDB QUIET)
 if (NOT TileDB_FOUND)
     message(STATUS "TileDB library not found, downloading...")
@@ -23,7 +28,7 @@ if (NOT TileDB_FOUND)
             RELLIST_HASH SHA256=2221b0ee2af2675d69f9cb31bc22062d3f379eeecc83b5fc713d00fa03d6e56f
     )
     find_package(TileDB REQUIRED)
-    set(TILEDB_DOWNLOADED ON)
+    set(TILEDB_DOWNLOADED TRUE)
 endif()
 
 add_subdirectory(tiledb)
