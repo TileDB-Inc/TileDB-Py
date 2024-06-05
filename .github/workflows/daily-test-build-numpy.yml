@@ -102,7 +102,7 @@ jobs:
         run: pip install --verbose .
 
       - name: Install test dependencies
-        run: pip install pytest hypothesis psutil pyarrow
+        run: pip install pytest hypothesis psutil pyarrow numpy>=1.16.5
 
       - name: Print installed Python dependencies
         run: pip list
