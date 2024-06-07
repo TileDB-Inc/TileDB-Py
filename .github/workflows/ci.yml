@@ -26,15 +26,11 @@ jobs:
       - name: Checkout TileDB-Py `dev`
         uses: actions/checkout@v3
 
-      # By default Visual Studio chooses the earliest installed toolset version
-      # for the main build and vcpkg chooses the latest. Force it to use the
-      # latest (14.39 currently).
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
         if: matrix.os == 'windows-latest'
         with:
           arch: x64
-          toolset: 14.39
 
       - name: Install Ninja (VS 2022)
         uses: seanmiddleditch/gha-setup-ninja@v4
