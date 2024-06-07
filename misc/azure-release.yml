@@ -8,7 +8,7 @@ stages:
       ${{ else }}:
         TILEDBPY_VERSION: 0.30.0
         # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
-        LIBTILEDB_VERSION: "2.24.0-rc1"
+        LIBTILEDB_VERSION: "2.24.0"
         # NOTE: *must* update both LIBTILEDB_VERSION and LIBTILEDB_SHA
         LIBTILEDB_SHA: ff3879bbab2eb2ee8891271dad2d4bcab83dc0f9
       LIBTILEDB_REPO: https://github.com/TileDB-Inc/TileDB
