@@ -17,8 +17,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-13
-          # For now some libfaketime tests fail, so we disable MACOS/ARM
-          # - macos-14
+          - macos-14-xlarge
           - windows-latest
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
       fail-fast: false
