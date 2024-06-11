@@ -292,7 +292,8 @@ class TestVFS(DiskTestCase):
         )
 
     @pytest.mark.skipif(
-        pytest.tiledb_vfs not in ["s3", "file"], reason="Only test on S3 and local"
+        pytest.tiledb_vfs not in ["file", "s3", "azure, gcs"],
+        reason="Only test on local, S3, Azure, and GCS",
     )
     def test_ls_recursive(self):
         # Create a nested directory structure to test recursive listing
