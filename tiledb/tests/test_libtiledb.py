@@ -2463,7 +2463,9 @@ class TestDenseIndexing(DiskTestCase):
         # slice(-1, 0, -1),
     ]
 
-    bad_index_1d = [2.3, "foo", b"xxx", None, (0, 0), (slice(None), slice(None))]
+    bad_index_1d = ["foo", b"xxx", None, (0, 0), (slice(None), slice(None))]
+
+    warn_and_bad_index_1d = [2.3, -4.5]
 
     def test_index_1d(self):
         A = np.arange(1050, dtype=int)
@@ -2483,6 +2485,15 @@ class TestDenseIndexing(DiskTestCase):
             for idx in self.bad_index_1d:
                 with self.assertRaises(IndexError):
                     T[idx]
+
+            for idx in self.warn_and_bad_index_1d:
+                with pytest.warns(
+                    DeprecationWarning,
+                    match="The use of floats in selection is deprecated. "
+                    "It is slated for removal in 0.31.0.",
+                ):
+                    with self.assertRaises(IndexError):
+                        T[idx]
 
     good_index_2d = [
         # single row
@@ -2524,13 +2535,16 @@ class TestDenseIndexing(DiskTestCase):
     ]
 
     bad_index_2d = [
-        2.3,
         "foo",
         b"xxx",
         None,
-        (2.3, slice(None)),
         (0, 0, 0),
         (slice(None), slice(None), slice(None)),
+    ]
+
+    warn_and_bad_index_2d = [
+        2.3,
+        (2.3, slice(None)),
     ]
 
     def test_index_2d(self):
@@ -2553,6 +2567,15 @@ class TestDenseIndexing(DiskTestCase):
             for idx in self.bad_index_2d:
                 with self.assertRaises(IndexError):
                     T[idx]
+
+            for idx in self.warn_and_bad_index_2d:
+                with pytest.warns(
+                    DeprecationWarning,
+                    match="The use of floats in selection is deprecated. "
+                    "It is slated for removal in 0.31.0.",
+                ):
+                    with self.assertRaises(IndexError):
+                        T[idx]
 
 
 class TestDatetimeSlicing(DiskTestCase):

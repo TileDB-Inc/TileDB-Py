@@ -191,6 +191,16 @@ class AttributeTest(DiskTestCase):
         self.assertEqual(attr.dtype, np.dtype(np.int32))
         self.assertTrue(attr.isnullable)
 
+    def test_blob_attribute(self):
+        attr = tiledb.Attr(name="foo", dtype="blob")
+        self.assertEqual(attr, attr)
+        self.assertEqual(attr.dtype, np.bytes_)
+
+    def test_blob_attribute_dump(self, capfd):
+        attr = tiledb.Attr(name="foo", dtype="blob")
+        attr.dump()
+        assert_captured(capfd, "Type: BLOB")
+
     def test_datetime_attribute(self):
         attr = tiledb.Attr("foo", dtype=np.datetime64("", "D"))
         self.assertEqual(attr, attr)
