@@ -24,8 +24,8 @@ if (NOT TileDB_FOUND)
     message(STATUS "TileDB library not found, downloading...")
     include(cmake/DownloadTileDB.cmake)
     fetch_prebuilt_tiledb(
-            VERSION 2.23.0
-            RELLIST_HASH SHA256=2221b0ee2af2675d69f9cb31bc22062d3f379eeecc83b5fc713d00fa03d6e56f
+            VERSION 2.24.0
+            RELLIST_HASH SHA256=e5aa7e6d747bb956730e438d0b29c90096226d4a553c26c5cb9161680f1d489c
     )
     find_package(TileDB REQUIRED)
     set(TILEDB_DOWNLOADED TRUE)
