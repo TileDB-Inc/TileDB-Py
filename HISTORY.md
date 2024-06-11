@@ -1,7 +1,12 @@
-# Release 0.29.1
+# Release 0.30
+
+* TileDB-Py 0.30.0 includes TileDB Embedded [2.24.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.24.0)
 
 ## Improvements
 
+* Add test for blob attribute by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1985
+* Deprecate support for [] indexing with floats by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1982
+* Fix Query constructor to return error for dense arrays with return_incomplete=True by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1976
 * Expose WebP enums by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1974
 * Add Array.query in docs and improve docs in general by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1965
 * Add support for creating WKB/WKT attributes by @jp-dark in https://github.com/TileDB-Inc/TileDB-Py/pull/1912
@@ -10,7 +15,9 @@
 
 ## Build system changes
 
-* Fix ModuleNotFoundError: No module named 'numpy' on build by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1979
+* Fix pinning wrong numpy version by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1989
+* Remove pin to MSVC toolset version in CI by @teo-tsirpanis in https://github.com/TileDB-Inc/TileDB-Py/pull/1991
+* Fix ModuleNotFoundError: No module named 'numpy' on build by @kounelisagis and @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1979
 * Add support for numpy2 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1969
 * Fix syntax error in nightly build workflow by @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1970
 * Set an upper bound for numpy to dodge 2.0 by @sgillies in https://github.com/TileDB-Inc/TileDB-Py/pull/1963
