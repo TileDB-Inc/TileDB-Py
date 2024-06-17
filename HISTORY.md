@@ -1,3 +1,7 @@
+# Release 0.29.1
+
+* Solves downloading numpy 2.0.0 after the stable version was made available by setting an upper bound.
+
 # Release 0.29.0
 
 * TileDB-Py 0.29.0 includes TileDB Embedded [2.23.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.23.0)
