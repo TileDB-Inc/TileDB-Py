@@ -1,4 +1,7 @@
-numpy >= 1.16.5
+numpy>=1.17,<2.0 ; python_version == '3.8' and platform_machine not in 'arm64|aarch64'
+numpy>=1.19,<2.0 ; python_version == '3.8' and platform_machine == 'aarch64'
+numpy>=1.21,<2.0 ; python_version == '3.8' and platform_machine == 'arm64'
+numpy>=1.25,<2.0 ; python_version >= '3.9'
 
 # ------------------------------------------------
 # ** MUST sync with misc/requirements_wheel.txt **
