@@ -1724,7 +1724,7 @@ void init_core(py::module &m) {
   m.def("array_to_buffer", &convert_np);
 
   m.def("init_stats", &init_stats);
-  m.def("disable_stats", &init_stats);
+  m.def("disable_stats", &disable_stats);
   m.def("python_internal_stats", &python_internal_stats,
         py::arg("dict") = false);
   m.def("increment_stat", &increment_stat);
