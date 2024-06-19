@@ -69,8 +69,10 @@ jobs:
           sudo make install
           cd ..
 
-      - name: "Build TileDB-Py"
-        run: pip install --verbose .
+      - name: "Build and Install TileDB-Py"
+        run: |
+          pipx run build
+          pip install --verbose dist/*.whl
 
       - name: "Install test dependencies"
         run: pip install pytest hypothesis psutil pyarrow
@@ -95,3 +97,10 @@ jobs:
                cat $f
             done;
         if: failure()
+
+      - name: "Upload files for debug"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-${{ matrix.os }}-${{ strategy.python-version }}
+          path: "."
