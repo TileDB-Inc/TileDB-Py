@@ -48,7 +48,7 @@ jobs:
       VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
     steps:
       - name: Checkout TileDB-Py `dev`
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
