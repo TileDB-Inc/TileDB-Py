@@ -75,7 +75,7 @@ jobs:
           pip install --verbose dist/*.whl
 
       - name: "Install test dependencies"
-        run: pip install pytest hypothesis psutil pyarrow
+        run: pip install -r misc/requirements_test.txt
 
       - name: "Run tests"
         run: |

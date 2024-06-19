@@ -72,7 +72,7 @@ jobs:
         if: startsWith(matrix.os, 'windows')
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -98,7 +98,9 @@ jobs:
         run: pip install --verbose .
 
       - name: Install test dependencies
-        run: pip install pytest hypothesis psutil pyarrow numpy>=1.16.5
+        run: |
+          pip install -r misc/requirements_test.txt
+          pip install numpy>=1.16.5
 
       - name: Print installed Python dependencies
         run: pip list
