@@ -71,7 +71,7 @@ jobs:
 
       - name: "Build and Install TileDB-Py"
         run: |
-          pipx run build
+          pipx run --python ${{ matrix.python-version }} build
           pip install --verbose dist/*.whl
 
       - name: "Install test dependencies"
@@ -102,5 +102,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.python-version }}
+          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: "."
