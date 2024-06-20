@@ -90,7 +90,7 @@ jobs:
 
       - name: Use Oldest Version of NumPy
         run: |
-          sed s/numpy/numpy==${{ matrix.numpy-version }}/g pyproject.toml > pyproject.toml.new
+          sed 's/numpy[^ ]*/numpy==${{ matrix.numpy-version }}/g' pyproject.toml > pyproject.toml.new
           mv pyproject.toml.new pyproject.toml
           cat pyproject.toml
 

@@ -1,7 +1,6 @@
 [build-system]
 requires = [
     "scikit-build-core",
-    "numpy",
     "pybind11",
     "Cython",
     "numpy==1.17.* ; python_version == '3.8' and platform_machine not in 'arm64|aarch64'",
