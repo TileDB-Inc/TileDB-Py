@@ -28,7 +28,7 @@ if (NOT TileDB_FOUND)
                 VERSION ${TILEDB_VERSION}
         )
     else()
-        message(STATUS "TileDB library not found, downloading version default version ...")
+        message(STATUS "TileDB library not found, downloading default version ...")
         # Download latest release
         fetch_prebuilt_tiledb(
                 VERSION 2.24.0

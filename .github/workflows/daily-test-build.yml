@@ -69,7 +69,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and install TileDB-Py and dependencies
-        run: python -m pip install --verbose .[test]
+        run: |
+          echo ${TILEDB_VERSION}
+          echo ${{ github.event.inputs.libtiledb_version }}
+          python -m pip install --verbose .[test]
 
       - name: Run tests
         run: |
