@@ -3843,7 +3843,7 @@ class TestPath(DiskTestCase):
 
 class TestAsBuilt(DiskTestCase):
     def test_as_built(self):
-        dump = tiledb.as_built(as_string=True)
+        dump = tiledb.as_built(return_json_string=True)
         assert isinstance(dump, str)
         # ensure we get a non-empty string
         assert len(dump) > 0

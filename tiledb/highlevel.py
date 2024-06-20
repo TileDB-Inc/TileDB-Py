@@ -256,16 +256,16 @@ def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):
     return schema
 
 
-def as_built(as_string=False):
+def as_built(return_json_string=False):
     """
     Dumps the TileDB build configuration to a dictionary or string.
 
-    :param bool as_string: Return the output as a string instead of a dictionary
+    :param bool return_json_string: Return the output as a string instead of a dictionary
     :return: dict or str
     """
     res = tiledb.main.as_built_dump()
 
-    if as_string:
+    if return_json_string:
         return res
 
     return json.loads(res)
