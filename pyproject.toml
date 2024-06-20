@@ -49,6 +49,20 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+doc = [
+    "jinja2==3.0.0",
+    "sphinx-rtd-theme==2.0.0",
+    "Sphinx",
+    "breathe",
+]
+test = [
+    "pytest",
+    "hypothesis",
+    "psutil",
+    "pyarrow",
+]
+
 [project.urls]
 homepage = "https://github.com/TileDB-Inc/TileDB-Py"
 

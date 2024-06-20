@@ -1,4 +1,0 @@
-pytest
-hypothesis
-psutil
-pyarrow

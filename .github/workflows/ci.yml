@@ -72,10 +72,7 @@ jobs:
       - name: "Build and Install TileDB-Py"
         run: |
           pipx run --python ${{ matrix.python-version }} build
-          pip install --verbose dist/*.whl
-
-      - name: "Install test dependencies"
-        run: pip install -r misc/requirements_test.txt
+          pip install --verbose dist/*.whl[test]
 
       - name: "Run tests"
         run: |

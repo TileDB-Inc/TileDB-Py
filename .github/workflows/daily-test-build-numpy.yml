@@ -95,11 +95,10 @@ jobs:
           cat pyproject.toml
 
       - name: Build TileDB-Py
-        run: pip install --verbose .
+        run: pip install --verbose .[test]
 
-      - name: Install test dependencies
+      - name: Install Numpy
         run: |
-          pip install -r misc/requirements_test.txt
           pip install numpy>=1.16.5
 
       - name: Print installed Python dependencies
