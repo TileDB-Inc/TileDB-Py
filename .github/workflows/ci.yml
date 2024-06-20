@@ -73,7 +73,7 @@ jobs:
         # We use pipx here to produce wheel/sdist to upload as artifact in case of error
         run: |
           pipx run --python ${{ matrix.python-version }} build
-          WHEEL_NAME=$(dist/*.whl)
+          WHEEL_NAME=$(ls dist/*.whl)
           pip install --verbose ${WHEEL_NAME}[test]
 
       - name: "Run tests"
