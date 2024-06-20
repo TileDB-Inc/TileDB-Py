@@ -43,7 +43,7 @@ jobs:
             numpy-version: "1.17.3"
       fail-fast: false
     env:
-      TILEDB_VERSION: ${{ github.event.inputs.libtiledb_version }}
+      TILEDB_VERSION: ${{ inputs.libtiledb_version }}
       MACOSX_DEPLOYMENT_TARGET: "11"
       VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
     steps:

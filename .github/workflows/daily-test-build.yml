@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
 
     env:
-      TILEDB_VERSION: ${{ github.event.inputs.libtiledb_version }}
+      TILEDB_VERSION: ${{ inputs.libtiledb_version }}
       MACOSX_DEPLOYMENT_TARGET: "11"
       VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
 
@@ -71,7 +71,7 @@ jobs:
       - name: Build and install TileDB-Py and dependencies
         run: |
           echo ${TILEDB_VERSION}
-          echo ${{ github.event.inputs.libtiledb_version }}
+          echo ${{ inputs.libtiledb_version }}
           python -m pip install --verbose .[test]
 
       - name: Run tests
