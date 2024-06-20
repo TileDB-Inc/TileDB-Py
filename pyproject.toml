@@ -82,6 +82,10 @@ wheel.exclude = [
     "tiledb/*.pxi",
 ]
 
+[tool.scikit-build.cmake.define]
+TILEDB_PATH = {env="TILEDB_PATH"}
+TILEDB_VERSION = {env="TILEDB_VERSION"}
+
 [tool.pytest.ini_options]
 python_classes = "*Test*"
 python_files = "test_*.py"
