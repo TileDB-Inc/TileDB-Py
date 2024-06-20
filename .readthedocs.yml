@@ -16,7 +16,7 @@ sphinx:
 
 python:
   install:
-    # this order is important: we need to get cmake
-    - requirements: doc/requirements_doc.txt
     - method: pip
       path: .
+      extra_requirements:
+        - doc
