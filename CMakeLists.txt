@@ -24,9 +24,16 @@ if (NOT TileDB_FOUND)
     include(cmake/DownloadTileDB.cmake)
     if (TILEDB_VERSION)
         message(STATUS "TileDB library not found, downloading version \"${TILEDB_VERSION}\" ...")
-        fetch_prebuilt_tiledb(
-                VERSION ${TILEDB_VERSION}
-        )
+        if (TILEDB_HASH)
+            fetch_prebuilt_tiledb(
+                    VERSION ${TILEDB_VERSION}
+                    RELLIST_HASH SHA256=${TILEDB_HASH}
+            )
+        else()
+            fetch_prebuilt_tiledb(
+                    VERSION ${TILEDB_VERSION}
+            )
+        endif()
     else()
         message(STATUS "TileDB library not found, downloading default version ...")
         # Download latest release
