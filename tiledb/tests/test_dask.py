@@ -168,6 +168,7 @@ class TestDaskSupport(DiskTestCase):
         np.testing.assert_array_equal(D2 + 1, D3)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
 @pytest.mark.skipif(
     sys.version_info[:2] == (3, 8),
     reason="Fails on Python 3.8 due to dask worker restarts",
