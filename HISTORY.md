@@ -1,4 +1,13 @@
-# Release 0.30
+# Release 0.30.1
+
+* TileDB-Py 0.30.1 includes TileDB Embedded [2.24.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.24.1)
+
+## Improvements
+
+* Document Azure, GCS and local support for VFS.ls_recursive by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1980
+* Skip Dask failing test on Windows by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1995
+
+# Release 0.30.0
 
 * TileDB-Py 0.30.0 includes TileDB Embedded [2.24.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.24.0)
 
@@ -21,6 +30,12 @@
 * Add support for numpy2 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1969
 * Fix syntax error in nightly build workflow by @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1970
 * Set an upper bound for numpy to dodge 2.0 by @sgillies in https://github.com/TileDB-Inc/TileDB-Py/pull/1963
+
+# Release 0.29.1
+
+## Build system changes
+
+* Add numpy upper bound to dodge 2.0 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1993
 
 # Release 0.29.0
 
