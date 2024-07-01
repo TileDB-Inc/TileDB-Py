@@ -429,10 +429,12 @@ class ArrayTest(DiskTestCase):
             expected_validity1 = [False, False, True, False, False]
             assert_array_equal(A[:]["a1"].mask, expected_validity1)
             assert_array_equal(A.df[:]["a1"].isna(), expected_validity1)
+            assert_array_equal(A.query(attrs=["a1"])[:]["a1"].mask, expected_validity1)
 
             expected_validity2 = [False, False, True, True, False]
             assert_array_equal(A[:]["a2"].mask, expected_validity2)
             assert_array_equal(A.df[:]["a2"].isna(), expected_validity2)
+            assert_array_equal(A.query(attrs=["a2"])[:]["a2"].mask, expected_validity2)
 
         with tiledb.open(uri, "w") as A:
             dims = pa.array([1, 2, 3, 4, 5])
@@ -452,10 +454,12 @@ class ArrayTest(DiskTestCase):
             expected_validity1 = [True, True, True, True, True]
             assert_array_equal(A[:]["a1"].mask, expected_validity1)
             assert_array_equal(A.df[:]["a1"].isna(), expected_validity1)
+            assert_array_equal(A.query(attrs=["a1"])[:]["a1"].mask, expected_validity1)
 
             expected_validity2 = [True, True, True, True, True]
             assert_array_equal(A[:]["a2"].mask, expected_validity2)
             assert_array_equal(A.df[:]["a2"].isna(), expected_validity2)
+            assert_array_equal(A.query(attrs=["a2"])[:]["a2"].mask, expected_validity2)
 
 
 class DenseArrayTest(DiskTestCase):

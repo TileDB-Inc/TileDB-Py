@@ -2170,14 +2170,14 @@ cdef class DenseArrayImpl(Array):
                 if attr.isnullable:
                     data = np.array([values[idx] for idx in result[attr.name].data])
                     result[attr.name] = np.ma.array(
-                        data, mask=~result[attr.name].mask)
+                        data, mask=result[attr.name].mask)
                 else:
                     result[attr.name] = np.array(
                         [values[idx] for idx in result[attr.name]])
             else:
                 if attr.isnullable:
                     result[attr.name] = np.ma.array(result[attr.name].data, 
-                        mask=~result[attr.name].mask)
+                        mask=result[attr.name].mask)
 
         return result
 
@@ -2429,7 +2429,7 @@ cdef class DenseArrayImpl(Array):
                 out[name] = arr
             
             if self.schema.has_attr(name) and self.attr(name).isnullable:
-                out[name] = np.ma.array(out[name], mask=results[name][2].astype(bool))
+                out[name] = np.ma.array(out[name], mask=~results[name][2].astype(bool))
                 
         return out
 
@@ -3251,14 +3251,14 @@ cdef class SparseArrayImpl(Array):
                 if attr.isnullable:
                     data = np.array([values[idx] for idx in result[attr.name].data])
                     result[attr.name] = np.ma.array(
-                        data, mask=~result[attr.name].mask)
+                        data, mask=result[attr.name].mask)
                 else:
                     result[attr.name] = np.array(
                         [values[idx] for idx in result[attr.name]])
             else:
                 if attr.isnullable:
                     result[attr.name] = np.ma.array(result[attr.name].data, 
-                        mask=~result[attr.name].mask)
+                        mask=result[attr.name].mask)
 
         return result
 
@@ -3559,7 +3559,7 @@ cdef class SparseArrayImpl(Array):
                     out[final_name] = arr
             
             if self.schema.has_attr(final_name) and self.attr(final_name).isnullable:
-                out[final_name] = np.ma.array(out[final_name], mask=results[name][2])
+                out[final_name] = np.ma.array(out[final_name], mask=~results[name][2].astype(bool))
 
         return out
 
