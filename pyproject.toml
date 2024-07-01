@@ -15,6 +15,7 @@ requires-python = ">=3.8"
 name = "tiledb"
 description = "Pythonic interface to the TileDB array storage manager"
 readme = "README.md"
+license = {text = "MIT"}
 authors = [
   {name = "TileDB, Inc.", email = "help@tiledb.io"}
 ]
