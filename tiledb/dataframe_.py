@@ -75,7 +75,7 @@ def parse_tiledb_kwargs(kwargs):
     return parsed_args
 
 
-def _infer_dtype_from_pandas(values):
+def _infer_dtype_from_pandas(values, column_name):
     from pandas.api import types as pd_types
 
     inferred_dtype = pd_types.infer_dtype(values)
@@ -88,16 +88,20 @@ def _infer_dtype_from_pandas(values):
     elif inferred_dtype == "integer":
         return np.int64
     elif inferred_dtype == "mixed-integer":
-        raise NotImplementedError("Pandas type 'mixed-integer' is not supported")
+        raise NotImplementedError(
+            f"Pandas type 'mixed-integer' is not supported (column {column_name})"
+        )
     elif inferred_dtype == "mixed-integer-float":
-        raise NotImplementedError("Pandas type 'mixed-integer-float' is not supported")
+        raise NotImplementedError(
+            f"Pandas type 'mixed-integer-float' is not supported (column {column_name})"
+        )
     elif inferred_dtype == "decimal":
         return np.float64
     elif inferred_dtype == "complex":
         return np.complex128
     elif inferred_dtype == "categorical":
         raise NotImplementedError(
-            "Pandas type 'categorical of categorical' is not supported"
+            f"Pandas type 'categorical of categorical' is not supported (column {column_name})"
         )
     elif inferred_dtype == "boolean":
         return np.bool_
@@ -114,11 +118,17 @@ def _infer_dtype_from_pandas(values):
     elif inferred_dtype == "time":
         return np.timedelta64
     elif inferred_dtype == "period":
-        raise NotImplementedError("Pandas type 'period' is not supported")
+        raise NotImplementedError(
+            f"Pandas type 'period' is not supported (column {column_name})"
+        )
     elif inferred_dtype == "mixed":
-        raise NotImplementedError("Pandas type 'mixed' is not supported")
+        raise NotImplementedError(
+            f"Pandas type 'mixed' is not supported (column {column_name})"
+        )
     elif inferred_dtype == "unknown-array":
-        raise NotImplementedError("Pandas type 'unknown-array' is not supported")
+        raise NotImplementedError(
+            f"Pandas type 'unknown-array' is not supported (column {column_name})"
+        )
 
 
 @dataclass(frozen=True)
@@ -148,27 +158,29 @@ class ColumnInfo:
             #       problems w/ allowing non-string types in object columns)
             inferred_dtype = pd_types.infer_dtype(array_like)
             if inferred_dtype == "bytes":
-                return cls.from_dtype(np.bytes_)
+                return cls.from_dtype(np.bytes_, array_like.name)
             elif inferred_dtype == "string":
                 # TODO we need to make sure this is actually convertible
-                return cls.from_dtype(np.str_)
+                return cls.from_dtype(np.str_, array_like.name)
             else:
                 raise NotImplementedError(
-                    f"{inferred_dtype} inferred dtype not supported"
+                    f"{inferred_dtype} inferred dtype not supported (column {array_like.name})"
                 )
         elif hasattr(array_like, "dtype") and isinstance(
             array_like.dtype, CategoricalDtype
         ):
-            return cls.from_categorical(array_like.cat, array_like.dtype)
+            return cls.from_categorical(
+                array_like.cat, array_like.dtype, array_like.name
+            )
         else:
             if not hasattr(array_like, "dtype"):
                 array_like = np.asanyarray(array_like)
-            return cls.from_dtype(array_like.dtype, varlen_types)
+            return cls.from_dtype(array_like.dtype, array_like.name, varlen_types)
 
     @classmethod
-    def from_categorical(cls, cat, dtype):
+    def from_categorical(cls, cat, dtype, column_name):
         values = cat.categories.values
-        inferred_dtype = _infer_dtype_from_pandas(values)
+        inferred_dtype = _infer_dtype_from_pandas(values, column_name)
 
         return cls(
             np.int32,
@@ -182,7 +194,7 @@ class ColumnInfo:
         )
 
     @classmethod
-    def from_dtype(cls, dtype, varlen_types=()):
+    def from_dtype(cls, dtype, column_name, varlen_types=()):
         from pandas.api import types as pd_types
 
         if isinstance(dtype, str) and dtype == "ascii":
@@ -221,13 +233,15 @@ class ColumnInfo:
 
         # complex types
         if pd_types.is_complex_dtype(dtype):
-            raise NotImplementedError("complex dtype not supported")
+            raise NotImplementedError(
+                f"complex dtype not supported (column {column_name})"
+            )
 
         # remaining numeric types
         if pd_types.is_numeric_dtype(dtype):
             if dtype == np.float16 or hasattr(np, "float128") and dtype == np.float128:
                 raise NotImplementedError(
-                    "Only single and double precision float dtypes are supported"
+                    f"Only single and double precision float dtypes are supported (column {column_name})"
                 )
             return cls(dtype)
 
@@ -237,7 +251,7 @@ class ColumnInfo:
                 return cls(dtype)
             else:
                 raise NotImplementedError(
-                    "Only 'datetime64[ns]' datetime dtype is supported"
+                    f"Only 'datetime64[ns]' datetime dtype is supported (column {column_name})"
                 )
 
         # string types
@@ -246,14 +260,16 @@ class ColumnInfo:
             # str and bytes are always stored as var-length
             return cls(dtype, var=True)
 
-        raise NotImplementedError(f"{dtype} dtype not supported")
+        raise NotImplementedError(f"{dtype} dtype not supported (column {column_name})")
 
 
 def _get_column_infos(df, column_types, varlen_types):
     column_infos = {}
     for name, column in df.items():
         if column_types and name in column_types:
-            column_infos[name] = ColumnInfo.from_dtype(column_types[name], varlen_types)
+            column_infos[name] = ColumnInfo.from_dtype(
+                column_types[name], name, varlen_types
+            )
         else:
             column_infos[name] = ColumnInfo.from_values(column, varlen_types)
     return column_infos
