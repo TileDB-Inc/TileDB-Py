@@ -21,7 +21,7 @@ authors = [
 maintainers = [
   {name = "TileDB, Inc.", email = "help@tiledb.io"}
 ]
-license = {text = "MIT"}
+license-files = { globs = ["LICEN[CS]E*", "external/LICEN[CS]E-*.txt"] }
 classifiers=[
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
