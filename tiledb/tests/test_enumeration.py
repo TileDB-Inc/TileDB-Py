@@ -140,6 +140,7 @@ class EnumerationTest(DiskTestCase):
             expected_validity = [False, False, True, False, False]
             assert_array_equal(A[:]["a"].mask, expected_validity)
             assert_array_equal(A.df[:]["a"].isna(), expected_validity)
+            assert_array_equal(A.query(attrs=["a"])[:]["a"].mask, expected_validity)
 
     @pytest.mark.parametrize(
         "dtype, values",
