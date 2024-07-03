@@ -55,17 +55,57 @@ void init_array(py::module &m) {
       .def("config", &Array::config)
       .def("close", &Array::close)
       .def("consolidate",
-           py::overload_cast<const Context &, const std::string &,
-                             Config *const>(&Array::consolidate),
-           py::call_guard<py::gil_scoped_release>())
+           [](Array &self) {
+             if (self.query_type() == TILEDB_READ) {
+               throw TileDBError("cannot consolidate array opened in readonly "
+                                 "mode (mode='r')");
+             }
+
+             Config config;
+             Context ctx;
+             Array::consolidate(ctx, self.uri(), &config);
+           })
       .def("consolidate",
-           py::overload_cast<const Context &, const std::string &,
-                             tiledb_encryption_type_t, const std::string &,
-                             Config *const>(&Array::consolidate),
-           py::call_guard<py::gil_scoped_release>())
-      //(void (Array::*)(const Context&, const std::string&,
-      //                 tiledb_encryption_type_t, const std::string&,
-      //                 Config* const)&Array::consolidate)&Array::consolidate)
+           [](Array &self, const Context &ctx, Config *config) {
+             if (self.query_type() == TILEDB_READ) {
+               throw TileDBError("cannot consolidate array opened in readonly "
+                                 "mode (mode='r')");
+             }
+             Array::consolidate(ctx, self.uri(), config);
+           })
+      .def("consolidate",
+           [](Array &self, const Context &ctx,
+              const std::vector<std::string> &fragment_uris, Config *config) {
+             if (self.query_type() == TILEDB_READ) {
+               throw TileDBError("cannot consolidate array opened in readonly "
+                                 "mode (mode='r')");
+             }
+             std::vector<const char *> c_strings;
+             c_strings.reserve(fragment_uris.size());
+             for (const auto &str : fragment_uris) {
+               c_strings.push_back(str.c_str());
+             }
+
+             Array::consolidate(ctx, self.uri(), c_strings.data(),
+                                fragment_uris.size(), config);
+           })
+      .def("consolidate",
+           [](Array &self, const Context &ctx,
+              const std::tuple<int, int> &timestamp, Config *config) {
+             if (self.query_type() == TILEDB_READ) {
+               throw TileDBError("cannot consolidate array opened in readonly "
+                                 "mode (mode='r')");
+             }
+             int start, end;
+             std::tie(start, end) = timestamp;
+
+             config->set("sm.consolidation.timestamp_start",
+                         std::to_string(start));
+             config->set("sm.consolidation.timestamp_end", std::to_string(end));
+
+             Array::consolidate(ctx, self.uri(), config);
+           })
+
       .def("vacuum", &Array::vacuum)
       .def("create",
            py::overload_cast<const std::string &, const ArraySchema &,

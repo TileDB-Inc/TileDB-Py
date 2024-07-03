@@ -1,6 +1,9 @@
+import warnings
+
 import numpy as np
 
 import tiledb
+import tiledb.cc as lt
 
 from .dataframe_ import create_dim
 
@@ -193,6 +196,71 @@ def array_fragments(uri, include_mbrs=False, ctx=None):
     :return: FragmentInfoList
     """
     return tiledb.FragmentInfoList(uri, include_mbrs, ctx)
+
+
+def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
+    """Consolidates TileDB array fragments for improved read performance
+
+    :param str uri: URI to the TileDB Array
+    :param str key: (default None) Key to decrypt array if the array is encrypted
+    :param tiledb.Config config: The TileDB Config with consolidation parameters set
+    :param tiledb.Ctx ctx: (default None) The TileDB Context
+    :param fragment_uris: (default None) Consolidate the array using a list of fragment file names
+    :param timestamp: (default None) If not None, consolidate the array using the given tuple(int, int) UNIX seconds range (inclusive). This argument will be ignored if `fragment_uris` is passed.
+    :rtype: str or bytes
+    :return: path (URI) to the consolidated TileDB Array
+    :raises TypeError: cannot convert path to unicode string
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    Rather than passing the timestamp into this function, it may be set with
+    the config parameters `"sm.vacuum.timestamp_start"`and
+    `"sm.vacuum.timestamp_end"` which takes in a time in UNIX seconds. If both
+    are set then this function's `timestamp` argument will be used.
+
+    **Example:**
+
+    >>> import tiledb, tempfile, numpy as np, os
+    >>> path = tempfile.mkdtemp()
+
+    >>> with tiledb.from_numpy(path, np.zeros(4), timestamp=1) as A:
+    ...     pass
+    >>> with tiledb.open(path, 'w', timestamp=2) as A:
+    ...     A[:] = np.ones(4, dtype=np.int64)
+    >>> with tiledb.open(path, 'w', timestamp=3) as A:
+    ...     A[:] = np.ones(4, dtype=np.int64)
+    >>> with tiledb.open(path, 'w', timestamp=4) as A:
+    ...     A[:] = np.ones(4, dtype=np.int64)
+    >>> len(tiledb.array_fragments(path))
+    4
+
+    >>> fragment_names = [
+    ...     os.path.basename(f) for f in tiledb.array_fragments(path).uri
+    ... ]
+    >>> array_uri = tiledb.consolidate(
+    ...    path, fragment_uris=[fragment_names[1], fragment_names[3]]
+    ... )
+    >>> len(tiledb.array_fragments(path))
+    3
+
+    """
+    ctx = _get_ctx(ctx)
+    if config is None:
+        config = lt.Config()
+
+    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+
+    if fragment_uris is not None:
+        if timestamp is not None:
+            warnings.warn(
+                "The `timestamp` argument will be ignored and only fragments "
+                "passed to `fragment_uris` will be consolidated",
+                DeprecationWarning,
+            )
+        return arr.consolidate(ctx, fragment_uris, config)
+    elif timestamp is not None:
+        return arr.consolidate(ctx, timestamp, config)
+    else:
+        return arr.consolidate(ctx, config)
 
 
 def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):

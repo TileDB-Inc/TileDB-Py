@@ -82,6 +82,7 @@ from .group import Group
 from .highlevel import (
     array_exists,
     array_fragments,
+    consolidate,
     empty_like,
     from_numpy,
     open,
@@ -92,7 +93,6 @@ from .libtiledb import (
     Array,
     DenseArrayImpl,
     SparseArrayImpl,
-    consolidate,
     ls,
     move,
     object_type,
