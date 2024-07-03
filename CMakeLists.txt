@@ -20,10 +20,11 @@ endif()
 
 # In the future we should use vcpkg
 find_package(TileDB QUIET)
-if (NOT TileDB_FOUND)
+# If TileDB not found or we are producing a wheel download TileDB release
+if (NOT TileDB_FOUND OR ${SKBUILD_STATE} STREQUAL wheel)
     include(cmake/DownloadTileDB.cmake)
     if (TILEDB_VERSION)
-        message(STATUS "TileDB library not found, downloading version \"${TILEDB_VERSION}\" ...")
+        message(STATUS "Downloading TileDB version \"${TILEDB_VERSION}\" ...")
         if (TILEDB_HASH)
             fetch_prebuilt_tiledb(
                     VERSION ${TILEDB_VERSION}
@@ -35,7 +36,7 @@ if (NOT TileDB_FOUND)
             )
         endif()
     else()
-        message(STATUS "TileDB library not found, downloading default version ...")
+        message(STATUS "Downloading TileDB default version ...")
         # Download latest release
         fetch_prebuilt_tiledb(
                 VERSION 2.24.0
@@ -44,6 +45,8 @@ if (NOT TileDB_FOUND)
     endif()
     find_package(TileDB REQUIRED)
     set(TILEDB_DOWNLOADED TRUE)
+else()
+    message(FATAL_ERROR "INCORRECT PACKAGING")
 endif()
 
 add_subdirectory(tiledb)
