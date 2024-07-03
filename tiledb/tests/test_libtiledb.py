@@ -18,6 +18,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
+import tiledb.cc as lt
 from tiledb.datatypes import DataType
 
 from .common import (
@@ -110,10 +111,6 @@ class ArrayTest(DiskTestCase):
         self.assertEqual(array.mode, "r")
         self.assertEqual(array.uri, self.path("foo"))
 
-        # test that we cannot consolidate an array in readonly mode
-        with self.assertRaises(tiledb.TileDBError):
-            array.consolidate()
-
         # we have not written anything, so the array is empty
         self.assertIsNone(array.nonempty_domain())
 
@@ -179,44 +176,50 @@ class ArrayTest(DiskTestCase):
         config["sm.consolidation.step_min_frags"] = 0
         config["sm.consolidation.steps"] = 1
         schema = self.create_array_schema()
+        key = "0123456789abcdeF0123456789abcdeF"
         # persist array schema
-        tiledb.libtiledb.Array.create(
-            self.path("foo"), schema, key=b"0123456789abcdeF0123456789abcdeF"
-        )
+        tiledb.libtiledb.Array.create(self.path("foo"), schema, key=key)
 
         # check that we can open the array sucessfully
-        for key in (
-            b"0123456789abcdeF0123456789abcdeF",
-            "0123456789abcdeF0123456789abcdeF",
-        ):
-            with tiledb.libtiledb.Array(self.path("foo"), mode="r", key=key) as array:
-                self.assertTrue(array.isopen)
-                self.assertEqual(array.schema, schema)
-                self.assertEqual(array.mode, "r")
-            with tiledb.open(self.path("foo"), mode="r", key=key) as array:
-                self.assertTrue(array.isopen)
-                self.assertEqual(array.schema, schema)
-                self.assertEqual(array.mode, "r")
+        config = tiledb.Config()
+        config["sm.encryption_key"] = key
+        config["sm.encryption_type"] = "AES_256_GCM"
+        ctx = tiledb.Ctx(config=config)
 
-            tiledb.consolidate(uri=self.path("foo"), config=config, key=key)
+        with tiledb.libtiledb.Array(self.path("foo"), mode="r", ctx=ctx) as array:
+            self.assertTrue(array.isopen)
+            self.assertEqual(array.schema, schema)
+            self.assertEqual(array.mode, "r")
+        with tiledb.open(self.path("foo"), mode="r", key=key, ctx=ctx) as array:
+            self.assertTrue(array.isopen)
+            self.assertEqual(array.schema, schema)
+            self.assertEqual(array.mode, "r")
 
+        tiledb.consolidate(uri=self.path("foo"), ctx=tiledb.Ctx(config))
+
+        config = tiledb.Config()
+        config["sm.encryption_key"] = "0123456789abcdeF0123456789abcdeX"
+        config["sm.encryption_type"] = "AES_256_GCM"
+        ctx = tiledb.Ctx(config=config)
         # check that opening the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.libtiledb.Array(
-                self.path("foo"), mode="r", key=b"0123456789abcdeF0123456789abcdeX"
-            )
+            tiledb.libtiledb.Array(self.path("foo"), mode="r", ctx=ctx)
 
+        config = tiledb.Config()
+        config["sm.encryption_key"] = "0123456789abcdeF0123456789abcde"
+        config["sm.encryption_type"] = "AES_256_GCM"
+        ctx = tiledb.Ctx(config=config)
         # check that opening the array with the wrong key length fails:
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.libtiledb.Array(
-                self.path("foo"), mode="r", key=b"0123456789abcdeF0123456789abcde"
-            )
+            tiledb.libtiledb.Array(self.path("foo"), mode="r", ctx=ctx)
 
+        config = tiledb.Config()
+        config["sm.encryption_key"] = "0123456789abcdeF0123456789abcde"
+        config["sm.encryption_type"] = "AES_256_GCM"
+        ctx = tiledb.Ctx(config=config)
         # check that consolidating the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.consolidate(
-                self.path("foo"), config=config, key=b"0123456789abcdeF0123456789abcde"
-            )
+            tiledb.consolidate(self.path("foo"), config=config, ctx=ctx)
 
     # needs core fix in 2.2.4
     @pytest.mark.skipif(
@@ -3206,11 +3209,40 @@ class ConsolidationTest(DiskTestCase):
         self.assertEqual(fi.unconsolidated_metadata_num, num_writes)
 
         conf = tiledb.Config({"sm.consolidation.mode": "fragment_meta"})
-        with tiledb.open(path3, "w") as A:
-            A.consolidate(config=conf)
+        tiledb.consolidate(uri=path3, config=conf)
 
         fi = tiledb.array_fragments(path3)
         self.assertEqual(fi.unconsolidated_metadata_num, 0)
+
+    def test_array_consolidate_read_mode(self):
+
+        dshape = (1, 3)
+        num_writes = 10
+
+        def create_array(target_path, dshape):
+            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
+            att = tiledb.Attr(dtype="int64")
+            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+            tiledb.libtiledb.Array.create(target_path, schema)
+
+        def write_fragments(target_path, dshape, num_writes):
+            for i in range(1, num_writes + 1):
+                with tiledb.open(target_path, "w") as A:
+                    A[[1, 2, 3]] = np.random.rand(dshape[1])
+
+        path = self.path("test_array_consolidate_read_mode")
+
+        create_array(path, dshape)
+        write_fragments(path, dshape, num_writes)
+
+        config = tiledb.Config()
+
+        ctx = tiledb.Ctx(config=config)
+        lt_array = lt.Array(ctx, path, lt.QueryType.READ)
+        # test that we cannot consolidate an array in readonly mode
+        with self.assertRaises(tiledb.TileDBError):
+            lt_array.consolidate()
+        lt_array.close()
 
     def test_array_consolidate_with_timestamp(self):
         dshape = (1, 3)
@@ -3234,14 +3266,7 @@ class ConsolidationTest(DiskTestCase):
         frags = tiledb.array_fragments(path)
         assert len(frags) == 10
 
-        with pytest.warns(
-            DeprecationWarning,
-            match=(
-                "The `timestamp` argument is deprecated; pass a list of "
-                "fragment URIs to consolidate with `fragment_uris`"
-            ),
-        ):
-            tiledb.consolidate(path, timestamp=(1, 4))
+        tiledb.consolidate(path, timestamp=(1, 4))
 
         frags = tiledb.array_fragments(path)
         assert len(frags) == 7
@@ -3319,29 +3344,34 @@ class ConsolidationTest(DiskTestCase):
         num_writes = 10
 
         path = self.path("test_array_consolidate_with_key")
-        key = b"0123456789abcdeF0123456789abcdeF"
+        key = "0123456789abcdeF0123456789abcdeF"
+
+        config = tiledb.Config()
+        config["sm.encryption_key"] = key
+        config["sm.encryption_type"] = "AES_256_GCM"
+        ctx = tiledb.Ctx(config=config)
 
         def create_array(target_path, dshape):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.libtiledb.Array.create(target_path, schema, ctx=ctx)
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
-                with tiledb.open(target_path, "w", timestamp=i) as A:
+                with tiledb.open(target_path, "w", timestamp=i, ctx=ctx) as A:
                     A[[1, 2, 3]] = np.random.rand(dshape[1])
 
         create_array(path, dshape)
         write_fragments(path, dshape, num_writes)
-        frags = tiledb.array_fragments(path)
+        frags = tiledb.array_fragments(path, ctx=ctx)
         assert len(frags) == 10
 
         frag_names = [os.path.basename(f) for f in frags.uri]
 
-        tiledb.consolidate(path, fragment_uris=frag_names[:4], key=key)
+        tiledb.consolidate(path, ctx=ctx, config=config, fragment_uris=frag_names[:4])
 
-        assert len(tiledb.array_fragments(path)) == 7
+        assert len(tiledb.array_fragments(path, ctx=ctx)) == 7
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Only run MemoryTest on linux")
