@@ -18,10 +18,10 @@ if (TILEDB_PATH)
     set(CMAKE_PREFIX_PATH "${TILEDB_PATH};${CMAKE_PREFIX_PATH}")
 endif()
 
+
 # In the future we should use vcpkg
 find_package(TileDB QUIET)
-# If TileDB not found or we are producing a wheel download TileDB release
-if (NOT TileDB_FOUND OR ${SKBUILD_STATE} STREQUAL wheel)
+if (NOT TileDB_FOUND)
     include(cmake/DownloadTileDB.cmake)
     if (TILEDB_VERSION)
         message(STATUS "Downloading TileDB version \"${TILEDB_VERSION}\" ...")
