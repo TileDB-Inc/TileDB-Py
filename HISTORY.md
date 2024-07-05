@@ -1,3 +1,16 @@
+# Release 0.30.2
+
+## Packaging Notes
+
+While we currently plan to maintain support for CentOS 7-compatible systems (GLIBC 2.17) through TileDB 2.31, ecosystem and infrastructure updates following the CentOS 7 end-of-life on 30/Jun/2024 may necessitate dropping support earlier. Please contact us if you still use a CentOS 7 (GLIBC 2.17)-like Linux distribution.
+
+## Improvements
+
+* Fix OverflowError: Python int too large to convert to C long by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2000
+* Wrap as_built function by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1994
+* Fix array.query() incorrectly handling nullables by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1998
+* Add offending column when from_pandas -> _get_column_infos fails by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1997
+
 # Release 0.30.1
 
 * TileDB-Py 0.30.1 includes TileDB Embedded [2.24.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.24.1)
