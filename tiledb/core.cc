@@ -80,14 +80,12 @@ static std::unique_ptr<StatsInfo> g_stats;
 py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
 
 struct BufferInfo {
-
   BufferInfo(std::string name, size_t data_nbytes, tiledb_datatype_t data_type,
              uint32_t cell_val_num, size_t offsets_num, size_t validity_num,
              bool isvar = false, bool isnullable = false)
 
       : name(name), type(data_type), cell_val_num(cell_val_num), isvar(isvar),
         isnullable(isnullable) {
-
     try {
       dtype = tiledb_dtype(data_type, cell_val_num);
       elem_nbytes = tiledb_datatype_size(type);
@@ -282,7 +280,6 @@ uint64_t count_zeros(py::array_t<uint8_t> a) {
 }
 
 class PyAgg {
-
   using ByteBuffer = py::array_t<uint8_t>;
   using AggToBufferMap = std::map<std::string, ByteBuffer>;
   using AttrToAggsMap = std::map<std::string, AggToBufferMap>;
@@ -524,7 +521,6 @@ public:
 };
 
 class PyQuery {
-
 private:
   Context ctx_;
   std::shared_ptr<tiledb::Domain> domain_;
@@ -762,7 +758,6 @@ public:
   bool is_sparse() { return array_->schema().array_type() == TILEDB_SPARSE; }
 
   void import_buffer(std::string name, py::array data, py::array offsets) {
-
     tiledb_datatype_t type;
     uint32_t cell_val_num;
     std::tie(type, cell_val_num) = buffer_type(name);
@@ -939,7 +934,6 @@ public:
       auto offset_ptr = buf.offsets.mutable_data();
 
       if (buf.isvar) {
-
         if (offset_elem_num > 0) {
           // account for 'sm.var_offsets.extra_element'
           offset_elem_num -= (use_arrow_) ? 1 : 0;
@@ -1120,7 +1114,6 @@ public:
   }
 
   void allocate_buffers() {
-
     // allocate buffers for dims
     //   - we want to return dims first, if any requested
     for (size_t dim_idx = 0; dim_idx < domain_->ndim(); dim_idx++) {
@@ -1260,7 +1253,6 @@ public:
 
   py::array unpack_buffer(std::string name, py::array buf,
                           py::array_t<uint64_t> off) {
-
     auto start = std::chrono::high_resolution_clock::now();
 
     if (off.size() < 1)
@@ -1673,6 +1665,22 @@ py::object python_internal_stats(bool dict = false) {
   }
 }
 
+py::str as_built_dump() {
+  tiledb_string_t *s;
+  int rc = tiledb_as_built_dump(&s);
+  if (rc != TILEDB_OK) {
+    TPY_ERROR_LOC("Could not dump as built.");
+  }
+  const char *data_ptr;
+  py::size_t length;
+
+  tiledb_string_view(s, &data_ptr, &length);
+  py::str res(data_ptr, length);
+  tiledb_string_free(&s);
+
+  return res;
+}
+
 void init_core(py::module &m) {
   init_query_condition(m);
 
@@ -1724,12 +1732,13 @@ void init_core(py::module &m) {
   m.def("array_to_buffer", &convert_np);
 
   m.def("init_stats", &init_stats);
-  m.def("disable_stats", &init_stats);
+  m.def("disable_stats", &disable_stats);
   m.def("python_internal_stats", &python_internal_stats,
         py::arg("dict") = false);
   m.def("increment_stat", &increment_stat);
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);
+  m.def("as_built_dump", &as_built_dump);
 
   /*
    We need to make sure C++ TileDBError is translated to a correctly-typed py
