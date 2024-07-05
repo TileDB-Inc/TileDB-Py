@@ -17,6 +17,38 @@ tm = pd._testing
 
 
 class FixesTest(DiskTestCase):
+    def test_sc50378_overflowerror_python_int_too_large_to_convert_to_c_long(self):
+        uri = self.path(
+            "test_sc50378_overflowerror_python_int_too_large_to_convert_to_c_long"
+        )
+        MAX_UINT64 = np.iinfo(np.uint64).max
+        dim = tiledb.Dim(
+            name="id",
+            domain=(0, MAX_UINT64 - 1),
+            dtype=np.dtype(np.uint64),
+        )
+        dom = tiledb.Domain(dim)
+        text_attr = tiledb.Attr(name="text", dtype=np.dtype("U1"), var=True)
+        attrs = [text_attr]
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            sparse=True,
+            allows_duplicates=False,
+            attrs=attrs,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            external_ids = np.array([0, 100, MAX_UINT64 - 1], dtype=np.dtype(np.uint64))
+            data = {"text": np.array(["foo", "bar", "baz"], dtype="<U3")}
+            A[external_ids] = data
+
+        array = tiledb.open(uri, "r", timestamp=None, config=None)
+        array[0]["text"][0]
+        array[100]["text"][0]
+        # This used to fail
+        array[MAX_UINT64 - 1]["text"][0]
+
     def test_ch7727_float32_dim_estimate_incorrect(self):
         # set max allocation: because windows won't overallocate
         with tiledb.scope_ctx({"py.alloc_max_bytes": 1024**2 * 100}):
