@@ -1,5 +1,9 @@
 # Release 0.30.2
 
+## Packaging Notes
+
+While we currently plan to maintain support for CentOS 7-compatible systems (GLIBC 2.17) through TileDB 2.31, ecosystem and infrastructure updates following the CentOS 7 end-of-life on 30/Jun/2024 may necessitate dropping support earlier. Please contact us if you still use a CentOS 7 (GLIBC 2.17)-like Linux distribution.
+
 ## Improvements
 
 * Fix OverflowError: Python int too large to convert to C long by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2000
