@@ -55,17 +55,6 @@ void init_array(py::module &m) {
       .def("config", &Array::config)
       .def("close", &Array::close)
       .def("consolidate",
-           [](Array &self) {
-             if (self.query_type() == TILEDB_READ) {
-               throw TileDBError("cannot consolidate array opened in readonly "
-                                 "mode (mode='r')");
-             }
-
-             Config config;
-             Context ctx;
-             Array::consolidate(ctx, self.uri(), &config);
-           })
-      .def("consolidate",
            [](Array &self, const Context &ctx, Config *config) {
              if (self.query_type() == TILEDB_READ) {
                throw TileDBError("cannot consolidate array opened in readonly "
@@ -105,7 +94,6 @@ void init_array(py::module &m) {
 
              Array::consolidate(ctx, self.uri(), config);
            })
-
       .def("vacuum", &Array::vacuum)
       .def("create",
            py::overload_cast<const std::string &, const ArraySchema &,

@@ -18,7 +18,6 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-import tiledb.cc as lt
 from tiledb.datatypes import DataType
 
 from .common import (
@@ -110,6 +109,10 @@ class ArrayTest(DiskTestCase):
         self.assertEqual(array.schema, schema)
         self.assertEqual(array.mode, "r")
         self.assertEqual(array.uri, self.path("foo"))
+
+        # test that we cannot consolidate an array in readonly mode
+        with self.assertRaises(tiledb.TileDBError):
+            array.consolidate(config=config)
 
         # we have not written anything, so the array is empty
         self.assertIsNone(array.nonempty_domain())
@@ -3213,36 +3216,6 @@ class ConsolidationTest(DiskTestCase):
 
         fi = tiledb.array_fragments(path3)
         self.assertEqual(fi.unconsolidated_metadata_num, 0)
-
-    def test_array_consolidate_read_mode(self):
-
-        dshape = (1, 3)
-        num_writes = 10
-
-        def create_array(target_path, dshape):
-            dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
-            att = tiledb.Attr(dtype="int64")
-            schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
-
-        def write_fragments(target_path, dshape, num_writes):
-            for i in range(1, num_writes + 1):
-                with tiledb.open(target_path, "w") as A:
-                    A[[1, 2, 3]] = np.random.rand(dshape[1])
-
-        path = self.path("test_array_consolidate_read_mode")
-
-        create_array(path, dshape)
-        write_fragments(path, dshape, num_writes)
-
-        config = tiledb.Config()
-
-        ctx = tiledb.Ctx(config=config)
-        lt_array = lt.Array(ctx, path, lt.QueryType.READ)
-        # test that we cannot consolidate an array in readonly mode
-        with self.assertRaises(tiledb.TileDBError):
-            lt_array.consolidate()
-        lt_array.close()
 
     def test_array_consolidate_with_timestamp(self):
         dshape = (1, 3)
