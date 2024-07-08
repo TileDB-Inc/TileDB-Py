@@ -627,11 +627,7 @@ def index_domain_subarray(array: Array, dom, idx: tuple):
         if not isinstance(dim_slice, slice):
             raise IndexError("invalid index type: {!r}".format(type(dim_slice)))
 
-        # numpy2 doesn't allow addition beween int and np.int64 - NEP 50
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
-        start = np.int64(start) if isinstance(start, int) else start
-        stop = np.int64(stop) if isinstance(stop, int) else stop
-        step = np.int64(step) if isinstance(step, int) else step
 
         if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
             if start is None or stop is None:
@@ -686,7 +682,7 @@ def index_domain_subarray(array: Array, dom, idx: tuple):
                 elif not isinstance(start, _inttypes):
                     raise IndexError("cannot index integral domain dimension with non-integral slice (dtype: {})".format(type(start)))
             if not is_datetime and stop < 0:
-                stop += dim_ub
+                stop = np.int64(stop) + dim_ub
             if stop > dim_ub:
                 # numpy allows stop value > than the array dimension shape,
                 # clamp to upper bound of dimension domain
@@ -2284,14 +2280,14 @@ cdef class DenseArrayImpl(Array):
                 if attr.isnullable:
                     data = np.array([values[idx] for idx in result[attr.name].data])
                     result[attr.name] = np.ma.array(
-                        data, mask=~result[attr.name].mask)
+                        data, mask=result[attr.name].mask)
                 else:
                     result[attr.name] = np.array(
                         [values[idx] for idx in result[attr.name]])
             else:
                 if attr.isnullable:
                     result[attr.name] = np.ma.array(result[attr.name].data, 
-                        mask=~result[attr.name].mask)
+                        mask=result[attr.name].mask)
 
         return result
 
@@ -2543,7 +2539,7 @@ cdef class DenseArrayImpl(Array):
                 out[name] = arr
             
             if self.schema.has_attr(name) and self.attr(name).isnullable:
-                out[name] = np.ma.array(out[name], mask=results[name][2].astype(bool))
+                out[name] = np.ma.array(out[name], mask=~results[name][2].astype(bool))
                 
         return out
 
@@ -3365,14 +3361,14 @@ cdef class SparseArrayImpl(Array):
                 if attr.isnullable:
                     data = np.array([values[idx] for idx in result[attr.name].data])
                     result[attr.name] = np.ma.array(
-                        data, mask=~result[attr.name].mask)
+                        data, mask=result[attr.name].mask)
                 else:
                     result[attr.name] = np.array(
                         [values[idx] for idx in result[attr.name]])
             else:
                 if attr.isnullable:
                     result[attr.name] = np.ma.array(result[attr.name].data, 
-                        mask=~result[attr.name].mask)
+                        mask=result[attr.name].mask)
 
         return result
 
@@ -3673,7 +3669,7 @@ cdef class SparseArrayImpl(Array):
                     out[final_name] = arr
             
             if self.schema.has_attr(final_name) and self.attr(final_name).isnullable:
-                out[final_name] = np.ma.array(out[final_name], mask=results[name][2])
+                out[final_name] = np.ma.array(out[final_name], mask=~results[name][2].astype(bool))
 
         return out
 
