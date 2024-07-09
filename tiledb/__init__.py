@@ -65,6 +65,8 @@ from .group import Group
 from .highlevel import (
     array_exists,
     array_fragments,
+    as_built,
+    consolidate,
     empty_like,
     from_numpy,
     open,
@@ -76,7 +78,6 @@ from .libtiledb import (
     Ctx,
     DenseArrayImpl,
     SparseArrayImpl,
-    consolidate,
     ls,
     move,
     object_type,
