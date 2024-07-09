@@ -145,20 +145,24 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
     return tiledb.DenseArray(uri, mode="r", ctx=ctx)
 
 
-def array_exists(uri, isdense=False, issparse=False):
+def array_exists(uri, isdense=False, issparse=False, ctx=None):
     """
     Check if arrays exists and is open-able at the given URI
 
-    Optionally restrict to `isdense` or `issparse` array types.
+    :param str uri: URI for the TileDB array (any supported TileDB URI)
+    :param bool isdense: (optional) Restrict to dense array types
+    :param bool issparse: (optional) Restrict to sparse array types
+    :param ctx: (optional) TileDB Ctx
     """
+    ctx = _get_ctx(ctx)
     # note: we can't use *only* object_type here, because it returns 'array' even if
     # no files exist in the __schema directory (eg after delete). See SC-27854
     # but we need to use it first here, or else tiledb.open below will error out if
     # the array does not exist.
-    if tiledb.object_type(uri) != "array":
+    if tiledb.object_type(uri, ctx) != "array":
         return False
     try:
-        with tiledb.open(uri) as a:
+        with tiledb.open(uri, ctx=ctx) as a:
             if isdense:
                 return not a.schema.sparse
             if issparse:
