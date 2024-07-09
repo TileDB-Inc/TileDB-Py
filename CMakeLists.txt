@@ -46,7 +46,7 @@ if (NOT TileDB_FOUND)
     find_package(TileDB REQUIRED)
     set(TILEDB_DOWNLOADED TRUE)
 else()
-    message(FATAL_ERROR "INCORRECT PACKAGING")
+    message(STATUS "Found external TileDB core library")
 endif()
 
 add_subdirectory(tiledb)
