@@ -20,7 +20,7 @@ from setuptools import Extension, find_packages, setup
 # - this is for builds-from-source
 # - release builds are controlled by `misc/azure-release.yml`
 # - this should be set to the current core release, not `dev`
-TILEDB_VERSION = "2.24.2"
+TILEDB_VERSION = "2.25.0-rc0"
 
 # allow overriding w/ environment variable
 TILEDB_VERSION = (
