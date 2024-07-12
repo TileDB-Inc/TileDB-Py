@@ -38,6 +38,8 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
     Schema class for TileDB dense / sparse array representations
 
     :param domain: Domain of schema
+    :type domain: tiledb.Domain
+    :param attrs: tuple of attributes
     :type attrs: tuple(tiledb.Attr, ...)
     :param cell_order:  TileDB label for cell layout
     :type cell_order: 'row-major' (default) or 'C', 'col-major' or 'F' or 'hilbert'
@@ -52,6 +54,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
     :param bool sparse: True if schema is sparse, else False \
         (set by SparseArray and DenseArray derived classes)
     :param dim_labels: dict(dim_index, dict(dim_name, tiledb.DimSchema))
+    :param enums: list of enumeration names
     :param tiledb.Ctx ctx: A TileDB Context
     :raises: :py:exc:`tiledb.TileDBError`
 
