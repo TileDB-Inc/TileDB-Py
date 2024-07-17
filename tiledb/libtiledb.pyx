@@ -1330,6 +1330,7 @@ cdef class Array(object):
                     timestamp_end
             )
         else:
+            # TODO: Make this method static and entirely remove the conditional.
             raise TypeError(
                 "The `tiledb.Array.delete_fragments` instance method is deprecated and removed. Use the static method with the same name instead.")
         if rc != TILEDB_OK:
