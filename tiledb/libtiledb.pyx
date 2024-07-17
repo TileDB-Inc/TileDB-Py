@@ -1330,22 +1330,8 @@ cdef class Array(object):
                     timestamp_end
             )
         else:
-            array_instance = self_or_uri
-            warnings.warn(
-                "The `tiledb.Array.delete_fragments` instance method is deprecated. Use the static method with the same name instead.",
-                DeprecationWarning,
-            )
-            ctx_ptr = safe_ctx_ptr(array_instance.ctx)
-            array_ptr = <tiledb_array_t*>array_instance.ptr
-            buri = array_instance.uri.encode('UTF-8')
-
-            rc = tiledb_array_delete_fragments(
-                    ctx_ptr,
-                    array_ptr,
-                    buri,
-                    timestamp_start,
-                    timestamp_end
-            )
+            raise TypeError(
+                "The `tiledb.Array.delete_fragments` instance method is deprecated and removed. Use the static method with the same name instead.")
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
 

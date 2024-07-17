@@ -857,13 +857,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* array_path,
         tiledb_config_t* config) nogil
 
-    int tiledb_array_delete_fragments(
-        tiledb_ctx_t* ctx,
-        tiledb_array_t* array,
-        const char* uri,
-        uint64_t timestamp_start,
-        uint64_t timestamp_end)
-
     int tiledb_array_delete_fragments_v2(
         tiledb_ctx_t* ctx,
         const char* uri,
