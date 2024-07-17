@@ -1,6 +1,3 @@
-# project.toml: Forces build isolation and other problems; ecosystem still spotty.
-pyproject.toml
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -107,9 +104,6 @@ ENV/
 
 # mypy
 .mypy_cache/
-
-# setuptools-scm
-tiledb/_generated_version.py
 
 # IntelliJ
 .idea

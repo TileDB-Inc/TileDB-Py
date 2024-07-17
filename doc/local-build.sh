@@ -49,20 +49,9 @@ if [ ! -d "${tiledb}" ]; then
     die "invalid tiledb installation directory (use --tiledb)"
 fi
 
-setup_venv() {
-  if [ ! -d "${venv_dir}" ]; then
-    virtualenv "${venv_dir}" || die "could not create virtualenv"
-  fi
-  source "${venv_dir}/bin/activate" || die "could not activate virtualenv"
-  pip install 'Sphinx==1.6.7' \
-       'breathe' \
-       'sphinx_rtd_theme' \
-       -r requirements_doc.txt || die "could not install doc dependencies"
-}
-
 build_ext() {
     pushd "${ext_dir}"
-    python setup.py install --tiledb="${tiledb}" || die "could not install tiledb-py"
+    TILEDB_PATH=${tiledb} pip install .[doc] || die "could not install tiledb-py"
     popd
 }
 
@@ -78,7 +67,6 @@ build_site() {
 }
 
 run() {
-  setup_venv
   build_ext
   build_site
   echo "Build complete. Open '${build_dir}/html/index.html' in your browser."

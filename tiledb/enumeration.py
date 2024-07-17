@@ -40,7 +40,7 @@ class Enumeration(CtxMixin, lt.Enumeration):
         """
         if values is None or len(values) == 0:
             if dtype is None:
-                raise ValueError("dtype must be provided for empty enumeration")
+                raise ValueError("dtype must be provied for empty enumeration")
             super().__init__(ctx, name, np.dtype(dtype), ordered)
 
         values = np.array(values)

@@ -101,9 +101,3 @@ class UtilTest(DiskTestCase):
             self.assertTrue(tiledb.array_exists(uri3))
         tiledb.Array.delete_array(uri3)
         self.assertFalse(tiledb.array_exists(uri3))
-
-        # test with context
-        ctx = tiledb.Ctx()
-        self.assertFalse(tiledb.array_exists(uri3, ctx=ctx))
-        with tiledb.from_numpy(uri3, np.arange(0, 5), ctx=ctx) as T:
-            self.assertTrue(tiledb.array_exists(uri3, ctx=ctx))

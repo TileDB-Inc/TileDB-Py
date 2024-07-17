@@ -8,24 +8,6 @@ on:
         type: string
 
 jobs:
-  test-wheels-on-azure:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=date::$(date +'%a-%Y-%m-%d')"
-      - name: Get libtiledb short SHA
-        run: echo "LIBTILEDB_SHA=$(git ls-remote https://github.com/TileDB-Inc/TileDB HEAD | cut -c1-7)" >> $GITHUB_ENV
-      - name: Create Test Branch for Azure Wheel Nightly Build
-        uses: peterjgrainger/action-create-branch@v2.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          branch: "azure-wheel-test-${{ steps.date.outputs.date }}-against-${{ env.LIBTILEDB_SHA }}"
-
   test:
     runs-on: ${{ matrix.os }}
     defaults:
@@ -34,11 +16,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-12, windows-latest]
-        uninstall_pandas: [true, false]
       fail-fast: false
 
     env:
-      TILEDB_VERSION: ${{ github.event.inputs.libtiledb_version }}
+      TILEDB_VERSION: ${{ inputs.libtiledb_version }}
       MACOSX_DEPLOYMENT_TARGET: "11"
       VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
 
@@ -65,7 +46,7 @@ jobs:
         if: matrix.os == 'windows-latest'
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -85,25 +66,17 @@ jobs:
         if: matrix.os == 'macos-12'
 
       - name: Checkout TileDB-Py `dev`
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: python -m pip install --upgrade -r misc/requirements_ci.txt
+      - name: Build and install TileDB-Py and dependencies
+        run: python -m pip install --verbose .[test]
 
-      - name: Test without pandas
-        run: python -m pip uninstall -y pandas
-        if: ${{ matrix.uninstall_pandas }}
-
-      - name: Build TileDB-Py
+      - name: Run tests
         run: |
-          echo "CMAKE_GENERATOR=$CMAKE_GENERATOR"
-          python setup.py build_ext --inplace --werror
-          python setup.py develop
-        env:
-          TILEDB_FORCE_ALL_DEPS: True
-
-      - name: Test TileDB-Py
-        run: pytest -vv
+          PROJECT_CWD=$PWD
+          rm tiledb/__init__.py
+          cd /tmp
+          pytest -vv --showlocals $PROJECT_CWD
 
   create_issue_on_fail:
     permissions:

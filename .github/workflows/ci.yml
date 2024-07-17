@@ -14,27 +14,29 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-12, windows-latest]
+        os:
+          - ubuntu-latest
+          - macos-13
+          # libfaketime tests fail on macos arm. Disable tests for now.
+          # - macos-14
+          - windows-latest
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
       fail-fast: false
     env:
-      # 11.7 necessary due to: https://github.com/actions/setup-python/issues/682#issuecomment-1604261330
-      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.os == 'macos-12' && matrix.python-version == '3.8' && '11.7' || '11' }}
-      #MACOSX_DEPLOYMENT_TARGET: "10.11"
-      # On windows-2019 we are using the Visual Studio generator, which is multi-config and places the build artifacts in a subdirectory
+      MACOSX_DEPLOYMENT_TARGET: "11"
     steps:
       - name: Checkout TileDB-Py `dev`
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows')
         with:
           arch: x64
 
       - name: Install Ninja (VS 2022)
         uses: seanmiddleditch/gha-setup-ninja@v4
-        if: matrix.os == 'windows-latest'
+        if: startsWith(matrix.os, 'windows')
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -57,79 +59,29 @@ jobs:
       # - https://github.com/actions/runner-images/pull/7125
       - name: "Install homebrew dependencies"
         run: brew install pkg-config
-        if: matrix.os == 'macos-12'
-
-      - name: "Install dependencies"
-        run: python -m pip install --upgrade -r misc/requirements_ci.txt
-
-      - name: "Get TILEDB_VERSION"
-        run: echo "LIBTILEDB_VERSION=$(python setup.py get_tiledb_version | tail -n 1)" >> $GITHUB_ENV
-
-      - name: "Get LIBTILEDB_SHA"
-        run: echo "LIBTILEDB_SHA=$(git ls-remote https://github.com/TileDB-Inc/TileDB $LIBTILEDB_VERSION | cut -c1-7)" >> $GITHUB_ENV
-
-      - name: "Download TileDB From Zip And Build TileDB-Py (Windows)"
-        run: |
-          choco install wget --no-progress
-
-          if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-windows-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.zip; then
-            mkdir libtiledb
-            unzip tiledb-windows-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.zip -d libtiledb
-            cp libtiledb/bin/tiledb.dll tiledb
-            python setup.py develop --tiledb=libtiledb
-          else
-            # Build from source as fallback
-            python setup.py build_ext --inplace
-            python setup.py develop
-          fi
-        env:
-          TILEDB_FORCE_ALL_DEPS: True
-          CMAKE_GENERATOR: "Ninja"
-        if: matrix.os == 'windows-latest'
-
-      - name: "Download TileDB From Tarball And Build TileDB-Py (macOS)"
-        run: |
-          set -xeo pipefail
-
-          if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-macos-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz; then
-            mkdir libtiledb
-            sudo tar -vzxf tiledb-macos-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz -C libtiledb
-            python setup.py develop --tiledb=libtiledb
-          else
-            # Build from source as fallback
-            python setup.py build_ext --inplace
-            python setup.py develop
-          fi
-        if: matrix.os == 'macos-12'
-
-      - name: "Download TileDB From Tarball And Build TileDB-Py (Linux)"
-        run: |
-          set -xeo pipefail
-
-          if wget https://github.com/TileDB-Inc/TileDB/releases/download/$LIBTILEDB_VERSION/tiledb-linux-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz; then
-            mkdir libtiledb
-            sudo tar -vzxf tiledb-linux-x86_64-$LIBTILEDB_VERSION-$LIBTILEDB_SHA.tar.gz -C libtiledb
-            python setup.py develop --tiledb=libtiledb
-          else
-            # Build from source as fallback
-            python setup.py build_ext --inplace
-            python setup.py develop
-          fi
-        if: matrix.os == 'ubuntu-latest'
-
-      - name: "Check build directory"
-        run: ls -Rl
+        if: startsWith(matrix.os, 'macos')
 
       - name: "Install libfaketime (linux and macOS)"
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-12'
+        if: ${{ ! startsWith(matrix.os, 'windows') }}
         run: |
           git clone https://github.com/wolfcw/libfaketime/
           cd libfaketime
           sudo make install
           cd ..
 
+      - name: "Build and Install TileDB-Py"
+        # We use pipx here to produce wheel/sdist to upload as artifact in case of error
+        run: |
+          pipx run --python ${{ matrix.python-version }} build
+          WHEEL_NAME=$(ls dist/*.whl)
+          pip install --verbose ${WHEEL_NAME}[test]
+
       - name: "Run tests"
-        run: pytest -vv --showlocals
+        run: |
+          PROJECT_CWD=$PWD
+          rm tiledb/__init__.py
+          cd /tmp
+          pytest -vv --showlocals $PROJECT_CWD
 
       - name: "Print log files (failed build only)"
         run: |
@@ -144,3 +96,10 @@ jobs:
                cat $f
             done;
         if: failure()
+
+      - name: "Upload files for debug"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}
+          path: "."
