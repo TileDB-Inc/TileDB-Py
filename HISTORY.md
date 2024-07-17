@@ -1,3 +1,17 @@
+# Packaging Notes
+
+While we currently plan to maintain support for CentOS 7-compatible systems (GLIBC 2.17) through TileDB 2.31, ecosystem and infrastructure updates following the CentOS 7 end-of-life on 30/Jun/2024 may necessitate dropping support earlier. Please contact us if you still use a CentOS 7 (GLIBC 2.17)-like Linux distribution.
+
+# Release 0.30.3
+
+## Improvements
+
+* Move fragment list consolidation API to pybind by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1999
+* Support `ctx` argument in `array_exists` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2003
+* Fix a typo in an error message by @johnkerl in https://github.com/TileDB-Inc/TileDB-Py/pull/2004
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.30.2...0.30.3
+
 # Release 0.30.2
 
 ## Packaging Notes
