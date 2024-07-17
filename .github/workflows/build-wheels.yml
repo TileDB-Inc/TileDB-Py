@@ -39,6 +39,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.18.1
         env:
           CIBW_BUILD_VERBOSITY: 3
+          SETUPTOOLS_SCM_PRETEND_VERSION: 0.30.3
           CIBW_ENVIRONMENT_MACOS: >
             CC=clang
             CXX=clang++
