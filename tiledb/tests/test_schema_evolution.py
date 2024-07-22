@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -42,7 +43,7 @@ def test_schema_evolution(tmp_path):
     with pytest.raises(tiledb.TileDBError) as excinfo:
         se.add_attribute(newattr)
     assert "Input attribute name is already there" in str(excinfo.value)
-    assert "tiledb/schema_evolution.cc" in str(excinfo.value)
+    assert str(Path("tiledb") / "schema_evolution.cc") in str(excinfo.value)
 
     se.array_evolve(uri)
 

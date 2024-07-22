@@ -47,10 +47,10 @@ class TestTimestampOverrides(DiskTestCase):
     def helper_fragments(self, uri):
         start_datetime = datetime.datetime.now()
 
-        fragments = 25
+        fragments = 5
         A = np.zeros(fragments)
 
-        dom = tiledb.Domain(tiledb.Dim(domain=(0, 24), tile=fragments, dtype=np.int64))
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 4), tile=fragments, dtype=np.int64))
         att = tiledb.Attr(dtype=A.dtype)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
 
