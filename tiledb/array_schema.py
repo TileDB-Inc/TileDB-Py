@@ -9,6 +9,7 @@ import tiledb.cc as lt
 
 from .attribute import Attr
 from .ctx import Ctx, CtxMixin, default_ctx
+from .current_domain import CurrentDomain
 from .dimension_label import DimLabel
 from .domain import Domain
 from .filter import Filter, FilterList
@@ -386,6 +387,29 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         :rtype: boolean
         """
         return self._has_dim_label(self._ctx, name)
+
+    def add_enumeration(self, enmr):
+        """Add an enumeration to the schema
+
+        :param enmr: The enumeration to add
+        :type enmr: tiledb.Enumeration
+        """
+        self._add_enumeration(self._ctx, enmr)
+
+    def current_domain(self) -> CurrentDomain:
+        """Get the current domain
+
+        :rtype: tiledb.CurrentDomain
+        """
+        return CurrentDomain.from_pybind11(self._ctx, self._current_domain(self._ctx))
+
+    def set_current_domain(self, current_domain):
+        """Set the current domain
+
+        :param current_domain: The current domain to set
+        :type current_domain: tiledb.CurrentDomain
+        """
+        self._set_current_domain(self._ctx, current_domain)
 
     def attr_or_dim_dtype(self, name: str) -> bool:
         if self.has_attr(name):

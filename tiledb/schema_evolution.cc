@@ -98,6 +98,18 @@ void init_schema_evolution(py::module &m) {
              if (rc != TILEDB_OK) {
                TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
              }
+           })
+      .def("expand_current_domain",
+           [](ArraySchemaEvolution &inst, py::object current_domain_py) {
+             tiledb_current_domain_t *current_domain_c =
+                 (py::capsule)current_domain_py.attr("__capsule__")();
+             if (current_domain_c == nullptr)
+               TPY_ERROR_LOC("Invalid Current Domain!");
+             int rc = tiledb_array_schema_evolution_expand_current_domain(
+                 inst.ctx_, inst.evol_, current_domain_c);
+             if (rc != TILEDB_OK) {
+               TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
+             }
            });
 }
 

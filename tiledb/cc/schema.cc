@@ -268,9 +268,21 @@ void init_schema(py::module &m) {
                                                                  name);
            })
 
-      .def("_add_enumeration", [](const ArraySchema &schema, const Context &ctx,
-                                  const Enumeration &enmr) {
-        ArraySchemaExperimental::add_enumeration(ctx, schema, enmr);
+      .def("_add_enumeration",
+           [](const ArraySchema &schema, const Context &ctx,
+              const Enumeration &enmr) {
+             ArraySchemaExperimental::add_enumeration(ctx, schema, enmr);
+           })
+
+      .def("_current_domain",
+           [](const ArraySchema &schema, const Context &ctx) {
+             return ArraySchemaExperimental::current_domain(ctx, schema);
+           })
+
+      .def("_set_current_domain", [](ArraySchema &schema, const Context &ctx,
+                                     const CurrentDomain &current_domain) {
+        ArraySchemaExperimental::set_current_domain(ctx, schema,
+                                                    current_domain);
       });
 }
 
