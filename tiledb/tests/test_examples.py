@@ -73,7 +73,7 @@ class ExamplesTest:
         )
         if failures:
             stderr = capsys.readouterr().out
-            if (
+            if "No module named 'pandas'" in stderr or (
                 "Pandas version >= 1.0 and < 3.0 required for dataframe functionality"
                 in stderr
                 and not has_pandas()
