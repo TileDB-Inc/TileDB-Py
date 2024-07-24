@@ -78,6 +78,7 @@ wheel.license-files = ["LICENSE", "external/LICENSE-*.txt"]
 TILEDB_PATH = {env="TILEDB_PATH"}
 TILEDB_VERSION = {env="TILEDB_VERSION"}
 TILEDB_HASH = {env="TILEDB_HASH"}
+TILEDB_REMOVE_DEPRECATIONS = "ON"
 
 [tool.pytest.ini_options]
 python_classes = "*Test*"
