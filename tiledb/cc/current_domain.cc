@@ -1,6 +1,7 @@
 #include <tiledb/tiledb>
 #include <tiledb/tiledb_experimental>
 
+#include <variant>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
@@ -117,57 +118,30 @@ void init_current_domain(py::module &m) {
 
       .def(
           "_range",
-          py::overload_cast<const std::string &>(&NDRectangle::range<uint64_t>),
-          py::arg("dim_name"))
-      .def("_range",
-           py::overload_cast<const std::string &>(&NDRectangle::range<int64_t>),
-           py::arg("dim_name"))
+          [](NDRectangle &ndrect, const std::string &dim_name, const std::string &type_name) -> std::variant<std::array<double, 2>, std::array<std::string, 2>, std::array<int64_t, 2>> {
+               if (type_name == "str") {
+                 return ndrect.range<std::string>(dim_name);
+               } else if (type_name == "int") {
+                 return ndrect.range<int64_t>(dim_name);
+               } else if (type_name == "float") {
+                 return ndrect.range<double>(dim_name);
+               } else {
+                 TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
+               }
+          })
       .def(
           "_range",
-          py::overload_cast<const std::string &>(&NDRectangle::range<uint32_t>),
-          py::arg("dim_name"))
-      .def("_range",
-           py::overload_cast<const std::string &>(&NDRectangle::range<int32_t>),
-           py::arg("dim_name"))
-      .def(
-          "_range",
-          py::overload_cast<const std::string &>(&NDRectangle::range<uint16_t>),
-          py::arg("dim_name"))
-      .def("_range",
-           py::overload_cast<const std::string &>(&NDRectangle::range<int16_t>),
-           py::arg("dim_name"))
-      .def("_range",
-           py::overload_cast<const std::string &>(&NDRectangle::range<uint8_t>),
-           py::arg("dim_name"))
-      .def("_range",
-           py::overload_cast<const std::string &>(&NDRectangle::range<int8_t>),
-           py::arg("dim_name"))
-      .def("_range",
-           py::overload_cast<const std::string &>(&NDRectangle::range<double>),
-           py::arg("dim_name"))
-      .def("_range",
-           py::overload_cast<const std::string &>(&NDRectangle::range<float>),
-           py::arg("dim_name"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<uint64_t>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<int64_t>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<uint32_t>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<int32_t>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<uint16_t>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<int16_t>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<uint8_t>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<int8_t>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<double>),
-           py::arg("dim_idx"))
-      .def("_range", py::overload_cast<unsigned>(&NDRectangle::range<float>),
-           py::arg("dim_idx"));
+          [](NDRectangle &ndrect, unsigned dim_idx, const std::string &type_name) -> std::variant<std::array<double, 2>, std::array<std::string, 2>, std::array<int64_t, 2>> {
+               if (type_name == "str") {
+                 return ndrect.range<std::string>(dim_idx);
+               } else if (type_name == "int") {
+                 return ndrect.range<int64_t>(dim_idx);
+               } else if (type_name == "float") {
+                 return ndrect.range<double>(dim_idx);
+               } else {
+                 TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
+               }
+          });
 
   py::class_<CurrentDomain>(m, "CurrentDomain")
       .def(py::init<CurrentDomain>())
