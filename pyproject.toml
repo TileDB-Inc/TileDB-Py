@@ -1,6 +1,7 @@
 [build-system]
 requires = [
     "scikit-build-core",
+#    "setuptools",
     "pybind11",
     "Cython",
     "numpy==1.17.* ; python_version == '3.8' and platform_machine not in 'arm64|aarch64'",
@@ -8,6 +9,7 @@ requires = [
     "numpy==1.21.* ; python_version == '3.8' and platform_machine == 'arm64'",
     "numpy>=2.0.0rc2 ; python_version >= '3.9'"
 ]
+#build-backend = "scikit_build_core.setuptools.build_meta"
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -65,11 +67,15 @@ test = [
 [project.urls]
 homepage = "https://github.com/TileDB-Inc/TileDB-Py"
 
+[tool.setuptools]
+py-modules = ["tiledb"]
+
 [tool.setuptools_scm]
 version_file = "tiledb/_generated_version.py"
 
 [tool.scikit-build]
-wheel.expand-macos-universal-tags = true
+# AssertionError: wheel.expand_macos_universal_tags is not supported in setuptools mode
+# wheel.expand-macos-universal-tags = true
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 wheel.packages = ["tiledb", "examples", "external"]
 wheel.license-files = ["LICENSE", "external/LICENSE-*.txt"]
