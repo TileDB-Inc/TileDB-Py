@@ -594,7 +594,7 @@ class QueryConditionTest(DiskTestCase):
                 exc_info.value
             )
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_dense_datetime(self):
         import pandas as pd
 
@@ -753,7 +753,7 @@ class QueryConditionTest(DiskTestCase):
             # ensures that ' a' does not match 'a'
             assert len(result["A"]) == 0
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_do_not_return_attrs(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
             cond = None

@@ -95,7 +95,7 @@ class FixesTest(DiskTestCase):
                 buffers = list(*q._get_buffers().values())
                 assert buffers[0].nbytes == max_val
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_ch10282_concurrent_multi_index(self):
         """Test concurrent access to a single tiledb.Array using
         Array.multi_index and Array.df. We pass an array and slice
@@ -173,7 +173,8 @@ class FixesTest(DiskTestCase):
             tiledb.stats_disable()
 
     @pytest.mark.skipif(
-        not has_pandas() and has_pyarrow(), reason="pandas or pyarrow not installed"
+        not has_pandas() and has_pyarrow(),
+        reason="pandas>=1.0,<3.0 or pyarrow>=1.0 not installed",
     )
     def test_py1078_df_all_empty_strings(self):
         uri = self.path()
@@ -217,6 +218,7 @@ class FixesTest(DiskTestCase):
         assert get_config_with_env({"AWS_DEFAULT_REGION": ""}, "vfs.s3.region") == ""
         assert get_config_with_env({"AWS_REGION": ""}, "vfs.s3.region") == ""
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     @pytest.mark.parametrize("is_sparse", [True, False])
     def test_sc1430_nonexisting_timestamp(self, is_sparse):
         path = self.path("nonexisting_timestamp")
