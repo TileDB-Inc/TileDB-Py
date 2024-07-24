@@ -1,11 +1,11 @@
 #include <tiledb/tiledb>
 #include <tiledb/tiledb_experimental>
 
-#include <variant>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
+#include <variant>
 
 #include "common.h"
 
@@ -118,29 +118,35 @@ void init_current_domain(py::module &m) {
 
       .def(
           "_range",
-          [](NDRectangle &ndrect, const std::string &dim_name, const std::string &type_name) -> std::variant<std::array<double, 2>, std::array<std::string, 2>, std::array<int64_t, 2>> {
-               if (type_name == "str") {
-                 return ndrect.range<std::string>(dim_name);
-               } else if (type_name == "int") {
-                 return ndrect.range<int64_t>(dim_name);
-               } else if (type_name == "float") {
-                 return ndrect.range<double>(dim_name);
-               } else {
-                 TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
-               }
+          [](NDRectangle &ndrect, const std::string &dim_name,
+             const std::string &type_name)
+              -> std::variant<std::array<double, 2>, std::array<std::string, 2>,
+                              std::array<int64_t, 2>> {
+            if (type_name == "str") {
+              return ndrect.range<std::string>(dim_name);
+            } else if (type_name == "int") {
+              return ndrect.range<int64_t>(dim_name);
+            } else if (type_name == "float") {
+              return ndrect.range<double>(dim_name);
+            } else {
+              TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
+            }
           })
       .def(
           "_range",
-          [](NDRectangle &ndrect, unsigned dim_idx, const std::string &type_name) -> std::variant<std::array<double, 2>, std::array<std::string, 2>, std::array<int64_t, 2>> {
-               if (type_name == "str") {
-                 return ndrect.range<std::string>(dim_idx);
-               } else if (type_name == "int") {
-                 return ndrect.range<int64_t>(dim_idx);
-               } else if (type_name == "float") {
-                 return ndrect.range<double>(dim_idx);
-               } else {
-                 TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
-               }
+          [](NDRectangle &ndrect, unsigned dim_idx,
+             const std::string &type_name)
+              -> std::variant<std::array<double, 2>, std::array<std::string, 2>,
+                              std::array<int64_t, 2>> {
+            if (type_name == "str") {
+              return ndrect.range<std::string>(dim_idx);
+            } else if (type_name == "int") {
+              return ndrect.range<int64_t>(dim_idx);
+            } else if (type_name == "float") {
+              return ndrect.range<double>(dim_idx);
+            } else {
+              TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
+            }
           });
 
   py::class_<CurrentDomain>(m, "CurrentDomain")
