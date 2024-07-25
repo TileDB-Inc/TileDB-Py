@@ -403,7 +403,7 @@ class ArrayTest(DiskTestCase):
 
     @pytest.mark.skipif(
         not has_pyarrow() or not has_pandas(),
-        reason="pyarrow and/or pandas not installed",
+        reason="pyarrow>=1.0 and/or pandas>=1.0,<3.0 not installed",
     )
     @pytest.mark.parametrize("sparse", [True, False])
     @pytest.mark.parametrize("pass_df", [True, False])
@@ -1748,7 +1748,7 @@ class TestSparseArray(DiskTestCase):
                 "coords" not in T.query(coords=False).multi_index[-10.0:5.0]
             )
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     @pytest.mark.parametrize("dtype", ["u1", "u2", "u4", "u8", "i1", "i2", "i4", "i8"])
     def test_sparse_index_dtypes(self, dtype):
         path = self.path()
@@ -1769,7 +1769,7 @@ class TestSparseArray(DiskTestCase):
             assert B[data[1]]["attr"] == data[1]
             assert B.multi_index[data[0]]["attr"] == data[0]
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     @pytest.mark.skipif(
         tiledb.libtiledb.version() < (2, 10),
         reason="TILEDB_BOOL introduced in libtiledb 2.10",
@@ -3644,7 +3644,7 @@ class IncompleteTest(DiskTestCase):
                 with self.assertRaises(tiledb.TileDBError):
                     A.query(return_incomplete=True)[:]
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     @pytest.mark.parametrize(
         "use_arrow, return_arrow, indexer",
         [

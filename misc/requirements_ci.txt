@@ -1,6 +1,0 @@
-black
-clang-format == 16.0.3
-dask
-distributed
--r ../requirements_dev.txt
--r requirements_test.txt
