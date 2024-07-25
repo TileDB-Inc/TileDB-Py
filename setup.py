@@ -27,7 +27,7 @@ def main():
         cmd.append(f"-Cskbuild.cmake.define.TILEDB_PATH={args.tiledb}")
 
     if args.debug:
-        cmd.append(f"-Cskbuild.cmake.define.CMAKE_BUILD_TYPE=DEBUG")
+        cmd.append(f"-Cskbuild.cmake.build-type=Debug")
 
     if args.v:
         cmd.append("-v")
