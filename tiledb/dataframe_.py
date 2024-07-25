@@ -13,8 +13,8 @@ from .datatypes import DataType
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas version >= 1.0 required for dataframe functionality.
-                  Please `pip install pandas>=1.0` to proceed."""
+    pd_error = """Pandas version >= 1.0 and < 3.0 required for dataframe functionality.
+                  Please `pip install pandas>=1.0,<3.0` to proceed."""
     pa_error = """PyArrow version >= 1.0 is suggested for dataframe functionality.
                   Please `pip install pyarrow>=1.0`."""
 
@@ -25,7 +25,9 @@ def check_dataframe_deps():
 
     from packaging.version import Version
 
-    if Version(pd.__version__) < Version("1.0"):
+    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
+        "3.0.0.dev0"
+    ):
         raise Exception(pd_error)
 
     try:
