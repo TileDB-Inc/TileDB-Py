@@ -61,7 +61,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.buildplat[1] }}-${{ strategy.job-index }}
+          name: cibw-wheels-${{ matrix.buildplat[0] }}-${{ matrix.buildplat[1] }}-${{ matrix.python }}
           path: "./wheelhouse/*.whl"
 
   build_sdist:
@@ -149,7 +149,6 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
 
-      - name: Upload to pypi
-        # If we tagged a version release it on PyPI
-        if: startsWith(github.ref, 'refs/tags/') && inputs.version == ''
-        uses: pypa/gh-action-pypi-publish@release/v1
+      # - name: Upload to pypi
+      #   if: startsWith(github.ref, 'refs/tags/')
+      #   uses: pypa/gh-action-pypi-publish@release/v1
