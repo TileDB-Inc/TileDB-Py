@@ -1,3 +1,20 @@
+# Release 0.31.0
+
+* TileDB-Py 0.31.0 includes TileDB Embedded [2.25.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.25.0)
+
+## Improvements
+
+* Remove deprecated Array.delete_fragments code path by @teo-tsirpanis and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2009
+* Fix a typo in an error message by @johnkerl in https://github.com/TileDB-Inc/TileDB-Py/pull/2004
+* Support ctx argument in array_exists by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2003
+* Move fragment list consolidation API to pybind by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1999
+
+## Build system changes
+
+* Add version pins for pandas 3.0 by @kounelisagiin https://github.com/TileDB-Inc/TileDB-Py/pull/2016
+* Scikit-build-core build system rework by @dudoslav and @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1988
+* Patches for the build system by @dudoslav, @ihnorton and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2010, https://github.com/TileDB-Inc/TileDB-Py/pull/2011, https://github.com/TileDB-Inc/TileDB-Py/pull/2013, https://github.com/TileDB-Inc/TileDB-Py/pull/2014, https://github.com/TileDB-Inc/TileDB-Py/pull/2018, https://github.com/TileDB-Inc/TileDB-Py/pull/2019, https://github.com/TileDB-Inc/TileDB-Py/pull/2020
+
 # Release 0.30.2
 
 ## Packaging Notes
