@@ -18,6 +18,7 @@ from .common import (
     DiskTestCase,
     dtype_max,
     dtype_min,
+    has_pandas,
     rand_ascii,
     rand_ascii_bytes,
     rand_datetime64_array,
@@ -25,8 +26,8 @@ from .common import (
 )
 from .datatypes import RaggedDtype
 
-pd = pytest.importorskip("pandas")
-tm = pd._testing
+if not has_pandas():
+    pytest.skip("pandas>=1.0,<3.0 not installed", allow_module_level=True)
 
 
 def make_dataframe_basic1(col_size=10):
