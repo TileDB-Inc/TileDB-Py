@@ -96,10 +96,6 @@ void init_array(py::module &m) {
            })
       .def("vacuum", &Array::vacuum)
       .def("create",
-           py::overload_cast<const std::string &, const ArraySchema &,
-                             tiledb_encryption_type_t, const std::string &>(
-               &Array::create))
-      .def("create",
            py::overload_cast<const std::string &, const ArraySchema &>(
                &Array::create))
       .def("load_schema",
