@@ -60,10 +60,7 @@ test = [
     "hypothesis",
     "psutil",
     "pyarrow",
-]
-test_pandas = [
-    "tiledb[test]",
-    "pandas"
+    "pandas",
 ]
 
 [project.urls]
@@ -121,5 +118,6 @@ test-requires = [
     "hypothesis",
     "psutil",
     "pyarrow",
+    "pandas",
 ]
 test-command = "pytest {project}"

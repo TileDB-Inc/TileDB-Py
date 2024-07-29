@@ -21,9 +21,6 @@ jobs:
           # - macos-14
           - windows-latest
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        test-env:
-          - test
-          - test_pandas
       fail-fast: false
     env:
       MACOSX_DEPLOYMENT_TARGET: "11"
@@ -77,13 +74,18 @@ jobs:
         run: |
           pipx run --python ${{ matrix.python-version }} build
           WHEEL_NAME=$(ls dist/*.whl)
-          pip install --verbose ${WHEEL_NAME}[${{ matrix.test-env }}]
+          pip install --verbose ${WHEEL_NAME}[test]
 
       - name: "Run tests"
         run: |
           PROJECT_CWD=$PWD
           rm tiledb/__init__.py
           cd /tmp
+          pytest -vv --showlocals $PROJECT_CWD
+
+      - name: "Re-run tests without pandas"
+        run: |
+          pip uninstall -y pandas
           pytest -vv --showlocals $PROJECT_CWD
 
       - name: "Print log files (failed build only)"
@@ -104,5 +106,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.test-env }}
+          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: "."
