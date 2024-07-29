@@ -33,11 +33,13 @@ target_compile_features(
     cxx_std_20
 )
 
-target_compile_definitions(
-    cc
-    PRIVATE
-    TILEDB_REMOVE_DEPRECATIONS
-)
+if (TILEDB_REMOVE_DEPRECATIONS)
+    target_compile_definitions(
+        cc
+        PRIVATE
+        TILEDB_REMOVE_DEPRECATIONS
+    )
+endif()
 
 install(TARGETS cc DESTINATION tiledb)
 
