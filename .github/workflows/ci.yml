@@ -104,5 +104,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}
+          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.test-env }}
           path: "."
