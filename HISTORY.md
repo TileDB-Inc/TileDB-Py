@@ -1,3 +1,15 @@
+# Release 0.31.1
+
+## Improvements
+
+* Fix malformed doc str for tiledb.array_schema.ArraySchema in https://github.com/TileDB-Inc/TileDB-Py/pull/2007
+* Fix deprecation and test by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2021
+
+## Build system changes
+
+* Add pandas dependency to test group by @dudoslav and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2022
+* Define TILEDB_REMOVE_DEPRECATIONS macro for cc and remove deprecated code by @kounelisagis and @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2023
+
 # Release 0.31.0
 
 * TileDB-Py 0.31.0 includes TileDB Embedded [2.25.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.25.0)
