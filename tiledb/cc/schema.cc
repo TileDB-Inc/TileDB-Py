@@ -165,10 +165,6 @@ void init_schema(py::module &m) {
 
       .def(py::init<Context &, std::string &>())
 
-      .def(py::init<Context &, std::string &, tiledb_encryption_type_t,
-                    std::string &>(),
-           py::keep_alive<1, 2>())
-
       .def(py::init<Context &, py::capsule>())
 
       .def("__capsule__",

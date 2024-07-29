@@ -94,9 +94,6 @@ def test_array():
     assert os.path.basename(arr.uri()) == os.path.basename(uri)
     assert arr.schema == arr.schema
 
-    # TODO test
-    # open(tiledb_query_type_t query_type, tiledb_encryption_type_t encryption_type, const std::string& encryption_key, uint64_t timestamp)
-
     arr.reopen()
     arr.set_open_timestamp_start(0)
     arr.set_open_timestamp_end(1)
