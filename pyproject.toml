@@ -60,7 +60,10 @@ test = [
     "hypothesis",
     "psutil",
     "pyarrow",
-    "pandas",
+]
+test_pandas = [
+    "tiledb[test]",
+    "pandas"
 ]
 
 [project.urls]

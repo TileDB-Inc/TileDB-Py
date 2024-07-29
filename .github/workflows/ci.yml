@@ -21,6 +21,9 @@ jobs:
           # - macos-14
           - windows-latest
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        test-env:
+          - test
+          - test_pandas
       fail-fast: false
     env:
       MACOSX_DEPLOYMENT_TARGET: "11"
@@ -74,7 +77,7 @@ jobs:
         run: |
           pipx run --python ${{ matrix.python-version }} build
           WHEEL_NAME=$(ls dist/*.whl)
-          pip install --verbose ${WHEEL_NAME}[test]
+          pip install --verbose ${WHEEL_NAME}[${{ matrix.test-env }}]
 
       - name: "Run tests"
         run: |
