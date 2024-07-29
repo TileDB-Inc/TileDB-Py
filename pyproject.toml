@@ -60,6 +60,7 @@ test = [
     "hypothesis",
     "psutil",
     "pyarrow",
+    "pandas",
 ]
 
 [project.urls]
@@ -117,5 +118,6 @@ test-requires = [
     "hypothesis",
     "psutil",
     "pyarrow",
+    "pandas",
 ]
 test-command = "pytest {project}"

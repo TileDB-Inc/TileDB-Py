@@ -125,6 +125,11 @@ jobs:
           cd ..
           pytest -vv --showlocals $PROJECT_CWD
 
+      - name: "Re-run tests without pandas"
+        run: |
+          pip uninstall -y pandas
+          pytest -vv --showlocals $PROJECT_CWD
+
   upload_pypi:
     needs: [build_wheels, test_sdist]
     runs-on: ubuntu-latest
