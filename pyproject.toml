@@ -60,6 +60,7 @@ test = [
     "hypothesis",
     "psutil",
     "pyarrow",
+    "pandas ; python_version > '3.5'",
 ]
 
 [project.urls]
