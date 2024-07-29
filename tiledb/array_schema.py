@@ -38,20 +38,17 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
     Schema class for TileDB dense / sparse array representations
 
     :param domain: Domain of schema
-    :type attrs: tuple(tiledb.Attr, ...)
+    :param attrs: tuple of attributes
     :param cell_order:  TileDB label for cell layout
-    :type cell_order: 'row-major' (default) or 'C', 'col-major' or 'F' or 'hilbert'
     :param tile_order:  TileDB label for tile layout
-    :type tile_order: 'row-major' (default) or 'C', 'col-major' or 'F'
     :param int capacity: tile cell capacity
     :param offsets_filters: (default None) offsets filter list
-    :type offsets_filters: tiledb.FilterList
     :param validity_filters: (default None) validity filter list
-    :type validity_filters: tiledb.FilterList
     :param bool allows_duplicates: True if duplicates are allowed
     :param bool sparse: True if schema is sparse, else False \
         (set by SparseArray and DenseArray derived classes)
     :param dim_labels: dict(dim_index, dict(dim_name, tiledb.DimSchema))
+    :param enums: list of enumeration names
     :param tiledb.Ctx ctx: A TileDB Context
     :raises: :py:exc:`tiledb.TileDBError`
 
