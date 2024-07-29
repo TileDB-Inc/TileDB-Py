@@ -29,7 +29,8 @@ from .datatypes import RaggedDtype
 if not has_pandas():
     pytest.skip("pandas>=1.0,<3.0 not installed", allow_module_level=True)
 else:
-    pd = pytest.importorskip("pandas")
+    import pandas as pd
+
     tm = pd._testing
 
 
