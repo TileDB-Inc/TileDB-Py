@@ -23,7 +23,7 @@
 
 ## Build system changes
 
-* Add version pins for pandas 3.0 by @kounelisagiin https://github.com/TileDB-Inc/TileDB-Py/pull/2016
+* Add version pins for pandas 3.0 by @kounelisagis https://github.com/TileDB-Inc/TileDB-Py/pull/2016
 * Scikit-build-core build system rework by @dudoslav and @ihnorton in https://github.com/TileDB-Inc/TileDB-Py/pull/1988
 * Patches for the build system by @dudoslav, @ihnorton and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2010, https://github.com/TileDB-Inc/TileDB-Py/pull/2011, https://github.com/TileDB-Inc/TileDB-Py/pull/2013, https://github.com/TileDB-Inc/TileDB-Py/pull/2014, https://github.com/TileDB-Inc/TileDB-Py/pull/2018, https://github.com/TileDB-Inc/TileDB-Py/pull/2019, https://github.com/TileDB-Inc/TileDB-Py/pull/2020
 
