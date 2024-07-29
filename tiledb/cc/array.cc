@@ -35,16 +35,6 @@ void init_array(py::module &m) {
       .def("schema", &Array::schema)
       //.def("ptr", [](Array& arr){ return py::capsule(arr.ptr()); } )
       .def("open", (void(Array::*)(tiledb_query_type_t)) & Array::open)
-      // open with encryption key
-      .def("open",
-           (void(Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
-                           const std::string &)) &
-               Array::open)
-      // open with encryption key and timestamp
-      .def("open",
-           (void(Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
-                           const std::string &, uint64_t)) &
-               Array::open)
       .def("reopen", &Array::reopen)
       .def("set_open_timestamp_start", &Array::set_open_timestamp_start)
       .def("set_open_timestamp_end", &Array::set_open_timestamp_end)
@@ -121,7 +111,6 @@ void init_array(py::module &m) {
            })
       .def("consolidate_metadata",
            py::overload_cast<const Context &, const std::string &,
-                             tiledb_encryption_type_t, const std::string &,
                              Config *const>(&Array::consolidate_metadata))
       .def("put_metadata",
            [](Array &self, std::string &key, tiledb_datatype_t tdb_type,
