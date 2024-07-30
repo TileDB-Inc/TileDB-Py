@@ -1,6 +1,7 @@
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
+from .domain import Domain
 from .ndrectangle import NDRectangle
 
 
@@ -16,6 +17,9 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
         :raises tiledb.TileDBError:
         """
         super().__init__(ctx)
+
+    def _set_domain(self, domain: Domain):
+        self._domain = domain
 
     @property
     def type(self):
@@ -40,6 +44,7 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
         :raises tiledb.TileDBError:
         """
         self._set_ndrectangle(ndrect)
+        self._domain = ndrect._get_domain()
 
     @property
     def ndrectangle(self):
@@ -48,4 +53,6 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
         :rtype: NDRectangle
         :raises tiledb.TileDBError:
         """
-        return NDRectangle.from_pybind11(self._ctx, self._ndrectangle())
+        ndrect = NDRectangle.from_pybind11(self._ctx, self._ndrectangle())
+        ndrect._set_domain(self._domain)
+        return ndrect

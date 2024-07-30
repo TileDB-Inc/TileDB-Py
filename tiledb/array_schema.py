@@ -394,7 +394,11 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
 
         :rtype: tiledb.CurrentDomain
         """
-        return CurrentDomain.from_pybind11(self._ctx, self._current_domain(self._ctx))
+        curr_dom = CurrentDomain.from_pybind11(
+            self._ctx, self._current_domain(self._ctx)
+        )
+        curr_dom._set_domain(self.domain)
+        return curr_dom
 
     def set_current_domain(self, current_domain):
         """Set the current domain
