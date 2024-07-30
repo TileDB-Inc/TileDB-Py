@@ -116,90 +116,88 @@ void init_current_domain(py::module &m) {
           },
           py::arg("dim_name"), py::arg("start"), py::arg("end"))
 
-      .def(
-          "_range",
-          [](NDRectangle &ndrect, const std::string &dim_name,
-             const py::dtype &n_type) -> py::tuple {
-            if (n_type == py::dtype::of<uint64_t>()) {
-              auto range = ndrect.range<uint64_t>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<int64_t>()) {
-              auto range = ndrect.range<int64_t>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<uint32_t>()) {
-              auto range = ndrect.range<uint32_t>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<int32_t>()) {
-              auto range = ndrect.range<int32_t>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<uint16_t>()) {
-              auto range = ndrect.range<uint16_t>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<int16_t>()) {
-              auto range = ndrect.range<int16_t>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<uint8_t>()) {
-              auto range = ndrect.range<uint8_t>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<int8_t>()) {
-              auto range = ndrect.range<int8_t>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<double>()) {
-              auto range = ndrect.range<double>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (n_type == py::dtype::of<float>()) {
-              auto range = ndrect.range<float>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else if (py::str(py::getattr(n_type, "kind")) == py::str("S") ||
-                     py::str(py::getattr(n_type, "kind")) == py::str("U")) {
-              auto range = ndrect.range<std::string>(dim_name);
-              return py::make_tuple(range[0], range[1]);
-            } else {
-              TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
-            }
-          })
-      .def(
-          "_range",
-          [](NDRectangle &ndrect, unsigned dim_idx,
-             const py::dtype &n_type) -> py::tuple {
-              if (n_type == py::dtype::of<uint64_t>()) {
-                auto range = ndrect.range<uint64_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<int64_t>()) {
-                auto range = ndrect.range<int64_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<uint32_t>()) {
-                auto range = ndrect.range<uint32_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<int32_t>()) {
-                auto range = ndrect.range<int32_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<uint16_t>()) {
-                auto range = ndrect.range<uint16_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<int16_t>()) {
-                auto range = ndrect.range<int16_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<uint8_t>()) {
-                auto range = ndrect.range<uint8_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<int8_t>()) {
-                auto range = ndrect.range<int8_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<double>()) {
-                auto range = ndrect.range<double>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (n_type == py::dtype::of<float>()) {
-                auto range = ndrect.range<float>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else if (py::str(py::getattr(n_type, "kind")) == py::str("S") ||
-                     py::str(py::getattr(n_type, "kind")) == py::str("U")) {
-                auto range = ndrect.range<std::string>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
-              } else {
-                TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
-              }
-          });
+      .def("_range",
+           [](NDRectangle &ndrect, const std::string &dim_name,
+              const py::dtype &n_type) -> py::tuple {
+             if (n_type == py::dtype::of<uint64_t>()) {
+               auto range = ndrect.range<uint64_t>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<int64_t>()) {
+               auto range = ndrect.range<int64_t>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<uint32_t>()) {
+               auto range = ndrect.range<uint32_t>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<int32_t>()) {
+               auto range = ndrect.range<int32_t>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<uint16_t>()) {
+               auto range = ndrect.range<uint16_t>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<int16_t>()) {
+               auto range = ndrect.range<int16_t>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<uint8_t>()) {
+               auto range = ndrect.range<uint8_t>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<int8_t>()) {
+               auto range = ndrect.range<int8_t>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<double>()) {
+               auto range = ndrect.range<double>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<float>()) {
+               auto range = ndrect.range<float>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else if (py::str(py::getattr(n_type, "kind")) == py::str("S") ||
+                        py::str(py::getattr(n_type, "kind")) == py::str("U")) {
+               auto range = ndrect.range<std::string>(dim_name);
+               return py::make_tuple(range[0], range[1]);
+             } else {
+               TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
+             }
+           })
+      .def("_range",
+           [](NDRectangle &ndrect, unsigned dim_idx,
+              const py::dtype &n_type) -> py::tuple {
+             if (n_type == py::dtype::of<uint64_t>()) {
+               auto range = ndrect.range<uint64_t>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<int64_t>()) {
+               auto range = ndrect.range<int64_t>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<uint32_t>()) {
+               auto range = ndrect.range<uint32_t>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<int32_t>()) {
+               auto range = ndrect.range<int32_t>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<uint16_t>()) {
+               auto range = ndrect.range<uint16_t>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<int16_t>()) {
+               auto range = ndrect.range<int16_t>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<uint8_t>()) {
+               auto range = ndrect.range<uint8_t>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<int8_t>()) {
+               auto range = ndrect.range<int8_t>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<double>()) {
+               auto range = ndrect.range<double>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (n_type == py::dtype::of<float>()) {
+               auto range = ndrect.range<float>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else if (py::str(py::getattr(n_type, "kind")) == py::str("S") ||
+                        py::str(py::getattr(n_type, "kind")) == py::str("U")) {
+               auto range = ndrect.range<std::string>(dim_idx);
+               return py::make_tuple(range[0], range[1]);
+             } else {
+               TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
+             }
+           });
 
   py::class_<CurrentDomain>(m, "CurrentDomain")
       .def(py::init<CurrentDomain>())
