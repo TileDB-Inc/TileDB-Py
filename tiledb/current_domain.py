@@ -1,6 +1,3 @@
-import io
-from typing import Optional
-
 import tiledb.cc as lt
 
 from .ctx import Ctx, CtxMixin
@@ -26,7 +23,7 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
 
         :rtype: tiledb.CurrentDomainType
         """
-        return self._type()
+        return self._type
 
     @property
     def is_empty(self):
