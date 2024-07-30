@@ -388,14 +388,6 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         """
         return self._has_dim_label(self._ctx, name)
 
-    def add_enumeration(self, enmr):
-        """Add an enumeration to the schema
-
-        :param enmr: The enumeration to add
-        :type enmr: tiledb.Enumeration
-        """
-        self._add_enumeration(self._ctx, enmr)
-
     def current_domain(self) -> CurrentDomain:
         """Get the current domain
 
