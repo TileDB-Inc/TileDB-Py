@@ -388,6 +388,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         """
         return self._has_dim_label(self._ctx, name)
 
+    @property
     def current_domain(self) -> CurrentDomain:
         """Get the current domain
 
