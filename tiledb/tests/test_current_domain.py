@@ -137,3 +137,4 @@ class CurrentDomainTest(unittest.TestCase):
         cd = s.current_domain()
         n = cd.ndrectangle()
         self.assertEqual(n.range(0), range_two)
+        array.close()
