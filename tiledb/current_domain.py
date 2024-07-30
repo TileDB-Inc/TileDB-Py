@@ -44,6 +44,7 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
         """
         self._set_ndrectangle(ndrect)
 
+    @property
     def ndrectangle(self):
         """Gets the N-dimensional rectangle associated with the current domain object.
 
