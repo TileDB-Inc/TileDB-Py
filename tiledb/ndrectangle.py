@@ -21,6 +21,13 @@ class NDRectangle(CtxMixin, lt.NDRectangle):
         super().__init__(ctx, domain)
         self._set_domain(domain)
 
+    def __str__(self) -> str:
+        dimensions_str = ", ".join(
+            f"{self._domain.dim(i).name}: {self.range(i)}"
+            for i in range(self._domain.ndim)
+        )
+        return f"NDRectangle({dimensions_str})"
+
     def _set_domain(self, domain: Domain):
         self._domain = domain
 
