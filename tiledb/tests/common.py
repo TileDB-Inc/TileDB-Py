@@ -15,6 +15,7 @@ import uuid
 import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
+from packaging.version import Version
 
 import tiledb
 
@@ -24,11 +25,29 @@ SUPPORTED_DATETIME64_DTYPES = tuple(
 
 
 def has_pandas():
-    return importlib.util.find_spec("pandas") is not None
+    try:
+        import pandas as pd
+    except ImportError:
+        return False
+
+    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
+        "3.0.0.dev0"
+    ):
+        return False
+
+    return True
 
 
 def has_pyarrow():
-    return importlib.util.find_spec("pyarrow") is not None
+    try:
+        import pyarrow as pa
+
+        if Version(pa.__version__) < Version("1.0"):
+            return False
+    except ImportError:
+        return False
+
+    return True
 
 
 def assert_tail_equal(a, *rest, **kwargs):

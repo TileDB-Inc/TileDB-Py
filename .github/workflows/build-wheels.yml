@@ -2,15 +2,22 @@ name: Build and test wheels
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version to use are release version
+        required: true
+        type: string
+      test_pypi:
+        description: Upload packages to test.pypi.org
+        required: false
+        type: boolean
+        default: false
   push:
-    branches:
-      - release-*
-      - "*wheel*" # must quote since "*" is a YAML reserved character; we want a string
     tags:
       - "*"
-  pull_request:
-    branches:
-      - "*wheel*" # must quote since "*" is a YAML reserved character; we want a string
+
+env:
+  SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB: ${{ inputs.version }}
 
 jobs:
   build_wheels:
@@ -54,7 +61,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.buildplat[1] }}-${{ strategy.job-index }}
+          name: cibw-wheels-${{ matrix.buildplat[0] }}-${{ matrix.buildplat[1] }}-${{ matrix.python }}
           path: "./wheelhouse/*.whl"
 
   build_sdist:
@@ -118,6 +125,11 @@ jobs:
           cd ..
           pytest -vv --showlocals $PROJECT_CWD
 
+      - name: "Re-run tests without pandas"
+        run: |
+          pip uninstall -y pandas
+          pytest -vv --showlocals $PROJECT_CWD
+
   upload_pypi:
     needs: [build_wheels, test_sdist]
     runs-on: ubuntu-latest
@@ -137,10 +149,11 @@ jobs:
           echo "package_version=$(ls dist/ | head -n 1 | cut -d - -f 2)" >> "$GITHUB_OUTPUT"
 
       - name: Upload to test-pypi
+        if: inputs.test_pypi
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
 
-      - name: Upload to pypi
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: pypa/gh-action-pypi-publish@release/v1
+      # - name: Upload to pypi
+      #   if: startsWith(github.ref, 'refs/tags/')
+      #   uses: pypa/gh-action-pypi-publish@release/v1

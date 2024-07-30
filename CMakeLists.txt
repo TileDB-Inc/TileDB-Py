@@ -7,20 +7,27 @@ set(PYBIND11_NEWPYTHON ON)
 find_package(
   Python
   COMPONENTS Interpreter Development.Module NumPy
-  REQUIRE
+  REQUIRED
 )
 
 find_package(pybind11 CONFIG REQUIRED)
 
 if (TILEDB_PATH)
-    # If TILEDB_PATH variable is present prepend it to the CMAKE_PREFIX_PATH
-    # so that find_package will be able to find TileDB core library there
-    set(CMAKE_PREFIX_PATH "${TILEDB_PATH};${CMAKE_PREFIX_PATH}")
+    file(REAL_PATH "${TILEDB_PATH}" USER_TILEDB_PATH EXPAND_TILDE)
+    file(GLOB_RECURSE USER_TILEDB_CONFIG_PATH "${TILEDB_PATH}/**/TileDBConfig.cmake")
+    cmake_path(GET USER_TILEDB_CONFIG_PATH PARENT_PATH USER_TILEDB_DIR)
+    set(TileDB_DIR ${USER_TILEDB_DIR})
 endif()
 
-
 # In the future we should use vcpkg
-find_package(TileDB QUIET)
+if (TILEDB_PATH)
+  find_package(TileDB
+  HINTS ${USER_TILEDB_DIR} ${TILEDB_PATH}
+  QUIET NO_DEFAULT_PATH REQUIRED)
+else()
+  find_package(TileDB QUIET)
+endif()
+
 if (NOT TileDB_FOUND)
     include(cmake/DownloadTileDB.cmake)
     if (TILEDB_VERSION)
@@ -39,8 +46,8 @@ if (NOT TileDB_FOUND)
         message(STATUS "Downloading TileDB default version ...")
         # Download latest release
         fetch_prebuilt_tiledb(
-            VERSION 2.25.0-rc1
-            RELLIST_HASH SHA256=985e6a68a467e84f57495f82219eff9dbc317c07d9ffe9cbfa065bde1ca1fb76
+                VERSION 2.25.0
+                RELLIST_HASH SHA256=398a1da194a59817b6f354b3232f6575c97c350d6dc792de54c529162e30763c
         )
     endif()
     find_package(TileDB REQUIRED)
@@ -49,4 +56,5 @@ else()
     message(STATUS "Found external TileDB core library")
 endif()
 
+message(STATUS "Using libtiledb path: " "${TileDB_DIR}")
 add_subdirectory(tiledb)

@@ -83,6 +83,11 @@ jobs:
           cd /tmp
           pytest -vv --showlocals $PROJECT_CWD
 
+      - name: "Re-run tests without pandas"
+        run: |
+          pip uninstall -y pandas
+          pytest -vv --showlocals $PROJECT_CWD
+
       - name: "Print log files (failed build only)"
         run: |
           set -xeo pipefail

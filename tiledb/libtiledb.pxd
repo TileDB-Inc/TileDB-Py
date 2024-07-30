@@ -482,14 +482,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* array_uri,
         tiledb_array_schema_t** array_schema) nogil
 
-    int tiledb_array_schema_load_with_key(
-        tiledb_ctx_t* ctx,
-        const char* array_uri,
-        tiledb_encryption_type_t key_type,
-        const void* key_ptr,
-        unsigned int key_len,
-        tiledb_array_schema_t** array_schema) nogil
-
     int tiledb_array_schema_get_array_type(
         tiledb_ctx_t* ctx,
         const tiledb_array_schema_t* array_schema,
@@ -643,14 +635,6 @@ cdef extern from "tiledb/tiledb.h":
     int tiledb_array_consolidate_metadata(
         tiledb_ctx_t* ctx,
         const char* array_uri,
-        tiledb_config_t* config) nogil
-
-    int tiledb_array_consolidate_metadata_with_key(
-        tiledb_ctx_t* ctx,
-        const char* array_uri,
-        tiledb_encryption_type_t encryption_type,
-        const void* encryption_key,
-        uint32_t key_length,
         tiledb_config_t* config) nogil
 
     int tiledb_array_delete(
@@ -809,23 +793,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_array_t* array,
         tiledb_query_type_t query_type) nogil
 
-    int tiledb_array_open_with_key(
-        tiledb_ctx_t* ctx,
-        tiledb_array_t* array,
-        tiledb_query_type_t query_type,
-        tiledb_encryption_type_t key_type,
-        const void* key,
-        unsigned int key_len) nogil
-
-    int tiledb_array_open_at_with_key(
-        tiledb_ctx_t* ctx,
-        tiledb_array_t* array,
-        tiledb_query_type_t query_type,
-        tiledb_encryption_type_t encryption_type,
-        const void * encryption_key,
-        int key_length,
-        uint64_t timestamp) nogil
-
     int tiledb_array_reopen(
         tiledb_ctx_t* ctx,
         tiledb_array_t* array) nogil
@@ -856,13 +823,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const char* array_path,
         tiledb_config_t* config) nogil
-
-    int tiledb_array_delete_fragments(
-        tiledb_ctx_t* ctx,
-        tiledb_array_t* array,
-        const char* uri,
-        uint64_t timestamp_start,
-        uint64_t timestamp_end)
 
     int tiledb_array_delete_fragments_v2(
         tiledb_ctx_t* ctx,
