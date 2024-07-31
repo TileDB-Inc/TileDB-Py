@@ -24,6 +24,7 @@ from .attribute import Attr
 from .cc import TileDBError
 from .consolidation_plan import ConsolidationPlan
 from .ctx import Config, Ctx, default_ctx, scope_ctx
+from .current_domain import CurrentDomain
 from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .dimension import Dim
 from .dimension_label import DimLabel
@@ -90,6 +91,7 @@ from .libtiledb import (
     walk,
 )
 from .multirange_indexing import EmptyRange
+from .ndrectangle import NDRectangle
 from .object import Object
 from .parquet_ import from_parquet
 from .query import Query

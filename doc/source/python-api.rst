@@ -45,6 +45,18 @@ Config
 .. autoclass:: tiledb.Config
    :members:
 
+Current Domain
+--------------
+
+.. autoclass:: tiledb.CurrentDomain
+   :members:
+
+NDRectangle
+-----------
+
+.. autoclass:: tiledb.NDRectangle
+   :members:
+
 Array Schema
 ------------
 

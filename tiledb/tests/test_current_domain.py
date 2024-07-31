@@ -1,0 +1,208 @@
+import tempfile
+import unittest
+
+import numpy as np
+
+import tiledb
+import tiledb.cc as lt
+
+
+class NDRectangleTest(unittest.TestCase):
+    def test_ndrectagle_standalone_string(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d1", dtype="S0"),
+            tiledb.Dim(name="d2", dtype="S0"),
+        )
+        ndrect = tiledb.NDRectangle(ctx, dom)
+
+        range_one = ("a", "c")
+        range_two = ("b", "db")
+
+        ndrect.set_range(0, range_one[0], range_one[1])
+        ndrect.set_range(1, range_two[0], range_two[1])
+
+        self.assertEqual(ndrect.range(0), range_one)
+        self.assertEqual(ndrect.range(1), range_two)
+
+        # should be the same
+        self.assertEqual(ndrect.range("d1"), range_one)
+        self.assertEqual(ndrect.range("d2"), range_two)
+
+    def test_ndrectagle_standalone_integer(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(name="x", domain=(0, 100), tile=10, dtype=np.int64),
+            tiledb.Dim(name="y", domain=(0, 100), tile=10, dtype=np.int64),
+        )
+        ndrect = tiledb.NDRectangle(ctx, dom)
+
+        range_one = (10, 20)
+        range_two = (30, 40)
+
+        ndrect.set_range(0, range_one[0], range_one[1])
+        ndrect.set_range(1, range_two[0], range_two[1])
+
+        self.assertEqual(ndrect.range(0), range_one)
+        self.assertEqual(ndrect.range(1), range_two)
+
+        # should be the same
+        self.assertEqual(ndrect.range("x"), range_one)
+        self.assertEqual(ndrect.range("y"), range_two)
+
+
+class CurrentDomainTest(unittest.TestCase):
+    def test_current_domain_with_ndrectangle_integer(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(name="x", domain=(0, 100), tile=10, dtype=np.int64),
+            tiledb.Dim(name="y", domain=(0, 100), tile=10, dtype=np.int64),
+        )
+        ndrect = tiledb.NDRectangle(ctx, dom)
+
+        range_one = (10, 20)
+        range_two = (30, 40)
+
+        ndrect.set_range(0, range_one[0], range_one[1])
+        ndrect.set_range(1, range_two[0], range_two[1])
+
+        self.assertEqual(ndrect.range(0), range_one)
+        self.assertEqual(ndrect.range(1), range_two)
+
+        current_domain = tiledb.CurrentDomain(ctx)
+
+        self.assertTrue(current_domain.is_empty)
+        current_domain.set_ndrectangle(ndrect)
+        self.assertFalse(current_domain.is_empty)
+
+        # let's try to get the NDRectangle back from the current domain object
+        rect = current_domain.ndrectangle
+
+        range1 = rect.range(0)
+        range2 = rect.range(1)
+
+        self.assertEqual(range1, range_one)
+        self.assertEqual(range2, range_two)
+
+        range1 = rect.range("x")
+        range2 = rect.range("y")
+
+        # should be the same
+        self.assertEqual(range1, range_one)
+        self.assertEqual(range2, range_two)
+
+    def test_current_domain_with_ndrectangle_string(self):
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d1", dtype="S0"),
+            tiledb.Dim(name="d2", dtype="S0"),
+        )
+        ndrect = tiledb.NDRectangle(ctx, dom)
+
+        range_one = ("a", "c")
+        range_two = ("b", "db")
+
+        ndrect.set_range(0, range_one[0], range_one[1])
+        ndrect.set_range(1, range_two[0], range_two[1])
+
+        self.assertEqual(ndrect.range(0), range_one)
+        self.assertEqual(ndrect.range(1), range_two)
+
+        current_domain = tiledb.CurrentDomain(ctx)
+
+        self.assertTrue(current_domain.is_empty)
+        current_domain.set_ndrectangle(ndrect)
+        self.assertFalse(current_domain.is_empty)
+
+        # let's try to get the NDRectangle back from the current domain object
+        rect = current_domain.ndrectangle
+
+        range1 = rect.range(0)
+        range2 = rect.range(1)
+
+        self.assertEqual(range1, range_one)
+        self.assertEqual(range2, range_two)
+
+        range1 = rect.range("d1")
+        range2 = rect.range("d2")
+
+        # should be the same
+        self.assertEqual(range1, range_one)
+        self.assertEqual(range2, range_two)
+
+    def test_array_schema_with_current_domain_with_ndrectangle(self):
+        uri = tempfile.mkdtemp()
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 999), tile=2, dtype=np.int64),
+            tiledb.Dim(name="d2", domain=(1, 999), tile=2, dtype=np.int64),
+        )
+        att = tiledb.Attr(name="a", dtype=np.int64)
+        schema = tiledb.ArraySchema(sparse=True, ctx=ctx, domain=dom, attrs=(att,))
+
+        ndrect = tiledb.NDRectangle(ctx, dom)
+        range_one = (10, 20)
+        range_two = (30, 40)
+        ndrect.set_range(0, range_one[0], range_one[1])
+        ndrect.set_range(1, range_two[0], range_two[1])
+
+        current_domain = tiledb.CurrentDomain(ctx)
+        current_domain.set_ndrectangle(ndrect)
+        schema.set_current_domain(current_domain)
+
+        # create the array
+        tiledb.Array.create(uri, schema)
+
+        # open the array and check the current domain and the NDRectangle
+        A = tiledb.Array(uri, mode="r")
+
+        cd = A.schema.current_domain
+        self.assertFalse(cd.is_empty)
+        self.assertEqual(cd.type, lt.CurrentDomainType.NDRECTANGLE)
+
+        ndr = cd.ndrectangle
+        self.assertEqual(ndr.range(0), range_one)
+        self.assertEqual(ndr.range(1), range_two)
+
+        # a 3rd dimension should raise an error
+        with self.assertRaises(tiledb.TileDBError):
+            ndr.range(2)
+
+        A.close()
+
+    def test_current_domain_evolve(self):
+        uri = tempfile.mkdtemp()
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 999), tile=2, dtype=np.int64),
+        )
+
+        att = tiledb.Attr(name="a", dtype=np.int64)
+        schema = tiledb.ArraySchema(sparse=True, ctx=ctx, domain=dom, attrs=(att,))
+
+        ndrect = tiledb.NDRectangle(ctx, dom)
+        range_one = (10, 20)
+        ndrect.set_range(0, range_one[0], range_one[1])
+
+        current_domain = tiledb.CurrentDomain(ctx)
+        current_domain.set_ndrectangle(ndrect)
+        schema.set_current_domain(current_domain)
+
+        tiledb.Array.create(uri, schema)
+
+        new_range = (5, 30)
+        new_ndrect = tiledb.NDRectangle(ctx, dom)
+        new_ndrect.set_range(0, new_range[0], new_range[1])
+        new_current_domain = tiledb.CurrentDomain(ctx)
+        new_current_domain.set_ndrectangle(new_ndrect)
+
+        se = tiledb.ArraySchemaEvolution(ctx)
+        se.expand_current_domain(new_current_domain)
+        se.array_evolve(uri)
+
+        A = tiledb.Array(uri, mode="r")
+        s = A.schema
+        cd = s.current_domain
+        n = cd.ndrectangle
+        self.assertEqual(n.range(0), new_range)
+        A.close()

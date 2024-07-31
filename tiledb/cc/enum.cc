@@ -171,6 +171,9 @@ void init_enums(py::module &m) {
       .value("TIFF", TILEDB_MIME_TIFF)
       .value("PDF", TILEDB_MIME_PDF);
 
+  py::enum_<tiledb_current_domain_type_t>(m, "CurrentDomainType")
+      .value("NDRECTANGLE", TILEDB_NDRECTANGLE);
+
   // test helpers to check enum name against typed value
   m.def("_enum_string", &tiledb::impl::type_to_str);
   m.def("_enum_string",

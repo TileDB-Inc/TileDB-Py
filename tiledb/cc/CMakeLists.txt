@@ -6,6 +6,7 @@ pybind11_add_module(
     common.h
     consolidation_plan.cc
     context.cc
+    current_domain.cc
     dimension_label.cc
     domain.cc
     enum.cc
