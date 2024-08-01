@@ -8,6 +8,7 @@ def main():
     parser.add_argument("command", choices=["install", "develop"])
     parser.add_argument("--tiledb", type=str, required=False)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--enable-deprecations", action="store_true", required=False)
     parser.add_argument("-v", action="store_true")
     args = parser.parse_args()
 
