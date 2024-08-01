@@ -200,12 +200,17 @@ Fragment Info
 .. autoclass:: tiledb.FragmentInfo
    :members:
 
+Enumeration
+------------
+
+.. autoclass:: tiledb.Enumeration
+   :members:
+
 Exceptions
 ----------
 
 .. autoexception:: tiledb.TileDBError
    :members:
-
 
 VFS
 ---
