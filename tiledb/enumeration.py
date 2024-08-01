@@ -101,6 +101,7 @@ class Enumeration(CtxMixin, lt.Enumeration):
     def extend(self, values: Sequence[Any]) -> Enumeration:
         """Add additional values to the enumeration.
 
+        :param values: The values to add to the enumeration
         :rtype: Enumeration
         """
         values = np.array(values)
