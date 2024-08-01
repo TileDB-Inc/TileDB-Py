@@ -29,6 +29,9 @@ def main():
     if args.debug:
         cmd.append(f"-Cskbuild.cmake.build-type=Debug")
 
+    if args.enable_deprecations:
+        cmd.append(f"-Cskbuild.cmake.define.TILEDB_REMOVE_DEPRECATIONS=OFF")
+
     if args.v:
         cmd.append("-v")
 
