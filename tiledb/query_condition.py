@@ -42,23 +42,20 @@ class QueryCondition:
     **BNF:**
 
     A query condition is made up of one or more Boolean expressions. Multiple
-    Boolean expressions are chained together with Boolean operators. The ``or_op``
-    Boolean operators are given lower presedence than ``and_op``.
+    Boolean expressions are chained together with Boolean operators. The ``or``
+    Boolean operators is given lower precedence than ``and``.
 
-        ``query_cond ::= bool_term | query_cond or_op bool_term``
+        ``query_cond ::= bool_term | query_cond 'or' bool_term``
 
-        ``bool_term ::= bool_expr | bool_term and_op bool_expr``
-
-    Logical ``and`` and bitwise ``&`` Boolean operators are given equal precedence.
-
-        ``and_op ::= and | &``
-
-    Likewise, ``or`` and ``|`` are given equal precedence.
-
-        ``or_op ::= or | |``
+        ``bool_term ::= bool_expr | bool_term 'and' bool_expr``
 
     We intend to support ``not`` in future releases.
-
+    
+    We also support ``|`` and ``&`` bitwise operators which are have lower
+    precedence than ``compare_op``. For instance, the expression ``x == 1 & y == 1`` 
+    is evaluated as ``x == (1 & y) == 1``. Use parentheses to explicitly
+    evaluate ``(x == 1) & (y == 1)``.
+    
     A Boolean expression may either be a comparison expression or membership
     expression.
 
