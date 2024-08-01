@@ -49,11 +49,11 @@ class QueryCondition:
 
         ``bool_term ::= bool_expr | bool_term and_op bool_expr``
 
-    Logical ``and`` and bitwise ``&`` Boolean operators are given equal precedence.
+    Logical ``and`` is given lower precedence than bitwise ``&``.
 
         ``and_op ::= and | &``
 
-    Likewise, ``or`` and ``|`` are given equal precedence.
+    Likewise, ``or`` is given lower precedence than bitwise ``|``.
 
         ``or_op ::= or | |``
 
