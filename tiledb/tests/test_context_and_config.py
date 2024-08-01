@@ -187,6 +187,72 @@ class TestConfig(DiskTestCase):
         assert issubclass(type(config), tiledb.libtiledb.Config)
         self.assertEqual(config["sm.memory_budget"], "100")
 
+    def test_config_repr_sensitive_params_hidden(self):
+        # checks that the sensitive parameters set are not printed,
+        # sensitive parameters not set are printed as '',
+        # non-sensitive parameters set are printed as is, and
+        # non-sensitive parameters not set are not hidden (some are empty, some are default)
+
+        unserialized_params_ = {
+            "vfs.azure.storage_account_name",
+            "vfs.azure.storage_account_key",
+            "vfs.azure.storage_sas_token",
+            "vfs.s3.proxy_username",
+            "vfs.s3.proxy_password",
+            "vfs.s3.aws_access_key_id",
+            "vfs.s3.aws_secret_access_key",
+            "vfs.s3.aws_session_token",
+            "vfs.s3.aws_role_arn",
+            "vfs.s3.aws_external_id",
+            "vfs.s3.aws_load_frequency",
+            "vfs.s3.aws_session_name",
+            "vfs.gcs.service_account_key",
+            "vfs.gcs.workload_identity_configuration",
+            "vfs.gcs.impersonate_service_account",
+            "rest.username",
+            "rest.password",
+            "rest.token",
+        }
+
+        random_sensitive_params = {
+            "vfs.azure.storage_account_name": "myaccount",
+            "vfs.s3.aws_access_key_id": "myaccesskey",
+            "vfs.gcs.service_account_key": "myserviceaccountkey",
+            "rest.username": "myusername",
+        }
+
+        random_non_sensitive_params = {
+            "rest.use_refactored_array_open": "false",
+            "rest.use_refactored_array_open_and_query_submit": "true",
+            "sm.allow_separate_attribute_writes": "true",
+            "sm.allow_updates_experimental": "false",
+        }
+
+        config = tiledb.Config()
+
+        for param, value in random_sensitive_params.items():
+            config[param] = value
+
+        for param, value in random_non_sensitive_params.items():
+            config[param] = value
+
+        # skip first two lines
+        for line in repr(config).split("\n")[2:]:
+            param, value = line.split("|")
+            # remove leading and trailing spaces
+            param = param.strip()
+            value = value.strip()
+            if param in unserialized_params_:
+                if param in random_sensitive_params:
+                    self.assertEqual(value, "*" * 10)
+                else:
+                    self.assertEqual(value, "''")
+            else:
+                if param in random_non_sensitive_params:
+                    self.assertEqual(value, f"'{random_non_sensitive_params[param]}'")
+                else:
+                    self.assertNotEqual(value, "*" * 10)
+
     def test_config_repr_html(self):
         config = tiledb.Config()
         try:

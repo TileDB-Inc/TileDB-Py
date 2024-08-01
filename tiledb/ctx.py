@@ -136,10 +136,36 @@ class Config(lt.Config):
                 return False
         return True
 
+    unserialized_params_ = {
+        "vfs.azure.storage_account_name",
+        "vfs.azure.storage_account_key",
+        "vfs.azure.storage_sas_token",
+        "vfs.s3.proxy_username",
+        "vfs.s3.proxy_password",
+        "vfs.s3.aws_access_key_id",
+        "vfs.s3.aws_secret_access_key",
+        "vfs.s3.aws_session_token",
+        "vfs.s3.aws_role_arn",
+        "vfs.s3.aws_external_id",
+        "vfs.s3.aws_load_frequency",
+        "vfs.s3.aws_session_name",
+        "vfs.gcs.service_account_key",
+        "vfs.gcs.workload_identity_configuration",
+        "vfs.gcs.impersonate_service_account",
+        "rest.username",
+        "rest.password",
+        "rest.token",
+    }
+
     def __repr__(self):
         colnames = ["Parameter", "Value"]
         params = list(self.keys())
         values = list(map(repr, self.values()))
+        # for unserialized params, we don't want to print their values
+        values = [
+            "*" * 10 if p in self.unserialized_params_ and v != "''" else v
+            for i, (p, v) in enumerate(zip(params, values))
+        ]
         colsizes = [
             max(len(colnames[0]), *map(len, (p for p in params))),
             max(len(colnames[1]), *map(len, (v for v in values))),
@@ -163,6 +189,11 @@ class Config(lt.Config):
 
         params = list(self.keys())
         values = list(map(repr, self.values()))
+        # for unserialized params, we don't want to print their values
+        values = [
+            "*" * 10 if p in self.unserialized_params_ and v != "''" else v
+            for i, (p, v) in enumerate(zip(params, values))
+        ]
 
         for p, v in zip(params, values):
             output.write("<tr>")
