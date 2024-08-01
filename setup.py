@@ -8,6 +8,7 @@ def main():
     parser.add_argument("command", choices=["install", "develop"])
     parser.add_argument("--tiledb", type=str, required=False)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--enable-deprecations", action="store_true", required=False)
     parser.add_argument("-v", action="store_true")
     args = parser.parse_args()
 
@@ -28,6 +29,9 @@ def main():
 
     if args.debug:
         cmd.append(f"-Cskbuild.cmake.build-type=Debug")
+
+    if args.enable_deprecations:
+        cmd.append(f"-Cskbuild.cmake.define.TILEDB_REMOVE_DEPRECATIONS=OFF")
 
     if args.v:
         cmd.append("-v")
