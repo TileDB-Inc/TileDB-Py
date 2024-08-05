@@ -45,6 +45,7 @@ dependencies = [
   "numpy>=1.19 ; python_version == '3.8' and platform_machine == 'aarch64'",
   "numpy>=1.21 ; python_version == '3.8' and platform_machine == 'arm64'",
   "numpy>=1.25 ; python_version >= '3.9'",
+  "packaging",
 ]
 dynamic = ["version"]
 
