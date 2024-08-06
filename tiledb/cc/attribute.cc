@@ -47,13 +47,13 @@ py::array get_fill_value(Attribute &attr) {
   auto value_num = attr.cell_val_num();
   auto value_type = tdb_to_np_dtype(attr.type(), value_num);
 
-  if (py::str(value_type.attr("kind")) == py::str("V")) {
+  if (py::getattr(value_type, "kind").is(py::str("V"))) {
     return py::array(value_type, 1, value);
   }
 
   // If this is a complex type both cell values fit in a single complex element.
-  if (value_type == py::dtype("complex64") ||
-      value_type == py::dtype("complex128")) {
+  if (value_type.is(py::dtype("complex64")) ||
+      value_type.is(py::dtype("complex128"))) {
     return py::array(value_type, 1, value);
   }
 

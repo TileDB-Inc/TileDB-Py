@@ -1,3 +1,6 @@
+#!python
+#cython: language_level=3
+
 from libc.stdint cimport uint32_t, uint64_t
 from libc.stdio cimport FILE
 include "indexing.pxd"
