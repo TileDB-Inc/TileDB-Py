@@ -49,15 +49,10 @@ class QueryCondition:
 
         ``bool_term ::= bool_expr | bool_term and_op bool_expr``
 
-    Logical ``and`` is given lower precedence than bitwise ``&``.
+    A Bitwise expression may either be a comparison expression or membership
+    expression.
 
-        ``and_op ::= and | &``
-
-    Likewise, ``or`` is given lower precedence than bitwise ``|``.
-
-        ``or_op ::= or | |``
-
-    We intend to support ``not`` in future releases.
+        ``bitwise_expr ::= compare_expr | member_expr``
 
     A Boolean expression may either be a comparison expression or membership
     expression.
@@ -74,6 +69,9 @@ class QueryCondition:
     All comparison operators are supported.
 
         ``compare_op ::= < | > | <= | >= | == | !=``
+
+    Bitwise operators are given higher precedence than comparison operators.
+    Boolean operators are given lower precedence than comparison operators.
 
     If an attribute name has special characters in it, you can wrap ``namehere``
     in ``attr("namehere")``.
@@ -99,13 +97,18 @@ class QueryCondition:
     >>>     # and `bar` equal to string "asdf".
     >>>     # Note precedence is equivalent to:
     >>>     # tiledb.QueryCondition("foo > 5 or ('asdf' == var('b a r') and baz <= val(1.0))")
-    >>>     qc = tiledb.QueryCondition("foo > 5 or 'asdf' == var('b a r') and baz <= val(1.0)")
-    >>>     A.query(cond=qc)
+    >>>     A.query(cond=tiledb.QueryCondition("foo > 5 or 'asdf' == var('b a r') and baz <= val(1.0)"))
     >>>
     >>>     # Select cells where the values for `foo` are equal to 1, 2, or 3.
     >>>     # Note this is equivalent to:
     >>>     # tiledb.QueryCondition("foo == 1 or foo == 2 or foo == 3")
     >>>     A.query(cond=tiledb.QueryCondition("foo in [1, 2, 3]"))
+    >>>
+    >>>     # Example showing that bitwise operators (| ^ &) are given higher precedence than comparison operators
+    >>>     # and comparison operators are given higher precedence than logical operators.
+    >>>     # Note this is equivalent to:
+    >>>     # tiledb.QueryCondition("((foo == 1) or (foo == 2)) and ('xyz' == var('b a r')) and ((foo & 1) == 0"))
+    >>>     A.query(cond=tiledb.QueryCondition("foo == 1 or foo == 2 and 'xyz' == var('b a r') and foo & 1 == 0"))
     """
 
     expression: str
