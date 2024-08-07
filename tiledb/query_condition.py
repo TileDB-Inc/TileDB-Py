@@ -45,30 +45,16 @@ class QueryCondition:
     Boolean expressions are chained together with Boolean operators. The ``or_op``
     Boolean operators are given lower presedence than ``and_op``.
 
-        ``query_cond ::= bool_term | query_cond or_op bool_term``
-
-        ``bool_term ::= bool_expr | bool_term and_op bool_expr``
-
     A Bitwise expression may either be a comparison expression or membership
     expression.
-
-        ``bitwise_expr ::= compare_expr | member_expr``
 
     A Boolean expression may either be a comparison expression or membership
     expression.
 
-        ``bool_expr ::= compare_expr | member_expr``
-
     A comparison expression contains a comparison operator. The operator works on a
     TileDB attribute or dimension name (hereby known as a "TileDB variable") and value.
 
-        ``compare_expr ::= var compare_op val
-            | val compare_op var
-            | val compare_op var compare_op val``
-
     All comparison operators are supported.
-
-        ``compare_op ::= < | > | <= | >= | == | !=``
 
     Bitwise operators are given higher precedence than comparison operators.
     Boolean operators are given lower precedence than comparison operators.
@@ -79,16 +65,10 @@ class QueryCondition:
     A membership expression contains the membership operator, ``in``. The operator
     works on a TileDB variable and list of values.
 
-        ``member_expr ::= var in <list>``
-
     TileDB variable names are Python valid variables or a ``attr()`` or ``dim()`` casted string.
-
-        ``var ::= <variable> | attr(<str>) | dim(<str>)``
 
     Values are any Python-valid number or string. datetime64 values should first be
     cast to UNIX seconds. Values may also be casted with ``val()``.
-
-        ``val ::= <num> | <str> | val(val)``
 
     **Example:**
 
