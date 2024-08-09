@@ -39,8 +39,6 @@ class QueryCondition:
     (https://docs.tiledb.com/main/background/internal-mechanics/writing#default-fill-values).
     An example may be found in `examples/query_condition_dense.py`.
 
-    **BNF:**
-
     A query condition is made up of one or more Boolean expressions. Multiple
     Boolean expressions are chained together with Boolean operators. The ``or_op``
     Boolean operators are given lower presedence than ``and_op``.
