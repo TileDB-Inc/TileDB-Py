@@ -99,6 +99,8 @@ void init_schema_evolution(py::module &m) {
                TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
              }
            })
+
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 25
       .def("expand_current_domain",
            [](ArraySchemaEvolution &inst, py::object current_domain_py) {
              tiledb_current_domain_t *current_domain_c =
@@ -110,7 +112,9 @@ void init_schema_evolution(py::module &m) {
              if (rc != TILEDB_OK) {
                TPY_ERROR_LOC(get_last_ctx_err_str(inst.ctx_, rc));
              }
-           });
+           })
+#endif
+      ;
 }
 
 }; // namespace tiledbpy
