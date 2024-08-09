@@ -8,6 +8,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 import tiledb
+from tiledb.libtiledb import version as libtiledb_version
 
 from .datatypes import DataType
 
@@ -207,7 +208,7 @@ class ColumnInfo:
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
-            if tiledb.libtiledb.version() < (2, 10) and pd_types.is_bool_dtype(dtype):
+            if libtiledb_version() < (2, 10) and pd_types.is_bool_dtype(dtype):
                 # as of libtiledb 2.10, we support TILEDB_BOOL
                 np_type = np.uint8
             else:
@@ -230,7 +231,7 @@ class ColumnInfo:
         # bool type
         if pd_types.is_bool_dtype(dtype):
             # as of libtiledb 2.10, we support TILEDB_BOOL
-            dtype = "uint8" if tiledb.libtiledb.version() < (2, 10) else "bool"
+            dtype = "uint8" if libtiledb_version() < (2, 10) else "bool"
             return cls(np.dtype(dtype), repr="bool")
 
         # complex types
