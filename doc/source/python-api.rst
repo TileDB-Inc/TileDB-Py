@@ -45,6 +45,18 @@ Config
 .. autoclass:: tiledb.Config
    :members:
 
+Current Domain
+--------------
+
+.. autoclass:: tiledb.CurrentDomain
+   :members:
+
+NDRectangle
+-----------
+
+.. autoclass:: tiledb.NDRectangle
+   :members:
+
 Array Schema
 ------------
 
@@ -68,7 +80,7 @@ Filters
    .. automethod:: __getitem__(idx)
    .. automethod:: __len__
 
-.. autoclass:: tiledb.libtiledb.CompressionFilter
+.. autoclass:: tiledb.CompressionFilter
    :members:
 .. autoclass:: tiledb.GzipFilter
    :members:
@@ -116,22 +128,21 @@ Dense Array
 -----------
 
 .. autoclass:: tiledb.DenseArray
-   :members:
-
-   .. automethod:: __getitem__(selection)
-   .. automethod:: __setitem__(selection, value)
-   .. automethod:: query
-   .. automethod:: from_numpy(uri, array, ctx=None, **kwargs)
+   :members: query
+   :special-members: __getitem__, __setitem__
 
 Sparse Array
 ------------
 
 .. autoclass:: tiledb.SparseArray
-   :members:
+   :members: query
+   :special-members: __getitem__, __setitem__
 
-   .. automethod:: __getitem__(selection)
-   .. automethod:: __setitem__(selection, value)
-   .. automethod:: query
+Query
+---------------
+
+.. autoclass:: tiledb.libtiledb.Query
+   :members:
 
 Query Condition
 ---------------
@@ -189,12 +200,17 @@ Fragment Info
 .. autoclass:: tiledb.FragmentInfo
    :members:
 
+Enumeration
+------------
+
+.. autoclass:: tiledb.Enumeration
+   :members:
+
 Exceptions
 ----------
 
 .. autoexception:: tiledb.TileDBError
    :members:
-
 
 VFS
 ---

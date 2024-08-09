@@ -1,4 +1,3 @@
-import tiledb
 import contextlib
 import datetime
 import glob
@@ -10,13 +9,15 @@ import subprocess
 import sys
 import tempfile
 import traceback
-import tiledb
-import uuid
 import urllib
+import uuid
 
 import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal, assert_equal
+from packaging.version import Version
+
+import tiledb
 
 SUPPORTED_DATETIME64_DTYPES = tuple(
     np.dtype(f"M8[{res}]") for res in "Y M W D h m s ms us ns".split()
@@ -24,11 +25,29 @@ SUPPORTED_DATETIME64_DTYPES = tuple(
 
 
 def has_pandas():
-    return importlib.util.find_spec("pandas") is not None
+    try:
+        import pandas as pd
+    except ImportError:
+        return False
+
+    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
+        "3.0.0.dev0"
+    ):
+        return False
+
+    return True
 
 
 def has_pyarrow():
-    return importlib.util.find_spec("pyarrow") is not None
+    try:
+        import pyarrow as pa
+
+        if Version(pa.__version__) < Version("1.0"):
+            return False
+    except ImportError:
+        return False
+
+    return True
 
 
 def assert_tail_equal(a, *rest, **kwargs):
@@ -40,9 +59,6 @@ def assert_tail_equal(a, *rest, **kwargs):
 def create_vfs_dir(path):
     """Create a directory at the given scheme-prefixed path,
     first creating the base bucket if needed."""
-
-    import urllib
-
     split_uri = urllib.parse.urlsplit(path)
     scheme = split_uri.scheme
     bucket = split_uri.netloc
@@ -151,7 +167,7 @@ class DiskTestCase:
 
     @contextlib.contextmanager
     def assertFalse(self, a):
-        assert a == False
+        assert a is False
 
     @contextlib.contextmanager
     def assertIsInstance(self, v, t):
@@ -175,20 +191,6 @@ class DiskTestCase:
         assert_almost_equal(a1, a2)
 
 
-# fixture wrapper to use with pytest: mark.parametrize does not
-#   work with DiskTestCase subclasses (unittest.TestCase methods
-#   cannot take arguments)
-@pytest.fixture(scope="class")
-def checked_path():
-    dtc = DiskTestCase()
-
-    dtc.setup_method()
-
-    yield dtc
-
-    dtc.teardown_method()
-
-
 # exclude whitespace: if we generate unquoted newline then pandas will be confused
 _ws_set = set("\n\t\r")
 
@@ -204,8 +206,15 @@ def gen_chr(max, printable=False):
     return s
 
 
-def rand_utf8(size=5):
-    return "".join([gen_chr(0xD7FF) for _ in range(0, size)])
+def rand_utf8(size=5, printable=False):
+    # This is a hack to ensure that all UTF-8 is parseable. It would be nicer to
+    # exclude invalid surrogate pairs, but this will do.
+    while True:
+        try:
+            v = "".join([gen_chr(0xD007F, printable=printable) for _ in range(0, size)])
+            return v.encode("UTF-8").decode()
+        except UnicodeError:
+            continue
 
 
 def rand_ascii(size=5, printable=False):
@@ -231,7 +240,7 @@ def dtype_max(dtype):
     elif np.issubdtype(dtype, np.datetime64):
         return np.datetime64(datetime.datetime.max)
 
-    raise "Unknown dtype for dtype_max '{}'".format(str(dtype))
+    raise f"Unknown dtype for dtype_max '{dtype}'"
 
 
 def dtype_min(dtype):
@@ -249,13 +258,7 @@ def dtype_min(dtype):
     elif np.issubdtype(dtype, np.datetime64):
         return np.datetime64(datetime.datetime.min)
 
-    raise "Unknown dtype for dtype_min '{dtype}'".format(str(dtype))
-
-
-def rand_int_sequential(size, dtype=np.uint64):
-    dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dtype)
-    arr = np.random.randint(dtype_min, high=dtype_max, size=size, dtype=dtype)
-    return np.sort(arr)
+    raise f"Unknown dtype for dtype_min '{dtype}'"
 
 
 def rand_datetime64_array(
@@ -322,16 +325,6 @@ def intspace(start, stop, num=50, dtype=np.int64):
     return rval
 
 
-import pprint as _pprint
-
-pp = _pprint.PrettyPrinter(indent=4)
-
-
-def xprint(*x):
-    for xp in x:
-        pp.pprint(xp)
-
-
 def assert_unordered_equal(a1, a2, unordered=True):
     """Assert that arrays are equal after sorting if
     `unordered==True`"""
@@ -352,25 +345,26 @@ def assert_subarrays_equal(a, b, ordered=True):
         assert_array_equal(a_el, b_el)
 
 
-def assert_all_arrays_equal(*arrays):
-    # TODO this should display raise in the calling location if possible
-    assert len(arrays) % 2 == 0, "Expected even number of arrays"
-
-    for a1, a2 in zip(arrays[0::2], arrays[1::2]):
-        assert_array_equal(a1, a2)
-
-
-def assert_dict_arrays_equal(d1, d2):
+def assert_dict_arrays_equal(d1, d2, ordered=True):
     assert d1.keys() == d2.keys(), "Keys not equal"
 
-    for k in d1.keys():
-        assert_array_equal(d1[k], d2[k])
+    if ordered:
+        for k in d1.keys():
+            assert_array_equal(d1[k], d2[k])
+    else:
+        d1_dtypes = [tuple((name, value.dtype)) for name, value in d1.items()]
+        d1_records = [tuple(values) for values in zip(*d1.values())]
+        array1 = np.array(d1_records, dtype=d1_dtypes)
+
+        d2_dtypes = [tuple((name, value.dtype)) for name, value in d2.items()]
+        d2_records = [tuple(values) for values in zip(*d2.values())]
+        array2 = np.array(d2_records, dtype=d2_dtypes)
+
+        assert_unordered_equal(array1, array2, True)
 
 
 def assert_captured(cap, expected):
-    if sys.platform == "win32":
-        return
-    else:
+    if sys.platform != "win32":
         import ctypes
 
         libc = ctypes.CDLL(None)
@@ -381,15 +375,6 @@ def assert_captured(cap, expected):
         assert expected in out
 
 
-def paths_equal(path1, path2):
-    p1 = urllib.parse.urlparse(path1)
-    p2 = urllib.parse.urlparse(path2)
-
-    if p1.scheme == p2.scheme:
-        pass
-    elif "file" in (p1.scheme, p2.scheme):
-        scheme_eq = p1.scheme == "file" or p1.scheme == ""
-        scheme_eq |= p2.scheme == "file" or p2.scheme == ""
-        return p1.path == p2.path and scheme_eq
-    else:
-        return p1.schema == p2.schema and p1.path == p2.path and p1.netloc == p2.netloc
+@pytest.fixture(scope="module", params=["hilbert", "row-major"])
+def fx_sparse_cell_order(request):
+    yield request.param

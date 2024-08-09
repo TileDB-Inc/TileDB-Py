@@ -11,23 +11,22 @@ TODO
 import random
 
 import numpy as np
-from numpy.testing import assert_array_equal
 import pytest
+from numpy.testing import assert_array_equal
 
 import tiledb
 from tiledb.multirange_indexing import getitem_ranges, mr_dense_result_shape
-from tiledb.tests.common import (
+
+from .common import (
+    SUPPORTED_DATETIME64_DTYPES,
     DiskTestCase,
+    assert_dict_arrays_equal,
     assert_tail_equal,
     has_pandas,
     has_pyarrow,
     intspace,
-    SUPPORTED_DATETIME64_DTYPES,
     rand_datetime64_array,
-    assert_dict_arrays_equal,
 )
-
-import hypothesis.extra.numpy as npst
 
 
 def make_1d_dense(path, attr_name="", attr_dtype=np.int64, dim_dtype=np.uint64):
@@ -142,7 +141,7 @@ class TestMultiRangeAuxiliary(DiskTestCase):
 class TestMultiRange(DiskTestCase):
     @pytest.mark.skipif(
         not has_pyarrow() or not has_pandas(),
-        reason="pyarrow and/or pandas not installed",
+        reason="pyarrow>=1.0 and/or pandas>=1.0,<3.0 not installed",
     )
     def test_return_arrow_indexers(self):
         uri = self.path("multirange_behavior_sparse")
@@ -184,7 +183,7 @@ class TestMultiRange(DiskTestCase):
 
     @pytest.mark.skipif(
         not has_pyarrow() or not has_pandas(),
-        reason="pyarrow and/or pandas not installed",
+        reason="pyarrow>=1.0 and/or pandas>=1.0,<3.0 not installed",
     )
     @pytest.mark.parametrize("sparse", [True, False])
     def test_return_large_arrow_table(self, sparse):
@@ -476,7 +475,6 @@ class TestMultiRange(DiskTestCase):
                 A[coords] = coords
 
             with tiledb.open(path) as A:
-
                 res = A.multi_index[slice(coords[0], coords[-1])]
                 assert_array_equal(res[attr_name], coords)
                 assert_array_equal(res["__dim_0"].astype(dtype), coords)
@@ -731,7 +729,7 @@ class TestMultiRange(DiskTestCase):
                 np.array([], dtype=np.uint64),
             )
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_fixed_multi_attr_df(self):
         uri = self.path("test_fixed_multi_attr_df")
         dom = tiledb.Domain(
@@ -765,7 +763,7 @@ class TestMultiRange(DiskTestCase):
             result = A.query(attrs=["111"], use_arrow=False)
             assert_array_equal(result.df[0]["111"], data_111)
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_var_multi_attr_df(self):
         uri = self.path("test_var_multi_attr_df")
         dom = tiledb.Domain(
@@ -847,7 +845,7 @@ class TestMultiRange(DiskTestCase):
             assert A.nonempty_domain() is None
             assert_array_equal(A.multi_index[:][""], A[:][""])
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_multi_index_query_args(self):
         uri = self.path("test_multi_index_query_args")
         schema = tiledb.ArraySchema(
@@ -873,7 +871,7 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(q.multi_index[:]["a"], q.df[:]["a"])
             assert all(q[:]["a"] >= 5)
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_multi_index_timing(self):
         path = self.path("test_multi_index_timing")
         attr_name = "a"
@@ -888,7 +886,7 @@ class TestMultiRange(DiskTestCase):
             assert "py.getitem_time.pandas_index_update_time :" in internal_stats
         tiledb.stats_disable()
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_fixed_width_char(self):
         uri = self.path("test_fixed_width_char")
         schema = tiledb.ArraySchema(
@@ -948,7 +946,7 @@ class TestMultiIndexND(DiskTestCase):
         # TODO support for dense?
         sparse = True  # ndarray indexing currently only supported for sparse
 
-        path = self.path(f"test_multi_index_ndarray")
+        path = self.path("test_multi_index_ndarray")
 
         ncells = 10
         data = np.arange(ncells - 1)
@@ -982,7 +980,7 @@ class TestMultiIndexND(DiskTestCase):
     def test_multi_index_ndarray_2d(self, dim_dtype):
         sparse = False
 
-        path = self.path(f"test_multi_index_ndarray_2d")
+        path = self.path("test_multi_index_ndarray_2d")
 
         ncells = 10
         ext = ncells - 1

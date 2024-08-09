@@ -3,17 +3,13 @@
 import re
 
 import numpy as np
+import pytest
 
-from pandas.api.extensions import (
-    ExtensionArray,
-    ExtensionDtype,
-    register_extension_dtype,
-)
+pd = pytest.importorskip("pandas")
 
 
-@register_extension_dtype
-class RaggedDtype(ExtensionDtype):
-
+@pd.api.extensions.register_extension_dtype
+class RaggedDtype(pd.api.extensions.ExtensionDtype):
     type = np.ndarray
     na_value = None
 
@@ -38,7 +34,7 @@ class RaggedDtype(ExtensionDtype):
         raise TypeError(f"Cannot construct a 'RaggedDtype' from '{string}'")
 
 
-class RaggedArray(ExtensionArray):
+class RaggedArray(pd.api.extensions.ExtensionArray):
     def __init__(self, arrays, dtype):
         assert isinstance(dtype, RaggedDtype)
         self._dtype = dtype

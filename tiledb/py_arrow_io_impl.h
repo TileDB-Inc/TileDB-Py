@@ -199,6 +199,10 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
   case TILEDB_FLOAT64:
     return ArrowInfo("g");
   case TILEDB_BLOB:
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
+  case TILEDB_GEOM_WKB:
+  case TILEDB_GEOM_WKT:
+#endif
     return ArrowInfo("B");
   case TILEDB_INT8:
     return ArrowInfo("c");
@@ -229,12 +233,9 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
     return ArrowInfo("tsu:");
   case TILEDB_DATETIME_NS:
     return ArrowInfo("tsn:");
-
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
   // TILEDB_BOOL is stored as a uint8_t but arrow::Type::BOOL is 1 bit
   case TILEDB_BOOL:
     return ArrowInfo("C");
-#endif
 
   // TODO: these could potentially be rep'd w/ additional
   //       language-specific metadata
@@ -311,10 +312,8 @@ TypeInfo arrow_type_to_tiledb(ArrowSchema *arw_schema) {
     return {TILEDB_CHAR, 1, cell_val_num, fmt == "w"};
   } else if (fmt == "u" || fmt == "U")
     return {TILEDB_STRING_UTF8, 1, TILEDB_VAR_NUM, fmt == "U"};
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
   else if (fmt == "b")
     return {TILEDB_BOOL, 1, 1, large};
-#endif
   else
     throw tiledb::TileDBError(
         "[TileDB-Arrow]: Unknown or unsupported Arrow format string '" + fmt +

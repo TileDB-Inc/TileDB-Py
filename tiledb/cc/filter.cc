@@ -1,5 +1,5 @@
 #include <tiledb/tiledb>
-//#include <tiledb/tiledb_experimental.h> // for filter_dump, not yet available
+// #include <tiledb/tiledb_experimental.h> // for filter_dump, not yet available
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -16,8 +16,7 @@ namespace py = pybind11;
 
 void init_filter(py::module &m) {
   py::class_<Filter>(m, "Filter")
-      .def(py::init<const Context &, tiledb_filter_type_t>(),
-           py::keep_alive<1, 2>())
+      .def(py::init<const Context &, tiledb_filter_type_t>())
 
       .def_property_readonly("_type", &Filter::filter_type)
 
@@ -38,6 +37,18 @@ void init_filter(py::module &m) {
              case TILEDB_SCALE_FLOAT_FACTOR:
              case TILEDB_SCALE_FLOAT_OFFSET:
                filter.set_option(option, value.cast<double>());
+               break;
+             case TILEDB_WEBP_INPUT_FORMAT:
+               filter.set_option(option, value.cast<uint8_t>());
+               break;
+             case TILEDB_WEBP_QUALITY:
+               filter.set_option(option, value.cast<float>());
+               break;
+             case TILEDB_WEBP_LOSSLESS:
+               filter.set_option(option, value.cast<uint8_t>());
+               break;
+             case TILEDB_COMPRESSION_REINTERPRET_DATATYPE:
+               filter.set_option(option, value.cast<uint8_t>());
                break;
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _set_option");
@@ -70,6 +81,25 @@ void init_filter(py::module &m) {
                filter.get_option(option, &value);
                return py::cast(value);
              }
+             case TILEDB_WEBP_INPUT_FORMAT: {
+               uint8_t value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_WEBP_QUALITY: {
+               float value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_WEBP_LOSSLESS: {
+               uint8_t value;
+               filter.get_option(option, &value);
+               return py::cast(value);
+             }
+             case TILEDB_COMPRESSION_REINTERPRET_DATATYPE: {
+               auto value = filter.get_option<uint8_t>(option);
+               return py::cast(static_cast<tiledb_datatype_t>(value));
+             }
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _get_option");
              }
@@ -86,12 +116,13 @@ void init_filter(py::module &m) {
   */
 
   py::class_<FilterList>(m, "FilterList")
-      .def(py::init<const Context &>(), py::keep_alive<1, 2>())
-      .def(py::init<const Context &, py::capsule>(), py::keep_alive<1, 2>())
+      .def(py::init<FilterList>())
+      .def(py::init<const Context &>())
+      .def(py::init<const Context &, py::capsule>())
 
       .def("__capsule__",
            [](FilterList &filterlist) {
-             return py::capsule(filterlist.ptr().get(), "fl", nullptr);
+             return py::capsule(filterlist.ptr().get(), "fl");
            })
 
       .def_property("_chunksize", &FilterList::max_chunk_size,

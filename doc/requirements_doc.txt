@@ -1,4 +1,0 @@
-docutils < 0.18
-jinja2==3.0.0
-
--r ../requirements_dev.txt

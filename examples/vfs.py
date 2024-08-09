@@ -32,9 +32,10 @@
 # This program explores the various TileDB VFS tools.
 #
 
-import struct
-import tiledb
 import os
+import struct
+
+import tiledb
 
 
 def path(p):
@@ -76,24 +77,19 @@ def write():
     # Create TileDB VFS
     vfs = tiledb.VFS()
 
-    # Create VFS file handle
-    f = vfs.open("tiledb_vfs.bin", "wb")
-
     # Write binary data
-    vfs.write(f, struct.pack("f", 153.0))
-    vfs.write(f, "abcd".encode("utf-8"))
-    vfs.close(f)
+    with vfs.open("tiledb_vfs.bin", "wb") as f:
+        f.write(struct.pack("f", 153.0))
+        f.write("abcd".encode("utf-8"))
 
     # Write binary data again - this will overwrite the previous file
-    f = vfs.open("tiledb_vfs.bin", "wb")
-    vfs.write(f, struct.pack("f", 153.1))
-    vfs.write(f, "abcdef".encode("utf-8"))
-    vfs.close(f)
+    with vfs.open("tiledb_vfs.bin", "wb") as f:
+        f.write(struct.pack("f", 153.1))
+        f.write("abcdef".encode("utf-8"))
 
     # Append binary data to existing file (this will NOT work on S3)
-    f = vfs.open("tiledb_vfs.bin", "ab")
-    vfs.write(f, "ghijkl".encode("utf-8"))
-    vfs.close(f)
+    with vfs.open("tiledb_vfs.bin", "ab") as f:
+        f.write("ghijkl".encode("utf-8"))
 
 
 def read():
@@ -101,12 +97,14 @@ def read():
     vfs = tiledb.VFS()
 
     # Read binary data
-    f = vfs.open("tiledb_vfs.bin", "rb")
-    f1 = struct.unpack("f", vfs.read(f, 0, 4))[0]
-    s1 = bytes.decode(vfs.read(f, 4, 12), "utf-8")
-    print("Binary read:\n{}\n{}".format(f1, s1))
+    with vfs.open("tiledb_vfs.bin", "rb") as f:
+        # Read the first 4 bytes (bytes [0:4])
+        f1 = struct.unpack("f", f.read(4))[0]
 
-    vfs.close(f)
+        # Read the next 8 bytes (bytes [4:12])
+        s1 = bytes.decode(f.read(8), "utf-8")
+
+        print(f"Binary read:\n{f1}\n{s1}")
 
 
 dirs_files()

@@ -34,8 +34,10 @@
 # (passed as an argument to the program: "row", "col", or "global").
 #
 
-import numpy as np
 import sys
+
+import numpy as np
+
 import tiledb
 
 # Name of the array to create.

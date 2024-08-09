@@ -1,14 +1,15 @@
 import os
-import time
-import warnings
+import pathlib
+
 import numpy as np
 import pytest
-
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from hypothesis.extra import numpy as st_np
 
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
 
 MIN_INT = np.iinfo(np.int64).min
 MAX_INT = np.iinfo(np.int64).max
@@ -116,7 +117,10 @@ class GroupTest(GroupTestCase):
             ),
         ),
     )
-    def test_group_metadata(self, int_data, flt_data, str_data, str_type, capfd):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_group_metadata(
+        self, int_data, flt_data, str_data, str_type, capfd, use_timestamps
+    ):
         def values_equal(lhs, rhs):
             if isinstance(lhs, np.ndarray):
                 if not isinstance(rhs, np.ndarray):
@@ -132,43 +136,37 @@ class GroupTest(GroupTestCase):
         grp_path = self.path("test_group_metadata")
         tiledb.Group.create(grp_path)
 
-        grp = tiledb.Group(grp_path, "w")
-        grp.meta["int"] = int_data
-        grp.meta["flt"] = flt_data
-        grp.meta["str"] = str_data
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
+        with tiledb.Group(grp_path, "w", cfg) as grp:
+            grp.meta["int"] = int_data
+            grp.meta["flt"] = flt_data
+            grp.meta["str"] = str_data
 
-        grp.open("r")
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
+        with tiledb.Group(grp_path, "r", cfg) as grp:
+            assert len(grp.meta) == 3
+            assert "int" in grp.meta
+            assert values_equal(grp.meta["int"], int_data)
+            assert "flt" in grp.meta
+            assert values_equal(grp.meta["flt"], flt_data)
+            assert "str" in grp.meta
+            assert values_equal(grp.meta["str"], str_data)
 
-        assert len(grp.meta) == 3
-        assert "int" in grp.meta
-        assert values_equal(grp.meta["int"], int_data)
-        assert "flt" in grp.meta
-        assert values_equal(grp.meta["flt"], flt_data)
-        assert "str" in grp.meta
-        assert values_equal(grp.meta["str"], str_data)
-        time.sleep(0.001)
+            grp.meta.dump()
+            metadata_dump = capfd.readouterr().out
 
-        grp.meta.dump()
-        metadata_dump = capfd.readouterr().out
+            assert "Type: DataType.FLOAT" in metadata_dump
+            assert "Type: DataType.INT" in metadata_dump
+            assert f"Type: DataType.{str_type}" in metadata_dump
 
-        assert "Type: DataType.FLOAT" in metadata_dump
-        assert "Type: DataType.INT" in metadata_dump
-        assert f"Type: DataType.{str_type}" in metadata_dump
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
+        with tiledb.Group(grp_path, "w", cfg) as grp:
+            del grp.meta["int"]
 
-        grp.close()
-
-        grp.open("w")
-        del grp.meta["int"]
-        time.sleep(0.001)
-        grp.close()
-
-        grp = tiledb.Group(grp_path, "r")
-        assert len(grp.meta) == 2
-        assert "int" not in grp.meta
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
+        with tiledb.Group(grp_path, "r", cfg) as grp:
+            assert len(grp.meta) == 2
+            assert "int" not in grp.meta
 
     def test_group_members(self):
         grp_path = self.path("test_group_members")
@@ -176,7 +174,7 @@ class GroupTest(GroupTestCase):
 
         grp = tiledb.Group(grp_path, "w")
         assert os.path.basename(grp.uri) == os.path.basename(grp_path)
-        array_path = self.path("test_group_members")
+        array_path = self.path("test_group_members_array")
         domain = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
         a1 = tiledb.Attr("val", dtype="f8")
         schema = tiledb.ArraySchema(domain=domain, attrs=(a1,))
@@ -208,7 +206,7 @@ class GroupTest(GroupTestCase):
         assert grp[1].name is None
 
         assert "test_group_members GROUP" in repr(grp)
-        assert "|-- test_group_members ARRAY" in repr(grp)
+        assert "|-- test_group_members_array ARRAY" in repr(grp)
         assert "|-- test_group_0 GROUP" in repr(grp)
 
         grp.close()
@@ -271,6 +269,97 @@ class GroupTest(GroupTestCase):
         assert len(grp) == 0
         grp.close()
 
+    def test_pass_context(self):
+        foo = self.path("foo")
+        bar = self.path("foo/bar")
+
+        tiledb.group_create(foo)
+        tiledb.group_create(bar)
+
+        ctx = tiledb.Ctx()
+        with tiledb.Group(foo, mode="w", ctx=ctx) as G:
+            G.add(bar, name="bar")
+
+        with tiledb.Group(foo, mode="r", ctx=ctx) as G:
+            assert "bar" in G
+
+    def test_relative(self):
+        group1 = self.path("group1")
+        group2_1 = self.path("group1/group2_1")
+        group2_2 = self.path("group1/group2_2")
+
+        tiledb.group_create(group2_1)
+        tiledb.group_create(group2_2)
+
+        with tiledb.Group(group1, mode="w") as G:
+            G.add(group2_1, name="group2_1", relative=False)
+            G.add("group2_2", name="group2_2", relative=True)
+
+        with tiledb.Group(group1, mode="r") as G:
+            assert G.is_relative("group2_1") is False
+            assert G.is_relative("group2_2") is True
+
+    def test_set_config(self):
+        group_uri = self.path("foo")
+        array_uri_1 = self.path("foo/a")
+        array_uri_2 = self.path("foo/b")
+
+        tiledb.group_create(group_uri)
+
+        dom = tiledb.Domain(tiledb.Dim("id", dtype="ascii"))
+        attr = tiledb.Attr("value", dtype=np.int64)
+        sch = tiledb.ArraySchema(domain=dom, attrs=(attr,), sparse=True)
+
+        tiledb.Array.create(array_uri_1, sch)
+        tiledb.Array.create(array_uri_2, sch)
+
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2000})
+        with tiledb.Group(group_uri, "w", cfg) as G:
+            G.add(name="a", uri="a", relative=True)
+
+        cfg = tiledb.Config({"sm.group.timestamp_end": 3000})
+        with tiledb.Group(group_uri, "w", cfg) as G:
+            G.add(name="b", uri="b", relative=True)
+
+        ms = np.arange(1000, 4000, 1000, dtype=np.int64)
+
+        for sz, m in enumerate(ms):
+            cfg = tiledb.Config({"sm.group.timestamp_end": m})
+
+            G = tiledb.Group(group_uri)
+
+            # Cannot set config on open group
+            with self.assertRaises(ValueError):
+                G.set_config(cfg)
+
+            G.close()
+            G.set_config(cfg)
+
+            G.open()
+            assert len(G) == sz
+            G.close()
+
+        for sz, m in enumerate(ms):
+            cfg = tiledb.Config({"sm.group.timestamp_end": m})
+
+            with tiledb.Group(group_uri, config=cfg) as G:
+                assert len(G) == sz
+
+    def test_invalid_object_type(self):
+        path = self.path()
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim("id", dtype="ascii")),
+            attrs=(tiledb.Attr("value", dtype=np.int64),),
+            sparse=True,
+        )
+        tiledb.Array.create(path, schema)
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Group(uri=path, mode="w")
+
+    def test_group_does_not_exist(self):
+        with self.assertRaises(tiledb.TileDBError):
+            tiledb.Group("does-not-exist")
+
 
 class GroupMetadataTest(GroupTestCase):
     @pytest.mark.parametrize(
@@ -281,7 +370,8 @@ class GroupMetadataTest(GroupTestCase):
             (np.array([1, 2, 3]), np.array([1.5, 2.5, 3.5]), np.array(["x"])),
         ),
     )
-    def test_group_metadata(self, int_data, flt_data, str_data):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_group_metadata(self, int_data, flt_data, str_data, use_timestamps):
         def values_equal(lhs, rhs):
             if isinstance(lhs, np.ndarray):
                 if not isinstance(rhs, np.ndarray):
@@ -297,35 +387,31 @@ class GroupMetadataTest(GroupTestCase):
         grp_path = self.path("test_group_metadata")
         tiledb.Group.create(grp_path)
 
-        grp = tiledb.Group(grp_path, "w")
-        grp.meta["int"] = int_data
-        grp.meta["flt"] = flt_data
-        grp.meta["str"] = str_data
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
+        with tiledb.Group(grp_path, "w", cfg) as grp:
+            grp.meta["int"] = int_data
+            grp.meta["flt"] = flt_data
+            grp.meta["str"] = str_data
 
-        grp.open("r")
-        assert grp.meta.keys() == {"int", "flt", "str"}
-        assert len(grp.meta) == 3
-        assert "int" in grp.meta
-        assert values_equal(grp.meta["int"], int_data)
-        assert "flt" in grp.meta
-        assert values_equal(grp.meta["flt"], flt_data)
-        assert "str" in grp.meta
-        assert values_equal(grp.meta["str"], str_data)
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
+        with tiledb.Group(grp_path, "r", cfg) as grp:
+            assert grp.meta.keys() == {"int", "flt", "str"}
+            assert len(grp.meta) == 3
+            assert "int" in grp.meta
+            assert values_equal(grp.meta["int"], int_data)
+            assert "flt" in grp.meta
+            assert values_equal(grp.meta["flt"], flt_data)
+            assert "str" in grp.meta
+            assert values_equal(grp.meta["str"], str_data)
 
-        grp.open("w")
-        del grp.meta["int"]
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
+        with tiledb.Group(grp_path, "w", cfg) as grp:
+            del grp.meta["int"]
 
-        grp = tiledb.Group(grp_path, "r")
-        assert len(grp.meta) == 2
-        assert "int" not in grp.meta
-        time.sleep(0.001)
-        grp.close()
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
+        with tiledb.Group(grp_path, "r", cfg) as grp:
+            assert len(grp.meta) == 2
+            assert "int" not in grp.meta
 
     def assert_equal_md_values(self, written_value, read_value):
         if isinstance(written_value, np.ndarray):
@@ -499,32 +585,54 @@ class GroupMetadataTest(GroupTestCase):
         self.assert_metadata_roundtrip(grp.meta, test_vals)
         grp.close()
 
-    def test_pass_context(self):
-        foo = self.path("foo")
-        bar = self.path("foo/bar")
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_consolidation_and_vac(self, use_timestamps):
+        vfs = tiledb.VFS()
+        path = self.path("test_consolidation_and_vac")
+        tiledb.Group.create(path)
 
-        tiledb.group_create(foo)
-        tiledb.group_create(bar)
+        cfg = tiledb.Config({"sm.group.timestamp_end": 1} if use_timestamps else {})
+        with tiledb.Group(path, "w", cfg) as grp:
+            grp.meta["meta"] = 1
 
-        ctx = tiledb.Ctx()
-        with tiledb.Group(foo, mode="w", ctx=ctx) as G:
-            G.add(bar, name="bar")
+        cfg = tiledb.Config({"sm.group.timestamp_end": 2} if use_timestamps else {})
+        with tiledb.Group(path, "w", cfg) as grp:
+            grp.meta["meta"] = 2
 
-        with tiledb.Group(foo, mode="r", ctx=ctx) as G:
-            assert "bar" in G
+        cfg = tiledb.Config({"sm.group.timestamp_end": 3} if use_timestamps else {})
+        with tiledb.Group(path, "w", cfg) as grp:
+            grp.meta["meta"] = 3
 
-    def test_relative(self):
-        group1 = self.path("group1")
-        group2_1 = self.path("group1/group2_1")
-        group2_2 = self.path("group1/group2_2")
+        meta_path = pathlib.Path(path) / "__meta"
+        assert len(vfs.ls(meta_path)) == 3
 
-        tiledb.group_create(group2_1)
-        tiledb.group_create(group2_2)
+        tiledb.Group.consolidate_metadata(path, cfg)
+        tiledb.Group.vacuum_metadata(path, cfg)
 
-        with tiledb.Group(group1, mode="w") as G:
-            G.add(group2_1, name="group2_1", relative=False)
-            G.add("group2_2", name="group2_2", relative=True)
+        assert len(vfs.ls(meta_path)) == 1
 
-        with tiledb.Group(group1, mode="r") as G:
-            assert G.is_relative("group2_1") == False
-            assert G.is_relative("group2_2") == True
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 18, 0),
+        reason="Group consolidation and vacuuming not available < 2.18",
+    )
+    def test_consolidation_and_vac_no_config(self):
+        vfs = tiledb.VFS()
+        path = self.path("test_consolidation_and_vac")
+        tiledb.Group.create(path)
+
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 1
+
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 2
+
+        with tiledb.Group(path, "w") as grp:
+            grp.meta["meta"] = 3
+
+        meta_path = pathlib.Path(path) / "__meta"
+        assert len(vfs.ls(meta_path)) == 3
+
+        tiledb.Group.consolidate_metadata(path)
+        tiledb.Group.vacuum_metadata(path)
+
+        assert len(vfs.ls(meta_path)) == 1

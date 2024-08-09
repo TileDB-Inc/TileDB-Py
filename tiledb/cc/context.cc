@@ -12,18 +12,16 @@ namespace py = pybind11;
 
 void init_context(py::module &m) {
   py::class_<Context>(m, "Context")
+      .def(py::init<Context>())
       .def(py::init())
       .def(py::init<Config>())
       .def(py::init<py::capsule, bool>())
-      .def(py::init([](py::object ctx, bool own) {
-             return Context(py::capsule(ctx.attr("__capsule__")()), own);
-           }),
-           py::keep_alive<1, 2>())
 
       .def("__capsule__",
-           [](Context &ctx) {
-             return py::capsule(ctx.ptr().get(), "ctx", nullptr);
-           })
+           [](Context &ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
+
+      .def("__capsule__",
+           [](Context &ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
 
       .def("config", &Context::config)
       .def("set_tag", &Context::set_tag)
@@ -33,13 +31,14 @@ void init_context(py::module &m) {
 
 void init_config(py::module &m) {
   py::class_<tiledb::Config>(m, "Config")
+      .def(py::init<Config>())
       .def(py::init())
       .def(py::init<std::map<std::string, std::string>>())
       .def(py::init<std::string>())
 
       .def("__capsule__",
            [](Config &config) {
-             return py::capsule(config.ptr().get(), "config", nullptr);
+             return py::capsule(config.ptr().get(), "config");
            })
 
       .def("set", &Config::set)
@@ -76,7 +75,7 @@ void init_config(py::module &m) {
       .def(
           "_iter",
           [](Config &cfg, std::string prefix) {
-            return py::make_iterator(cfg.begin(), cfg.end());
+            return py::make_iterator(cfg.begin(prefix), cfg.end());
           },
           py::keep_alive<0, 1>(), py::arg("prefix") = "")
       .def("unset", &Config::unset);

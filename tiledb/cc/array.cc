@@ -1,6 +1,8 @@
 #include <tiledb/tiledb.h> // for enums
 #include <tiledb/tiledb>   // C++
 
+#include "common.h"
+
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
@@ -18,22 +20,21 @@ void init_array(py::module &m) {
       .def(
           py::init<const Context &, const std::string &, tiledb_query_type_t>(),
           py::keep_alive<1, 2>() /* Array keeps Context alive */)
+
+      // Temporary initializer while Array is converted from Cython to PyBind.
+      .def(py::init([](const Context &ctx, py::object array) {
+             tiledb_array_t *c_array = (py::capsule)array.attr("__capsule__")();
+             return std::make_unique<Array>(ctx, c_array, false);
+           }),
+           py::keep_alive<1, 2>(), py::keep_alive<1, 3>())
+
       // TODO capsule Array(const Context& ctx, tiledb_array_t* carray,
       // tiledb_config_t* config)
       .def("is_open", &Array::is_open)
       .def("uri", &Array::uri)
       .def("schema", &Array::schema)
       //.def("ptr", [](Array& arr){ return py::capsule(arr.ptr()); } )
-      // open with encryption key
-      .def("open",
-           (void (Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
-                            const std::string &)) &
-               Array::open)
-      // open with encryption key and timestamp
-      .def("open",
-           (void (Array::*)(tiledb_query_type_t, tiledb_encryption_type_t,
-                            const std::string &, uint64_t)) &
-               Array::open)
+      .def("open", (void(Array::*)(tiledb_query_type_t)) & Array::open)
       .def("reopen", &Array::reopen)
       .def("set_open_timestamp_start", &Array::set_open_timestamp_start)
       .def("set_open_timestamp_end", &Array::set_open_timestamp_end)
@@ -44,20 +45,46 @@ void init_array(py::module &m) {
       .def("config", &Array::config)
       .def("close", &Array::close)
       .def("consolidate",
-           py::overload_cast<const Context &, const std::string &,
-                             Config *const>(&Array::consolidate))
+           [](Array &self, const Context &ctx, Config *config) {
+             if (self.query_type() == TILEDB_READ) {
+               throw TileDBError("cannot consolidate array opened in readonly "
+                                 "mode (mode='r')");
+             }
+             Array::consolidate(ctx, self.uri(), config);
+           })
       .def("consolidate",
-           py::overload_cast<const Context &, const std::string &,
-                             tiledb_encryption_type_t, const std::string &,
-                             Config *const>(&Array::consolidate))
-      //(void (Array::*)(const Context&, const std::string&,
-      //                 tiledb_encryption_type_t, const std::string&,
-      //                 Config* const)&Array::consolidate)&Array::consolidate)
+           [](Array &self, const Context &ctx,
+              const std::vector<std::string> &fragment_uris, Config *config) {
+             if (self.query_type() == TILEDB_READ) {
+               throw TileDBError("cannot consolidate array opened in readonly "
+                                 "mode (mode='r')");
+             }
+             std::vector<const char *> c_strings;
+             c_strings.reserve(fragment_uris.size());
+             for (const auto &str : fragment_uris) {
+               c_strings.push_back(str.c_str());
+             }
+
+             Array::consolidate(ctx, self.uri(), c_strings.data(),
+                                fragment_uris.size(), config);
+           })
+      .def("consolidate",
+           [](Array &self, const Context &ctx,
+              const std::tuple<int, int> &timestamp, Config *config) {
+             if (self.query_type() == TILEDB_READ) {
+               throw TileDBError("cannot consolidate array opened in readonly "
+                                 "mode (mode='r')");
+             }
+             int start, end;
+             std::tie(start, end) = timestamp;
+
+             config->set("sm.consolidation.timestamp_start",
+                         std::to_string(start));
+             config->set("sm.consolidation.timestamp_end", std::to_string(end));
+
+             Array::consolidate(ctx, self.uri(), config);
+           })
       .def("vacuum", &Array::vacuum)
-      .def("create",
-           py::overload_cast<const std::string &, const ArraySchema &,
-                             tiledb_encryption_type_t, const std::string &>(
-               &Array::create))
       .def("create",
            py::overload_cast<const std::string &, const ArraySchema &>(
                &Array::create))
@@ -70,9 +97,20 @@ void init_array(py::module &m) {
       // TODO non_empty_domain_var
 
       .def("query_type", &Array::query_type)
+      .def("consolidate_fragments",
+           [](Array &self, const Context &ctx,
+              const std::vector<std::string> &fragment_uris, Config *config) {
+             std::vector<const char *> c_strings;
+             c_strings.reserve(fragment_uris.size());
+             for (const auto &str : fragment_uris) {
+               c_strings.push_back(str.c_str());
+             }
+             ctx.handle_error(tiledb_array_consolidate_fragments(
+                 ctx.ptr().get(), self.uri().c_str(), c_strings.data(),
+                 fragment_uris.size(), config->ptr().get()));
+           })
       .def("consolidate_metadata",
            py::overload_cast<const Context &, const std::string &,
-                             tiledb_encryption_type_t, const std::string &,
                              Config *const>(&Array::consolidate_metadata))
       .def("put_metadata",
            [](Array &self, std::string &key, tiledb_datatype_t tdb_type,
@@ -104,8 +142,8 @@ void init_array(py::module &m) {
       .def("get_metadata",
            [](Array &self, std::string &key) -> py::buffer {
              tiledb_datatype_t tdb_type;
-             uint32_t value_num;
-             const void *data_ptr;
+             uint32_t value_num = 0;
+             const void *data_ptr = nullptr;
 
              self.get_metadata(key, &tdb_type, &value_num, &data_ptr);
 
@@ -120,8 +158,8 @@ void init_array(py::module &m) {
       .def("get_metadata_from_index",
            [](Array &self, uint64_t index) -> py::tuple {
              tiledb_datatype_t tdb_type;
-             uint32_t value_num;
-             const void *data_ptr;
+             uint32_t value_num = 0;
+             const void *data_ptr = nullptr;
              std::string key;
 
              self.get_metadata_from_index(index, &key, &tdb_type, &value_num,
@@ -145,7 +183,10 @@ void init_array(py::module &m) {
              bool has_it = self.has_metadata(key, &has_type);
              return py::make_tuple(has_it, has_type);
            })
-      .def("metadata_num", &Array::metadata_num);
+      .def("metadata_num", &Array::metadata_num)
+      .def("delete_array",
+           py::overload_cast<const Context &, const std::string &>(
+               &Array::delete_array));
 }
 
 } // namespace libtiledbcpp

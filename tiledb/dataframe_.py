@@ -3,21 +3,18 @@ import json
 import os
 import warnings
 from dataclasses import dataclass
-from typing import List, Optional, TYPE_CHECKING, Union
-
-if TYPE_CHECKING:
-    import pandas as pd
+from typing import Any, List, Optional, Union
 
 import numpy as np
 
 import tiledb
-from tiledb import libtiledb
-from tiledb.cc import TileDBError
+
+from .datatypes import DataType
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas version >= 1.0 required for dataframe functionality.
-                  Please `pip install pandas>=1.0` to proceed."""
+    pd_error = """Pandas version >= 1.0 and < 3.0 required for dataframe functionality.
+                  Please `pip install pandas>=1.0,<3.0` to proceed."""
     pa_error = """PyArrow version >= 1.0 is suggested for dataframe functionality.
                   Please `pip install pyarrow>=1.0`."""
 
@@ -28,7 +25,9 @@ def check_dataframe_deps():
 
     from packaging.version import Version
 
-    if Version(pd.__version__) < Version("1.0"):
+    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
+        "3.0.0.dev0"
+    ):
         raise Exception(pd_error)
 
     try:
@@ -78,16 +77,81 @@ def parse_tiledb_kwargs(kwargs):
     return parsed_args
 
 
+def _infer_dtype_from_pandas(values, column_name):
+    from pandas.api import types as pd_types
+
+    inferred_dtype = pd_types.infer_dtype(values)
+    if inferred_dtype == "bytes":
+        return np.bytes_
+    elif inferred_dtype == "string":
+        return "<U0"
+    elif inferred_dtype == "floating":
+        return np.float64
+    elif inferred_dtype == "integer":
+        return np.int64
+    elif inferred_dtype == "mixed-integer":
+        raise NotImplementedError(
+            f"Pandas type 'mixed-integer' is not supported (column {column_name})"
+        )
+    elif inferred_dtype == "mixed-integer-float":
+        raise NotImplementedError(
+            f"Pandas type 'mixed-integer-float' is not supported (column {column_name})"
+        )
+    elif inferred_dtype == "decimal":
+        return np.float64
+    elif inferred_dtype == "complex":
+        return np.complex128
+    elif inferred_dtype == "categorical":
+        raise NotImplementedError(
+            f"Pandas type 'categorical of categorical' is not supported (column {column_name})"
+        )
+    elif inferred_dtype == "boolean":
+        return np.bool_
+    elif inferred_dtype == "datetime64":
+        return np.datetime64
+    elif inferred_dtype == "datetime":
+        return np.datetime64
+    elif inferred_dtype == "date":
+        return np.datetime64
+    elif inferred_dtype == "timedelta64":
+        return np.timedelta64
+    elif inferred_dtype == "timedelta":
+        return np.timedelta64
+    elif inferred_dtype == "time":
+        return np.timedelta64
+    elif inferred_dtype == "period":
+        raise NotImplementedError(
+            f"Pandas type 'period' is not supported (column {column_name})"
+        )
+    elif inferred_dtype == "mixed":
+        raise NotImplementedError(
+            f"Pandas type 'mixed' is not supported (column {column_name})"
+        )
+    elif inferred_dtype == "unknown-array":
+        raise NotImplementedError(
+            f"Pandas type 'unknown-array' is not supported (column {column_name})"
+        )
+
+
+@dataclass(frozen=True)
+class EnumerationInfo:
+    dtype: np.dtype
+    ordered: bool = False
+    values: List[Any] = None
+
+
 @dataclass(frozen=True)
 class ColumnInfo:
-
     dtype: np.dtype
     repr: Optional[str] = None
     nullable: bool = False
     var: bool = False
+    enumeration: bool = False
+    enumeration_info: Optional[EnumerationInfo] = None
 
     @classmethod
     def from_values(cls, array_like, varlen_types=()):
+        from pandas import CategoricalDtype
         from pandas.api import types as pd_types
 
         if pd_types.is_object_dtype(array_like):
@@ -96,26 +160,46 @@ class ColumnInfo:
             #       problems w/ allowing non-string types in object columns)
             inferred_dtype = pd_types.infer_dtype(array_like)
             if inferred_dtype == "bytes":
-                return cls.from_dtype(np.bytes_)
+                return cls.from_dtype(np.bytes_, array_like.name)
             elif inferred_dtype == "string":
                 # TODO we need to make sure this is actually convertible
-                return cls.from_dtype(np.str_)
+                return cls.from_dtype(np.str_, array_like.name)
             else:
                 raise NotImplementedError(
-                    f"{inferred_dtype} inferred dtype not supported"
+                    f"{inferred_dtype} inferred dtype not supported (column {array_like.name})"
                 )
+        elif hasattr(array_like, "dtype") and isinstance(
+            array_like.dtype, CategoricalDtype
+        ):
+            return cls.from_categorical(
+                array_like.cat, array_like.dtype, array_like.name
+            )
         else:
             if not hasattr(array_like, "dtype"):
                 array_like = np.asanyarray(array_like)
-            return cls.from_dtype(array_like.dtype, varlen_types)
+            return cls.from_dtype(array_like.dtype, array_like.name, varlen_types)
 
     @classmethod
-    def from_dtype(cls, dtype, varlen_types=()):
+    def from_categorical(cls, cat, dtype, column_name):
+        values = cat.categories.values
+        inferred_dtype = _infer_dtype_from_pandas(values, column_name)
+
+        return cls(
+            np.int32,
+            repr=dtype.name,
+            nullable=False,
+            var=False,
+            enumeration=True,
+            enumeration_info=EnumerationInfo(
+                values=values, ordered=cat.ordered, dtype=inferred_dtype
+            ),
+        )
+
+    @classmethod
+    def from_dtype(cls, dtype, column_name, varlen_types=()):
         from pandas.api import types as pd_types
 
-        if (type(dtype) == str and dtype == "ascii") or (
-            type(dtype) == np.dtype and str(dtype) == "ascii"
-        ):
+        if isinstance(dtype, str) and dtype == "ascii":
             return cls("ascii", var=True)
 
         dtype = pd_types.pandas_dtype(dtype)
@@ -151,13 +235,15 @@ class ColumnInfo:
 
         # complex types
         if pd_types.is_complex_dtype(dtype):
-            raise NotImplementedError("complex dtype not supported")
+            raise NotImplementedError(
+                f"complex dtype not supported (column {column_name})"
+            )
 
         # remaining numeric types
         if pd_types.is_numeric_dtype(dtype):
             if dtype == np.float16 or hasattr(np, "float128") and dtype == np.float128:
                 raise NotImplementedError(
-                    "Only single and double precision float dtypes are supported"
+                    f"Only single and double precision float dtypes are supported (column {column_name})"
                 )
             return cls(dtype)
 
@@ -167,7 +253,7 @@ class ColumnInfo:
                 return cls(dtype)
             else:
                 raise NotImplementedError(
-                    "Only 'datetime64[ns]' datetime dtype is supported"
+                    f"Only 'datetime64[ns]' datetime dtype is supported (column {column_name})"
                 )
 
         # string types
@@ -176,14 +262,16 @@ class ColumnInfo:
             # str and bytes are always stored as var-length
             return cls(dtype, var=True)
 
-        raise NotImplementedError(f"{dtype} dtype not supported")
+        raise NotImplementedError(f"{dtype} dtype not supported (column {column_name})")
 
 
 def _get_column_infos(df, column_types, varlen_types):
     column_infos = {}
     for name, column in df.items():
         if column_types and name in column_types:
-            column_infos[name] = ColumnInfo.from_dtype(column_types[name], varlen_types)
+            column_infos[name] = ColumnInfo.from_dtype(
+                column_types[name], name, varlen_types
+            )
         else:
             column_infos[name] = ColumnInfo.from_values(column, varlen_types)
     return column_infos
@@ -212,21 +300,54 @@ def _get_attr_dim_filters(name, filters):
         return _get_schema_filters(filters)
 
 
+def _get_enums(names, column_infos):
+    enums = []
+    for name in names:
+        column_info = column_infos[name]
+        if not column_info.enumeration:
+            continue
+        enums.append(
+            tiledb.Enumeration(
+                name=name,
+                # Pandas categoricals are always ordered
+                ordered=column_info.enumeration_info.ordered,
+                values=np.array(
+                    column_info.enumeration_info.values,
+                    dtype=column_info.enumeration_info.dtype,
+                ),
+            )
+        )
+
+    return enums
+
+
 def _get_attrs(names, column_infos, attr_filters):
     attrs = []
     attr_reprs = {}
     for name in names:
         filters = _get_attr_dim_filters(name, attr_filters)
         column_info = column_infos[name]
-        attrs.append(
-            tiledb.Attr(
-                name=name,
-                filters=filters,
-                dtype=column_info.dtype,
-                nullable=column_info.nullable,
-                var=column_info.var,
+        if column_info.enumeration:
+            attrs.append(
+                tiledb.Attr(
+                    name=name,
+                    filters=filters,
+                    dtype=np.int32,
+                    enum_label=name,
+                    nullable=column_info.nullable,
+                    var=column_info.var,
+                )
             )
-        )
+        else:
+            attrs.append(
+                tiledb.Attr(
+                    name=name,
+                    filters=filters,
+                    dtype=column_info.dtype,
+                    nullable=column_info.nullable,
+                    var=column_info.var,
+                )
+            )
 
         if column_info.repr is not None:
             attr_reprs[name] = column_info.repr
@@ -234,36 +355,31 @@ def _get_attrs(names, column_infos, attr_filters):
     return attrs, attr_reprs
 
 
-def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=None):
-    if full_domain:
-        if dtype not in (np.bytes_, np.str_):
-            # Use the full type domain, deferring to the constructor
-            dtype_min, dtype_max = tiledb.libtiledb.dtype_range(dtype)
-            dim_max = dtype_max
-            if dtype.kind == "M":
-                date_unit = np.datetime_data(dtype)[0]
-                dim_min = np.datetime64(dtype_min, date_unit)
-                tile_max = np.iinfo(np.uint64).max - tile
-                if np.uint64(dtype_max - dtype_min) > tile_max:
-                    dim_max = np.datetime64(dtype_max - tile, date_unit)
-            else:
-                dim_min = dtype_min
-
-            if np.issubdtype(dtype, np.integer):
-                tile_max = np.iinfo(np.uint64).max - tile
-                if np.uint64(dtype_max - dtype_min) > tile_max:
-                    dim_max = dtype_max - tile
-        else:
-            dim_min, dim_max = None, None
+def create_dim(dtype, values, full_domain, tile, **kwargs):
+    if not full_domain:
+        values = np.asarray(values)
+        dim_min = values.min()
+        dim_max = values.max()
+    elif not np.issubdtype(dtype, np.character):
+        dim_min, dim_max = dtype_min, dtype_max = DataType.from_numpy(dtype).domain
+        # TODO: simplify this logic and/or move to DataType.domain
+        if np.issubdtype(dtype, np.datetime64):
+            date_unit = np.datetime_data(dtype)[0]
+            dim_min = np.datetime64(dtype_min, date_unit)
+            tile_max = np.iinfo(np.uint64).max - tile
+            if np.uint64(dtype_max - dtype_min) > tile_max:
+                dim_max = np.datetime64(dtype_max - tile, date_unit)
+        elif np.issubdtype(dtype, np.integer):
+            tile_max = np.iinfo(np.uint64).max - tile
+            if np.uint64(dtype_max - dtype_min) > tile_max:
+                dim_max = dtype_max - tile
     else:
-        if not isinstance(values, np.ndarray):
-            values = values.values
-        dim_min = np.min(values)
-        dim_max = np.max(values)
+        dim_min, dim_max = None, None
 
-    if np.issubdtype(dtype, np.integer) or dtype.kind == "M":
+    # TODO: simplify this logic and/or move to DataType.cast_tile_extent
+    if np.issubdtype(dtype, np.integer) or np.issubdtype(dtype, np.datetime64):
         # we can't make a tile larger than the dimension range or lower than 1
-        tile = max(1, min(tile, np.uint64(dim_max - dim_min)))
+        tile = max(1, min(tile, 1 + np.uint64(dim_max - dim_min)))
     elif np.issubdtype(dtype, np.floating):
         # this difference can be inf
         with np.errstate(over="ignore"):
@@ -272,27 +388,28 @@ def dim_for_column(name, values, dtype, tile, full_domain=False, dim_filters=Non
             tile = np.ceil(dim_range)
 
     return tiledb.Dim(
-        name=name,
         domain=(dim_min, dim_max),
         # libtiledb only supports TILEDB_ASCII dimensions, so we must use
         # nb.bytes_ which will force encoding on write
         dtype=np.bytes_ if dtype == np.str_ else dtype,
         tile=tile,
-        filters=dim_filters,
+        **kwargs,
     )
 
 
 def _sparse_from_dtypes(dtypes, sparse=None):
     if any(dtype in (np.bytes_, np.str_) for dtype in dtypes):
         if sparse is False:
-            raise TileDBError("Cannot create dense array with string-typed dimensions")
+            raise tiledb.TileDBError(
+                "Cannot create dense array with string-typed dimensions"
+            )
         if sparse is None:
             return True
 
     dtype0 = next(iter(dtypes))
     if not all(dtype0 == dtype for dtype in dtypes):
         if sparse is False:
-            raise TileDBError(
+            raise tiledb.TileDBError(
                 "Cannot create dense array with heterogeneous dimension data types"
             )
         if sparse is None:
@@ -348,13 +465,13 @@ def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
         return dim_tile if dim_tile is not None else default_dim_tile
 
     dims = [
-        dim_for_column(
-            name,
-            values,
-            dtype,
-            tile=get_dim_tile(name),
+        create_dim(
+            dtype=dtype,
+            values=values,
             full_domain=full_domain,
-            dim_filters=_get_attr_dim_filters(name, filters),
+            tile=get_dim_tile(name),
+            name=name,
+            filters=_get_attr_dim_filters(name, filters),
         )
         for name, dtype, values in name_dtype_values
     ]
@@ -385,6 +502,7 @@ def _df_to_np_arrays(df, column_infos, fillna):
             column = column.fillna(fillna[name])
 
         to_numpy_kwargs = {}
+
         if not column_info.var:
             to_numpy_kwargs.update(dtype=column_info.dtype)
 
@@ -393,12 +511,16 @@ def _df_to_np_arrays(df, column_infos, fillna):
             to_numpy_kwargs.update(na_value=column_info.dtype.type())
             nullmaps[name] = (~column.isna()).to_numpy(dtype=np.uint8)
 
-        ret[name] = column.to_numpy(**to_numpy_kwargs)
+        if column_info.enumeration:
+            # Enumerations should get the numerical codes instead of converting enumeration values
+            ret[name] = column.cat.codes.to_numpy(**to_numpy_kwargs)
+        else:
+            ret[name] = column.to_numpy(**to_numpy_kwargs)
 
     return ret, nullmaps
 
 
-def from_pandas(uri: str, dataframe: "pd.DataFrame", **kwargs):
+def from_pandas(uri, dataframe, **kwargs):
     """Create TileDB array at given URI from a Pandas dataframe
 
     Supports most Pandas series types, including nullable integers and
@@ -457,7 +579,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
     mode = tiledb_args.get("mode", "ingest")
 
     if mode != "append" and tiledb.array_exists(uri):
-        raise TileDBError(f"Array URI '{uri}' already exists!")
+        raise tiledb.TileDBError(f"Array URI '{uri}' already exists!")
 
     sparse = tiledb_args["sparse"]
     index_dims = tiledb_args.get("index_dims") or ()
@@ -472,15 +594,15 @@ def _from_pandas(uri, dataframe, tiledb_args):
             create_array = False
             schema = tiledb.ArraySchema.load(uri)
             if not schema.sparse and row_start_idx is None:
-                raise TileDBError(
+                raise tiledb.TileDBError(
                     "Cannot append to dense array without 'row_start_idx'"
                 )
         elif mode != "ingest":
-            raise TileDBError(f"Invalid mode specified ('{mode}')")
+            raise tiledb.TileDBError(f"Invalid mode specified ('{mode}')")
 
     # TODO: disentangle the full_domain logic
     full_domain = tiledb_args.get("full_domain", False)
-    if sparse == False and (not index_dims or "index_col" not in kwargs):
+    if sparse is False and (not index_dims or "index_col" not in tiledb_args):
         full_domain = True
     if full_domain is None and tiledb_args.get("nrows"):
         full_domain = False
@@ -501,7 +623,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
 
     with tiledb.scope_ctx(tiledb_args.get("ctx")):
         if create_array:
-            with warnings.catch_warnings() as w:
+            with warnings.catch_warnings():
                 warnings.simplefilter("always")
                 _create_array(
                     uri,
@@ -547,15 +669,17 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
     attrs, attr_metadata = _get_attrs(
         attr_names, column_infos, tiledb_args.get("attr_filters", True)
     )
+    enums = _get_enums(attr_names, column_infos)
 
     # create the ArraySchema
-    with warnings.catch_warnings() as w:
+    with warnings.catch_warnings():
         warnings.simplefilter("always")
         coord_filter = tiledb_args.get("coords_filters", True)
         schema = tiledb.ArraySchema(
             sparse=sparse,
             domain=tiledb.Domain(*dims),
             attrs=attrs,
+            enums=enums,
             cell_order=tiledb_args["cell_order"],
             tile_order=tiledb_args["tile_order"],
             coords_filters=None
@@ -587,7 +711,15 @@ def _write_array(
     row_start_idx=None,
     timestamp=None,
 ):
+
     with tiledb.open(uri, "w", timestamp=timestamp) as A:
+        for j in range(A.schema.nattr):
+            attr = A.schema.attr(j)
+            if attr.enum_label is not None:
+                enmr = A.enum(attr.enum_label).values()
+                df[attr.name] = df[attr.name].cat.set_categories(enmr)
+                write_dict[attr.name] = df[attr.name].cat.codes
+
         if A.schema.sparse:
             coords = []
             for k in range(A.schema.ndim):
@@ -604,7 +736,9 @@ def _write_array(
                 else:
                     coords.append(df.index.get_level_values(k))
             # TODO ensure correct col/dim ordering
-            libtiledb._setitem_impl_sparse(A, tuple(coords), write_dict, nullmaps)
+            tiledb.libtiledb._setitem_impl_sparse(
+                A, tuple(coords), write_dict, nullmaps
+            )
 
         else:
             if row_start_idx is None:
@@ -752,19 +886,22 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         # For schema_only mode we need to pass a max read count into
         #   pandas.read_csv
         # Note that 'nrows' is a pandas arg!
-        if mode == "schema_only" and not "nrows" in kwargs:
+        if mode == "schema_only" and "nrows" not in kwargs:
             pandas_args["nrows"] = 500
         elif mode not in ["ingest", "append"]:
-            raise TileDBError("Invalid mode specified ('{}')".format(mode))
+            raise tiledb.TileDBError("Invalid mode specified ('{}')".format(mode))
 
-    if mode != "append" and tiledb.array_exists(uri):
-        raise TileDBError("Array URI '{}' already exists!".format(uri))
+    with tiledb.scope_ctx(ctx):
+        if mode != "append" and tiledb.array_exists(uri):
+            raise tiledb.TileDBError("Array URI '{}' already exists!".format(uri))
 
     # this is a pandas pass-through argument, do not pop!
     chunksize = kwargs.get("chunksize", None)
 
     if multi_file and not (chunksize or mode == "schema_only"):
-        raise TileDBError("Multiple input CSV files requires a 'chunksize' argument")
+        raise tiledb.TileDBError(
+            "Multiple input CSV files requires a 'chunksize' argument"
+        )
 
     if multi_file:
         input_csv_list = csv_file
@@ -777,16 +914,15 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
     # we need to use full-domain for multi or chunked reads, because we
     # won't get a chance to see the full range during schema creation
     if multi_file or chunksize is not None:
-        if not "nrows" in kwargs:
+        if "nrows" not in kwargs:
             tiledb_args["full_domain"] = True
 
     ##########################################################################
     # read path
     ##########################################################################
     if multi_file:
-        array_created = False
         if mode == "append":
-            array_created = True
+            pass
 
         rows_written = 0
 
@@ -798,7 +934,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
             if df_list is None:
                 break
             df = pandas.concat(df_list)
-            if not "index_col" in tiledb_args and df.index.name is None:
+            if "index_col" not in tiledb_args and df.index.name is None:
                 df.index.name = "__tiledb_rows"
 
             tiledb_args["row_start_idx"] = rows_written
@@ -817,7 +953,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         df_iter = pandas.read_csv(input_csv, **pandas_args)
         df = next(df_iter, None)
         while df is not None:
-            if not "index_col" in tiledb_args and df.index.name is None:
+            if "index_col" not in tiledb_args and df.index.name is None:
                 df.index.name = "__tiledb_rows"
 
             # tell from_pandas what row to start the next write
@@ -832,7 +968,7 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
 
     else:
         df = pandas.read_csv(csv_file, **kwargs)
-        if not "index_col" in tiledb_args and df.index.name is None:
+        if "index_col" not in tiledb_args and df.index.name is None:
             df.index.name = "__tiledb_rows"
 
         kwargs.update(tiledb_args)

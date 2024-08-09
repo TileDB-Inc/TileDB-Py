@@ -29,11 +29,11 @@
 # writes sample data to the array, and then prints out a filtered
 # dataframe using the TileDB QueryCondition feature.
 
-import tiledb
-import numpy as np
 from pprint import pprint
-import tempfile
-import string
+
+import numpy as np
+
+import tiledb
 
 uri = "query_condition_sparse"
 
@@ -67,10 +67,10 @@ def read_array(path):
         print()
 
     with tiledb.open(uri) as arr:
-        qc = tiledb.QueryCondition("(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)")
+        qc = "(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)"
         print(f"--- with query condition {qc}:")
         print()
-        res = arr.query(attr_cond=qc)[:]
+        res = arr.query(cond=qc)[:]
         pprint(res)
 
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
                 ('coords',
                 array([ 1,  2,  3,  4,  5,  6,  7,  8,  9, 10], dtype=uint32))])
 
-    --- with query condition QueryCondition(expression='(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)'):
+    --- with query condition (2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85):
 
     OrderedDict([('attr1', array([4, 4, 4], dtype=uint64)),
                 ('attr2', array([0.32415481, 0.39117764, 0.48122102])),

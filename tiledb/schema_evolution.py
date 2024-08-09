@@ -1,6 +1,9 @@
 from typing import Optional
 
 import tiledb
+
+from .current_domain import CurrentDomain
+from .enumeration import Enumeration
 from .main import ArraySchemaEvolution as ASE
 
 
@@ -28,7 +31,42 @@ class ArraySchemaEvolution:
 
         self.ase.drop_attribute(attr_name)
 
+    def add_enumeration(self, enmr: Enumeration):
+        """Add the given enumeration to the schema evolution plan.
+        Note: this function does not apply any changes; the changes are
+        only applied when `ArraySchemaEvolution.array_evolve` is called."""
+
+        self.ase.add_enumeration(enmr)
+
+    def drop_enumeration(self, enmr_name: str):
+        """Drop the given enumeration (by name) in the schema evolution.
+        Note: this function does not apply any changes; the changes are
+        only applied when `ArraySchemaEvolution.array_evolve` is called."""
+
+        self.ase.drop_enumeration(enmr_name)
+
+    def extend_enumeration(self, enmr: Enumeration):
+        """Extend the existing enumeration (by name) in the schema evolution.
+        Note: this function does not apply any changes; the changes are
+        only applied when `ArraySchemaEvolution.array_evolve` is called."""
+
+        self.ase.extend_enumeration(enmr)
+
+    def expand_current_domain(self, current_domain: CurrentDomain):
+        """Expand the current domain in the schema evolution.
+        Note: this function does not apply any changes; the changes are
+        only applied when `ArraySchemaEvolution.array_evolve` is called."""
+
+        self.ase.expand_current_domain(current_domain)
+
     def array_evolve(self, uri: str):
         """Apply ArraySchemaEvolution actions to Array at given URI."""
 
         self.ase.array_evolve(uri)
+
+    def timestamp(self, timestamp: int):
+        """Sets the timestamp of the schema file."""
+        if not isinstance(timestamp, int):
+            raise ValueError("'timestamp' argument expects int")
+
+        self.ase.set_timestamp_range(timestamp)

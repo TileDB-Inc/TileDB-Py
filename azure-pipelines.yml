@@ -1,4 +1,0 @@
-stages:
-  - template: ./misc/azure-ci.yml
-  - template: ./misc/azure-release.yml
-  #- template: ./misc/azure-publish.yml

@@ -41,11 +41,11 @@ def set_get_config_ctx_vfs():
 
     # Set/get config to/from ctx
     ctx = tiledb.Ctx(config)
-    config_ctx = ctx.config()
+    print(ctx.config())
 
     # Set/get config to/from VFS
     vfs = tiledb.VFS(config)
-    config_vfs = vfs.config()
+    print(vfs.config())
 
 
 def set_get_config():
@@ -55,8 +55,8 @@ def set_get_config():
     config["vfs.s3.connect_timeout_ms"] = 5000
 
     # Get value
-    tile_cache_size = config["sm.tile_cache_size"]
-    print("Tile cache size: %s" % str(tile_cache_size))
+    tile_cache_size = config["sm.memory_budget"]
+    print("Memory budget: %s" % str(tile_cache_size))
 
 
 def print_default():
@@ -77,14 +77,14 @@ def iter_config_with_prefix():
 def save_load_config():
     # Save to file
     config = tiledb.Config()
-    config["sm.tile_cache_size"] = 0
+    config["sm.memory_budget"] = 1234
     config.save("tiledb_config.txt")
 
     # Load from file
     config_load = tiledb.Config.load("tiledb_config.txt")
     print(
         "\nTile cache size after loading from file: %s"
-        % str(config_load["sm.tile_cache_size"])
+        % str(config_load["sm.memory_budget"])
     )
 
 

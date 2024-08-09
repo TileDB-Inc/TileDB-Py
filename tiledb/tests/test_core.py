@@ -5,16 +5,16 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb import TileDBError
 import tiledb.main as core
-from tiledb.tests.common import DiskTestCase, rand_ascii
+
+from .common import DiskTestCase, rand_ascii
 
 
 class CoreCCTest(DiskTestCase):
     def test_pyquery_basic(self):
         ctx = tiledb.Ctx()
         uri = self.path("test_pyquery_basic")
-        with tiledb.from_numpy(uri, np.random.rand(4)) as A:
+        with tiledb.from_numpy(uri, np.random.rand(4)):
             pass
 
         with tiledb.open(uri) as a:
@@ -30,31 +30,11 @@ class CoreCCTest(DiskTestCase):
                 assert isinstance(exc, tiledb.TileDBError)
                 assert str(exc) == "bad foo happened"
 
-            q.set_ranges([[(0, 3)]])
-
-            with self.assertRaises(TileDBError):
-                q.set_ranges([[(0, 3.0)]])
-
-            q.set_ranges([[(0, np.int32(3))]])
-
-            with self.assertRaises(TileDBError):
-                q.set_ranges([[(3, "a")]])
-
-            with self.assertRaisesRegex(
-                TileDBError,
-                "Failed to cast dim range '\\(1.2344, 5.6789\\)' to dim type UINT64.*$",
-            ):
-                q.set_ranges([[(1.2344, 5.6789)]])
-
-            with self.assertRaisesRegex(
-                TileDBError,
-                "Failed to cast dim range '\\('aa', 'bbbb'\\)' to dim type UINT64.*$",
-            ):
-                q.set_ranges([[("aa", "bbbb")]])
-
         with tiledb.open(uri) as a:
             q2 = core.PyQuery(ctx, a, ("",), (), 0, False)
-            q2.set_ranges([[(0, 3)]])
+            subarray = tiledb.Subarray(a)
+            subarray.add_ranges([[(0, 3)]])
+            q2.set_subarray(subarray)
             q2.submit()
             res = q2.results()[""][0]
             res.dtype = np.double
@@ -69,7 +49,7 @@ class CoreCCTest(DiskTestCase):
             "py.alloc_max_bytes": str(intmax),
         }
         with tiledb.scope_ctx(config_dict) as ctx:
-            with tiledb.from_numpy(uri, np.random.rand(4)) as A:
+            with tiledb.from_numpy(uri, np.random.rand(4)):
                 pass
 
             with tiledb.open(uri) as a:
@@ -166,7 +146,9 @@ class CoreCCTest(DiskTestCase):
         with tiledb.DenseArray(uri, mode="r") as E, tiledb.scope_ctx() as ctx:
             # Ensure that query only returns specified attributes
             q = core.PyQuery(ctx, E, ("foo",), (), 0, False)
-            q.set_ranges([[(0, 1)]])
+            subarray = tiledb.Subarray(E, ctx)
+            subarray.add_ranges([[(0, 1)]])
+            q.set_subarray(subarray)
             q.submit()
             r = q.results()
             self.assertTrue("foo" in r)

@@ -1,14 +1,13 @@
+import numpy as np
 import pytest
 
-ser_test = pytest.importorskip(
-    "tiledb.main.test_serialization", reason="Serialzation not enabled."
-)
-
-import numpy as np
-from numpy.testing import assert_array_equal
-
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
+
+ser_test = pytest.importorskip(
+    "tiledb.main.test_serialization", reason="Serialization not enabled."
+)
 
 
 class SerializationTest(DiskTestCase):
@@ -27,4 +26,4 @@ class SerializationTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             ctx = tiledb.default_ctx()
             ser_qry = ser_test.create_serialized_test_query(ctx, A)
-            assert_array_equal(A.query()[3:8][""], A.set_query(ser_qry)[""])
+            np.testing.assert_array_equal(A.query()[3:8][""], A.set_query(ser_qry)[""])

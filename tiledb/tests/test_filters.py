@@ -1,10 +1,12 @@
-import numpy as np
-from numpy.testing import assert_array_equal, assert_allclose
-import pytest
 import warnings
 
+import numpy as np
+import pytest
+from numpy.testing import assert_allclose, assert_array_equal
+
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
 
 all_filter_types = [
     tiledb.NoOpFilter,
@@ -13,6 +15,7 @@ all_filter_types = [
     tiledb.LZ4Filter,
     tiledb.RleFilter,
     tiledb.Bzip2Filter,
+    tiledb.DeltaFilter,
     tiledb.DoubleDeltaFilter,
     tiledb.DictionaryFilter,
     tiledb.BitWidthReductionFilter,
@@ -82,6 +85,30 @@ class TestFilterTest(DiskTestCase):
         attr = tiledb.Attr(filters=filter_list2, dtype=attr_type)
         self.assertEqual(len(attr.filters), 1)
 
+    @pytest.mark.parametrize(
+        "filter_type,name",
+        [
+            (tiledb.NoOpFilter, "NONE"),
+            (tiledb.GzipFilter, "GZIP"),
+            (tiledb.ZstdFilter, "ZSTD"),
+            (tiledb.LZ4Filter, "LZ4"),
+            (tiledb.RleFilter, "RLE"),
+            (tiledb.Bzip2Filter, "BZIP2"),
+            (tiledb.DeltaFilter, "DELTA"),
+            (tiledb.DoubleDeltaFilter, "DOUBLE_DELTA"),
+            (tiledb.DictionaryFilter, "DICTIONARY"),
+            (tiledb.BitWidthReductionFilter, "BIT_WIDTH_REDUCTION"),
+            (tiledb.BitShuffleFilter, "BITSHUFFLE"),
+            (tiledb.ByteShuffleFilter, "BYTESHUFFLE"),
+            (tiledb.PositiveDeltaFilter, "POSITIVE_DELTA"),
+            (tiledb.ChecksumSHA256Filter, "CHECKSUM_SHA256"),
+            (tiledb.ChecksumMD5Filter, "CHECKSUM_MD5"),
+            (tiledb.FloatScaleFilter, "SCALE_FLOAT"),
+        ],
+    )
+    def test_filter_name(self, filter_type, name):
+        assert filter_type().filter_name == name
+
     @pytest.mark.parametrize("filter", all_filter_types)
     def test_all_filters(self, filter):
         # test initialization
@@ -98,7 +125,7 @@ class TestFilterTest(DiskTestCase):
         new_filter = None
         try:
             new_filter = eval(filter_repr, tmp_globals)
-        except Exception as exc:
+        except Exception:
             warn_str = (
                 """Exception during FilterTest filter repr eval"""
                 + """, filter repr string was:\n"""
@@ -155,3 +182,77 @@ class TestFilterTest(DiskTestCase):
 
             # TODO compute the correct tolerance here
             assert_allclose(data, A[:][""], rtol=1, atol=1)
+
+    @pytest.mark.parametrize(
+        "attr_dtype,reinterp_dtype,expected_reinterp_dtype",
+        [
+            (np.uint64, None, None),
+            (np.float64, np.uint64, np.uint64),
+            (np.float64, tiledb.cc.DataType.UINT64, np.uint64),
+        ],
+    )
+    def test_delta_filter(self, attr_dtype, reinterp_dtype, expected_reinterp_dtype):
+        path = self.path("test_delta_filter")
+
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
+
+        if reinterp_dtype is None:
+            filter = tiledb.DeltaFilter()
+        else:
+            filter = tiledb.DeltaFilter(reinterp_dtype=reinterp_dtype)
+        assert filter.reinterp_dtype == expected_reinterp_dtype
+
+        attr = tiledb.Attr(dtype=attr_dtype, filters=tiledb.FilterList([filter]))
+
+        assert attr.filters[0].reinterp_dtype == expected_reinterp_dtype
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=False)
+        tiledb.Array.create(path, schema)
+
+        data = np.random.randint(0, 10_000_000, size=10)
+        if attr_dtype == np.float64:
+            data = data.astype(np.float64)
+
+        with tiledb.open(path, "w") as A:
+            A[:] = data
+
+        with tiledb.open(path) as A:
+            res = A[:]
+            assert_array_equal(res, data)
+
+    @pytest.mark.parametrize(
+        "attr_dtype,reinterp_dtype,expected_reinterp_dtype",
+        [
+            (np.uint64, None, None),
+            (np.float64, np.uint64, np.uint64),
+            (np.float64, tiledb.cc.DataType.UINT64, np.uint64),
+        ],
+    )
+    def test_double_delta_filter(
+        self, attr_dtype, reinterp_dtype, expected_reinterp_dtype
+    ):
+        path = self.path("test_delta_filter")
+
+        dom = tiledb.Domain(tiledb.Dim(name="row", domain=(0, 9), dtype=np.uint64))
+
+        if reinterp_dtype is None:
+            filter = tiledb.DoubleDeltaFilter()
+        else:
+            filter = tiledb.DoubleDeltaFilter(reinterp_dtype=reinterp_dtype)
+        assert filter.reinterp_dtype == expected_reinterp_dtype
+
+        attr = tiledb.Attr(dtype=attr_dtype, filters=tiledb.FilterList([filter]))
+        assert attr.filters[0].reinterp_dtype == expected_reinterp_dtype
+        schema = tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=False)
+        tiledb.Array.create(path, schema)
+
+        data = np.random.randint(0, 10_000_000, size=10)
+        if attr_dtype == np.float64:
+            data = data.astype(np.float64)
+
+        with tiledb.open(path, "w") as A:
+            A[:] = data
+
+        with tiledb.open(path) as A:
+            res = A[:]
+            assert_array_equal(res, data)

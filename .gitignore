@@ -1,6 +1,3 @@
-# project.toml: Forces build isolation and other problems; ecosystem still spotty.
-pyproject.toml
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -31,6 +28,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+tiledb/_generated_version.py
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -108,10 +106,10 @@ ENV/
 # mypy
 .mypy_cache/
 
-# setuptools-scm
-tiledb/version.py
-
 # IntelliJ
 .idea
+
+# Visual Studio Code
+.vscode/
 
 *.DS_Store

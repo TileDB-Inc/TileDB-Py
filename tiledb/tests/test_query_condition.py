@@ -1,12 +1,12 @@
-import pytest
+import string
 
 import numpy as np
-from numpy.testing import assert_array_equal
-import string
+import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase, has_pandas
+
+from .common import DiskTestCase, has_pandas, rand_utf8
 
 
 class QueryConditionTest(DiskTestCase):
@@ -19,6 +19,9 @@ class QueryConditionTest(DiskTestCase):
 
         if isinstance(mask, np.timedelta64):
             return data[np.invert(np.isnat(data))]
+
+        if isinstance(mask, (str, bytes)):
+            return data[np.invert(data == mask)]
 
         return data[data != mask]
 
@@ -34,6 +37,7 @@ class QueryConditionTest(DiskTestCase):
             tiledb.Attr(name="D", dtype=np.float64),
             tiledb.Attr(name="S", dtype=np.dtype("|S1"), var=False),
             tiledb.Attr(name="A", dtype="ascii", var=True),
+            tiledb.Attr(name="UTF", dtype=np.dtype("U"), var=True),
         ]
 
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
@@ -45,7 +49,15 @@ class QueryConditionTest(DiskTestCase):
                 "I": np.random.randint(-5, 5, 10),
                 "D": np.random.rand(10),
                 "S": np.array(list(string.ascii_lowercase[:10]), dtype="|S1"),
-                "A": np.array(list(string.ascii_lowercase[:10]), dtype="|S1"),
+                "A": np.array(
+                    list(string.ascii_lowercase[i] * (i + 1) for i in range(10)),
+                    dtype="|S",
+                ),
+                "UTF": np.array(
+                    ["$", "£$", "€ह£$", "한ह£", "£$𐍈"]
+                    + [rand_utf8(np.random.randint(1, 100)) for _ in range(5)],
+                    dtype="|U0",
+                ),
             }
 
             if sparse:
@@ -107,25 +119,29 @@ class QueryConditionTest(DiskTestCase):
 
     def test_unsigned_sparse(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
-            with pytest.raises(DeprecationWarning) as exc_info:
-                result = A.query(cond=tiledb.QueryCondition("U < 5"), attrs=["U"])[:]
-                assert all(result["U"] < 5)
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond=tiledb.QueryCondition("U < 5"), attrs=["U"])[:]
             assert (
-                "Passing `tiledb.QueryCondition` to `cond` is no longer required"
+                "Passing `tiledb.QueryCondition` to `cond` is no longer supported"
                 in str(exc_info.value)
             )
+
+            result = A.query(cond="U < 5", attrs=["U"])[:]
+            assert all(result["U"] < 5)
 
     def test_unsigned_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             mask = A.attr("U").fill
 
-            with pytest.raises(DeprecationWarning) as exc_info:
-                result = A.query(cond=tiledb.QueryCondition("U < 5"), attrs=["U"])[:]
-                assert all(self.filter_dense(result["U"], mask) < 5)
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond=tiledb.QueryCondition("U < 5"), attrs=["U"])[:]
             assert (
-                "Passing `tiledb.QueryCondition` to `cond` is no longer required"
+                "Passing `tiledb.QueryCondition` to `cond` is no longer supported"
                 in str(exc_info.value)
             )
+
+            result = A.query(cond="U < 5", attrs=["U"])[:]
+            assert all(self.filter_dense(result["U"], mask) < 5)
 
     def test_signed_sparse(self):
         uri = self.create_input_array_UIDSA(sparse=True)
@@ -200,13 +216,27 @@ class QueryConditionTest(DiskTestCase):
             assert len(result["A"]) == 1
             assert result["A"][0] == b"a"
 
+            if tiledb.libtiledb.version() > (2, 14):
+                for t in A.query(attrs=["UTF"])[:]["UTF"]:
+                    cond = f"""UTF == '{t}'"""
+                    result = A.query(cond=cond, attrs=["UTF"])[:]
+                    assert result["UTF"] == t
+
     def test_string_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
-            result = A.query(cond="S == 'c'", attrs=["S"])[:]
+            result = A.query(cond="S == 'ccc'", attrs=["S"])[:]
             assert all(self.filter_dense(result["S"], A.attr("S").fill) == b"c")
 
-            result = A.query(cond="A == 'a'", attrs=["A"])[:]
-            assert all(self.filter_dense(result["A"], A.attr("A").fill) == b"a")
+            result = A.query(cond="A == 'ccc'", attrs=["A"])[:]
+            assert all(self.filter_dense(result["A"], A.attr("A").fill) == b"ccc")
+
+            if tiledb.libtiledb.version() > (2, 14):
+                for t in A.query(attrs=["UTF"])[:]["UTF"]:
+                    cond = f"""UTF == '{t}'"""
+                    result = A.query(cond=cond, attrs=["UTF"])[:]
+                    assert all(
+                        self.filter_dense(result["UTF"], A.attr("UTF").fill) == t
+                    )
 
     def test_combined_types_sparse(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
@@ -316,11 +346,11 @@ class QueryConditionTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        I = np.random.randint(-5, 5, 10)
-        D = np.random.rand(10)
-
         with tiledb.open(path, "w") as arr:
-            arr[np.arange(1, 11)] = {"64-bit integer": I, "double": D}
+            arr[np.arange(1, 11)] = {
+                "64-bit integer": np.random.randint(-5, 5, 10),
+                "double": np.random.rand(10),
+            }
 
         with tiledb.open(path) as arr:
             result = arr.query(cond="attr('64-bit integer') <= val(0)")[:]
@@ -399,9 +429,8 @@ class QueryConditionTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        create_array = lambda func: np.array(
-            [func[i - 1] * i for i in range(1, 6)], dtype=np.bytes_
-        )
+        def create_array(func):
+            return np.array([func[i - 1] * i for i in range(1, 6)], dtype=np.bytes_)
 
         ascii_data = create_array(string.ascii_lowercase)
         bytes_data = create_array(string.ascii_uppercase)
@@ -518,6 +547,16 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="S in ['8']")[:]
             assert len(result["S"]) == 0
 
+            result = A.query(cond="U not in [5, 6, 7]")[:]
+            for val in result["U"]:
+                assert val not in [5, 6, 7]
+
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="U not in []")[:]
+            assert "At least one value must be provided to the set membership" in str(
+                exc_info.value
+            )
+
     def test_in_operator_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
             U_mask = A.attr("U").fill
@@ -545,7 +584,17 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="S in ['8']")[:]
             assert len(self.filter_dense(result["S"], S_mask)) == 0
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
+            result = A.query(cond="U not in [5, 6, 7]")[:]
+            for val in self.filter_dense(result["U"], U_mask):
+                assert val not in [5, 6, 7]
+
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="U not in []")[:]
+            assert "At least one value must be provided to the set membership" in str(
+                exc_info.value
+            )
+
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_dense_datetime(self):
         import pandas as pd
 
@@ -622,21 +671,21 @@ class QueryConditionTest(DiskTestCase):
                 A.query(cond=qc, attr_cond=qc)
             assert "Both `attr_cond` and `cond` were passed." in str(exc_info.value)
 
-            with pytest.raises(DeprecationWarning) as exc_info:
+            with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.query(attr_cond=qc)
-            assert "`attr_cond` is now deprecated" in str(exc_info.value)
+            assert "`attr_cond` is no longer supported" in str(exc_info.value)
 
-            with pytest.raises(DeprecationWarning) as exc_info:
+            with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.query(cond=qc).attr_cond
-            assert "`attr_cond` is now deprecated" in str(exc_info.value)
+            assert "`attr_cond` is no longer supported" in str(exc_info.value)
 
             with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.subarray(1, cond=qc, attr_cond=qc)
             assert "Both `attr_cond` and `cond` were passed." in str(exc_info.value)
 
-            with pytest.raises(DeprecationWarning) as exc_info:
+            with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.subarray(1, attr_cond=qc)
-            assert "`attr_cond` is now deprecated" in str(exc_info.value)
+            assert "`attr_cond` is no longer supported" in str(exc_info.value)
 
     def test_on_dense_dimensions(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
@@ -688,7 +737,7 @@ class QueryConditionTest(DiskTestCase):
             assert_array_equal(result["d"], A[:6]["d"])
 
             qc = """
-                U < 5   
+                U < 5
             or
                                                 I >= 5
             """
@@ -696,13 +745,227 @@ class QueryConditionTest(DiskTestCase):
             assert all((result["U"] < 5) | (result["U"] > 5))
 
             qc = """
-                
+
                                                 A == ' a'
-        
+
             """
             result = A.query(cond=qc)[:]
             # ensures that ' a' does not match 'a'
             assert len(result["A"]) == 0
+
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
+    def test_do_not_return_attrs(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            cond = None
+            assert "D" in A.query(cond=cond, attrs=None)[:]
+            assert "D" not in A.query(cond=cond, attrs=[])[:]
+            assert "D" in A.query(cond=cond, attrs=None).df[:]
+            assert "D" not in A.query(cond=cond, attrs=[]).df[:]
+            assert "D" in A.query(cond=cond, attrs=None).multi_index[:]
+            assert "D" not in A.query(cond=cond, attrs=[]).multi_index[:]
+
+            cond = "D > 100"
+            assert "D" in A.query(cond=cond, attrs=None)[:]
+            assert "D" not in A.query(cond=cond, attrs=[])[:]
+            assert "D" in A.query(cond=cond, attrs=None).df[:]
+            assert "D" not in A.query(cond=cond, attrs=[]).df[:]
+            assert "D" in A.query(cond=cond, attrs=None).multi_index[:]
+            assert "D" not in A.query(cond=cond, attrs=[]).multi_index[:]
+
+    def test_boolean_sparse(self):
+        path = self.path("test_boolean_sparse")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
+        attrs = [
+            tiledb.Attr(name="a", dtype=np.bool_),
+            tiledb.Attr(name="b", dtype=np.bool_),
+            tiledb.Attr(name="c", dtype=np.bool_),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as arr:
+            arr[np.arange(1, 11)] = {
+                "a": np.random.randint(0, high=2, size=10),
+                "b": np.random.randint(0, high=2, size=10),
+                "c": np.random.randint(0, high=2, size=10),
+            }
+
+        with tiledb.open(path) as A:
+            result = A.query(cond="a == True")[:]
+            assert all(result["a"])
+
+            result = A.query(cond="a == False")[:]
+            assert all(~result["a"])
+
+            result = A.query(cond="a == True and b == True")[:]
+            assert all(result["a"])
+            assert all(result["b"])
+
+            result = A.query(cond="a == False and c == True")[:]
+            assert all(~result["a"])
+            assert all(result["c"])
+
+    def test_boolean_dense(self):
+        path = self.path("test_boolean_dense")
+
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
+        attrs = [
+            tiledb.Attr(name="a", dtype=np.bool_),
+            tiledb.Attr(name="b", dtype=np.bool_),
+            tiledb.Attr(name="c", dtype=np.bool_),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as arr:
+            arr[:] = {
+                "a": np.random.randint(0, high=2, size=10),
+                "b": np.random.randint(0, high=2, size=10),
+                "c": np.random.randint(0, high=2, size=10),
+            }
+
+        with tiledb.open(path) as A:
+            mask = A.attr("a").fill
+
+            result = A.query(cond="a == True")[:]
+            assert all(self.filter_dense(result["a"], mask))
+
+            result = A.query(cond="a == True and b == True")[:]
+            assert all(self.filter_dense(result["a"], mask))
+            assert all(self.filter_dense(result["b"], mask))
+
+    def test_qc_enumeration(self):
+        uri = self.path("test_qc_enumeration")
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
+        enum1 = tiledb.Enumeration("enmr1", True, [0, 1, 2])
+        enum2 = tiledb.Enumeration("enmr2", True, ["a", "bb", "ccc"])
+        attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
+        attr2 = tiledb.Attr("attr2", dtype=np.int32, enum_label="enmr2")
+        schema = tiledb.ArraySchema(
+            domain=dom, attrs=(attr1, attr2), enums=(enum1, enum2)
+        )
+        tiledb.Array.create(uri, schema)
+
+        data1 = np.random.randint(0, 3, 8)
+        data2 = np.random.randint(0, 3, 8)
+
+        with tiledb.open(uri, "w") as A:
+            A[:] = {"attr1": data1, "attr2": data2}
+
+        with tiledb.open(uri, "r") as A:
+            mask = A.attr("attr1").fill
+            result = A.query(cond="attr1 < 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) < 2)
+
+            result = A.query(cond="attr1 <= 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) <= 2)
+
+            result = A.query(cond="attr1 > 0", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) > 0)
+
+            result = A.query(cond="attr1 != 1", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) != 1)
+
+            mask = A.attr("attr2").fill
+            result = A.query(cond="attr2 == 'bb'", attrs=["attr2"])[:]
+            assert all(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("bb")
+            )
+
+            mask = A.attr("attr2").fill
+            result = A.query(cond="attr2 < 'ccc'", attrs=["attr2"])[:]
+            assert list(enum2.values()).index("ccc") not in self.filter_dense(
+                result["attr2"], mask
+            )
+
+            result = A.query(cond="attr2 == 'b'", attrs=["attr2"])[:]
+            assert all(self.filter_dense(result["attr2"], mask) == [])
+
+            result = A.query(cond="attr2 in ['b']", attrs=["attr2"])[:]
+            assert all(self.filter_dense(result["attr2"], mask) == [])
+
+            result = A.query(cond="attr2 not in ['b']", attrs=["attr2"])[:]
+            assert len(result["attr2"]) == len(data2)
+
+            result = A.query(cond="attr2 not in ['b', 'ccc']", attrs=["attr2"])[:]
+            assert list(enum2.values()).index("ccc") not in self.filter_dense(
+                result["attr2"], mask
+            )
+
+            result = A.query(
+                cond="attr1 < 2 and attr2 == 'bb'", attrs=["attr1", "attr2"]
+            )[:]
+            assert all(self.filter_dense(result["attr1"], mask) < 2) and all(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("bb")
+            )
+
+            result = A.query(cond="attr1 == 2", attrs=["attr1"])[:]
+            assert all(self.filter_dense(result["attr1"], mask) == 2)
+
+            result = A.query(
+                cond="attr1 == 0 or attr2 == 'ccc'", attrs=["attr1", "attr2"]
+            )[:]
+            assert any(self.filter_dense(result["attr1"], mask) == 0) or any(
+                self.filter_dense(result["attr2"], mask)
+                == list(enum2.values()).index("ccc")
+            )
+
+    def test_boolean_insert(self):
+        path = self.path("test_boolean_insert")
+        attr = tiledb.Attr("a", dtype=np.bool_, var=False)
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 10), tile=1, dtype=np.uint32))
+        schema = tiledb.ArraySchema(domain=dom, sparse=True, attrs=[attr])
+        tiledb.Array.create(path, schema)
+        a = np.array(
+            list(
+                [
+                    np.array([True], dtype=np.bool_),
+                    np.array([True], dtype=np.bool_),
+                    np.array([True], dtype=np.bool_),
+                    np.array([True], dtype=np.bool_),
+                ]
+            ),
+            dtype=object,
+        )
+        with tiledb.open(path, "w") as A:
+            A[range(1, len(a) + 1)] = {"a": a}
+
+        with tiledb.open(path, "r") as A:
+            for k in A[:]["a"]:
+                assert k == True  # noqa: E712
+
+    def test_qc_dense_empty(self):
+        path = self.path("test_qc_dense_empty")
+
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 1), tile=1, dtype=np.uint8))
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as A:
+            A[:] = np.arange(1)
+
+        with tiledb.open(path) as A:
+            assert_array_equal(A.query(cond="")[:]["a"], [0])
+
+    def test_qc_sparse_empty(self):
+        path = self.path("test_qc_sparse_empty")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint8)
+        )
+        attrs = [tiledb.Attr(name="a", dtype=np.uint8)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, mode="w") as A:
+            A[1] = {"a": np.arange(1)}
+
+        with tiledb.open(path) as A:
+            assert_array_equal(A.query(cond="")[:]["a"], [0])
 
 
 class QueryDeleteTest(DiskTestCase):
@@ -756,7 +1019,8 @@ class QueryDeleteTest(DiskTestCase):
             ):
                 A.query()
 
-    def test_with_fragments(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_with_fragments(self, use_timestamps):
         path = self.path("test_with_fragments")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
@@ -764,28 +1028,36 @@ class QueryDeleteTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        with tiledb.open(path, "w", timestamp=1) as A:
-            A[1] = 1
+        if use_timestamps:
+            with tiledb.open(path, "w", timestamp=1) as A:
+                A[1] = 1
 
-        with tiledb.open(path, "w", timestamp=2) as A:
-            A[2] = 2
+            with tiledb.open(path, "w", timestamp=2) as A:
+                A[2] = 2
 
-        with tiledb.open(path, "w", timestamp=3) as A:
-            A[3] = 3
+            with tiledb.open(path, "w", timestamp=3) as A:
+                A[3] = 3
+        else:
+            with tiledb.open(path, "w") as A:
+                A[1] = 1
+                A[2] = 2
+                A[3] = 3
 
         with tiledb.open(path, "r") as A:
             assert_array_equal([1, 2, 3], A[:]["ints"])
 
-        with tiledb.open(path, "d", timestamp=3) as A:
+        timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+
+        with tiledb.open(path, "d", timestamp=timestamps[2]) as A:
             A.query(cond="ints == 1").submit()
 
-        with tiledb.open(path, "r", timestamp=1) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[0]) as A:
             assert_array_equal([1], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=2) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[1]) as A:
             assert_array_equal([1, 2], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=3) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[2]) as A:
             assert_array_equal([2, 3], A[:]["ints"])
 
         assert len(tiledb.array_fragments(path)) == 3
@@ -799,7 +1071,8 @@ class QueryDeleteTest(DiskTestCase):
             assert A.nonempty_domain() == ((1, 3),)
             assert_array_equal([2, 3], A[:]["ints"])
 
-    def test_purge_deleted_cells(self):
+    @pytest.mark.parametrize("use_timestamps", [True, False])
+    def test_purge_deleted_cells(self, use_timestamps):
         path = self.path("test_with_fragments")
 
         dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=1))
@@ -807,28 +1080,36 @@ class QueryDeleteTest(DiskTestCase):
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
 
-        with tiledb.open(path, "w", timestamp=1) as A:
-            A[1] = 1
+        if use_timestamps:
+            with tiledb.open(path, "w", timestamp=1) as A:
+                A[1] = 1
 
-        with tiledb.open(path, "w", timestamp=2) as A:
-            A[2] = 2
+            with tiledb.open(path, "w", timestamp=2) as A:
+                A[2] = 2
 
-        with tiledb.open(path, "w", timestamp=3) as A:
-            A[3] = 3
+            with tiledb.open(path, "w", timestamp=3) as A:
+                A[3] = 3
+        else:
+            with tiledb.open(path, "w") as A:
+                A[1] = 1
+                A[2] = 2
+                A[3] = 3
 
         with tiledb.open(path, "r") as A:
             assert_array_equal([1, 2, 3], A[:]["ints"])
 
-        with tiledb.open(path, "d", timestamp=3) as A:
+        timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
+
+        with tiledb.open(path, "d", timestamp=timestamps[2]) as A:
             A.query(cond="ints == 1").submit()
 
-        with tiledb.open(path, "r", timestamp=1) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[0]) as A:
             assert_array_equal([1], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=2) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[1]) as A:
             assert_array_equal([1, 2], A[:]["ints"])
 
-        with tiledb.open(path, "r", timestamp=3) as A:
+        with tiledb.open(path, "r", timestamp=timestamps[2]) as A:
             assert_array_equal([2, 3], A[:]["ints"])
 
         cfg = tiledb.Config({"sm.consolidation.purge_deleted_cells": "true"})
@@ -839,3 +1120,31 @@ class QueryDeleteTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             assert A.nonempty_domain() == ((2, 3),)
             assert_array_equal([2, 3], A[:]["ints"])
+
+    def test_delete_with_string_dimension(self):
+        path = self.path("test_delete_with_string_dimension")
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim(name="d", dtype="|S0", var=True)),
+            attrs=[tiledb.Attr(name="a", dtype="uint32")],
+            sparse=True,
+        )
+
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as A:
+            A[["a", "b", "c"]] = [10, 20, 30]
+
+        with tiledb.open(path, "d") as A:
+            A.query(cond="a == 20").submit()
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal(A[:]["d"], [b"a", b"c"])
+            assert_array_equal(A[:]["a"], [10, 30])
+
+        with tiledb.open(path, "d") as A:
+            A.query(cond="d == 'a'").submit()
+
+        with tiledb.open(path, "r") as A:
+            assert_array_equal(A[:]["d"], [b"c"])
+            assert_array_equal(A[:]["a"], [30])

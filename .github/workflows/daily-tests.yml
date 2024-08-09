@@ -1,0 +1,23 @@
+name: Daily Tests TileDB-Py
+
+on:
+  schedule:
+    # runs every day at 5:00 UTC (1:00AM EST / Midnight CST)
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  ci1:
+    uses: ./.github/workflows/daily-test-build.yml
+    with:
+      libtiledb_version: '2.24.0'
+
+  ci2:
+    uses: ./.github/workflows/daily-test-build.yml
+    with:
+      libtiledb_version: '2.23.0'
+
+  ci3:
+    uses: ./.github/workflows/daily-test-build-numpy.yml
+    with:
+      libtiledb_version: '2.23.0'

@@ -19,111 +19,90 @@ if os.name == "posix":
 else:
     lib_name = "tiledb"
 
-# On Windows and whl builds, we may have a shared library already linked, or
-# adjacent to, the cython .pyd shared object. In this case, we can import directly
-# from .libtiledb
-try:
-    import tiledb
-    from .libtiledb import Ctx
-except:
-    try:
-        lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "native")
-        ctypes.CDLL(os.path.join(lib_dir, lib_name))
-    except OSError as e:
-        # Otherwise try loading by name only.
-        ctypes.CDLL(lib_name)
-
+from .array_schema import ArraySchema
+from .attribute import Attr
 from .cc import TileDBError
-
-from .ctx import default_ctx, scope_ctx
+from .consolidation_plan import ConsolidationPlan
+from .ctx import Config, Ctx, default_ctx, scope_ctx
+from .current_domain import CurrentDomain
+from .dataframe_ import from_csv, from_pandas, open_dataframe
+from .dimension import Dim
+from .dimension_label import DimLabel
+from .dimension_label_schema import DimLabelSchema
+from .domain import Domain
+from .enumeration import Enumeration
+from .filestore import Filestore
+from .filter import (
+    BitShuffleFilter,
+    BitWidthReductionFilter,
+    ByteShuffleFilter,
+    Bzip2Filter,
+    ChecksumMD5Filter,
+    ChecksumSHA256Filter,
+    CompressionFilter,
+    DeltaFilter,
+    DictionaryFilter,
+    DoubleDeltaFilter,
+    Filter,
+    FilterList,
+    FloatScaleFilter,
+    GzipFilter,
+    LZ4Filter,
+    NoOpFilter,
+    PositiveDeltaFilter,
+    RleFilter,
+    WebpFilter,
+    XORFilter,
+    ZstdFilter,
+)
+from .fragment import (
+    FragmentInfo,
+    FragmentInfoList,
+    FragmentsInfo,
+    copy_fragments_to_existing_array,
+    create_array_from_fragments,
+)
+from .group import Group
+from .highlevel import (
+    array_exists,
+    array_fragments,
+    as_built,
+    consolidate,
+    empty_like,
+    from_numpy,
+    open,
+    save,
+    schema_like,
+)
 from .libtiledb import (
     Array,
     Ctx,
-    Config,
-    Dim,
-    Domain,
-    Attr,
-    ArraySchema,
-    consolidate,
-    object_type,
+    DenseArrayImpl,
+    SparseArrayImpl,
     ls,
-    walk,
-    remove,
     move,
-    stats_enable,
+    object_type,
+    remove,
     stats_disable,
-    stats_reset,
     stats_dump,
+    stats_enable,
+    stats_reset,
     vacuum,
+    walk,
 )
-
-from .array import DenseArray, SparseArray
-
-from .filter import (
-    Filter,
-    FilterList,
-    NoOpFilter,
-    GzipFilter,
-    ZstdFilter,
-    LZ4Filter,
-    Bzip2Filter,
-    RleFilter,
-    DoubleDeltaFilter,
-    DictionaryFilter,
-    XORFilter,
-    BitShuffleFilter,
-    ByteShuffleFilter,
-    BitWidthReductionFilter,
-    PositiveDeltaFilter,
-    ChecksumMD5Filter,
-    ChecksumSHA256Filter,
-    FloatScaleFilter,
-)
-
-from .filestore import Filestore
-
-from .fragment import (
-    FragmentInfoList,
-    FragmentInfo,
-    FragmentsInfo,
-    copy_fragments_to_existing_array,
-    delete_fragments,
-    create_array_from_fragments,
-)
-
-from .group import Group
-
-group_create = Group.create
-
+from .multirange_indexing import EmptyRange
+from .ndrectangle import NDRectangle
 from .object import Object
-
-from .highlevel import (
-    open,
-    save,
-    from_numpy,
-    empty_like,
-    array_exists,
-    array_fragments,
-)
-
+from .parquet_ import from_parquet
+from .query import Query
 from .query_condition import QueryCondition
-
-from .schema import schema_like
-
 from .schema_evolution import ArraySchemaEvolution
-
+from .subarray import Subarray
+from .version_helper import version
 from .vfs import VFS, FileIO
 
-# TODO restricted imports
-from .dataframe_ import from_csv, from_pandas, open_dataframe
-from .multirange_indexing import EmptyRange
-from .parquet_ import from_parquet
-
-from .version import version as __version__
-
-from .version_ import VersionHelper
-
-version = VersionHelper()
+__version__ = version.version
+group_create = Group.create
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
 #       Therefore, 'tiledb/__init__.py' must *only* exist in this package.
@@ -136,3 +115,24 @@ version = VersionHelper()
 #
 # Note: 'pip -e' in particular will not work without this declaration:
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
+
+# If tiledb.cloud is installed, add CloudArray methods to TileDB arrays
+try:
+    from tiledb.cloud.cloudarray import CloudArray
+except ImportError:
+
+    class DenseArray(DenseArrayImpl):
+        pass
+
+    class SparseArray(SparseArrayImpl):
+        pass
+
+else:
+
+    class DenseArray(DenseArrayImpl, CloudArray):
+        pass
+
+    class SparseArray(SparseArrayImpl, CloudArray):
+        pass
+
+    del CloudArray

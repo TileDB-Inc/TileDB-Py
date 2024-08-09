@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <functional>
 #include <future>
 #include <iostream>
 #include <map>
@@ -18,6 +19,7 @@
 #include <tiledb/tiledb.h>              // C
 #include <tiledb/tiledb>                // C++
 #include <tiledb/tiledb_experimental.h> // C
+#include <tiledb/tiledb_experimental>   // C++
 
 // clang-format off
 // do not re-order these headers
@@ -29,18 +31,16 @@
 #include <tiledb/tiledb_serialization.h> // C
 #endif
 
-#include "../external/string_view.hpp"
 #include "../external/tsl/robin_map.h"
 
 #if !defined(NDEBUG)
-//#include "debug.cc"
+// #include "debug.cc"
 #endif
 
 #include "query_condition.cc"
 
 namespace tiledbpy {
 
-using namespace std;
 using namespace tiledb;
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -51,17 +51,7 @@ struct StatsInfo {
 };
 
 bool config_has_key(tiledb::Config config, std::string key) {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
   return config.contains(key);
-#else
-  try {
-    config.get(key);
-  } catch (TileDBError &e) {
-    (void)e;
-    return false;
-  }
-  return true;
-#endif
 }
 
 struct PAPair {
@@ -90,14 +80,12 @@ static std::unique_ptr<StatsInfo> g_stats;
 py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
 
 struct BufferInfo {
-
   BufferInfo(std::string name, size_t data_nbytes, tiledb_datatype_t data_type,
              uint32_t cell_val_num, size_t offsets_num, size_t validity_num,
              bool isvar = false, bool isnullable = false)
 
       : name(name), type(data_type), cell_val_num(cell_val_num), isvar(isvar),
         isnullable(isnullable) {
-
     try {
       dtype = tiledb_dtype(data_type, cell_val_num);
       elem_nbytes = tiledb_datatype_size(type);
@@ -201,7 +189,6 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     case TILEDB_DATETIME_AS:
       return py::dtype("M8[as]");
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     /* duration types map to timedelta */
     case TILEDB_TIME_HR:
       return py::dtype("m8[h]");
@@ -221,14 +208,15 @@ py::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
       return py::dtype("m8[fs]");
     case TILEDB_TIME_AS:
       return py::dtype("m8[as]");
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
     case TILEDB_BLOB:
       return py::dtype("byte");
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
     case TILEDB_BOOL:
       return py::dtype("bool");
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
+    case TILEDB_GEOM_WKB:
+      return py::dtype("byte");
+    case TILEDB_GEOM_WKT:
+      return py::dtype("S");
 #endif
 
     case TILEDB_ANY:
@@ -291,18 +279,258 @@ uint64_t count_zeros(py::array_t<uint8_t> a) {
   return count;
 }
 
-class PyQuery {
+class PyAgg {
+  using ByteBuffer = py::array_t<uint8_t>;
+  using AggToBufferMap = std::map<std::string, ByteBuffer>;
+  using AttrToAggsMap = std::map<std::string, AggToBufferMap>;
 
 private:
   Context ctx_;
-  shared_ptr<tiledb::Domain> domain_;
-  shared_ptr<tiledb::ArraySchema> array_schema_;
-  shared_ptr<tiledb::Array> array_;
-  shared_ptr<tiledb::Query> query_;
+  std::shared_ptr<tiledb::Array> array_;
+  std::shared_ptr<tiledb::Query> query_;
+  AttrToAggsMap result_buffers_;
+  AttrToAggsMap validity_buffers_;
+
+  py::dict original_input_;
+  std::vector<std::string> attrs_;
+
+public:
+  PyAgg() = delete;
+
+  PyAgg(const Context &ctx, py::object py_array, py::object py_layout,
+        py::dict attr_to_aggs_input)
+      : ctx_(ctx), original_input_(attr_to_aggs_input) {
+    tiledb_array_t *c_array_ = (py::capsule)py_array.attr("__capsule__")();
+
+    // We never own this pointer; pass own=false
+    array_ = std::make_shared<tiledb::Array>(ctx_, c_array_, false);
+    query_ = std::make_shared<tiledb::Query>(ctx_, *array_, TILEDB_READ);
+
+    bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
+    tiledb_layout_t layout = (tiledb_layout_t)py_layout.cast<int32_t>();
+    if (!issparse && layout == TILEDB_UNORDERED) {
+      TPY_ERROR_LOC("TILEDB_UNORDERED read is not supported for dense arrays")
+    }
+    query_->set_layout(layout);
+
+    // Iterate through the requested attributes
+    for (auto attr_to_aggs : attr_to_aggs_input) {
+      auto attr_name = attr_to_aggs.first.cast<std::string>();
+      auto aggs = attr_to_aggs.second.cast<std::vector<std::string>>();
+
+      tiledb::Attribute attr = array_->schema().attribute(attr_name);
+      attrs_.push_back(attr_name);
+
+      // For non-nullable attributes, applying max and min to the empty set is
+      // undefined. To check for this, we need to also run the count aggregate
+      // to make sure count != 0
+      bool requested_max =
+          std::find(aggs.begin(), aggs.end(), "max") != aggs.end();
+      bool requested_min =
+          std::find(aggs.begin(), aggs.end(), "min") != aggs.end();
+      if (!attr.nullable() && (requested_max || requested_min)) {
+        // If the user already also requested count, then we don't need to
+        // request it again
+        if (std::find(aggs.begin(), aggs.end(), "count") == aggs.end()) {
+          aggs.push_back("count");
+        }
+      }
+
+      // Iterate through the aggreate operations to apply on the given attribute
+      for (auto agg_name : aggs) {
+        _apply_agg_operator_to_attr(agg_name, attr_name);
+
+        // Set the result data buffers
+        auto *res_buf = &result_buffers_[attr_name][agg_name];
+        if ("count" == agg_name || "null_count" == agg_name ||
+            "mean" == agg_name) {
+          // count and null_count use uint64 and mean uses float64
+          *res_buf = py::array(py::dtype("uint8"), 8);
+        } else {
+          // max, min, and sum use the dtype of the attribute
+          py::dtype dt(tiledb_dtype(attr.type(), attr.cell_size()));
+          *res_buf = py::array(py::dtype("uint8"), dt.itemsize());
+        }
+        query_->set_data_buffer(attr_name + agg_name, (void *)res_buf->data(),
+                                1);
+
+        if (attr.nullable()) {
+          // For nullable attributes, if the input set for the aggregation
+          // contains all NULL values, we will not get an aggregate value back
+          // as this operation is undefined. We need to check the validity
+          // buffer beforehand to see if we had a valid result
+          if (!("count" == agg_name || "null_count" == agg_name)) {
+            auto *val_buf = &validity_buffers_[attr.name()][agg_name];
+            *val_buf = py::array(py::dtype("uint8"), 1);
+            query_->set_validity_buffer(attr_name + agg_name,
+                                        (uint8_t *)val_buf->data(), 1);
+          }
+        }
+      }
+    }
+  }
+
+  void _apply_agg_operator_to_attr(const std::string &op_label,
+                                   const std::string &attr_name) {
+    using AggregateFunc =
+        std::function<ChannelOperation(const Query &, const std::string &)>;
+
+    std::unordered_map<std::string, AggregateFunc> label_to_agg_func = {
+        {"sum", QueryExperimental::create_unary_aggregate<SumOperator>},
+        {"min", QueryExperimental::create_unary_aggregate<MinOperator>},
+        {"max", QueryExperimental::create_unary_aggregate<MaxOperator>},
+        {"mean", QueryExperimental::create_unary_aggregate<MeanOperator>},
+        {"null_count",
+         QueryExperimental::create_unary_aggregate<NullCountOperator>},
+    };
+
+    QueryChannel default_channel =
+        QueryExperimental::get_default_channel(*query_);
+
+    if (label_to_agg_func.find(op_label) != label_to_agg_func.end()) {
+      AggregateFunc create_unary_aggregate = label_to_agg_func.at(op_label);
+      ChannelOperation op = create_unary_aggregate(*query_, attr_name);
+      default_channel.apply_aggregate(attr_name + op_label, op);
+    } else if ("count" == op_label) {
+      default_channel.apply_aggregate(attr_name + op_label, CountOperation());
+    } else {
+      TPY_ERROR_LOC("Invalid channel operation " + op_label +
+                    " passed to apply_aggregate.");
+    }
+  }
+
+  py::dict get_aggregate() {
+    query_->submit();
+
+    // Cast the results to the correct dtype and output this as a Python dict
+    py::dict output;
+    for (auto attr_to_agg : original_input_) {
+      // Be clear in our variable names for strings as py::dict uses py::str
+      // keys whereas std::map uses std::string keys
+      std::string attr_cpp_name = attr_to_agg.first.cast<string>();
+
+      py::str attr_py_name(attr_cpp_name);
+      output[attr_py_name] = py::dict();
+
+      tiledb::Attribute attr = array_->schema().attribute(attr_cpp_name);
+
+      for (auto agg_py_name : original_input_[attr_py_name]) {
+        std::string agg_cpp_name = agg_py_name.cast<string>();
+
+        if (_is_invalid(attr, agg_cpp_name)) {
+          output[attr_py_name][agg_py_name] =
+              _is_integer_dtype(attr) ? py::none() : py::cast(NAN);
+        } else {
+          output[attr_py_name][agg_py_name] = _set_result(attr, agg_cpp_name);
+        }
+      }
+    }
+    return output;
+  }
+
+  bool _is_invalid(tiledb::Attribute attr, std::string agg_name) {
+    if (attr.nullable()) {
+      if ("count" == agg_name || "null_count" == agg_name)
+        return false;
+
+      // For nullable attributes, check if the validity buffer returned false
+      const void *val_buf = validity_buffers_[attr.name()][agg_name].data();
+      return *((uint8_t *)(val_buf)) == 0;
+    } else {
+      // For non-nullable attributes, max and min are undefined for the empty
+      // set, so we must check the count == 0
+      if ("max" == agg_name || "min" == agg_name) {
+        const void *count_buf = result_buffers_[attr.name()]["count"].data();
+        return *((uint64_t *)(count_buf)) == 0;
+      }
+      return false;
+    }
+  }
+
+  bool _is_integer_dtype(tiledb::Attribute attr) {
+    switch (attr.type()) {
+    case TILEDB_INT8:
+    case TILEDB_INT16:
+    case TILEDB_UINT8:
+    case TILEDB_INT32:
+    case TILEDB_INT64:
+    case TILEDB_UINT16:
+    case TILEDB_UINT32:
+    case TILEDB_UINT64:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  py::object _set_result(tiledb::Attribute attr, std::string agg_name) {
+    const void *agg_buf = result_buffers_[attr.name()][agg_name].data();
+
+    if ("mean" == agg_name)
+      return py::cast(*((double *)agg_buf));
+
+    if ("count" == agg_name || "null_count" == agg_name)
+      return py::cast(*((uint64_t *)agg_buf));
+
+    switch (attr.type()) {
+    case TILEDB_FLOAT32:
+      return py::cast("sum" == agg_name ? *((double *)agg_buf)
+                                        : *((float *)agg_buf));
+    case TILEDB_FLOAT64:
+      return py::cast(*((double *)agg_buf));
+    case TILEDB_INT8:
+      return py::cast(*((int8_t *)agg_buf));
+    case TILEDB_UINT8:
+      return py::cast(*((uint8_t *)agg_buf));
+    case TILEDB_INT16:
+      return py::cast(*((int16_t *)agg_buf));
+    case TILEDB_UINT16:
+      return py::cast(*((uint16_t *)agg_buf));
+    case TILEDB_UINT32:
+      return py::cast(*((uint32_t *)agg_buf));
+    case TILEDB_INT32:
+      return py::cast(*((int32_t *)agg_buf));
+    case TILEDB_INT64:
+      return py::cast(*((int64_t *)agg_buf));
+    case TILEDB_UINT64:
+      return py::cast(*((uint64_t *)agg_buf));
+    default:
+      TPY_ERROR_LOC(
+          "[_cast_agg_result] Invalid tiledb dtype for aggregation result")
+    }
+  }
+
+  void set_subarray(py::object py_subarray) {
+    query_->set_subarray(*py_subarray.cast<tiledb::Subarray *>());
+  }
+
+  void set_cond(py::object cond) {
+    py::object init_pyqc = cond.attr("init_query_condition");
+
+    try {
+      init_pyqc(array_->uri(), attrs_, ctx_);
+    } catch (tiledb::TileDBError &e) {
+      TPY_ERROR_LOC(e.what());
+    } catch (py::error_already_set &e) {
+      TPY_ERROR_LOC(e.what());
+    }
+    auto pyqc = (cond.attr("c_obj")).cast<PyQueryCondition>();
+    auto qc = pyqc.ptr().get();
+    query_->set_condition(*qc);
+  }
+};
+
+class PyQuery {
+private:
+  Context ctx_;
+  std::shared_ptr<tiledb::Domain> domain_;
+  std::shared_ptr<tiledb::ArraySchema> array_schema_;
+  std::shared_ptr<tiledb::Array> array_;
+  std::shared_ptr<tiledb::Query> query_;
   std::vector<std::string> attrs_;
   std::vector<std::string> dims_;
-  map<string, BufferInfo> buffers_;
-  vector<string> buffers_order_;
+  std::map<std::string, BufferInfo> buffers_;
+  std::vector<std::string> buffers_order_;
 
   bool deduplicate_ = true;
   bool use_arrow_ = false;
@@ -313,7 +541,8 @@ private:
   uint64_t alloc_max_bytes_ = DEFAULT_ALLOC_MAX_BYTES;
   tiledb_layout_t layout_ = TILEDB_ROW_MAJOR;
 
-  py::object pyschema_;
+  // label buffer list
+  unordered_map<string, uint64_t> label_input_buffer_data_;
 
 public:
   tiledb_ctx_t *c_ctx_;
@@ -325,14 +554,9 @@ public:
 public:
   PyQuery() = delete;
 
-  PyQuery(py::object ctx, py::object array, py::iterable attrs,
-          py::iterable dims, py::object py_layout, py::object use_arrow) {
-
-    tiledb_ctx_t *c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
-    if (c_ctx_ == nullptr)
-      TPY_ERROR_LOC("Invalid context pointer!")
-    ctx_ = Context(c_ctx_, false);
-
+  PyQuery(const Context &ctx, py::object array, py::iterable attrs,
+          py::iterable dims, py::object py_layout, py::object use_arrow)
+      : ctx_(ctx) {
     init_config();
     // initialize arrow argument from user, if provided
     // call after init_config
@@ -343,15 +567,11 @@ public:
     tiledb_array_t *c_array_ = (py::capsule)array.attr("__capsule__")();
 
     // we never own this pointer, pass own=false
-    array_ = std::shared_ptr<tiledb::Array>(new Array(ctx_, c_array_, false));
+    array_ = std::make_shared<tiledb::Array>(ctx_, c_array_, false);
 
-    array_schema_ =
-        std::shared_ptr<tiledb::ArraySchema>(new ArraySchema(array_->schema()));
+    array_schema_ = std::make_shared<tiledb::ArraySchema>(array_->schema());
 
-    domain_ =
-        std::shared_ptr<tiledb::Domain>(new Domain(array_schema_->domain()));
-
-    pyschema_ = array.attr("schema");
+    domain_ = std::make_shared<tiledb::Domain>(array_schema_->domain());
 
     bool issparse = array_->schema().array_type() == TILEDB_SPARSE;
 
@@ -394,8 +614,7 @@ public:
       }
     }
 
-    query_ =
-        std::shared_ptr<tiledb::Query>(new Query(ctx_, *array_, query_mode));
+    query_ = std::make_shared<tiledb::Query>(ctx_, *array_, query_mode);
     //        [](Query* p){} /* note: no deleter*/);
 
     if (query_mode == TILEDB_READ) {
@@ -406,7 +625,6 @@ public:
       query_->set_layout(layout_);
     }
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 2
     if (use_arrow_) {
       // enable arrow mode in the Query
       auto tmp_config = ctx_.config();
@@ -416,281 +634,10 @@ public:
       ctx_.handle_error(tiledb_query_set_config(
           ctx_.ptr().get(), query_->ptr().get(), tmp_config.ptr().get()));
     }
-#endif
   }
 
-  void init_config() {
-    // get config parameters
-    std::string tmp_str;
-    if (config_has_key(ctx_.config(), "py.init_buffer_bytes")) {
-      tmp_str = ctx_.config().get("py.init_buffer_bytes");
-      try {
-        init_buffer_bytes_ = std::stoull(tmp_str);
-      } catch (const std::invalid_argument &e) {
-        (void)e;
-        throw std::invalid_argument(
-            "Failed to convert 'py.init_buffer_bytes' to uint64_t ('" +
-            tmp_str + "')");
-      }
-    }
-
-    if (config_has_key(ctx_.config(), "py.alloc_max_bytes")) {
-      tmp_str = ctx_.config().get("py.alloc_max_bytes");
-      try {
-        alloc_max_bytes_ = std::stoull(tmp_str);
-      } catch (const std::invalid_argument &e) {
-        (void)e;
-        throw std::invalid_argument(
-            "Failed to convert 'py.alloc_max_bytes' to uint64_t ('" + tmp_str +
-            "')");
-      }
-      if (alloc_max_bytes_ < pow(1024, 2)) {
-        throw std::invalid_argument("Invalid parameter: 'py.alloc_max_bytes' "
-                                    "must be >= 1 MB (1024 ** 2 bytes)");
-      };
-    }
-
-    if (config_has_key(ctx_.config(), "py.deduplicate")) {
-      tmp_str = ctx_.config().get("py.deduplicate");
-      if (tmp_str == "true") {
-        deduplicate_ = true;
-      } else if (tmp_str == "false") {
-        deduplicate_ = false;
-      } else {
-        throw std::invalid_argument(
-            "Failed to convert configuration 'py.deduplicate' to bool ('" +
-            tmp_str + "')");
-      }
-    }
-
-    if (config_has_key(ctx_.config(), "py.exact_init_buffer_bytes")) {
-      tmp_str = ctx_.config().get("py.exact_init_buffer_bytes");
-      if (tmp_str == "true") {
-        exact_init_bytes_ = true;
-      } else if (tmp_str == "false") {
-        exact_init_bytes_ = false;
-      } else {
-        throw std::invalid_argument("Failed to convert configuration "
-                                    "'py.exact_init_buffer_bytes' to bool ('" +
-                                    tmp_str + "')");
-      }
-    }
-
-    if (config_has_key(ctx_.config(), "py.use_arrow")) {
-      tmp_str = ctx_.config().get("py.use_arrow");
-      if (tmp_str == "True") {
-        use_arrow_ = true;
-      } else if (tmp_str == "False") {
-        use_arrow_ = false;
-      } else {
-        throw std::invalid_argument(
-            "Failed to convert configuration 'py.use_arrow' to bool ('" +
-            tmp_str + "')");
-      }
-    }
-  }
-
-  void add_dim_range(uint32_t dim_idx, py::tuple r) {
-    if (py::len(r) == 0)
-      return;
-    else if (py::len(r) != 2)
-      TPY_ERROR_LOC("Unexpected range len != 2");
-
-    auto r0 = r[0];
-    auto r1 = r[1];
-    // no type-check here, because we might allow cast-conversion
-    // if (r0.get_type() != r1.get_type())
-    //    TPY_ERROR_LOC("Mismatched type");
-
-    auto dim = domain_->dimension(dim_idx);
-
-    auto tiledb_type = dim.type();
-
-    try {
-      switch (tiledb_type) {
-      case TILEDB_INT32: {
-        using T = int32_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_INT64: {
-        using T = int64_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_INT8: {
-        using T = int8_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_UINT8: {
-        using T = uint8_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_INT16: {
-        using T = int16_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_UINT16: {
-        using T = uint16_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_UINT32: {
-        using T = uint32_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_UINT64: {
-        using T = uint64_t;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_FLOAT32: {
-        using T = float;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_FLOAT64: {
-        using T = double;
-        query_->add_range(dim_idx, r0.cast<T>(), r1.cast<T>());
-        break;
-      }
-      case TILEDB_STRING_ASCII:
-      case TILEDB_STRING_UTF8:
-      case TILEDB_CHAR: {
-        if (!py::isinstance<py::none>(r0) != !py::isinstance<py::none>(r1)) {
-          TPY_ERROR_LOC(
-              "internal error: ranges must both be strings or (None, None)");
-        } else if (!py::isinstance<py::none>(r0) &&
-                   !py::isinstance<py::none>(r1) &&
-                   !py::isinstance<py::str>(r0) &&
-                   !py::isinstance<py::str>(r1) &&
-                   !py::isinstance<py::bytes>(r0) &&
-                   !py::isinstance<py::bytes>(r1)) {
-          TPY_ERROR_LOC(
-              "internal error: expected string type for var-length dim!");
-        }
-
-        if (!py::isinstance<py::none>(r0) && !py::isinstance<py::none>(r0))
-          query_->add_range(dim_idx, r0.cast<string>(), r1.cast<string>());
-
-        break;
-      }
-      case TILEDB_DATETIME_YEAR:
-      case TILEDB_DATETIME_MONTH:
-      case TILEDB_DATETIME_WEEK:
-      case TILEDB_DATETIME_DAY:
-      case TILEDB_DATETIME_HR:
-      case TILEDB_DATETIME_MIN:
-      case TILEDB_DATETIME_SEC:
-      case TILEDB_DATETIME_MS:
-      case TILEDB_DATETIME_US:
-      case TILEDB_DATETIME_NS:
-      case TILEDB_DATETIME_PS:
-      case TILEDB_DATETIME_FS:
-      case TILEDB_DATETIME_AS: {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
-      case TILEDB_TIME_HR:
-      case TILEDB_TIME_MIN:
-      case TILEDB_TIME_SEC:
-      case TILEDB_TIME_MS:
-      case TILEDB_TIME_US:
-      case TILEDB_TIME_NS:
-      case TILEDB_TIME_PS:
-      case TILEDB_TIME_FS:
-      case TILEDB_TIME_AS:
-#endif
-        py::dtype dtype = tiledb_dtype(tiledb_type, 1);
-        auto dt0 = py::isinstance<py::int_>(r0) ? r0 : r0.attr("astype")(dtype);
-        auto dt1 = py::isinstance<py::int_>(r1) ? r1 : r1.attr("astype")(dtype);
-
-        // TODO, this is suboptimal, should define pybind converter
-        if (py::isinstance<py::int_>(dt0) && py::isinstance<py::int_>(dt1)) {
-          query_->add_range(dim_idx, py::cast<int64_t>(dt0),
-                            py::cast<int64_t>(dt1));
-        } else {
-          auto darray = py::array(py::make_tuple(dt0, dt1));
-          query_->add_range(dim_idx, *(int64_t *)darray.data(0),
-                            *(int64_t *)darray.data(1));
-        }
-
-        break;
-      }
-      default:
-        TPY_ERROR_LOC("Unknown dim type conversion!");
-      }
-    } catch (py::cast_error &e) {
-      (void)e;
-      std::string msg = "Failed to cast dim range '" + (string)py::repr(r) +
-                        "' to dim type " +
-                        tiledb::impl::type_to_str(tiledb_type);
-      TPY_ERROR_LOC(msg);
-    }
-  }
-
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
-  void set_ranges_bulk(py::iterable ranges) {
-    // ranges are specified as one iterable per dimension
-
-    uint32_t dim_idx = 0;
-    for (auto dim_range : ranges) {
-      // py::print(dim_range);
-      if (py::isinstance<py::array>(dim_range)) {
-        auto tiledb_type = domain_->dimension(dim_idx).type();
-        py::dtype dtype = tiledb_dtype(tiledb_type, 1);
-        py::array r_array = dim_range.attr("astype")(dtype);
-        add_bulk_range(dim_idx, r_array);
-      } else {
-        py::tuple dim_range_iter = dim_range.cast<py::iterable>();
-        for (auto r : dim_range_iter) {
-          py::tuple r_tuple = r.cast<py::tuple>();
-          add_dim_range(dim_idx, r_tuple);
-        }
-      }
-      dim_idx++;
-    }
-  }
-
-  void add_bulk_range(uint32_t dim_idx, py::array ranges) {
-    tiledb_ctx_t *c_ctx = ctx_.ptr().get();
-    tiledb_query_t *c_query = query_.get()->ptr().get();
-
-    ctx_.handle_error(tiledb_query_add_point_ranges(
-        c_ctx, c_query, dim_idx, (void *)ranges.data(), ranges.size()));
-  }
-#endif
-
-  void set_ranges(py::iterable ranges) {
-    // ranges are specified as one iterable per dimension
-
-    uint32_t dim_idx = 0;
-    for (auto dim_range : ranges) {
-      py::tuple dim_range_iter = dim_range.cast<py::iterable>();
-      for (auto r : dim_range_iter) {
-        py::tuple r_tuple = r.cast<py::tuple>();
-        add_dim_range(dim_idx, r_tuple);
-      }
-      dim_idx++;
-    }
-  }
-
-  void set_subarray(py::array subarray) {
-    auto ndim = domain_->ndim();
-    if (subarray.size() != (2 * ndim))
-      TPY_ERROR_LOC(
-          "internal error: failed to set subarray (mismatched dimension count");
-
-    py::object r0, r1;
-    for (unsigned dim_idx = 0; dim_idx < ndim; dim_idx++) {
-      auto r = subarray[py::int_(dim_idx)];
-      r0 = r[py::int_(0)];
-      r1 = r[py::int_(1)];
-
-      add_dim_range(dim_idx, py::make_tuple(r0, r1));
-    }
+  void set_subarray(py::object py_subarray) {
+    query_->set_subarray(*py_subarray.cast<tiledb::Subarray *>());
   }
 
 #if defined(TILEDB_SERIALIZATION)
@@ -721,7 +668,7 @@ public:
     py::object init_pyqc = cond.attr("init_query_condition");
 
     try {
-      attrs_ = init_pyqc(pyschema_, attrs_).cast<std::vector<std::string>>();
+      init_pyqc(array_->uri(), attrs_, ctx_);
     } catch (tiledb::TileDBError &e) {
       TPY_ERROR_LOC(e.what());
     } catch (py::error_already_set &e) {
@@ -738,6 +685,11 @@ public:
     return array_schema_->has_attribute(name);
   }
 
+  bool is_dimension_label(std::string name) {
+    return ArraySchemaExperimental::has_dimension_label(ctx_, *array_schema_,
+                                                        name);
+  }
+
   bool is_var(std::string name) {
     if (is_dimension(name)) {
       auto dim = domain_->dimension(name);
@@ -745,6 +697,10 @@ public:
     } else if (is_attribute(name)) {
       auto attr = array_schema_->attribute(name);
       return attr.cell_val_num() == TILEDB_VAR_NUM;
+    } else if (is_dimension_label(name)) {
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
+      return dim_label.label_cell_val_num() == TILEDB_VAR_NUM;
     } else {
       TPY_ERROR_LOC("Unknown buffer type for is_var check (expected attribute "
                     "or dimension)")
@@ -752,7 +708,7 @@ public:
   }
 
   bool is_nullable(std::string name) {
-    if (is_dimension(name)) {
+    if (is_dimension(name) || is_dimension_label(name)) {
       return false;
     }
 
@@ -769,6 +725,11 @@ public:
     } else if (is_attribute(name)) {
       type = array_schema_->attribute(name).type();
       cell_val_num = array_schema_->attribute(name).cell_val_num();
+    } else if (is_dimension_label(name)) {
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
+      type = dim_label.label_type();
+      cell_val_num = dim_label.label_cell_val_num();
     } else {
       TPY_ERROR_LOC("Unknown buffer '" + name + "'");
     }
@@ -797,13 +758,9 @@ public:
   bool is_sparse() { return array_->schema().array_type() == TILEDB_SPARSE; }
 
   void import_buffer(std::string name, py::array data, py::array offsets) {
-
     tiledb_datatype_t type;
     uint32_t cell_val_num;
     std::tie(type, cell_val_num) = buffer_type(name);
-    uint64_t cell_nbytes = tiledb_datatype_size(type);
-    if (cell_val_num != TILEDB_VAR_NUM)
-      cell_nbytes *= cell_val_num;
     auto dtype = tiledb_dtype(type, cell_val_num);
 
     buffers_order_.push_back(name);
@@ -817,51 +774,65 @@ public:
   }
 
   void alloc_buffer(std::string name) {
-
     tiledb_datatype_t type;
     uint32_t cell_val_num;
-    std::tie(type, cell_val_num) = buffer_type(name);
-    uint64_t cell_nbytes = tiledb_datatype_size(type);
-    if (cell_val_num != TILEDB_VAR_NUM)
-      cell_nbytes *= cell_val_num;
-    auto dtype = tiledb_dtype(type, cell_val_num);
-
+    uint64_t cell_nbytes;
+    bool var;
+    bool nullable;
     uint64_t buf_nbytes = 0;
     uint64_t offsets_num = 0;
     uint64_t validity_num = 0;
-
-    bool var = is_var(name);
-    bool nullable = is_nullable(name);
     bool dense = array_schema_->array_type() == TILEDB_DENSE;
+    if (is_dimension_label(name)) {
+      auto dim_label =
+          ArraySchemaExperimental::dimension_label(ctx_, *array_schema_, name);
+      type = dim_label.label_type();
+      cell_val_num = dim_label.label_cell_val_num();
+      var = cell_val_num == TILEDB_VAR_NUM;
+      nullable = false;
 
-    if (retries_ < 1 && dense) {
-      // we must not call after submitting
-      if (nullable && var) {
-        auto sizes = query_->est_result_size_var_nullable(name);
-        offsets_num = sizes[0];
-        buf_nbytes = sizes[1];
-        validity_num = sizes[2] / sizeof(uint8_t);
-      } else if (nullable && !var) {
-        auto sizes = query_->est_result_size_nullable(name);
-        buf_nbytes = sizes[0];
-        validity_num = sizes[1] / sizeof(uint8_t);
-      } else if (!nullable && var) {
-        auto size_pair = query_->est_result_size_var(name);
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-        buf_nbytes = size_pair.first;
-        offsets_num = size_pair.second;
-#else
-        buf_nbytes = size_pair[0];
-        offsets_num = size_pair[1];
-#endif
-      } else { // !nullable && !var
-        buf_nbytes = query_->est_result_size(name);
+      cell_nbytes = tiledb_datatype_size(type);
+      uint64_t ncells = label_input_buffer_data_[name];
+
+      if (!var) {
+        cell_nbytes *= cell_val_num;
+      } else {
+        offsets_num = ncells;
       }
+      buf_nbytes = ncells * cell_nbytes;
+    } else {
+      std::tie(type, cell_val_num) = buffer_type(name);
+      cell_nbytes = tiledb_datatype_size(type);
+      if (cell_val_num != TILEDB_VAR_NUM) {
+        cell_nbytes *= cell_val_num;
+      }
+      var = is_var(name);
+      nullable = is_nullable(name);
 
-      // Add extra offset to estimate in order to avoid incomplete resubmit
-      // libtiledb 2.7.* does not include extra element in estimate.
-      // Remove this section after resolution of SC-16301.
-      offsets_num += (var && use_arrow_) ? 1 : 0;
+      if (retries_ < 1 && dense) {
+        // we must not call after submitting
+        if (nullable && var) {
+          auto sizes = query_->est_result_size_var_nullable(name);
+          offsets_num = sizes[0];
+          buf_nbytes = sizes[1];
+          validity_num = sizes[2] / sizeof(uint8_t);
+        } else if (nullable && !var) {
+          auto sizes = query_->est_result_size_nullable(name);
+          buf_nbytes = sizes[0];
+          validity_num = sizes[1] / sizeof(uint8_t);
+        } else if (!nullable && var) {
+          auto size_pair = query_->est_result_size_var(name);
+          buf_nbytes = size_pair[0];
+          offsets_num = size_pair[1];
+        } else { // !nullable && !var
+          buf_nbytes = query_->est_result_size(name);
+        }
+
+        // Add extra offset to estimate in order to avoid incomplete resubmit
+        // libtiledb 2.7.* does not include extra element in estimate.
+        // Remove this section after resolution of SC-16301.
+        offsets_num += (var && use_arrow_) ? 1 : 0;
+      }
     }
 
     // - for sparse arrays: don't try to allocate more than alloc_max_bytes_
@@ -893,6 +864,10 @@ public:
                           validity_num, var, nullable)});
   }
 
+  void add_label_buffer(std::string &label_name, uint64_t ncells) {
+    label_input_buffer_data_[label_name] = ncells;
+  }
+
   py::object get_buffers() {
     py::dict rmap;
     for (auto &bp : buffers_) {
@@ -920,7 +895,9 @@ public:
       uint64_t data_nelem =
           (b.data.size() - (data_vals_read * b.elem_nbytes)) / b.elem_nbytes;
 
-      query_->set_data_buffer(b.name, data_ptr, data_nelem);
+      // Experimental version of API call is needed to support type-checking
+      // on dimension label buffers.
+      QueryExperimental::set_data_buffer(*query_, b.name, data_ptr, data_nelem);
 
       if (b.isvar) {
         size_t offsets_size = b.offsets.size() - offsets_read;
@@ -940,25 +917,14 @@ public:
   }
 
   void update_read_elem_num() {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
-    // needs https://github.com/TileDB-Inc/TileDB/pull/2238
-    auto result_elements = query_->result_buffer_elements_nullable();
-#else
-    auto result_elements = query_->result_buffer_elements_nullable();
-    auto result_offsets_tmp = query_->result_buffer_elements();
-#endif
+    auto result_elements =
+        QueryExperimental::result_buffer_elements_nullable_labels(*query_);
 
     for (const auto &read_info : result_elements) {
       auto name = read_info.first;
       uint64_t offset_elem_num = 0, data_vals_num = 0, validity_elem_num = 0;
       std::tie(offset_elem_num, data_vals_num, validity_elem_num) =
           read_info.second;
-
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR < 3
-      // we need to fix-up the offset count b/c incorrect before 2.3
-      // (https://github.com/TileDB-Inc/TileDB/pull/2238)
-      offset_elem_num = result_offsets_tmp[name].first;
-#endif
 
       BufferInfo &buf = buffers_.at(name);
 
@@ -968,7 +934,6 @@ public:
       auto offset_ptr = buf.offsets.mutable_data();
 
       if (buf.isvar) {
-
         if (offset_elem_num > 0) {
           // account for 'sm.var_offsets.extra_element'
           offset_elem_num -= (use_arrow_) ? 1 : 0;
@@ -988,6 +953,24 @@ public:
       buf.data_vals_read += data_vals_num;
       buf.offsets_read += offset_elem_num;
       buf.validity_vals_read += validity_elem_num;
+
+      if ((Py_ssize_t)(buf.data_vals_read * buf.elem_nbytes) >
+          (Py_ssize_t)buf.data.size()) {
+        throw TileDBError(
+            "After read query, data buffer out of bounds: " + name + " (" +
+            std::to_string(buf.data_vals_read * buf.elem_nbytes) + " > " +
+            std::to_string(buf.data.size()) + ")");
+      }
+      if ((Py_ssize_t)buf.offsets_read > buf.offsets.size()) {
+        throw TileDBError("After read query, offsets buffer out of bounds: " +
+                          name + " (" + std::to_string(buf.offsets_read) +
+                          " > " + std::to_string(buf.offsets.size()) + ")");
+      }
+      if ((Py_ssize_t)buf.validity_vals_read > buf.validity.size()) {
+        throw TileDBError("After read query, validity buffer out of bounds: " +
+                          name + " (" + std::to_string(buf.validity_vals_read) +
+                          " > " + std::to_string(buf.validity.size()) + ")");
+      }
     }
   }
 
@@ -1021,15 +1004,11 @@ public:
   }
 
   void resubmit_read() {
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
     tiledb_query_status_details_t status_details;
     tiledb_query_get_status_details(ctx_.ptr().get(), query_.get()->ptr().get(),
                                     &status_details);
 
     if (status_details.incomplete_reason == TILEDB_REASON_USER_BUFFER_SIZE) {
-#else
-    if (true) {
-#endif
       auto start_incomplete_buffer_update =
           std::chrono::high_resolution_clock::now();
       for (auto &bp : buffers_) {
@@ -1076,6 +1055,11 @@ public:
       py::gil_scoped_release release;
       query_->submit();
     }
+
+    if (query_->query_status() == Query::Status::UNINITIALIZED) {
+      TPY_ERROR_LOC("Unexpected state: Query::Submit returned uninitialized");
+    }
+
     update_read_elem_num();
 
     return;
@@ -1130,7 +1114,6 @@ public:
   }
 
   void allocate_buffers() {
-
     // allocate buffers for dims
     //   - we want to return dims first, if any requested
     for (size_t dim_idx = 0; dim_idx < domain_->ndim(); dim_idx++) {
@@ -1142,6 +1125,11 @@ public:
         continue;
       }
       alloc_buffer(dim.name());
+    }
+
+    // allocate buffers for label dimensions
+    for (const auto &label_data : label_input_buffer_data_) {
+      alloc_buffer(label_data.first);
     }
 
     // allocate buffers for attributes
@@ -1204,6 +1192,10 @@ public:
       query_->submit();
     }
 
+    if (query_->query_status() == Query::Status::UNINITIALIZED) {
+      TPY_ERROR_LOC("Unexpected state: Query::Submit returned uninitialized");
+    }
+
     if (g_stats) {
       auto now = std::chrono::high_resolution_clock::now();
       g_stats.get()->counters["py.core_read_query_initial_submit_time"] +=
@@ -1261,7 +1253,6 @@ public:
 
   py::array unpack_buffer(std::string name, py::array buf,
                           py::array_t<uint64_t> off) {
-
     auto start = std::chrono::high_resolution_clock::now();
 
     if (off.size() < 1)
@@ -1311,8 +1302,8 @@ public:
           if (!deduplicate_) {
             o = py::str(data_ptr, size);
           } else {
-            auto v = nonstd::string_view{data_ptr, size};
-            auto h = std::hash<nonstd::string_view>()(v);
+            auto v = std::string_view{data_ptr, size};
+            auto h = std::hash<std::string_view>()(v);
             auto needle = map.find(h);
             if (needle == map.end()) {
               o = py::str(data_ptr, size);
@@ -1351,21 +1342,26 @@ public:
   void submit_write() {}
 
   void submit() {
-    if (array_->query_type() == TILEDB_READ)
+    if (array_->query_type() == TILEDB_READ) {
       submit_read();
-    else if (array_->query_type() == TILEDB_WRITE)
+    } else if (array_->query_type() == TILEDB_WRITE) {
       submit_write();
-    else if (array_->query_type() == TILEDB_DELETE)
+    } else if (array_->query_type() == TILEDB_DELETE) {
       query_->submit();
-    else
+      if (query_->query_status() == Query::Status::UNINITIALIZED) {
+        TPY_ERROR_LOC("Unexpected state: Query::Submit returned uninitialized");
+      }
+    } else {
       TPY_ERROR_LOC("Unknown query type!")
+    }
   }
 
   py::dict results() {
     py::dict results;
     for (auto &buffer_name : buffers_order_) {
       auto bp = buffers_.at(buffer_name);
-      results[py::str(buffer_name)] = py::make_tuple(bp.data, bp.offsets);
+      results[py::str(buffer_name)] =
+          py::make_tuple(bp.data, bp.offsets, bp.validity);
     }
     return results;
   }
@@ -1374,11 +1370,7 @@ public:
     if (query_->query_status() != tiledb::Query::Status::COMPLETE)
       TPY_ERROR_LOC("Cannot convert buffers unless Query is complete");
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-    tiledb::arrow::ArrowAdapter adapter(query_);
-#else
     tiledb::arrow::ArrowAdapter adapter(&ctx_, query_.get());
-#endif
 
     std::unique_ptr<PAPair> pa_pair(new PAPair());
 
@@ -1395,11 +1387,7 @@ public:
     auto pa = py::module::import("pyarrow");
     auto pa_array_import = pa.attr("Array").attr("_import_from_c");
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR < 2
-    tiledb::arrow::ArrowAdapter adapter(query_);
-#else
     tiledb::arrow::ArrowAdapter adapter(&ctx_, query_.get());
-#endif
 
     py::list names;
     py::list results;
@@ -1517,6 +1505,79 @@ public:
   }
 
   std::string get_stats() { return query_->stats(); }
+
+private:
+  void init_config() {
+    // get config parameters
+    std::string tmp_str;
+    if (config_has_key(ctx_.config(), "py.init_buffer_bytes")) {
+      tmp_str = ctx_.config().get("py.init_buffer_bytes");
+      try {
+        init_buffer_bytes_ = std::stoull(tmp_str);
+      } catch (const std::invalid_argument &e) {
+        (void)e;
+        throw std::invalid_argument(
+            "Failed to convert 'py.init_buffer_bytes' to uint64_t ('" +
+            tmp_str + "')");
+      }
+    }
+
+    if (config_has_key(ctx_.config(), "py.alloc_max_bytes")) {
+      tmp_str = ctx_.config().get("py.alloc_max_bytes");
+      try {
+        alloc_max_bytes_ = std::stoull(tmp_str);
+      } catch (const std::invalid_argument &e) {
+        (void)e;
+        throw std::invalid_argument(
+            "Failed to convert 'py.alloc_max_bytes' to uint64_t ('" + tmp_str +
+            "')");
+      }
+      if (alloc_max_bytes_ < pow(1024, 2)) {
+        throw std::invalid_argument("Invalid parameter: 'py.alloc_max_bytes' "
+                                    "must be >= 1 MB (1024 ** 2 bytes)");
+      };
+    }
+
+    if (config_has_key(ctx_.config(), "py.deduplicate")) {
+      tmp_str = ctx_.config().get("py.deduplicate");
+      if (tmp_str == "true") {
+        deduplicate_ = true;
+      } else if (tmp_str == "false") {
+        deduplicate_ = false;
+      } else {
+        throw std::invalid_argument(
+            "Failed to convert configuration 'py.deduplicate' to bool ('" +
+            tmp_str + "')");
+      }
+    }
+
+    if (config_has_key(ctx_.config(), "py.exact_init_buffer_bytes")) {
+      tmp_str = ctx_.config().get("py.exact_init_buffer_bytes");
+      if (tmp_str == "true") {
+        exact_init_bytes_ = true;
+      } else if (tmp_str == "false") {
+        exact_init_bytes_ = false;
+      } else {
+        throw std::invalid_argument("Failed to convert configuration "
+                                    "'py.exact_init_buffer_bytes' to bool ('" +
+                                    tmp_str + "')");
+      }
+    }
+
+    if (config_has_key(ctx_.config(), "py.use_arrow")) {
+      tmp_str = ctx_.config().get("py.use_arrow");
+      if (tmp_str == "True") {
+        use_arrow_ = true;
+      } else if (tmp_str == "False") {
+        use_arrow_ = false;
+      } else {
+        throw std::invalid_argument(
+            "Failed to convert configuration 'py.use_arrow' to bool ('" +
+            tmp_str + "')");
+      }
+    }
+  }
+
 }; // namespace tiledbpy
 
 void init_stats() {
@@ -1604,19 +1665,32 @@ py::object python_internal_stats(bool dict = false) {
   }
 }
 
+py::str as_built_dump() {
+  tiledb_string_t *s;
+  int rc = tiledb_as_built_dump(&s);
+  if (rc != TILEDB_OK) {
+    TPY_ERROR_LOC("Could not dump as built.");
+  }
+  const char *data_ptr;
+  py::size_t length;
+
+  tiledb_string_view(s, &data_ptr, &length);
+  py::str res(data_ptr, length);
+  tiledb_string_free(&s);
+
+  return res;
+}
+
 void init_core(py::module &m) {
   init_query_condition(m);
 
   auto pq =
       py::class_<PyQuery>(m, "PyQuery")
-          .def(py::init<py::object, py::object, py::iterable, py::iterable,
+          .def(py::init<const Context &, py::object, py::iterable, py::iterable,
                         py::object, py::object>())
+          .def("add_label_buffer", &PyQuery::add_label_buffer)
           .def("buffer_dtype", &PyQuery::buffer_dtype)
           .def("results", &PyQuery::results)
-          .def("set_ranges", &PyQuery::set_ranges)
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 6
-          .def("set_ranges_bulk", &PyQuery::set_ranges_bulk)
-#endif
           .def("set_subarray", &PyQuery::set_subarray)
           .def("set_cond", &PyQuery::set_cond)
 #if defined(TILEDB_SERIALIZATION)
@@ -1643,20 +1717,28 @@ void init_core(py::module &m) {
                                  &PyQuery::_test_alloc_max_bytes)
           .def_readonly("retries", &PyQuery::retries_);
 
-  m.def("array_to_buffer", &convert_np);
-
-  m.def("init_stats", &init_stats);
-  m.def("disable_stats", &init_stats);
-  m.def("python_internal_stats", &python_internal_stats,
-        py::arg("dict") = false);
-  m.def("increment_stat", &increment_stat);
-  m.def("get_stats", &get_stats);
-  m.def("use_stats", &use_stats);
+  py::class_<PyAgg>(m, "PyAgg")
+      .def(py::init<const Context &, py::object, py::object, py::dict>(),
+           "ctx"_a, "py_array"_a, "py_layout"_a, "attr_to_aggs_input"_a)
+      .def("set_subarray", &PyAgg::set_subarray)
+      .def("set_cond", &PyAgg::set_cond)
+      .def("get_aggregate", &PyAgg::get_aggregate);
 
   py::class_<PAPair>(m, "PAPair")
       .def(py::init())
       .def("get_array", &PAPair::get_array)
       .def("get_schema", &PAPair::get_schema);
+
+  m.def("array_to_buffer", &convert_np);
+
+  m.def("init_stats", &init_stats);
+  m.def("disable_stats", &disable_stats);
+  m.def("python_internal_stats", &python_internal_stats,
+        py::arg("dict") = false);
+  m.def("increment_stat", &increment_stat);
+  m.def("get_stats", &get_stats);
+  m.def("use_stats", &use_stats);
+  m.def("as_built_dump", &as_built_dump);
 
   /*
    We need to make sure C++ TileDBError is translated to a correctly-typed py

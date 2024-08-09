@@ -3,11 +3,12 @@ import io
 import tarfile
 
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
-import pytest
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
 
 
 # This test writes to local filesystem, skip
@@ -45,7 +46,10 @@ class TestBackwardCompatibility(DiskTestCase):
 
         path = self.path("tiledb_py_0_6_anon_attr")
         with tarfile.open(fileobj=io.BytesIO(base64.b64decode(array_tgz))) as tf:
-            tf.extractall(path)
+            try:
+                tf.extractall(path, filter="fully_trusted")
+            except TypeError:
+                tf.extractall(path)
 
         with tiledb.open(path) as A:
             self.assertEqual(A.schema.attr(0).name, "")
@@ -84,7 +88,11 @@ class TestBackwardCompatibility(DiskTestCase):
 
         path = self.path("test_tiledb_py_0_5_anon_attr_sparse")
         with tarfile.open(fileobj=io.BytesIO(base64.b64decode(test_array))) as tf:
-            tf.extractall(path)
+            try:
+                tf.extractall(path, filter="fully_trusted")
+            except TypeError:
+                tf.extractall(path)
+
         with tiledb.open(path) as A:
             assert_array_equal(A[:][""], np.array([1.0, 2.0, 5.0]))
 
@@ -107,7 +115,11 @@ class TestBackwardCompatibility(DiskTestCase):
 
         path = self.path("0_6_anon_sparse")
         with tarfile.open(fileobj=io.BytesIO(base64.b64decode(tgz_sparse))) as tf:
-            tf.extractall(path)
+            try:
+                tf.extractall(path, filter="fully_trusted")
+            except TypeError:
+                tf.extractall(path)
+
         with tiledb.open(path) as A:
             if A.schema.sparse:
                 assert_array_equal(A[:][""], np.array([1.0, 2.0, 5.0]))
@@ -157,7 +169,11 @@ class TestBackwardCompatibility(DiskTestCase):
 
         path = self.path("0_6_anon_dense")
         with tarfile.open(fileobj=io.BytesIO(base64.b64decode(tgz_dense))) as tf:
-            tf.extractall(path)
+            try:
+                tf.extractall(path, filter="fully_trusted")
+            except TypeError:
+                tf.extractall(path)
+
         with tiledb.open(path) as A:
             self.assertEqual(A.schema.attr(0).name, "")
             self.assertEqual(A.schema.attr(0)._internal_name, "__attr")

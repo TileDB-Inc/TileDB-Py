@@ -1,15 +1,15 @@
-from typing import MutableMapping, Union, TYPE_CHECKING
+from typing import MutableMapping, Optional, Union
+
 import numpy as np
 
 import tiledb.cc as lt
-from .ctx import default_ctx
 
-if TYPE_CHECKING:
-    from .libtiledb import Ctx
-    from .object import Object
+from .ctx import Config, Ctx, CtxMixin, default_ctx
+from .datatypes import DataType
+from .object import Object
 
 
-class Group(lt.Group):
+class Group(CtxMixin, lt.Group):
     """
     Support for organizing multiple arrays in arbitrary directory hierarchies.
 
@@ -22,8 +22,10 @@ class Group(lt.Group):
 
     :param uri: The URI to the Group
     :type uri: str
-    :param mode: Read mode ('r') or write mode ('w')
+    :param mode: Read mode ('r'), write mode ('w'), or modify exclusive ('m')
     :type mode: str
+    :param config: A TileDB config
+    :type config: Config or dict
     :param ctx: A TileDB context
     :type ctx: tiledb.Ctx
 
@@ -65,6 +67,11 @@ class Group(lt.Group):
     >>> grp.open("w")
     >>> grp.remove(subgrp_path)
     >>> grp.close()
+    >>>
+    >>> # Delete the subgroup
+    >>> grp.open("m")
+    >>> grp.delete(subgrp_path)
+    >>> grp.close()
     """
 
     _NP_DATA_PREFIX = "__np_flat_"
@@ -72,12 +79,12 @@ class Group(lt.Group):
     _mode_to_query_type = {
         "r": lt.QueryType.READ,
         "w": lt.QueryType.WRITE,
+        "m": lt.QueryType.MODIFY_EXCLUSIVE,
     }
 
-    _query_type_to_mode = {
-        lt.QueryType.READ: "r",
-        lt.QueryType.WRITE: "w",
-    }
+    _query_type_to_mode = {t: m for m, t in _mode_to_query_type.items()}
+
+    __was_deleted__ = False
 
     class GroupMetadata(MutableMapping):
         """
@@ -103,30 +110,21 @@ class Group(lt.Group):
             # non-numpy value with a numpy value or vice versa)
             del self[key]
 
+            put_metadata = self._group._put_metadata
             if isinstance(value, np.ndarray):
-                self._group._put_metadata(
-                    f"{Group._NP_DATA_PREFIX}{key}", np.array(value)
-                )
-
+                put_metadata(f"{Group._NP_DATA_PREFIX}{key}", np.array(value))
             elif isinstance(value, bytes):
-                self._group._put_metadata(key, lt.DataType.BLOB, len(value), value)
-
+                put_metadata(key, lt.DataType.BLOB, len(value), value)
             elif isinstance(value, str):
                 value = value.encode("UTF-8")
-                self._group._put_metadata(
-                    key, lt.DataType.STRING_UTF8, len(value), value
-                )
-
+                put_metadata(key, lt.DataType.STRING_UTF8, len(value), value)
+            elif isinstance(value, (list, tuple)):
+                put_metadata(key, np.array(value))
             else:
-                if isinstance(value, (list, tuple)):
-                    _value = np.array(value)
-                else:
-                    if isinstance(value, (int, float)):
-                        np_dtype = np.int64 if isinstance(value, int) else np.float64
-                        value = np_dtype(value)
-                    _value = np.array([value])
-
-                self._group._put_metadata(key, _value)
+                if isinstance(value, int):
+                    # raise OverflowError too large to convert to int64
+                    value = np.int64(value)
+                put_metadata(key, np.array([value]))
 
         def __getitem__(self, key: str, include_type=False) -> GroupMetadataValueType:
             """
@@ -139,40 +137,25 @@ class Group(lt.Group):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
             if self._group._has_metadata(key):
-                data, tdb_type = self._group._get_metadata(key)
-                if tdb_type == lt.DataType.STRING_UTF8:
-                    value = str(data.tobytes().decode("UTF-8"))
-                    return (value, tdb_type) if include_type else value
-                elif tdb_type in (
-                    lt.DataType.STRING_ASCII,
-                    lt.DataType.BLOB,
-                    lt.DataType.CHAR,
-                ):
-                    value = data.tobytes()
-                    return (value, tdb_type) if include_type else value
-                else:
-                    data = tuple(data)
-                    value = data[0] if len(data) == 1 else data
-                    return (value, tdb_type) if include_type else value
+                pass
             elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
-                data, tdb_type = self._group._get_metadata(
-                    f"{Group._NP_DATA_PREFIX}{key}"
-                )
-                if tdb_type == lt.DataType.STRING_UTF8:
-                    value = str(data.tobytes().decode("UTF-8"))
-                    return (value, tdb_type) if include_type else value
-                elif tdb_type in (
-                    lt.DataType.STRING_ASCII,
-                    lt.DataType.BLOB,
-                    lt.DataType.CHAR,
-                ):
-                    value = data.tobytes()
-                    return (value, tdb_type) if include_type else value
-                else:
-                    value = data
-                    return (value, tdb_type) if include_type else value
+                key = f"{Group._NP_DATA_PREFIX}{key}"
             else:
                 raise KeyError(f"KeyError: {key}")
+
+            data, tdb_type = self._group._get_metadata(key)
+            dtype = DataType.from_tiledb(tdb_type).np_dtype
+            if np.issubdtype(dtype, np.character):
+                value = data.tobytes()
+                if np.issubdtype(dtype, np.str_):
+                    value = value.decode("UTF-8")
+            elif key.startswith(Group._NP_DATA_PREFIX):
+                value = data
+            elif len(data) == 1:
+                value = data[0]
+            else:
+                value = tuple(data)
+            return (value, tdb_type) if include_type else value
 
         def __delitem__(self, key: str):
             """Removes the entry from the Group metadata.
@@ -240,7 +223,6 @@ class Group(lt.Group):
                             f"- Type: {val_dtype}\n"
                         )
                     else:
-
                         yield key, val
 
         def __iter__(self):
@@ -275,19 +257,26 @@ class Group(lt.Group):
             for metadata in self._iter(keys_only=False, dump=True):
                 print(metadata)
 
-    def __init__(self, uri: str, mode: str = "r", ctx: "Ctx" = None):
-        self._ctx = ctx or default_ctx()
-
+    def __init__(
+        self,
+        uri: str,
+        mode: str = "r",
+        config: Config = None,
+        ctx: Optional[Ctx] = None,
+    ):
         if mode not in Group._mode_to_query_type:
             raise ValueError(f"invalid mode {mode}")
         query_type = Group._mode_to_query_type[mode]
 
-        super().__init__(self._ctx, uri, query_type)
+        if config is None:
+            super().__init__(ctx, uri, query_type)
+        else:
+            super().__init__(ctx, uri, query_type, config)
 
         self._meta = self.GroupMetadata(self)
 
     @staticmethod
-    def create(uri: str, ctx: "Ctx" = None):
+    def create(uri: str, ctx: Optional[Ctx] = None):
         """
         Create a new Group.
 
@@ -334,7 +323,16 @@ class Group(lt.Group):
         else:
             self._add(uri, relative)
 
-    def __getitem__(self, member: Union[int, str]) -> "Object":
+    def delete(self, recursive: bool = False):
+        """
+        Delete a Group. The group needs to be opened in 'm' mode.
+
+        :param uri: The URI of the group to delete
+        """
+        self._delete_group(self.uri, recursive)
+        self.__was_deleted__ = True
+
+    def __getitem__(self, member: Union[int, str]) -> Object:
         """
         Retrieve a member from the Group as an Object.
 
@@ -343,8 +341,6 @@ class Group(lt.Group):
         :return: The member as an Object
         :rtype: Object
         """
-        from .object import Object
-
         if not isinstance(member, (int, str)):
             raise TypeError(
                 f"Unexpected member type '{type(member)}': expected int or str"
@@ -393,6 +389,10 @@ class Group(lt.Group):
         return self._has_member(member)
 
     def __repr__(self):
+        # use safe repr if pybind11 constructor failed
+        if self._ctx is None:
+            return object.__repr__(self)
+
         return self._dump(True)
 
     def __enter__(self):
@@ -407,7 +407,11 @@ class Group(lt.Group):
         The `__enter__` and `__exit__` methods allow TileDB groups to be opened (and auto-closed)
         using with-as syntax.
         """
-        self.close()
+        # Don't close if this was a delete operation: the group will be closed
+        # automatically.
+        if not (hasattr(self, "__deleted") or self.__was_deleted__):
+            self.__was_deleted__ = False
+            self.close()
 
     @property
     def meta(self) -> GroupMetadata:
@@ -436,7 +440,7 @@ class Group(lt.Group):
     @property
     def mode(self) -> str:
         """
-        :return: Read mode ('r') or write mode ('w')
+        :return: Read mode ('r'), write mode ('w'), or modify exclusive ('m')
         :rtype: str
         """
         return self._query_type_to_mode[self._query_type]
@@ -449,3 +453,51 @@ class Group(lt.Group):
         :rtype: bool
         """
         return self._is_relative(name)
+
+    def set_config(self, cfg: Config):
+        """
+        :param cfg: Config to set on the Group
+        :type cfg: Config
+        """
+        if self.isopen:
+            raise ValueError(
+                "`set_config` can only be used on closed groups. "
+                "Use `group.cl0se()` or Group(.., closed=True)"
+            )
+        self._set_config(cfg)
+
+    @staticmethod
+    def consolidate_metadata(
+        uri: str, config: Config = None, ctx: Optional[Ctx] = None
+    ):
+        """
+        Consolidate the group metadata.
+
+        :param uri: The URI of the TileDB group to be consolidated
+        :type uri: str
+        :param config: Optional configuration parameters for the consolidation
+        :type config: Config
+        :param ctx: Optional TileDB context
+        :type ctx: Ctx
+        """
+        if ctx is None:
+            ctx = default_ctx()
+
+        lt.Group._consolidate_metadata(ctx, uri, config)
+
+    @staticmethod
+    def vacuum_metadata(uri: str, config: Config = None, ctx: Optional[Ctx] = None):
+        """
+        Vacuum the group metadata.
+
+        :param uri: The URI of the TileDB group to be vacuum
+        :type uri: str
+        :param config: Optional configuration parameters for the vacuuming
+        :type config: Config
+        :param ctx: Optional TileDB context
+        :type ctx: Ctx
+        """
+        if ctx is None:
+            ctx = default_ctx()
+
+        lt.Group._vacuum_metadata(ctx, uri, config)

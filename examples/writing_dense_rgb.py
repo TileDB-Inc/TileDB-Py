@@ -32,7 +32,9 @@
 # When run, this program will create a 2D+1 multi-component (eg RGB) dense array, write some
 # data to it, and read the entire array data.
 
-import tiledb, numpy as np
+import numpy as np
+
+import tiledb
 
 img_shape = (100, 224, 224)
 img_uri = "writing_dense_rgb"
@@ -58,9 +60,9 @@ def create_array():
 
     schema = tiledb.ArraySchema(domain=domain, sparse=False, attrs=[attr])
 
-    tiledb.Array.create(img_uri, schema)
+    tiledb.Array.create(img_uri, schema, overwrite=True)
 
-    image_data_rgb = image_data.view(np.dtype("i4, i4, i4"))
+    image_data_rgb = image_data.view(np.dtype("i4, i4, i4")).reshape(img_shape)
 
     with tiledb.open(img_uri, "w") as A:
         # write data to 1st image_id slot

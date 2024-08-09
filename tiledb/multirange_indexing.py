@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import time
 import weakref
@@ -5,33 +6,44 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
 from contextvars import ContextVar
-from numbers import Real
 from dataclasses import dataclass
-import warnings
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
-
+from numbers import Real
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import numpy as np
 
-from tiledb import Array, ArraySchema, QueryCondition, TileDBError
-from tiledb.main import PyQuery, increment_stat, use_stats
-from tiledb.libtiledb import Metadata, Query
-
+from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
+from .libtiledb import Aggregation as AggregationProxy
+from .libtiledb import Array, ArraySchema, Metadata
+from .libtiledb import Query as QueryProxy
+from .main import PyAgg, PyQuery, increment_stat, use_stats
+from .query import Query
+from .query_condition import QueryCondition
+from .subarray import Subarray
+
+if TYPE_CHECKING:
+    # We don't want to import these eagerly since importing Pandas in particular
+    # can add around half a second of import time even if we never use it.
+    import pandas
+    import pyarrow
+
 
 current_timer: ContextVar[str] = ContextVar("timer_scope")
 
-try:
-    import pyarrow
-    from pyarrow import Table
-except ImportError:
-    pyarrow = Table = None
 
-try:
-    from pandas import DataFrame
-except ImportError:
-    DataFrame = None
-
+# sentinel value to denote selecting an empty range
 EmptyRange = object()
 
 
@@ -139,24 +151,73 @@ def iter_ranges(
         yield scalar, scalar
 
 
+def iter_label_range(sel: Union[Scalar, slice, Range, List[Scalar]]):
+    if isinstance(sel, slice):
+        if sel.start is None or sel.start is None:
+            raise NotImplementedError(
+                "partial and full indexing is not yet supported on dimension labels"
+            )
+
+        yield to_scalar(sel.start), to_scalar(sel.stop)
+
+    elif isinstance(sel, tuple):
+        assert len(sel) == 2
+        yield to_scalar(sel[0]), to_scalar(sel[1])
+
+    elif isinstance(sel, list):
+        for scalar in map(to_scalar, sel):
+            yield scalar, scalar
+
+    else:
+        scalar = to_scalar(sel)
+        yield scalar, scalar
+
+
+def dim_ranges_from_selection(selection, nonempty_domain, is_sparse):
+    # don't try to index nonempty_domain if None
+    if isinstance(selection, np.ndarray):
+        return selection
+    selection = selection if isinstance(selection, list) else [selection]
+    return tuple(
+        rng for sel in selection for rng in iter_ranges(sel, is_sparse, nonempty_domain)
+    )
+
+
+def label_ranges_from_selection(selection):
+    if isinstance(selection, np.ndarray):
+        return tuple(tuple(x, x) for x in selection)
+    selection = selection if isinstance(selection, list) else [selection]
+    return tuple(rng for sel in selection for rng in iter_label_range(sel))
+
+
 def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
     ned = array.nonempty_domain()
+    if ned is None:
+        ned = [None] * array.schema.domain.ndim
     is_sparse = array.schema.sparse
     for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
-        # don't try to index nonempty_domain if None
-        nonempty_domain = ned[i] if ned else None
-        if isinstance(dim_sel, np.ndarray):
-            ranges[i] = dim_sel
-            continue
-        elif not isinstance(dim_sel, list):
-            dim_sel = [dim_sel]
-        ranges[i] = tuple(
-            rng
-            for sel in dim_sel
-            for rng in iter_ranges(sel, is_sparse, nonempty_domain)
-        )
+        ranges[i] = dim_ranges_from_selection(dim_sel, ned[i], is_sparse)
     return tuple(ranges)
+
+
+def getitem_ranges_with_labels(
+    array: Array, labels: Dict[int, str], idx: Any
+) -> Tuple[Sequence[Sequence[Range]], Dict[str, Sequence[Range]]]:
+    dim_ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
+    label_ranges: Dict[str, Sequence[Range]] = {}
+    ned = array.nonempty_domain()
+    if ned is None:
+        ned = [None] * array.schema.domain.ndim
+    is_sparse = array.schema.sparse
+    for dim_idx, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
+        if dim_idx in labels.keys():
+            label_ranges[labels[dim_idx]] = label_ranges_from_selection(dim_sel)
+        else:
+            dim_ranges[dim_idx] = dim_ranges_from_selection(
+                dim_sel, ned[dim_idx], is_sparse
+            )
+    return dim_ranges, label_ranges
 
 
 class _BaseIndexer(ABC):
@@ -167,7 +228,7 @@ class _BaseIndexer(ABC):
     def __init__(
         self,
         array: Array,
-        query: Optional[Query] = None,
+        query: Optional[QueryProxy] = None,
         use_arrow: bool = False,
         preload_metadata: bool = False,
     ):
@@ -177,6 +238,8 @@ class _BaseIndexer(ABC):
         self.query = query
         self.use_arrow = use_arrow
         self.preload_metadata = preload_metadata
+        self.subarray = None
+        self.pyquery = None
 
     @property
     def array(self) -> Array:
@@ -241,19 +304,24 @@ class _BaseIndexer(ABC):
     def _empty_results(self):
         return _get_empty_results(self.array.schema, self.query)
 
-    def _set_ranges(self, ranges):
-        self.pyquery = (
-            _get_pyquery(
-                self.array,
-                self.query,
-                ranges,
-                self.use_arrow,
-                self.return_incomplete,
-                self.preload_metadata,
-            )
-            if ranges is not None
-            else None
+    def _set_pyquery(self):
+        self.pyquery = _get_pyquery(
+            self.array,
+            self.query,
+            self.use_arrow,
+            self.return_incomplete,
+            self.preload_metadata,
         )
+
+    def _set_ranges(self, idx):
+        ranges = getitem_ranges(self.array, idx)
+        self._set_shape(ranges)
+        with timing("add_ranges"):
+            self.subarray.add_ranges(ranges)
+        self.pyquery.set_subarray(self.subarray)
+
+    def _set_shape(self, ranges):
+        pass
 
     @abstractmethod
     def _run_query(self):
@@ -265,16 +333,15 @@ class MultiRangeIndexer(_BaseIndexer):
     Implements multi-range indexing.
     """
 
-    def __init__(self, array: Array, query: Optional[Query] = None):
+    def __init__(self, array: Array, query: Optional[QueryProxy] = None):
         if query and query.return_arrow:
             raise TileDBError("`return_arrow=True` requires .df indexer`")
         super().__init__(array, query)
         self.result_shape = None
 
-    def _set_ranges(self, ranges):
-        super()._set_ranges(ranges)
+    def _set_shape(self, ranges):
         schema = self.array.schema
-        if ranges is not None and not schema.sparse and len(schema.shape) > 1:
+        if not schema.sparse and len(schema.shape) > 1:
             self.result_shape = mr_dense_result_shape(ranges, schema.shape)
         else:
             self.result_shape = None
@@ -284,12 +351,53 @@ class MultiRangeIndexer(_BaseIndexer):
             return self._empty_results
 
         self.pyquery.submit()
-        result_dict = _get_pyquery_results(self.pyquery, self.array.schema)
+        result_dict = _get_pyquery_results(self.pyquery, self.array)
         if self.result_shape is not None:
-            for arr in result_dict.values():
+            for name, arr in result_dict.items():
                 # TODO check/test layout
-                arr.shape = self.result_shape
+                if not self.array.schema.has_dim_label(name):
+                    arr.shape = self.result_shape
         return result_dict
+
+
+class MultiRangeAggregation(_BaseIndexer):
+    def __init__(self, array: Array, query: Optional[AggregationProxy] = None):
+        super().__init__(array, query)
+        self.result_shape = None
+
+    def _set_shape(self, ranges):
+        schema = self.array.schema
+        if not schema.sparse and len(schema.shape) > 1:
+            self.result_shape = mr_dense_result_shape(ranges, schema.shape)
+        else:
+            self.result_shape = None
+
+    def __getitem__(self, idx):
+        with timing("getitem_time"):
+            if idx is EmptyRange:
+                self.pyquery = None
+                self.subarray = None
+            else:
+                self.pyquery = _get_pyagg(self.array, self.query)
+                self.subarray = Subarray(self.array)
+                self._set_ranges(idx)
+            return self._run_query()
+
+    def _run_query(self) -> Dict[str, np.ndarray]:
+        if self.pyquery is None:
+            return self._empty_results
+
+        result = self.pyquery.get_aggregate()
+
+        # If there was only one attribute, just show the aggregate results
+        if len(result) == 1:
+            result = result[list(result.keys())[0]]
+
+            # If there was only one aggregate, just show the value
+            if len(result) == 1:
+                result = result[list(result.keys())[0]]
+
+        return result
 
 
 class DataFrameIndexer(_BaseIndexer):
@@ -301,21 +409,25 @@ class DataFrameIndexer(_BaseIndexer):
     def __init__(
         self,
         array: Array,
-        query: Optional[Query] = None,
+        query: Optional[QueryProxy] = None,
         use_arrow: Optional[bool] = None,
     ):
         check_dataframe_deps()
         # we need to use a Query in order to get coords for a dense array
         if not query:
-            query = Query(array, coords=True)
-        if use_arrow is None:
-            use_arrow = pyarrow is not None
+            query = QueryProxy(array, coords=True)
+        use_arrow = (
+            bool(importlib.util.find_spec("pyarrow"))
+            if use_arrow is None
+            else use_arrow
+        )
+
         # TODO: currently there is lack of support for Arrow list types. This prevents
-        # multi-value attributes, asides from strings, from being queried properly. Until
-        # list attributes are supported in core, error with a clear message.
+        # multi-value attributes, asides from strings, from being queried properly.
+        # Until list attributes are supported in core, error with a clear message.
         if use_arrow and any(
             (attr.isvar or len(attr.dtype) > 1)
-            and attr.dtype not in (np.unicode_, np.bytes_)
+            and attr.dtype not in (np.str_, np.bytes_)
             for attr in map(array.attr, query.attrs or ())
         ):
             raise TileDBError(
@@ -325,46 +437,175 @@ class DataFrameIndexer(_BaseIndexer):
             )
         super().__init__(array, query, use_arrow, preload_metadata=True)
 
-    def _run_query(self) -> Union[DataFrame, Table]:
+    def _run_query(self) -> Union["pandas.DataFrame", "pyarrow.Table"]:
+        import pandas
+        import pyarrow
+
         if self.pyquery is not None:
             self.pyquery.submit()
 
         if self.pyquery is None:
-            df = DataFrame(self._empty_results)
+            df = pandas.DataFrame(self._empty_results)
         elif self.use_arrow:
             with timing("buffer_conversion_time"):
                 table = self.pyquery._buffers_to_pa_table()
 
-            # this is a workaround to cast TILEDB_BOOL types from uint8
-            # representation in Arrow to Boolean
-            schema = table.schema
-            for attr_or_dim in schema:
-                if not self.array.schema.has_attr(attr_or_dim.name):
+            columns = []
+            pa_schema = table.schema
+            for pa_attr in pa_schema:
+                if not self.array.schema.has_attr(pa_attr.name):
                     continue
 
-                attr = self.array.attr(attr_or_dim.name)
-                if attr.dtype == bool:
-                    field_idx = schema.get_field_index(attr.name)
-                    field = pyarrow.field(attr.name, pyarrow.bool_())
-                    schema = schema.set(field_idx, field)
+                tdb_attr = self.array.attr(pa_attr.name)
 
-            table = table.cast(schema)
+                if tdb_attr.enum_label is not None:
+                    enmr = self.array.enum(tdb_attr.enum_label)
+                    col = pyarrow.DictionaryArray.from_arrays(
+                        indices=table[pa_attr.name].combine_chunks(),
+                        dictionary=enmr.values(),
+                    )
+                    idx = pa_schema.get_field_index(pa_attr.name)
+                    table = table.set_column(idx, pa_attr.name, col)
+                    pa_schema = table.schema
+                    continue
+
+                if np.issubdtype(tdb_attr.dtype, bool):
+                    # this is a workaround to cast TILEDB_BOOL types from uint8
+                    # representation in Arrow to Boolean
+                    dtype = "uint8"
+                elif tdb_attr.isnullable and np.issubdtype(tdb_attr.dtype, np.integer):
+                    # this is a workaround for PyArrow's to_pandas function
+                    # converting all integers with NULLs to float64:
+                    # https://arrow.apache.org/docs/python/pandas.html#arrow-pandas-conversion
+                    extended_dtype_mapping = {
+                        pyarrow.int8(): pandas.Int8Dtype(),
+                        pyarrow.int16(): pandas.Int16Dtype(),
+                        pyarrow.int32(): pandas.Int32Dtype(),
+                        pyarrow.int64(): pandas.Int64Dtype(),
+                        pyarrow.uint8(): pandas.UInt8Dtype(),
+                        pyarrow.uint16(): pandas.UInt16Dtype(),
+                        pyarrow.uint32(): pandas.UInt32Dtype(),
+                        pyarrow.uint64(): pandas.UInt64Dtype(),
+                    }
+                    dtype = extended_dtype_mapping[pa_attr.type]
+                else:
+                    continue
+
+                columns.append(
+                    {
+                        "field_name": tdb_attr.name,
+                        "name": tdb_attr.name,
+                        "numpy_type": f"{dtype}",
+                        "pandas_type": f"{dtype}",
+                    }
+                )
+
+            metadata = {
+                b"pandas": json.dumps(
+                    {
+                        "columns": columns,
+                        "index_columns": [
+                            {
+                                "kind": "range",
+                                "name": None,
+                                "start": 0,
+                                "step": 1,
+                                "stop": len(table),
+                            }
+                        ],
+                    }
+                ).encode()
+            }
+
+            table = table.cast(pyarrow.schema(pa_schema).with_metadata(metadata))
 
             if self.query.return_arrow:
                 return table
 
             df = table.to_pandas()
         else:
-            df = DataFrame(_get_pyquery_results(self.pyquery, self.array.schema))
+            df = pandas.DataFrame(_get_pyquery_results(self.pyquery, self.array))
 
         with timing("pandas_index_update_time"):
             return _update_df_from_meta(df, self.array.meta, self.query.index_col)
 
 
+class LabelIndexer(MultiRangeIndexer):
+    """
+    Implements multi-range indexing by label.
+    """
+
+    def __init__(
+        self, array: Array, labels: Sequence[str], query: Optional[QueryProxy] = None
+    ):
+        if array.schema.sparse:
+            raise NotImplementedError(
+                "querying sparse arrays by label is not yet implemented"
+            )
+        super().__init__(array, query)
+        self.label_query: Optional[Query] = None
+        self._labels: Dict[int, str] = {}
+        for label_name in labels:
+            dim_label = array.schema.dim_label(label_name)
+            dim_idx = dim_label.dim_index
+            if dim_idx in self._labels:
+                raise TileDBError(
+                    f"cannot set labels `{self._labels[dim_idx]}` and "
+                    f"`{label_name}` defined on the same dimension"
+                )
+            self._labels[dim_idx] = label_name
+
+    def _set_ranges(self, idx):
+        dim_ranges, label_ranges = getitem_ranges_with_labels(
+            self.array, self._labels, idx
+        )
+        if label_ranges is None:
+            with timing("add_ranges"):
+                self.subarray.add_ranges(tuple(dim_ranges))
+            # No label query.
+            self.label_query = None
+            # All ranges are finalized: set shape and subarray now.
+            self._set_shape(dim_ranges)
+            self.pyquery.set_subarray(self.subarray)
+        else:
+            label_subarray = Subarray(self.array)
+            with timing("add_ranges"):
+                self.subarray.add_ranges(dim_ranges=dim_ranges)
+                label_subarray.add_ranges(label_ranges=label_ranges)
+            self.label_query = Query(self.array)
+            self.label_query.set_subarray(label_subarray)
+
+    def _run_query(self) -> Dict[str, np.ndarray]:
+        # If querying by label and the label query is not yet complete, run the label
+        # query and update the pyquery with the actual dimensions.
+        if self.label_query is not None and not self.label_query.is_complete():
+            self.label_query.submit()
+
+            if not self.label_query.is_complete():
+                raise TileDBError("failed to get dimension ranges from labels")
+            label_subarray = self.label_query.subarray()
+            # Check that the label query returned results for all dimensions.
+            if any(
+                label_subarray.num_dim_ranges(dim_idx) == 0 for dim_idx in self._labels
+            ):
+                self.pyquery = None
+            else:
+                # Get the ranges from the label query and set to the
+                self.subarray.copy_ranges(
+                    self.label_query.subarray(), self._labels.keys()
+                )
+                self.pyquery.set_subarray(self.subarray)
+            self.result_shape = self.subarray.shape()
+            for dim_idx, label_name in self._labels.items():
+                if self.result_shape is None:
+                    raise TileDBError("failed to compute subarray shape")
+                self.pyquery.add_label_buffer(label_name, self.result_shape[dim_idx])
+        return super()._run_query()
+
+
 def _get_pyquery(
     array: Array,
-    query: Optional[Query],
-    ranges: Sequence[Sequence[Range]],
+    query: Optional[QueryProxy],
     use_arrow: bool,
     return_incomplete: bool,
     preload_metadata: bool,
@@ -396,13 +637,6 @@ def _get_pyquery(
         layout,
         use_arrow,
     )
-    with timing("add_ranges"):
-        if hasattr(pyquery, "set_ranges_bulk") and any(
-            isinstance(r, np.ndarray) for r in ranges
-        ):
-            pyquery.set_ranges_bulk(ranges)
-        else:
-            pyquery.set_ranges(ranges)
 
     pyquery._return_incomplete = return_incomplete
     pyquery._preload_metadata = preload_metadata
@@ -410,25 +644,37 @@ def _get_pyquery(
         if isinstance(query.cond, str):
             pyquery.set_cond(QueryCondition(query.cond))
         elif isinstance(query.cond, QueryCondition):
-            from tiledb import version as tiledbpy_version
-
-            assert tiledbpy_version() < (0, 19, 0)
-            warnings.warn(
-                "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                "required and is slated for removal in version 0.19.0. "
-                "Instead of `cond=tiledb.QueryCondition('expression')`, "
-                "use `cond='expression'`.",
-                DeprecationWarning,
+            raise TileDBError(
+                "Passing `tiledb.QueryCondition` to `cond` is no longer supported "
+                "as of 0.19.0. Instead of `cond=tiledb.QueryCondition('expression')` "
+                "you must use `cond='expression'`. This message will be "
+                "removed in 0.21.0.",
             )
-            pyquery.set_cond(query.cond)
         else:
             raise TypeError("`cond` expects type str.")
 
     return pyquery
 
 
+def _get_pyagg(array: Array, agg: AggregationProxy) -> PyAgg:
+    order = agg.query.order
+
+    try:
+        layout = "CFGU".index(order)
+    except ValueError:
+        raise ValueError(
+            "order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR),  "
+            "'U' (TILEDB_UNORDERED), or 'G' (TILEDB_GLOBAL_ORDER)"
+        )
+
+    pyagg = PyAgg(array._ctx_(), array, layout, agg.attr_to_aggs)
+    if agg.query.cond is not None:
+        pyagg.set_cond(QueryCondition(agg.query.cond))
+    return pyagg
+
+
 def _iter_attr_names(
-    schema: ArraySchema, query: Optional[Query] = None
+    schema: ArraySchema, query: Optional[QueryProxy] = None
 ) -> Iterator[str]:
     if query is not None and query.attrs is not None:
         return iter(query.attrs)
@@ -436,7 +682,7 @@ def _iter_attr_names(
 
 
 def _iter_dim_names(
-    schema: ArraySchema, query: Optional[Query] = None
+    schema: ArraySchema, query: Optional[QueryProxy] = None
 ) -> Iterator[str]:
     if query is not None:
         if query.dims is not None:
@@ -449,22 +695,32 @@ def _iter_dim_names(
     return (dom.dim(i).name for i in range(dom.ndim))
 
 
-def _get_pyquery_results(
-    pyquery: PyQuery, schema: ArraySchema
-) -> Dict[str, np.ndarray]:
+def _get_pyquery_results(pyquery: PyQuery, array: Array) -> Dict[str, np.ndarray]:
+    schema = array.schema
     result_dict = OrderedDict()
     for name, item in pyquery.results().items():
         if len(item[1]) > 0:
             arr = pyquery.unpack_buffer(name, item[0], item[1])
         else:
             arr = item[0]
-            arr.dtype = schema.attr_or_dim_dtype(name)
+            arr.dtype = (
+                schema.attr_or_dim_dtype(name)
+                if not schema.has_dim_label(name)
+                else schema.dim_label(name).dtype
+            )
+
+        if schema.has_attr(name):
+            enum_label = schema.attr(name).enum_label
+            if enum_label is not None:
+                values = array.enum(enum_label).values()
+                arr = np.array([values[idx] for idx in arr])
+
         result_dict[name if name != "__attr" else ""] = arr
     return result_dict
 
 
 def _get_empty_results(
-    schema: ArraySchema, query: Optional[Query] = None
+    schema: ArraySchema, query: Optional[QueryProxy] = None
 ) -> Dict[str, np.ndarray]:
     names = []
     query_dims = frozenset(_iter_dim_names(schema, query))
@@ -491,8 +747,10 @@ def _get_empty_results(
 
 
 def _update_df_from_meta(
-    df: DataFrame, array_meta: Metadata, index_col: Union[List[str], bool, None] = True
-) -> DataFrame:
+    df: "pandas.DataFrame",
+    array_meta: Metadata,
+    index_col: Union[List[str], bool, None] = True,
+) -> "pandas.DataFrame":
     col_dtypes = {}
     if "__pandas_attribute_repr" in array_meta:
         attr_dtypes = json.loads(array_meta["__pandas_attribute_repr"])

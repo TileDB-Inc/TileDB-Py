@@ -29,11 +29,11 @@
 # writes sample data to the array, and then prints out a filtered
 # dataframe using the TileDB QueryCondition feature.
 
-import tiledb
-import numpy as np
 from pprint import pprint
-import tempfile
-import string
+
+import numpy as np
+
+import tiledb
 
 uri = "query_condition_dense"
 
@@ -67,14 +67,14 @@ def read_array(path):
         print()
 
     with tiledb.open(uri) as arr:
-        qc = tiledb.QueryCondition("(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)")
+        qc = "(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)"
         print(f"--- with query condition {qc}:")
 
         print(f"--- the fill value for attr1 is {arr.attr('attr1').fill}")
-        print(f"--- the fill value for attr1 is {arr.attr('attr2').fill}")
+        print(f"--- the fill value for attr2 is {arr.attr('attr2').fill}")
 
         print()
-        res = arr.query(attr_cond=qc)[:]
+        res = arr.query(cond=qc)[:]
         pprint(res)
 
 
@@ -88,9 +88,9 @@ if __name__ == "__main__":
                 array([0.74476144, 0.47211544, 0.99054245, 0.36640416, 0.91699594,
         0.06216043, 0.58581863, 0.00505695, 0.7486192 , 0.87649422]))])
 
-    --- with query condition QueryCondition(expression='(2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85)'):
+    --- with query condition (2 < attr1 < 6) and (attr2 < 0.5 or attr2 > 0.85):
     --- the fill value for attr1 is [18446744073709551615]
-    --- the fill value for attr1 is [nan]
+    --- the fill value for attr2 is [nan]
 
     OrderedDict([('attr1',
                 array([18446744073709551615, 18446744073709551615, 18446744073709551615,

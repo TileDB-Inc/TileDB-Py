@@ -34,8 +34,10 @@
 # and read the entire array data back.
 #
 
-import numpy as np
 import sys
+
+import numpy as np
+
 import tiledb
 
 array_name = "fragments_consolidation"
@@ -54,21 +56,21 @@ def create_array():
     )
 
     # Create the (empty) array on disk.
-    tiledb.DenseArray.create(array_name, schema)
+    tiledb.Array.create(array_name, schema)
 
 
 def write_array_1():
-    with tiledb.DenseArray(array_name, mode="w") as A:
-        A[1:3, 1:5] = np.array(([1, 2, 3, 4, 5, 6, 7, 8]))
+    with tiledb.open(array_name, mode="w") as A:
+        A[1:3, 1:5] = np.array(([[1, 2, 3, 4], [5, 6, 7, 8]]))
 
 
 def write_array_2():
-    with tiledb.DenseArray(array_name, mode="w") as A:
-        A[2:4, 2:4] = np.array(([101, 102, 103, 104]))
+    with tiledb.open(array_name, mode="w") as A:
+        A[2:4, 2:4] = np.array(([[101, 102], [103, 104]]))
 
 
 def write_array_3():
-    with tiledb.DenseArray(array_name, mode="w") as A:
+    with tiledb.open(array_name, mode="w") as A:
         # Note: sparse (unordered) writes to dense arrays are not yet supported in Python.
         # Instead we can make two single-cell writes (results in total of 4 fragments).
         A[1:2, 1:2] = np.array(([201]))
@@ -76,7 +78,7 @@ def write_array_3():
 
 
 def read_array():
-    with tiledb.DenseArray(array_name, mode="r") as A:
+    with tiledb.open(array_name, mode="r") as A:
         # Read the entire array. To get coord values as well, we use the .query() syntax.
         data = A.query(coords=True)[:, :]
         a_vals = data["a"]

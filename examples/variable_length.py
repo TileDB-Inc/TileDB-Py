@@ -33,9 +33,10 @@
 #
 
 
+import numpy as np
+
 #%%
 import tiledb
-import numpy as np
 from tiledb.tests.common import assert_subarrays_equal
 
 array_name = "variable_length_array"
@@ -82,7 +83,7 @@ def generate_data():
             "oo",
             "p",
         ],
-        dtype=np.object,
+        dtype=object,
     )
 
     a1_data = a1_data.reshape(4, 4)
@@ -111,7 +112,7 @@ def generate_data():
                 ],
             )
         ),
-        dtype=np.object,
+        dtype=object,
     )
     a2_data = a2_data.reshape(4, 4)
 

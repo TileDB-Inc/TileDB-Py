@@ -1,6 +1,8 @@
-import tiledb
+import tempfile
+
 import numpy as np
-import tempfile, shutil
+
+import tiledb
 
 
 class MultiIndex:

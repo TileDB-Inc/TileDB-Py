@@ -1,9 +1,8 @@
-from contextlib import contextmanager
-from contextvars import ContextVar
 import io
 import sys
-from typing import TYPE_CHECKING, Optional, Union
-
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Union
 
 import tiledb
 import tiledb.cc as lt
@@ -11,6 +10,7 @@ import tiledb.cc as lt
 _ctx_var = ContextVar("ctx")
 
 already_warned = False
+_needs_fork_wrapper = sys.platform != "win32" and sys.version_info < (3, 12)
 
 
 class Config(lt.Config):
@@ -52,15 +52,10 @@ class Config(lt.Config):
     :param str path: Set parameter values from persisted Config parameter file
     """
 
-    def __init__(self, params: dict = None, path: str = None, _lt_obj=None):
-        if _lt_obj is not None:
-            return super().__init__(dict(_lt_obj._iter()))
-
+    def __init__(self, params: dict = None, path: str = None):
         super().__init__()
-
         if path is not None:
             self.load(path)
-
         if params is not None:
             self.update(params)
 
@@ -141,10 +136,36 @@ class Config(lt.Config):
                 return False
         return True
 
+    unserialized_params_ = {
+        "vfs.azure.storage_account_name",
+        "vfs.azure.storage_account_key",
+        "vfs.azure.storage_sas_token",
+        "vfs.s3.proxy_username",
+        "vfs.s3.proxy_password",
+        "vfs.s3.aws_access_key_id",
+        "vfs.s3.aws_secret_access_key",
+        "vfs.s3.aws_session_token",
+        "vfs.s3.aws_role_arn",
+        "vfs.s3.aws_external_id",
+        "vfs.s3.aws_load_frequency",
+        "vfs.s3.aws_session_name",
+        "vfs.gcs.service_account_key",
+        "vfs.gcs.workload_identity_configuration",
+        "vfs.gcs.impersonate_service_account",
+        "rest.username",
+        "rest.password",
+        "rest.token",
+    }
+
     def __repr__(self):
         colnames = ["Parameter", "Value"]
         params = list(self.keys())
         values = list(map(repr, self.values()))
+        # for unserialized params, we don't want to print their values
+        values = [
+            "*" * 10 if p in self.unserialized_params_ and v != "''" else v
+            for i, (p, v) in enumerate(zip(params, values))
+        ]
         colsizes = [
             max(len(colnames[0]), *map(len, (p for p in params))),
             max(len(colnames[1]), *map(len, (v for v in values))),
@@ -168,6 +189,11 @@ class Config(lt.Config):
 
         params = list(self.keys())
         values = list(map(repr, self.values()))
+        # for unserialized params, we don't want to print their values
+        values = [
+            "*" * 10 if p in self.unserialized_params_ and v != "''" else v
+            for i, (p, v) in enumerate(zip(params, values))
+        ]
 
         for p, v in zip(params, values):
             output.write("<tr>")
@@ -214,7 +240,7 @@ class Config(lt.Config):
 
         :param str prefix: return only parameters with a given prefix
         :rtype: dict
-        :return: Config parameter / values as a a Python dict
+        :return: Config parameter / values as a Python dict
 
         """
         return dict(ConfigItems(self, prefix=prefix))
@@ -351,12 +377,25 @@ class Ctx(lt.Context):
 
         self._set_default_tags()
 
+        # The core tiledb library uses threads and it's easy
+        # to experience deadlocks when forking a process that is using
+        # tiledb.  The project doesn't have a solution for this at the
+        # moment other than to avoid using fork(), which is the same
+        # recommendation that Python makes. Python 3.12 warns if you
+        # fork() when multiple threads are detected and Python 3.14 will
+        # make it so you never accidentally fork(): multiprocessing will
+        # default to "spawn" on Linux.
+        _ensure_os_fork_wrap()
+
     def __repr__(self):
         return "tiledb.Ctx() [see Ctx.config() for configuration]"
 
     def config(self):
         """Returns the Config instance associated with the Ctx."""
-        return Config(_lt_obj=super().config())
+        new = Config.__new__(Config)
+        # bypass calling Config.__init__, call lt.Config.__init__ instead
+        lt.Config.__init__(new, super().config())
+        return new
 
     def set_tag(self, key: str, value: str):
         """Sets a (string, string) "tag" on the Ctx (internal)."""
@@ -394,6 +433,46 @@ class Ctx(lt.Context):
             return output
 
 
+class CtxMixin:
+    """
+    Base mixin class for pure Python classes that extend PyBind11 TileDB classes.
+
+    To use this class, a subclass must:
+    - Inherit from it first (i.e. `class Foo(CtxMixin, Bar)`, not `class Foo(Bar, CtxMixin)`
+    - Call super().__init__ by passing `ctx` (tiledb.Ctx or None) as first parameter and
+      zero or more pure Python positional parameters
+    """
+
+    def __init__(self, ctx, *args, _pass_ctx_to_super=True):
+        if not ctx:
+            ctx = default_ctx()
+
+        if _pass_ctx_to_super:
+            super().__init__(ctx, *args)
+        else:
+            super().__init__(*args)
+
+        # we set this here because if the super().__init__() constructor above fails,
+        # we don't want to set self._ctx
+        self._ctx = ctx
+
+    @classmethod
+    def from_capsule(cls, ctx, capsule):
+        """Create an instance of this class from a PyCapsule instance"""
+        # bypass calling self.__init__, call CtxMixin.__init__ instead
+        self = cls.__new__(cls)
+        CtxMixin.__init__(self, ctx, capsule)
+        return self
+
+    @classmethod
+    def from_pybind11(cls, ctx, lt_obj):
+        """Create an instance of this class from a PyBind11 instance"""
+        # bypass calling self.__init__, call CtxMixin.__init__ instead
+        self = cls.__new__(cls)
+        CtxMixin.__init__(self, ctx, lt_obj, _pass_ctx_to_super=False)
+        return self
+
+
 def check_ipykernel_warn_once():
     """
     This function checks if we have imported ipykernel version < 6 in the
@@ -402,7 +481,7 @@ def check_ipykernel_warn_once():
     global already_warned
     if not already_warned:
         try:
-            import sys, warnings
+            import warnings
 
             if "ipykernel" in sys.modules and tuple(
                 map(int, sys.modules["ipykernel"].__version__.split("."))
@@ -483,7 +562,46 @@ def default_ctx(config: Union["Config", dict] = None) -> "Ctx":
         ctx = _ctx_var.get()
         if config is not None:
             raise tiledb.TileDBError("Global context already initialized!")
+
+        # The core tiledb library uses threads and it's easy
+        # to experience deadlocks when forking a process that is using
+        # tiledb.  The project doesn't have a solution for this at the
+        # moment other than to avoid using fork(), which is the same
+        # recommendation that Python makes. Python 3.12 warns if you
+        # fork() when multiple threads are detected and Python 3.14 will
+        # make it so you never accidentally fork(): multiprocessing will
+        # default to "spawn" on Linux.
+        _ensure_os_fork_wrap()
     except LookupError:
         ctx = tiledb.Ctx(config)
         _ctx_var.set(ctx)
     return ctx
+
+
+def _ensure_os_fork_wrap():
+    global _needs_fork_wrapper
+    if _needs_fork_wrapper:
+        import os
+        import warnings
+        from functools import wraps
+
+        def warning_wrapper(func):
+            @wraps(func)
+            def wrapper():
+                warnings.warn(
+                    "TileDB is a multithreading library and deadlocks "
+                    "are likely if fork() is called after a TileDB "
+                    "context has been created (such as for array "
+                    "access). To safely use TileDB with "
+                    "multiprocessing or concurrent.futures, choose "
+                    "'spawn' as the start method for child processes. "
+                    "For example: "
+                    "multiprocessing.set_start_method('spawn').",
+                    UserWarning,
+                )
+                return func()
+
+            return wrapper
+
+        os.fork = warning_wrapper(os.fork)
+        _needs_fork_wrapper = False

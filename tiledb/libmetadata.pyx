@@ -1,13 +1,9 @@
-IF TILEDBPY_MODULAR:
-    include "common.pxi"
-    from .libtiledb import *
-    from .libtiledb cimport *
-
 import weakref
 from collections.abc import MutableMapping
 
 from cython.operator cimport dereference as deref
 
+from .datatypes import DataType
 
 _NP_DATA_PREFIX = "__np_flat_"
 _NP_SHAPE_PREFIX = "__np_shape_"
@@ -125,7 +121,7 @@ cdef object unpack_metadata_val(
 cdef np.ndarray unpack_metadata_ndarray(
         tiledb_datatype_t value_type, uint32_t value_num, const char* value_ptr
     ):
-    cdef np.dtype dtype = np.dtype(_numpy_dtype(value_type))
+    cdef np.dtype dtype = DataType.from_tiledb(value_type).np_dtype
     if value_ptr == NULL:
         return np.array((), dtype=dtype)
 
@@ -165,10 +161,11 @@ cdef put_metadata(Array array, key, value):
         if value.ndim != 1:
             raise TypeError(f"Only 1D Numpy arrays can be stored as metadata")
 
-        tiledb_type, ncells = array_type_ncells(value.dtype)
-        if ncells != 1:
+        dt = DataType.from_numpy(value.dtype)
+        if dt.ncells != 1:
             raise TypeError(f"Unsupported dtype '{value.dtype}'")
 
+        tiledb_type = dt.tiledb_type
         value_num = len(value)
         # special case for TILEDB_STRING_UTF8: TileDB assumes size=1
         if tiledb_type == TILEDB_STRING_UTF8:
@@ -403,11 +400,12 @@ cdef class Metadata:
                 ctx.__capsule__(), "ctx")
             tiledb_config_t* config_ptr = NULL
             tiledb_encryption_type_t key_type = TILEDB_NO_ENCRYPTION
-            void* key_ptr = NULL
+            const char* key_ptr = NULL
             uint32_t key_len = 0
             bytes bkey
             bytes buri = unicode_path(self.array.uri)
             str key = (<Array?>self.array).key
+            tiledb_error_t* err_ptr = NULL
 
         if config:
             config_ptr = <tiledb_config_t*>PyCapsule_GetPointer(
@@ -419,19 +417,28 @@ cdef class Metadata:
             else:
                 bkey = bytes(self.array.key)
             key_type = TILEDB_AES_256_GCM
-            key_ptr = <void *> PyBytes_AS_STRING(bkey)
+            key_ptr = <const char *> PyBytes_AS_STRING(bkey)
             #TODO: unsafe cast here ssize_t -> uint64_t
             key_len = <uint32_t> PyBytes_GET_SIZE(bkey)
+
+            rc = tiledb_config_alloc(&config_ptr, &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_config_set(config_ptr, "sm.encryption_type", "AES_256_GCM", &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
+
+            rc = tiledb_config_set(config_ptr, "sm.encryption_key", key_ptr, &err_ptr)
+            if rc != TILEDB_OK:
+                _raise_ctx_err(ctx_ptr, rc)
 
         cdef const char* buri_ptr = <const char*>buri
 
         with nogil:
-            rc = tiledb_array_consolidate_metadata_with_key(
+            rc = tiledb_array_consolidate(
                     ctx_ptr,
                     buri_ptr,
-                    key_type,
-                    key_ptr,
-                    key_len,
                     config_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)

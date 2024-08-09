@@ -1,7 +1,3 @@
-import tiledb
-import numpy as np
-import tempfile, shutil
-
 # TODO
 # [x] dense
 #    - simple rw

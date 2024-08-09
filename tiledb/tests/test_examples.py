@@ -6,7 +6,9 @@ import sys
 import tempfile
 
 import pytest
-from tiledb.tests.common import has_pandas
+
+from .common import has_pandas
+
 
 # override locally to avoid conflict with capsys used below
 @pytest.fixture(scope="function", autouse=True)
@@ -29,10 +31,14 @@ class ExamplesTest:
         # - with exit status checking (should fail tests if example fails)
         requires_pd = [
             os.path.join(self.PROJECT_DIR, "examples", f"{fn}.py")
-            for fn in ["incomplete_iteration", "parallel_csv_ingestion"]
+            for fn in [
+                "incomplete_iteration",
+                "parallel_csv_ingestion",
+                "query_condition_datetime",
+            ]
         ]
         if not has_pandas() and path in requires_pd:
-            pytest.mark.skip("pandas not installed")
+            pytest.mark.skip("pandas>=1.0,<3.0 not installed")
         else:
             with tempfile.TemporaryDirectory() as tmpdir:
                 try:
@@ -67,7 +73,11 @@ class ExamplesTest:
         )
         if failures:
             stderr = capsys.readouterr().out
-            if "No module named 'pandas'" in stderr and not has_pandas():
-                pytest.skip("pandas not installed")
+            if "No module named 'pandas'" in stderr or (
+                "Pandas version >= 1.0 and < 3.0 required for dataframe functionality"
+                in stderr
+                and not has_pandas()
+            ):
+                pytest.skip("pandas>=1.0,<3.0 not installed")
             else:
                 pytest.fail(stderr)

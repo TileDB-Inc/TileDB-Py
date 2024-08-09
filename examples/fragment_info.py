@@ -25,8 +25,9 @@
 # THE SOFTWARE.
 #
 
+
 import numpy as np
-import sys
+
 import tiledb
 
 array_name = "fragment_info"
@@ -50,12 +51,12 @@ def create_array():
 
 def write_array_1():
     with tiledb.open(array_name, mode="w") as A:
-        A[1:3, 1:5] = np.array(([1, 2, 3, 4, 5, 6, 7, 8]))
+        A[1:3, 1:5] = np.array(([[1, 2, 3, 4], [5, 6, 7, 8]]))
 
 
 def write_array_2():
     with tiledb.open(array_name, mode="w") as A:
-        A[2:4, 2:4] = np.array(([101, 102, 103, 104]))
+        A[2:4, 2:4] = np.array(([[101, 102], [103, 104]]))
 
 
 def write_array_3():

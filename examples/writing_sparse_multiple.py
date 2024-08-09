@@ -33,8 +33,9 @@
 # to it twice, and read all the data back.
 #
 
+
 import numpy as np
-import sys
+
 import tiledb
 
 # Name of the array to create.
@@ -61,14 +62,14 @@ def write_array():
     # Open the array and write to it.
     with tiledb.SparseArray(array_name, mode="w") as A:
         # First write
-        I, J = [1, 2, 2], [1, 4, 3]
+        IJ = [1, 2, 2], [1, 4, 3]
         data = np.array(([1, 2, 3]))
-        A[I, J] = data
+        A[IJ] = data
 
         # Second write
-        I, J = [4, 2], [1, 4]
+        IJ = [4, 2], [1, 4]
         data = np.array(([4, 20]))
-        A[I, J] = data
+        A[IJ] = data
 
 
 def read_array():

@@ -2,19 +2,19 @@
 # Property-based tests for Array.multi_index using Hypothesis
 #
 
-import tiledb
-from tiledb import SparseArray
-import numpy as np
-from numpy.testing import assert_array_equal
-
 import warnings
 
+import hypothesis as hp
+import numpy as np
 import pytest
-from tiledb.tests.common import checked_path
-from tiledb.tests.strategies import bounded_ntuple, ranged_slices
-
-from hypothesis import given, assume
+from hypothesis import assume, given
 from hypothesis import strategies as st
+from numpy.testing import assert_array_equal
+
+import tiledb
+from tiledb import SparseArray
+
+from .strategies import bounded_ntuple, ranged_slices
 
 
 def is_boundserror(exc: Exception):
@@ -34,7 +34,10 @@ def _direct_query_ranges(array: SparseArray, ranges, order):
     layout = order_map[order]
     with tiledb.scope_ctx() as ctx:
         q = tiledb.main.PyQuery(ctx, array, ("a",), (), layout, False)
-        q.set_ranges(ranges)
+        subarray = tiledb.Subarray(array)
+        subarray.add_ranges(ranges)
+        q.set_subarray(subarray)
+
         q.submit()
 
     if ranges == [[]]:
@@ -84,9 +87,12 @@ class TestMultiIndexPropertySparse:
 
         return uri
 
-    @pytest.mark.parametrize("order", ["C", "F", "U"])
-    @given(st.lists(bounded_ntuple(length=2, min_value=-100, max_value=100)))
-    def test_multi_index_two_way_query(self, order, sparse_array_1d, ranges):
+    @given(
+        order=st.sampled_from(["C", "F", "U"]),
+        ranges=st.lists(bounded_ntuple(length=2, min_value=-100, max_value=100)),
+    )
+    @hp.settings(deadline=None)
+    def test_multi_index_two_way_query(self, order, ranges, sparse_array_1d):
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
         uri = sparse_array_1d
@@ -108,8 +114,8 @@ class TestMultiIndexPropertySparse:
             raise
 
     @given(index_obj)
+    @hp.settings(deadline=None)
     def test_multi_index_inputs(self, sparse_array_1d, ind):
-
         # TODO
         # currently we don't have a comparison target/mockup to check
         # as there is no direct numpy equivalent for this indexing mode

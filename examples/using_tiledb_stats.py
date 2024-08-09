@@ -34,6 +34,7 @@
 #
 
 import numpy as np
+
 import tiledb
 
 # Name of array.
@@ -55,23 +56,23 @@ def create_array(row_tile_extent, col_tile_extent):
     )
 
     # Create the (empty) array on disk.
-    tiledb.DenseArray.create(array_name, schema)
+    tiledb.Array.create(array_name, schema)
 
 
 def write_array():
     # Open the array and write to it.
-    with tiledb.DenseArray(array_name, mode="w") as A:
-        data = np.arange(12000 * 12000)
+    with tiledb.open(array_name, mode="w") as A:
+        data = np.arange(12000 * 12000).reshape(12000, 12000)
         A[:] = data
 
 
 def read_array():
     # Open the array and read from it.
-    with tiledb.DenseArray(array_name, mode="r") as A:
+    with tiledb.open(array_name, mode="r") as A:
         # Read a slice of 3,000 rows.
         # Enable the stats for the read query, and print the report.
         tiledb.stats_enable()
-        data1 = A[1:3001, 1:12001]
+        print(A[1:3001, 1:12001])
         tiledb.stats_dump()
         tiledb.stats_disable()
 

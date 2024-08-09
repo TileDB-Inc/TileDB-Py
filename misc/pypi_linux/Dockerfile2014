@@ -1,0 +1,67 @@
+FROM quay.io/pypa/manylinux2014_x86_64:2022-11-28-5d13db4
+
+###############################################
+# version args
+ARG LIBTILEDB_VERSION=2.2.9
+ENV LIBTILEDB_VERSION=$LIBTILEDB_VERSION
+
+ARG LIBTILEDB_SHA=dc3bb54adc9bb0d99cb3f56ede2ab5b14e62ab76
+ENV LIBTILEDB_SHA=$LIBTILEDB_SHA
+
+ARG TILEDBPY_VERSION=0.8.10
+ENV TILEDBPY_VERSION=$TILEDBPY_VERSION
+
+ARG LIBTILEDB_REPO=https://github.com/TileDB-Inc/TileDB
+ENV LIBTILEDB_REPO=$LIBTILEDB_REPO
+
+###############################################
+# python settings
+# NOTE: MUST USE the 'mu' variant here to be compatible
+#       with "most" linux distros (see manylinux README)
+ENV PYTHON_BASE /opt/python/cp38-cp38/bin/
+
+RUN useradd tiledb
+ENV HOME /home/tiledb
+
+# dependencies:
+# - cmake (need recent) and auditwheel from pip
+RUN  $PYTHON_BASE/pip install cmake<3.22 auditwheel
+
+ENV CMAKE $PYTHON_BASE/cmake
+
+###############################################
+# 1) Nothing builds under GCC 4.8 due to default constructor unused-parameter warnings
+# 2) adding -lrt as a work-around for now because python2.7 doesn't link it, but it
+#    ends up as an unlinked dependency.
+# 3) Capnproto (TileDB Serialization) requeries -DKJ_USE_EPOLL=0 -D__BIONIC__=1 per
+#    https://github.com/capnproto/capnproto/issues/350#issuecomment-270930594
+
+ENV CXXFLAGS -Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1
+ENV CFLAGS -Wno-unused-parameter -lrt -DKJ_USE_EPOLL=0 -D__BIONIC__=1
+
+# build libtiledb (core)
+# notes:
+#    1) we are using auditwheel from https://github.com/pypa/auditwheel
+#       this verifies and tags wheel products with the manylinux1 label,
+#       and allows us to build libtiledb once, install it to a normal
+#       system path, and then use it to build wheels for all of the python
+#       versions.
+RUN cd /home/tiledb/ && \
+  git clone ${LIBTILEDB_REPO} && \
+  git -C TileDB checkout $LIBTILEDB_SHA && \
+  mkdir build && \
+  cd build && \
+  $CMAKE -DTILEDB_S3=ON -DTILEDB_AZURE=ON -DTILEDB_GCS=ON \
+  -DTILEDB_CPP_API=ON -DTILEDB_HDFS=ON -DTILEDB_TESTS=OFF \
+  -DTILEDB_FORCE_ALL_DEPS:BOOL=ON \
+  -DTILEDB_LOG_OUTPUT_ON_FAILURE:BOOL=ON \
+  -DSANITIZER="OFF;-DCOMPILER_SUPPORTS_AVX2:BOOL=FALSE" \
+  ../TileDB && \
+  make -j8 && \
+  make install-tiledb
+
+ADD misc/pypi_linux/build.sh /usr/bin/build.sh
+RUN chmod +x /usr/bin/build.sh
+
+# add source directory as optional TILEDB_PY_REPO
+ADD . /opt/TileDB-Py

@@ -1,8 +1,11 @@
+import tempfile
+
 import numpy as np
 from numpy.testing import assert_array_equal
 
 import tiledb
-from tiledb.tests.common import DiskTestCase
+
+from .common import DiskTestCase
 
 
 class UtilTest(DiskTestCase):
@@ -66,13 +69,11 @@ class UtilTest(DiskTestCase):
     def test_save(self):
         uri = self.path("test_save")
         arr = np.array(np.arange(3))
-        with tiledb.save(uri, arr) as tmp:
+        with tiledb.save(uri, arr):
             with tiledb.open(uri) as T:
                 assert_array_equal(arr, T)
 
     def test_array_exists(self):
-        import tempfile
-
         with tempfile.NamedTemporaryFile() as tmpfn:
             self.assertFalse(tiledb.array_exists(tmpfn.name))
 
@@ -94,3 +95,15 @@ class UtilTest(DiskTestCase):
         self.assertTrue(tiledb.array_exists(uri))
         self.assertTrue(tiledb.array_exists(uri, issparse=True))
         self.assertFalse(tiledb.array_exists(uri, isdense=True))
+
+        uri3 = self.path("test_array_exists_deleted")
+        with tiledb.from_numpy(uri3, np.arange(0, 5)) as T:
+            self.assertTrue(tiledb.array_exists(uri3))
+        tiledb.Array.delete_array(uri3)
+        self.assertFalse(tiledb.array_exists(uri3))
+
+        # test with context
+        ctx = tiledb.Ctx()
+        self.assertFalse(tiledb.array_exists(uri3, ctx=ctx))
+        with tiledb.from_numpy(uri3, np.arange(0, 5), ctx=ctx) as T:
+            self.assertTrue(tiledb.array_exists(uri3, ctx=ctx))

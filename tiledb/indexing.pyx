@@ -1,12 +1,9 @@
-IF TILEDBPY_MODULAR:
-  include "common.pxi"
-  from .libtiledb cimport *
-
 from libc.stdio cimport printf
 
-import numpy as np
-from .array import DenseArray, SparseArray
 import weakref
+
+import numpy as np
+
 
 def _index_as_tuple(idx):
     """Forces scalar index objects to a tuple representation"""
@@ -21,7 +18,7 @@ def _index_as_tuple(idx):
 cdef class DomainIndexer(object):
 
     @staticmethod
-    def with_schema(ArraySchema schema):
+    def with_schema(schema):
         cdef DomainIndexer indexer = DomainIndexer.__new__(DomainIndexer)
         indexer.array = None
         indexer.schema = schema
@@ -33,16 +30,21 @@ cdef class DomainIndexer(object):
         self.query = query
 
     @property
+    def schema(self):
+        return self.array.array_ref().schema
+
+    @property
     def array(self):
         assert self.array_ref() is not None, \
             "Internal error: invariant violation (index[] with dead array_ref)"
         return self.array_ref()
 
     def __getitem__(self, object idx):
+        from .subarray import Subarray # prevent circular import
         # implements domain-based indexing: slice by domain coordinates, not 0-based python indexing
 
-        cdef ArraySchema schema = self.array.schema
-        cdef Domain dom = schema.domain
+        schema = self.array.schema
+        dom = schema.domain
         cdef ndim = dom.ndim
         cdef list attr_names = list()
 
@@ -63,11 +65,13 @@ cdef class DomainIndexer(object):
             else:
                 new_idx.append(dim_idx)
 
-        subarray = list()
+        dim_ranges = list()
 
         for i, subidx in enumerate(new_idx):
             assert isinstance(subidx, slice)
-            subarray.append((subidx.start, subidx.stop))
+            dim_ranges.append((subidx.start, subidx.stop))
+        subarray = Subarray(self.array)
+        subarray.add_ranges([list([x]) for x in dim_ranges])
 
         attr_names = list(schema.attr(i).name for i in range(schema.nattr))
         attr_cond = None
@@ -99,9 +103,9 @@ cdef class DomainIndexer(object):
         else:
             raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)")
 
-        if isinstance(self.array, SparseArray):
+        if isinstance(self.array, SparseArrayImpl):
             return (<SparseArrayImpl>self.array)._read_sparse_subarray(subarray, attr_names, attr_cond, layout)
-        elif isinstance(self.array, DenseArray):
+        elif isinstance(self.array, DenseArrayImpl):
             return (<DenseArrayImpl>self.array)._read_dense_subarray(subarray, attr_names, attr_cond, layout, coords)
         else:
             raise Exception("No handler for Array type: " + str(type(self.array)))
@@ -138,10 +142,8 @@ cdef dict execute_multi_index(Array array,
 
     cdef:
         np.dtype coords_dtype
-        unicode coord_name = (tiledb_coords()).decode('UTF-8')
 
     cdef:
-        Attr attr
         Py_ssize_t attr_idx
         bytes battr_name
         unicode attr_name
@@ -225,10 +227,9 @@ cdef dict execute_multi_index(Array array,
             buffer_sizes[attr_idx] = attr_array.nbytes - result_bytes_read[attr_idx]
             buffer_sizes_ptr = <uint64_t*>np.PyArray_DATA(buffer_sizes)
 
-            rc = tiledb_query_set_buffer(ctx_ptr, query_ptr,
-                                         battr_name,
-                                         attr_array_ptr,
-                                         &(buffer_sizes_ptr[attr_idx]))
+            rc = tiledb_query_set_data_buffer(
+                    ctx_ptr, query_ptr, battr_name, attr_array_ptr,
+                    &(buffer_sizes_ptr[attr_idx]))
 
             if rc != TILEDB_OK:
                 # NOTE: query_ptr *must* only be freed in caller
@@ -308,7 +309,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
         tiledb_query_free(&query_ptr)
         _raise_ctx_err(ctx_ptr, rc)
 
-    cdef Dim dim = array.schema.domain.dim(0)
+    dim = array.schema.domain.dim(0)
     cdef uint32_t c_dim_idx
     cdef void* start_ptr = NULL
     cdef void* end_ptr = NULL
@@ -322,6 +323,14 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
     # we loop over the range tuple left to right and apply
     # (unspecified dimensions are excluded)
     cdef Py_ssize_t dim_idx, range_idx
+    cdef tiledb_subarray_t* subarray_ptr = NULL
+    cdef bint is_default = True
+
+    rc = tiledb_subarray_alloc(ctx_ptr, array_ptr, &subarray_ptr)
+    if rc != TILEDB_OK:
+        tiledb_subarray_free(&subarray_ptr)
+        tiledb_query_free(&query_ptr)
+        _raise_ctx_err(ctx_ptr, rc)
 
     for dim_idx in range(len(ranges)):
         c_dim_idx = <uint32_t>dim_idx
@@ -331,8 +340,11 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
         if len(dim_ranges) == 0:
             continue
 
+        is_default = False
         for range_idx in range(len(dim_ranges)):
             if len(dim_ranges[range_idx]) != 2:
+                tiledb_subarray_free(&subarray_ptr)
+                tiledb_query_free(&query_ptr)
                 raise TileDBError("internal error: invalid sub-range: ", dim_ranges[range_idx])
 
             start = np.array(dim_ranges[range_idx][0], dtype=dim.dtype)
@@ -341,14 +353,21 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
             start_ptr = np.PyArray_DATA(start)
             end_ptr = np.PyArray_DATA(end)
 
-            rc = tiledb_query_add_range(ctx_ptr, query_ptr,
-                                        dim_idx,
-                                        start_ptr,
-                                        end_ptr,
-                                        NULL)
+            rc = tiledb_subarray_add_range(
+                    ctx_ptr, subarray_ptr, dim_idx, start_ptr, end_ptr, NULL)
 
             if rc != TILEDB_OK:
+                tiledb_subarray_free(&subarray_ptr)
+                tiledb_query_free(&query_ptr)
                 _raise_ctx_err(ctx_ptr, rc)
+
+        if not is_default:
+            rc = tiledb_query_set_subarray_t(ctx_ptr, query_ptr, subarray_ptr)
+            if rc != TILEDB_OK:
+                tiledb_subarray_free(&subarray_ptr)
+                tiledb_query_free(&query_ptr)
+                _raise_ctx_err(ctx_ptr, rc)
+
     try:
         if coords is None:
             coords = True

@@ -30,11 +30,16 @@
 # with tiledb.from_csv and Python multiprocessing.
 #
 
-import tiledb
-import numpy as np
-import os, tempfile, time, glob
+import glob
 import multiprocessing
+import os
+import tempfile
+import time
 from concurrent.futures import ProcessPoolExecutor
+
+import numpy as np
+
+import tiledb
 
 # helper functions to generate data
 from tiledb.tests.common import rand_datetime64_array, rand_utf8
@@ -44,8 +49,8 @@ in_test = "PYTEST_CURRENT_TEST" in os.environ
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas version >= 1.0 required for dataframe functionality.
-                  Please `pip install pandas>=1.0` to proceed."""
+    pd_error = """Pandas version >= 1.0 and < 3.0 required for dataframe functionality.
+                  Please `pip install pandas>=1.0,<3.0` to proceed."""
 
     try:
         import pandas as pd
@@ -54,7 +59,9 @@ def check_dataframe_deps():
 
     from packaging.version import Version
 
-    if Version(pd.__version__) < Version("1.0"):
+    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
+        "3.0.0.dev0"
+    ):
         raise Exception(pd_error)
 
 
@@ -181,7 +188,6 @@ def from_csv_mp(
         )
 
     tasks = []
-    csv_chunks = []
     # high level ingestion timing
     start = time.time()
 

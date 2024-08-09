@@ -1,5 +1,7 @@
 #include <tiledb/tiledb>
+#include <tiledb/tiledb_experimental>
 
+#include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
@@ -41,6 +43,34 @@ void init_vfs(py::module &m) {
       .def("_copy_file", &VFS::copy_file)
 
       .def("_ls", &VFS::ls)
+      .def(
+          "_ls_recursive",
+          // 1. the user provides a callback, the user callback is passed to the
+          // C++ function. Return an empty vector.
+          // 2. no callback is passed and a default callback is used. The
+          // default callback just appends each path gathered. Return the paths.
+          [](VFS &vfs, std::string uri, py::object callback) {
+            tiledb::Context ctx;
+            if (callback.is_none()) {
+              std::vector<std::string> paths;
+              tiledb::VFSExperimental::ls_recursive(
+                  ctx, vfs, uri,
+                  [&](const std::string_view path,
+                      uint64_t object_size) -> bool {
+                    paths.push_back(std::string(path));
+                    return true;
+                  });
+              return paths;
+            } else {
+              tiledb::VFSExperimental::ls_recursive(
+                  ctx, vfs, uri,
+                  [&](const std::string_view path,
+                      uint64_t object_size) -> bool {
+                    return callback(path, object_size).cast<bool>();
+                  });
+              return std::vector<std::string>();
+            }
+          })
       .def("_touch", &VFS::touch);
 }
 

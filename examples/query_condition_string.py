@@ -29,10 +29,11 @@
 # writes sample data to the array, and then prints out a filtered
 # dataframe using the TileDB QueryCondition feature.
 
-import tiledb
-import numpy as np
-import tempfile
 import string
+
+import numpy as np
+
+import tiledb
 
 
 def create_array(path):
@@ -52,10 +53,8 @@ def create_array(path):
 
 def read_array(path, cond):
     with tiledb.open(path) as arr:
-        qc = tiledb.QueryCondition(cond)
-
-        print("QueryCondition is: ", qc)
-        res = arr.query(attr_cond=qc)[:]
+        print("QueryCondition is: ", cond)
+        res = arr.query(cond=cond)[:]
         return res
 
 

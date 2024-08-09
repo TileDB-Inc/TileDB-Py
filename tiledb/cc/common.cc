@@ -13,9 +13,9 @@ std::unordered_map<tiledb_datatype_t, std::string> _tdb_to_np_name_dtype = {
     {TILEDB_UINT16, "uint16"},
     {TILEDB_UINT32, "uint32"},
     {TILEDB_UINT64, "uint64"},
-    {TILEDB_STRING_ASCII, "|S1"},
-    {TILEDB_STRING_UTF8, "|U1"},
-    {TILEDB_CHAR, "|S1"},
+    {TILEDB_STRING_ASCII, "S"},
+    {TILEDB_STRING_UTF8, "U1"},
+    {TILEDB_CHAR, "S1"},
     {TILEDB_DATETIME_YEAR, "M8[Y]"},
     {TILEDB_DATETIME_MONTH, "M8[M]"},
     {TILEDB_DATETIME_WEEK, "M8[W]"},
@@ -29,7 +29,6 @@ std::unordered_map<tiledb_datatype_t, std::string> _tdb_to_np_name_dtype = {
     {TILEDB_DATETIME_PS, "M8[ps]"},
     {TILEDB_DATETIME_FS, "M8[fs]"},
     {TILEDB_DATETIME_AS, "M8[as]"},
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     /* duration types map to timedelta */
     {TILEDB_TIME_HR, "m8[h]"},
     {TILEDB_TIME_MIN, "m8[m]"},
@@ -40,12 +39,11 @@ std::unordered_map<tiledb_datatype_t, std::string> _tdb_to_np_name_dtype = {
     {TILEDB_TIME_PS, "m8[ps]"},
     {TILEDB_TIME_FS, "m8[fs]"},
     {TILEDB_TIME_AS, "m8[as]"},
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 9
     {TILEDB_BLOB, "byte"},
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
     {TILEDB_BOOL, "bool"},
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
+    {TILEDB_GEOM_WKB, "byte"},
+    {TILEDB_GEOM_WKT, "S"},
 #endif
 };
 
@@ -73,7 +71,6 @@ std::unordered_map<std::string, tiledb_datatype_t> _np_name_to_tdb_dtype = {
     {"datetime64[ps]", TILEDB_DATETIME_PS},
     {"datetime64[fs]", TILEDB_DATETIME_FS},
     {"datetime64[as]", TILEDB_DATETIME_AS},
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 3
     /* duration types map to timedelta */
     {"timedelta64[h]", TILEDB_TIME_HR},
     {"timedelta64[m]", TILEDB_TIME_MIN},
@@ -84,10 +81,7 @@ std::unordered_map<std::string, tiledb_datatype_t> _np_name_to_tdb_dtype = {
     {"timedelta64[ps]", TILEDB_TIME_PS},
     {"timedelta64[fs]", TILEDB_TIME_FS},
     {"timedelta64[as]", TILEDB_TIME_AS},
-#endif
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 10
     {"bool", TILEDB_BOOL},
-#endif
 };
 
 namespace tiledbpy::common {
@@ -107,6 +101,14 @@ bool expect_buffer_nbytes(py::buffer_info &info, tiledb_datatype_t datatype,
 } // namespace tiledbpy::common
 
 py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
+  if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
+      type == TILEDB_STRING_ASCII) {
+    std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
+    if (cell_val_num < TILEDB_VAR_NUM)
+      base_str += std::to_string(cell_val_num);
+    return py::dtype(base_str);
+  }
+
   if (cell_val_num == 1) {
     if (type == TILEDB_STRING_UTF16 || type == TILEDB_STRING_UTF32)
       TPY_ERROR_LOC("Unimplemented UTF16 or UTF32 string conversion!");
@@ -117,25 +119,17 @@ py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
       return py::dtype(_tdb_to_np_name_dtype[type]);
   }
 
-  else if (cell_val_num == 2) {
+  if (cell_val_num == 2) {
     if (type == TILEDB_FLOAT32)
       return py::dtype("complex64");
     if (type == TILEDB_FLOAT64)
       return py::dtype("complex128");
   }
 
-  else if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
-           type == TILEDB_STRING_ASCII) {
-    std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
-    if (cell_val_num < TILEDB_VAR_NUM)
-      base_str += std::to_string(cell_val_num);
-    return py::dtype(base_str);
-  }
-
-  else if (cell_val_num == TILEDB_VAR_NUM)
+  if (cell_val_num == TILEDB_VAR_NUM)
     return tdb_to_np_dtype(type, 1);
 
-  else if (cell_val_num > 1) {
+  if (cell_val_num > 1) {
     py::dtype base_dtype = tdb_to_np_dtype(type, 1);
     py::tuple rec_elem = py::make_tuple("", base_dtype);
     py::list rec_list;
@@ -159,12 +153,13 @@ tiledb_datatype_t np_to_tdb_dtype(py::dtype type) {
     return _np_name_to_tdb_dtype[name];
 
   auto kind = py::str(py::getattr(type, "kind"));
-  if (kind == py::str("S"))
+  if (kind.is(py::str("S")))
     return TILEDB_STRING_ASCII;
-  if (kind == py::str("U"))
+  if (kind.is(py::str("U")))
     return TILEDB_STRING_UTF8;
 
-  TPY_ERROR_LOC("could not handle numpy dtype");
+  TPY_ERROR_LOC("could not handle numpy dtype: " +
+                py::getattr(type, "name").cast<std::string>());
 }
 
 bool is_tdb_num(tiledb_datatype_t type) {
@@ -197,10 +192,10 @@ bool is_tdb_str(tiledb_datatype_t type) {
 }
 
 py::size_t get_ncells(py::dtype type) {
-  if (type == py::dtype("S"))
+  if (type.is(py::dtype("S")))
     return type.itemsize() == 0 ? TILEDB_VAR_NUM : type.itemsize();
 
-  if (type == py::dtype("U")) {
+  if (type.is(py::dtype("U"))) {
     auto np_unicode_size = py::dtype("U").itemsize();
     return type.itemsize() == 0 ? TILEDB_VAR_NUM
                                 : type.itemsize() / np_unicode_size;

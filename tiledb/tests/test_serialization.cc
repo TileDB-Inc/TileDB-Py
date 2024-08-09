@@ -13,10 +13,8 @@
 #include <tiledb/tiledb>                 // C++
 #include <tiledb/tiledb_serialization.h> // C
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 2
-
 #if !defined(NDEBUG)
-//#include "debug.cc"
+// #include "debug.cc"
 #endif
 
 namespace tiledbpy {
@@ -45,15 +43,19 @@ public:
     if (array == nullptr)
       TPY_ERROR_LOC("Invalid array pointer.");
 
-    tiledb_query_t *query;
-
-    uint32_t subarray[] = {3, 7};
+    uint32_t subarray_v[] = {3, 7};
     int64_t data[5];
     uint64_t data_size = sizeof(data);
+
+    tiledb_subarray_t *subarray;
+    tiledb_subarray_alloc(ctx, array, &subarray);
+    tiledb_subarray_set_subarray(ctx, subarray, &subarray_v);
+
+    tiledb_query_t *query;
     tiledb_query_alloc(ctx, array, TILEDB_READ, &query);
-    tiledb_query_set_subarray(ctx, query, subarray);
+    tiledb_query_set_subarray_t(ctx, query, subarray);
     tiledb_query_set_layout(ctx, query, TILEDB_UNORDERED);
-    tiledb_query_set_buffer(ctx, query, "", data, &data_size);
+    tiledb_query_set_data_buffer(ctx, query, "", data, &data_size);
 
     tiledb_buffer_list_t *buff_list;
     tiledb_buffer_t *buff;
@@ -77,6 +79,7 @@ public:
 
     tiledb_buffer_free(&buff);
     tiledb_buffer_list_free(&buff_list);
+    tiledb_subarray_free(&subarray);
     tiledb_query_free(&query);
 
     return output;
@@ -90,5 +93,3 @@ void init_test_serialization(py::module &m) {
 }
 
 }; // namespace tiledbpy
-
-#endif

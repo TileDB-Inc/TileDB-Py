@@ -12,10 +12,8 @@
 #include "../util.h"
 #include <tiledb/tiledb> // C++
 
-#if TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 2
-
 #if !defined(NDEBUG)
-//#include "debug.cc"
+// #include "debug.cc"
 #endif
 
 namespace tiledbpy {
@@ -45,5 +43,3 @@ void init_test_metadata(py::module &m) {
 }
 
 }; // namespace tiledbpy
-
-#endif

@@ -1,10 +1,10 @@
-import numpy as np
 import os
 import pprint
 import warnings
 
 import tiledb
-from tiledb.main import PyFragmentInfo
+
+from .main import PyFragmentInfo
 
 """
 Classes and functions relating to TileDB fragments.
@@ -54,9 +54,9 @@ class FragmentInfoList:
     ...
     ...     # Write three fragments to the array
     ...     with tiledb.DenseArray(uri, mode="w") as A:
-    ...         A[1:3, 1:5] = np.array(([1, 2, 3, 4, 5, 6, 7, 8]))
+    ...         A[1:3, 1:5] = np.array(([[1, 2, 3, 4], [5, 6, 7, 8]]))
     ...     with tiledb.DenseArray(uri, mode="w") as A:
-    ...         A[2:4, 2:4] = np.array(([101, 102, 103, 104]))
+    ...         A[2:4, 2:4] = np.array(([101, 102], [103, 104]))
     ...     with tiledb.DenseArray(uri, mode="w") as A:
     ...         A[3:4, 4:5] = np.array(([202]))
     ...
@@ -132,47 +132,35 @@ class FragmentInfoList:
 
     @property
     def non_empty_domain(self):
-        warnings.warn(
+        raise tiledb.TileDBError(
             "FragmentInfoList.non_empty_domain is deprecated; "
-            "please use FragmentInfoList.nonempty_domain",
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+            "you must use FragmentInfoList.nonempty_domain",
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledb.version() < (0, 19, 0)
-        return self.nonempty_domain
 
     @property
     def to_vacuum_num(self):
-        warnings.warn(
+        raise tiledb.TileDBError(
             "FragmentInfoList.to_vacuum_num is deprecated; "
-            "please use len(FragmentInfoList.to_vacuum)",
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+            "you must use len(FragmentInfoList.to_vacuum)",
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledb.version() < (0, 19, 0)
-        return len(self.to_vacuum)
 
     @property
     def to_vacuum_uri(self):
-        warnings.warn(
+        raise tiledb.TileDBError(
             "FragmentInfoList.to_vacuum_uri is deprecated; "
-            "please use FragmentInfoList.to_vacuum",
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+            "you must use FragmentInfoList.to_vacuum",
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledb.version() < (0, 19, 0)
-        return self.to_vacuum
 
     @property
     def dense(self):
-        warnings.warn(
+        raise tiledb.TileDBError(
             "FragmentInfoList.dense is deprecated; "
-            "please use FragmentInfoList.sparse",
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+            "you must use FragmentInfoList.sparse",
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledb.version() < (0, 19, 0)
-        return list(~np.array(self.sparse))
 
     def __getattr__(self, name):
         if name == "mbrs":
@@ -257,7 +245,6 @@ class FragmentInfo:
     """
 
     def __init__(self, fragments: FragmentInfoList, num):
-        self._frags = fragments
         self.num = num
         self.uri = fragments.uri[num]
         self.version = fragments.version[num]
@@ -311,46 +298,34 @@ class FragmentInfo:
 
     @property
     def non_empty_domain(self):
-        warnings.warn(
+        raise tiledb.TileDBError(
             "FragmentInfo.non_empty_domain is deprecated; "
-            "please use FragmentInfo.nonempty_domain. ",
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+            "you must use FragmentInfo.nonempty_domain. ",
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledb.version() < (0, 19, 0)
-        return self.nonempty_domain
 
     @property
     def to_vacuum_num(self):
-        warnings.warn(
+        raise tiledb.TileDBError(
             "FragmentInfo.to_vacuum_num is deprecated; "
-            "please use len(FragmentInfoList.to_vacuum).",
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+            "you must use len(FragmentInfoList.to_vacuum).",
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledb.version() < (0, 19, 0)
-        return len(self._frags.to_vacuum)
 
     @property
     def to_vacuum_uri(self):
-        warnings.warn(
+        raise tiledb.TileDBError(
             "FragmentInfo.to_vacuum_uri is deprecated; "
-            "please use FragmentInfoList.to_vacuum.",
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+            "you must use FragmentInfoList.to_vacuum.",
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledb.version() < (0, 19, 0)
-        return self._frags.to_vacuum
 
     @property
-    def to_vacuum_uri(self):
-        warnings.warn(
-            "FragmentInfo.dense is deprecated; please use FragmentInfo.sparse",
-            "It is slated for removal in 0.19.0.",
-            DeprecationWarning,
+    def dense(self):
+        raise tiledb.TileDBError(
+            "FragmentInfo.dense is deprecated; you must use FragmentInfo.sparse",
+            "This message will be removed in 0.21.0.",
         )
-        assert tiledb.version() < (0, 19, 0)
-        return not self._frags.sparse
 
 
 def FragmentsInfo(array_uri, ctx=None):
@@ -360,96 +335,10 @@ def FragmentsInfo(array_uri, ctx=None):
     Renamed to FragmentInfoList to make name more distinguishable from FragmentInfo.
     """
 
-    warnings.warn(
-        "FragmentsInfo is deprecated; please use FragmentInfoList. "
-        "It is slated for removal in 0.19.0.",
-        DeprecationWarning,
+    raise tiledb.TileDBError(
+        "FragmentsInfo is deprecated; you must use FragmentInfoList. "
+        "This message will be removed in 0.21.0.",
     )
-    assert tiledb.version() < (0, 19, 0)
-
-    if ctx is None:
-        ctx = tiledb.default_ctx()
-
-    return FragmentInfoList(array_uri, ctx)
-
-
-def delete_fragments(
-    uri, timestamp_range, config=None, ctx=None, verbose=False, dry_run=False
-):
-    """
-    Delete fragments from an array located at uri that falls within a given
-    timestamp_range.
-
-    :param str uri: URI for the TileDB array (any supported TileDB URI)
-    :param (int, int) timestamp_range: (default None) If not None, vacuum the
-        array using the given range (inclusive)
-    :param config: Override the context configuration. Defaults to ctx.config()
-    :param ctx: (optional) TileDB Ctx
-    :param verbose: (optional) Print fragments being deleted (default: False)
-    :param dry_run: (optional) Preview fragments to be deleted without
-        running (default: False)
-    """
-    warnings.warn(
-        "tiledb.delete_fragments is deprecated in lieu of Array.delete_fragments. "
-        "It is slated for removal in 0.19.0.",
-        DeprecationWarning,
-    )
-    assert tiledb.version() < (0, 19, 0)
-
-    if not isinstance(timestamp_range, tuple) and len(timestamp_range) != 2:
-        raise TypeError(
-            "'timestamp_range' argument expects tuple(start: int, end: int)"
-        )
-
-    if not ctx:
-        ctx = tiledb.default_ctx()
-
-    if config is None:
-        config = tiledb.Config(ctx.config())
-
-    vfs = tiledb.VFS(config=config, ctx=ctx)
-
-    if verbose or dry_run:
-        print("Deleting fragments:")
-
-    # TODO currently we cannot mix old and new style schemas, so it is only
-    # relevant to check if we need to delete new style schemas. we will need to
-    # check both in the future.
-    array_fragments = tiledb.array_fragments(uri)
-    live_fragment_schemas = set()
-    deleted_fragment_schemas = set()
-    for frag in array_fragments:
-        if (
-            timestamp_range[0] <= frag.timestamp_range[0]
-            and frag.timestamp_range[1] <= timestamp_range[1]
-        ):
-            if frag.version < 12:
-                ok_or_wrt = f"{frag.uri}.ok"
-            else:
-                frag_name = os.path.basename(frag.uri)
-                ok_or_wrt = os.path.join(uri, "__commits", f"{frag_name}.wrt")
-
-            if verbose or dry_run:
-                print(f"\t{frag.uri}")
-                print(ok_or_wrt)
-
-            if not dry_run:
-                vfs.remove_dir(frag.uri)
-                vfs.remove_file(ok_or_wrt)
-
-            deleted_fragment_schemas.add(frag.array_schema_name)
-        else:
-            live_fragment_schemas.add(frag.array_schema_name)
-
-    schemas_to_remove_on_disk = list(deleted_fragment_schemas - live_fragment_schemas)
-    if schemas_to_remove_on_disk and (verbose or dry_run):
-        print("Deleting schemas:")
-
-    for schema_name in schemas_to_remove_on_disk:
-        schema = os.path.join(uri, "__schema", schema_name)
-        if verbose or dry_run:
-            print(schema)
-        vfs.remove_file(schema)
 
 
 def create_array_from_fragments(
@@ -629,7 +518,14 @@ def copy_fragments_to_existing_array(
             "arrays and both must be identical"
         )
     elif is_new_style:
-        if len(vfs.ls(dst_schema_dir)) != 1 or len(vfs.ls(src_schema_dir)) != 1:
+
+        def filtered_schema_dir(uri):
+            return [x for x in vfs.ls(uri) if "__enumerations" not in x]
+
+        if (
+            len(filtered_schema_dir(dst_schema_dir)) != 1
+            or len(filtered_schema_dir(src_schema_dir)) != 1
+        ):
             raise tiledb.TileDBError(
                 "Mutltiple evolved schemas detected. There can only be one "
                 "schema version present in both the source and destination "
