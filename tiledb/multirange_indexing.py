@@ -17,6 +17,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    TypeVar,
     Union,
     cast,
 )
@@ -43,11 +44,11 @@ if TYPE_CHECKING:
 current_timer: ContextVar[str] = ContextVar("timer_scope")
 
 
-# sentinel value to denote selecting an empty range
-EmptyRange = object()
+# sentinel type to denote selecting an empty range
+EmptyRange = TypeVar("EmptyRange")
 
 
-def is_empty_range(idx: Any) -> bool:
+def is_empty_range(idx: Union[EmptyRange, List, Tuple]) -> bool:
     if idx is not EmptyRange:
         if hasattr(idx, "__len__") and len(idx) == 0 and idx != "":
             return True
@@ -256,9 +257,13 @@ class _BaseIndexer(ABC):
 
     def __getitem__(self, idx):
         with timing("getitem_time"):
-            self._set_ranges(
-                getitem_ranges(self.array, idx) if not is_empty_range(idx) else None
-            )
+            if is_empty_range(idx):
+                self.pyquery = None
+                self.subarray = None
+            else:
+                self._set_pyquery()
+                self.subarray = Subarray(self.array)
+                self._set_ranges(idx)
             return self if self.return_incomplete else self._run_query()
 
     def estimated_result_sizes(self):
