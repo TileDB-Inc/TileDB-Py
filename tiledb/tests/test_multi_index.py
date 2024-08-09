@@ -903,6 +903,7 @@ class TestMultiRange(DiskTestCase):
         with tiledb.open(uri, mode="r") as A:
             assert all(A.query(use_arrow=True).df[:][""] == data)
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_empty_idx(self):
         uri = self.path("test_empty_idx")
 
