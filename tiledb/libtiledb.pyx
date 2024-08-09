@@ -32,7 +32,9 @@ np.import_array()
 
 # Integer types supported by Python / System
 _inttypes = (int, np.integer)
-np.set_printoptions(legacy='1.21') # use unified numpy printing
+
+# Use unified numpy printing
+np.set_printoptions(legacy="1.21" if np.lib.NumpyVersion(np.__version__) >= "1.22.0" else False)
 
 
 cdef tiledb_ctx_t* safe_ctx_ptr(object ctx):
