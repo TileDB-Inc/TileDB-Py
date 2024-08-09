@@ -2,9 +2,16 @@ import tempfile
 import unittest
 
 import numpy as np
+import pytest
 
 import tiledb
 import tiledb.cc as lt
+
+if not (tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] >= 25):
+    pytest.skip(
+        "CurrentDomain is only available in TileDB 2.25 and later",
+        allow_module_level=True,
+    )
 
 
 class NDRectangleTest(unittest.TestCase):
