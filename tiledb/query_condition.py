@@ -39,41 +39,23 @@ class QueryCondition:
     (https://docs.tiledb.com/main/background/internal-mechanics/writing#default-fill-values).
     An example may be found in `examples/query_condition_dense.py`.
 
-    **BNF:**
-
     A query condition is made up of one or more Boolean expressions. Multiple
     Boolean expressions are chained together with Boolean operators. The ``or_op``
     Boolean operators are given lower presedence than ``and_op``.
 
-        ``query_cond ::= bool_term | query_cond or_op bool_term``
-
-        ``bool_term ::= bool_expr | bool_term and_op bool_expr``
-
-    Logical ``and`` and bitwise ``&`` Boolean operators are given equal precedence.
-
-        ``and_op ::= and | &``
-
-    Likewise, ``or`` and ``|`` are given equal precedence.
-
-        ``or_op ::= or | |``
-
-    We intend to support ``not`` in future releases.
+    A Bitwise expression may either be a comparison expression or membership
+    expression.
 
     A Boolean expression may either be a comparison expression or membership
     expression.
 
-        ``bool_expr ::= compare_expr | member_expr``
-
     A comparison expression contains a comparison operator. The operator works on a
     TileDB attribute or dimension name (hereby known as a "TileDB variable") and value.
 
-        ``compare_expr ::= var compare_op val
-            | val compare_op var
-            | val compare_op var compare_op val``
-
     All comparison operators are supported.
 
-        ``compare_op ::= < | > | <= | >= | == | !=``
+    Bitwise operators are given higher precedence than comparison operators.
+    Boolean operators are given lower precedence than comparison operators.
 
     If an attribute name has special characters in it, you can wrap ``namehere``
     in ``attr("namehere")``.
@@ -81,16 +63,10 @@ class QueryCondition:
     A membership expression contains the membership operator, ``in``. The operator
     works on a TileDB variable and list of values.
 
-        ``member_expr ::= var in <list>``
-
     TileDB variable names are Python valid variables or a ``attr()`` or ``dim()`` casted string.
-
-        ``var ::= <variable> | attr(<str>) | dim(<str>)``
 
     Values are any Python-valid number or string. datetime64 values should first be
     cast to UNIX seconds. Values may also be casted with ``val()``.
-
-        ``val ::= <num> | <str> | val(val)``
 
     **Example:**
 
@@ -99,13 +75,18 @@ class QueryCondition:
     >>>     # and `bar` equal to string "asdf".
     >>>     # Note precedence is equivalent to:
     >>>     # tiledb.QueryCondition("foo > 5 or ('asdf' == var('b a r') and baz <= val(1.0))")
-    >>>     qc = tiledb.QueryCondition("foo > 5 or 'asdf' == var('b a r') and baz <= val(1.0)")
-    >>>     A.query(cond=qc)
+    >>>     A.query(cond=tiledb.QueryCondition("foo > 5 or 'asdf' == var('b a r') and baz <= val(1.0)"))
     >>>
     >>>     # Select cells where the values for `foo` are equal to 1, 2, or 3.
     >>>     # Note this is equivalent to:
     >>>     # tiledb.QueryCondition("foo == 1 or foo == 2 or foo == 3")
     >>>     A.query(cond=tiledb.QueryCondition("foo in [1, 2, 3]"))
+    >>>
+    >>>     # Example showing that bitwise operators (| ^ &) are given higher precedence than comparison operators
+    >>>     # and comparison operators are given higher precedence than logical operators.
+    >>>     # Note this is equivalent to:
+    >>>     # tiledb.QueryCondition("((foo == 1) or (foo == 2)) and ('xyz' == var('b a r')) and ((foo & 1) == 0"))
+    >>>     A.query(cond=tiledb.QueryCondition("foo == 1 or foo == 2 and 'xyz' == var('b a r') and foo & 1 == 0"))
     """
 
     expression: str
