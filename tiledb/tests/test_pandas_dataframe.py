@@ -5,6 +5,7 @@ import random
 import string
 import sys
 import uuid
+from collections import OrderedDict
 
 import numpy as np
 import pyarrow
@@ -16,6 +17,7 @@ from tiledb.dataframe_ import ColumnInfo
 
 from .common import (
     DiskTestCase,
+    assert_dict_arrays_equal,
     dtype_max,
     dtype_min,
     has_pandas,
@@ -219,7 +221,6 @@ class TestColumnInfo:
             "<M8[Y]",
             "<M8[M]",
             "<M8[W]",
-            "<M8[D]",
             "<M8[h]",
             "<M8[m]",
             "<M8[s]",
@@ -1624,3 +1625,72 @@ def test_write_unnamed_index_py755(checked_path):
 
     with tiledb.open(uri) as A:
         tm.assert_frame_equal(df.sort_index(), A.df[:])
+
+
+def test_datetime64_days_dtype_sc25572(checked_path):
+    """Test writing array with datetime64[D] attribute dtype and reading back"""
+
+    uri = checked_path.path()
+
+    schema = tiledb.ArraySchema(
+        tiledb.Domain(tiledb.Dim(name="d1", domain=(0, 99), tile=100, dtype=np.int64)),
+        [tiledb.Attr("Attr1", dtype="datetime64[D]", var=False, nullable=False)],
+    )
+    tiledb.Array.create(uri, schema)
+
+    data = OrderedDict(
+        [
+            (
+                "Attr1",
+                np.array(
+                    [
+                        np.datetime64(np.random.randint(0, 10000), "D")
+                        for _ in range(100)
+                    ],
+                    dtype="datetime64[D]",
+                ),
+            )
+        ]
+    )
+    original_df = pd.DataFrame(data, dtype="datetime64[ns]")
+    original_df.index.name = "d1"
+
+    with tiledb.open(uri, "w") as array:
+        array[:] = data
+
+    with tiledb.open(uri, "r") as array:
+        assert_dict_arrays_equal(array[:], data)
+        df_received = array.df[:]
+        df_received = df_received.set_index("d1")
+        tm.assert_frame_equal(
+            original_df, df_received, check_datetimelike_compat=True, check_dtype=False
+        )
+
+
+def test_datetime64_days_dtype_sc25572_from_pandas(checked_path):
+    """Test writing dataframe with datetime64[D] attribute dtype and reading back"""
+    uri = checked_path.path()
+
+    data = OrderedDict(
+        [
+            (
+                "Attr1",
+                np.array(
+                    [
+                        np.datetime64(np.random.randint(0, 10000), "D")
+                        for _ in range(100)
+                    ],
+                    dtype="datetime64[ns]",
+                ),
+            )
+        ]
+    )
+    original_df = pd.DataFrame(data)
+    tiledb.from_pandas(uri, original_df)
+
+    with tiledb.open(uri, "r") as array:
+        assert_dict_arrays_equal(array[:], data)
+        df_received = array.df[:]
+        tm.assert_frame_equal(
+            original_df, df_received, check_datetimelike_compat=True, check_dtype=False
+        )
