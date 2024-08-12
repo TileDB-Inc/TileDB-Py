@@ -6,7 +6,7 @@ requires = [
     "numpy==1.17.* ; python_version == '3.8' and platform_machine not in 'arm64|aarch64'",
     "numpy==1.19.* ; python_version == '3.8' and platform_machine == 'aarch64'",
     "numpy==1.21.* ; python_version == '3.8' and platform_machine == 'arm64'",
-    "numpy>=2.0.0rc2 ; python_version >= '3.9'"
+    "numpy>=2.0.1 ; python_version >= '3.9'"
 ]
 build-backend = "scikit_build_core.build"
 

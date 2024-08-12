@@ -145,8 +145,6 @@ cdef extern from "tiledb/tiledb.h":
         pass
     ctypedef struct tiledb_array_schema_t:
         pass
-    ctypedef struct tiledb_current_domain_t:
-        pass
     ctypedef struct tiledb_dimension_t:
         pass
     ctypedef struct tiledb_domain_t:

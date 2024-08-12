@@ -19,12 +19,19 @@ if os.name == "posix":
 else:
     lib_name = "tiledb"
 
+from tiledb.libtiledb import version as libtiledb_version
+
+if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 25:
+    from .current_domain import CurrentDomain
+    from .ndrectangle import NDRectangle
+
+del libtiledb_version  # no longer needed
+
 from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
 from .consolidation_plan import ConsolidationPlan
 from .ctx import Config, Ctx, default_ctx, scope_ctx
-from .current_domain import CurrentDomain
 from .dataframe_ import from_csv, from_pandas, open_dataframe
 from .dimension import Dim
 from .dimension_label import DimLabel
@@ -91,7 +98,6 @@ from .libtiledb import (
     walk,
 )
 from .multirange_indexing import EmptyRange
-from .ndrectangle import NDRectangle
 from .object import Object
 from .parquet_ import from_parquet
 from .query import Query

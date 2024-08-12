@@ -15,8 +15,6 @@ from collections import OrderedDict
 from json import dumps as json_dumps, loads as json_loads
 
 from ._generated_version import version_tuple as tiledbpy_version
-from .array_schema import ArraySchema
-from .enumeration import Enumeration
 from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
 from .vfs import VFS
@@ -34,7 +32,9 @@ np.import_array()
 
 # Integer types supported by Python / System
 _inttypes = (int, np.integer)
-np.set_printoptions(legacy='1.21') # use unified numpy printing
+
+# Use unified numpy printing
+np.set_printoptions(legacy="1.21" if np.lib.NumpyVersion(np.__version__) >= "1.22.0" else False)
 
 
 cdef tiledb_ctx_t* safe_ctx_ptr(object ctx):
@@ -872,6 +872,7 @@ cdef class Array(object):
                 rc = tiledb_array_get_schema(ctx_ptr, array_ptr, &array_schema_ptr)
             if rc != TILEDB_OK:
               _raise_ctx_err(ctx_ptr, rc)
+            from .array_schema import ArraySchema
             schema = ArraySchema.from_capsule(ctx, PyCapsule_New(array_schema_ptr, "schema", NULL))
         except:
             tiledb_array_close(ctx_ptr, array_ptr)
@@ -1276,6 +1277,8 @@ cdef class Array(object):
         rc = tiledb_array_get_enumeration(ctx_ptr, array_ptr, name_ptr, &enum_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+
+        from .enumeration import Enumeration
         return Enumeration.from_capsule(self.ctx, PyCapsule_New(enum_ptr, "enum", NULL))
 
     def delete_fragments(self_or_uri, timestamp_start, timestamp_end, ctx=None):
