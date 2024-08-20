@@ -2705,7 +2705,7 @@ cdef class DenseArrayImpl(Array):
                                         "typed attribute '{}'!".format(name))
                     
                     if attr.isnullable and name not in nullmaps:
-                        nullmaps[name] = ~np.ma.fix_invalid(val).mask
+                        nullmaps[name] = ~np.ma.masked_invalid(val).mask
                         val = np.nan_to_num(val)
                     val = np.ascontiguousarray(val, dtype=attr.dtype)
             except Exception as exc:
