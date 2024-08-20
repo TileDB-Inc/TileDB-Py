@@ -608,6 +608,24 @@ class QueryConditionTest(DiskTestCase):
                 exc_info.value
             )
 
+    @pytest.mark.parametrize(
+        "expression_and_message",
+        [
+            ["foo is True", "the `is` operator is not supported"],
+            ["foo is not True", "the `is not` operator is not supported"],
+            [
+                "foo &&& bar",
+                "Could not parse the given QueryCondition statement: foo &&& bar",
+            ],
+        ],
+    )
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_not_supported_operators(self, expression_and_message, sparse):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=sparse)) as A:
+            expression, message = expression_and_message
+            with self.assertRaisesRegex(tiledb.TileDBError, message):
+                A.query(cond=expression)[:]
+
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_dense_datetime(self):
         import pandas as pd

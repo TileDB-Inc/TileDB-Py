@@ -118,7 +118,7 @@ class QueryCondition:
         if not isinstance(self.c_obj, qc.PyQueryCondition):
             raise TileDBError(
                 "Malformed query condition statement. A query condition must "
-                "be made up of one or more Boolean expressions."
+                "be made up of one or more boolean expressions."
             )
 
 
@@ -163,6 +163,12 @@ class QueryConditionTree(ast.NodeVisitor):
 
     def visit_NotIn(self, node):
         return node
+
+    def visit_Is(self, node):
+        raise TileDBError("the `is` operator is not supported")
+
+    def visit_IsNot(self, node):
+        raise TileDBError("the `is not` operator is not supported")
 
     def visit_List(self, node):
         return list(node.elts)
@@ -225,6 +231,9 @@ class QueryConditionTree(ast.NodeVisitor):
             dtype = "string" if dt.kind in "SUa" else dt.name
             op = qc.TILEDB_IN if isinstance(operator, ast.In) else qc.TILEDB_NOT_IN
             result = self.create_pyqc(dtype)(self.ctx, node.left.id, values, op)
+
+        else:
+            raise TileDBError(f"unrecognized operator in <<{ast.dump(node)}>>")
 
         return result
 
