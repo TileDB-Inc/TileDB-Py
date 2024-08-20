@@ -208,6 +208,13 @@ class QueryConditionTest(DiskTestCase):
 
     def test_string_sparse(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            with self.assertRaises(tiledb.TileDBError) as exc_info:
+                A.query(cond="S == c", attrs=["S"])[:]
+            assert (
+                "right-hand sides must be constant expressions, not variables -- did you mean to quote the right-hand side as a string?"
+                in str(exc_info.value)
+            )
+
             result = A.query(cond="S == 'c'", attrs=["S"])[:]
             assert len(result["S"]) == 1
             assert result["S"][0] == b"c"
@@ -224,6 +231,13 @@ class QueryConditionTest(DiskTestCase):
 
     def test_string_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
+            with self.assertRaises(tiledb.TileDBError) as exc_info:
+                A.query(cond="S == ccc", attrs=["S"])[:]
+            assert (
+                "right-hand sides must be constant expressions, not variables -- did you mean to quote the right-hand side as a string?"
+                in str(exc_info.value)
+            )
+
             result = A.query(cond="S == 'ccc'", attrs=["S"])[:]
             assert all(self.filter_dense(result["S"], A.attr("S").fill) == b"c")
 

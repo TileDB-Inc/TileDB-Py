@@ -351,20 +351,10 @@ class QueryConditionTree(ast.NodeVisitor):
 
         if isinstance(value_node, ast.Constant):
             value = value_node.value
-        elif isinstance(value_node, ast.Constant):
-            # deprecated in 3.8
-            value = value_node.value
-        elif isinstance(value_node, ast.Constant):
-            # deprecated in 3.8
-            value = value_node.n
-        elif isinstance(value_node, ast.Constant) or isinstance(
-            value_node, ast.Constant
-        ):
-            # deprecated in 3.8
-            value = value_node.s
         else:
             raise TileDBError(
-                f"Incorrect type for comparison value: {ast.dump(value_node)}"
+                f"Incorrect type for comparison value: {ast.dump(value_node)}: right-hand sides must be constant"
+                " expressions, not variables -- did you mean to quote the right-hand side as a string?"
             )
 
         return value
@@ -432,8 +422,12 @@ class QueryConditionTree(ast.NodeVisitor):
         result = self.visit(node.left)
         rhs = node.right[1:] if isinstance(node.right, list) else [node.right]
         for value in rhs:
-            result = result.combine(self.visit(value), op)
-
+            visited = self.visit(value)
+            if not isinstance(result, qc.PyQueryCondition):
+                raise Exception(
+                    f"Unable to parse expression component {ast.dump(node)} -- did you mean to quote it as a string?"
+                )
+            result = result.combine(visited, op)
         return result
 
     def visit_BoolOp(self, node: ast.BoolOp) -> qc.PyQueryCondition:
