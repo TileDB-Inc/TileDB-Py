@@ -2158,7 +2158,7 @@ cdef class Query(object):
 
     def label_index(self, labels):
         """Apply Array.label_index with query parameters."""
-        from .multirange_indexer import LabelIndexer
+        from .multirange_indexing import LabelIndexer
         return LabelIndexer(self.array, tuple(labels), query=self)
 
     @property
