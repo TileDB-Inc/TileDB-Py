@@ -753,6 +753,37 @@ class QueryConditionTest(DiskTestCase):
             # ensures that ' a' does not match 'a'
             assert len(result["A"]) == 0
 
+    def test_attribute_with_dot(self):
+        path = self.path("test_with_dot")
+        dom = tiledb.Domain(tiledb.Dim(name="dim", domain=(0, 10), dtype=np.uint32))
+        attrs = [
+            tiledb.Attr(name="attr.one", dtype=np.uint32),
+            tiledb.Attr(name="attr.two", dtype=np.uint32),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+        with tiledb.open(path, "w") as A:
+            A[np.arange(11)] = {"attr.one": np.arange(11), "attr.two": np.arange(11)}
+        with tiledb.open(path, "r") as A:
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="attr.one < 6")[:]
+            assert (
+                "TileDBError: Unhandled dot operator in Attribute(value=Name(id='attr', ctx=Load()), attr='one', ctx=Load()) -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr(\"...\")`, e.g. `attr(\"orig.ident\")`"
+                in str(exc_info.value)
+            )
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="attr.two >= 6")[:]
+            assert (
+                "TileDBError: Unhandled dot operator in Attribute(value=Name(id='attr', ctx=Load()), attr='two', ctx=Load()) -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr(\"...\")`, e.g. `attr(\"orig.ident\")`"
+                in str(exc_info.value)
+            )
+
+            # now test with the correct syntax
+            result = A.query(cond='attr("attr.one") < 6')[:]
+            assert_array_equal(result["attr.one"], A[:6]["attr.one"])
+            result = A.query(cond='attr("attr.two") >= 6')[:]
+            assert_array_equal(result["attr.two"], A[6:]["attr.two"])
+
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_do_not_return_attrs(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:

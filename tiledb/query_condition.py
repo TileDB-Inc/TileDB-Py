@@ -167,6 +167,13 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_List(self, node):
         return list(node.elts)
 
+    def visit_Attribute(self, node) -> qc.PyQueryCondition:
+        raise TileDBError(
+            f"Unhandled dot operator in {ast.dump(node)} -- if your attribute name "
+            'has a dot in it, e.g. `orig.ident`, please wrap it with `attr("...")`, '
+            'e.g. `attr("orig.ident")`'
+        )
+
     def visit_Compare(self, node: Type[ast.Compare]) -> qc.PyQueryCondition:
         operator = self.visit(node.ops[0])
 
