@@ -208,6 +208,13 @@ class QueryConditionTest(DiskTestCase):
 
     def test_string_sparse(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            with self.assertRaises(tiledb.TileDBError) as exc_info:
+                A.query(cond="S == c", attrs=["S"])[:]
+            assert (
+                "right-hand sides must be constant expressions, not variables -- did you mean to quote the right-hand side as a string?"
+                in str(exc_info.value)
+            )
+
             result = A.query(cond="S == 'c'", attrs=["S"])[:]
             assert len(result["S"]) == 1
             assert result["S"][0] == b"c"
@@ -224,6 +231,13 @@ class QueryConditionTest(DiskTestCase):
 
     def test_string_dense(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
+            with self.assertRaises(tiledb.TileDBError) as exc_info:
+                A.query(cond="S == ccc", attrs=["S"])[:]
+            assert (
+                "right-hand sides must be constant expressions, not variables -- did you mean to quote the right-hand side as a string?"
+                in str(exc_info.value)
+            )
+
             result = A.query(cond="S == 'ccc'", attrs=["S"])[:]
             assert all(self.filter_dense(result["S"], A.attr("S").fill) == b"c")
 
@@ -594,6 +608,24 @@ class QueryConditionTest(DiskTestCase):
                 exc_info.value
             )
 
+    @pytest.mark.parametrize(
+        "expression_and_message",
+        [
+            ["foo is True", "the `is` operator is not supported"],
+            ["foo is not True", "the `is not` operator is not supported"],
+            [
+                "foo &&& bar",
+                "Could not parse the given QueryCondition statement: foo &&& bar",
+            ],
+        ],
+    )
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_not_supported_operators(self, expression_and_message, sparse):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=sparse)) as A:
+            expression, message = expression_and_message
+            with self.assertRaisesRegex(tiledb.TileDBError, message):
+                A.query(cond=expression)[:]
+
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_dense_datetime(self):
         import pandas as pd
@@ -752,6 +784,37 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond=qc)[:]
             # ensures that ' a' does not match 'a'
             assert len(result["A"]) == 0
+
+    def test_attribute_with_dot(self):
+        path = self.path("test_with_dot")
+        dom = tiledb.Domain(tiledb.Dim(name="dim", domain=(0, 10), dtype=np.uint32))
+        attrs = [
+            tiledb.Attr(name="attr.one", dtype=np.uint32),
+            tiledb.Attr(name="attr.two", dtype=np.uint32),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+        with tiledb.open(path, "w") as A:
+            A[np.arange(11)] = {"attr.one": np.arange(11), "attr.two": np.arange(11)}
+        with tiledb.open(path, "r") as A:
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="attr.one < 6")[:]
+            assert (
+                "TileDBError: Unhandled dot operator in Attribute(value=Name(id='attr', ctx=Load()), attr='one', ctx=Load()) -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr(\"...\")`, e.g. `attr(\"orig.ident\")`"
+                in str(exc_info.value)
+            )
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="attr.two >= 6")[:]
+            assert (
+                "TileDBError: Unhandled dot operator in Attribute(value=Name(id='attr', ctx=Load()), attr='two', ctx=Load()) -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr(\"...\")`, e.g. `attr(\"orig.ident\")`"
+                in str(exc_info.value)
+            )
+
+            # now test with the correct syntax
+            result = A.query(cond='attr("attr.one") < 6')[:]
+            assert_array_equal(result["attr.one"], A[:6]["attr.one"])
+            result = A.query(cond='attr("attr.two") >= 6')[:]
+            assert_array_equal(result["attr.two"], A[6:]["attr.two"])
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_do_not_return_attrs(self):

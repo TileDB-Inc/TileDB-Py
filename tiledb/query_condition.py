@@ -118,7 +118,7 @@ class QueryCondition:
         if not isinstance(self.c_obj, qc.PyQueryCondition):
             raise TileDBError(
                 "Malformed query condition statement. A query condition must "
-                "be made up of one or more Boolean expressions."
+                "be made up of one or more boolean expressions."
             )
 
 
@@ -164,8 +164,21 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_NotIn(self, node):
         return node
 
+    def visit_Is(self, node):
+        raise TileDBError("the `is` operator is not supported")
+
+    def visit_IsNot(self, node):
+        raise TileDBError("the `is not` operator is not supported")
+
     def visit_List(self, node):
         return list(node.elts)
+
+    def visit_Attribute(self, node) -> qc.PyQueryCondition:
+        raise TileDBError(
+            f"Unhandled dot operator in {ast.dump(node)} -- if your attribute name "
+            'has a dot in it, e.g. `orig.ident`, please wrap it with `attr("...")`, '
+            'e.g. `attr("orig.ident")`'
+        )
 
     def visit_Compare(self, node: Type[ast.Compare]) -> qc.PyQueryCondition:
         operator = self.visit(node.ops[0])
@@ -218,6 +231,9 @@ class QueryConditionTree(ast.NodeVisitor):
             dtype = "string" if dt.kind in "SUa" else dt.name
             op = qc.TILEDB_IN if isinstance(operator, ast.In) else qc.TILEDB_NOT_IN
             result = self.create_pyqc(dtype)(self.ctx, node.left.id, values, op)
+
+        else:
+            raise TileDBError(f"unrecognized operator in <<{ast.dump(node)}>>")
 
         return result
 
@@ -344,20 +360,10 @@ class QueryConditionTree(ast.NodeVisitor):
 
         if isinstance(value_node, ast.Constant):
             value = value_node.value
-        elif isinstance(value_node, ast.Constant):
-            # deprecated in 3.8
-            value = value_node.value
-        elif isinstance(value_node, ast.Constant):
-            # deprecated in 3.8
-            value = value_node.n
-        elif isinstance(value_node, ast.Constant) or isinstance(
-            value_node, ast.Constant
-        ):
-            # deprecated in 3.8
-            value = value_node.s
         else:
             raise TileDBError(
-                f"Incorrect type for comparison value: {ast.dump(value_node)}"
+                f"Incorrect type for comparison value: {ast.dump(value_node)}: right-hand sides must be constant"
+                " expressions, not variables -- did you mean to quote the right-hand side as a string?"
             )
 
         return value
@@ -425,8 +431,12 @@ class QueryConditionTree(ast.NodeVisitor):
         result = self.visit(node.left)
         rhs = node.right[1:] if isinstance(node.right, list) else [node.right]
         for value in rhs:
-            result = result.combine(self.visit(value), op)
-
+            visited = self.visit(value)
+            if not isinstance(result, qc.PyQueryCondition):
+                raise Exception(
+                    f"Unable to parse expression component {ast.dump(node)} -- did you mean to quote it as a string?"
+                )
+            result = result.combine(visited, op)
         return result
 
     def visit_BoolOp(self, node: ast.BoolOp) -> qc.PyQueryCondition:
