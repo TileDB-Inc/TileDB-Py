@@ -3683,28 +3683,6 @@ cdef class SparseArrayImpl(Array):
         return dim_values
 
 
-def remove(uri, ctx=None):
-    """Removes (deletes) the TileDB object at the specified path (URI)
-
-    :param str uri: URI of the TileDB resource
-    :param tiledb.Ctx ctx: The TileDB Context
-    :raises TypeError: uri cannot be converted to a unicode string
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    if not ctx:
-        ctx = default_ctx()
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
-    cdef bytes buri = unicode_path(uri)
-    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-    with nogil:
-        rc = tiledb_object_remove(ctx_ptr, uri_ptr)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    return
-
-
 def move(old_uri, new_uri, ctx=None):
     """Moves a TileDB resource (group, array, key-value).
 

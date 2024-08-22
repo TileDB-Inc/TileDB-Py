@@ -386,6 +386,19 @@ def walk(path, func, order="preorder", ctx=None):
     tiledb.main.walk(path, func, order, ctx)
 
 
+def remove(uri, ctx=None):
+    """Removes (deletes) the TileDB object at the specified path (URI)
+
+    :param str uri: URI of the TileDB resource
+    :param tiledb.Ctx ctx: The TileDB Context
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    ctx = _get_ctx(ctx)
+
+    tiledb.main.remove(ctx, uri)
+
+
 def _schema_like_numpy(
     array,
     ctx,
