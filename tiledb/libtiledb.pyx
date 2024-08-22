@@ -989,6 +989,7 @@ cdef class Array(object):
                 _raise_ctx_err(ctx_ptr, rc)
 
         if overwrite:
+            from .highlevel import object_type
             if object_type(uri) == "array":
                 if uri.startswith("file://") or "://" not in uri:
                     if VFS().remove_dir(uri) != TILEDB_OK:
@@ -3680,38 +3681,6 @@ cdef class SparseArrayImpl(Array):
                 dim_values[dim] = tuple(np.unique(query[dim]))
 
         return dim_values
-
-
-def object_type(uri, ctx=None):
-    """Returns the TileDB object type at the specified path (URI)
-
-    :param str path: path (URI) of the TileDB resource
-    :rtype: str
-    :param tiledb.Ctx ctx: The TileDB Context
-    :return: object type string
-    :raises TypeError: cannot convert path to unicode string
-
-    """
-    if not ctx:
-        ctx = default_ctx()
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
-    cdef bytes buri = unicode_path(uri)
-    cdef const char* path_ptr = PyBytes_AS_STRING(buri)
-    cdef tiledb_object_t obj = TILEDB_INVALID
-    with nogil:
-        rc = tiledb_object_type(ctx_ptr, path_ptr, &obj)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    objtype = None
-    if obj == TILEDB_ARRAY:
-        objtype = "array"
-    # removed in libtiledb 1.7
-    #elif obj == TILEDB_KEY_VALUE:
-    #    objtype = "kv"
-    elif obj == TILEDB_GROUP:
-        objtype = "group"
-    return objtype
 
 
 def remove(uri, ctx=None):

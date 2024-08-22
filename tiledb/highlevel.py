@@ -1,6 +1,6 @@
 import json
 import warnings
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -341,6 +341,18 @@ def as_built(return_json_string=False):
         return res
 
     return json.loads(res)
+
+
+def object_type(uri: str, ctx: tiledb.Ctx = None) -> Optional[str]:
+    """Returns the TileDB object type at the specified path (URI) as a string.
+
+    :param path: path (URI) of the TileDB resource
+    :param ctx: The TileDB Context
+    :return: object type string or None if something goes wrong
+    """
+    ctx = _get_ctx(ctx)
+
+    return tiledb.main.object_type(uri, ctx)
 
 
 def ls(path: str, func: Callable, ctx: tiledb.Ctx = None):

@@ -1757,7 +1757,17 @@ void init_core(py::module &m) {
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);
   m.def("as_built_dump", &as_built_dump);
-  m.def("ls", [](const std::string path, py::function func, const Context &ctx) {
+  m.def("object_type", [](const std::string &uri, const Context &ctx) -> py::str {
+    tiledb_object_t res;
+    ctx.handle_error(tiledb_object_type(ctx.ptr().get(), uri.c_str(), &res));
+    if (res == TILEDB_ARRAY) {
+      return std::string("array");
+    } else if (res == TILEDB_GROUP) {
+      return std::string("group");
+    }
+    return py::none();
+  });
+  m.def("ls", [](const std::string &path, py::function func, const Context &ctx) {
     ctx.handle_error(tiledb_object_ls(
           ctx.ptr().get(), path.c_str(), walk_callback, (void*)func.ptr()));
   });
