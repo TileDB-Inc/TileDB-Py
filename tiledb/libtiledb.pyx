@@ -3759,22 +3759,6 @@ def move(old_uri, new_uri, ctx=None):
         check_error(ctx, rc)
     return
 
-cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc) noexcept:
-    objtype = None
-    if obj == TILEDB_GROUP:
-        objtype = "group"
-    if obj == TILEDB_ARRAY:
-        objtype = "array"
-    # removed in 1.7
-    #elif obj == TILEDB_KEY_VALUE:
-    #    objtype = "kv"
-    try:
-        (<object> pyfunc)(path_ptr.decode('UTF-8'), objtype)
-    except StopIteration:
-        return 0
-    return 1
-
-
 def vacuum(uri, config=None, ctx=None, timestamp=None):
     """
     Vacuum underlying array fragments after consolidation.
