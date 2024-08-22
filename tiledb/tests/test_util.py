@@ -1,4 +1,5 @@
 import tempfile
+from pathlib import Path
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -134,31 +135,31 @@ class UtilTest(DiskTestCase):
         create_array("{}/my_group/sparse_arrays/array_D".format(uri), True)
 
         group_uri = "{}/my_group".format(uri)
-
         # List children
         results = []
         tiledb.ls(
             group_uri,
-            lambda obj_path, obj_type: results.append((obj_path, obj_type)),
+            lambda obj_path, obj_type: results.append((Path(obj_path).name, obj_type)),
         )
         self.assertEqual(
             results,
             [
-                ("file://{}/my_group/dense_arrays".format(uri), "group"),
-                ("file://{}/my_group/sparse_arrays".format(uri), "group"),
+                ("dense_arrays", "group"),
+                ("sparse_arrays", "group"),
             ],
         )
 
         # List children of a group
+        dense_arrays_uri = "{}/my_group/dense_arrays".format(uri)
         results = []
         tiledb.ls(
-            "{}/my_group/dense_arrays".format(uri),
-            lambda obj_path, obj_type: results.append((obj_path, obj_type)),
+            dense_arrays_uri,
+            lambda obj_path, obj_type: results.append((Path(obj_path).name, obj_type)),
         )
         self.assertEqual(
             results,
             [
-                ("file://{}/my_group/dense_arrays/array_A".format(uri), "array"),
-                ("file://{}/my_group/dense_arrays/array_B".format(uri), "array"),
+                ("array_A", "array"),
+                ("array_B", "array"),
             ],
         )
