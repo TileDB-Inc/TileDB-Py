@@ -1681,6 +1681,24 @@ py::str as_built_dump() {
   return res;
 }
 
+auto walk_callback = [](const char* path_ptr, tiledb_object_t obj, void* pyfunc) {
+  std::string my_path(path_ptr);
+  std::string my_objtype;
+  if (obj == TILEDB_GROUP) {
+    my_objtype = "group";
+  }
+  if (obj == TILEDB_ARRAY) {
+    my_objtype = "array";
+  }
+  try {
+    py::function func = py::reinterpret_borrow<py::function>((PyObject*)pyfunc);
+    func(my_path, my_objtype);
+  } catch (const std::exception &e) {
+    return 0;
+  }
+  return 1;
+};
+
 void init_core(py::module &m) {
   init_query_condition(m);
 
@@ -1739,6 +1757,10 @@ void init_core(py::module &m) {
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);
   m.def("as_built_dump", &as_built_dump);
+  m.def("ls", [](const std::string path, py::function func, const Context &ctx) {
+    ctx.handle_error(tiledb_object_ls(
+          ctx.ptr().get(), path.c_str(), walk_callback, (void*)func.ptr()));
+  });
 
   /*
    We need to make sure C++ TileDBError is translated to a correctly-typed py

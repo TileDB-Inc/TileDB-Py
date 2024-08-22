@@ -1,5 +1,6 @@
 import json
 import warnings
+from typing import Callable
 
 import numpy as np
 
@@ -340,6 +341,19 @@ def as_built(return_json_string=False):
         return res
 
     return json.loads(res)
+
+
+def ls(path: str, func: Callable, ctx: tiledb.Ctx = None):
+    """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
+
+    :param path: URI of TileDB group object
+    :param func: callback to execute on every listed TileDB resource,\
+            URI resource path and object type label are passed as arguments to the callback
+    :param ctx: A TileDB Context
+    """
+    ctx = _get_ctx(ctx)
+
+    tiledb.main.ls(path, func, ctx)
 
 
 def _schema_like_numpy(
