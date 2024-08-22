@@ -81,6 +81,7 @@ from .highlevel import (
     open,
     save,
     schema_like,
+    walk,
 )
 from .libtiledb import (
     Array,
@@ -95,7 +96,6 @@ from .libtiledb import (
     stats_enable,
     stats_reset,
     vacuum,
-    walk,
 )
 from .multirange_indexing import EmptyRange
 from .object import Object

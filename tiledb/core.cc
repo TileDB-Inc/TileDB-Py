@@ -1761,6 +1761,18 @@ void init_core(py::module &m) {
     ctx.handle_error(tiledb_object_ls(
           ctx.ptr().get(), path.c_str(), walk_callback, (void*)func.ptr()));
   });
+  m.def("walk", [](const std::string path, py::function func, const std::string order, const Context &ctx) {
+    tiledb_walk_order_t walk_order;
+    if (order == "postorder") {
+      walk_order = TILEDB_POSTORDER;
+    } else if (order == "preorder") {
+      walk_order = TILEDB_PREORDER;
+    } else {
+      throw TileDBError("unknown walk order " + order);
+    }
+    ctx.handle_error(tiledb_object_walk(
+          ctx.ptr().get(), path.c_str(), walk_order, walk_callback, (void*)func.ptr()));
+  });
 
   /*
    We need to make sure C++ TileDBError is translated to a correctly-typed py

@@ -126,6 +126,10 @@ void init_enums(py::module &m) {
       .value("NO_ENCRYPTION", TILEDB_NO_ENCRYPTION)
       .value("AES_256_GCM", TILEDB_AES_256_GCM);
 
+  py::enum_<tiledb_walk_order_t>(m, "WalkOrder")
+      .value("PREORDER", TILEDB_PREORDER)
+      .value("POSTORDER", TILEDB_POSTORDER);
+
   py::enum_<tiledb::Query::Status>(m, "QueryStatus")
       .value("FAILED", Query::Status::FAILED)
       .value("COMPLETE", Query::Status::COMPLETE)

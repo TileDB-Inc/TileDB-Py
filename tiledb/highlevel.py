@@ -356,6 +356,24 @@ def ls(path: str, func: Callable, ctx: tiledb.Ctx = None):
     tiledb.main.ls(path, func, ctx)
 
 
+def walk(path, func, order="preorder", ctx=None):
+    """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``path``
+
+    :param str path: URI of TileDB group object
+    :param function func: callback to execute on every listed TileDB resource,\
+            URI resource path and object type label are passed as arguments to the callback
+    :param tiledb.Ctx ctx: The TileDB context
+    :param str order: 'preorder' (default) or 'postorder' tree traversal
+    :raises TypeError: cannot convert path to unicode string
+    :raises ValueError: unknown order
+    :raises: :py:exc:`tiledb.TileDBError`
+
+    """
+    ctx = _get_ctx(ctx)
+
+    tiledb.main.walk(path, func, order, ctx)
+
+
 def _schema_like_numpy(
     array,
     ctx,

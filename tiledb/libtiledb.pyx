@@ -3775,35 +3775,6 @@ cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc) 
     return 1
 
 
-def walk(path, func, order="preorder", ctx=None):
-    """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``path``
-
-    :param str path: URI of TileDB group object
-    :param function func: callback to execute on every listed TileDB resource,\
-            URI resource path and object type label are passed as arguments to the callback
-    :param tiledb.Ctx ctx: The TileDB context
-    :param str order: 'preorder' (default) or 'postorder' tree traversal
-    :raises TypeError: cannot convert path to unicode string
-    :raises ValueError: unknown order
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    cdef tiledb_ctx_t* ctx_ptr = NULL
-    if not ctx:
-        ctx = default_ctx()
-    cdef bytes bpath = unicode_path(path)
-    cdef tiledb_walk_order_t walk_order
-    if order == "postorder":
-        walk_order = TILEDB_POSTORDER
-    elif order == "preorder":
-        walk_order = TILEDB_PREORDER
-    else:
-        raise ValueError("unknown walk order {}".format(order))
-    ctx_ptr = safe_ctx_ptr(ctx)
-    check_error(ctx,
-                tiledb_object_walk(ctx_ptr, bpath, walk_order, walk_callback, <void*> func))
-    return
-
 def vacuum(uri, config=None, ctx=None, timestamp=None):
     """
     Vacuum underlying array fragments after consolidation.
