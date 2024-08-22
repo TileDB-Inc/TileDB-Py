@@ -3683,29 +3683,6 @@ cdef class SparseArrayImpl(Array):
         return dim_values
 
 
-def move(old_uri, new_uri, ctx=None):
-    """Moves a TileDB resource (group, array, key-value).
-
-    :param tiledb.Ctx ctx: The TileDB Context
-    :param str old_uri: path (URI) of the TileDB resource to move
-    :param str new_uri: path (URI) of the destination
-    :raises TypeError: uri cannot be converted to a unicode string
-    :raises: :py:exc:`TileDBError`
-    """
-    if not ctx:
-        ctx = default_ctx()
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
-    cdef bytes b_old_path = unicode_path(old_uri)
-    cdef bytes b_new_path = unicode_path(new_uri)
-    cdef const char* old_path_ptr = PyBytes_AS_STRING(b_old_path)
-    cdef const char* new_path_ptr = PyBytes_AS_STRING(b_new_path)
-    with nogil:
-        rc = tiledb_object_move(ctx_ptr, old_path_ptr, new_path_ptr)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    return
-
 def vacuum(uri, config=None, ctx=None, timestamp=None):
     """
     Vacuum underlying array fragments after consolidation.

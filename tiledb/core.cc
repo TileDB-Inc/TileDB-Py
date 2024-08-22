@@ -1784,6 +1784,7 @@ void init_core(py::module &m) {
           ctx.ptr().get(), path.c_str(), walk_order, walk_callback, (void*)func.ptr()));
   });
   m.def("remove", &Object::remove);
+  m.def("move", &Object::move);
 
   /*
    We need to make sure C++ TileDBError is translated to a correctly-typed py

@@ -399,6 +399,19 @@ def remove(uri, ctx=None):
     tiledb.main.remove(ctx, uri)
 
 
+def move(old_uri, new_uri, ctx=None):
+    """Moves a TileDB resource (group, array, key-value).
+
+    :param tiledb.Ctx ctx: The TileDB Context
+    :param str old_uri: path (URI) of the TileDB resource to move
+    :param str new_uri: path (URI) of the destination
+    :raises: :py:exc:`TileDBError`
+    """
+    ctx = _get_ctx(ctx)
+
+    tiledb.main.move(ctx, old_uri, new_uri)
+
+
 def _schema_like_numpy(
     array,
     ctx,
