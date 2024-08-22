@@ -344,9 +344,9 @@ def as_built(return_json_string=False):
 
 
 def object_type(uri: str, ctx: tiledb.Ctx = None) -> Optional[str]:
-    """Returns the TileDB object type at the specified path (URI) as a string.
+    """Returns the TileDB object type at the specified URI as a string.
 
-    :param path: path (URI) of the TileDB resource
+    :param uri: URI of the TileDB resource
     :param ctx: The TileDB Context
     :return: object type string or None if something goes wrong
     """
@@ -355,56 +355,53 @@ def object_type(uri: str, ctx: tiledb.Ctx = None) -> Optional[str]:
     return tiledb.main.object_type(uri, ctx)
 
 
-def ls(path: str, func: Callable, ctx: tiledb.Ctx = None):
-    """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
+def ls(uri: str, func: Callable, ctx: tiledb.Ctx = None):
+    """Lists TileDB resources and applies a callback that have a prefix of ``uri`` (one level deep).
 
-    :param path: URI of TileDB group object
+    :param uri: URI of TileDB group object
     :param func: callback to execute on every listed TileDB resource,\
-            URI resource path and object type label are passed as arguments to the callback
+            resource URI and object type label are passed as arguments to the callback
     :param ctx: A TileDB Context
     """
     ctx = _get_ctx(ctx)
 
-    tiledb.main.ls(path, func, ctx)
+    tiledb.main.ls(uri, func, ctx)
 
 
-def walk(path, func, order="preorder", ctx=None):
-    """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``path``
+def walk(uri: str, func: Callable, order: str = "preorder", ctx: tiledb.Ctx = None):
+    """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``uri``
 
-    :param str path: URI of TileDB group object
-    :param function func: callback to execute on every listed TileDB resource,\
-            URI resource path and object type label are passed as arguments to the callback
-    :param tiledb.Ctx ctx: The TileDB context
-    :param str order: 'preorder' (default) or 'postorder' tree traversal
-    :raises TypeError: cannot convert path to unicode string
+    :param uri: URI of TileDB group object
+    :param func: callback to execute on every listed TileDB resource,\
+            resource URI and object type label are passed as arguments to the callback
+    :param ctx: The TileDB context
+    :param order: 'preorder' (default) or 'postorder' tree traversal
     :raises ValueError: unknown order
     :raises: :py:exc:`tiledb.TileDBError`
-
     """
     ctx = _get_ctx(ctx)
 
-    tiledb.main.walk(path, func, order, ctx)
+    tiledb.main.walk(uri, func, order, ctx)
 
 
-def remove(uri, ctx=None):
-    """Removes (deletes) the TileDB object at the specified path (URI)
+def remove(uri: str, ctx: tiledb.Ctx = None):
+    """Removes (deletes) the TileDB object at the specified URI
 
-    :param str uri: URI of the TileDB resource
-    :param tiledb.Ctx ctx: The TileDB Context
+    :param uri: URI of the TileDB resource
+    :param ctx: The TileDB Context
     :raises: :py:exc:`tiledb.TileDBError`
-
     """
     ctx = _get_ctx(ctx)
 
     tiledb.main.remove(ctx, uri)
 
 
-def move(old_uri, new_uri, ctx=None):
+def move(old_uri: str, new_uri: str, ctx: tiledb.Ctx = None):
     """Moves a TileDB resource (group, array, key-value).
 
-    :param tiledb.Ctx ctx: The TileDB Context
-    :param str old_uri: path (URI) of the TileDB resource to move
-    :param str new_uri: path (URI) of the destination
+    :param old_uri: URI of the TileDB resource to move
+    :param new_uri: URI of the destination
+    :param ctx: The TileDB Context
     :raises: :py:exc:`TileDBError`
     """
     ctx = _get_ctx(ctx)
