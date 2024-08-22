@@ -107,3 +107,58 @@ class UtilTest(DiskTestCase):
         self.assertFalse(tiledb.array_exists(uri3, ctx=ctx))
         with tiledb.from_numpy(uri3, np.arange(0, 5), ctx=ctx) as T:
             self.assertTrue(tiledb.array_exists(uri3, ctx=ctx))
+
+    def test_ls(self):
+        def create_array(array_name, sparse):
+            dom = tiledb.Domain(
+                tiledb.Dim(name="rows", domain=(1, 4), tile=4, dtype=np.int32),
+                tiledb.Dim(name="cols", domain=(1, 4), tile=4, dtype=np.int32),
+            )
+            schema = tiledb.ArraySchema(
+                domain=dom, sparse=sparse, attrs=[tiledb.Attr(name="a", dtype=np.int32)]
+            )
+            if sparse:
+                tiledb.SparseArray.create(array_name, schema)
+            else:
+                tiledb.DenseArray.create(array_name, schema)
+
+        uri = tempfile.mkdtemp()
+
+        tiledb.group_create("{}/my_group".format(uri))
+        tiledb.group_create("{}/my_group/dense_arrays".format(uri))
+        tiledb.group_create("{}/my_group/sparse_arrays".format(uri))
+
+        create_array("{}/my_group/dense_arrays/array_A".format(uri), False)
+        create_array("{}/my_group/dense_arrays/array_B".format(uri), False)
+        create_array("{}/my_group/sparse_arrays/array_C".format(uri), True)
+        create_array("{}/my_group/sparse_arrays/array_D".format(uri), True)
+
+        group_uri = "{}/my_group".format(uri)
+
+        # List children
+        results = []
+        tiledb.ls(
+            group_uri,
+            lambda obj_path, obj_type: results.append((obj_path, obj_type)),
+        )
+        self.assertEqual(
+            results,
+            [
+                ("file://{}/my_group/dense_arrays".format(uri), "group"),
+                ("file://{}/my_group/sparse_arrays".format(uri), "group"),
+            ],
+        )
+
+        # List children of a group
+        results = []
+        tiledb.ls(
+            "{}/my_group/dense_arrays".format(uri),
+            lambda obj_path, obj_type: results.append((obj_path, obj_type)),
+        )
+        self.assertEqual(
+            results,
+            [
+                ("file://{}/my_group/dense_arrays/array_A".format(uri), "array"),
+                ("file://{}/my_group/dense_arrays/array_B".format(uri), "array"),
+            ],
+        )
