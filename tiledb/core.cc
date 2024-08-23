@@ -1687,9 +1687,10 @@ auto walk_callback = [](const char *path_ptr, tiledb_object_t obj,
   std::string my_objtype;
   if (obj == TILEDB_GROUP) {
     my_objtype = "group";
-  }
-  if (obj == TILEDB_ARRAY) {
+  } else if (obj == TILEDB_ARRAY) {
     my_objtype = "array";
+  } else {
+    return 0;
   }
   try {
     py::function func =

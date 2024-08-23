@@ -118,21 +118,18 @@ class UtilTest(DiskTestCase):
             schema = tiledb.ArraySchema(
                 domain=dom, sparse=sparse, attrs=[tiledb.Attr(name="a", dtype=np.int32)]
             )
-            if sparse:
-                tiledb.SparseArray.create(array_name, schema)
-            else:
-                tiledb.DenseArray.create(array_name, schema)
+            tiledb.Array.create(array_name, schema)
 
         uri = tempfile.mkdtemp()
 
-        tiledb.group_create("{}/my_group".format(uri))
-        tiledb.group_create("{}/my_group/dense_arrays".format(uri))
-        tiledb.group_create("{}/my_group/sparse_arrays".format(uri))
+        tiledb.group_create(str(Path(uri) / "my_group"))
+        tiledb.group_create(str(Path(uri) / "my_group" / "dense_arrays"))
+        tiledb.group_create(str(Path(uri) / "my_group" / "sparse_arrays"))
 
-        create_array("{}/my_group/dense_arrays/array_A".format(uri), False)
-        create_array("{}/my_group/dense_arrays/array_B".format(uri), False)
-        create_array("{}/my_group/sparse_arrays/array_C".format(uri), True)
-        create_array("{}/my_group/sparse_arrays/array_D".format(uri), True)
+        create_array(str(Path(uri) / "my_group" / "dense_arrays" / "array_A"), False)
+        create_array(str(Path(uri) / "my_group" / "dense_arrays" / "array_B"), False)
+        create_array(str(Path(uri) / "my_group" / "sparse_arrays" / "array_C"), True)
+        create_array(str(Path(uri) / "my_group" / "sparse_arrays" / "array_D"), True)
 
         group_uri = "{}/my_group".format(uri)
         # List children

@@ -348,7 +348,7 @@ def object_type(uri: str, ctx: tiledb.Ctx = None) -> Optional[str]:
 
     :param uri: URI of the TileDB resource
     :param ctx: The TileDB Context
-    :return: object type string or None if something goes wrong
+    :return: object type string ("array" or "group") or None if invalid TileDB object```
     """
     ctx = _get_ctx(ctx)
 
