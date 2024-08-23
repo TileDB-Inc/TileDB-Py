@@ -142,29 +142,6 @@ class Filestore:
 
         lt.Filestore._uri_export(ctx, filestore_array_uri, file_uri)
 
-    def uri_import(self, file_uri: str, mime_type: str = "AUTODETECT") -> None:
-        warnings.warn(
-            "Filestore.uri_import is deprecated; please use Filestore.copy_from",
-            DeprecationWarning,
-        )
-
-        if not isinstance(file_uri, str):
-            raise TypeError(
-                f"Unexpected file_uri type '{type(file_uri)}': expected str"
-            )
-
-        if not isinstance(mime_type, str):
-            raise TypeError(
-                f"Unexpected mime_type type '{type(mime_type)}': expected str"
-            )
-
-        lt.Filestore._uri_import(
-            self._ctx,
-            self._filestore_uri,
-            file_uri,
-            lt.Filestore._mime_type_from_str(mime_type),
-        )
-
     def __len__(self) -> int:
         """
         :rtype: int
