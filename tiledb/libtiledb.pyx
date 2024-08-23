@@ -1189,17 +1189,6 @@ cdef class Array(object):
         return self.view_attr
 
     @property
-    def timestamp(self):
-        """Deprecated in 0.9.2.
-
-        Use `timestamp_range`
-        """
-        raise TileDBError(
-            "timestamp is deprecated; you must use timestamp_range. "
-            "This message will be removed in 0.21.0.",
-        )
-
-    @property
     def timestamp_range(self):
         """Returns the timestamp range the array is opened at
 
@@ -1222,16 +1211,6 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
 
         return (int(timestamp_start), int(timestamp_end))
-
-    @property
-    def coords_dtype(self):
-        """
-        Deprecated in 0.8.10
-        """
-        raise TileDBError(
-            "`coords_dtype` is deprecated because combined coords have been "
-            "removed from libtiledb. This message will be removed in 0.21.0.",
-        )
 
     @property
     def uri(self):
@@ -1913,14 +1892,6 @@ cdef class Aggregation(object):
 
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
-            elif isinstance(cond, QueryCondition):
-                raise TileDBError(
-                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "supported as of 0.19.0. Instead of "
-                    "`cond=tiledb.QueryCondition('expression')` "
-                    "you must use `cond='expression'`. This message will be "
-                    "removed in 0.21.0.",
-                )
             else:
                 raise TypeError("`cond` expects type str.")        
 
@@ -2104,13 +2075,6 @@ cdef class Query(object):
         return self.attrs
 
     @property
-    def attr_cond(self):
-        raise TileDBError(
-            "`attr_cond` is no longer supported. You must use `cond`. "
-            "This message will be removed in 0.21.0."
-        )
-
-    @property
     def cond(self):
         """QueryCondition used to filter attributes or dimensions in Query."""
         return self.cond
@@ -2288,9 +2252,8 @@ cdef class DenseArrayImpl(Array):
         else:
             return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    def query(self, attrs=None, attr_cond=None, cond=None, dims=None,
-              coords=False, order='C', use_arrow=None, return_arrow=False,
-              return_incomplete=False):
+    def query(self, attrs=None, cond=None, dims=None, coords=False, order='C',
+              use_arrow=None, return_arrow=False, return_incomplete=False):
         """Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
 
@@ -2341,24 +2304,12 @@ cdef class DenseArrayImpl(Array):
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray must be opened in read mode")
 
-        if attr_cond is not None:
-            if cond is not None:
-                raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`."
-                )
-
-            raise TileDBError(
-                "`attr_cond` is no longer supported. You must use `cond`. "
-                "This message will be removed in 0.21.0."
-            )
-
         return Query(self, attrs=attrs, cond=cond, dims=dims,
                       coords=coords, order=order,
                       use_arrow=use_arrow, return_arrow=return_arrow,
                       return_incomplete=return_incomplete)
 
-    def subarray(self, selection, attrs=None, cond=None, attr_cond=None,
-                 coords=False, order=None):
+    def subarray(self, selection, attrs=None, cond=None, coords=False, order=None):
         """Retrieve data cells for an item or region of the array.
 
         Optionally subselect over attributes, return dense result coordinate values,
@@ -2397,12 +2348,6 @@ cdef class DenseArrayImpl(Array):
 
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray must be opened in read mode")
-
-        if attr_cond is not None:
-            if cond is not None:
-                raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`."
-                )
 
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'C':
@@ -2475,14 +2420,6 @@ cdef class DenseArrayImpl(Array):
 
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
-            elif isinstance(cond, QueryCondition):
-                raise TileDBError(
-                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "supported as of 0.19.0. Instead of "
-                    "`cond=tiledb.QueryCondition('expression')` "
-                    "you must use `cond='expression'`. This message will be "
-                    "removed in 0.21.0.",
-                )
             else:
                 raise TypeError("`cond` expects type str.")
 
@@ -3362,9 +3299,8 @@ cdef class SparseArrayImpl(Array):
 
         return result
 
-    def query(self, attrs=None, cond=None, attr_cond=None, dims=None,
-              index_col=True, coords=None, order='U', use_arrow=None,
-              return_arrow=None, return_incomplete=False):
+    def query(self, attrs=None, cond=None, dims=None, index_col=True, coords=None,
+              order='U', use_arrow=None, return_arrow=None, return_incomplete=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -3414,17 +3350,6 @@ cdef class SparseArrayImpl(Array):
         """
         if not self.isopen or self.mode not in  ('r', 'd'):
             raise TileDBError("SparseArray must be opened in read or delete mode")
-
-        if attr_cond is not None:
-            if cond is not None:
-                raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`."
-                )
-
-            raise TileDBError(
-                "`attr_cond` is no longer supported. You must use `cond`. "
-                "This message will be removed in 0.21.0."
-            )
 
         # backwards compatibility
         _coords = coords
@@ -3480,8 +3405,7 @@ cdef class SparseArrayImpl(Array):
         return result_dict
 
 
-    def subarray(self, selection, coords=True, attrs=None, cond=None,
-                 attr_cond=None, order=None):
+    def subarray(self, selection, coords=True, attrs=None, cond=None, order=None):
         """
         Retrieve dimension and data cells for an item or region of the array.
 
@@ -3528,17 +3452,6 @@ cdef class SparseArrayImpl(Array):
         from .subarray import Subarray
         if not self.isopen or self.mode not in ('r', 'd'):
             raise TileDBError("SparseArray is not opened in read or delete mode")
-
-        if attr_cond is not None:
-            if cond is not None:
-                raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "`attr_cond` is no longer supported. You must use `cond`. "
-                )
-
-            raise TileDBError(
-                "`attr_cond` is no longer supported. You must use `cond`. "
-                "This message will be removed in 0.21.0.",
-            )
 
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'U':
@@ -3607,14 +3520,6 @@ cdef class SparseArrayImpl(Array):
 
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
-            elif isinstance(cond, QueryCondition):
-                raise TileDBError(
-                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "supported as of 0.19.0. Instead of "
-                    "`cond=tiledb.QueryCondition('expression')` "
-                    "you must use `cond='expression'`. This message will be "
-                    "removed in 0.21.0.",
-                )
             else:
                 raise TypeError("`cond` expects type str.")
 

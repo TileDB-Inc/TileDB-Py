@@ -649,13 +649,6 @@ def _get_pyquery(
     if query and query.cond is not None:
         if isinstance(query.cond, str):
             pyquery.set_cond(QueryCondition(query.cond))
-        elif isinstance(query.cond, QueryCondition):
-            raise TileDBError(
-                "Passing `tiledb.QueryCondition` to `cond` is no longer supported "
-                "as of 0.19.0. Instead of `cond=tiledb.QueryCondition('expression')` "
-                "you must use `cond='expression'`. This message will be "
-                "removed in 0.21.0.",
-            )
         else:
             raise TypeError("`cond` expects type str.")
 
