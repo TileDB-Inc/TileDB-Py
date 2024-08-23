@@ -62,6 +62,7 @@ test = [
     "psutil",
     "pyarrow",
     "pandas",
+    "dask[distributed]",
 ]
 
 [project.urls]
