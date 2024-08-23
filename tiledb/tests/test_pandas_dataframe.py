@@ -259,7 +259,10 @@ class TestColumnInfo(DiskTestCase):
             index_dims=["a"],
         )
         with tiledb.open(uri) as A:
-            assert A.schema.domain.dim(0).dtype == np.int64
+            if sys.platform == "win32" and sys.version_info[:2] == (3, 8):
+                assert A.schema.domain.dim(0).dtype == np.int32
+            else:
+                assert A.schema.domain.dim(0).dtype == np.int64
 
         uri = self.path("index_dtype_casted_dtype")
         tiledb.from_pandas(
