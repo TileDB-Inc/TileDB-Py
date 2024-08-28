@@ -10,6 +10,7 @@ try:
 except ImportError:
     pytest.skip("Serialization not enabled.", allow_module_level=True)
 
+
 class SerializationTest(DiskTestCase):
     def test_query_deserialization(self):
         path = self.path("test_query_deserialization")
