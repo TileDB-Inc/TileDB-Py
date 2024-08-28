@@ -5,10 +5,10 @@ import tiledb
 
 from .common import DiskTestCase
 
-ser_test = pytest.importorskip(
-    "tiledb.main.test_serialization", reason="Serialization not enabled."
-)
-
+try:
+    from tiledb.main import test_serialization as ser_test
+except ImportError:
+    pytest.skip("Serialization not enabled.", allow_module_level=True)
 
 class SerializationTest(DiskTestCase):
     def test_query_deserialization(self):
