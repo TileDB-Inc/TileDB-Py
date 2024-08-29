@@ -127,7 +127,7 @@ def make_dataframe_categorical():
     return df
 
 
-class TestColumnInfo:
+class TestColumnInfo(DiskTestCase):
     def assertColumnInfo(self, info, info_dtype, info_repr=None, info_nullable=False):
         assert isinstance(info.dtype, np.dtype)
         assert info.dtype == info_dtype
@@ -249,6 +249,96 @@ class TestColumnInfo:
                         ColumnInfo.from_values(series)
                     # check that the column name is included in the error message
                     assert "supported (column foo)" in str(exc.value)
+
+    def test_apply_dtype_index_ingest(self):
+        uri = self.path("index_dtype_default_dtype")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame({"a": np.arange(0, 20), "b": np.arange(20, 40)}),
+            sparse=True,
+            index_dims=["a"],
+        )
+        with tiledb.open(uri) as A:
+            if sys.platform == "win32" and sys.version_info[:2] == (3, 8):
+                assert A.schema.domain.dim(0).dtype == np.int32
+            else:
+                assert A.schema.domain.dim(0).dtype == np.int64
+
+        uri = self.path("index_dtype_casted_dtype")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame({"a": np.arange(0, 20), "b": np.arange(20, 40)}),
+            sparse=True,
+            index_dims=["a"],
+            column_types={"a": np.uint8},
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.uint8
+
+        # multiple index dims
+        uri = self.path("index_dtype_default_dtype_multi")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame(
+                {
+                    "a": np.random.random_sample(20),
+                    "b": [str(uuid.uuid4()) for _ in range(20)],
+                }
+            ),
+            sparse=True,
+            index_dims=["a", "b"],
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.float64
+            assert A.schema.domain.dim(1).dtype == np.bytes_
+
+        uri = self.path("index_dtype_casted_dtype_multi")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame(
+                {
+                    "a": np.random.random_sample(20),
+                    "b": [str(uuid.uuid4()) for _ in range(20)],
+                }
+            ),
+            sparse=True,
+            index_dims=["a", "b"],
+            column_types={"a": np.float32, "b": np.bytes_},
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.float32
+            assert A.schema.domain.dim(1).dtype == np.bytes_
+
+    def test_apply_dtype_index_schema_only(self):
+        uri = self.path("index_dtype_casted_dtype")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame({"a": np.arange(0, 20), "b": np.arange(20, 40)}),
+            sparse=True,
+            index_dims=["a"],
+            column_types={"a": np.uint8},
+            mode="schema_only",
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.uint8
+
+        uri = self.path("index_dtype_casted_dtype_multi")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame(
+                {
+                    "a": np.random.random_sample(20),
+                    "b": [str(uuid.uuid4()) for _ in range(20)],
+                }
+            ),
+            sparse=True,
+            index_dims=["a", "b"],
+            column_types={"a": np.float32, "b": np.bytes_},
+            mode="schema_only",
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.float32
+            assert A.schema.domain.dim(1).dtype == np.bytes_
 
 
 class TestDimType:

@@ -420,7 +420,9 @@ def _sparse_from_dtypes(dtypes, sparse=None):
     return sparse if sparse is not None else False
 
 
-def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
+def create_dims(
+    df, index_dims, column_infos, tile=None, full_domain=False, filters=None
+):
     check_dataframe_deps()
     import pandas as pd
 
@@ -445,7 +447,10 @@ def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
         else:
             raise ValueError(f"Unknown column or index named {name!r}")
 
-        dtype = ColumnInfo.from_values(values).dtype
+        if name in column_infos:
+            dtype = column_infos[name].dtype
+        else:
+            dtype = ColumnInfo.from_values(values).dtype
         internal_dtype = dtype
 
         if name == "__tiledb_rows" and isinstance(index, pd.RangeIndex):
@@ -659,6 +664,7 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
     dims, dim_metadata = create_dims(
         df,
         index_dims,
+        column_infos,
         full_domain=full_domain,
         tile=tiledb_args.get("tile"),
         filters=tiledb_args.get("dim_filters", True),
