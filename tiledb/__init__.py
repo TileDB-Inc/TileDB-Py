@@ -65,7 +65,6 @@ from .filter import (
 from .fragment import (
     FragmentInfo,
     FragmentInfoList,
-    FragmentsInfo,
     copy_fragments_to_existing_array,
     create_array_from_fragments,
 )

@@ -321,11 +321,6 @@ class QueryConditionTree(ast.NodeVisitor):
             variable = variable_node.id
         elif isinstance(variable_node, ast.Constant):
             variable = variable_node.value
-        elif isinstance(variable_node, ast.Constant) or isinstance(
-            variable_node, ast.Constant
-        ):
-            # deprecated in 3.8
-            variable = variable_node.s
         else:
             raise TileDBError(
                 f"Incorrect type for variable name: {ast.dump(variable_node)}"
@@ -492,19 +487,3 @@ class QueryConditionTree(ast.NodeVisitor):
                 )
 
             return node.operand
-
-    def visit_Num(self, node: ast.Constant) -> ast.Constant:
-        # deprecated in 3.8
-        return node
-
-    def visit_Str(self, node: ast.Constant) -> ast.Constant:
-        # deprecated in 3.8
-        return node
-
-    def visit_Bytes(self, node: ast.Constant) -> ast.Constant:
-        # deprecated in 3.8
-        return node
-
-    def visit_NameConstant(self, node: ast.Constant) -> ast.Constant:
-        # deprecated in 3.8
-        return node

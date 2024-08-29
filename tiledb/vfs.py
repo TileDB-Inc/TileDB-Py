@@ -111,15 +111,7 @@ class VFS(lt.VFS):
         :rtype: :py:func:`bytes`
         :return: read bytes
         :raises: :py:exc:`tiledb.TileDBError`
-
         """
-        if isinstance(file, FileIO):
-            raise lt.TileDBError(
-                "`tiledb.VFS().open` now returns a FileIO object. Use "
-                "`FileIO.seek` and `FileIO.read`. This message will be removed "
-                "in 0.21.0."
-            )
-
         if nbytes == 0:
             return b""
 
