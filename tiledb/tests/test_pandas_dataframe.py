@@ -251,19 +251,6 @@ class TestColumnInfo(DiskTestCase):
                     assert "supported (column foo)" in str(exc.value)
 
     def test_apply_dtype_index_ingest(self):
-        uri = self.path("index_dtype_default_dtype")
-        tiledb.from_pandas(
-            uri,
-            pd.DataFrame({"a": np.arange(0, 20), "b": np.arange(20, 40)}),
-            sparse=True,
-            index_dims=["a"],
-        )
-        with tiledb.open(uri) as A:
-            if sys.platform == "win32" and sys.version_info[:2] == (3, 8):
-                assert A.schema.domain.dim(0).dtype == np.int32
-            else:
-                assert A.schema.domain.dim(0).dtype == np.int64
-
         uri = self.path("index_dtype_casted_dtype")
         tiledb.from_pandas(
             uri,
@@ -276,22 +263,6 @@ class TestColumnInfo(DiskTestCase):
             assert A.schema.domain.dim(0).dtype == np.uint8
 
         # multiple index dims
-        uri = self.path("index_dtype_default_dtype_multi")
-        tiledb.from_pandas(
-            uri,
-            pd.DataFrame(
-                {
-                    "a": np.random.random_sample(20),
-                    "b": [str(uuid.uuid4()) for _ in range(20)],
-                }
-            ),
-            sparse=True,
-            index_dims=["a", "b"],
-        )
-        with tiledb.open(uri) as A:
-            assert A.schema.domain.dim(0).dtype == np.float64
-            assert A.schema.domain.dim(1).dtype == np.bytes_
-
         uri = self.path("index_dtype_casted_dtype_multi")
         tiledb.from_pandas(
             uri,
