@@ -160,3 +160,8 @@ class UtilTest(DiskTestCase):
                 ("array_B", "array"),
             ],
         )
+
+        # test with a callback that always throws an exception to see if it is propagated
+        with self.assertRaises(tiledb.TileDBError) as excinfo:
+            tiledb.ls(dense_arrays_uri, lambda x, y: 1 / 0)
+        assert "ZeroDivisionError: division by zero" in str(excinfo.value)

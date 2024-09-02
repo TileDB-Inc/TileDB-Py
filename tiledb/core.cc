@@ -1693,10 +1693,9 @@ auto walk_callback = [](const char *path_ptr, tiledb_object_t obj,
     return 0;
   }
   try {
-    py::function func =
-        py::reinterpret_borrow<py::function>((PyObject *)pyfunc);
+    py::function func = py::cast<py::function>((PyObject *)pyfunc);
     func(my_path, my_objtype);
-  } catch (const std::exception &e) {
+  } catch (py::stop_iteration) {
     return 0;
   }
   return 1;
