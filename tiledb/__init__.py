@@ -76,25 +76,25 @@ from .highlevel import (
     consolidate,
     empty_like,
     from_numpy,
+    ls,
+    move,
+    object_type,
     open,
+    remove,
     save,
     schema_like,
+    walk,
 )
 from .libtiledb import (
     Array,
     Ctx,
     DenseArrayImpl,
     SparseArrayImpl,
-    ls,
-    move,
-    object_type,
-    remove,
     stats_disable,
     stats_dump,
     stats_enable,
     stats_reset,
     vacuum,
-    walk,
 )
 from .multirange_indexing import EmptyRange
 from .object import Object

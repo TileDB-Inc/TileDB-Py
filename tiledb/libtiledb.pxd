@@ -113,10 +113,6 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_NO_ENCRYPTION
         TILEDB_AES_256_GCM
 
-    ctypedef enum tiledb_walk_order_t:
-        TILEDB_PREORDER
-        TILEDB_POSTORDER
-
     ctypedef enum tiledb_filesystem_t:
         TILEDB_HDFS
         TILEDB_S3
@@ -925,13 +921,6 @@ cdef extern from "tiledb/tiledb.h":
         tiledb_ctx_t* ctx,
         const char* old_path,
         const char* new_path) nogil
-
-    int tiledb_object_walk(
-        tiledb_ctx_t* ctx,
-        const char* path,
-        tiledb_walk_order_t order,
-        int (*callback)(const char*, tiledb_object_t, void*) noexcept,
-        void* data)
 
     int tiledb_object_ls(
         tiledb_ctx_t* ctx,

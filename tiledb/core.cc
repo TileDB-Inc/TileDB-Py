@@ -1681,6 +1681,26 @@ py::str as_built_dump() {
   return res;
 }
 
+auto walk_callback = [](const char *path_ptr, tiledb_object_t obj,
+                        void *pyfunc) {
+  std::string my_path(path_ptr);
+  std::string my_objtype;
+  if (obj == TILEDB_GROUP) {
+    my_objtype = "group";
+  } else if (obj == TILEDB_ARRAY) {
+    my_objtype = "array";
+  } else {
+    return 0;
+  }
+  try {
+    py::function func = py::cast<py::function>((PyObject *)pyfunc);
+    func(my_path, my_objtype);
+  } catch (py::stop_iteration) {
+    return 0;
+  }
+  return 1;
+};
+
 void init_core(py::module &m) {
   init_query_condition(m);
 
@@ -1739,6 +1759,39 @@ void init_core(py::module &m) {
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);
   m.def("as_built_dump", &as_built_dump);
+  m.def("object_type",
+        [](const std::string &uri, const Context &ctx) -> py::str {
+          tiledb_object_t res;
+          ctx.handle_error(
+              tiledb_object_type(ctx.ptr().get(), uri.c_str(), &res));
+          if (res == TILEDB_ARRAY) {
+            return std::string("array");
+          } else if (res == TILEDB_GROUP) {
+            return std::string("group");
+          }
+          return py::none();
+        });
+  m.def("ls",
+        [](const std::string &path, py::function func, const Context &ctx) {
+          ctx.handle_error(tiledb_object_ls(ctx.ptr().get(), path.c_str(),
+                                            walk_callback, (void *)func.ptr()));
+        });
+  m.def("walk", [](const std::string path, py::function func,
+                   const std::string order, const Context &ctx) {
+    tiledb_walk_order_t walk_order;
+    if (order == "postorder") {
+      walk_order = TILEDB_POSTORDER;
+    } else if (order == "preorder") {
+      walk_order = TILEDB_PREORDER;
+    } else {
+      throw TileDBError("unknown walk order " + order);
+    }
+    ctx.handle_error(tiledb_object_walk(ctx.ptr().get(), path.c_str(),
+                                        walk_order, walk_callback,
+                                        (void *)func.ptr()));
+  });
+  m.def("remove", &Object::remove);
+  m.def("move", &Object::move);
 
   /*
    We need to make sure C++ TileDBError is translated to a correctly-typed py
