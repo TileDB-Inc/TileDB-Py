@@ -4,6 +4,7 @@
 
 from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid, PyCapsule_New
 from cpython.version cimport PY_MAJOR_VERSION
+from .domain_indexer import DomainIndexer
 
 include "common.pxi"
 include "indexing.pyx"
@@ -1976,7 +1977,7 @@ cdef class DenseArrayImpl(Array):
         return out
 
 
-    cdef _read_dense_subarray(self, object subarray, list attr_names,
+    def _read_dense_subarray(self, object subarray, list attr_names,
                               object cond, tiledb_layout_t layout,
                               bint include_coords):
 
@@ -3072,7 +3073,7 @@ cdef class SparseArrayImpl(Array):
         else:
             return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    cdef _read_sparse_subarray(self, object subarray, list attr_names,
+    def _read_sparse_subarray(self, object subarray, list attr_names,
                                object cond, tiledb_layout_t layout):
         cdef object out = OrderedDict()
         # all results are 1-d vectors
