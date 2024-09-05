@@ -90,10 +90,6 @@ from .libtiledb import (
     Ctx,
     DenseArrayImpl,
     SparseArrayImpl,
-    stats_disable,
-    stats_dump,
-    stats_enable,
-    stats_reset,
     vacuum,
 )
 from .multirange_indexing import EmptyRange
@@ -102,6 +98,12 @@ from .parquet_ import from_parquet
 from .query import Query
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
+from .stats import (
+    stats_disable,
+    stats_dump,
+    stats_enable,
+    stats_reset,
+)
 from .subarray import Subarray
 from .version_helper import version
 from .vfs import VFS, FileIO

@@ -1,8 +1,10 @@
-import tiledb
 import numpy as np
+
+import tiledb
 
 # Integer types supported by Python / System
 _inttypes = (int, np.integer)
+
 
 def _tiledb_datetime_extent(begin, end):
     """
@@ -109,8 +111,10 @@ def index_domain_subarray(array, dom, idx: tuple):
     """
     ndim = dom.ndim
     if len(idx) != ndim:
-        raise IndexError("number of indices does not match domain rank: "
-                         "(got {!r}, expected: {!r})".format(len(idx), ndim))
+        raise IndexError(
+            "number of indices does not match domain rank: "
+            "(got {!r}, expected: {!r})".format(len(idx), ndim)
+        )
 
     subarray = list()
     for r in range(ndim):
@@ -118,7 +122,9 @@ def index_domain_subarray(array, dom, idx: tuple):
         dim = dom.dim(r)
         dim_dtype = dim.dtype
 
-        if array.mode == 'r' and (np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_)):
+        if array.mode == "r" and (
+            np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_)
+        ):
             # NED can only be retrieved in read mode
             ned = array.nonempty_domain()
             (dim_lb, dim_ub) = ned[r] if ned else (None, None)
@@ -137,16 +143,20 @@ def index_domain_subarray(array, dom, idx: tuple):
                     start = dim_lb
                 if stop is None:
                     stop = dim_ub
-            elif not isinstance(start, (str, bytes)) or not isinstance(stop, (str, bytes)):
-                raise tiledb.TileDBError(f"Non-string range '({start},{stop})' provided for string dimension '{dim.name}'")
-            subarray.append((start,stop))
+            elif not isinstance(start, (str, bytes)) or not isinstance(
+                stop, (str, bytes)
+            ):
+                raise tiledb.TileDBError(
+                    f"Non-string range '({start},{stop})' provided for string dimension '{dim.name}'"
+                )
+            subarray.append((start, stop))
             continue
 
         if step and array.schema.sparse:
-           raise IndexError("steps are not supported for sparse arrays")
+            raise IndexError("steps are not supported for sparse arrays")
 
         # Datetimes will be treated specially
-        is_datetime = (dim_dtype.kind == 'M')
+        is_datetime = dim_dtype.kind == "M"
 
         # Promote to a common type
         if start is not None and stop is not None:
@@ -157,32 +167,48 @@ def index_domain_subarray(array, dom, idx: tuple):
 
         if start is not None:
             if is_datetime and not isinstance(start, np.datetime64):
-                raise IndexError('cannot index datetime dimension with non-datetime interval')
+                raise IndexError(
+                    "cannot index datetime dimension with non-datetime interval"
+                )
             # don't round / promote fp slices
             if np.issubdtype(dim_dtype, np.integer):
                 if isinstance(start, (np.float32, np.float64)):
-                    raise IndexError("cannot index integral domain dimension with floating point slice")
+                    raise IndexError(
+                        "cannot index integral domain dimension with floating point slice"
+                    )
                 elif not isinstance(start, _inttypes):
-                    raise IndexError("cannot index integral domain dimension with non-integral slice (dtype: {})".format(type(start)))
+                    raise IndexError(
+                        "cannot index integral domain dimension with non-integral slice (dtype: {})".format(
+                            type(start)
+                        )
+                    )
             # apply negative indexing (wrap-around semantics)
             if not is_datetime and start < 0:
                 start += int(dim_ub) + 1
             if start < dim_lb:
                 # numpy allows start value < the array dimension shape,
                 # clamp to lower bound of dimension domain
-                #start = dim_lb
+                # start = dim_lb
                 raise IndexError("index out of bounds <todo>")
         else:
             start = dim_lb
         if stop is not None:
             if is_datetime and not isinstance(stop, np.datetime64):
-                raise IndexError('cannot index datetime dimension with non-datetime interval')
+                raise IndexError(
+                    "cannot index datetime dimension with non-datetime interval"
+                )
             # don't round / promote fp slices
             if np.issubdtype(dim_dtype, np.integer):
                 if isinstance(start, (np.float32, np.float64)):
-                    raise IndexError("cannot index integral domain dimension with floating point slice")
+                    raise IndexError(
+                        "cannot index integral domain dimension with floating point slice"
+                    )
                 elif not isinstance(start, _inttypes):
-                    raise IndexError("cannot index integral domain dimension with non-integral slice (dtype: {})".format(type(start)))
+                    raise IndexError(
+                        "cannot index integral domain dimension with non-integral slice (dtype: {})".format(
+                            type(start)
+                        )
+                    )
             if not is_datetime and stop < 0:
                 stop = np.int64(stop) + dim_ub
             if stop > dim_ub:
@@ -208,10 +234,12 @@ def index_domain_subarray(array, dom, idx: tuple):
             # so that add_range and output shapes work correctly
             start = start.astype(dim_dtype)
             stop = stop.astype(dim_dtype)
-            subarray.append((start,stop))
+            subarray.append((start, stop))
         elif np.issubdtype(type(stop), np.integer):
             # normal python indexing semantics
             subarray.append((start, int(stop) - 1))
         else:
-            raise IndexError("domain indexing is defined for integral and floating point values")
+            raise IndexError(
+                "domain indexing is defined for integral and floating point values"
+            )
     return subarray

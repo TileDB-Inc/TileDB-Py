@@ -3485,7 +3485,7 @@ class TestHighlevel(DiskTestCase):
 
 class GetStatsTest(DiskTestCase):
     def test_ctx(self):
-        tiledb.libtiledb.stats_enable()
+        tiledb.stats_enable()
         ctx = tiledb.default_ctx()
         uri = self.path("test_ctx")
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), dtype=np.int64))
@@ -3500,7 +3500,7 @@ class GetStatsTest(DiskTestCase):
         assert "Context.StorageManager.write_store" in stats
 
     def test_query(self):
-        tiledb.libtiledb.stats_enable()
+        tiledb.stats_enable()
         uri = self.path("test_ctx")
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), dtype=np.int64))
         att = tiledb.Attr(dtype=np.int64)
