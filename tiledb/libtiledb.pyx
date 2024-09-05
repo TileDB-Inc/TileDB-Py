@@ -1841,95 +1841,6 @@ cdef class Array(object):
         self.__init__(uri, mode=mode, key=key, attr=view_attr,
                       timestamp=timestamp_range, ctx=ctx)
 
-cdef class Aggregation(object):
-    """
-    Proxy object returned by Query.agg to calculate aggregations.
-    """
-
-    def __init__(self, query=None, attr_to_aggs={}):
-        if query is None:
-            raise ValueError("must pass in a query object")
-        
-        self.query = query
-        self.attr_to_aggs = attr_to_aggs
-
-    def __getitem__(self, object selection):
-        from .main import PyAgg
-        from .subarray import Subarray
-
-        array = self.query.array
-        order = self.query.order
-
-        cdef tiledb_layout_t layout = TILEDB_UNORDERED if array.schema.sparse else TILEDB_ROW_MAJOR
-        if order is None or order == 'C':
-            layout = TILEDB_ROW_MAJOR
-        elif order == 'F':
-            layout = TILEDB_COL_MAJOR
-        elif order == 'G':
-            layout = TILEDB_GLOBAL_ORDER
-        elif order == 'U':
-            layout = TILEDB_UNORDERED
-        else:
-            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
-                             "'F' (TILEDB_COL_MAJOR), "\
-                             "'G' (TILEDB_GLOBAL_ORDER), "\
-                             "or 'U' (TILEDB_UNORDERED)")
-    
-        q = PyAgg(array._ctx_(), array, <int32_t>layout, self.attr_to_aggs)
-
-        selection = index_as_tuple(selection)
-        dom = array.schema.domain
-        idx = replace_ellipsis(dom.ndim, selection)
-        idx, drop_axes = replace_scalars_slice(dom, idx)
-        dim_ranges  = index_domain_subarray(array, dom, idx)
-
-        subarray = Subarray(array, array.ctx)
-        subarray.add_ranges([list([x]) for x in dim_ranges])
-        q.set_subarray(subarray)
-
-        cond = self.query.cond
-        if cond is not None and cond != "":
-            from .query_condition import QueryCondition
-
-            if isinstance(cond, str):
-                q.set_cond(QueryCondition(cond))
-            else:
-                raise TypeError("`cond` expects type str.")        
-
-        result = q.get_aggregate()
-
-        # If there was only one attribute, just show the aggregate results
-        if len(result) == 1:
-            result = result[list(result.keys())[0]]
-
-            # If there was only one aggregate, just show the value
-            if len(result) == 1:
-                result = result[list(result.keys())[0]]
-
-        return result
-
-    @property
-    def multi_index(self):
-        """Apply Array.multi_index with query parameters."""
-        # Delayed to avoid circular import
-        from .multirange_indexing import MultiRangeAggregation
-        return MultiRangeAggregation(self.query.array, query=self)
-
-    @property
-    def df(self):
-        raise NotImplementedError(".df indexer not supported for Aggregations")
-    
-    @property
-    def attr_to_aggs(self):
-        """Return the attribute and aggregration input mapping"""
-        return self.attr_to_aggs
-
-    @property
-    def query(self):
-        """Return the underlying Query object"""
-        return self.query
-
-
 cdef class Query(object):
     """
     Proxy object returned by query() to index into original array
@@ -2068,7 +1979,12 @@ cdef class Query(object):
             attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
             attr_to_aggs_map = {a: tuple(aggs) for a in attrs}
 
+        from .aggregation import Aggregation
         return Aggregation(self, attr_to_aggs_map)
+
+    @property
+    def array(self):
+        return self.array
 
     @property
     def attrs(self):
