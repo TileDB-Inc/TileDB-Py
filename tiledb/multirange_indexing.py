@@ -24,10 +24,10 @@ from typing import (
 
 import numpy as np
 
+from .aggregation import Aggregation as AggregationProxy
 from .array_schema import ArraySchema
 from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
-from .libtiledb import Aggregation as AggregationProxy
 from .libtiledb import Array, Metadata
 from .libtiledb import Query as QueryProxy
 from .main import PyAgg, PyQuery, increment_stat, use_stats

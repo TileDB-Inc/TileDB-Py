@@ -1161,10 +1161,6 @@ cdef class SparseArrayImpl(Array):
 cdef class DenseArrayImpl(Array):
     cdef _read_dense_subarray(self, object subarray, list attr_names, object cond, tiledb_layout_t layout, bint include_coords)
 
-cdef class Aggregation(object):
-    cdef Query query
-    cdef object attr_to_aggs
-
 cdef class Query(object):
     cdef Array array
     cdef object attrs
