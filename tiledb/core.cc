@@ -1751,8 +1751,28 @@ void init_core(py::module &m) {
 
   m.def("array_to_buffer", &convert_np);
 
-  m.def("init_stats", &init_stats);
-  m.def("disable_stats", &disable_stats);
+  m.def("init_stats", []() {
+    Stats::enable();
+    init_stats();
+  });
+  m.def("disable_stats", []() {
+    Stats::disable();
+    disable_stats();
+  });
+  m.def("reset_stats", []() {
+    Stats::reset();
+    init_stats();
+  });
+  m.def("stats_raw_dump_str", []() {
+    std::string out;
+    Stats::raw_dump(&out);
+    return out;
+  });
+  m.def("stats_dump_str", []() {
+    std::string out;
+    Stats::dump(&out);
+    return out;
+  });
   m.def("python_internal_stats", &python_internal_stats,
         py::arg("dict") = false);
   m.def("increment_stat", &increment_stat);

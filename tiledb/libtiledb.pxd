@@ -3,7 +3,7 @@
 
 from libc.stdint cimport uint32_t, uint64_t
 from libc.stdio cimport FILE
-include "indexing.pxd"
+from .domain_indexer import DomainIndexer
 include "common.pxi"
 
 cdef extern from "Python.h":
@@ -18,10 +18,6 @@ cdef extern from "tiledb/tiledb.h":
     enum: TILEDB_VAR_NUM
     unsigned int tiledb_var_num()
 
-    # TODO: remove after TileDB 2.15
-    enum: TILEDB_COORDS
-    const char* tiledb_coords()
-
     enum: TILEDB_MAX_PATH
     unsigned int tiledb_max_path()
 
@@ -30,14 +26,6 @@ cdef extern from "tiledb/tiledb.h":
 
     # Version
     void tiledb_version(int* major, int* minor, int* rev)
-
-    # Stats
-    void tiledb_stats_enable()
-    void tiledb_stats_disable()
-    void tiledb_stats_reset()
-    int32_t tiledb_stats_dump_str(char** out)
-    int32_t tiledb_stats_raw_dump_str(char** out)
-    int32_t tiledb_stats_free_str(char** out)
 
     # Enums
     ctypedef enum tiledb_object_t:
@@ -1135,7 +1123,7 @@ cdef class Array(object):
     cdef object schema
     cdef object _buffers
 
-    cdef DomainIndexer domain_index
+    cdef object domain_index
     cdef object multi_index
     cdef object df
     cdef Metadata meta
@@ -1143,12 +1131,6 @@ cdef class Array(object):
     cdef object pyquery
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
-
-cdef class SparseArrayImpl(Array):
-    cdef _read_sparse_subarray(self, object subarray, list attr_names, object cond, tiledb_layout_t layout)
-
-cdef class DenseArrayImpl(Array):
-    cdef _read_dense_subarray(self, object subarray, list attr_names, object cond, tiledb_layout_t layout, bint include_coords)
 
 cdef class Query(object):
     cdef Array array
@@ -1161,7 +1143,7 @@ cdef class Query(object):
     cdef object use_arrow
     cdef object return_arrow
     cdef object return_incomplete
-    cdef DomainIndexer domain_index
+    cdef object domain_index
     cdef object multi_index
     cdef object df
 

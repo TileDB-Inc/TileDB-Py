@@ -4,6 +4,7 @@
 
 from cpython.pycapsule cimport PyCapsule_GetPointer, PyCapsule_IsValid, PyCapsule_New
 from cpython.version cimport PY_MAJOR_VERSION
+from .domain_indexer import DomainIndexer
 
 include "common.pxi"
 include "indexing.pyx"
@@ -29,9 +30,6 @@ np.import_array()
 ###############################################################################
 #    Utility/setup                                                            #
 ###############################################################################
-
-# Integer types supported by Python / System
-_inttypes = (int, np.integer)
 
 # Use unified numpy printing
 np.set_printoptions(legacy="1.21" if np.lib.NumpyVersion(np.__version__) >= "1.22.0" else False)
@@ -342,140 +340,6 @@ cpdef check_error(object ctx, int rc):
             ctx.__capsule__(), "ctx")
     _raise_ctx_err(ctx_ptr, rc)
 
-def stats_enable():
-    """Enable TileDB internal statistics."""
-    tiledb_stats_enable()
-
-    from .main import init_stats
-    init_stats()
-
-def stats_disable():
-    """Disable TileDB internal statistics."""
-    tiledb_stats_disable()
-
-    from .main import disable_stats
-    disable_stats()
-
-def stats_reset():
-    """Reset all TileDB internal statistics to 0."""
-    tiledb_stats_reset()
-
-    from .main import init_stats
-    init_stats()
-
-def stats_dump(version=True, print_out=True, include_python=True, json=False, verbose=True):
-    """Return TileDB internal statistics as a string.
-
-    :param include_python: Include TileDB-Py statistics
-    :param print_out: Print string to console (default True), or return as string
-    :param version: Include TileDB Embedded and TileDB-Py versions (default: True)
-    :param json: Return stats JSON object (default: False)
-    :param verbose: Print extended internal statistics (default: True)
-    """
-    cdef char* stats_str_ptr = NULL;
-
-    if json or not verbose:
-        if tiledb_stats_raw_dump_str(&stats_str_ptr) == TILEDB_ERR:
-            raise TileDBError("Unable to dump stats to stats_str_ptr.")
-    else:
-        if tiledb_stats_dump_str(&stats_str_ptr) == TILEDB_ERR:
-            raise TileDBError("Unable to dump stats to stats_str_ptr.")
-
-    stats_str_core = stats_str_ptr.decode("UTF-8", "strict").strip()
-
-    if json or not verbose:
-        stats_json_core = json_loads(stats_str_core)[0]
-        if include_python:
-            from .main import python_internal_stats
-            stats_json_core["python"] = json_dumps(python_internal_stats(True))
-        if json:
-            return stats_json_core
-
-    if tiledb_stats_free_str(&stats_str_ptr) == TILEDB_ERR:
-        raise TileDBError("Unable to free stats_str_ptr.")
-
-    stats_str = ""
-
-    if version:
-        import tiledb
-        stats_str += f"TileDB Embedded Version: {tiledb.libtiledb.version()}\n"
-        stats_str += f"TileDB-Py Version: {tiledb.version.version}\n"
-
-    if not verbose:
-        stats_str += "\n==== READ ====\n\n"
-
-        import tiledb
-
-        if tiledb.libtiledb.version() < (2, 3):
-            stats_str += "- Number of read queries: {}\n".format(
-                stats_json_core["READ_NUM"]
-            )
-            stats_str += "- Number of attributes read: {}\n".format(
-                stats_json_core["READ_ATTR_FIXED_NUM"]
-                + stats_json_core["READ_ATTR_VAR_NUM"]
-            )
-            stats_str += "- Time to compute estimated result size: {}\n".format(
-                stats_json_core["READ_COMPUTE_EST_RESULT_SIZE"]
-            )
-            stats_str += "- Read time: {}\n".format(stats_json_core["READ"])
-            stats_str += (
-                "- Total read query time (array open + init state + read): {}\n".format(
-                    stats_json_core["READ"] + stats_json_core["READ_INIT_STATE"]
-                )
-            )
-        elif tiledb.libtiledb.version() < (2,15):
-            loop_num = stats_json_core["counters"][
-                "Context.StorageManager.Query.Reader.loop_num"
-            ]
-            stats_str += f"- Number of read queries: {loop_num}\n"
-
-            attr_num = (
-                stats_json_core["counters"]["Context.StorageManager.Query.Reader.attr_num"]
-                + stats_json_core["counters"][
-                    "Context.StorageManager.Query.Reader.attr_fixed_num"
-                ]
-            )
-            stats_str += f"- Number of attributes read: {attr_num}\n"
-
-            read_compute_est_result_size = stats_json_core["timers"].get(
-                "Context.StorageManager.Query.Subarray.read_compute_est_result_size.sum")
-            if read_compute_est_result_size is not None:
-                stats_str += (
-                    f"- Time to compute estimated result size: {read_compute_est_result_size}\n"
-                )
-
-            read_tiles = stats_json_core["timers"][
-                "Context.StorageManager.Query.Reader.read_tiles.sum"
-            ]
-            stats_str += f"- Read time: {read_tiles}\n"
-
-            reads_key = "Context.StorageManager.array_open_READ.sum" if tiledb.libtiledb.version() > (2,15) else "Context.StorageManager.array_open_for_reads.sum"
-
-            total_read = (
-                stats_json_core["timers"][reads_key]
-                + stats_json_core["timers"][
-                    "Context.StorageManager.Query.Reader.init_state.sum"
-                ]
-                + stats_json_core["timers"][
-                    "Context.StorageManager.Query.Reader.read_tiles.sum"
-                ]
-            )
-            stats_str += (
-                f"- Total read query time (array open + init state + read): {total_read}\n"
-            )
-    else:
-        stats_str += "\n"
-        stats_str += stats_str_core
-        stats_str += "\n"
-
-    if include_python:
-        from .main import python_internal_stats
-        stats_str += python_internal_stats()
-
-    if print_out:
-        print(stats_str)
-    else:
-        return stats_str
 
 cpdef unicode ustring(object s):
     """Coerce a python object to a unicode string"""
@@ -502,217 +366,7 @@ cdef bytes unicode_path(object path):
 #                                                                             #
 ###############################################################################
 
-def _tiledb_datetime_extent(begin, end):
-    """
-    Returns the integer extent of a datetime range.
-
-    :param begin: beginning of datetime range
-    :type begin: numpy.datetime64
-    :param end: end of datetime range
-    :type end: numpy.datetime64
-    :return: Extent of range, returned as an integer number of time units
-    :rtype: int
-    """
-    extent = end - begin + 1
-    date_unit = np.datetime_data(extent.dtype)[0]
-    one = np.timedelta64(1, date_unit)
-    # Dividing a timedelta by 1 will convert the timedelta to an integer
-    return int(extent / one)
-
-
-def index_as_tuple(idx):
-    """Forces scalar index objects to a tuple representation"""
-    if isinstance(idx, tuple):
-        return idx
-    return (idx,)
-
-
-def replace_ellipsis(ndim: int, idx: tuple):
-    """
-    Replace indexing ellipsis object with slice objects to match the number
-    of dimensions.
-    """
-    # count number of ellipsis
-    n_ellip = sum(1 for i in idx if i is Ellipsis)
-    if n_ellip > 1:
-        raise IndexError("an index can only have a single ellipsis ('...')")
-    elif n_ellip == 1:
-        n = len(idx)
-        if (n - 1) >= ndim:
-            # does nothing, strip it out
-            idx = tuple(i for i in idx if i is not Ellipsis)
-        else:
-            # locate where the ellipse is, count the number of items to left and right
-            # fill in whole dim slices up to th ndim of the array
-            left = idx.index(Ellipsis)
-            right = n - (left + 1)
-            new_idx = idx[:left] + ((slice(None),) * (ndim - (n - 1)))
-            if right:
-                new_idx += idx[-right:]
-            idx = new_idx
-    idx_ndim = len(idx)
-    if idx_ndim < ndim:
-        idx += (slice(None),) * (ndim - idx_ndim)
-    if len(idx) > ndim:
-        raise IndexError("too many indices for array")
-    return idx
-
-
-def replace_scalars_slice(dom, idx: tuple):
-    """Replace scalar indices with slice objects"""
-    new_idx, drop_axes = [], []
-    for i in range(dom.ndim):
-        dim = dom.dim(i)
-        dim_idx = idx[i]
-        if np.isscalar(dim_idx):
-            drop_axes.append(i)
-            if isinstance(dim_idx, _inttypes):
-                start = int(dim_idx)
-                if start < 0:
-                    start += int(dim.domain[1]) + 1
-                stop = start + 1
-            else:
-                start = dim_idx
-                stop = dim_idx
-            new_idx.append(slice(start, stop, None))
-        else:
-            new_idx.append(dim_idx)
-    return tuple(new_idx), tuple(drop_axes)
-
-
-def check_for_floats(selection):
-    """
-    Check if a selection object contains floating point values
-
-    :param selection: selection object
-    :return: True if selection contains floating point values
-    :rtype: bool
-    """
-    if isinstance(selection, float):
-        return True
-    if isinstance(selection, slice):
-        if isinstance(selection.start, float) or isinstance(selection.stop, float):
-            return True
-    elif isinstance(selection, tuple):
-        for s in selection:
-            if check_for_floats(s):
-                return True
-    return False
-
-
-def index_domain_subarray(array: Array, dom, idx: tuple):
-    """
-    Return a numpy array representation of the tiledb subarray buffer
-    for a given domain and tuple of index slices
-    """
-    ndim = dom.ndim
-    if len(idx) != ndim:
-        raise IndexError("number of indices does not match domain rank: "
-                         "(got {!r}, expected: {!r})".format(len(idx), ndim))
-
-    subarray = list()
-    for r in range(ndim):
-        # extract lower and upper bounds for domain dimension extent
-        dim = dom.dim(r)
-        dim_dtype = dim.dtype
-
-        if array.mode == 'r' and (np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_)):
-            # NED can only be retrieved in read mode
-            ned = array.nonempty_domain()
-            (dim_lb, dim_ub) = ned[r] if ned else (None, None)
-        else:
-            (dim_lb, dim_ub) = dim.domain
-
-        dim_slice = idx[r]
-        if not isinstance(dim_slice, slice):
-            raise IndexError("invalid index type: {!r}".format(type(dim_slice)))
-
-        start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
-
-        if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
-            if start is None or stop is None:
-                if start is None:
-                    start = dim_lb
-                if stop is None:
-                    stop = dim_ub
-            elif not isinstance(start, (bytes,unicode)) or not isinstance(stop, (bytes,unicode)):
-                raise TileDBError(f"Non-string range '({start},{stop})' provided for string dimension '{dim.name}'")
-            subarray.append((start,stop))
-            continue
-
-        if step and array.schema.sparse:
-           raise IndexError("steps are not supported for sparse arrays")
-
-        # Datetimes will be treated specially
-        is_datetime = (dim_dtype.kind == 'M')
-
-        # Promote to a common type
-        if start is not None and stop is not None:
-            if type(start) != type(stop):
-                promoted_dtype = np.promote_types(type(start), type(stop))
-                start = np.array(start, dtype=promoted_dtype, ndmin=1)[0]
-                stop = np.array(stop, dtype=promoted_dtype, ndmin=1)[0]
-
-        if start is not None:
-            if is_datetime and not isinstance(start, np.datetime64):
-                raise IndexError('cannot index datetime dimension with non-datetime interval')
-            # don't round / promote fp slices
-            if np.issubdtype(dim_dtype, np.integer):
-                if isinstance(start, (np.float32, np.float64)):
-                    raise IndexError("cannot index integral domain dimension with floating point slice")
-                elif not isinstance(start, _inttypes):
-                    raise IndexError("cannot index integral domain dimension with non-integral slice (dtype: {})".format(type(start)))
-            # apply negative indexing (wrap-around semantics)
-            if not is_datetime and start < 0:
-                start += int(dim_ub) + 1
-            if start < dim_lb:
-                # numpy allows start value < the array dimension shape,
-                # clamp to lower bound of dimension domain
-                #start = dim_lb
-                raise IndexError("index out of bounds <todo>")
-        else:
-            start = dim_lb
-        if stop is not None:
-            if is_datetime and not isinstance(stop, np.datetime64):
-                raise IndexError('cannot index datetime dimension with non-datetime interval')
-            # don't round / promote fp slices
-            if np.issubdtype(dim_dtype, np.integer):
-                if isinstance(start, (np.float32, np.float64)):
-                    raise IndexError("cannot index integral domain dimension with floating point slice")
-                elif not isinstance(start, _inttypes):
-                    raise IndexError("cannot index integral domain dimension with non-integral slice (dtype: {})".format(type(start)))
-            if not is_datetime and stop < 0:
-                stop = np.int64(stop) + dim_ub
-            if stop > dim_ub:
-                # numpy allows stop value > than the array dimension shape,
-                # clamp to upper bound of dimension domain
-                if is_datetime:
-                    stop = dim_ub
-                else:
-                    stop = int(dim_ub) + 1
-        else:
-            if np.issubdtype(dim_dtype, np.floating) or is_datetime:
-                stop = dim_ub
-            else:
-                stop = int(dim_ub) + 1
-
-        if np.issubdtype(type(stop), np.floating):
-            # inclusive bounds for floating point / datetime ranges
-            start = dim_dtype.type(start)
-            stop = dim_dtype.type(stop)
-            subarray.append((start, stop))
-        elif is_datetime:
-            # need to ensure that datetime ranges are in the units of dim_dtype
-            # so that add_range and output shapes work correctly
-            start = start.astype(dim_dtype)
-            stop = stop.astype(dim_dtype)
-            subarray.append((start,stop))
-        elif np.issubdtype(type(stop), np.integer):
-            # normal python indexing semantics
-            subarray.append((start, int(stop) - 1))
-        else:
-            raise IndexError("domain indexing is defined for integral and floating point values")
-    return subarray
+from .array import _tiledb_datetime_extent, index_as_tuple, replace_ellipsis, replace_scalars_slice, check_for_floats, index_domain_subarray
 
 # Wrapper class to allow returning a Python object so that exceptions work correctly
 # within preload_array
@@ -2323,7 +1977,7 @@ cdef class DenseArrayImpl(Array):
         return out
 
 
-    cdef _read_dense_subarray(self, object subarray, list attr_names,
+    def _read_dense_subarray(self, object subarray, list attr_names,
                               object cond, tiledb_layout_t layout,
                               bint include_coords):
 
@@ -3419,7 +3073,7 @@ cdef class SparseArrayImpl(Array):
         else:
             return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    cdef _read_sparse_subarray(self, object subarray, list attr_names,
+    def _read_sparse_subarray(self, object subarray, list attr_names,
                                object cond, tiledb_layout_t layout):
         cdef object out = OrderedDict()
         # all results are 1-d vectors
