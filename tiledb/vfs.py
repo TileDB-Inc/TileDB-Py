@@ -37,6 +37,9 @@ class VFS(lt.VFS):
                 except Exception:
                     raise ValueError("`config` argument must be of type Config or dict")
 
+            # Convert all values to strings
+            config = {k: str(v) for k, v in config.items()}
+
             ccfg = lt.Config(config)
             super().__init__(ctx, ccfg)
         else:
