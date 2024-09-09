@@ -5,6 +5,7 @@ from typing import Callable, List, Optional, Type, Union
 
 import numpy as np
 
+import tiledb
 import tiledb.cc as lt
 
 from .ctx import Config, Ctx, default_ctx
@@ -40,7 +41,7 @@ class VFS(lt.VFS):
             # Convert all values to strings
             config = {k: str(v) for k, v in config.items()}
 
-            ccfg = lt.Config(config)
+            ccfg = tiledb.Config(config)
             super().__init__(ctx, ccfg)
         else:
             super().__init__(ctx)
