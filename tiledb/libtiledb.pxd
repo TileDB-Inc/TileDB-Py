@@ -113,10 +113,6 @@ cdef extern from "tiledb/tiledb.h":
         TILEDB_NO_ENCRYPTION
         TILEDB_AES_256_GCM
 
-    ctypedef enum tiledb_walk_order_t:
-        TILEDB_PREORDER
-        TILEDB_POSTORDER
-
     ctypedef enum tiledb_filesystem_t:
         TILEDB_HDFS
         TILEDB_S3
@@ -144,8 +140,6 @@ cdef extern from "tiledb/tiledb.h":
     ctypedef struct tiledb_attribute_t:
         pass
     ctypedef struct tiledb_array_schema_t:
-        pass
-    ctypedef struct tiledb_current_domain_t:
         pass
     ctypedef struct tiledb_dimension_t:
         pass
@@ -928,13 +922,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* old_path,
         const char* new_path) nogil
 
-    int tiledb_object_walk(
-        tiledb_ctx_t* ctx,
-        const char* path,
-        tiledb_walk_order_t order,
-        int (*callback)(const char*, tiledb_object_t, void*) noexcept,
-        void* data)
-
     int tiledb_object_ls(
         tiledb_ctx_t* ctx,
         const char* path,
@@ -1162,10 +1149,6 @@ cdef class SparseArrayImpl(Array):
 
 cdef class DenseArrayImpl(Array):
     cdef _read_dense_subarray(self, object subarray, list attr_names, object cond, tiledb_layout_t layout, bint include_coords)
-
-cdef class Aggregation(object):
-    cdef Query query
-    cdef object attr_to_aggs
 
 cdef class Query(object):
     cdef Array array

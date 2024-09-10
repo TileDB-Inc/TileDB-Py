@@ -126,6 +126,10 @@ void init_enums(py::module &m) {
       .value("NO_ENCRYPTION", TILEDB_NO_ENCRYPTION)
       .value("AES_256_GCM", TILEDB_AES_256_GCM);
 
+  py::enum_<tiledb_walk_order_t>(m, "WalkOrder")
+      .value("PREORDER", TILEDB_PREORDER)
+      .value("POSTORDER", TILEDB_POSTORDER);
+
   py::enum_<tiledb::Query::Status>(m, "QueryStatus")
       .value("FAILED", Query::Status::FAILED)
       .value("COMPLETE", Query::Status::COMPLETE)
@@ -171,9 +175,10 @@ void init_enums(py::module &m) {
       .value("TIFF", TILEDB_MIME_TIFF)
       .value("PDF", TILEDB_MIME_PDF);
 
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 25
   py::enum_<tiledb_current_domain_type_t>(m, "CurrentDomainType")
       .value("NDRECTANGLE", TILEDB_NDRECTANGLE);
-
+#endif
   // test helpers to check enum name against typed value
   m.def("_enum_string", &tiledb::impl::type_to_str);
   m.def("_enum_string",

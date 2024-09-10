@@ -15,8 +15,6 @@ from collections import OrderedDict
 from json import dumps as json_dumps, loads as json_loads
 
 from ._generated_version import version_tuple as tiledbpy_version
-from .array_schema import ArraySchema
-from .enumeration import Enumeration
 from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
 from .vfs import VFS
@@ -34,7 +32,9 @@ np.import_array()
 
 # Integer types supported by Python / System
 _inttypes = (int, np.integer)
-np.set_printoptions(legacy='1.21') # use unified numpy printing
+
+# Use unified numpy printing
+np.set_printoptions(legacy="1.21" if np.lib.NumpyVersion(np.__version__) >= "1.22.0" else False)
 
 
 cdef tiledb_ctx_t* safe_ctx_ptr(object ctx):
@@ -872,6 +872,7 @@ cdef class Array(object):
                 rc = tiledb_array_get_schema(ctx_ptr, array_ptr, &array_schema_ptr)
             if rc != TILEDB_OK:
               _raise_ctx_err(ctx_ptr, rc)
+            from .array_schema import ArraySchema
             schema = ArraySchema.from_capsule(ctx, PyCapsule_New(array_schema_ptr, "schema", NULL))
         except:
             tiledb_array_close(ctx_ptr, array_ptr)
@@ -988,6 +989,7 @@ cdef class Array(object):
                 _raise_ctx_err(ctx_ptr, rc)
 
         if overwrite:
+            from .highlevel import object_type
             if object_type(uri) == "array":
                 if uri.startswith("file://") or "://" not in uri:
                     if VFS().remove_dir(uri) != TILEDB_OK:
@@ -1188,17 +1190,6 @@ cdef class Array(object):
         return self.view_attr
 
     @property
-    def timestamp(self):
-        """Deprecated in 0.9.2.
-
-        Use `timestamp_range`
-        """
-        raise TileDBError(
-            "timestamp is deprecated; you must use timestamp_range. "
-            "This message will be removed in 0.21.0.",
-        )
-
-    @property
     def timestamp_range(self):
         """Returns the timestamp range the array is opened at
 
@@ -1221,16 +1212,6 @@ cdef class Array(object):
             _raise_ctx_err(ctx_ptr, rc)
 
         return (int(timestamp_start), int(timestamp_end))
-
-    @property
-    def coords_dtype(self):
-        """
-        Deprecated in 0.8.10
-        """
-        raise TileDBError(
-            "`coords_dtype` is deprecated because combined coords have been "
-            "removed from libtiledb. This message will be removed in 0.21.0.",
-        )
 
     @property
     def uri(self):
@@ -1276,6 +1257,8 @@ cdef class Array(object):
         rc = tiledb_array_get_enumeration(ctx_ptr, array_ptr, name_ptr, &enum_ptr)
         if rc != TILEDB_OK:
             _raise_ctx_err(ctx_ptr, rc)
+
+        from .enumeration import Enumeration
         return Enumeration.from_capsule(self.ctx, PyCapsule_New(enum_ptr, "enum", NULL))
 
     def delete_fragments(self_or_uri, timestamp_start, timestamp_end, ctx=None):
@@ -1858,103 +1841,6 @@ cdef class Array(object):
         self.__init__(uri, mode=mode, key=key, attr=view_attr,
                       timestamp=timestamp_range, ctx=ctx)
 
-cdef class Aggregation(object):
-    """
-    Proxy object returned by Query.agg to calculate aggregations.
-    """
-
-    def __init__(self, query=None, attr_to_aggs={}):
-        if query is None:
-            raise ValueError("must pass in a query object")
-        
-        self.query = query
-        self.attr_to_aggs = attr_to_aggs
-
-    def __getitem__(self, object selection):
-        from .main import PyAgg
-        from .subarray import Subarray
-
-        array = self.query.array
-        order = self.query.order
-
-        cdef tiledb_layout_t layout = TILEDB_UNORDERED if array.schema.sparse else TILEDB_ROW_MAJOR
-        if order is None or order == 'C':
-            layout = TILEDB_ROW_MAJOR
-        elif order == 'F':
-            layout = TILEDB_COL_MAJOR
-        elif order == 'G':
-            layout = TILEDB_GLOBAL_ORDER
-        elif order == 'U':
-            layout = TILEDB_UNORDERED
-        else:
-            raise ValueError("order must be 'C' (TILEDB_ROW_MAJOR), "\
-                             "'F' (TILEDB_COL_MAJOR), "\
-                             "'G' (TILEDB_GLOBAL_ORDER), "\
-                             "or 'U' (TILEDB_UNORDERED)")
-    
-        q = PyAgg(array._ctx_(), array, <int32_t>layout, self.attr_to_aggs)
-
-        selection = index_as_tuple(selection)
-        dom = array.schema.domain
-        idx = replace_ellipsis(dom.ndim, selection)
-        idx, drop_axes = replace_scalars_slice(dom, idx)
-        dim_ranges  = index_domain_subarray(array, dom, idx)
-
-        subarray = Subarray(array, array.ctx)
-        subarray.add_ranges([list([x]) for x in dim_ranges])
-        q.set_subarray(subarray)
-
-        cond = self.query.cond
-        if cond is not None and cond != "":
-            from .query_condition import QueryCondition
-
-            if isinstance(cond, str):
-                q.set_cond(QueryCondition(cond))
-            elif isinstance(cond, QueryCondition):
-                raise TileDBError(
-                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "supported as of 0.19.0. Instead of "
-                    "`cond=tiledb.QueryCondition('expression')` "
-                    "you must use `cond='expression'`. This message will be "
-                    "removed in 0.21.0.",
-                )
-            else:
-                raise TypeError("`cond` expects type str.")        
-
-        result = q.get_aggregate()
-
-        # If there was only one attribute, just show the aggregate results
-        if len(result) == 1:
-            result = result[list(result.keys())[0]]
-
-            # If there was only one aggregate, just show the value
-            if len(result) == 1:
-                result = result[list(result.keys())[0]]
-
-        return result
-
-    @property
-    def multi_index(self):
-        """Apply Array.multi_index with query parameters."""
-        # Delayed to avoid circular import
-        from .multirange_indexing import MultiRangeAggregation
-        return MultiRangeAggregation(self.query.array, query=self)
-
-    @property
-    def df(self):
-        raise NotImplementedError(".df indexer not supported for Aggregations")
-    
-    @property
-    def attr_to_aggs(self):
-        """Return the attribute and aggregration input mapping"""
-        return self.attr_to_aggs
-
-    @property
-    def query(self):
-        """Return the underlying Query object"""
-        return self.query
-
-
 cdef class Query(object):
     """
     Proxy object returned by query() to index into original array
@@ -2093,19 +1979,17 @@ cdef class Query(object):
             attrs = tuple(schema.attr(i).name for i in range(schema.nattr))
             attr_to_aggs_map = {a: tuple(aggs) for a in attrs}
 
+        from .aggregation import Aggregation
         return Aggregation(self, attr_to_aggs_map)
+
+    @property
+    def array(self):
+        return self.array
 
     @property
     def attrs(self):
         """List of attributes to include in Query."""
         return self.attrs
-
-    @property
-    def attr_cond(self):
-        raise TileDBError(
-            "`attr_cond` is no longer supported. You must use `cond`. "
-            "This message will be removed in 0.21.0."
-        )
 
     @property
     def cond(self):
@@ -2155,7 +2039,7 @@ cdef class Query(object):
 
     def label_index(self, labels):
         """Apply Array.label_index with query parameters."""
-        from .multirange_indexer import LabelIndexer
+        from .multirange_indexing import LabelIndexer
         return LabelIndexer(self.array, tuple(labels), query=self)
 
     @property
@@ -2285,9 +2169,8 @@ cdef class DenseArrayImpl(Array):
         else:
             return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
 
-    def query(self, attrs=None, attr_cond=None, cond=None, dims=None,
-              coords=False, order='C', use_arrow=None, return_arrow=False,
-              return_incomplete=False):
+    def query(self, attrs=None, cond=None, dims=None, coords=False, order='C',
+              use_arrow=None, return_arrow=False, return_incomplete=False):
         """Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
 
@@ -2338,24 +2221,12 @@ cdef class DenseArrayImpl(Array):
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray must be opened in read mode")
 
-        if attr_cond is not None:
-            if cond is not None:
-                raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`."
-                )
-
-            raise TileDBError(
-                "`attr_cond` is no longer supported. You must use `cond`. "
-                "This message will be removed in 0.21.0."
-            )
-
         return Query(self, attrs=attrs, cond=cond, dims=dims,
                       coords=coords, order=order,
                       use_arrow=use_arrow, return_arrow=return_arrow,
                       return_incomplete=return_incomplete)
 
-    def subarray(self, selection, attrs=None, cond=None, attr_cond=None,
-                 coords=False, order=None):
+    def subarray(self, selection, attrs=None, cond=None, coords=False, order=None):
         """Retrieve data cells for an item or region of the array.
 
         Optionally subselect over attributes, return dense result coordinate values,
@@ -2394,12 +2265,6 @@ cdef class DenseArrayImpl(Array):
 
         if not self.isopen or self.mode != 'r':
             raise TileDBError("DenseArray must be opened in read mode")
-
-        if attr_cond is not None:
-            if cond is not None:
-                raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`."
-                )
 
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'C':
@@ -2472,14 +2337,6 @@ cdef class DenseArrayImpl(Array):
 
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
-            elif isinstance(cond, QueryCondition):
-                raise TileDBError(
-                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "supported as of 0.19.0. Instead of "
-                    "`cond=tiledb.QueryCondition('expression')` "
-                    "you must use `cond='expression'`. This message will be "
-                    "removed in 0.21.0.",
-                )
             else:
                 raise TypeError("`cond` expects type str.")
 
@@ -2702,7 +2559,7 @@ cdef class DenseArrayImpl(Array):
                                         "typed attribute '{}'!".format(name))
                     
                     if attr.isnullable and name not in nullmaps:
-                        nullmaps[name] = ~np.ma.fix_invalid(val).mask
+                        nullmaps[name] = ~np.ma.masked_invalid(val).mask
                         val = np.nan_to_num(val)
                     val = np.ascontiguousarray(val, dtype=attr.dtype)
             except Exception as exc:
@@ -3359,9 +3216,8 @@ cdef class SparseArrayImpl(Array):
 
         return result
 
-    def query(self, attrs=None, cond=None, attr_cond=None, dims=None,
-              index_col=True, coords=None, order='U', use_arrow=None,
-              return_arrow=None, return_incomplete=False):
+    def query(self, attrs=None, cond=None, dims=None, index_col=True, coords=None,
+              order='U', use_arrow=None, return_arrow=None, return_incomplete=False):
         """
         Construct a proxy Query object for easy subarray queries of cells
         for an item or region of the array across one or more attributes.
@@ -3411,17 +3267,6 @@ cdef class SparseArrayImpl(Array):
         """
         if not self.isopen or self.mode not in  ('r', 'd'):
             raise TileDBError("SparseArray must be opened in read or delete mode")
-
-        if attr_cond is not None:
-            if cond is not None:
-                raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "Only use `cond`."
-                )
-
-            raise TileDBError(
-                "`attr_cond` is no longer supported. You must use `cond`. "
-                "This message will be removed in 0.21.0."
-            )
 
         # backwards compatibility
         _coords = coords
@@ -3477,8 +3322,7 @@ cdef class SparseArrayImpl(Array):
         return result_dict
 
 
-    def subarray(self, selection, coords=True, attrs=None, cond=None,
-                 attr_cond=None, order=None):
+    def subarray(self, selection, coords=True, attrs=None, cond=None, order=None):
         """
         Retrieve dimension and data cells for an item or region of the array.
 
@@ -3525,17 +3369,6 @@ cdef class SparseArrayImpl(Array):
         from .subarray import Subarray
         if not self.isopen or self.mode not in ('r', 'd'):
             raise TileDBError("SparseArray is not opened in read or delete mode")
-
-        if attr_cond is not None:
-            if cond is not None:
-                raise TileDBError("Both `attr_cond` and `cond` were passed. "
-                    "`attr_cond` is no longer supported. You must use `cond`. "
-                )
-
-            raise TileDBError(
-                "`attr_cond` is no longer supported. You must use `cond`. "
-                "This message will be removed in 0.21.0.",
-            )
 
         cdef tiledb_layout_t layout = TILEDB_UNORDERED
         if order is None or order == 'U':
@@ -3604,14 +3437,6 @@ cdef class SparseArrayImpl(Array):
 
             if isinstance(cond, str):
                 q.set_cond(QueryCondition(cond))
-            elif isinstance(cond, QueryCondition):
-                raise TileDBError(
-                    "Passing `tiledb.QueryCondition` to `cond` is no longer "
-                    "supported as of 0.19.0. Instead of "
-                    "`cond=tiledb.QueryCondition('expression')` "
-                    "you must use `cond='expression'`. This message will be "
-                    "removed in 0.21.0.",
-                )
             else:
                 raise TypeError("`cond` expects type str.")
 
@@ -3678,150 +3503,6 @@ cdef class SparseArrayImpl(Array):
 
         return dim_values
 
-
-def object_type(uri, ctx=None):
-    """Returns the TileDB object type at the specified path (URI)
-
-    :param str path: path (URI) of the TileDB resource
-    :rtype: str
-    :param tiledb.Ctx ctx: The TileDB Context
-    :return: object type string
-    :raises TypeError: cannot convert path to unicode string
-
-    """
-    if not ctx:
-        ctx = default_ctx()
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
-    cdef bytes buri = unicode_path(uri)
-    cdef const char* path_ptr = PyBytes_AS_STRING(buri)
-    cdef tiledb_object_t obj = TILEDB_INVALID
-    with nogil:
-        rc = tiledb_object_type(ctx_ptr, path_ptr, &obj)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    objtype = None
-    if obj == TILEDB_ARRAY:
-        objtype = "array"
-    # removed in libtiledb 1.7
-    #elif obj == TILEDB_KEY_VALUE:
-    #    objtype = "kv"
-    elif obj == TILEDB_GROUP:
-        objtype = "group"
-    return objtype
-
-
-def remove(uri, ctx=None):
-    """Removes (deletes) the TileDB object at the specified path (URI)
-
-    :param str uri: URI of the TileDB resource
-    :param tiledb.Ctx ctx: The TileDB Context
-    :raises TypeError: uri cannot be converted to a unicode string
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    if not ctx:
-        ctx = default_ctx()
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
-    cdef bytes buri = unicode_path(uri)
-    cdef const char* uri_ptr = PyBytes_AS_STRING(buri)
-    with nogil:
-        rc = tiledb_object_remove(ctx_ptr, uri_ptr)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    return
-
-
-def move(old_uri, new_uri, ctx=None):
-    """Moves a TileDB resource (group, array, key-value).
-
-    :param tiledb.Ctx ctx: The TileDB Context
-    :param str old_uri: path (URI) of the TileDB resource to move
-    :param str new_uri: path (URI) of the destination
-    :raises TypeError: uri cannot be converted to a unicode string
-    :raises: :py:exc:`TileDBError`
-    """
-    if not ctx:
-        ctx = default_ctx()
-    cdef int rc = TILEDB_OK
-    cdef tiledb_ctx_t* ctx_ptr = safe_ctx_ptr(ctx)
-    cdef bytes b_old_path = unicode_path(old_uri)
-    cdef bytes b_new_path = unicode_path(new_uri)
-    cdef const char* old_path_ptr = PyBytes_AS_STRING(b_old_path)
-    cdef const char* new_path_ptr = PyBytes_AS_STRING(b_new_path)
-    with nogil:
-        rc = tiledb_object_move(ctx_ptr, old_path_ptr, new_path_ptr)
-    if rc != TILEDB_OK:
-        check_error(ctx, rc)
-    return
-
-cdef int walk_callback(const char* path_ptr, tiledb_object_t obj, void* pyfunc) noexcept:
-    objtype = None
-    if obj == TILEDB_GROUP:
-        objtype = "group"
-    if obj == TILEDB_ARRAY:
-        objtype = "array"
-    # removed in 1.7
-    #elif obj == TILEDB_KEY_VALUE:
-    #    objtype = "kv"
-    try:
-        (<object> pyfunc)(path_ptr.decode('UTF-8'), objtype)
-    except StopIteration:
-        return 0
-    return 1
-
-
-def ls(path, func, ctx=None):
-    """Lists TileDB resources and applies a callback that have a prefix of ``path`` (one level deep).
-
-    :param str path: URI of TileDB group object
-    :param function func: callback to execute on every listed TileDB resource,\
-            URI resource path and object type label are passed as arguments to the callback
-    :param tiledb.Ctx ctx: TileDB context
-    :raises TypeError: cannot convert path to unicode string
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    cdef tiledb_ctx_t* ctx_ptr = NULL
-
-    if not ctx:
-        ctx = default_ctx()
-    cdef bytes bpath = unicode_path(path)
-    ctx_ptr = safe_ctx_ptr(ctx)
-    check_error(ctx,
-                tiledb_object_ls(ctx_ptr, bpath, walk_callback, <void*> func))
-    return
-
-
-def walk(path, func, order="preorder", ctx=None):
-    """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``path``
-
-    :param str path: URI of TileDB group object
-    :param function func: callback to execute on every listed TileDB resource,\
-            URI resource path and object type label are passed as arguments to the callback
-    :param tiledb.Ctx ctx: The TileDB context
-    :param str order: 'preorder' (default) or 'postorder' tree traversal
-    :raises TypeError: cannot convert path to unicode string
-    :raises ValueError: unknown order
-    :raises: :py:exc:`tiledb.TileDBError`
-
-    """
-    cdef tiledb_ctx_t* ctx_ptr = NULL
-    if not ctx:
-        ctx = default_ctx()
-    cdef bytes bpath = unicode_path(path)
-    cdef tiledb_walk_order_t walk_order
-    if order == "postorder":
-        walk_order = TILEDB_POSTORDER
-    elif order == "preorder":
-        walk_order = TILEDB_PREORDER
-    else:
-        raise ValueError("unknown walk order {}".format(order))
-    ctx_ptr = safe_ctx_ptr(ctx)
-    check_error(ctx,
-                tiledb_object_walk(ctx_ptr, bpath, walk_order, walk_callback, <void*> func))
-    return
 
 def vacuum(uri, config=None, ctx=None, timestamp=None):
     """

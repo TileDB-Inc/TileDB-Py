@@ -1,5 +1,6 @@
 import json
 import warnings
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -340,6 +341,72 @@ def as_built(return_json_string=False):
         return res
 
     return json.loads(res)
+
+
+def object_type(uri: str, ctx: tiledb.Ctx = None) -> Optional[str]:
+    """Returns the TileDB object type at the specified URI as a string.
+
+    :param uri: URI of the TileDB resource
+    :param ctx: The TileDB Context
+    :return: object type string ("array" or "group") or None if invalid TileDB object```
+    """
+    ctx = _get_ctx(ctx)
+
+    return tiledb.main.object_type(uri, ctx)
+
+
+def ls(uri: str, func: Callable, ctx: tiledb.Ctx = None):
+    """Lists TileDB resources and applies a callback that have a prefix of ``uri`` (one level deep).
+
+    :param uri: URI of TileDB group object
+    :param func: callback to execute on every listed TileDB resource,\
+            resource URI and object type label are passed as arguments to the callback
+    :param ctx: A TileDB Context
+    """
+    ctx = _get_ctx(ctx)
+
+    tiledb.main.ls(uri, func, ctx)
+
+
+def walk(uri: str, func: Callable, order: str = "preorder", ctx: tiledb.Ctx = None):
+    """Recursively visits TileDB resources and applies a callback to resources that have a prefix of ``uri``
+
+    :param uri: URI of TileDB group object
+    :param func: callback to execute on every listed TileDB resource,\
+            resource URI and object type label are passed as arguments to the callback
+    :param ctx: The TileDB context
+    :param order: 'preorder' (default) or 'postorder' tree traversal
+    :raises ValueError: unknown order
+    :raises: :py:exc:`tiledb.TileDBError`
+    """
+    ctx = _get_ctx(ctx)
+
+    tiledb.main.walk(uri, func, order, ctx)
+
+
+def remove(uri: str, ctx: tiledb.Ctx = None):
+    """Removes (deletes) the TileDB object at the specified URI
+
+    :param uri: URI of the TileDB resource
+    :param ctx: The TileDB Context
+    :raises: :py:exc:`tiledb.TileDBError`
+    """
+    ctx = _get_ctx(ctx)
+
+    tiledb.main.remove(ctx, uri)
+
+
+def move(old_uri: str, new_uri: str, ctx: tiledb.Ctx = None):
+    """Moves a TileDB resource (group, array, key-value).
+
+    :param old_uri: URI of the TileDB resource to move
+    :param new_uri: URI of the destination
+    :param ctx: The TileDB Context
+    :raises: :py:exc:`TileDBError`
+    """
+    ctx = _get_ctx(ctx)
+
+    tiledb.main.move(ctx, old_uri, new_uri)
 
 
 def _schema_like_numpy(

@@ -903,6 +903,30 @@ class TestMultiRange(DiskTestCase):
         with tiledb.open(uri, mode="r") as A:
             assert all(A.query(use_arrow=True).df[:][""] == data)
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
+    def test_empty_idx(self):
+        uri = self.path("test_empty_idx")
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim(name="dim", domain=(0, 9), dtype=np.uint8)),
+            sparse=True,
+            attrs=[tiledb.Attr(name="a", dtype=np.float64)],
+        )
+        tiledb.Array.create(uri, schema)
+
+        data = np.array(np.random.randint(10, size=10), dtype=np.float64)
+
+        with tiledb.open(uri, mode="w") as A:
+            A[np.arange(10)] = data
+
+        with tiledb.open(uri, mode="r") as A:
+            assert_array_equal(A.df[tiledb.EmptyRange]["a"], [])
+            assert_array_equal(A.multi_index[tiledb.EmptyRange]["a"], [])
+            assert_array_equal(A.df[[]]["a"], [])
+            assert_array_equal(A.multi_index[[]]["a"], [])
+            assert_array_equal(A.df[()]["a"], [])
+            assert_array_equal(A.multi_index[()]["a"], [])
+
 
 # parametrize dtype and sparse
 @pytest.mark.parametrize(

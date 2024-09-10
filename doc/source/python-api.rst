@@ -38,6 +38,7 @@ Context
    :members:
 
 .. autofunction:: tiledb.default_ctx
+.. autofunction:: tiledb.scope_ctx
 
 Config
 ------

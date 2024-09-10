@@ -74,22 +74,6 @@ class FilestoreTest(DiskTestCase):
             assert data == fs.read(0, len(data))
             assert len(fs) == len(data)
 
-    def test_deprecated_uri(self, text_fname):
-        path = self.path("test_uri")
-        schema = tiledb.ArraySchema.from_file(text_fname)
-        tiledb.Array.create(path, schema)
-
-        fs = tiledb.Filestore(path)
-        with pytest.warns(
-            DeprecationWarning, match="Filestore.uri_import is deprecated"
-        ):
-            fs.uri_import(text_fname)
-
-        with open(text_fname, "rb") as text:
-            data = text.read()
-            assert data == fs.read(0, len(data))
-            assert len(fs) == len(data)
-
     def test_multiple_writes(self):
         path = self.path("test_buffer")
         schema = tiledb.ArraySchema.from_file()

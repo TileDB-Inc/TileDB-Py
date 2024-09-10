@@ -129,7 +129,7 @@ def make_dataframe_categorical():
     return df
 
 
-class TestColumnInfo:
+class TestColumnInfo(DiskTestCase):
     def assertColumnInfo(self, info, info_dtype, info_repr=None, info_nullable=False):
         assert isinstance(info.dtype, np.dtype)
         assert info.dtype == info_dtype
@@ -250,6 +250,67 @@ class TestColumnInfo:
                         ColumnInfo.from_values(series)
                     # check that the column name is included in the error message
                     assert "supported (column foo)" in str(exc.value)
+
+    def test_apply_dtype_index_ingest(self):
+        uri = self.path("index_dtype_casted_dtype")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame({"a": np.arange(0, 20), "b": np.arange(20, 40)}),
+            sparse=True,
+            index_dims=["a"],
+            column_types={"a": np.uint8},
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.uint8
+
+        # multiple index dims
+        uri = self.path("index_dtype_casted_dtype_multi")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame(
+                {
+                    "a": np.random.random_sample(20),
+                    "b": [str(uuid.uuid4()) for _ in range(20)],
+                }
+            ),
+            sparse=True,
+            index_dims=["a", "b"],
+            column_types={"a": np.float32, "b": np.bytes_},
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.float32
+            assert A.schema.domain.dim(1).dtype == np.bytes_
+
+    def test_apply_dtype_index_schema_only(self):
+        uri = self.path("index_dtype_casted_dtype")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame({"a": np.arange(0, 20), "b": np.arange(20, 40)}),
+            sparse=True,
+            index_dims=["a"],
+            column_types={"a": np.uint8},
+            mode="schema_only",
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.uint8
+
+        uri = self.path("index_dtype_casted_dtype_multi")
+        tiledb.from_pandas(
+            uri,
+            pd.DataFrame(
+                {
+                    "a": np.random.random_sample(20),
+                    "b": [str(uuid.uuid4()) for _ in range(20)],
+                }
+            ),
+            sparse=True,
+            index_dims=["a", "b"],
+            column_types={"a": np.float32, "b": np.bytes_},
+            mode="schema_only",
+        )
+        with tiledb.open(uri) as A:
+            assert A.schema.domain.dim(0).dtype == np.float32
+            assert A.schema.domain.dim(1).dtype == np.bytes_
 
 
 class TestDimType:
@@ -393,10 +454,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         with tiledb.open(uri) as B:
             tm.assert_frame_equal(df, B.df[:])
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8),
-        reason="requires Python 3.8 or higher. date_format argument is not supported in 3.7 and below",
-    )
     def test_dataframe_csv_rt1(self):
         def rand_dtype(dtype, size):
             nbytes = size * np.dtype(dtype).itemsize
@@ -704,10 +761,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tmp_array2 = os.path.join(tmp_dir, "array2")
         tiledb.from_csv(tmp_array2, tmp_csv, sparse=False)
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8),
-        reason="requires Python 3.8 or higher. date_format argument is not supported in 3.7 and below",
-    )
     def test_csv_col_to_sparse_dims(self):
         df = make_dataframe_basic3(20)
 
@@ -781,10 +834,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             cmp_df = df.set_index("int_vals").sort_values(by="time")
             tm.assert_frame_equal(res_df, cmp_df)
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8),
-        reason="requires Python 3.8 or higher. date_format argument is not supported in 3.7 and below",
-    )
     def test_dataframe_csv_schema_only(self):
         col_size = 10
         df = make_dataframe_basic3(col_size)
@@ -894,10 +943,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             df_bk.sort_index(level="time", inplace=True)
             tm.assert_frame_equal(df_bk, df_combined)
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8),
-        reason="requires Python 3.8 or higher. date_format argument is not supported in 3.7 and below",
-    )
     def test_dataframe_csv_chunked(self):
         col_size = 200
         df = make_dataframe_basic3(col_size)
@@ -980,10 +1025,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             df_idx_res = A.query(coords=False).df[int(ned[0]) : int(ned[1])]
             tm.assert_frame_equal(df_idx_res, df.reset_index(drop=True))
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8),
-        reason="requires Python 3.8 or higher. date_format argument is not supported in 3.7 and below",
-    )
     def test_csv_fillna(self):
         if pytest.tiledb_vfs == "s3":
             pytest.skip(

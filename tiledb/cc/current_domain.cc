@@ -16,6 +16,7 @@ using namespace tiledbpy::common;
 namespace py = pybind11;
 
 void init_current_domain(py::module &m) {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 25
   py::class_<NDRectangle>(m, "NDRectangle")
       .def(py::init<NDRectangle>())
 
@@ -217,6 +218,7 @@ void init_current_domain(py::module &m) {
       .def("_ndrectangle", &CurrentDomain::ndrectangle)
 
       .def("_is_empty", &CurrentDomain::is_empty);
+#endif
 }
 
 } // namespace libtiledbcpp
