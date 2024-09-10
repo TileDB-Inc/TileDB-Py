@@ -781,6 +781,12 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
       // for Arrow date32 we only need the first 4 bytes of each 8-byte
       // TILEDB_DATETIME_DAY element which we keep by in-place left shifting
       for (size_t i = 0; i < bufferinfo.data_num; i++) {
+        uint32_t lost_data = *(reinterpret_cast<uint32_t *>(static_cast<uint8_t *>(buffers[1]) + i * 8 + 4));
+        if (lost_data != 0) {
+          throw tiledb::TileDBError(
+              "[TileDB-Arrow] Non-zero data detected in the memory buffer at position that will be overwritten");
+        }
+
         std::memcpy(static_cast<uint8_t *>(buffers[1]) + i * 4,
                     static_cast<uint8_t *>(buffers[1]) + i * 8, 4);
       }
