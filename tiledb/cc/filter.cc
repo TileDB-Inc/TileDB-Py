@@ -103,17 +103,12 @@ void init_filter(py::module &m) {
              default:
                TPY_ERROR_LOC("Unrecognized filter option to _get_option");
              }
-           });
-  /* needs core patch */
-  /*
-   .def("_dump", [](Filter &filter, Context ctx) {
-          // TODO check_type(a.dtype)
-          // Use the C API here because we are doing typecheck
-
-          ctx.handle_error(tiledb_filter_dump(
-              ctx.ptr().get(), filter.ptr().get()));
-        });
-  */
+           })
+      .def("_dump", [](Filter &filter) {
+        std::stringstream ss;
+        ss << filter;
+        return ss.str();
+      });
 
   py::class_<FilterList>(m, "FilterList")
       .def(py::init<FilterList>())

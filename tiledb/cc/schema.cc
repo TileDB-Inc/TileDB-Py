@@ -172,8 +172,12 @@ void init_schema(py::module &m) {
              return py::capsule(schema.ptr().get(), "schema");
            })
 
-      .def("_dump", &ArraySchema::dump)
-      .def("_dump", [](ArraySchema &schema) { schema.dump(); })
+      .def("_dump",
+           [](ArraySchema &schema) {
+             std::stringstream ss;
+             ss << schema;
+             return ss.str();
+           })
 
       .def("_ctx", &ArraySchema::context)
 

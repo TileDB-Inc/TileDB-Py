@@ -107,7 +107,11 @@ void init_attribute(py::module &m) {
 
       .def("_set_enumeration_name", set_enumeration_name)
 
-      .def("_dump", [](Attribute &attr) { attr.dump(); });
+      .def("_dump", [](Attribute &attr) {
+        std::stringstream ss;
+        ss << attr;
+        return ss.str();
+      });
 }
 
 } // namespace libtiledbcpp

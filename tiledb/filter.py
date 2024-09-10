@@ -644,7 +644,7 @@ class FloatScaleFilter(Filter):
             )
 
     def dump(self):
-        self._dump(self._ctx)
+        print(self._dump(), "\n")
 
     def _attrs_(self):
         return {
