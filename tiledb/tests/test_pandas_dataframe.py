@@ -1627,7 +1627,7 @@ def test_write_unnamed_index_py755(checked_path):
         tm.assert_frame_equal(df.sort_index(), A.df[:])
 
 
-def test_datetime64_days_dtype_sc25572(checked_path):
+def test_datetime64_days_dtype_read_sc25572(checked_path):
     """Test writing array with datetime64[D] attribute dtype and reading back"""
 
     uri = checked_path.path()
@@ -1667,7 +1667,7 @@ def test_datetime64_days_dtype_sc25572(checked_path):
         )
 
 
-def test_datetime64_days_dtype_sc25572_from_pandas(checked_path):
+def test_datetime64_days_dtype_write_sc25572(checked_path):
     """Test writing dataframe with datetime64[D] attribute dtype and reading back"""
     uri = checked_path.path()
 
@@ -1693,4 +1693,67 @@ def test_datetime64_days_dtype_sc25572_from_pandas(checked_path):
         df_received = array.df[:]
         tm.assert_frame_equal(
             original_df, df_received, check_datetimelike_compat=True, check_dtype=False
+        )
+
+
+def test_datetime64_days_dtype_read_out_of_range_sc25572(checked_path):
+    """Test writing array with an out-of-range datetime64[D] attribute dtype"""
+    uri = checked_path.path()
+    schema = tiledb.ArraySchema(
+        tiledb.Domain(tiledb.Dim(name="d1", domain=(0, 9), tile=10, dtype=np.int64)),
+        [tiledb.Attr("Attr1", dtype="datetime64[D]", var=False, nullable=False)],
+    )
+    tiledb.Array.create(uri, schema)
+
+    data = OrderedDict(
+        [
+            (
+                "Attr1",
+                np.array(
+                    [np.datetime64(10000000, "D") for _ in range(10)],
+                    dtype="datetime64[D]",
+                ),
+            )
+        ]
+    )
+
+    with tiledb.open(uri, "w") as array:
+        array[:] = data
+
+    with tiledb.open(uri, "r") as array:
+        with pytest.raises(ValueError) as excinfo:
+            print(array.df[:])
+        assert "year 29349 is out of range" in str(excinfo.value)
+
+
+def test_datetime64_days_dtype_read_overflow_sc25572(checked_path):
+    """Test writing array with an out-of-range datetime64[D] attribute dtype"""
+    uri = checked_path.path()
+    schema = tiledb.ArraySchema(
+        tiledb.Domain(tiledb.Dim(name="d1", domain=(0, 9), tile=10, dtype=np.int64)),
+        [tiledb.Attr("Attr1", dtype="datetime64[D]", var=False, nullable=False)],
+    )
+    tiledb.Array.create(uri, schema)
+
+    data = OrderedDict(
+        [
+            (
+                "Attr1",
+                np.array(
+                    [np.datetime64(10000000000, "D") for _ in range(10)],
+                    dtype="datetime64[D]",
+                ),
+            )
+        ]
+    )
+
+    with tiledb.open(uri, "w") as array:
+        array[:] = data
+
+    with tiledb.open(uri, "r") as array:
+        with pytest.raises(tiledb.TileDBError) as excinfo:
+            print(array.df[:])
+        assert (
+            "[TileDB-Arrow] Non-zero data detected in the memory buffer at position that will be overwritten"
+            in str(excinfo.value)
         )
