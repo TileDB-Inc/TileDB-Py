@@ -297,3 +297,15 @@ class ArraySchemaTest(DiskTestCase):
         tiledb.Array.create(path, schema)
         with tiledb.open(path, "r") as arr:
             assert_array_equal(arr[:]["str_index"], np.array([], dtype="|S1"))
+
+    def test_schema_dump(self, capfd):
+        dom = tiledb.Domain(
+            tiledb.Dim(name="x", domain=(0, 99), tile=100, dtype=np.int64)
+        )
+        schema = tiledb.ArraySchema(
+            domain=dom, sparse=True, attrs=[tiledb.Attr(name="a", dtype=str)]
+        )
+
+        schema.dump()
+
+        assert_captured(capfd, "Array type: sparse")

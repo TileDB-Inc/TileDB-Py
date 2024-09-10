@@ -201,7 +201,11 @@ void init_domain(py::module &m) {
 
       .def("_add_dim", &Domain::add_dimension, py::keep_alive<1, 2>())
 
-      .def("_dump", [](Domain &dom) { dom.dump(); });
+      .def("_dump", [](Domain &dom) {
+        std::stringstream ss;
+        ss << dom;
+        return ss.str();
+      });
 }
 
 } // namespace libtiledbcpp
