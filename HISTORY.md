@@ -1,3 +1,38 @@
+# Release 0.32.0
+
+* TileDB-Py 0.32.0 includes TileDB Embedded [2.26.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.0)
+
+## Improvements
+
+* Replace dump() calls with operator<< by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1975
+* Convert config values to strings in VFS init by @gspowley and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2060
+* Move DomainIndexer, Stats, and Array helper functions from Cython to pybind by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2057
+* Refactor Aggregation from Cython to Pure Python by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2056
+* Move tiledb_object_* API calls from Cython to pybind by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2049
+* Don't check dtype if column_types is not set - from_pandas by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2055
+* Fix serialization test and add command line option by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2052
+* Remove deprecations by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2050
+* Make from_pandas respect column_types for index dimensions by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2046
+* Remove Dask test skips and add Dask as a test dependency by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2047
+* Fix exception when calling label_index on a Query object by @sric0880 and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2044
+* Improve Query Condition error messages to align with TileDB-SOMA-Py by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2041
+* Fix numpy.ma.fix_invalid issue in NumPy 2.1.0 by replacing with numpy.ma.masked_invalid by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2042
+* Add scope_ctx to doc build by @spencerseale in https://github.com/TileDB-Inc/TileDB-Py/pull/2038
+* Passing Empty List to multirange_index and df should return Empty Results by @nguyenv and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1412
+* Get rid all BNF lines in QueryCondition docstring by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2028
+* Add tiledb_current_domain_t as type by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2033
+* Add Enumeration in api ref docs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2026
+* Hide sensitive params shown in Config::__repr__ by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2029
+* Wrap current domain API by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2015
+
+## Build system changes
+
+* Bump libtiledb and numpy versions for daily tests / make CurrentDomain and NDRectangle code conditional by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2036
+* Fix compilation warnings by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/1940
+* Add packaging as dependency by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2032
+* Expose setup.py flag to enable deprecations by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2025
+* Update Cython minimum version to 3 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2027
+
 # Release 0.31.1
 
 ## Improvements
