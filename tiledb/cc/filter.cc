@@ -104,11 +104,15 @@ void init_filter(py::module &m) {
                TPY_ERROR_LOC("Unrecognized filter option to _get_option");
              }
            })
-      .def("_dump", [](Filter &filter) {
-        std::stringstream ss;
-        ss << filter;
-        return ss.str();
-      });
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+      .def("_dump",
+           [](Filter &filter) {
+             std::stringstream ss;
+             ss << filter;
+             return ss.str();
+           })
+#endif
+      ;
 
   py::class_<FilterList>(m, "FilterList")
       .def(py::init<FilterList>())

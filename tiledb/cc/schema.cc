@@ -174,9 +174,13 @@ void init_schema(py::module &m) {
 
       .def("_dump",
            [](ArraySchema &schema) {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
              std::stringstream ss;
              ss << schema;
              return ss.str();
+#else
+             schema.dump();
+#endif
            })
 
       .def("_ctx", &ArraySchema::context)
