@@ -366,7 +366,7 @@ cdef bytes unicode_path(object path):
 #                                                                             #
 ###############################################################################
 
-from .array import _tiledb_datetime_extent, index_as_tuple, replace_ellipsis, replace_scalars_slice, check_for_floats, index_domain_subarray
+from .array_base import _tiledb_datetime_extent, index_as_tuple, replace_ellipsis, replace_scalars_slice, check_for_floats, index_domain_subarray
 
 # Wrapper class to allow returning a Python object so that exceptions work correctly
 # within preload_array

@@ -1,6 +1,6 @@
 pybind11_add_module(
     cc
-    array.cc
+    array_base.cc
     attribute.cc
     common.cc
     common.h
