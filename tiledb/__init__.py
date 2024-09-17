@@ -83,6 +83,7 @@ from .highlevel import (
     remove,
     save,
     schema_like,
+    vacuum,
     walk,
 )
 from .libtiledb import (
@@ -90,7 +91,6 @@ from .libtiledb import (
     Ctx,
     DenseArrayImpl,
     SparseArrayImpl,
-    vacuum,
 )
 from .multirange_indexing import EmptyRange
 from .object import Object
