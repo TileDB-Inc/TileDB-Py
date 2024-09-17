@@ -1,3 +1,16 @@
+# Release 0.32.1
+
+* TileDB-Py 0.32.1 includes TileDB Embedded [2.26.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.1)
+
+## Improvements
+
+* Move vacuum to pure Python by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2067
+* Make dump calls conditional by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2062
+
+## Build system changes
+
+* Bump libtiledb version to 2.26.0 for daily tests by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2063
+
 # Release 0.32.0
 
 * TileDB-Py 0.32.0 includes TileDB Embedded [2.26.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.0)
