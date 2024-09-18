@@ -12,10 +12,10 @@ from .array import (
     replace_ellipsis,
     replace_scalars_slice,
 )
-from .libtiledb import SparseArrayImpl as _SparseArrayImpl
+from .libtiledb import Array
 
 
-class SparseArrayImpl(_SparseArrayImpl):
+class SparseArrayImpl(Array):
     """Class representing a sparse TileDB array (internal).
 
     Inherits properties and methods of :py:class:`tiledb.Array`.

@@ -19,6 +19,7 @@ from ._generated_version import version_tuple as tiledbpy_version
 from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
 from .vfs import VFS
+from .sparse_array import SparseArrayImpl
 
 ###############################################################################
 #     Numpy initialization code (critical)                                    #
@@ -707,12 +708,8 @@ cdef class Array(object):
         # *** because the array destructor will free array_ptr  ***
         # note: must use the immediate form `(<cast>x).m()` here
         #       do not assign a temporary Array object
-        if array_type == TILEDB_DENSE:
-            (<DenseArrayImpl>new_array_typed).ptr = array_ptr
-            (<DenseArrayImpl>new_array_typed)._isopen = True
-        else:
-            (<SparseArrayImpl>new_array_typed).ptr = array_ptr
-            (<SparseArrayImpl>new_array_typed)._isopen = True
+        (<Array>new_array_typed).ptr = array_ptr
+        (<Array>new_array_typed)._isopen = True
         # *** new_array_typed now owns array_ptr ***
 
         new_array_typed.__init__(uri, mode=mode, key=key, timestamp=timestamp, attr=attr, ctx=ctx)
