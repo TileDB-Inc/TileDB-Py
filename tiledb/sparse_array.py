@@ -1,4 +1,4 @@
-import warnings
+from collections import OrderedDict
 
 import numpy as np
 
@@ -6,7 +6,6 @@ import tiledb
 import tiledb.cc as lt
 
 from .array import (
-    check_for_floats,
     index_as_tuple,
     index_domain_subarray,
     replace_ellipsis,
@@ -24,7 +23,7 @@ class SparseArrayImpl(Array):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         if not self.schema.sparse:
-            raise ValueError("Array at '{}' is not a sparse array".format(self.uri))
+            raise ValueError(f"Array at '{self.uri}' is not a sparse array")
 
     def __len__(self):
         raise TypeError("SparseArray length is ambiguous; use shape[0]")
@@ -34,9 +33,9 @@ class SparseArrayImpl(Array):
 
         :param tuple selection: N coordinate value arrays (dim0, dim1, ...) where N in the ndim of the SparseArray,
             The format follows numpy sparse (point) indexing semantics.
-        :param value: a dictionary of nonempty array attribute values, values must able to be converted to 1-d numpy arrays.\
+        :param val: a dictionary of nonempty array attribute values, values must able to be converted to 1-d numpy arrays.\
             if the number of attributes is one, then a 1-d numpy array is accepted.
-        :type value: dict or :py:class:`numpy.ndarray`
+        :type val: dict or :py:class:`numpy.ndarray`
         :raises IndexError: invalid or unsupported index selection
         :raises ValueError: value / coordinate length mismatch
         :raises: :py:exc:`tiledb.TileDBError`
@@ -243,8 +242,6 @@ class SparseArrayImpl(Array):
         pyquery.submit()
 
         # Clean-up the results.
-        from collections import OrderedDict
-
         result_dict = OrderedDict()
         for name, item in pyquery.results().items():
             if len(item[1]) > 0:
@@ -344,12 +341,6 @@ class SparseArrayImpl(Array):
         dom = self.schema.domain
         idx = index_as_tuple(selection)
         idx = replace_ellipsis(dom.ndim, idx)
-        if check_for_floats(selection):
-            warnings.warn(
-                "The use of floats in selection is deprecated. "
-                "It is slated for removal in 0.31.0.",
-                DeprecationWarning,
-            )
         idx, drop_axes = replace_scalars_slice(dom, idx)
         dim_ranges = index_domain_subarray(self, dom, idx)
         subarray = Subarray(self, self._ctx_())
@@ -358,15 +349,11 @@ class SparseArrayImpl(Array):
 
     def __repr__(self):
         if self.isopen:
-            return "SparseArray(uri={0!r}, mode={1}, ndim={2})".format(
-                self.uri, self.mode, self.schema.ndim
-            )
+            return f"SparseArray(uri={self.uri}, mode={self.mode}, ndim={self.schema.ndim})"
         else:
-            return "SparseArray(uri={0!r}, mode=closed)".format(self.uri)
+            return "SparseArray(uri={self.uri}, mode=closed)"
 
     def _read_sparse_subarray(self, subarray, attr_names: list, cond, layout):
-        from collections import OrderedDict
-
         out = OrderedDict()
         # all results are 1-d vectors
         dims = np.array([1], dtype=np.intp)
@@ -436,18 +423,16 @@ class SparseArrayImpl(Array):
 
     def unique_dim_values(self, dim=None):
         if dim is not None and not isinstance(dim, str):
-            raise ValueError("Given Dimension {} is not a string.".format(dim))
+            raise ValueError(f"Given Dimension {dim} is not a string.")
 
         if dim is not None and not self.domain.has_dim(dim):
-            raise ValueError("Array does not contain Dimension '{}'.".format(dim))
+            raise ValueError(f"Array does not contain Dimension '{dim}'.")
 
         query = self.query(attrs=[])[:]
 
         if dim:
             dim_values = tuple(np.unique(query[dim]))
         else:
-            from collections import OrderedDict
-
             dim_values = OrderedDict()
             for dim in query:
                 dim_values[dim] = tuple(np.unique(query[dim]))
