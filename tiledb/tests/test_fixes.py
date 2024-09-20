@@ -63,12 +63,7 @@ class FixesTest(DiskTestCase):
 
             with tiledb.open(uri, mode="r") as T:
                 assert T[:][""] == b"hello"
-                with pytest.warns(
-                    DeprecationWarning,
-                    match="The use of floats in selection is deprecated. "
-                    "It is slated for removal in 0.31.0.",
-                ):
-                    assert T[50.4][""] == b"hello"
+                assert T[50.4][""] == b"hello"
 
     def test_ch8292(self):
         # test fix for ch8292
