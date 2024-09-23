@@ -90,7 +90,6 @@ from .libtiledb import (
     Array,
     Ctx,
     DenseArrayImpl,
-    SparseArrayImpl,
 )
 from .multirange_indexing import EmptyRange
 from .object import Object
@@ -98,6 +97,7 @@ from .parquet_ import from_parquet
 from .query import Query
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
+from .sparse_array import SparseArrayImpl
 from .stats import (
     stats_disable,
     stats_dump,

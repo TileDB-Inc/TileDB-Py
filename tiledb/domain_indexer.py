@@ -110,7 +110,7 @@ class DomainIndexer:
                 "order must be 'C' (TILEDB_ROW_MAJOR), 'F' (TILEDB_COL_MAJOR), or 'G' (TILEDB_GLOBAL_ORDER)"
             )
 
-        if isinstance(self.array, tiledb.libtiledb.SparseArrayImpl):
+        if isinstance(self.array, tiledb.sparse_array.SparseArrayImpl):
             return self.array._read_sparse_subarray(
                 subarray, attr_names, attr_cond, layout
             )
