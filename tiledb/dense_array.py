@@ -106,11 +106,9 @@ class DenseArrayImpl(Array):
 
     def __repr__(self):
         if self.isopen:
-            return "DenseArray(uri={0!r}, mode={1}, ndim={2})".format(
-                self.uri, self.mode, self.schema.ndim
-            )
+            return f"DenseArray(uri={self.uri!r}, mode={self.mode}, ndim={self.schema.ndim})"
         else:
-            return "DenseArray(uri={0!r}, mode=closed)".format(self.uri)
+            return f"DenseArray(uri={self.uri!r}, mode=closed)"
 
     def query(
         self,
@@ -256,12 +254,6 @@ class DenseArrayImpl(Array):
 
         selection = index_as_tuple(selection)
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
-        if check_for_floats(selection):
-            warnings.warn(
-                "The use of floats in selection is deprecated. "
-                "It is slated for removal in 0.31.0.",
-                DeprecationWarning,
-            )
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         dim_ranges = index_domain_subarray(self, self.schema.domain, idx)
         subarray = Subarray(self, self._ctx_())
@@ -354,9 +346,9 @@ class DenseArrayImpl(Array):
 
         :param tuple selection: An int index, slice or tuple of integer/slice objects,
             specifiying the selected subarray region for each dimension of the DenseArray.
-        :param value: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
+        :param val: a dictionary of array attribute values, values must able to be converted to n-d numpy arrays.\
             if the number of attributes is one, then a n-d numpy array is accepted.
-        :type value: dict or :py:class:`numpy.ndarray`
+        :type val: dict or :py:class:`numpy.ndarray`
         :raises IndexError: invalid or unsupported index selection
         :raises ValueError: value / coordinate length mismatch
         :raises: :py:exc:`tiledb.TileDBError`
@@ -742,11 +734,11 @@ class DenseArrayImpl(Array):
 
         :param subarray: a subarray object that specifies the region to write
             data to.
-        :param value: a dictionary of array attribute values, values must able to be
+        :param values: a dictionary of array attribute values, values must able to be
             converted to n-d numpy arrays. If the number of attributes is one, then a
             n-d numpy array is accepted.
         :type subarray: :py:class:`tiledb.Subarray`
-        :type value: dict or :py:class:`numpy.ndarray`
+        :type values: dict or :py:class:`numpy.ndarray`
         :raises ValueError: value / coordinate length mismatch
         :raises: :py:exc:`tiledb.TileDBError`
 
