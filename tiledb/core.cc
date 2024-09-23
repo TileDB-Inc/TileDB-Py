@@ -1778,6 +1778,7 @@ void init_core(py::module &m) {
   m.def("increment_stat", &increment_stat);
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);
+  m.def("datatype_size", &tiledb_datatype_size);
   m.def("as_built_dump", &as_built_dump);
   m.def("object_type",
         [](const std::string &uri, const Context &ctx) -> py::str {
