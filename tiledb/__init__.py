@@ -33,6 +33,7 @@ from .cc import TileDBError
 from .consolidation_plan import ConsolidationPlan
 from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
+from .dense_array import DenseArrayImpl
 from .dimension import Dim
 from .dimension_label import DimLabel
 from .dimension_label_schema import DimLabelSchema
@@ -89,7 +90,6 @@ from .highlevel import (
 from .libtiledb import (
     Array,
     Ctx,
-    DenseArrayImpl,
 )
 from .multirange_indexing import EmptyRange
 from .object import Object

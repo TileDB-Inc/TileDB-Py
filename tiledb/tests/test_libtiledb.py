@@ -2497,13 +2497,8 @@ class TestDenseIndexing(DiskTestCase):
                     T[idx]
 
             for idx in self.warn_and_bad_index_1d:
-                with pytest.warns(
-                    DeprecationWarning,
-                    match="The use of floats in selection is deprecated. "
-                    "It is slated for removal in 0.31.0.",
-                ):
-                    with self.assertRaises(IndexError):
-                        T[idx]
+                with self.assertRaises(IndexError):
+                    T[idx]
 
     good_index_2d = [
         # single row
@@ -2579,13 +2574,8 @@ class TestDenseIndexing(DiskTestCase):
                     T[idx]
 
             for idx in self.warn_and_bad_index_2d:
-                with pytest.warns(
-                    DeprecationWarning,
-                    match="The use of floats in selection is deprecated. "
-                    "It is slated for removal in 0.31.0.",
-                ):
-                    with self.assertRaises(IndexError):
-                        T[idx]
+                with self.assertRaises(IndexError):
+                    T[idx]
 
 
 class TestDatetimeSlicing(DiskTestCase):

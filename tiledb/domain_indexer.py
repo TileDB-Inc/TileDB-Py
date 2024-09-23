@@ -114,7 +114,7 @@ class DomainIndexer:
             return self.array._read_sparse_subarray(
                 subarray, attr_names, attr_cond, layout
             )
-        elif isinstance(self.array, tiledb.libtiledb.DenseArrayImpl):
+        elif isinstance(self.array, tiledb.dense_array.DenseArrayImpl):
             return self.array._read_dense_subarray(
                 subarray, attr_names, attr_cond, layout, coords
             )
