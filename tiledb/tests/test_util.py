@@ -165,3 +165,18 @@ class UtilTest(DiskTestCase):
         with self.assertRaises(tiledb.TileDBError) as excinfo:
             tiledb.ls(dense_arrays_uri, lambda x, y: 1 / 0)
         assert "ZeroDivisionError: division by zero" in str(excinfo.value)
+
+    def test_object_type(self):
+        uri = self.path("test_object_type")
+
+        # None case
+        self.assertIsNone(tiledb.object_type(uri))
+
+        # Array case
+        with tiledb.from_numpy(uri, np.arange(0, 5)) as T:
+            self.assertEqual(tiledb.object_type(uri), "array")
+        tiledb.Array.delete_array(uri)
+
+        # Group case
+        tiledb.group_create(uri)
+        self.assertEqual(tiledb.object_type(uri), "group")
