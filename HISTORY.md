@@ -50,7 +50,7 @@
 
 ## Improvements
 
-* Fix malformed doc str for tiledb.array_schema.ArraySchema in https://github.com/TileDB-Inc/TileDB-Py/pull/2007
+* Fix malformed doc str for tiledb.array_schema.ArraySchema by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2007
 * Fix deprecation and test by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2021
 
 ## Build system changes
