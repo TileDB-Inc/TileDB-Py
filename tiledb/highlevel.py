@@ -251,9 +251,8 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
     """
     ctx = _get_ctx(ctx)
     if config is None:
-        config = lt.Config()
-
-    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+        config = ctx.config()
+    arr = tiledb.Array(uri, mode="w", ctx=ctx)
 
     if fragment_uris is not None:
         if timestamp is not None:
@@ -262,11 +261,11 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
                 "passed to `fragment_uris` will be consolidated",
                 DeprecationWarning,
             )
-        return arr.consolidate(ctx, fragment_uris, config)
+        return arr.array._consolidate(ctx, fragment_uris, config)
     elif timestamp is not None:
-        return arr.consolidate(ctx, timestamp, config)
+        return arr.array._consolidate(ctx, timestamp, config)
     else:
-        return arr.consolidate(ctx, config)
+        return arr.array._consolidate(ctx, config)
 
 
 def vacuum(uri, config=None, ctx=None, timestamp=None):
@@ -330,7 +329,7 @@ def vacuum(uri, config=None, ctx=None, timestamp=None):
         if timestamp[1] is not None:
             config["sm.vacuum.timestamp_end"] = timestamp[1]
 
-    lt.Array.vacuum(ctx, uri, config)
+    lt.Array._vacuum(ctx, uri, config)
 
 
 def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):
