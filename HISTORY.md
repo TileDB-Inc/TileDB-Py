@@ -1,3 +1,11 @@
+# Release 0.32.3
+
+* TileDB-Py 0.32.3 includes TileDB Embedded [2.26.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.2)
+
+## Build system changes
+
+* Pass pretend version to container by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2077
+
 # Release 0.32.2
 
 ## Improvements
