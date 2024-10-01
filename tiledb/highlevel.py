@@ -114,6 +114,10 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
     ctx = _get_ctx(ctx, config)
     mode = kwargs.pop("mode", "ingest")
     timestamp = kwargs.pop("timestamp", None)
+    sparse = kwargs.pop("sparse", False)
+
+    if sparse:
+        raise tiledb.TileDBError("from_numpy only supports dense arrays")
 
     if mode not in ("ingest", "schema_only", "append"):
         raise tiledb.TileDBError(f"Invalid mode specified ('{mode}')")
