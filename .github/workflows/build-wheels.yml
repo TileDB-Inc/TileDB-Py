@@ -96,7 +96,7 @@ jobs:
           - macos-14
           - windows-2022
           - ubuntu-22.04
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.9", "3.10", "3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Python ${{ matrix.python }}
