@@ -255,8 +255,8 @@ def index_domain_subarray(array, dom, idx: tuple):
 
 # this function loads the pybind Array to determine whether it is a sparse or dense array.
 def preload_array(uri, mode, key, timestamp, ctx=None):
-    if not ctx:
-        if key:
+    if ctx is None:
+        if key is not None:
             config = tiledb.Config()
             config["sm.encryption_key"] = key
             config["sm.encryption_type"] = "AES_256_GCM"
@@ -270,22 +270,24 @@ def preload_array(uri, mode, key, timestamp, ctx=None):
         "m": lt.QueryType.MODIFY_EXCLUSIVE,
         "d": lt.QueryType.DELETE,
     }
-    if mode not in _mode_to_query_type:
-        raise ValueError("TileDB array mode must be 'r', 'w', 'm', or 'd'")
-    query_type = _mode_to_query_type[mode]
+    try:
+        query_type = _mode_to_query_type[mode]
+    except KeyError:
+        raise ValueError(
+            f"TileDB array mode must be one of {_mode_to_query_type.keys()}"
+        )
 
     ts_start = None
     ts_end = None
     if timestamp is not None:
         if isinstance(timestamp, tuple):
-            if len(timestamp) != 2:
+            if len(timestamp) != 2 and not (
+                isinstance(timestamp[0], int) and isinstance(timestamp[1], int)
+            ):
                 raise ValueError(
                     "'timestamp' argument expects either int or tuple(start: int, end: int)"
                 )
-            if timestamp[0] is not None:
-                ts_start = timestamp[0]
-            if timestamp[1] is not None:
-                ts_end = timestamp[1]
+            ts_start, ts_end = timestamp
         elif isinstance(timestamp, int):
             # handle the existing behavior for unary timestamp
             # which is equivalent to endpoint of the range
@@ -303,7 +305,7 @@ class Array:
     an Array instance is initialized, the array is opened with the specified mode.
 
     :param str uri: URI of array to open
-    :param str mode: (default 'r') Open the array object in read 'r', write 'w', or delete 'd' mode
+    :param str mode: (default 'r') Open the array object in read 'r', write 'w', modify exclusive 'm', or delete 'd' mode
     :param str key: (default None) If not None, encryption key to decrypt the array
     :param tuple timestamp: (default None) If int, open the array at a given TileDB
         timestamp. If tuple, open at the given start and end TileDB timestamps.
@@ -315,23 +317,20 @@ class Array:
     def __init__(
         self, uri, mode="r", key=None, timestamp=None, attr=None, ctx=None, **kwargs
     ):
-        if not ctx:
+        if ctx is None:
             ctx = default_ctx()
 
-        if "preloaded_array" not in kwargs:
-            self.array = preload_array(uri, mode, key, timestamp, ctx)
-        else:
-            self.array = kwargs["preloaded_array"]
+        self.array = kwargs.get(
+            "preloaded_array", preload_array(uri, mode, key, timestamp, ctx)
+        )
 
         # view on a single attribute
         schema = self.array._schema()
-        if attr and not any(
-            attr == schema._attr(i)._name for i in range(schema._nattr)
-        ):
+        if attr is not None and not schema._has_attribute(attr):
             self.array._close()
-            raise KeyError("No attribute matching '{}'".format(attr))
+            raise KeyError(f"No attribute matching '{attr}'")
         else:
-            self.view_attr = attr if attr is not None else None
+            self.view_attr = attr
 
         self.ctx = ctx
         self.key = key
@@ -348,14 +347,10 @@ class Array:
 
     def __repr__(self):
         if self.isopen:
-            return "Array(type={0}, uri={1!r}, mode={2}, ndim={3})".format(
-                "Sparse" if self.schema.sparse else "Dense",
-                self.uri,
-                self.mode,
-                self.schema.ndim,
-            )
+            array_type = "Sparse" if self.schema.sparse else "Dense"
+            return f"Array(type={array_type }, uri={self.uri!r}, mode={self.mode}, ndim={self.schema.ndim})"
         else:
-            return "Array(uri={0!r}, mode=closed)"
+            return f"Array(uri={self.uri!r}, mode=closed)"
 
     @classmethod
     def create(cls, uri, schema, key=None, overwrite=False, ctx=None):
@@ -370,11 +365,11 @@ class Array:
                         (*not* necessarily ``tiledb.default_ctx``).
 
         """
-        if ctx and not isinstance(ctx, Ctx):
+        if ctx is not None and not isinstance(ctx, Ctx):
             raise TypeError(
                 "tiledb.Array.create() expected tiledb.Ctx " "object to argument ctx"
             )
-        if not ctx:
+        if ctx is None:
             ctx = schema.ctx
 
         from .dense_array import DenseArrayImpl
@@ -389,7 +384,7 @@ class Array:
                 "Array.create `schema` argument must be a sparse schema for SparseArray and subclasses"
             )
 
-        if key:
+        if key is not None:
             config = tiledb.Config(ctx.config())
             config["sm.encryption_type"] = "AES_256_GCM"
             config["sm.encryption_key"] = key
@@ -417,7 +412,7 @@ class Array:
     @classmethod
     def load_typed(cls, uri, mode="r", key=None, timestamp=None, attr=None, ctx=None):
         """Return a {Dense,Sparse}Array instance from a pre-opened Array (internal)"""
-        if not ctx:
+        if ctx is None:
             ctx = default_ctx()
 
         from .dense_array import DenseArrayImpl
@@ -426,15 +421,13 @@ class Array:
         tmp_array = preload_array(uri, mode, key, timestamp, ctx)
 
         if tmp_array._schema()._array_type == lt.ArrayType.SPARSE:
-            new_array_typed = SparseArrayImpl(
+            return SparseArrayImpl(
                 uri, mode, key, timestamp, attr, ctx, preloaded_array=tmp_array
             )
-            return new_array_typed
         else:
-            new_array_typed = DenseArrayImpl(
+            return DenseArrayImpl(
                 uri, mode, key, timestamp, attr, ctx, preloaded_array=tmp_array
             )
-            return new_array_typed
 
     def __enter__(self):
         """
@@ -522,16 +515,11 @@ class Array:
     @property
     def nattr(self):
         """The number of attributes of this array."""
-        if self.view_attr:
-            return 1
-        else:
-            return self.schema.nattr
+        return 1 if self.view_attr is not None else self.schema.nattr
 
     def view_attr(self):
         """The view attribute of this array."""
-        if self.view_attr:
-            return self.view_attr
-        return None
+        return self.view_attr
 
     @property
     def timestamp_range(self):
@@ -611,10 +599,9 @@ class Array:
 
         """
         if isinstance(uri, str):
-            if not ctx:
-                ctx = default_ctx()
-
-            lt.Array._delete_fragments(ctx, uri, timestamp_start, timestamp_end)
+            lt.Array._delete_fragments(
+                ctx or default_ctx(), uri, timestamp_start, timestamp_end
+            )
         else:
             raise TypeError("uri must be a string")
 
@@ -642,10 +629,7 @@ class Array:
         False
 
         """
-        if not ctx:
-            ctx = default_ctx()
-
-        lt.Array._delete_array(ctx, uri)
+        lt.Array._delete_array(ctx or default_ctx(), uri)
 
     def nonempty_domain(self):
         """Return the minimum bounding domain which encompasses nonempty values.
@@ -662,9 +646,7 @@ class Array:
             dim_dtype = dom.dim(dim_idx).dtype
 
             if self.array._non_empty_domain_is_empty(dim_idx, dim_dtype, self.ctx):
-                results.append(
-                    (None, None),
-                )
+                results.append((None, None))
                 continue
 
             res_x, res_y = self.array._non_empty_domain(dim_idx, dim_dtype)
@@ -737,7 +719,13 @@ class Array:
                 DeprecationWarning,
             )
 
-            if not isinstance(timestamp, tuple) and len(timestamp) != 2:
+            if (
+                not isinstance(timestamp, tuple)
+                and len(timestamp) != 2
+                and not (
+                    isinstance(timestamp[0], int) and isinstance(timestamp[1], int)
+                )
+            ):
                 raise TypeError(
                     "'timestamp' argument expects tuple(start: int, end: int)"
                 )
@@ -974,7 +962,6 @@ class Array:
 
         from collections import OrderedDict
 
-        results = OrderedDict()
         results = q.results()
 
         out = OrderedDict()

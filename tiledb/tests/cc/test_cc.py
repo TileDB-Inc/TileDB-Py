@@ -146,7 +146,7 @@ def test_array():
     arr._open(lt.QueryType.WRITE)
     arr._set_open_timestamp_start(2)
     arr._set_open_timestamp_end(2)
-    arr.delete_metadata("key")
+    arr._delete_metadata("key")
     arr._close()
 
     arr._set_open_timestamp_start(3)

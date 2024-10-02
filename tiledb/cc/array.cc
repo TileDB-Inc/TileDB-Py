@@ -14,6 +14,16 @@ namespace libtiledbcpp {
 using namespace tiledb;
 namespace py = pybind11;
 
+template <typename T>
+bool _non_empty_domain_is_empty_aux(tiledb::Array &arr, const unsigned &dim_idx,
+                                    const Context &ctx) {
+  int32_t is_empty = 0;
+  T domain[2];
+  ctx.handle_error(tiledb_array_get_non_empty_domain_from_index(
+      ctx.ptr().get(), arr.ptr().get(), dim_idx, &domain, &is_empty));
+  return is_empty == 1;
+}
+
 void init_array(py::module &m) {
 
   py::class_<TemporalPolicy>(m, "TemporalPolicy")
@@ -138,34 +148,40 @@ void init_array(py::module &m) {
              } else {
                void *domain = nullptr;
                if (n_type.is(py::dtype::of<uint64_t>())) {
-                 domain = new uint64_t[2];
+                 return _non_empty_domain_is_empty_aux<uint64_t>(self, dim_idx,
+                                                                 ctx);
                  // int64_t also used for datetime64
                } else if (n_type.is(py::dtype::of<int64_t>()) ||
                           py::getattr(n_type, "kind").is(py::str("M"))) {
-                 domain = new int64_t[2];
+                 return _non_empty_domain_is_empty_aux<int64_t>(self, dim_idx,
+                                                                ctx);
                } else if (n_type.is(py::dtype::of<uint32_t>())) {
-                 domain = new uint32_t[2];
+                 return _non_empty_domain_is_empty_aux<uint32_t>(self, dim_idx,
+                                                                 ctx);
                } else if (n_type.is(py::dtype::of<int32_t>())) {
-                 domain = new int32_t[2];
+                 return _non_empty_domain_is_empty_aux<int32_t>(self, dim_idx,
+                                                                ctx);
                } else if (n_type.is(py::dtype::of<uint16_t>())) {
-                 domain = new uint16_t[2];
+                 return _non_empty_domain_is_empty_aux<uint16_t>(self, dim_idx,
+                                                                 ctx);
                } else if (n_type.is(py::dtype::of<int16_t>())) {
-                 domain = new int16_t[2];
+                 return _non_empty_domain_is_empty_aux<int16_t>(self, dim_idx,
+                                                                ctx);
                } else if (n_type.is(py::dtype::of<uint8_t>())) {
-                 domain = new uint8_t[2];
+                 return _non_empty_domain_is_empty_aux<uint8_t>(self, dim_idx,
+                                                                ctx);
                } else if (n_type.is(py::dtype::of<int8_t>())) {
-                 domain = new int8_t[2];
+                 return _non_empty_domain_is_empty_aux<int8_t>(self, dim_idx,
+                                                               ctx);
                } else if (n_type.is(py::dtype::of<double>())) {
-                 domain = new double[2];
+                 return _non_empty_domain_is_empty_aux<double>(self, dim_idx,
+                                                               ctx);
                } else if (n_type.is(py::dtype::of<float>())) {
-                 domain = new float[2];
+                 return _non_empty_domain_is_empty_aux<float>(self, dim_idx,
+                                                              ctx);
                } else {
                  TPY_ERROR_LOC("Unsupported type");
                }
-               ctx.handle_error(tiledb_array_get_non_empty_domain_from_index(
-                   ctx.ptr().get(), self.ptr().get(), dim_idx, domain,
-                   &is_empty));
-               return is_empty == 1;
              }
            })
       .def("_non_empty_domain",
@@ -287,8 +303,6 @@ void init_array(py::module &m) {
              return py::make_tuple(has_it, has_type);
            })
       .def("metadata_num", &Array::metadata_num)
-      .def("delete_metadata",
-           [](Array &self, std::string &key) { self.delete_metadata(key); })
       .def("_delete_array",
            py::overload_cast<const Context &, const std::string &>(
                &Array::delete_array))
