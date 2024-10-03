@@ -63,12 +63,7 @@ class FixesTest(DiskTestCase):
 
             with tiledb.open(uri, mode="r") as T:
                 assert T[:][""] == b"hello"
-                with pytest.warns(
-                    DeprecationWarning,
-                    match="The use of floats in selection is deprecated. "
-                    "It is slated for removal in 0.31.0.",
-                ):
-                    assert T[50.4][""] == b"hello"
+                assert T[50.4][""] == b"hello"
 
     def test_ch8292(self):
         # test fix for ch8292
@@ -286,6 +281,14 @@ class FixesTest(DiskTestCase):
         tiledb.Group.create("mem://tmp1")
         a = tiledb.Group("mem://tmp1")
         repr(a.meta)
+
+    def test_sc56611(self):
+        # test from_numpy with sparse argument set to True
+        uri = self.path("test_sc56611")
+        data = np.random.rand(10, 10)
+        with pytest.raises(tiledb.cc.TileDBError) as exc_info:
+            tiledb.from_numpy(uri, data, sparse=True)
+        assert str(exc_info.value) == "from_numpy only supports dense arrays"
 
 
 class SOMA919Test(DiskTestCase):

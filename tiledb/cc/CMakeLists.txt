@@ -42,6 +42,14 @@ if (TILEDB_REMOVE_DEPRECATIONS)
     )
 endif()
 
+if (TILEDB_SERIALIZATION)
+    target_compile_definitions(
+        cc
+        PRIVATE
+        TILEDB_SERIALIZATION
+    )
+endif()
+
 install(TARGETS cc DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)

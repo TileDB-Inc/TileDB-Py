@@ -39,41 +39,23 @@ class QueryCondition:
     (https://docs.tiledb.com/main/background/internal-mechanics/writing#default-fill-values).
     An example may be found in `examples/query_condition_dense.py`.
 
-    **BNF:**
-
     A query condition is made up of one or more Boolean expressions. Multiple
     Boolean expressions are chained together with Boolean operators. The ``or_op``
     Boolean operators are given lower presedence than ``and_op``.
 
-        ``query_cond ::= bool_term | query_cond or_op bool_term``
-
-        ``bool_term ::= bool_expr | bool_term and_op bool_expr``
-
-    Logical ``and`` and bitwise ``&`` Boolean operators are given equal precedence.
-
-        ``and_op ::= and | &``
-
-    Likewise, ``or`` and ``|`` are given equal precedence.
-
-        ``or_op ::= or | |``
-
-    We intend to support ``not`` in future releases.
+    A Bitwise expression may either be a comparison expression or membership
+    expression.
 
     A Boolean expression may either be a comparison expression or membership
     expression.
 
-        ``bool_expr ::= compare_expr | member_expr``
-
     A comparison expression contains a comparison operator. The operator works on a
     TileDB attribute or dimension name (hereby known as a "TileDB variable") and value.
 
-        ``compare_expr ::= var compare_op val
-            | val compare_op var
-            | val compare_op var compare_op val``
-
     All comparison operators are supported.
 
-        ``compare_op ::= < | > | <= | >= | == | !=``
+    Bitwise operators are given higher precedence than comparison operators.
+    Boolean operators are given lower precedence than comparison operators.
 
     If an attribute name has special characters in it, you can wrap ``namehere``
     in ``attr("namehere")``.
@@ -81,16 +63,10 @@ class QueryCondition:
     A membership expression contains the membership operator, ``in``. The operator
     works on a TileDB variable and list of values.
 
-        ``member_expr ::= var in <list>``
-
     TileDB variable names are Python valid variables or a ``attr()`` or ``dim()`` casted string.
-
-        ``var ::= <variable> | attr(<str>) | dim(<str>)``
 
     Values are any Python-valid number or string. datetime64 values should first be
     cast to UNIX seconds. Values may also be casted with ``val()``.
-
-        ``val ::= <num> | <str> | val(val)``
 
     **Example:**
 
@@ -99,13 +75,18 @@ class QueryCondition:
     >>>     # and `bar` equal to string "asdf".
     >>>     # Note precedence is equivalent to:
     >>>     # tiledb.QueryCondition("foo > 5 or ('asdf' == var('b a r') and baz <= val(1.0))")
-    >>>     qc = tiledb.QueryCondition("foo > 5 or 'asdf' == var('b a r') and baz <= val(1.0)")
-    >>>     A.query(cond=qc)
+    >>>     A.query(cond=tiledb.QueryCondition("foo > 5 or 'asdf' == var('b a r') and baz <= val(1.0)"))
     >>>
     >>>     # Select cells where the values for `foo` are equal to 1, 2, or 3.
     >>>     # Note this is equivalent to:
     >>>     # tiledb.QueryCondition("foo == 1 or foo == 2 or foo == 3")
     >>>     A.query(cond=tiledb.QueryCondition("foo in [1, 2, 3]"))
+    >>>
+    >>>     # Example showing that bitwise operators (| ^ &) are given higher precedence than comparison operators
+    >>>     # and comparison operators are given higher precedence than logical operators.
+    >>>     # Note this is equivalent to:
+    >>>     # tiledb.QueryCondition("((foo == 1) or (foo == 2)) and ('xyz' == var('b a r')) and ((foo & 1) == 0"))
+    >>>     A.query(cond=tiledb.QueryCondition("foo == 1 or foo == 2 and 'xyz' == var('b a r') and foo & 1 == 0"))
     """
 
     expression: str
@@ -137,7 +118,7 @@ class QueryCondition:
         if not isinstance(self.c_obj, qc.PyQueryCondition):
             raise TileDBError(
                 "Malformed query condition statement. A query condition must "
-                "be made up of one or more Boolean expressions."
+                "be made up of one or more boolean expressions."
             )
 
 
@@ -183,8 +164,21 @@ class QueryConditionTree(ast.NodeVisitor):
     def visit_NotIn(self, node):
         return node
 
+    def visit_Is(self, node):
+        raise TileDBError("the `is` operator is not supported")
+
+    def visit_IsNot(self, node):
+        raise TileDBError("the `is not` operator is not supported")
+
     def visit_List(self, node):
         return list(node.elts)
+
+    def visit_Attribute(self, node) -> qc.PyQueryCondition:
+        raise TileDBError(
+            f"Unhandled dot operator in {ast.dump(node)} -- if your attribute name "
+            'has a dot in it, e.g. `orig.ident`, please wrap it with `attr("...")`, '
+            'e.g. `attr("orig.ident")`'
+        )
 
     def visit_Compare(self, node: Type[ast.Compare]) -> qc.PyQueryCondition:
         operator = self.visit(node.ops[0])
@@ -237,6 +231,9 @@ class QueryConditionTree(ast.NodeVisitor):
             dtype = "string" if dt.kind in "SUa" else dt.name
             op = qc.TILEDB_IN if isinstance(operator, ast.In) else qc.TILEDB_NOT_IN
             result = self.create_pyqc(dtype)(self.ctx, node.left.id, values, op)
+
+        else:
+            raise TileDBError(f"unrecognized operator in <<{ast.dump(node)}>>")
 
         return result
 
@@ -324,11 +321,6 @@ class QueryConditionTree(ast.NodeVisitor):
             variable = variable_node.id
         elif isinstance(variable_node, ast.Constant):
             variable = variable_node.value
-        elif isinstance(variable_node, ast.Constant) or isinstance(
-            variable_node, ast.Constant
-        ):
-            # deprecated in 3.8
-            variable = variable_node.s
         else:
             raise TileDBError(
                 f"Incorrect type for variable name: {ast.dump(variable_node)}"
@@ -363,20 +355,10 @@ class QueryConditionTree(ast.NodeVisitor):
 
         if isinstance(value_node, ast.Constant):
             value = value_node.value
-        elif isinstance(value_node, ast.Constant):
-            # deprecated in 3.8
-            value = value_node.value
-        elif isinstance(value_node, ast.Constant):
-            # deprecated in 3.8
-            value = value_node.n
-        elif isinstance(value_node, ast.Constant) or isinstance(
-            value_node, ast.Constant
-        ):
-            # deprecated in 3.8
-            value = value_node.s
         else:
             raise TileDBError(
-                f"Incorrect type for comparison value: {ast.dump(value_node)}"
+                f"Incorrect type for comparison value: {ast.dump(value_node)}: right-hand sides must be constant"
+                " expressions, not variables -- did you mean to quote the right-hand side as a string?"
             )
 
         return value
@@ -444,8 +426,12 @@ class QueryConditionTree(ast.NodeVisitor):
         result = self.visit(node.left)
         rhs = node.right[1:] if isinstance(node.right, list) else [node.right]
         for value in rhs:
-            result = result.combine(self.visit(value), op)
-
+            visited = self.visit(value)
+            if not isinstance(result, qc.PyQueryCondition):
+                raise Exception(
+                    f"Unable to parse expression component {ast.dump(node)} -- did you mean to quote it as a string?"
+                )
+            result = result.combine(visited, op)
         return result
 
     def visit_BoolOp(self, node: ast.BoolOp) -> qc.PyQueryCondition:
@@ -501,19 +487,3 @@ class QueryConditionTree(ast.NodeVisitor):
                 )
 
             return node.operand
-
-    def visit_Num(self, node: ast.Constant) -> ast.Constant:
-        # deprecated in 3.8
-        return node
-
-    def visit_Str(self, node: ast.Constant) -> ast.Constant:
-        # deprecated in 3.8
-        return node
-
-    def visit_Bytes(self, node: ast.Constant) -> ast.Constant:
-        # deprecated in 3.8
-        return node
-
-    def visit_NameConstant(self, node: ast.Constant) -> ast.Constant:
-        # deprecated in 3.8
-        return node

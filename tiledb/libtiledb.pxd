@@ -1,6 +1,9 @@
+#!python
+#cython: language_level=3
+
 from libc.stdint cimport uint32_t, uint64_t
 from libc.stdio cimport FILE
-include "indexing.pxd"
+from .domain_indexer import DomainIndexer
 include "common.pxi"
 
 cdef extern from "Python.h":
@@ -15,10 +18,6 @@ cdef extern from "tiledb/tiledb.h":
     enum: TILEDB_VAR_NUM
     unsigned int tiledb_var_num()
 
-    # TODO: remove after TileDB 2.15
-    enum: TILEDB_COORDS
-    const char* tiledb_coords()
-
     enum: TILEDB_MAX_PATH
     unsigned int tiledb_max_path()
 
@@ -27,14 +26,6 @@ cdef extern from "tiledb/tiledb.h":
 
     # Version
     void tiledb_version(int* major, int* minor, int* rev)
-
-    # Stats
-    void tiledb_stats_enable()
-    void tiledb_stats_disable()
-    void tiledb_stats_reset()
-    int32_t tiledb_stats_dump_str(char** out)
-    int32_t tiledb_stats_raw_dump_str(char** out)
-    int32_t tiledb_stats_free_str(char** out)
 
     # Enums
     ctypedef enum tiledb_object_t:
@@ -109,10 +100,6 @@ cdef extern from "tiledb/tiledb.h":
     ctypedef enum tiledb_encryption_type_t:
         TILEDB_NO_ENCRYPTION
         TILEDB_AES_256_GCM
-
-    ctypedef enum tiledb_walk_order_t:
-        TILEDB_PREORDER
-        TILEDB_POSTORDER
 
     ctypedef enum tiledb_filesystem_t:
         TILEDB_HDFS
@@ -923,13 +910,6 @@ cdef extern from "tiledb/tiledb.h":
         const char* old_path,
         const char* new_path) nogil
 
-    int tiledb_object_walk(
-        tiledb_ctx_t* ctx,
-        const char* path,
-        tiledb_walk_order_t order,
-        int (*callback)(const char*, tiledb_object_t, void*) noexcept,
-        void* data)
-
     int tiledb_object_ls(
         tiledb_ctx_t* ctx,
         const char* path,
@@ -1143,7 +1123,7 @@ cdef class Array(object):
     cdef object schema
     cdef object _buffers
 
-    cdef DomainIndexer domain_index
+    cdef object domain_index
     cdef object multi_index
     cdef object df
     cdef Metadata meta
@@ -1151,16 +1131,6 @@ cdef class Array(object):
     cdef object pyquery
 
     cdef _ndarray_is_varlen(self, np.ndarray array)
-
-cdef class SparseArrayImpl(Array):
-    cdef _read_sparse_subarray(self, object subarray, list attr_names, object cond, tiledb_layout_t layout)
-
-cdef class DenseArrayImpl(Array):
-    cdef _read_dense_subarray(self, object subarray, list attr_names, object cond, tiledb_layout_t layout, bint include_coords)
-
-cdef class Aggregation(object):
-    cdef Query query
-    cdef object attr_to_aggs
 
 cdef class Query(object):
     cdef Array array
@@ -1173,7 +1143,7 @@ cdef class Query(object):
     cdef object use_arrow
     cdef object return_arrow
     cdef object return_incomplete
-    cdef DomainIndexer domain_index
+    cdef object domain_index
     cdef object multi_index
     cdef object df
 

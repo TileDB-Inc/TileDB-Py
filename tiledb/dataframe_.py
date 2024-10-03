@@ -8,6 +8,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 import tiledb
+from tiledb.libtiledb import version as libtiledb_version
 
 from .datatypes import DataType
 
@@ -207,7 +208,7 @@ class ColumnInfo:
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
-            if tiledb.libtiledb.version() < (2, 10) and pd_types.is_bool_dtype(dtype):
+            if libtiledb_version() < (2, 10) and pd_types.is_bool_dtype(dtype):
                 # as of libtiledb 2.10, we support TILEDB_BOOL
                 np_type = np.uint8
             else:
@@ -230,7 +231,7 @@ class ColumnInfo:
         # bool type
         if pd_types.is_bool_dtype(dtype):
             # as of libtiledb 2.10, we support TILEDB_BOOL
-            dtype = "uint8" if tiledb.libtiledb.version() < (2, 10) else "bool"
+            dtype = "uint8" if libtiledb_version() < (2, 10) else "bool"
             return cls(np.dtype(dtype), repr="bool")
 
         # complex types
@@ -419,7 +420,9 @@ def _sparse_from_dtypes(dtypes, sparse=None):
     return sparse if sparse is not None else False
 
 
-def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
+def create_dims(
+    df, index_dims, column_infos, tile=None, full_domain=False, filters=None
+):
     check_dataframe_deps()
     import pandas as pd
 
@@ -444,7 +447,10 @@ def create_dims(df, index_dims, tile=None, full_domain=False, filters=None):
         else:
             raise ValueError(f"Unknown column or index named {name!r}")
 
-        dtype = ColumnInfo.from_values(values).dtype
+        if name in column_infos:
+            dtype = column_infos[name].dtype
+        else:
+            dtype = ColumnInfo.from_values(values).dtype
         internal_dtype = dtype
 
         if name == "__tiledb_rows" and isinstance(index, pd.RangeIndex):
@@ -658,6 +664,7 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
     dims, dim_metadata = create_dims(
         df,
         index_dims,
+        column_infos,
         full_domain=full_domain,
         tile=tiledb_args.get("tile"),
         filters=tiledb_args.get("dim_filters", True),

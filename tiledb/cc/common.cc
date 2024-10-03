@@ -153,9 +153,9 @@ tiledb_datatype_t np_to_tdb_dtype(py::dtype type) {
     return _np_name_to_tdb_dtype[name];
 
   auto kind = py::str(py::getattr(type, "kind"));
-  if (kind == py::str("S"))
+  if (kind.is(py::str("S")))
     return TILEDB_STRING_ASCII;
-  if (kind == py::str("U"))
+  if (kind.is(py::str("U")))
     return TILEDB_STRING_UTF8;
 
   TPY_ERROR_LOC("could not handle numpy dtype: " +
@@ -192,7 +192,7 @@ bool is_tdb_str(tiledb_datatype_t type) {
 }
 
 py::size_t get_ncells(py::dtype type) {
-  if (type == py::dtype("S"))
+  if (type.is(py::dtype("S")))
     return type.itemsize() == 0 ? TILEDB_VAR_NUM : type.itemsize();
 
   if (type.is(py::dtype("U"))) {

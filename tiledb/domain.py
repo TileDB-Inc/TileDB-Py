@@ -183,4 +183,4 @@ class Domain(CtxMixin, lt.Domain):
 
     def dump(self):
         """Dumps a string representation of the domain object to standard output (STDOUT)"""
-        self._dump()
+        print(self._dump(), "\n")

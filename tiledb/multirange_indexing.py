@@ -17,16 +17,18 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    TypeVar,
     Union,
     cast,
 )
 
 import numpy as np
 
+from .aggregation import Aggregation as AggregationProxy
+from .array_schema import ArraySchema
 from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
-from .libtiledb import Aggregation as AggregationProxy
-from .libtiledb import Array, ArraySchema, Metadata
+from .libtiledb import Array, Metadata
 from .libtiledb import Query as QueryProxy
 from .main import PyAgg, PyQuery, increment_stat, use_stats
 from .query import Query
@@ -43,8 +45,17 @@ if TYPE_CHECKING:
 current_timer: ContextVar[str] = ContextVar("timer_scope")
 
 
-# sentinel value to denote selecting an empty range
-EmptyRange = object()
+# sentinel type to denote selecting an empty range
+EmptyRange = TypeVar("EmptyRange")
+
+
+def is_empty_range(idx: Union[EmptyRange, List, Tuple]) -> bool:
+    if idx is not EmptyRange:
+        if hasattr(idx, "__len__") and len(idx) == 0 and idx != "":
+            return True
+        return False
+    return True
+
 
 # TODO: expand with more accepted scalar types
 Scalar = Real
@@ -247,7 +258,7 @@ class _BaseIndexer(ABC):
 
     def __getitem__(self, idx):
         with timing("getitem_time"):
-            if idx is EmptyRange:
+            if is_empty_range(idx):
                 self.pyquery = None
                 self.subarray = None
             else:
@@ -638,13 +649,6 @@ def _get_pyquery(
     if query and query.cond is not None:
         if isinstance(query.cond, str):
             pyquery.set_cond(QueryCondition(query.cond))
-        elif isinstance(query.cond, QueryCondition):
-            raise TileDBError(
-                "Passing `tiledb.QueryCondition` to `cond` is no longer supported "
-                "as of 0.19.0. Instead of `cond=tiledb.QueryCondition('expression')` "
-                "you must use `cond='expression'`. This message will be "
-                "removed in 0.21.0.",
-            )
         else:
             raise TypeError("`cond` expects type str.")
 

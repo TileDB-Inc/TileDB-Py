@@ -6,13 +6,16 @@ from typing import Sequence, Tuple, Union
 import numpy as np
 
 import tiledb.cc as lt
+from tiledb.libtiledb import version as libtiledb_version
 
 from .attribute import Attr
 from .ctx import Ctx, CtxMixin, default_ctx
-from .current_domain import CurrentDomain
 from .dimension_label import DimLabel
 from .domain import Domain
 from .filter import Filter, FilterList
+
+if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 25:
+    from .current_domain import CurrentDomain
 
 _tiledb_order_to_string = {
     lt.LayoutType.ROW_MAJOR: "row-major",
@@ -385,25 +388,27 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         """
         return self._has_dim_label(self._ctx, name)
 
-    @property
-    def current_domain(self) -> CurrentDomain:
-        """Get the current domain
+    if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 25:
 
-        :rtype: tiledb.CurrentDomain
-        """
-        curr_dom = CurrentDomain.from_pybind11(
-            self._ctx, self._current_domain(self._ctx)
-        )
-        curr_dom._set_domain(self.domain)
-        return curr_dom
+        @property
+        def current_domain(self) -> CurrentDomain:
+            """Get the current domain
 
-    def set_current_domain(self, current_domain):
-        """Set the current domain
+            :rtype: tiledb.CurrentDomain
+            """
+            curr_dom = CurrentDomain.from_pybind11(
+                self._ctx, self._current_domain(self._ctx)
+            )
+            curr_dom._set_domain(self.domain)
+            return curr_dom
 
-        :param current_domain: The current domain to set
-        :type current_domain: tiledb.CurrentDomain
-        """
-        self._set_current_domain(self._ctx, current_domain)
+        def set_current_domain(self, current_domain):
+            """Set the current domain
+
+            :param current_domain: The current domain to set
+            :type current_domain: tiledb.CurrentDomain
+            """
+            self._set_current_domain(self._ctx, current_domain)
 
     def attr_or_dim_dtype(self, name: str) -> bool:
         if self.has_attr(name):

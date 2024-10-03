@@ -11,11 +11,11 @@ from .common import (
 
 class StatsTest(DiskTestCase):
     def test_stats(self, capfd):
-        tiledb.libtiledb.stats_enable()
-        tiledb.libtiledb.stats_reset()
-        tiledb.libtiledb.stats_disable()
+        tiledb.stats_enable()
+        tiledb.stats_reset()
+        tiledb.stats_disable()
 
-        tiledb.libtiledb.stats_enable()
+        tiledb.stats_enable()
 
         path = self.path("test_stats")
 
@@ -23,9 +23,9 @@ class StatsTest(DiskTestCase):
             pass
 
         # basic output check for read stats
-        tiledb.libtiledb.stats_reset()
+        tiledb.stats_reset()
         with tiledb.open(path) as T:
-            tiledb.libtiledb.stats_enable()
+            tiledb.stats_enable()
             assert_array_equal(T, np.arange(10))
 
             # test stdout version
@@ -52,16 +52,16 @@ class StatsTest(DiskTestCase):
                 self.assertTrue("==== READ ====" in stats_quiet)
 
     def test_stats_include_python_json(self):
-        tiledb.libtiledb.stats_enable()
+        tiledb.stats_enable()
 
         path = self.path("test_stats")
 
         with tiledb.from_numpy(path, np.arange(10)) as T:
             pass
 
-        tiledb.libtiledb.stats_reset()
+        tiledb.stats_reset()
         with tiledb.open(path) as T:
-            tiledb.libtiledb.stats_enable()
+            tiledb.stats_enable()
             assert_array_equal(T, np.arange(10))
             json_stats = tiledb.stats_dump(print_out=False, json=True)
             assert isinstance(json_stats, dict)

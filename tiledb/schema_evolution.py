@@ -1,8 +1,8 @@
 from typing import Optional
 
 import tiledb
+from tiledb.libtiledb import version as libtiledb_version
 
-from .current_domain import CurrentDomain
 from .enumeration import Enumeration
 from .main import ArraySchemaEvolution as ASE
 
@@ -52,12 +52,15 @@ class ArraySchemaEvolution:
 
         self.ase.extend_enumeration(enmr)
 
-    def expand_current_domain(self, current_domain: CurrentDomain):
-        """Expand the current domain in the schema evolution.
-        Note: this function does not apply any changes; the changes are
-        only applied when `ArraySchemaEvolution.array_evolve` is called."""
+    if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 25:
+        from .current_domain import CurrentDomain
 
-        self.ase.expand_current_domain(current_domain)
+        def expand_current_domain(self, current_domain: CurrentDomain):
+            """Expand the current domain in the schema evolution.
+            Note: this function does not apply any changes; the changes are
+            only applied when `ArraySchemaEvolution.array_evolve` is called."""
+
+            self.ase.expand_current_domain(current_domain)
 
     def array_evolve(self, uri: str):
         """Apply ArraySchemaEvolution actions to Array at given URI."""

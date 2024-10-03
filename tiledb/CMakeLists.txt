@@ -56,6 +56,14 @@ target_compile_features(
     cxx_std_20
 )
 
+if (TILEDB_SERIALIZATION)
+    target_compile_definitions(
+        main
+        PRIVATE
+        TILEDB_SERIALIZATION
+    )
+endif()
+
 install(TARGETS main libtiledb DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)

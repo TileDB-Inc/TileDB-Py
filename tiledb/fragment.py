@@ -3,6 +3,7 @@ import pprint
 import warnings
 
 import tiledb
+from tiledb.libtiledb import version as libtiledb_version
 
 from .main import PyFragmentInfo
 
@@ -118,7 +119,7 @@ class FragmentInfoList:
         self.to_vacuum = fi.get_to_vacuum()
 
         if include_mbrs:
-            if tiledb.libtiledb.version() >= (2, 5, 0):
+            if libtiledb_version() >= (2, 5, 0):
                 self.mbrs = fi.get_mbrs()
             else:
                 warnings.warn(
@@ -127,40 +128,8 @@ class FragmentInfoList:
                     UserWarning,
                 )
 
-        if tiledb.libtiledb.version() >= (2, 5, 0):
+        if libtiledb_version() >= (2, 5, 0):
             self.array_schema_name = fi.get_array_schema_name()
-
-    @property
-    def non_empty_domain(self):
-        raise tiledb.TileDBError(
-            "FragmentInfoList.non_empty_domain is deprecated; "
-            "you must use FragmentInfoList.nonempty_domain",
-            "This message will be removed in 0.21.0.",
-        )
-
-    @property
-    def to_vacuum_num(self):
-        raise tiledb.TileDBError(
-            "FragmentInfoList.to_vacuum_num is deprecated; "
-            "you must use len(FragmentInfoList.to_vacuum)",
-            "This message will be removed in 0.21.0.",
-        )
-
-    @property
-    def to_vacuum_uri(self):
-        raise tiledb.TileDBError(
-            "FragmentInfoList.to_vacuum_uri is deprecated; "
-            "you must use FragmentInfoList.to_vacuum",
-            "This message will be removed in 0.21.0.",
-        )
-
-    @property
-    def dense(self):
-        raise tiledb.TileDBError(
-            "FragmentInfoList.dense is deprecated; "
-            "you must use FragmentInfoList.sparse",
-            "This message will be removed in 0.21.0.",
-        )
 
     def __getattr__(self, name):
         if name == "mbrs":
@@ -295,50 +264,6 @@ class FragmentInfo:
                 "Use tiledb.array_fragments(include_mbrs=True) to enable)"
             )
         return self.__getattribute__(name)
-
-    @property
-    def non_empty_domain(self):
-        raise tiledb.TileDBError(
-            "FragmentInfo.non_empty_domain is deprecated; "
-            "you must use FragmentInfo.nonempty_domain. ",
-            "This message will be removed in 0.21.0.",
-        )
-
-    @property
-    def to_vacuum_num(self):
-        raise tiledb.TileDBError(
-            "FragmentInfo.to_vacuum_num is deprecated; "
-            "you must use len(FragmentInfoList.to_vacuum).",
-            "This message will be removed in 0.21.0.",
-        )
-
-    @property
-    def to_vacuum_uri(self):
-        raise tiledb.TileDBError(
-            "FragmentInfo.to_vacuum_uri is deprecated; "
-            "you must use FragmentInfoList.to_vacuum.",
-            "This message will be removed in 0.21.0.",
-        )
-
-    @property
-    def dense(self):
-        raise tiledb.TileDBError(
-            "FragmentInfo.dense is deprecated; you must use FragmentInfo.sparse",
-            "This message will be removed in 0.21.0.",
-        )
-
-
-def FragmentsInfo(array_uri, ctx=None):
-    """
-    Deprecated in 0.8.8.
-
-    Renamed to FragmentInfoList to make name more distinguishable from FragmentInfo.
-    """
-
-    raise tiledb.TileDBError(
-        "FragmentsInfo is deprecated; you must use FragmentInfoList. "
-        "This message will be removed in 0.21.0.",
-    )
 
 
 def create_array_from_fragments(

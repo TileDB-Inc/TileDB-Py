@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import numpy as np
 import pytest
 
@@ -416,3 +418,68 @@ class DimensionLabelTestCase(DiskTestCase):
                             result["value"], attr_data[:, index:]
                         )
                     np.testing.assert_array_equal(result[label_name], label_index)
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        reason="dimension labels requires libtiledb version 2.15 or greater",
+    )
+    def test_dimension_label_on_query(self):
+        uri = self.path("query_label_index")
+
+        dim1 = tiledb.Dim("d1", domain=(1, 4))
+        dim2 = tiledb.Dim("d2", domain=(1, 3))
+        dom = tiledb.Domain(dim1, dim2)
+        att = tiledb.Attr("a1", dtype=np.int64)
+        dim_labels = {
+            0: {"l1": dim1.create_label_schema("decreasing", np.int64)},
+            1: {
+                "l2": dim2.create_label_schema("increasing", np.int64),
+                "l3": dim2.create_label_schema("increasing", np.float64),
+            },
+        }
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
+        tiledb.Array.create(uri, schema)
+
+        a1_data = np.reshape(np.arange(1, 13), (4, 3))
+        l1_data = np.arange(4, 0, -1)
+        l2_data = np.arange(-1, 2)
+        l3_data = np.linspace(0, 1.0, 3)
+
+        with tiledb.open(uri, "w") as A:
+            A[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data, "l3": l3_data}
+
+        with tiledb.open(uri, "r") as A:
+            np.testing.assert_equal(
+                A.query().label_index(["l1"])[3:4],
+                OrderedDict(
+                    {"l1": np.array([4, 3]), "a1": np.array([[1, 2, 3], [4, 5, 6]])}
+                ),
+            )
+            np.testing.assert_equal(
+                A.query().label_index(["l1", "l3"])[2, 0.5:1.0],
+                OrderedDict(
+                    {
+                        "l3": np.array([0.5, 1.0]),
+                        "l1": np.array([2]),
+                        "a1": np.array([[8, 9]]),
+                    }
+                ),
+            )
+            np.testing.assert_equal(
+                A.query().label_index(["l2"])[:, -1:0],
+                OrderedDict(
+                    {
+                        "l2": np.array([-1, 0]),
+                        "a1": np.array([[1, 2], [4, 5], [7, 8], [10, 11]]),
+                    },
+                ),
+            )
+            np.testing.assert_equal(
+                A.query().label_index(["l3"])[:, 0.5:1.0],
+                OrderedDict(
+                    {
+                        "l3": np.array([0.5, 1.0]),
+                        "a1": np.array([[2, 3], [5, 6], [8, 9], [11, 12]]),
+                    },
+                ),
+            )

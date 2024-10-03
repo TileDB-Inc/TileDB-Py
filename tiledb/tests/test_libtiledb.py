@@ -2497,13 +2497,8 @@ class TestDenseIndexing(DiskTestCase):
                     T[idx]
 
             for idx in self.warn_and_bad_index_1d:
-                with pytest.warns(
-                    DeprecationWarning,
-                    match="The use of floats in selection is deprecated. "
-                    "It is slated for removal in 0.31.0.",
-                ):
-                    with self.assertRaises(IndexError):
-                        T[idx]
+                with self.assertRaises(IndexError):
+                    T[idx]
 
     good_index_2d = [
         # single row
@@ -2579,13 +2574,8 @@ class TestDenseIndexing(DiskTestCase):
                     T[idx]
 
             for idx in self.warn_and_bad_index_2d:
-                with pytest.warns(
-                    DeprecationWarning,
-                    match="The use of floats in selection is deprecated. "
-                    "It is slated for removal in 0.31.0.",
-                ):
-                    with self.assertRaises(IndexError):
-                        T[idx]
+                with self.assertRaises(IndexError):
+                    T[idx]
 
 
 class TestDatetimeSlicing(DiskTestCase):
@@ -3485,7 +3475,7 @@ class TestHighlevel(DiskTestCase):
 
 class GetStatsTest(DiskTestCase):
     def test_ctx(self):
-        tiledb.libtiledb.stats_enable()
+        tiledb.stats_enable()
         ctx = tiledb.default_ctx()
         uri = self.path("test_ctx")
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), dtype=np.int64))
@@ -3500,7 +3490,7 @@ class GetStatsTest(DiskTestCase):
         assert "Context.StorageManager.write_store" in stats
 
     def test_query(self):
-        tiledb.libtiledb.stats_enable()
+        tiledb.stats_enable()
         uri = self.path("test_ctx")
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), dtype=np.int64))
         att = tiledb.Attr(dtype=np.int64)

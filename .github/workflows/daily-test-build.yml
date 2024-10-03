@@ -15,7 +15,7 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-12, windows-latest]
+        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
       fail-fast: false
 
     env:
@@ -63,7 +63,7 @@ jobs:
       # - https://github.com/actions/runner-images/pull/7125
       - name: "Install homebrew dependencies"
         run: brew install pkg-config
-        if: matrix.os == 'macos-12'
+        if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
 
       - name: Checkout TileDB-Py `dev`
         uses: actions/checkout@v4
@@ -91,4 +91,4 @@ jobs:
         with:
           name: nightly build
           label: bug,nightly-failure
-          assignee: kounelisagis,nguyenv,KiterLuc,ihnorton
+          assignee: kounelisagis,nguyenv,ihnorton

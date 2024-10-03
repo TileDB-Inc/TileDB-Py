@@ -19,13 +19,21 @@ if os.name == "posix":
 else:
     lib_name = "tiledb"
 
+from tiledb.libtiledb import version as libtiledb_version
+
+if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 25:
+    from .current_domain import CurrentDomain
+    from .ndrectangle import NDRectangle
+
+del libtiledb_version  # no longer needed
+
 from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
 from .consolidation_plan import ConsolidationPlan
 from .ctx import Config, Ctx, default_ctx, scope_ctx
-from .current_domain import CurrentDomain
 from .dataframe_ import from_csv, from_pandas, open_dataframe
+from .dense_array import DenseArrayImpl
 from .dimension import Dim
 from .dimension_label import DimLabel
 from .dimension_label_schema import DimLabelSchema
@@ -58,7 +66,6 @@ from .filter import (
 from .fragment import (
     FragmentInfo,
     FragmentInfoList,
-    FragmentsInfo,
     copy_fragments_to_existing_array,
     create_array_from_fragments,
 )
@@ -70,33 +77,33 @@ from .highlevel import (
     consolidate,
     empty_like,
     from_numpy,
+    ls,
+    move,
+    object_type,
     open,
+    remove,
     save,
     schema_like,
+    vacuum,
+    walk,
 )
 from .libtiledb import (
     Array,
     Ctx,
-    DenseArrayImpl,
-    SparseArrayImpl,
-    ls,
-    move,
-    object_type,
-    remove,
-    stats_disable,
-    stats_dump,
-    stats_enable,
-    stats_reset,
-    vacuum,
-    walk,
 )
 from .multirange_indexing import EmptyRange
-from .ndrectangle import NDRectangle
 from .object import Object
 from .parquet_ import from_parquet
 from .query import Query
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
+from .sparse_array import SparseArrayImpl
+from .stats import (
+    stats_disable,
+    stats_dump,
+    stats_enable,
+    stats_reset,
+)
 from .subarray import Subarray
 from .version_helper import version
 from .vfs import VFS, FileIO
