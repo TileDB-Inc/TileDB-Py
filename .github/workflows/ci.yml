@@ -6,6 +6,11 @@ concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  S3_BUCKET: ${{ vars.S3_BUCKET }}
+  TILEDB_NAMESPACE: ${{ vars.TILEDB_NAMESPACE }}
+  TILEDB_TOKEN: ${{ secrets.TILEDB_TOKEN }}
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
