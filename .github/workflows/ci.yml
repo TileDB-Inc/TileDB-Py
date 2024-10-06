@@ -6,6 +6,11 @@ concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  S3_BUCKET: ${{ vars.S3_BUCKET }}
+  TILEDB_NAMESPACE: ${{ vars.TILEDB_NAMESPACE }}
+  TILEDB_TOKEN: ${{ secrets.TILEDB_TOKEN }}
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -20,7 +25,7 @@ jobs:
           # libfaketime tests fail on macos arm. Disable tests for now.
           # - macos-14
           - windows-latest
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: [ "3.9", "3.10", "3.11", "3.12"]
       fail-fast: false
     env:
       MACOSX_DEPLOYMENT_TARGET: "11"

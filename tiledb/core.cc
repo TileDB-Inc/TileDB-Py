@@ -1781,14 +1781,14 @@ void init_core(py::module &m) {
   m.def("datatype_size", &tiledb_datatype_size);
   m.def("as_built_dump", &as_built_dump);
   m.def("object_type",
-        [](const std::string &uri, const Context &ctx) -> py::str {
+        [](const std::string &uri, const Context &ctx) -> py::object {
           tiledb_object_t res;
           ctx.handle_error(
               tiledb_object_type(ctx.ptr().get(), uri.c_str(), &res));
           if (res == TILEDB_ARRAY) {
-            return std::string("array");
+            return py::str("array");
           } else if (res == TILEDB_GROUP) {
-            return std::string("group");
+            return py::str("group");
           }
           return py::none();
         });

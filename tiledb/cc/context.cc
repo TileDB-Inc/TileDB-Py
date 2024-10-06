@@ -20,9 +20,6 @@ void init_context(py::module &m) {
       .def("__capsule__",
            [](Context &ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
 
-      .def("__capsule__",
-           [](Context &ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
-
       .def("config", &Context::config)
       .def("set_tag", &Context::set_tag)
       .def("get_stats", &Context::stats)
