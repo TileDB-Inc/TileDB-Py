@@ -25,12 +25,6 @@ bool _non_empty_domain_is_empty_aux(tiledb::Array &arr, const unsigned &dim_idx,
 }
 
 void init_array(py::module &m) {
-
-  py::class_<TemporalPolicy>(m, "TemporalPolicy")
-      .def(py::init<>())
-      .def(py::init<const TimeTravelMarker &, uint64_t>())
-      .def(py::init<const TimestampStartEndMarker &, uint64_t, uint64_t>());
-
   py::class_<tiledb::Array>(m, "Array")
       //.def(py::init<py::object, py::object, py::iterable, py::object,
       //              py::object, py::object>())

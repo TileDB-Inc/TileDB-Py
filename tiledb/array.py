@@ -369,8 +369,7 @@ class Array:
             raise TypeError(
                 "tiledb.Array.create() expected tiledb.Ctx " "object to argument ctx"
             )
-        if ctx is None:
-            ctx = schema.ctx
+        ctx = ctx or default_ctx()
 
         from .dense_array import DenseArrayImpl
         from .sparse_array import SparseArrayImpl
@@ -384,8 +383,8 @@ class Array:
                 "Array.create `schema` argument must be a sparse schema for SparseArray and subclasses"
             )
 
+        config = tiledb.Config(ctx.config())
         if key is not None:
-            config = tiledb.Config(ctx.config())
             config["sm.encryption_type"] = "AES_256_GCM"
             config["sm.encryption_key"] = key
             ctx = tiledb.Ctx(config)
@@ -397,7 +396,7 @@ class Array:
             if object_type(uri) == "array":
                 if uri.startswith("file://") or "://" not in uri:
                     try:
-                        VFS().remove_dir(uri)
+                        VFS(config=config, ctx=ctx).remove_dir(uri)
                     except tiledb.TileDBError as e:
                         raise tiledb.TileDBError(
                             f"Error removing existing array at '{uri}': {e}"
@@ -696,8 +695,7 @@ class Array:
                 "cannot consolidate array opened in readonly mode (mode='r')"
             )
 
-        if config is None:
-            config = tiledb.Config(self.ctx.config())
+        config = tiledb.Config(config or self.ctx.config())
 
         if key is not None:
             config["sm.encryption_type"] = "AES_256_GCM"
