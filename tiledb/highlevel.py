@@ -132,7 +132,7 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
 
     if mode in ("ingest", "schema_only"):
         schema = _schema_like_numpy(array, ctx, **kwargs)
-        tiledb.Array.create(uri, schema)
+        tiledb.Array.create(uri, schema, ctx=ctx)
 
     if mode in ("ingest", "append"):
         kwargs["mode"] = mode
