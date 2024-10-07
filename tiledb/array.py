@@ -708,7 +708,7 @@ class Array:
                     "passed to `fragment_uris` will be consolidate",
                     DeprecationWarning,
                 )
-            self.array._consolidate(self.ctx, fragment_uris, config)
+            lt.Array._consolidate(self.array.uri, self.ctx, fragment_uris, config)
             return
         elif timestamp is not None:
             warnings.warn(
@@ -733,7 +733,7 @@ class Array:
             if timestamp[1] is not None:
                 config["sm.consolidation.timestamp_end"] = timestamp[1]
 
-        self.array._consolidate(self.ctx, config)
+        lt.Array._consolidate(self.uri, self.ctx, config)
 
     def upgrade_version(self, config=None):
         """

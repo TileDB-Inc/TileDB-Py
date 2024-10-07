@@ -181,9 +181,7 @@ def test_consolidate_fragments():
     # https://github.com/TileDB-Inc/TileDB-Py/pull/1946
     uris = [uri.split("/")[-1] for uri in uris]
 
-    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
-    arr._consolidate_fragments(ctx, uris, config)
-    arr._close()
+    lt.Array._consolidate_fragments(uri, ctx, uris, config)
 
     fragment_info = PyFragmentInfo(uri, schema, False, ctx)
     # Fragmentinfo doesn't see the consolidated range

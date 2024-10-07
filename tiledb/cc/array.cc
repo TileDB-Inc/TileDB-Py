@@ -79,41 +79,34 @@ void init_array(py::module &m) {
            [](Array &self, const Context &ctx, const std::string &attr_name) {
              return ArrayExperimental::get_enumeration(ctx, self, attr_name);
            })
-      .def("_consolidate",
-           [](Array &self, const Context &ctx, Config *config) {
-             if (self.query_type() == TILEDB_READ) {
-               throw TileDBError("cannot consolidate array opened in readonly "
-                                 "mode (mode='r')");
-             }
-             Array::consolidate(ctx, self.uri(), config);
-           })
-      .def("_consolidate",
-           [](Array &self, const Context &ctx,
-              const std::vector<std::string> &fragment_uris, Config *config) {
-             std::vector<const char *> c_strings;
-             c_strings.reserve(fragment_uris.size());
-             for (const auto &str : fragment_uris) {
-               c_strings.push_back(str.c_str());
-             }
-             Array::consolidate(ctx, self.uri(), c_strings.data(),
-                                fragment_uris.size(), config);
-           })
-      .def("_consolidate",
-           [](Array &self, const Context &ctx,
-              const std::tuple<int, int> &timestamp, Config *config) {
-             if (self.query_type() == TILEDB_READ) {
-               throw TileDBError("cannot consolidate array opened in readonly "
-                                 "mode (mode='r')");
-             }
-             int start, end;
-             std::tie(start, end) = timestamp;
+      .def_static("_consolidate",
+                  [](const std::string &uri, const Context &ctx,
+                     Config *config) { Array::consolidate(ctx, uri, config); })
+      .def_static("_consolidate",
+                  [](const std::string &uri, const Context &ctx,
+                     const std::vector<std::string> &fragment_uris,
+                     Config *config) {
+                    std::vector<const char *> c_strings;
+                    c_strings.reserve(fragment_uris.size());
+                    for (const auto &str : fragment_uris) {
+                      c_strings.push_back(str.c_str());
+                    }
+                    Array::consolidate(ctx, uri, c_strings.data(),
+                                       fragment_uris.size(), config);
+                  })
+      .def_static("_consolidate",
+                  [](const std::string &uri, const Context &ctx,
+                     const std::tuple<int, int> &timestamp, Config *config) {
+                    int start, end;
+                    std::tie(start, end) = timestamp;
 
-             config->set("sm.consolidation.timestamp_start",
-                         std::to_string(start));
-             config->set("sm.consolidation.timestamp_end", std::to_string(end));
+                    config->set("sm.consolidation.timestamp_start",
+                                std::to_string(start));
+                    config->set("sm.consolidation.timestamp_end",
+                                std::to_string(end));
 
-             Array::consolidate(ctx, self.uri(), config);
-           })
+                    Array::consolidate(ctx, uri, config);
+                  })
       .def("_vacuum", &Array::vacuum)
       .def("_create",
            [](const Context &ctx, const std::string &uri,
@@ -227,7 +220,7 @@ void init_array(py::module &m) {
       .def("_query_type", &Array::query_type)
       .def("_delete_fragments", &Array::delete_fragments)
       .def("_consolidate_fragments",
-           [](Array &self, const Context &ctx,
+           [](const std::string &uri, const Context &ctx,
               const std::vector<std::string> &fragment_uris, Config *config) {
              std::vector<const char *> c_strings;
              c_strings.reserve(fragment_uris.size());
@@ -235,7 +228,7 @@ void init_array(py::module &m) {
                c_strings.push_back(str.c_str());
              }
              ctx.handle_error(tiledb_array_consolidate_fragments(
-                 ctx.ptr().get(), self.uri().c_str(), c_strings.data(),
+                 ctx.ptr().get(), uri.c_str(), c_strings.data(),
                  fragment_uris.size(), config->ptr().get()));
            })
       .def("_consolidate_metadata",

@@ -256,7 +256,6 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
     ctx = _get_ctx(ctx)
     if config is None:
         config = lt.Config()
-    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
 
     if fragment_uris is not None:
         if timestamp is not None:
@@ -265,11 +264,11 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
                 "passed to `fragment_uris` will be consolidated",
                 DeprecationWarning,
             )
-        return arr._consolidate(ctx, fragment_uris, config)
+        return lt.Array._consolidate(uri, ctx, fragment_uris, config)
     elif timestamp is not None:
-        return arr._consolidate(ctx, timestamp, config)
+        return lt.Array._consolidate(uri, ctx, timestamp, config)
     else:
-        return arr._consolidate(ctx, config)
+        return lt.Array._consolidate(uri, ctx, config)
 
 
 def vacuum(uri, config=None, ctx=None, timestamp=None):
