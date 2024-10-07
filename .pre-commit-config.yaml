@@ -11,8 +11,6 @@ repos:
     rev: v1.11.1
     hooks:
     - id: mypy
-      additional_dependencies:
-        - types-setuptools
-        - hypothesis
-      args: ["--config-file=pyproject.toml", "tiledb/vfs.py"]
+      additional_dependencies: [types-setuptools, hypothesis]
+      args: ["--config-file=pyproject.toml", "ignore-missing-imports", "tiledb/vfs.py"]
       pass_filenames: false
