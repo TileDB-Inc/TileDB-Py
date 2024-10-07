@@ -262,10 +262,10 @@ class DenseArrayImpl(Array):
         out = self._read_dense_subarray(subarray, attr_names, cond, layout, coords)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
-            for (k, v) in out.items():
+            for k, v in out.items():
                 out[k] = v.__getitem__(steps)
         if drop_axes:
-            for (k, v) in out.items():
+            for k, v in out.items():
                 out[k] = v.squeeze(axis=drop_axes)
         # attribute is anonymous, just return the result
         if not coords and self.schema.nattr == 1:

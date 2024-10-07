@@ -2846,9 +2846,10 @@ class PickleTest(DiskTestCase):
                         assert_array_equal(T[:], T2[:])
                     assert T2.timestamp_range == (timestamps[1], timestamps[2])
 
-            with io.BytesIO() as buf, tiledb.open(
-                path, timestamp=(timestamps[1], timestamps[2])
-            ) as V:
+            with (
+                io.BytesIO() as buf,
+                tiledb.open(path, timestamp=(timestamps[1], timestamps[2])) as V,
+            ):
                 pickle.dump(V, buf)
                 buf.seek(0)
                 with pickle.load(buf) as V2:
