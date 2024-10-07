@@ -96,6 +96,13 @@ filterwarnings = [
     "ignore:Passing a BlockManager to DataFrame is deprecated:DeprecationWarning"
 ]
 
+[tool.mypy]
+show_error_codes = true
+ignore_missing_imports = true
+warn_unreachable = true
+strict = true
+python_version = 3.9
+
 [tool.ruff]
 ignore = ["E501", "E722"]
 extend-select = ["I001"]
