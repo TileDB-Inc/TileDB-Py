@@ -740,6 +740,14 @@ int64_t flags_for_buffer(BufferInfo binfo) {
   return 0;
 }
 
+template <typename T> T cast_checked(uint64_t val) {
+  if (val > std::numeric_limits<T>::max()) {
+    throw tiledb::TileDBError(
+        "[TileDB-Arrow] Value too large to cast to requested type");
+  }
+  return static_cast<T>(val);
+}
+
 void ArrowExporter::export_(const std::string &name, ArrowArray *array,
                             ArrowSchema *schema, ArrowAdapter::release_cb cb,
                             void *cb_data) {
@@ -789,8 +797,8 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
               "position that will be overwritten");
         }
 
-        std::memcpy(static_cast<uint8_t *>(buffers[1]) + i * 4,
-                    static_cast<uint8_t *>(buffers[1]) + i * 8, 4);
+        static_cast<uint32_t *>(buffers[1])[i] =
+            cast_checked<uint32_t>(static_cast<uint64_t *>(buffers[1])[i]);
       }
     }
   }
