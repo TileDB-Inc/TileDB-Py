@@ -1111,29 +1111,8 @@ cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc)
 #                                                                             #
 ###############################################################################
 
-cdef class Array(object):
-    cdef object __weakref__
-    cdef object ctx
-    cdef tiledb_array_t* ptr
-    cdef unicode uri
-    cdef unicode mode
-    cdef bint _isopen
-    cdef object view_attr # can be None
-    cdef object key # can be None
-    cdef object schema
-    cdef object _buffers
-
-    cdef object domain_index
-    cdef object multi_index
-    cdef object df
-    cdef Metadata meta
-    cdef object last_fragment_info
-    cdef object pyquery
-
-    cdef _ndarray_is_varlen(self, np.ndarray array)
-
 cdef class Query(object):
-    cdef Array array
+    cdef object array
     cdef object attrs
     cdef object cond
     cdef object dims

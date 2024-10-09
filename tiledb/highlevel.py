@@ -136,7 +136,7 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
 
     if mode in ("ingest", "schema_only"):
         schema = _schema_like_numpy(array, ctx, **kwargs)
-        tiledb.Array.create(uri, schema)
+        tiledb.Array.create(uri, schema, ctx=ctx)
 
     if mode in ("ingest", "append"):
         kwargs["mode"] = mode
@@ -257,8 +257,6 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
     if config is None:
         config = lt.Config()
 
-    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
-
     if fragment_uris is not None:
         if timestamp is not None:
             warnings.warn(
@@ -266,11 +264,11 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
                 "passed to `fragment_uris` will be consolidated",
                 DeprecationWarning,
             )
-        return arr.consolidate(ctx, fragment_uris, config)
+        return lt.Array._consolidate(uri, ctx, fragment_uris, config)
     elif timestamp is not None:
-        return arr.consolidate(ctx, timestamp, config)
+        return lt.Array._consolidate(uri, ctx, timestamp, config)
     else:
-        return arr.consolidate(ctx, config)
+        return lt.Array._consolidate(uri, ctx, config)
 
 
 def vacuum(uri, config=None, ctx=None, timestamp=None):
@@ -334,7 +332,7 @@ def vacuum(uri, config=None, ctx=None, timestamp=None):
         if timestamp[1] is not None:
             config["sm.vacuum.timestamp_end"] = timestamp[1]
 
-    lt.Array.vacuum(ctx, uri, config)
+    lt.Array._vacuum(ctx, uri, config)
 
 
 def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):
