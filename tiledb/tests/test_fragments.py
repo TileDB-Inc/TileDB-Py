@@ -538,7 +538,7 @@ class CreateArrayFromFragmentsTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_frags):
             for i in range(1, num_frags + 1):
@@ -583,7 +583,7 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_frags, ts_start=1):
             for i in range(ts_start, ts_start + num_frags):
@@ -624,7 +624,7 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3))
             att = tiledb.Attr(dtype=attr_type)
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path):
             for i in range(10):
@@ -650,7 +650,7 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path):
             for i in range(10):
@@ -684,7 +684,7 @@ class DeleteFragmentsTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
@@ -724,7 +724,7 @@ class DeleteFragmentsTest(DiskTestCase):
         dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
         att = tiledb.Attr(name="a1", dtype=np.float64)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-        tiledb.libtiledb.Array.create(path, schema)
+        tiledb.Array.create(path, schema)
 
         ts1_data = np.random.rand(3)
         if use_timestamps:

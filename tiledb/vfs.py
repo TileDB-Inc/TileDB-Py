@@ -28,8 +28,6 @@ class VFS(lt.VFS):
         ctx = ctx or default_ctx()
 
         if config:
-            from .libtiledb import Config
-
             if isinstance(config, Config):
                 config = config.dict()
             else:
