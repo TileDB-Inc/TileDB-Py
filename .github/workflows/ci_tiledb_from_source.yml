@@ -38,7 +38,7 @@ jobs:
         run: cmake --build build --config Release --target package
 
       - name: Upload TileDB Core Artifact
-        uses: actions/upload-artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
           name: libtiledb
           path: |
@@ -56,7 +56,7 @@ jobs:
           python-version: "3.11"
 
       - name: Download TileDB Core Artifact
-        uses: actions/download-artifacts@v4
+        uses: actions/download-artifact@v4
         with:
           name: libtiledb
           path: ${{ github.workspace }}/libtiledb
