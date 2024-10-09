@@ -6,12 +6,12 @@ import tiledb
 import tiledb.cc as lt
 
 from .array import (
+    Array,
     index_as_tuple,
     index_domain_subarray,
     replace_ellipsis,
     replace_scalars_slice,
 )
-from .libtiledb import Array
 
 
 class SparseArrayImpl(Array):
@@ -224,7 +224,7 @@ class SparseArrayImpl(Array):
 
         # Create the PyQuery and set the subarray on it.
         pyquery = PyQuery(
-            self._ctx_(),
+            self.ctx,
             self,
             tuple(
                 [self.view_attr]
@@ -343,7 +343,7 @@ class SparseArrayImpl(Array):
         idx = replace_ellipsis(dom.ndim, idx)
         idx, drop_axes = replace_scalars_slice(dom, idx)
         dim_ranges = index_domain_subarray(self, dom, idx)
-        subarray = Subarray(self, self._ctx_())
+        subarray = Subarray(self, self.ctx)
         subarray.add_ranges([list([x]) for x in dim_ranges])
         return self._read_sparse_subarray(subarray, attr_names, cond, layout)
 
@@ -363,7 +363,7 @@ class SparseArrayImpl(Array):
         from .main import PyQuery
         from .subarray import Subarray
 
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), layout, False)
+        q = PyQuery(self.ctx, self, tuple(attr_names), tuple(), layout, False)
         self.pyquery = q
 
         if cond is not None and cond != "":

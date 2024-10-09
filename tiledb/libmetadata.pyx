@@ -90,7 +90,7 @@ cdef object unpack_metadata(
         return unpack_metadata_val(value_type, value_num, value_ptr)
 
 
-cdef put_metadata(Array array, key, value):
+cdef put_metadata(array, key, value):
     cdef:
         tiledb_datatype_t tiledb_type
         uint32_t value_num
@@ -124,10 +124,11 @@ cdef put_metadata(Array array, key, value):
     cdef const char* key_utf8_ptr = <const char*>key_utf8
     cdef int rc = TILEDB_OK
     ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(array.ctx.__capsule__(), "ctx")
+    cdef tiledb_array_t* array_ptr = <tiledb_array_t*>PyCapsule_GetPointer(array.__capsule__(), "array")
     with nogil:
         rc = tiledb_array_put_metadata(
             ctx_ptr,
-            array.ptr,
+            array_ptr,
             key_utf8_ptr,
             tiledb_type,
             value_num,
@@ -137,7 +138,7 @@ cdef put_metadata(Array array, key, value):
         _raise_ctx_err(ctx_ptr, rc)
 
 
-cdef object get_metadata(Array array, key, is_ndarray=False):
+cdef object get_metadata(array, key, is_ndarray=False):
     cdef:
         tiledb_datatype_t value_type
         uint32_t value_num = 0
@@ -148,10 +149,11 @@ cdef object get_metadata(Array array, key, is_ndarray=False):
 
     cdef int32_t rc = TILEDB_OK
     ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(array.ctx.__capsule__(), "ctx")
+    cdef tiledb_array_t* array_ptr = <tiledb_array_t*>PyCapsule_GetPointer(array.__capsule__(), "array")
     with nogil:
         rc = tiledb_array_get_metadata(
             ctx_ptr,
-            array.ptr,
+            array_ptr,
             key_utf8_ptr,
             &value_type,
             &value_num,
@@ -163,7 +165,7 @@ cdef object get_metadata(Array array, key, is_ndarray=False):
     return unpack_metadata(is_ndarray, value_type, value_num, value_ptr)
 
 
-def iter_metadata(Array array, keys_only, dump=False):
+def iter_metadata(array, keys_only, dump=False):
     """
     Iterate over array metadata keys or (key, value) tuples
 
@@ -173,7 +175,7 @@ def iter_metadata(Array array, keys_only, dump=False):
     cdef:
         tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
             array.ctx.__capsule__(), "ctx")
-        tiledb_array_t* array_ptr = array.ptr
+        tiledb_array_t* array_ptr = <tiledb_array_t*>PyCapsule_GetPointer(array.__capsule__(), "array")
         uint64_t metadata_num
         const char* key_ptr = NULL
         uint32_t key_len
@@ -281,8 +283,8 @@ cdef class Metadata:
 
         cdef:
             tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer((
-                <Array>self.array).ctx.__capsule__(), "ctx")
-            tiledb_array_t* array_ptr = (<Array>self.array).ptr
+                self.array).ctx.__capsule__(), "ctx")
+            tiledb_array_t* array_ptr = <tiledb_array_t*>PyCapsule_GetPointer(self.array.__capsule__(), "array")
             const char* key_utf8_ptr
             int32_t rc
 
@@ -302,8 +304,8 @@ cdef class Metadata:
 
         cdef:
             tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer((
-                <Array>self.array).ctx.__capsule__(), "ctx")
-            tiledb_array_t* array_ptr = (<Array>self.array).ptr
+                self.array).ctx.__capsule__(), "ctx")
+            tiledb_array_t* array_ptr = <tiledb_array_t*>PyCapsule_GetPointer(self.array.__capsule__(), "array")
             bytes key_utf8 = key.encode('UTF-8')
             const char* key_utf8_ptr = <const char*>key_utf8
             tiledb_datatype_t value_type
@@ -334,7 +336,7 @@ cdef class Metadata:
         :return:
         """
         # TODO: ensure that the array is not x-locked?
-        ctx = (<Array?> self.array).ctx
+        ctx = self.array.ctx
         config = ctx.config()
         cdef:
             uint32_t rc = 0
@@ -346,7 +348,7 @@ cdef class Metadata:
             uint32_t key_len = 0
             bytes bkey
             bytes buri = unicode_path(self.array.uri)
-            str key = (<Array?>self.array).key
+            str key = self.array.key
             tiledb_error_t* err_ptr = NULL
 
         if config:
@@ -403,8 +405,8 @@ cdef class Metadata:
     def __len__(self):
         cdef:
             tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer((
-                <Array>self.array).ctx.__capsule__(), "ctx")
-            tiledb_array_t* array_ptr = (<Array>self.array).ptr
+                self.array).ctx.__capsule__(), "ctx")
+            tiledb_array_t* array_ptr = <tiledb_array_t*>PyCapsule_GetPointer(self.array.__capsule__(), "array")
             uint64_t num
 
         cdef int32_t rc = TILEDB_OK

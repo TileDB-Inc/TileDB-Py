@@ -25,10 +25,11 @@ from typing import (
 import numpy as np
 
 from .aggregation import Aggregation as AggregationProxy
+from .array import Array
 from .array_schema import ArraySchema
 from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
-from .libtiledb import Array, Metadata
+from .libtiledb import Metadata
 from .libtiledb import Query as QueryProxy
 from .main import PyAgg, PyQuery, increment_stat, use_stats
 from .query import Query
@@ -632,7 +633,7 @@ def _get_pyquery(
         )
 
     pyquery = PyQuery(
-        array._ctx_(),
+        array.ctx,
         array,
         tuple(
             [array.view_attr]
@@ -666,7 +667,7 @@ def _get_pyagg(array: Array, agg: AggregationProxy) -> PyAgg:
             "'U' (TILEDB_UNORDERED), or 'G' (TILEDB_GLOBAL_ORDER)"
         )
 
-    pyagg = PyAgg(array._ctx_(), array, layout, agg.attr_to_aggs)
+    pyagg = PyAgg(array.ctx, array, layout, agg.attr_to_aggs)
     if agg.query.cond is not None:
         pyagg.set_cond(QueryCondition(agg.query.cond))
     return pyagg

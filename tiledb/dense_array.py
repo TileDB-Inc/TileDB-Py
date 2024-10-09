@@ -7,13 +7,14 @@ import tiledb
 import tiledb.cc as lt
 
 from .array import (
+    Array,
     check_for_floats,
     index_as_tuple,
     index_domain_subarray,
     replace_ellipsis,
     replace_scalars_slice,
 )
-from .libtiledb import Array, Query
+from .libtiledb import Query
 from .subarray import Subarray
 
 
@@ -28,10 +29,6 @@ class DenseArrayImpl(Array):
         super().__init__(*args, **kw)
         if self.schema.sparse:
             raise ValueError(f"Array at {self.uri} is not a dense array")
-
-    @property
-    def ctx(self):
-        return self._ctx_()
 
     def __len__(self):
         return self.domain.shape[0]
@@ -256,7 +253,7 @@ class DenseArrayImpl(Array):
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         dim_ranges = index_domain_subarray(self, self.schema.domain, idx)
-        subarray = Subarray(self, self._ctx_())
+        subarray = Subarray(self, self.ctx)
         subarray.add_ranges([list([x]) for x in dim_ranges])
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, cond, layout, coords)
@@ -279,7 +276,7 @@ class DenseArrayImpl(Array):
     ):
         from .main import PyQuery
 
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), layout, False)
+        q = PyQuery(self.ctx, self, tuple(attr_names), tuple(), layout, False)
         self.pyquery = q
 
         if cond is not None and cond != "":
@@ -401,7 +398,7 @@ class DenseArrayImpl(Array):
             subarray = selection
         else:
             dim_ranges = index_domain_subarray(self, domain, idx)
-            subarray = Subarray(self, self._ctx_())
+            subarray = Subarray(self, self.ctx)
             subarray.add_ranges([list([x]) for x in dim_ranges])
 
         subarray_shape = subarray.shape()
@@ -547,7 +544,7 @@ class DenseArrayImpl(Array):
             else:
                 dtype = self.schema.attr(self.view_attr).dtype
                 with DenseArrayImpl(
-                    self.uri, "r", ctx=tiledb.Ctx(self._ctx_().config())
+                    self.uri, "r", ctx=tiledb.Ctx(self.ctx.config())
                 ) as readable:
                     current = readable[selection]
                 current[self.view_attr] = np.ascontiguousarray(val, dtype=dtype)
@@ -644,7 +641,7 @@ class DenseArrayImpl(Array):
 
         idx = tuple(slice(None) for _ in range(domain.ndim))
         range_index = index_domain_subarray(self, domain, idx)
-        subarray = Subarray(self, self._ctx_())
+        subarray = Subarray(self, self.ctx)
         subarray.add_ranges([list([x]) for x in range_index])
         out = self._read_dense_subarray(
             subarray,
@@ -667,12 +664,12 @@ class DenseArrayImpl(Array):
         ndim = self.schema.domain.ndim
         has_labels = any(subarray.has_label_range(dim_idx) for dim_idx in range(ndim))
         if has_labels:
-            label_query = Query(self, self._ctx_())
+            label_query = Query(self, self.ctx)
             label_query.set_subarray(subarray)
             label_query.submit()
             if not label_query.is_complete():
                 raise tiledb.TileDBError("Failed to get dimension ranges from labels")
-            result_subarray = Subarray(self, self._ctx_())
+            result_subarray = Subarray(self, self.ctx)
             result_subarray.copy_ranges(label_query.subarray(), range(ndim))
             return self.read_subarray(result_subarray)
 
@@ -694,7 +691,7 @@ class DenseArrayImpl(Array):
         # Create the pyquery and set the subarray.
         layout = lt.LayoutType.ROW_MAJOR
         pyquery = PyQuery(
-            self._ctx_(),
+            self.ctx,
             self,
             tuple(
                 [self.view_attr]

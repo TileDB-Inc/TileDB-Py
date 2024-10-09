@@ -11,7 +11,7 @@ cdef class QueryAttr(object):
         self.name = name
         self.dtype = dtype
 
-cdef dict execute_multi_index(Array array,
+cdef dict execute_multi_index(array,
                               tiledb_query_t* query_ptr,
                               tuple attr_names,
                               return_coord):
@@ -172,7 +172,7 @@ cdef dict execute_multi_index(Array array,
 
     return result_dict
 
-cpdef multi_index(Array array, tuple attr_names, tuple ranges,
+cpdef multi_index(array, tuple attr_names, tuple ranges,
                   order = None, coords = None):
 
     cdef tiledb_layout_t layout = TILEDB_UNORDERED
@@ -189,7 +189,7 @@ cpdef multi_index(Array array, tuple attr_names, tuple ranges,
 
     cdef tiledb_ctx_t* ctx_ptr = <tiledb_ctx_t*>PyCapsule_GetPointer(
         array.ctx.__capsule__(), "ctx")
-    cdef tiledb_array_t* array_ptr = array.ptr
+    cdef tiledb_array_t* array_ptr = <tiledb_array_t*>PyCapsule_GetPointer(array.__capsule__(), "array")
     cdef tiledb_query_t* query_ptr = NULL
 
     cdef int rc = TILEDB_OK

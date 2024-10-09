@@ -1,7 +1,7 @@
 import tiledb.cc as lt
 
+from .array import Array
 from .ctx import Ctx, CtxMixin, default_ctx
-from .libtiledb import Array
 from .subarray import Subarray
 
 
