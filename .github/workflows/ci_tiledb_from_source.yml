@@ -15,7 +15,7 @@ jobs:
       - name: Checkout TileDB Core ${{ inputs.libtiledb_ref }}
         uses: actions/checkout@v4
         with:
-          repository: TileDB/TileDB
+          repository: TileDB-Inc/TileDB
           ref: ${{ inputs.libtiledb_ref }}
 
       - name: Configure TileDB
