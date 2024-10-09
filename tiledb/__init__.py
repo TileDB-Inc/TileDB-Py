@@ -27,6 +27,7 @@ if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 25:
 
 del libtiledb_version  # no longer needed
 
+from .array import Array
 from .array_schema import ArraySchema
 from .attribute import Attr
 from .cc import TileDBError
@@ -87,10 +88,7 @@ from .highlevel import (
     vacuum,
     walk,
 )
-from .libtiledb import (
-    Array,
-    Ctx,
-)
+from .libtiledb import Ctx
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet

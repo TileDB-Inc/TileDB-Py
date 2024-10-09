@@ -119,7 +119,7 @@ Domain
 Array
 -----
 
-.. autoclass:: tiledb.libtiledb.Array
+.. autoclass:: tiledb.Array
    :members:
 
 .. autofunction:: tiledb.consolidate
