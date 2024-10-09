@@ -1,0 +1,74 @@
+name: TileDB Python CI Using TileDB Core Source Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      libtiledb_ref:
+        default: dev
+        type: string
+
+jobs:
+
+  build_libtiledb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout TileDB Core ${{ inputs.libtiledb_ref }}
+        uses: actions/checkout@v4
+        with:
+          repository: TileDB/TileDB
+          ref: ${{ inputs.libtiledb_ref }}
+
+      - name: Configure TileDB
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_INSTALL_PREFIX=./dist \
+            -DTILEDB_INSTALL_LIBDIR=lib \
+            -DTILEDB_S3=ON \
+            -DTILEDB_AZURE=ON \
+            -DTILEDB_GCS=ON \
+            -DTILEDB_HDFS=ON \
+            -DTILEDB_SERIALIZATION=ON \
+            -DTILEDB_WEBP=ON \
+            -DTILEDB_TESTS=OFF \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-release
+
+      - name: Build TileDB
+        run: cmake --build build --config Release --target package
+
+      - name: Upload TileDB Core Artifact
+        uses: actions/upload-artifacts@v4
+        with:
+          name: libtiledb
+          path: |
+            build/tiledb-*.tar.gz*
+            build/tiledb-*.zip*
+
+  build_tiledb_py:
+    needs:
+      - build_libtiledb
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download TileDB Core Artifact
+        uses: actions/download-artifacts@v4
+        with:
+          name: libtiledb
+          path: ${{ github.workspace }}/libtiledb
+
+      - name: "DBG: LIST"
+        run: ls -la ${{ github.workspace }}/libtiledb
+
+      - name: Checkout TileDB-Py
+        uses: actions/checkout@v4
+
+      - name: Build TileDB-Py Wheel
+        env:
+          TILEDB_PATH: ${{ github.workspace }}/libtiledb
+        run: python -m pip install --verbose .[test]
+        # - name: Upload TileDB Py Wheel
