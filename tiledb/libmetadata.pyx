@@ -14,64 +14,6 @@ cdef extern from "Python.h":
     object PyMemoryView_FromMemory(char*, Py_ssize_t, int)
 
 
-cdef class PackedBuffer:
-    cdef bytes data
-    cdef tiledb_datatype_t tdbtype
-    cdef uint32_t value_num
-
-    def __init__(self, data, tdbtype, value_num):
-        self.data = data
-        self.tdbtype = tdbtype
-        self.value_num = value_num
-
-
-cdef PackedBuffer pack_metadata_val(value):
-    if isinstance(value, bytes):
-        return PackedBuffer(value, TILEDB_BLOB, len(value))
-
-    if isinstance(value, str):
-        value = value.encode('UTF-8')
-        return PackedBuffer(value, TILEDB_STRING_UTF8, len(value))
-
-    if not isinstance(value, (list, tuple)):
-        value = (value,)
-
-    if not value:
-        # special case for empty values
-        return PackedBuffer(b'', TILEDB_INT32, 0)
-
-    val0 = value[0]
-    if not isinstance(val0, (int, float)):
-        raise TypeError(f"Unsupported item type '{type(val0)}'")
-
-    cdef:
-        uint32_t value_num = len(value)
-        tiledb_datatype_t tiledb_type = TILEDB_INT64 if isinstance(val0, int) else TILEDB_FLOAT64
-        bytearray data = bytearray(value_num * tiledb_datatype_size(tiledb_type))
-        char[:] data_view = data
-        Py_ssize_t pack_idx = 0
-        double * double_ptr
-        int64_t * int64_ptr
-
-    if tiledb_type == TILEDB_INT64:
-        int64_ptr = <int64_t*>&data_view[0]
-        while pack_idx < value_num:
-            value_item = value[pack_idx]
-            if not isinstance(value_item, int):
-                raise TypeError(f"Mixed-type sequences are not supported: {value}")
-            int64_ptr[pack_idx] = value_item
-            pack_idx += 1
-    else:
-        double_ptr = <double*>&data_view[0]
-        while pack_idx < value_num:
-            value_item = value[pack_idx]
-            if not isinstance(value_item, float):
-                raise TypeError(f"Mixed-type sequences are not supported: {value}")
-            double_ptr[pack_idx] = value_item
-            pack_idx += 1
-
-    return PackedBuffer(bytes(data), tiledb_type, value_num)
-
 
 cdef object unpack_metadata_val(
         tiledb_datatype_t value_type, uint32_t value_num, const char* value_ptr
@@ -150,7 +92,6 @@ cdef object unpack_metadata(
 
 cdef put_metadata(Array array, key, value):
     cdef:
-        PackedBuffer packed_buf
         tiledb_datatype_t tiledb_type
         uint32_t value_num
         cdef const unsigned char[:] data_view
@@ -172,6 +113,7 @@ cdef put_metadata(Array array, key, value):
             value_num *= value.itemsize
         data_ptr = np.PyArray_DATA(value)
     else:
+        from .metadata import pack_metadata_val
         packed_buf = pack_metadata_val(value)
         tiledb_type = packed_buf.tdbtype
         value_num = packed_buf.value_num

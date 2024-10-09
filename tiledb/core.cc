@@ -1751,23 +1751,44 @@ void init_core(py::module &m) {
 
   m.def("array_to_buffer", &convert_np);
 
-  m.def("init_stats", &init_stats);
-  m.def("disable_stats", &disable_stats);
+  m.def("init_stats", []() {
+    Stats::enable();
+    init_stats();
+  });
+  m.def("disable_stats", []() {
+    Stats::disable();
+    disable_stats();
+  });
+  m.def("reset_stats", []() {
+    Stats::reset();
+    init_stats();
+  });
+  m.def("stats_raw_dump_str", []() {
+    std::string out;
+    Stats::raw_dump(&out);
+    return out;
+  });
+  m.def("stats_dump_str", []() {
+    std::string out;
+    Stats::dump(&out);
+    return out;
+  });
   m.def("python_internal_stats", &python_internal_stats,
         py::arg("dict") = false);
   m.def("increment_stat", &increment_stat);
   m.def("get_stats", &get_stats);
   m.def("use_stats", &use_stats);
+  m.def("datatype_size", &tiledb_datatype_size);
   m.def("as_built_dump", &as_built_dump);
   m.def("object_type",
-        [](const std::string &uri, const Context &ctx) -> py::str {
+        [](const std::string &uri, const Context &ctx) -> py::object {
           tiledb_object_t res;
           ctx.handle_error(
               tiledb_object_type(ctx.ptr().get(), uri.c_str(), &res));
           if (res == TILEDB_ARRAY) {
-            return std::string("array");
+            return py::str("array");
           } else if (res == TILEDB_GROUP) {
-            return std::string("group");
+            return py::str("group");
           }
           return py::none();
         });

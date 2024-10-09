@@ -107,7 +107,15 @@ void init_attribute(py::module &m) {
 
       .def("_set_enumeration_name", set_enumeration_name)
 
-      .def("_dump", [](Attribute &attr) { attr.dump(); });
+      .def("_dump", [](Attribute &attr) {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+        std::stringstream ss;
+        ss << attr;
+        return ss.str();
+#else
+        attr.dump();
+#endif
+      });
 }
 
 } // namespace libtiledbcpp

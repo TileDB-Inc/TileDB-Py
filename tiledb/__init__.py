@@ -33,6 +33,7 @@ from .cc import TileDBError
 from .consolidation_plan import ConsolidationPlan
 from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
+from .dense_array import DenseArrayImpl
 from .dimension import Dim
 from .dimension_label import DimLabel
 from .dimension_label_schema import DimLabelSchema
@@ -83,18 +84,12 @@ from .highlevel import (
     remove,
     save,
     schema_like,
+    vacuum,
     walk,
 )
 from .libtiledb import (
     Array,
     Ctx,
-    DenseArrayImpl,
-    SparseArrayImpl,
-    stats_disable,
-    stats_dump,
-    stats_enable,
-    stats_reset,
-    vacuum,
 )
 from .multirange_indexing import EmptyRange
 from .object import Object
@@ -102,6 +97,13 @@ from .parquet_ import from_parquet
 from .query import Query
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
+from .sparse_array import SparseArrayImpl
+from .stats import (
+    stats_disable,
+    stats_dump,
+    stats_enable,
+    stats_reset,
+)
 from .subarray import Subarray
 from .version_helper import version
 from .vfs import VFS, FileIO

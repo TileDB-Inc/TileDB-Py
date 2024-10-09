@@ -252,12 +252,6 @@ def test_filter():
     assert fl._chunksize == 100000
 
 
-def test_schema_dump(capfd):
-    ctx = lt.Context()
-    lt.ArraySchema(ctx, lt.ArrayType.SPARSE)
-    # schema._dump() # TODO FILE* target and capfd
-
-
 def test_schema():
     ctx = lt.Context()
 

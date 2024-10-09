@@ -149,7 +149,7 @@ class Attr(CtxMixin, lt.Attribute):
 
     def dump(self):
         """Dumps a string representation of the Attr object to standard output (stdout)"""
-        self._dump()
+        print(self._dump(), "\n")
 
     @property
     def dtype(self) -> np.dtype:
