@@ -39,7 +39,7 @@ jobs:
 
       - name: Build TileDB
         env:
-          TILEDB_PACKAGE_VERSION: ${{ input.libtiledb_version }}
+          TILEDB_PACKAGE_VERSION: ${{ inputs.libtiledb_version }}
         run: cmake --build build --config Release --target package
 
       - name: Upload TileDB Core Artifact
