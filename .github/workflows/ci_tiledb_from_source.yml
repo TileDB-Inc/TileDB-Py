@@ -6,6 +6,9 @@ on:
       libtiledb_ref:
         default: dev
         type: string
+      libtiledb_version:
+        required: true
+        type: string
 
 jobs:
 
@@ -35,6 +38,8 @@ jobs:
             -DVCPKG_TARGET_TRIPLET=x64-linux-release
 
       - name: Build TileDB
+        env:
+          TILEDB_PACKAGE_VERSION: ${{ input.libtiledb_version }}
         run: cmake --build build --config Release --target package
 
       - name: Upload TileDB Core Artifact
