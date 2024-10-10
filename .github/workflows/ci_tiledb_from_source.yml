@@ -66,6 +66,9 @@ jobs:
           name: libtiledb
           path: ${{ github.workspace }}/libtiledb
 
+      - name: Unpack Release Archive
+        run: tar -xf --strip-components=1 ${{ github.workspace }}/libtiledb/*.tar.gz
+
       - name: "DBG: LIST"
         run: ls -la ${{ github.workspace }}/libtiledb
 
