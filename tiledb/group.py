@@ -75,6 +75,7 @@ class Group(CtxMixin, lt.Group):
     """
 
     _NP_DATA_PREFIX = "__np_flat_"
+    _NP_SHAPE_PREFIX = "__np_shape_"
 
     _mode_to_query_type = {
         "r": lt.QueryType.READ,
@@ -112,19 +113,19 @@ class Group(CtxMixin, lt.Group):
 
             put_metadata = self._group._put_metadata
             if isinstance(value, np.ndarray):
-                put_metadata(f"{Group._NP_DATA_PREFIX}{key}", np.array(value))
-            elif isinstance(value, bytes):
-                put_metadata(key, lt.DataType.BLOB, len(value), value)
-            elif isinstance(value, str):
-                value = value.encode("UTF-8")
-                put_metadata(key, lt.DataType.STRING_UTF8, len(value), value)
-            elif isinstance(value, (list, tuple)):
-                put_metadata(key, np.array(value))
+                flat_value = value.ravel()
+                put_metadata(f"{Group._NP_DATA_PREFIX}{key}", flat_value)
+                if value.shape != flat_value.shape:
+                    self.__setitem__(f"{Group._NP_SHAPE_PREFIX}{key}", value.shape)
             else:
-                if isinstance(value, int):
-                    # raise OverflowError too large to convert to int64
-                    value = np.int64(value)
-                put_metadata(key, np.array([value]))
+                from .metadata import pack_metadata_val
+
+                packed_buf = pack_metadata_val(value)
+                tiledb_type = packed_buf.tdbtype
+                value_num = packed_buf.value_num
+                data_view = packed_buf.data
+
+                put_metadata(key, tiledb_type, value_num, data_view)
 
         def __getitem__(self, key: str, include_type=False) -> GroupMetadataValueType:
             """
@@ -136,26 +137,26 @@ class Group(CtxMixin, lt.Group):
             if not isinstance(key, str):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
+            is_ndarray = False
+
             if self._group._has_metadata(key):
-                pass
+                data, tdb_type = self._group._get_metadata(key, False)
             elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
-                key = f"{Group._NP_DATA_PREFIX}{key}"
+                data, tdb_type = self._group._get_metadata(
+                    f"{Group._NP_DATA_PREFIX}{key}", True
+                )
+                is_ndarray = True
             else:
                 raise KeyError(f"KeyError: {key}")
 
-            data, tdb_type = self._group._get_metadata(key)
-            dtype = DataType.from_tiledb(tdb_type).np_dtype
-            if np.issubdtype(dtype, np.character):
-                value = data.tobytes()
-                if np.issubdtype(dtype, np.str_):
-                    value = value.decode("UTF-8")
-            elif key.startswith(Group._NP_DATA_PREFIX):
-                value = data
-            elif len(data) == 1:
-                value = data[0]
-            else:
-                value = tuple(data)
-            return (value, tdb_type) if include_type else value
+            # reshape numpy array back to original shape, if needed
+            if is_ndarray:
+                shape_key = f"{Group._NP_SHAPE_PREFIX}{key}"
+                if self._group._has_metadata(shape_key):
+                    shape, tdb_type = self._group._get_metadata(shape_key, False)
+                    data = data.reshape(shape)
+
+            return (data, tdb_type) if include_type else data
 
         def __delitem__(self, key: str):
             """Removes the entry from the Group metadata.
@@ -168,8 +169,8 @@ class Group(CtxMixin, lt.Group):
 
             # key may be stored as is or it may be prefixed (for numpy values)
             # we don't know this here so delete all potential internal keys
-            self._group._delete_metadata(key)
-            self._group._delete_metadata(f"{Group._NP_DATA_PREFIX}{key}")
+            for k in key, Group._NP_DATA_PREFIX + key, Group._NP_SHAPE_PREFIX + key:
+                self._group._delete_metadata(k)
 
         def __contains__(self, key: str) -> bool:
             """
@@ -193,12 +194,19 @@ class Group(CtxMixin, lt.Group):
             :return: Number of entries in the Group metadata
 
             """
-            return self._group._metadata_num()
+            num = self._group._metadata_num()
+            # subtract the _NP_SHAPE_PREFIX prefixed keys
+            for key in self._iter(keys_only=True):
+                if key.startswith(Group._NP_SHAPE_PREFIX):
+                    num -= 1
 
-        def _iter(self, keys_only: bool = True, dump: bool = False):
+            return num
+
+        def _iter(self, keys_only: bool, dump: bool = False):
             """
             Iterate over Group metadata keys or (key, value) tuples
             :param keys_only: whether to yield just keys or values too
+            :param dump: whether to yield a formatted string for each metadata entry
             """
             if keys_only and dump:
                 raise ValueError("keys_only and dump cannot both be True")
@@ -207,27 +215,31 @@ class Group(CtxMixin, lt.Group):
             for i in range(metadata_num):
                 key = self._group._get_key_from_index(i)
 
-                if key.startswith(Group._NP_DATA_PREFIX):
-                    key = key[len(Group._NP_DATA_PREFIX) :]
-
                 if keys_only:
                     yield key
                 else:
-                    val, val_dtype = self.__getitem__(key, include_type=True)
+                    value, type = self.__getitem__(key, include_type=True)
 
                     if dump:
+                        value_type_str = str(type)
+
                         yield (
                             "### Array Metadata ###\n"
                             f"- Key: {key}\n"
-                            f"- Value: {val}\n"
-                            f"- Type: {val_dtype}\n"
+                            f"- Value: {value}\n"
+                            f"- Type: {value_type_str}\n"
                         )
                     else:
-                        yield key, val
+                        yield key, value
 
         def __iter__(self):
-            for key in self._iter():
-                yield key
+            np_data_prefix_len = len(Group._NP_DATA_PREFIX)
+            for key in self._iter(keys_only=True):
+                if key.startswith(Group._NP_DATA_PREFIX):
+                    yield key[np_data_prefix_len:]
+                elif not key.startswith(Group._NP_SHAPE_PREFIX):
+                    yield key
+                # else: ignore the shape keys
 
         def __repr__(self):
             return str(dict(self._iter(keys_only=False)))
