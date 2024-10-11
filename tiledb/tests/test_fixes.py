@@ -161,9 +161,8 @@ class FixesTest(DiskTestCase):
         with tiledb.open(uri) as A:
             tiledb.stats_enable()
             A[:]
-            assert (
-                """"Context.StorageManager.Query.Reader.loop_num": 1"""
-                in tiledb.stats_dump(print_out=False)
+            assert """"Context.Query.Reader.loop_num": 1""" in tiledb.stats_dump(
+                print_out=False
             )
             tiledb.stats_disable()
 
