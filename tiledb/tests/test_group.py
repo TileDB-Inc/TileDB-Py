@@ -585,6 +585,59 @@ class GroupMetadataTest(GroupTestCase):
         self.assert_metadata_roundtrip(grp.meta, test_vals)
         grp.close()
 
+    @given(st_metadata, st_ndarray)
+    @settings(deadline=None)
+    def test_numpy(self, test_vals, ndarray):
+        test_vals["ndarray"] = ndarray
+
+        path = self.path()
+        tiledb.Group.create(path)
+
+        grp = tiledb.Group(path, "w")
+        grp.meta.update(test_vals)
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
+        grp = tiledb.Group(path, "w")
+        grp.meta["ndarray"] = 42
+        test_vals["ndarray"] = 42
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
+        # test resetting a key with a non-ndarray value to a ndarray value
+        grp = tiledb.Group(path, "w")
+        grp.meta["bytes"] = ndarray
+        test_vals["bytes"] = ndarray
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
+        grp = tiledb.Group(path, "w")
+        del grp.meta["ndarray"]
+        del test_vals["ndarray"]
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
+        grp = tiledb.Group(path, "w")
+        test_vals.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
+        grp.meta.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
     @pytest.mark.parametrize("use_timestamps", [True, False])
     def test_consolidation_and_vac(self, use_timestamps):
         vfs = tiledb.VFS()
