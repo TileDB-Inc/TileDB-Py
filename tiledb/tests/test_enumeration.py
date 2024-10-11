@@ -93,7 +93,7 @@ class EnumerationTest(DiskTestCase):
             with self.assertRaises(tiledb.TileDBError) as excinfo:
                 assert A.enum("enmr3") == []
             assert (
-                "ArraySchema: Unable to check if unknown enumeration is loaded. No enumeration named 'enmr3'."
+                "Array: Unable to get enumeration; Enumeration 'enmr3' does not exist."
                 == str(excinfo.value)
             )
             assert attr3.enum_label is None
