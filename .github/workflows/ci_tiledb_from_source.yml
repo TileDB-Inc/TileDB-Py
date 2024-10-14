@@ -78,5 +78,20 @@ jobs:
       - name: Build TileDB-Py Wheel
         env:
           TILEDB_PATH: ${{ github.workspace }}/libtiledb
-        run: python -m pip install --verbose .[test]
-        # - name: Upload TileDB Py Wheel
+        run: |
+          python -m pip wheel -w dist --verbose .
+          python -m pip install tiledb-*.whl
+
+      - name: Upload TileDB Core Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiledb-py
+          path: |
+            dist/tiledb-*.whl
+
+      - name: Run tests
+        run: |
+          PROJECT_CWD=$PWD
+          rm tiledb/__init__.py
+          cd /tmp
+          pytest -vv --showlocals $PROJECT_CWD
