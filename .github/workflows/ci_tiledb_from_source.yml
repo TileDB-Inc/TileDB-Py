@@ -77,6 +77,6 @@ jobs:
 
       - name: Build TileDB-Py Wheel
         env:
-          TILEDB_PATH: ${{ github.workspace }}/libtiledb
+          TILEDB_PATH: ${{ github.workspace }}/libtiledb/lib
         run: python -m pip install --verbose .[test]
         # - name: Upload TileDB Py Wheel
