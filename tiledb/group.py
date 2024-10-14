@@ -137,24 +137,19 @@ class Group(CtxMixin, lt.Group):
             if not isinstance(key, str):
                 raise TypeError(f"Unexpected key type '{type(key)}': expected str")
 
-            is_ndarray = False
-
             if self._group._has_metadata(key):
                 data, tdb_type = self._group._get_metadata(key, False)
             elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
                 data, tdb_type = self._group._get_metadata(
                     f"{Group._NP_DATA_PREFIX}{key}", True
                 )
-                is_ndarray = True
-            else:
-                raise KeyError(f"KeyError: {key}")
-
-            # reshape numpy array back to original shape, if needed
-            if is_ndarray:
+                # reshape numpy array back to original shape, if needed
                 shape_key = f"{Group._NP_SHAPE_PREFIX}{key}"
                 if self._group._has_metadata(shape_key):
                     shape, tdb_type = self._group._get_metadata(shape_key, False)
                     data = data.reshape(shape)
+            else:
+                raise KeyError(f"KeyError: {key}")
 
             return (data, tdb_type) if include_type else data
 
@@ -202,7 +197,7 @@ class Group(CtxMixin, lt.Group):
 
             return num
 
-        def _iter(self, keys_only: bool, dump: bool = False):
+        def _iter(self, keys_only: bool = True, dump: bool = False):
             """
             Iterate over Group metadata keys or (key, value) tuples
             :param keys_only: whether to yield just keys or values too
@@ -218,19 +213,17 @@ class Group(CtxMixin, lt.Group):
                 if keys_only:
                     yield key
                 else:
-                    value, type = self.__getitem__(key, include_type=True)
+                    val, val_dtype = self.__getitem__(key, include_type=True)
 
                     if dump:
-                        value_type_str = str(type)
-
                         yield (
                             "### Array Metadata ###\n"
                             f"- Key: {key}\n"
-                            f"- Value: {value}\n"
-                            f"- Type: {value_type_str}\n"
+                            f"- Value: {val}\n"
+                            f"- Type: {val_dtype}\n"
                         )
                     else:
-                        yield key, value
+                        yield key, val
 
         def __iter__(self):
             np_data_prefix_len = len(Group._NP_DATA_PREFIX)
