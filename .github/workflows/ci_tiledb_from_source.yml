@@ -70,7 +70,7 @@ jobs:
         run: tar xvf ${{ github.workspace }}/libtiledb/*.tar.gz --directory ${{ github.workspace }}/libtiledb
 
       - name: "DBG: LIST"
-        run: ls -la ${{ github.workspace }}/libtiledb
+        run: ls -laR ${{ github.workspace }}/libtiledb
 
       - name: Checkout TileDB-Py
         uses: actions/checkout@v4
