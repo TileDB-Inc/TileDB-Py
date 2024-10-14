@@ -60,6 +60,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Checkout TileDB-Py
+        uses: actions/checkout@v4
+
       - name: Download TileDB Core Artifact
         uses: actions/download-artifact@v4
         with:
@@ -68,9 +71,6 @@ jobs:
 
       - name: Unpack Release Archive
         run: tar xvf ${{ github.workspace }}/libtiledb/*.tar.gz --directory ${{ github.workspace }}/libtiledb
-
-      - name: Checkout TileDB-Py
-        uses: actions/checkout@v4
 
       - name: "DBG: LIST"
         run: ls -laR ${{ github.workspace }}/libtiledb
