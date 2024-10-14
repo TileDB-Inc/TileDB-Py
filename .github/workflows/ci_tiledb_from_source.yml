@@ -69,14 +69,14 @@ jobs:
       - name: Unpack Release Archive
         run: tar xvf ${{ github.workspace }}/libtiledb/*.tar.gz --directory ${{ github.workspace }}/libtiledb
 
-      - name: "DBG: LIST"
-        run: ls -laR ${{ github.workspace }}/libtiledb
-
       - name: Checkout TileDB-Py
         uses: actions/checkout@v4
 
+      - name: "DBG: LIST"
+        run: ls -laR ${{ github.workspace }}/libtiledb
+
       - name: Build TileDB-Py Wheel
         env:
-          TILEDB_PATH: ${{ github.workspace }}/libtiledb/lib
+          TILEDB_PATH: ${{ github.workspace }}/libtiledb
         run: python -m pip install --verbose .[test]
         # - name: Upload TileDB Py Wheel
