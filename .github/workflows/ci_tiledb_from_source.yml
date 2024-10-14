@@ -72,15 +72,12 @@ jobs:
       - name: Unpack Release Archive
         run: tar xvf ${{ github.workspace }}/libtiledb/*.tar.gz --directory ${{ github.workspace }}/libtiledb
 
-      - name: "DBG: LIST"
-        run: ls -laR ${{ github.workspace }}/libtiledb
-
       - name: Build TileDB-Py Wheel
         env:
           TILEDB_PATH: ${{ github.workspace }}/libtiledb
         run: |
           python -m pip wheel -w dist --verbose .
-          python -m pip install tiledb-*.whl
+          python -m pip install dist/tiledb-*.whl[test]
 
       - name: Upload TileDB Core Artifact
         uses: actions/upload-artifact@v4
