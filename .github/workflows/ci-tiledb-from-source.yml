@@ -6,6 +6,8 @@ on:
       libtiledb_ref:
         default: dev
         type: string
+      libtiledb_version:
+        type: string
   pull_request:
 
 jobs:
@@ -37,7 +39,7 @@ jobs:
 
       - name: Build TileDB
         env:
-          TILEDB_PACKAGE_VERSION: ${{ github.head_ref || github.ref_name }}
+          TILEDB_PACKAGE_VERSION: ${{ inputs.libtiledb_version || '0.1' }}
         run: cmake --build build --config Release --target package
 
       - name: Upload TileDB Core Artifact
