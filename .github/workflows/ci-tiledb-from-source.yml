@@ -13,11 +13,11 @@ jobs:
   build_libtiledb:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout TileDB Core ${{ inputs.libtiledb_ref || dev }}
+      - name: Checkout TileDB Core ${{ inputs.libtiledb_ref || 'dev' }}
         uses: actions/checkout@v4
         with:
           repository: TileDB-Inc/TileDB
-          ref: ${{ inputs.libtiledb_ref || dev }}
+          ref: ${{ inputs.libtiledb_ref || 'dev' }}
 
       - name: Configure TileDB
         run: |
