@@ -116,6 +116,8 @@ class Group(CtxMixin, lt.Group):
                 flat_value = value.ravel()
                 put_metadata(f"{Group._NP_DATA_PREFIX}{key}", flat_value)
                 if value.shape != flat_value.shape:
+                    # If the value is not a 1D ndarray, store its associated shape.
+                    # The value's shape will be stored as separate metadata with the correct prefix.
                     self.__setitem__(f"{Group._NP_SHAPE_PREFIX}{key}", value.shape)
             else:
                 from .metadata import pack_metadata_val

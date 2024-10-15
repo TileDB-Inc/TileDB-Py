@@ -27,9 +27,9 @@ void put_metadata_numpy(Group &group, const std::string &key, py::array value) {
 
   py::size_t ncells = get_ncells(value.dtype());
   if (ncells != 1)
-    throw py::type_error(py::str(py::str("Unsupported dtype '") +
-                                 py::str(value.dtype()) +
-                                 py::str("' for metadata")));
+    throw py::type_error("Unsupported dtype '" +
+                         std::string(py::str(value.dtype())) +
+                         "' for metadata");
 
   auto value_num = is_tdb_str(value_type) ? value.nbytes() : value.size();
   group.put_metadata(key, value_type, value_num,
@@ -66,20 +66,12 @@ py::object unpack_metadata_val(tiledb_datatype_t value_type, uint32_t value_num,
     throw TileDBError("internal error: unexpected value_num==0");
 
   if (value_type == TILEDB_STRING_UTF8) {
-    if (value_ptr == nullptr)
-      return py::str();
-    else {
-      return py::str(value_ptr, value_num);
-    }
+    return value_ptr == nullptr ? py::str() : py::str(value_ptr, value_num);
   }
 
   if (value_type == TILEDB_BLOB || value_type == TILEDB_CHAR ||
       value_type == TILEDB_STRING_ASCII) {
-    if (value_ptr == nullptr)
-      return py::bytes();
-    else {
-      return py::bytes(value_ptr, value_num);
-    }
+    return value_ptr == nullptr ? py::bytes() : py::bytes(value_ptr, value_num);
   }
 
   if (value_ptr == nullptr)
