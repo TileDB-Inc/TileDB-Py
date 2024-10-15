@@ -77,7 +77,8 @@ jobs:
           TILEDB_PATH: ${{ github.workspace }}/libtiledb
         run: |
           python -m pip wheel -w dist --verbose .
-          python -m pip install dist/tiledb-*.whl
+          WHEEL=$(ls dist/tiledb-*.whl)
+          python -m pip install ${WHEEL}[test]
 
       - name: Upload TileDB Core Artifact
         uses: actions/upload-artifact@v4
