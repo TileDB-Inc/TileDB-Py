@@ -196,7 +196,7 @@ class FixesTest(DiskTestCase):
     def test_sc23827_aws_region(self):
         # Test for SC-23287
         # The expected behavior here for `vfs.s3.region` is:
-        # - default to 'us-east-1' if no environment variables are set
+        # - default to '' if no environment variables are set
         # - empty if AWS_REGION or AWS_DEFAULT_REGION is set (to any value)
 
         def get_config_with_env(env, key):
@@ -209,7 +209,10 @@ class FixesTest(DiskTestCase):
             )
             return sp_output.decode("UTF-8").strip()
 
-        assert get_config_with_env({}, "vfs.s3.region") == "us-east-1"
+        if tiledb.libtiledb.version() >= (2, 27, 0):
+            assert get_config_with_env({}, "vfs.s3.region") == ""
+        else:
+            assert get_config_with_env({}, "vfs.s3.region") == "us-east-1"
         assert get_config_with_env({"AWS_DEFAULT_REGION": ""}, "vfs.s3.region") == ""
         assert get_config_with_env({"AWS_REGION": ""}, "vfs.s3.region") == ""
 
