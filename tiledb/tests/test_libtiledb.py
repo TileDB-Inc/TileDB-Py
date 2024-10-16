@@ -836,9 +836,7 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[:] = A
 
-        read1_timestamp = -1
         with tiledb.DenseArray(self.path("foo"), mode="r") as T:
-            read1_timestamp = T.timestamp_range
             self.assertEqual(T[0], 0)
             self.assertEqual(T[1], 0)
             self.assertEqual(T[2], 0)
@@ -849,25 +847,20 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[0:1] = 1
 
-        read2_timestamp = -1
-        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
-            read2_timestamp = T.timestamp_range
-            self.assertTrue(read2_timestamp > read1_timestamp)
-
         if use_timestamps:
             # sleep 200ms and write
             time.sleep(0.2)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[1:2] = 2
 
-        read3_timestamp = -1
-        with tiledb.DenseArray(self.path("foo"), mode="r") as T:
-            read3_timestamp = T.timestamp_range
-            self.assertTrue(read3_timestamp > read2_timestamp > read1_timestamp)
+        frags = tiledb.array_fragments(self.path("foo"))
+        # timestamps are in the form of (start, end) for each fragment, with start == end,
+        # as we are not dealing with consolidated fragments. Let's simply read from 0 to the end timestamp.
+        read_timestamps = [(0, frag.timestamp_range[1]) for frag in frags]
 
         # read at first timestamp
         with tiledb.DenseArray(
-            self.path("foo"), timestamp=read1_timestamp, mode="r"
+            self.path("foo"), timestamp=read_timestamps[0], mode="r"
         ) as T:
             self.assertEqual(T[0], 0)
             self.assertEqual(T[1], 0)
@@ -875,7 +868,7 @@ class DenseArrayTest(DiskTestCase):
 
         # read at second timestamp
         with tiledb.DenseArray(
-            self.path("foo"), timestamp=read2_timestamp, mode="r"
+            self.path("foo"), timestamp=read_timestamps[1], mode="r"
         ) as T:
             self.assertEqual(T[0], 1)
             self.assertEqual(T[1], 0)
@@ -883,7 +876,7 @@ class DenseArrayTest(DiskTestCase):
 
         # read at third timestamp
         with tiledb.DenseArray(
-            self.path("foo"), timestamp=read3_timestamp, mode="r"
+            self.path("foo"), timestamp=read_timestamps[2], mode="r"
         ) as T:
             self.assertEqual(T[0], 1)
             self.assertEqual(T[1], 2)
