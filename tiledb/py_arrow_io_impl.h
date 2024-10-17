@@ -233,6 +233,8 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
     return ArrowInfo("tsu:");
   case TILEDB_DATETIME_NS:
     return ArrowInfo("tsn:");
+  case TILEDB_DATETIME_DAY:
+    return ArrowInfo("tdD");
   // TILEDB_BOOL is stored as a uint8_t but arrow::Type::BOOL is 1 bit
   case TILEDB_BOOL:
     return ArrowInfo("C");
@@ -242,7 +244,6 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
   case TILEDB_DATETIME_YEAR:
   case TILEDB_DATETIME_MONTH:
   case TILEDB_DATETIME_WEEK:
-  case TILEDB_DATETIME_DAY:
   case TILEDB_DATETIME_HR:
   case TILEDB_DATETIME_MIN:
   case TILEDB_DATETIME_PS:
@@ -739,6 +740,14 @@ int64_t flags_for_buffer(BufferInfo binfo) {
   return 0;
 }
 
+template <typename T> T cast_checked(uint64_t val) {
+  if (val > std::numeric_limits<T>::max()) {
+    throw tiledb::TileDBError(
+        "[TileDB-Arrow] Value too large to cast to requested type");
+  }
+  return static_cast<T>(val);
+}
+
 void ArrowExporter::export_(const std::string &name, ArrowArray *array,
                             ArrowSchema *schema, ArrowAdapter::release_cb cb,
                             void *cb_data) {
@@ -762,13 +771,11 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
   if (bufferinfo.is_var) {
     buffers = {nullptr, bufferinfo.offsets, bufferinfo.data};
   } else {
-    cpp_schema = new CPPArrowSchema(name, arrow_fmt.fmt_, std::nullopt,
-                                    arrow_flags, {}, {});
     buffers = {nullptr, bufferinfo.data};
   }
   cpp_schema->export_ptr(schema);
 
-  size_t elem_num = 0;
+  size_t elem_num = bufferinfo.data_num;
   if (bufferinfo.is_var) {
     // adjust for arrow offset unless empty result
     elem_num = (bufferinfo.offsets_num == 0) ? 0 : bufferinfo.offsets_num - 1;
@@ -778,8 +785,21 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
       // take the size of the entire buffer and divide by the size of each
       // element
       elem_num = bufferinfo.data_num / bufferinfo.tdbtype.cell_val_num;
-    } else {
-      elem_num = bufferinfo.data_num;
+    } else if (arrow_fmt.fmt_ == "tdD") {
+      // for Arrow date32 we only need the first 4 bytes of each 8-byte
+      // TILEDB_DATETIME_DAY element which we keep by in-place left shifting
+      for (size_t i = 0; i < bufferinfo.data_num; i++) {
+        uint32_t lost_data = *(reinterpret_cast<uint32_t *>(
+            static_cast<uint8_t *>(buffers[1]) + i * 8 + 4));
+        if (lost_data != 0) {
+          throw tiledb::TileDBError(
+              "[TileDB-Arrow] Non-zero data detected in the memory buffer at "
+              "position that will be overwritten");
+        }
+
+        static_cast<uint32_t *>(buffers[1])[i] =
+            cast_checked<uint32_t>(static_cast<uint64_t *>(buffers[1])[i]);
+      }
     }
   }
 
