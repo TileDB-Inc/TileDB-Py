@@ -743,7 +743,7 @@ def _write_array(
                 else:
                     coords.append(df.index.get_level_values(k))
             # TODO ensure correct col/dim ordering
-            tiledb.libtiledb._setitem_impl_sparse(
+            tiledb.sparse_array._setitem_impl_sparse(
                 A, tuple(coords), write_dict, nullmaps
             )
 
