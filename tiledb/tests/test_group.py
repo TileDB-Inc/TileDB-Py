@@ -691,7 +691,7 @@ class GroupMetadataTest(GroupTestCase):
         assert len(vfs.ls(meta_path)) == 1
 
     def test_string_metadata(self, capfd):
-        # this tests ensures that string metadata is correctly stored and
+        # this test ensures that string metadata is correctly stored and
         # retrieved from the metadata store. It also tests that the metadata
         # dump method works correctly for string metadata.
         uri = self.path("test_ascii_metadata")
@@ -708,7 +708,7 @@ class GroupMetadataTest(GroupTestCase):
         grp.close()
 
     def test_array_or_list_of_strings_metadata_error(self):
-        # this tests ensures that an error is raised when trying to store
+        # this test ensures that an error is raised when trying to store
         # an array or list of strings as metadata in a group.
         # numpy arrays of single characters are supported since we don't need
         # any extra offset information to retrieve them.
@@ -736,7 +736,7 @@ class GroupMetadataTest(GroupTestCase):
         grp.close()
 
     def test_bytes_metadata(self, capfd):
-        # this tests ensures that bytes metadata is correctly stored and
+        # this test ensures that bytes metadata is correctly stored and
         # retrieved from the metadata store. It also tests that the metadata
         # dump method works correctly for bytes metadata.
         path = self.path()
