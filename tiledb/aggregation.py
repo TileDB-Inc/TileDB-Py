@@ -41,7 +41,7 @@ class Aggregation:
 
         q = PyAgg(array.ctx, array, layout, self.attr_to_aggs)
 
-        from .libtiledb import (
+        from .array import (
             index_as_tuple,
             index_domain_subarray,
             replace_ellipsis,
