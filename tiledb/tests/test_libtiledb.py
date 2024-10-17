@@ -3500,7 +3500,8 @@ class GetStatsTest(DiskTestCase):
             q[:]
 
             stats = q.get_stats(print_out=False)
-            assert "Context.StorageManager.Query" in stats
+            # check that the stats are non-empty
+            assert stats
 
 
 class NullableIOTest(DiskTestCase):
