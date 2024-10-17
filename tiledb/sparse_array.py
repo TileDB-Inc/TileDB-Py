@@ -14,6 +14,194 @@ from .array import (
 )
 
 
+# point query index a tiledb array (zips) columnar index vectors
+def index_domain_coords(dom, idx, check_ndim):
+    """
+    Returns a (zipped) coordinate array representation
+    given coordinate indices in numpy's point indexing format
+    """
+    ndim = len(idx)
+
+    if check_ndim:
+        if ndim != dom.ndim:
+            raise IndexError(
+                "sparse index ndim must match domain ndim: "
+                "{0!r} != {1!r}".format(ndim, dom.ndim)
+            )
+
+    domain_coords = []
+    for dim, sel in zip(dom, idx):
+        dim_is_string = np.issubdtype(dim.dtype, np.str_) or np.issubdtype(
+            dim.dtype, np.bytes_
+        )
+
+        if dim_is_string:
+            try:
+                # ensure strings contain only ASCII characters
+                domain_coords.append(np.array(sel, dtype=np.bytes_, ndmin=1))
+            except Exception as exc:
+                raise tiledb.TileDBError(
+                    f"Dim' strings may only contain ASCII characters"
+                )
+        else:
+            domain_coords.append(np.array(sel, dtype=dim.dtype, ndmin=1))
+
+    idx = tuple(domain_coords)
+
+    # check that all sparse coordinates are the same size and dtype
+    dim0 = dom.dim(0)
+    dim0_type = dim0.dtype
+    len0 = len(idx[0])
+    for dim_idx in range(ndim):
+        dim_dtype = dom.dim(dim_idx).dtype
+        if len(idx[dim_idx]) != len0:
+            raise IndexError("sparse index dimension length mismatch")
+
+        if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
+            if not (
+                np.issubdtype(idx[dim_idx].dtype, np.str_)
+                or np.issubdtype(idx[dim_idx].dtype, np.bytes_)
+            ):
+                raise IndexError("sparse index dimension dtype mismatch")
+        elif idx[dim_idx].dtype != dim_dtype:
+            raise IndexError("sparse index dimension dtype mismatch")
+
+    return idx
+
+
+def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
+    labels = dict()
+
+    if not self.isopen or self.mode != "w":
+        raise tiledb.TileDBError("SparseArray is not opened for writing")
+
+    set_dims_only = val is None
+    sparse_attributes = list()
+    sparse_values = list()
+    idx = index_as_tuple(selection)
+    sparse_coords = list(
+        index_domain_coords(self.schema.domain, idx, not set_dims_only)
+    )
+
+    from .libtiledb import _write_array_wrapper
+
+    if set_dims_only:
+        _write_array_wrapper(
+            self,
+            None,
+            sparse_coords,
+            sparse_attributes,
+            sparse_values,
+            labels,
+            nullmaps,
+            True,
+        )
+        return
+
+    if not isinstance(val, dict):
+        if self.nattr > 1:
+            raise ValueError(
+                "Expected dict-like object {name: value} for multi-attribute " "array."
+            )
+        val = dict({self.attr(0).name: val})
+
+    # Create dictionary for label names and values from the dictionary
+    labels = {
+        name: (
+            data
+            if not type(data) is np.ndarray or data.dtype is np.dtype("O")
+            else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype)
+        )
+        for name, data in val.items()
+        if self.schema.has_dim_label(name)
+    }
+
+    # must iterate in Attr order to ensure that value order matches
+    for attr_idx in range(self.schema.nattr):
+        attr = self.attr(attr_idx)
+        name = attr.name
+        attr_val = val[name]
+
+        try:
+            # ensure that the value is array-convertible, for example: pandas.Series
+            attr_val = np.asarray(attr_val)
+
+            if attr.isvar:
+                if attr.isnullable and name not in nullmaps:
+                    nullmaps[name] = np.array(
+                        [int(v is not None) for v in attr_val], dtype=np.uint8
+                    )
+            else:
+                if np.issubdtype(attr.dtype, np.bytes_) and not (
+                    np.issubdtype(attr_val.dtype, np.bytes_)
+                    or attr_val.dtype == np.dtype("O")
+                ):
+                    raise ValueError(
+                        "Cannot write a string value to non-string "
+                        "typed attribute '{}'!".format(name)
+                    )
+
+                if attr.isnullable and name not in nullmaps:
+                    try:
+                        nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
+                    except Exception as exc:
+                        nullmaps[name] = np.array(
+                            [int(v is not None) for v in attr_val], dtype=np.uint8
+                        )
+
+                    if np.issubdtype(attr.dtype, np.bytes_):
+                        attr_val = np.array(["" if v is None else v for v in attr_val])
+                    else:
+                        attr_val = np.nan_to_num(attr_val)
+                        attr_val = np.array([0 if v is None else v for v in attr_val])
+                attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+
+        except Exception as exc:
+            raise ValueError(
+                f"NumPy array conversion check failed for attr '{name}'"
+            ) from exc
+
+        # set nullmap if nullable attribute does not have a nullmap already set
+        if attr.isnullable and attr.name not in nullmaps:
+            nullmaps[attr.name] = np.ones(attr_val.shape)
+
+        # if dtype is ASCII, ensure all characters are valid
+        if attr.isascii:
+            try:
+                np.asarray(attr_val, dtype=np.bytes_)
+            except Exception as exc:
+                raise tiledb.TileDBError(
+                    f'dtype of attr {attr.name} is "ascii" but attr_val contains invalid ASCII characters'
+                )
+
+        ncells = sparse_coords[0].shape[0]
+        if attr_val.size != ncells:
+            raise ValueError(
+                "value length ({}) does not match "
+                "coordinate length ({})".format(attr_val.size, ncells)
+            )
+        sparse_attributes.append(attr._internal_name)
+        sparse_values.append(attr_val)
+
+    if (len(sparse_attributes) + len(labels) != len(val.keys())) or (
+        len(sparse_values) + len(labels) != len(val.values())
+    ):
+        raise tiledb.TileDBError(
+            "Sparse write input data count does not match number of attributes"
+        )
+
+    _write_array_wrapper(
+        self,
+        None,
+        sparse_coords,
+        sparse_attributes,
+        sparse_values,
+        labels,
+        nullmaps,
+        True,
+    )
+
+
 class SparseArrayImpl(Array):
     """Class representing a sparse TileDB array (internal).
 
@@ -60,8 +248,6 @@ class SparseArrayImpl(Array):
         ...                    "a2": np.array([3, 4])}
 
         """
-        from .libtiledb import _setitem_impl_sparse
-
         _setitem_impl_sparse(self, selection, val, dict())
 
     def __getitem__(self, selection):
