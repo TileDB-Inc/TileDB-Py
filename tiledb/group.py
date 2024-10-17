@@ -237,7 +237,7 @@ class Group(CtxMixin, lt.Group):
                 # else: ignore the shape keys
 
         def __repr__(self):
-            return str(dict(self._iter(keys_only=False)))
+            return str(dict(self))
 
         def setdefault(self, key, default=None):
             raise NotImplementedError(
