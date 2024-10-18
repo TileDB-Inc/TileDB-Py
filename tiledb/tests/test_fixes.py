@@ -161,10 +161,15 @@ class FixesTest(DiskTestCase):
         with tiledb.open(uri) as A:
             tiledb.stats_enable()
             A[:]
-            assert (
-                """"Context.StorageManager.Query.Reader.loop_num": 1"""
-                in tiledb.stats_dump(print_out=False)
-            )
+
+            stats_dump_str = tiledb.stats_dump(print_out=False)
+            if tiledb.libtiledb.version() >= (2, 27):
+                assert """"Context.Query.Reader.loop_num": 1""" in stats_dump_str
+            else:
+                assert (
+                    """"Context.StorageManager.Query.Reader.loop_num": 1"""
+                    in stats_dump_str
+                )
             tiledb.stats_disable()
 
     @pytest.mark.skipif(
