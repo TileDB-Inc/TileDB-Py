@@ -726,12 +726,23 @@ class GroupMetadataTest(GroupTestCase):
         with pytest.raises(TypeError) as exc:
             grp.meta["abc"] = np.array(["foo", "12345"])
 
-        grp.meta["abc"] = np.array(["1", "2", "3", "f", "o", "o"])
+        grp.meta["abc"] = np.array(["1", "2", "3", "f", "o", "o"], dtype="U1")
         grp.close()
 
         grp = tiledb.Group(uri, "r")
         self.assert_metadata_roundtrip(
-            grp.meta, {"abc": np.array(["1", "2", "3", "f", "o", "o"])}
+            grp.meta, {"abc": np.array(["1", "2", "3", "f", "o", "o"], dtype="U1")}
+        )
+        grp.close()
+
+        grp = tiledb.Group(uri, "w")
+        grp.meta["abc"] = np.array(["T", "i", "l", "e", "D", "B", "!"], dtype="S1")
+        grp.close()
+
+        grp = tiledb.Group(uri, "r")
+        self.assert_metadata_roundtrip(
+            grp.meta,
+            {"abc": np.array([b"T", b"i", b"l", b"e", b"D", b"B", b"!"], dtype="S1")},
         )
         grp.close()
 
