@@ -120,7 +120,12 @@ void init_group(py::module &m) {
       .def("_get_key_from_index", get_key_from_index)
 
       .def("_add", &Group::add_member, py::arg("uri"),
-           py::arg("relative") = false, py::arg("name") = std::nullopt)
+           py::arg("relative") = false, py::arg("name") = std::nullopt
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 27
+           ,
+           py::arg("type") = std::nullopt
+#endif
+           )
       .def("_remove", &Group::remove_member)
       .def("_delete_group", &Group::delete_group)
       .def("_member_count", &Group::member_count)
