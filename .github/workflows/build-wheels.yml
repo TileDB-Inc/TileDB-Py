@@ -30,6 +30,7 @@ jobs:
       matrix:
         buildplat:
           - [ubuntu-22.04, manylinux_x86_64]
+          - [ubuntu-22.04, manylinux_aarch64]
           - [macos-13, macosx_x86_64]
           - [macos-14, macosx_arm64]
           - [windows-2022, win_amd64]
@@ -38,8 +39,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        if: matrix.buildplat[1] == manylinux_aarch64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
       - name: "Brew setup on macOS" # x-ref c8e49ba8f8b9ce
-        if: ${{ startsWith(matrix.os, 'macos-') == true }}
+        if: ${{ startsWith(matrix.buildplat[0], 'macos-') == true }}
         run: |
           set -e pipefail
           brew update
@@ -99,6 +106,7 @@ jobs:
           - macos-14
           - windows-2022
           - ubuntu-22.04
+          # Add linux-aarch64 when available
         python: ["3.9", "3.10", "3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
