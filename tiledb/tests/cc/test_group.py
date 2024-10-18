@@ -23,9 +23,9 @@ def test_group_metadata(tmp_path):
     grp._open(lt.QueryType.READ)
     assert grp._metadata_num() == 2
     assert grp._has_metadata("int")
-    assert_array_equal(grp._get_metadata("int")[0], int_data)
+    assert_array_equal(grp._get_metadata("int", False)[0], int_data)
     assert grp._has_metadata("flt")
-    assert_array_equal(grp._get_metadata("flt")[0], flt_data)
+    assert_array_equal(grp._get_metadata("flt", False)[0], flt_data)
     grp._close()
 
     time.sleep(0.001)
