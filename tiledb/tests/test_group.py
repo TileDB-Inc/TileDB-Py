@@ -9,7 +9,7 @@ from hypothesis.extra import numpy as st_np
 
 import tiledb
 
-from .common import DiskTestCase
+from .common import DiskTestCase, assert_captured
 
 MIN_INT = np.iinfo(np.int64).min
 MAX_INT = np.iinfo(np.int64).max
@@ -585,6 +585,59 @@ class GroupMetadataTest(GroupTestCase):
         self.assert_metadata_roundtrip(grp.meta, test_vals)
         grp.close()
 
+    @given(st_metadata, st_ndarray)
+    @settings(deadline=None)
+    def test_numpy(self, test_vals, ndarray):
+        test_vals["ndarray"] = ndarray
+
+        path = self.path()
+        tiledb.Group.create(path)
+
+        grp = tiledb.Group(path, "w")
+        grp.meta.update(test_vals)
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
+        grp = tiledb.Group(path, "w")
+        grp.meta["ndarray"] = 42
+        test_vals["ndarray"] = 42
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
+        # test resetting a key with a non-ndarray value to a ndarray value
+        grp = tiledb.Group(path, "w")
+        grp.meta["bytes"] = ndarray
+        test_vals["bytes"] = ndarray
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
+        grp = tiledb.Group(path, "w")
+        del grp.meta["ndarray"]
+        del test_vals["ndarray"]
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
+        grp = tiledb.Group(path, "w")
+        test_vals.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
+        grp.meta.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        self.assert_metadata_roundtrip(grp.meta, test_vals)
+        grp.close()
+
     @pytest.mark.parametrize("use_timestamps", [True, False])
     def test_consolidation_and_vac(self, use_timestamps):
         vfs = tiledb.VFS()
@@ -636,3 +689,76 @@ class GroupMetadataTest(GroupTestCase):
         tiledb.Group.vacuum_metadata(path)
 
         assert len(vfs.ls(meta_path)) == 1
+
+    def test_string_metadata(self, capfd):
+        # this test ensures that string metadata is correctly stored and
+        # retrieved from the metadata store. It also tests that the metadata
+        # dump method works correctly for string metadata.
+        uri = self.path("test_ascii_metadata")
+        tiledb.Group.create(uri)
+
+        grp = tiledb.Group(uri, "w")
+        grp.meta["abc"] = "xyz"
+        grp.close()
+
+        grp = tiledb.Group(uri, "r")
+        assert grp.meta["abc"] == "xyz"
+        grp.meta.dump()
+        assert_captured(capfd, "Type: DataType.STRING_UTF8")
+        grp.close()
+
+    def test_array_or_list_of_strings_metadata_error(self):
+        # this test ensures that an error is raised when trying to store
+        # an array or list of strings as metadata in a group.
+        # numpy arrays of single characters are supported since we don't need
+        # any extra offset information to retrieve them.
+        uri = self.path("test_ascii_metadata")
+        tiledb.Group.create(uri)
+
+        grp = tiledb.Group(uri, "w")
+        with pytest.raises(TypeError) as exc:
+            grp.meta["abc"] = ["x", "1"]
+        assert "Unsupported item type" in str(exc.value)
+
+        with pytest.raises(TypeError) as exc:
+            grp.meta["abc"] = ["foo", "foofoo"]
+
+        with pytest.raises(TypeError) as exc:
+            grp.meta["abc"] = np.array(["foo", "12345"])
+
+        grp.meta["abc"] = np.array(["1", "2", "3", "f", "o", "o"], dtype="U1")
+        grp.close()
+
+        grp = tiledb.Group(uri, "r")
+        self.assert_metadata_roundtrip(
+            grp.meta, {"abc": np.array(["1", "2", "3", "f", "o", "o"], dtype="U1")}
+        )
+        grp.close()
+
+        grp = tiledb.Group(uri, "w")
+        grp.meta["abc"] = np.array(["T", "i", "l", "e", "D", "B", "!"], dtype="S1")
+        grp.close()
+
+        grp = tiledb.Group(uri, "r")
+        self.assert_metadata_roundtrip(
+            grp.meta,
+            {"abc": np.array([b"T", b"i", b"l", b"e", b"D", b"B", b"!"], dtype="S1")},
+        )
+        grp.close()
+
+    def test_bytes_metadata(self, capfd):
+        # this test ensures that bytes metadata is correctly stored and
+        # retrieved from the metadata store. It also tests that the metadata
+        # dump method works correctly for bytes metadata.
+        path = self.path()
+        tiledb.Group.create(path)
+
+        grp = tiledb.Group(path, "w")
+        grp.meta["bytes"] = b"blob"
+        grp.close()
+
+        grp = tiledb.Group(path, "r")
+        assert grp.meta["bytes"] == b"blob"
+        grp.meta.dump()
+        assert_captured(capfd, "Type: DataType.BLOB")
+        grp.close()
