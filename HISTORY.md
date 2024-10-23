@@ -1,3 +1,17 @@
+# Release 0.32.3
+
+* TileDB-Py 0.32.3 includes TileDB Embedded [2.26.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.2)
+
+## Build system changes
+
+* Override tag version in manylinux container by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2077
+
+# Release 0.32.2
+
+## Improvements
+
+* Fix object_type return value by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2073
+
 # Release 0.32.1
 
 * TileDB-Py 0.32.1 includes TileDB Embedded [2.26.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.1)
