@@ -4,7 +4,7 @@
 
 ## Build system changes
 
-* Pass pretend version to container by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2077
+* Override tag version in manylinux container by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2077
 
 # Release 0.32.2
 
