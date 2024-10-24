@@ -7,7 +7,6 @@ from cpython.version cimport PY_MAJOR_VERSION
 
 include "common.pxi"
 include "indexing.pyx"
-include "libmetadata.pyx"
 import collections.abc
 from json import loads as json_loads
 

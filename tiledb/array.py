@@ -8,7 +8,7 @@ import tiledb.cc as lt
 from .ctx import Config, Ctx, default_ctx
 from .domain_indexer import DomainIndexer
 from .enumeration import Enumeration
-from .libtiledb import Metadata
+from .metadata import Metadata
 
 # Integer types supported by Python / System
 _inttypes = (int, np.integer)
@@ -340,7 +340,7 @@ class Array:
         self.__buffers = None
 
         self.last_fragment_info = dict()
-        self.meta = Metadata(self)
+        self._meta = Metadata(self.array)
 
     def __capsule__(self):
         return self.array.__capsule__()
@@ -532,6 +532,14 @@ class Array:
         timestamp_end = self.array._open_timestamp_end
 
         return (timestamp_start, timestamp_end)
+
+    @property
+    def meta(self) -> Metadata:
+        """
+        :return: The Array's metadata as a key-value structure
+        :rtype: Metadata
+        """
+        return self._meta
 
     def subarray(self, selection, attrs=None, coords=False, order=None):
         raise NotImplementedError()
