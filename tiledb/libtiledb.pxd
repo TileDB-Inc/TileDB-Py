@@ -1128,7 +1128,3 @@ cdef class Query(object):
 cdef class ReadQuery(object):
     cdef object _buffers
     cdef object _offsets
-
-cdef class Metadata(object):
-    cdef object array_ref
-
