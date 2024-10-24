@@ -14,6 +14,7 @@ pybind11_add_module(
     filestore.cc
     filter.cc
     group.cc
+    metadata.h
     object.cc
     query.cc
     schema.cc

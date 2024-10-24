@@ -2,7 +2,7 @@
 #include <tiledb/tiledb>   // C++
 #include <tiledb/tiledb_experimental>
 
-#include "common.h"
+#include "metadata.h"
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -235,32 +235,24 @@ void init_array(py::module &m) {
            py::overload_cast<const Context &, const std::string &,
                              Config *const>(&Array::consolidate_metadata))
       .def("_put_metadata",
-           [](Array &self, std::string &key, tiledb_datatype_t tdb_type,
-              const py::buffer &b) {
-             py::buffer_info info = b.request();
-
-             size_t size = 1;
-             for (auto s : info.shape) {
-               size *= s;
-             }
-             self.put_metadata(key, tdb_type, size, info.ptr);
+           [](Array &array, const std::string &key, py::array value) {
+             MetadataAdapter<Array> a;
+             a.put_metadata_numpy(array, key, value);
            })
-      .def("_get_metadata",
-           [](Array &self, std::string &key) -> py::buffer {
-             tiledb_datatype_t tdb_type;
-             uint32_t value_num = 0;
-             const void *data_ptr = nullptr;
-
-             self.get_metadata(key, &tdb_type, &value_num, &data_ptr);
-
-             if (data_ptr == nullptr && value_num != 1) {
-               throw py::key_error();
-             }
-
-             assert(data_ptr != nullptr);
-             return py::memoryview::from_memory(
-                 data_ptr, value_num * tiledb_datatype_size(tdb_type));
+      .def("_put_metadata",
+           [](Array &array, const std::string &key,
+              tiledb_datatype_t value_type, uint32_t value_num,
+              py::buffer value) {
+             MetadataAdapter<Array> a;
+             a.put_metadata(array, key, value_type, value_num, value);
            })
+      .def(
+          "_get_metadata",
+          [](Array &array, const std::string &key, bool is_ndarray) {
+            MetadataAdapter<Array> a;
+            return a.get_metadata(array, key, is_ndarray);
+          },
+          py::arg("key"), py::arg("is_ndarray") = false)
       .def("_get_metadata_from_index",
            [](Array &self, uint64_t index) -> py::tuple {
              tiledb_datatype_t tdb_type;
@@ -282,14 +274,18 @@ void init_array(py::module &m) {
 
              return py::make_tuple(tdb_type, buf);
            })
+      .def("_get_key_from_index",
+           [](Array &array, uint64_t index) {
+             MetadataAdapter<Array> a;
+             return a.get_key_from_index(array, index);
+           })
       .def("_delete_metadata", &Array::delete_metadata)
       .def("_has_metadata",
-           [](Array &self, std::string &key) -> py::tuple {
-             tiledb_datatype_t has_type;
-             bool has_it = self.has_metadata(key, &has_type);
-             return py::make_tuple(has_it, has_type);
+           [](Array &array, const std::string &key) {
+             MetadataAdapter<Array> a;
+             return a.has_metadata(array, key);
            })
-      .def("metadata_num", &Array::metadata_num)
+      .def("_metadata_num", &Array::metadata_num)
       .def("_delete_array",
            py::overload_cast<const Context &, const std::string &>(
                &Array::delete_array))
