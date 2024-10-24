@@ -125,16 +125,16 @@ def test_array():
 
     arr._open(lt.QueryType.WRITE)
     data = b"abcdef"
-    arr._put_metadata("key", lt.DataType.STRING_ASCII, data)
+    arr._put_metadata("key", lt.DataType.STRING_ASCII, len(data), data)
     arr._close()
 
     arr._set_open_timestamp_start(1)
     arr._set_open_timestamp_end(1)
     arr._open(lt.QueryType.READ)
-    assert arr.metadata_num() == 1
+    assert arr._metadata_num() == 1
     assert arr._has_metadata("key")
     mv = arr._get_metadata("key")
-    assert bytes(mv) == data
+    assert mv == (data, lt.DataType.STRING_ASCII)
 
     assert arr._get_metadata_from_index(0)[0] == lt.DataType.STRING_ASCII
     mv = arr._get_metadata_from_index(0)[1]
@@ -154,7 +154,7 @@ def test_array():
     arr._open(lt.QueryType.READ)
     with pytest.raises(KeyError):
         arr._get_metadata("key")
-    assert not arr._has_metadata("key")[0]
+    assert not arr._has_metadata("key")
     arr._close()
 
 
