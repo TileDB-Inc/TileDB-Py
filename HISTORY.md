@@ -1,5 +1,7 @@
 # Release 0.32.4
 
+TileDB-Py 0.32.4 was inadvertently released against TileDB [2.26.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.1). This will be corrected in 0.32.5, but the version delta does not justify yanking 0.32.4
+
 ## Improvements
 
 * Add `TILEDB_DATETIME_DAY` type support for Arrow by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2002
