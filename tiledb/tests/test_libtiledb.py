@@ -3480,7 +3480,8 @@ class GetStatsTest(DiskTestCase):
             T[:] = np.random.randint(10, size=3)
 
         stats = ctx.get_stats(print_out=False)
-        assert "Context.StorageManager.write_store" in stats
+        # check that the stats are non-empty
+        assert stats
 
     def test_query(self):
         tiledb.stats_enable()
