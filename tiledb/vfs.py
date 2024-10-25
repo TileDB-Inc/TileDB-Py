@@ -188,9 +188,9 @@ class VFS(lt.VFS):
         return self._is_empty_bucket(_to_path_str(uri))
 
     def create_dir(self, uri: _AnyPath):
-        """Check if an object store bucket is empty.
+        """Create a directory at the specified input URI.
 
-        :param str uri: Input URI of the bucket
+        :param str uri: Input URI of the directory
 
         """
         return self._create_dir(_to_path_str(uri))
