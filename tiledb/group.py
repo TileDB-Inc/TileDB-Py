@@ -119,6 +119,16 @@ class Group(CtxMixin, lt.Group):
                     # If the value is not a 1D ndarray, store its associated shape.
                     # The value's shape will be stored as separate metadata with the correct prefix.
                     self.__setitem__(f"{Group._NP_SHAPE_PREFIX}{key}", value.shape)
+            elif isinstance(value, np.generic):
+                tiledb_type = DataType.from_numpy(value.dtype).tiledb_type
+                if tiledb_type in (lt.DataType.BLOB, lt.DataType.CHAR):
+                    put_metadata(key, tiledb_type, len(value), value)
+                elif tiledb_type == lt.DataType.STRING_UTF8:
+                    put_metadata(
+                        key, lt.DataType.STRING_UTF8, len(value), value.encode("UTF-8")
+                    )
+                else:
+                    put_metadata(key, tiledb_type, 1, value)
             else:
                 from .metadata import pack_metadata_val
 
@@ -141,11 +151,16 @@ class Group(CtxMixin, lt.Group):
 
             if self._group._has_metadata(key):
                 data, tdb_type = self._group._get_metadata(key, False)
+                dtype = DataType.from_tiledb(tdb_type).np_dtype
+                # we return all int and float values as numpy scalars
+                if dtype.kind in ("i", "f") and not isinstance(data, tuple):
+                    data = np.dtype(dtype).type(data)
             elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
                 data, tdb_type = self._group._get_metadata(
                     f"{Group._NP_DATA_PREFIX}{key}", True
                 )
                 # reshape numpy array back to original shape, if needed
+                # this will not be found in any case for TileDB-Py <= 0.32.3.
                 shape_key = f"{Group._NP_SHAPE_PREFIX}{key}"
                 if self._group._has_metadata(shape_key):
                     shape, tdb_type = self._group._get_metadata(shape_key, False)
