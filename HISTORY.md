@@ -1,3 +1,46 @@
+# Release 0.32.5
+
+* TileDB-Py 0.32.5 includes TileDB Embedded [2.26.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.2)
+
+## Improvements
+
+* Fix GroupMetadata backwards compatibility by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2102
+* Fix typo in API doc for create_bucket by @nickvigilante in https://github.com/TileDB-Inc/TileDB-Py/pull/2101
+* Update enumerations exception message by @shaunrd0 in https://github.com/TileDB-Inc/TileDB-Py/pull/2096
+* Handle removal of 'StorageManager' from stats dumps in 2.27 - Part 2 by @kounelisagis https://github.com/TileDB-Inc/TileDB-Py/pull/2098
+
+## Build system changes
+
+* Revert "Do not run CI in PR twice (#2082)" by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2100
+
+# Release 0.32.4
+
+TileDB-Py 0.32.4 was inadvertently released against TileDB [2.26.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.1). This will be corrected in 0.32.5, but the version delta does not justify yanking 0.32.4
+
+## Improvements
+
+* Add `TILEDB_DATETIME_DAY` type support for Arrow by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2002
+* Extend the `GroupMetadata` functionality to support NumPy arrays by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2085
+* Add extra argument to Group::add_member by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2093
+* Handle removal of 'StorageManager' from stats dumps in 2.27 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2088
+* Make default value for `vfs.s3.region` in test conditional by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2086
+* Make error message for non-existing `Enumeration` in test conditional by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2087
+* Fix randomly failing test `DenseArrayTest::test_open_with_timestamp[False]` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2090
+* Fix skipif condition for test_cloud by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2084
+* Raise error when sparse=True is passed to `tiledb.from_numpy` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2080
+* Documentation and CI updates by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2078
+* Move `DenseArrayImpl` to pure Python by @kounelisagis and @nguyenv in https://github.com/TileDB-Inc/TileDB-Py/pull/2071
+* Move `PackedBuffer` and `pack_metadata_val` to pure Python, and wrap `tiledb_datatype_size` with pybind by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2072
+* Move `SparseArrayImpl` to pure Python by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2065
+
+## Build system changes
+
+* Add CI to test against the TileDB core library built from source with a custom version by @dudoslav and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2091
+* Do not run CI in PR twice by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2082
+* Disable release for Python 3.8 by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2081
+* Re-enable automatic upload to pypi by @dudoslav and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2034
+* Drop Python 3.8 support by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2079
+
 # Release 0.32.3
 
 * TileDB-Py 0.32.3 includes TileDB Embedded [2.26.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.2)
