@@ -26,7 +26,9 @@ void put_metadata_numpy(Group &group, const std::string &key, py::array value) {
     throw py::type_error("Only 1D Numpy arrays can be stored as metadata");
 
   py::size_t ncells = get_ncells(value.dtype());
-  if (ncells != 1)
+  // we can't store multi-cell arrays as metadata
+  // e.g. an array of strings containing strings of more than one character
+  if (ncells != 1 && value.size() > 1)
     throw py::type_error("Unsupported dtype '" +
                          std::string(py::str(value.dtype())) +
                          "' for metadata");
