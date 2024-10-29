@@ -1,3 +1,18 @@
+# Release 0.32.5
+
+* TileDB-Py 0.32.5 includes TileDB Embedded [2.26.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.2)
+
+## Improvements
+
+* Fix GroupMetadata backwards compatibility by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2102
+* Fix typo in API doc for create_bucket by @nickvigilante in https://github.com/TileDB-Inc/TileDB-Py/pull/2101
+* Update enumerations exception message by @shaunrd0 in https://github.com/TileDB-Inc/TileDB-Py/pull/2096
+* Handle removal of 'StorageManager' from stats dumps in 2.27 - Part 2 by @kounelisagis https://github.com/TileDB-Inc/TileDB-Py/pull/2098
+
+## Build system changes
+
+* Revert "Do not run CI in PR twice (#2082)" by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2100
+
 # Release 0.32.4
 
 TileDB-Py 0.32.4 was inadvertently released against TileDB [2.26.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.1). This will be corrected in 0.32.5, but the version delta does not justify yanking 0.32.4
