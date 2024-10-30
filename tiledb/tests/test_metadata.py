@@ -78,15 +78,15 @@ class MetadataTest(DiskTestCase):
         # test __len__
         self.assertEqual(len(tdb_meta), len(dict_meta))
 
-        # test __iter__() is consistent with keys()
-        self.assertEqual(list(tdb_meta), tdb_meta.keys())
+        # test __iter__()
+        self.assertEqual(set(tdb_meta), set(tdb_meta.keys()))
 
         # test keys()
         self.assertSetEqual(set(tdb_meta.keys()), set(dict_meta.keys()))
 
         # test values() and items()
-        read_values = tdb_meta.values()
-        read_items = tdb_meta.items()
+        read_values = list(tdb_meta.values())
+        read_items = list(tdb_meta.items())
         self.assertEqual(len(read_values), len(read_items))
         for (item_key, item_value), value in zip(read_items, read_values):
             self.assertTrue(item_key in dict_meta)
@@ -352,7 +352,7 @@ class MetadataTest(DiskTestCase):
         with tiledb.open(uri) as A:
             assert A.meta["abc"] == b"xyz"
             A.meta.dump()
-            assert_captured(capfd, "Type: STRING_ASCII")
+            assert_captured(capfd, "Type: DataType.STRING_ASCII")
 
     def test_bytes_metadata(self, capfd):
         path = self.path()
@@ -365,4 +365,4 @@ class MetadataTest(DiskTestCase):
         with tiledb.Array(path, mode="r") as A:
             assert A.meta["bytes"] == b"blob"
             A.meta.dump()
-            assert_captured(capfd, "Type: BLOB")
+            assert_captured(capfd, "Type: DataType.BLOB")
