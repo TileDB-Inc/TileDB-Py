@@ -1,11 +1,9 @@
-from typing import MutableMapping, Optional, Union
-
-import numpy as np
+from typing import Optional, Union
 
 import tiledb.cc as lt
 
 from .ctx import Config, Ctx, CtxMixin, default_ctx
-from .datatypes import DataType
+from .metadata import Metadata
 from .object import Object
 
 
@@ -74,9 +72,6 @@ class Group(CtxMixin, lt.Group):
     >>> grp.close()
     """
 
-    _NP_DATA_PREFIX = "__np_flat_"
-    _NP_SHAPE_PREFIX = "__np_shape_"
-
     _mode_to_query_type = {
         "r": lt.QueryType.READ,
         "w": lt.QueryType.WRITE,
@@ -86,198 +81,6 @@ class Group(CtxMixin, lt.Group):
     _query_type_to_mode = {t: m for m, t in _mode_to_query_type.items()}
 
     __was_deleted__ = False
-
-    class GroupMetadata(MutableMapping):
-        """
-        Holds metadata for the associated Group in a dictionary-like structure.
-        """
-
-        GroupMetadataValueType = Union[int, float, str, bytes, np.ndarray]
-
-        def __init__(self, group: "Group"):
-            self._group = group
-
-        def __setitem__(self, key: str, value: GroupMetadataValueType):
-            """
-            :param str key: Key for the Group metadata entry
-            :param value: Value for the Group metadata entry
-            :type value: Union[int, float, str, bytes, np.ndarray]
-
-            """
-            if not isinstance(key, str):
-                raise TypeError(f"Unexpected key type '{type(key)}': expected str")
-
-            # ensure previous key(s) are deleted (e.g. in case of replacing a
-            # non-numpy value with a numpy value or vice versa)
-            del self[key]
-
-            put_metadata = self._group._put_metadata
-            if isinstance(value, np.ndarray):
-                flat_value = value.ravel()
-                put_metadata(f"{Group._NP_DATA_PREFIX}{key}", flat_value)
-                if value.shape != flat_value.shape:
-                    # If the value is not a 1D ndarray, store its associated shape.
-                    # The value's shape will be stored as separate metadata with the correct prefix.
-                    self.__setitem__(f"{Group._NP_SHAPE_PREFIX}{key}", value.shape)
-            elif isinstance(value, np.generic):
-                tiledb_type = DataType.from_numpy(value.dtype).tiledb_type
-                if tiledb_type in (lt.DataType.BLOB, lt.DataType.CHAR):
-                    put_metadata(key, tiledb_type, len(value), value)
-                elif tiledb_type == lt.DataType.STRING_UTF8:
-                    put_metadata(
-                        key, lt.DataType.STRING_UTF8, len(value), value.encode("UTF-8")
-                    )
-                else:
-                    put_metadata(key, tiledb_type, 1, value)
-            else:
-                from .metadata import pack_metadata_val
-
-                packed_buf = pack_metadata_val(value)
-                tiledb_type = packed_buf.tdbtype
-                value_num = packed_buf.value_num
-                data_view = packed_buf.data
-
-                put_metadata(key, tiledb_type, value_num, data_view)
-
-        def __getitem__(self, key: str, include_type=False) -> GroupMetadataValueType:
-            """
-            :param str key: Key of the Group metadata entry
-            :rtype: Union[int, float, str, bytes, np.ndarray]
-            :return: The value associated with the key
-
-            """
-            if not isinstance(key, str):
-                raise TypeError(f"Unexpected key type '{type(key)}': expected str")
-
-            if self._group._has_metadata(key):
-                data, tdb_type = self._group._get_metadata(key, False)
-                dtype = DataType.from_tiledb(tdb_type).np_dtype
-                # we return all int and float values as numpy scalars
-                if dtype.kind in ("i", "f") and not isinstance(data, tuple):
-                    data = np.dtype(dtype).type(data)
-            elif self._group._has_metadata(f"{Group._NP_DATA_PREFIX}{key}"):
-                data, tdb_type = self._group._get_metadata(
-                    f"{Group._NP_DATA_PREFIX}{key}", True
-                )
-                # reshape numpy array back to original shape, if needed
-                # this will not be found in any case for TileDB-Py <= 0.32.3.
-                shape_key = f"{Group._NP_SHAPE_PREFIX}{key}"
-                if self._group._has_metadata(shape_key):
-                    shape, tdb_type = self._group._get_metadata(shape_key, False)
-                    data = data.reshape(shape)
-            else:
-                raise KeyError(f"KeyError: {key}")
-
-            return (data, tdb_type) if include_type else data
-
-        def __delitem__(self, key: str):
-            """Removes the entry from the Group metadata.
-
-            :param str key: Key of the Group metadata entry
-
-            """
-            if not isinstance(key, str):
-                raise TypeError(f"Unexpected key type '{type(key)}': expected str")
-
-            # key may be stored as is or it may be prefixed (for numpy values)
-            # we don't know this here so delete all potential internal keys
-            for k in key, Group._NP_DATA_PREFIX + key, Group._NP_SHAPE_PREFIX + key:
-                self._group._delete_metadata(k)
-
-        def __contains__(self, key: str) -> bool:
-            """
-            :param str key: Key of the Group metadata entry
-            :rtype: bool
-            :return: True if the key is in the Group metadata, otherwise False
-
-            """
-            if not isinstance(key, str):
-                raise TypeError(f"Unexpected key type '{type(key)}': expected str")
-
-            # key may be stored as is or it may be prefixed (for numpy values)
-            # we don't know this here so check all potential internal keys
-            return self._group._has_metadata(key) or self._group._has_metadata(
-                f"{Group._NP_DATA_PREFIX}{key}"
-            )
-
-        def __len__(self) -> int:
-            """
-            :rtype: int
-            :return: Number of entries in the Group metadata
-
-            """
-            num = self._group._metadata_num()
-            # subtract the _NP_SHAPE_PREFIX prefixed keys
-            for key in self._iter(keys_only=True):
-                if key.startswith(Group._NP_SHAPE_PREFIX):
-                    num -= 1
-
-            return num
-
-        def _iter(self, keys_only: bool = True, dump: bool = False):
-            """
-            Iterate over Group metadata keys or (key, value) tuples
-            :param keys_only: whether to yield just keys or values too
-            :param dump: whether to yield a formatted string for each metadata entry
-            """
-            if keys_only and dump:
-                raise ValueError("keys_only and dump cannot both be True")
-
-            metadata_num = self._group._metadata_num()
-            for i in range(metadata_num):
-                key = self._group._get_key_from_index(i)
-
-                if keys_only:
-                    yield key
-                else:
-                    val, val_dtype = self.__getitem__(key, include_type=True)
-
-                    if dump:
-                        yield (
-                            "### Array Metadata ###\n"
-                            f"- Key: {key}\n"
-                            f"- Value: {val}\n"
-                            f"- Type: {val_dtype}\n"
-                        )
-                    else:
-                        yield key, val
-
-        def __iter__(self):
-            np_data_prefix_len = len(Group._NP_DATA_PREFIX)
-            for key in self._iter(keys_only=True):
-                if key.startswith(Group._NP_DATA_PREFIX):
-                    yield key[np_data_prefix_len:]
-                elif not key.startswith(Group._NP_SHAPE_PREFIX):
-                    yield key
-                # else: ignore the shape keys
-
-        def __repr__(self):
-            return str(dict(self))
-
-        def setdefault(self, key, default=None):
-            raise NotImplementedError(
-                "Group.GroupMetadata.setdefault requires read-write access"
-            )
-
-        def pop(self, key, default=None):
-            raise NotImplementedError(
-                "Group.GroupMetadata.pop requires read-write access"
-            )
-
-        def popitem(self):
-            raise NotImplementedError(
-                "Group.GroupMetadata.popitem requires read-write access"
-            )
-
-        def clear(self):
-            raise NotImplementedError(
-                "Group.GroupMetadata.clear requires read-write access"
-            )
-
-        def dump(self):
-            """Output information about all group metadata to stdout."""
-            for metadata in self._iter(keys_only=False, dump=True):
-                print(metadata)
 
     def __init__(
         self,
@@ -295,7 +98,7 @@ class Group(CtxMixin, lt.Group):
         else:
             super().__init__(ctx, uri, query_type, config)
 
-        self._meta = self.GroupMetadata(self)
+        self._meta = Metadata(self)
 
     @staticmethod
     def create(uri: str, ctx: Optional[Ctx] = None):
@@ -436,10 +239,10 @@ class Group(CtxMixin, lt.Group):
             self.close()
 
     @property
-    def meta(self) -> GroupMetadata:
+    def meta(self) -> Metadata:
         """
         :return: The Group's metadata as a key-value structure
-        :rtype: GroupMetadata
+        :rtype: Metadata
         """
         return self._meta
 
