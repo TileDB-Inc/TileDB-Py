@@ -43,8 +43,6 @@ def stats_dump(
             "Statistics are not enabled. Call tiledb.stats_enable() first."
         )
 
-    stats_str = None
-
     if json or not verbose:
         stats_str = stats_raw_dump_str()
     else:
@@ -57,9 +55,9 @@ def stats_dump(
         if include_python:
             from .main import python_internal_stats
 
-            stats_json_core["python"] = json_dumps(python_internal_stats(True))
+            stats_json_core["python"] = python_internal_stats(True)
         if json:
-            return stats_json_core
+            return json_dumps(stats_json_core)
 
     stats_str = ""
 
