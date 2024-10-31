@@ -1,5 +1,6 @@
 import concurrent
 import concurrent.futures
+import json
 import os
 import subprocess
 import sys
@@ -171,6 +172,14 @@ class FixesTest(DiskTestCase):
                     in stats_dump_str
                 )
             tiledb.stats_disable()
+
+    def test_fix_stats_error_messages(self):
+        # Test that stats_dump prints a user-friendly error message when stats are not enabled
+        with pytest.raises(tiledb.TileDBError) as exc:
+            tiledb.stats_dump()
+        assert "Statistics are not enabled. Call tiledb.stats_enable() first." in str(
+            exc.value
+        )
 
     @pytest.mark.skipif(
         not has_pandas() and has_pyarrow(),
