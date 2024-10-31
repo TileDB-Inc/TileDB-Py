@@ -788,7 +788,7 @@ class GroupMetadataTest(GroupTestCase):
         group.meta["numpy_float64"] = np.float64(3.14)
         group.meta["numpy_bytes"] = np.bytes_("hello")
         group.meta["numpy_str"] = np.str_("hello")
-        group.meta["numpy_bool"] = np.bool(False)
+        group.meta["numpy_bool"] = np.bool_(False)
 
         # lists/tuples
         group.meta["list_int"] = [7]
