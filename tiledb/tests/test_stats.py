@@ -64,7 +64,7 @@ class StatsTest(DiskTestCase):
             tiledb.stats_enable()
             assert_array_equal(T, np.arange(10))
             json_stats = tiledb.stats_dump(print_out=False, json=True)
-            assert isinstance(json_stats, dict)
+            assert isinstance(json_stats, str)
             assert "python" in json_stats
             assert "timers" in json_stats
             assert "counters" in json_stats
