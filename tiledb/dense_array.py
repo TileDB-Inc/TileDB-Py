@@ -14,7 +14,7 @@ from .array import (
     replace_ellipsis,
     replace_scalars_slice,
 )
-from .libtiledb import Query
+from .query import Query
 from .subarray import Subarray
 
 

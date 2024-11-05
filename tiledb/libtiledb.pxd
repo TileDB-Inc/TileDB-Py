@@ -1100,7 +1100,6 @@ cdef extern from "tiledb/tiledb_experimental.h":
     )
 
 # Free helper functions
-cpdef unicode ustring(object s)
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr)
 cdef _raise_ctx_err(tiledb_ctx_t* ctx_ptr, int rc)
 

@@ -12,6 +12,7 @@ from .array import (
     replace_ellipsis,
     replace_scalars_slice,
 )
+from .query import Query
 
 
 # point query index a tiledb array (zips) columnar index vectors
@@ -387,7 +388,7 @@ class SparseArrayImpl(Array):
         elif dims is None and coords is None:
             _coords = True
 
-        return tiledb.libtiledb.Query(
+        return Query(
             self,
             attrs=attrs,
             cond=cond,
@@ -402,7 +403,6 @@ class SparseArrayImpl(Array):
 
     def read_subarray(self, subarray):
         from .main import PyQuery
-        from .subarray import Subarray
 
         # Set layout to UNORDERED for sparse query.
         # cdef tiledb_layout_t layout = TILEDB_UNORDERED
@@ -547,7 +547,6 @@ class SparseArrayImpl(Array):
         nattr = len(attr_names)
 
         from .main import PyQuery
-        from .subarray import Subarray
 
         q = PyQuery(self.ctx, self, tuple(attr_names), tuple(), layout, False)
         self.pyquery = q

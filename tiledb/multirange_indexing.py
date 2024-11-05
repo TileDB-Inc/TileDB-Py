@@ -29,10 +29,10 @@ from .array import Array
 from .array_schema import ArraySchema
 from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
-from .libtiledb import Query as QueryProxy
 from .main import PyAgg, PyQuery, increment_stat, use_stats
 from .metadata import Metadata
 from .query import Query
+from .query import Query as QueryProxy
 from .query_condition import QueryCondition
 from .subarray import Subarray
 
