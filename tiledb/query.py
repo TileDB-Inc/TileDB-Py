@@ -38,6 +38,11 @@ class Query(CtxMixin, lt.Query):
         if dims is not None and coords == True:
             raise ValueError("Cannot pass both dims and coords=True to Query")
 
+        if return_incomplete and not array.schema.sparse:
+            raise TileDBError(
+                "Incomplete queries are only supported for sparse arrays at this time"
+            )
+
         # reference to the array we are querying
         self._array = array
         super().__init__(
@@ -84,13 +89,7 @@ class Query(CtxMixin, lt.Query):
                 raise TileDBError("Cannot initialize return_arrow with use_arrow=False")
         self._use_arrow = use_arrow
 
-        if return_incomplete and not array.schema.sparse:
-            raise TileDBError(
-                "Incomplete queries are only supported for sparse arrays at this time"
-            )
-
         self._return_incomplete = return_incomplete
-
         self._domain_index = DomainIndexer(array, query=self)
 
     def subarray(self) -> Subarray:

@@ -666,7 +666,7 @@ class DenseArrayImpl(Array):
         if has_labels:
             label_query = Query(self, self.ctx)
             label_query.set_subarray(subarray)
-            label_query.submit()
+            label_query._submit()
             if not label_query.is_complete():
                 raise tiledb.TileDBError("Failed to get dimension ranges from labels")
             result_subarray = Subarray(self, self.ctx)

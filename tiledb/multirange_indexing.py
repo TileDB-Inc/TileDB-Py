@@ -586,7 +586,7 @@ class LabelIndexer(MultiRangeIndexer):
         # If querying by label and the label query is not yet complete, run the label
         # query and update the pyquery with the actual dimensions.
         if self.label_query is not None and not self.label_query.is_complete():
-            self.label_query.submit()
+            self.label_query._submit()
 
             if not self.label_query.is_complete():
                 raise TileDBError("failed to get dimension ranges from labels")
