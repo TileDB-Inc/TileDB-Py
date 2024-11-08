@@ -393,7 +393,7 @@ class SparseArrayImpl(Array):
             attrs=attrs,
             cond=cond,
             dims=dims,
-            coords=_coords,
+            has_coords=_coords,
             index_col=index_col,
             order=order,
             use_arrow=use_arrow,

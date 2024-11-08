@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from json import loads as json_loads
+from typing import Optional, Sequence, Union
 
 import tiledb.cc as lt
 from tiledb import TileDBError
@@ -18,25 +19,48 @@ class Query(CtxMixin, lt.Query):
     def __init__(
         self,
         array: Array,
-        ctx: Ctx = None,
-        attrs=None,
-        cond=None,
-        dims=None,
-        coords=False,
-        index_col=True,
-        order=None,
-        use_arrow=None,
-        return_arrow=False,
-        return_incomplete=False,
+        ctx: Optional[Ctx] = None,
+        attrs: Optional[Union[Sequence[str], Sequence[int]]] = None,
+        cond: Optional[str] = None,
+        dims: Union[bool, Sequence[str]] = False,
+        has_coords: bool = False,
+        index_col: Optional[Union[bool, Sequence[int]]] = True,
+        order: Optional[str] = None,
+        use_arrow: Optional[bool] = None,
+        return_arrow: bool = False,
+        return_incomplete: bool = False,
     ):
+        """Class representing a query on a TileDB Array.
 
-        """Class representing a query on a TileDB Array."""
+        Allows easy subarray queries of cells for an item or region of the array
+        across one or more attributes. Optionally subselect over attributes, return
+        dense result coordinate values, and specify a layout a result layout / cell-order.
+
+        :param array: the Array object to query.
+        :param ctx: the TileDB context.
+        :param attrs: the attributes to subselect over.
+            If attrs is None (default) all array attributes will be returned.
+            Array attributes can be defined by name or by positional index.
+        :param cond: the str expression to filter attributes or dimensions on. The expression must be parsable by tiledb.QueryCondition(). See help(tiledb.QueryCondition) for more details.
+        :param dims: the dimensions to subselect over. If dims is False (default), no specific selection is made.
+            If True, all dimensions are returned. Otherwise, specify a list of dimension names.
+        :param has_coords: (deprecated) if True, return array of coordinate value (default False).
+        :param index_col: For dataframe queries, override the saved index information,
+            and only set specified index(es) in the final dataframe, or None.
+        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param use_arrow: if True, return dataframes via PyArrow if applicable.
+        :param return_arrow: if True, return results as a PyArrow Table if applicable.
+        :param return_incomplete: if True, initialize and return an iterable Query object over the indexed range.
+            Consuming this iterable returns a result set for each TileDB incomplete query.
+            If False (default), queries will be internally run to completion by resizing buffers and
+            resubmitting until query is complete.
+        """
 
         if array.mode not in ("r", "d"):
             raise ValueError("array mode must be read or delete mode")
 
-        if dims is not None and coords == True:
-            raise ValueError("Cannot pass both dims and coords=True to Query")
+        if dims not in (False, None) and has_coords == True:
+            raise ValueError("Cannot pass both dims and has_coords=True to Query")
 
         if return_incomplete and not array.schema.sparse:
             raise TileDBError(
@@ -49,20 +73,19 @@ class Query(CtxMixin, lt.Query):
             ctx, lt.Array(ctx if ctx is not None else default_ctx(), array)
         )
 
-        dims_to_set = list()
-        self._dims = None
+        self._dims = dims
 
-        if dims is False:
-            self._dims = False
-        elif dims != None and dims != True:
+        if dims == True or has_coords == True:
+            domain = array.schema.domain
+            self._dims = [domain.dim(i).name for i in range(domain.ndim)]
+        elif dims:
             domain = array.schema.domain
             for dname in dims:
                 if not domain.has_dim(dname):
                     raise TileDBError(f"Selected dimension does not exist: '{dname}'")
             self._dims = dims
-        elif coords == True or dims == True:
-            domain = array.schema.domain
-            self._dims = [domain.dim(i).name for i in range(domain.ndim)]
+        else:
+            self._dims = None
 
         if attrs is not None:
             for name in attrs:
@@ -79,7 +102,7 @@ class Query(CtxMixin, lt.Query):
         else:
             self._order = order
 
-        self._coords = coords
+        self._has_coords = has_coords
         self._index_col = index_col
         self._return_arrow = return_arrow
         if return_arrow:
@@ -107,7 +130,7 @@ class Query(CtxMixin, lt.Query):
             selection,
             attrs=self._attrs,
             cond=self._cond,
-            coords=self._coords if self._coords else self._dims,
+            coords=self._has_coords if self._has_coords else self._dims,
             order=self._order,
         )
 
@@ -206,13 +229,13 @@ class Query(CtxMixin, lt.Query):
         return self._dims
 
     @property
-    def coords(self):
+    def has_coords(self):
         """
         True if query should include (return) coordinate values.
 
         :rtype: bool
         """
-        return self._coords
+        return self._has_coords
 
     @property
     def order(self):

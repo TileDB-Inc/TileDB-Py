@@ -173,7 +173,7 @@ class DenseArrayImpl(Array):
             attrs=attrs,
             cond=cond,
             dims=dims,
-            coords=coords,
+            has_coords=coords,
             order=order,
             use_arrow=use_arrow,
             return_arrow=return_arrow,

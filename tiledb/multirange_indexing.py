@@ -422,7 +422,7 @@ class DataFrameIndexer(_BaseIndexer):
         check_dataframe_deps()
         # we need to use a Query in order to get coords for a dense array
         if not query:
-            query = QueryProxy(array, coords=True)
+            query = QueryProxy(array, has_coords=True)
         use_arrow = (
             bool(importlib.util.find_spec("pyarrow"))
             if use_arrow is None
@@ -687,7 +687,7 @@ def _iter_dim_names(
     if query is not None:
         if query.dims is not None:
             return iter(query.dims or ())
-        if query.coords is False:
+        if query.has_coords is False:
             return iter(())
     if not schema.sparse:
         return iter(())
