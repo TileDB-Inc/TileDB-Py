@@ -246,20 +246,39 @@ def test_schema_evolution_drop_fixed_attribute_and_add_back_as_var_sized(tmp_pat
     schema = tiledb.ArraySchema(domain=domain, attrs=attrs, sparse=False)
     tiledb.Array.create(uri, schema)
 
-    data = np.arange(1, 11)
+    original_data = np.arange(1, 11)
     with tiledb.open(uri, "w") as A:
-        A[:] = {"a": data, "b": data}
+        A[:] = {"a": original_data, "b": original_data}
 
     se = tiledb.ArraySchemaEvolution(ctx)
     se.drop_attribute("a")
     se.array_evolve(uri)
 
+    # check schema after dropping attribute
+    with tiledb.open(uri) as A:
+        assert not A.schema.has_attr("a")
+        assert A.schema.attr("b").dtype == np.int32
+
     se = tiledb.ArraySchemaEvolution(ctx)
-    newattr = tiledb.Attr("a", dtype="S0", var=True)
+    newattr = tiledb.Attr("a", dtype="S", var=True)
     se.add_attribute(newattr)
     se.array_evolve(uri)
 
+    # check schema after adding attribute back as a var-sized attribute
+    with tiledb.open(uri) as A:
+        assert A.schema.has_attr("a")
+        assert A.schema.attr("a").dtype == "S"
+        assert A.schema.attr("b").dtype == np.int32
+
+    # add new data to the array
+    new_data = np.array(
+        ["tiledb-string-n.{}".format(i) for i in range(1, 11)], dtype="S"
+    )
+    with tiledb.open(uri, "w") as A:
+        A[:] = {"a": new_data, "b": original_data}
+
+    # check data for both attributes
     with tiledb.open(uri) as A:
         res = A[:]
-        assert_array_equal(res["a"], data)
-        assert_array_equal(res["b"], data)
+        assert_array_equal(res["a"], new_data)
+        assert_array_equal(res["b"], original_data)
