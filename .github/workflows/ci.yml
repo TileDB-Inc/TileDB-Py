@@ -25,7 +25,7 @@ jobs:
           # libfaketime tests fail on macos arm. Disable tests for now.
           # - macos-14
           - windows-latest
-        python-version: [ "3.9", "3.10", "3.11", "3.12"]
+        python-version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
       fail-fast: false
     env:
       MACOSX_DEPLOYMENT_TARGET: "11"
