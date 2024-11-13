@@ -96,7 +96,7 @@ void init_query(py::module &m) {
              q.set_validity_buffer(name, (uint8_t *)(a.data()), a.size());
            })
 
-      .def("submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
+      .def("_submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
 
       /** hackery from another branch... */
       //.def("set_fragment_uri", &Query::set_fragment_uri)
