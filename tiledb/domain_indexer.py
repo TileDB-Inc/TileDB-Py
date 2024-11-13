@@ -90,7 +90,7 @@ class DomainIndexer:
                 self.query.attrs if self.query.attrs else attr_names
             )  # query.attrs might be None -> all
             attr_cond = self.query.attr_cond
-            coords = self.query.coords
+            coords = self.query.has_coords
 
         if coords:
             attr_names = [

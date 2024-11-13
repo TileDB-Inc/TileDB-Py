@@ -343,7 +343,7 @@ def test_write_sparse():
         q.set_data_buffer("a", data)
         q.set_data_buffer("x", coords)
 
-        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert q._submit() == lt.QueryStatus.COMPLETE
 
         return uri
 
@@ -361,7 +361,7 @@ def test_write_sparse():
         q.set_data_buffer("a", rdata)
         q.set_data_buffer("x", rcoords)
 
-        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert q._submit() == lt.QueryStatus.COMPLETE
         assert np.all(rcoords == coords)
         assert np.all(rdata == data)
 
@@ -407,7 +407,7 @@ def test_write_dense():
         q.set_data_buffer("a", data)
         # q.set_data_buffer("x", coords)
 
-        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert q._submit() == lt.QueryStatus.COMPLETE
 
         return uri
 
@@ -428,7 +428,7 @@ def test_write_dense():
 
         q.set_data_buffer("a", rdata)
 
-        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert q._submit() == lt.QueryStatus.COMPLETE
         assert np.all(rdata == data)
 
     uri = write()

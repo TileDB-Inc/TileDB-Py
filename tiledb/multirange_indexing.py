@@ -29,10 +29,10 @@ from .array import Array
 from .array_schema import ArraySchema
 from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
-from .libtiledb import Query as QueryProxy
 from .main import PyAgg, PyQuery, increment_stat, use_stats
 from .metadata import Metadata
 from .query import Query
+from .query import Query as QueryProxy
 from .query_condition import QueryCondition
 from .subarray import Subarray
 
@@ -422,7 +422,7 @@ class DataFrameIndexer(_BaseIndexer):
         check_dataframe_deps()
         # we need to use a Query in order to get coords for a dense array
         if not query:
-            query = QueryProxy(array, coords=True)
+            query = QueryProxy(array, has_coords=True)
         use_arrow = (
             bool(importlib.util.find_spec("pyarrow"))
             if use_arrow is None
@@ -586,7 +586,7 @@ class LabelIndexer(MultiRangeIndexer):
         # If querying by label and the label query is not yet complete, run the label
         # query and update the pyquery with the actual dimensions.
         if self.label_query is not None and not self.label_query.is_complete():
-            self.label_query.submit()
+            self.label_query._submit()
 
             if not self.label_query.is_complete():
                 raise TileDBError("failed to get dimension ranges from labels")
@@ -687,7 +687,7 @@ def _iter_dim_names(
     if query is not None:
         if query.dims is not None:
             return iter(query.dims or ())
-        if query.coords is False:
+        if query.has_coords is False:
             return iter(())
     if not schema.sparse:
         return iter(())
