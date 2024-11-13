@@ -14,7 +14,7 @@ from .array import (
     replace_ellipsis,
     replace_scalars_slice,
 )
-from .libtiledb import Query
+from .query import Query
 from .subarray import Subarray
 
 
@@ -173,7 +173,7 @@ class DenseArrayImpl(Array):
             attrs=attrs,
             cond=cond,
             dims=dims,
-            coords=coords,
+            has_coords=coords,
             order=order,
             use_arrow=use_arrow,
             return_arrow=return_arrow,
@@ -666,7 +666,7 @@ class DenseArrayImpl(Array):
         if has_labels:
             label_query = Query(self, self.ctx)
             label_query.set_subarray(subarray)
-            label_query.submit()
+            label_query._submit()
             if not label_query.is_complete():
                 raise tiledb.TileDBError("Failed to get dimension ranges from labels")
             result_subarray = Subarray(self, self.ctx)

@@ -142,7 +142,7 @@ Sparse Array
 Query
 ---------------
 
-.. autoclass:: tiledb.libtiledb.Query
+.. autoclass:: tiledb.Query
    :members:
 
 Query Condition

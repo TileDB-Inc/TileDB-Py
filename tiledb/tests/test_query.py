@@ -35,6 +35,6 @@ class QueryTest(DiskTestCase):
             input_subarray.add_label_range("l1", (-8, -6))
             query = tiledb.Query(array)
             query.set_subarray(input_subarray)
-            query.submit()
+            query._submit()
             output_subarray = query.subarray()
             assert output_subarray.num_dim_ranges(0) == 2
