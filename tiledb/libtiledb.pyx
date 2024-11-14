@@ -6,7 +6,6 @@ from cpython.pycapsule cimport PyCapsule_GetPointer
 from cpython.version cimport PY_MAJOR_VERSION
 
 include "common.pxi"
-include "indexing.pyx"
 
 from .cc import TileDBError
 from .ctx import Config, Ctx, default_ctx
