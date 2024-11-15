@@ -227,3 +227,60 @@ def test_schema_evolution_extend_check_bad_type():
     with pytest.raises(tiledb.TileDBError):
         enmr.extend([1, 2, 3])
     enmr.extend([True, False])
+
+
+@pytest.mark.skipif(
+    tiledb.libtiledb.version() < (2, 27),
+    reason="Dropping a fixed-sized attribute and adding it back"
+    "as a var-sized attribute is not supported in TileDB < 2.27",
+)
+def test_schema_evolution_drop_fixed_attribute_and_add_back_as_var_sized(tmp_path):
+    ctx = tiledb.default_ctx()
+    uri = str(tmp_path)
+    attrs = [
+        tiledb.Attr(name="a", dtype=np.int32),
+        tiledb.Attr(name="b", dtype=np.int32),
+    ]
+    dims = [tiledb.Dim(domain=(1, 10), dtype=np.int32)]
+    domain = tiledb.Domain(*dims)
+    schema = tiledb.ArraySchema(domain=domain, attrs=attrs, sparse=False)
+    tiledb.Array.create(uri, schema)
+
+    original_data = np.arange(1, 11)
+    with tiledb.open(uri, "w") as A:
+        A[:] = {"a": original_data, "b": original_data}
+
+    se = tiledb.ArraySchemaEvolution(ctx)
+    se.drop_attribute("a")
+    se.array_evolve(uri)
+
+    # check schema after dropping attribute
+    with tiledb.open(uri) as A:
+        assert not A.schema.has_attr("a")
+        assert A.schema.attr("b").dtype == np.int32
+
+    se = tiledb.ArraySchemaEvolution(ctx)
+    newattr = tiledb.Attr("a", dtype="S", var=True)
+    se.add_attribute(newattr)
+    se.array_evolve(uri)
+
+    # check schema and data after adding attribute back as a var-sized attribute
+    with tiledb.open(uri) as A:
+        assert A.schema.has_attr("a")
+        assert A.schema.attr("a").dtype == "S"
+        assert A.schema.attr("b").dtype == np.int32
+        # check that each value == b'\x80' (empty byte)
+        assert_array_equal(A[:]["a"], np.array([b"\x80" for _ in range(10)]))
+
+    # add new data to the array
+    new_data = np.array(
+        ["tiledb-string-n.{}".format(i) for i in range(1, 11)], dtype="S"
+    )
+    with tiledb.open(uri, "w") as A:
+        A[:] = {"a": new_data, "b": original_data}
+
+    # check data for both attributes
+    with tiledb.open(uri) as A:
+        res = A[:]
+        assert_array_equal(res["a"], new_data)
+        assert_array_equal(res["b"], original_data)
