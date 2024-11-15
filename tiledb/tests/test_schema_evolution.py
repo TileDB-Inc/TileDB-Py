@@ -264,11 +264,13 @@ def test_schema_evolution_drop_fixed_attribute_and_add_back_as_var_sized(tmp_pat
     se.add_attribute(newattr)
     se.array_evolve(uri)
 
-    # check schema after adding attribute back as a var-sized attribute
+    # check schema and data after adding attribute back as a var-sized attribute
     with tiledb.open(uri) as A:
         assert A.schema.has_attr("a")
         assert A.schema.attr("a").dtype == "S"
         assert A.schema.attr("b").dtype == np.int32
+        # check that each value == b'\x80' (empty byte)
+        assert_array_equal(A[:]["a"], np.array([b"\x80" for _ in range(10)]))
 
     # add new data to the array
     new_data = np.array(
