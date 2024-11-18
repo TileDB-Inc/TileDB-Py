@@ -25,7 +25,7 @@ class VFS(lt.VFS):
     """
 
     def __init__(self, config: Union[Config, dict] = None, ctx: Optional[Ctx] = None):
-        ctx = ctx or default_ctx()
+        self.ctx = ctx or default_ctx()
 
         if config:
             from .libtiledb import Config
@@ -39,12 +39,12 @@ class VFS(lt.VFS):
                     raise ValueError("`config` argument must be of type Config or dict")
 
             # Convert all values to strings
-            config = {k: str(v) for k, v in config.items()}
+            self.config_dict = {k: str(v) for k, v in config.items()}
 
-            ccfg = tiledb.Config(config)
-            super().__init__(ctx, ccfg)
+            ccfg = tiledb.Config(self.config_dict)
+            super().__init__(self.ctx, ccfg)
         else:
-            super().__init__(ctx)
+            super().__init__(self.ctx)
 
     def ctx(self) -> Ctx:
         """
@@ -328,6 +328,21 @@ class VFS(lt.VFS):
     isdir = is_dir
     isfile = is_file
     size = file_size
+
+    # pickling support
+    def __getstate__(self):
+        # self.config_dict might not exist. In that case use the config from ctx.
+        if hasattr(self, "config_dict"):
+            config_dict = self.config_dict
+        else:
+            config_dict = self.ctx.config().dict()
+        return (config_dict,)
+
+    def __setstate__(self, state):
+        config_dict = state[0]
+        config = Config(params=config_dict)
+        ctx = Ctx(config)
+        self.__init__(config=config, ctx=ctx)
 
 
 class FileIO(io.RawIOBase):
