@@ -76,7 +76,7 @@ sdist.include = ["tiledb/_generated_version.py"]
 TILEDB_PATH = {env="TILEDB_PATH"}
 TILEDB_VERSION = {env="TILEDB_VERSION"}
 TILEDB_HASH = {env="TILEDB_HASH"}
-TILEDB_REMOVE_DEPRECATIONS = "ON"
+TILEDB_REMOVE_DEPRECATIONS = "OFF"
 TILEDB_SERIALIZATION = "OFF"
 
 [tool.pytest.ini_options]
