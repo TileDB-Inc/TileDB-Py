@@ -18,9 +18,6 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
         """
         super().__init__(ctx)
 
-    def _set_domain(self, domain: Domain):
-        self._domain = domain
-
     @property
     def type(self):
         """The type of the current domain.
@@ -35,7 +32,7 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
 
         :rtype: bool
         """
-        return self._is_empty()
+        return self._is_empty
 
     def set_ndrectangle(self, ndrect: NDRectangle):
         """Sets an N-dimensional rectangle representation on a current domain.
@@ -44,7 +41,6 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
         :raises tiledb.TileDBError:
         """
         self._set_ndrectangle(ndrect)
-        self._domain = ndrect._get_domain()
 
     @property
     def ndrectangle(self):
@@ -53,6 +49,4 @@ class CurrentDomain(CtxMixin, lt.CurrentDomain):
         :rtype: NDRectangle
         :raises tiledb.TileDBError:
         """
-        ndrect = NDRectangle.from_pybind11(self._ctx, self._ndrectangle())
-        ndrect._set_domain(self._domain)
-        return ndrect
+        return NDRectangle.from_pybind11(self._ctx, self._ndrectangle())
