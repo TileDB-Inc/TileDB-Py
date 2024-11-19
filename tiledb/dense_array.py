@@ -1,4 +1,3 @@
-import warnings
 from collections import OrderedDict
 
 import numpy as np
@@ -14,6 +13,7 @@ from .array import (
     replace_ellipsis,
     replace_scalars_slice,
 )
+from .datatypes import DataType
 from .query import Query
 from .subarray import Subarray
 
@@ -622,9 +622,6 @@ class DenseArrayImpl(Array):
         if not array.flags.c_contiguous and not array.flags.f_contiguous:
             raise ValueError("array is not contiguous")
 
-        attr = self.schema.attr(0)
-        battr_name = attr._internal_name.encode("UTF-8")
-
         try:
             use_global_order = (
                 self.ctx.config().get("py.use_global_order_1d_write") == "true"
@@ -679,7 +676,7 @@ class DenseArrayImpl(Array):
                             f"the TileDB array has {ned[n][1]-ned[n][0]}."
                         )
 
-        ctx = lt.Context()
+        ctx = lt.Context(self.ctx)
         q = lt.Query(ctx, self.array, lt.QueryType.WRITE)
         q.layout = layout
 
@@ -690,7 +687,16 @@ class DenseArrayImpl(Array):
             )
         q.set_subarray(subarray)
 
-        q.set_data_buffer(battr_name, array)
+        attr = self.schema.attr(0)
+        battr_name = attr._internal_name.encode("UTF-8")
+
+        tiledb_type = DataType.from_numpy(array.dtype)
+
+        if tiledb_type in (lt.DataType.BLOB, lt.DataType.CHAR, lt.DataType.STRING_UTF8):
+            q.set_data_buffer(battr_name, array, array.nbytes)
+        else:
+            q.set_data_buffer(battr_name, array, tiledb_type.ncells * array.size)
+
         q._submit()
         q.finalize()
 
