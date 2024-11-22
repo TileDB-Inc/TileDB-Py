@@ -35,6 +35,7 @@ classifiers=[
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
   "numpy>=1.25",
@@ -75,7 +76,7 @@ sdist.include = ["tiledb/_generated_version.py"]
 TILEDB_PATH = {env="TILEDB_PATH"}
 TILEDB_VERSION = {env="TILEDB_VERSION"}
 TILEDB_HASH = {env="TILEDB_HASH"}
-TILEDB_REMOVE_DEPRECATIONS = "ON"
+TILEDB_REMOVE_DEPRECATIONS = "OFF"
 TILEDB_SERIALIZATION = "OFF"
 
 [tool.pytest.ini_options]

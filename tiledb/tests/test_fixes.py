@@ -1,5 +1,6 @@
 import concurrent
 import concurrent.futures
+import json
 import os
 import subprocess
 import sys
@@ -161,11 +162,71 @@ class FixesTest(DiskTestCase):
         with tiledb.open(uri) as A:
             tiledb.stats_enable()
             A[:]
-            assert (
-                """"Context.StorageManager.Query.Reader.loop_num": 1"""
-                in tiledb.stats_dump(print_out=False)
-            )
+
+            stats_dump_str = tiledb.stats_dump(print_out=False)
+            if tiledb.libtiledb.version() >= (2, 27):
+                assert """"Context.Query.Reader.loop_num": 1""" in stats_dump_str
+            else:
+                assert (
+                    """"Context.StorageManager.Query.Reader.loop_num": 1"""
+                    in stats_dump_str
+                )
             tiledb.stats_disable()
+
+    def test_sc58286_fix_stats_dump_return_value_broken(self):
+        uri = self.path("test_sc58286_fix_stats_dump_return_value_broken")
+        dim1 = tiledb.Dim(name="d1", dtype="int64", domain=(1, 3))
+        att = tiledb.Attr(name="a1", dtype="<U0", var=True)
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(dim1),
+            attrs=(att,),
+            sparse=False,
+            allows_duplicates=False,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as A:
+            A[:] = np.array(["aaa", "bb", "c"])
+
+        with tiledb.open(uri) as A:
+            tiledb.stats_enable()
+            A[:]
+
+            # check that the stats cannot be parsed as json
+            stats = tiledb.stats_dump(print_out=False, json=False)
+            assert isinstance(stats, str)
+            with pytest.raises(json.decoder.JSONDecodeError):
+                json.loads(stats)
+
+            stats = tiledb.stats_dump(print_out=False, json=False, include_python=True)
+            assert isinstance(stats, str)
+            with pytest.raises(json.decoder.JSONDecodeError):
+                json.loads(stats)
+
+            # check that the stats can be parsed as json
+            stats = tiledb.stats_dump(print_out=False, json=True)
+            assert isinstance(stats, str)
+            json.loads(stats)
+
+            stats = tiledb.stats_dump(print_out=False, json=True, include_python=True)
+            assert isinstance(stats, str)
+            res = json.loads(stats)
+
+            tiledb.stats_disable()
+
+            # check that some fields are present in the json output and are of the correct type
+            assert "counters" in res and isinstance(res["counters"], dict)
+            assert "timers" in res and isinstance(res["timers"], dict)
+            assert "python" in res and isinstance(res["python"], dict)
+
+    def test_fix_stats_error_messages(self):
+        # Test that stats_dump prints a user-friendly error message when stats are not enabled
+        with pytest.raises(tiledb.TileDBError) as exc:
+            tiledb.stats_dump()
+        assert "Statistics are not enabled. Call tiledb.stats_enable() first." in str(
+            exc.value
+        )
 
     @pytest.mark.skipif(
         not has_pandas() and has_pyarrow(),
@@ -196,7 +257,7 @@ class FixesTest(DiskTestCase):
     def test_sc23827_aws_region(self):
         # Test for SC-23287
         # The expected behavior here for `vfs.s3.region` is:
-        # - default to 'us-east-1' if no environment variables are set
+        # - default to '' if no environment variables are set
         # - empty if AWS_REGION or AWS_DEFAULT_REGION is set (to any value)
 
         def get_config_with_env(env, key):
@@ -209,7 +270,10 @@ class FixesTest(DiskTestCase):
             )
             return sp_output.decode("UTF-8").strip()
 
-        assert get_config_with_env({}, "vfs.s3.region") == "us-east-1"
+        if tiledb.libtiledb.version() >= (2, 27, 0):
+            assert get_config_with_env({}, "vfs.s3.region") == ""
+        else:
+            assert get_config_with_env({}, "vfs.s3.region") == "us-east-1"
         assert get_config_with_env({"AWS_DEFAULT_REGION": ""}, "vfs.s3.region") == ""
         assert get_config_with_env({"AWS_REGION": ""}, "vfs.s3.region") == ""
 

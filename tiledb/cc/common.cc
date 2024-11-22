@@ -192,18 +192,20 @@ bool is_tdb_str(tiledb_datatype_t type) {
 }
 
 py::size_t get_ncells(py::dtype type) {
-  if (type.is(py::dtype("S")))
-    return type.itemsize() == 0 ? TILEDB_VAR_NUM : type.itemsize();
-
-  if (type.is(py::dtype("U"))) {
-    auto np_unicode_size = py::dtype("U").itemsize();
-    return type.itemsize() == 0 ? TILEDB_VAR_NUM
-                                : type.itemsize() / np_unicode_size;
-  }
-
   auto np = py::module::import("numpy");
   auto np_issubdtype = np.attr("issubdtype");
   auto np_complexfloating = np.attr("complexfloating");
+  auto np_character = np.attr("character");
+
+  py::bool_ ischaracter = np_issubdtype(type, np_character);
+  if (ischaracter) {
+    py::dtype base_dtype =
+        np.attr("dtype")(py::make_tuple(type.attr("kind"), 1));
+    if (type.itemsize() == 0)
+      return TILEDB_VAR_NUM;
+    return type.itemsize() / base_dtype.itemsize();
+  }
+
   py::bool_ iscomplexfloating = np_issubdtype(type, np_complexfloating);
   if (iscomplexfloating)
     return 2;

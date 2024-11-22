@@ -1,6 +1,8 @@
 from json import dumps as json_dumps
 from json import loads as json_loads
 
+from tiledb import TileDBError
+
 
 def stats_enable():
     """Enable TileDB internal statistics."""
@@ -34,9 +36,12 @@ def stats_dump(
     :param json: Return stats JSON object (default: False)
     :param verbose: Print extended internal statistics (default: True)
     """
-    from .main import stats_dump_str, stats_raw_dump_str
+    from .main import stats_dump_str, stats_enabled, stats_raw_dump_str
 
-    stats_str = None
+    if not stats_enabled():
+        raise TileDBError(
+            "Statistics are not enabled. Call tiledb.stats_enable() first."
+        )
 
     if json or not verbose:
         stats_str = stats_raw_dump_str()
@@ -50,9 +55,9 @@ def stats_dump(
         if include_python:
             from .main import python_internal_stats
 
-            stats_json_core["python"] = json_dumps(python_internal_stats(True))
+            stats_json_core["python"] = python_internal_stats(True)
         if json:
-            return stats_json_core
+            return json_dumps(stats_json_core)
 
     stats_str = ""
 

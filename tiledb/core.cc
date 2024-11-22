@@ -1594,6 +1594,8 @@ void init_stats() {
 
 void disable_stats() { g_stats.reset(nullptr); }
 
+bool stats_enabled() { return (bool)g_stats; }
+
 void increment_stat(std::string key, double value) {
   auto &stats_counters = g_stats.get()->counters;
 
@@ -1759,6 +1761,7 @@ void init_core(py::module &m) {
     Stats::disable();
     disable_stats();
   });
+  m.def("stats_enabled", &stats_enabled);
   m.def("reset_stats", []() {
     Stats::reset();
     init_stats();

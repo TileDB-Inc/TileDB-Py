@@ -19,7 +19,6 @@ class NDRectangle(CtxMixin, lt.NDRectangle):
         :raises tiledb.TileDBError:
         """
         super().__init__(ctx, domain)
-        self._set_domain(domain)
 
     def __str__(self) -> str:
         dimensions_str = ", ".join(
@@ -27,12 +26,6 @@ class NDRectangle(CtxMixin, lt.NDRectangle):
             for i in range(self._domain.ndim)
         )
         return f"NDRectangle({dimensions_str})"
-
-    def _set_domain(self, domain: Domain):
-        self._domain = domain
-
-    def _get_domain(self) -> Domain:
-        return self._domain
 
     def set_range(
         self,
@@ -58,4 +51,4 @@ class NDRectangle(CtxMixin, lt.NDRectangle):
         :return: Range as a tuple (start, end)
         :raises tiledb.TileDBError:
         """
-        return self._range(dim, self._domain.dim(dim).dtype)
+        return self._range(dim)
