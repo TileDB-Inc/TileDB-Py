@@ -39,12 +39,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        if: matrix.buildplat[1] == manylinux_aarch64
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
-
       - name: "Brew setup on macOS" # x-ref c8e49ba8f8b9ce
         if: ${{ startsWith(matrix.buildplat[0], 'macos-') == true }}
         run: |
