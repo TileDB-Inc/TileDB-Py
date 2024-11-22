@@ -92,7 +92,11 @@ function(detect_artifact_name OUT_VAR)
                         SET(${OUT_VAR} TILEDB_MACOS-ARM64 PARENT_SCOPE)
                 endif()
         else() # Linux
-                SET(${OUT_VAR} TILEDB_LINUX-X86_64 PARENT_SCOPE)
+                if(CMAKE_SYSTEM_PROCESSOR MATCHES "^arm")
+                        SET(${OUT_VAR} TILEDB_LINUX-ARM64 PARENT_SCOPE)
+                else()
+                        SET(${OUT_VAR} TILEDB_LINUX-X86_64 PARENT_SCOPE)
+                endif()
         endif()
 endfunction()
 
