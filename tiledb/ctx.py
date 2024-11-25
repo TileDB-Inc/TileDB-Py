@@ -293,6 +293,20 @@ class Config(lt.Config):
         """
         self.save_to_file(uri)
 
+    def __reduce__(self):
+        """
+        Customize the pickling process by defining how to serialize
+        and reconstruct the Config object.
+        """
+        state = self.dict()
+        return (self.__class__, (), state)
+
+    def __setstate__(self, state):
+        """
+        Customize how the Config object is restored from its serialized state.
+        """
+        self.__init__(state)
+
 
 class ConfigKeys:
     """
