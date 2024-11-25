@@ -335,7 +335,7 @@ class VFS(lt.VFS):
         if hasattr(self, "config_dict"):
             config_dict = self.config_dict
         else:
-            config_dict = self.ctx.config().dict()
+            config_dict = self.config().dict()
         return (config_dict,)
 
     def __setstate__(self, state):
