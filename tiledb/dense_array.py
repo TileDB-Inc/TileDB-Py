@@ -1,4 +1,3 @@
-import warnings
 from collections import OrderedDict
 
 import numpy as np
@@ -14,6 +13,7 @@ from .array import (
     replace_ellipsis,
     replace_scalars_slice,
 )
+from .datatypes import DataType
 from .query import Query
 from .subarray import Subarray
 
@@ -601,9 +601,101 @@ class DenseArrayImpl(Array):
         return array
 
     def write_direct(self, array: np.ndarray, **kw):
-        from .libtiledb import write_direct_dense
+        """
+        Write directly to given array attribute with minimal checks,
+        assumes that the numpy array is the same shape as the array's domain
 
-        write_direct_dense(self, array, **kw)
+        :param np.ndarray array: Numpy contiguous dense array of the same dtype \
+            and shape and layout of the DenseArray instance
+        :raises ValueError: cannot write to multi-attribute DenseArray
+        :raises ValueError: array is not contiguous
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        append_dim = kw.pop("append_dim", None)
+        mode = kw.pop("mode", "ingest")
+        start_idx = kw.pop("start_idx", None)
+
+        if not self.isopen or self.mode != "w":
+            raise tiledb.TileDBError("DenseArray is not opened for writing")
+        if self.schema.nattr != 1:
+            raise ValueError("cannot write_direct to a multi-attribute DenseArray")
+        if not array.flags.c_contiguous and not array.flags.f_contiguous:
+            raise ValueError("array is not contiguous")
+
+        use_global_order = (
+            self.ctx.config().get("py.use_global_order_1d_write", False) == "true"
+        )
+
+        layout = lt.LayoutType.ROW_MAJOR
+        if array.ndim == 1 and use_global_order:
+            layout = lt.LayoutType.GLOBAL_ORDER
+        elif array.flags.f_contiguous:
+            layout = lt.LayoutType.COL_MAJOR
+
+        range_start_idx = start_idx or 0
+
+        subarray_ranges = np.zeros(2 * array.ndim, np.uint64)
+        for n in range(array.ndim):
+            subarray_ranges[n * 2] = range_start_idx
+            subarray_ranges[n * 2 + 1] = array.shape[n] + range_start_idx - 1
+
+        if mode == "append":
+            with Array.load_typed(self.uri) as A:
+                ned = A.nonempty_domain()
+
+            if array.ndim <= append_dim:
+                raise IndexError("`append_dim` out of range")
+
+            if array.ndim != len(ned):
+                raise ValueError(
+                    "The number of dimension of the TileDB array and "
+                    "Numpy array to append do not match"
+                )
+
+            for n in range(array.ndim):
+                if n == append_dim:
+                    if start_idx is not None:
+                        range_start_idx = start_idx
+                        range_end_idx = array.shape[n] + start_idx - 1
+                    else:
+                        range_start_idx = ned[n][1] + 1
+                        range_end_idx = array.shape[n] + ned[n][1]
+
+                    subarray_ranges[n * 2] = range_start_idx
+                    subarray_ranges[n * 2 + 1] = range_end_idx
+                else:
+                    if array.shape[n] != ned[n][1] - ned[n][0] + 1:
+                        raise ValueError(
+                            "The input Numpy array must be of the same "
+                            "shape as the TileDB array, exluding the "
+                            "`append_dim`, but the Numpy array at index "
+                            f"{n} has {array.shape[n]} dimension(s) and "
+                            f"the TileDB array has {ned[n][1]-ned[n][0]}."
+                        )
+
+        ctx = lt.Context(self.ctx)
+        q = lt.Query(ctx, self.array, lt.QueryType.WRITE)
+        q.layout = layout
+
+        subarray = lt.Subarray(ctx, self.array)
+        for n in range(array.ndim):
+            subarray._add_dim_range(
+                n, (subarray_ranges[n * 2], subarray_ranges[n * 2 + 1])
+            )
+        q.set_subarray(subarray)
+
+        attr = self.schema.attr(0)
+        battr_name = attr._internal_name.encode("UTF-8")
+
+        tiledb_type = DataType.from_numpy(array.dtype)
+
+        if tiledb_type in (lt.DataType.BLOB, lt.DataType.CHAR, lt.DataType.STRING_UTF8):
+            q.set_data_buffer(battr_name, array, array.nbytes)
+        else:
+            q.set_data_buffer(battr_name, array, tiledb_type.ncells * array.size)
+
+        q._submit()
+        q.finalize()
 
     def read_direct(self, name=None):
         """Read attribute directly with minimal overhead, returns a numpy ndarray over the entire domain

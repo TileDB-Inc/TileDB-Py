@@ -340,8 +340,8 @@ def test_write_sparse():
         q.layout = lt.LayoutType.UNORDERED
         assert q.query_type == lt.QueryType.WRITE
 
-        q.set_data_buffer("a", data)
-        q.set_data_buffer("x", coords)
+        q.set_data_buffer("a", data, len(data))
+        q.set_data_buffer("x", coords, len(coords))
 
         assert q._submit() == lt.QueryStatus.COMPLETE
 
@@ -358,8 +358,8 @@ def test_write_sparse():
         rcoords = np.zeros(10).astype(np.int32)
         rdata = np.zeros(10).astype(np.int32)
 
-        q.set_data_buffer("a", rdata)
-        q.set_data_buffer("x", rcoords)
+        q.set_data_buffer("a", rdata, len(rdata))
+        q.set_data_buffer("x", rcoords, len(rcoords))
 
         assert q._submit() == lt.QueryStatus.COMPLETE
         assert np.all(rcoords == coords)
@@ -404,8 +404,8 @@ def test_write_dense():
 
         q.set_subarray(subarray)
 
-        q.set_data_buffer("a", data)
-        # q.set_data_buffer("x", coords)
+        q.set_data_buffer("a", data, len(data))
+        # q.set_data_buffer("x", coords, len(coords))
 
         assert q._submit() == lt.QueryStatus.COMPLETE
 
@@ -426,7 +426,7 @@ def test_write_dense():
 
         rdata = np.zeros(10).astype(np.float32)
 
-        q.set_data_buffer("a", rdata)
+        q.set_data_buffer("a", rdata, len(rdata))
 
         assert q._submit() == lt.QueryStatus.COMPLETE
         assert np.all(rdata == data)

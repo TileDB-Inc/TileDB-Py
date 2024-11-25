@@ -71,17 +71,13 @@ void init_query(py::module &m) {
       //     uint64_t))&Query::set_data_buffer);
 
       .def("set_data_buffer",
-           [](Query &q, std::string name, py::array a) {
-             // TODO check_type(a.dtype)
-             //  size_t item_size = a.itemsize();
-             q.set_data_buffer(name, const_cast<void *>(a.data()), a.size());
+           [](Query &q, std::string name, py::array a, uint32_t buff_size) {
+             q.set_data_buffer(name, const_cast<void *>(a.data()), buff_size);
            })
 
       .def("set_offsets_buffer",
-           [](Query &q, std::string name, py::array a) {
-             // TODO check_type(a.dtype)
-             //  size_t item_size = a.itemsize();
-             q.set_offsets_buffer(name, (uint64_t *)(a.data()), a.size());
+           [](Query &q, std::string name, py::array a, uint32_t buff_size) {
+             q.set_offsets_buffer(name, (uint64_t *)(a.data()), buff_size);
            })
 
       .def("set_subarray",
@@ -90,10 +86,8 @@ void init_query(py::module &m) {
            })
 
       .def("set_validity_buffer",
-           [](Query &q, std::string name, py::array a) {
-             // TODO check_type(a.dtype)
-             //  size_t item_size = a.itemsize();
-             q.set_validity_buffer(name, (uint8_t *)(a.data()), a.size());
+           [](Query &q, std::string name, py::array a, uint32_t buff_size) {
+             q.set_validity_buffer(name, (uint8_t *)(a.data()), buff_size);
            })
 
       .def("_submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
