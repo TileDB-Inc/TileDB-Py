@@ -622,12 +622,9 @@ class DenseArrayImpl(Array):
         if not array.flags.c_contiguous and not array.flags.f_contiguous:
             raise ValueError("array is not contiguous")
 
-        try:
-            use_global_order = (
-                self.ctx.config().get("py.use_global_order_1d_write") == "true"
-            )
-        except KeyError:
-            use_global_order = False
+        use_global_order = (
+            self.ctx.config().get("py.use_global_order_1d_write", "false") == "true"
+        )
 
         layout = lt.LayoutType.ROW_MAJOR
         if array.ndim == 1 and use_global_order:
