@@ -623,7 +623,7 @@ class DenseArrayImpl(Array):
             raise ValueError("array is not contiguous")
 
         use_global_order = (
-            self.ctx.config().get("py.use_global_order_1d_write", "false") == "true"
+            self.ctx.config().get("py.use_global_order_1d_write", False) == "true"
         )
 
         layout = lt.LayoutType.ROW_MAJOR
