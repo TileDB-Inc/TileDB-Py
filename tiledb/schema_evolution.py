@@ -52,7 +52,7 @@ class ArraySchemaEvolution:
 
         self.ase.extend_enumeration(enmr)
 
-    if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 25:
+    if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 26:
         from .current_domain import CurrentDomain
 
         def expand_current_domain(self, current_domain: CurrentDomain):
