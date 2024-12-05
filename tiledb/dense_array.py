@@ -575,11 +575,7 @@ class DenseArrayImpl(Array):
                         f"validity bitmap, got {type(val)}"
                     )
 
-        from .libtiledb import _write_array_wrapper
-
-        _write_array_wrapper(
-            self, subarray, [], attributes, values, labels, nullmaps, False
-        )
+        self._write_array(subarray, [], attributes, values, labels, nullmaps, False)
 
     def __array__(self, dtype=None, **kw):
         """Implementation of numpy __array__ protocol (internal).
