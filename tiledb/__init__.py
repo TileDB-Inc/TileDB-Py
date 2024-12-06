@@ -19,6 +19,14 @@ if os.name == "posix":
 else:
     lib_name = "tiledb"
 
+import numpy as np
+
+# TODO: get rid of this - It is currently used for unified numpy printing accross numpy versions
+np.set_printoptions(
+    legacy="1.21" if np.lib.NumpyVersion(np.__version__) >= "1.22.0" else False
+)
+del np
+
 from tiledb.cc import version as libtiledb_version
 
 if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 26:
