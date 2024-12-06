@@ -8,7 +8,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 import tiledb
-from tiledb.libtiledb import version as libtiledb_version
+from tiledb.cc import version as libtiledb_version
 
 from .datatypes import DataType
 

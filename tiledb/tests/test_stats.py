@@ -34,14 +34,14 @@ class StatsTest(DiskTestCase):
 
             # test string version
             stats_v = tiledb.stats_dump(print_out=False)
-            if tiledb.libtiledb.version() < (2, 3):
+            if tiledb.cc.version() < (2, 3):
                 self.assertTrue("==== READ ====" in stats_v)
             else:
                 self.assertTrue('"timers": {' in stats_v)
             self.assertTrue("==== Python Stats ====" in stats_v)
 
             stats_quiet = tiledb.stats_dump(print_out=False, verbose=False)
-            if tiledb.libtiledb.version() < (2, 3):
+            if tiledb.cc.version() < (2, 3):
                 self.assertTrue("Time to load array schema" not in stats_quiet)
 
                 # TODO seems to be a regression, no JSON

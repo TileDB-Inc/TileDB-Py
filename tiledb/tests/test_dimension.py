@@ -59,7 +59,7 @@ class DimensionTest(unittest.TestCase):
         self.assertEqual(dim.shape, (3653,))
 
         # No tile extent specified: this is not an error in 2.2
-        if tiledb.libtiledb.version() < (2, 2):
+        if tiledb.cc.version() < (2, 2):
             with self.assertRaises(tiledb.TileDBError):
                 tiledb.Dim(
                     name="d1",

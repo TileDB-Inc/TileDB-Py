@@ -15,7 +15,7 @@ from .common import DiskTestCase
 class FragmentInfoTest(DiskTestCase):
     def setUp(self):
         super().setUp()
-        if not tiledb.libtiledb.version() >= (2, 2):
+        if not tiledb.cc.version() >= (2, 2):
             pytest.skip("Only run FragmentInfo test with TileDB>=2.2")
 
     def test_uri_dne(self):
@@ -428,10 +428,10 @@ class FragmentInfoTest(DiskTestCase):
         assert len(fragment_info.get_to_vacuum()) == 0
 
     @pytest.mark.skipif(
-        tiledb.libtiledb.version() < (2, 5, 0),
+        tiledb.cc.version() < (2, 5, 0),
         reason=(
             "MBRs in FragmentInfo only available in "
-            "tiledb.libtiledb.version() < (2, 5, 0)"
+            "tiledb.cc.version() < (2, 5, 0)"
         ),
     )
     @pytest.mark.parametrize("use_timestamps", [True, False])
@@ -476,10 +476,10 @@ class FragmentInfoTest(DiskTestCase):
         assert array_fragments[2].mbrs == expected_mbrs[2]
 
     @pytest.mark.skipif(
-        tiledb.libtiledb.version() < (2, 5, 0),
+        tiledb.cc.version() < (2, 5, 0),
         reason=(
             "MBRs in FragmentInfo only available in "
-            "tiledb.libtiledb.version() < (2, 5, 0)"
+            "tiledb.cc.version() < (2, 5, 0)"
         ),
     )
     @pytest.mark.parametrize("use_timestamps", [True, False])

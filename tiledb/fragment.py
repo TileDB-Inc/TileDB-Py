@@ -3,7 +3,7 @@ import pprint
 import warnings
 
 import tiledb
-from tiledb.libtiledb import version as libtiledb_version
+from tiledb.cc import version as libtiledb_version
 
 from .main import PyFragmentInfo
 

@@ -31,20 +31,6 @@ cdef tiledb_ctx_t* safe_ctx_ptr(object ctx):
         raise TileDBError("internal error: invalid Ctx object")
     return <tiledb_ctx_t*>PyCapsule_GetPointer(ctx.__capsule__(), "ctx")
 
-def version():
-    """Return the version of the linked ``libtiledb`` shared library
-
-    :rtype: tuple
-    :return: Semver version (major, minor, rev)
-
-    """
-    cdef:
-        int major = 0
-        int minor = 0
-        int rev = 0
-    tiledb_version(&major, &minor, &rev)
-    return major, minor, rev
-
 cdef _raise_tiledb_error(tiledb_error_t* err_ptr):
     cdef const char* err_msg_ptr = NULL
     ret = tiledb_error_message(err_ptr, &err_msg_ptr)

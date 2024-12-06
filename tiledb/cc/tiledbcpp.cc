@@ -56,6 +56,14 @@ PYBIND11_MODULE(cc, m) {
   init_subarray(m);
   init_vfs(m);
 
+  m.def("version", []() {
+    int major = 0;
+    int minor = 0;
+    int rev = 0;
+    tiledb_version(&major, &minor, &rev);
+    return std::make_tuple(major, minor, rev);
+  });
+
   py::register_exception<TileDBError>(m, "TileDBError");
 
   /*

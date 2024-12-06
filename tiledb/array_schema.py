@@ -6,7 +6,7 @@ from typing import Sequence, Tuple, Union
 import numpy as np
 
 import tiledb.cc as lt
-from tiledb.libtiledb import version as libtiledb_version
+from tiledb.cc import version as libtiledb_version
 
 from .attribute import Attr
 from .ctx import Ctx, CtxMixin, default_ctx

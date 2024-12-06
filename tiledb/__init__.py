@@ -19,7 +19,7 @@ if os.name == "posix":
 else:
     lib_name = "tiledb"
 
-from tiledb.libtiledb import version as libtiledb_version
+from tiledb.cc import version as libtiledb_version
 
 if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 26:
     from .current_domain import CurrentDomain

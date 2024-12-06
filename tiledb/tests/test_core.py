@@ -67,7 +67,7 @@ class CoreCCTest(DiskTestCase):
         uri = self.path("test_import_buffer")
 
         def_tile = 1
-        if tiledb.libtiledb.version() < (2, 2):
+        if tiledb.cc.version() < (2, 2):
             def_tile = 2
 
         dom = tiledb.Domain(

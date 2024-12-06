@@ -9,7 +9,7 @@
 # testing (e.g. using the official python docker images)
 # - $ docker run -v `pwd`/misc/pypi_linux/wheels:/wheels --rm -ti python bash
 # -- pip3 install /wheels/*cp37*.whl
-# -- python3.7 -c "import tiledb; print(tiledb.libtiledb.version()) and assert tiledb.VFS().supports('s3')"
+# -- python3.7 -c "import tiledb; print(tiledb.cc.version()) and assert tiledb.VFS().supports('s3')"
 set -ex
 
 export TILEDB_PY_REPO="/opt/TileDB-Py"
