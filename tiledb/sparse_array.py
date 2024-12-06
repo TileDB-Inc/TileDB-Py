@@ -84,11 +84,8 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
         index_domain_coords(self.schema.domain, idx, not set_dims_only)
     )
 
-    from .libtiledb import _write_array_wrapper
-
     if set_dims_only:
-        _write_array_wrapper(
-            self,
+        self._write_array(
             None,
             sparse_coords,
             sparse_attributes,
@@ -191,8 +188,7 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
             "Sparse write input data count does not match number of attributes"
         )
 
-    _write_array_wrapper(
-        self,
+    self._write_array(
         None,
         sparse_coords,
         sparse_attributes,
