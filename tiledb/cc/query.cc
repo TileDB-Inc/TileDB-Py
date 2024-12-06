@@ -74,13 +74,14 @@ void init_query(py::module &m) {
 
       .def("set_data_buffer",
            [](Query &q, std::string name, py::array a, uint64_t nelements) {
-             QueryExperimental::set_data_buffer(
-                 q, name, const_cast<void *>(a.data()), nelements);
+             QueryExperimental::set_data_buffer(q, name, a.mutable_data(),
+                                                nelements);
            })
 
       .def("set_offsets_buffer",
            [](Query &q, std::string name, py::array a, uint64_t nelements) {
-             q.set_offsets_buffer(name, (uint64_t *)(a.data()), nelements);
+             q.set_offsets_buffer(
+                 name, static_cast<uint64_t *>(a.mutable_data()), nelements);
            })
 
       .def("set_subarray",
@@ -90,7 +91,8 @@ void init_query(py::module &m) {
 
       .def("set_validity_buffer",
            [](Query &q, std::string name, py::array a, uint64_t nelements) {
-             q.set_validity_buffer(name, (uint8_t *)(a.data()), nelements);
+             q.set_validity_buffer(
+                 name, static_cast<uint8_t *>(a.mutable_data()), nelements);
            })
 
       .def("_submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
