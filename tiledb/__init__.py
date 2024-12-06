@@ -96,7 +96,7 @@ from .highlevel import (
     vacuum,
     walk,
 )
-from .libtiledb import Ctx
+from .ctx import Ctx
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet
