@@ -2,15 +2,6 @@ import ctypes
 import os
 import sys
 
-# un-comment this section to fix Cython backtrace line-numbers in
-# IPython/Jupyter. see https://bugs.python.org/issue32797#msg323167
-# ---
-# try:
-#    from importlib.machinery import ExtensionFileLoader
-# else:
-#    del ExtensionFileLoader.get_source
-# ---
-
 if os.name == "posix":
     if sys.platform == "darwin":
         lib_name = "libtiledb.dylib"

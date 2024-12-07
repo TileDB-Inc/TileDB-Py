@@ -50,7 +50,6 @@ void init_array(py::module &m) {
                                 end.value()));
            }),
            py::keep_alive<1, 2>())
-      // Temporary initializer while Array is converted from Cython to PyBind.
       .def(py::init([](const Context &ctx, py::object array) {
              tiledb_array_t *c_array = (py::capsule)array.attr("__capsule__")();
              return std::make_unique<Array>(ctx, c_array, false);
