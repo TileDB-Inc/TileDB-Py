@@ -74,7 +74,7 @@ if __name__ == "__main__":
     # Name of the array to create.
     ARRAY_NAME = "string_dimension_labels"
 
-    LIBVERSION = tiledb.cc.version()
+    LIBVERSION = tiledb.libtiledb.version()
 
     if LIBVERSION[0] == 2 and LIBVERSION[1] < 15:
         print(

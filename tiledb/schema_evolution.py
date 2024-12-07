@@ -1,7 +1,7 @@
 from typing import Optional
 
 import tiledb
-from tiledb.cc import version as libtiledb_version
+from tiledb.libtiledb import version as libtiledb_version
 
 from .enumeration import Enumeration
 from .main import ArraySchemaEvolution as ASE

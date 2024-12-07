@@ -3,7 +3,7 @@ from collections import OrderedDict
 import numpy as np
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .array import (
     Array,

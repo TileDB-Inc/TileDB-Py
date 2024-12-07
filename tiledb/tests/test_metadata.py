@@ -284,7 +284,7 @@ class MetadataTest(DiskTestCase):
             self.assertEqual(len(vfs.ls(os.path.join(path, "__meta"))), 102)
         except AssertionError:
             # this test is broken under libtiledb 2.3, see ch 7449
-            if tiledb.cc.version() >= (2, 3):
+            if tiledb.libtiledb.version() >= (2, 3):
                 warnings.warn(
                     "Suppressed assertion error with libtiledb 2.3! see ch 7449"
                 )
@@ -326,7 +326,7 @@ class MetadataTest(DiskTestCase):
             self.assertEqual(len(vfs.ls(os.path.join(path, "__meta"))), 302)
         except AssertionError:
             # this test is broken under libtiledb 2.3, see ch 7449
-            if tiledb.cc.version() >= (2, 3):
+            if tiledb.libtiledb.version() >= (2, 3):
                 warnings.warn(
                     "Suppressed assertion error with libtiledb 2.3! see ch 7449"
                 )
@@ -341,7 +341,7 @@ class MetadataTest(DiskTestCase):
             self.assertEqual(len(vfs.ls(os.path.join(path, "__meta"))), 304)
         except AssertionError:
             # this test is broken under libtiledb 2.3, see ch 7449
-            if tiledb.cc.version() >= (2, 3):
+            if tiledb.libtiledb.version() >= (2, 3):
                 warnings.warn(
                     "Suppressed assertion error with libtiledb 2.3! see ch 7449"
                 )
@@ -355,7 +355,7 @@ class MetadataTest(DiskTestCase):
             self.assertEqual(len(vfs.ls(os.path.join(path, "__meta"))), 1)
         except AssertionError:
             # this test is broken under libtiledb 2.3, see ch 7449
-            if tiledb.cc.version() >= (2, 3):
+            if tiledb.libtiledb.version() >= (2, 3):
                 warnings.warn(
                     "Suppressed assertion error with libtiledb 2.3! see ch 7449"
                 )

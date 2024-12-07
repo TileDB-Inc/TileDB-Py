@@ -1,7 +1,7 @@
 from typing import Optional
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 
 class Object(lt.Object):

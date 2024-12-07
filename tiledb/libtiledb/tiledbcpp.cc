@@ -34,7 +34,7 @@ void init_schema(py::module &);
 void init_subarray(py::module &);
 void init_vfs(py::module &m);
 
-PYBIND11_MODULE(cc, m) {
+PYBIND11_MODULE(libtiledb, m) {
 
   init_array(m);
   init_attribute(m);

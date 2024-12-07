@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from json import loads as json_loads
 from typing import Optional, Sequence, Union
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 from tiledb import TileDBError
 
 from .array import Array

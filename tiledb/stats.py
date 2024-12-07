@@ -64,7 +64,7 @@ def stats_dump(
     if version:
         import tiledb
 
-        stats_str += f"TileDB Embedded Version: {tiledb.cc.version()}\n"
+        stats_str += f"TileDB Embedded Version: {tiledb.libtiledb.version()}\n"
         stats_str += f"TileDB-Py Version: {tiledb.version.version}\n"
 
     if not verbose:
@@ -72,7 +72,7 @@ def stats_dump(
 
         import tiledb
 
-        if tiledb.cc.version() < (2, 3):
+        if tiledb.libtiledb.version() < (2, 3):
             stats_str += "- Number of read queries: {}\n".format(
                 stats_json_core["READ_NUM"]
             )
@@ -89,7 +89,7 @@ def stats_dump(
                     stats_json_core["READ"] + stats_json_core["READ_INIT_STATE"]
                 )
             )
-        elif tiledb.cc.version() < (2, 15):
+        elif tiledb.libtiledb.version() < (2, 15):
             loop_num = stats_json_core["counters"][
                 "Context.StorageManager.Query.Reader.loop_num"
             ]
@@ -118,7 +118,7 @@ def stats_dump(
 
             reads_key = (
                 "Context.StorageManager.array_open_READ.sum"
-                if tiledb.cc.version() > (2, 15)
+                if tiledb.libtiledb.version() > (2, 15)
                 else "Context.StorageManager.array_open_for_reads.sum"
             )
 

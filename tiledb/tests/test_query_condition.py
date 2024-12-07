@@ -69,7 +69,7 @@ class QueryConditionTest(DiskTestCase):
 
     def setUp(self):
         super().setUp()
-        if not tiledb.cc.version() >= (2, 2, 3):
+        if not tiledb.libtiledb.version() >= (2, 2, 3):
             pytest.skip("Only run QueryCondition test with TileDB>=2.2.3")
 
     @pytest.mark.parametrize("sparse", [True, False])
@@ -213,7 +213,7 @@ class QueryConditionTest(DiskTestCase):
             assert len(result["A"]) == 1
             assert result["A"][0] == b"a"
 
-            if tiledb.cc.version() > (2, 14):
+            if tiledb.libtiledb.version() > (2, 14):
                 for t in A.query(attrs=["UTF"])[:]["UTF"]:
                     cond = f"""UTF == '{t}'"""
                     result = A.query(cond=cond, attrs=["UTF"])[:]
@@ -234,7 +234,7 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond="A == 'ccc'", attrs=["A"])[:]
             assert all(self.filter_dense(result["A"], A.attr("A").fill) == b"ccc")
 
-            if tiledb.cc.version() > (2, 14):
+            if tiledb.libtiledb.version() > (2, 14):
                 for t in A.query(attrs=["UTF"])[:]["UTF"]:
                     cond = f"""UTF == '{t}'"""
                     result = A.query(cond=cond, attrs=["UTF"])[:]
@@ -418,7 +418,7 @@ class QueryConditionTest(DiskTestCase):
             assert list(result["dim with spaces"]) == [b"d"]
 
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 7, 0),
+        tiledb.libtiledb.version() < (2, 7, 0),
         reason="var-length np.bytes_ query condition support introduced in 2.7.0",
     )
     def test_var_length_str(self):
@@ -452,7 +452,7 @@ class QueryConditionTest(DiskTestCase):
                 assert result["bytes"][0] == s
 
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 10, 0),
+        tiledb.libtiledb.version() < (2, 10, 0),
         reason="OR query condition operator introduced in libtiledb 2.10",
     )
     def test_or_sparse(self):
@@ -464,7 +464,7 @@ class QueryConditionTest(DiskTestCase):
             assert all((result["D"] < 0.25) | (result["D"] > 0.75))
 
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 10, 0),
+        tiledb.libtiledb.version() < (2, 10, 0),
         reason="OR query condition operator introduced in libtiledb 2.10",
     )
     def test_or_dense(self):
@@ -480,7 +480,7 @@ class QueryConditionTest(DiskTestCase):
             assert all((res < 0.25) | (res > 0.75))
 
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 10, 0),
+        tiledb.libtiledb.version() < (2, 10, 0),
         reason="OR query condition operator and bool type introduced in libtiledb 2.10",
     )
     def test_01(self):

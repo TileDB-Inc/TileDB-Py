@@ -164,7 +164,7 @@ class FixesTest(DiskTestCase):
             A[:]
 
             stats_dump_str = tiledb.stats_dump(print_out=False)
-            if tiledb.cc.version() >= (2, 27):
+            if tiledb.libtiledb.version() >= (2, 27):
                 assert """"Context.Query.Reader.loop_num": 1""" in stats_dump_str
             else:
                 assert (
@@ -247,7 +247,7 @@ class FixesTest(DiskTestCase):
             tm.assert_frame_equal(arr.df[:], df)
 
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 14, 0),
+        tiledb.libtiledb.version() < (2, 14, 0),
         reason="SC-23287 fix not implemented until libtiledb 2.14",
     )
     @pytest.mark.skipif(
@@ -270,7 +270,7 @@ class FixesTest(DiskTestCase):
             )
             return sp_output.decode("UTF-8").strip()
 
-        if tiledb.cc.version() >= (2, 27, 0):
+        if tiledb.libtiledb.version() >= (2, 27, 0):
             assert get_config_with_env({}, "vfs.s3.region") == ""
         else:
             assert get_config_with_env({}, "vfs.s3.region") == "us-east-1"
@@ -350,7 +350,7 @@ class FixesTest(DiskTestCase):
         # test from_numpy with sparse argument set to True
         uri = self.path("test_sc56611")
         data = np.random.rand(10, 10)
-        with pytest.raises(tiledb.cc.TileDBError) as exc_info:
+        with pytest.raises(tiledb.libtiledb.TileDBError) as exc_info:
             tiledb.from_numpy(uri, data, sparse=True)
         assert str(exc_info.value) == "from_numpy only supports dense arrays"
 
@@ -408,7 +408,7 @@ class SOMA919Test(DiskTestCase):
         # tiledbsoma.tdb_handles.Wrapper._flush_hack().
 
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 15, 0),
+        tiledb.libtiledb.version() < (2, 15, 0),
         reason="SOMA919 fix implemented in libtiledb 2.15",
     )
     @pytest.mark.parametrize("use_timestamps", [True, False])

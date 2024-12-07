@@ -7,7 +7,7 @@ from tiledb.tests.common import DiskTestCase
 
 class QueryTest(DiskTestCase):
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     def test_label_range_query(self):

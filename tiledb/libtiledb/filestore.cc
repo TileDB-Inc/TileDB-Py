@@ -18,7 +18,7 @@ class Filestore {
 public:
   // TODO this works, but isn't actually in use at the moment.
   // we are still using tiledb.libtiledb.ArraySchema. when we switch to using
-  // tiledb.cc.ArraySchema, use this function instead.
+  // tiledb.libtiledb.ArraySchema, use this function instead.
   static ArraySchema schema_create(const Context &ctx, const char *uri) {
     tiledb_array_schema_t *schema;
     tiledb_filestore_schema_create(ctx.ptr().get(), uri, &schema);

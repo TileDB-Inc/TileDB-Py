@@ -18,7 +18,7 @@ np.set_printoptions(
 )
 del np
 
-from tiledb.cc import version as libtiledb_version
+from tiledb.libtiledb import version as libtiledb_version
 
 if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 26:
     from .current_domain import CurrentDomain
@@ -29,7 +29,6 @@ del libtiledb_version  # no longer needed
 from .array import Array
 from .array_schema import ArraySchema
 from .attribute import Attr
-from .cc import TileDBError
 from .consolidation_plan import ConsolidationPlan
 from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
@@ -87,7 +86,7 @@ from .highlevel import (
     vacuum,
     walk,
 )
-from .ctx import Ctx
+from .libtiledb import TileDBError
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet

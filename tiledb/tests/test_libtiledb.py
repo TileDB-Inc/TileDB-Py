@@ -64,7 +64,7 @@ def test_incomplete_return_array(tmpdir_factory, request):
 
 class VersionTest(DiskTestCase):
     def test_libtiledb_version(self):
-        v = tiledb.cc.version()
+        v = tiledb.libtiledb.version()
         self.assertIsInstance(v, tuple)
         self.assertTrue(len(v) == 3)
         self.assertTrue(v[0] >= 1, "TileDB major version must be >= 1")
@@ -141,7 +141,7 @@ class ArrayTest(DiskTestCase):
         tiledb.Array.create(self.path("foo"), schema, ctx=tiledb.Ctx())
 
     @pytest.mark.skipif(
-        not (sys.platform == "win32" and tiledb.cc.version() >= (2, 3, 0)),
+        not (sys.platform == "win32" and tiledb.libtiledb.version() >= (2, 3, 0)),
         reason="Shared network drive only on Win32",
     )
     def test_array_create_on_shared_drive(self):
@@ -226,7 +226,7 @@ class ArrayTest(DiskTestCase):
 
     # needs core fix in 2.2.4
     @pytest.mark.skipif(
-        (sys.platform == "win32" and tiledb.cc.version() == (2, 2, 3)),
+        (sys.platform == "win32" and tiledb.libtiledb.version() == (2, 2, 3)),
         reason="Skip array_doesnt_exist test on Win32 / libtiledb 2.2.3",
     )
     def test_array_doesnt_exist(self):
@@ -635,7 +635,7 @@ class DenseArrayTest(DiskTestCase):
             assert_array_equal(B[:], data)
 
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 10),
+        tiledb.libtiledb.version() < (2, 10),
         reason="TILEDB_BOOL introduced in libtiledb 2.10",
     )
     def test_dense_index_bool(self):
@@ -768,7 +768,7 @@ class DenseArrayTest(DiskTestCase):
             assert_array_equal(A[:, 7:], T[:, 7:])
 
     @pytest.mark.skipif(
-        not (sys.platform == "win32" and tiledb.cc.version() >= (2, 3, 0)),
+        not (sys.platform == "win32" and tiledb.libtiledb.version() >= (2, 3, 0)),
         reason="Shared network drive only on Win32",
     )
     def test_array_1d_shared_drive(self):
@@ -1159,7 +1159,7 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.DenseArray(uri, mode="w") as T:
             T[:] = np.arange(0, 10, dtype=np.int64)
 
-        if tiledb.cc.version() < (2, 4):
+        if tiledb.libtiledb.version() < (2, 4):
             tiledb.VFS().remove_file(os.path.join(uri, "__array_schema.tdb"))
         else:
             tiledb.VFS().remove_dir(os.path.join(uri, "__schema"))
@@ -1171,7 +1171,7 @@ class DenseArrayTest(DiskTestCase):
                 tiledb.DenseArray(uri)
 
     @pytest.mark.xfail(
-        tiledb.cc.version() >= (2, 5),
+        tiledb.libtiledb.version() >= (2, 5),
         reason="Skip sparse_write_to_dense with libtiledb 2.5+",
     )
     def test_sparse_write_to_dense(self):
@@ -1764,7 +1764,7 @@ class TestSparseArray(DiskTestCase):
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 10),
+        tiledb.libtiledb.version() < (2, 10),
         reason="TILEDB_BOOL introduced in libtiledb 2.10",
     )
     def test_sparse_index_bool(self):
@@ -2170,7 +2170,7 @@ class TestSparseArray(DiskTestCase):
 
         tiledb.SparseArray.create(path, schema)
 
-        if tiledb.cc.version() >= (2, 3) and fx_sparse_cell_order == "hilbert":
+        if tiledb.libtiledb.version() >= (2, 3) and fx_sparse_cell_order == "hilbert":
             c1 = np.array([2, 1, 3, 4])
             c2 = np.array([1, 2, 3, 4])
         else:
@@ -3432,7 +3432,7 @@ class TestHighlevel(DiskTestCase):
         # checks that the total number of threads stays stable.
         threads = (
             "sm.num_reader_threads"
-            if tiledb.cc.version() < (2, 10)
+            if tiledb.libtiledb.version() < (2, 10)
             else "sm.compute_concurrency_level"
         )
         config = {threads: 128}

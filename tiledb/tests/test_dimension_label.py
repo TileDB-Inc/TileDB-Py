@@ -62,7 +62,7 @@ class DimensionLabelTestCase(DiskTestCase):
         assert dim.tile == 10
 
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     def test_add_to_array_schema(self):
@@ -109,7 +109,7 @@ class DimensionLabelTestCase(DiskTestCase):
         assert label_attr.filters == filters
 
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     def test_add_to_array_schema_out_of_bounds(self):
@@ -128,7 +128,7 @@ class DimensionLabelTestCase(DiskTestCase):
             tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
 
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     def test_add_to_array_schema_dim_dtype_mismatch(self):
@@ -147,7 +147,7 @@ class DimensionLabelTestCase(DiskTestCase):
             tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
 
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     @pytest.mark.parametrize("var", [True, False])
@@ -209,7 +209,7 @@ class DimensionLabelTestCase(DiskTestCase):
                 np.testing.assert_array_equal(result["l1"], label_index)
 
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     @pytest.mark.parametrize("var", [True, False])
@@ -281,7 +281,7 @@ class DimensionLabelTestCase(DiskTestCase):
                 array.label_index(["x1", "x2"])
 
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     @pytest.mark.parametrize("var", [True, False])
@@ -326,7 +326,7 @@ class DimensionLabelTestCase(DiskTestCase):
             np.testing.assert_array_equal(output_label_data, label_data)
 
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     def test_dimension_label_round_trip_dense_var(self):
@@ -420,7 +420,7 @@ class DimensionLabelTestCase(DiskTestCase):
                     np.testing.assert_array_equal(result[label_name], label_index)
 
     @pytest.mark.skipif(
-        tiledb.cc.version()[0] == 2 and tiledb.cc.version()[1] < 15,
+        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     def test_dimension_label_on_query(self):

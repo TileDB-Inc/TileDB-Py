@@ -146,13 +146,13 @@ class TestColumnInfo(DiskTestCase):
             # bool types
             (
                 [bool, "b1"],
-                np.dtype("uint8" if tiledb.cc.version() < (2, 10) else "bool"),
+                np.dtype("uint8" if tiledb.libtiledb.version() < (2, 10) else "bool"),
                 "bool",
                 False,
             ),
             (
                 [pd.BooleanDtype()],
-                np.dtype("uint8" if tiledb.cc.version() < (2, 10) else "bool"),
+                np.dtype("uint8" if tiledb.libtiledb.version() < (2, 10) else "bool"),
                 "boolean",
                 True,
             ),
@@ -689,7 +689,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                     tm.assert_frame_equal(df.iloc[:0], A.df[tiledb.EmptyRange])
 
     @pytest.mark.skipif(
-        tiledb.cc.version() < (2, 4, 3),
+        tiledb.libtiledb.version() < (2, 4, 3),
         reason="Skip this test to avoid abort: requires TileDB#2540 in TileDB 2.4.3",
     )
     def test_dataframe_str_empty(self):
@@ -1508,7 +1508,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         tiledb.from_pandas(uri, df)
 
         with tiledb.open(uri) as A:
-            dtype = np.uint8 if tiledb.cc.version() < (2, 10) else bool
+            dtype = np.uint8 if tiledb.libtiledb.version() < (2, 10) else bool
             assert A.schema.attr("flags").dtype == dtype
 
     @pytest.mark.parametrize(
