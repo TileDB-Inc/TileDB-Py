@@ -54,4 +54,4 @@ else()
     set_target_properties(main PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
 endif()
 
-add_subdirectory(cc)
+add_subdirectory(libtiledb)
