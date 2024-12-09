@@ -5,7 +5,7 @@ from typing import Callable, Optional
 import numpy as np
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .dataframe_ import create_dim
 

@@ -7,9 +7,6 @@ __pycache__/
 *.so
 *.dylib
 
-# Cython extensions
-*.cpp
-
 # Distribution / packaging
 .Python
 env/

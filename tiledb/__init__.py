@@ -2,15 +2,6 @@ import ctypes
 import os
 import sys
 
-# un-comment this section to fix Cython backtrace line-numbers in
-# IPython/Jupyter. see https://bugs.python.org/issue32797#msg323167
-# ---
-# try:
-#    from importlib.machinery import ExtensionFileLoader
-# else:
-#    del ExtensionFileLoader.get_source
-# ---
-
 if os.name == "posix":
     if sys.platform == "darwin":
         lib_name = "libtiledb.dylib"
@@ -18,6 +9,14 @@ if os.name == "posix":
         lib_name = "libtiledb.so"
 else:
     lib_name = "tiledb"
+
+import numpy as np
+
+# TODO: get rid of this - It is currently used for unified numpy printing accross numpy versions
+np.set_printoptions(
+    legacy="1.21" if np.lib.NumpyVersion(np.__version__) >= "1.22.0" else False
+)
+del np
 
 from tiledb.libtiledb import version as libtiledb_version
 
@@ -30,7 +29,6 @@ del libtiledb_version  # no longer needed
 from .array import Array
 from .array_schema import ArraySchema
 from .attribute import Attr
-from .cc import TileDBError
 from .consolidation_plan import ConsolidationPlan
 from .ctx import Config, Ctx, default_ctx, scope_ctx
 from .dataframe_ import from_csv, from_pandas, open_dataframe
@@ -88,7 +86,7 @@ from .highlevel import (
     vacuum,
     walk,
 )
-from .libtiledb import Ctx
+from .libtiledb import TileDBError
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet

@@ -1,6 +1,6 @@
 from typing import Optional, Union
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import Config, Ctx, CtxMixin, default_ctx
 from .metadata import Metadata

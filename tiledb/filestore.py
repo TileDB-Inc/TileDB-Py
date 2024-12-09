@@ -1,7 +1,7 @@
 import warnings
 from typing import ByteString, Optional
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import Ctx, default_ctx
 

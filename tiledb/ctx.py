@@ -5,7 +5,7 @@ from contextvars import ContextVar
 from typing import Union
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 _ctx_var = ContextVar("ctx")
 

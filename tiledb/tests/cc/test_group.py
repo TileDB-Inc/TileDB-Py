@@ -4,7 +4,7 @@ import time
 import numpy as np
 from numpy.testing import assert_array_equal
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 
 def test_group_metadata(tmp_path):

@@ -5,8 +5,6 @@ import warnings
 import tiledb
 from tiledb.libtiledb import version as libtiledb_version
 
-from .main import PyFragmentInfo
-
 """
 Classes and functions relating to TileDB fragments.
 """
@@ -105,6 +103,8 @@ class FragmentInfoList:
 
         self.array_uri = array_uri
 
+        from .main import PyFragmentInfo
+
         fi = PyFragmentInfo(self.array_uri, schema, include_mbrs, ctx)
 
         self.__nums = fi.get_num_fragments()
@@ -187,6 +187,9 @@ class FragmentsInfoIterator:
     def __init__(self, fragments):
         self._fragments = fragments
         self._index = 0
+
+    def __iter__(self):
+        return self
 
     def __next__(self):
         if self._index < len(self._fragments):
