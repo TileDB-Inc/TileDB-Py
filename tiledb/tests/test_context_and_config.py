@@ -37,7 +37,7 @@ class ContextTest(DiskTestCase):
     def test_default_ctx(self):
         ctx = tiledb.default_ctx()
         self.assertIsInstance(ctx, tiledb.Ctx)
-        assert isinstance(ctx.config(), tiledb.libtiledb.Config)
+        assert isinstance(ctx.config(), tiledb.Config)
 
     def test_default_ctx_errors(self):
         config = tiledb.Config()
@@ -186,7 +186,7 @@ class TestConfig(DiskTestCase):
     def test_ctx_config_dict(self):
         ctx = tiledb.Ctx(config={"sm.memory_budget": "100"})
         config = ctx.config()
-        assert issubclass(type(config), tiledb.libtiledb.Config)
+        assert issubclass(type(config), tiledb.Config)
         self.assertEqual(config["sm.memory_budget"], "100")
 
     def test_config_repr_sensitive_params_hidden(self):

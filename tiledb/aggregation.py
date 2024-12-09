@@ -1,4 +1,4 @@
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 
 class Aggregation:

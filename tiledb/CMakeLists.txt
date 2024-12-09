@@ -1,33 +1,3 @@
-# Cython
-
-add_custom_command(
-  OUTPUT libtiledb.cc
-  COMMAND Python::Interpreter -m cython
-          "${CMAKE_CURRENT_SOURCE_DIR}/libtiledb.pyx" --output-file libtiledb.cc
-  DEPENDS libtiledb.pyx
-  VERBATIM
-)
-
-python_add_library(
-    libtiledb
-    MODULE
-    libtiledb.cc
-    WITH_SOABI
-)
-
-target_link_libraries(
-    libtiledb
-    PUBLIC
-    Python::NumPy
-    TileDB::tiledb_shared
-)
-
-target_compile_features(
-    libtiledb
-    PUBLIC
-    cxx_std_20
-)
-
 # Pybind11
 
 pybind11_add_module(
@@ -64,7 +34,7 @@ if (TILEDB_SERIALIZATION)
     )
 endif()
 
-install(TARGETS main libtiledb DESTINATION tiledb)
+install(TARGETS main DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)
     message(STATUS "Adding \"libtiledb\" into install group")
@@ -73,10 +43,8 @@ if(TILEDB_DOWNLOADED)
 
     if (APPLE)
         set_target_properties(main PROPERTIES INSTALL_RPATH "@loader_path")
-        set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "@loader_path")
     elseif(UNIX)
         set_target_properties(main PROPERTIES INSTALL_RPATH "\$ORIGIN")
-        set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "\$ORIGIN")
     endif()
 else()
     # If using external TileDB core library force it to be linked at runtime using RPATH
@@ -84,7 +52,6 @@ else()
     get_filename_component(TILEDB_LOCATION ${TILEDB_LOCATION} DIRECTORY)
     message(STATUS "Setting RPATH for targets \"main\" and \"libtiledb\" to ${TILEDB_LOCATION}")
     set_target_properties(main PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
-    set_target_properties(libtiledb PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
 endif()
 
-add_subdirectory(cc)
+add_subdirectory(libtiledb)

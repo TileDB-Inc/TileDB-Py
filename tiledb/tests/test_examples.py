@@ -57,14 +57,8 @@ class ExamplesTest:
         sys.platform == "win32",
         reason="Some doctests are missing a clean-up step on windows",
     )
-    @pytest.mark.parametrize(
-        "path",
-        [
-            os.path.join(PROJECT_DIR, "tiledb", "libtiledb.pyx"),
-            os.path.join(PROJECT_DIR, "tiledb", "fragment.py"),
-        ],
-    )
-    def test_docs(self, path, capsys):
+    def test_docs(self, capsys):
+        path = os.path.join(self.PROJECT_DIR, "tiledb", "fragment.py")
         failures, _ = doctest.testfile(
             path,
             module_relative=False,

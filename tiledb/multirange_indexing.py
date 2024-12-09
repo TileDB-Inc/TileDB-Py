@@ -27,8 +27,8 @@ import numpy as np
 from .aggregation import Aggregation as AggregationProxy
 from .array import Array
 from .array_schema import ArraySchema
-from .cc import TileDBError
 from .dataframe_ import check_dataframe_deps
+from .libtiledb import TileDBError
 from .main import PyAgg, PyQuery, increment_stat, use_stats
 from .metadata import Metadata
 from .query import Query

@@ -6,7 +6,7 @@ from typing import Any, Tuple
 
 import numpy as np
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 
 @dataclass(frozen=True)

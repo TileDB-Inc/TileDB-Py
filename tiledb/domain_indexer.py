@@ -3,7 +3,7 @@ import weakref
 import numpy as np
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 
 def _index_as_tuple(idx):

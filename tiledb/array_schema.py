@@ -5,8 +5,7 @@ from typing import Sequence, Tuple, Union
 
 import numpy as np
 
-import tiledb.cc as lt
-from tiledb.libtiledb import version as libtiledb_version
+import tiledb.libtiledb as lt
 
 from .attribute import Attr
 from .ctx import Ctx, CtxMixin, default_ctx
@@ -14,7 +13,7 @@ from .dimension_label import DimLabel
 from .domain import Domain
 from .filter import Filter, FilterList
 
-if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 26:
+if lt.version()[0] == 2 and lt.version()[1] >= 25:
     from .current_domain import CurrentDomain
 
 _tiledb_order_to_string = {
@@ -388,7 +387,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         """
         return self._has_dim_label(self._ctx, name)
 
-    if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 26:
+    if lt.version()[0] == 2 and lt.version()[1] >= 25:
 
         @property
         def current_domain(self) -> CurrentDomain:

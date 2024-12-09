@@ -3,7 +3,7 @@ from typing import MutableMapping, Optional, Union
 import numpy as np
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import Config, Ctx, default_ctx
 from .datatypes import DataType

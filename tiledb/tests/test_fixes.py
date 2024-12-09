@@ -350,7 +350,7 @@ class FixesTest(DiskTestCase):
         # test from_numpy with sparse argument set to True
         uri = self.path("test_sc56611")
         data = np.random.rand(10, 10)
-        with pytest.raises(tiledb.cc.TileDBError) as exc_info:
+        with pytest.raises(tiledb.libtiledb.TileDBError) as exc_info:
             tiledb.from_numpy(uri, data, sparse=True)
         assert str(exc_info.value) == "from_numpy only supports dense arrays"
 

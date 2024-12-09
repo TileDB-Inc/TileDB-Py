@@ -2,8 +2,7 @@ from collections.abc import Sequence
 from json import loads as json_loads
 from typing import Optional, Sequence, Union
 
-import tiledb.cc as lt
-from tiledb import TileDBError
+import tiledb.libtiledb as lt
 
 from .array import Array
 from .ctx import Ctx, CtxMixin, default_ctx
@@ -63,7 +62,7 @@ class Query(CtxMixin, lt.Query):
             raise ValueError("Cannot pass both dims and has_coords=True to Query")
 
         if return_incomplete and not array.schema.sparse:
-            raise TileDBError(
+            raise lt.TileDBError(
                 "Incomplete queries are only supported for sparse arrays at this time"
             )
 
@@ -82,7 +81,9 @@ class Query(CtxMixin, lt.Query):
             domain = array.schema.domain
             for dname in dims:
                 if not domain.has_dim(dname):
-                    raise TileDBError(f"Selected dimension does not exist: '{dname}'")
+                    raise lt.TileDBError(
+                        f"Selected dimension does not exist: '{dname}'"
+                    )
             self._dims = dims
         else:
             self._dims = None
@@ -90,7 +91,7 @@ class Query(CtxMixin, lt.Query):
         if attrs is not None:
             for name in attrs:
                 if not array.schema.has_attr(name):
-                    raise TileDBError(f"Selected attribute does not exist: '{name}'")
+                    raise lt.TileDBError(f"Selected attribute does not exist: '{name}'")
         self._attrs = attrs
         self._cond = cond
 
@@ -109,7 +110,9 @@ class Query(CtxMixin, lt.Query):
             if use_arrow is None:
                 use_arrow = True
             if not use_arrow:
-                raise TileDBError("Cannot initialize return_arrow with use_arrow=False")
+                raise lt.TileDBError(
+                    "Cannot initialize return_arrow with use_arrow=False"
+                )
         self._use_arrow = use_arrow
 
         self._return_incomplete = return_incomplete
@@ -124,7 +127,7 @@ class Query(CtxMixin, lt.Query):
 
     def __getitem__(self, selection):
         if self._return_arrow:
-            raise TileDBError("`return_arrow=True` requires .df indexer`")
+            raise lt.TileDBError("`return_arrow=True` requires .df indexer`")
 
         return self._array.subarray(
             selection,

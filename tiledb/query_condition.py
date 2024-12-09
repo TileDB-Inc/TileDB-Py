@@ -7,8 +7,8 @@ import numpy as np
 import tiledb.main as qc
 
 from .array import Array
-from .cc import TileDBError
 from .ctx import Ctx, default_ctx
+from .libtiledb import TileDBError
 
 """
 A high level wrapper around the Pybind11 query_condition.cc implementation for
