@@ -234,7 +234,10 @@ def test_schema_evolution_extend_check_bad_type():
     reason="Dropping a fixed-sized attribute and adding it back"
     "as a var-sized attribute is not supported in TileDB < 2.27",
 )
-def test_schema_evolution_drop_fixed_attribute_and_add_back_as_var_sized(tmp_path):
+@pytest.mark.parametrize("dtype_str", ["S", "U"])
+def test_schema_evolution_drop_fixed_attribute_and_add_back_as_var_sized(
+    tmp_path, dtype_str
+):
     ctx = tiledb.default_ctx()
     uri = str(tmp_path)
     attrs = [
@@ -260,21 +263,23 @@ def test_schema_evolution_drop_fixed_attribute_and_add_back_as_var_sized(tmp_pat
         assert A.schema.attr("b").dtype == np.int32
 
     se = tiledb.ArraySchemaEvolution(ctx)
-    newattr = tiledb.Attr("a", dtype="S", var=True)
+    newattr = tiledb.Attr("a", dtype=dtype_str, var=True)
     se.add_attribute(newattr)
     se.array_evolve(uri)
 
     # check schema and data after adding attribute back as a var-sized attribute
     with tiledb.open(uri) as A:
         assert A.schema.has_attr("a")
-        assert A.schema.attr("a").dtype == "S"
+        assert A.schema.attr("a").dtype == dtype_str
         assert A.schema.attr("b").dtype == np.int32
-        # check that each value == b'\x80' (empty byte)
-        assert_array_equal(A[:]["a"], np.array([b"\x80" for _ in range(10)]))
+        # check that each value equals to the fill value of "a" attribute
+        assert_array_equal(A[:]["a"], np.array([newattr.fill] * 10, dtype=dtype_str))
+        # check that nothing has changed for the "b" attribute
+        assert_array_equal(A[:]["b"], original_data)
 
     # add new data to the array
     new_data = np.array(
-        ["tiledb-string-n.{}".format(i) for i in range(1, 11)], dtype="S"
+        ["tiledb-string-n.{}".format(i) for i in range(1, 11)], dtype=dtype_str
     )
     with tiledb.open(uri, "w") as A:
         A[:] = {"a": new_data, "b": original_data}
