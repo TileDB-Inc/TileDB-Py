@@ -1,6 +1,7 @@
 import io
 import os
 import pathlib
+import pickle
 import random
 import sys
 
@@ -238,6 +239,21 @@ class TestVFS(DiskTestCase):
         with tiledb.FileIO(vfs, rand_uri, "rb") as f2:
             txtio = io.TextIOWrapper(f2, encoding="utf-8")
             self.assertEqual(txtio.readlines(), lines)
+
+    def test_pickle(self):
+        # test that vfs can be pickled and unpickled with config options
+        config = tiledb.Config(
+            {"vfs.s3.region": "eu-west-1", "vfs.max_parallel_ops": "1"}
+        )
+        vfs = tiledb.VFS(config)
+        with io.BytesIO() as buf:
+            pickle.dump(vfs, buf)
+            buf.seek(0)
+            vfs2 = pickle.load(buf)
+
+            self.assertIsInstance(vfs2, tiledb.VFS)
+            self.assertEqual(vfs2.config()["vfs.s3.region"], "eu-west-1")
+            self.assertEqual(vfs2.config()["vfs.max_parallel_ops"], "1")
 
     def test_sc42569_vfs_memoryview(self):
         # This test is to ensure that giving np.ndarray buffer to readinto works

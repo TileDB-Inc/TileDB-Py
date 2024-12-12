@@ -188,6 +188,9 @@ class FragmentsInfoIterator:
         self._fragments = fragments
         self._index = 0
 
+    def __iter__(self):
+        return self
+
     def __next__(self):
         if self._index < len(self._fragments):
             fi = FragmentInfo(self._fragments, self._index)

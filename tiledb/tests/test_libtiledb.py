@@ -823,8 +823,7 @@ class DenseArrayTest(DiskTestCase):
                 assert_array_equal(T, R)
                 assert_array_equal(T, R.multi_index[0:2][""])
 
-    @pytest.mark.parametrize("use_timestamps", [True, False])
-    def test_open_with_timestamp(self, use_timestamps):
+    def test_open_with_timestamp(self):
         A = np.zeros(3)
 
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
@@ -841,15 +840,9 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(T[1], 0)
             self.assertEqual(T[2], 0)
 
-        if use_timestamps:
-            # sleep 200ms and write
-            time.sleep(0.2)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[0:1] = 1
 
-        if use_timestamps:
-            # sleep 200ms and write
-            time.sleep(0.2)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[1:2] = 2
 

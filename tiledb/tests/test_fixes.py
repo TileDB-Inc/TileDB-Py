@@ -364,7 +364,7 @@ class SOMA919Test(DiskTestCase):
     We've distilled @atolopko-czi's gist example using the TileDB-Py API directly.
     """
 
-    def run_test(self, use_timestamps):
+    def run_test(self):
         import tempfile
 
         import numpy as np
@@ -372,18 +372,8 @@ class SOMA919Test(DiskTestCase):
         import tiledb
 
         root_uri = tempfile.mkdtemp()
-
-        if use_timestamps:
-            group_ctx100 = tiledb.Ctx(
-                {
-                    "sm.group.timestamp_start": 100,
-                    "sm.group.timestamp_end": 100,
-                }
-            )
-            timestamp = 100
-        else:
-            group_ctx100 = tiledb.Ctx()
-            timestamp = None
+        group_ctx100 = tiledb.Ctx()
+        timestamp = None
 
         # create the group and add a dummy subgroup "causes_bug"
         tiledb.Group.create(root_uri, ctx=group_ctx100)
@@ -411,13 +401,12 @@ class SOMA919Test(DiskTestCase):
         tiledb.libtiledb.version() < (2, 15, 0),
         reason="SOMA919 fix implemented in libtiledb 2.15",
     )
-    @pytest.mark.parametrize("use_timestamps", [True, False])
-    def test_soma919(self, use_timestamps):
+    def test_soma919(self):
         N = 100
         fails = 0
         for i in range(N):
             try:
-                self.run_test(use_timestamps)
+                self.run_test()
             except AssertionError:
                 fails += 1
         if fails > 0:

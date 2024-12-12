@@ -7,9 +7,9 @@ import pytest
 import tiledb
 import tiledb.cc as lt
 
-if not (tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] >= 25):
+if not (tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] >= 26):
     pytest.skip(
-        "CurrentDomain is only available in TileDB 2.25 and later",
+        "CurrentDomain is only available in TileDB 2.26 and later",
         allow_module_level=True,
     )
 

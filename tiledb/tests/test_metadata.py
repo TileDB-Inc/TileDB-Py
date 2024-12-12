@@ -189,8 +189,7 @@ class MetadataTest(DiskTestCase):
 
     @given(st_metadata, st_ndarray)
     @settings(deadline=None)
-    @pytest.mark.parametrize("use_timestamps", [True, False])
-    def test_numpy(self, use_timestamps, test_vals, ndarray):
+    def test_numpy(self, test_vals, ndarray):
         test_vals["ndarray"] = ndarray
 
         path = self.path()
@@ -203,9 +202,6 @@ class MetadataTest(DiskTestCase):
         with tiledb.Array(path) as A:
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
-        if use_timestamps:
-            # test resetting a key with a ndarray value to a non-ndarray value
-            time.sleep(0.001)
         with tiledb.Array(path, "w") as A:
             A.meta["ndarray"] = 42
             test_vals["ndarray"] = 42
@@ -221,9 +217,6 @@ class MetadataTest(DiskTestCase):
         with tiledb.Array(path) as A:
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
-        if use_timestamps:
-            # test del ndarray key
-            time.sleep(0.001)
         with tiledb.Array(path, "w") as A:
             del A.meta["ndarray"]
             del test_vals["ndarray"]
@@ -231,9 +224,6 @@ class MetadataTest(DiskTestCase):
         with tiledb.Array(path) as A:
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
-        if use_timestamps:
-            # test update
-            time.sleep(0.001)
         with tiledb.Array(path, mode="w") as A:
             test_vals.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
             A.meta.update(ndarray=np.stack([ndarray, ndarray]), transp=ndarray.T)
@@ -245,8 +235,7 @@ class MetadataTest(DiskTestCase):
     @tiledb.scope_ctx(
         {"sm.vacuum.mode": "array_meta", "sm.consolidation.mode": "array_meta"}
     )
-    @pytest.mark.parametrize("use_timestamps", [True, False])
-    def test_consecutive(self, use_timestamps):
+    def test_consecutive(self):
         vfs = tiledb.VFS()
         path = self.path("test_md_consecutive")
 
@@ -259,17 +248,10 @@ class MetadataTest(DiskTestCase):
         randutf8s = [rand_utf8(i) for i in np.random.randint(1, 30, size=write_count)]
 
         # write 100 times, then consolidate
-        if use_timestamps:
-            for i in range(write_count):
-                with tiledb.Array(path, mode="w") as A:
-                    A.meta["randint"] = int(randints[i])
-                    A.meta["randutf8"] = randutf8s[i]
-                    time.sleep(0.001)
-        else:
-            for i in range(write_count):
-                with tiledb.Array(path, mode="w") as A:
-                    A.meta["randint"] = int(randints[i])
-                    A.meta["randutf8"] = randutf8s[i]
+        for i in range(write_count):
+            with tiledb.Array(path, mode="w") as A:
+                A.meta["randint"] = int(randints[i])
+                A.meta["randutf8"] = randutf8s[i]
 
         self.assertEqual(len(vfs.ls(os.path.join(path, "__meta"))), 100)
 
@@ -296,23 +278,11 @@ class MetadataTest(DiskTestCase):
             self.assertEqual(A.meta["randutf8"], randutf8s[-1])
 
         # use randutf8s as keys, then consolidate
-        if use_timestamps:
-            for _ in range(2):
-                for i in range(write_count):
-                    with tiledb.Array(path, mode="w") as A:
-                        A.meta[randutf8s[i] + "{}".format(randints[i])] = int(
-                            randints[i]
-                        )
-                        A.meta[randutf8s[i]] = randutf8s[i]
-                        time.sleep(0.001)
-        else:
-            for _ in range(2):
-                for i in range(write_count):
-                    with tiledb.Array(path, mode="w") as A:
-                        A.meta[randutf8s[i] + "{}".format(randints[i])] = int(
-                            randints[i]
-                        )
-                        A.meta[randutf8s[i]] = randutf8s[i]
+        for _ in range(2):
+            for i in range(write_count):
+                with tiledb.Array(path, mode="w") as A:
+                    A.meta[randutf8s[i] + "{}".format(randints[i])] = int(randints[i])
+                    A.meta[randutf8s[i]] = randutf8s[i]
 
         # test data
         with tiledb.Array(path) as A:

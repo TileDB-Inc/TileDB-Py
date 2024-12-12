@@ -1,4 +1,6 @@
+import io
 import os
+import pickle
 import subprocess
 import sys
 import xml
@@ -261,3 +263,20 @@ class TestConfig(DiskTestCase):
             pytest.fail(
                 f"Could not parse config._repr_html_(). Saw {config._repr_html_()}"
             )
+
+    def test_config_pickle(self):
+        # test that Config can be pickled and unpickled
+        config = tiledb.Config(
+            {
+                "rest.use_refactored_array_open": "false",
+                "rest.use_refactored_array_open_and_query_submit": "true",
+                "vfs.azure.storage_account_name": "myaccount",
+            }
+        )
+        with io.BytesIO() as buf:
+            pickle.dump(config, buf)
+            buf.seek(0)
+            config2 = pickle.load(buf)
+
+            self.assertIsInstance(config2, tiledb.Config)
+            self.assertEqual(config2.dict(), config.dict())
