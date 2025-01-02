@@ -1,8 +1,24 @@
+# Release 0.33.1
+
+## Packaging Notes
+This version eliminates the Cython dependency, and communication with the TileDB Arrays library (libtiledb) is now handled exclusively with pybind11.
+
+## Improvements
+
+* Remove Cython Dependency by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2118
+* Factor _write_array out of Cython by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2115
+* Factor write_direct_dense out of Cython by @kounelisagis and @nguyenv in https://github.com/TileDB-Inc/TileDB-Py/pull/2109
+* Remove indexing.pyx by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2108
+* Move Query to pure Python by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2106
+* Merge Metadata and GroupMetadata into one Python class by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2099
+* Move _setitem_impl_sparse to Python by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2092
+* Move Array to pure Python by @kounelisagis, @nguyenv, and @teo-tsirpanis in https://github.com/TileDB-Inc/TileDB-Py/pull/2076
+
 # Release 0.33.0
 
 * TileDB-Py 0.33.0 includes TileDB Embedded [2.27.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.0)
 
-## What's Changed
+## Improvements
 
 * Fix `stats_dump` broken return value type by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2104
 * Enable builds for Python 3.13 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2107
