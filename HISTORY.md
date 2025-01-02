@@ -1,7 +1,7 @@
 # Release 0.33.1
 
 ## Packaging Notes
-This version eliminates the Cython dependency, and communication with core is now handled exclusively with pybind11.
+This version eliminates the Cython dependency, and communication with the TileDB Arrays library (libtiledb) is now handled exclusively with pybind11.
 
 ## Improvements
 
