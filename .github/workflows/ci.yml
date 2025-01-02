@@ -30,7 +30,7 @@ jobs:
     env:
       MACOSX_DEPLOYMENT_TARGET: "11"
     steps:
-      - name: Checkout TileDB-Py `dev`
+      - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v4
 
       - name: Setup MSVC toolset (VS 2022)

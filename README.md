@@ -1,8 +1,8 @@
-<a href="https://tiledb.com"><img src="https://github.com/TileDB-Inc/TileDB/raw/dev/doc/source/_static/tiledb-logo_color_no_margin_@4x.png" alt="TileDB logo" width="400"></a>
+<a href="https://tiledb.com"><img src="https://github.com/TileDB-Inc/TileDB/raw/main/doc/source/_static/tiledb-logo_color_no_margin_@4x.png" alt="TileDB logo" width="400"></a>
 
 
-[![Build Status](https://dev.azure.com/TileDB-Inc/CI/_apis/build/status/TileDB-Inc.TileDB-Py?branchName=dev)](https://dev.azure.com/TileDB-Inc/CI/_build/latest?definitionId=1&branchName=dev)
-![](https://raw.githubusercontent.com/TileDB-Inc/TileDB/dev/doc/anaconda.svg?sanitize=true)[![Anaconda download count badge](https://anaconda.org/conda-forge/TileDB-Py/badges/downloads.svg)](https://anaconda.org/conda-forge/TileDB-Py)
+[![Build Status](https://dev.azure.com/TileDB-Inc/CI/_apis/build/status/TileDB-Inc.TileDB-Py?branchName=main)](https://dev.azure.com/TileDB-Inc/CI/_build/latest?definitionId=1&branchName=main)
+![](https://raw.githubusercontent.com/TileDB-Inc/TileDB/main/doc/anaconda.svg?sanitize=true)[![Anaconda download count badge](https://anaconda.org/conda-forge/TileDB-Py/badges/downloads.svg)](https://anaconda.org/conda-forge/TileDB-Py)
 
 
 # TileDB-Py
@@ -35,6 +35,6 @@ Dataframes functionality (`tiledb.from_pandas`, `Array.df[]`) requires [Pandas](
 
 # Contributing
 
-We welcome contributions, please see [`CONTRIBUTING.md`](https://github.com/TileDB-Inc/TileDB-Py/blob/dev/CONTRIBUTING.md) for suggestions and
+We welcome contributions, please see [`CONTRIBUTING.md`](https://github.com/TileDB-Inc/TileDB-Py/blob/main/CONTRIBUTING.md) for suggestions and
 development-build instructions. For larger features, please open an issue to discuss goals and
 approach in order to ensure a smooth PR integration and review process.
