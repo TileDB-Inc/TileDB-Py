@@ -47,7 +47,7 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: "11"
       VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
     steps:
-      - name: Checkout TileDB-Py `dev`
+      - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v4
 
       - name: Setup MSVC toolset (VS 2022)
@@ -85,7 +85,7 @@ jobs:
       - name: Print env
         run: printenv
 
-      - name: Checkout TileDB-Py `dev`
+      - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v3
 
       - name: Build TileDB-Py

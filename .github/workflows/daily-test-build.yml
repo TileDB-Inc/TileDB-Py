@@ -65,7 +65,7 @@ jobs:
         run: brew install pkg-config
         if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
 
-      - name: Checkout TileDB-Py `dev`
+      - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v4
 
       - name: Build and install TileDB-Py and dependencies
