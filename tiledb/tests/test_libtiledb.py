@@ -95,7 +95,7 @@ class ArrayTest(DiskTestCase):
         schema = self.create_array_schema()
 
         # persist array schema
-        tiledb.libtiledb.Array.create(self.path("foo"), schema)
+        tiledb.Array.create(self.path("foo"), schema)
 
         # these should be no-ops
         #   full signature
@@ -104,7 +104,7 @@ class ArrayTest(DiskTestCase):
         tiledb.consolidate(uri=self.path("foo"))
 
         # load array in readonly mode
-        array = tiledb.libtiledb.Array(self.path("foo"), mode="r")
+        array = tiledb.Array(self.path("foo"), mode="r")
         self.assertTrue(array.isopen)
         self.assertEqual(array.schema, schema)
         self.assertEqual(array.mode, "r")
@@ -135,10 +135,10 @@ class ArrayTest(DiskTestCase):
         schema = self.create_array_schema()
 
         with self.assertRaises(TypeError):
-            tiledb.libtiledb.Array.create(self.path("foo"), schema, ctx="foo")
+            tiledb.Array.create(self.path("foo"), schema, ctx="foo")
 
         # persist array schema
-        tiledb.libtiledb.Array.create(self.path("foo"), schema, ctx=tiledb.Ctx())
+        tiledb.Array.create(self.path("foo"), schema, ctx=tiledb.Ctx())
 
     @pytest.mark.skipif(
         not (sys.platform == "win32" and tiledb.libtiledb.version() >= (2, 3, 0)),
@@ -148,10 +148,10 @@ class ArrayTest(DiskTestCase):
         schema = self.create_array_schema()
         uri = self.path(basename="foo", shared=True)
 
-        tiledb.libtiledb.Array.create(uri, schema)
+        tiledb.Array.create(uri, schema)
 
         # load array in readonly mode
-        array = tiledb.libtiledb.Array(uri, mode="r")
+        array = tiledb.Array(uri, mode="r")
         self.assertTrue(array.isopen)
         self.assertEqual(array.schema, schema)
         self.assertEqual(array.mode, "r")
@@ -181,7 +181,7 @@ class ArrayTest(DiskTestCase):
         schema = self.create_array_schema()
         key = "0123456789abcdeF0123456789abcdeF"
         # persist array schema
-        tiledb.libtiledb.Array.create(self.path("foo"), schema, key=key)
+        tiledb.Array.create(self.path("foo"), schema, key=key)
 
         # check that we can open the array sucessfully
         config = tiledb.Config()
@@ -189,7 +189,7 @@ class ArrayTest(DiskTestCase):
         config["sm.encryption_type"] = "AES_256_GCM"
         ctx = tiledb.Ctx(config=config)
 
-        with tiledb.libtiledb.Array(self.path("foo"), mode="r", ctx=ctx) as array:
+        with tiledb.Array(self.path("foo"), mode="r", ctx=ctx) as array:
             self.assertTrue(array.isopen)
             self.assertEqual(array.schema, schema)
             self.assertEqual(array.mode, "r")
@@ -206,7 +206,7 @@ class ArrayTest(DiskTestCase):
         ctx = tiledb.Ctx(config=config)
         # check that opening the array with the wrong key fails:
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.libtiledb.Array(self.path("foo"), mode="r", ctx=ctx)
+            tiledb.Array(self.path("foo"), mode="r", ctx=ctx)
 
         config = tiledb.Config()
         config["sm.encryption_key"] = "0123456789abcdeF0123456789abcde"
@@ -214,7 +214,7 @@ class ArrayTest(DiskTestCase):
         ctx = tiledb.Ctx(config=config)
         # check that opening the array with the wrong key length fails:
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.libtiledb.Array(self.path("foo"), mode="r", ctx=ctx)
+            tiledb.Array(self.path("foo"), mode="r", ctx=ctx)
 
         config = tiledb.Config()
         config["sm.encryption_key"] = "0123456789abcdeF0123456789abcde"
@@ -231,7 +231,7 @@ class ArrayTest(DiskTestCase):
     )
     def test_array_doesnt_exist(self):
         with self.assertRaises(tiledb.TileDBError):
-            tiledb.libtiledb.Array(self.path("foo"), mode="r")
+            tiledb.Array(self.path("foo"), mode="r")
 
     def test_create_schema_matches(self):
         dims = (tiledb.Dim(domain=(0, 6), tile=2),)
@@ -355,7 +355,7 @@ class ArrayTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
@@ -823,8 +823,7 @@ class DenseArrayTest(DiskTestCase):
                 assert_array_equal(T, R)
                 assert_array_equal(T, R.multi_index[0:2][""])
 
-    @pytest.mark.parametrize("use_timestamps", [True, False])
-    def test_open_with_timestamp(self, use_timestamps):
+    def test_open_with_timestamp(self):
         A = np.zeros(3)
 
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
@@ -841,15 +840,9 @@ class DenseArrayTest(DiskTestCase):
             self.assertEqual(T[1], 0)
             self.assertEqual(T[2], 0)
 
-        if use_timestamps:
-            # sleep 200ms and write
-            time.sleep(0.2)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[0:1] = 1
 
-        if use_timestamps:
-            # sleep 200ms and write
-            time.sleep(0.2)
         with tiledb.DenseArray(self.path("foo"), mode="w") as T:
             T[1:2] = 2
 
@@ -2761,7 +2754,7 @@ class PickleTest(DiskTestCase):
         uri = self.path("test_pickle_roundtrip")
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
         schema = tiledb.ArraySchema(domain=dom, attrs=(tiledb.Attr(""),), sparse=sparse)
-        tiledb.libtiledb.Array.create(uri, schema)
+        tiledb.Array.create(uri, schema)
 
         with tiledb.open(uri, "w") as T:
             if sparse:
@@ -2801,7 +2794,7 @@ class PickleTest(DiskTestCase):
             assert_array_equal(T, T2)
             self.maxDiff = None
             d1 = tiledb.default_ctx().config().dict()
-            d2 = T2._ctx_().config().dict()
+            d2 = T2.ctx.config().dict()
             self.assertEqual(d1["vfs.s3.region"], d2["vfs.s3.region"])
             self.assertEqual(d1["vfs.max_parallel_ops"], d2["vfs.max_parallel_ops"])
         T.close()
@@ -2816,7 +2809,7 @@ class PickleTest(DiskTestCase):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3, dtype=np.int64))
         att = tiledb.Attr(dtype=A.dtype)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=sparse)
-        tiledb.libtiledb.Array.create(path, schema)
+        tiledb.Array.create(path, schema)
 
         for ts in range(1, 5):
             with tiledb.open(
@@ -2862,7 +2855,7 @@ class ArrayViewTest(DiskTestCase):
         schema = tiledb.ArraySchema(
             domain=dom, attrs=(tiledb.Attr(""), tiledb.Attr("named"))
         )
-        tiledb.libtiledb.Array.create(uri, schema)
+        tiledb.Array.create(uri, schema)
 
         anon_ar = np.random.rand(3, 3)
         named_ar = np.random.rand(3, 3)
@@ -2905,7 +2898,7 @@ class RWTest(DiskTestCase):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 2), tile=3))
         att = tiledb.Attr(dtype="int64")
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
-        tiledb.libtiledb.Array.create(self.path("foo"), schema)
+        tiledb.Array.create(self.path("foo"), schema)
 
         np_array = np.array([1, 2, 3], dtype="int64")
 
@@ -3153,7 +3146,7 @@ class ConsolidationTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=3))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path):
             for i in range(num_writes):
@@ -3212,7 +3205,7 @@ class ConsolidationTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
@@ -3261,7 +3254,7 @@ class ConsolidationTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
@@ -3315,7 +3308,7 @@ class ConsolidationTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema, ctx=ctx)
+            tiledb.Array.create(target_path, schema, ctx=ctx)
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
@@ -3408,18 +3401,18 @@ class TestHighlevel(DiskTestCase):
 
         ctx = tiledb.Ctx()
         with tiledb.DenseArray(uri, ctx=ctx) as A:
-            self.assertEqual(A._ctx_(), ctx)
+            self.assertEqual(A.ctx, ctx)
 
         # test `open` with timestamp
         with tiledb.open(uri, timestamp=last_fragment_ts) as A:
             assert_array_equal(A[:], array)
 
         with tiledb.open(uri, ctx=ctx) as A:
-            self.assertEqual(A._ctx_(), ctx)
+            self.assertEqual(A.ctx, ctx)
 
         config = tiledb.Config()
         with tiledb.open(uri, config=config) as A:
-            self.assertEqual(A._ctx_().config(), config)
+            self.assertEqual(A.ctx.config(), config)
 
         with self.assertRaises(KeyError):
             # This path must test `tiledb.open` specifically

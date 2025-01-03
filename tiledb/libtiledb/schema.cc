@@ -278,7 +278,7 @@ void init_schema(py::module &m) {
              ArraySchemaExperimental::add_enumeration(ctx, schema, enmr);
            })
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 25
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
       .def("_current_domain",
            [](const ArraySchema &schema, const Context &ctx) {
              return ArraySchemaExperimental::current_domain(ctx, schema);

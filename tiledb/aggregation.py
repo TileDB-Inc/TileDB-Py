@@ -1,4 +1,4 @@
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 
 class Aggregation:
@@ -39,9 +39,9 @@ class Aggregation:
                 "or 'U' (TILEDB_UNORDERED)"
             )
 
-        q = PyAgg(array._ctx_(), array, layout, self.attr_to_aggs)
+        q = PyAgg(array.ctx, array, layout, self.attr_to_aggs)
 
-        from .libtiledb import (
+        from .array import (
             index_as_tuple,
             index_domain_subarray,
             replace_ellipsis,
@@ -54,7 +54,7 @@ class Aggregation:
         idx, drop_axes = replace_scalars_slice(dom, idx)
         dim_ranges = index_domain_subarray(array, dom, idx)
 
-        subarray = Subarray(array, array._ctx_())
+        subarray = Subarray(array, array.ctx)
         subarray.add_ranges([list([x]) for x in dim_ranges])
         q.set_subarray(subarray)
 

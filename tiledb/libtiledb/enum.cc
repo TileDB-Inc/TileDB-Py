@@ -175,7 +175,7 @@ void init_enums(py::module &m) {
       .value("TIFF", TILEDB_MIME_TIFF)
       .value("PDF", TILEDB_MIME_PDF);
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 25
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
   py::enum_<tiledb_current_domain_type_t>(m, "CurrentDomainType")
       .value("NDRECTANGLE", TILEDB_NDRECTANGLE);
 #endif

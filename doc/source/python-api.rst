@@ -119,7 +119,7 @@ Domain
 Array
 -----
 
-.. autoclass:: tiledb.libtiledb.Array
+.. autoclass:: tiledb.Array
    :members:
 
 .. autofunction:: tiledb.consolidate
@@ -142,7 +142,7 @@ Sparse Array
 Query
 ---------------
 
-.. autoclass:: tiledb.libtiledb.Query
+.. autoclass:: tiledb.Query
    :members:
 
 Query Condition

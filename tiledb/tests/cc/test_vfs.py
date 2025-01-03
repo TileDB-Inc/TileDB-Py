@@ -1,6 +1,6 @@
 import os
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 
 def test_dir(tmp_path):

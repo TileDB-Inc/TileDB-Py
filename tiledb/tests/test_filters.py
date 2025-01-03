@@ -188,7 +188,7 @@ class TestFilterTest(DiskTestCase):
         [
             (np.uint64, None, None),
             (np.float64, np.uint64, np.uint64),
-            (np.float64, tiledb.cc.DataType.UINT64, np.uint64),
+            (np.float64, tiledb.libtiledb.DataType.UINT64, np.uint64),
         ],
     )
     def test_delta_filter(self, attr_dtype, reinterp_dtype, expected_reinterp_dtype):
@@ -225,7 +225,7 @@ class TestFilterTest(DiskTestCase):
         [
             (np.uint64, None, None),
             (np.float64, np.uint64, np.uint64),
-            (np.float64, tiledb.cc.DataType.UINT64, np.uint64),
+            (np.float64, tiledb.libtiledb.DataType.UINT64, np.uint64),
         ],
     )
     def test_double_delta_filter(

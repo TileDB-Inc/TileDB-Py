@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 from tiledb.datatypes import DataType
 from tiledb.main import PyFragmentInfo
 
@@ -90,19 +90,19 @@ def test_array():
 
     ctx = lt.Context()
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
-    assert arr.is_open()
-    assert os.path.basename(arr.uri()) == os.path.basename(uri)
-    assert arr.schema == arr.schema
+    assert arr._is_open()
+    assert os.path.basename(arr._uri()) == os.path.basename(uri)
+    assert arr._schema == arr._schema
 
-    arr.reopen()
-    arr.set_open_timestamp_start(0)
-    arr.set_open_timestamp_end(1)
-    arr.reopen()
-    assert arr.open_timestamp_start == 0
-    assert arr.open_timestamp_end == 1
+    arr._reopen()
+    arr._set_open_timestamp_start(0)
+    arr._set_open_timestamp_end(1)
+    arr._reopen()
+    assert arr._open_timestamp_start == 0
+    assert arr._open_timestamp_end == 1
 
-    arr.close()
-    assert not arr.is_open()
+    arr._close()
+    assert not arr._is_open()
 
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
 
@@ -112,50 +112,50 @@ def test_array():
     # vacuum
     # load_schema
     # create
-    lt.Array.encryption_type(ctx, uri) == lt.EncryptionType.NO_ENCRYPTION
-    # TODO assert lt.Array.load_schema(ctx, uri) == arr.schema
-    assert arr.query_type() == lt.QueryType.READ
+    lt.Array._encryption_type(ctx, uri) == lt.EncryptionType.NO_ENCRYPTION
+    # TODO assert lt.Array.load_schema(ctx, uri) == arr._schema
+    assert arr._query_type() == lt.QueryType.READ
 
-    arr.close()
+    arr._close()
     ####
     arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
-    arr.set_open_timestamp_start(1)
-    arr.set_open_timestamp_end(1)
-    arr.close()
+    arr._set_open_timestamp_start(1)
+    arr._set_open_timestamp_end(1)
+    arr._close()
 
-    arr.open(lt.QueryType.WRITE)
+    arr._open(lt.QueryType.WRITE)
     data = b"abcdef"
-    arr.put_metadata("key", lt.DataType.STRING_ASCII, data)
-    arr.close()
+    arr._put_metadata("key", lt.DataType.STRING_ASCII, len(data), data)
+    arr._close()
 
-    arr.set_open_timestamp_start(1)
-    arr.set_open_timestamp_end(1)
-    arr.open(lt.QueryType.READ)
-    assert arr.metadata_num() == 1
-    assert arr.has_metadata("key")
-    mv = arr.get_metadata("key")
-    assert bytes(mv) == data
+    arr._set_open_timestamp_start(1)
+    arr._set_open_timestamp_end(1)
+    arr._open(lt.QueryType.READ)
+    assert arr._metadata_num() == 1
+    assert arr._has_metadata("key")
+    mv = arr._get_metadata("key")
+    assert mv == (data, lt.DataType.STRING_ASCII)
 
-    assert arr.get_metadata_from_index(0)[0] == lt.DataType.STRING_ASCII
-    mv = arr.get_metadata_from_index(0)[1]
+    assert arr._get_metadata_from_index(0)[0] == lt.DataType.STRING_ASCII
+    mv = arr._get_metadata_from_index(0)[1]
     assert bytes(mv) == data
     with pytest.raises(lt.TileDBError):
-        arr.get_metadata_from_index(1)
-    arr.close()
+        arr._get_metadata_from_index(1)
+    arr._close()
 
-    arr.open(lt.QueryType.WRITE)
-    arr.set_open_timestamp_start(2)
-    arr.set_open_timestamp_end(2)
-    arr.delete_metadata("key")
-    arr.close()
+    arr._open(lt.QueryType.WRITE)
+    arr._set_open_timestamp_start(2)
+    arr._set_open_timestamp_end(2)
+    arr._delete_metadata("key")
+    arr._close()
 
-    arr.set_open_timestamp_start(3)
-    arr.set_open_timestamp_end(3)
-    arr.open(lt.QueryType.READ)
+    arr._set_open_timestamp_start(3)
+    arr._set_open_timestamp_end(3)
+    arr._open(lt.QueryType.READ)
     with pytest.raises(KeyError):
-        arr.get_metadata("key")
-    assert not arr.has_metadata("key")[0]
-    arr.close()
+        arr._get_metadata("key")
+    assert not arr._has_metadata("key")
+    arr._close()
 
 
 def test_consolidate_fragments():
@@ -181,9 +181,7 @@ def test_consolidate_fragments():
     # https://github.com/TileDB-Inc/TileDB-Py/pull/1946
     uris = [uri.split("/")[-1] for uri in uris]
 
-    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
-    arr.consolidate_fragments(ctx, uris, config)
-    arr.close()
+    lt.Array._consolidate_fragments(uri, ctx, uris, config)
 
     fragment_info = PyFragmentInfo(uri, schema, False, ctx)
     # Fragmentinfo doesn't see the consolidated range
@@ -198,12 +196,12 @@ def test_array_config():
 
     ctx = lt.Context()
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
-    arr.close()
+    arr._close()
 
     # TODO update this after SC-26938
     config = lt.Config({"foo": "bar"})
-    arr.set_config(config)
-    assert arr.config()["foo"] == "bar"
+    arr._set_config(config)
+    assert arr._config()["foo"] == "bar"
 
 
 def test_domain():
@@ -266,7 +264,7 @@ def test_schema():
 
     with pytest.raises(lt.TileDBError):
         schema._tile_order = lt.LayoutType.HILBERT
-    if tiledb.libtiledb.version() >= (2, 24, 0):
+    if lt.version() >= (2, 24, 0):
         with pytest.raises(lt.TileDBError):
             schema._tile_order = lt.LayoutType.UNORDERED
     schema._tile_order = lt.LayoutType.ROW_MAJOR
@@ -300,7 +298,7 @@ def test_query_string():
 
     ctx = lt.Context()
     schema = create_schema()
-    lt.Array.create(uri, schema)
+    lt.Array._create(ctx, uri, schema)
     arr = lt.Array(ctx, uri, lt.QueryType.READ)
 
     q = lt.Query(ctx, arr, lt.QueryType.READ)
@@ -335,17 +333,17 @@ def test_write_sparse():
 
         ctx = lt.Context()
         schema = create_schema()
-        lt.Array.create(uri, schema)
+        lt.Array._create(ctx, uri, schema)
         arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
 
         q = lt.Query(ctx, arr, lt.QueryType.WRITE)
         q.layout = lt.LayoutType.UNORDERED
         assert q.query_type == lt.QueryType.WRITE
 
-        q.set_data_buffer("a", data)
-        q.set_data_buffer("x", coords)
+        q.set_data_buffer("a", data, len(data))
+        q.set_data_buffer("x", coords, len(coords))
 
-        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert q._submit() == lt.QueryStatus.COMPLETE
 
         return uri
 
@@ -360,10 +358,10 @@ def test_write_sparse():
         rcoords = np.zeros(10).astype(np.int32)
         rdata = np.zeros(10).astype(np.int32)
 
-        q.set_data_buffer("a", rdata)
-        q.set_data_buffer("x", rcoords)
+        q.set_data_buffer("a", rdata, len(rdata))
+        q.set_data_buffer("x", rcoords, len(rcoords))
 
-        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert q._submit() == lt.QueryStatus.COMPLETE
         assert np.all(rcoords == coords)
         assert np.all(rdata == data)
 
@@ -394,7 +392,7 @@ def test_write_dense():
 
         ctx = lt.Context()
         schema = create_schema()
-        lt.Array.create(uri, schema)
+        lt.Array._create(ctx, uri, schema)
         arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
 
         subarray = lt.Subarray(ctx, arr)
@@ -406,10 +404,10 @@ def test_write_dense():
 
         q.set_subarray(subarray)
 
-        q.set_data_buffer("a", data)
-        # q.set_data_buffer("x", coords)
+        q.set_data_buffer("a", data, len(data))
+        # q.set_data_buffer("x", coords, len(coords))
 
-        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert q._submit() == lt.QueryStatus.COMPLETE
 
         return uri
 
@@ -428,9 +426,9 @@ def test_write_dense():
 
         rdata = np.zeros(10).astype(np.float32)
 
-        q.set_data_buffer("a", rdata)
+        q.set_data_buffer("a", rdata, len(rdata))
 
-        assert q.submit() == lt.QueryStatus.COMPLETE
+        assert q._submit() == lt.QueryStatus.COMPLETE
         assert np.all(rdata == data)
 
     uri = write()

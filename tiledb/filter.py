@@ -3,7 +3,7 @@ from typing import List, Optional, Sequence, Union, overload
 
 import numpy as np
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import Ctx, CtxMixin
 from .datatypes import DataType

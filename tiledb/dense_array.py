@@ -1,19 +1,20 @@
-import warnings
 from collections import OrderedDict
 
 import numpy as np
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .array import (
+    Array,
     check_for_floats,
     index_as_tuple,
     index_domain_subarray,
     replace_ellipsis,
     replace_scalars_slice,
 )
-from .libtiledb import Array, Query
+from .datatypes import DataType
+from .query import Query
 from .subarray import Subarray
 
 
@@ -28,10 +29,6 @@ class DenseArrayImpl(Array):
         super().__init__(*args, **kw)
         if self.schema.sparse:
             raise ValueError(f"Array at {self.uri} is not a dense array")
-
-    @property
-    def ctx(self):
-        return self._ctx_()
 
     def __len__(self):
         return self.domain.shape[0]
@@ -176,7 +173,7 @@ class DenseArrayImpl(Array):
             attrs=attrs,
             cond=cond,
             dims=dims,
-            coords=coords,
+            has_coords=coords,
             order=order,
             use_arrow=use_arrow,
             return_arrow=return_arrow,
@@ -256,7 +253,7 @@ class DenseArrayImpl(Array):
         idx = replace_ellipsis(self.schema.domain.ndim, selection)
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         dim_ranges = index_domain_subarray(self, self.schema.domain, idx)
-        subarray = Subarray(self, self._ctx_())
+        subarray = Subarray(self, self.ctx)
         subarray.add_ranges([list([x]) for x in dim_ranges])
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, cond, layout, coords)
@@ -279,7 +276,7 @@ class DenseArrayImpl(Array):
     ):
         from .main import PyQuery
 
-        q = PyQuery(self._ctx_(), self, tuple(attr_names), tuple(), layout, False)
+        q = PyQuery(self.ctx, self, tuple(attr_names), tuple(), layout, False)
         self.pyquery = q
 
         if cond is not None and cond != "":
@@ -401,7 +398,7 @@ class DenseArrayImpl(Array):
             subarray = selection
         else:
             dim_ranges = index_domain_subarray(self, domain, idx)
-            subarray = Subarray(self, self._ctx_())
+            subarray = Subarray(self, self.ctx)
             subarray.add_ranges([list([x]) for x in dim_ranges])
 
         subarray_shape = subarray.shape()
@@ -547,7 +544,7 @@ class DenseArrayImpl(Array):
             else:
                 dtype = self.schema.attr(self.view_attr).dtype
                 with DenseArrayImpl(
-                    self.uri, "r", ctx=tiledb.Ctx(self._ctx_().config())
+                    self.uri, "r", ctx=tiledb.Ctx(self.ctx.config())
                 ) as readable:
                     current = readable[selection]
                 current[self.view_attr] = np.ascontiguousarray(val, dtype=dtype)
@@ -578,11 +575,7 @@ class DenseArrayImpl(Array):
                         f"validity bitmap, got {type(val)}"
                     )
 
-        from .libtiledb import _write_array_wrapper
-
-        _write_array_wrapper(
-            self, subarray, [], attributes, values, labels, nullmaps, False
-        )
+        self._write_array(subarray, [], attributes, values, labels, nullmaps, False)
 
     def __array__(self, dtype=None, **kw):
         """Implementation of numpy __array__ protocol (internal).
@@ -604,9 +597,101 @@ class DenseArrayImpl(Array):
         return array
 
     def write_direct(self, array: np.ndarray, **kw):
-        from .libtiledb import write_direct_dense
+        """
+        Write directly to given array attribute with minimal checks,
+        assumes that the numpy array is the same shape as the array's domain
 
-        write_direct_dense(self, array, **kw)
+        :param np.ndarray array: Numpy contiguous dense array of the same dtype \
+            and shape and layout of the DenseArray instance
+        :raises ValueError: cannot write to multi-attribute DenseArray
+        :raises ValueError: array is not contiguous
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        append_dim = kw.pop("append_dim", None)
+        mode = kw.pop("mode", "ingest")
+        start_idx = kw.pop("start_idx", None)
+
+        if not self.isopen or self.mode != "w":
+            raise tiledb.TileDBError("DenseArray is not opened for writing")
+        if self.schema.nattr != 1:
+            raise ValueError("cannot write_direct to a multi-attribute DenseArray")
+        if not array.flags.c_contiguous and not array.flags.f_contiguous:
+            raise ValueError("array is not contiguous")
+
+        use_global_order = (
+            self.ctx.config().get("py.use_global_order_1d_write", False) == "true"
+        )
+
+        layout = lt.LayoutType.ROW_MAJOR
+        if array.ndim == 1 and use_global_order:
+            layout = lt.LayoutType.GLOBAL_ORDER
+        elif array.flags.f_contiguous:
+            layout = lt.LayoutType.COL_MAJOR
+
+        range_start_idx = start_idx or 0
+
+        subarray_ranges = np.zeros(2 * array.ndim, np.uint64)
+        for n in range(array.ndim):
+            subarray_ranges[n * 2] = range_start_idx
+            subarray_ranges[n * 2 + 1] = array.shape[n] + range_start_idx - 1
+
+        if mode == "append":
+            with Array.load_typed(self.uri) as A:
+                ned = A.nonempty_domain()
+
+            if array.ndim <= append_dim:
+                raise IndexError("`append_dim` out of range")
+
+            if array.ndim != len(ned):
+                raise ValueError(
+                    "The number of dimension of the TileDB array and "
+                    "Numpy array to append do not match"
+                )
+
+            for n in range(array.ndim):
+                if n == append_dim:
+                    if start_idx is not None:
+                        range_start_idx = start_idx
+                        range_end_idx = array.shape[n] + start_idx - 1
+                    else:
+                        range_start_idx = ned[n][1] + 1
+                        range_end_idx = array.shape[n] + ned[n][1]
+
+                    subarray_ranges[n * 2] = range_start_idx
+                    subarray_ranges[n * 2 + 1] = range_end_idx
+                else:
+                    if array.shape[n] != ned[n][1] - ned[n][0] + 1:
+                        raise ValueError(
+                            "The input Numpy array must be of the same "
+                            "shape as the TileDB array, exluding the "
+                            "`append_dim`, but the Numpy array at index "
+                            f"{n} has {array.shape[n]} dimension(s) and "
+                            f"the TileDB array has {ned[n][1]-ned[n][0]}."
+                        )
+
+        ctx = lt.Context(self.ctx)
+        q = lt.Query(ctx, self.array, lt.QueryType.WRITE)
+        q.layout = layout
+
+        subarray = lt.Subarray(ctx, self.array)
+        for n in range(array.ndim):
+            subarray._add_dim_range(
+                n, (subarray_ranges[n * 2], subarray_ranges[n * 2 + 1])
+            )
+        q.set_subarray(subarray)
+
+        attr = self.schema.attr(0)
+        battr_name = attr._internal_name.encode("UTF-8")
+
+        tiledb_type = DataType.from_numpy(array.dtype)
+
+        if tiledb_type in (lt.DataType.BLOB, lt.DataType.CHAR, lt.DataType.STRING_UTF8):
+            q.set_data_buffer(battr_name, array, array.nbytes)
+        else:
+            q.set_data_buffer(battr_name, array, tiledb_type.ncells * array.size)
+
+        q._submit()
+        q.finalize()
 
     def read_direct(self, name=None):
         """Read attribute directly with minimal overhead, returns a numpy ndarray over the entire domain
@@ -644,7 +729,7 @@ class DenseArrayImpl(Array):
 
         idx = tuple(slice(None) for _ in range(domain.ndim))
         range_index = index_domain_subarray(self, domain, idx)
-        subarray = Subarray(self, self._ctx_())
+        subarray = Subarray(self, self.ctx)
         subarray.add_ranges([list([x]) for x in range_index])
         out = self._read_dense_subarray(
             subarray,
@@ -667,12 +752,12 @@ class DenseArrayImpl(Array):
         ndim = self.schema.domain.ndim
         has_labels = any(subarray.has_label_range(dim_idx) for dim_idx in range(ndim))
         if has_labels:
-            label_query = Query(self, self._ctx_())
+            label_query = Query(self, self.ctx)
             label_query.set_subarray(subarray)
-            label_query.submit()
+            label_query._submit()
             if not label_query.is_complete():
                 raise tiledb.TileDBError("Failed to get dimension ranges from labels")
-            result_subarray = Subarray(self, self._ctx_())
+            result_subarray = Subarray(self, self.ctx)
             result_subarray.copy_ranges(label_query.subarray(), range(ndim))
             return self.read_subarray(result_subarray)
 
@@ -694,7 +779,7 @@ class DenseArrayImpl(Array):
         # Create the pyquery and set the subarray.
         layout = lt.LayoutType.ROW_MAJOR
         pyquery = PyQuery(
-            self._ctx_(),
+            self.ctx,
             self,
             tuple(
                 [self.view_attr]
