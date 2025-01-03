@@ -899,7 +899,7 @@ class Array:
             q.set_data_buffer(
                 buffer_name,
                 output_values[i],
-                buffer_sizes[i] * ncells,
+                np.uint64(buffer_sizes[i] * ncells),
             )
 
             # Set offsets buffer
