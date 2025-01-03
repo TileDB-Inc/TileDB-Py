@@ -92,7 +92,11 @@ function(detect_artifact_name OUT_VAR)
                         SET(${OUT_VAR} TILEDB_MACOS-ARM64 PARENT_SCOPE)
                 endif()
         else() # Linux
-                SET(${OUT_VAR} TILEDB_LINUX-X86_64 PARENT_SCOPE)
+                if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+                        SET(${OUT_VAR} TILEDB_LINUX-ARM64 PARENT_SCOPE)
+                else()
+                        SET(${OUT_VAR} TILEDB_LINUX-X86_64 PARENT_SCOPE)
+                endif()
         endif()
 endfunction()
 
@@ -113,6 +117,7 @@ function(fetch_prebuilt_tiledb)
         if(NOT FETCH_PREBUILT_TILEDB_ARTIFACT_NAME)
                 detect_artifact_name(FETCH_PREBUILT_TILEDB_ARTIFACT_NAME)
         endif()
+        message(STATUS "Detected TileDB artifact name: ${FETCH_PREBUILT_TILEDB_ARTIFACT_NAME}")
 
         string(STRIP ${HASH_${FETCH_PREBUILT_TILEDB_ARTIFACT_NAME}} HASH_${FETCH_PREBUILT_TILEDB_ARTIFACT_NAME})
         FetchContent_Declare(
