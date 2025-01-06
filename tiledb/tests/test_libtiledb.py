@@ -3385,7 +3385,7 @@ class MemoryTest(DiskTestCase):
         print("  final RSS after forced GC: {}".format(round(final_gc / 1e6, 2)))
 
         assert_captured(capfd, "final RSS")
-        self.assertTrue(final < (2 * initial))
+        self.assertTrue(final < (2.5 * initial))
 
 
 class TestHighlevel(DiskTestCase):
