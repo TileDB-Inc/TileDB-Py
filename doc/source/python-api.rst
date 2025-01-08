@@ -93,7 +93,11 @@ Filters
    :members:
 .. autoclass:: tiledb.RleFilter
    :members:
+.. autoclass:: tiledb.DeltaFilter
+   :members:
 .. autoclass:: tiledb.DoubleDeltaFilter
+   :members:
+.. autoclass:: tiledb.DictionaryFilter
    :members:
 .. autoclass:: tiledb.BitShuffleFilter
    :members:
@@ -102,6 +106,16 @@ Filters
 .. autoclass:: tiledb.BitWidthReductionFilter
    :members:
 .. autoclass:: tiledb.PositiveDeltaFilter
+   :members:
+.. autoclass:: tiledb.ChecksumMD5Filter
+   :members:
+.. autoclass:: tiledb.ChecksumSHA256Filter
+   :members:
+.. autoclass:: tiledb.FloatScaleFilter
+   :members:
+.. autoclass:: tiledb.XORFilter
+   :members:
+.. autoclass:: tiledb.WebpFilter
    :members:
 
 Dimension
