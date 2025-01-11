@@ -874,7 +874,7 @@ class QueryConditionTest(DiskTestCase):
 
     def test_qc_enumeration(self):
         uri = self.path("test_qc_enumeration")
-        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 100), tile=1))
         enum1 = tiledb.Enumeration("enmr1", True, [0, 1, 2])
         enum2 = tiledb.Enumeration("enmr2", True, ["a", "bb", "ccc"])
         attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
@@ -884,8 +884,8 @@ class QueryConditionTest(DiskTestCase):
         )
         tiledb.Array.create(uri, schema)
 
-        data1 = np.random.randint(0, 3, 8)
-        data2 = np.random.randint(0, 3, 8)
+        data1 = np.random.randint(0, 3, 100)
+        data2 = np.random.randint(0, 3, 100)
 
         with tiledb.open(uri, "w") as A:
             A[:] = {"attr1": data1, "attr2": data2}
