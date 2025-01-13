@@ -165,8 +165,19 @@ class DenseArrayImpl(Array):
         ...                {"a1": np.zeros(5)})
 
         """
-        if not self.isopen or self.mode != "r":
-            raise tiledb.TileDBError("DenseArray must be opened in read mode")
+        if not self.isopen:
+            raise tiledb.TileDBError("Array is not opened")
+
+        if self.mode == "w":
+            raise tiledb.TileDBError(
+                "Write mode is not supported for queries on Dense Arrays"
+            )
+        elif self.mode == "d":
+            raise tiledb.TileDBError(
+                "Delete mode is not supported for queries on Dense Arrays"
+            )
+        elif self.mode != "r":
+            raise tiledb.TileDBError("Invalid mode for queries on Dense Arrays")
 
         return Query(
             self,
@@ -215,8 +226,19 @@ class DenseArrayImpl(Array):
         ...                 OrderedDict({'a1': np.zeros(5)}))
 
         """
-        if not self.isopen or self.mode != "r":
-            raise tiledb.TileDBError("DenseArray must be opened in read mode")
+        if not self.isopen:
+            raise tiledb.TileDBError("Array is not opened")
+
+        if self.mode == "w":
+            raise tiledb.TileDBError(
+                "Write mode is not supported for subarray queries on Dense Arrays"
+            )
+        elif self.mode == "d":
+            raise tiledb.TileDBError(
+                "Delete mode is not supported for subarray queries on Dense Arrays"
+            )
+        elif self.mode != "r":
+            raise tiledb.TileDBError("Invalid mode for subarray query on Dense Array")
 
         layout = lt.LayoutType.UNORDERED
         if order is None or order == "C":

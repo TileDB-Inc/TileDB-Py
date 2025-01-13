@@ -1022,7 +1022,7 @@ class QueryDeleteTest(DiskTestCase):
 
             with pytest.raises(
                 tiledb.TileDBError,
-                match="SparseArray must be opened in read or delete mode",
+                match="Write mode is not supported for queries on Sparse Arrays",
             ):
                 A.query(cond=qc).submit()
 
@@ -1052,7 +1052,7 @@ class QueryDeleteTest(DiskTestCase):
         with tiledb.open(path, "d") as A:
             with pytest.raises(
                 tiledb.TileDBError,
-                match="DenseArray must be opened in read mode",
+                match="Delete mode is not supported for queries on Dense Arrays",
             ):
                 A.query()
 

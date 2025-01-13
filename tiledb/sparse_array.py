@@ -372,10 +372,15 @@ class SparseArrayImpl(Array):
         ...                    OrderedDict({'a1': np.array([1, 2])}))
 
         """
-        if not self.isopen or self.mode not in ("r", "d"):
+        if not self.isopen:
+            raise tiledb.TileDBError("Array is not opened")
+
+        if self.mode == "w":
             raise tiledb.TileDBError(
-                "SparseArray must be opened in read or delete mode"
+                "Write mode is not supported for queries on Sparse Arrays"
             )
+        elif self.mode not in ("r", "d"):
+            raise tiledb.TileDBError("Invalid mode for queries on Sparse Arrays")
 
         # backwards compatibility
         _coords = coords
@@ -484,8 +489,15 @@ class SparseArrayImpl(Array):
         """
         from .subarray import Subarray
 
-        if not self.isopen or self.mode not in ("r", "d"):
-            raise tiledb.TileDBError("SparseArray is not opened in read or delete mode")
+        if not self.isopen:
+            raise tiledb.TileDBError("Array is not opened")
+
+        if self.mode == "w":
+            raise tiledb.TileDBError(
+                "Write mode is not supported for subarray queries on Sparse Arrays"
+            )
+        elif self.mode not in ("r", "d"):
+            raise tiledb.TileDBError("Invalid mode for subarray query on Sparse Array")
 
         layout = lt.LayoutType.UNORDERED
         if order is None or order == "U":
