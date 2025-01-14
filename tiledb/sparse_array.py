@@ -1,3 +1,4 @@
+import warnings
 from collections import OrderedDict
 
 import numpy as np
@@ -292,6 +293,9 @@ class SparseArrayImpl(Array):
         >>> # A[5.0:579.9]
 
         """
+        if self.view_attr:
+            return self.subarray(selection)
+
         result = self.subarray(selection)
         for i in range(self.schema.nattr):
             attr = self.schema.attr(i)
@@ -506,7 +510,11 @@ class SparseArrayImpl(Array):
 
         attr_names = list()
 
-        if attrs is None:
+        if self.view_attr is not None:
+            if attrs is not None:
+                warnings.warn("view_attr is set, ignoring attrs parameter", UserWarning)
+            attr_names.extend(self.view_attr)
+        elif attrs is None:
             attr_names.extend(
                 self.schema.attr(i)._internal_name for i in range(self.schema.nattr)
             )
