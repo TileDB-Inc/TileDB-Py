@@ -23,6 +23,7 @@ from tiledb.datatypes import DataType
 from .common import (
     DiskTestCase,
     assert_captured,
+    assert_dict_arrays_equal,
     assert_subarrays_equal,
     assert_unordered_equal,
     fx_sparse_cell_order,  # noqa: F401
@@ -923,8 +924,8 @@ class DenseArrayTest(DiskTestCase):
         assert_ts((timestamps[2], None), A * 3)
         assert_ts((timestamps[2], None), A * 3)
 
-    def test_open_attr(self):
-        uri = self.path("test_open_attr")
+    def test_open_attr_dense(self):
+        uri = self.path("test_open_attr_dense")
         schema = tiledb.ArraySchema(
             domain=tiledb.Domain(
                 tiledb.Dim(name="dim0", dtype=np.uint32, domain=(1, 4))
@@ -948,6 +949,48 @@ class DenseArrayTest(DiskTestCase):
         with tiledb.open(uri, attr="x") as A:
             assert_array_equal(A[:], np.array((1, 2, 3, 4)))
             assert list(A.multi_index[:].keys()) == ["x"]
+
+        with tiledb.open(uri, attr="x") as A:
+            q = A.query(cond="x <= 3")
+            expected = np.array([1, 2, 3, schema.attr("x").fill[0]])
+            assert_array_equal(q[:], expected)
+
+    def test_open_attr_sparse(self):
+        uri = self.path("test_open_attr_sparse")
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                tiledb.Dim(name="dim0", dtype=np.uint32, domain=(1, 4))
+            ),
+            attrs=(
+                tiledb.Attr(name="x", dtype=np.int32),
+                tiledb.Attr(name="y", dtype=np.int32),
+            ),
+            sparse=True,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, mode="w") as A:
+            A[[1, 2, 3, 4]] = {"x": np.array((1, 2, 3, 4)), "y": np.array((5, 6, 7, 8))}
+
+        with self.assertRaises(KeyError):
+            tiledb.open(uri, attr="z")
+
+        with self.assertRaises(KeyError):
+            tiledb.open(uri, attr="dim0")
+
+        with tiledb.open(uri, attr="x") as A:
+            expected = OrderedDict(
+                [("dim0", np.array([1, 2, 3, 4])), ("x", np.array([1, 2, 3, 4]))]
+            )
+            assert_dict_arrays_equal(A[:], expected)
+            assert list(A.multi_index[:].keys()) == ["dim0", "x"]
+
+        with tiledb.open(uri, attr="x") as A:
+            q = A.query(cond="x <= 3")
+            expected = OrderedDict(
+                [("dim0", np.array([1, 2, 3])), ("x", np.array([1, 2, 3]))]
+            )
+            assert_dict_arrays_equal(q[:], expected)
 
     def test_ncell_attributes(self):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 9), tile=10, dtype=int))
