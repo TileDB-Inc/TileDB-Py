@@ -283,10 +283,10 @@ def vacuum(uri, config=None, ctx=None, timestamp=None):
     :raises TypeError: cannot convert `uri` to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
-    This operation of this function is controlled by
-    the `"sm.vacuum.mode"` parameter, which accepts the values ``fragments``,
-    ``fragment_meta``, and ``array_meta``. Rather than passing the timestamp
-    into this function, it may be set by using `"sm.vacuum.timestamp_start"`and
+    This operation of this function is controlled by the `"sm.vacuum.mode"`
+    parameter, which accepts the values ``fragments``, ``fragment_meta``,
+    ``array_meta``, and ``commits``. Rather than passing thetimestamp into
+    this function, it may be set by using `"sm.vacuum.timestamp_start"`and
     `"sm.vacuum.timestamp_end"` which takes in a time in UNIX seconds. If both
     are set then this function's `timestamp` argument will be used.
 
