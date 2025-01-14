@@ -271,15 +271,17 @@ class TestColumnInfo(DiskTestCase):
                 {
                     "a": np.random.random_sample(20),
                     "b": [str(uuid.uuid4()) for _ in range(20)],
+                    "c": [np.random.bytes(10) for _ in range(20)],
                 }
             ),
             sparse=True,
-            index_dims=["a", "b"],
-            column_types={"a": np.float32, "b": np.bytes_},
+            index_dims=["a", "b", "c"],
+            column_types={"a": np.float32, "b": np.bytes_, "c": "blob"},
         )
         with tiledb.open(uri) as A:
             assert A.schema.domain.dim(0).dtype == np.float32
             assert A.schema.domain.dim(1).dtype == np.bytes_
+            assert A.schema.domain.dim(2).dtype == np.bytes_
 
     def test_apply_dtype_index_schema_only(self):
         uri = self.path("index_dtype_casted_dtype")
