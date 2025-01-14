@@ -77,8 +77,7 @@ class DenseArrayImpl(Array):
 
         """
         if self.view_attr:
-            result = self.subarray(selection, attrs=(self.view_attr,))
-            return result[self.view_attr]
+            return self.subarray(selection)
 
         result = self.subarray(selection)
         for i in range(self.schema.nattr):
@@ -269,6 +268,8 @@ class DenseArrayImpl(Array):
             attr = self.schema.attr(0)
             if attr.isanon:
                 return out[attr._internal_name]
+        if self.view_attr:
+            return out[self.view_attr]
         return out
 
     def _read_dense_subarray(
