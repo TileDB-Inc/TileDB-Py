@@ -416,17 +416,14 @@ class Array:
         if ctx is None:
             ctx = default_ctx()
 
-        from .dense_array import DenseArrayImpl
-        from .sparse_array import SparseArrayImpl
-
         tmp_array = preload_array(uri, mode, key, timestamp, ctx)
 
         if tmp_array._schema()._array_type == lt.ArrayType.SPARSE:
-            return SparseArrayImpl(
+            return tiledb.SparseArray(
                 uri, mode, key, timestamp, attr, ctx, preloaded_array=tmp_array
             )
         else:
-            return DenseArrayImpl(
+            return tiledb.DenseArray(
                 uri, mode, key, timestamp, attr, ctx, preloaded_array=tmp_array
             )
 
