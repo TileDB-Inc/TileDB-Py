@@ -6,7 +6,7 @@
 
 ## Improvements
 
-* Add cc alias for libtiledb by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2145
+* Add cc alias for libtiledb to provide partial backward compatibility with existing usage of internal APIs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2145
 
 **Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.2...0.33.3
 
