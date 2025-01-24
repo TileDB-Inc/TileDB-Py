@@ -2,7 +2,7 @@
 
 ## Bug Fixes
 
-* Arrays losing CloudArray interface by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2144
+* Fix interaction with CloudArray interface of tiledb-cloud package @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2144
 
 ## Improvements
 
