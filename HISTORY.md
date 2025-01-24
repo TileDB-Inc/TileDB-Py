@@ -1,3 +1,33 @@
+# Release 0.33.3
+
+## Bug Fixes
+
+* Fix interaction with CloudArray interface of tiledb-cloud package @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2144
+
+## Improvements
+
+* Add cc alias for libtiledb to provide partial backward compatibility with existing usage of internal APIs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2145
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.2...0.33.3
+
+# Release 0.33.2
+
+## What's Changed
+
+Wheels are now available for aarch64 Linux on PyPI.
+
+## Bug Fixes
+
+* Explicitly set the numpy type passed in `QueryExperimental::set_data_buffer` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2128
+
+## Improvements
+
+* Enable aarch64 wheel builds by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2114
+* Rename default branch from `dev` to `main`, update associated references by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2126
+* Fix/generalize schema evolution test added in #2083 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2116
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.1...0.33.2
+
 # Release 0.33.1
 
 ## Packaging Notes
