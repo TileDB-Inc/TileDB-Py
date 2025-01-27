@@ -14,13 +14,13 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-void set_fill_value(Attribute &attr, py::array value) {
+void set_fill_value(Attribute& attr, py::array value) {
   attr.set_fill_value(value.data(), value.nbytes());
 }
 
-py::array get_fill_value(Attribute &attr) {
+py::array get_fill_value(Attribute& attr) {
   // Get the fill value from the C++ API as a void* value.
-  const void *value;
+  const void* value;
   uint64_t size;
   attr.get_fill_value(&value, &size);
 
@@ -60,30 +60,29 @@ py::array get_fill_value(Attribute &attr) {
   return py::array(value_type, value_num, value);
 }
 
-void set_enumeration_name(Attribute &attr, const Context &ctx,
-                          const std::string &enumeration_name) {
+void set_enumeration_name(
+    Attribute& attr, const Context& ctx, const std::string& enumeration_name) {
   AttributeExperimental::set_enumeration_name(ctx, attr, enumeration_name);
 }
 
-std::optional<std::string> get_enumeration_name(Attribute &attr,
-                                                const Context &ctx) {
+std::optional<std::string> get_enumeration_name(
+    Attribute& attr, const Context& ctx) {
   return AttributeExperimental::get_enumeration_name(ctx, attr);
 }
 
-void init_attribute(py::module &m) {
+void init_attribute(py::module& m) {
   py::class_<tiledb::Attribute>(m, "Attribute")
       .def(py::init<Attribute>())
 
-      .def(py::init<Context &, std::string &, tiledb_datatype_t>())
+      .def(py::init<Context&, std::string&, tiledb_datatype_t>())
 
-      .def(
-          py::init<Context &, std::string &, tiledb_datatype_t, FilterList &>())
+      .def(py::init<Context&, std::string&, tiledb_datatype_t, FilterList&>())
 
-      .def(py::init<const Context &, py::capsule>())
+      .def(py::init<const Context&, py::capsule>())
 
       .def(
           "__capsule__",
-          [](Attribute &attr) { return py::capsule(attr.ptr().get(), "attr"); })
+          [](Attribute& attr) { return py::capsule(attr.ptr().get(), "attr"); })
 
       .def_property_readonly("_name", &Attribute::name)
 
@@ -91,13 +90,13 @@ void init_attribute(py::module &m) {
 
       .def_property("_nullable", &Attribute::nullable, &Attribute::set_nullable)
 
-      .def_property("_ncell", &Attribute::cell_val_num,
-                    &Attribute::set_cell_val_num)
+      .def_property(
+          "_ncell", &Attribute::cell_val_num, &Attribute::set_cell_val_num)
 
       .def_property_readonly("_var", &Attribute::variable_sized)
 
-      .def_property("_filters", &Attribute::filter_list,
-                    &Attribute::set_filter_list)
+      .def_property(
+          "_filters", &Attribute::filter_list, &Attribute::set_filter_list)
 
       .def_property_readonly("_cell_size", &Attribute::cell_size)
 
@@ -107,7 +106,7 @@ void init_attribute(py::module &m) {
 
       .def("_set_enumeration_name", set_enumeration_name)
 
-      .def("_dump", [](Attribute &attr) {
+      .def("_dump", [](Attribute& attr) {
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
         std::stringstream ss;
         ss << attr;
@@ -118,4 +117,4 @@ void init_attribute(py::module &m) {
       });
 }
 
-} // namespace libtiledbcpp
+}  // namespace libtiledbcpp

@@ -6,9 +6,9 @@
 
 #include <exception>
 
+#include <tiledb/tiledb_serialization.h>  // C
+#include <tiledb/tiledb>                  // C++
 #include "util.h"
-#include <tiledb/tiledb>                 // C++
-#include <tiledb/tiledb_serialization.h> // C
 
 #if !defined(NDEBUG)
 // #include "debug.cc"
@@ -22,18 +22,19 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 
 class PySerialization {
-
-public:
-  static void *deserialize_query(py::object ctx, py::object array,
-                                 py::buffer buffer,
-                                 tiledb_serialization_type_t serialize_type,
-                                 int32_t client_side) {
+ public:
+  static void* deserialize_query(
+      py::object ctx,
+      py::object array,
+      py::buffer buffer,
+      tiledb_serialization_type_t serialize_type,
+      int32_t client_side) {
     int rc;
 
-    tiledb_ctx_t *ctx_c;
-    tiledb_array_t *arr_c;
-    tiledb_query_t *qry_c;
-    tiledb_buffer_t *buf_c;
+    tiledb_ctx_t* ctx_c;
+    tiledb_array_t* arr_c;
+    tiledb_query_t* qry_c;
+    tiledb_buffer_t* buf_c;
 
     ctx_c = (py::capsule)ctx.attr("__capsule__")();
     if (ctx_c == nullptr)
@@ -56,8 +57,8 @@ public:
     if (rc == TILEDB_ERR)
       TPY_ERROR_LOC("Could not set buffer.");
 
-    rc = tiledb_deserialize_query(ctx_c, buf_c, serialize_type, client_side,
-                                  qry_c);
+    rc = tiledb_deserialize_query(
+        ctx_c, buf_c, serialize_type, client_side, qry_c);
     if (rc == TILEDB_ERR)
       TPY_ERROR_LOC("Could not deserialize query.");
 
@@ -65,15 +66,15 @@ public:
   }
 };
 
-void init_serialization(py::module &m) {
+void init_serialization(py::module& m) {
   py::class_<PySerialization>(m, "serialization")
       .def_static("deserialize_query", &PySerialization::deserialize_query);
 
-  py::enum_<tiledb_serialization_type_t>(m, "tiledb_serialization_type_t",
-                                         py::arithmetic())
+  py::enum_<tiledb_serialization_type_t>(
+      m, "tiledb_serialization_type_t", py::arithmetic())
       .value("TILEDB_CAPNP", TILEDB_CAPNP)
       .value("TILEDB_JSON", TILEDB_JSON)
       .export_values();
 }
 
-}; // namespace tiledbpy
+};  // namespace tiledbpy

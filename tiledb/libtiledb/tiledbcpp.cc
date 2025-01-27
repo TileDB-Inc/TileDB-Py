@@ -1,10 +1,10 @@
-#include <tiledb/tiledb> // C++
+#include <tiledb/tiledb>  // C++
 
-#include "common.h"
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
+#include "common.h"
 
 namespace libtiledbcpp {
 
@@ -14,28 +14,27 @@ namespace py = pybind11;
 template <typename... Args>
 using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
 
-void init_array(py::module &);
-void init_attribute(py::module &);
-void init_context(py::module &);
-void init_config(py::module &);
-void init_consolidation_plan(py::module &m);
-void init_current_domain(py::module &m);
-void init_enums(py::module &);
-void init_enumeration(py::module &);
-void init_dimension_label(py::module &m);
-void init_domain(py::module &m);
-void init_file_handle(py::module &);
-void init_filestore(py::module &m);
-void init_filter(py::module &);
-void init_group(py::module &);
-void init_object(py::module &m);
-void init_query(py::module &m);
-void init_schema(py::module &);
-void init_subarray(py::module &);
-void init_vfs(py::module &m);
+void init_array(py::module&);
+void init_attribute(py::module&);
+void init_context(py::module&);
+void init_config(py::module&);
+void init_consolidation_plan(py::module& m);
+void init_current_domain(py::module& m);
+void init_enums(py::module&);
+void init_enumeration(py::module&);
+void init_dimension_label(py::module& m);
+void init_domain(py::module& m);
+void init_file_handle(py::module&);
+void init_filestore(py::module& m);
+void init_filter(py::module&);
+void init_group(py::module&);
+void init_object(py::module& m);
+void init_query(py::module& m);
+void init_schema(py::module&);
+void init_subarray(py::module&);
+void init_vfs(py::module& m);
 
 PYBIND11_MODULE(libtiledb, m) {
-
   init_array(m);
   init_attribute(m);
   init_context(m);
@@ -78,14 +77,14 @@ PYBIND11_MODULE(libtiledb, m) {
     try {
       if (p)
         std::rethrow_exception(p);
-    } catch (const TileDBPyError &e) {
+    } catch (const TileDBPyError& e) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
-    } catch (const tiledb::TileDBError &e) {
+    } catch (const tiledb::TileDBError& e) {
       PyErr_SetString(tiledb_py_error.ptr(), e.what());
-    } catch (py::builtin_exception &e) {
+    } catch (py::builtin_exception& e) {
       throw;
     };
   });
 }
 
-}; // namespace libtiledbcpp
+};  // namespace libtiledbcpp
