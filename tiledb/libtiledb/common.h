@@ -10,24 +10,24 @@ using namespace tiledb;
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-#define TPY_ERROR_LOC(m)                                                  \
-  throw TileDBPyError(                                                    \
-      std::string(m) + " (" + __FILE__ + ":" + std::to_string(__LINE__) + \
-      ")");
+#define TPY_ERROR_LOC(m)                                                    \
+    throw TileDBPyError(                                                    \
+        std::string(m) + " (" + __FILE__ + ":" + std::to_string(__LINE__) + \
+        ")");
 
 class TileDBPyError : std::runtime_error {
- public:
-  explicit TileDBPyError(const char* m)
-      : std::runtime_error(m) {
-  }
-  explicit TileDBPyError(std::string m)
-      : std::runtime_error(m.c_str()) {
-  }
+   public:
+    explicit TileDBPyError(const char* m)
+        : std::runtime_error(m) {
+    }
+    explicit TileDBPyError(std::string m)
+        : std::runtime_error(m.c_str()) {
+    }
 
- public:
-  virtual const char* what() const noexcept override {
-    return std::runtime_error::what();
-  }
+   public:
+    virtual const char* what() const noexcept override {
+        return std::runtime_error::what();
+    }
 };
 
 namespace tiledbpy::common {
