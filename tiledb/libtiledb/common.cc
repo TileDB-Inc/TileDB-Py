@@ -87,146 +87,146 @@ std::unordered_map<std::string, tiledb_datatype_t> _np_name_to_tdb_dtype = {
 namespace tiledbpy::common {
 
 size_t buffer_nbytes(py::buffer_info& info) {
-  return info.itemsize *
-         std::accumulate(
-             info.shape.begin(), info.shape.end(), 1, std::multiplies<>());
+    return info.itemsize *
+           std::accumulate(
+               info.shape.begin(), info.shape.end(), 1, std::multiplies<>());
 }
 
 bool expect_buffer_nbytes(
     py::buffer_info& info, tiledb_datatype_t datatype, size_t nelem) {
-  size_t nbytes = buffer_nbytes(info);
-  size_t nbytes_expected = tiledb_datatype_size(datatype) * nelem;
-  return nbytes == nbytes_expected;
+    size_t nbytes = buffer_nbytes(info);
+    size_t nbytes_expected = tiledb_datatype_size(datatype) * nelem;
+    return nbytes == nbytes_expected;
 }
 
 }  // namespace tiledbpy::common
 
 py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
-  if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
-      type == TILEDB_STRING_ASCII) {
-    std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
-    if (cell_val_num < TILEDB_VAR_NUM)
-      base_str += std::to_string(cell_val_num);
-    return py::dtype(base_str);
-  }
+    if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
+        type == TILEDB_STRING_ASCII) {
+        std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
+        if (cell_val_num < TILEDB_VAR_NUM)
+            base_str += std::to_string(cell_val_num);
+        return py::dtype(base_str);
+    }
 
-  if (cell_val_num == 1) {
-    if (type == TILEDB_STRING_UTF16 || type == TILEDB_STRING_UTF32)
-      TPY_ERROR_LOC("Unimplemented UTF16 or UTF32 string conversion!");
-    if (type == TILEDB_STRING_UCS2 || type == TILEDB_STRING_UCS4)
-      TPY_ERROR_LOC("Unimplemented UCS2 or UCS4 string conversion!");
+    if (cell_val_num == 1) {
+        if (type == TILEDB_STRING_UTF16 || type == TILEDB_STRING_UTF32)
+            TPY_ERROR_LOC("Unimplemented UTF16 or UTF32 string conversion!");
+        if (type == TILEDB_STRING_UCS2 || type == TILEDB_STRING_UCS4)
+            TPY_ERROR_LOC("Unimplemented UCS2 or UCS4 string conversion!");
 
-    if (_tdb_to_np_name_dtype.count(type) == 1)
-      return py::dtype(_tdb_to_np_name_dtype[type]);
-  }
+        if (_tdb_to_np_name_dtype.count(type) == 1)
+            return py::dtype(_tdb_to_np_name_dtype[type]);
+    }
 
-  if (cell_val_num == 2) {
-    if (type == TILEDB_FLOAT32)
-      return py::dtype("complex64");
-    if (type == TILEDB_FLOAT64)
-      return py::dtype("complex128");
-  }
+    if (cell_val_num == 2) {
+        if (type == TILEDB_FLOAT32)
+            return py::dtype("complex64");
+        if (type == TILEDB_FLOAT64)
+            return py::dtype("complex128");
+    }
 
-  if (cell_val_num == TILEDB_VAR_NUM)
-    return tdb_to_np_dtype(type, 1);
+    if (cell_val_num == TILEDB_VAR_NUM)
+        return tdb_to_np_dtype(type, 1);
 
-  if (cell_val_num > 1) {
-    py::dtype base_dtype = tdb_to_np_dtype(type, 1);
-    py::tuple rec_elem = py::make_tuple("", base_dtype);
-    py::list rec_list;
-    for (size_t i = 0; i < cell_val_num; i++)
-      rec_list.append(rec_elem);
-    // note: we call the 'dtype' constructor b/c py::dtype does not accept
-    // list
-    auto np = py::module::import("numpy");
-    auto np_dtype = np.attr("dtype");
-    return np_dtype(rec_list);
-  }
+    if (cell_val_num > 1) {
+        py::dtype base_dtype = tdb_to_np_dtype(type, 1);
+        py::tuple rec_elem = py::make_tuple("", base_dtype);
+        py::list rec_list;
+        for (size_t i = 0; i < cell_val_num; i++)
+            rec_list.append(rec_elem);
+        // note: we call the 'dtype' constructor b/c py::dtype does not accept
+        // list
+        auto np = py::module::import("numpy");
+        auto np_dtype = np.attr("dtype");
+        return np_dtype(rec_list);
+    }
 
-  TPY_ERROR_LOC(
-      "tiledb datatype not understood ('" + tiledb::impl::type_to_str(type) +
-      "', cell_val_num: " + std::to_string(cell_val_num) + ")");
+    TPY_ERROR_LOC(
+        "tiledb datatype not understood ('" + tiledb::impl::type_to_str(type) +
+        "', cell_val_num: " + std::to_string(cell_val_num) + ")");
 }
 
 tiledb_datatype_t np_to_tdb_dtype(py::dtype type) {
-  auto name = py::str(py::getattr(type, "name"));
-  if (_np_name_to_tdb_dtype.count(name) == 1)
-    return _np_name_to_tdb_dtype[name];
+    auto name = py::str(py::getattr(type, "name"));
+    if (_np_name_to_tdb_dtype.count(name) == 1)
+        return _np_name_to_tdb_dtype[name];
 
-  auto kind = py::str(py::getattr(type, "kind"));
-  if (kind.is(py::str("S")))
-    return TILEDB_STRING_ASCII;
-  if (kind.is(py::str("U")))
-    return TILEDB_STRING_UTF8;
+    auto kind = py::str(py::getattr(type, "kind"));
+    if (kind.is(py::str("S")))
+        return TILEDB_STRING_ASCII;
+    if (kind.is(py::str("U")))
+        return TILEDB_STRING_UTF8;
 
-  TPY_ERROR_LOC(
-      "could not handle numpy dtype: " +
-      py::getattr(type, "name").cast<std::string>());
+    TPY_ERROR_LOC(
+        "could not handle numpy dtype: " +
+        py::getattr(type, "name").cast<std::string>());
 }
 
 bool is_tdb_num(tiledb_datatype_t type) {
-  switch (type) {
-    case TILEDB_INT8:
-    case TILEDB_INT16:
-    case TILEDB_UINT8:
-    case TILEDB_INT32:
-    case TILEDB_INT64:
-    case TILEDB_UINT16:
-    case TILEDB_UINT32:
-    case TILEDB_UINT64:
-    case TILEDB_FLOAT32:
-    case TILEDB_FLOAT64:
-      return true;
-    default:
-      return false;
-  }
+    switch (type) {
+        case TILEDB_INT8:
+        case TILEDB_INT16:
+        case TILEDB_UINT8:
+        case TILEDB_INT32:
+        case TILEDB_INT64:
+        case TILEDB_UINT16:
+        case TILEDB_UINT32:
+        case TILEDB_UINT64:
+        case TILEDB_FLOAT32:
+        case TILEDB_FLOAT64:
+            return true;
+        default:
+            return false;
+    }
 }
 
 bool is_tdb_str(tiledb_datatype_t type) {
-  switch (type) {
-    case TILEDB_STRING_ASCII:
-    case TILEDB_STRING_UTF8:
-    case TILEDB_CHAR:
-      return true;
-    default:
-      return false;
-  }
+    switch (type) {
+        case TILEDB_STRING_ASCII:
+        case TILEDB_STRING_UTF8:
+        case TILEDB_CHAR:
+            return true;
+        default:
+            return false;
+    }
 }
 
 py::size_t get_ncells(py::dtype type) {
-  auto np = py::module::import("numpy");
-  auto np_issubdtype = np.attr("issubdtype");
-  auto np_complexfloating = np.attr("complexfloating");
-  auto np_character = np.attr("character");
+    auto np = py::module::import("numpy");
+    auto np_issubdtype = np.attr("issubdtype");
+    auto np_complexfloating = np.attr("complexfloating");
+    auto np_character = np.attr("character");
 
-  py::bool_ ischaracter = np_issubdtype(type, np_character);
-  if (ischaracter) {
-    py::dtype base_dtype =
-        np.attr("dtype")(py::make_tuple(type.attr("kind"), 1));
-    if (type.itemsize() == 0)
-      return TILEDB_VAR_NUM;
-    return type.itemsize() / base_dtype.itemsize();
-  }
+    py::bool_ ischaracter = np_issubdtype(type, np_character);
+    if (ischaracter) {
+        py::dtype base_dtype = np.attr("dtype")(
+            py::make_tuple(type.attr("kind"), 1));
+        if (type.itemsize() == 0)
+            return TILEDB_VAR_NUM;
+        return type.itemsize() / base_dtype.itemsize();
+    }
 
-  py::bool_ iscomplexfloating = np_issubdtype(type, np_complexfloating);
-  if (iscomplexfloating)
-    return 2;
+    py::bool_ iscomplexfloating = np_issubdtype(type, np_complexfloating);
+    if (iscomplexfloating)
+        return 2;
 
-  return 1;
+    return 1;
 }
 
 py::array_t<uint8_t> uint8_bool_to_uint8_bitmap(
     py::array_t<uint8_t> validity_array) {
-  // TODO profile, probably replace; avoid inplace reassignment
-  auto np = py::module::import("numpy");
-  auto packbits = np.attr("packbits");
-  auto tmp = packbits(validity_array, "bitorder"_a = "little");
-  return tmp;
+    // TODO profile, probably replace; avoid inplace reassignment
+    auto np = py::module::import("numpy");
+    auto packbits = np.attr("packbits");
+    auto tmp = packbits(validity_array, "bitorder"_a = "little");
+    return tmp;
 }
 
 uint64_t count_zeros(py::array_t<uint8_t> a) {
-  uint64_t count = 0;
-  for (py::ssize_t idx = 0; idx < a.size(); idx++)
-    count += (a.data()[idx] == 0) ? 1 : 0;
-  return count;
+    uint64_t count = 0;
+    for (py::ssize_t idx = 0; idx < a.size(); idx++)
+        count += (a.data()[idx] == 0) ? 1 : 0;
+    return count;
 }

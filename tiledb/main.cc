@@ -17,17 +17,17 @@ void init_test_metadata(py::module&);
 void init_test_webp_filter(py::module&);
 
 PYBIND11_MODULE(main, m) {
-  init_core(m);
-  //_debug(m);
-  init_fragment(m);
-  //_query_condition(m);
-  init_schema_evolution(m);
+    init_core(m);
+    //_debug(m);
+    init_fragment(m);
+    //_query_condition(m);
+    init_schema_evolution(m);
 #if defined(TILEDB_SERIALIZATION)
-  init_serialization(m);
-  init_test_serialization(m);
+    init_serialization(m);
+    init_test_serialization(m);
 #endif
-  init_test_metadata(m);
-  init_test_webp_filter(m);
+    init_test_metadata(m);
+    init_test_webp_filter(m);
 }
 
 }  // namespace tiledbpy
