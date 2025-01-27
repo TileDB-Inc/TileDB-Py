@@ -293,7 +293,7 @@ class SparseArrayImpl(Array):
         >>> # A[5.0:579.9]
 
         """
-        if self.view_attr:
+        if self.view_attr is not None:
             return self.subarray(selection)
 
         result = self.subarray(selection)
