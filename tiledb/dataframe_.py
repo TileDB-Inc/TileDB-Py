@@ -203,6 +203,9 @@ class ColumnInfo:
         if isinstance(dtype, str) and dtype == "ascii":
             return cls("ascii", var=True)
 
+        if isinstance(dtype, str) and dtype == "blob":
+            return cls(np.bytes_, var=True)
+
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
 
