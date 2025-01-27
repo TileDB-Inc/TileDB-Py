@@ -6,8 +6,8 @@
 
 #include <exception>
 
+#include <tiledb/tiledb>  // C++
 #include "util.h"
-#include <tiledb/tiledb> // C++
 
 #if !defined(NDEBUG)
 // #include "debug.cc"
@@ -21,8 +21,7 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 
 class PyFragmentInfo {
-
-private:
+ private:
   Context ctx_;
   unique_ptr<FragmentInfo> fi_;
 
@@ -41,17 +40,20 @@ private:
   py::tuple mbrs_;
   py::tuple array_schema_name_;
 
-public:
-  tiledb_ctx_t *c_ctx_;
+ public:
+  tiledb_ctx_t* c_ctx_;
 
-public:
+ public:
   PyFragmentInfo() = delete;
 
-  PyFragmentInfo(const string &uri, py::object schema, py::bool_ include_mbrs,
-                 py::object ctx) {
+  PyFragmentInfo(
+      const string& uri,
+      py::object schema,
+      py::bool_ include_mbrs,
+      py::object ctx) {
     schema_ = schema;
 
-    tiledb_ctx_t *c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
+    tiledb_ctx_t* c_ctx_ = (py::capsule)ctx.attr("__capsule__")();
 
     if (c_ctx_ == nullptr)
       TPY_ERROR_LOC("Invalid context pointer!");
@@ -80,26 +82,48 @@ public:
     close();
   }
 
-  uint32_t get_num_fragments() { return num_fragments_; };
-  py::tuple get_uri() { return uri_; };
-  py::tuple get_version() { return version_; };
-  py::tuple get_nonempty_domain() { return nonempty_domain_; };
-  py::tuple get_cell_num() { return cell_num_; };
-  py::tuple get_timestamp_range() { return timestamp_range_; };
-  py::tuple get_sparse() { return sparse_; };
+  uint32_t get_num_fragments() {
+    return num_fragments_;
+  };
+  py::tuple get_uri() {
+    return uri_;
+  };
+  py::tuple get_version() {
+    return version_;
+  };
+  py::tuple get_nonempty_domain() {
+    return nonempty_domain_;
+  };
+  py::tuple get_cell_num() {
+    return cell_num_;
+  };
+  py::tuple get_timestamp_range() {
+    return timestamp_range_;
+  };
+  py::tuple get_sparse() {
+    return sparse_;
+  };
   uint32_t get_unconsolidated_metadata_num() {
     return unconsolidated_metadata_num_;
   };
   py::tuple get_has_consolidated_metadata() {
     return has_consolidated_metadata_;
   };
-  py::tuple get_to_vacuum() { return to_vacuum_; };
-  py::tuple get_mbrs() { return mbrs_; };
-  py::tuple get_array_schema_name() { return array_schema_name_; };
+  py::tuple get_to_vacuum() {
+    return to_vacuum_;
+  };
+  py::tuple get_mbrs() {
+    return mbrs_;
+  };
+  py::tuple get_array_schema_name() {
+    return array_schema_name_;
+  };
 
-  void dump() const { return fi_->dump(stdout); }
+  void dump() const {
+    return fi_->dump(stdout);
+  }
 
-private:
+ private:
   template <typename T>
   py::object for_all_fid(T (FragmentInfo::*fn)(uint32_t) const) const {
     py::list l;
@@ -113,12 +137,14 @@ private:
   void load() const {
     try {
       fi_->load();
-    } catch (TileDBError &e) {
+    } catch (TileDBError& e) {
       TPY_ERROR_LOC(e.what());
     }
   }
 
-  void close() { fi_.reset(); }
+  void close() {
+    fi_.reset();
+  }
 
   py::tuple fill_uri() const {
     return for_all_fid(&FragmentInfo::fragment_uri);
@@ -166,9 +192,10 @@ private:
       auto datetime64 = np.attr("datetime64");
       auto datetime_data = np.attr("datetime_data");
 
-      uint64_t *dates = static_cast<uint64_t *>(buffer.ptr);
-      limits = py::make_tuple(datetime64(dates[0], datetime_data(type)),
-                              datetime64(dates[1], datetime_data(type)));
+      uint64_t* dates = static_cast<uint64_t*>(buffer.ptr);
+      limits = py::make_tuple(
+          datetime64(dates[0], datetime_data(type)),
+          datetime64(dates[1], datetime_data(type)));
     }
 
     return std::move(limits);
@@ -202,15 +229,21 @@ private:
     return for_all_fid(&FragmentInfo::timestamp_range);
   }
 
-  uint32_t fragment_num() const { return fi_->fragment_num(); }
+  uint32_t fragment_num() const {
+    return fi_->fragment_num();
+  }
 
-  py::tuple fill_sparse() const { return for_all_fid(&FragmentInfo::sparse); }
+  py::tuple fill_sparse() const {
+    return for_all_fid(&FragmentInfo::sparse);
+  }
 
   py::tuple fill_cell_num() const {
     return for_all_fid(&FragmentInfo::cell_num);
   }
 
-  py::tuple fill_version() const { return for_all_fid(&FragmentInfo::version); }
+  py::tuple fill_version() const {
+    return for_all_fid(&FragmentInfo::version);
+  }
 
   py::tuple fill_has_consolidated_metadata() const {
     return for_all_fid(&FragmentInfo::has_consolidated_metadata);
@@ -220,7 +253,9 @@ private:
     return fi_->unconsolidated_metadata_num();
   }
 
-  uint32_t to_vacuum_num() const { return fi_->to_vacuum_num(); }
+  uint32_t to_vacuum_num() const {
+    return fi_->to_vacuum_num();
+  }
 
   py::tuple fill_to_vacuum_uri() const {
     py::list l;
@@ -283,9 +318,9 @@ private:
   }
 };
 
-void init_fragment(py::module &m) {
+void init_fragment(py::module& m) {
   py::class_<PyFragmentInfo>(m, "PyFragmentInfo")
-      .def(py::init<const string &, py::object, py::bool_, py::object>())
+      .def(py::init<const string&, py::object, py::bool_, py::object>())
       .def("get_num_fragments", &PyFragmentInfo::get_num_fragments)
       .def("get_uri", &PyFragmentInfo::get_uri)
       .def("get_version", &PyFragmentInfo::get_version)
@@ -293,14 +328,16 @@ void init_fragment(py::module &m) {
       .def("get_cell_num", &PyFragmentInfo::get_cell_num)
       .def("get_timestamp_range", &PyFragmentInfo::get_timestamp_range)
       .def("get_sparse", &PyFragmentInfo::get_sparse)
-      .def("get_unconsolidated_metadata_num",
-           &PyFragmentInfo::get_unconsolidated_metadata_num)
-      .def("get_has_consolidated_metadata",
-           &PyFragmentInfo::get_has_consolidated_metadata)
+      .def(
+          "get_unconsolidated_metadata_num",
+          &PyFragmentInfo::get_unconsolidated_metadata_num)
+      .def(
+          "get_has_consolidated_metadata",
+          &PyFragmentInfo::get_has_consolidated_metadata)
       .def("get_to_vacuum", &PyFragmentInfo::get_to_vacuum)
       .def("get_mbrs", &PyFragmentInfo::get_mbrs)
       .def("get_array_schema_name", &PyFragmentInfo::get_array_schema_name)
       .def("dump", &PyFragmentInfo::dump);
 }
 
-}; // namespace tiledbpy
+};  // namespace tiledbpy

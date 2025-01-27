@@ -9,8 +9,8 @@
 #define TILEDB_DEPRECATED
 #define TILEDB_DEPRECATED_EXPORT
 
+#include <tiledb/tiledb>  // C++
 #include "../util.h"
-#include <tiledb/tiledb> // C++
 
 #if !defined(NDEBUG)
 // #include "debug.cc"
@@ -24,8 +24,7 @@ namespace py = pybind11;
 using namespace pybind11::literals;
 
 class PyASCIIMetadataTest {
-
-public:
+ public:
   static void write_ascii(py::str uri) {
     Context ctx;
     Array array(ctx, uri, TILEDB_WRITE);
@@ -37,9 +36,9 @@ public:
   }
 };
 
-void init_test_metadata(py::module &m) {
+void init_test_metadata(py::module& m) {
   py::class_<PyASCIIMetadataTest>(m, "metadata_test_aux")
       .def_static("write_ascii", &PyASCIIMetadataTest::write_ascii);
 }
 
-}; // namespace tiledbpy
+};  // namespace tiledbpy

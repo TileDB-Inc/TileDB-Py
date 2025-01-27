@@ -10,7 +10,7 @@ namespace libtiledbcpp {
 using namespace tiledb;
 namespace py = pybind11;
 
-void init_enums(py::module &m) {
+void init_enums(py::module& m) {
   // consts from tiledb.h
   m.def("TILEDB_VAR_NUM", []() { return TILEDB_VAR_NUM; });
   m.def("TILEDB_MAX_PATH", []() { return TILEDB_MAX_PATH; });
@@ -64,7 +64,7 @@ void init_enums(py::module &m) {
       .value("GEOM_WKB", TILEDB_GEOM_WKB)
       .value("GEOM_WKT", TILEDB_GEOM_WKT)
 #endif
-      ; // line continuation for ifdef
+      ;  // line continuation for ifdef
 
   py::enum_<tiledb_array_type_t>(m, "ArrayType")
       .value("DENSE", TILEDB_DENSE)
@@ -112,8 +112,9 @@ void init_enums(py::module &m) {
       .value("WEBP_INPUT_FORMAT", TILEDB_WEBP_INPUT_FORMAT)
       .value("WEBP_QUALITY", TILEDB_WEBP_QUALITY)
       .value("WEBP_LOSSLESS", TILEDB_WEBP_LOSSLESS)
-      .value("COMPRESSION_REINTERPRET_DATATYPE",
-             TILEDB_COMPRESSION_REINTERPRET_DATATYPE);
+      .value(
+          "COMPRESSION_REINTERPRET_DATATYPE",
+          TILEDB_COMPRESSION_REINTERPRET_DATATYPE);
 
   py::enum_<tiledb_filter_webp_format_t>(m, "WebpInputFormat")
       .value("WEBP_NONE", TILEDB_WEBP_NONE)
@@ -144,8 +145,8 @@ void init_enums(py::module &m) {
       .value("DELETE", TILEDB_DELETE)
       .value("MODIFY_EXCLUSIVE", TILEDB_MODIFY_EXCLUSIVE);
 
-  py::enum_<tiledb_query_condition_op_t>(m, "QueryConditionOp",
-                                         py::module_local())
+  py::enum_<tiledb_query_condition_op_t>(
+      m, "QueryConditionOp", py::module_local())
       .value("LT", TILEDB_LT)
       .value("LE", TILEDB_LE)
       .value("GT", TILEDB_GT)
@@ -181,12 +182,15 @@ void init_enums(py::module &m) {
 #endif
   // test helpers to check enum name against typed value
   m.def("_enum_string", &tiledb::impl::type_to_str);
-  m.def("_enum_string",
-        py::overload_cast<tiledb_array_type_t>(&tiledb::ArraySchema::to_str));
-  m.def("_enum_string",
-        py::overload_cast<tiledb_layout_t>(&tiledb::ArraySchema::to_str));
-  m.def("_enum_string",
-        py::overload_cast<tiledb_filter_type_t>(&tiledb::Filter::to_str));
+  m.def(
+      "_enum_string",
+      py::overload_cast<tiledb_array_type_t>(&tiledb::ArraySchema::to_str));
+  m.def(
+      "_enum_string",
+      py::overload_cast<tiledb_layout_t>(&tiledb::ArraySchema::to_str));
+  m.def(
+      "_enum_string",
+      py::overload_cast<tiledb_filter_type_t>(&tiledb::Filter::to_str));
   m.def("_enum_string", [](Query::Status status) {
     std::stringstream ss;
     ss << status;
@@ -194,4 +198,4 @@ void init_enums(py::module &m) {
   });
 }
 
-}; // namespace libtiledbcpp
+};  // namespace libtiledbcpp

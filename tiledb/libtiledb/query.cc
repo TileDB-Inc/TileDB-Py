@@ -1,4 +1,4 @@
-#include <tiledb/tiledb> // C++
+#include <tiledb/tiledb>  // C++
 #include <tiledb/tiledb_experimental>
 
 #include "common.h"
@@ -17,19 +17,21 @@ using namespace tiledb;
 using namespace std;
 namespace py = pybind11;
 
-void init_query(py::module &m) {
+void init_query(py::module& m) {
   py::class_<tiledb::Query>(m, "Query")
 
       //.def(py::init<py::object, py::object, py::iterable, py::object,
       //              py::object, py::object>())
 
-      .def(py::init<Context &, Array &, tiledb_query_type_t>(),
-           py::keep_alive<1, 2>() /* Keep context alive. */,
-           py::keep_alive<1, 3>() /* Keep array alive. */)
+      .def(
+          py::init<Context&, Array&, tiledb_query_type_t>(),
+          py::keep_alive<1, 2>() /* Keep context alive. */,
+          py::keep_alive<1, 3>() /* Keep array alive. */)
 
-      .def(py::init<Context &, Array &>(),
-           py::keep_alive<1, 2>() /* Keep context alive. */,
-           py::keep_alive<1, 3>() /* Keep array alive. */)
+      .def(
+          py::init<Context&, Array&>(),
+          py::keep_alive<1, 2>() /* Keep context alive. */,
+          py::keep_alive<1, 3>() /* Keep array alive. */)
 
       // TODO .def("ptr", [&]() -> py::capsule)
 
@@ -37,24 +39,26 @@ void init_query(py::module &m) {
 
       .def_property_readonly("query_type", &Query::query_type)
 
-      .def_property_readonly("_subarray",
-                             [](Query &query) {
-                               // TODO: Before merge make sure the lifetime of
-                               // the resulting subarray is not tied to this
-                               // query.
-                               Subarray subarray(query.ctx(), query.array());
-                               query.update_subarray_from_query(&subarray);
-                               return subarray;
-                             })
+      .def_property_readonly(
+          "_subarray",
+          [](Query& query) {
+            // TODO: Before merge make sure the lifetime of
+            // the resulting subarray is not tied to this
+            // query.
+            Subarray subarray(query.ctx(), query.array());
+            query.update_subarray_from_query(&subarray);
+            return subarray;
+          })
 
       // TODO .def("array") -> Array&
 
       .def("has_results", &Query::has_results)
 
-      .def("is_complete",
-           [](const Query &query) {
-             return query.query_status() == Query::Status::COMPLETE;
-           })
+      .def(
+          "is_complete",
+          [](const Query& query) {
+            return query.query_status() == Query::Status::COMPLETE;
+          })
 
       .def("finalize", &Query::finalize)
 
@@ -72,26 +76,30 @@ void init_query(py::module &m) {
       //     (Query& (Query::*)(const std::string&, void*,
       //     uint64_t))&Query::set_data_buffer);
 
-      .def("set_data_buffer",
-           [](Query &q, std::string name, py::array a, uint64_t nelements) {
-             QueryExperimental::set_data_buffer(
-                 q, name, const_cast<void *>(a.data()), nelements);
-           })
+      .def(
+          "set_data_buffer",
+          [](Query& q, std::string name, py::array a, uint64_t nelements) {
+            QueryExperimental::set_data_buffer(
+                q, name, const_cast<void*>(a.data()), nelements);
+          })
 
-      .def("set_offsets_buffer",
-           [](Query &q, std::string name, py::array a, uint64_t nelements) {
-             q.set_offsets_buffer(name, (uint64_t *)(a.data()), nelements);
-           })
+      .def(
+          "set_offsets_buffer",
+          [](Query& q, std::string name, py::array a, uint64_t nelements) {
+            q.set_offsets_buffer(name, (uint64_t*)(a.data()), nelements);
+          })
 
-      .def("set_subarray",
-           [](Query &query, const Subarray &subarray) {
-             return query.set_subarray(subarray);
-           })
+      .def(
+          "set_subarray",
+          [](Query& query, const Subarray& subarray) {
+            return query.set_subarray(subarray);
+          })
 
-      .def("set_validity_buffer",
-           [](Query &q, std::string name, py::array a, uint64_t nelements) {
-             q.set_validity_buffer(name, (uint8_t *)(a.data()), nelements);
-           })
+      .def(
+          "set_validity_buffer",
+          [](Query& q, std::string name, py::array a, uint64_t nelements) {
+            q.set_validity_buffer(name, (uint8_t*)(a.data()), nelements);
+          })
 
       .def("_submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
 
@@ -106,4 +114,4 @@ void init_query(py::module &m) {
       ;
 }
 
-} // namespace libtiledbcpp
+}  // namespace libtiledbcpp

@@ -15,10 +15,10 @@ using namespace tiledb;
 using namespace tiledbpy::common;
 namespace py = pybind11;
 
-void init_vfs(py::module &m) {
+void init_vfs(py::module& m) {
   py::class_<VFS>(m, "VFS")
-      .def(py::init<const Context &>(), py::keep_alive<1, 2>())
-      .def(py::init<const Context &, const Config &>(), py::keep_alive<1, 2>())
+      .def(py::init<const Context&>(), py::keep_alive<1, 2>())
+      .def(py::init<const Context&, const Config&>(), py::keep_alive<1, 2>())
 
       .def_property_readonly("_ctx", &VFS::context)
       .def_property_readonly("_config", &VFS::config)
@@ -49,12 +49,14 @@ void init_vfs(py::module &m) {
           // C++ function. Return an empty vector.
           // 2. no callback is passed and a default callback is used. The
           // default callback just appends each path gathered. Return the paths.
-          [](VFS &vfs, std::string uri, py::object callback) {
+          [](VFS& vfs, std::string uri, py::object callback) {
             tiledb::Context ctx;
             if (callback.is_none()) {
               std::vector<std::string> paths;
               tiledb::VFSExperimental::ls_recursive(
-                  ctx, vfs, uri,
+                  ctx,
+                  vfs,
+                  uri,
                   [&](const std::string_view path,
                       uint64_t object_size) -> bool {
                     paths.push_back(std::string(path));
@@ -63,7 +65,9 @@ void init_vfs(py::module &m) {
               return paths;
             } else {
               tiledb::VFSExperimental::ls_recursive(
-                  ctx, vfs, uri,
+                  ctx,
+                  vfs,
+                  uri,
                   [&](const std::string_view path,
                       uint64_t object_size) -> bool {
                     return callback(path, object_size).cast<bool>();
@@ -75,16 +79,19 @@ void init_vfs(py::module &m) {
 }
 
 class FileHandle {
-private:
+ private:
   Context _ctx;
-  tiledb_vfs_fh_t *_fh;
+  tiledb_vfs_fh_t* _fh;
 
-public:
-  FileHandle(const Context &ctx, const VFS &vfs, std::string uri,
-             tiledb_vfs_mode_t mode)
+ public:
+  FileHandle(
+      const Context& ctx,
+      const VFS& vfs,
+      std::string uri,
+      tiledb_vfs_mode_t mode)
       : _ctx(ctx) {
-    _ctx.handle_error(tiledb_vfs_open(_ctx.ptr().get(), vfs.ptr().get(),
-                                      uri.c_str(), mode, &this->_fh));
+    _ctx.handle_error(tiledb_vfs_open(
+        _ctx.ptr().get(), vfs.ptr().get(), uri.c_str(), mode, &this->_fh));
   }
 
   void close() {
@@ -95,8 +102,8 @@ public:
     py::array data = py::array(py::dtype::of<std::byte>(), nbytes);
     py::buffer_info buffer = data.request();
 
-    _ctx.handle_error(tiledb_vfs_read(_ctx.ptr().get(), this->_fh, offset,
-                                      buffer.ptr, nbytes));
+    _ctx.handle_error(tiledb_vfs_read(
+        _ctx.ptr().get(), this->_fh, offset, buffer.ptr, nbytes));
 
     auto np = py::module::import("numpy");
     auto to_bytes = np.attr("ndarray").attr("tobytes");
@@ -106,8 +113,8 @@ public:
 
   void write(py::buffer data) {
     py::buffer_info buffer = data.request();
-    _ctx.handle_error(tiledb_vfs_write(_ctx.ptr().get(), this->_fh, buffer.ptr,
-                                       buffer.shape[0]));
+    _ctx.handle_error(tiledb_vfs_write(
+        _ctx.ptr().get(), this->_fh, buffer.ptr, buffer.shape[0]));
   }
 
   void flush() {
@@ -122,11 +129,15 @@ public:
   }
 };
 
-void init_file_handle(py::module &m) {
+void init_file_handle(py::module& m) {
   py::class_<FileHandle>(m, "FileHandle")
-      .def(py::init<const Context &, const VFS &, std::string,
-                    tiledb_vfs_mode_t>(),
-           py::keep_alive<1, 2>())
+      .def(
+          py::init<
+              const Context&,
+              const VFS&,
+              std::string,
+              tiledb_vfs_mode_t>(),
+          py::keep_alive<1, 2>())
 
       .def_property_readonly("_closed", &FileHandle::closed)
 
@@ -136,4 +147,4 @@ void init_file_handle(py::module &m) {
       .def("_flush", &FileHandle::flush);
 }
 
-} // namespace libtiledbcpp
+}  // namespace libtiledbcpp

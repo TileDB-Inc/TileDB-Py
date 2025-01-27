@@ -6,16 +6,16 @@
 #include <string>
 #include <vector>
 
-#include "util.h"
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
+#include "util.h"
 
 #if !defined(NDEBUG)
 // #include "debug.cc"
 #endif
 
-#include <tiledb/tiledb> // C++
+#include <tiledb/tiledb>  // C++
 
 // anonymous namespace for helper functions
 namespace {
@@ -30,8 +30,9 @@ bool issubdtype(py::dtype t1, py::dtype t2) {
   return py::cast<bool>(npsubdtype(t1, t2));
 }
 
-template <typename T> py::dtype get_dtype(T obj) {
-  auto &api = py::detail::npy_api::get();
+template <typename T>
+py::dtype get_dtype(T obj) {
+  auto& api = py::detail::npy_api::get();
 
   if (api.PyArray_Check_(obj.ptr())) {
     return py::cast<py::array>(obj).dtype();
@@ -45,12 +46,12 @@ template <typename T> py::dtype get_dtype(T obj) {
 // note: d1::dtype.is(d2) checks *object identity* which is
 //       not what we want.
 bool dtype_equal(py::dtype d1, py::dtype d2) {
-  auto &api = py::detail::npy_api::get();
+  auto& api = py::detail::npy_api::get();
 
   return api.PyArray_EquivTypes_(d1.ptr(), d2.ptr());
 }
 
-}; // namespace
+};  // namespace
 
 namespace tiledbpy {
 
@@ -61,7 +62,7 @@ using namespace pybind11::literals;
 
 #if PY_MAJOR_VERSION >= 3
 class NumpyConvert {
-private:
+ private:
   bool use_iter_ = false;
   bool allow_unicode_ = true;
   size_t data_nbytes_ = 0;
@@ -70,8 +71,8 @@ private:
   py::array input_;
   // we are using vector as a buffer here because they are grown in some
   // situations
-  std::vector<uint8_t> *data_buf_;
-  std::vector<uint64_t> *offset_buf_;
+  std::vector<uint8_t>* data_buf_;
+  std::vector<uint64_t>* offset_buf_;
 
   void convert_unicode() {
     // Convert array of strings to UTF-8 buffer+offsets
@@ -94,9 +95,9 @@ private:
     // size (bytes) of current object data
     Py_ssize_t sz = 0;
     // object data (string or bytes)
-    const char *input_p = nullptr;
+    const char* input_p = nullptr;
 
-    unsigned char *output_p = nullptr;
+    unsigned char* output_p = nullptr;
     output_p = data_buf_->data();
 
     // avoid one interpreter roundtrip
@@ -117,11 +118,11 @@ private:
       if (PyUnicode_Check(u.ptr())) {
         // TODO see if we can do this with PyUnicode_AsUTF8String
         u_encoded = npstrencode(u);
-        rc = PyBytes_AsStringAndSize(u_encoded.ptr(),
-                                     const_cast<char **>(&input_p), &sz);
+        rc = PyBytes_AsStringAndSize(
+            u_encoded.ptr(), const_cast<char**>(&input_p), &sz);
       } else {
-        rc = PyBytes_AsStringAndSize(u.ptr(), const_cast<char **>(&input_p),
-                                     &sz);
+        rc =
+            PyBytes_AsStringAndSize(u.ptr(), const_cast<char**>(&input_p), &sz);
       }
 
       if (rc == -1) {
@@ -151,7 +152,7 @@ private:
   void convert_bytes() {
     // Convert array of bytes objects or ASCII strings to buffer+offsets
 
-    assert(input_.itemsize() > 0); // must have fixed-length array
+    assert(input_.itemsize() > 0);  // must have fixed-length array
 
     // we know exact offset count
     offset_buf_->resize(input_len_);
@@ -162,9 +163,9 @@ private:
     // size (bytes) of current object data
     Py_ssize_t sz = 0;
     // object data (string or bytes)
-    const char *input_p = nullptr;
+    const char* input_p = nullptr;
 
-    unsigned char *output_p = nullptr;
+    unsigned char* output_p = nullptr;
     output_p = data_buf_->data();
 
     int rc;
@@ -190,7 +191,7 @@ if (PyUnicode_Check(u.ptr())) {
 }
 */
 
-      rc = PyBytes_AsStringAndSize(o, const_cast<char **>(&input_p), &sz);
+      rc = PyBytes_AsStringAndSize(o, const_cast<char**>(&input_p), &sz);
       if (rc == -1) {
         throw std::runtime_error(
             "PyBytes_AsStringAndSize failed to encode string");
@@ -218,7 +219,7 @@ if (PyUnicode_Check(u.ptr())) {
   void convert_object() {
     // Convert np.dtype("O") array of objects to buffer+offsets
 
-    auto &api = py::detail::npy_api::get();
+    auto& api = py::detail::npy_api::get();
 
     offset_buf_->resize(input_len_);
 
@@ -227,7 +228,7 @@ if (PyUnicode_Check(u.ptr())) {
     // size (bytes) of current object data
     Py_ssize_t sz = 0;
     // current data
-    const char *input_p = nullptr;
+    const char* input_p = nullptr;
 
     auto input_size = input_.size();
     py::dtype first_dtype;
@@ -236,7 +237,7 @@ if (PyUnicode_Check(u.ptr())) {
     for (int64_t idx = 0; idx < input_size; idx++) {
       offset_buf_->data()[idx] = data_nbytes_;
 
-      PyObject *o = input_unchecked.data(idx)->ptr();
+      PyObject* o = input_unchecked.data(idx)->ptr();
       assert(o != nullptr);
 
       // NOTE: every branch below *must* initialize first_dtype
@@ -260,7 +261,7 @@ if (PyUnicode_Check(u.ptr())) {
       } else if (PyBytes_Check(o)) {
         // ASCII only
         auto res =
-            PyBytes_AsStringAndSize(o, const_cast<char **>(&input_p), &sz);
+            PyBytes_AsStringAndSize(o, const_cast<char**>(&input_p), &sz);
 
         if (idx < 1)
           first_dtype = py::dtype("bytes");
@@ -288,7 +289,7 @@ if (PyUnicode_Check(u.ptr())) {
         auto a = py::cast<py::bool_>(o);
         sz = sizeof(bool);
         bool bool_value = a;
-        input_p = reinterpret_cast<const char *>(&bool_value);
+        input_p = reinterpret_cast<const char*>(&bool_value);
       } else {
         // TODO write the type in the error here
         // auto o_h = py::reinterpret_borrow<py::object>(o);
@@ -304,11 +305,11 @@ if (PyUnicode_Check(u.ptr())) {
     data_buf_->resize(data_nbytes_);
 
     // second pass: copy the data to output buffer
-    unsigned char *output_p = data_buf_->data();
+    unsigned char* output_p = data_buf_->data();
 
     // copy data to output buffers
     for (int64_t idx = 0; idx < input_size; idx++) {
-      PyObject *pyobj_p = input_unchecked.data(idx)->ptr();
+      PyObject* pyobj_p = input_unchecked.data(idx)->ptr();
 
       assert(pyobj_p != nullptr);
 
@@ -317,16 +318,16 @@ if (PyUnicode_Check(u.ptr())) {
         assert(input_p != nullptr);
       } else if (PyBytes_Check(pyobj_p)) {
         // TODO error check?
-        PyBytes_AsStringAndSize(pyobj_p, const_cast<char **>(&input_p), &sz);
+        PyBytes_AsStringAndSize(pyobj_p, const_cast<char**>(&input_p), &sz);
       } else if (api.PyArray_Check_(pyobj_p)) {
         auto arr = py::cast<py::array>(pyobj_p);
         sz = arr.nbytes();
-        input_p = (const char *)arr.data();
+        input_p = (const char*)arr.data();
       } else if (PyBool_Check(pyobj_p)) {
         py::bool_ bool_obj = py::cast<py::bool_>(pyobj_p);
         sz = sizeof(bool);
         bool bool_value = bool_obj;
-        input_p = reinterpret_cast<const char *>(&bool_value);
+        input_p = reinterpret_cast<const char*>(&bool_value);
       } else {
         // TODO add object type
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
@@ -344,7 +345,7 @@ if (PyUnicode_Check(u.ptr())) {
     // For non-contiguous arrays (such as views) we must iterate rather
     // than indexing directly.
 
-    auto &npy_api = py::detail::npy_api::get();
+    auto& npy_api = py::detail::npy_api::get();
 
     offset_buf_->resize(input_.size());
 
@@ -353,7 +354,7 @@ if (PyUnicode_Check(u.ptr())) {
     // size (bytes) of current object data
     Py_ssize_t sz = 0;
     // current data
-    const char *input_p = nullptr;
+    const char* input_p = nullptr;
 
     size_t idx = 0;
 
@@ -366,7 +367,7 @@ if (PyUnicode_Check(u.ptr())) {
       }
       offset_buf_->data()[idx] = data_nbytes_;
 
-      PyObject *obj_p = obj_h.ptr();
+      PyObject* obj_p = obj_h.ptr();
 
       // we must check each dtype because object arrays are not guaranteed to
       // be homogenous
@@ -396,7 +397,7 @@ if (PyUnicode_Check(u.ptr())) {
       } else if (PyBytes_Check(obj_p)) {
         // ASCII only
         auto res =
-            PyBytes_AsStringAndSize(obj_p, const_cast<char **>(&input_p), &sz);
+            PyBytes_AsStringAndSize(obj_p, const_cast<char**>(&input_p), &sz);
 
         if (res == -1) {
           // TODO TPY_ERROR_LOC
@@ -413,7 +414,7 @@ if (PyUnicode_Check(u.ptr())) {
         py::bool_ bool_obj = py::cast<py::bool_>(obj_p);
         sz = sizeof(bool);
         bool bool_value = bool_obj;
-        input_p = reinterpret_cast<const char *>(&bool_value);
+        input_p = reinterpret_cast<const char*>(&bool_value);
       } else {
         auto errmsg =
             std::string("Unexpected object type in string conversion");
@@ -425,7 +426,7 @@ if (PyUnicode_Check(u.ptr())) {
 
     data_buf_->resize(data_nbytes_);
     // second pass: write the data to output buffer
-    unsigned char *output_p = data_buf_->data();
+    unsigned char* output_p = data_buf_->data();
 
     // reset the iterator
     iter = input_.attr("flat");
@@ -439,19 +440,19 @@ if (PyUnicode_Check(u.ptr())) {
         assert(input_p != nullptr);
       } else if (PyBytes_Check(obj_p)) {
         // TODO error check?
-        PyBytes_AsStringAndSize(obj_p, const_cast<char **>(&input_p), &sz);
+        PyBytes_AsStringAndSize(obj_p, const_cast<char**>(&input_p), &sz);
       } else if (npy_api.PyArray_Check_(obj_p)) {
         // auto pao = (PyArrayObject*)o;
         // input_p = (const char*)PyArray_DATA(pao);
         // sz = PyArray_NBYTES(pao);
         auto o_a = py::cast<py::array>(obj_h);
         sz = o_a.nbytes();
-        input_p = (const char *)o_a.data();
+        input_p = (const char*)o_a.data();
       } else if (PyBool_Check(obj_p)) {
         py::bool_ bool_obj = py::cast<py::bool_>(obj_p);
         sz = sizeof(bool);
         bool bool_value = bool_obj;
-        input_p = reinterpret_cast<const char *>(&bool_value);
+        input_p = reinterpret_cast<const char*>(&bool_value);
       } else {
         TPY_ERROR_LOC("Unexpected object type in buffer conversion");
       }
@@ -462,7 +463,7 @@ if (PyUnicode_Check(u.ptr())) {
     }
   }
 
-public:
+ public:
   /*
   Initialize the converter
 */
@@ -475,13 +476,13 @@ public:
       // which is what we want
       try {
         v.attr("shape") = py::int_(input.size());
-      } catch (py::error_already_set &e) {
+      } catch (py::error_already_set& e) {
         if (e.matches(PyExc_AttributeError)) {
           use_iter_ = true;
         } else {
           throw;
         }
-      } catch (std::exception &e) {
+      } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
       }
       input_ = v;
@@ -505,8 +506,12 @@ public:
   /*
   Set allow_unicode_ flag
 */
-  bool allow_unicode() { return allow_unicode_; }
-  void allow_unicode(bool allow_unicode) { allow_unicode_ = allow_unicode; }
+  bool allow_unicode() {
+    return allow_unicode_;
+  }
+  void allow_unicode(bool allow_unicode) {
+    allow_unicode_ = allow_unicode;
+  }
 
   /*
   Returns a tuple of py::array containing
@@ -534,19 +539,19 @@ public:
     }
 
     auto tmp_data_buf_p = data_buf_;
-    auto data_ref = py::capsule(data_buf_, [](void *v) {
-      delete reinterpret_cast<std::vector<uint8_t> *>(v);
+    auto data_ref = py::capsule(data_buf_, [](void* v) {
+      delete reinterpret_cast<std::vector<uint8_t>*>(v);
     });
-    data_buf_ = nullptr; // disown: capsule owns it
+    data_buf_ = nullptr;  // disown: capsule owns it
 
     auto tmp_offset_buf_p = offset_buf_;
-    auto offset_ref = py::capsule(offset_buf_, [](void *v) {
-      delete reinterpret_cast<std::vector<uint64_t> *>(v);
+    auto offset_ref = py::capsule(offset_buf_, [](void* v) {
+      delete reinterpret_cast<std::vector<uint64_t>*>(v);
     });
-    offset_buf_ = nullptr; // disown: capsule owns it now
+    offset_buf_ = nullptr;  // disown: capsule owns it now
 
-    auto data_np = py::array_t<uint8_t>(tmp_data_buf_p->size(),
-                                        tmp_data_buf_p->data(), data_ref);
+    auto data_np = py::array_t<uint8_t>(
+        tmp_data_buf_p->size(), tmp_data_buf_p->data(), data_ref);
     auto offset_np = py::array_t<uint64_t>(
         tmp_offset_buf_p->size(), tmp_offset_buf_p->data(), offset_ref);
 
@@ -555,8 +560,8 @@ public:
 };
 #endif
 
-py::tuple convert_np(py::array input, bool allow_unicode,
-                     bool use_fallback = false) {
+py::tuple convert_np(
+    py::array input, bool allow_unicode, bool use_fallback = false) {
 #if PY_MAJOR_VERSION >= 3
   if (use_fallback) {
 #endif
@@ -573,4 +578,4 @@ py::tuple convert_np(py::array input, bool allow_unicode,
 #endif
 }
 
-}; // namespace tiledbpy
+};  // namespace tiledbpy

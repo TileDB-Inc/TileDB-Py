@@ -46,18 +46,18 @@
 
 struct ArrowSchema {
   // Array type description
-  const char *format;
-  const char *name;
-  const char *metadata;
+  const char* format;
+  const char* name;
+  const char* metadata;
   int64_t flags;
   int64_t n_children;
-  struct ArrowSchema **children;
-  struct ArrowSchema *dictionary;
+  struct ArrowSchema** children;
+  struct ArrowSchema* dictionary;
 
   // Release callback
-  void (*release)(struct ArrowSchema *);
+  void (*release)(struct ArrowSchema*);
   // Opaque producer-specific data
-  void *private_data;
+  void* private_data;
 };
 
 struct ArrowArray {
@@ -67,14 +67,14 @@ struct ArrowArray {
   int64_t offset;
   int64_t n_buffers;
   int64_t n_children;
-  const void **buffers;
-  struct ArrowArray **children;
-  struct ArrowArray *dictionary;
+  const void** buffers;
+  struct ArrowArray** children;
+  struct ArrowArray* dictionary;
 
   // Release callback
-  void (*release)(struct ArrowArray *);
+  void (*release)(struct ArrowArray*);
   // Opaque producer-specific data
-  void *private_data;
+  void* private_data;
 };
 /* End Arrow C API */
 /* ************************************************************************ */
@@ -91,9 +91,10 @@ struct ArrowArray {
 
 using _TileDBError = tiledb::TileDBError;
 #ifndef NDEBUG
-#define TDB_LERROR(m)                                                          \
-  _TileDBError(std::string(m) + " (" + __FILE__ + ":" +                        \
-               std::to_string(__LINE__) + ")");
+#define TDB_LERROR(m)                                                     \
+  _TileDBError(                                                           \
+      std::string(m) + " (" + __FILE__ + ":" + std::to_string(__LINE__) + \
+      ")");
 #else
 #define TDB_LERROR tiledb::TileDBError
 #endif
@@ -107,8 +108,9 @@ namespace arrow {
 
 // Arrow format and representation
 struct ArrowInfo {
-  ArrowInfo(std::string fmt, const std::string &rep = std::string())
-      : fmt_(fmt), rep_(rep){};
+  ArrowInfo(std::string fmt, const std::string& rep = std::string())
+      : fmt_(fmt)
+      , rep_(rep) {};
 
   std::string fmt_;
   std::string rep_;
@@ -126,13 +128,13 @@ struct TypeInfo {
 
 struct BufferInfo {
   TypeInfo tdbtype;
-  bool is_var;              // is var-length
-  uint64_t data_num;        // number of data elements
-  void *data;               // data pointer
-  uint64_t data_elem_size;  // bytes per data element
-  uint64_t offsets_num;     // number of offsets
-  void *offsets;            // offsets pointer
-  size_t offsets_elem_size; // bytes per offset element
+  bool is_var;               // is var-length
+  uint64_t data_num;         // number of data elements
+  void* data;                // data pointer
+  uint64_t data_elem_size;   // bytes per data element
+  uint64_t offsets_num;      // number of offsets
+  void* offsets;             // offsets pointer
+  size_t offsets_elem_size;  // bytes per offset element
 };
 
 /* ****************************** */
@@ -174,99 +176,100 @@ ArrowInfo tiledb_buffer_arrow_fmt(BufferInfo bufferinfo, bool use_list = true) {
   */
 
   switch (typeinfo.type) {
-  ////////////////////////////////////////////////////////////////////////
-  case TILEDB_STRING_ASCII:
-  case TILEDB_STRING_UTF8:
-    if (bufferinfo.offsets_elem_size == 4) {
-      return ArrowInfo("u");
-    } else {
-      return ArrowInfo("U");
-    }
-  case TILEDB_CHAR:
-    if (!bufferinfo.is_var) {
-      return ArrowInfo("w:" + std::to_string(cell_val_num));
-    } else if (bufferinfo.offsets_elem_size == 4) {
-      return ArrowInfo("z");
-    } else {
-      return ArrowInfo("Z");
-    }
-  case TILEDB_INT32:
-    return ArrowInfo("i");
-  case TILEDB_INT64:
-    return ArrowInfo("l");
-  case TILEDB_FLOAT32:
-    return ArrowInfo("f");
-  case TILEDB_FLOAT64:
-    return ArrowInfo("g");
-  case TILEDB_BLOB:
+    ////////////////////////////////////////////////////////////////////////
+    case TILEDB_STRING_ASCII:
+    case TILEDB_STRING_UTF8:
+      if (bufferinfo.offsets_elem_size == 4) {
+        return ArrowInfo("u");
+      } else {
+        return ArrowInfo("U");
+      }
+    case TILEDB_CHAR:
+      if (!bufferinfo.is_var) {
+        return ArrowInfo("w:" + std::to_string(cell_val_num));
+      } else if (bufferinfo.offsets_elem_size == 4) {
+        return ArrowInfo("z");
+      } else {
+        return ArrowInfo("Z");
+      }
+    case TILEDB_INT32:
+      return ArrowInfo("i");
+    case TILEDB_INT64:
+      return ArrowInfo("l");
+    case TILEDB_FLOAT32:
+      return ArrowInfo("f");
+    case TILEDB_FLOAT64:
+      return ArrowInfo("g");
+    case TILEDB_BLOB:
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
-  case TILEDB_GEOM_WKB:
-  case TILEDB_GEOM_WKT:
+    case TILEDB_GEOM_WKB:
+    case TILEDB_GEOM_WKT:
 #endif
-    return ArrowInfo("B");
-  case TILEDB_INT8:
-    return ArrowInfo("c");
-  case TILEDB_UINT8:
-    return ArrowInfo("C");
-  case TILEDB_INT16:
-    return ArrowInfo("s");
-  case TILEDB_UINT16:
-    return ArrowInfo("S");
-  case TILEDB_UINT32:
-    return ArrowInfo("I");
-  case TILEDB_UINT64:
-    return ArrowInfo("L");
+      return ArrowInfo("B");
+    case TILEDB_INT8:
+      return ArrowInfo("c");
+    case TILEDB_UINT8:
+      return ArrowInfo("C");
+    case TILEDB_INT16:
+      return ArrowInfo("s");
+    case TILEDB_UINT16:
+      return ArrowInfo("S");
+    case TILEDB_UINT32:
+      return ArrowInfo("I");
+    case TILEDB_UINT64:
+      return ArrowInfo("L");
 
-  case TILEDB_TIME_SEC:
-    return ArrowInfo("tts");
-  case TILEDB_TIME_MS:
-    return ArrowInfo("ttm");
-  case TILEDB_TIME_US:
-    return ArrowInfo("ttu");
-  case TILEDB_TIME_NS:
-    return ArrowInfo("ttn");
-  case TILEDB_DATETIME_SEC:
-    return ArrowInfo("tss:");
-  case TILEDB_DATETIME_MS:
-    return ArrowInfo("tsm:");
-  case TILEDB_DATETIME_US:
-    return ArrowInfo("tsu:");
-  case TILEDB_DATETIME_NS:
-    return ArrowInfo("tsn:");
-  case TILEDB_DATETIME_DAY:
-    return ArrowInfo("tdD");
-  // TILEDB_BOOL is stored as a uint8_t but arrow::Type::BOOL is 1 bit
-  case TILEDB_BOOL:
-    return ArrowInfo("C");
+    case TILEDB_TIME_SEC:
+      return ArrowInfo("tts");
+    case TILEDB_TIME_MS:
+      return ArrowInfo("ttm");
+    case TILEDB_TIME_US:
+      return ArrowInfo("ttu");
+    case TILEDB_TIME_NS:
+      return ArrowInfo("ttn");
+    case TILEDB_DATETIME_SEC:
+      return ArrowInfo("tss:");
+    case TILEDB_DATETIME_MS:
+      return ArrowInfo("tsm:");
+    case TILEDB_DATETIME_US:
+      return ArrowInfo("tsu:");
+    case TILEDB_DATETIME_NS:
+      return ArrowInfo("tsn:");
+    case TILEDB_DATETIME_DAY:
+      return ArrowInfo("tdD");
+    // TILEDB_BOOL is stored as a uint8_t but arrow::Type::BOOL is 1 bit
+    case TILEDB_BOOL:
+      return ArrowInfo("C");
 
-  // TODO: these could potentially be rep'd w/ additional
-  //       language-specific metadata
-  case TILEDB_DATETIME_YEAR:
-  case TILEDB_DATETIME_MONTH:
-  case TILEDB_DATETIME_WEEK:
-  case TILEDB_DATETIME_HR:
-  case TILEDB_DATETIME_MIN:
-  case TILEDB_DATETIME_PS:
-  case TILEDB_DATETIME_FS:
-  case TILEDB_DATETIME_AS:
-  case TILEDB_TIME_MIN:
-  case TILEDB_TIME_PS:
-  case TILEDB_TIME_FS:
-  case TILEDB_TIME_AS:
-  case TILEDB_STRING_UTF16:
-  case TILEDB_STRING_UTF32:
-  case TILEDB_STRING_UCS2:
-  case TILEDB_STRING_UCS4:
-  case TILEDB_ANY:
-  default:
-    break;
+    // TODO: these could potentially be rep'd w/ additional
+    //       language-specific metadata
+    case TILEDB_DATETIME_YEAR:
+    case TILEDB_DATETIME_MONTH:
+    case TILEDB_DATETIME_WEEK:
+    case TILEDB_DATETIME_HR:
+    case TILEDB_DATETIME_MIN:
+    case TILEDB_DATETIME_PS:
+    case TILEDB_DATETIME_FS:
+    case TILEDB_DATETIME_AS:
+    case TILEDB_TIME_MIN:
+    case TILEDB_TIME_PS:
+    case TILEDB_TIME_FS:
+    case TILEDB_TIME_AS:
+    case TILEDB_STRING_UTF16:
+    case TILEDB_STRING_UTF32:
+    case TILEDB_STRING_UCS2:
+    case TILEDB_STRING_UCS4:
+    case TILEDB_ANY:
+    default:
+      break;
   }
-  throw TDB_LERROR("TileDB-Arrow: tiledb datatype not understood ('" +
-                   tiledb::impl::type_to_str(typeinfo.type) +
-                   "', cell_val_num: " + std::to_string(cell_val_num) + ")");
+  throw TDB_LERROR(
+      "TileDB-Arrow: tiledb datatype not understood ('" +
+      tiledb::impl::type_to_str(typeinfo.type) +
+      "', cell_val_num: " + std::to_string(cell_val_num) + ")");
 }
 
-TypeInfo arrow_type_to_tiledb(ArrowSchema *arw_schema) {
+TypeInfo arrow_type_to_tiledb(ArrowSchema* arw_schema) {
   auto fmt = std::string(arw_schema->format);
   bool large = false;
   if (fmt == "+l") {
@@ -321,7 +324,7 @@ TypeInfo arrow_type_to_tiledb(ArrowSchema *arw_schema) {
         "'");
 }
 
-TypeInfo tiledb_dt_info(const ArraySchema &schema, const std::string &name) {
+TypeInfo tiledb_dt_info(const ArraySchema& schema, const std::string& name) {
   if (schema.has_attribute(name)) {
     auto attr = schema.attribute(name);
     auto retval = TypeInfo();
@@ -348,7 +351,7 @@ TypeInfo tiledb_dt_info(const ArraySchema &schema, const std::string &name) {
 /*        Helper functions        */
 /* ****************************** */
 
-void check_arrow_schema(const ArrowSchema *arw_schema) {
+void check_arrow_schema(const ArrowSchema* arw_schema) {
   if (arw_schema == nullptr)
     TDB_LERROR("[ArrowIO]: Invalid ArrowSchema object!");
 
@@ -382,16 +385,22 @@ struct CPPArrowSchema {
    * Note that an ArrowSchema is *movable*, provided
    * the release callback of the source is set to null.
    */
-  CPPArrowSchema(std::string name, std::string format,
-                 std::optional<std::string> metadata, int64_t flags,
-                 std::vector<ArrowSchema *> children,
-                 std::shared_ptr<CPPArrowSchema> dictionary)
-      : format_(format), name_(name), metadata_(metadata), children_(children),
-        dictionary_(dictionary) {
+  CPPArrowSchema(
+      std::string name,
+      std::string format,
+      std::optional<std::string> metadata,
+      int64_t flags,
+      std::vector<ArrowSchema*> children,
+      std::shared_ptr<CPPArrowSchema> dictionary)
+      : format_(format)
+      , name_(name)
+      , metadata_(metadata)
+      , children_(children)
+      , dictionary_(dictionary) {
     flags_ = flags;
     n_children_ = children.size();
 
-    schema_ = static_cast<ArrowSchema *>(std::malloc(sizeof(ArrowSchema)));
+    schema_ = static_cast<ArrowSchema*>(std::malloc(sizeof(ArrowSchema)));
     if (schema_ == nullptr)
       throw tiledb::TileDBError("Failed to allocate ArrowSchema");
 
@@ -408,17 +417,17 @@ struct CPPArrowSchema {
     schema_->dictionary = nullptr;
 
     // Release callback
-    schema_->release = ([](ArrowSchema *schema_p) {
+    schema_->release = ([](ArrowSchema* schema_p) {
       assert(schema_p->release != nullptr);
 
       // Release children
       for (int64_t i = 0; i < schema_p->n_children; i++) {
-        ArrowSchema *child_schema = schema_p->children[i];
+        ArrowSchema* child_schema = schema_p->children[i];
         child_schema->release(child_schema);
         assert(child_schema->release == nullptr);
       }
       // Release dictionary struct
-      struct ArrowSchema *dict = schema_p->dictionary;
+      struct ArrowSchema* dict = schema_p->dictionary;
       if (dict != nullptr && dict->release != nullptr) {
         dict->release(dict);
         assert(dict->release == nullptr);
@@ -427,14 +436,14 @@ struct CPPArrowSchema {
       // mark the ArrowSchema struct as released
       schema_p->release = nullptr;
 
-      delete static_cast<CPPArrowSchema *>(schema_p->private_data);
+      delete static_cast<CPPArrowSchema*>(schema_p->private_data);
     });
 
     // Private data for release callback
     schema_->private_data = this;
 
     if (n_children_ > 0) {
-      schema_->children = static_cast<ArrowSchema **>(children.data());
+      schema_->children = static_cast<ArrowSchema**>(children.data());
     }
 
     if (dictionary) {
@@ -461,31 +470,31 @@ struct CPPArrowSchema {
    * by the ArrowSchema.release callback, which frees the
    * CPPArrowSchema structure (via ArrowSchema.private_data).
    */
-  void export_ptr(ArrowSchema *out_schema) {
+  void export_ptr(ArrowSchema* out_schema) {
     assert(out_schema != nullptr);
     memcpy(out_schema, schema_, sizeof(ArrowSchema));
     std::free(schema_);
     schema_ = nullptr;
   }
 
-  ArrowSchema *mutable_ptr() {
+  ArrowSchema* mutable_ptr() {
     assert(schema_ != nullptr);
     return schema_;
   }
 
-  ArrowSchema *ptr() const {
+  ArrowSchema* ptr() const {
     assert(schema_ != nullptr);
     return schema_;
   }
 
-private:
-  ArrowSchema *schema_;
+ private:
+  ArrowSchema* schema_;
   std::string format_;
   std::string name_;
   std::optional<std::string> metadata_;
   int64_t flags_;
   int64_t n_children_;
-  std::vector<ArrowSchema *> children_;
+  std::vector<ArrowSchema*> children_;
   std::shared_ptr<CPPArrowSchema> dictionary_;
 };
 
@@ -499,12 +508,17 @@ struct CPPArrowArray {
    * Note that an ArrowSchema is *movable*, provided
    * the release callback of the source is set to null.
    */
-  CPPArrowArray(int64_t elem_num, int64_t null_num, int64_t offset,
-                std::vector<std::shared_ptr<CPPArrowArray>> children,
-                std::vector<void *> buffers, ArrowAdapter::release_cb cb,
-                void *cb_data)
-      : owner_cb(cb), owner_cb_data(cb_data) {
-    array_ = static_cast<ArrowArray *>(std::malloc(sizeof(ArrowArray)));
+  CPPArrowArray(
+      int64_t elem_num,
+      int64_t null_num,
+      int64_t offset,
+      std::vector<std::shared_ptr<CPPArrowArray>> children,
+      std::vector<void*> buffers,
+      ArrowAdapter::release_cb cb,
+      void* cb_data)
+      : owner_cb(cb)
+      , owner_cb_data(cb_data) {
+    array_ = static_cast<ArrowArray*>(std::malloc(sizeof(ArrowArray)));
     if (array_ == nullptr)
       throw tiledb::TileDBError("Failed to allocate ArrowArray");
 
@@ -518,18 +532,18 @@ struct CPPArrowArray {
     array_->children = nullptr;
     array_->dictionary = nullptr;
     // Bookkeeping
-    array_->release = ([](ArrowArray *array_p) {
+    array_->release = ([](ArrowArray* array_p) {
       assert(array_p->release != nullptr);
 
       // Release children
       for (int64_t i = 0; i < array_p->n_children; i++) {
-        ArrowArray *child_array = array_p->children[i];
+        ArrowArray* child_array = array_p->children[i];
         child_array->release(child_array);
         assert(child_array->release == nullptr);
       }
 
       // Release dictionary
-      struct ArrowArray *dict = array_p->dictionary;
+      struct ArrowArray* dict = array_p->dictionary;
       if (dict != nullptr && dict->release != nullptr) {
         dict->release(dict);
         assert(dict->release == nullptr);
@@ -539,7 +553,7 @@ struct CPPArrowArray {
       array_p->release = nullptr;
 
       // free the data owner
-      auto self = static_cast<CPPArrowArray *>(array_p->private_data);
+      auto self = static_cast<CPPArrowArray*>(array_p->private_data);
       if (self->owner_cb) {
         self->owner_cb(self->owner_cb_data);
       }
@@ -549,7 +563,7 @@ struct CPPArrowArray {
     array_->private_data = this;
 
     buffers_ = buffers;
-    array_->buffers = const_cast<const void **>(buffers_.data());
+    array_->buffers = const_cast<const void**>(buffers_.data());
   }
 
   /*
@@ -565,28 +579,28 @@ struct CPPArrowArray {
     }
   }
 
-  void export_ptr(ArrowArray *out_array) {
+  void export_ptr(ArrowArray* out_array) {
     assert(out_array != nullptr);
     memcpy(out_array, array_, sizeof(ArrowArray));
     std::free(array_);
     array_ = nullptr;
   }
 
-  ArrowArray *ptr() const {
+  ArrowArray* ptr() const {
     assert(array_ != nullptr);
     return array_;
   }
 
-  ArrowArray *mutable_ptr() {
+  ArrowArray* mutable_ptr() {
     assert(array_ != nullptr);
     return array_;
   }
 
-private:
-  ArrowArray *array_;
-  std::vector<void *> buffers_;
+ private:
+  ArrowArray* array_;
+  std::vector<void*> buffers_;
   ArrowAdapter::release_cb owner_cb;
-  void *owner_cb_data;
+  void* owner_cb_data;
 };
 
 /* ****************************** */
@@ -594,19 +608,21 @@ private:
 /* ****************************** */
 
 class ArrowImporter {
-public:
-  ArrowImporter(Query *const query);
+ public:
+  ArrowImporter(Query* const query);
   ~ArrowImporter();
 
-  void import_(std::string name, ArrowArray *array, ArrowSchema *schema);
+  void import_(std::string name, ArrowArray* array, ArrowSchema* schema);
 
-private:
-  Query *const query_;
-  std::vector<void *> offset_buffers_;
+ private:
+  Query* const query_;
+  std::vector<void*> offset_buffers_;
 
-}; // class ArrowExporter
+};  // class ArrowExporter
 
-ArrowImporter::ArrowImporter(Query *const query) : query_(query) {}
+ArrowImporter::ArrowImporter(Query* const query)
+    : query_(query) {
+}
 
 ArrowImporter::~ArrowImporter() {
   for (auto p : offset_buffers_) {
@@ -614,8 +630,8 @@ ArrowImporter::~ArrowImporter() {
   }
 }
 
-void ArrowImporter::import_(std::string name, ArrowArray *arw_array,
-                            ArrowSchema *arw_schema) {
+void ArrowImporter::import_(
+    std::string name, ArrowArray* arw_array, ArrowSchema* arw_schema) {
   auto typeinfo = arrow_type_to_tiledb(arw_schema);
 
   // buffer conversion
@@ -623,31 +639,31 @@ void ArrowImporter::import_(std::string name, ArrowArray *arw_array,
   if (typeinfo.cell_val_num == TILEDB_VAR_NUM) {
     assert(arw_array->n_buffers == 3);
 
-    void *p_offsets = const_cast<void *>(arw_array->buffers[1]);
-    void *p_data = const_cast<void *>(arw_array->buffers[2]);
+    void* p_offsets = const_cast<void*>(arw_array->buffers[1]);
+    void* p_data = const_cast<void*>(arw_array->buffers[2]);
     const uint64_t num_offsets = arw_array->length;
     uint64_t data_nbytes = 0;
     if (typeinfo.arrow_large) {
       data_nbytes =
-          static_cast<uint64_t *>(p_offsets)[num_offsets] * typeinfo.elem_size;
+          static_cast<uint64_t*>(p_offsets)[num_offsets] * typeinfo.elem_size;
     } else {
       data_nbytes =
-          static_cast<uint32_t *>(p_offsets)[num_offsets] * typeinfo.elem_size;
+          static_cast<uint32_t*>(p_offsets)[num_offsets] * typeinfo.elem_size;
     }
 
     // Set the TileDB buffer, adding `1` to `num_offsets` to account for
     // the expected, extra offset.
     query_->set_data_buffer(name, p_data, data_nbytes);
-    query_->set_offsets_buffer(name, static_cast<uint64_t *>(p_offsets),
-                               num_offsets + 1);
+    query_->set_offsets_buffer(
+        name, static_cast<uint64_t*>(p_offsets), num_offsets + 1);
   } else {
     // fixed-size attribute (not TILEDB_VAR_NUM)
     assert(arw_array->n_buffers == 2);
 
-    void *p_data = const_cast<void *>(arw_array->buffers[1]);
+    void* p_data = const_cast<void*>(arw_array->buffers[1]);
     uint64_t data_num = arw_array->length;
 
-    query_->set_data_buffer(name, static_cast<void *>(p_data), data_num);
+    query_->set_data_buffer(name, static_cast<void*>(p_data), data_num);
   }
 }
 
@@ -656,27 +672,33 @@ void ArrowImporter::import_(std::string name, ArrowArray *arw_array,
 /* ****************************** */
 
 class ArrowExporter {
-public:
-  ArrowExporter(Context *const ctx, Query *const query);
+ public:
+  ArrowExporter(Context* const ctx, Query* const query);
 
-  void export_(const std::string &name, ArrowArray *array, ArrowSchema *schema,
-               ArrowAdapter::release_cb cb, void *private_data);
+  void export_(
+      const std::string& name,
+      ArrowArray* array,
+      ArrowSchema* schema,
+      ArrowAdapter::release_cb cb,
+      void* private_data);
 
-  BufferInfo buffer_info(const std::string &name);
+  BufferInfo buffer_info(const std::string& name);
 
-private:
-  Context *const ctx_;
-  Query *const query_;
+ private:
+  Context* const ctx_;
+  Query* const query_;
 };
 
 // ArrowExporter implementation
-ArrowExporter::ArrowExporter(Context *const ctx, Query *const query)
-    : ctx_(ctx), query_(query) {}
+ArrowExporter::ArrowExporter(Context* const ctx, Query* const query)
+    : ctx_(ctx)
+    , query_(query) {
+}
 
-BufferInfo ArrowExporter::buffer_info(const std::string &name) {
-  void *data = nullptr;
+BufferInfo ArrowExporter::buffer_info(const std::string& name) {
+  void* data = nullptr;
   uint64_t data_nelem = 0;
-  uint64_t *offsets = nullptr;
+  uint64_t* offsets = nullptr;
   uint64_t offsets_nelem = 0;
   uint64_t elem_size = 0;
 
@@ -704,13 +726,19 @@ BufferInfo ArrowExporter::buffer_info(const std::string &name) {
     // divide by 4 to get the correct number of offset elements. Note that
     // the C API does not fetch the data element size, so we ignore
     // `data_nbytes` below and leave `elem_size` untouched.
-    uint64_t *offsets_nbytes = nullptr;
-    uint64_t *data_nbytes = nullptr;
-    ctx_->handle_error(
-        tiledb_query_get_data_buffer(ctx_->ptr().get(), query_->ptr().get(),
-                                     name.c_str(), &data, &data_nbytes));
+    uint64_t* offsets_nbytes = nullptr;
+    uint64_t* data_nbytes = nullptr;
+    ctx_->handle_error(tiledb_query_get_data_buffer(
+        ctx_->ptr().get(),
+        query_->ptr().get(),
+        name.c_str(),
+        &data,
+        &data_nbytes));
     ctx_->handle_error(tiledb_query_get_offsets_buffer(
-        ctx_->ptr().get(), query_->ptr().get(), name.c_str(), &offsets,
+        ctx_->ptr().get(),
+        query_->ptr().get(),
+        name.c_str(),
+        &offsets,
         &offsets_nbytes));
     offsets_nelem = *offsets_nbytes / offsets_elem_nbytes;
   } else {
@@ -740,7 +768,8 @@ int64_t flags_for_buffer(BufferInfo binfo) {
   return 0;
 }
 
-template <typename T> T cast_checked(uint64_t val) {
+template <typename T>
+T cast_checked(uint64_t val) {
   if (val > std::numeric_limits<T>::max()) {
     throw tiledb::TileDBError(
         "[TileDB-Arrow] Value too large to cast to requested type");
@@ -748,9 +777,12 @@ template <typename T> T cast_checked(uint64_t val) {
   return static_cast<T>(val);
 }
 
-void ArrowExporter::export_(const std::string &name, ArrowArray *array,
-                            ArrowSchema *schema, ArrowAdapter::release_cb cb,
-                            void *cb_data) {
+void ArrowExporter::export_(
+    const std::string& name,
+    ArrowArray* array,
+    ArrowSchema* schema,
+    ArrowAdapter::release_cb cb,
+    void* cb_data) {
   auto bufferinfo = this->buffer_info(name);
 
   if (schema == nullptr || array == nullptr) {
@@ -764,10 +796,10 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
   // lifetime:
   //   - address is stored in ArrowSchema.private_data
   //   - delete is called by lambda stored in ArrowSchema.release
-  CPPArrowSchema *cpp_schema = new CPPArrowSchema(
+  CPPArrowSchema* cpp_schema = new CPPArrowSchema(
       name, arrow_fmt.fmt_, std::nullopt, arrow_flags, {}, {});
 
-  std::vector<void *> buffers;
+  std::vector<void*> buffers;
   if (bufferinfo.is_var) {
     buffers = {nullptr, bufferinfo.offsets, bufferinfo.data};
   } else {
@@ -789,25 +821,28 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
       // for Arrow date32 we only need the first 4 bytes of each 8-byte
       // TILEDB_DATETIME_DAY element which we keep by in-place left shifting
       for (size_t i = 0; i < bufferinfo.data_num; i++) {
-        uint32_t lost_data = *(reinterpret_cast<uint32_t *>(
-            static_cast<uint8_t *>(buffers[1]) + i * 8 + 4));
+        uint32_t lost_data = *(reinterpret_cast<uint32_t*>(
+            static_cast<uint8_t*>(buffers[1]) + i * 8 + 4));
         if (lost_data != 0) {
           throw tiledb::TileDBError(
               "[TileDB-Arrow] Non-zero data detected in the memory buffer at "
               "position that will be overwritten");
         }
 
-        static_cast<uint32_t *>(buffers[1])[i] =
-            cast_checked<uint32_t>(static_cast<uint64_t *>(buffers[1])[i]);
+        static_cast<uint32_t*>(buffers[1])[i] =
+            cast_checked<uint32_t>(static_cast<uint64_t*>(buffers[1])[i]);
       }
     }
   }
 
-  auto cpp_arrow_array = new CPPArrowArray(elem_num, // elem_num
-                                           0,        // null_num
-                                           0,        // offset
-                                           {},       // children
-                                           buffers, cb, cb_data);
+  auto cpp_arrow_array = new CPPArrowArray(
+      elem_num,  // elem_num
+      0,         // null_num
+      0,         // offset
+      {},        // children
+      buffers,
+      cb,
+      cb_data);
   cpp_arrow_array->export_ptr(array);
 }
 
@@ -817,8 +852,9 @@ void ArrowExporter::export_(const std::string &name, ArrowArray *array,
 /* ************************************************************************ */
 /* Begin TileDB Arrow IO public API implementation */
 
-ArrowAdapter::ArrowAdapter(Context *const ctx, Query *const query)
-    : importer_(nullptr), exporter_(nullptr) {
+ArrowAdapter::ArrowAdapter(Context* const ctx, Query* const query)
+    : importer_(nullptr)
+    , exporter_(nullptr) {
   importer_ = new ArrowImporter(query);
   if (!importer_) {
     throw tiledb::TileDBError(
@@ -831,17 +867,24 @@ ArrowAdapter::ArrowAdapter(Context *const ctx, Query *const query)
   }
 }
 
-void ArrowAdapter::export_buffer(const char *name, void *arrow_array,
-                                 void *arrow_schema, release_cb cb,
-                                 void *private_data) {
-  exporter_->export_(name, (ArrowArray *)arrow_array,
-                     (ArrowSchema *)arrow_schema, cb, private_data);
+void ArrowAdapter::export_buffer(
+    const char* name,
+    void* arrow_array,
+    void* arrow_schema,
+    release_cb cb,
+    void* private_data) {
+  exporter_->export_(
+      name,
+      (ArrowArray*)arrow_array,
+      (ArrowSchema*)arrow_schema,
+      cb,
+      private_data);
 }
 
-void ArrowAdapter::import_buffer(const char *name, void *arrow_array,
-                                 void *arrow_schema) {
-  importer_->import_(name, (ArrowArray *)arrow_array,
-                     (ArrowSchema *)arrow_schema);
+void ArrowAdapter::import_buffer(
+    const char* name, void* arrow_array, void* arrow_schema) {
+  importer_->import_(
+      name, (ArrowArray*)arrow_array, (ArrowSchema*)arrow_schema);
 }
 
 ArrowAdapter::~ArrowAdapter() {
@@ -851,29 +894,39 @@ ArrowAdapter::~ArrowAdapter() {
     delete exporter_;
 }
 
-void query_get_buffer_arrow_array(Context *const ctx, Query *const query,
-                                  std::string name, void *v_arw_array,
-                                  void *v_arw_schema) {
+void query_get_buffer_arrow_array(
+    Context* const ctx,
+    Query* const query,
+    std::string name,
+    void* v_arw_array,
+    void* v_arw_schema) {
   ArrowExporter exporter(ctx, query);
 
-  exporter.export_(name, (ArrowArray *)v_arw_array, (ArrowSchema *)v_arw_schema,
-                   nullptr, nullptr);
+  exporter.export_(
+      name,
+      (ArrowArray*)v_arw_array,
+      (ArrowSchema*)v_arw_schema,
+      nullptr,
+      nullptr);
 }
 
-void query_set_buffer_arrow_array(Query *const query, std::string name,
-                                  void *v_arw_array, void *v_arw_schema) {
-  auto arw_schema = (ArrowSchema *)v_arw_schema;
-  auto arw_array = (ArrowArray *)v_arw_array;
+void query_set_buffer_arrow_array(
+    Query* const query,
+    std::string name,
+    void* v_arw_array,
+    void* v_arw_schema) {
+  auto arw_schema = (ArrowSchema*)v_arw_schema;
+  auto arw_array = (ArrowArray*)v_arw_array;
   check_arrow_schema(arw_schema);
 
   ArrowImporter importer(query);
   importer.import_(name, arw_array, arw_schema);
 }
 
-} // end namespace arrow
-} // end namespace tiledb
+}  // end namespace arrow
+}  // end namespace tiledb
 
 /* End TileDB Arrow IO public API implementation */
 /* ************************************************************************ */
 
-#endif // TILEDB_ARROW_H
+#endif  // TILEDB_ARROW_H
