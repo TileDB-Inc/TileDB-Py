@@ -268,7 +268,7 @@ class DenseArrayImpl(Array):
             attr = self.schema.attr(0)
             if attr.isanon:
                 return out[attr._internal_name]
-        if self.view_attr:
+        if self.view_attr is not None:
             return out[self.view_attr]
         return out
 
