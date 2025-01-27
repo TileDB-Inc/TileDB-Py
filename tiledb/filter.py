@@ -879,12 +879,10 @@ class FilterList(CtxMixin, lt.FilterList):
         return self._chunksize
 
     @overload
-    def __getitem__(self, idx: int) -> Filter:
-        ...
+    def __getitem__(self, idx: int) -> Filter: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> List[Filter]:
-        ...
+    def __getitem__(self, idx: slice) -> List[Filter]: ...
 
     def __getitem__(self, idx):
         """Gets a copy of the filter in the list at the given index
