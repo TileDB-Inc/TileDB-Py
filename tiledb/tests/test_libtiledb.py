@@ -2278,14 +2278,8 @@ class TestSparseArray(DiskTestCase):
         ],
     )
     def test_sparse_string_domain(
-        self, coords, expected_ned, allows_duplicates, sparse_cell_order
+        self, coords, expected_ned, allows_duplicates, fx_sparse_cell_order
     ):
-        # if sparse_cell_order in ("hilbert", "row-major", "col-major") and allows_duplicates == True:
-        #    if tiledb.libtiledb.version() < (2, 8):
-        #        pytest.xfail(
-        #            "Skipping known bug with legacy reader and empty strings"
-        #        )
-
         path = self.path("sparse_string_domain")
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(None, None), dtype=np.bytes_))
         att = tiledb.Attr(name="a", dtype=np.int64)
@@ -2293,7 +2287,7 @@ class TestSparseArray(DiskTestCase):
             domain=dom,
             attrs=(att,),
             sparse=True,
-            cell_order=sparse_cell_order,
+            cell_order=fx_sparse_cell_order,
             allows_duplicates=allows_duplicates,
             capacity=10000,
         )
@@ -2302,30 +2296,29 @@ class TestSparseArray(DiskTestCase):
         data = [1, 2, 3, 4][: len(coords)]
 
         with tiledb.open(path, "w") as A:
-            breakpoint()
             A[coords] = data
 
         with tiledb.open(path) as A:
             ned = A.nonempty_domain()[0]
-            self.assertEqual(A.nonempty_domain(), ((tuple(expected_ned)),))
+            assert_array_equal(A.nonempty_domain(), ((tuple(expected_ned)),))
 
             if not (
-                sparse_cell_order in ("hilbert", "row-major", "col-major")
+                fx_sparse_cell_order in ("hilbert", "row-major", "col-major")
                 and allows_duplicates == True
             ):
                 assert_array_equal(A[ned[0] : ned[1]]["a"], data)
                 self.assertEqual(set(A[ned[0] : ned[1]]["d"]), set(coords))
 
-            if allows_duplicates and sparse_cell_order != "hilbert":
-                res_u1 = A.query(order="U").multi_index[ned[0] : ned[1]]
+            if allows_duplicates and fx_sparse_cell_order != "hilbert":
+                res_u1 = A.query().multi_index[ned[0] : ned[1]]
                 assert_array_equal(res_u1["a"], data)
                 self.assertEqual(set(res_u1["d"]), set(coords))
 
-                res_u2 = A.query(order="U")[ned[0] : ned[1]]
+                res_u2 = A.query()[ned[0] : ned[1]]
                 assert_array_equal(res_u2["a"], data)
                 self.assertEqual(set(res_u2["d"]), set(coords))
 
-    def test_sparse_string_domain2(self, sparse_cell_order):
+    def test_sparse_string_domain2(self, fx_sparse_cell_order):
         path = self.path("sparse_string_domain2")
         with self.assertRaises(ValueError):
             dims = [
