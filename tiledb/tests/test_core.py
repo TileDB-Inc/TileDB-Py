@@ -57,10 +57,13 @@ class CoreCCTest(DiskTestCase):
                 self.assertEqual(q._test_init_buffer_bytes, intmax)
                 self.assertEqual(q._test_alloc_max_bytes, intmax)
 
-                with self.assertRaisesRegex(
-                    ValueError,
-                    "Invalid parameter: 'py.alloc_max_bytes' must be >= 1 MB ",
-                ), tiledb.scope_ctx({"py.alloc_max_bytes": 10}) as ctx2:
+                with (
+                    self.assertRaisesRegex(
+                        ValueError,
+                        "Invalid parameter: 'py.alloc_max_bytes' must be >= 1 MB ",
+                    ),
+                    tiledb.scope_ctx({"py.alloc_max_bytes": 10}) as ctx2,
+                ):
                     q = core.PyQuery(ctx2, a, ("",), (), 0, False)
 
     def test_import_buffer(self):

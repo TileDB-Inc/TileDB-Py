@@ -96,7 +96,7 @@ jobs:
         run: printenv
 
       - name: Checkout TileDB-Py `main`
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build TileDB-Py
         run: pip install --verbose .[test]
@@ -122,7 +122,7 @@ jobs:
     needs: test
     if: failure() || cancelled()
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Create Issue if Build Fails
         uses: TileDB-Inc/github-actions/open-issue@main
         with:
