@@ -357,14 +357,17 @@ class FixesTest(DiskTestCase):
     @pytest.mark.parametrize(
         "array_data",
         [
-            np.array([b"", b"1", b"", b"", b"f", b""], dtype="S"),
-            np.array([b"", b"1", b"", b"", b"f", b"3"], dtype="S"),
+            np.array([b"", b"testing", b"", b"with empty", b"bytes"], dtype="S"),
+            np.array([b"and", b"", b"again"], dtype="S"),
+            np.array(
+                [b"", b"and with", b"the last one", b"", b"emtpy", b""], dtype="S"
+            ),
         ],
     )
     def test_sc62594_buffer_resize(self, array_data):
         uri = self.path("test_agis")
         dom = tiledb.Domain(
-            tiledb.Dim(name="dim", domain=(0, 5), tile=2, dtype=np.int64),
+            tiledb.Dim(name="dim", domain=(0, len(array_data) - 1), dtype=np.int64)
         )
 
         schema = tiledb.ArraySchema(
