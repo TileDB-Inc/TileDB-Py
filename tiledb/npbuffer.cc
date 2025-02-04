@@ -211,6 +211,8 @@ if (PyUnicode_Check(u.ptr())) {
       output_p += sz;
       idx++;
     }
+
+    data_buf_->resize(data_nbytes_);
   }
 
   void convert_object() {
