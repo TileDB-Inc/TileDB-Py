@@ -358,7 +358,7 @@ class FixesTest(DiskTestCase):
         "array_data",
         [
             np.array([b"", b"testing", b"", b"with empty", b"bytes"], dtype="S"),
-            np.array([b"and", b"", b"again"], dtype="S"),
+            np.array([b"and", b"\0\0", b"again"], dtype="S"),
             np.array(
                 [b"", b"and with", b"the last one", b"", b"emtpy", b""], dtype="S"
             ),
