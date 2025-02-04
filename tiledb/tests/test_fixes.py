@@ -354,6 +354,31 @@ class FixesTest(DiskTestCase):
             tiledb.from_numpy(uri, data, sparse=True)
         assert str(exc_info.value) == "from_numpy only supports dense arrays"
 
+    @pytest.mark.parametrize(
+        "array_data",
+        [
+            np.array([b"", b"1", b"", b"", b"f", b""], dtype="S"),
+            np.array([b"", b"1", b"", b"", b"f", b"3"], dtype="S"),
+        ],
+    )
+    def test_sc62594_buffer_resize(self, array_data):
+        uri = self.path("test_agis")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="dim", domain=(0, 5), tile=2, dtype=np.int64),
+        )
+
+        schema = tiledb.ArraySchema(
+            domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype="S", var=True)]
+        )
+
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode="w") as T:
+            T[...] = array_data
+
+        with tiledb.DenseArray(uri) as T:
+            assert_array_equal(array_data, T)
+
 
 class SOMA919Test(DiskTestCase):
     """
