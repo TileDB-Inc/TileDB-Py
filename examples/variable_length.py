@@ -35,13 +35,13 @@
 
 import numpy as np
 
-#%%
+# %%
 import tiledb
 from tiledb.tests.common import assert_subarrays_equal
 
 array_name = "variable_length_array"
 
-#%%
+# %%
 
 
 def create_array():
