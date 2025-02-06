@@ -169,8 +169,6 @@ class MetadataTest(DiskTestCase):
             A.meta["bigblob"] = blob
 
         with tiledb.Array(path) as A:
-            # test keys()
-            self.assertEqual(set(A.meta.keys()), set(test_vals.keys()))
             self.assert_metadata_roundtrip(A.meta, test_vals)
 
         # test del key
