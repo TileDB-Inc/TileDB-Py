@@ -219,14 +219,6 @@ class Metadata(MutableMapping):
                 yield key
             # else: ignore the shape keys
 
-    def keys(self):
-        """
-        Return metadata keys as list.
-
-        :return: List of keys
-        """
-        return list(self)
-
     def __repr__(self):
         return str(dict(self))
 
