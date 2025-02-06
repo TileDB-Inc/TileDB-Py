@@ -103,9 +103,9 @@ if not readthedocs:  # only import and set the theme if we're building docs loca
     html_style = 'custom.css'
     def setup(app):
         try:
-            app.add_stylesheet('scipy-cookbook.css')
+            app.add_stylesheet('custom.css')
         except AttributeError:
-            app.add_css_file('scipy-cookbook.css')
+            app.add_css_file('custom.css')
 else:
     html_context = {
         'css_files': [
