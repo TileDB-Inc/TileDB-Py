@@ -6,15 +6,13 @@
 # https://github.com/robotpy/robotpy-docs, licensed under Apache v2.
 #
 
-import os
-
 
 def write_if_changed(fname, contents):
 
     try:
         with open(fname, "r") as fp:
             old_contents = fp.read()
-    except:
+    except Exception:
         old_contents = ""
 
     if old_contents != contents:

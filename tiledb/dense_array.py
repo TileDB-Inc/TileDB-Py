@@ -138,7 +138,7 @@ class DenseArrayImpl(Array):
             Consuming this iterable returns a result set for each TileDB incomplete query.
             See usage example in 'examples/incomplete_iteration.py'.
             To retrieve the estimated result sizes for the query ranges, use:
-                `A.query(..., return_incomplete=True)[...].est_result_size()`
+            `A.query(..., return_incomplete=True)[...].est_result_size()`
             If False (default False), queries will be internally run to completion by resizing buffers and
             resubmitting until query is complete.
         :return: A proxy Query object that can be used for indexing into the DenseArray
@@ -164,6 +164,7 @@ class DenseArrayImpl(Array):
         ...                {"a1": np.zeros(5)})
 
         """
+
         if not self.isopen:
             raise tiledb.TileDBError("Array is not opened")
 

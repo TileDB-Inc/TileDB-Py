@@ -23,7 +23,7 @@ rtd_version = rtd_version if rtd_version in ["stable", "latest"] else "stable"
 # -- Project information -----------------------------------------------------
 
 project = "TileDB-Py"
-copyright = "2024, TileDB, Inc."
+copyright = "2025, TileDB, Inc."
 author = "TileDB, Inc."
 
 # The full version, including alpha/beta/rc tags
@@ -41,7 +41,17 @@ version: str = ".".join(release.split(".")[:2])
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.doctest", "sphinx.ext.intersphinx"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.doctest",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autosummary",
+    "nbsphinx",
+    "sphinxcontrib.jquery",
+]
+
+autosummary_generate = True
 
 # Mapping for linking between RTD subprojects.
 if readthedocs:
@@ -55,8 +65,13 @@ if readthedocs:
             % rtd_version,
             None,
         ),
-        "python": ("https://docs.python.org/", None),
+        "python": (
+            "https://docs.python.org/3",
+            None,
+        ),
     }
+
+napoleon_custom_sections = ["Lifecycle"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

@@ -88,6 +88,7 @@ from .highlevel import (
     walk,
 )
 from .libtiledb import TileDBError
+from .metadata import Metadata
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet
