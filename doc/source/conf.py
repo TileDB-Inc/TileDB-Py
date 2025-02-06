@@ -7,7 +7,6 @@
 import os
 import sys
 from os.path import abspath, dirname, join
-import sphinx_rtd_theme
 from importlib.metadata import version as get_version
 
 sys.path.insert(0, abspath(join(dirname(__file__))))
@@ -101,11 +100,6 @@ if not readthedocs:  # only import and set the theme if we're building docs loca
     import sphinx_rtd_theme
     html_theme = 'sphinx_rtd_theme'
     html_style = 'custom.css'
-    def setup(app):
-        try:
-            app.add_stylesheet('custom.css')
-        except AttributeError:
-            app.add_css_file('custom.css')
 else:
     html_context = {
         'css_files': [
