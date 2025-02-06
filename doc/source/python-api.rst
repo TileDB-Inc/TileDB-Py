@@ -15,6 +15,7 @@ There is also a submodule ``libtiledb`` which contains the necessary bindings to
 .. code-block:: python
 
    import tiledb
+   tiledb.version()  # TileDB-Py package version number
    tiledb.libtiledb.version()  # Native TileDB library version number
 
 Getting Started
@@ -184,7 +185,7 @@ Group
    .. automethod:: __delitem__(key)
    .. automethod:: __contains__(key)
    .. automethod:: __len__
-   .. automethod:: __keys__
+   .. automethod:: keys
    .. automethod:: __values__
    .. automethod:: __items__
 
@@ -245,11 +246,6 @@ Filestore
    :members:
 
    .. automethod:: __len__
-
-Version
--------
-
-.. autofunction:: tiledb.libtiledb.version
 
 Statistics
 ----------
