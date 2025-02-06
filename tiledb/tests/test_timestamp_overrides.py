@@ -20,8 +20,8 @@ def has_libfaketime():
 
 
 @pytest.mark.skipif(
-    sys.platform == "win32" or not has_libfaketime(),
-    reason=f"libfaketime not installed. {'Not supported on Windows.' if sys.platform == 'win32' else ''}",
+    sys.platform != "linux2" or not has_libfaketime(),
+    reason=f"This test is only supported on Linux with libfaketime installed.",
 )
 class TestTimestampOverrides(DiskTestCase):
     def test_timestamp_overrides(self):
