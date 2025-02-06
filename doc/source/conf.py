@@ -47,7 +47,6 @@ extensions = [
     "sphinxcontrib.jquery",
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
-    "sphinxcontrib.bibtex",
 ]
 
 # Mapping for linking between RTD subprojects.
