@@ -265,10 +265,7 @@ class DeltaFilter(CompressionFilter):
     Filter that compresses using run-length encoding (RLE).
 
     :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
-    :type level: int
-    :param reinterp_dtype: (optional) sets the compressor to compress the data treating
-    as the new datatype.
-    :type reinterp_dtype: numpy, lt.DataType
+    :param reinterp_dtype: (optional) sets the compressor to compress the data treating as the new datatype.
 
     **Example:**
 

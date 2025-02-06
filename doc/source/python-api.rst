@@ -185,7 +185,6 @@ Group
    .. automethod:: __delitem__(key)
    .. automethod:: __contains__(key)
    .. automethod:: __len__
-   .. automethod:: keys
 
 Object
 ------
