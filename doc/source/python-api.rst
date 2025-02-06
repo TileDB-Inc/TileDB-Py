@@ -176,7 +176,7 @@ Group
    .. automethod:: __contains__(member)
    .. automethod:: __len__
 
-.. autoclass:: tiledb.Group.GroupMetadata
+.. autoclass:: tiledb.Metadata
    :members:
 
    .. automethod:: __setitem__(key, value)
