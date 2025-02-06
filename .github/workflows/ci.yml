@@ -22,8 +22,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-13
-          # libfaketime tests fail on macos arm. Disable tests for now.
-          # - macos-14
+          - macos-14
           - windows-latest
         python-version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
       fail-fast: false
@@ -66,8 +65,8 @@ jobs:
         run: brew install pkg-config
         if: startsWith(matrix.os, 'macos')
 
-      - name: "Install libfaketime (linux and macOS)"
-        if: ${{ ! startsWith(matrix.os, 'windows') }}
+      - name: "Install libfaketime (Linux only)"
+        if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           git clone https://github.com/wolfcw/libfaketime/
           cd libfaketime
