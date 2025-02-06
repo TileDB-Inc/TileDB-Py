@@ -1,5 +1,5 @@
 #
-# This file generates the sidebar/toctree for all TileDB-SOMA projects and should
+# This file generates the sidebar/toctree for all TileDB projects and should
 # be copied to each project when it is updated.
 #
 # This file is originally from the RobotPy documentation project
