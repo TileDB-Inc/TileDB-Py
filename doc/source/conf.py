@@ -95,8 +95,25 @@ html_static_path = ["_static"]
 html_title = "TileDB Python API Reference — TileDB-Py %s documentation" % version
 html_logo = "_static/tiledb-logo_color_no_margin_@4x.png"
 html_favicon = "_static/favicon.ico"
+html_use_index = False
 
-html_theme = "sphinx_rtd_theme"
+if not readthedocs:  # only import and set the theme if we're building docs locally
+    import sphinx_rtd_theme
+    html_theme = 'sphinx_rtd_theme'
+    html_style = 'custom.css'
+    def setup(app):
+        try:
+            app.add_stylesheet('scipy-cookbook.css')
+        except AttributeError:
+            app.add_css_file('scipy-cookbook.css')
+else:
+    html_context = {
+        'css_files': [
+            'https://media.readthedocs.org/css/sphinx_rtd_theme.css',
+            'https://media.readthedocs.org/css/readthedocs-doc-embed.css',
+            '_static/custom.css',
+        ],
+    }
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
@@ -157,14 +174,14 @@ texinfo_documents = [
 
 # Generate the sidebar automatically so that it is identical across all subprojects.
 # This (and gensidebar.py) from https://github.com/robotpy/robotpy-docs
-import gensidebar
+# import gensidebar
 
-gensidebar.generate_sidebar(
-    {"on_rtd": readthedocs, "rtd_version": rtd_version}, "tiledb-py"
-)
+# gensidebar.generate_sidebar(
+#     {"on_rtd": readthedocs, "rtd_version": rtd_version}, "tiledb-py"
+# )
 
 # -- Custom setup -----------------------------------------------------------
 
 
-def setup(app):
-    app.add_css_file("custom.css")
+# def setup(app):
+#     app.add_css_file("custom.css")
