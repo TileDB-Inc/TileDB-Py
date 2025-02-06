@@ -94,7 +94,6 @@ html_logo = "_static/tiledb-logo_color_no_margin_@4x.png"
 html_favicon = "_static/favicon.ico"
 
 html_theme = "sphinx_rtd_theme"
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
