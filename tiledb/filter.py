@@ -269,6 +269,7 @@ class DeltaFilter(CompressionFilter):
     :param reinterp_dtype: (optional) sets the compressor to compress the data treating
     as the new datatype.
     :type reinterp_dtype: numpy, lt.DataType
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
