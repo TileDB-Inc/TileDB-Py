@@ -499,7 +499,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         output.write(f"<tr><td>{self.sparse}</td></tr>")
 
         if self.sparse:
-            output.write("<tr><th>Allows DuplicatesK/th></tr>")
+            output.write("<tr><th>Allows Duplicates</th></tr>")
             output.write(f"<tr><td>{self.allows_duplicates}</td></tr>")
 
         output.write("</table>")
