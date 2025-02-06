@@ -186,8 +186,6 @@ Group
    .. automethod:: __contains__(key)
    .. automethod:: __len__
    .. automethod:: keys
-   .. automethod:: __values__
-   .. automethod:: __items__
 
 Object
 ------
