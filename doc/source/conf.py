@@ -7,8 +7,8 @@
 import os
 import sys
 from os.path import abspath, dirname, join
-from importlib.metadata import version as get_version
 import sphinx_rtd_theme
+from importlib.metadata import version as get_version
 
 sys.path.insert(0, abspath(join(dirname(__file__))))
 
@@ -103,8 +103,8 @@ pygments_style = "friendly"
 
 # -- Options for HTML output -------------------------------------------------
 
-html_title = "TileDB Python API Reference — TileDB-Py %s documentation" % version
 html_static_path = ["_static"]
+html_title = "TileDB Python API Reference — TileDB-Py %s documentation" % version
 html_logo = "_static/tiledb-logo_color_no_margin_@4x.png"
 html_favicon = "_static/favicon.ico"
 
