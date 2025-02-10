@@ -196,7 +196,7 @@ def label_ranges_from_selection(selection):
 def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
 
-    # In case that current domain is not empty, we need to consider it
+    # In the case that current domain is non-empty, we need to consider it
     if (
         hasattr(array.schema, "current_domain")
         and not array.schema.current_domain.is_empty

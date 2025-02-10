@@ -128,7 +128,7 @@ def index_domain_subarray(array, dom, idx: tuple):
 
     subarray = list()
 
-    # In case that current domain is not empty, we need to consider it
+    # In the case that current domain is non-empty, we need to consider it
     if (
         hasattr(array.schema, "current_domain")
         and not array.schema.current_domain.is_empty
