@@ -16,7 +16,7 @@ if not (lt.version()[0] == 2 and lt.version()[1] >= 25):
     )
 
 
-class NDRectangleTest(unittest.TestCase):
+class NDRectangleTest(DiskTestCase):
     def test_ndrectagle_standalone_string(self):
         ctx = tiledb.Ctx()
         dom = tiledb.Domain(
@@ -58,6 +58,33 @@ class NDRectangleTest(unittest.TestCase):
         # should be the same
         self.assertEqual(ndrect.range("x"), range_one)
         self.assertEqual(ndrect.range("y"), range_two)
+
+    @pytest.mark.parametrize(
+        "dtype_, range_",
+        (
+            (np.int32, (0, 1)),
+            (np.int64, (2, 7)),
+            (np.uint32, (1, 5)),
+            (np.uint64, (5, 9)),
+            (np.float32, (0.0, 1.0)),
+            (np.float64, (2.0, 4.0)),
+            (np.dtype(bytes), (b"abc", b"def")),
+        ),
+    )
+    def test_set_range_different_types(self, dtype_, range_):
+        domain = tiledb.Domain(
+            *[
+                tiledb.Dim(
+                    name="rows",
+                    domain=(0, 9),
+                    dtype=dtype_,
+                ),
+            ]
+        )
+
+        ctx = tiledb.Ctx()
+        ndrect = tiledb.NDRectangle(ctx, domain)
+        ndrect.set_range("rows", range_[0], range_[1])
 
 
 class CurrentDomainTest(DiskTestCase):
@@ -215,30 +242,3 @@ class CurrentDomainTest(DiskTestCase):
         n = cd.ndrectangle
         self.assertEqual(n.range(0), new_range)
         A.close()
-
-    @pytest.mark.parametrize(
-        "dtype_, range_",
-        (
-            (np.int32, (0, 1)),
-            (np.int64, (2, 7)),
-            (np.uint32, (1, 5)),
-            (np.uint64, (5, 9)),
-            (np.float32, (0.0, 1.0)),
-            (np.float64, (2.0, 4.0)),
-            (np.dtype(bytes), (b"abc", b"def")),
-        ),
-    )
-    def test_current_domain_types(self, dtype_, range_):
-        domain = tiledb.Domain(
-            *[
-                tiledb.Dim(
-                    name="rows",
-                    domain=(0, 9),
-                    dtype=dtype_,
-                ),
-            ]
-        )
-
-        ctx = tiledb.Ctx()
-        ndrect = tiledb.NDRectangle(ctx, domain)
-        ndrect.set_range("rows", range_[0], range_[1])
