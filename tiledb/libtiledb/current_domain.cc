@@ -24,166 +24,123 @@ void init_current_domain(py::module& m) {
 
         .def(
             "_set_range",
-            py::overload_cast<const std::string&, uint64_t, uint64_t>(
-                &NDRectangle::set_range<uint64_t>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, int64_t, int64_t>(
-                &NDRectangle::set_range<int64_t>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, uint32_t, uint32_t>(
-                &NDRectangle::set_range<uint32_t>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, int32_t, int32_t>(
-                &NDRectangle::set_range<int32_t>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, uint16_t, uint16_t>(
-                &NDRectangle::set_range<uint16_t>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, int16_t, int16_t>(
-                &NDRectangle::set_range<int16_t>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, uint8_t, uint8_t>(
-                &NDRectangle::set_range<uint8_t>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, int8_t, int8_t>(
-                &NDRectangle::set_range<int8_t>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, double, double>(
-                &NDRectangle::set_range<double>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<const std::string&, float, float>(
-                &NDRectangle::set_range<float>),
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
             [](NDRectangle& ndrect,
                const std::string& dim_name,
-               const std::string& start,
-               const std::string& end) {
-                return ndrect.set_range(dim_name, start, end);
-            },
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, uint64_t, uint64_t>(
-                &NDRectangle::set_range<uint64_t>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, int64_t, int64_t>(
-                &NDRectangle::set_range<int64_t>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, uint32_t, uint32_t>(
-                &NDRectangle::set_range<uint32_t>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, int32_t, int32_t>(
-                &NDRectangle::set_range<int32_t>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, uint16_t, uint16_t>(
-                &NDRectangle::set_range<uint16_t>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, int16_t, int16_t>(
-                &NDRectangle::set_range<int16_t>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, uint8_t, uint8_t>(
-                &NDRectangle::set_range<uint8_t>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, int8_t, int8_t>(
-                &NDRectangle::set_range<int8_t>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, double, double>(
-                &NDRectangle::set_range<double>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
-        .def(
-            "_set_range",
-            py::overload_cast<uint32_t, float, float>(
-                &NDRectangle::set_range<float>),
-            py::arg("dim_idx"),
-            py::arg("start"),
-            py::arg("end"))
+               py::object start,
+               py::object end) {
+                const tiledb_datatype_t n_type = ndrect.range_dtype(dim_name);
+
+                if (n_type == TILEDB_UINT64) {
+                    auto start_val = start.cast<uint64_t>();
+                    auto end_val = end.cast<uint64_t>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_INT64) {
+                    auto start_val = start.cast<int64_t>();
+                    auto end_val = end.cast<int64_t>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_UINT32) {
+                    auto start_val = start.cast<uint32_t>();
+                    auto end_val = end.cast<uint32_t>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_INT32) {
+                    auto start_val = start.cast<int32_t>();
+                    auto end_val = end.cast<int32_t>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_UINT16) {
+                    auto start_val = start.cast<uint16_t>();
+                    auto end_val = end.cast<uint16_t>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_INT16) {
+                    auto start_val = start.cast<int16_t>();
+                    auto end_val = end.cast<int16_t>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_UINT8) {
+                    auto start_val = start.cast<uint8_t>();
+                    auto end_val = end.cast<uint8_t>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_INT8) {
+                    auto start_val = start.cast<int8_t>();
+                    auto end_val = end.cast<int8_t>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_FLOAT64) {
+                    auto start_val = start.cast<double>();
+                    auto end_val = end.cast<double>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (n_type == TILEDB_FLOAT32) {
+                    auto start_val = start.cast<float>();
+                    auto end_val = end.cast<float>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else if (
+                    n_type == TILEDB_STRING_ASCII ||
+                    n_type == TILEDB_STRING_UTF8) {
+                    auto start_val = start.cast<std::string>();
+                    auto end_val = end.cast<std::string>();
+                    ndrect.set_range(dim_name, start_val, end_val);
+                } else {
+                    TPY_ERROR_LOC(
+                        "Unsupported type for NDRectangle's set_range");
+                }
+            })
+
         .def(
             "_set_range",
             [](NDRectangle& ndrect,
                uint32_t dim_idx,
-               const std::string& start,
-               const std::string& end) {
-                return ndrect.set_range(dim_idx, start, end);
-            },
-            py::arg("dim_name"),
-            py::arg("start"),
-            py::arg("end"))
+               py::object start,
+               py::object end) {
+                const tiledb_datatype_t n_type = ndrect.range_dtype(dim_idx);
+
+                if (n_type == TILEDB_UINT64) {
+                    auto start_val = start.cast<uint64_t>();
+                    auto end_val = end.cast<uint64_t>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_INT64) {
+                    auto start_val = start.cast<int64_t>();
+                    auto end_val = end.cast<int64_t>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_UINT32) {
+                    auto start_val = start.cast<uint32_t>();
+                    auto end_val = end.cast<uint32_t>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_INT32) {
+                    auto start_val = start.cast<int32_t>();
+                    auto end_val = end.cast<int32_t>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_UINT16) {
+                    auto start_val = start.cast<uint16_t>();
+                    auto end_val = end.cast<uint16_t>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_INT16) {
+                    auto start_val = start.cast<int16_t>();
+                    auto end_val = end.cast<int16_t>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_UINT8) {
+                    auto start_val = start.cast<uint8_t>();
+                    auto end_val = end.cast<uint8_t>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_INT8) {
+                    auto start_val = start.cast<int8_t>();
+                    auto end_val = end.cast<int8_t>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_FLOAT64) {
+                    auto start_val = start.cast<double>();
+                    auto end_val = end.cast<double>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (n_type == TILEDB_FLOAT32) {
+                    auto start_val = start.cast<float>();
+                    auto end_val = end.cast<float>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else if (
+                    n_type == TILEDB_STRING_ASCII ||
+                    n_type == TILEDB_STRING_UTF8) {
+                    auto start_val = start.cast<std::string>();
+                    auto end_val = end.cast<std::string>();
+                    ndrect.set_range(dim_idx, start_val, end_val);
+                } else {
+                    TPY_ERROR_LOC(
+                        "Unsupported type for NDRectangle's set_range");
+                }
+            })
 
         .def(
             "_range",
