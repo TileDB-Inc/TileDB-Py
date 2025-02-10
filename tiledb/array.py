@@ -127,6 +127,22 @@ def index_domain_subarray(array, dom, idx: tuple):
         )
 
     subarray = list()
+
+    # In case that current domain is not empty, we need to consider it
+    if (
+        hasattr(array.schema, "current_domain")
+        and not array.schema.current_domain.is_empty
+    ):
+        for i in range(array.schema.domain.ndim):
+            subarray.append(
+                (
+                    array.schema.current_domain.ndrectangle.range(i)[0],
+                    array.schema.current_domain.ndrectangle.range(i)[1],
+                )
+            )
+
+        return subarray
+
     for r in range(ndim):
         # extract lower and upper bounds for domain dimension extent
         dim = dom.dim(r)
