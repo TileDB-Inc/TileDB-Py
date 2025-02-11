@@ -195,6 +195,22 @@ def label_ranges_from_selection(selection):
 
 def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
+
+    # In the case that current domain is non-empty, we need to consider it
+    if (
+        hasattr(array.schema, "current_domain")
+        and not array.schema.current_domain.is_empty
+    ):
+        for i in range(array.schema.domain.ndim):
+            ranges[i] = [
+                (
+                    array.schema.current_domain.ndrectangle.range(i)[0],
+                    array.schema.current_domain.ndrectangle.range(i)[1],
+                )
+            ]
+
+        return tuple(ranges)
+
     ned = array.nonempty_domain()
     if ned is None:
         ned = [None] * array.schema.domain.ndim
