@@ -248,7 +248,7 @@ class CurrentDomainTest(DiskTestCase):
 
     @pytest.mark.skipif(
         tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 27,
-        reason="Support for Current Domain on Dense Arrays was added in 2.27",
+        reason="Support for current domain on dense arrays was added in 2.27",
     )
     def test_take_current_domain_into_account_dense_indexing_sc61914(self):
         uri = self.path("test_sc61914")
