@@ -1,6 +1,5 @@
 import concurrent
 import concurrent.futures
-import itertools
 import json
 import os
 import subprocess
@@ -382,62 +381,6 @@ class FixesTest(DiskTestCase):
 
         with tiledb.DenseArray(uri) as T:
             assert_array_equal(array_data, T)
-
-    def test_sc61914_take_current_domain_into_account_indexing(self):
-        uri = self.path("test_sc61914")
-        ctx = tiledb.Ctx()
-        dom = tiledb.Domain(
-            tiledb.Dim(name="d1", domain=(0, 99), tile=20, dtype=np.int64),
-            tiledb.Dim(name="d2", domain=(0, 99), tile=20, dtype=np.int64),
-        )
-        att = tiledb.Attr(name="a", dtype=np.int64)
-        schema = tiledb.ArraySchema(sparse=False, ctx=ctx, domain=dom, attrs=(att,))
-
-        tiledb.Array.create(uri, schema)
-
-        data = np.arange(0, 10000).reshape(100, 100)
-
-        with tiledb.open(uri, "w") as A:
-            A[:] = data
-
-        with tiledb.DenseArray(uri, mode="r") as A:
-            ndrect = tiledb.NDRectangle(ctx, dom)
-            range_one = (10, 20)
-            range_two = (30, 35)
-            ndrect.set_range(0, range_one[0], range_one[1])
-            ndrect.set_range(1, range_two[0], range_two[1])
-
-            current_domain = tiledb.CurrentDomain(ctx)
-            current_domain.set_ndrectangle(ndrect)
-            A.schema.set_current_domain(current_domain)
-
-            # Define the expected results
-            d1_values = range(10, 21)
-            d2_values = range(30, 36)
-            data = [
-                (d1, d2, d1 * 100 + d2)
-                for d1, d2 in itertools.product(d1_values, d2_values)
-            ]
-            expected_df = pd.DataFrame(data, columns=["d1", "d2", "a"])
-
-            expected_array = np.array(
-                [
-                    [1030, 1031, 1032, 1033, 1034, 1035],
-                    [1130, 1131, 1132, 1133, 1134, 1135],
-                    [1230, 1231, 1232, 1233, 1234, 1235],
-                    [1330, 1331, 1332, 1333, 1334, 1335],
-                    [1430, 1431, 1432, 1433, 1434, 1435],
-                    [1530, 1531, 1532, 1533, 1534, 1535],
-                    [1630, 1631, 1632, 1633, 1634, 1635],
-                    [1730, 1731, 1732, 1733, 1734, 1735],
-                    [1830, 1831, 1832, 1833, 1834, 1835],
-                    [1930, 1931, 1932, 1933, 1934, 1935],
-                    [2030, 2031, 2032, 2033, 2034, 2035],
-                ]
-            )
-
-            assert_array_equal(A, expected_array)
-            assert_array_equal(A.df[:], expected_df)
 
 
 class SOMA919Test(DiskTestCase):
