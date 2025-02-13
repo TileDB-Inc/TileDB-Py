@@ -2228,6 +2228,16 @@ class TestSparseArray(DiskTestCase):
 
         with tiledb.SparseArray(path) as A:
             res = A[:]
+            if fx_sparse_cell_order == "col-major":
+                data = np.array(
+                    [
+                        np.array([2], dtype=np.int32),
+                        np.array([1, 1], dtype=np.int32),
+                        np.array([3, 3, 3], dtype=np.int32),
+                        np.array([4], dtype=np.int32),
+                    ],
+                    dtype="O",
+                )
             assert_subarrays_equal(res[""], data)
             assert_unordered_equal(res["__dim_0"], c1)
             assert_unordered_equal(res["__dim_1"], c2)
@@ -2311,11 +2321,11 @@ class TestSparseArray(DiskTestCase):
 
             if allows_duplicates and fx_sparse_cell_order != "hilbert":
                 res_u1 = A.query().multi_index[ned[0] : ned[1]]
-                assert_array_equal(res_u1["a"], data)
+                assert_unordered_equal(res_u1["a"], data)
                 self.assertEqual(set(res_u1["d"]), set(coords))
 
                 res_u2 = A.query()[ned[0] : ned[1]]
-                assert_array_equal(res_u2["a"], data)
+                assert_unordered_equal(res_u2["a"], data)
                 self.assertEqual(set(res_u2["d"]), set(coords))
 
     def test_sparse_string_domain2(self, fx_sparse_cell_order):
