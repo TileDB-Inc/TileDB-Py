@@ -605,7 +605,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
         elif mode == "append":
             create_array = False
             schema = tiledb.ArraySchema.load(uri)
-            if not schema.sparse and row_start_idx is None and fit_to_df is None:
+            if not schema.sparse and row_start_idx is None and not fit_to_df:
                 raise tiledb.TileDBError(
                     "Cannot append to dense array without either 'row_start_idx'"
                     " or 'fit_to_df'"
