@@ -14,7 +14,7 @@ from numpy.testing import assert_array_equal
 import tiledb
 from tiledb import SparseArray
 
-from .strategies import bounded_ntuple, ranged_slices
+from .strategies import bounded_anytuple, bounded_ntuple, ranged_slices
 
 
 def is_boundserror(exc: Exception):
@@ -168,3 +168,67 @@ class TestMultiIndexPropertySparse:
                 assume(False)
             else:
                 raise
+
+
+class TestMultiIndexTwoWayDense:
+    @classmethod
+    @pytest.fixture(scope="class")
+    def dense_array_2d(cls, checked_path):
+        def create_array(uri):
+            dims = [
+                tiledb.Dim(name="d1", dtype=np.int64, domain=(0, 99), tile=3),
+                tiledb.Dim(name="d2", dtype=np.int64, domain=(1, 100), tile=2),
+            ]
+            domain = tiledb.Domain(*dims)
+
+            attrs = [tiledb.Attr(name="a1", dtype=np.int64)]
+
+            schema = tiledb.ArraySchema(
+                domain,
+                attrs=attrs,
+                cell_order="row-major",
+                tile_order="row-major",
+                sparse=False,
+            )
+
+            tiledb.Array.create(uri, schema)
+
+        def write_dense(uri):
+            data = np.arange(100**2, dtype=np.int64).reshape(100, 100)
+            with tiledb.open(uri, "w") as A:
+                A[:] = data
+
+        uri = checked_path.path()
+        create_array(uri)
+        write_dense(uri)
+
+        a1 = tiledb.open(uri, config={"sm.query.dense.reader": "legacy"})
+        a2 = tiledb.open(uri, config={"sm.query.dense.reader": "refactored"})
+
+        return a1, a2
+
+    @given(
+        bounded_anytuple(min_value=0, max_value=99),
+        bounded_anytuple(min_value=1, max_value=100),
+    )
+    def test_ref_2d_points(self, dense_array_2d, pts1, pts2):
+        a1_legacy, a1_ref = dense_array_2d
+
+        # print(r1,r2)
+        np.testing.assert_array_equal(
+            a1_legacy.multi_index[list(pts1), list(pts2)]["a1"],
+            a1_ref.multi_index[list(pts1), list(pts2)]["a1"],
+        )
+
+    @given(
+        st.lists(ranged_slices(min_value=0, max_value=99)).filter(lambda x: x != []),
+        st.lists(ranged_slices(min_value=1, max_value=100).filter(lambda x: x != [])),
+    )
+    def test_ref_2d_slicing(self, dense_array_2d, ranges1, ranges2):
+        a1_legacy, a1_ref = dense_array_2d
+
+        # print(ranges1, ranges2)
+        np.testing.assert_array_equal(
+            a1_legacy.multi_index[list(ranges1), list(ranges2)]["a1"],
+            a1_ref.multi_index[list(ranges1), list(ranges2)]["a1"],
+        )
