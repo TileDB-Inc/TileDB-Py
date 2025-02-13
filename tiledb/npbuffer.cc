@@ -571,18 +571,18 @@ class NumpyConvert {
     }
 };
 
-py::tuple convert_np(py::array input, bool allow_unicode,
-                     bool use_fallback = false) {
-  if (use_fallback) {
-    auto tiledb = py::module::import("tiledb");
-    auto libtiledb = tiledb.attr("libtiledb");
-    auto array_to_buffer = libtiledb.attr("array_to_buffer");
-    return array_to_buffer(input);
-  } else {
-    NumpyConvert cvt(input);
-    cvt.allow_unicode(allow_unicode);
-    return cvt.get();
-  }
+py::tuple convert_np(
+    py::array input, bool allow_unicode, bool use_fallback = false) {
+    if (use_fallback) {
+        auto tiledb = py::module::import("tiledb");
+        auto libtiledb = tiledb.attr("libtiledb");
+        auto array_to_buffer = libtiledb.attr("array_to_buffer");
+        return array_to_buffer(input);
+    } else {
+        NumpyConvert cvt(input);
+        cvt.allow_unicode(allow_unicode);
+        return cvt.get();
+    }
 }
 
 };  // namespace tiledbpy
