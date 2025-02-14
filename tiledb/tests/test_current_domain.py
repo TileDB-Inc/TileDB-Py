@@ -351,4 +351,4 @@ class CurrentDomainTest(DiskTestCase):
             assert_array_equal(A[:]["a"], expected_array["a"])
 
             expected_df = pd.DataFrame(expected_array)
-            assert pd.DataFrame.equals(A.df[:], expected_df)
+            assert_array_equal(A.df[:], expected_df)
