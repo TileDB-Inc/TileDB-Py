@@ -14,7 +14,7 @@ from numpy.testing import assert_array_equal
 import tiledb
 from tiledb import SparseArray
 
-from .strategies import bounded_ntuple, ranged_slices
+from .strategies import ranged_slices
 
 
 def is_boundserror(exc: Exception):
@@ -89,7 +89,12 @@ class TestMultiIndexPropertySparse:
 
     @given(
         order=st.sampled_from(["C", "F", "U"]),
-        ranges=st.lists(bounded_ntuple(length=2, min_value=-100, max_value=100)),
+        ranges=st.lists(
+            st.tuples(
+                st.integers(min_value=-100, max_value=100),
+                st.integers(min_value=-100, max_value=100),
+            ).map(lambda x: (min(x), max(x)))
+        ),
     )
     @hp.settings(deadline=None)
     def test_multi_index_two_way_query(self, order, ranges, sparse_array_1d):
@@ -98,7 +103,6 @@ class TestMultiIndexPropertySparse:
         uri = sparse_array_1d
 
         assert isinstance(uri, str)
-        assume(v[0] <= v[1] for v in ranges)
 
         try:
             with tiledb.open(uri) as A:
