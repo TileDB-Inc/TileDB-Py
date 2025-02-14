@@ -2,8 +2,6 @@ import warnings
 
 import numpy as np
 import pytest
-from distributed.comm.core import CommClosedError
-from tornado.iostream import StreamClosedError
 
 import tiledb
 
