@@ -2228,6 +2228,16 @@ class TestSparseArray(DiskTestCase):
 
         with tiledb.SparseArray(path) as A:
             res = A[:]
+            if fx_sparse_cell_order == "col-major":
+                data = np.array(
+                    [
+                        np.array([2], dtype=np.int32),
+                        np.array([1, 1], dtype=np.int32),
+                        np.array([3, 3, 3], dtype=np.int32),
+                        np.array([4], dtype=np.int32),
+                    ],
+                    dtype="O",
+                )
             assert_subarrays_equal(res[""], data)
             assert_unordered_equal(res["__dim_0"], c1)
             assert_unordered_equal(res["__dim_1"], c2)
@@ -2269,7 +2279,17 @@ class TestSparseArray(DiskTestCase):
             self.assertEqual(a_nonempty[0], (0, 49))
             self.assertEqual(a_nonempty[1], (-100.0, 100.0))
 
-    def test_sparse_string_domain(self, fx_sparse_cell_order):
+    @pytest.mark.parametrize(
+        "coords, expected_ned, allows_duplicates",
+        [
+            ([b"aa", b"bbb", b"c", b"dddd"], [b"aa", b"dddd"], False),
+            ([b""], [b"", b""], True),
+            ([b"", b"", b"", b""], [b"", b""], True),
+        ],
+    )
+    def test_sparse_string_domain(
+        self, coords, expected_ned, allows_duplicates, fx_sparse_cell_order
+    ):
         path = self.path("sparse_string_domain")
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(None, None), dtype=np.bytes_))
         att = tiledb.Attr(name="a", dtype=np.int64)
@@ -2278,22 +2298,35 @@ class TestSparseArray(DiskTestCase):
             attrs=(att,),
             sparse=True,
             cell_order=fx_sparse_cell_order,
+            allows_duplicates=allows_duplicates,
             capacity=10000,
         )
         tiledb.SparseArray.create(path, schema)
 
-        data = [1, 2, 3, 4]
-        coords = [b"aa", b"bbb", b"c", b"dddd"]
+        data = [1, 2, 3, 4][: len(coords)]
 
         with tiledb.open(path, "w") as A:
             A[coords] = data
 
         with tiledb.open(path) as A:
             ned = A.nonempty_domain()[0]
-            res = A[ned[0] : ned[1]]
-            assert_array_equal(res["a"], data)
-            self.assertEqual(set(res["d"]), set(coords))
-            self.assertEqual(A.nonempty_domain(), ((b"aa", b"dddd"),))
+            assert_array_equal(A.nonempty_domain(), ((tuple(expected_ned)),))
+
+            if not (
+                fx_sparse_cell_order in ("hilbert", "row-major", "col-major")
+                and allows_duplicates == True
+            ):
+                assert_array_equal(A[ned[0] : ned[1]]["a"], data)
+                self.assertEqual(set(A[ned[0] : ned[1]]["d"]), set(coords))
+
+            if allows_duplicates and fx_sparse_cell_order != "hilbert":
+                res_u1 = A.query().multi_index[ned[0] : ned[1]]
+                assert_unordered_equal(res_u1["a"], data)
+                self.assertEqual(set(res_u1["d"]), set(coords))
+
+                res_u2 = A.query()[ned[0] : ned[1]]
+                assert_unordered_equal(res_u2["a"], data)
+                self.assertEqual(set(res_u2["d"]), set(coords))
 
     def test_sparse_string_domain2(self, fx_sparse_cell_order):
         path = self.path("sparse_string_domain2")
