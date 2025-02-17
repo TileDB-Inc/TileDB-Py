@@ -109,6 +109,12 @@ class TestMultiIndexPropertySparse:
                 r1 = A.query(order=order).multi_index[ranges]["a"]
                 r2 = _direct_query_ranges(A, [ranges], order)["a"]
 
+                print("r1", r1[:])
+                print("r2", r2[:])
+                print("ranges", ranges)
+                print("order", order)
+                print("uri", uri)
+
                 assert_array_equal(r1, r2)
         except tiledb.TileDBError as exc:
             if is_boundserror(exc):
