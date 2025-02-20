@@ -234,11 +234,13 @@ void init_array(py::module& m) {
                 } else if (n_type.is(py::dtype::of<float>())) {
                     auto domain = self.non_empty_domain<float>(dim_idx);
                     return py::make_tuple(domain.first, domain.second);
-                } else if (
-                    py::getattr(n_type, "kind").is(py::str("S")) ||
-                    py::getattr(n_type, "kind").is(py::str("U"))) {
+                } else if (py::getattr(n_type, "kind").is(py::str("S"))) {
                     auto domain = self.non_empty_domain_var(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
+                    return py::make_tuple(
+                        py::bytes(domain.first), py::bytes(domain.second));
+                } else if (py::getattr(n_type, "kind").is(py::str("U"))) {
+                    TPY_ERROR_LOC(
+                        "Unicode strings are not supported as dimension types");
                     // np.datetime64
                 } else if (py::getattr(n_type, "kind").is(py::str("M"))) {
                     auto domain = self.non_empty_domain<int64_t>(dim_idx);
