@@ -18,29 +18,31 @@ void init_domain(nb::module& m) {
         .def(nb::init<Dimension>())
 
         .def(
-            nb::init([](const Context& ctx,
-                        const std::string& name,
-                        tiledb_datatype_t datatype,
-                        nb::object domain,
-                        nb::object tile_extent) {
+            "__init__",
+            [](Dimension* self,
+               const Context& ctx,
+               const std::string& name,
+               tiledb_datatype_t datatype,
+               nb::object domain,
+               nb::object tile_extent) {
                 void* dim_dom = nullptr;
                 void* dim_tile = nullptr;
 
                 if (!domain.is_none()) {
-                    nb::buffer domain_buffer = nb::buffer(domain);
+                    nb::buffer domain_buffer(domain);
                     nb::buffer_info domain_info = domain_buffer.request();
                     dim_dom = domain_info.ptr;
                 }
 
                 if (!tile_extent.is_none()) {
-                    nb::buffer tile_buffer = nb::buffer(tile_extent);
+                    nb::buffer tile_buffer(tile_extent);
                     nb::buffer_info tile_extent_info = tile_buffer.request();
                     dim_tile = tile_extent_info.ptr;
                 }
 
-                return std::make_unique<Dimension>(
+                new (self) Dimension(
                     Dimension::create(ctx, name, datatype, dim_dom, dim_tile));
-            }),
+            },
             nb::keep_alive<1, 2>())
 
         .def(nb::init<const Context&, nb::capsule>(), nb::keep_alive<1, 2>())

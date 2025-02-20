@@ -103,8 +103,7 @@ void init_schema(nb::module& m) {
         .def_prop_rw_readonly(
             "_has_label_filters", &DimensionLabelSchema::has_label_filters)
 
-        .def_prop_rw_readonly(
-            "_label_dtype", &DimensionLabelSchema::label_type)
+        .def_prop_rw_readonly("_label_dtype", &DimensionLabelSchema::label_type)
 
         .def_prop_rw_readonly(
             "_label_filters",

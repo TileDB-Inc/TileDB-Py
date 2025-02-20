@@ -38,8 +38,7 @@ nb::dtype get_dtype(T obj) {
         return nb::cast<nb::array>(obj).dtype();
     }
 
-    return nb::steal<nb::dtype>(
-        api.PyArray_DescrFromScalar_(obj.ptr()));
+    return nb::steal<nb::dtype>(api.PyArray_DescrFromScalar_(obj.ptr()));
 }
 
 // check whether dtypes are equivalent from numpy perspective

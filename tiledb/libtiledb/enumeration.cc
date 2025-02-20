@@ -18,63 +18,73 @@ void init_enumeration(nb::module& m) {
     nb::class_<Enumeration>(m, "Enumeration")
         .def(nb::init<Enumeration>())
 
-        .def(nb::init([](const Context& ctx,
-                         const std::string& name,
-                         nb::dtype type,
-                         bool ordered) {
-            tiledb_datatype_t data_type;
-            try {
-                data_type = np_to_tdb_dtype(type);
-            } catch (const TileDBPyError& e) {
-                throw nb::type_error(e.what());
-            }
-            nb::size_t cell_val_num = get_ncells(type);
+        .def(
+            "__init__",
+            [](Enumeration* self,
+               const Context& ctx,
+               const std::string& name,
+               nb::dtype type,
+               bool ordered) {
+                tiledb_datatype_t data_type;
+                try {
+                    data_type = np_to_tdb_dtype(type);
+                } catch (const TileDBPyError& e) {
+                    throw nb::type_error(e.what());
+                }
+                nb::size_t cell_val_num = get_ncells(type);
 
-            return Enumeration::create_empty(
-                ctx, name, data_type, cell_val_num, ordered);
-        }))
+                new (self) Enumeration(Enumeration::create_empty(
+                    ctx, name, data_type, cell_val_num, ordered));
+            })
 
-        .def(nb::init([](const Context& ctx,
-                         const std::string& name,
-                         std::vector<std::string>& values,
-                         bool ordered,
-                         tiledb_datatype_t type) {
-            return Enumeration::create(ctx, name, values, ordered, type);
-        }))
+        .def(
+            "__init__",
+            [](Enumeration* self,
+               const Context& ctx,
+               const std::string& name,
+               std::vector<std::string>& values,
+               bool ordered,
+               tiledb_datatype_t type) {
+                new (self) Enumeration(
+                    Enumeration::create(ctx, name, values, ordered, type));
+            })
 
-        .def(nb::init([](const Context& ctx,
-                         const std::string& name,
-                         bool ordered,
-                         nb::array data,
-                         nb::array offsets) {
-            tiledb_datatype_t data_type;
-            try {
-                data_type = np_to_tdb_dtype(data.dtype());
-            } catch (const TileDBPyError& e) {
-                throw nb::type_error(e.what());
-            }
+        .def(
+            "__init__",
+            [](Enumeration* self,
+               const Context& ctx,
+               const std::string& name,
+               bool ordered,
+               nb::array data,
+               nb::array offsets) {
+                tiledb_datatype_t data_type;
+                try {
+                    data_type = np_to_tdb_dtype(data.dtype());
+                } catch (const TileDBPyError& e) {
+                    throw nb::type_error(e.what());
+                }
 
-            nb::buffer_info data_buffer = data.request();
-            if (data_buffer.ndim != 1)
-                throw nb::type_error(
-                    "Only 1D Numpy arrays can be stored as "
-                    "enumeration values");
+                nb::buffer_info data_buffer = data.request();
+                if (data_buffer.ndim != 1)
+                    throw nb::type_error(
+                        "Only 1D Numpy arrays can be stored as enumeration "
+                        "values");
 
-            nb::size_t cell_val_num = offsets.size() == 0 ?
-                                          get_ncells(data.dtype()) :
-                                          TILEDB_VAR_NUM;
+                nb::size_t cell_val_num = offsets.size() == 0 ?
+                                              get_ncells(data.dtype()) :
+                                              TILEDB_VAR_NUM;
 
-            return Enumeration::create(
-                ctx,
-                name,
-                data_type,
-                cell_val_num,
-                ordered,
-                data.data(),
-                data.nbytes(),
-                offsets.size() == 0 ? nullptr : offsets.data(),
-                offsets.nbytes());
-        }))
+                new (self) Enumeration(Enumeration::create(
+                    ctx,
+                    name,
+                    data_type,
+                    cell_val_num,
+                    ordered,
+                    data.data(),
+                    data.nbytes(),
+                    offsets.size() == 0 ? nullptr : offsets.data(),
+                    offsets.nbytes()));
+            })
 
         .def(nb::init<const Context&, nb::capsule>(), nb::keep_alive<1, 2>())
 

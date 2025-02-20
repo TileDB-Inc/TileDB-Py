@@ -1823,44 +1823,49 @@ auto walk_callback =
 void init_core(nb::module& m) {
     init_query_condition(m);
 
-    auto pq =
-        nb::class_<PyQuery>(m, "PyQuery")
-            .def(nb::init<
-                 const Context&,
-                 nb::object,
-                 nb::iterable,
-                 nb::iterable,
-                 nb::object,
-                 nb::object>())
-            .def("add_label_buffer", &PyQuery::add_label_buffer)
-            .def("buffer_dtype", &PyQuery::buffer_dtype)
-            .def("results", &PyQuery::results)
-            .def("set_subarray", &PyQuery::set_subarray)
-            .def("set_cond", &PyQuery::set_cond)
+    auto pq = nb::class_<PyQuery>(m, "PyQuery")
+                  .def(nb::init<
+                       const Context&,
+                       nb::object,
+                       nb::iterable,
+                       nb::iterable,
+                       nb::object,
+                       nb::object>())
+                  .def("add_label_buffer", &PyQuery::add_label_buffer)
+                  .def("buffer_dtype", &PyQuery::buffer_dtype)
+                  .def("results", &PyQuery::results)
+                  .def("set_subarray", &PyQuery::set_subarray)
+                  .def("set_cond", &PyQuery::set_cond)
 #if defined(TILEDB_SERIALIZATION)
-            .def("set_serialized_query", &PyQuery::set_serialized_query)
+                  .def("set_serialized_query", &PyQuery::set_serialized_query)
 #endif
-            .def("submit", &PyQuery::submit)
-            .def("unpack_buffer", &PyQuery::unpack_buffer)
-            .def("estimated_result_sizes", &PyQuery::estimated_result_sizes)
-            .def("get_stats", &PyQuery::get_stats)
-            .def("_allocate_buffers", &PyQuery::allocate_buffers)
-            .def("_get_buffers", &PyQuery::get_buffers)
-            .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
-            .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
-            .def("_test_array", &PyQuery::_test_array)
-            .def(
-                "_test_err",
-                [](nb::object self, std::string s) { throw TileDBPyError(s); })
-            .def_rw("_preload_metadata", &PyQuery::preload_metadata_)
-            .def_rw("_return_incomplete", &PyQuery::return_incomplete_)
-            // properties
-            .def_prop_rw_readonly("is_incomplete", &PyQuery::is_incomplete)
-            .def_prop_rw_readonly(
-                "_test_init_buffer_bytes", &PyQuery::_test_init_buffer_bytes)
-            .def_prop_rw_readonly(
-                "_test_alloc_max_bytes", &PyQuery::_test_alloc_max_bytes)
-            .def_ro("retries", &PyQuery::retries_);
+                  .def("submit", &PyQuery::submit)
+                  .def("unpack_buffer", &PyQuery::unpack_buffer)
+                  .def(
+                      "estimated_result_sizes",
+                      &PyQuery::estimated_result_sizes)
+                  .def("get_stats", &PyQuery::get_stats)
+                  .def("_allocate_buffers", &PyQuery::allocate_buffers)
+                  .def("_get_buffers", &PyQuery::get_buffers)
+                  .def("_buffer_to_pa", &PyQuery::buffer_to_pa)
+                  .def("_buffers_to_pa_table", &PyQuery::buffers_to_pa_table)
+                  .def("_test_array", &PyQuery::_test_array)
+                  .def(
+                      "_test_err",
+                      [](nb::object self, std::string s) {
+                          throw TileDBPyError(s);
+                      })
+                  .def_rw("_preload_metadata", &PyQuery::preload_metadata_)
+                  .def_rw("_return_incomplete", &PyQuery::return_incomplete_)
+                  // properties
+                  .def_prop_rw_readonly(
+                      "is_incomplete", &PyQuery::is_incomplete)
+                  .def_prop_rw_readonly(
+                      "_test_init_buffer_bytes",
+                      &PyQuery::_test_init_buffer_bytes)
+                  .def_prop_rw_readonly(
+                      "_test_alloc_max_bytes", &PyQuery::_test_alloc_max_bytes)
+                  .def_ro("retries", &PyQuery::retries_);
 
     nb::class_<PyAgg>(m, "PyAgg")
         .def(

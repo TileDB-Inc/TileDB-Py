@@ -33,12 +33,14 @@ void init_array(nb::module& m) {
             nb::init<const Context&, const std::string&, tiledb_query_type_t>(),
             nb::keep_alive<1, 2>() /* Array keeps Context alive */)
         .def(
-            nb::init([](const Context& ctx,
-                        const std::string& uri,
-                        const tiledb_query_type_t& qt,
-                        const std::tuple<
-                            std::optional<uint64_t>,
-                            std::optional<uint64_t>>& timestamp) {
+            "__init__",
+            [](Array* self,
+               const Context& ctx,
+               const std::string& uri,
+               const tiledb_query_type_t& qt,
+               const std::tuple<
+                   std::optional<uint64_t>,
+                   std::optional<uint64_t>>& timestamp) {
                 std::optional<uint64_t> start, end;
                 std::tie(start, end) = timestamp;
 
@@ -47,20 +49,22 @@ void init_array(nb::module& m) {
                 if (!end.has_value())
                     end = UINT64_MAX;
 
-                return std::make_unique<Array>(
+                new (self) Array(
                     ctx,
                     uri,
                     qt,
                     TemporalPolicy(
                         tiledb::TimestampStartEnd, start.value(), end.value()));
-            }),
+            },
             nb::keep_alive<1, 2>())
+
         .def(
-            nb::init([](const Context& ctx, nb::object array) {
+            "__init__",
+            [](Array* self, const Context& ctx, nb::object array) {
                 tiledb_array_t* c_array = (nb::capsule)array.attr(
                     "__capsule__")();
-                return std::make_unique<Array>(ctx, c_array, false);
-            }),
+                new (self) Array(ctx, c_array, false);
+            },
             nb::keep_alive<1, 2>(),
             nb::keep_alive<1, 3>())
 
@@ -79,8 +83,7 @@ void init_array(nb::module& m) {
         .def("_set_open_timestamp_end", &Array::set_open_timestamp_end)
         .def_prop_rw_readonly(
             "_open_timestamp_start", &Array::open_timestamp_start)
-        .def_prop_rw_readonly(
-            "_open_timestamp_end", &Array::open_timestamp_end)
+        .def_prop_rw_readonly("_open_timestamp_end", &Array::open_timestamp_end)
         .def("_set_config", &Array::set_config)
         .def("_config", &Array::config)
         .def("_close", &Array::close)
