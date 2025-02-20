@@ -673,10 +673,12 @@ class Array:
 
             res_x, res_y = self.array._non_empty_domain(dim_idx, dim_dtype)
 
+            # convert to bytes if needed
             if dim_dtype == np.bytes_:
-                # convert to bytes if needed
-                res_x = bytes(res_x, encoding="utf8")
-                res_y = bytes(res_y, encoding="utf8")
+                if not isinstance(res_x, bytes):
+                    res_x = bytes(res_x, encoding="utf8")
+                if not isinstance(res_y, bytes):
+                    res_y = bytes(res_y, encoding="utf8")
 
             if np.issubdtype(dim_dtype, np.datetime64):
                 # convert to np.datetime64
