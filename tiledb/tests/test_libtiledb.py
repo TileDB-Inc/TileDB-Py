@@ -2285,6 +2285,7 @@ class TestSparseArray(DiskTestCase):
             ([b"aa", b"bbb", b"c", b"dddd"], [b"aa", b"dddd"], False),
             ([b""], [b"", b""], True),
             ([b"", b"", b"", b""], [b"", b""], True),
+            ([b"\x81", b"\x82", b"\x83", b"\x84"], [b"\x81", b"\x84"], False),
         ],
     )
     def test_sparse_string_domain(
