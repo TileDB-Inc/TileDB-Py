@@ -7,7 +7,7 @@
 #include <pybind11/stl.h>
 
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 using namespace pybind11::literals;
 
 #define TPY_ERROR_LOC(m)                                                    \

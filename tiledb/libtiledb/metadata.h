@@ -12,7 +12,7 @@
 #include "common.h"
 
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 using namespace pybind11::literals;
 
 template <typename T>

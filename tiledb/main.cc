@@ -2,21 +2,21 @@
 
 namespace tiledbpy {
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
-void init_core(py::module&);
-// void _debug(py::module &);
-void init_fragment(py::module&);
-// void init_query_condition(py::module &);
-void init_schema_evolution(py::module&);
+void init_core(nb::module&);
+// void _debug(nb::module &);
+void init_fragment(nb::module&);
+// void init_query_condition(nb::module &);
+void init_schema_evolution(nb::module&);
 #if defined(TILEDB_SERIALIZATION)
-void init_serialization(py::module&);
-void init_test_serialization(py::module&);
+void init_serialization(nb::module&);
+void init_test_serialization(nb::module&);
 #endif
-void init_test_metadata(py::module&);
-void init_test_webp_filter(py::module&);
+void init_test_metadata(nb::module&);
+void init_test_webp_filter(nb::module&);
 
-PYBIND11_MODULE(main, m) {
+NB_MODULE(main, m) {
     init_core(m);
     //_debug(m);
     init_fragment(m);

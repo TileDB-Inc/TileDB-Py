@@ -12,22 +12,22 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-using namespace tiledbpy::common;
-namespace py = pybind11;
+using namespace tiledbnb::common;
+namespace nb = nanobind;
 
-void init_current_domain(py::module& m) {
+void init_current_domain(nb::module& m) {
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
-    py::class_<NDRectangle>(m, "NDRectangle")
-        .def(py::init<NDRectangle>())
+    nb::class_<NDRectangle>(m, "NDRectangle")
+        .def(nb::init<NDRectangle>())
 
-        .def(py::init<const Context&, const Domain&>())
+        .def(nb::init<const Context&, const Domain&>())
 
         .def(
             "_set_range",
             [](NDRectangle& ndrect,
                const std::string& dim_name,
-               py::object start,
-               py::object end) {
+               nb::object start,
+               nb::object end) {
                 const tiledb_datatype_t n_type = ndrect.range_dtype(dim_name);
 
                 if (n_type == TILEDB_UINT64) {
@@ -86,8 +86,8 @@ void init_current_domain(py::module& m) {
             "_set_range",
             [](NDRectangle& ndrect,
                uint32_t dim_idx,
-               py::object start,
-               py::object end) {
+               nb::object start,
+               nb::object end) {
                 const tiledb_datatype_t n_type = ndrect.range_dtype(dim_idx);
 
                 if (n_type == TILEDB_UINT64) {
@@ -144,107 +144,107 @@ void init_current_domain(py::module& m) {
 
         .def(
             "_range",
-            [](NDRectangle& ndrect, const std::string& dim_name) -> py::tuple {
+            [](NDRectangle& ndrect, const std::string& dim_name) -> nb::tuple {
                 const tiledb_datatype_t n_type = ndrect.range_dtype(dim_name);
                 if (n_type == TILEDB_UINT64) {
                     auto range = ndrect.range<uint64_t>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_INT64) {
                     auto range = ndrect.range<int64_t>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_UINT32) {
                     auto range = ndrect.range<uint32_t>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_INT32) {
                     auto range = ndrect.range<int32_t>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_UINT16) {
                     auto range = ndrect.range<uint16_t>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_INT16) {
                     auto range = ndrect.range<int16_t>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_UINT8) {
                     auto range = ndrect.range<uint8_t>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_INT8) {
                     auto range = ndrect.range<int8_t>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_FLOAT64) {
                     auto range = ndrect.range<double>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (n_type == TILEDB_FLOAT32) {
                     auto range = ndrect.range<float>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else if (
                     n_type == TILEDB_STRING_ASCII ||
                     n_type == TILEDB_STRING_UTF8) {
                     auto range = ndrect.range<std::string>(dim_name);
-                    return py::make_tuple(range[0], range[1]);
+                    return nb::make_tuple(range[0], range[1]);
                 } else {
                     TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
                 }
             })
-        .def("_range", [](NDRectangle& ndrect, unsigned dim_idx) -> py::tuple {
+        .def("_range", [](NDRectangle& ndrect, unsigned dim_idx) -> nb::tuple {
             const tiledb_datatype_t n_type = ndrect.range_dtype(dim_idx);
             if (n_type == TILEDB_UINT64) {
                 auto range = ndrect.range<uint64_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_INT64) {
                 auto range = ndrect.range<int64_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_UINT32) {
                 auto range = ndrect.range<uint32_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_INT32) {
                 auto range = ndrect.range<int32_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_UINT16) {
                 auto range = ndrect.range<uint16_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_INT16) {
                 auto range = ndrect.range<int16_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_UINT8) {
                 auto range = ndrect.range<uint8_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_INT8) {
                 auto range = ndrect.range<int8_t>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_FLOAT64) {
                 auto range = ndrect.range<double>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (n_type == TILEDB_FLOAT32) {
                 auto range = ndrect.range<float>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else if (
                 n_type == TILEDB_STRING_ASCII || n_type == TILEDB_STRING_UTF8) {
                 auto range = ndrect.range<std::string>(dim_idx);
-                return py::make_tuple(range[0], range[1]);
+                return nb::make_tuple(range[0], range[1]);
             } else {
                 TPY_ERROR_LOC("Unsupported type for NDRectangle's range");
             }
         });
 
-    py::class_<CurrentDomain>(m, "CurrentDomain")
-        .def(py::init<CurrentDomain>())
+    nb::class_<CurrentDomain>(m, "CurrentDomain")
+        .def(nb::init<CurrentDomain>())
 
-        .def(py::init<const Context&>())
+        .def(nb::init<const Context&>())
 
         .def(
             "__capsule__",
             [](CurrentDomain& curr_dom) {
-                return py::capsule(curr_dom.ptr().get(), "curr_dom");
+                return nb::capsule(curr_dom.ptr().get(), "curr_dom");
             })
 
-        .def_property_readonly("_is_empty", &CurrentDomain::is_empty)
+        .def_prop_rw_readonly("_is_empty", &CurrentDomain::is_empty)
 
-        .def_property_readonly("_type", &CurrentDomain::type)
+        .def_prop_rw_readonly("_type", &CurrentDomain::type)
 
         .def(
             "_set_ndrectangle",
             &CurrentDomain::set_ndrectangle,
-            py::arg("ndrect"))
+            nb::arg("ndrect"))
 
         .def("_ndrectangle", &CurrentDomain::ndrectangle);
 #endif

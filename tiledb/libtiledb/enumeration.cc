@@ -11,30 +11,30 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-using namespace tiledbpy::common;
-namespace py = pybind11;
+using namespace tiledbnb::common;
+namespace nb = nanobind;
 
-void init_enumeration(py::module& m) {
-    py::class_<Enumeration>(m, "Enumeration")
-        .def(py::init<Enumeration>())
+void init_enumeration(nb::module& m) {
+    nb::class_<Enumeration>(m, "Enumeration")
+        .def(nb::init<Enumeration>())
 
-        .def(py::init([](const Context& ctx,
+        .def(nb::init([](const Context& ctx,
                          const std::string& name,
-                         py::dtype type,
+                         nb::dtype type,
                          bool ordered) {
             tiledb_datatype_t data_type;
             try {
                 data_type = np_to_tdb_dtype(type);
             } catch (const TileDBPyError& e) {
-                throw py::type_error(e.what());
+                throw nb::type_error(e.what());
             }
-            py::size_t cell_val_num = get_ncells(type);
+            nb::size_t cell_val_num = get_ncells(type);
 
             return Enumeration::create_empty(
                 ctx, name, data_type, cell_val_num, ordered);
         }))
 
-        .def(py::init([](const Context& ctx,
+        .def(nb::init([](const Context& ctx,
                          const std::string& name,
                          std::vector<std::string>& values,
                          bool ordered,
@@ -42,25 +42,25 @@ void init_enumeration(py::module& m) {
             return Enumeration::create(ctx, name, values, ordered, type);
         }))
 
-        .def(py::init([](const Context& ctx,
+        .def(nb::init([](const Context& ctx,
                          const std::string& name,
                          bool ordered,
-                         py::array data,
-                         py::array offsets) {
+                         nb::array data,
+                         nb::array offsets) {
             tiledb_datatype_t data_type;
             try {
                 data_type = np_to_tdb_dtype(data.dtype());
             } catch (const TileDBPyError& e) {
-                throw py::type_error(e.what());
+                throw nb::type_error(e.what());
             }
 
-            py::buffer_info data_buffer = data.request();
+            nb::buffer_info data_buffer = data.request();
             if (data_buffer.ndim != 1)
-                throw py::type_error(
+                throw nb::type_error(
                     "Only 1D Numpy arrays can be stored as "
                     "enumeration values");
 
-            py::size_t cell_val_num = offsets.size() == 0 ?
+            nb::size_t cell_val_num = offsets.size() == 0 ?
                                           get_ncells(data.dtype()) :
                                           TILEDB_VAR_NUM;
 
@@ -76,28 +76,28 @@ void init_enumeration(py::module& m) {
                 offsets.nbytes());
         }))
 
-        .def(py::init<const Context&, py::capsule>(), py::keep_alive<1, 2>())
+        .def(nb::init<const Context&, nb::capsule>(), nb::keep_alive<1, 2>())
 
         .def(
             "__capsule__",
             [](Enumeration& enmr) {
-                return py::capsule(enmr.ptr().get(), "enmr");
+                return nb::capsule(enmr.ptr().get(), "enmr");
             })
 
-        .def_property_readonly("name", &Enumeration::name)
+        .def_prop_rw_readonly("name", &Enumeration::name)
 
-        .def_property_readonly("type", &Enumeration::type)
+        .def_prop_rw_readonly("type", &Enumeration::type)
 
-        .def_property_readonly("cell_val_num", &Enumeration::cell_val_num)
+        .def_prop_rw_readonly("cell_val_num", &Enumeration::cell_val_num)
 
-        .def_property_readonly("ordered", &Enumeration::ordered)
+        .def_prop_rw_readonly("ordered", &Enumeration::ordered)
 
         .def(
             "values",
             [](Enumeration& enmr) {
                 auto data = enmr.as_vector<std::byte>();
                 auto dtype = tdb_to_np_dtype(enmr.type(), enmr.cell_val_num());
-                return py::array(
+                return nb::array(
                     dtype, data.size() / dtype.itemsize(), data.data());
             })
         .def(
@@ -108,7 +108,7 @@ void init_enumeration(py::module& m) {
             "extend",
             static_cast<Enumeration (Enumeration::*)(
                 std::vector<std::string>&)>(&Enumeration::extend))
-        .def("extend", [](Enumeration& enmr, py::array data) {
+        .def("extend", [](Enumeration& enmr, nb::array data) {
             return enmr.extend(data.data(), data.nbytes(), nullptr, 0);
         });
 }

@@ -18,15 +18,15 @@ namespace tiledbpy {
 
 using namespace std;
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 using namespace pybind11::literals;
 
 class PySerialization {
    public:
     static void* deserialize_query(
-        py::object ctx,
-        py::object array,
-        py::buffer buffer,
+        nb::object ctx,
+        nb::object array,
+        nb::buffer buffer,
         tiledb_serialization_type_t serialize_type,
         int32_t client_side) {
         int rc;
@@ -36,11 +36,11 @@ class PySerialization {
         tiledb_query_t* qry_c;
         tiledb_buffer_t* buf_c;
 
-        ctx_c = (py::capsule)ctx.attr("__capsule__")();
+        ctx_c = (nb::capsule)ctx.attr("__capsule__")();
         if (ctx_c == nullptr)
             TPY_ERROR_LOC("Invalid context pointer.");
 
-        arr_c = (py::capsule)array.attr("__capsule__")();
+        arr_c = (nb::capsule)array.attr("__capsule__")();
         if (arr_c == nullptr)
             TPY_ERROR_LOC("Invalid array pointer.");
 
@@ -52,7 +52,7 @@ class PySerialization {
         if (rc == TILEDB_ERR)
             TPY_ERROR_LOC("Could not allocate buffer.");
 
-        py::buffer_info buf_info = buffer.request();
+        nb::buffer_info buf_info = buffer.request();
         rc = tiledb_buffer_set_data(
             ctx_c, buf_c, buf_info.ptr, buf_info.shape[0]);
         if (rc == TILEDB_ERR)
@@ -67,12 +67,12 @@ class PySerialization {
     }
 };
 
-void init_serialization(py::module& m) {
-    py::class_<PySerialization>(m, "serialization")
+void init_serialization(nb::module& m) {
+    nb::class_<PySerialization>(m, "serialization")
         .def_static("deserialize_query", &PySerialization::deserialize_query);
 
-    py::enum_<tiledb_serialization_type_t>(
-        m, "tiledb_serialization_type_t", py::arithmetic())
+    nb::enum_<tiledb_serialization_type_t>(
+        m, "tiledb_serialization_type_t", nb::arithmetic())
         .value("TILEDB_CAPNP", TILEDB_CAPNP)
         .value("TILEDB_JSON", TILEDB_JSON)
         .export_values();

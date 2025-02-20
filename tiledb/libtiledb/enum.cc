@@ -8,16 +8,16 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 
-void init_enums(py::module& m) {
+void init_enums(nb::module& m) {
     // consts from tiledb.h
     m.def("TILEDB_VAR_NUM", []() { return TILEDB_VAR_NUM; });
     m.def("TILEDB_MAX_PATH", []() { return TILEDB_MAX_PATH; });
     m.def("TILEDB_OFFSET_SIZE", []() { return TILEDB_OFFSET_SIZE; });
     m.def("TILEDB_TIMESTAMP_NOW_MS", []() { return TILEDB_TIMESTAMP_NOW_MS; });
 
-    py::enum_<tiledb_datatype_t>(m, "DataType", py::module_local())
+    nb::enum_<tiledb_datatype_t>(m, "DataType", nb::module_local())
         .value("INT32", TILEDB_INT32)
         .value("INT64", TILEDB_INT64)
         .value("FLOAT32", TILEDB_FLOAT32)
@@ -66,23 +66,23 @@ void init_enums(py::module& m) {
 #endif
         ;  // line continuation for ifdef
 
-    py::enum_<tiledb_array_type_t>(m, "ArrayType")
+    nb::enum_<tiledb_array_type_t>(m, "ArrayType")
         .value("DENSE", TILEDB_DENSE)
         .value("SPARSE", TILEDB_SPARSE);
 
-    py::enum_<tiledb_layout_t>(m, "LayoutType")
+    nb::enum_<tiledb_layout_t>(m, "LayoutType")
         .value("ROW_MAJOR", TILEDB_ROW_MAJOR)
         .value("COL_MAJOR", TILEDB_COL_MAJOR)
         .value("GLOBAL_ORDER", TILEDB_GLOBAL_ORDER)
         .value("UNORDERED", TILEDB_UNORDERED)
         .value("HILBERT", TILEDB_HILBERT);
 
-    py::enum_<tiledb_data_order_t>(m, "DataOrder")
+    nb::enum_<tiledb_data_order_t>(m, "DataOrder")
         .value("UNORDERED_DATA", TILEDB_UNORDERED_DATA)
         .value("INCREASING_DATA", TILEDB_INCREASING_DATA)
         .value("DECREASING_DATA", TILEDB_DECREASING_DATA);
 
-    py::enum_<tiledb_filter_type_t>(m, "FilterType")
+    nb::enum_<tiledb_filter_type_t>(m, "FilterType")
         .value("NONE", TILEDB_FILTER_NONE)
         .value("GZIP", TILEDB_FILTER_GZIP)
         .value("ZSTD", TILEDB_FILTER_ZSTD)
@@ -102,7 +102,7 @@ void init_enums(py::module& m) {
         .value("XOR", TILEDB_FILTER_XOR)
         .value("WEBP", TILEDB_FILTER_WEBP);
 
-    py::enum_<tiledb_filter_option_t>(m, "FilterOption")
+    nb::enum_<tiledb_filter_option_t>(m, "FilterOption")
         .value("COMPRESSION_LEVEL", TILEDB_COMPRESSION_LEVEL)
         .value("BIT_WIDTH_MAX_WINDOW", TILEDB_BIT_WIDTH_MAX_WINDOW)
         .value("POSITIVE_DELTA_MAX_WINDOW", TILEDB_POSITIVE_DELTA_MAX_WINDOW)
@@ -116,22 +116,22 @@ void init_enums(py::module& m) {
             "COMPRESSION_REINTERPRET_DATATYPE",
             TILEDB_COMPRESSION_REINTERPRET_DATATYPE);
 
-    py::enum_<tiledb_filter_webp_format_t>(m, "WebpInputFormat")
+    nb::enum_<tiledb_filter_webp_format_t>(m, "WebpInputFormat")
         .value("WEBP_NONE", TILEDB_WEBP_NONE)
         .value("WEBP_RGB", TILEDB_WEBP_RGB)
         .value("WEBP_RGBA", TILEDB_WEBP_RGBA)
         .value("WEBP_BGR", TILEDB_WEBP_BGR)
         .value("WEBP_BGRA", TILEDB_WEBP_BGRA);
 
-    py::enum_<tiledb_encryption_type_t>(m, "EncryptionType")
+    nb::enum_<tiledb_encryption_type_t>(m, "EncryptionType")
         .value("NO_ENCRYPTION", TILEDB_NO_ENCRYPTION)
         .value("AES_256_GCM", TILEDB_AES_256_GCM);
 
-    py::enum_<tiledb_walk_order_t>(m, "WalkOrder")
+    nb::enum_<tiledb_walk_order_t>(m, "WalkOrder")
         .value("PREORDER", TILEDB_PREORDER)
         .value("POSTORDER", TILEDB_POSTORDER);
 
-    py::enum_<tiledb::Query::Status>(m, "QueryStatus")
+    nb::enum_<tiledb::Query::Status>(m, "QueryStatus")
         .value("FAILED", Query::Status::FAILED)
         .value("COMPLETE", Query::Status::COMPLETE)
         .value("INPROGRESS", Query::Status::INPROGRESS)
@@ -139,14 +139,14 @@ void init_enums(py::module& m) {
         .value("UNINITIALIZED", Query::Status::UNINITIALIZED)
         .export_values();
 
-    py::enum_<tiledb_query_type_t>(m, "QueryType")
+    nb::enum_<tiledb_query_type_t>(m, "QueryType")
         .value("READ", TILEDB_READ)
         .value("WRITE", TILEDB_WRITE)
         .value("DELETE", TILEDB_DELETE)
         .value("MODIFY_EXCLUSIVE", TILEDB_MODIFY_EXCLUSIVE);
 
-    py::enum_<tiledb_query_condition_op_t>(
-        m, "QueryConditionOp", py::module_local())
+    nb::enum_<tiledb_query_condition_op_t>(
+        m, "QueryConditionOp", nb::module_local())
         .value("LT", TILEDB_LT)
         .value("LE", TILEDB_LE)
         .value("GT", TILEDB_GT)
@@ -154,43 +154,43 @@ void init_enums(py::module& m) {
         .value("EQ", TILEDB_EQ)
         .value("NE", TILEDB_NE);
 
-    py::enum_<tiledb_vfs_mode_t>(m, "VFSMode")
+    nb::enum_<tiledb_vfs_mode_t>(m, "VFSMode")
         .value("READ", TILEDB_VFS_READ)
         .value("WRITE", TILEDB_VFS_WRITE)
         .value("APPEND", TILEDB_VFS_APPEND);
 
-    py::enum_<tiledb_filesystem_t>(m, "FileSystem")
+    nb::enum_<tiledb_filesystem_t>(m, "FileSystem")
         .value("S3", TILEDB_S3)
         .value("AZURE", TILEDB_AZURE)
         .value("GCS", TILEDB_GCS)
         .value("HDFS", TILEDB_HDFS);
 
-    py::enum_<tiledb::Object::Type>(m, "ObjectType")
+    nb::enum_<tiledb::Object::Type>(m, "ObjectType")
         .value("ARRAY", Object::Type::Array)
         .value("GROUP", Object::Type::Group)
         .value("INVALID", Object::Type::Invalid)
         .export_values();
 
-    py::enum_<tiledb_mime_type_t>(m, "MIMEType")
+    nb::enum_<tiledb_mime_type_t>(m, "MIMEType")
         .value("AUTODETECT", TILEDB_MIME_AUTODETECT)
         .value("TIFF", TILEDB_MIME_TIFF)
         .value("PDF", TILEDB_MIME_PDF);
 
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
-    py::enum_<tiledb_current_domain_type_t>(m, "CurrentDomainType")
+    nb::enum_<tiledb_current_domain_type_t>(m, "CurrentDomainType")
         .value("NDRECTANGLE", TILEDB_NDRECTANGLE);
 #endif
     // test helpers to check enum name against typed value
     m.def("_enum_string", &tiledb::impl::type_to_str);
     m.def(
         "_enum_string",
-        py::overload_cast<tiledb_array_type_t>(&tiledb::ArraySchema::to_str));
+        nb::overload_cast<tiledb_array_type_t>(&tiledb::ArraySchema::to_str));
     m.def(
         "_enum_string",
-        py::overload_cast<tiledb_layout_t>(&tiledb::ArraySchema::to_str));
+        nb::overload_cast<tiledb_layout_t>(&tiledb::ArraySchema::to_str));
     m.def(
         "_enum_string",
-        py::overload_cast<tiledb_filter_type_t>(&tiledb::Filter::to_str));
+        nb::overload_cast<tiledb_filter_type_t>(&tiledb::Filter::to_str));
     m.def("_enum_string", [](Query::Status status) {
         std::stringstream ss;
         ss << status;

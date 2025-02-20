@@ -12,16 +12,16 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-using namespace tiledbpy::common;
-namespace py = pybind11;
+using namespace tiledbnb::common;
+namespace nb = nanobind;
 
-void init_vfs(py::module& m) {
-    py::class_<VFS>(m, "VFS")
-        .def(py::init<const Context&>(), py::keep_alive<1, 2>())
-        .def(py::init<const Context&, const Config&>(), py::keep_alive<1, 2>())
+void init_vfs(nb::module& m) {
+    nb::class_<VFS>(m, "VFS")
+        .def(nb::init<const Context&>(), nb::keep_alive<1, 2>())
+        .def(nb::init<const Context&, const Config&>(), nb::keep_alive<1, 2>())
 
-        .def_property_readonly("_ctx", &VFS::context)
-        .def_property_readonly("_config", &VFS::config)
+        .def_prop_rw_readonly("_ctx", &VFS::context)
+        .def_prop_rw_readonly("_config", &VFS::config)
 
         .def("_create_bucket", &VFS::create_bucket)
         .def("_remove_bucket", &VFS::remove_bucket)
@@ -50,7 +50,7 @@ void init_vfs(py::module& m) {
             // 2. no callback is passed and a default callback is used. The
             // default callback just appends each path gathered. Return the
             // paths.
-            [](VFS& vfs, std::string uri, py::object callback) {
+            [](VFS& vfs, std::string uri, nb::object callback) {
                 tiledb::Context ctx;
                 if (callback.is_none()) {
                     std::vector<std::string> paths;
@@ -99,21 +99,21 @@ class FileHandle {
         _ctx.handle_error(tiledb_vfs_close(_ctx.ptr().get(), this->_fh));
     }
 
-    py::bytes read(uint64_t offset, uint64_t nbytes) {
-        py::array data = py::array(py::dtype::of<std::byte>(), nbytes);
-        py::buffer_info buffer = data.request();
+    nb::bytes read(uint64_t offset, uint64_t nbytes) {
+        nb::array data = nb::array(nb::dtype<std::byte>(), nbytes);
+        nb::buffer_info buffer = data.request();
 
         _ctx.handle_error(tiledb_vfs_read(
             _ctx.ptr().get(), this->_fh, offset, buffer.ptr, nbytes));
 
-        auto np = py::module::import("numpy");
+        auto np = nb::module::import("numpy");
         auto to_bytes = np.attr("ndarray").attr("tobytes");
 
         return to_bytes(data);
     }
 
-    void write(py::buffer data) {
-        py::buffer_info buffer = data.request();
+    void write(nb::buffer data) {
+        nb::buffer_info buffer = data.request();
         _ctx.handle_error(tiledb_vfs_write(
             _ctx.ptr().get(), this->_fh, buffer.ptr, buffer.shape[0]));
     }
@@ -130,17 +130,17 @@ class FileHandle {
     }
 };
 
-void init_file_handle(py::module& m) {
-    py::class_<FileHandle>(m, "FileHandle")
+void init_file_handle(nb::module& m) {
+    nb::class_<FileHandle>(m, "FileHandle")
         .def(
-            py::init<
+            nb::init<
                 const Context&,
                 const VFS&,
                 std::string,
                 tiledb_vfs_mode_t>(),
-            py::keep_alive<1, 2>())
+            nb::keep_alive<1, 2>())
 
-        .def_property_readonly("_closed", &FileHandle::closed)
+        .def_prop_rw_readonly("_closed", &FileHandle::closed)
 
         .def("_close", &FileHandle::close)
         .def("_read", &FileHandle::read)

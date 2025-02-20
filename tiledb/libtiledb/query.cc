@@ -15,31 +15,31 @@ namespace libtiledbcpp {
 
 using namespace tiledb;
 using namespace std;
-namespace py = pybind11;
+namespace nb = nanobind;
 
-void init_query(py::module& m) {
-    py::class_<tiledb::Query>(m, "Query")
+void init_query(nb::module& m) {
+    nb::class_<tiledb::Query>(m, "Query")
 
-        //.def(py::init<py::object, py::object, py::iterable, py::object,
-        //              py::object, py::object>())
-
-        .def(
-            py::init<Context&, Array&, tiledb_query_type_t>(),
-            py::keep_alive<1, 2>() /* Keep context alive. */,
-            py::keep_alive<1, 3>() /* Keep array alive. */)
+        //.def(nb::init<nb::object, nb::object, nb::iterable, nb::object,
+        //              nb::object, nb::object>())
 
         .def(
-            py::init<Context&, Array&>(),
-            py::keep_alive<1, 2>() /* Keep context alive. */,
-            py::keep_alive<1, 3>() /* Keep array alive. */)
+            nb::init<Context&, Array&, tiledb_query_type_t>(),
+            nb::keep_alive<1, 2>() /* Keep context alive. */,
+            nb::keep_alive<1, 3>() /* Keep array alive. */)
 
-        // TODO .def("ptr", [&]() -> py::capsule)
+        .def(
+            nb::init<Context&, Array&>(),
+            nb::keep_alive<1, 2>() /* Keep context alive. */,
+            nb::keep_alive<1, 3>() /* Keep array alive. */)
 
-        .def_property("layout", &Query::query_layout, &Query::set_layout)
+        // TODO .def("ptr", [&]() -> nb::capsule)
 
-        .def_property_readonly("query_type", &Query::query_type)
+        .def_prop_rw("layout", &Query::query_layout, &Query::set_layout)
 
-        .def_property_readonly(
+        .def_prop_rw_readonly("query_type", &Query::query_type)
+
+        .def_prop_rw_readonly(
             "_subarray",
             [](Query& query) {
                 // TODO: Before merge make sure the lifetime of
@@ -78,14 +78,14 @@ void init_query(py::module& m) {
 
         .def(
             "set_data_buffer",
-            [](Query& q, std::string name, py::array a, uint64_t nelements) {
+            [](Query& q, std::string name, nb::array a, uint64_t nelements) {
                 QueryExperimental::set_data_buffer(
                     q, name, const_cast<void*>(a.data()), nelements);
             })
 
         .def(
             "set_offsets_buffer",
-            [](Query& q, std::string name, py::array a, uint64_t nelements) {
+            [](Query& q, std::string name, nb::array a, uint64_t nelements) {
                 q.set_offsets_buffer(name, (uint64_t*)(a.data()), nelements);
             })
 
@@ -97,12 +97,12 @@ void init_query(py::module& m) {
 
         .def(
             "set_validity_buffer",
-            [](Query& q, std::string name, py::array a, uint64_t nelements) {
+            [](Query& q, std::string name, nb::array a, uint64_t nelements) {
                 q.set_validity_buffer(name, (uint8_t*)(a.data()), nelements);
             })
 
         .def(
-            "_submit", &Query::submit, py::call_guard<py::gil_scoped_release>())
+            "_submit", &Query::submit, nb::call_guard<nb::gil_scoped_release>())
 
         /** hackery from another branch... */
         //.def("set_fragment_uri", &Query::set_fragment_uri)

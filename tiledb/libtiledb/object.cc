@@ -10,23 +10,23 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-using namespace tiledbpy::common;
-namespace py = pybind11;
+using namespace tiledbnb::common;
+namespace nb = nanobind;
 
-void init_object(py::module& m) {
-    py::class_<Object>(m, "Object")
-        .def(py::init<
+void init_object(nb::module& m) {
+    nb::class_<Object>(m, "Object")
+        .def(nb::init<
              const Object::Type&,
              const std::string&,
              const std::optional<std::string>&>())
-        .def(py::init<
+        .def(nb::init<
              tiledb_object_t,
              const std::string&,
              const std::optional<std::string>&>())
 
-        .def_property_readonly("_type", &Object::type)
-        .def_property_readonly("_uri", &Object::uri)
-        .def_property_readonly("_name", &Object::name)
+        .def_prop_rw_readonly("_type", &Object::type)
+        .def_prop_rw_readonly("_uri", &Object::uri)
+        .def_prop_rw_readonly("_name", &Object::name)
         .def("__repr__", &Object::to_str)
 
         .def_static("_object", &Object::object)

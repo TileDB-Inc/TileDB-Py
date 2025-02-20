@@ -5,7 +5,7 @@
 
 namespace tiledbpy {
 
-namespace py = pybind11;
+namespace nb = nanobind;
 using namespace pybind11::literals;
 
 py::tuple convert_np(

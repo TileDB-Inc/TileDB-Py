@@ -11,8 +11,8 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-using namespace tiledbpy::common;
-namespace py = pybind11;
+using namespace tiledbnb::common;
+namespace nb = nanobind;
 
 class Filestore {
    public:
@@ -22,7 +22,7 @@ class Filestore {
     static ArraySchema schema_create(const Context& ctx, const char* uri) {
         tiledb_array_schema_t* schema;
         tiledb_filestore_schema_create(ctx.ptr().get(), uri, &schema);
-        return ArraySchema(ctx, py::capsule(schema));
+        return ArraySchema(ctx, nb::capsule(schema));
     }
 
     static void uri_import(
@@ -45,29 +45,29 @@ class Filestore {
     static void buffer_import(
         const Context& ctx,
         const char* filestore_array_uri,
-        py::buffer buf,
+        nb::buffer buf,
         tiledb_mime_type_t mime_type) {
-        py::buffer_info buffer = buf.request();
+        nb::buffer_info buffer = buf.request();
         ctx.handle_error(tiledb_filestore_buffer_import(
             ctx.ptr().get(),
             filestore_array_uri,
             buffer.ptr,
-            py::len(buf),
+            nb::len(buf),
             mime_type));
     }
 
-    static py::bytes buffer_export(
+    static nb::bytes buffer_export(
         const Context& ctx,
         const char* filestore_array_uri,
         size_t offset,
         size_t size) {
-        py::array data = py::array(py::dtype::of<std::byte>(), size);
-        py::buffer_info buffer = data.request();
+        nb::array data = nb::array(nb::dtype<std::byte>(), size);
+        nb::buffer_info buffer = data.request();
 
         ctx.handle_error(tiledb_filestore_buffer_export(
             ctx.ptr().get(), filestore_array_uri, offset, buffer.ptr, size));
 
-        auto np = py::module::import("numpy");
+        auto np = nb::module::import("numpy");
         auto to_bytes = np.attr("ndarray").attr("tobytes");
 
         return to_bytes(data);
@@ -93,19 +93,19 @@ class Filestore {
     }
 };
 
-void init_filestore(py::module& m) {
-    py::class_<Filestore>(m, "Filestore")
+void init_filestore(nb::module& m) {
+    nb::class_<Filestore>(m, "Filestore")
         .def_static(
-            "_schema_create", &Filestore::schema_create, py::keep_alive<1, 2>())
+            "_schema_create", &Filestore::schema_create, nb::keep_alive<1, 2>())
         .def_static(
-            "_uri_import", &Filestore::uri_import, py::keep_alive<1, 2>())
+            "_uri_import", &Filestore::uri_import, nb::keep_alive<1, 2>())
         .def_static(
-            "_uri_export", &Filestore::uri_export, py::keep_alive<1, 2>())
+            "_uri_export", &Filestore::uri_export, nb::keep_alive<1, 2>())
         .def_static(
-            "_buffer_import", &Filestore::buffer_import, py::keep_alive<1, 2>())
+            "_buffer_import", &Filestore::buffer_import, nb::keep_alive<1, 2>())
         .def_static(
-            "_buffer_export", &Filestore::buffer_export, py::keep_alive<1, 2>())
-        .def_static("_size", &Filestore::size, py::keep_alive<1, 2>())
+            "_buffer_export", &Filestore::buffer_export, nb::keep_alive<1, 2>())
+        .def_static("_size", &Filestore::size, nb::keep_alive<1, 2>())
         .def_static("_mime_type_to_str", &Filestore::mime_type_to_str)
         .def_static("_mime_type_from_str", &Filestore::mime_type_from_str);
     ;

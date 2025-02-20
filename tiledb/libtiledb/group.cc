@@ -11,33 +11,33 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-using namespace tiledbpy::common;
-namespace py = pybind11;
+using namespace tiledbnb::common;
+namespace nb = nanobind;
 
-void init_group(py::module& m) {
-    py::class_<Group>(m, "Group")
+void init_group(nb::module& m) {
+    nb::class_<Group>(m, "Group")
         .def(
-            py::init<const Context&, const std::string&, tiledb_query_type_t>(),
-            py::keep_alive<1, 2>())
+            nb::init<const Context&, const std::string&, tiledb_query_type_t>(),
+            nb::keep_alive<1, 2>())
         .def(
-            py::init<
+            nb::init<
                 const Context&,
                 const std::string&,
                 tiledb_query_type_t,
                 const Config&>(),
-            py::keep_alive<1, 2>())
+            nb::keep_alive<1, 2>())
 
         .def("_open", &Group::open)
         .def("_set_config", &Group::set_config)
         .def("_config", &Group::config)
         .def("_close", [](Group& self) { self.close(true); })
-        .def_property_readonly("_isopen", &Group::is_open)
-        .def_property_readonly("_uri", &Group::uri)
-        .def_property_readonly("_query_type", &Group::query_type)
+        .def_prop_rw_readonly("_isopen", &Group::is_open)
+        .def_prop_rw_readonly("_uri", &Group::uri)
+        .def_prop_rw_readonly("_query_type", &Group::query_type)
 
         .def(
             "_put_metadata",
-            [](Group& group, const std::string& key, py::array value) {
+            [](Group& group, const std::string& key, nb::array value) {
                 MetadataAdapter<Group> a;
                 a.put_metadata_numpy(group, key, value);
             })
@@ -47,7 +47,7 @@ void init_group(py::module& m) {
                const std::string& key,
                tiledb_datatype_t value_type,
                uint32_t value_num,
-               py::buffer value) {
+               nb::buffer value) {
                 MetadataAdapter<Group> a;
                 a.put_metadata(group, key, value_type, value_num, value);
             })
@@ -75,12 +75,12 @@ void init_group(py::module& m) {
         .def(
             "_add",
             &Group::add_member,
-            py::arg("uri"),
-            py::arg("relative") = false,
-            py::arg("name") = std::nullopt
+            nb::arg("uri"),
+            nb::arg("relative") = false,
+            nb::arg("name") = std::nullopt
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 27
             ,
-            py::arg("type") = std::nullopt
+            nb::arg("type") = std::nullopt
 #endif
             )
         .def("_remove", &Group::remove_member)
@@ -106,15 +106,15 @@ void init_group(py::module& m) {
         .def_static(
             "_consolidate_metadata",
             &Group::consolidate_metadata,
-            py::arg("ctx"),
-            py::arg("uri"),
-            py::arg("config") = (Config*)nullptr)
+            nb::arg("ctx"),
+            nb::arg("uri"),
+            nb::arg("config") = (Config*)nullptr)
         .def_static(
             "_vacuum_metadata",
             &Group::vacuum_metadata,
-            py::arg("ctx"),
-            py::arg("uri"),
-            py::arg("config") = (Config*)nullptr);
+            nb::arg("ctx"),
+            nb::arg("uri"),
+            nb::arg("config") = (Config*)nullptr);
 }
 
 }  // namespace libtiledbcpp

@@ -7,7 +7,7 @@
 namespace tiledbpy {
 
 // using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 
 typedef struct {
     tiledb_ctx_t* ctx_;
@@ -16,10 +16,10 @@ typedef struct {
 
 using ArraySchemaEvolution = PyArraySchemaEvolution;
 
-void init_schema_evolution(py::module& m) {
-    py::class_<ArraySchemaEvolution>(m, "ArraySchemaEvolution")
-        .def(py::init([](py::object ctx_py) {
-            tiledb_ctx_t* ctx_c = (py::capsule)ctx_py.attr("__capsule__")();
+void init_schema_evolution(nb::module& m) {
+    nb::class_<ArraySchemaEvolution>(m, "ArraySchemaEvolution")
+        .def(nb::init([](nb::object ctx_py) {
+            tiledb_ctx_t* ctx_c = (nb::capsule)ctx_py.attr("__capsule__")();
             if (ctx_c == nullptr)
                 TPY_ERROR_LOC("Invalid context pointer");
 
@@ -33,8 +33,8 @@ void init_schema_evolution(py::module& m) {
         }))
         .def(
             "add_attribute",
-            [](ArraySchemaEvolution& inst, py::object attr_py) {
-                tiledb_attribute_t* attr_c = (py::capsule)attr_py.attr(
+            [](ArraySchemaEvolution& inst, nb::object attr_py) {
+                tiledb_attribute_t* attr_c = (nb::capsule)attr_py.attr(
                     "__capsule__")();
                 if (attr_c == nullptr)
                     TPY_ERROR_LOC("Invalid Attribute!");
@@ -74,8 +74,8 @@ void init_schema_evolution(py::module& m) {
             })
         .def(
             "add_enumeration",
-            [](ArraySchemaEvolution& inst, py::object enum_py) {
-                tiledb_enumeration_t* enum_c = (py::capsule)enum_py.attr(
+            [](ArraySchemaEvolution& inst, nb::object enum_py) {
+                tiledb_enumeration_t* enum_c = (nb::capsule)enum_py.attr(
                     "__capsule__")();
                 if (enum_c == nullptr)
                     TPY_ERROR_LOC("Invalid Enumeration!");
@@ -97,8 +97,8 @@ void init_schema_evolution(py::module& m) {
             })
         .def(
             "extend_enumeration",
-            [](ArraySchemaEvolution& inst, py::object enum_py) {
-                tiledb_enumeration_t* enum_c = (py::capsule)enum_py.attr(
+            [](ArraySchemaEvolution& inst, nb::object enum_py) {
+                tiledb_enumeration_t* enum_c = (nb::capsule)enum_py.attr(
                     "__capsule__")();
                 if (enum_c == nullptr)
                     TPY_ERROR_LOC("Invalid Enumeration!");
@@ -112,9 +112,9 @@ void init_schema_evolution(py::module& m) {
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
         .def(
             "expand_current_domain",
-            [](ArraySchemaEvolution& inst, py::object current_domain_py) {
+            [](ArraySchemaEvolution& inst, nb::object current_domain_py) {
                 tiledb_current_domain_t*
-                    current_domain_c = (py::capsule)current_domain_py.attr(
+                    current_domain_c = (nb::capsule)current_domain_py.attr(
                         "__capsule__")();
                 if (current_domain_c == nullptr)
                     TPY_ERROR_LOC("Invalid Current Domain!");

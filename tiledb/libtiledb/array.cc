@@ -12,7 +12,7 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 
 template <typename T>
 bool _non_empty_domain_is_empty_aux(
@@ -24,16 +24,16 @@ bool _non_empty_domain_is_empty_aux(
     return is_empty == 1;
 }
 
-void init_array(py::module& m) {
-    py::class_<tiledb::Array>(m, "Array")
-        //.def(py::init<py::object, py::object, py::iterable, py::object,
-        //              py::object, py::object>())
-        .def(py::init<Array>())
+void init_array(nb::module& m) {
+    nb::class_<tiledb::Array>(m, "Array")
+        //.def(nb::init<nb::object, nb::object, nb::iterable, nb::object,
+        //              nb::object, nb::object>())
+        .def(nb::init<Array>())
         .def(
-            py::init<const Context&, const std::string&, tiledb_query_type_t>(),
-            py::keep_alive<1, 2>() /* Array keeps Context alive */)
+            nb::init<const Context&, const std::string&, tiledb_query_type_t>(),
+            nb::keep_alive<1, 2>() /* Array keeps Context alive */)
         .def(
-            py::init([](const Context& ctx,
+            nb::init([](const Context& ctx,
                         const std::string& uri,
                         const tiledb_query_type_t& qt,
                         const std::tuple<
@@ -54,15 +54,15 @@ void init_array(py::module& m) {
                     TemporalPolicy(
                         tiledb::TimestampStartEnd, start.value(), end.value()));
             }),
-            py::keep_alive<1, 2>())
+            nb::keep_alive<1, 2>())
         .def(
-            py::init([](const Context& ctx, py::object array) {
-                tiledb_array_t* c_array = (py::capsule)array.attr(
+            nb::init([](const Context& ctx, nb::object array) {
+                tiledb_array_t* c_array = (nb::capsule)array.attr(
                     "__capsule__")();
                 return std::make_unique<Array>(ctx, c_array, false);
             }),
-            py::keep_alive<1, 2>(),
-            py::keep_alive<1, 3>())
+            nb::keep_alive<1, 2>(),
+            nb::keep_alive<1, 3>())
 
         // TODO capsule Array(const Context& ctx, tiledb_array_t* carray,
         // tiledb_config_t* config)
@@ -72,14 +72,14 @@ void init_array(py::module& m) {
         .def("_query_type", &Array::query_type)
         .def(
             "__capsule__",
-            [](Array& self) { return py::capsule(self.ptr().get(), "array"); })
+            [](Array& self) { return nb::capsule(self.ptr().get(), "array"); })
         .def("_open", (void(Array::*)(tiledb_query_type_t)) & Array::open)
         .def("_reopen", &Array::reopen)
         .def("_set_open_timestamp_start", &Array::set_open_timestamp_start)
         .def("_set_open_timestamp_end", &Array::set_open_timestamp_end)
-        .def_property_readonly(
+        .def_prop_rw_readonly(
             "_open_timestamp_start", &Array::open_timestamp_start)
-        .def_property_readonly(
+        .def_prop_rw_readonly(
             "_open_timestamp_end", &Array::open_timestamp_end)
         .def("_set_config", &Array::set_config)
         .def("_config", &Array::config)
@@ -135,7 +135,7 @@ void init_array(py::module& m) {
             })
         .def(
             "_load_schema",
-            py::overload_cast<const Context&, const std::string&>(
+            nb::overload_cast<const Context&, const std::string&>(
                 &Array::load_schema))
         .def("_encryption_type", &Array::encryption_type)
 
@@ -143,12 +143,12 @@ void init_array(py::module& m) {
             "_non_empty_domain_is_empty",
             [](Array& self,
                const unsigned& dim_idx,
-               const py::dtype& n_type,
+               const nb::dtype& n_type,
                const Context& ctx) -> bool {
                 int32_t is_empty = 0;
 
-                if (py::getattr(n_type, "kind").is(py::str("S")) ||
-                    py::getattr(n_type, "kind").is(py::str("U"))) {
+                if (nb::getattr(n_type, "kind").is(nb::str("S")) ||
+                    nb::getattr(n_type, "kind").is(nb::str("U"))) {
                     uint64_t start_size, end_size;
                     ctx.handle_error(
                         tiledb_array_get_non_empty_domain_var_size_from_index(
@@ -161,37 +161,37 @@ void init_array(py::module& m) {
                     return is_empty == 1;
                 } else {
                     void* domain = nullptr;
-                    if (n_type.is(py::dtype::of<uint64_t>())) {
+                    if (n_type.is(nb::dtype<uint64_t>())) {
                         return _non_empty_domain_is_empty_aux<uint64_t>(
                             self, dim_idx, ctx);
                         // int64_t also used for datetime64
                     } else if (
-                        n_type.is(py::dtype::of<int64_t>()) ||
-                        py::getattr(n_type, "kind").is(py::str("M"))) {
+                        n_type.is(nb::dtype<int64_t>()) ||
+                        nb::getattr(n_type, "kind").is(nb::str("M"))) {
                         return _non_empty_domain_is_empty_aux<int64_t>(
                             self, dim_idx, ctx);
-                    } else if (n_type.is(py::dtype::of<uint32_t>())) {
+                    } else if (n_type.is(nb::dtype<uint32_t>())) {
                         return _non_empty_domain_is_empty_aux<uint32_t>(
                             self, dim_idx, ctx);
-                    } else if (n_type.is(py::dtype::of<int32_t>())) {
+                    } else if (n_type.is(nb::dtype<int32_t>())) {
                         return _non_empty_domain_is_empty_aux<int32_t>(
                             self, dim_idx, ctx);
-                    } else if (n_type.is(py::dtype::of<uint16_t>())) {
+                    } else if (n_type.is(nb::dtype<uint16_t>())) {
                         return _non_empty_domain_is_empty_aux<uint16_t>(
                             self, dim_idx, ctx);
-                    } else if (n_type.is(py::dtype::of<int16_t>())) {
+                    } else if (n_type.is(nb::dtype<int16_t>())) {
                         return _non_empty_domain_is_empty_aux<int16_t>(
                             self, dim_idx, ctx);
-                    } else if (n_type.is(py::dtype::of<uint8_t>())) {
+                    } else if (n_type.is(nb::dtype<uint8_t>())) {
                         return _non_empty_domain_is_empty_aux<uint8_t>(
                             self, dim_idx, ctx);
-                    } else if (n_type.is(py::dtype::of<int8_t>())) {
+                    } else if (n_type.is(nb::dtype<int8_t>())) {
                         return _non_empty_domain_is_empty_aux<int8_t>(
                             self, dim_idx, ctx);
-                    } else if (n_type.is(py::dtype::of<double>())) {
+                    } else if (n_type.is(nb::dtype<double>())) {
                         return _non_empty_domain_is_empty_aux<double>(
                             self, dim_idx, ctx);
-                    } else if (n_type.is(py::dtype::of<float>())) {
+                    } else if (n_type.is(nb::dtype<float>())) {
                         return _non_empty_domain_is_empty_aux<float>(
                             self, dim_idx, ctx);
                     } else {
@@ -203,48 +203,48 @@ void init_array(py::module& m) {
             "_non_empty_domain",
             [](Array& self,
                const unsigned& dim_idx,
-               const py::dtype& n_type) -> py::tuple {
-                if (n_type.is(py::dtype::of<uint64_t>())) {
+               const nb::dtype& n_type) -> nb::tuple {
+                if (n_type.is(nb::dtype<uint64_t>())) {
                     auto domain = self.non_empty_domain<uint64_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<int64_t>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<int64_t>())) {
                     auto domain = self.non_empty_domain<int64_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<uint32_t>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<uint32_t>())) {
                     auto domain = self.non_empty_domain<uint32_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<int32_t>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<int32_t>())) {
                     auto domain = self.non_empty_domain<int32_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<uint16_t>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<uint16_t>())) {
                     auto domain = self.non_empty_domain<uint16_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<int16_t>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<int16_t>())) {
                     auto domain = self.non_empty_domain<int16_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<uint8_t>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<uint8_t>())) {
                     auto domain = self.non_empty_domain<uint8_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<int8_t>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<int8_t>())) {
                     auto domain = self.non_empty_domain<int8_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<double>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<double>())) {
                     auto domain = self.non_empty_domain<double>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (n_type.is(py::dtype::of<float>())) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (n_type.is(nb::dtype<float>())) {
                     auto domain = self.non_empty_domain<float>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
-                } else if (py::getattr(n_type, "kind").is(py::str("S"))) {
+                    return nb::make_tuple(domain.first, domain.second);
+                } else if (nb::getattr(n_type, "kind").is(nb::str("S"))) {
                     auto domain = self.non_empty_domain_var(dim_idx);
-                    return py::make_tuple(
-                        py::bytes(domain.first), py::bytes(domain.second));
-                } else if (py::getattr(n_type, "kind").is(py::str("U"))) {
+                    return nb::make_tuple(
+                        nb::bytes(domain.first), nb::bytes(domain.second));
+                } else if (nb::getattr(n_type, "kind").is(nb::str("U"))) {
                     TPY_ERROR_LOC(
                         "Unicode strings are not supported as dimension types");
                     // np.datetime64
-                } else if (py::getattr(n_type, "kind").is(py::str("M"))) {
+                } else if (nb::getattr(n_type, "kind").is(nb::str("M"))) {
                     auto domain = self.non_empty_domain<int64_t>(dim_idx);
-                    return py::make_tuple(domain.first, domain.second);
+                    return nb::make_tuple(domain.first, domain.second);
                 } else {
                     TPY_ERROR_LOC("Unsupported type");
                 }
@@ -272,13 +272,13 @@ void init_array(py::module& m) {
             })
         .def(
             "_consolidate_metadata",
-            py::overload_cast<
+            nb::overload_cast<
                 const Context&,
                 const std::string&,
                 Config* const>(&Array::consolidate_metadata))
         .def(
             "_put_metadata",
-            [](Array& array, const std::string& key, py::array value) {
+            [](Array& array, const std::string& key, nb::array value) {
                 MetadataAdapter<Array> a;
                 a.put_metadata_numpy(array, key, value);
             })
@@ -288,7 +288,7 @@ void init_array(py::module& m) {
                const std::string& key,
                tiledb_datatype_t value_type,
                uint32_t value_num,
-               py::buffer value) {
+               nb::buffer value) {
                 MetadataAdapter<Array> a;
                 a.put_metadata(array, key, value_type, value_num, value);
             })
@@ -298,11 +298,11 @@ void init_array(py::module& m) {
                 MetadataAdapter<Array> a;
                 return a.get_metadata(array, key, is_ndarray);
             },
-            py::arg("key"),
-            py::arg("is_ndarray") = false)
+            nb::arg("key"),
+            nb::arg("is_ndarray") = false)
         .def(
             "_get_metadata_from_index",
-            [](Array& self, uint64_t index) -> py::tuple {
+            [](Array& self, uint64_t index) -> nb::tuple {
                 tiledb_datatype_t tdb_type;
                 uint32_t value_num = 0;
                 const void* data_ptr = nullptr;
@@ -312,15 +312,15 @@ void init_array(py::module& m) {
                     index, &key, &tdb_type, &value_num, &data_ptr);
 
                 if (data_ptr == nullptr && value_num != 1) {
-                    throw py::key_error();
+                    throw nb::key_error();
                 }
                 // TODO handle empty value case
 
                 assert(data_ptr != nullptr);
-                auto buf = py::memoryview::from_memory(
+                auto buf = nb::memoryview::from_memory(
                     data_ptr, value_num * tiledb_datatype_size(tdb_type));
 
-                return py::make_tuple(tdb_type, buf);
+                return nb::make_tuple(tdb_type, buf);
             })
         .def(
             "_get_key_from_index",
@@ -338,7 +338,7 @@ void init_array(py::module& m) {
         .def("_metadata_num", &Array::metadata_num)
         .def(
             "_delete_array",
-            py::overload_cast<const Context&, const std::string&>(
+            nb::overload_cast<const Context&, const std::string&>(
                 &Array::delete_array))
         .def("_upgrade_version", &Array::upgrade_version);
 }

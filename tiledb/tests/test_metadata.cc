@@ -20,12 +20,12 @@ namespace tiledbpy {
 
 using namespace std;
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 using namespace pybind11::literals;
 
 class PyASCIIMetadataTest {
    public:
-    static void write_ascii(py::str uri) {
+    static void write_ascii(nb::str uri) {
         Context ctx;
         Array array(ctx, uri, TILEDB_WRITE);
 
@@ -36,8 +36,8 @@ class PyASCIIMetadataTest {
     }
 };
 
-void init_test_metadata(py::module& m) {
-    py::class_<PyASCIIMetadataTest>(m, "metadata_test_aux")
+void init_test_metadata(nb::module& m) {
+    nb::class_<PyASCIIMetadataTest>(m, "metadata_test_aux")
         .def_static("write_ascii", &PyASCIIMetadataTest::write_ascii);
 }
 

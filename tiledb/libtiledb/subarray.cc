@@ -13,7 +13,7 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 
 template <typename T>
 struct SubarrayDimensionManipulator {
@@ -25,7 +25,7 @@ struct SubarrayDimensionManipulator {
         }
     }
 
-    static py::ssize_t length(Subarray& subarray, uint32_t dim_idx) {
+    static nb::ssize_t length(Subarray& subarray, uint32_t dim_idx) {
         uint64_t length = 0;
         for (uint64_t range_idx{0}; range_idx < subarray.range_num(dim_idx);
              ++range_idx) {
@@ -67,10 +67,10 @@ struct SubarrayDimensionManipulator<std::string> {
     }
 };
 
-void add_dim_range(Subarray& subarray, uint32_t dim_idx, py::tuple r) {
-    if (py::len(r) == 0)
+void add_dim_range(Subarray& subarray, uint32_t dim_idx, nb::tuple r) {
+    if (nb::len(r) == 0)
         return;
-    else if (py::len(r) != 2)
+    else if (nb::len(r) != 2)
         TPY_ERROR_LOC("Unexpected range len != 2");
 
     auto r0 = r[0];
@@ -134,25 +134,25 @@ void add_dim_range(Subarray& subarray, uint32_t dim_idx, py::tuple r) {
             case TILEDB_STRING_ASCII:
             case TILEDB_STRING_UTF8:
             case TILEDB_CHAR: {
-                if (!py::isinstance<py::none>(r0) !=
-                    !py::isinstance<py::none>(r1)) {
+                if (!nb::isinstance<nb::none>(r0) !=
+                    !nb::isinstance<nb::none>(r1)) {
                     TPY_ERROR_LOC(
                         "internal error: ranges must both be strings or (None, "
                         "None)");
                 } else if (
-                    !py::isinstance<py::none>(r0) &&
-                    !py::isinstance<py::none>(r1) &&
-                    !py::isinstance<py::str>(r0) &&
-                    !py::isinstance<py::str>(r1) &&
-                    !py::isinstance<py::bytes>(r0) &&
-                    !py::isinstance<py::bytes>(r1)) {
+                    !nb::isinstance<nb::none>(r0) &&
+                    !nb::isinstance<nb::none>(r1) &&
+                    !nb::isinstance<nb::str>(r0) &&
+                    !nb::isinstance<nb::str>(r1) &&
+                    !nb::isinstance<nb::bytes>(r0) &&
+                    !nb::isinstance<nb::bytes>(r1)) {
                     TPY_ERROR_LOC(
                         "internal error: expected string type for var-length "
                         "dim!");
                 }
 
-                if (!py::isinstance<py::none>(r0) &&
-                    !py::isinstance<py::none>(r0))
+                if (!nb::isinstance<nb::none>(r0) &&
+                    !nb::isinstance<nb::none>(r0))
                     subarray.add_range(
                         dim_idx,
                         r0.cast<std::string>(),
@@ -182,23 +182,23 @@ void add_dim_range(Subarray& subarray, uint32_t dim_idx, py::tuple r) {
                 case TILEDB_TIME_PS:
                 case TILEDB_TIME_FS:
                 case TILEDB_TIME_AS:
-                    py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
-                    auto dt0 = py::isinstance<py::int_>(r0) ?
+                    nb::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
+                    auto dt0 = nb::isinstance<nb::int_>(r0) ?
                                    r0 :
                                    r0.attr("astype")(dtype);
-                    auto dt1 = py::isinstance<py::int_>(r1) ?
+                    auto dt1 = nb::isinstance<nb::int_>(r1) ?
                                    r1 :
                                    r1.attr("astype")(dtype);
 
                     // TODO, this is suboptimal, should define pybind converter
-                    if (py::isinstance<py::int_>(dt0) &&
-                        py::isinstance<py::int_>(dt1)) {
+                    if (nb::isinstance<nb::int_>(dt0) &&
+                        nb::isinstance<nb::int_>(dt1)) {
                         subarray.add_range(
                             dim_idx,
-                            py::cast<int64_t>(dt0),
-                            py::cast<int64_t>(dt1));
+                            nb::cast<int64_t>(dt0),
+                            nb::cast<int64_t>(dt1));
                     } else {
-                        auto darray = py::array(py::make_tuple(dt0, dt1));
+                        auto darray = nb::array(nb::make_tuple(dt0, dt1));
                         subarray.add_range(
                             dim_idx,
                             *(int64_t*)darray.data(0),
@@ -210,10 +210,10 @@ void add_dim_range(Subarray& subarray, uint32_t dim_idx, py::tuple r) {
             default:
                 TPY_ERROR_LOC("Unknown dim type conversion!");
         }
-    } catch (py::cast_error& e) {
+    } catch (nb::cast_error& e) {
         (void)e;
         std::string msg = "Failed to cast dim range '" +
-                          (std::string)py::repr(r) + "' to dim type " +
+                          (std::string)nb::repr(r) + "' to dim type " +
                           tiledb::impl::type_to_str(tiledb_type);
         TPY_ERROR_LOC(msg);
     }
@@ -314,7 +314,7 @@ void copy_ranges_on_dim(
     }
 }
 
-py::ssize_t length_ranges(Subarray& subarray, uint32_t dim_idx) {
+nb::ssize_t length_ranges(Subarray& subarray, uint32_t dim_idx) {
     auto tiledb_type =
         subarray.array().schema().domain().dimension(dim_idx).type();
 
@@ -389,11 +389,11 @@ void add_dim_point_ranges(
     Subarray& subarray,
     uint32_t dim_idx,
     pybind11::handle dim_range) {
-    // Cast range object to appropriately typed py::array.
+    // Cast range object to appropriately typed nb::array.
     auto tiledb_type =
         subarray.array().schema().domain().dimension(dim_idx).type();
-    py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
-    py::array ranges = dim_range.attr("astype")(dtype);
+    nb::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
+    nb::array ranges = dim_range.attr("astype")(dtype);
 
     // Set point ranges using C-API.
     tiledb_ctx_t* c_ctx = ctx.ptr().get();
@@ -406,10 +406,10 @@ void add_label_range(
     const Context& ctx,
     Subarray& subarray,
     const std::string& label_name,
-    py::tuple r) {
-    if (py::len(r) == 0)
+    nb::tuple r) {
+    if (nb::len(r) == 0)
         return;
-    else if (py::len(r) != 2)
+    else if (nb::len(r) != 2)
         TPY_ERROR_LOC("Unexpected range len != 2");
 
     auto r0 = r[0];
@@ -484,25 +484,25 @@ void add_label_range(
             case TILEDB_STRING_ASCII:
             case TILEDB_STRING_UTF8:
             case TILEDB_CHAR: {
-                if (!py::isinstance<py::none>(r0) !=
-                    !py::isinstance<py::none>(r1)) {
+                if (!nb::isinstance<nb::none>(r0) !=
+                    !nb::isinstance<nb::none>(r1)) {
                     TPY_ERROR_LOC(
                         "internal error: ranges must both be strings or (None, "
                         "None)");
                 } else if (
-                    !py::isinstance<py::none>(r0) &&
-                    !py::isinstance<py::none>(r1) &&
-                    !py::isinstance<py::str>(r0) &&
-                    !py::isinstance<py::str>(r1) &&
-                    !py::isinstance<py::bytes>(r0) &&
-                    !py::isinstance<py::bytes>(r1)) {
+                    !nb::isinstance<nb::none>(r0) &&
+                    !nb::isinstance<nb::none>(r1) &&
+                    !nb::isinstance<nb::str>(r0) &&
+                    !nb::isinstance<nb::str>(r1) &&
+                    !nb::isinstance<nb::bytes>(r0) &&
+                    !nb::isinstance<nb::bytes>(r1)) {
                     TPY_ERROR_LOC(
                         "internal error: expected string type for var-length "
                         "label!");
                 }
 
-                if (!py::isinstance<py::none>(r0) &&
-                    !py::isinstance<py::none>(r0)) {
+                if (!nb::isinstance<nb::none>(r0) &&
+                    !nb::isinstance<nb::none>(r0)) {
                     std::string r0_string = r0.cast<std::string>();
                     std::string r1_string = r1.cast<std::string>();
                     SubarrayExperimental::add_label_range(
@@ -532,24 +532,24 @@ void add_label_range(
                 case TILEDB_TIME_PS:
                 case TILEDB_TIME_FS:
                 case TILEDB_TIME_AS:
-                    py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
-                    auto dt0 = py::isinstance<py::int_>(r0) ?
+                    nb::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
+                    auto dt0 = nb::isinstance<nb::int_>(r0) ?
                                    r0 :
                                    r0.attr("astype")(dtype);
-                    auto dt1 = py::isinstance<py::int_>(r1) ?
+                    auto dt1 = nb::isinstance<nb::int_>(r1) ?
                                    r1 :
                                    r1.attr("astype")(dtype);
 
-                    if (py::isinstance<py::int_>(dt0) &&
-                        py::isinstance<py::int_>(dt1)) {
+                    if (nb::isinstance<nb::int_>(dt0) &&
+                        nb::isinstance<nb::int_>(dt1)) {
                         SubarrayExperimental::add_label_range(
                             ctx,
                             subarray,
                             label_name,
-                            py::cast<int64_t>(dt0),
-                            py::cast<int64_t>(dt1));
+                            nb::cast<int64_t>(dt0),
+                            nb::cast<int64_t>(dt1));
                     } else {
-                        auto darray = py::array(py::make_tuple(dt0, dt1));
+                        auto darray = nb::array(nb::make_tuple(dt0, dt1));
                         SubarrayExperimental::add_label_range(
                             ctx,
                             subarray,
@@ -563,10 +563,10 @@ void add_label_range(
             default:
                 TPY_ERROR_LOC("Unknown dimension label type conversion!");
         }
-    } catch (py::cast_error& e) {
+    } catch (nb::cast_error& e) {
         (void)e;
         std::string msg = "Failed to cast label range '" +
-                          (std::string)py::repr(r) + "' to label type " +
+                          (std::string)nb::repr(r) + "' to label type " +
                           tiledb::impl::type_to_str(tiledb_type);
         TPY_ERROR_LOC(msg);
     }
@@ -582,24 +582,24 @@ bool has_label_range(const Context& ctx, Subarray& subarray, uint32_t dim_idx) {
     return has_label == 1;
 }
 
-void init_subarray(py::module& m) {
-    py::class_<tiledb::Subarray>(m, "Subarray")
-        .def(py::init<Subarray>())
+void init_subarray(nb::module& m) {
+    nb::class_<tiledb::Subarray>(m, "Subarray")
+        .def(nb::init<Subarray>())
 
         .def(
-            py::init<const Context&, const Array&>(),
-            py::keep_alive<1, 2>() /* Keep context alive. */,
-            py::keep_alive<1, 3>() /* Keep array alive. */)
+            nb::init<const Context&, const Array&>(),
+            nb::keep_alive<1, 2>() /* Keep context alive. */,
+            nb::keep_alive<1, 3>() /* Keep array alive. */)
 
         .def(
             "__capsule__",
             [](Subarray& subarray) {
-                return py::capsule(subarray.ptr().get(), "subarray");
+                return nb::capsule(subarray.ptr().get(), "subarray");
             })
 
         .def(
             "_add_dim_range",
-            [](Subarray& subarray, uint32_t dim_idx, py::tuple range) {
+            [](Subarray& subarray, uint32_t dim_idx, nb::tuple range) {
                 add_dim_range(subarray, dim_idx, range);
             })
 
@@ -608,22 +608,22 @@ void init_subarray(py::module& m) {
             [](Subarray& subarray,
                const Context& ctx,
                const std::string& label_name,
-               py::tuple range) {
+               nb::tuple range) {
                 add_label_range(ctx, subarray, label_name, range);
             })
 
         .def(
             "_add_ranges_bulk",
-            [](Subarray& subarray, const Context& ctx, py::iterable ranges) {
+            [](Subarray& subarray, const Context& ctx, nb::iterable ranges) {
                 uint32_t dim_idx = 0;
                 for (auto dim_range : ranges) {
-                    if (py::isinstance<py::array>(dim_range)) {
+                    if (nb::isinstance<nb::array>(dim_range)) {
                         add_dim_point_ranges(ctx, subarray, dim_idx, dim_range);
                     } else {
-                        py::tuple dim_range_iter = dim_range
-                                                       .cast<py::iterable>();
+                        nb::tuple dim_range_iter = dim_range
+                                                       .cast<nb::iterable>();
                         for (auto r : dim_range_iter) {
-                            py::tuple range_tuple = r.cast<py::tuple>();
+                            nb::tuple range_tuple = r.cast<nb::tuple>();
                             add_dim_range(subarray, dim_idx, range_tuple);
                         }
                     }
@@ -642,12 +642,12 @@ void init_subarray(py::module& m) {
 
         .def(
             "_add_ranges",
-            [](Subarray& subarray, const Context& ctx, py::iterable ranges) {
+            [](Subarray& subarray, const Context& ctx, nb::iterable ranges) {
                 uint32_t dim_idx = 0;
                 for (auto dim_range : ranges) {
-                    py::tuple dim_range_iter = dim_range.cast<py::iterable>();
+                    nb::tuple dim_range_iter = dim_range.cast<nb::iterable>();
                     for (auto r : dim_range_iter) {
-                        py::tuple r_tuple = r.cast<py::tuple>();
+                        nb::tuple r_tuple = r.cast<nb::tuple>();
                         add_dim_range(subarray, dim_idx, r_tuple);
                     }
                     dim_idx++;
@@ -656,14 +656,14 @@ void init_subarray(py::module& m) {
 
         .def(
             "_add_label_ranges",
-            [](Subarray& subarray, const Context& ctx, py::iterable ranges) {
-                py::dict label_ranges = ranges.cast<py::dict>();
-                for (std::pair<py::handle, py::handle> pair : label_ranges) {
-                    py::str label_name = pair.first.cast<py::str>();
-                    py::tuple label_range_iter = pair.second
-                                                     .cast<py::iterable>();
+            [](Subarray& subarray, const Context& ctx, nb::iterable ranges) {
+                nb::dict label_ranges = ranges.cast<nb::dict>();
+                for (std::pair<nb::handle, nb::handle> pair : label_ranges) {
+                    nb::str label_name = pair.first.cast<nb::str>();
+                    nb::tuple label_range_iter = pair.second
+                                                     .cast<nb::iterable>();
                     for (auto r : label_range_iter) {
-                        py::tuple r_tuple = r.cast<py::tuple>();
+                        nb::tuple r_tuple = r.cast<nb::tuple>();
                         add_label_range(ctx, subarray, label_name, r_tuple);
                     }
                 }
@@ -677,7 +677,7 @@ void init_subarray(py::module& m) {
 
         .def(
             "copy_ranges",
-            [](Subarray& subarray, Subarray& original, py::iterable dims) {
+            [](Subarray& subarray, Subarray& original, nb::iterable dims) {
                 for (auto dim_idx : dims) {
                     copy_ranges_on_dim(
                         subarray, original, dim_idx.cast<uint32_t>());
@@ -686,12 +686,12 @@ void init_subarray(py::module& m) {
 
         .def(
             "_range_num",
-            py::overload_cast<const std::string&>(
-                &Subarray::range_num, py::const_))
+            nb::overload_cast<const std::string&>(
+                &Subarray::range_num, nb::const_))
 
         .def(
             "_range_num",
-            py::overload_cast<unsigned>(&Subarray::range_num, py::const_))
+            nb::overload_cast<unsigned>(&Subarray::range_num, nb::const_))
 
         .def(
             "_label_range_num",
@@ -707,9 +707,9 @@ void init_subarray(py::module& m) {
             [](Subarray& subarray, const Context& ctx) {
                 auto ndim = subarray.array().schema().domain().ndim();
                 // Create numpy array and get pointer to data.
-                py::array_t<py::ssize_t> shape(ndim);
-                py::buffer_info shape_result = shape.request();
-                py::ssize_t* shape_ptr = static_cast<py::ssize_t*>(
+                nb::array_t<nb::ssize_t> shape(ndim);
+                nb::buffer_info shape_result = shape.request();
+                nb::ssize_t* shape_ptr = static_cast<nb::ssize_t*>(
                     shape_result.ptr);
                 // Set size for each dimension.
                 for (uint32_t dim_idx{0}; dim_idx < ndim; ++dim_idx) {

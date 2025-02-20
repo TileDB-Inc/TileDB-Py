@@ -5,7 +5,7 @@
 
 namespace tiledbpy {
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 
 class WebpFilter {
    public:
@@ -21,8 +21,8 @@ class WebpFilter {
     }
 };
 
-void init_test_webp_filter(py::module& m) {
-    py::class_<WebpFilter>(m, "test_webp_filter")
+void init_test_webp_filter(nb::module& m) {
+    nb::class_<WebpFilter>(m, "test_webp_filter")
         .def_static("webp_filter_exists", &WebpFilter::webp_filter_exists);
 }
 

@@ -11,21 +11,21 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-using namespace tiledbpy::common;
-namespace py = pybind11;
+using namespace tiledbnb::common;
+namespace nb = nanobind;
 
-void init_filter(py::module& m) {
-    py::class_<Filter>(m, "Filter")
-        .def(py::init<const Context&, tiledb_filter_type_t>())
+void init_filter(nb::module& m) {
+    nb::class_<Filter>(m, "Filter")
+        .def(nb::init<const Context&, tiledb_filter_type_t>())
 
-        .def_property_readonly("_type", &Filter::filter_type)
+        .def_prop_rw_readonly("_type", &Filter::filter_type)
 
         .def(
             "_set_option",
             [](Filter& filter,
                Context ctx,
                tiledb_filter_option_t option,
-               py::object value) {
+               nb::object value) {
                 switch (option) {
                     case TILEDB_COMPRESSION_LEVEL:
                         filter.set_option(option, value.cast<int32_t>());
@@ -63,48 +63,48 @@ void init_filter(py::module& m) {
             "_get_option",
             [](Filter& filter,
                Context ctx,
-               tiledb_filter_option_t option) -> py::object {
+               tiledb_filter_option_t option) -> nb::object {
                 switch (option) {
                     case TILEDB_COMPRESSION_LEVEL: {
                         int32_t value;
                         filter.get_option(option, &value);
-                        return py::cast(value);
+                        return nb::cast(value);
                     }
                     case TILEDB_BIT_WIDTH_MAX_WINDOW:
                     case TILEDB_POSITIVE_DELTA_MAX_WINDOW: {
                         uint32_t value;
                         filter.get_option(option, &value);
-                        return py::cast(value);
+                        return nb::cast(value);
                     }
                     case TILEDB_SCALE_FLOAT_BYTEWIDTH: {
                         uint64_t value;
                         filter.get_option(option, &value);
-                        return py::cast(value);
+                        return nb::cast(value);
                     }
                     case TILEDB_SCALE_FLOAT_FACTOR:
                     case TILEDB_SCALE_FLOAT_OFFSET: {
                         double value;
                         filter.get_option(option, &value);
-                        return py::cast(value);
+                        return nb::cast(value);
                     }
                     case TILEDB_WEBP_INPUT_FORMAT: {
                         uint8_t value;
                         filter.get_option(option, &value);
-                        return py::cast(value);
+                        return nb::cast(value);
                     }
                     case TILEDB_WEBP_QUALITY: {
                         float value;
                         filter.get_option(option, &value);
-                        return py::cast(value);
+                        return nb::cast(value);
                     }
                     case TILEDB_WEBP_LOSSLESS: {
                         uint8_t value;
                         filter.get_option(option, &value);
-                        return py::cast(value);
+                        return nb::cast(value);
                     }
                     case TILEDB_COMPRESSION_REINTERPRET_DATATYPE: {
                         auto value = filter.get_option<uint8_t>(option);
-                        return py::cast(static_cast<tiledb_datatype_t>(value));
+                        return nb::cast(static_cast<tiledb_datatype_t>(value));
                     }
                     default:
                         TPY_ERROR_LOC(
@@ -122,18 +122,18 @@ void init_filter(py::module& m) {
 #endif
         ;
 
-    py::class_<FilterList>(m, "FilterList")
-        .def(py::init<FilterList>())
-        .def(py::init<const Context&>())
-        .def(py::init<const Context&, py::capsule>())
+    nb::class_<FilterList>(m, "FilterList")
+        .def(nb::init<FilterList>())
+        .def(nb::init<const Context&>())
+        .def(nb::init<const Context&, nb::capsule>())
 
         .def(
             "__capsule__",
             [](FilterList& filterlist) {
-                return py::capsule(filterlist.ptr().get(), "fl");
+                return nb::capsule(filterlist.ptr().get(), "fl");
             })
 
-        .def_property(
+        .def_prop_rw(
             "_chunksize",
             &FilterList::max_chunk_size,
             &FilterList::set_max_chunk_size)

@@ -14,7 +14,7 @@ namespace tiledbpy {
 
 using namespace std;
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 using namespace pybind11::literals;
 
 class PyQueryCondition {
@@ -25,7 +25,7 @@ class PyQueryCondition {
    public:
     PyQueryCondition() = delete;
 
-    PyQueryCondition(py::object ctx) {
+    PyQueryCondition(nb::object ctx) {
         try {
             set_ctx(ctx);
             qc_ = shared_ptr<QueryCondition>(new QueryCondition(ctx_));
@@ -62,8 +62,8 @@ class PyQueryCondition {
         return qc_;
     }
 
-    py::capsule __capsule__() {
-        return py::capsule(&qc_, "qc");
+    nb::capsule __capsule__() {
+        return nb::capsule(&qc_, "qc");
     }
 
     void set_use_enumeration(bool use_enumeration) {
@@ -73,7 +73,7 @@ class PyQueryCondition {
 
     template <typename T>
     static PyQueryCondition create(
-        py::object pyctx,
+        nb::object pyctx,
         const std::string& field_name,
         const std::vector<T>& values,
         tiledb_query_condition_op_t op) {
@@ -118,17 +118,17 @@ class PyQueryCondition {
         ctx_ = Context(c_ctx, false);
     }
 
-    void set_ctx(py::object ctx) {
+    void set_ctx(nb::object ctx) {
         tiledb_ctx_t* c_ctx;
-        if ((c_ctx = (py::capsule)ctx.attr("__capsule__")()) == nullptr)
+        if ((c_ctx = (nb::capsule)ctx.attr("__capsule__")()) == nullptr)
             TPY_ERROR_LOC("Invalid context pointer!")
         ctx_ = Context(c_ctx, false);
     }
 };  // namespace tiledbpy
 
-void init_query_condition(py::module& m) {
-    py::class_<PyQueryCondition>(m, "PyQueryCondition")
-        .def(py::init<py::object>(), py::arg("ctx") = py::none())
+void init_query_condition(nb::module& m) {
+    nb::class_<PyQueryCondition>(m, "PyQueryCondition")
+        .def(nb::init<nb::object>(), nb::arg("ctx") = nb::none())
 
         /* TODO surely there's a better way to deal with templated PyBind11
          * functions? but maybe not?
@@ -198,83 +198,83 @@ void init_query_condition(py::module& m) {
         .def_static(
             "create_string",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<std::string>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_uint64",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<uint64_t>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_int64",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<int64_t>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_uint32",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<uint32_t>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_int32",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<int32_t>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_uint16",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<uint16_t>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_int8",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<int8_t>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_uint16",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<uint16_t>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_int8",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<int8_t>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_float32",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<float>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create))
         .def_static(
             "create_float64",
             static_cast<PyQueryCondition (*)(
-                py::object,
+                nb::object,
                 const std::string&,
                 const std::vector<double>&,
                 tiledb_query_condition_op_t)>(&PyQueryCondition::create));
 
-    py::enum_<tiledb_query_condition_op_t>(
-        m, "tiledb_query_condition_op_t", py::arithmetic())
+    nb::enum_<tiledb_query_condition_op_t>(
+        m, "tiledb_query_condition_op_t", nb::arithmetic())
         .value("TILEDB_LT", TILEDB_LT)
         .value("TILEDB_LE", TILEDB_LE)
         .value("TILEDB_GT", TILEDB_GT)
@@ -285,8 +285,8 @@ void init_query_condition(py::module& m) {
         .value("TILEDB_NOT_IN", TILEDB_NOT_IN)
         .export_values();
 
-    py::enum_<tiledb_query_condition_combination_op_t>(
-        m, "tiledb_query_condition_combination_op_t", py::arithmetic())
+    nb::enum_<tiledb_query_condition_combination_op_t>(
+        m, "tiledb_query_condition_combination_op_t", nb::arithmetic())
         .value("TILEDB_AND", TILEDB_AND)
         .value("TILEDB_OR", TILEDB_OR)
         .export_values();

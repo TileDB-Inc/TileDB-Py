@@ -20,33 +20,33 @@
 // anonymous namespace for helper functions
 namespace {
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
-bool issubdtype(py::dtype t1, py::dtype t2) {
+bool issubdtype(nb::dtype t1, nb::dtype t2) {
     // TODO importing every time is Not Great...
-    auto np = py::module::import("numpy");
+    auto np = nb::module::import("numpy");
     auto npsubdtype = np.attr("issubdtype");
 
-    return py::cast<bool>(npsubdtype(t1, t2));
+    return nb::cast<bool>(npsubdtype(t1, t2));
 }
 
 template <typename T>
-py::dtype get_dtype(T obj) {
-    auto& api = py::detail::npy_api::get();
+nb::dtype get_dtype(T obj) {
+    auto& api = nb::detail::npy_api::get();
 
     if (api.PyArray_Check_(obj.ptr())) {
-        return py::cast<py::array>(obj).dtype();
+        return nb::cast<nb::array>(obj).dtype();
     }
 
-    return py::reinterpret_steal<py::dtype>(
+    return nb::steal<nb::dtype>(
         api.PyArray_DescrFromScalar_(obj.ptr()));
 }
 
 // check whether dtypes are equivalent from numpy perspective
 // note: d1::dtype.is(d2) checks *object identity* which is
 //       not what we want.
-bool dtype_equal(py::dtype d1, py::dtype d2) {
-    auto& api = py::detail::npy_api::get();
+bool dtype_equal(nb::dtype d1, nb::dtype d2) {
+    auto& api = nb::detail::npy_api::get();
 
     return api.PyArray_EquivTypes_(d1.ptr(), d2.ptr());
 }
@@ -57,7 +57,7 @@ namespace tiledbpy {
 
 using namespace std;
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 using namespace pybind11::literals;
 
 class NumpyConvert {
@@ -67,7 +67,7 @@ class NumpyConvert {
     size_t data_nbytes_ = 0;
     size_t input_len_ = 0;
 
-    py::array input_;
+    nb::array input_;
     // we are using vector as a buffer here because they are grown in some
     // situations
     std::vector<uint8_t>* data_buf_;
@@ -101,7 +101,7 @@ class NumpyConvert {
         output_p = data_buf_->data();
 
         // avoid one interpreter roundtrip
-        auto npstrencode = py::module::import("numpy").attr("str_").attr(
+        auto npstrencode = nb::module::import("numpy").attr("str_").attr(
             "encode");
 
         // return status
@@ -110,7 +110,7 @@ class NumpyConvert {
         // GC'd
         //                 putting outside for loop to avoid repeat unused
         //                 construction
-        py::object u_encoded;
+        nb::object u_encoded;
 
         // loop over array objects and write to output buffer
         size_t idx = 0;
@@ -173,7 +173,7 @@ class NumpyConvert {
 
         // avoid one interpreter roundtrip
         // auto npstrencode =
-        // py::module::import("numpy").attr("str_").attr("encode");
+        // nb::module::import("numpy").attr("str_").attr("encode");
 
         // TODO: ideally we would encode directly here without the intermediate
         // unicode object
@@ -220,11 +220,11 @@ class NumpyConvert {
     void convert_object() {
         // Convert np.dtype("O") array of objects to buffer+offsets
 
-        auto& api = py::detail::npy_api::get();
+        auto& api = nb::detail::npy_api::get();
 
         offset_buf_->resize(input_len_);
 
-        auto input_unchecked = input_.unchecked<py::object, 1>();
+        auto input_unchecked = input_.unchecked<nb::object, 1>();
 
         // size (bytes) of current object data
         Py_ssize_t sz = 0;
@@ -232,7 +232,7 @@ class NumpyConvert {
         const char* input_p = nullptr;
 
         auto input_size = input_.size();
-        py::dtype first_dtype;
+        nb::dtype first_dtype;
 
         // first pass: calculate final buffer length and cache UTF-8
         // representations
@@ -254,7 +254,7 @@ class NumpyConvert {
                 }
 
                 if (idx < 1)
-                    first_dtype = py::dtype("unicode");
+                    first_dtype = nb::dtype("unicode");
 
                 // this will cache a utf-8 representation owned by the PyObject
                 input_p = PyUnicode_AsUTF8AndSize(o, &sz);
@@ -268,7 +268,7 @@ class NumpyConvert {
                     o, const_cast<char**>(&input_p), &sz);
 
                 if (idx < 1)
-                    first_dtype = py::dtype("bytes");
+                    first_dtype = nb::dtype("bytes");
 
                 if (res == -1) {
                     // TODO TPY_ERROR_LOC
@@ -277,12 +277,12 @@ class NumpyConvert {
                         "object");
                 }
             } else if (api.PyArray_Check_(o)) {
-                auto a = py::cast<py::array>(o);
+                auto a = nb::cast<nb::array>(o);
                 // handle (potentially) var-len embedded arrays
                 if (idx < 1) {
                     first_dtype = get_dtype(a);
                 } else if (!dtype_equal(get_dtype(a), first_dtype)) {
-                    throw py::type_error(
+                    throw nb::type_error(
                         "Mismatched dtype in object array to buffer "
                         "conversion!");
                 }
@@ -290,16 +290,16 @@ class NumpyConvert {
                 sz = a.nbytes();
             } else if (PyBool_Check(o)) {
                 if (idx < 1)
-                    first_dtype = py::dtype("bool");
+                    first_dtype = nb::dtype("bool");
 
-                auto a = py::cast<py::bool_>(o);
+                auto a = nb::cast<nb::bool_>(o);
                 sz = sizeof(bool);
                 bool bool_value = a;
                 input_p = reinterpret_cast<const char*>(&bool_value);
             } else {
                 // TODO write the type in the error here
-                // auto o_h = py::reinterpret_borrow<py::object>(o);
-                // auto o_t = py::type::of(o);
+                // auto o_h = nb::borrow<nb::object>(o);
+                // auto o_t = nb::type(o);
                 auto errmsg = std::string(
                     "Unexpected object type in string conversion");
                 TPY_ERROR_LOC(errmsg);
@@ -327,11 +327,11 @@ class NumpyConvert {
                 PyBytes_AsStringAndSize(
                     pyobj_p, const_cast<char**>(&input_p), &sz);
             } else if (api.PyArray_Check_(pyobj_p)) {
-                auto arr = py::cast<py::array>(pyobj_p);
+                auto arr = nb::cast<nb::array>(pyobj_p);
                 sz = arr.nbytes();
                 input_p = (const char*)arr.data();
             } else if (PyBool_Check(pyobj_p)) {
-                py::bool_ bool_obj = py::cast<py::bool_>(pyobj_p);
+                nb::bool_ bool_obj = nb::cast<nb::bool_>(pyobj_p);
                 sz = sizeof(bool);
                 bool bool_value = bool_obj;
                 input_p = reinterpret_cast<const char*>(&bool_value);
@@ -352,7 +352,7 @@ class NumpyConvert {
         // For non-contiguous arrays (such as views) we must iterate rather
         // than indexing directly.
 
-        auto& npy_api = py::detail::npy_api::get();
+        auto& npy_api = nb::detail::npy_api::get();
 
         offset_buf_->resize(input_.size());
 
@@ -365,7 +365,7 @@ class NumpyConvert {
 
         size_t idx = 0;
 
-        py::dtype first_dtype;
+        nb::dtype first_dtype;
 
         for (auto obj_h : iter) {
             if (idx < 1) {
@@ -385,7 +385,7 @@ class NumpyConvert {
                 (first_dtype.kind() == cur_dtype.kind())) {
                 // pass
             } else if (!dtype_equal(cur_dtype, first_dtype)) {
-                throw py::type_error(err_str);
+                throw nb::type_error(err_str);
             }
 
             if (PyUnicode_Check(obj_p)) {
@@ -416,12 +416,12 @@ class NumpyConvert {
                 }
             } else if (npy_api.PyArray_Check_(obj_p)) {
                 // handle (potentially) var-len embedded arrays
-                sz = py::cast<py::array>(obj_p).nbytes();
+                sz = nb::cast<nb::array>(obj_p).nbytes();
             } else if (PyBool_Check(obj_p)) {
                 if (idx < 1)
-                    first_dtype = py::dtype("bool");
+                    first_dtype = nb::dtype("bool");
 
-                py::bool_ bool_obj = py::cast<py::bool_>(obj_p);
+                nb::bool_ bool_obj = nb::cast<nb::bool_>(obj_p);
                 sz = sizeof(bool);
                 bool bool_value = bool_obj;
                 input_p = reinterpret_cast<const char*>(&bool_value);
@@ -456,11 +456,11 @@ class NumpyConvert {
                 // auto pao = (PyArrayObject*)o;
                 // input_p = (const char*)PyArray_DATA(pao);
                 // sz = PyArray_NBYTES(pao);
-                auto o_a = py::cast<py::array>(obj_h);
+                auto o_a = nb::cast<nb::array>(obj_h);
                 sz = o_a.nbytes();
                 input_p = (const char*)o_a.data();
             } else if (PyBool_Check(obj_p)) {
-                py::bool_ bool_obj = py::cast<py::bool_>(obj_p);
+                nb::bool_ bool_obj = nb::cast<nb::bool_>(obj_p);
                 sz = sizeof(bool);
                 bool bool_value = bool_obj;
                 input_p = reinterpret_cast<const char*>(&bool_value);
@@ -478,7 +478,7 @@ class NumpyConvert {
     /*
     Initialize the converter
   */
-    NumpyConvert(py::array input) {
+    NumpyConvert(nb::array input) {
         // require a flat buffer
         if (input.ndim() != 1) {
             // try to take a 1D view on the input
@@ -486,8 +486,8 @@ class NumpyConvert {
             // this will throw if the shape cannot be modified zero-copy,
             // which is what we want
             try {
-                v.attr("shape") = py::int_(input.size());
-            } catch (py::error_already_set& e) {
+                v.attr("shape") = nb::int_(input.size());
+            } catch (nb::python_error& e) {
                 if (e.matches(PyExc_AttributeError)) {
                     use_iter_ = true;
                 } else {
@@ -501,7 +501,7 @@ class NumpyConvert {
             input_ = input;
         }
 
-        input_len_ = py::len(input_);
+        input_len_ = nb::len(input_);
 
         data_buf_ = new std::vector<uint8_t>();
         offset_buf_ = new std::vector<uint64_t>(input_len_);
@@ -525,25 +525,25 @@ class NumpyConvert {
     }
 
     /*
-    Returns a tuple of py::array containing
+    Returns a tuple of nb::array containing
       (data:array_t<uint8>, offsets:array_t<uint64_t>)
   */
-    py::tuple get() {
+    nb::tuple get() {
         auto input_dtype = input_.dtype();
 
         if (use_iter_) {
             // slow, safe path
             convert_iter();
-        } else if (issubdtype(input_dtype, py::dtype("unicode"))) {
+        } else if (issubdtype(input_dtype, nb::dtype("unicode"))) {
             if (allow_unicode_) {
                 convert_unicode();
             } else {
                 throw std::runtime_error(
                     "Unexpected fixed-length unicode array");
             }
-        } else if (issubdtype(input_dtype, py::dtype("bytes"))) {
+        } else if (issubdtype(input_dtype, nb::dtype("bytes"))) {
             convert_bytes();
-        } else if (!input_dtype.equal(py::dtype("O"))) {
+        } else if (!input_dtype.equal(nb::dtype("O"))) {
             // TODO TPY_ERROR_LOC
             throw std::runtime_error("expected object array");
         } else {
@@ -551,30 +551,30 @@ class NumpyConvert {
         }
 
         auto tmp_data_buf_p = data_buf_;
-        auto data_ref = py::capsule(data_buf_, [](void* v) {
+        auto data_ref = nb::capsule(data_buf_, [](void* v) {
             delete reinterpret_cast<std::vector<uint8_t>*>(v);
         });
         data_buf_ = nullptr;  // disown: capsule owns it
 
         auto tmp_offset_buf_p = offset_buf_;
-        auto offset_ref = py::capsule(offset_buf_, [](void* v) {
+        auto offset_ref = nb::capsule(offset_buf_, [](void* v) {
             delete reinterpret_cast<std::vector<uint64_t>*>(v);
         });
         offset_buf_ = nullptr;  // disown: capsule owns it now
 
-        auto data_np = py::array_t<uint8_t>(
+        auto data_np = nb::array_t<uint8_t>(
             tmp_data_buf_p->size(), tmp_data_buf_p->data(), data_ref);
-        auto offset_np = py::array_t<uint64_t>(
+        auto offset_np = nb::array_t<uint64_t>(
             tmp_offset_buf_p->size(), tmp_offset_buf_p->data(), offset_ref);
 
-        return py::make_tuple(data_np, offset_np);
+        return nb::make_tuple(data_np, offset_np);
     }
 };
 
-py::tuple convert_np(
-    py::array input, bool allow_unicode, bool use_fallback = false) {
+nb::tuple convert_np(
+    nb::array input, bool allow_unicode, bool use_fallback = false) {
     if (use_fallback) {
-        auto tiledb = py::module::import("tiledb");
+        auto tiledb = nb::module::import("tiledb");
         auto libtiledb = tiledb.attr("libtiledb");
         auto array_to_buffer = libtiledb.attr("array_to_buffer");
         return array_to_buffer(input);

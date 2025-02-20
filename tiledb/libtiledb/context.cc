@@ -8,18 +8,18 @@
 namespace libtiledbcpp {
 
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 
-void init_context(py::module& m) {
-    py::class_<Context>(m, "Context")
-        .def(py::init<Context>())
-        .def(py::init())
-        .def(py::init<Config>())
-        .def(py::init<py::capsule, bool>())
+void init_context(nb::module& m) {
+    nb::class_<Context>(m, "Context")
+        .def(nb::init<Context>())
+        .def(nb::init())
+        .def(nb::init<Config>())
+        .def(nb::init<nb::capsule, bool>())
 
         .def(
             "__capsule__",
-            [](Context& ctx) { return py::capsule(ctx.ptr().get(), "ctx"); })
+            [](Context& ctx) { return nb::capsule(ctx.ptr().get(), "ctx"); })
 
         .def("config", &Context::config)
         .def("set_tag", &Context::set_tag)
@@ -27,28 +27,28 @@ void init_context(py::module& m) {
         .def("is_supported_fs", &Context::is_supported_fs);
 }
 
-void init_config(py::module& m) {
-    py::class_<tiledb::Config>(m, "Config")
-        .def(py::init<Config>())
-        .def(py::init())
-        .def(py::init<std::map<std::string, std::string>>())
-        .def(py::init<std::string>())
+void init_config(nb::module& m) {
+    nb::class_<tiledb::Config>(m, "Config")
+        .def(nb::init<Config>())
+        .def(nb::init())
+        .def(nb::init<std::map<std::string, std::string>>())
+        .def(nb::init<std::string>())
 
         .def(
             "__capsule__",
             [](Config& config) {
-                return py::capsule(config.ptr().get(), "config");
+                return nb::capsule(config.ptr().get(), "config");
             })
 
         .def("set", &Config::set)
         .def("get", &Config::get)
         .def(
             "update",
-            [](Config& cfg, py::dict& odict) {
+            [](Config& cfg, nb::dict& odict) {
                 for (auto item : odict) {
                     cfg.set(
-                        item.first.cast<py::str>(),
-                        item.second.cast<py::str>());
+                        item.first.cast<nb::str>(),
+                        item.second.cast<nb::str>());
                 }
             })
 
@@ -67,7 +67,7 @@ void init_config(py::module& m) {
                 try {
                     return cfg.get(param);
                 } catch (TileDBError& e) {
-                    throw py::key_error();
+                    throw nb::key_error();
                 }
             })
         .def(
@@ -76,16 +76,16 @@ void init_config(py::module& m) {
                 try {
                     cfg.unset(param);
                 } catch (TileDBError& e) {
-                    throw py::key_error();
+                    throw nb::key_error();
                 }
             })
         .def(
             "_iter",
             [](Config& cfg, std::string prefix) {
-                return py::make_iterator(cfg.begin(prefix), cfg.end());
+                return nb::make_iterator(cfg.begin(prefix), cfg.end());
             },
-            py::keep_alive<0, 1>(),
-            py::arg("prefix") = "")
+            nb::keep_alive<0, 1>(),
+            nb::arg("prefix") = "")
         .def("unset", &Config::unset);
 }
 };  // namespace libtiledbcpp

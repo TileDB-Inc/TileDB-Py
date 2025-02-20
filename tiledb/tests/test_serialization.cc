@@ -21,24 +21,24 @@ namespace tiledbpy {
 
 using namespace std;
 using namespace tiledb;
-namespace py = pybind11;
+namespace nb = nanobind;
 using namespace pybind11::literals;
 
 class PySerializationTest {
    public:
-    static py::bytes create_serialized_test_query(
-        py::object pyctx, py::object pyarray) {
+    static nb::bytes create_serialized_test_query(
+        nb::object pyctx, nb::object pyarray) {
         int rc;
 
         tiledb_ctx_t* ctx;
         tiledb_array_t* array;
 
-        ctx = (py::capsule)pyctx.attr("__capsule__")();
+        ctx = (nb::capsule)pyctx.attr("__capsule__")();
         if (ctx == nullptr)
             TPY_ERROR_LOC("Invalid context pointer.");
 
         tiledb_ctx_alloc(NULL, &ctx);
-        array = (py::capsule)pyarray.attr("__capsule__")();
+        array = (nb::capsule)pyarray.attr("__capsule__")();
         if (array == nullptr)
             TPY_ERROR_LOC("Invalid array pointer.");
 
@@ -74,7 +74,7 @@ class PySerializationTest {
         if (rc == TILEDB_ERR)
             TPY_ERROR_LOC("Could not get the data from the buffer.");
 
-        py::bytes output((char*)buff_data, buff_num_bytes);
+        nb::bytes output((char*)buff_data, buff_num_bytes);
 
         tiledb_buffer_free(&buff);
         tiledb_buffer_list_free(&buff_list);
@@ -85,8 +85,8 @@ class PySerializationTest {
     }
 };
 
-void init_test_serialization(py::module& m) {
-    py::class_<PySerializationTest>(m, "test_serialization")
+void init_test_serialization(nb::module& m) {
+    nb::class_<PySerializationTest>(m, "test_serialization")
         .def_static(
             "create_serialized_test_query",
             &PySerializationTest::create_serialized_test_query);
