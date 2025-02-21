@@ -98,6 +98,10 @@ struct BufferInfo {
         try {
             dtype = tiledb_dtype(data_type, cell_val_num);
             elem_nbytes = tiledb_datatype_size(type);
+            if (data_nbytes >
+                static_cast<uint64_t>(std::numeric_limits<intptr_t>::max())) {
+                throw std::overflow_error("Data buffer size is too large");
+            }
             data = py::array(py::dtype("uint8"), data_nbytes);
             offsets = py::array_t<uint64_t>(offsets_num);
             validity = py::array_t<uint8_t>(validity_num);
