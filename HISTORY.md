@@ -1,3 +1,22 @@
+# Release 0.33.4
+
+* TileDB-Py 0.33.4 includes TileDB Embedded [2.27.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.1)
+
+## Bug Fixes
+* Fix the error caused by non-decodable bytes when retrieving the non-empty domain for `TILEDB_ASCII` dimensions by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2164
+* Fix `NDRectangle::set_range` overloads by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2157
+* Fix broken API docs search and expose `Metadata` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2153
+* Bug fix: Data buffer is not resized for byte objects after completing the buffer and offsets conversion by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2150
+
+## Improvements
+* Consider the Current Domain on indexing by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2156
+* Expand `test_sparse_string_domain` for empty strings by @ihnorton and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/917
+* Use the clang-format pre-commit hook updated to the latest version by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2039
+* Fix `view_attr` not being respected by `__getitem__` and subarray by @kounelisagis and @nguyenv in https://github.com/TileDB-Inc/TileDB-Py/pull/2139
+* Add support for `BLOB` attribute type override in `from_pandas` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/2143
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.3...0.33.4
+
 # Release 0.33.3
 
 ## Bug Fixes
