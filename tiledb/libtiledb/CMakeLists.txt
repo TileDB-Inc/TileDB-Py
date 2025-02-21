@@ -1,4 +1,4 @@
-pybind11_add_module(
+nanobind_add_module(
     libtiledb
     array.cc
     attribute.cc

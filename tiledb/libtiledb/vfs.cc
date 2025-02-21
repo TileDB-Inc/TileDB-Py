@@ -1,11 +1,11 @@
 #include <tiledb/tiledb>
 #include <tiledb/tiledb_experimental>
 
-#include <pybind11/functional.h>
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+// #include <pybind11/functional.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include "common.h"
 
@@ -15,7 +15,7 @@ using namespace tiledb;
 using namespace tiledbnb::common;
 namespace nb = nanobind;
 
-void init_vfs(nb::module& m) {
+void init_vfs(nb::module_& m) {
     nb::class_<VFS>(m, "VFS")
         .def(nb::init<const Context&>(), nb::keep_alive<1, 2>())
         .def(nb::init<const Context&, const Config&>(), nb::keep_alive<1, 2>())
@@ -100,13 +100,13 @@ class FileHandle {
     }
 
     nb::bytes read(uint64_t offset, uint64_t nbytes) {
-        nb::array data = nb::array(nb::dtype<std::byte>(), nbytes);
+        nb::ndarray data = nb::ndarray(nb::dtype<std::byte>(), nbytes);
         nb::buffer_info buffer = data.request();
 
         _ctx.handle_error(tiledb_vfs_read(
             _ctx.ptr().get(), this->_fh, offset, buffer.ptr, nbytes));
 
-        auto np = nb::module::import("numpy");
+        auto np = nb::module_::import_("numpy");
         auto to_bytes = np.attr("ndarray").attr("tobytes");
 
         return to_bytes(data);
@@ -130,7 +130,7 @@ class FileHandle {
     }
 };
 
-void init_file_handle(nb::module& m) {
+void init_file_handle(nb::module_& m) {
     nb::class_<FileHandle>(m, "FileHandle")
         .def(
             nb::init<

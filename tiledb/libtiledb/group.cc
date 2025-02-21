@@ -1,10 +1,10 @@
 #include <tiledb/tiledb>
 #include <tiledb/tiledb_experimental>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include "metadata.h"
 
@@ -14,7 +14,7 @@ using namespace tiledb;
 using namespace tiledbnb::common;
 namespace nb = nanobind;
 
-void init_group(nb::module& m) {
+void init_group(nb::module_& m) {
     nb::class_<Group>(m, "Group")
         .def(
             nb::init<const Context&, const std::string&, tiledb_query_type_t>(),
@@ -37,7 +37,7 @@ void init_group(nb::module& m) {
 
         .def(
             "_put_metadata",
-            [](Group& group, const std::string& key, nb::array value) {
+            [](Group& group, const std::string& key, nb::ndarray value) {
                 MetadataAdapter<Group> a;
                 a.put_metadata_numpy(group, key, value);
             })

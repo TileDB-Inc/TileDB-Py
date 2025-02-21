@@ -1,10 +1,10 @@
 #include <tiledb/tiledb>
 #include <tiledb/tiledb_experimental>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 #include <variant>
 
 #include "common.h"
@@ -15,7 +15,7 @@ using namespace tiledb;
 using namespace tiledbnb::common;
 namespace nb = nanobind;
 
-void init_current_domain(nb::module& m) {
+void init_current_domain(nb::module_& m) {
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
     nb::class_<NDRectangle>(m, "NDRectangle")
         .def(nb::init<NDRectangle>())

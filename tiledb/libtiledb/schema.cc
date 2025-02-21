@@ -1,10 +1,10 @@
 #include <tiledb/tiledb>               // C++
 #include <tiledb/tiledb_experimental>  // (needed for dimension labels)
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 namespace libtiledbcpp {
 
@@ -79,7 +79,7 @@ class DimensionLabelSchema {
     std::optional<FilterList> label_filters_;
 };
 
-void init_schema(nb::module& m) {
+void init_schema(nb::module_& m) {
     nb::class_<DimensionLabelSchema>(m, "DimensionLabelSchema")
         .def(
             nb::init<

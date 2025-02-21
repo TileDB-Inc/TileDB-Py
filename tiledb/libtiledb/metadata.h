@@ -4,10 +4,10 @@
 #include <tiledb/tiledb.h>  // for enums
 #include <tiledb/tiledb>    // C++
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include "common.h"
 
@@ -19,25 +19,25 @@ template <typename T>
 class MetadataAdapter {
    public:
     void put_metadata_numpy(
-        T& array_or_group, const std::string& key, py::array value) {
+        T& array_or_group, const std::string& key, nb::array value) {
         tiledb_datatype_t value_type;
         try {
             value_type = np_to_tdb_dtype(value.dtype());
         } catch (const TileDBPyError& e) {
-            throw py::type_error(e.what());
+            throw nb::type_error(e.what());
         }
 
         if (value.ndim() != 1)
-            throw py::type_error(
+            throw nb::type_error(
                 "Only 1D Numpy arrays can be stored as metadata");
 
-        py::size_t ncells = get_ncells(value.dtype());
+        nb::size_t ncells = get_ncells(value.dtype());
         // we can't store multi-cell arrays as metadata
         // e.g. an array of strings containing strings of more than one
         // character
         if (ncells != 1 && value.size() > 1)
-            throw py::type_error(
-                "Unsupported dtype '" + std::string(py::str(value.dtype())) +
+            throw nb::type_error(
+                "Unsupported dtype '" + std::string(nb::str(value.dtype())) +
                 "' for metadata");
 
         auto value_num = is_tdb_str(value_type) ? value.nbytes() : value.size();
@@ -50,8 +50,8 @@ class MetadataAdapter {
         const std::string& key,
         tiledb_datatype_t value_type,
         uint32_t value_num,
-        py::buffer& value) {
-        py::buffer_info info = value.request();
+        nb::buffer& value) {
+        nb::buffer_info info = value.request();
         array_or_group.put_metadata(key, value_type, value_num, info.ptr);
     }
 
@@ -72,7 +72,7 @@ class MetadataAdapter {
         return key;
     }
 
-    py::object unpack_metadata_val(
+    nb::object unpack_metadata_val(
         tiledb_datatype_t value_type,
         uint32_t value_num,
         const char* value_ptr) {
@@ -80,20 +80,20 @@ class MetadataAdapter {
             throw TileDBError("internal error: unexpected value_num==0");
 
         if (value_type == TILEDB_STRING_UTF8) {
-            return value_ptr == nullptr ? py::str() :
-                                          py::str(value_ptr, value_num);
+            return value_ptr == nullptr ? nb::str() :
+                                          nb::str(value_ptr, value_num);
         }
 
         if (value_type == TILEDB_BLOB || value_type == TILEDB_CHAR ||
             value_type == TILEDB_STRING_ASCII) {
-            return value_ptr == nullptr ? py::bytes() :
-                                          py::bytes(value_ptr, value_num);
+            return value_ptr == nullptr ? nb::bytes() :
+                                          nb::bytes(value_ptr, value_num);
         }
 
         if (value_ptr == nullptr)
-            return py::tuple();
+            return nb::tuple();
 
-        py::tuple unpacked(value_num);
+        nb::tuple unpacked(value_num);
         for (uint32_t i = 0; i < value_num; i++) {
             switch (value_type) {
                 case TILEDB_INT64:
@@ -139,15 +139,15 @@ class MetadataAdapter {
         return unpacked[0];
     }
 
-    py::array unpack_metadata_ndarray(
+    nb::array unpack_metadata_ndarray(
         tiledb_datatype_t value_type,
         uint32_t value_num,
         const char* value_ptr) {
-        py::dtype dtype = tdb_to_np_dtype(value_type, 1);
+        nb::dlpack::dtype dtype = tdb_to_np_dtype(value_type, 1);
 
         if (value_ptr == nullptr) {
-            auto np = py::module::import("numpy");
-            return np.attr("empty")(py::make_tuple(0), dtype);
+            auto np = nb::module::import("numpy");
+            return np.attr("empty")(nb::make_tuple(0), dtype);
         }
 
         // special case for TILEDB_STRING_UTF8: TileDB assumes size=1
@@ -155,13 +155,13 @@ class MetadataAdapter {
             value_num *= tiledb_datatype_size(value_type);
         }
 
-        auto buf = py::memoryview::from_memory(value_ptr, value_num);
+        auto buf = nb::memoryview::from_memory(value_ptr, value_num);
 
-        auto np = py::module::import("numpy");
+        auto np = nb::module::import("numpy");
         return np.attr("frombuffer")(buf, dtype);
     }
 
-    py::tuple get_metadata(
+    nb::tuple get_metadata(
         T& array_or_group, const std::string& key, bool is_ndarray) {
         tiledb_datatype_t tdb_type;
         uint32_t value_num;
@@ -171,14 +171,14 @@ class MetadataAdapter {
             key, &tdb_type, &value_num, (const void**)&value_ptr);
 
         if (value_ptr == nullptr && value_num != 1)
-            throw py::key_error("Metadata key '" + key + "' not found");
+            throw nb::key_error("Metadata key '" + key + "' not found");
 
         if (is_ndarray) {
             auto arr = unpack_metadata_ndarray(tdb_type, value_num, value_ptr);
-            return py::make_tuple(arr, tdb_type);
+            return nb::make_tuple(arr, tdb_type);
         } else {
             auto arr = unpack_metadata_val(tdb_type, value_num, value_ptr);
-            return py::make_tuple(arr, tdb_type);
+            return nb::make_tuple(arr, tdb_type);
         }
     }
 

@@ -1,10 +1,10 @@
 #include <tiledb/tiledb>
 // #include <tiledb/tiledb_experimental.h> // for filter_dump, not yet available
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include "common.h"
 
@@ -14,7 +14,7 @@ using namespace tiledb;
 using namespace tiledbnb::common;
 namespace nb = nanobind;
 
-void init_filter(nb::module& m) {
+void init_filter(nb::module_& m) {
     nb::class_<Filter>(m, "Filter")
         .def(nb::init<const Context&, tiledb_filter_type_t>())
 

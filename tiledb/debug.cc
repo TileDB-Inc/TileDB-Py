@@ -1,4 +1,4 @@
-#include <pybind11/embed.h>
+// #include <pybind11/embed.h>
 
 #ifndef TILEDBPY_DEBUGCC
 #define TILEDBPY_DEBUGCC
@@ -7,15 +7,15 @@ namespace {
 extern "C" {
 
 namespace nb = nanobind;
-using namespace pybind11::literals;
+using namespace nb::literals;
 
 // __attribute__((used)) to make the linker keep the symbol
-__attribute__((used)) static void pyprint(pybind11::object o) {
-    pybind11::print(o);
+__attribute__((used)) static void pyprint(nb::object o) {
+    nb::print(o);
 }
 
-__attribute__((used)) static void pyprint(pybind11::handle h) {
-    pybind11::print(h);
+__attribute__((used)) static void pyprint(nb::handle h) {
+    nb::print(h);
 }
 
 __attribute__((used)) static std::string pyrepr(nb::handle h) {
@@ -29,7 +29,7 @@ __attribute__((used)) static std::string pyrepr(nb::object o) {
 }
 
 __attribute__((used)) static void pycall1(
-    const char* expr, pybind11::object o = nb::none()) {
+    const char* expr, nb::object o = nb::none()) {
     // this doesn't work in lldb
     // nb::scoped_interpreter guard{};
 

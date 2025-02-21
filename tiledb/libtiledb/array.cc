@@ -4,10 +4,10 @@
 
 #include "metadata.h"
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 namespace libtiledbcpp {
 
@@ -24,7 +24,7 @@ bool _non_empty_domain_is_empty_aux(
     return is_empty == 1;
 }
 
-void init_array(nb::module& m) {
+void init_array(nb::module_& m) {
     nb::class_<tiledb::Array>(m, "Array")
         //.def(nb::init<nb::object, nb::object, nb::iterable, nb::object,
         //              nb::object, nb::object>())
@@ -61,8 +61,11 @@ void init_array(nb::module& m) {
         .def(
             "__init__",
             [](Array* self, const Context& ctx, nb::object array) {
-                tiledb_array_t* c_array = (nb::capsule)array.attr(
-                    "__capsule__")();
+                // tiledb_array_t* c_array = (nb::capsule)array.attr(
+                //     "__capsule__")();
+                tiledb_array_t* c_array = nb::cast<tiledb_array_t*>(
+                    array.attr("__capsule__")());
+
                 new (self) Array(ctx, c_array, false);
             },
             nb::keep_alive<1, 2>(),
@@ -146,7 +149,7 @@ void init_array(nb::module& m) {
             "_non_empty_domain_is_empty",
             [](Array& self,
                const unsigned& dim_idx,
-               const nb::dtype& n_type,
+               const nb::dlpack::dtype& n_type,
                const Context& ctx) -> bool {
                 int32_t is_empty = 0;
 
@@ -206,7 +209,7 @@ void init_array(nb::module& m) {
             "_non_empty_domain",
             [](Array& self,
                const unsigned& dim_idx,
-               const nb::dtype& n_type) -> nb::tuple {
+               const nb::dlpack::dtype& n_type) -> nb::tuple {
                 if (n_type.is(nb::dtype<uint64_t>())) {
                     auto domain = self.non_empty_domain<uint64_t>(dim_idx);
                     return nb::make_tuple(domain.first, domain.second);
@@ -281,7 +284,7 @@ void init_array(nb::module& m) {
                 Config* const>(&Array::consolidate_metadata))
         .def(
             "_put_metadata",
-            [](Array& array, const std::string& key, nb::array value) {
+            [](Array& array, const std::string& key, nb::ndarray value) {
                 MetadataAdapter<Array> a;
                 a.put_metadata_numpy(array, key, value);
             })

@@ -1,10 +1,10 @@
 #include <tiledb/tiledb>
 #include <tiledb/tiledb_experimental>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include "common.h"
 
@@ -14,7 +14,7 @@ using namespace tiledb;
 using namespace tiledbnb::common;
 namespace nb = nanobind;
 
-void init_enumeration(nb::module& m) {
+void init_enumeration(nb::module_& m) {
     nb::class_<Enumeration>(m, "Enumeration")
         .def(nb::init<Enumeration>())
 
@@ -23,7 +23,7 @@ void init_enumeration(nb::module& m) {
             [](Enumeration* self,
                const Context& ctx,
                const std::string& name,
-               nb::dtype type,
+               nb::dlpack::dtype type,
                bool ordered) {
                 tiledb_datatype_t data_type;
                 try {
@@ -55,8 +55,8 @@ void init_enumeration(nb::module& m) {
                const Context& ctx,
                const std::string& name,
                bool ordered,
-               nb::array data,
-               nb::array offsets) {
+               nb::ndarray data,
+               nb::ndarray offsets) {
                 tiledb_datatype_t data_type;
                 try {
                     data_type = np_to_tdb_dtype(data.dtype());
@@ -107,7 +107,7 @@ void init_enumeration(nb::module& m) {
             [](Enumeration& enmr) {
                 auto data = enmr.as_vector<std::byte>();
                 auto dtype = tdb_to_np_dtype(enmr.type(), enmr.cell_val_num());
-                return nb::array(
+                return nb::ndarray(
                     dtype, data.size() / dtype.itemsize(), data.data());
             })
         .def(
@@ -118,7 +118,7 @@ void init_enumeration(nb::module& m) {
             "extend",
             static_cast<Enumeration (Enumeration::*)(
                 std::vector<std::string>&)>(&Enumeration::extend))
-        .def("extend", [](Enumeration& enmr, nb::array data) {
+        .def("extend", [](Enumeration& enmr, nb::ndarray data) {
             return enmr.extend(data.data(), data.nbytes(), nullptr, 0);
         });
 }

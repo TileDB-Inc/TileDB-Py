@@ -1,16 +1,16 @@
 #include <tiledb/tiledb>  // C++
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 namespace libtiledbcpp {
 
 using namespace tiledb;
 namespace nb = nanobind;
 
-void init_context(nb::module& m) {
+void init_context(nb::module_& m) {
     nb::class_<Context>(m, "Context")
         .def(nb::init<Context>())
         .def(nb::init())
@@ -27,7 +27,7 @@ void init_context(nb::module& m) {
         .def("is_supported_fs", &Context::is_supported_fs);
 }
 
-void init_config(nb::module& m) {
+void init_config(nb::module_& m) {
     nb::class_<tiledb::Config>(m, "Config")
         .def(nb::init<Config>())
         .def(nb::init())

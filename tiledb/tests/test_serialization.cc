@@ -1,8 +1,8 @@
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include <exception>
 
@@ -22,7 +22,7 @@ namespace tiledbpy {
 using namespace std;
 using namespace tiledb;
 namespace nb = nanobind;
-using namespace pybind11::literals;
+using namespace nb::literals;
 
 class PySerializationTest {
    public:
@@ -33,12 +33,16 @@ class PySerializationTest {
         tiledb_ctx_t* ctx;
         tiledb_array_t* array;
 
-        ctx = (nb::capsule)pyctx.attr("__capsule__")();
+        // ctx = (nb::capsule)pyctx.attr("__capsule__")();
+        ctx = nb::cast<tiledb_ctx_t*>(pyctx.attr("__capsule__")());
+
         if (ctx == nullptr)
             TPY_ERROR_LOC("Invalid context pointer.");
 
         tiledb_ctx_alloc(NULL, &ctx);
-        array = (nb::capsule)pyarray.attr("__capsule__")();
+        // array = (nb::capsule)pyarray.attr("__capsule__")();
+        array = nb::cast<tiledb_array_t*>(pyarray.attr("__capsule__")());
+
         if (array == nullptr)
             TPY_ERROR_LOC("Invalid array pointer.");
 
@@ -85,7 +89,7 @@ class PySerializationTest {
     }
 };
 
-void init_test_serialization(nb::module& m) {
+void init_test_serialization(nb::module_& m) {
     nb::class_<PySerializationTest>(m, "test_serialization")
         .def_static(
             "create_serialized_test_query",

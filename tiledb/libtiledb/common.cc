@@ -101,7 +101,8 @@ bool expect_buffer_nbytes(
 
 }  // namespace tiledbnb::common
 
-nb::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
+nb::dlpack::dtype tdb_to_np_dtype(
+    tiledb_datatype_t type, uint32_t cell_val_num) {
     if (type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
         type == TILEDB_STRING_ASCII) {
         std::string base_str = (type == TILEDB_STRING_UTF8) ? "|U" : "|S";
@@ -122,23 +123,23 @@ nb::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
 
     if (cell_val_num == 2) {
         if (type == TILEDB_FLOAT32)
-            return nb::dtype("complex64");
+            return nb::dtype<"complex64">;
         if (type == TILEDB_FLOAT64)
-            return nb::dtype("complex128");
+            return nb::dtype<"complex128">;
     }
 
     if (cell_val_num == TILEDB_VAR_NUM)
         return tdb_to_np_dtype(type, 1);
 
     if (cell_val_num > 1) {
-        nb::dtype base_dtype = tdb_to_np_dtype(type, 1);
+        nb::dlpack::dtype base_dtype = tdb_to_np_dtype(type, 1);
         nb::tuple rec_elem = nb::make_tuple("", base_dtype);
         nb::list rec_list;
         for (size_t i = 0; i < cell_val_num; i++)
             rec_list.append(rec_elem);
         // note: we call the 'dtype' constructor b/c nb::dtype does not accept
         // list
-        auto np = nb::module::import("numpy");
+        auto np = nb::module_::import_("numpy");
         auto np_dtype = np.attr("dtype");
         return np_dtype(rec_list);
     }
@@ -148,7 +149,7 @@ nb::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
         "', cell_val_num: " + std::to_string(cell_val_num) + ")");
 }
 
-tiledb_datatype_t np_to_tdb_dtype(nb::dtype type) {
+tiledb_datatype_t np_to_tdb_dtype(nb::dlpack::dtype type) {
     auto name = nb::str(nb::getattr(type, "name"));
     if (_np_name_to_tdb_dtype.count(name) == 1)
         return _np_name_to_tdb_dtype[name];
@@ -193,15 +194,15 @@ bool is_tdb_str(tiledb_datatype_t type) {
     }
 }
 
-nb::size_t get_ncells(nb::dtype type) {
-    auto np = nb::module::import("numpy");
+nb::size_t get_ncells(nb::dlpack::dtype type) {
+    auto np = nb::module_::import_("numpy");
     auto np_issubdtype = np.attr("issubdtype");
     auto np_complexfloating = np.attr("complexfloating");
     auto np_character = np.attr("character");
 
     nb::bool_ ischaracter = np_issubdtype(type, np_character);
     if (ischaracter) {
-        nb::dtype base_dtype = np.attr("dtype")(
+        nb::dlpack::dtype base_dtype = np.attr("dtype")(
             nb::make_tuple(type.attr("kind"), 1));
         if (type.itemsize() == 0)
             return TILEDB_VAR_NUM;
@@ -215,16 +216,16 @@ nb::size_t get_ncells(nb::dtype type) {
     return 1;
 }
 
-nb::array_t<uint8_t> uint8_bool_to_uint8_bitmap(
-    nb::array_t<uint8_t> validity_array) {
+nb::ndarray<uint8_t> uint8_bool_to_uint8_bitmap(
+    nb::ndarray<uint8_t> validity_array) {
     // TODO profile, probably replace; avoid inplace reassignment
-    auto np = nb::module::import("numpy");
+    auto np = nb::module_::import_("numpy");
     auto packbits = np.attr("packbits");
     auto tmp = packbits(validity_array, "bitorder"_a = "little");
     return tmp;
 }
 
-uint64_t count_zeros(nb::array_t<uint8_t> a) {
+uint64_t count_zeros(nb::ndarray<uint8_t> a) {
     uint64_t count = 0;
     for (nb::ssize_t idx = 0; idx < a.size(); idx++)
         count += (a.data()[idx] == 0) ? 1 : 0;

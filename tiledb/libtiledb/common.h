@@ -1,10 +1,10 @@
 #include <tiledb/tiledb.h>  // for enums
 #include <tiledb/tiledb>    // C++
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 using namespace tiledb;
 namespace nb = nanobind;
@@ -30,19 +30,20 @@ class TileDBPyError : std::runtime_error {
     }
 };
 
-namespace tiledbpy::common {
+namespace tiledbnb::common {
 
-size_t buffer_nbytes(py::buffer_info& info);
+size_t buffer_nbytes(nb::buffer_info& info);
 
 bool expect_buffer_nbytes(
-    py::buffer_info& info, tiledb_datatype_t datatype, size_t nbytes);
+    nb::buffer_info& info, tiledb_datatype_t datatype, size_t nbytes);
 
-}  // namespace tiledbpy::common
+}  // namespace tiledbnb::common
 
-py::dtype tdb_to_np_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
-tiledb_datatype_t np_to_tdb_dtype(py::dtype type);
+nb::dlpack::dtype tdb_to_np_dtype(
+    tiledb_datatype_t type, uint32_t cell_val_num);
+tiledb_datatype_t np_to_tdb_dtype(nb::dlpack::dtype type);
 
 bool is_tdb_num(tiledb_datatype_t type);
 bool is_tdb_str(tiledb_datatype_t type);
 
-py::size_t get_ncells(py::dtype type);
+nb::size_t get_ncells(nb::dlpack::dtype type);

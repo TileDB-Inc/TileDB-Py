@@ -1,16 +1,16 @@
 #include <tiledb/tiledb>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 namespace libtiledbcpp {
 
 using namespace tiledb;
 namespace nb = nanobind;
 
-void init_enums(nb::module& m) {
+void init_enums(nb::module_& m) {
     // consts from tiledb.h
     m.def("TILEDB_VAR_NUM", []() { return TILEDB_VAR_NUM; });
     m.def("TILEDB_MAX_PATH", []() { return TILEDB_MAX_PATH; });

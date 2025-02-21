@@ -1,8 +1,8 @@
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include <exception>
 
@@ -18,7 +18,7 @@ namespace tiledbpy {
 using namespace std;
 using namespace tiledb;
 namespace nb = nanobind;
-using namespace pybind11::literals;
+using namespace nb::literals;
 
 class PyFragmentInfo {
    private:
@@ -53,7 +53,9 @@ class PyFragmentInfo {
         nb::object ctx) {
         schema_ = schema;
 
-        tiledb_ctx_t* c_ctx_ = (nb::capsule)ctx.attr("__capsule__")();
+        // tiledb_ctx_t* c_ctx_ = (nb::capsule)ctx.attr("__capsule__")();
+        tiledb_ctx_t* c_ctx_ = nb::cast<tiledb_ctx_t*>(
+            ctx.attr("__capsule__")());
 
         if (c_ctx_ == nullptr)
             TPY_ERROR_LOC("Invalid context pointer!");
@@ -125,7 +127,7 @@ class PyFragmentInfo {
 
    private:
     template <typename T>
-    nb::object for_all_fid(T (FragmentInfo::*fn)(uint32_t) const) const {
+    nb::tuple for_all_fid(T (FragmentInfo::*fn)(uint32_t) const) const {
         nb::list l;
         uint32_t nfrag = fragment_num();
 
@@ -157,17 +159,18 @@ class PyFragmentInfo {
         for (uint32_t fid = 0; fid < nfrag; ++fid)
             all_frags.append(fill_non_empty_domain(fid));
 
-        return std::move(all_frags);
+        return nb::tuple(all_frags);  // Explicit conversion to tuple
     }
 
     nb::tuple fill_non_empty_domain(uint32_t fid) const {
         nb::list all_dims;
-        int ndim = (schema_.attr("domain").attr("ndim")).cast<int>();
+        // int ndim = (schema_.attr("domain").attr("ndim")).cast<int>();
+        int ndim = nb::cast<int>(schema_.attr("domain").attr("ndim"));
 
         for (int did = 0; did < ndim; ++did)
             all_dims.append(fill_non_empty_domain(fid, did));
 
-        return std::move(all_dims);
+        return nb::tuple(all_dims);
     }
 
     template <typename T>
@@ -179,17 +182,17 @@ class PyFragmentInfo {
             return nb::make_tuple(lims.first, lims.second);
         }
 
-        nb::dtype type = get_dim_type(schema_.attr("domain"), did);
-        nb::dtype array_type = type.kind() == 'M' ?
-                                   pybind11::dtype<uint64_t>() :
-                                   type;
+        nb::dlpack::dtype type = get_dim_type(schema_.attr("domain"), did);
+        nb::dlpack::dtype array_type = type.kind() == 'M' ?
+                                           nb::dtype<uint64_t>() :
+                                           type;
 
-        nb::array limits = nb::array(array_type, 2);
+        nb::ndarray limits = nb::ndarray(array_type, 2);
         nb::buffer_info buffer = limits.request();
         fi_->get_non_empty_domain(fid, did, buffer.ptr);
 
         if (type.kind() == 'M') {
-            auto np = nb::module::import("numpy");
+            auto np = nb::module_::import_("numpy");
             auto datetime64 = np.attr("datetime64");
             auto datetime_data = np.attr("datetime_data");
 
@@ -205,25 +208,25 @@ class PyFragmentInfo {
     nb::bool_ get_dim_isvar(nb::object dom, uint32_t did) const {
         // passing templated type "did" to Python function dom.attr("dim")
         // does not work
-        return (dom.attr("dim")(did).attr("isvar")).cast<nb::bool_>();
+        return nb::cast<nb::bool_>(dom.attr("dim")(did).attr("isvar"));
     }
 
     nb::bool_ get_dim_isvar(nb::object dom, string did) const {
         // passing templated type "did" to Python function dom.attr("dim")
         // does not work
-        return (dom.attr("dim")(did).attr("isvar")).cast<nb::bool_>();
+        return nb::cast<nb::bool_>(dom.attr("dim")(did).attr("isvar"));
     }
 
-    nb::dtype get_dim_type(nb::object dom, uint32_t did) const {
+    nb::dlpack::dtype get_dim_type(nb::object dom, uint32_t did) const {
         // passing templated type "did" to Python function dom.attr("dim")
         // does not work
-        return (dom.attr("dim")(did).attr("dtype")).cast<nb::dtype>();
+        return nb::cast<nb::dtype>(dom.attr("dim")(did).attr("dtype"));
     }
 
-    nb::dtype get_dim_type(nb::object dom, string did) const {
+    nb::dlpack::dtype get_dim_type(nb::object dom, string did) const {
         // passing templated type "did" to Python function dom.attr("dim")
         // does not work
-        return (dom.attr("dim")(did).attr("dtype")).cast<nb::dtype>();
+        return nb::cast<nb::dtype>(dom.attr("dim")(did).attr("dtype"));
     }
 
     nb::tuple fill_timestamp_range() const {
@@ -274,7 +277,7 @@ class PyFragmentInfo {
         for (uint32_t fid = 0; fid < nfrag; ++fid)
             all_frags.append(fill_mbr(fid));
 
-        return std::move(all_frags);
+        return nb::tuple(all_frags);
     }
 
     nb::tuple fill_mbr(uint32_t fid) const {
@@ -284,17 +287,18 @@ class PyFragmentInfo {
         for (uint32_t mid = 0; mid < nmbr; ++mid)
             all_mbrs.append(fill_mbr(fid, mid));
 
-        return std::move(all_mbrs);
+        return nb::tuple(all_mbrs);
     }
 
     nb::tuple fill_mbr(uint32_t fid, uint32_t mid) const {
         nb::list all_dims;
-        int ndim = (schema_.attr("domain").attr("ndim")).cast<int>();
+        // int ndim = (schema_.attr("domain").attr("ndim")).cast<int>();
+        int ndim = nb::cast<int>(schema_.attr("domain").attr("ndim"));
 
         for (int did = 0; did < ndim; ++did)
             all_dims.append(fill_mbr(fid, mid, did));
 
-        return std::move(all_dims);
+        return nb::tuple(all_dims);
     }
 
     nb::tuple fill_mbr(uint32_t fid, uint32_t mid, uint32_t did) const {
@@ -305,11 +309,11 @@ class PyFragmentInfo {
             return nb::make_tuple(limits.first, limits.second);
         }
 
-        nb::dtype type = get_dim_type(schema_.attr("domain"), did);
-        nb::dtype array_type = type.kind() == 'M' ?
-                                   pybind11::dtype<uint64_t>() :
-                                   type;
-        nb::array limits = nb::array(array_type, 2);
+        nb::dlpack::dtype type = get_dim_type(schema_.attr("domain"), did);
+        nb::dlpack::dtype array_type = type.kind() == 'M' ?
+                                           nb::dtype<uint64_t>() :
+                                           type;
+        nb::ndarray limits = nb::ndarray(array_type, 2);
         nb::buffer_info buffer = limits.request();
         fi_->get_mbr(fid, mid, did, buffer.ptr);
         return std::move(limits);
@@ -320,7 +324,7 @@ class PyFragmentInfo {
     }
 };
 
-void init_fragment(nb::module& m) {
+void init_fragment(nb::module_& m) {
     nb::class_<PyFragmentInfo>(m, "PyFragmentInfo")
         .def(nb::init<const string&, nb::object, nb::bool_, nb::object>())
         .def("get_num_fragments", &PyFragmentInfo::get_num_fragments)

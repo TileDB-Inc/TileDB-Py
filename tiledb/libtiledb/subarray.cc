@@ -5,10 +5,10 @@
 
 #include "common.h"
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 namespace libtiledbcpp {
 
@@ -182,7 +182,7 @@ void add_dim_range(Subarray& subarray, uint32_t dim_idx, nb::tuple r) {
                 case TILEDB_TIME_PS:
                 case TILEDB_TIME_FS:
                 case TILEDB_TIME_AS:
-                    nb::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
+                    nb::dlpack::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
                     auto dt0 = nb::isinstance<nb::int_>(r0) ?
                                    r0 :
                                    r0.attr("astype")(dtype);
@@ -198,7 +198,7 @@ void add_dim_range(Subarray& subarray, uint32_t dim_idx, nb::tuple r) {
                             nb::cast<int64_t>(dt0),
                             nb::cast<int64_t>(dt1));
                     } else {
-                        auto darray = nb::array(nb::make_tuple(dt0, dt1));
+                        auto darray = nb::ndarray(nb::make_tuple(dt0, dt1));
                         subarray.add_range(
                             dim_idx,
                             *(int64_t*)darray.data(0),
@@ -388,12 +388,12 @@ void add_dim_point_ranges(
     const Context& ctx,
     Subarray& subarray,
     uint32_t dim_idx,
-    pybind11::handle dim_range) {
-    // Cast range object to appropriately typed nb::array.
+    nb::handle dim_range) {
+    // Cast range object to appropriately typed nb::ndarray.
     auto tiledb_type =
         subarray.array().schema().domain().dimension(dim_idx).type();
-    nb::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
-    nb::array ranges = dim_range.attr("astype")(dtype);
+    nb::dlpack::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
+    nb::ndarray ranges = dim_range.attr("astype")(dtype);
 
     // Set point ranges using C-API.
     tiledb_ctx_t* c_ctx = ctx.ptr().get();
@@ -532,7 +532,7 @@ void add_label_range(
                 case TILEDB_TIME_PS:
                 case TILEDB_TIME_FS:
                 case TILEDB_TIME_AS:
-                    nb::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
+                    nb::dlpack::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
                     auto dt0 = nb::isinstance<nb::int_>(r0) ?
                                    r0 :
                                    r0.attr("astype")(dtype);
@@ -549,7 +549,7 @@ void add_label_range(
                             nb::cast<int64_t>(dt0),
                             nb::cast<int64_t>(dt1));
                     } else {
-                        auto darray = nb::array(nb::make_tuple(dt0, dt1));
+                        auto darray = nb::ndarray(nb::make_tuple(dt0, dt1));
                         SubarrayExperimental::add_label_range(
                             ctx,
                             subarray,
@@ -582,7 +582,7 @@ bool has_label_range(const Context& ctx, Subarray& subarray, uint32_t dim_idx) {
     return has_label == 1;
 }
 
-void init_subarray(nb::module& m) {
+void init_subarray(nb::module_& m) {
     nb::class_<tiledb::Subarray>(m, "Subarray")
         .def(nb::init<Subarray>())
 
@@ -617,7 +617,7 @@ void init_subarray(nb::module& m) {
             [](Subarray& subarray, const Context& ctx, nb::iterable ranges) {
                 uint32_t dim_idx = 0;
                 for (auto dim_range : ranges) {
-                    if (nb::isinstance<nb::array>(dim_range)) {
+                    if (nb::isinstance<nb::ndarray>(dim_range)) {
                         add_dim_point_ranges(ctx, subarray, dim_idx, dim_range);
                     } else {
                         nb::tuple dim_range_iter = dim_range
@@ -636,7 +636,7 @@ void init_subarray(nb::module& m) {
             [](Subarray& subarray,
                const Context& ctx,
                uint32_t dim_idx,
-               pybind11::handle dim_range) {
+               nb::handle dim_range) {
                 add_dim_point_ranges(ctx, subarray, dim_idx, dim_range);
             })
 
@@ -707,7 +707,7 @@ void init_subarray(nb::module& m) {
             [](Subarray& subarray, const Context& ctx) {
                 auto ndim = subarray.array().schema().domain().ndim();
                 // Create numpy array and get pointer to data.
-                nb::array_t<nb::ssize_t> shape(ndim);
+                nb::ndarray<nb::ssize_t> shape(ndim);
                 nb::buffer_info shape_result = shape.request();
                 nb::ssize_t* shape_ptr = static_cast<nb::ssize_t*>(
                     shape_result.ptr);

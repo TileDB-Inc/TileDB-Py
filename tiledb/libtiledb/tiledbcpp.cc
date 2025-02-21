@@ -1,9 +1,9 @@
 #include <tiledb/tiledb>  // C++
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 #include "common.h"
 
 namespace libtiledbcpp {
@@ -12,27 +12,27 @@ using namespace tiledb;
 namespace nb = nanobind;
 
 template <typename... Args>
-using overload_cast_ = pybind11::detail::overload_cast_impl<Args...>;
+using overload_cast_ = nb::detail::overload_cast_impl<Args...>;
 
-void init_array(nb::module&);
-void init_attribute(nb::module&);
-void init_context(nb::module&);
-void init_config(nb::module&);
-void init_consolidation_plan(nb::module& m);
-void init_current_domain(nb::module& m);
-void init_enums(nb::module&);
-void init_enumeration(nb::module&);
-void init_dimension_label(nb::module& m);
-void init_domain(nb::module& m);
-void init_file_handle(nb::module&);
-void init_filestore(nb::module& m);
-void init_filter(nb::module&);
-void init_group(nb::module&);
-void init_object(nb::module& m);
-void init_query(nb::module& m);
-void init_schema(nb::module&);
-void init_subarray(nb::module&);
-void init_vfs(nb::module& m);
+void init_array(nb::module_&);
+void init_attribute(nb::module_&);
+void init_context(nb::module_&);
+void init_config(nb::module_&);
+void init_consolidation_plan(nb::module_& m);
+void init_current_domain(nb::module_& m);
+void init_enums(nb::module_&);
+void init_enumeration(nb::module_&);
+void init_dimension_label(nb::module_& m);
+void init_domain(nb::module_& m);
+void init_file_handle(nb::module_&);
+void init_filestore(nb::module_& m);
+void init_filter(nb::module_&);
+void init_group(nb::module_&);
+void init_object(nb::module_& m);
+void init_query(nb::module_& m);
+void init_schema(nb::module_&);
+void init_subarray(nb::module_&);
+void init_vfs(nb::module_& m);
 
 NB_MODULE(libtiledb, m) {
     init_array(m);
@@ -71,7 +71,7 @@ NB_MODULE(libtiledb, m) {
      exception in the *readquery* module, so we must import to reference.
     */
     nb::exception_translator([](std::exception_ptr p) {
-        auto tiledb_py_error = (nb::object)nb::module::import("tiledb").attr(
+        auto tiledb_py_error = (nb::object)nb::module_::import_("tiledb").attr(
             "TileDBError");
 
         try {

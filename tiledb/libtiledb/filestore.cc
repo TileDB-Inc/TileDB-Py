@@ -1,10 +1,10 @@
 #include <tiledb/tiledb>
 #include <tiledb/tiledb_experimental>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include "common.h"
 
@@ -61,13 +61,13 @@ class Filestore {
         const char* filestore_array_uri,
         size_t offset,
         size_t size) {
-        nb::array data = nb::array(nb::dtype<std::byte>(), size);
+        nb::ndarray data = nb::ndarray(nb::dtype<std::byte>(), size);
         nb::buffer_info buffer = data.request();
 
         ctx.handle_error(tiledb_filestore_buffer_export(
             ctx.ptr().get(), filestore_array_uri, offset, buffer.ptr, size));
 
-        auto np = nb::module::import("numpy");
+        auto np = nb::module_::import_("numpy");
         auto to_bytes = np.attr("ndarray").attr("tobytes");
 
         return to_bytes(data);
@@ -93,7 +93,7 @@ class Filestore {
     }
 };
 
-void init_filestore(nb::module& m) {
+void init_filestore(nb::module_& m) {
     nb::class_<Filestore>(m, "Filestore")
         .def_static(
             "_schema_create", &Filestore::schema_create, nb::keep_alive<1, 2>())

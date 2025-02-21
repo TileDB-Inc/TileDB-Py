@@ -9,10 +9,10 @@
 #include <string>
 #include <vector>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 #include "npbuffer.h"
 #include "util.h"
 
@@ -43,7 +43,7 @@ namespace tiledbpy {
 
 using namespace tiledb;
 namespace nb = nanobind;
-using namespace pybind11::literals;
+using namespace nb::literals;
 
 using TimerType = std::chrono::duration<double>;
 struct StatsInfo {
@@ -77,7 +77,7 @@ struct PAPair {
 static std::unique_ptr<StatsInfo> g_stats;
 
 // forward declaration
-nb::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
+nb::dlpack::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num);
 
 struct BufferInfo {
     BufferInfo(
@@ -98,9 +98,9 @@ struct BufferInfo {
         try {
             dtype = tiledb_dtype(data_type, cell_val_num);
             elem_nbytes = tiledb_datatype_size(type);
-            data = nb::array(nb::dtype("uint8"), data_nbytes);
-            offsets = nb::array_t<uint64_t>(offsets_num);
-            validity = nb::array_t<uint8_t>(validity_num);
+            data = nb::ndarray(nb::dtype("uint8"), data_nbytes);
+            offsets = nb::ndarray<uint64_t>(offsets_num);
+            validity = nb::ndarray<uint8_t>(validity_num);
         } catch (nb::python_error& e) {
             TPY_ERROR_LOC(e.what())
         }
@@ -109,7 +109,7 @@ struct BufferInfo {
 
     string name;
     tiledb_datatype_t type;
-    nb::dtype dtype;
+    nb::dlpack::dtype dtype;
     size_t elem_nbytes = 1;
     uint64_t data_vals_read = 0;
     uint32_t cell_val_num;
@@ -118,9 +118,9 @@ struct BufferInfo {
     bool isvar;
     bool isnullable;
 
-    nb::array data;
-    nb::array_t<uint64_t> offsets;
-    nb::array_t<uint8_t> validity;
+    nb::ndarray data;
+    nb::ndarray<uint64_t> offsets;
+    nb::ndarray<uint8_t> validity;
 };
 
 struct BufferHolder {
@@ -139,35 +139,35 @@ struct BufferHolder {
     }
 };
 
-nb::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
+nb::dlpack::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     if (cell_val_num == 1) {
-        auto np = nb::module::import("numpy");
+        auto np = nb::module_::import_("numpy");
         auto datetime64 = np.attr("datetime64");
         switch (type) {
             case TILEDB_INT32:
-                return nb::dtype("int32");
+                return nb::dtype<"int32">;
             case TILEDB_INT64:
-                return nb::dtype("int64");
+                return nb::dtype<"int64">;
             case TILEDB_FLOAT32:
-                return nb::dtype("float32");
+                return nb::dtype<"float32">;
             case TILEDB_FLOAT64:
-                return nb::dtype("float64");
+                return nb::dtype<"float64">;
             case TILEDB_INT8:
-                return nb::dtype("int8");
+                return nb::dtype<"int8">;
             case TILEDB_UINT8:
-                return nb::dtype("uint8");
+                return nb::dtype<"uint8">;
             case TILEDB_INT16:
-                return nb::dtype("int16");
+                return nb::dtype<"int16">;
             case TILEDB_UINT16:
-                return nb::dtype("uint16");
+                return nb::dtype<"uint16">;
             case TILEDB_UINT32:
-                return nb::dtype("uint32");
+                return nb::dtype<"uint32">;
             case TILEDB_UINT64:
-                return nb::dtype("uint64");
+                return nb::dtype<"uint64">;
             case TILEDB_STRING_ASCII:
-                return nb::dtype("S1");
+                return nb::dtype<"S1">;
             case TILEDB_STRING_UTF8:
-                return nb::dtype("U1");
+                return nb::dtype<"U1">;
             case TILEDB_STRING_UTF16:
             case TILEDB_STRING_UTF32:
                 TPY_ERROR_LOC(
@@ -176,71 +176,71 @@ nb::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
             case TILEDB_STRING_UCS4:
                 TPY_ERROR_LOC("Unimplemented UCS2 or UCS4 string conversion!");
             case TILEDB_CHAR:
-                return nb::dtype("S1");
+                return nb::dtype<"S1">;
             case TILEDB_DATETIME_YEAR:
-                return nb::dtype("M8[Y]");
+                return nb::dtype<"M8[Y]">;
             case TILEDB_DATETIME_MONTH:
-                return nb::dtype("M8[M]");
+                return nb::dtype<"M8[M]">;
             case TILEDB_DATETIME_WEEK:
-                return nb::dtype("M8[W]");
+                return nb::dtype<"M8[W]">;
             case TILEDB_DATETIME_DAY:
-                return nb::dtype("M8[D]");
+                return nb::dtype<"M8[D]">;
             case TILEDB_DATETIME_HR:
-                return nb::dtype("M8[h]");
+                return nb::dtype<"M8[h]">;
             case TILEDB_DATETIME_MIN:
-                return nb::dtype("M8[m]");
+                return nb::dtype<"M8[m]">;
             case TILEDB_DATETIME_SEC:
-                return nb::dtype("M8[s]");
+                return nb::dtype<"M8[s]">;
             case TILEDB_DATETIME_MS:
-                return nb::dtype("M8[ms]");
+                return nb::dtype<"M8[ms]">;
             case TILEDB_DATETIME_US:
-                return nb::dtype("M8[us]");
+                return nb::dtype<"M8[us]">;
             case TILEDB_DATETIME_NS:
-                return nb::dtype("M8[ns]");
+                return nb::dtype<"M8[ns]">;
             case TILEDB_DATETIME_PS:
-                return nb::dtype("M8[ps]");
+                return nb::dtype<"M8[ps]">;
             case TILEDB_DATETIME_FS:
-                return nb::dtype("M8[fs]");
+                return nb::dtype<"M8[fs]">;
             case TILEDB_DATETIME_AS:
-                return nb::dtype("M8[as]");
+                return nb::dtype<"M8[as]">;
 
             /* duration types map to timedelta */
             case TILEDB_TIME_HR:
-                return nb::dtype("m8[h]");
+                return nb::dtype<"m8[h]">;
             case TILEDB_TIME_MIN:
-                return nb::dtype("m8[m]");
+                return nb::dtype<"m8[m]">;
             case TILEDB_TIME_SEC:
-                return nb::dtype("m8[s]");
+                return nb::dtype<"m8[s]">;
             case TILEDB_TIME_MS:
-                return nb::dtype("m8[ms]");
+                return nb::dtype<"m8[ms]">;
             case TILEDB_TIME_US:
-                return nb::dtype("m8[us]");
+                return nb::dtype<"m8[us]">;
             case TILEDB_TIME_NS:
-                return nb::dtype("m8[ns]");
+                return nb::dtype<"m8[ns]">;
             case TILEDB_TIME_PS:
-                return nb::dtype("m8[ps]");
+                return nb::dtype<"m8[ps]">;
             case TILEDB_TIME_FS:
-                return nb::dtype("m8[fs]");
+                return nb::dtype<"m8[fs]">;
             case TILEDB_TIME_AS:
-                return nb::dtype("m8[as]");
+                return nb::dtype<"m8[as]">;
             case TILEDB_BLOB:
-                return nb::dtype("byte");
+                return nb::dtype<"byte">;
             case TILEDB_BOOL:
-                return nb::dtype("bool");
+                return nb::dtype<"bool">;
 #if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
             case TILEDB_GEOM_WKB:
-                return nb::dtype("byte");
+                return nb::dtype<"byte">;
             case TILEDB_GEOM_WKT:
-                return nb::dtype("S");
+                return nb::dtype<"S">;
 #endif
 
             case TILEDB_ANY:
                 break;
         }
     } else if (cell_val_num == 2 && type == TILEDB_FLOAT32) {
-        return nb::dtype("complex64");
+        return nb::dtype<"complex64">;
     } else if (cell_val_num == 2 && type == TILEDB_FLOAT64) {
-        return nb::dtype("complex128");
+        return nb::dtype<"complex128">;
     } else if (
         type == TILEDB_CHAR || type == TILEDB_STRING_UTF8 ||
         type == TILEDB_STRING_ASCII) {
@@ -263,12 +263,12 @@ nb::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
     } else if (cell_val_num == TILEDB_VAR_NUM) {
         return tiledb_dtype(type, 1);
     } else if (cell_val_num > 1) {
-        nb::dtype base_dtype = tiledb_dtype(type, 1);
+        nb::dlpack::dtype base_dtype = tiledb_dtype(type, 1);
         nb::tuple rec_elem = nb::make_tuple("", base_dtype);
         nb::list rec_list;
         for (size_t i = 0; i < cell_val_num; i++)
             rec_list.append(rec_elem);
-        auto np = nb::module::import("numpy");
+        auto np = nb::module_::import_("numpy");
         // note: we call the 'dtype' constructor b/c nb::dtype does not accept
         // list
         auto np_dtype = np.attr("dtype");
@@ -280,16 +280,16 @@ nb::dtype tiledb_dtype(tiledb_datatype_t type, uint32_t cell_val_num) {
         "', cell_val_num: " + std::to_string(cell_val_num) + ")");
 }
 
-nb::array_t<uint8_t> uint8_bool_to_uint8_bitmap(
-    nb::array_t<uint8_t> validity_array) {
+nb::ndarray<uint8_t> uint8_bool_to_uint8_bitmap(
+    nb::ndarray<uint8_t> validity_array) {
     // TODO profile, probably replace; avoid inplace reassignment
-    auto np = nb::module::import("numpy");
+    auto np = nb::module_::import_("numpy");
     auto packbits = np.attr("packbits");
     auto tmp = packbits(validity_array, "bitorder"_a = "little");
     return tmp;
 }
 
-uint64_t count_zeros(nb::array_t<uint8_t> a) {
+uint64_t count_zeros(nb::ndarray<uint8_t> a) {
     uint64_t count = 0;
     for (Py_ssize_t idx = 0; idx < a.size(); idx++)
         count += (a.data()[idx] == 0) ? 1 : 0;
@@ -297,7 +297,7 @@ uint64_t count_zeros(nb::array_t<uint8_t> a) {
 }
 
 class PyAgg {
-    using ByteBuffer = nb::array_t<uint8_t>;
+    using ByteBuffer = nb::ndarray<uint8_t>;
     using AggToBufferMap = std::map<std::string, ByteBuffer>;
     using AttrToAggsMap = std::map<std::string, AggToBufferMap>;
 
@@ -321,7 +321,10 @@ class PyAgg {
         nb::dict attr_to_aggs_input)
         : ctx_(ctx)
         , original_input_(attr_to_aggs_input) {
-        tiledb_array_t* c_array_ = (nb::capsule)py_array.attr("__capsule__")();
+        // tiledb_array_t* c_array_ =
+        // (nb::capsule)py_array.attr("__capsule__")();
+        tiledb_array_t* c_array_ = nb::cast<tiledb_array_t*>(
+            py_array.attr("__capsule__")());
 
         // We never own this pointer; pass own=false
         array_ = std::make_shared<tiledb::Array>(ctx_, c_array_, false);
@@ -369,11 +372,12 @@ class PyAgg {
                 if ("count" == agg_name || "null_count" == agg_name ||
                     "mean" == agg_name) {
                     // count and null_count use uint64 and mean uses float64
-                    *res_buf = nb::array(nb::dtype("uint8"), 8);
+                    *res_buf = nb::ndarray(nb::dtype("uint8"), 8);
                 } else {
                     // max, min, and sum use the dtype of the attribute
-                    nb::dtype dt(tiledb_dtype(attr.type(), attr.cell_size()));
-                    *res_buf = nb::array(nb::dtype("uint8"), dt.itemsize());
+                    nb::dlpack::dtype dt(
+                        tiledb_dtype(attr.type(), attr.cell_size()));
+                    *res_buf = nb::ndarray(nb::dtype("uint8"), dt.itemsize());
                 }
                 query_->set_data_buffer(
                     attr_name + agg_name, (void*)res_buf->data(), 1);
@@ -387,7 +391,7 @@ class PyAgg {
                     if (!("count" == agg_name || "null_count" == agg_name)) {
                         auto* val_buf = &validity_buffers_[attr.name()]
                                                           [agg_name];
-                        *val_buf = nb::array(nb::dtype("uint8"), 1);
+                        *val_buf = nb::ndarray(nb::dtype("uint8"), 1);
                         query_->set_validity_buffer(
                             attr_name + agg_name, (uint8_t*)val_buf->data(), 1);
                     }
@@ -607,7 +611,9 @@ class PyQuery {
             use_arrow_ = nb::cast<bool>(use_arrow);
         }
 
-        tiledb_array_t* c_array_ = (nb::capsule)array.attr("__capsule__")();
+        // tiledb_array_t* c_array_ = (nb::capsule)array.attr("__capsule__")();
+        tiledb_array_t* c_array_ = nb::cast<tiledb_array_t*>(
+            array.attr("__capsule__")());
 
         // we never own this pointer, pass own=false
         array_ = std::make_shared<tiledb::Array>(ctx_, c_array_, false);
@@ -650,8 +656,8 @@ class PyQuery {
                     // unpack value tuple of (data, offsets)
                     auto bfrs = b.second
                                     .cast<std::pair<nb::handle, nb::handle>>();
-                    auto data_array = bfrs.first.cast<nb::array>();
-                    auto offsets_array = bfrs.second.cast<nb::array>();
+                    auto data_array = bfrs.first.cast<nb::ndarray>();
+                    auto offsets_array = bfrs.second.cast<nb::ndarray>();
 
                     import_buffer(name, data_array, offsets_array);
                 }
@@ -794,7 +800,7 @@ class PyQuery {
         TPY_ERROR_LOC("Unknown buffer '" + name + "' for buffer_ncells");
     }
 
-    nb::dtype buffer_dtype(std::string name) {
+    nb::dlpack::dtype buffer_dtype(std::string name) {
         try {
             auto t = buffer_type(name);
             return tiledb_dtype(t.first, t.second);
@@ -808,7 +814,8 @@ class PyQuery {
         return array_->schema().array_type() == TILEDB_SPARSE;
     }
 
-    void import_buffer(std::string name, nb::array data, nb::array offsets) {
+    void import_buffer(
+        std::string name, nb::ndarray data, nb::ndarray offsets) {
         tiledb_datatype_t type;
         uint32_t cell_val_num;
         std::tie(type, cell_val_num) = buffer_type(name);
@@ -1343,8 +1350,8 @@ class PyQuery {
         }
     }
 
-    nb::array unpack_buffer(
-        std::string name, nb::array buf, nb::array_t<uint64_t> off) {
+    nb::ndarray unpack_buffer(
+        std::string name, nb::ndarray buf, nb::ndarray<uint64_t> off) {
         auto start = std::chrono::high_resolution_clock::now();
 
         if (off.size() < 1)
@@ -1355,7 +1362,7 @@ class PyQuery {
         bool is_unicode = dtype.is(nb::dtype("U"));
         bool is_str = dtype.is(nb::dtype("S"));
         if (is_unicode || is_str) {
-            dtype = nb::dtype("O");
+            dtype = nb::dtype<"O">;
         }
 
         // Hashmap for string deduplication
@@ -1367,7 +1374,7 @@ class PyQuery {
             map.reserve(size_t(off.size() / 10) + 1);
         }
 
-        auto result_array = nb::array(nb::dtype("O"), off.size());
+        auto result_array = nb::ndarray(nb::dtype("O"), off.size());
         auto result_p = (nb::object*)result_array.mutable_data();
         uint64_t last = 0;
         uint64_t cur = 0;
@@ -1415,7 +1422,7 @@ class PyQuery {
                     o = nb::bytes(data_ptr, size);
                 }
             else {
-                o = nb::array(nb::dtype("uint8"), size, data_ptr);
+                o = nb::ndarray(nb::dtype("uint8"), size, data_ptr);
                 o.attr("dtype") = dtype;
             }
 
@@ -1480,9 +1487,9 @@ class PyQuery {
     }
 
     nb::object buffers_to_pa_table() {
-        using namespace pybind11::literals;
+        using namespace nb::literals;
 
-        auto pa = nb::module::import("pyarrow");
+        auto pa = nb::module_::import_("pyarrow");
         auto pa_array_import = pa.attr("Array").attr("_import_from_c");
 
         tiledb::arrow::ArrowAdapter adapter(&ctx_, query_.get());
@@ -1591,8 +1598,8 @@ class PyQuery {
         return std::move(results);
     }
 
-    nb::array _test_array() {
-        nb::array_t<uint8_t> a;
+    nb::ndarray _test_array() {
+        nb::ndarray<uint8_t> a;
         a.resize({10});
 
         a.resize({20});
@@ -1820,7 +1827,7 @@ auto walk_callback =
         return 1;
     };
 
-void init_core(nb::module& m) {
+void init_core(nb::module_& m) {
     init_query_condition(m);
 
     auto pq = nb::class_<PyQuery>(m, "PyQuery")
@@ -1968,8 +1975,8 @@ void init_core(nb::module& m) {
      error. Note that using nb::exception(..., "TileDBError") creates a new
      exception in the *readquery* module, so we must import to reference.
   */
-    static auto tiledb_py_error = (nb::object)nb::module::import("tiledb").attr(
-        "TileDBError");
+    static auto tiledb_py_error = (nb::object)nb::module_::import_("tiledb")
+                                      .attr("TileDBError");
 
     nb::exception_translator([](std::exception_ptr p) {
         try {

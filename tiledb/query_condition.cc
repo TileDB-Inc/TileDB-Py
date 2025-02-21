@@ -1,5 +1,5 @@
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
+#include <nanobind/nanobind.h>
+// #include <pybind11/pytypes.h>
 
 #include <exception>
 
@@ -15,7 +15,7 @@ namespace tiledbpy {
 using namespace std;
 using namespace tiledb;
 namespace nb = nanobind;
-using namespace pybind11::literals;
+using namespace nb::literals;
 
 class PyQueryCondition {
    private:
@@ -120,20 +120,17 @@ class PyQueryCondition {
 
     void set_ctx(nb::object ctx) {
         tiledb_ctx_t* c_ctx;
-        if ((c_ctx = (nb::capsule)ctx.attr("__capsule__")()) == nullptr)
+        // if ((c_ctx = (nb::capsule)ctx.attr("__capsule__")()) == nullptr)
+        if ((c_ctx = nb::cast<tiledb_ctx_t*>(ctx.attr("__capsule__")())) ==
+            nullptr)
             TPY_ERROR_LOC("Invalid context pointer!")
         ctx_ = Context(c_ctx, false);
     }
 };  // namespace tiledbpy
 
-void init_query_condition(nb::module& m) {
+void init_query_condition(nb::module_& m) {
     nb::class_<PyQueryCondition>(m, "PyQueryCondition")
         .def(nb::init<nb::object>(), nb::arg("ctx") = nb::none())
-
-        /* TODO surely there's a better way to deal with templated PyBind11
-         * functions? but maybe not?
-         * https://github.com/pybind/pybind11/issues/1667
-         */
 
         .def(
             "init_string",

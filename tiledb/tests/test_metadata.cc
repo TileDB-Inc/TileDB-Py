@@ -1,8 +1,8 @@
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include <exception>
 
@@ -21,11 +21,11 @@ namespace tiledbpy {
 using namespace std;
 using namespace tiledb;
 namespace nb = nanobind;
-using namespace pybind11::literals;
+using namespace nb::literals;
 
 class PyASCIIMetadataTest {
    public:
-    static void write_ascii(nb::str uri) {
+    static void write_ascii(const std::string uri) {
         Context ctx;
         Array array(ctx, uri, TILEDB_WRITE);
 
@@ -36,7 +36,7 @@ class PyASCIIMetadataTest {
     }
 };
 
-void init_test_metadata(nb::module& m) {
+void init_test_metadata(nb::module_& m) {
     nb::class_<PyASCIIMetadataTest>(m, "metadata_test_aux")
         .def_static("write_ascii", &PyASCIIMetadataTest::write_ascii);
 }

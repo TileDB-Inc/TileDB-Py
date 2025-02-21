@@ -3,10 +3,10 @@
 
 #include "common.h"
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 // #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 // #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
@@ -17,7 +17,7 @@ using namespace tiledb;
 using namespace std;
 namespace nb = nanobind;
 
-void init_query(nb::module& m) {
+void init_query(nb::module_& m) {
     nb::class_<tiledb::Query>(m, "Query")
 
         //.def(nb::init<nb::object, nb::object, nb::iterable, nb::object,
@@ -78,14 +78,14 @@ void init_query(nb::module& m) {
 
         .def(
             "set_data_buffer",
-            [](Query& q, std::string name, nb::array a, uint64_t nelements) {
+            [](Query& q, std::string name, nb::ndarray a, uint64_t nelements) {
                 QueryExperimental::set_data_buffer(
                     q, name, const_cast<void*>(a.data()), nelements);
             })
 
         .def(
             "set_offsets_buffer",
-            [](Query& q, std::string name, nb::array a, uint64_t nelements) {
+            [](Query& q, std::string name, nb::ndarray a, uint64_t nelements) {
                 q.set_offsets_buffer(name, (uint64_t*)(a.data()), nelements);
             })
 
@@ -97,7 +97,7 @@ void init_query(nb::module& m) {
 
         .def(
             "set_validity_buffer",
-            [](Query& q, std::string name, nb::array a, uint64_t nelements) {
+            [](Query& q, std::string name, nb::ndarray a, uint64_t nelements) {
                 q.set_validity_buffer(name, (uint8_t*)(a.data()), nelements);
             })
 

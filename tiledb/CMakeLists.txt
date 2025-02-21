@@ -1,6 +1,6 @@
-# Pybind11
+# Nanobind
 
-pybind11_add_module(
+nanobind_add_module(
     main
     main.cc
     core.cc

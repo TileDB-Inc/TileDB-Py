@@ -1,9 +1,9 @@
 #include <tiledb/tiledb>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include "common.h"
 
@@ -13,7 +13,7 @@ using namespace tiledb;
 using namespace tiledbnb::common;
 namespace nb = nanobind;
 
-void init_object(nb::module& m) {
+void init_object(nb::module_& m) {
     nb::class_<Object>(m, "Object")
         .def(nb::init<
              const Object::Type&,

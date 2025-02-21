@@ -1,10 +1,10 @@
 #include <tiledb/tiledb>
 #include <tiledb/tiledb_experimental>
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/pytypes.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+// #include <pybind11/pytypes.h>
+// #include <pybind11/stl.h>
 
 #include "common.h"
 
@@ -14,11 +14,11 @@ using namespace tiledb;
 using namespace tiledbnb::common;
 namespace nb = nanobind;
 
-void set_fill_value(Attribute& attr, nb::array value) {
+void set_fill_value(Attribute& attr, nb::ndarray value) {
     attr.set_fill_value(value.data(), value.nbytes());
 }
 
-nb::array get_fill_value(Attribute& attr) {
+nb::ndarray get_fill_value(Attribute& attr) {
     // Get the fill value from the C++ API as a void* value.
     const void* value;
     uint64_t size;
@@ -26,8 +26,8 @@ nb::array get_fill_value(Attribute& attr) {
 
     // If this is a string type, we want to return each value as a single cell.
     if (is_tdb_str(attr.type())) {
-        auto value_type = nb::dtype("|S1");
-        return nb::array(value_type, size, value);
+        auto value_type = nb::dtype<"|S1">;
+        return nb::ndarray(value_type, size, value);
     }
 
     // If this is a record type (void), return a single cell.
@@ -39,8 +39,8 @@ nb::array get_fill_value(Attribute& attr) {
         || tdb_type == TILEDB_GEOM_WKB || tdb_type == TILEDB_GEOM_WKT
 #endif
     ) {
-        auto value_type = nb::dtype("S");
-        return nb::array(value_type, size, value);
+        auto value_type = nb::dtype<"S">;
+        return nb::ndarray(value_type, size, value);
     }
 
     // Get the number of values in a cell and the Python datatype.
@@ -48,17 +48,17 @@ nb::array get_fill_value(Attribute& attr) {
     auto value_type = tdb_to_np_dtype(attr.type(), value_num);
 
     if (nb::getattr(value_type, "kind").is(nb::str("V"))) {
-        return nb::array(value_type, 1, value);
+        return nb::ndarray(value_type, 1, value);
     }
 
     // If this is a complex type both cell values fit in a single complex
     // element.
     if (value_type.is(nb::dtype("complex64")) ||
         value_type.is(nb::dtype("complex128"))) {
-        return nb::array(value_type, 1, value);
+        return nb::ndarray(value_type, 1, value);
     }
 
-    return nb::array(value_type, value_num, value);
+    return nb::ndarray(value_type, value_num, value);
 }
 
 void set_enumeration_name(
@@ -71,7 +71,7 @@ std::optional<std::string> get_enumeration_name(
     return AttributeExperimental::get_enumeration_name(ctx, attr);
 }
 
-void init_attribute(nb::module& m) {
+void init_attribute(nb::module_& m) {
     nb::class_<tiledb::Attribute>(m, "Attribute")
         .def(nb::init<Attribute>())
 

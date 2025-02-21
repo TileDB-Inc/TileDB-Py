@@ -1,20 +1,20 @@
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 namespace tiledbpy {
 
 namespace nb = nanobind;
 
-void init_core(nb::module&);
-// void _debug(nb::module &);
-void init_fragment(nb::module&);
-// void init_query_condition(nb::module &);
-void init_schema_evolution(nb::module&);
+void init_core(nb::module_&);
+// void _debug(nb::module_ &);
+void init_fragment(nb::module_&);
+// void init_query_condition(nb::module_ &);
+void init_schema_evolution(nb::module_&);
 #if defined(TILEDB_SERIALIZATION)
-void init_serialization(nb::module&);
-void init_test_serialization(nb::module&);
+void init_serialization(nb::module_&);
+void init_test_serialization(nb::module_&);
 #endif
-void init_test_metadata(nb::module&);
-void init_test_webp_filter(nb::module&);
+void init_test_metadata(nb::module_&);
+void init_test_webp_filter(nb::module_&);
 
 NB_MODULE(main, m) {
     init_core(m);
