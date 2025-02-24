@@ -121,7 +121,7 @@ class TestMultiIndexPropertySparse:
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
         uri = sparse_array_1d
-        ranges = [(0, 0)]
+        ranges = [(-99, 84), (-66, 58), (-15, 83), (-100, 15), (-100, 66), (94, 95), (-66, -22), (51, 57), (-54, 29), (35, 99)]
         order = "U"
 
         assert isinstance(uri, str)
