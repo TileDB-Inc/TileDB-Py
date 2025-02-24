@@ -121,23 +121,25 @@ class TestMultiIndexPropertySparse:
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
         uri = sparse_array_1d
-        ranges = [(-99, 84), (-66, 58), (-15, 83), (-100, 15), (-100, 66), (94, 95), (-66, -22), (51, 57), (-54, 29), (35, 99)]
-        order = "U"
-
         assert isinstance(uri, str)
 
-        try:
-            with tiledb.open(uri) as A:
-                r1 = A.query(order=order).multi_index[ranges]["a"]
-                r2 = _direct_query_ranges(A, [ranges], order)["a"]
+        order = "U"
+        list_of_ranges = [[(-99, 84), (-66, 58), (-15, 83), (-100, 15), (-100, 66), (94, 95), (-66, -22), (51, 57), (-54, 29), (35, 99)],
+                          [(-99, 84), (-66, 58), (-15, 83), (-100, 15), (-100, 66), (94, 95), (-66, -22), (51, 57), (-54, 29), (35, 99)]]
 
-                assert_array_equal(r1, r2)
-        except tiledb.TileDBError as exc:
-            if is_boundserror(exc):
-                # out of bounds, this is ok so we tell hypothesis to ignore
-                # TODO these should all be IndexError
-                assume(False)
-            raise
+        for ranges in list_of_ranges:
+            try:
+                with tiledb.open(uri) as A:
+                    r1 = A.query(order=order).multi_index[ranges]["a"]
+                    r2 = _direct_query_ranges(A, [ranges], order)["a"]
+
+                    assert_array_equal(r1, r2)
+            except tiledb.TileDBError as exc:
+                if is_boundserror(exc):
+                    # out of bounds, this is ok so we tell hypothesis to ignore
+                    # TODO these should all be IndexError
+                    assume(False)
+                raise
 
     @given(index_obj)
     @hp.settings(deadline=None)
