@@ -88,7 +88,7 @@ class TestMultiIndexPropertySparse:
         return uri
 
     @given(
-        order=st.sampled_from(["C", "F", "U"]),
+        order=st.sampled_from(["C", "F"]),
         ranges=st.lists(
             st.tuples(
                 st.integers(min_value=-100, max_value=100),
@@ -97,7 +97,37 @@ class TestMultiIndexPropertySparse:
         ),
     )
     @hp.settings(deadline=None)
-    def test_multi_index_two_way_query(self, order, ranges, sparse_array_1d):
+    def test_multi_index_two_way_query_C_F(self, order, ranges, sparse_array_1d):
+        """This test checks the result of "direct" range queries using PyQuery
+        against the result of `multi_index` on the same ranges."""
+        uri = sparse_array_1d
+
+        assert isinstance(uri, str)
+
+        try:
+            with tiledb.open(uri) as A:
+                r1 = A.query(order=order).multi_index[ranges]["a"]
+                r2 = _direct_query_ranges(A, [ranges], order)["a"]
+
+                assert_array_equal(r1, r2)
+        except tiledb.TileDBError as exc:
+            if is_boundserror(exc):
+                # out of bounds, this is ok so we tell hypothesis to ignore
+                # TODO these should all be IndexError
+                assume(False)
+            raise
+
+    @given(
+        order=st.sampled_from(["U"]),
+        ranges=st.lists(
+            st.tuples(
+                st.integers(min_value=-100, max_value=100),
+                st.integers(min_value=-100, max_value=100),
+            ).map(lambda x: (min(x), max(x)))
+        ),
+    )
+    @hp.settings(deadline=None)
+    def test_multi_index_two_way_query_U(self, order, ranges, sparse_array_1d):
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
         uri = sparse_array_1d
