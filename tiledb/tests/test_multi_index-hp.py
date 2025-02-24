@@ -87,8 +87,10 @@ class TestMultiIndexPropertySparse:
 
         return uri
 
+    # ==================
+    stored_test_cases = []
+
     @given(
-        order=st.sampled_from(["C", "F"]),
         ranges=st.lists(
             st.tuples(
                 st.integers(min_value=-100, max_value=100),
@@ -97,25 +99,37 @@ class TestMultiIndexPropertySparse:
         ),
     )
     @hp.settings(deadline=None)
-    def test_multi_index_two_way_query_C_F(self, order, ranges, sparse_array_1d):
+    def test_multi_index_two_way_query_printer(self, ranges):
+        global stored_test_cases
+        self.stored_test_cases.append(ranges)
+        assert isinstance(ranges, list)
+        print(ranges)
+
+    @given(
+        order=st.sampled_from(["C", "F"]),
+    )
+    @hp.settings(deadline=None)
+    def test_multi_index_two_way_query_C_F(self, order, sparse_array_1d):
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
         uri = sparse_array_1d
+        list_of_ranges = self.stored_test_cases
 
         assert isinstance(uri, str)
 
-        try:
-            with tiledb.open(uri) as A:
-                r1 = A.query(order=order).multi_index[ranges]["a"]
-                r2 = _direct_query_ranges(A, [ranges], order)["a"]
+        for ranges in list_of_ranges:
+            try:
+                with tiledb.open(uri) as A:
+                    r1 = A.query(order=order).multi_index[ranges]["a"]
+                    r2 = _direct_query_ranges(A, [ranges], order)["a"]
 
-                assert_array_equal(r1, r2)
-        except tiledb.TileDBError as exc:
-            if is_boundserror(exc):
-                # out of bounds, this is ok so we tell hypothesis to ignore
-                # TODO these should all be IndexError
-                assume(False)
-            raise
+                    assert_array_equal(r1, r2)
+            except tiledb.TileDBError as exc:
+                if is_boundserror(exc):
+                    # out of bounds, this is ok so we tell hypothesis to ignore
+                    # TODO these should all be IndexError
+                    assume(False)
+                raise
 
     def test_multi_index_two_way_query(self, sparse_array_1d):
         """This test checks the result of "direct" range queries using PyQuery
@@ -123,9 +137,9 @@ class TestMultiIndexPropertySparse:
         uri = sparse_array_1d
         assert isinstance(uri, str)
 
+        list_of_ranges = self.stored_test_cases
+
         order = "U"
-        list_of_ranges = [[(-99, 84), (-66, 58), (-15, 83), (-100, 15), (-100, 66), (94, 95), (-66, -22), (51, 57), (-54, 29), (35, 99)],
-                          [(-99, 84), (-66, 58), (-15, 83), (-100, 15), (-100, 66), (94, 95), (-66, -22), (51, 57), (-54, 29), (35, 99)]]
 
         for ranges in list_of_ranges:
             try:
