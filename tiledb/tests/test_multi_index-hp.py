@@ -89,23 +89,50 @@ class TestMultiIndexPropertySparse:
         return uri
 
     # ==================
-    stored_test_cases = []
+    stored_test_cases = [
+        [],
+        [(0, 0)],
+        [(-33, 21)],
+        [(0, 71)],
+        [(0, 19)],
+        [(0, 61)],
+        [(-79, 61), (-30, 11)],
+        [(0, 36)],
+        [(-14, 0)],
+        [(-14, 24), (4, 76)],
+        [(-89, 0)],
+        [(-95, 5)],
+        [(5, 5)],
+        [(-56, -36), (-77, 12), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-64, 56), (-81, -32), (-21, 56), (34, 100)],
+        [(-21, 56), (-77, 12), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-64, 56), (-81, -32), (-21, 56), (34, 100)],
+        [(-21, 56), (-21, 56), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-64, 56), (-81, -32), (-21, 56), (34, 100)],
+        [(-21, 56), (-21, 56), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-9, 56), (-81, -32), (-21, 56), (34, 100)],
+        [(-21, 56), (-21, 56), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-9, 56), (-21, 56), (-21, 56), (34, 100)],
+        [(-21, 56), (-21, 56), (40, 62), (-9, 56), (-81, -12), (-57, 94), (-9, 56), (-21, 56), (-21, 56), (34, 100)],
+        [(-21, 56), (-21, 56), (40, 62), (-9, 56), (-81, -12), (-57, 94), (-9, 56), (34, 100), (-21, 56), (34, 100)],
+        [(-80, 0), (-2, 56), (-38, 52), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-47, -36), (-100, -74), (-100, -65), (-84, 63), (-89, 82)],
+        [(-80, 0), (-2, 56), (-89, 82), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-47, -36), (-100, -74), (-100, -65), (-84, 63), (-89, 82)],
+        [(-80, 0), (-2, 56), (-89, 82), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-47, -36), (-93, -74), (-100, -65), (-84, 63), (-89, 82)],
+        [(-80, 0), (-2, 56), (-89, 82), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-47, -36), (-93, -74), (-100, -65), (-84, 63), (-52, 83)],
+        [(-80, 0), (-2, 56), (-89, 82), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-100, -65), (-93, -74), (-100, -65), (-84, 63), (-52, 83)],
+        [(-38, -14), (-79, -11), (-10, 30), (3, 68), (-100, 75)]
+    ]
 
-    @given(
-        ranges=st.lists(
-            st.tuples(
-                st.integers(min_value=-100, max_value=100),
-                st.integers(min_value=-100, max_value=100),
-            ).map(lambda x: (min(x), max(x)))
-        ),
-    )
-    @hp.settings(deadline=None)
-    def test_multi_index_two_way_query_printer(self, ranges):
-        global stored_test_cases
-        self.stored_test_cases.append(ranges)
-        assert isinstance(ranges, list)
-        # print to error stream to capture in logs
-        print(ranges, file=sys.stderr)
+    # @given(
+    #     ranges=st.lists(
+    #         st.tuples(
+    #             st.integers(min_value=-100, max_value=100),
+    #             st.integers(min_value=-100, max_value=100),
+    #         ).map(lambda x: (min(x), max(x)))
+    #     ),
+    # )
+    # @hp.settings(deadline=None)
+    # def test_multi_index_two_way_query_printer(self, ranges):
+    #     global stored_test_cases
+    #     self.stored_test_cases.append(ranges)
+    #     assert isinstance(ranges, list)
+    #     # print to error stream to capture in logs
+    #     print(ranges, file=sys.stderr)
 
     @given(
         order=st.sampled_from(["C", "F"]),
@@ -156,6 +183,8 @@ class TestMultiIndexPropertySparse:
                     # TODO these should all be IndexError
                     assume(False)
                 raise
+
+    # ==================
 
     @given(index_obj)
     @hp.settings(deadline=None)
