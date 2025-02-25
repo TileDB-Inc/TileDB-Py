@@ -10,6 +10,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from numpy.testing import assert_array_equal
+import sys
 
 import tiledb
 from tiledb import SparseArray
@@ -103,7 +104,8 @@ class TestMultiIndexPropertySparse:
         global stored_test_cases
         self.stored_test_cases.append(ranges)
         assert isinstance(ranges, list)
-        print(ranges)
+        # print to error stream to capture in logs
+        print(ranges, file=sys.stderr)
 
     @given(
         order=st.sampled_from(["C", "F"]),
