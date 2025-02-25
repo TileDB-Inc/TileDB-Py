@@ -2,6 +2,7 @@
 # Property-based tests for Array.multi_index using Hypothesis
 #
 
+import sys
 import warnings
 
 import hypothesis as hp
@@ -10,7 +11,6 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from numpy.testing import assert_array_equal
-import sys
 
 import tiledb
 from tiledb import SparseArray
@@ -88,104 +88,222 @@ class TestMultiIndexPropertySparse:
 
         return uri
 
-    # ==================
-    stored_test_cases = [
-        [],
-        [(0, 0)],
-        [(-33, 21)],
-        [(0, 71)],
-        [(0, 19)],
-        [(0, 61)],
-        [(-79, 61), (-30, 11)],
-        [(0, 36)],
-        [(-14, 0)],
-        [(-14, 24), (4, 76)],
-        [(-89, 0)],
-        [(-95, 5)],
-        [(5, 5)],
-        [(-56, -36), (-77, 12), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-64, 56), (-81, -32), (-21, 56), (34, 100)],
-        [(-21, 56), (-77, 12), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-64, 56), (-81, -32), (-21, 56), (34, 100)],
-        [(-21, 56), (-21, 56), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-64, 56), (-81, -32), (-21, 56), (34, 100)],
-        [(-21, 56), (-21, 56), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-9, 56), (-81, -32), (-21, 56), (34, 100)],
-        [(-21, 56), (-21, 56), (40, 62), (-20, -9), (-81, -12), (-57, 94), (-9, 56), (-21, 56), (-21, 56), (34, 100)],
-        [(-21, 56), (-21, 56), (40, 62), (-9, 56), (-81, -12), (-57, 94), (-9, 56), (-21, 56), (-21, 56), (34, 100)],
-        [(-21, 56), (-21, 56), (40, 62), (-9, 56), (-81, -12), (-57, 94), (-9, 56), (34, 100), (-21, 56), (34, 100)],
-        [(-80, 0), (-2, 56), (-38, 52), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-47, -36), (-100, -74), (-100, -65), (-84, 63), (-89, 82)],
-        [(-80, 0), (-2, 56), (-89, 82), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-47, -36), (-100, -74), (-100, -65), (-84, 63), (-89, 82)],
-        [(-80, 0), (-2, 56), (-89, 82), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-47, -36), (-93, -74), (-100, -65), (-84, 63), (-89, 82)],
-        [(-80, 0), (-2, 56), (-89, 82), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-47, -36), (-93, -74), (-100, -65), (-84, 63), (-52, 83)],
-        [(-80, 0), (-2, 56), (-89, 82), (63, 87), (-93, -3), (12, 82), (-52, 83), (-8, 69), (-34, 76), (-20, -20), (-100, -65), (-93, -74), (-100, -65), (-84, 63), (-52, 83)],
-        [(-38, -14), (-79, -11), (-10, 30), (3, 68), (-100, 75)]
-    ]
-
-    # @given(
-    #     ranges=st.lists(
-    #         st.tuples(
-    #             st.integers(min_value=-100, max_value=100),
-    #             st.integers(min_value=-100, max_value=100),
-    #         ).map(lambda x: (min(x), max(x)))
-    #     ),
-    # )
-    # @hp.settings(deadline=None)
-    # def test_multi_index_two_way_query_printer(self, ranges):
-    #     global stored_test_cases
-    #     self.stored_test_cases.append(ranges)
-    #     assert isinstance(ranges, list)
-    #     # print to error stream to capture in logs
-    #     print(ranges, file=sys.stderr)
-
-    @given(
-        order=st.sampled_from(["C", "F"]),
-    )
-    @hp.settings(deadline=None)
-    def test_multi_index_two_way_query_C_F(self, order, sparse_array_1d):
+    def test_multi_index_two_way_query_agis(self, checked_path):
         """This test checks the result of "direct" range queries using PyQuery
         against the result of `multi_index` on the same ranges."""
-        uri = sparse_array_1d
-        list_of_ranges = self.stored_test_cases
 
-        assert isinstance(uri, str)
+        uri = checked_path.path()
 
-        for ranges in list_of_ranges:
-            try:
-                with tiledb.open(uri) as A:
-                    r1 = A.query(order=order).multi_index[ranges]["a"]
-                    r2 = _direct_query_ranges(A, [ranges], order)["a"]
+        schema = tiledb.ArraySchema(
+            tiledb.Domain([tiledb.Dim(dtype=np.int64, domain=(-100, 100))]),
+            attrs=[tiledb.Attr(name="a", dtype="float64", var=False, nullable=False)],
+            cell_order="row-major",
+            tile_order="row-major",
+            capacity=10000,
+            sparse=True,
+        )
 
-                    assert_array_equal(r1, r2)
-            except tiledb.TileDBError as exc:
-                if is_boundserror(exc):
-                    # out of bounds, this is ok so we tell hypothesis to ignore
-                    # TODO these should all be IndexError
-                    assume(False)
-                raise
+        tiledb.Array.create(uri, schema)
 
-    def test_multi_index_two_way_query(self, sparse_array_1d):
-        """This test checks the result of "direct" range queries using PyQuery
-        against the result of `multi_index` on the same ranges."""
-        uri = sparse_array_1d
-        assert isinstance(uri, str)
-
-        list_of_ranges = self.stored_test_cases
+        data = np.arange(-100, 100, dtype=np.int64)
+        with tiledb.open(uri, "w") as A:
+            A[data] = data
 
         order = "U"
 
+        list_of_ranges = [
+            [],
+            [(0, 0)],
+            [(-33, 21)],
+            [(0, 71)],
+            [(0, 19)],
+            [(0, 61)],
+            [(-79, 61), (-30, 11)],
+            [(0, 36)],
+            [(-14, 0)],
+            [(-14, 24), (4, 76)],
+            [(-89, 0)],
+            [(-95, 5)],
+            [(5, 5)],
+            [
+                (-56, -36),
+                (-77, 12),
+                (40, 62),
+                (-20, -9),
+                (-81, -12),
+                (-57, 94),
+                (-64, 56),
+                (-81, -32),
+                (-21, 56),
+                (34, 100),
+            ],
+            [
+                (-21, 56),
+                (-77, 12),
+                (40, 62),
+                (-20, -9),
+                (-81, -12),
+                (-57, 94),
+                (-64, 56),
+                (-81, -32),
+                (-21, 56),
+                (34, 100),
+            ],
+            [
+                (-21, 56),
+                (-21, 56),
+                (40, 62),
+                (-20, -9),
+                (-81, -12),
+                (-57, 94),
+                (-64, 56),
+                (-81, -32),
+                (-21, 56),
+                (34, 100),
+            ],
+            [
+                (-21, 56),
+                (-21, 56),
+                (40, 62),
+                (-20, -9),
+                (-81, -12),
+                (-57, 94),
+                (-9, 56),
+                (-81, -32),
+                (-21, 56),
+                (34, 100),
+            ],
+            [
+                (-21, 56),
+                (-21, 56),
+                (40, 62),
+                (-20, -9),
+                (-81, -12),
+                (-57, 94),
+                (-9, 56),
+                (-21, 56),
+                (-21, 56),
+                (34, 100),
+            ],
+            [
+                (-21, 56),
+                (-21, 56),
+                (40, 62),
+                (-9, 56),
+                (-81, -12),
+                (-57, 94),
+                (-9, 56),
+                (-21, 56),
+                (-21, 56),
+                (34, 100),
+            ],
+            [
+                (-21, 56),
+                (-21, 56),
+                (40, 62),
+                (-9, 56),
+                (-81, -12),
+                (-57, 94),
+                (-9, 56),
+                (34, 100),
+                (-21, 56),
+                (34, 100),
+            ],
+            [
+                (-80, 0),
+                (-2, 56),
+                (-38, 52),
+                (63, 87),
+                (-93, -3),
+                (12, 82),
+                (-52, 83),
+                (-8, 69),
+                (-34, 76),
+                (-20, -20),
+                (-47, -36),
+                (-100, -74),
+                (-100, -65),
+                (-84, 63),
+                (-89, 82),
+            ],
+            [
+                (-80, 0),
+                (-2, 56),
+                (-89, 82),
+                (63, 87),
+                (-93, -3),
+                (12, 82),
+                (-52, 83),
+                (-8, 69),
+                (-34, 76),
+                (-20, -20),
+                (-47, -36),
+                (-100, -74),
+                (-100, -65),
+                (-84, 63),
+                (-89, 82),
+            ],
+            [
+                (-80, 0),
+                (-2, 56),
+                (-89, 82),
+                (63, 87),
+                (-93, -3),
+                (12, 82),
+                (-52, 83),
+                (-8, 69),
+                (-34, 76),
+                (-20, -20),
+                (-47, -36),
+                (-93, -74),
+                (-100, -65),
+                (-84, 63),
+                (-89, 82),
+            ],
+            [
+                (-80, 0),
+                (-2, 56),
+                (-89, 82),
+                (63, 87),
+                (-93, -3),
+                (12, 82),
+                (-52, 83),
+                (-8, 69),
+                (-34, 76),
+                (-20, -20),
+                (-47, -36),
+                (-93, -74),
+                (-100, -65),
+                (-84, 63),
+                (-52, 83),
+            ],
+            [
+                (-80, 0),
+                (-2, 56),
+                (-89, 82),
+                (63, 87),
+                (-93, -3),
+                (12, 82),
+                (-52, 83),
+                (-8, 69),
+                (-34, 76),
+                (-20, -20),
+                (-100, -65),
+                (-93, -74),
+                (-100, -65),
+                (-84, 63),
+                (-52, 83),
+            ],
+            [(-38, -14), (-79, -11), (-10, 30), (3, 68), (-100, 75)],
+        ]
+
         for ranges in list_of_ranges:
-            try:
-                with tiledb.open(uri) as A:
-                    r1 = A.query(order=order).multi_index[ranges]["a"]
-                    r2 = _direct_query_ranges(A, [ranges], order)["a"]
+            with tiledb.open(uri) as A:
+                r1 = A.query(order=order).multi_index[ranges]["a"]
+                r2 = _direct_query_ranges(A, [ranges], order)["a"]
 
-                    r1[:]
-                    r2[:]
-            except tiledb.TileDBError as exc:
-                if is_boundserror(exc):
-                    # out of bounds, this is ok so we tell hypothesis to ignore
-                    # TODO these should all be IndexError
-                    assume(False)
-                raise
-
-    # ==================
+                r1[:]
+                r2[:]
 
     @given(index_obj)
     @hp.settings(deadline=None)
