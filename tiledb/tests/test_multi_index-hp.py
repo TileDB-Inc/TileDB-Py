@@ -2,10 +2,10 @@
 # Property-based tests for Array.multi_index using Hypothesis
 #
 
+import os
 import warnings
 
 import hypothesis as hp
-import os
 import numpy as np
 import pytest
 from hypothesis import assume, given
