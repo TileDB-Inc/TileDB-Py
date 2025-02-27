@@ -1343,8 +1343,12 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         with tiledb.open(uri) as A:
             # TODO: update the test when we support Arrow lists
-            with pytest.raises(pyarrow.lib.ArrowInvalid):
+            with pytest.raises(tiledb.TileDBError) as exc:
                 A.df[:]
+            assert (
+                "Variable-length numeric attributes are not supported in Arrow"
+                in str(exc.value)
+            )
 
             df2 = A.query(use_arrow=False).df[:]
             tm.assert_frame_equal(df, df2, check_dtype=False)
