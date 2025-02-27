@@ -344,19 +344,20 @@ class AttributeTest(DiskTestCase):
             assert_array_equal(A[:]["value"][1], data[1])
             assert_array_equal(A[:]["value"][2], data[2])
 
-            with pytest.raises(tiledb.TileDBError) as exc:
-                A.df[:]
-            assert (
-                "Variable-length numeric attributes are not supported in Arrow"
-                in str(exc.value)
-            )
+            if has_pandas():
+                with pytest.raises(tiledb.TileDBError) as exc:
+                    A.df[:]
+                assert (
+                    "Variable-length numeric attributes are not supported in Arrow"
+                    in str(exc.value)
+                )
 
-            with pytest.raises(tiledb.TileDBError) as exc:
-                A.query(use_arrow=True).df[:]
-            assert (
-                "Variable-length numeric attributes are not supported in Arrow"
-                in str(exc.value)
-            )
+                with pytest.raises(tiledb.TileDBError) as exc:
+                    A.query(use_arrow=True).df[:]
+                assert (
+                    "Variable-length numeric attributes are not supported in Arrow"
+                    in str(exc.value)
+                )
 
     def test_var_nullable_numeric_attribute(self):
         uri = self.path("test_var_nullable_numeric_attribute")
@@ -390,16 +391,17 @@ class AttributeTest(DiskTestCase):
             assert_array_equal(A[:]["value"][1], data[1])
             assert_array_equal(A[:]["value"][2], data[2])
 
-            with pytest.raises(tiledb.TileDBError) as exc:
-                A.df[:]
-            assert (
-                "Variable-length numeric attributes are not supported in Arrow"
-                in str(exc.value)
-            )
+            if has_pandas():
+                with pytest.raises(tiledb.TileDBError) as exc:
+                    A.df[:]
+                assert (
+                    "Variable-length numeric attributes are not supported in Arrow"
+                    in str(exc.value)
+                )
 
-            with pytest.raises(tiledb.TileDBError) as exc:
-                A.query(use_arrow=True).df[:]
-            assert (
-                "Variable-length numeric attributes are not supported in Arrow"
-                in str(exc.value)
-            )
+                with pytest.raises(tiledb.TileDBError) as exc:
+                    A.query(use_arrow=True).df[:]
+                assert (
+                    "Variable-length numeric attributes are not supported in Arrow"
+                    in str(exc.value)
+                )
