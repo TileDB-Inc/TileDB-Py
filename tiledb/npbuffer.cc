@@ -217,6 +217,38 @@ class NumpyConvert {
         data_buf_->resize(data_nbytes_);
     }
 
+    void convert_numeric() {
+        // Convert numeric numpy arrays to buffer+offsets
+
+        assert(input_.itemsize() > 0);  // must have fixed-length array
+
+        // we know exact offset count
+        offset_buf_->resize(input_len_);
+
+        // we reserve the input length as a minimum size for output
+        data_buf_->resize(input_len_ * input_.itemsize());
+
+        // size (bytes) of current object data
+        Py_ssize_t sz = input_.itemsize();
+        // object data (numeric)
+        const char* input_p = static_cast<const char*>(input_.data());
+
+        unsigned char* output_p = data_buf_->data();
+
+        for (size_t idx = 0; idx < input_len_; idx++) {
+            // record the offset (equal to the current bytes written)
+            offset_buf_->data()[idx] = data_nbytes_;
+
+            memcpy(output_p, input_p, sz);
+
+            data_nbytes_ += sz;
+            output_p += sz;
+            input_p += sz;
+        }
+
+        data_buf_->resize(data_nbytes_);
+    }
+
     void convert_object() {
         // Convert np.dtype("O") array of objects to buffer+offsets
 
@@ -543,6 +575,16 @@ class NumpyConvert {
             }
         } else if (issubdtype(input_dtype, py::dtype("bytes"))) {
             convert_bytes();
+        } else if (
+            issubdtype(input_dtype, py::dtype("uint16")) ||
+            issubdtype(input_dtype, py::dtype("int16")) ||
+            issubdtype(input_dtype, py::dtype("uint32")) ||
+            issubdtype(input_dtype, py::dtype("int32")) ||
+            issubdtype(input_dtype, py::dtype("int64")) ||
+            issubdtype(input_dtype, py::dtype("uint64")) ||
+            issubdtype(input_dtype, py::dtype("float32")) ||
+            issubdtype(input_dtype, py::dtype("float64"))) {
+            convert_numeric();
         } else if (!input_dtype.equal(py::dtype("O"))) {
             // TODO TPY_ERROR_LOC
             throw std::runtime_error("expected object array");
