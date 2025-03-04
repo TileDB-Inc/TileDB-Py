@@ -15,7 +15,7 @@ jobs:
   ci2:
     uses: ./.github/workflows/daily-test-build.yml
     with:
-      libtiledb_version: '2.26.3'
+      libtiledb_version: '2.26.2'
 
   ci3:
     uses: ./.github/workflows/daily-test-build-numpy.yml
@@ -25,4 +25,4 @@ jobs:
   ci4:
     uses: ./.github/workflows/daily-test-build-numpy.yml
     with:
-      libtiledb_version: '2.26.3'
+      libtiledb_version: '2.26.2'
