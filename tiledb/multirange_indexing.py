@@ -239,6 +239,15 @@ def getitem_ranges_with_labels(
     return dim_ranges, label_ranges
 
 
+def has_numeric_var_length_attribute(array: Array) -> bool:
+    schema = array.schema
+    for i in range(schema.nattr):
+        attr = schema.attr(i)
+        if attr.isvar and np.issubdtype(attr.dtype, np.number):
+            return True
+    return False
+
+
 class _BaseIndexer(ABC):
     """
     Implements multi-range indexing.
@@ -470,6 +479,10 @@ class DataFrameIndexer(_BaseIndexer):
         if self.pyquery is None:
             df = pandas.DataFrame(self._empty_results)
         elif self.use_arrow:
+            if has_numeric_var_length_attribute(self.array):
+                raise TileDBError(
+                    "Variable-length numeric attributes are not supported in Arrow. Please use Array.query(use_arrow=False) instead."
+                )
             with timing("buffer_conversion_time"):
                 table = self.pyquery._buffers_to_pa_table()
 
