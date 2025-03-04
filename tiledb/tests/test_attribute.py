@@ -345,17 +345,29 @@ class AttributeTest(DiskTestCase):
             assert_array_equal(A[:]["value"][2], data[2])
 
             if has_pandas():
-                with pytest.raises(tiledb.TileDBError) as exc:
-                    A.df[:]
-                assert (
-                    "Variable-length numeric attributes are not supported in Arrow"
-                    in str(exc.value)
+                import pandas as pd
+
+                tm = pd._testing
+
+                expected_df = pd.DataFrame(
+                    {
+                        "sample": [b"sample1", b"sample2", b"sample3"],
+                        "value": [
+                            np.array([1, 2], dtype="uint32"),
+                            np.array([3], dtype="uint32"),
+                            np.array([4], dtype="uint32"),
+                        ],
+                    }
                 )
+
+                tm.assert_frame_equal(A.df[:], expected_df)
 
                 with pytest.raises(tiledb.TileDBError) as exc:
                     A.query(use_arrow=True).df[:]
                 assert (
-                    "Variable-length numeric attributes are not supported in Arrow"
+                    "Multi-value attributes are not currently supported when use_arrow=True. "
+                    "This includes all variable-length attributes and fixed-length "
+                    "attributes with more than one value. Use `query(use_arrow=False)`."
                     in str(exc.value)
                 )
 
@@ -392,16 +404,28 @@ class AttributeTest(DiskTestCase):
             assert_array_equal(A[:]["value"][2], data[2])
 
             if has_pandas():
-                with pytest.raises(tiledb.TileDBError) as exc:
-                    A.df[:]
-                assert (
-                    "Variable-length numeric attributes are not supported in Arrow"
-                    in str(exc.value)
+                import pandas as pd
+
+                tm = pd._testing
+
+                expected_df = pd.DataFrame(
+                    {
+                        "sample": [b"sample1", b"sample2", b"sample3"],
+                        "value": [
+                            np.array([1.0, 2.0], dtype="float32"),
+                            np.array([np.nan], dtype="float32"),
+                            np.array([4.0], dtype="float32"),
+                        ],
+                    }
                 )
+
+                tm.assert_frame_equal(A.df[:], expected_df)
 
                 with pytest.raises(tiledb.TileDBError) as exc:
                     A.query(use_arrow=True).df[:]
                 assert (
-                    "Variable-length numeric attributes are not supported in Arrow"
+                    "Multi-value attributes are not currently supported when use_arrow=True. "
+                    "This includes all variable-length attributes and fixed-length "
+                    "attributes with more than one value. Use `query(use_arrow=False)`."
                     in str(exc.value)
                 )

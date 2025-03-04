@@ -755,8 +755,8 @@ class TestMultiRange(DiskTestCase):
             result = A.query(attrs=["111"])[0]
             assert_array_equal(result["111"], data_111)
 
-            with self.assertRaises(tiledb.TileDBError):
-                result = A.query(attrs=["111"]).df[0]
+            result = A.query(attrs=["111"]).df[0]
+            assert_array_equal(result["111"], data_111)
 
             result = A.query(attrs=["111"], use_arrow=False)
             assert_array_equal(result.df[0]["111"], data_111)
@@ -792,8 +792,10 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(result[1]["1s"][0], data[1])
             assert_array_equal(result[2]["1s"][0], data[2])
 
-            with self.assertRaises(tiledb.TileDBError):
-                result = A.query(attrs=["1s"]).df[0]
+            result = A.query(attrs=["1s"])
+            assert_array_equal(result.df[0]["1s"][0], data[0])
+            assert_array_equal(result.df[1]["1s"][0], data[1])
+            assert_array_equal(result.df[2]["1s"][0], data[2])
 
             result = A.query(attrs=["1s"], use_arrow=False)
             assert_array_equal(result.df[0]["1s"][0], data[0])

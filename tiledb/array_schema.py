@@ -1,7 +1,7 @@
 import io
 import numbers
 import warnings
-from typing import Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -359,6 +359,14 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
             "attr indices must be a string name, "
             "or an integer index, not {0!r}".format(type(key))
         )
+
+    @property
+    def attr_names(self) -> List[str]:
+        """Returns a list of attribute names
+
+        :rtype: list
+        """
+        return [self.attr(i).name for i in range(self.nattr)]
 
     def dim_label(self, name: str) -> DimLabel:
         """Returns a TileDB DimensionLabel given the label name

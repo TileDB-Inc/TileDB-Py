@@ -239,15 +239,6 @@ def getitem_ranges_with_labels(
     return dim_ranges, label_ranges
 
 
-def has_numeric_var_length_attribute(array: Array) -> bool:
-    schema = array.schema
-    for i in range(schema.nattr):
-        attr = schema.attr(i)
-        if attr.isvar and np.issubdtype(attr.dtype, np.number):
-            return True
-    return False
-
-
 class _BaseIndexer(ABC):
     """
     Implements multi-range indexing.
@@ -448,25 +439,31 @@ class DataFrameIndexer(_BaseIndexer):
         # we need to use a Query in order to get coords for a dense array
         if not query:
             query = QueryProxy(array, has_coords=True)
-        use_arrow = (
-            bool(importlib.util.find_spec("pyarrow"))
-            if use_arrow is None
-            else use_arrow
-        )
 
-        # TODO: currently there is lack of support for Arrow list types. This prevents
+        # Currently there is lack of support for Arrow list types. This prevents
         # multi-value attributes, asides from strings, from being queried properly.
-        # Until list attributes are supported in core, error with a clear message.
-        if use_arrow and any(
+        attr_names_to_check = query.attrs or array.attr_names
+
+        arrow_can_be_used = not any(
             (attr.isvar or len(attr.dtype) > 1)
             and attr.dtype not in (np.str_, np.bytes_)
-            for attr in map(array.attr, query.attrs or ())
-        ):
+            for attr in (array.attr(name) for name in attr_names_to_check)
+        )
+
+        # Until list attributes are supported in core, error with a clear message.
+        if use_arrow and not arrow_can_be_used:
             raise TileDBError(
                 "Multi-value attributes are not currently supported when use_arrow=True. "
                 "This includes all variable-length attributes and fixed-length "
                 "attributes with more than one value. Use `query(use_arrow=False)`."
             )
+
+        use_arrow = (
+            bool(importlib.util.find_spec("pyarrow"))
+            if use_arrow is None and arrow_can_be_used
+            else use_arrow
+        )
+
         super().__init__(array, query, use_arrow, preload_metadata=True)
 
     def _run_query(self) -> Union["pandas.DataFrame", "pyarrow.Table"]:
@@ -479,10 +476,6 @@ class DataFrameIndexer(_BaseIndexer):
         if self.pyquery is None:
             df = pandas.DataFrame(self._empty_results)
         elif self.use_arrow:
-            if has_numeric_var_length_attribute(self.array):
-                raise TileDBError(
-                    "Variable-length numeric attributes are not supported in Arrow. Please use Array.query(use_arrow=False) instead."
-                )
             with timing("buffer_conversion_time"):
                 table = self.pyquery._buffers_to_pa_table()
 

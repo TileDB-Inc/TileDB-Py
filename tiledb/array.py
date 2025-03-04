@@ -569,6 +569,11 @@ class Array:
         :raises TypeError: invalid key type"""
         return self.schema.attr(key)
 
+    @property
+    def attr_names(self):
+        """Returns a list of attribute names"""
+        return self.schema.attr_names
+
     def dim(self, dim_id):
         """Returns a :py:class:`Dim` instance given a dim index or name
 
