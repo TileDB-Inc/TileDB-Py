@@ -155,10 +155,8 @@ def iter_ranges(
         assert len(sel) == 2
         yield to_scalar(sel[0]), to_scalar(sel[1])
 
-    elif (
-        isinstance(sel, list)
-        or isinstance(sel, np.ndarray)
-        or (has_pyarrow and isinstance(sel, pyarrow.Array))
+    elif isinstance(sel, (list, np.ndarray)) or (
+        has_pyarrow and isinstance(sel, pyarrow.Array)
     ):
         for scalar in map(to_scalar, sel):
             yield scalar, scalar
