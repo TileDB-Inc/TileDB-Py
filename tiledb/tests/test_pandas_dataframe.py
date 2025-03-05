@@ -1286,8 +1286,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
     def test_read_indexing_with_pyarrow_and_numpy_arrays(
         self, dim_data, attr_data, dtype, domain
     ):
-        # This test is to ensure that a DataFrame can be
-        # indexed with both PyArrow and NumPy arrays.
+        # This test is to ensure that .df can be indexed with both PyArrow and NumPy arrays.
         uri = self.path("read_indexing_with_pyarrow_and_numpy_arrays")
 
         dim = (
