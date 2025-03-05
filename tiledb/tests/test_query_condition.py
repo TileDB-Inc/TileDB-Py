@@ -783,12 +783,20 @@ class QueryConditionTest(DiskTestCase):
                 "TileDBError: Unhandled dot operator in Attribute(value=Name(id='attr', ctx=Load()), attr='two', ctx=Load()) -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr(\"...\")`, e.g. `attr(\"orig.ident\")`"
                 in str(exc_info.value)
             )
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="attr.one in [1, 2, 3]")[:]
+            assert (
+                "TileDBError: cannot handle query condition left-hand side of type"
+                in str(exc_info.value)
+            )
 
             # now test with the correct syntax
             result = A.query(cond='attr("attr.one") < 6')[:]
             assert_array_equal(result["attr.one"], A[:6]["attr.one"])
             result = A.query(cond='attr("attr.two") >= 6')[:]
             assert_array_equal(result["attr.two"], A[6:]["attr.two"])
+            result = A.query(cond='attr("attr.one") in [1, 2, 3]')[:]
+            assert_array_equal(result["attr.one"], A[1:4]["attr.one"])
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_do_not_return_attrs(self):
