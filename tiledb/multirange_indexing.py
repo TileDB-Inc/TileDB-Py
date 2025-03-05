@@ -126,7 +126,7 @@ def to_scalar(obj: Any) -> Scalar:
 
 
 def iter_ranges(
-    sel: Union[Scalar, slice, Range, List[Scalar]],
+    sel: Union[Scalar, slice, Range, List[Scalar], np.ndarray, "pyarrow.Array"],
     sparse: bool,
     nonempty_domain: Optional[Range] = None,
 ) -> Iterator[Range]:
