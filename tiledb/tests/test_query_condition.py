@@ -765,11 +765,16 @@ class QueryConditionTest(DiskTestCase):
         attrs = [
             tiledb.Attr(name="attr.one", dtype=np.uint32),
             tiledb.Attr(name="attr.two", dtype=np.uint32),
+            tiledb.Attr(name="at.tr.thr.ee", dtype=np.uint32),
         ]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
         with tiledb.open(path, "w") as A:
-            A[np.arange(11)] = {"attr.one": np.arange(11), "attr.two": np.arange(11)}
+            A[np.arange(11)] = {
+                "attr.one": np.arange(11),
+                "attr.two": np.arange(11),
+                "at.tr.thr.ee": np.arange(11),
+            }
         with tiledb.open(path, "r") as A:
             with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.query(cond="attr.one < 6")[:]
@@ -793,10 +798,16 @@ class QueryConditionTest(DiskTestCase):
             # now test with the correct syntax
             result = A.query(cond='attr("attr.one") < 6')[:]
             assert_array_equal(result["attr.one"], A[:6]["attr.one"])
+            result = A.query(cond='attr("at.tr.thr.ee") >= 6')[:]
+            assert_array_equal(result["at.tr.thr.ee"], A[6:]["at.tr.thr.ee"])
             result = A.query(cond='attr("attr.two") >= 6')[:]
             assert_array_equal(result["attr.two"], A[6:]["attr.two"])
+            result = A.query(cond='attr("at.tr.thr.ee") >= 6')[:]
+            assert_array_equal(result["at.tr.thr.ee"], A[6:]["at.tr.thr.ee"])
             result = A.query(cond='attr("attr.one") in [1, 2, 3]')[:]
             assert_array_equal(result["attr.one"], A[1:4]["attr.one"])
+            result = A.query(cond='attr("at.tr.thr.ee") in [1, 2, 3]')[:]
+            assert_array_equal(result["at.tr.thr.ee"], A[1:4]["at.tr.thr.ee"])
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_do_not_return_attrs(self):
