@@ -1,3 +1,18 @@
+# Release 0.33.5
+
+* TileDB-Py 0.33.5 includes TileDB Embedded [2.27.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.2)
+
+## Bug Fixes
+
+* Fix `stats_reset()` behavior by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2172
+* Fix for query conditions that contain attributes with dot(s) when using the `in` operator by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2171
+
+## Improvements
+* Expand `.df` Array/Query accessor to allow indexing with NumPy and PyArrow arrays by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2170
+* Improve the logic for using Arrow when it is not explicitly requested by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2168
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.4...0.33.5
+
 # Release 0.33.4
 
 * TileDB-Py 0.33.4 includes TileDB Embedded [2.27.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.1)
