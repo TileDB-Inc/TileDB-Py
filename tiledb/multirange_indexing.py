@@ -40,8 +40,14 @@ if TYPE_CHECKING:
     # We don't want to import these eagerly since importing Pandas in particular
     # can add around half a second of import time even if we never use it.
     import pandas
+
+
+try:
     import pyarrow
 
+    has_pyarrow = True
+except ImportError:
+    has_pyarrow = False
 
 current_timer: ContextVar[str] = ContextVar("timer_scope")
 
@@ -112,11 +118,15 @@ def to_scalar(obj: Any) -> Scalar:
         return cast(Scalar, obj)
     if isinstance(obj, np.ndarray) and obj.ndim == 0:
         return cast(Scalar, obj[()])
+    if has_pyarrow and isinstance(obj, pyarrow.Array):
+        return to_scalar(obj.to_numpy()[()])
+    if has_pyarrow and isinstance(obj, pyarrow.Scalar):
+        return cast(Scalar, obj.as_py())
     raise ValueError(f"Cannot convert {type(obj)} to scalar")
 
 
 def iter_ranges(
-    sel: Union[Scalar, slice, Range, List[Scalar]],
+    sel: Union[Scalar, slice, Range, List[Scalar], np.ndarray, "pyarrow.Array"],
     sparse: bool,
     nonempty_domain: Optional[Range] = None,
 ) -> Iterator[Range]:
@@ -145,7 +155,9 @@ def iter_ranges(
         assert len(sel) == 2
         yield to_scalar(sel[0]), to_scalar(sel[1])
 
-    elif isinstance(sel, list):
+    elif isinstance(sel, (list, np.ndarray)) or (
+        has_pyarrow and isinstance(sel, pyarrow.Array)
+    ):
         for scalar in map(to_scalar, sel):
             yield scalar, scalar
 
@@ -178,8 +190,6 @@ def iter_label_range(sel: Union[Scalar, slice, Range, List[Scalar]]):
 
 def dim_ranges_from_selection(selection, nonempty_domain, is_sparse):
     # don't try to index nonempty_domain if None
-    if isinstance(selection, np.ndarray):
-        return selection
     selection = selection if isinstance(selection, list) else [selection]
     return tuple(
         rng for sel in selection for rng in iter_ranges(sel, is_sparse, nonempty_domain)

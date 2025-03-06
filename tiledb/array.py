@@ -1039,9 +1039,9 @@ class Array:
         """Retrieve data cells with multi-range, domain-inclusive indexing. Returns
         the cross-product of the ranges.
 
-        :param list selection: Per dimension, a scalar, ``slice``, or list of scalars
-            or ``slice`` objects. Scalars and ``slice`` components should match the
-            type of the underlying Dimension.
+        :param list selection: Per dimension, a scalar, ``slice``,
+            or a list/numpy array/pyarrow array of scalars or ``slice`` objects.
+            Scalars and ``slice`` components should match the type of the underlying Dimension.
         :returns: dict of {'attribute': result}. Coords are included by default for
             Sparse arrays only (use `Array.query(coords=<>)` to select).
         :raises IndexError: invalid or unsupported index selection
@@ -1093,9 +1093,9 @@ class Array:
         """Retrieve data cells as a Pandas dataframe, with multi-range,
         domain-inclusive indexing using ``multi_index``.
 
-        :param list selection: Per dimension, a scalar, ``slice``, or list of scalars
-            or ``slice`` objects. Scalars and ``slice`` components should match the
-            type of the underlying Dimension.
+        :param list selection: Per dimension, a scalar, ``slice``,
+            or a list/numpy array/pyarrow array of scalars or ``slice`` objects.
+            Scalars and ``slice`` components should match the type of the underlying Dimension.
         :returns: dict of {'attribute': result}. Coords are included by default for
             Sparse arrays only (use `Array.query(coords=<>)` to select).
         :raises IndexError: invalid or unsupported index selection

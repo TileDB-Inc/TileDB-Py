@@ -1276,6 +1276,56 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         basic3 = make_dataframe_basic3()
         try_rt("basic3", basic3)
 
+    @pytest.mark.parametrize(
+        "dim_data, attr_data, dtype, domain",
+        [
+            (pyarrow.array([1, 2, 3]), pyarrow.array([1, 2, 3]), np.int64, (1, 3)),
+            (pyarrow.array(["a", "b", "c"]), pyarrow.array([1, 2, 3]), "ascii", None),
+        ],
+    )
+    def test_read_indexing_with_pyarrow_and_numpy_arrays(
+        self, dim_data, attr_data, dtype, domain
+    ):
+        # This test is to ensure that .df can be indexed with both PyArrow and NumPy arrays.
+        uri = self.path("read_indexing_with_pyarrow_and_numpy_arrays")
+
+        dim = (
+            tiledb.Dim(name="dim_a", dtype=dtype, domain=domain)
+            if domain
+            else tiledb.Dim(name="dim_a", dtype=dtype)
+        )
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(dim),
+            sparse=True,
+            attrs=[tiledb.Attr(name="rand", dtype=np.int32)],
+            allows_duplicates=True,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as arr:
+            arr[dim_data] = attr_data
+
+        with tiledb.open(uri, "r") as arr:
+            expected_df = pd.DataFrame(
+                {"dim_a": dim_data.tolist(), "rand": attr_data.tolist()}
+            )
+
+            assert_array_equal(arr.df[:], expected_df)
+            assert_array_equal(arr.df[pyarrow.array(dim_data)], expected_df)
+            assert_array_equal(arr.df[np.array(dim_data)], expected_df)
+
+            partial_dim_data = dim_data[:2]
+            expected_partial_df = expected_df.iloc[:2]
+
+            assert_array_equal(
+                arr.df[pyarrow.array(partial_dim_data)], expected_partial_df
+            )
+            assert_array_equal(arr.df[np.array(partial_dim_data)], expected_partial_df)
+
+            expected_dict = OrderedDict(
+                [("dim_a", dim_data.tolist()), ("rand", attr_data.tolist())]
+            )
+
     def test_nullable_integers(self):
         nullable_int_dtypes = (
             pd.Int64Dtype(),
