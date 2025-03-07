@@ -382,6 +382,26 @@ class FixesTest(DiskTestCase):
         with tiledb.DenseArray(uri) as T:
             assert_array_equal(array_data, T)
 
+    def test_data_buffer_too_large(self):
+        uri = self.path("test_agis")
+        dim1 = tiledb.Dim(
+            name="dim_0", domain=(0, 10000000000), tile=512, dtype=np.int64
+        )
+        dim2 = tiledb.Dim(
+            name="dim_1", domain=(0, 10000000000), tile=512, dtype=np.int64
+        )
+        att = tiledb.Attr(name="data", dtype="int8")
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(dim1, dim2),
+            attrs=(att,),
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, mode="r") as A:
+            with pytest.raises(OverflowError) as exc:
+                A[:]
+            assert "Data buffer size is too large" in str(exc.value)
+
 
 class SOMA919Test(DiskTestCase):
     """
