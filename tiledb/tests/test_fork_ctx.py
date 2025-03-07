@@ -64,7 +64,8 @@ def test_warning_fork_with_default_ctx():
 
 
 @pytest.mark.skipif(
-    sys.platform == "win32", reason="fork() is not available on Windows"
+    sys.platform != "linux",
+    reason=f"fork() is not available on Windows, and this test randomly fails on macOS.",
 )
 def test_no_warning_multiprocessing_without_ctx():
     """Get no warning if no tiledb context exists."""
