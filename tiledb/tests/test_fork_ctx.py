@@ -78,7 +78,8 @@ def test_no_warning_multiprocessing_without_ctx():
 
 
 @pytest.mark.skipif(
-    sys.platform == "win32", reason="fork() is not available on Windows"
+    sys.platform != "linux",
+    reason=f"fork() is not available on Windows, and this test randomly fails on macOS.",
 )
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_warning_multiprocessing_with_ctx():
@@ -92,7 +93,8 @@ def test_warning_multiprocessing_with_ctx():
 
 
 @pytest.mark.skipif(
-    sys.platform == "win32", reason="fork() is not available on Windows"
+    sys.platform != "linux",
+    reason=f"fork() is not available on Windows, and this test randomly fails on macOS.",
 )
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_warning_multiprocessing_with_default_ctx():
