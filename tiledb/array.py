@@ -738,7 +738,7 @@ class Array:
                     "passed to `fragment_uris` will be consolidate",
                     DeprecationWarning,
                 )
-            lt.Array._consolidate(self.array.uri, self.ctx, fragment_uris, config)
+            lt.Array._consolidate(self.uri, self.ctx, fragment_uris, config)
             return
         elif timestamp is not None:
             warnings.warn(
