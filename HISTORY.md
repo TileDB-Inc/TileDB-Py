@@ -1,3 +1,9 @@
+# Release 0.33.6
+
+## Bug Fixes
+
+* Fix URI passed to consolidation by @spencerseale and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2176
+
 # Release 0.33.5
 
 * TileDB-Py 0.33.5 includes TileDB Embedded [2.27.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.2)
@@ -36,7 +42,7 @@
 
 ## Bug Fixes
 
-* Fix interaction with CloudArray interface of tiledb-cloud package @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2144
+* Fix interaction with CloudArray interface of tiledb-cloud package by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2144
 
 ## Improvements
 
