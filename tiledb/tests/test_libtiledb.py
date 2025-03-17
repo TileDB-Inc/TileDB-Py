@@ -3323,8 +3323,9 @@ class ConsolidationTest(DiskTestCase):
         tiledb.vacuum(path)
         assert len(tiledb.array_fragments(path)) == 3
 
+    @pytest.mark.parametrize("use_highlevel_method", [True, False])
     @pytest.mark.parametrize("use_timestamps", [True, False])
-    def test_array_consolidate_with_uris(self, use_timestamps):
+    def test_array_consolidate_with_uris(self, use_timestamps, use_highlevel_method):
         dshape = (1, 3)
         num_writes = 10
 
@@ -3350,7 +3351,11 @@ class ConsolidationTest(DiskTestCase):
 
         frag_names = [os.path.basename(f) for f in frags.uri]
 
-        tiledb.consolidate(path, fragment_uris=frag_names[:4])
+        if use_highlevel_method:
+            tiledb.consolidate(path, fragment_uris=frag_names[:4])
+        else:
+            with tiledb.open(path, "w") as A:
+                A.consolidate(fragment_uris=frag_names[:4])
 
         assert len(tiledb.array_fragments(path)) == 7
 
@@ -3362,11 +3367,18 @@ class ConsolidationTest(DiskTestCase):
             ),
         ):
             timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
-            tiledb.consolidate(
-                path,
-                fragment_uris=frag_names[4:8],
-                timestamp=(timestamps[5], timestamps[6]),
-            )
+            if use_highlevel_method:
+                tiledb.consolidate(
+                    path,
+                    fragment_uris=frag_names[4:8],
+                    timestamp=(timestamps[5], timestamps[6]),
+                )
+            else:
+                with tiledb.open(path, "w") as A:
+                    A.consolidate(
+                        fragment_uris=frag_names[4:8],
+                        timestamp=(timestamps[5], timestamps[6]),
+                    )
 
         assert len(tiledb.array_fragments(path)) == 4
 
