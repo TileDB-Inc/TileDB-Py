@@ -129,18 +129,31 @@ def iter_ranges(
     sel: Union[Scalar, slice, Range, List[Scalar], np.ndarray, "pyarrow.Array"],
     sparse: bool,
     nonempty_domain: Optional[Range] = None,
+    current_domain: Optional[Range] = None,
 ) -> Iterator[Range]:
     if isinstance(sel, slice):
         if sel.step is not None:
             raise ValueError("Stepped slice ranges are not supported")
 
+        # we always want to be inside the current domain, if this is passed,
+        # but we also don't want to fall out of the nonempty domain
         rstart = sel.start
-        if rstart is None and nonempty_domain:
-            rstart = nonempty_domain[0]
+        if rstart is None:
+            if current_domain and nonempty_domain:
+                rstart = max(current_domain[0], nonempty_domain[0])
+            elif current_domain:
+                rstart = current_domain[0]
+            elif nonempty_domain:
+                rstart = nonempty_domain[0]
 
         rend = sel.stop
-        if rend is None and nonempty_domain:
-            rend = nonempty_domain[1]
+        if rend is None:
+            if current_domain and nonempty_domain:
+                rend = min(current_domain[1], nonempty_domain[1])
+            elif current_domain:
+                rend = current_domain[1]
+            elif nonempty_domain:
+                rend = nonempty_domain[1]
 
         if sparse and sel.start is None and sel.stop is None:
             # don't set nonempty_domain for full-domain slices w/ sparse
@@ -188,11 +201,13 @@ def iter_label_range(sel: Union[Scalar, slice, Range, List[Scalar]]):
         yield scalar, scalar
 
 
-def dim_ranges_from_selection(selection, nonempty_domain, is_sparse):
+def dim_ranges_from_selection(selection, nonempty_domain, current_domain, is_sparse):
     # don't try to index nonempty_domain if None
     selection = selection if isinstance(selection, list) else [selection]
     return tuple(
-        rng for sel in selection for rng in iter_ranges(sel, is_sparse, nonempty_domain)
+        rng
+        for sel in selection
+        for rng in iter_ranges(sel, is_sparse, nonempty_domain, current_domain)
     )
 
 
@@ -206,27 +221,23 @@ def label_ranges_from_selection(selection):
 def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
 
-    # In the case that current domain is non-empty, we need to consider it
-    if (
-        hasattr(array.schema, "current_domain")
-        and not array.schema.current_domain.is_empty
-    ):
-        for i in range(array.schema.domain.ndim):
-            ranges[i] = [
-                (
-                    array.schema.current_domain.ndrectangle.range(i)[0],
-                    array.schema.current_domain.ndrectangle.range(i)[1],
-                )
-            ]
-
-        return tuple(ranges)
-
     ned = array.nonempty_domain()
+    current_domain = (
+        array.schema.current_domain
+        if hasattr(array.schema, "current_domain")
+        and not array.schema.current_domain.is_empty
+        else None
+    )
     if ned is None:
         ned = [None] * array.schema.domain.ndim
     is_sparse = array.schema.sparse
     for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
-        ranges[i] = dim_ranges_from_selection(dim_sel, ned[i], is_sparse)
+        ranges[i] = dim_ranges_from_selection(
+            dim_sel,
+            ned[i],
+            current_domain.ndrectangle.range(i) if current_domain else None,
+            is_sparse,
+        )
     return tuple(ranges)
 
 
@@ -236,6 +247,12 @@ def getitem_ranges_with_labels(
     dim_ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
     label_ranges: Dict[str, Sequence[Range]] = {}
     ned = array.nonempty_domain()
+    current_domain = (
+        array.schema.current_domain
+        if hasattr(array.schema, "current_domain")
+        and not array.schema.current_domain.is_empty
+        else None
+    )
     if ned is None:
         ned = [None] * array.schema.domain.ndim
     is_sparse = array.schema.sparse
@@ -244,7 +261,10 @@ def getitem_ranges_with_labels(
             label_ranges[labels[dim_idx]] = label_ranges_from_selection(dim_sel)
         else:
             dim_ranges[dim_idx] = dim_ranges_from_selection(
-                dim_sel, ned[dim_idx], is_sparse
+                dim_sel,
+                ned[dim_idx],
+                current_domain.ndrectangle.range(i) if current_domain else None,
+                is_sparse,
             )
     return dim_ranges, label_ranges
 
