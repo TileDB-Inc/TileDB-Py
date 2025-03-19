@@ -304,7 +304,14 @@ class CurrentDomainTest(DiskTestCase):
             )
 
             assert_array_equal(A, expected_array)
-            assert_array_equal(A.df[:], expected_df)
+            assert_array_equal(A.df[:, :], expected_df)
+
+            # check indexing the array inside the range of the current domain
+            assert_array_equal(A[11:14, 33:35]["a"], expected_array[1:4, 3:5])
+
+            # check indexing the array outside the range of the current domain - should raise an error
+            with self.assertRaises(tiledb.TileDBError):
+                A[11:55, 33:34]
 
     def test_take_current_domain_into_account_sparse_indexing_sc61914(self):
         uri = self.path("test_sc61914")
