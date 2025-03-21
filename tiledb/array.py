@@ -128,21 +128,6 @@ def index_domain_subarray(array, dom, idx: tuple):
 
     subarray = list()
 
-    # In the case that current domain is non-empty, we need to consider it
-    if (
-        hasattr(array.schema, "current_domain")
-        and not array.schema.current_domain.is_empty
-    ):
-        for i in range(array.schema.domain.ndim):
-            subarray.append(
-                (
-                    array.schema.current_domain.ndrectangle.range(i)[0],
-                    array.schema.current_domain.ndrectangle.range(i)[1],
-                )
-            )
-
-        return subarray
-
     for r in range(ndim):
         # extract lower and upper bounds for domain dimension extent
         dim = dom.dim(r)
@@ -162,6 +147,16 @@ def index_domain_subarray(array, dom, idx: tuple):
             raise IndexError("invalid index type: {!r}".format(type(dim_slice)))
 
         start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
+
+        # In the case that current domain is non-empty, we need to consider it
+        if (
+            hasattr(array.schema, "current_domain")
+            and not array.schema.current_domain.is_empty
+        ):
+            if start is None:
+                dim_lb = array.schema.current_domain.ndrectangle.range(r)[0]
+            if stop is None:
+                dim_ub = array.schema.current_domain.ndrectangle.range(r)[1]
 
         if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
             if start is None or stop is None:
