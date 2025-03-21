@@ -263,7 +263,7 @@ def getitem_ranges_with_labels(
             dim_ranges[dim_idx] = dim_ranges_from_selection(
                 dim_sel,
                 ned[dim_idx],
-                current_domain.ndrectangle.range(i) if current_domain else None,
+                current_domain.ndrectangle.range(dim_idx) if current_domain else None,
                 is_sparse,
             )
     return dim_ranges, label_ranges
