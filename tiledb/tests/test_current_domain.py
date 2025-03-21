@@ -308,10 +308,24 @@ class CurrentDomainTest(DiskTestCase):
 
             # check indexing the array inside the range of the current domain
             assert_array_equal(A[11:14, 33:35]["a"], expected_array[1:4, 3:5])
+            filtered_df = expected_df.query(
+                "d1 >= 11 and d1 <= 14 and d2 >= 33 and d2 <= 35"
+            ).reset_index(drop=True)
+            assert_array_equal(A.df[11:14, 33:35], filtered_df)
+
+            # check only one side of the range
+            assert_array_equal(A[11:, :35]["a"], expected_array[1:, :5])
+            filtered_df = expected_df.query("d1 >= 11 and d2 <= 35").reset_index(
+                drop=True
+            )
+            assert_array_equal(A.df[11:, :35], filtered_df)
 
             # check indexing the array outside the range of the current domain - should raise an error
             with self.assertRaises(tiledb.TileDBError):
                 A[11:55, 33:34]
+
+            with self.assertRaises(tiledb.TileDBError):
+                A.df[11:55, 33:34]
 
     def test_take_current_domain_into_account_sparse_indexing_sc61914(self):
         uri = self.path("test_sc61914")
