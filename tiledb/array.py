@@ -150,18 +150,13 @@ def index_domain_subarray(array, dom, idx: tuple):
 
         # In the case that current domain is non-empty, we need to consider it
         if (
-            start is None
-            and stop is None
-            and hasattr(array.schema, "current_domain")
+            hasattr(array.schema, "current_domain")
             and not array.schema.current_domain.is_empty
         ):
-            subarray.append(
-                (
-                    array.schema.current_domain.ndrectangle.range(r)[0],
-                    array.schema.current_domain.ndrectangle.range(r)[1],
-                )
-            )
-            continue
+            if start is None:
+                dim_lb = array.schema.current_domain.ndrectangle.range(r)[0]
+            if stop is None:
+                dim_ub = array.schema.current_domain.ndrectangle.range(r)[1]
 
         if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
             if start is None or stop is None:
