@@ -1277,27 +1277,46 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         try_rt("basic3", basic3)
 
     @pytest.mark.parametrize(
-        "dim_data, attr_data, dtype, domain",
+        "dim_data, attr_data, dim_dtype, attr_dtype, domain",
         [
-            (pyarrow.array([1, 2, 3]), pyarrow.array([1, 2, 3]), np.int64, (1, 3)),
-            (pyarrow.array(["a", "b", "c"]), pyarrow.array([1, 2, 3]), "ascii", None),
+            (
+                pyarrow.array([1, 2, 3, 4, 5]),
+                pyarrow.array([10, 20, 30, 40, 50]),
+                np.int64,
+                np.int64,
+                (1, 5),
+            ),
+            (
+                pyarrow.array([1.1, 20.2, 300.3, 4000.4, 50000.5]),
+                pyarrow.array(["tiledb", "is", "the", "best", "db"]),
+                np.float64,
+                "U",
+                (1.1, 50000.5),
+            ),
+            (
+                pyarrow.array([b"a", b"b", b"c", b"d", b"e"]),
+                pyarrow.array([1, 2, 3, 4, 5]),
+                "ascii",
+                np.int64,
+                None,
+            ),
         ],
     )
     def test_read_indexing_with_pyarrow_and_numpy_arrays(
-        self, dim_data, attr_data, dtype, domain
+        self, dim_data, attr_data, dim_dtype, attr_dtype, domain
     ):
         # This test is to ensure that .df can be indexed with both PyArrow and NumPy arrays.
         uri = self.path("read_indexing_with_pyarrow_and_numpy_arrays")
 
         dim = (
-            tiledb.Dim(name="dim_a", dtype=dtype, domain=domain)
+            tiledb.Dim(name="dim_a", dtype=dim_dtype, domain=domain)
             if domain
-            else tiledb.Dim(name="dim_a", dtype=dtype)
+            else tiledb.Dim(name="dim_a", dtype=dim_dtype)
         )
         schema = tiledb.ArraySchema(
             domain=tiledb.Domain(dim),
             sparse=True,
-            attrs=[tiledb.Attr(name="rand", dtype=np.int32)],
+            attrs=[tiledb.Attr(name="rand", dtype=attr_dtype)],
             allows_duplicates=True,
         )
         tiledb.Array.create(uri, schema)
@@ -1306,10 +1325,20 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             arr[dim_data] = attr_data
 
         with tiledb.open(uri, "r") as arr:
-            expected_df = pd.DataFrame(
-                {"dim_a": dim_data.tolist(), "rand": attr_data.tolist()}
-            )
+            if dim_dtype != "ascii":
+                expected_df = pd.DataFrame(
+                    {"dim_a": dim_data.tolist(), "rand": attr_data.tolist()}
+                )
+            else:
+                # cast to str for ascii dtype
+                expected_df = pd.DataFrame(
+                    {
+                        "dim_a": [d.as_py().decode("utf-8") for d in dim_data],
+                        "rand": [d.as_py() for d in attr_data],
+                    }
+                )
 
+            # df accessor
             assert_array_equal(arr.df[:], expected_df)
             assert_array_equal(arr.df[pyarrow.array(dim_data)], expected_df)
             assert_array_equal(arr.df[np.array(dim_data)], expected_df)
@@ -1322,8 +1351,45 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             )
             assert_array_equal(arr.df[np.array(partial_dim_data)], expected_partial_df)
 
+            # square brackets accessor
             expected_dict = OrderedDict(
-                [("dim_a", dim_data.tolist()), ("rand", attr_data.tolist())]
+                {
+                    "rand": [
+                        attr_data[1].as_py(),
+                        attr_data[3].as_py(),
+                        attr_data[4].as_py(),
+                    ],
+                    "dim_a": [
+                        dim_data[1].as_py(),
+                        dim_data[3].as_py(),
+                        dim_data[4].as_py(),
+                    ],
+                }
+            )
+
+            assert_dict_arrays_equal(
+                arr[
+                    np.array(
+                        [
+                            dim_data[1].as_py(),
+                            dim_data[3].as_py(),
+                            dim_data[4].as_py(),
+                        ]
+                    )
+                ],
+                expected_dict,
+            )
+            assert_dict_arrays_equal(
+                arr[
+                    pyarrow.array(
+                        [
+                            dim_data[1].as_py(),
+                            dim_data[3].as_py(),
+                            dim_data[4].as_py(),
+                        ]
+                    )
+                ],
+                expected_dict,
             )
 
     def test_nullable_integers(self):
