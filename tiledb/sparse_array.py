@@ -251,8 +251,9 @@ class SparseArrayImpl(Array):
     def __getitem__(self, selection):
         """Retrieve nonempty cell data for an item or region of the array
 
-        :param tuple selection: An int index, slice or tuple of integer/slice objects,
-            specifying the selected subarray region for each dimension of the SparseArray.
+        :param selection: An int index, ``slice``, tuple, list/numpy array/pyarrow array
+            of integer/``slice`` objects, specifying the selected subarray region
+            for each dimension of the SparseArray.
         :rtype: :py:class:`collections.OrderedDict`
         :returns: An OrderedDict is returned with dimension and attribute names as keys. \
             Nonempty attribute values are returned as Numpy 1-d arrays.
