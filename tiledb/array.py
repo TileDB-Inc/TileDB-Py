@@ -144,10 +144,13 @@ def index_domain_subarray(array, dom, idx: tuple):
 
         dim_idx = idx[r]
 
-        if isinstance(dim_idx, np.ndarray):
+        if isinstance(dim_idx, np.ndarray) or isinstance(dim_idx, list):
             if not np.issubdtype(dim_dtype, np.str_) and not np.issubdtype(
                 dim_dtype, np.bytes_
             ):
+                # if this is a list, convert to numpy array
+                if isinstance(dim_idx, list):
+                    dim_idx = np.array(dim_idx)
                 subarray.append((dim_idx))
             else:
                 subarray.append([(x, x) for x in dim_idx])

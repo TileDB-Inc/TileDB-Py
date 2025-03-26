@@ -1368,6 +1368,10 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             )
 
             assert_dict_arrays_equal(
+                arr[[dim_data[1].as_py(), dim_data[3].as_py(), dim_data[4].as_py()]],
+                expected_dict,
+            )
+            assert_dict_arrays_equal(
                 arr[
                     np.array(
                         [
