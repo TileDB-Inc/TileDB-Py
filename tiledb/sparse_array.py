@@ -546,7 +546,7 @@ class SparseArrayImpl(Array):
         idx, drop_axes = replace_scalars_slice(dom, idx)
         dim_ranges = index_domain_subarray(self, dom, idx)
         subarray = Subarray(self, self.ctx)
-        subarray.add_ranges([list([x]) for x in dim_ranges])
+        subarray.add_ranges(dim_ranges)
         return self._read_sparse_subarray(subarray, attr_names, cond, layout)
 
     def __repr__(self):

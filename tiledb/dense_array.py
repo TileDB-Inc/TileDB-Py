@@ -276,7 +276,7 @@ class DenseArrayImpl(Array):
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         dim_ranges = index_domain_subarray(self, self.schema.domain, idx)
         subarray = Subarray(self, self.ctx)
-        subarray.add_ranges([list([x]) for x in dim_ranges])
+        subarray.add_ranges(dim_ranges)
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, cond, layout, coords)
         if any(s.step for s in idx):
@@ -423,7 +423,7 @@ class DenseArrayImpl(Array):
         else:
             dim_ranges = index_domain_subarray(self, domain, idx)
             subarray = Subarray(self, self.ctx)
-            subarray.add_ranges([list([x]) for x in dim_ranges])
+            subarray.add_ranges(dim_ranges)
 
         subarray_shape = subarray.shape()
         if isinstance(val, np.ndarray):
@@ -754,7 +754,7 @@ class DenseArrayImpl(Array):
         idx = tuple(slice(None) for _ in range(domain.ndim))
         range_index = index_domain_subarray(self, domain, idx)
         subarray = Subarray(self, self.ctx)
-        subarray.add_ranges([list([x]) for x in range_index])
+        subarray.add_ranges(range_index)
         out = self._read_dense_subarray(
             subarray,
             [
