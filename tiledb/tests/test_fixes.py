@@ -382,6 +382,26 @@ class FixesTest(DiskTestCase):
         with tiledb.DenseArray(uri) as T:
             assert_array_equal(array_data, T)
 
+    def test_sc_64885_ctx_reference_lost(self):
+        uri = self.path("test_sc_64885_ctx_reference_lost")
+        config = tiledb.Config()
+        enmr = tiledb.Enumeration("e", True, dtype="int")
+        attrs = [tiledb.Attr(name="a", dtype=int, enum_label="e")]
+        domain = tiledb.Domain(tiledb.Dim(domain=(0, 3), dtype=np.uint64))
+        schema = tiledb.ArraySchema(domain=domain, attrs=attrs, enums=[enmr])
+        tiledb.Array.create(uri, schema, ctx=tiledb.Ctx(config=config.dict()))
+
+        with tiledb.open(uri, ctx=tiledb.Ctx(config=config.dict())) as A:
+            assert A.schema.has_attr("a")
+            assert A.attr("a").enum_label == "e"
+            assert A.enum("e") == enmr
+
+        se = tiledb.ArraySchemaEvolution(ctx=tiledb.Ctx(config=config.dict()))
+        data = [1, 2, 3, 4]
+        updated_enmr = enmr.extend(data)
+        # this used to fail with a "tiledb.libtiledb.TileDBError: error retrieving error object from ctx"
+        se.extend_enumeration(updated_enmr)
+
 
 class SOMA919Test(DiskTestCase):
     """
