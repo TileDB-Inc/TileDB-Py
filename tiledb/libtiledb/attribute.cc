@@ -75,11 +75,15 @@ void init_attribute(py::module& m) {
     py::class_<tiledb::Attribute>(m, "Attribute")
         .def(py::init<Attribute>())
 
-        .def(py::init<Context&, std::string&, tiledb_datatype_t>())
+        .def(
+            py::init<Context&, std::string&, tiledb_datatype_t>(),
+            py::keep_alive<1, 2>())
 
-        .def(py::init<Context&, std::string&, tiledb_datatype_t, FilterList&>())
+        .def(
+            py::init<Context&, std::string&, tiledb_datatype_t, FilterList&>(),
+            py::keep_alive<1, 2>())
 
-        .def(py::init<const Context&, py::capsule>())
+        .def(py::init<const Context&, py::capsule>(), py::keep_alive<1, 2>())
 
         .def(
             "__capsule__",

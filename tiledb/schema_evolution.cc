@@ -18,19 +18,21 @@ using ArraySchemaEvolution = PyArraySchemaEvolution;
 
 void init_schema_evolution(py::module& m) {
     py::class_<ArraySchemaEvolution>(m, "ArraySchemaEvolution")
-        .def(py::init([](py::object ctx_py) {
-            tiledb_ctx_t* ctx_c = (py::capsule)ctx_py.attr("__capsule__")();
-            if (ctx_c == nullptr)
-                TPY_ERROR_LOC("Invalid context pointer");
+        .def(
+            py::init([](py::object ctx_py) {
+                tiledb_ctx_t* ctx_c = (py::capsule)ctx_py.attr("__capsule__")();
+                if (ctx_c == nullptr)
+                    TPY_ERROR_LOC("Invalid context pointer");
 
-            tiledb_array_schema_evolution_t* evol_p;
-            int rc = tiledb_array_schema_evolution_alloc(ctx_c, &evol_p);
-            if (rc != TILEDB_OK) {
-                TPY_ERROR_LOC(get_last_ctx_err_str(ctx_c, rc));
-            }
+                tiledb_array_schema_evolution_t* evol_p;
+                int rc = tiledb_array_schema_evolution_alloc(ctx_c, &evol_p);
+                if (rc != TILEDB_OK) {
+                    TPY_ERROR_LOC(get_last_ctx_err_str(ctx_c, rc));
+                }
 
-            return new PyArraySchemaEvolution({ctx_c, evol_p});
-        }))
+                return new PyArraySchemaEvolution({ctx_c, evol_p});
+            }),
+            py::keep_alive<1, 2>())
         .def(
             "add_attribute",
             [](ArraySchemaEvolution& inst, py::object attr_py) {
