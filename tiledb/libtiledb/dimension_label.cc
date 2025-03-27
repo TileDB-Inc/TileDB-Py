@@ -18,7 +18,7 @@ void init_dimension_label(py::module& m) {
     py::class_<DimensionLabel>(m, "DimensionLabel")
         .def(py::init<DimensionLabel>())
 
-        .def(py::init<const Context&, py::capsule>())
+        .def(py::init<const Context&, py::capsule>(), py::keep_alive<1, 2>())
 
         .def(
             "__capsule__",

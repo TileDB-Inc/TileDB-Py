@@ -196,9 +196,9 @@ void init_schema(py::module& m) {
 
         .def(py::init<Context&, tiledb_array_type_t>(), py::keep_alive<1, 2>())
 
-        .def(py::init<Context&, std::string&>())
+        .def(py::init<Context&, std::string&>(), py::keep_alive<1, 2>())
 
-        .def(py::init<Context&, py::capsule>())
+        .def(py::init<Context&, py::capsule>(), py::keep_alive<1, 2>())
 
         .def(
             "__capsule__",

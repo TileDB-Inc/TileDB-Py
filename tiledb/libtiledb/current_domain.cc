@@ -229,7 +229,7 @@ void init_current_domain(py::module& m) {
     py::class_<CurrentDomain>(m, "CurrentDomain")
         .def(py::init<CurrentDomain>())
 
-        .def(py::init<const Context&>())
+        .def(py::init<const Context&>(), py::keep_alive<1, 2>())
 
         .def(
             "__capsule__",
