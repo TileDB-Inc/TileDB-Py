@@ -151,7 +151,9 @@ def index_domain_subarray(array, dom, idx: tuple):
                 # if this is a list, convert to numpy array
                 if isinstance(dim_idx, list):
                     dim_idx = np.array(dim_idx)
-                subarray.append((dim_idx))
+                subarray.append(
+                    (dim_idx),
+                )
             else:
                 subarray.append([(x, x) for x in dim_idx])
             continue
@@ -173,7 +175,7 @@ def index_domain_subarray(array, dom, idx: tuple):
         except ImportError:
             pass
         if not isinstance(dim_idx, slice):
-            raise IndexError("invalid index type: {!r}".format(type(dim_idx)))
+            raise IndexError(f"invalid index type: {type(dim_idx)!r}")
 
         start, stop, step = dim_idx.start, dim_idx.stop, dim_idx.step
 

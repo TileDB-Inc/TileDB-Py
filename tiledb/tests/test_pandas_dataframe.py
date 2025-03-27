@@ -1352,49 +1352,27 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             assert_array_equal(arr.df[np.array(partial_dim_data)], expected_partial_df)
 
             # square brackets accessor
+            py_attr_data = [
+                attr_data[1].as_py(),
+                attr_data[3].as_py(),
+                attr_data[4].as_py(),
+            ]
+            py_dim_data = [
+                dim_data[1].as_py(),
+                dim_data[3].as_py(),
+                dim_data[4].as_py(),
+            ]
+
             expected_dict = OrderedDict(
                 {
-                    "rand": [
-                        attr_data[1].as_py(),
-                        attr_data[3].as_py(),
-                        attr_data[4].as_py(),
-                    ],
-                    "dim_a": [
-                        dim_data[1].as_py(),
-                        dim_data[3].as_py(),
-                        dim_data[4].as_py(),
-                    ],
+                    "rand": py_attr_data,
+                    "dim_a": py_dim_data,
                 }
             )
 
-            assert_dict_arrays_equal(
-                arr[[dim_data[1].as_py(), dim_data[3].as_py(), dim_data[4].as_py()]],
-                expected_dict,
-            )
-            assert_dict_arrays_equal(
-                arr[
-                    np.array(
-                        [
-                            dim_data[1].as_py(),
-                            dim_data[3].as_py(),
-                            dim_data[4].as_py(),
-                        ]
-                    )
-                ],
-                expected_dict,
-            )
-            assert_dict_arrays_equal(
-                arr[
-                    pyarrow.array(
-                        [
-                            dim_data[1].as_py(),
-                            dim_data[3].as_py(),
-                            dim_data[4].as_py(),
-                        ]
-                    )
-                ],
-                expected_dict,
-            )
+            assert_dict_arrays_equal(arr[py_dim_data], expected_dict)
+            assert_dict_arrays_equal(arr[np.array(py_dim_data)], expected_dict)
+            assert_dict_arrays_equal(arr[pyarrow.array(py_dim_data)], expected_dict)
 
     def test_nullable_integers(self):
         nullable_int_dtypes = (
