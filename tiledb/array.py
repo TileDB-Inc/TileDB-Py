@@ -142,11 +142,42 @@ def index_domain_subarray(array, dom, idx: tuple):
         else:
             (dim_lb, dim_ub) = dim.domain
 
-        dim_slice = idx[r]
-        if not isinstance(dim_slice, slice):
-            raise IndexError("invalid index type: {!r}".format(type(dim_slice)))
+        dim_idx = idx[r]
 
-        start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
+        if isinstance(dim_idx, np.ndarray) or isinstance(dim_idx, list):
+            if not np.issubdtype(dim_dtype, np.str_) and not np.issubdtype(
+                dim_dtype, np.bytes_
+            ):
+                # if this is a list, convert to numpy array
+                if isinstance(dim_idx, list):
+                    dim_idx = np.array(dim_idx)
+                subarray.append(
+                    (dim_idx),
+                )
+            else:
+                subarray.append([(x, x) for x in dim_idx])
+            continue
+        try:
+            import pyarrow
+
+            if isinstance(dim_idx, pyarrow.Array):
+                if not np.issubdtype(dim_dtype, np.str_) and not np.issubdtype(
+                    dim_dtype, np.bytes_
+                ):
+                    # this is zero copy by default
+                    subarray.append(dim_idx.to_numpy())
+                else:
+                    # zero copy is not supported for string types
+                    subarray.append(
+                        [(x, x) for x in dim_idx.to_numpy(zero_copy_only=False)]
+                    )
+                continue
+        except ImportError:
+            pass
+        if not isinstance(dim_idx, slice):
+            raise IndexError(f"invalid index type: {type(dim_idx)!r}")
+
+        start, stop, step = dim_idx.start, dim_idx.stop, dim_idx.step
 
         # In the case that current domain is non-empty, we need to consider it
         if (
@@ -170,7 +201,7 @@ def index_domain_subarray(array, dom, idx: tuple):
                 raise tiledb.TileDBError(
                     f"Non-string range '({start},{stop})' provided for string dimension '{dim.name}'"
                 )
-            subarray.append((start, stop))
+            subarray.append([(start, stop)])
             continue
 
         if step and array.schema.sparse:
@@ -249,16 +280,16 @@ def index_domain_subarray(array, dom, idx: tuple):
             # inclusive bounds for floating point / datetime ranges
             start = dim_dtype.type(start)
             stop = dim_dtype.type(stop)
-            subarray.append((start, stop))
+            subarray.append([(start, stop)])
         elif is_datetime:
             # need to ensure that datetime ranges are in the units of dim_dtype
             # so that add_range and output shapes work correctly
             start = start.astype(dim_dtype)
             stop = stop.astype(dim_dtype)
-            subarray.append((start, stop))
+            subarray.append([(start, stop)])
         elif np.issubdtype(type(stop), np.integer):
             # normal python indexing semantics
-            subarray.append((start, int(stop) - 1))
+            subarray.append([(start, int(stop) - 1)])
         else:
             raise IndexError(
                 "domain indexing is defined for integral and floating point values"
