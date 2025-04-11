@@ -28,7 +28,19 @@ else()
   find_package(TileDB QUIET)
 endif()
 
-if (NOT TileDB_FOUND)
+if (TILEDB_BRANCH)
+  include(FetchContent)
+  message(STATUS "Building TileDB from source branch \"${TILEDB_BRANCH}\"")
+
+  FetchContent_Declare(
+    TileDB
+    GIT_REPOSITORY https://github.com/TileDB-Inc/TileDB.git
+    GIT_TAG ${TILEDB_BRANCH}
+  )
+
+  FetchContent_MakeAvailable(TileDB)
+  set(TILEDB_DOWNLOADED TRUE)
+elseif (NOT TileDB_FOUND)
     include(cmake/DownloadTileDB.cmake)
     if (TILEDB_VERSION)
         message(STATUS "Downloading TileDB version \"${TILEDB_VERSION}\" ...")

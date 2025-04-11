@@ -76,6 +76,7 @@ sdist.include = ["tiledb/_generated_version.py"]
 [tool.scikit-build.cmake.define]
 TILEDB_PATH = {env="TILEDB_PATH"}
 TILEDB_VERSION = {env="TILEDB_VERSION"}
+TILEDB_BRANCH = {env="TILEDB_BRANCH"}
 TILEDB_HASH = {env="TILEDB_HASH"}
 TILEDB_REMOVE_DEPRECATIONS = "OFF"
 TILEDB_SERIALIZATION = "OFF"
