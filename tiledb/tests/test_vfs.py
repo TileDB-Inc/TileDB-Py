@@ -19,7 +19,6 @@ class TestVFS(DiskTestCase):
 
         self.assertTrue(vfs.supports("file"))
         self.assertIsInstance(vfs.supports("s3"), bool)
-        self.assertIsInstance(vfs.supports("hdfs"), bool)
         self.assertIsInstance(vfs.supports("gcs"), bool)
         self.assertIsInstance(vfs.supports("azure"), bool)
 

@@ -122,7 +122,7 @@ class VFS(lt.VFS):
     def supports(self, scheme: str) -> bool:
         """Returns true if the given URI scheme (storage backend) is supported.
 
-        :param str scheme: scheme component of a VFS resource URI (ex. 'file' / 'hdfs' / 's3')
+        :param str scheme: scheme component of a VFS resource URI (ex. 'file' / 's3')
         :rtype: bool
         :return: True if the linked libtiledb version supports the storage backend, False otherwise
         :raises ValueError: VFS storage backend is not supported
@@ -135,7 +135,6 @@ class VFS(lt.VFS):
             "s3": lt.FileSystem.S3,
             "azure": lt.FileSystem.AZURE,
             "gcs": lt.FileSystem.GCS,
-            "hdfs": lt.FileSystem.HDFS,
         }
 
         if scheme not in scheme_to_fs_type:
