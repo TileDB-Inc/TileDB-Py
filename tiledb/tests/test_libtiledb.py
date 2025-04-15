@@ -3956,11 +3956,6 @@ class TestAsBuilt(DiskTestCase):
         else:
             assert x["gcs"]["enabled"] == False
 
-        if vfs.supports("hdfs"):
-            assert x["hdfs"]["enabled"] == True
-        else:
-            assert x["hdfs"]["enabled"] == False
-
         if vfs.supports("s3"):
             assert x["s3"]["enabled"] == True
         else:
