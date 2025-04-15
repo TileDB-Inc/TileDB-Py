@@ -164,7 +164,7 @@ void init_enums(py::module& m) {
         .value("AZURE", TILEDB_AZURE)
         .value("GCS", TILEDB_GCS)
 
-    py::enum_<tiledb::Object::Type>(m, "ObjectType")
+            py::enum_<tiledb::Object::Type>(m, "ObjectType")
         .value("ARRAY", Object::Type::Array)
         .value("GROUP", Object::Type::Group)
         .value("INVALID", Object::Type::Invalid)
