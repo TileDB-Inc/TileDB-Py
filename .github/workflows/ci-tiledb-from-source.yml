@@ -30,7 +30,6 @@ jobs:
             -DTILEDB_S3=ON \
             -DTILEDB_AZURE=ON \
             -DTILEDB_GCS=ON \
-            -DTILEDB_HDFS=ON \
             -DTILEDB_SERIALIZATION=ON \
             -DTILEDB_WEBP=ON \
             -DTILEDB_TESTS=OFF \
