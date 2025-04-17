@@ -163,8 +163,9 @@ void init_enums(py::module& m) {
         .value("S3", TILEDB_S3)
         .value("AZURE", TILEDB_AZURE)
         .value("GCS", TILEDB_GCS)
+        .value("HDFS", TILEDB_HDFS);
 
-            py::enum_<tiledb::Object::Type>(m, "ObjectType")
+    py::enum_<tiledb::Object::Type>(m, "ObjectType")
         .value("ARRAY", Object::Type::Array)
         .value("GROUP", Object::Type::Group)
         .value("INVALID", Object::Type::Invalid)
