@@ -110,15 +110,16 @@ __version__ = version.version
 group_create = Group.create
 
 
-# Create a proxy object to wrap libtiledb and provide a `cc` alias
+# Create a proxy class to handle the deprecation of `tiledb.cc`
 class CCProxy:
     def __init__(self, module):
         self._module = module
 
     def __getattr__(self, name):
-        warnings.warn(
-            "`tiledb.cc` is deprecated. Please use `tiledb.libtiledb` instead.",
-        )
+        if not name.startswith("__"):
+            warnings.warn(
+                "`tiledb.cc` is deprecated. Please use `tiledb.libtiledb` instead.",
+            )
         return getattr(self._module, name)
 
     def __repr__(self):
@@ -128,9 +129,10 @@ class CCProxy:
         return self._module.__repr__()
 
 
+# Create a proxy object to wrap libtiledb and provide a `cc` alias
 cc = CCProxy(libtiledb)
 sys.modules["tiledb.cc"] = cc
-cc = cc
+# Delete the class to avoid namespace pollution
 del CCProxy
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
