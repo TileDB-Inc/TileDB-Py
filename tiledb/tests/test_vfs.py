@@ -21,6 +21,8 @@ class TestVFS(DiskTestCase):
         self.assertIsInstance(vfs.supports("s3"), bool)
         self.assertIsInstance(vfs.supports("gcs"), bool)
         self.assertIsInstance(vfs.supports("azure"), bool)
+        if tiledb.libtiledb.version() < (2, 28, 0):
+            self.assertIsInstance(vfs.supports("hdfs"), bool)
 
         with self.assertRaises(ValueError):
             vfs.supports("invalid")
