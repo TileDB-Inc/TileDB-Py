@@ -135,7 +135,11 @@ class VFS(lt.VFS):
             "s3": lt.FileSystem.S3,
             "azure": lt.FileSystem.AZURE,
             "gcs": lt.FileSystem.GCS,
-        }
+        } | (
+            {"hdfs": lt.FileSystem.HDFS}
+            if tiledb.libtiledb.version() < (2, 28, 0)
+            else {}
+        )
 
         if scheme not in scheme_to_fs_type:
             raise ValueError(f"Unsupported VFS scheme '{scheme}://'")
