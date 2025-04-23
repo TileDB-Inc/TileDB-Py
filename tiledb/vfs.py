@@ -142,7 +142,7 @@ class VFS(lt.VFS):
         )
 
         if scheme not in scheme_to_fs_type:
-            raise ValueError(f"Unsupported VFS scheme '{scheme}://'")
+            return False
 
         return self._ctx.is_supported_fs(scheme_to_fs_type[scheme])
 
