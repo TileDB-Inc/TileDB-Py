@@ -23,9 +23,12 @@ class TestVFS(DiskTestCase):
         self.assertIsInstance(vfs.supports("azure"), bool)
         if tiledb.libtiledb.version() < (2, 28, 0):
             self.assertIsInstance(vfs.supports("hdfs"), bool)
-
-        with self.assertRaises(ValueError):
-            vfs.supports("invalid")
+            with self.assertRaises(ValueError):
+                vfs.supports("invalid")
+        else:
+            # HDFS support is not available in TileDB 2.28.0 and later
+            # Also, supports is not raising an error for invalid VFS as it used to
+            self.assertFalse(vfs.supports("invalid"))
 
     def test_vfs_config(self):
         opt = {"region": "us-west-x1234"}
