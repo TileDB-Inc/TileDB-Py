@@ -92,6 +92,7 @@ from .metadata import Metadata
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet
+from .profile import Profile
 from .query import Query
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
