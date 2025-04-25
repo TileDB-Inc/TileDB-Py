@@ -23,12 +23,8 @@ class TestVFS(DiskTestCase):
         self.assertIsInstance(vfs.supports("gcs"), bool)
         self.assertIsInstance(vfs.supports("azure"), bool)
 
-        # Supports is not raising an error for invalid VFS as it used to
-        if tiledb.version() <= (0, 33, 6):
-            with self.assertRaises(ValueError):
-                vfs.supports("invalid")
-        else:
-            self.assertFalse(vfs.supports("invalid"))
+        # an invalid scheme should return False
+        self.assertFalse(vfs.supports("invalid"))
 
     def test_vfs_config(self):
         opt = {"region": "us-west-x1234"}
