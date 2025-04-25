@@ -23,8 +23,8 @@ class TestVFS(DiskTestCase):
         self.assertIsInstance(vfs.supports("gcs"), bool)
         self.assertIsInstance(vfs.supports("azure"), bool)
 
-        with self.assertRaises(ValueError):
-            vfs.supports("invalid")
+        # an invalid scheme should return False
+        self.assertFalse(vfs.supports("invalid"))
 
     def test_vfs_config(self):
         opt = {"region": "us-west-x1234"}
