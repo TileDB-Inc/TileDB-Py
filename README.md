@@ -11,9 +11,9 @@
 
 # Quick Links
 
-* [Installation](https://docs.tiledb.com/developer/installation/quick-install)
-* [Build Instructions](https://docs.tiledb.com/main/how-to/installation/building-from-source/python)
-* [TileDB Documentation](https://docs.tiledb.com/main/)
+* [Installation](https://cloud.tiledb.com/academy/structure/arrays/quickstart/)
+* [Build Instructions](docs/building-from-source.md)
+* [TileDB Academy](https://cloud.tiledb.com/academy/)
 * [Python API reference](https://tiledb-inc-tiledb-py.readthedocs-hosted.com/en/stable)
 
 # Quick Installation
