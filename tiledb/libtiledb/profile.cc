@@ -20,6 +20,8 @@ void init_profile(py::module& m) {
             py::init<std::optional<std::string>, std::optional<std::string>>(),
             py::keep_alive<1, 2>())
 
+        .def(py::init<Profile>())
+
         .def_property_readonly("_name", &tiledb::Profile::get_name)
 
         .def_property_readonly("_homedir", &tiledb::Profile::get_homedir)
@@ -33,6 +35,14 @@ void init_profile(py::module& m) {
         .def("_get_param", &tiledb::Profile::get_param, py::arg("param"))
 
         .def("_save", &tiledb::Profile::save)
+
+        .def_static(
+            "_load",
+            py::overload_cast<
+                std::optional<std::string>,
+                std::optional<std::string>>(&tiledb::Profile::load),
+            py::arg("name") = std::nullopt,
+            py::arg("homedir") = std::nullopt)
 
         .def("_remove", &tiledb::Profile::remove)
 

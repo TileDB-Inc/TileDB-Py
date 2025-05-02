@@ -38,7 +38,7 @@ class Profile(lt.Profile):
         """
         return self._dump()
 
-    def set_param(self, param: str, value: str):
+    def __setitem__(self, param: str, value: str):
         """Sets a parameter for the profile.
 
         :param param: The parameter name.
@@ -47,8 +47,7 @@ class Profile(lt.Profile):
         """
         self._set_param(param, value)
 
-    # maybe provide square brackets overload?
-    def get_param(self, param: str):
+    def __getitem__(self, param: str):
         """Gets a parameter for the profile.
 
         :param param: The parameter name.
@@ -57,14 +56,31 @@ class Profile(lt.Profile):
         return self._get_param(param)
 
     def save(self):
-        """Saves the profile.
+        """Saves the profile to storage.
 
         :raises tiledb.TileDBError:
         """
         self._save()
 
+    @classmethod
+    def load(cls, name: str = None, homedir: str = None) -> "Profile":
+        """Loads a profile from storage.
+
+        :param name: The name of the profile.
+        :param homedir: The home directory of the profile.
+        :return: The loaded profile.
+        :rtype: tiledb.Profile
+        :raises tiledb.TileDBError:
+        """
+        # This is a workaround for the from_pybind11 method due to the fact
+        # that this class does not inherit from CtxMixin, as is commonly done.
+        lt_obj = lt.Profile._load(name, homedir)
+        py_obj = cls.__new__(cls)
+        lt.Profile.__init__(py_obj, lt_obj)
+        return py_obj
+
     def remove(self):
-        """Removes the profile.
+        """Removes the profile from storage.
 
         :raises tiledb.TileDBError:
         """
