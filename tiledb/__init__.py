@@ -25,6 +25,9 @@ if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 26:
     from .current_domain import CurrentDomain
     from .ndrectangle import NDRectangle
 
+if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 28:
+    from .profile import Profile
+
 del libtiledb_version  # no longer needed
 
 from .array import Array
@@ -92,7 +95,6 @@ from .metadata import Metadata
 from .multirange_indexing import EmptyRange
 from .object import Object
 from .parquet_ import from_parquet
-from .profile import Profile
 from .query import Query
 from .query_condition import QueryCondition
 from .schema_evolution import ArraySchemaEvolution
