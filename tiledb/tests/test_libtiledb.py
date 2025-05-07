@@ -3958,8 +3958,11 @@ class TestAsBuilt(DiskTestCase):
 
         if vfs.supports("hdfs"):
             assert x["hdfs"]["enabled"] == True
-        else:
+        elif tiledb.libtiledb.version() < (2, 28, 0):
             assert x["hdfs"]["enabled"] == False
+        else:
+            # hdfs is not supported in libtiledb >= 2.28.0
+            "hdfs" not in x
 
         if vfs.supports("s3"):
             assert x["s3"]["enabled"] == True
