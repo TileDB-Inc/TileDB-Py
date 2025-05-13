@@ -1,3 +1,18 @@
+# Release 0.34.0
+
+* TileDB-Py 0.34.0 includes TileDB Embedded [2.28.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.28.0)
+
+## Improvements
+
+* Add Building from Source docs by @nickvigilante in https://github.com/TileDB-Inc/TileDB-Py/pull/2190
+* Remove support for HDFS by @jdblischak, @kounelisagis, and @teo-tsirpanis in https://github.com/TileDB-Inc/TileDB-Py/pull/2185, https://github.com/TileDB-Inc/TileDB-Py/pull/2184, and https://github.com/TileDB-Inc/TileDB-Py/pull/2191
+* Consider index passed, even if the current domain is present by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2178
+
+## Build system changes
+* Set manylinux images to `manylinux_2_28` for build wheels workflow by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2192
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.6...0.34.0
+
 # Release 0.33.6
 
 ## Bug Fixes
