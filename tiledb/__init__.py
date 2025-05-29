@@ -109,32 +109,6 @@ from .vfs import VFS, FileIO
 __version__ = version.version
 group_create = Group.create
 
-
-# Create a proxy class to handle the deprecation of `tiledb.cc`
-class CCProxy:
-    def __init__(self, module):
-        self._module = module
-
-    def __getattr__(self, name):
-        if not name.startswith("__"):
-            warnings.warn(
-                "`tiledb.cc` is deprecated. Please use `tiledb.libtiledb` instead.",
-            )
-        return getattr(self._module, name)
-
-    def __repr__(self):
-        warnings.warn(
-            "`tiledb.cc` is deprecated. Please use `tiledb.libtiledb` instead.",
-        )
-        return self._module.__repr__()
-
-
-# Create a proxy object to wrap libtiledb and provide a `cc` alias
-cc = CCProxy(libtiledb)
-sys.modules["tiledb.cc"] = cc
-# Delete the class to avoid namespace pollution
-del CCProxy
-
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
 #       Therefore, 'tiledb/__init__.py' must *only* exist in this package.
 #       Furthermore, in sub-packages, the `find_packages` helper will not work at the
