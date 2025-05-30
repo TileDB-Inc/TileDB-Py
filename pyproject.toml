@@ -52,7 +52,7 @@ doc = [
 ]
 test = [
     "pytest",
-    "pytest-retry",
+    "pytest-rerunfailures",
     "hypothesis",
     "psutil",
     "pyarrow",
@@ -113,7 +113,7 @@ select = ["NPY201"]
 [tool.cibuildwheel]
 test-requires = [
     "pytest",
-    "pytest-retry",
+    "pytest-rerunfailures",
     "hypothesis",
     "psutil",
     "pyarrow",
