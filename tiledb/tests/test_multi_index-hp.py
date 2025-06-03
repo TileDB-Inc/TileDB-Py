@@ -58,7 +58,6 @@ class TestMultiIndexPropertySparse:
     dmin, dmax = -100, 100
 
     @pytest.fixture(scope="class")
-    @classmethod
     def sparse_array_1d(cls, checked_path):
         def write_sparse_contig(uri):
             data = np.arange(cls.dmin, cls.dmax, dtype=np.int64)
