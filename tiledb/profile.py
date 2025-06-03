@@ -6,14 +6,14 @@ class Profile(lt.Profile):
     Represents a TileDB profile.
     """
 
-    def __init__(self, name: str = None, homedir: str = None):
+    def __init__(self, name: str = None, dir: str = None):
         """Class representing a TileDB profile.
 
         :param name: The name of the profile.
-        :param homedir: The home directory of the profile.
+        :param dir: The directory of the profile.
         :raises tiledb.TileDBError:
         """
-        super().__init__(name, homedir)
+        super().__init__(name, dir)
 
     @property
     def name(self):
@@ -24,12 +24,12 @@ class Profile(lt.Profile):
         return self._name
 
     @property
-    def homedir(self):
-        """The home directory of the profile.
+    def dir(self):
+        """The directory of the profile.
 
         :rtype: str
         """
-        return self._homedir
+        return self._dir
 
     def __repr__(self):
         """String representation of the profile.
@@ -63,18 +63,18 @@ class Profile(lt.Profile):
         self._save()
 
     @classmethod
-    def load(cls, name: str = None, homedir: str = None) -> "Profile":
+    def load(cls, name: str = None, dir: str = None) -> "Profile":
         """Loads a profile from storage.
 
         :param name: The name of the profile.
-        :param homedir: The home directory of the profile.
+        :param dir: The directory of the profile.
         :return: The loaded profile.
         :rtype: tiledb.Profile
         :raises tiledb.TileDBError:
         """
         # This is a workaround for the from_pybind11 method due to the fact
         # that this class does not inherit from CtxMixin, as is commonly done.
-        lt_obj = lt.Profile._load(name, homedir)
+        lt_obj = lt.Profile._load(name, dir)
         py_obj = cls.__new__(cls)
         lt.Profile.__init__(py_obj, lt_obj)
         return py_obj

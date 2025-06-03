@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -7,82 +8,126 @@ import tiledb.libtiledb as lt
 
 from .common import DiskTestCase
 
-if not (lt.version()[0] == 2 and lt.version()[1] >= 28):
+if not (lt.version()[0] == 2 and lt.version()[1] >= 29):
     pytest.skip(
-        "Profile is only available in TileDB 2.28 and later",
+        "Profile is only available in TileDB 2.29 and later",
         allow_module_level=True,
     )
+
+"""
+Due to the nature of Profiles, they are touching the filesystem,
+so we need to be careful and not affect the user's Profiles.
+Thus we use DiskTestCase to create temporary directories.
+"""
 
 
 class ProfileTestCase(DiskTestCase):
     def setup_method(self):
         super().setup_method()
-        self.profile1 = tiledb.Profile()  # default profile
-        self.profile2 = tiledb.Profile("test_profile")  # named profile
-        self.profile3 = tiledb.Profile(
-            homedir=self.path("profile3_dir")
-        )  # profile with custom home directory
-        self.profile4 = tiledb.Profile(
-            "test_profile", self.path("profile4_dir")
-        )  # named profile with custom home directory
+        self.profile1 = tiledb.Profile(
+            dir=self.path("profile1_dir")
+        )  # profile with custom directory
+        self.profile2 = tiledb.Profile(
+            "profile2_name", self.path("profile2_dir")
+        )  # named profile with custom directory
 
 
 class ProfileTest(ProfileTestCase):
     def test_profile_name(self):
         assert self.profile1.name == "default"
-        assert self.profile2.name == "test_profile"
-        assert self.profile3.name == "default"
-        assert self.profile4.name == "test_profile"
+        assert self.profile2.name == "profile2_name"
 
-    def test_profile_homedir(self):
-        assert Path(self.profile1.homedir) == Path.home()
-        assert Path(self.profile2.homedir) == Path.home()
-        assert Path(self.profile3.homedir) == Path(self.path("profile3_dir"))
-        assert Path(self.profile4.homedir) == Path(self.path("profile4_dir"))
+    def test_profile_dir(self):
+        assert Path(self.profile1.dir) == Path(self.path("profile1_dir"))
+        assert Path(self.profile2.dir) == Path(self.path("profile2_dir"))
 
     def test_profile_set_get_param(self):
-        self.profile1["rest.username"] = "my_username"
-        assert self.profile1["rest.username"] == "my_username"
+        username = "my_username"
+        server_address = "https://myaddress.com"
 
-        self.profile3["rest.server_address"] = "https://myaddress.com"
-        assert self.profile3["rest.server_address"] == "https://myaddress.com"
+        self.profile1["rest.username"] = username
+        assert self.profile1["rest.username"] == username
+
+        self.profile1["rest.server_address"] = server_address
+        assert self.profile1["rest.server_address"] == server_address
 
     def test_profile_repr(self):
-        self.profile1["rest.password"] = "testing_the_password"
-        self.profile1["rest.payer_namespace"] = "testing_the_namespace"
-        self.profile1["rest.server_address"] = "https://testing_the_address.com"
-        self.profile1["rest.token"] = "testing_the_token"
-        self.profile1["rest.username"] = "testing_the_username"
+        password = "testing_the_password"
+        payer_namespace = "testing_the_namespace"
+        server_address = "https://testing_the_address.com"
+        token = "testing_the_token"
+        username = "testing_the_username"
 
-        import json
+        self.profile1["rest.password"] = password
+        self.profile1["rest.payer_namespace"] = payer_namespace
+        self.profile1["rest.server_address"] = server_address
+        self.profile1["rest.token"] = token
+        self.profile1["rest.username"] = username
 
         goal_dict = {
             "default": {
-                "rest.password": "testing_the_password",
-                "rest.payer_namespace": "testing_the_namespace",
-                "rest.server_address": "https://testing_the_address.com",
-                "rest.token": "testing_the_token",
-                "rest.username": "testing_the_username",
+                "rest.password": password,
+                "rest.payer_namespace": payer_namespace,
+                "rest.server_address": server_address,
+                "rest.token": token,
+                "rest.username": username,
             }
         }
 
         assert goal_dict == json.loads(repr(self.profile1))
 
     def test_profile_set_save_load_get(self):
-        self.profile4["rest.token"] = "testing_the_token_for_profile4"
-        self.profile4["rest.payer_namespace"] = "testing_the_namespace_for_profile4"
+        token = "testing_the_token_for_profile2"
+        payer_namespace = "testing_the_namespace_for_profile2"
+        default_server_address = "https://api.tiledb.com"
+
+        self.profile2["rest.token"] = token
+        self.profile2["rest.payer_namespace"] = payer_namespace
 
         # save the profile
-        self.profile4.save()
+        self.profile2.save()
 
-        # load
-        new_profile = tiledb.Profile.load("test_profile", self.path("profile4_dir"))
-        assert new_profile.name == "test_profile"
-        assert new_profile.homedir == self.path("profile4_dir")
-        assert new_profile["rest.username"] == ""
-        assert new_profile["rest.password"] == ""
-        assert new_profile["rest.server_address"] == "https://api.tiledb.com"
-        assert new_profile["rest.token"] == "testing_the_token_for_profile4"
-        assert (
-            new_profile["rest.payer_namespace"] == "testing_the_namespace_for_profile4"
-        )
+        # load the profile
+        loaded_profile = tiledb.Profile.load("profile2_name", self.path("profile2_dir"))
+        assert loaded_profile.name == "profile2_name"
+        assert loaded_profile.dir == self.path("profile2_dir")
+        assert loaded_profile["rest.username"] == ""
+        assert loaded_profile["rest.password"] == ""
+        assert loaded_profile["rest.server_address"] == default_server_address
+        assert loaded_profile["rest.token"] == token
+        assert loaded_profile["rest.payer_namespace"] == payer_namespace
+
+
+class ConfigWithProfileTest(ProfileTestCase):
+    def test_config_with_profile(self):
+        username = "username_coming_from_profile"
+        password = "password_coming_from_profile"
+        server_address = "https://profile_address.com"
+
+        # Create a profile and set some parameters
+        profile = tiledb.Profile(dir=self.path("profile_with_config_dir"))
+        profile["rest.username"] = username
+        profile["rest.password"] = password
+        profile["rest.server_address"] = server_address
+
+        # Save the profile
+        profile.save()
+
+        # -----
+        # The above is done only once, so we can use the same profile later
+        # -----
+
+        # Create a config and set the profile
+        config = tiledb.Config()
+        config.set_profile(profile_dir=self.path("profile_with_config_dir"))
+        # Test that the config parameters are set correctly
+        assert config["rest.username"] == username
+        assert config["rest.password"] == password
+        assert config["rest.server_address"] == server_address
+
+        # Alternatively, we can set the profile details directly in the Config constructor
+        config2 = tiledb.Config(profile_dir=self.path("profile_with_config_dir"))
+        # Test that the config parameters are set correctly
+        assert config2["rest.username"] == username
+        assert config2["rest.password"] == password
+        assert config2["rest.server_address"] == server_address

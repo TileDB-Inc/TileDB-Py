@@ -14,17 +14,19 @@ using namespace tiledbpy::common;
 namespace py = pybind11;
 
 void init_profile(py::module& m) {
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 29
     py::class_<tiledb::Profile>(m, "Profile")
 
         .def(
             py::init<std::optional<std::string>, std::optional<std::string>>(),
-            py::keep_alive<1, 2>())
+            py::arg("name") = std::nullopt,
+            py::arg("dir") = std::nullopt)
 
         .def(py::init<Profile>())
 
-        .def_property_readonly("_name", &tiledb::Profile::get_name)
+        .def_property_readonly("_name", &tiledb::Profile::name)
 
-        .def_property_readonly("_homedir", &tiledb::Profile::get_homedir)
+        .def_property_readonly("_dir", &tiledb::Profile::dir)
 
         .def(
             "_set_param",
@@ -42,11 +44,12 @@ void init_profile(py::module& m) {
                 std::optional<std::string>,
                 std::optional<std::string>>(&tiledb::Profile::load),
             py::arg("name") = std::nullopt,
-            py::arg("homedir") = std::nullopt)
+            py::arg("dir") = std::nullopt)
 
         .def("_remove", &tiledb::Profile::remove)
 
         .def("_dump", &tiledb::Profile::dump);
+#endif
 }
 
 }  // namespace libtiledbcpp

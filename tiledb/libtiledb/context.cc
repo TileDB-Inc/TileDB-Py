@@ -53,6 +53,13 @@ void init_config(py::module& m) {
             })
 
         .def("save_to_file", &Config::save_to_file)
+
+        .def(
+            "_set_profile",
+            &Config::set_profile,
+            py::arg("profile_name") = std::nullopt,
+            py::arg("profile_dir") = std::nullopt)
+
         .def("__eq__", &Config::operator==)
         .def("__ne__", &Config::operator!=)
         //.def("_ptr", &Config::ptr) // TBD should this be capsule?
