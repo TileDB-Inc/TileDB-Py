@@ -39,6 +39,7 @@ class PyFragmentInfo {
     py::tuple to_vacuum_;
     py::tuple mbrs_;
     py::tuple array_schema_name_;
+    py::str dump_str_;
 
    public:
     tiledb_ctx_t* c_ctx_;
@@ -75,6 +76,7 @@ class PyFragmentInfo {
         has_consolidated_metadata_ = fill_has_consolidated_metadata();
         to_vacuum_ = fill_to_vacuum_uri();
         array_schema_name_ = fill_array_schema_name();
+        dump_str_ = fill_dump_str();
 
         if (include_mbrs)
             mbrs_ = fill_mbr();
@@ -119,8 +121,8 @@ class PyFragmentInfo {
         return array_schema_name_;
     };
 
-    void dump() const {
-        return fi_->dump(stdout);
+    py::str dump() {
+        return dump_str_;
     }
 
    private:
@@ -318,6 +320,12 @@ class PyFragmentInfo {
     py::tuple fill_array_schema_name() const {
         return for_all_fid(&FragmentInfo::array_schema_name);
     }
+
+    py::str fill_dump_str() const {
+        std::stringstream ss;
+        ss << *fi_;
+        return py::str(ss.str());
+    }
 };
 
 void init_fragment(py::module& m) {
@@ -339,7 +347,10 @@ void init_fragment(py::module& m) {
         .def("get_to_vacuum", &PyFragmentInfo::get_to_vacuum)
         .def("get_mbrs", &PyFragmentInfo::get_mbrs)
         .def("get_array_schema_name", &PyFragmentInfo::get_array_schema_name)
-        .def("dump", &PyFragmentInfo::dump);
+#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+        .def("dump", &PyFragmentInfo::dump)
+#endif
+        ;
 }
 
 };  // namespace tiledbpy
