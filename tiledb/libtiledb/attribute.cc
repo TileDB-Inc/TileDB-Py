@@ -35,7 +35,8 @@ py::array get_fill_value(Attribute& attr) {
     // byte cell.
     auto tdb_type = attr.type();
     if (tdb_type == TILEDB_BLOB
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
+#if TILEDB_VERSION_MAJOR > 2 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 21)
         || tdb_type == TILEDB_GEOM_WKB || tdb_type == TILEDB_GEOM_WKT
 #endif
     ) {
@@ -115,7 +116,8 @@ void init_attribute(py::module& m) {
         .def("_set_enumeration_name", set_enumeration_name)
 
         .def("_dump", [](Attribute& attr) {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+#if TILEDB_VERSION_MAJOR > 2 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
             std::stringstream ss;
             ss << attr;
             return ss.str();

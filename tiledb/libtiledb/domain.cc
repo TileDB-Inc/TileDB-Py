@@ -211,7 +211,8 @@ void init_domain(py::module& m) {
         .def("_add_dim", &Domain::add_dimension, py::keep_alive<1, 2>())
 
         .def("_dump", [](Domain& dom) {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+#if TILEDB_VERSION_MAJOR > 2 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
             std::stringstream ss;
             ss << dom;
             return ss.str();

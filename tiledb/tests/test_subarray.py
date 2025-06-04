@@ -68,7 +68,7 @@ class SubarrayTest(DiskTestCase):
                 subarray.add_ranges([[("aa", "bbbb")]])
 
     @pytest.mark.skipif(
-        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        tiledb.libtiledb.version() < (2, 15),
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     def test_add_label_ranges_1d(self):

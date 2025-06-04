@@ -78,7 +78,8 @@ void init_group(py::module& m) {
             py::arg("uri"),
             py::arg("relative") = false,
             py::arg("name") = std::nullopt
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 27
+#if TILEDB_VERSION_MAJOR > 2 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 27)
             ,
             py::arg("type") = std::nullopt
 #endif
