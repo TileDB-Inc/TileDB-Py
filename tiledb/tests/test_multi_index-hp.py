@@ -57,7 +57,6 @@ index_obj = st.one_of(subindex_obj, st.tuples(st.lists(subindex_obj)))
 class TestMultiIndexPropertySparse:
     dmin, dmax = -100, 100
 
-    @classmethod
     @pytest.fixture(scope="class")
     def sparse_array_1d(cls, checked_path):
         def write_sparse_contig(uri):
