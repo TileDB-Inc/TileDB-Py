@@ -111,7 +111,7 @@ void init_schema_evolution(py::module& m) {
                 }
             })
 
-#if TILEDB_VERSION_MAJOR > 2 || \
+#if TILEDB_VERSION_MAJOR >= 3 || \
     (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
         .def(
             "expand_current_domain",

@@ -209,7 +209,7 @@ void init_schema(py::module& m) {
         .def(
             "_dump",
             [](ArraySchema& schema) {
-#if TILEDB_VERSION_MAJOR > 2 || \
+#if TILEDB_VERSION_MAJOR >= 3 || \
     (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
                 std::stringstream ss;
                 ss << schema;
@@ -347,7 +347,7 @@ void init_schema(py::module& m) {
                 ArraySchemaExperimental::add_enumeration(ctx, schema, enmr);
             })
 
-#if TILEDB_VERSION_MAJOR > 2 || \
+#if TILEDB_VERSION_MAJOR >= 3 || \
     (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
         .def(
             "_current_domain",
