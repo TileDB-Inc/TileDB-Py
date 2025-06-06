@@ -969,6 +969,43 @@ class QueryConditionTest(DiskTestCase):
                 == list(enum2.values()).index("ccc")
             )
 
+    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
+    def test_dense_enum_qc_df(self):
+        import pandas as pd
+
+        path = self.path("test_boolean_insert")
+        pandas_df = pd.DataFrame(
+            {
+                "id": pd.Series([10, 20, 30, 40, 50, 60, 70, 80], dtype=np.int64),
+                "color": pd.Categorical(
+                    [
+                        "red",
+                        "yellow",
+                        "green",
+                        "green",
+                        "yellow",
+                        "red",
+                        "yellow",
+                        "green",
+                    ],
+                    ordered=True,
+                    categories=["red", "yellow", "green"],
+                ),
+            },
+        )
+
+        tiledb.from_pandas(path, pandas_df)
+
+        with tiledb.open(path) as A:
+            slice_query = A.query(cond="color == 'yellow'", attrs=["color"])
+            actual = slice_query.df[:]["color"]
+            expected = pd.Series(
+                [pd.NA, "yellow", pd.NA, pd.NA, "yellow", pd.NA, "yellow", pd.NA],
+                name="color",
+                dtype=pd.CategoricalDtype(categories=["red", "yellow", "green"]),
+            )
+            assert actual.equals(expected)
+
     def test_boolean_insert(self):
         path = self.path("test_boolean_insert")
         attr = tiledb.Attr("a", dtype=np.bool_, var=False)
