@@ -50,14 +50,24 @@ class Config(lt.Config):
 
     :param dict params: Set parameter values from dict like object
     :param str path: Set parameter values from persisted Config parameter file
+    :param str profile_name: Set the profile name to use for this Config object
+    :param str profile_dir: Set the profile directory to use for this Config object
     """
 
-    def __init__(self, params: dict = None, path: str = None):
+    def __init__(
+        self,
+        params: dict = None,
+        path: str = None,
+        profile_name: str = None,
+        profile_dir: str = None,
+    ):
         super().__init__()
         if path is not None:
             self.load(path)
         if params is not None:
             self.update(params)
+        if profile_name is not None or profile_dir is not None:
+            self._set_profile(profile_name, profile_dir)
 
     @staticmethod
     def load(uri: str):
@@ -292,6 +302,17 @@ class Config(lt.Config):
 
         """
         self.save_to_file(uri)
+
+    def set_profile(self, profile_name: str = None, profile_dir: str = None):
+        """
+        Sets the profile to use for the current Config object.
+        :param profile_name: The name of the profile to use. If not provided,
+        the default profile will be used.
+        :param profile_dir: The directory where the profile is located. If not
+        provided, the home directory will be used.
+        :raises tiledb.TileDBError: If the profile cannot be found or loaded.
+        """
+        self._set_profile(profile_name, profile_dir)
 
     def __reduce__(self):
         """
