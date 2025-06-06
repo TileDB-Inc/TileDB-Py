@@ -60,7 +60,8 @@ void init_enums(py::module& m) {
         .value("TIME_FS", TILEDB_TIME_FS)
         .value("TIME_AS", TILEDB_TIME_AS)
         .value("BLOB", TILEDB_BLOB)
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 21
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 21)
         .value("GEOM_WKB", TILEDB_GEOM_WKB)
         .value("GEOM_WKT", TILEDB_GEOM_WKT)
 #endif
@@ -176,7 +177,8 @@ void init_enums(py::module& m) {
         .value("TIFF", TILEDB_MIME_TIFF)
         .value("PDF", TILEDB_MIME_PDF);
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
     py::enum_<tiledb_current_domain_type_t>(m, "CurrentDomainType")
         .value("NDRECTANGLE", TILEDB_NDRECTANGLE);
 #endif

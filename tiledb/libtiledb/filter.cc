@@ -113,7 +113,8 @@ void init_filter(py::module& m) {
                             "Unrecognized filter option to _get_option");
                 }
             })
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
         .def(
             "_dump",
             [](Filter& filter) {

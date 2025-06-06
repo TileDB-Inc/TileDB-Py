@@ -12,7 +12,7 @@ from .common import DiskTestCase
 
 pd = pytest.importorskip("pandas")
 
-if not (lt.version()[0] == 2 and lt.version()[1] >= 25):
+if lt.version() < (2, 26):
     pytest.skip(
         "CurrentDomain is only available in TileDB 2.26 and later",
         allow_module_level=True,
@@ -247,7 +247,7 @@ class CurrentDomainTest(DiskTestCase):
         A.close()
 
     @pytest.mark.skipif(
-        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 27,
+        tiledb.libtiledb.version() < (2, 27),
         reason="Support for current domain on dense arrays was added in 2.27",
     )
     def test_take_current_domain_into_account_dense_indexing_sc61914(self):
