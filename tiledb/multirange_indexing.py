@@ -519,10 +519,24 @@ class DataFrameIndexer(_BaseIndexer):
 
                 if tdb_attr.enum_label is not None:
                     enmr = self.array.enum(tdb_attr.enum_label)
-                    col = pyarrow.DictionaryArray.from_arrays(
-                        indices=table[pa_attr.name].combine_chunks(),
-                        dictionary=enmr.values(),
-                    )
+
+                    if not tdb_attr.isnullable:
+                        mask = tdb_attr.fill
+                        if isinstance(mask, np.ndarray):
+                            mask = mask[0]
+
+                        indices = table[pa_attr.name].combine_chunks()
+                        masked_indices = np.where(indices == mask, -1, indices)
+                        masked_categories = pandas.Categorical.from_codes(
+                            masked_indices, categories=enmr.values()
+                        )
+                        col = pyarrow.Array.from_pandas(masked_categories)
+                    else:
+                        col = pyarrow.DictionaryArray.from_arrays(
+                            indices=table[pa_attr.name].combine_chunks(),
+                            dictionary=enmr.values(),
+                        )
+
                     idx = pa_schema.get_field_index(pa_attr.name)
                     table = table.set_column(idx, pa_attr.name, col)
                     pa_schema = table.schema
