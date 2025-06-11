@@ -25,6 +25,9 @@ if libtiledb_version() >= (2, 26):
     from .current_domain import CurrentDomain
     from .ndrectangle import NDRectangle
 
+if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 29:
+    from .profile import Profile
+
 del libtiledb_version  # no longer needed
 
 from .array import Array
