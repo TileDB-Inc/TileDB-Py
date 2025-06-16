@@ -63,6 +63,9 @@ class ProfileTest(ProfileTestCase):
         self.profile1["rest.server_address"] = server_address
         self.profile1["rest.token"] = token
         self.profile1["rest.username"] = username
+        with pytest.raises(KeyError):
+            # This should raise KeyError because the profile does not have this parameter
+            self.profile1["rest.non_existent_param"]
 
         goal_dict = {
             "default": {

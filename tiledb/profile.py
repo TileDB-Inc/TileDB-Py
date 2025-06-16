@@ -47,13 +47,19 @@ class Profile(lt.Profile):
         """
         self._set_param(param, value)
 
-    def __getitem__(self, param: str):
+    def __getitem__(self, param: str, raise_keyerror: bool = True):
         """Gets a parameter for the profile.
 
         :param param: The parameter name.
         :raises tiledb.TileDBError:
         """
-        return self._get_param(param)
+        try:
+            return self._get_param(param)
+        except Exception:
+            if raise_keyerror:
+                raise KeyError(param)
+            else:
+                return None
 
     def save(self):
         """Saves the profile to storage.
