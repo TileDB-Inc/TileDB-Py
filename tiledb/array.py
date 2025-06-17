@@ -364,9 +364,10 @@ class Array:
         if ctx is None:
             ctx = default_ctx()
 
-        self.array = kwargs.get(
-            "preloaded_array", preload_array(uri, mode, key, timestamp, ctx)
-        )
+        if "preloaded_array" in kwargs:
+            self.array = kwargs.get("preloaded_array")
+        else:
+            self.array = preload_array(uri, mode, key, timestamp, ctx)
 
         # view on a single attribute
         schema = self.array._schema()
