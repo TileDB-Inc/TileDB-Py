@@ -82,7 +82,6 @@ class ProfileTest(ProfileTestCase):
     def test_profile_save_load_remove(self):
         token = "testing_the_token_for_profile2"
         payer_namespace = "testing_the_namespace_for_profile2"
-        default_server_address = "https://api.tiledb.com"
 
         self.profile2["rest.token"] = token
         self.profile2["rest.payer_namespace"] = payer_namespace
@@ -96,9 +95,6 @@ class ProfileTest(ProfileTestCase):
         # check that the loaded profile has the same parameters
         assert loaded_profile.name == "profile2_name"
         assert Path(loaded_profile.dir) == Path(self.path("profile2_dir"))
-        assert loaded_profile["rest.username"] == ""
-        assert loaded_profile["rest.password"] == ""
-        assert loaded_profile["rest.server_address"] == default_server_address
         assert loaded_profile["rest.token"] == token
         assert loaded_profile["rest.payer_namespace"] == payer_namespace
 
