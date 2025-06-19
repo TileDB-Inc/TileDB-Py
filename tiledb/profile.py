@@ -47,10 +47,25 @@ class Profile(lt.Profile):
         """
         self._set_param(param, value)
 
-    def __getitem__(self, param: str, raise_keyerror: bool = True):
+    def __getitem__(self, param: str):
         """Gets a parameter for the profile.
 
         :param param: The parameter name.
+        :return: The parameter value.
+        :rtype: str
+        :raises KeyError: If the parameter does not exist.
+        :raises tiledb.TileDBError:
+        """
+        return self.get(param, raise_keyerror=True)
+
+    def get(self, param: str, raise_keyerror: bool = True):
+        """Gets a parameter for the profile.
+
+        :param param: The parameter name.
+        :param raise_keyerror: Whether to raise a KeyError if the parameter does not exist.
+        :return: The parameter value or None if it does not exist and raise_keyerror is False.
+        :rtype: str or None
+        :raises KeyError: If the parameter does not exist and raise_keyerror is True.
         :raises tiledb.TileDBError:
         """
         try:
