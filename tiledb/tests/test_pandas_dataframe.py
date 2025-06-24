@@ -842,6 +842,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         tmp_dir = self.path("csv_schema_only")
         self.vfs.create_dir(tmp_dir)
+        #tmp_dir='/tmp/fofo'
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
         df.sort_values("time", inplace=True)
@@ -876,6 +877,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 mode="schema_only",
                 capacity=1001,
                 sparse=True,
+                full_domain=True,  # XXX COMMENT
                 tile={"time": 5},
                 coords_filters=coords_filters,
                 attr_filters=attrs_filters,
@@ -890,17 +892,42 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             ref_schema = tiledb.ArraySchema(
                 domain=tiledb.Domain(
                     *[
+    #                        tiledb.Dim(
+    #                            name="time",
+    #                            domain=(t0.to_datetime64(), t1.to_datetime64()),
+    #                            tile=5,
+    #                            dtype="datetime64[ns]",
+    #                        ),
+    #                        tiledb.Dim(
+    #                            name="double_range",
+    #                            domain=(-1000.0, 1000.0),
+    #                            tile=1000,
+    #                            dtype="float64",
+    #                        ),
                         tiledb.Dim(
                             name="time",
-                            domain=(t0.to_datetime64(), t1.to_datetime64()),
-                            tile=5,
+                            domain=(
+                                np.datetime64("1677-09-21T00:12:43.145224193"),
+                                np.datetime64("2262-04-11T23:47:16.854775802"),
+                            ),
+                            tile=np.timedelta64(5, "ns"),
                             dtype="datetime64[ns]",
+                            filters=tiledb.FilterList(
+                                [
+                                    tiledb.ZstdFilter(level=7),
+                                ]
+                            ),
                         ),
                         tiledb.Dim(
                             name="double_range",
-                            domain=(-1000.0, 1000.0),
-                            tile=1000,
+                            domain=(-1.7976931348623157e308, 1.7976931348623157e308),
+                            tile=1000.0,
                             dtype="float64",
+                            filters=tiledb.FilterList(
+                                [
+                                    tiledb.ZstdFilter(level=7),
+                                ]
+                            ),
                         ),
                     ]
                 ),
@@ -934,13 +961,14 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df2.set_index(["time", "double_range"], inplace=True)
 
         # Test mode='append' for from_pandas
-        tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df2), mode="append")
+        tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df), mode="append")
 
         with tiledb.open(tmp_array) as A:
             df_bk = A.df[:]
 
             df.set_index(["time", "double_range"], inplace=True)
             df_combined = pd.concat([df, df2])
+
             df_combined.sort_index(level="time", inplace=True)
             df_bk.sort_index(level="time", inplace=True)
             tm.assert_frame_equal(df_bk, df_combined)

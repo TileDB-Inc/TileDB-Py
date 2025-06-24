@@ -747,7 +747,7 @@ def _write_array(
                 else:
                     coord = df.index.get_level_values(k)
                 #print("COORD", coord)
-                if row_start_idx is not None:
+                if row_start_idx is not None and dim_name == "__tiledb_rows":
                     #coord += row_start_idx
                     try:
                         coord += row_start_idx
