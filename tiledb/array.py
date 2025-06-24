@@ -128,21 +128,6 @@ def index_domain_subarray(array, dom, idx: tuple):
 
     subarray = list()
 
-    # In the case that current domain is non-empty, we need to consider it
-    if (
-        hasattr(array.schema, "current_domain")
-        and not array.schema.current_domain.is_empty
-    ):
-        for i in range(array.schema.domain.ndim):
-            subarray.append(
-                (
-                    array.schema.current_domain.ndrectangle.range(i)[0],
-                    array.schema.current_domain.ndrectangle.range(i)[1],
-                )
-            )
-
-        return subarray
-
     for r in range(ndim):
         # extract lower and upper bounds for domain dimension extent
         dim = dom.dim(r)
@@ -157,11 +142,52 @@ def index_domain_subarray(array, dom, idx: tuple):
         else:
             (dim_lb, dim_ub) = dim.domain
 
-        dim_slice = idx[r]
-        if not isinstance(dim_slice, slice):
-            raise IndexError("invalid index type: {!r}".format(type(dim_slice)))
+        dim_idx = idx[r]
 
-        start, stop, step = dim_slice.start, dim_slice.stop, dim_slice.step
+        if isinstance(dim_idx, np.ndarray) or isinstance(dim_idx, list):
+            if not np.issubdtype(dim_dtype, np.str_) and not np.issubdtype(
+                dim_dtype, np.bytes_
+            ):
+                # if this is a list, convert to numpy array
+                if isinstance(dim_idx, list):
+                    dim_idx = np.array(dim_idx)
+                subarray.append(
+                    (dim_idx),
+                )
+            else:
+                subarray.append([(x, x) for x in dim_idx])
+            continue
+        try:
+            import pyarrow
+
+            if isinstance(dim_idx, pyarrow.Array):
+                if not np.issubdtype(dim_dtype, np.str_) and not np.issubdtype(
+                    dim_dtype, np.bytes_
+                ):
+                    # this is zero copy by default
+                    subarray.append(dim_idx.to_numpy())
+                else:
+                    # zero copy is not supported for string types
+                    subarray.append(
+                        [(x, x) for x in dim_idx.to_numpy(zero_copy_only=False)]
+                    )
+                continue
+        except ImportError:
+            pass
+        if not isinstance(dim_idx, slice):
+            raise IndexError(f"invalid index type: {type(dim_idx)!r}")
+
+        start, stop, step = dim_idx.start, dim_idx.stop, dim_idx.step
+
+        # In the case that current domain is non-empty, we need to consider it
+        if (
+            hasattr(array.schema, "current_domain")
+            and not array.schema.current_domain.is_empty
+        ):
+            if start is None:
+                dim_lb = array.schema.current_domain.ndrectangle.range(r)[0]
+            if stop is None:
+                dim_ub = array.schema.current_domain.ndrectangle.range(r)[1]
 
         if np.issubdtype(dim_dtype, np.str_) or np.issubdtype(dim_dtype, np.bytes_):
             if start is None or stop is None:
@@ -175,7 +201,7 @@ def index_domain_subarray(array, dom, idx: tuple):
                 raise tiledb.TileDBError(
                     f"Non-string range '({start},{stop})' provided for string dimension '{dim.name}'"
                 )
-            subarray.append((start, stop))
+            subarray.append([(start, stop)])
             continue
 
         if step and array.schema.sparse:
@@ -254,16 +280,16 @@ def index_domain_subarray(array, dom, idx: tuple):
             # inclusive bounds for floating point / datetime ranges
             start = dim_dtype.type(start)
             stop = dim_dtype.type(stop)
-            subarray.append((start, stop))
+            subarray.append([(start, stop)])
         elif is_datetime:
             # need to ensure that datetime ranges are in the units of dim_dtype
             # so that add_range and output shapes work correctly
             start = start.astype(dim_dtype)
             stop = stop.astype(dim_dtype)
-            subarray.append((start, stop))
+            subarray.append([(start, stop)])
         elif np.issubdtype(type(stop), np.integer):
             # normal python indexing semantics
-            subarray.append((start, int(stop) - 1))
+            subarray.append([(start, int(stop) - 1)])
         else:
             raise IndexError(
                 "domain indexing is defined for integral and floating point values"
@@ -338,9 +364,10 @@ class Array:
         if ctx is None:
             ctx = default_ctx()
 
-        self.array = kwargs.get(
-            "preloaded_array", preload_array(uri, mode, key, timestamp, ctx)
-        )
+        if "preloaded_array" in kwargs:
+            self.array = kwargs.get("preloaded_array")
+        else:
+            self.array = preload_array(uri, mode, key, timestamp, ctx)
 
         # view on a single attribute
         schema = self.array._schema()
@@ -569,6 +596,11 @@ class Array:
         :raises TypeError: invalid key type"""
         return self.schema.attr(key)
 
+    @property
+    def attr_names(self):
+        """Returns a list of attribute names"""
+        return self.schema.attr_names
+
     def dim(self, dim_id):
         """Returns a :py:class:`Dim` instance given a dim index or name
 
@@ -673,10 +705,12 @@ class Array:
 
             res_x, res_y = self.array._non_empty_domain(dim_idx, dim_dtype)
 
+            # convert to bytes if needed
             if dim_dtype == np.bytes_:
-                # convert to bytes if needed
-                res_x = bytes(res_x, encoding="utf8")
-                res_y = bytes(res_y, encoding="utf8")
+                if not isinstance(res_x, bytes):
+                    res_x = bytes(res_x, encoding="utf8")
+                if not isinstance(res_y, bytes):
+                    res_y = bytes(res_y, encoding="utf8")
 
             if np.issubdtype(dim_dtype, np.datetime64):
                 # convert to np.datetime64
@@ -731,7 +765,7 @@ class Array:
                     "passed to `fragment_uris` will be consolidate",
                     DeprecationWarning,
                 )
-            lt.Array._consolidate(self.array.uri, self.ctx, fragment_uris, config)
+            lt.Array._consolidate(self.uri, self.ctx, fragment_uris, config)
             return
         elif timestamp is not None:
             warnings.warn(
@@ -1032,9 +1066,9 @@ class Array:
         """Retrieve data cells with multi-range, domain-inclusive indexing. Returns
         the cross-product of the ranges.
 
-        :param list selection: Per dimension, a scalar, ``slice``, or list of scalars
-            or ``slice`` objects. Scalars and ``slice`` components should match the
-            type of the underlying Dimension.
+        :param list selection: Per dimension, a scalar, ``slice``,
+            or a list/numpy array/pyarrow array of scalars or ``slice`` objects.
+            Scalars and ``slice`` components should match the type of the underlying Dimension.
         :returns: dict of {'attribute': result}. Coords are included by default for
             Sparse arrays only (use `Array.query(coords=<>)` to select).
         :raises IndexError: invalid or unsupported index selection
@@ -1086,9 +1120,9 @@ class Array:
         """Retrieve data cells as a Pandas dataframe, with multi-range,
         domain-inclusive indexing using ``multi_index``.
 
-        :param list selection: Per dimension, a scalar, ``slice``, or list of scalars
-            or ``slice`` objects. Scalars and ``slice`` components should match the
-            type of the underlying Dimension.
+        :param list selection: Per dimension, a scalar, ``slice``,
+            or a list/numpy array/pyarrow array of scalars or ``slice`` objects.
+            Scalars and ``slice`` components should match the type of the underlying Dimension.
         :returns: dict of {'attribute': result}. Coords are included by default for
             Sparse arrays only (use `Array.query(coords=<>)` to select).
         :raises IndexError: invalid or unsupported index selection

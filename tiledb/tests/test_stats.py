@@ -22,8 +22,25 @@ class StatsTest(DiskTestCase):
         with tiledb.from_numpy(path, np.arange(10)) as T:
             pass
 
-        # basic output check for read stats
+        # check that Writer stats are printed
+        tiledb.stats_dump()
+
+        if tiledb.libtiledb.version() >= (2, 27):
+            assert_captured(capfd, "Context.Query.Writer")
+        else:
+            assert_captured(capfd, "Context.StorageManager.Query.Writer")
+
+        # check that Writer stats are not printed because of reset
         tiledb.stats_reset()
+        tiledb.stats_dump()
+
+        if tiledb.libtiledb.version() >= (2, 27):
+            assert_captured(capfd, "Context.Query.Writer", expected=False)
+        else:
+            assert_captured(
+                capfd, "Context.StorageManager.Query.Writer", expected=False
+            )
+
         with tiledb.open(path) as T:
             tiledb.stats_enable()
             assert_array_equal(T, np.arange(10))
@@ -31,6 +48,13 @@ class StatsTest(DiskTestCase):
             # test stdout version
             tiledb.stats_dump()
             assert_captured(capfd, "TileDB Embedded Version:")
+
+            # check that Reader stats are printed
+            tiledb.stats_dump()
+            if tiledb.libtiledb.version() >= (2, 27):
+                assert_captured(capfd, "Context.Query.Reader")
+            else:
+                assert_captured(capfd, "Context.StorageManager.Query.Reader")
 
             # test string version
             stats_v = tiledb.stats_dump(print_out=False)
@@ -50,6 +74,16 @@ class StatsTest(DiskTestCase):
                 self.assertTrue("CONSOLIDATE_COPY_ARRAY" in stats_json)
             else:
                 self.assertTrue("==== READ ====" in stats_quiet)
+
+            # check that Writer stats are not printed because of reset
+            tiledb.stats_reset()
+            tiledb.stats_dump()
+            if tiledb.libtiledb.version() >= (2, 27):
+                assert_captured(capfd, "Context.Query.Reader", expected=False)
+            else:
+                assert_captured(
+                    capfd, "Context.StorageManager.Query.Reader", expected=False
+                )
 
     def test_stats_include_python_json(self):
         tiledb.stats_enable()

@@ -36,8 +36,9 @@ class DenseArrayImpl(Array):
     def __getitem__(self, selection):
         """Retrieve data cells for an item or region of the array.
 
-        :param tuple selection: An int index, slice or tuple of integer/slice objects,
-            specifying the selected subarray region for each dimension of the DenseArray.
+        :param selection: An int index, ``slice``, tuple, list/numpy array/pyarrow array
+            of integer/``slice`` objects, specifying the selected subarray region
+            for each dimension of the DenseArray.
         :rtype: :py:class:`numpy.ndarray` or :py:class:`collections.OrderedDict`
         :returns: If the dense array has a single attribute then a Numpy array of corresponding shape/dtype \
                 is returned for that attribute.  If the array has multiple attributes, a \
@@ -276,7 +277,7 @@ class DenseArrayImpl(Array):
         idx, drop_axes = replace_scalars_slice(self.schema.domain, idx)
         dim_ranges = index_domain_subarray(self, self.schema.domain, idx)
         subarray = Subarray(self, self.ctx)
-        subarray.add_ranges([list([x]) for x in dim_ranges])
+        subarray.add_ranges(dim_ranges)
         # Note: we included dims (coords) above to match existing semantics
         out = self._read_dense_subarray(subarray, attr_names, cond, layout, coords)
         if any(s.step for s in idx):
@@ -423,7 +424,7 @@ class DenseArrayImpl(Array):
         else:
             dim_ranges = index_domain_subarray(self, domain, idx)
             subarray = Subarray(self, self.ctx)
-            subarray.add_ranges([list([x]) for x in dim_ranges])
+            subarray.add_ranges(dim_ranges)
 
         subarray_shape = subarray.shape()
         if isinstance(val, np.ndarray):
@@ -754,7 +755,7 @@ class DenseArrayImpl(Array):
         idx = tuple(slice(None) for _ in range(domain.ndim))
         range_index = index_domain_subarray(self, domain, idx)
         subarray = Subarray(self, self.ctx)
-        subarray.add_ranges([list([x]) for x in range_index])
+        subarray.add_ranges(range_index)
         out = self._read_dense_subarray(
             subarray,
             [

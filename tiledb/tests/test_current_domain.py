@@ -1,15 +1,18 @@
+import itertools
 import tempfile
-import unittest
 
 import numpy as np
 import pytest
+from numpy.testing import assert_array_equal
 
 import tiledb
 import tiledb.libtiledb as lt
 
 from .common import DiskTestCase
 
-if not (lt.version()[0] == 2 and lt.version()[1] >= 25):
+pd = pytest.importorskip("pandas")
+
+if lt.version() < (2, 26):
     pytest.skip(
         "CurrentDomain is only available in TileDB 2.26 and later",
         allow_module_level=True,
@@ -242,3 +245,131 @@ class CurrentDomainTest(DiskTestCase):
         n = cd.ndrectangle
         self.assertEqual(n.range(0), new_range)
         A.close()
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 27),
+        reason="Support for current domain on dense arrays was added in 2.27",
+    )
+    def test_take_current_domain_into_account_dense_indexing_sc61914(self):
+        uri = self.path("test_sc61914")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d1", domain=(0, 99), tile=20, dtype=np.int64),
+            tiledb.Dim(name="d2", domain=(0, 99), tile=20, dtype=np.int64),
+        )
+        att = tiledb.Attr(name="a", dtype=np.int64)
+        schema = tiledb.ArraySchema(sparse=False, ctx=ctx, domain=dom, attrs=(att,))
+
+        tiledb.Array.create(uri, schema)
+
+        data = np.arange(0, 10000).reshape(100, 100)
+
+        with tiledb.open(uri, "w") as A:
+            A[:] = data
+
+        with tiledb.DenseArray(uri, mode="r") as A:
+            ndrect = tiledb.NDRectangle(ctx, dom)
+            range_one = (10, 20)
+            range_two = (30, 35)
+            ndrect.set_range(0, range_one[0], range_one[1])
+            ndrect.set_range(1, range_two[0], range_two[1])
+
+            current_domain = tiledb.CurrentDomain(ctx)
+            current_domain.set_ndrectangle(ndrect)
+            A.schema.set_current_domain(current_domain)
+
+            # Define the expected results
+            d1_values = range(10, 21)
+            d2_values = range(30, 36)
+            data = [
+                (d1, d2, d1 * 100 + d2)
+                for d1, d2 in itertools.product(d1_values, d2_values)
+            ]
+            expected_df = pd.DataFrame(data, columns=["d1", "d2", "a"])
+
+            expected_array = np.array(
+                [
+                    [1030, 1031, 1032, 1033, 1034, 1035],
+                    [1130, 1131, 1132, 1133, 1134, 1135],
+                    [1230, 1231, 1232, 1233, 1234, 1235],
+                    [1330, 1331, 1332, 1333, 1334, 1335],
+                    [1430, 1431, 1432, 1433, 1434, 1435],
+                    [1530, 1531, 1532, 1533, 1534, 1535],
+                    [1630, 1631, 1632, 1633, 1634, 1635],
+                    [1730, 1731, 1732, 1733, 1734, 1735],
+                    [1830, 1831, 1832, 1833, 1834, 1835],
+                    [1930, 1931, 1932, 1933, 1934, 1935],
+                    [2030, 2031, 2032, 2033, 2034, 2035],
+                ]
+            )
+
+            assert_array_equal(A, expected_array)
+            assert_array_equal(A.df[:, :], expected_df)
+
+            # check indexing the array inside the range of the current domain
+            assert_array_equal(A[11:14, 33:35]["a"], expected_array[1:4, 3:5])
+            filtered_df = expected_df.query(
+                "d1 >= 11 and d1 <= 14 and d2 >= 33 and d2 <= 35"
+            ).reset_index(drop=True)
+            assert_array_equal(A.df[11:14, 33:35], filtered_df)
+
+            # check only one side of the range
+            assert_array_equal(A[11:, :35]["a"], expected_array[1:, :5])
+            filtered_df = expected_df.query("d1 >= 11 and d2 <= 35").reset_index(
+                drop=True
+            )
+            assert_array_equal(A.df[11:, :35], filtered_df)
+
+            # check indexing the array outside the range of the current domain - should raise an error
+            with self.assertRaises(tiledb.TileDBError):
+                A[11:55, 33:34]
+
+            with self.assertRaises(tiledb.TileDBError):
+                A.df[11:55, 33:34]
+
+    def test_take_current_domain_into_account_sparse_indexing_sc61914(self):
+        uri = self.path("test_sc61914")
+        ctx = tiledb.Ctx()
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d1", domain=(0, 99), tile=20, dtype=np.int64),
+            tiledb.Dim(name="d2", domain=(0, 99), tile=20, dtype=np.int64),
+        )
+        att = tiledb.Attr(name="a", dtype=np.int64)
+        schema = tiledb.ArraySchema(sparse=True, ctx=ctx, domain=dom, attrs=(att,))
+
+        tiledb.Array.create(uri, schema)
+
+        data = np.arange(0, 2500).reshape(50, 50)
+
+        d1 = np.linspace(10, 59, num=50, dtype=np.int64)
+        d2 = np.linspace(10, 69, num=50, dtype=np.int64)
+        coords_d1, coords_d2 = np.meshgrid(d1, d2, indexing="ij")
+
+        with tiledb.open(uri, "w") as A:
+            A[coords_d1.flatten(), coords_d2.flatten()] = data
+
+        with tiledb.open(uri, mode="r") as A:
+            ndrect = tiledb.NDRectangle(ctx, dom)
+            range_one = (21, 23)
+            range_two = (35, 38)
+            ndrect.set_range(0, range_one[0], range_one[1])
+            ndrect.set_range(1, range_two[0], range_two[1])
+
+            current_domain = tiledb.CurrentDomain(ctx)
+            current_domain.set_ndrectangle(ndrect)
+            A.schema.set_current_domain(current_domain)
+
+            expected_array = {
+                "d1": np.array([21, 21, 21, 21, 22, 22, 22, 22, 23, 23, 23, 23]),
+                "d2": np.array([35, 36, 37, 38, 35, 36, 37, 38, 35, 36, 37, 38]),
+                "a": np.array(
+                    [571, 572, 573, 574, 621, 622, 623, 624, 671, 672, 673, 674]
+                ),
+            }
+
+            assert_array_equal(A[:]["d1"], expected_array["d1"])
+            assert_array_equal(A[:]["d2"], expected_array["d2"])
+            assert_array_equal(A[:]["a"], expected_array["a"])
+
+            expected_df = pd.DataFrame(expected_array)
+            assert_array_equal(A.df[:], expected_df)

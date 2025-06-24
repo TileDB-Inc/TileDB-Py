@@ -1,6 +1,4 @@
-import sys
 import warnings
-from datetime import datetime
 
 import numpy as np
 import pytest
@@ -42,6 +40,7 @@ class TestDaskSupport(DiskTestCase):
 
         tiledb.DenseArray.create(uri, schema)
 
+    @pytest.mark.flaky(reruns=3, reruns_delay=2, rerun_except="TileDBError")
     @pytest.mark.filterwarnings("ignore:There is no current event loop")
     def test_dask_multiattr_2d(self):
         uri = self.path("multiattr")

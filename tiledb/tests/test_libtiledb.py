@@ -2228,6 +2228,16 @@ class TestSparseArray(DiskTestCase):
 
         with tiledb.SparseArray(path) as A:
             res = A[:]
+            if fx_sparse_cell_order == "col-major":
+                data = np.array(
+                    [
+                        np.array([2], dtype=np.int32),
+                        np.array([1, 1], dtype=np.int32),
+                        np.array([3, 3, 3], dtype=np.int32),
+                        np.array([4], dtype=np.int32),
+                    ],
+                    dtype="O",
+                )
             assert_subarrays_equal(res[""], data)
             assert_unordered_equal(res["__dim_0"], c1)
             assert_unordered_equal(res["__dim_1"], c2)
@@ -2269,7 +2279,18 @@ class TestSparseArray(DiskTestCase):
             self.assertEqual(a_nonempty[0], (0, 49))
             self.assertEqual(a_nonempty[1], (-100.0, 100.0))
 
-    def test_sparse_string_domain(self, fx_sparse_cell_order):
+    @pytest.mark.parametrize(
+        "coords, expected_ned, allows_duplicates",
+        [
+            ([b"aa", b"bbb", b"c", b"dddd"], [b"aa", b"dddd"], False),
+            ([b""], [b"", b""], True),
+            ([b"", b"", b"", b""], [b"", b""], True),
+            ([b"\x81", b"\x82", b"\x83", b"\x84"], [b"\x81", b"\x84"], False),
+        ],
+    )
+    def test_sparse_string_domain(
+        self, coords, expected_ned, allows_duplicates, fx_sparse_cell_order
+    ):
         path = self.path("sparse_string_domain")
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(None, None), dtype=np.bytes_))
         att = tiledb.Attr(name="a", dtype=np.int64)
@@ -2278,22 +2299,35 @@ class TestSparseArray(DiskTestCase):
             attrs=(att,),
             sparse=True,
             cell_order=fx_sparse_cell_order,
+            allows_duplicates=allows_duplicates,
             capacity=10000,
         )
         tiledb.SparseArray.create(path, schema)
 
-        data = [1, 2, 3, 4]
-        coords = [b"aa", b"bbb", b"c", b"dddd"]
+        data = [1, 2, 3, 4][: len(coords)]
 
         with tiledb.open(path, "w") as A:
             A[coords] = data
 
         with tiledb.open(path) as A:
             ned = A.nonempty_domain()[0]
-            res = A[ned[0] : ned[1]]
-            assert_array_equal(res["a"], data)
-            self.assertEqual(set(res["d"]), set(coords))
-            self.assertEqual(A.nonempty_domain(), ((b"aa", b"dddd"),))
+            assert_array_equal(A.nonempty_domain(), ((tuple(expected_ned)),))
+
+            if not (
+                fx_sparse_cell_order in ("hilbert", "row-major", "col-major")
+                and allows_duplicates == True
+            ):
+                assert_array_equal(A[ned[0] : ned[1]]["a"], data)
+                self.assertEqual(set(A[ned[0] : ned[1]]["d"]), set(coords))
+
+            if allows_duplicates and fx_sparse_cell_order != "hilbert":
+                res_u1 = A.query().multi_index[ned[0] : ned[1]]
+                assert_unordered_equal(res_u1["a"], data)
+                self.assertEqual(set(res_u1["d"]), set(coords))
+
+                res_u2 = A.query()[ned[0] : ned[1]]
+                assert_unordered_equal(res_u2["a"], data)
+                self.assertEqual(set(res_u2["d"]), set(coords))
 
     def test_sparse_string_domain2(self, fx_sparse_cell_order):
         path = self.path("sparse_string_domain2")
@@ -3289,8 +3323,9 @@ class ConsolidationTest(DiskTestCase):
         tiledb.vacuum(path)
         assert len(tiledb.array_fragments(path)) == 3
 
+    @pytest.mark.parametrize("use_highlevel_method", [True, False])
     @pytest.mark.parametrize("use_timestamps", [True, False])
-    def test_array_consolidate_with_uris(self, use_timestamps):
+    def test_array_consolidate_with_uris(self, use_timestamps, use_highlevel_method):
         dshape = (1, 3)
         num_writes = 10
 
@@ -3316,7 +3351,11 @@ class ConsolidationTest(DiskTestCase):
 
         frag_names = [os.path.basename(f) for f in frags.uri]
 
-        tiledb.consolidate(path, fragment_uris=frag_names[:4])
+        if use_highlevel_method:
+            tiledb.consolidate(path, fragment_uris=frag_names[:4])
+        else:
+            with tiledb.open(path, "w") as A:
+                A.consolidate(fragment_uris=frag_names[:4])
 
         assert len(tiledb.array_fragments(path)) == 7
 
@@ -3328,11 +3367,18 @@ class ConsolidationTest(DiskTestCase):
             ),
         ):
             timestamps = [t[0] for t in tiledb.array_fragments(path).timestamp_range]
-            tiledb.consolidate(
-                path,
-                fragment_uris=frag_names[4:8],
-                timestamp=(timestamps[5], timestamps[6]),
-            )
+            if use_highlevel_method:
+                tiledb.consolidate(
+                    path,
+                    fragment_uris=frag_names[4:8],
+                    timestamp=(timestamps[5], timestamps[6]),
+                )
+            else:
+                with tiledb.open(path, "w") as A:
+                    A.consolidate(
+                        fragment_uris=frag_names[4:8],
+                        timestamp=(timestamps[5], timestamps[6]),
+                    )
 
         assert len(tiledb.array_fragments(path)) == 4
 
@@ -3912,8 +3958,11 @@ class TestAsBuilt(DiskTestCase):
 
         if vfs.supports("hdfs"):
             assert x["hdfs"]["enabled"] == True
-        else:
+        elif tiledb.libtiledb.version() < (2, 28, 0):
             assert x["hdfs"]["enabled"] == False
+        else:
+            # hdfs is not supported in libtiledb >= 2.28.0
+            "hdfs" not in x
 
         if vfs.supports("s3"):
             assert x["s3"]["enabled"] == True

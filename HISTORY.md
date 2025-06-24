@@ -1,8 +1,63 @@
+# Release 0.34.0
+
+* TileDB-Py 0.34.0 includes TileDB Embedded [2.28.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.28.0)
+
+## Improvements
+
+* Add Building from Source docs by @nickvigilante in https://github.com/TileDB-Inc/TileDB-Py/pull/2190
+* Remove support for HDFS by @jdblischak, @kounelisagis, and @teo-tsirpanis in https://github.com/TileDB-Inc/TileDB-Py/pull/2185, https://github.com/TileDB-Inc/TileDB-Py/pull/2184, and https://github.com/TileDB-Inc/TileDB-Py/pull/2191
+* Consider index passed, even if the current domain is present by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2178
+
+## Build system changes
+* Set manylinux images to `manylinux_2_28` for build wheels workflow by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2192
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.6...0.34.0
+
+# Release 0.33.6
+
+## Bug Fixes
+
+* Fix URI passed to consolidation by @spencerseale and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2176
+
+# Release 0.33.5
+
+* TileDB-Py 0.33.5 includes TileDB Embedded [2.27.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.2)
+
+## Bug Fixes
+
+* Fix `stats_reset()` behavior by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2172
+* Fix for query conditions that contain attributes with dot(s) when using the `in` operator by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2171
+
+## Improvements
+* Expand `.df` Array/Query accessor to allow indexing with NumPy and PyArrow arrays by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2170
+* Improve the logic for using Arrow when it is not explicitly requested by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2168
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.4...0.33.5
+
+# Release 0.33.4
+
+* TileDB-Py 0.33.4 includes TileDB Embedded [2.27.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.1)
+
+## Bug Fixes
+* Fix the error caused by non-decodable bytes when retrieving the non-empty domain for `TILEDB_ASCII` dimensions by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2164
+* Fix `NDRectangle::set_range` overloads by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2157
+* Fix broken API docs search and expose `Metadata` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2153
+* Bug fix: Data buffer is not resized for byte objects after completing the buffer and offsets conversion by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2150
+
+## Improvements
+* Consider the Current Domain on indexing by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2156
+* Expand `test_sparse_string_domain` for empty strings by @ihnorton and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/917
+* Use the clang-format pre-commit hook updated to the latest version by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2039
+* Fix `view_attr` not being respected by `__getitem__` and subarray by @kounelisagis and @nguyenv in https://github.com/TileDB-Inc/TileDB-Py/pull/2139
+* Add support for `BLOB` attribute type override in `from_pandas` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/2143
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.3...0.33.4
+
 # Release 0.33.3
 
 ## Bug Fixes
 
-* Fix interaction with CloudArray interface of tiledb-cloud package @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2144
+* Fix interaction with CloudArray interface of tiledb-cloud package by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2144
 
 ## Improvements
 

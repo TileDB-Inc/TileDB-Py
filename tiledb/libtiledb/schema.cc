@@ -196,9 +196,9 @@ void init_schema(py::module& m) {
 
         .def(py::init<Context&, tiledb_array_type_t>(), py::keep_alive<1, 2>())
 
-        .def(py::init<Context&, std::string&>())
+        .def(py::init<Context&, std::string&>(), py::keep_alive<1, 2>())
 
-        .def(py::init<Context&, py::capsule>())
+        .def(py::init<Context&, py::capsule>(), py::keep_alive<1, 2>())
 
         .def(
             "__capsule__",
@@ -209,7 +209,8 @@ void init_schema(py::module& m) {
         .def(
             "_dump",
             [](ArraySchema& schema) {
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
                 std::stringstream ss;
                 ss << schema;
                 return ss.str();
@@ -346,7 +347,8 @@ void init_schema(py::module& m) {
                 ArraySchemaExperimental::add_enumeration(ctx, schema, enmr);
             })
 
-#if TILEDB_VERSION_MAJOR >= 2 && TILEDB_VERSION_MINOR >= 26
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 26)
         .def(
             "_current_domain",
             [](const ArraySchema& schema, const Context& ctx) {

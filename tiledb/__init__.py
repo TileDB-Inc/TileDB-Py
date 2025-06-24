@@ -21,7 +21,7 @@ del np
 
 from tiledb.libtiledb import version as libtiledb_version
 
-if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 26:
+if libtiledb_version() >= (2, 26):
     from .current_domain import CurrentDomain
     from .ndrectangle import NDRectangle
 
@@ -108,30 +108,6 @@ from .vfs import VFS, FileIO
 
 __version__ = version.version
 group_create = Group.create
-
-
-# Create a proxy object to wrap libtiledb and provide a `cc` alias
-class CCProxy:
-    def __init__(self, module):
-        self._module = module
-
-    def __getattr__(self, name):
-        warnings.warn(
-            "`tiledb.cc` is deprecated. Please use `tiledb.libtiledb` instead.",
-        )
-        return getattr(self._module, name)
-
-    def __repr__(self):
-        warnings.warn(
-            "`tiledb.cc` is deprecated. Please use `tiledb.libtiledb` instead.",
-        )
-        return self._module.__repr__()
-
-
-cc = CCProxy(libtiledb)
-sys.modules["tiledb.cc"] = cc
-cc = cc
-del CCProxy
 
 # Note: we use a modified namespace packaging to allow continuity of existing TileDB-Py imports.
 #       Therefore, 'tiledb/__init__.py' must *only* exist in this package.

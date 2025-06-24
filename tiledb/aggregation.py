@@ -55,7 +55,7 @@ class Aggregation:
         dim_ranges = index_domain_subarray(array, dom, idx)
 
         subarray = Subarray(array, array.ctx)
-        subarray.add_ranges([list([x]) for x in dim_ranges])
+        subarray.add_ranges(dim_ranges)
         q.set_subarray(subarray)
 
         cond = self.query.cond

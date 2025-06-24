@@ -40,8 +40,14 @@ if TYPE_CHECKING:
     # We don't want to import these eagerly since importing Pandas in particular
     # can add around half a second of import time even if we never use it.
     import pandas
+
+
+try:
     import pyarrow
 
+    has_pyarrow = True
+except ImportError:
+    has_pyarrow = False
 
 current_timer: ContextVar[str] = ContextVar("timer_scope")
 
@@ -112,25 +118,42 @@ def to_scalar(obj: Any) -> Scalar:
         return cast(Scalar, obj)
     if isinstance(obj, np.ndarray) and obj.ndim == 0:
         return cast(Scalar, obj[()])
+    if has_pyarrow and isinstance(obj, pyarrow.Array):
+        return to_scalar(obj.to_numpy()[()])
+    if has_pyarrow and isinstance(obj, pyarrow.Scalar):
+        return cast(Scalar, obj.as_py())
     raise ValueError(f"Cannot convert {type(obj)} to scalar")
 
 
 def iter_ranges(
-    sel: Union[Scalar, slice, Range, List[Scalar]],
+    sel: Union[Scalar, slice, Range, List[Scalar], np.ndarray, "pyarrow.Array"],
     sparse: bool,
     nonempty_domain: Optional[Range] = None,
+    current_domain: Optional[Range] = None,
 ) -> Iterator[Range]:
     if isinstance(sel, slice):
         if sel.step is not None:
             raise ValueError("Stepped slice ranges are not supported")
 
+        # we always want to be inside the current domain, if this is passed,
+        # but we also don't want to fall out of the nonempty domain
         rstart = sel.start
-        if rstart is None and nonempty_domain:
-            rstart = nonempty_domain[0]
+        if rstart is None:
+            if current_domain and nonempty_domain:
+                rstart = max(current_domain[0], nonempty_domain[0])
+            elif current_domain:
+                rstart = current_domain[0]
+            elif nonempty_domain:
+                rstart = nonempty_domain[0]
 
         rend = sel.stop
-        if rend is None and nonempty_domain:
-            rend = nonempty_domain[1]
+        if rend is None:
+            if current_domain and nonempty_domain:
+                rend = min(current_domain[1], nonempty_domain[1])
+            elif current_domain:
+                rend = current_domain[1]
+            elif nonempty_domain:
+                rend = nonempty_domain[1]
 
         if sparse and sel.start is None and sel.stop is None:
             # don't set nonempty_domain for full-domain slices w/ sparse
@@ -145,7 +168,9 @@ def iter_ranges(
         assert len(sel) == 2
         yield to_scalar(sel[0]), to_scalar(sel[1])
 
-    elif isinstance(sel, list):
+    elif isinstance(sel, (list, np.ndarray)) or (
+        has_pyarrow and isinstance(sel, pyarrow.Array)
+    ):
         for scalar in map(to_scalar, sel):
             yield scalar, scalar
 
@@ -176,13 +201,13 @@ def iter_label_range(sel: Union[Scalar, slice, Range, List[Scalar]]):
         yield scalar, scalar
 
 
-def dim_ranges_from_selection(selection, nonempty_domain, is_sparse):
+def dim_ranges_from_selection(selection, nonempty_domain, current_domain, is_sparse):
     # don't try to index nonempty_domain if None
-    if isinstance(selection, np.ndarray):
-        return selection
     selection = selection if isinstance(selection, list) else [selection]
     return tuple(
-        rng for sel in selection for rng in iter_ranges(sel, is_sparse, nonempty_domain)
+        rng
+        for sel in selection
+        for rng in iter_ranges(sel, is_sparse, nonempty_domain, current_domain)
     )
 
 
@@ -196,27 +221,23 @@ def label_ranges_from_selection(selection):
 def getitem_ranges(array: Array, idx: Any) -> Sequence[Sequence[Range]]:
     ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
 
-    # In the case that current domain is non-empty, we need to consider it
-    if (
-        hasattr(array.schema, "current_domain")
-        and not array.schema.current_domain.is_empty
-    ):
-        for i in range(array.schema.domain.ndim):
-            ranges[i] = [
-                (
-                    array.schema.current_domain.ndrectangle.range(i)[0],
-                    array.schema.current_domain.ndrectangle.range(i)[1],
-                )
-            ]
-
-        return tuple(ranges)
-
     ned = array.nonempty_domain()
+    current_domain = (
+        array.schema.current_domain
+        if hasattr(array.schema, "current_domain")
+        and not array.schema.current_domain.is_empty
+        else None
+    )
     if ned is None:
         ned = [None] * array.schema.domain.ndim
     is_sparse = array.schema.sparse
     for i, dim_sel in enumerate([idx] if not isinstance(idx, tuple) else idx):
-        ranges[i] = dim_ranges_from_selection(dim_sel, ned[i], is_sparse)
+        ranges[i] = dim_ranges_from_selection(
+            dim_sel,
+            ned[i],
+            current_domain.ndrectangle.range(i) if current_domain else None,
+            is_sparse,
+        )
     return tuple(ranges)
 
 
@@ -226,6 +247,12 @@ def getitem_ranges_with_labels(
     dim_ranges: List[Sequence[Range]] = [()] * array.schema.domain.ndim
     label_ranges: Dict[str, Sequence[Range]] = {}
     ned = array.nonempty_domain()
+    current_domain = (
+        array.schema.current_domain
+        if hasattr(array.schema, "current_domain")
+        and not array.schema.current_domain.is_empty
+        else None
+    )
     if ned is None:
         ned = [None] * array.schema.domain.ndim
     is_sparse = array.schema.sparse
@@ -234,7 +261,10 @@ def getitem_ranges_with_labels(
             label_ranges[labels[dim_idx]] = label_ranges_from_selection(dim_sel)
         else:
             dim_ranges[dim_idx] = dim_ranges_from_selection(
-                dim_sel, ned[dim_idx], is_sparse
+                dim_sel,
+                ned[dim_idx],
+                current_domain.ndrectangle.range(dim_idx) if current_domain else None,
+                is_sparse,
             )
     return dim_ranges, label_ranges
 
@@ -439,25 +469,31 @@ class DataFrameIndexer(_BaseIndexer):
         # we need to use a Query in order to get coords for a dense array
         if not query:
             query = QueryProxy(array, has_coords=True)
-        use_arrow = (
-            bool(importlib.util.find_spec("pyarrow"))
-            if use_arrow is None
-            else use_arrow
-        )
 
-        # TODO: currently there is lack of support for Arrow list types. This prevents
+        # Currently there is lack of support for Arrow list types. This prevents
         # multi-value attributes, asides from strings, from being queried properly.
-        # Until list attributes are supported in core, error with a clear message.
-        if use_arrow and any(
+        attr_names_to_check = query.attrs or array.attr_names
+
+        arrow_can_be_used = not any(
             (attr.isvar or len(attr.dtype) > 1)
             and attr.dtype not in (np.str_, np.bytes_)
-            for attr in map(array.attr, query.attrs or ())
-        ):
+            for attr in (array.attr(name) for name in attr_names_to_check)
+        )
+
+        # Until list attributes are supported in core, error with a clear message.
+        if use_arrow and not arrow_can_be_used:
             raise TileDBError(
                 "Multi-value attributes are not currently supported when use_arrow=True. "
                 "This includes all variable-length attributes and fixed-length "
                 "attributes with more than one value. Use `query(use_arrow=False)`."
             )
+
+        use_arrow = (
+            bool(importlib.util.find_spec("pyarrow"))
+            if use_arrow is None and arrow_can_be_used
+            else use_arrow
+        )
+
         super().__init__(array, query, use_arrow, preload_metadata=True)
 
     def _run_query(self) -> Union["pandas.DataFrame", "pyarrow.Table"]:

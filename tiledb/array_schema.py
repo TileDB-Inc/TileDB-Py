@@ -1,7 +1,7 @@
 import io
 import numbers
 import warnings
-from typing import Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -13,7 +13,7 @@ from .dimension_label import DimLabel
 from .domain import Domain
 from .filter import Filter, FilterList
 
-if lt.version()[0] == 2 and lt.version()[1] >= 25:
+if lt.version() >= (2, 25):
     from .current_domain import CurrentDomain
 
 _tiledb_order_to_string = {
@@ -360,6 +360,14 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
             "or an integer index, not {0!r}".format(type(key))
         )
 
+    @property
+    def attr_names(self) -> List[str]:
+        """Returns a list of attribute names
+
+        :rtype: list
+        """
+        return [self.attr(i).name for i in range(self.nattr)]
+
     def dim_label(self, name: str) -> DimLabel:
         """Returns a TileDB DimensionLabel given the label name
 
@@ -387,7 +395,7 @@ class ArraySchema(CtxMixin, lt.ArraySchema):
         """
         return self._has_dim_label(self._ctx, name)
 
-    if lt.version()[0] == 2 and lt.version()[1] >= 25:
+    if lt.version() >= (2, 25):
 
         @property
         def current_domain(self) -> CurrentDomain:

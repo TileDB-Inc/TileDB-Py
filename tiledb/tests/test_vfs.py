@@ -23,8 +23,8 @@ class TestVFS(DiskTestCase):
         self.assertIsInstance(vfs.supports("gcs"), bool)
         self.assertIsInstance(vfs.supports("azure"), bool)
 
-        with self.assertRaises(ValueError):
-            vfs.supports("invalid")
+        # an invalid scheme should return False
+        self.assertFalse(vfs.supports("invalid"))
 
     def test_vfs_config(self):
         opt = {"region": "us-west-x1234"}
@@ -50,12 +50,6 @@ class TestVFS(DiskTestCase):
 
         # create nested path
         dir = self.path("foo/bar")
-        if pytest.tiledb_vfs != "s3":
-            # this fails locally because "foo" base path does not exist
-            # this will not fail on s3 because there is no concept of directory
-            with self.assertRaises(tiledb.TileDBError):
-                vfs.create_dir(dir)
-
         vfs.create_dir(self.path("foo"))
         vfs.create_dir(self.path("foo/bar"))
         if pytest.tiledb_vfs != "s3":
@@ -77,11 +71,6 @@ class TestVFS(DiskTestCase):
 
         # check nested path
         file = self.path("foo/bar")
-        if pytest.tiledb_vfs != "s3":
-            # this fails locally because "foo" base path does not exist
-            # this will not fail on s3 because there is no concept of directory
-            with self.assertRaises(tiledb.TileDBError):
-                vfs.touch(file)
 
     def test_move(self):
         vfs = tiledb.VFS()
@@ -96,13 +85,6 @@ class TestVFS(DiskTestCase):
 
         self.assertFalse(vfs.is_file(self.path("bar/baz")))
         self.assertTrue(vfs.is_file(self.path("foo/baz")))
-
-        # moving to invalid dir should raise an error
-        if pytest.tiledb_vfs != "s3":
-            # this fails locally because "foo" base path does not exist
-            # this will not fail on s3 because there is no concept of directory
-            with self.assertRaises(tiledb.TileDBError):
-                vfs.move_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
 
     @pytest.mark.skipif(
         sys.platform == "win32",

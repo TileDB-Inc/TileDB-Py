@@ -117,6 +117,7 @@ class FragmentInfoList:
         self.unconsolidated_metadata_num = fi.get_unconsolidated_metadata_num()
         self.has_consolidated_metadata = fi.get_has_consolidated_metadata()
         self.to_vacuum = fi.get_to_vacuum()
+        self.dump = fi.dump
 
         if include_mbrs:
             if libtiledb_version() >= (2, 5, 0):

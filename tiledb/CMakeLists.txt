@@ -8,11 +8,13 @@ pybind11_add_module(
     fragment.cc
     schema_evolution.cc
     util.cc
-    serialization.cc
     tests/test_metadata.cc
     tests/test_webp.cc
-    tests/test_serialization.cc
 )
+
+if (TILEDB_SERIALIZATION)
+    target_sources(main PRIVATE serialization.cc tests/test_serialization.cc)
+endif()
 
 target_link_libraries(
     main
