@@ -68,13 +68,11 @@ class Profile(lt.Profile):
         :raises KeyError: If the parameter does not exist and raise_keyerror is True.
         :raises tiledb.TileDBError:
         """
-        try:
-            return self._get_param(param)
-        except Exception:
-            if raise_keyerror:
-                raise KeyError(param)
-            else:
-                return None
+        val = self._get_param(param)
+        if val is None and raise_keyerror:
+            raise KeyError(param)
+
+        return val
 
     def save(self):
         """Saves the profile to storage.
