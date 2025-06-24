@@ -739,12 +739,21 @@ def _write_array(
                     and dim_name not in df.index.names
                     and dim_name != "__tiledb_rows"
                 ):
-                    # this branch handles the situation where a user did not specify
+                    # This branch handles the situation where a user did not specify
                     # index_col and is using mode='append'. We would like to try writing
                     # with the columns corresponding to existing dimension name.
-                    coords.append(write_dict.pop(dim_name))
+                    # coords.append(write_dict.pop(dim_name) + row_start_idx)
+                    coord = write_dict.pop(dim_name)
                 else:
-                    coords.append(df.index.get_level_values(k))
+                    coord = df.index.get_level_values(k)
+                #print("COORD", coord)
+                if row_start_idx is not None:
+                    #coord += row_start_idx
+                    try:
+                        coord += row_start_idx
+                    except:
+                        pass
+                coords.append(coord)
             # TODO ensure correct col/dim ordering
             tiledb.sparse_array._setitem_impl_sparse(
                 A, tuple(coords), write_dict, nullmaps
