@@ -963,45 +963,56 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         coords_filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
 
         tmp_array = os.path.join(tmp_dir, "array")
-        tiledb.from_csv(
-            tmp_array,
-            tmp_csv,
-            mode="schema_only",
-            parse_dates=["time"],
-            date_format="%Y-%m-%d %H:%M:%S.%f",
-            capacity=1001,
-            sparse=True,
-            allows_duplicates=False,
-            full_domain=True,
-            coords_filters=coords_filters,
-            attr_filters=attrs_filters,
-        )
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            tiledb.from_csv(
+                tmp_array,
+                tmp_csv,
+                mode="schema_only",
+                parse_dates=["time"],
+                date_format="%Y-%m-%d %H:%M:%S.%f",
+                capacity=1001,
+                sparse=True,
+                allows_duplicates=False,
+                full_domain=True,
+                coords_filters=coords_filters,
+                attr_filters=attrs_filters,
+            )
 
-        ref_schema = tiledb.ArraySchema(
-            domain=tiledb.Domain(
-                *[
-                    tiledb.Dim(
-                        name="__tiledb_rows",
-                        domain=(0, 18446744073709541615),
-                        tile=10000,
-                        dtype="uint64",
-                        filters=coords_filters,
-                    ),
-                ]
-            ),
-            attrs=[
-                tiledb.Attr(name="time", dtype="datetime64[ns]", filters=attrs_filters),
-                tiledb.Attr(
-                    name="double_range", dtype="float64", filters=attrs_filters
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            ref_schema = tiledb.ArraySchema(
+                domain=tiledb.Domain(
+                    *[
+                        tiledb.Dim(
+                            name="__tiledb_rows",
+                            domain=(0, 18446744073709541615),
+                            tile=10000,
+                            dtype="uint64",
+                            filters=coords_filters,
+                        ),
+                    ]
                 ),
-                tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters),
-            ],
-            cell_order="row-major",
-            tile_order="row-major",
-            capacity=1001,
-            sparse=True,
-            allows_duplicates=False,
-        )
+                attrs=[
+                    tiledb.Attr(
+                        name="time", dtype="datetime64[ns]", filters=attrs_filters
+                    ),
+                    tiledb.Attr(
+                        name="double_range", dtype="float64", filters=attrs_filters
+                    ),
+                    tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters),
+                ],
+                coords_filters=coords_filters,
+                cell_order="row-major",
+                tile_order="row-major",
+                capacity=1001,
+                sparse=True,
+                allows_duplicates=False,
+            )
 
         fi = tiledb.array_fragments(tmp_array)
         assert len(fi) == 0
