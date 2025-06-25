@@ -940,11 +940,91 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
         with tiledb.open(tmp_array) as A:
             df_bk = A.df[:]
-
             df.set_index(["time", "double_range"], inplace=True)
             df_combined = pd.concat([df, df2])
             df_combined.sort_index(level="time", inplace=True)
             df_bk.sort_index(level="time", inplace=True)
+            tm.assert_frame_equal(df_bk, df_combined)
+
+    def test_dataframe_csv_schema_only_no_index(self):
+        col_size = 10
+        df = make_dataframe_basic3(col_size)
+
+        tmp_dir = self.path("csv_schema_only_no_index")
+        self.vfs.create_dir(tmp_dir)
+        tmp_csv = os.path.join(tmp_dir, "generated.csv")
+
+        with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
+            df.to_csv(fio, index=False)
+
+        attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(3)])
+        # from_pandas default is 1, so use 7 here to check
+        #   the arg is correctly parsed/passed
+        coords_filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
+
+        tmp_array = os.path.join(tmp_dir, "array")
+        tiledb.from_csv(
+            tmp_array,
+            tmp_csv,
+            mode="schema_only",
+            parse_dates=["time"],
+            date_format="%Y-%m-%d %H:%M:%S.%f",
+            capacity=1001,
+            sparse=True,
+            allows_duplicates=False,
+            full_domain=True,
+            coords_filters=coords_filters,
+            attr_filters=attrs_filters,
+        )
+
+        ref_schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                *[
+                    tiledb.Dim(
+                        name="__tiledb_rows",
+                        domain=(0, 18446744073709541615),
+                        tile=10000,
+                        dtype="uint64",
+                        filters=coords_filters,
+                    ),
+                ]
+            ),
+            attrs=[
+                tiledb.Attr(name="time", dtype="datetime64[ns]", filters=attrs_filters),
+                tiledb.Attr(name="double_range", dtype="float64", filters=attrs_filters),
+                tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters),
+            ],
+            cell_order='row-major',
+            tile_order='row-major',
+            capacity=1001,
+            sparse=True,
+            allows_duplicates=False,
+        )
+
+        fi = tiledb.array_fragments(tmp_array)
+        assert len(fi) == 0
+
+        with tiledb.open(tmp_array) as A:
+            self.assertEqual(A.schema, ref_schema)
+
+        # Test mode='append' for from_csv
+        tiledb.from_csv(tmp_array, tmp_csv, mode="append", row_start_idx=0)
+        df2 = make_dataframe_basic3()
+
+        # Test mode='append' for from_pandas
+        tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df), mode="append")
+
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', None)
+
+        # We expect __tiledb_rows 0..9 from df and 10..19 from df2.
+        with tiledb.open(tmp_array) as A:
+            df_bk = A.df[:]
+            df_combined = pd.concat([df, df2])
+            df_combined.reset_index(inplace=True)
+            df_combined['index'] = list(range(20))
+            df_combined.set_index('index', inplace=True)
+            df_combined.index.name = None
             tm.assert_frame_equal(df_bk, df_combined)
 
     def test_dataframe_csv_chunked(self):
