@@ -991,11 +991,13 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             ),
             attrs=[
                 tiledb.Attr(name="time", dtype="datetime64[ns]", filters=attrs_filters),
-                tiledb.Attr(name="double_range", dtype="float64", filters=attrs_filters),
+                tiledb.Attr(
+                    name="double_range", dtype="float64", filters=attrs_filters
+                ),
                 tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters),
             ],
-            cell_order='row-major',
-            tile_order='row-major',
+            cell_order="row-major",
+            tile_order="row-major",
             capacity=1001,
             sparse=True,
             allows_duplicates=False,
@@ -1014,16 +1016,16 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         # Test mode='append' for from_pandas
         tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df), mode="append")
 
-        pd.set_option('display.max_rows', None)
-        pd.set_option('display.max_columns', None)
+        pd.set_option("display.max_rows", None)
+        pd.set_option("display.max_columns", None)
 
         # We expect __tiledb_rows 0..9 from df and 10..19 from df2.
         with tiledb.open(tmp_array) as A:
             df_bk = A.df[:]
             df_combined = pd.concat([df, df2])
             df_combined.reset_index(inplace=True)
-            df_combined['index'] = list(range(20))
-            df_combined.set_index('index', inplace=True)
+            df_combined["index"] = list(range(20))
+            df_combined.set_index("index", inplace=True)
             df_combined.index.name = None
             tm.assert_frame_equal(df_bk, df_combined)
 
