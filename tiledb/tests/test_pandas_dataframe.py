@@ -836,13 +836,13 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             cmp_df = df.set_index("int_vals").sort_values(by="time")
             tm.assert_frame_equal(res_df, cmp_df)
 
-    def test_dataframe_csv_schema_only(self):
+    @pytest.mark.parametrize("allows_duplicates", [True, False])
+    def test_dataframe_csv_schema_only(self, allows_duplicates):
         col_size = 10
         df = make_dataframe_basic3(col_size)
 
         tmp_dir = self.path("csv_schema_only")
         self.vfs.create_dir(tmp_dir)
-        #tmp_dir='/tmp/fofo'
         tmp_csv = os.path.join(tmp_dir, "generated.csv")
 
         df.sort_values("time", inplace=True)
@@ -877,7 +877,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 mode="schema_only",
                 capacity=1001,
                 sparse=True,
-                full_domain=True,  # XXX COMMENT
+                allows_duplicates=allows_duplicates,
                 tile={"time": 5},
                 coords_filters=coords_filters,
                 attr_filters=attrs_filters,
@@ -892,42 +892,17 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             ref_schema = tiledb.ArraySchema(
                 domain=tiledb.Domain(
                     *[
-    #                        tiledb.Dim(
-    #                            name="time",
-    #                            domain=(t0.to_datetime64(), t1.to_datetime64()),
-    #                            tile=5,
-    #                            dtype="datetime64[ns]",
-    #                        ),
-    #                        tiledb.Dim(
-    #                            name="double_range",
-    #                            domain=(-1000.0, 1000.0),
-    #                            tile=1000,
-    #                            dtype="float64",
-    #                        ),
                         tiledb.Dim(
                             name="time",
-                            domain=(
-                                np.datetime64("1677-09-21T00:12:43.145224193"),
-                                np.datetime64("2262-04-11T23:47:16.854775802"),
-                            ),
-                            tile=np.timedelta64(5, "ns"),
+                            domain=(t0.to_datetime64(), t1.to_datetime64()),
+                            tile=5,
                             dtype="datetime64[ns]",
-                            filters=tiledb.FilterList(
-                                [
-                                    tiledb.ZstdFilter(level=7),
-                                ]
-                            ),
                         ),
                         tiledb.Dim(
                             name="double_range",
-                            domain=(-1.7976931348623157e308, 1.7976931348623157e308),
-                            tile=1000.0,
+                            domain=(-1000.0, 1000.0),
+                            tile=1000,
                             dtype="float64",
-                            filters=tiledb.FilterList(
-                                [
-                                    tiledb.ZstdFilter(level=7),
-                                ]
-                            ),
                         ),
                     ]
                 ),
@@ -939,7 +914,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 tile_order="row-major",
                 capacity=1001,
                 sparse=True,
-                allows_duplicates=True,
+                allows_duplicates=allows_duplicates,
             )
             # note: filters omitted
 
@@ -968,7 +943,6 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
             df.set_index(["time", "double_range"], inplace=True)
             df_combined = pd.concat([df, df2])
-
             df_combined.sort_index(level="time", inplace=True)
             df_bk.sort_index(level="time", inplace=True)
             tm.assert_frame_equal(df_bk, df_combined)
