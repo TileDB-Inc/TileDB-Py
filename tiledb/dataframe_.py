@@ -776,7 +776,6 @@ def _write_array(
                 A._setitem_impl(slice(row_start_idx, row_end_idx), write_dict, nullmaps)
 
 
-
 def open_dataframe(uri, *, attrs=None, use_arrow=None, idx=slice(None), ctx=None):
     """Open TileDB array at given URI as a Pandas dataframe
 
