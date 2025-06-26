@@ -376,9 +376,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             varlen_types={vartypes['Z'], vartypes['W']}, fit_to_df=True)
 
         with tiledb.open(uri) as A:
-            with pytest.raises(pyarrow.lib.ArrowInvalid):
-                A.df[:]
-            adf = A.query(use_arrow=False, coords=True).df[5:9,5:9]
+            adf = A.query(coords=True).df[5:9,5:9]
 
             # make sure they're indexed the same way and then compare
             adf = adf.set_index(['X','Y'])
