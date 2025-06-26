@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 import tiledb
+import tiledb.main as core
 from tiledb import TileDBError
 from tiledb.tests.common import DiskTestCase
 
@@ -125,3 +126,67 @@ class SubarrayTest(DiskTestCase):
             assert subarray2.num_dim_ranges(1) == 1
             assert subarray2.num_dim_ranges(2) == 2
             assert subarray2.num_dim_ranges(3) == 1
+
+    def test_add_fixed_sized_point_ranges(self):
+        # Create a 1D int dimension array
+        dim = tiledb.Dim(name="d", dtype=np.int32, domain=(0, 100))
+        dom = tiledb.Domain(dim)
+        att = tiledb.Attr("a", dtype=np.int32)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
+        uri = self.path("int_dim_array")
+        tiledb.Array.create(uri, schema)
+
+        # Write some data
+        coords = np.array([1, 2, 3, 4], dtype=np.int32)
+        data = np.array([10, 20, 30, 40], dtype=np.int32)
+        with tiledb.open(uri, "w") as A:
+            A[coords] = data
+
+        with tiledb.open(uri, "r") as A:
+            sub = tiledb.Subarray(A)
+            # Add point ranges as numpy array
+            points = np.array([1, 3], dtype=np.int32)
+            sub.add_ranges([points])
+            assert sub.num_dim_ranges(0) == 2
+
+            q = core.PyQuery(A.ctx, A, ("a",), (), 0, False)
+            q.set_subarray(sub)
+            q.submit()
+
+            results = q.results()
+            arr = results["a"][0]
+            arr.dtype = np.int32
+            assert arr.shape == (2,)
+            assert np.array_equal(arr, np.array([10, 30], dtype=np.int32))
+
+    def test_add_var_sized_point_ranges(self):
+        # Create a 1D string dimension array
+        dim = tiledb.Dim(name="d", dtype=np.bytes_)
+        dom = tiledb.Domain(dim)
+        att = tiledb.Attr("a", dtype=np.int32)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        uri = self.path("str_dim_array")
+        tiledb.Array.create(uri, schema)
+
+        # Write some data
+        coords = np.array([b"aa", b"b", b"ccc", b"dd"], dtype=np.bytes_)
+        data = np.array([10, 20, 30, 40], dtype=np.int32)
+        with tiledb.open(uri, "w") as A:
+            A[coords] = data
+
+        with tiledb.open(uri, "r") as A:
+            sub = tiledb.Subarray(A)
+            # Add point ranges as numpy array
+            points = np.array([b"aa", b"ccc"], dtype=np.bytes_)
+            sub.add_ranges([points])
+            assert sub.num_dim_ranges(0) == 2
+
+            q = core.PyQuery(A.ctx, A, ("a",), (), 0, False)
+            q.set_subarray(sub)
+            q.submit()
+
+            results = q.results()
+            arr = results["a"][0]
+            arr.dtype = np.int32
+            assert arr.shape == (2,)
+            assert np.array_equal(arr, np.array([10, 30], dtype=np.int32))
