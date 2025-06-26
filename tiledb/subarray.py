@@ -73,6 +73,20 @@ class Subarray(CtxMixin, lt.Subarray):
         if label_ranges:
             self._add_label_ranges(self._ctx, label_ranges)
 
+    def get_range(self, dim_idx: int, range_idx: int) -> Range:
+        """Returns the range on a dimension of the subarray.
+
+        For fixed-length dimensions, returns a triplet of the form (start, end, stride).
+        For variable-length string dimensions, returns a pair of the form (start, end).
+
+        :param dim_idx: Index (int) of the dimension to get the range from.
+        :param range_idx: Index (int) of the range to get.
+        :return: A tuple representing the range (start, end[, stride]).
+        :rtype: tuple
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        return self._get_range(self._ctx, dim_idx, range_idx)
+
     def has_label_range(self, dim_idx):
         """Returns if dimension label ranges are set on the requested dimension.
 

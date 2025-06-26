@@ -670,6 +670,99 @@ void init_subarray(py::module& m) {
             })
 
         .def(
+            "_get_range",
+            [](Subarray& subarray,
+               const Context& ctx,
+               uint32_t dim_idx,
+               uint64_t range_idx) -> py::object {
+                auto tiledb_type = subarray.array()
+                                       .schema()
+                                       .domain()
+                                       .dimension(dim_idx)
+                                       .type();
+                switch (tiledb_type) {
+                    case TILEDB_INT32: {
+                        using T = int32_t;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_INT64: {
+                        using T = int64_t;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_INT8: {
+                        using T = int8_t;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_UINT8: {
+                        using T = uint8_t;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_INT16: {
+                        using T = int16_t;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_UINT16: {
+                        using T = uint16_t;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_UINT32: {
+                        using T = uint32_t;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_UINT64: {
+                        using T = uint64_t;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_FLOAT32: {
+                        using T = float;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_FLOAT64: {
+                        using T = double;
+                        return py::cast(subarray.range<T>(dim_idx, range_idx));
+                    }
+                    case TILEDB_STRING_ASCII:
+                    case TILEDB_STRING_UTF8:
+                    case TILEDB_CHAR: {
+                        return py::cast(subarray.range(dim_idx, range_idx));
+                    }
+                    case TILEDB_DATETIME_YEAR:
+                    case TILEDB_DATETIME_MONTH:
+                    case TILEDB_DATETIME_WEEK:
+                    case TILEDB_DATETIME_DAY:
+                    case TILEDB_DATETIME_HR:
+                    case TILEDB_DATETIME_MIN:
+                    case TILEDB_DATETIME_SEC:
+                    case TILEDB_DATETIME_MS:
+                    case TILEDB_DATETIME_US:
+                    case TILEDB_DATETIME_NS:
+                    case TILEDB_DATETIME_PS:
+                    case TILEDB_DATETIME_FS:
+                    case TILEDB_DATETIME_AS: {
+                        case TILEDB_TIME_HR:
+                        case TILEDB_TIME_MIN:
+                        case TILEDB_TIME_SEC:
+                        case TILEDB_TIME_MS:
+                        case TILEDB_TIME_US:
+                        case TILEDB_TIME_NS:
+                        case TILEDB_TIME_PS:
+                        case TILEDB_TIME_FS:
+                        case TILEDB_TIME_AS:
+                            using T = int64_t;
+                            return py::cast(
+                                subarray.range<T>(dim_idx, range_idx));
+                    }
+                    default:
+                        TPY_ERROR_LOC(
+                            "Dimension range not supported on a dimension with "
+                            "the given datatype.");
+                }
+            },
+            py::arg("ctx"),
+            py::arg("dim_idx"),
+            py::arg("range_idx"))
+
+        .def(
             "_has_label_range",
             [](Subarray& subarray, const Context& ctx, uint32_t dim_idx) {
                 return has_label_range(ctx, subarray, dim_idx);
