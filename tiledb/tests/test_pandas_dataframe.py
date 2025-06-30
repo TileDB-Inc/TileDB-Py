@@ -342,6 +342,62 @@ class TestDimType:
 
 
 class TestPandasDataFrameRoundtrip(DiskTestCase):
+    def test_dataframe_fit_to_df(self):
+        uri = self.path("dataframe_subarray")
+        vartypes = {"Z": RaggedDtype(np.float32), "W": RaggedDtype(np.float32)}
+        xytypes = {"X": np.int32, "Y": np.int32}
+        alltypes = vartypes | xytypes
+        trntypes = xytypes | {"Z": "O", "W": "O"}
+
+        # make data
+        df = pd.DataFrame(columns=["X", "Y", "Z", "W"])
+        for x in range(5, 10):
+            for y in range(5, 10):
+                df2 = pd.DataFrame(
+                    [
+                        [
+                            x,
+                            y,
+                            np.random.rand(y + 1).astype("float32"),
+                            np.random.rand(y + 2).astype("float32"),
+                        ]
+                    ],
+                    columns=["X", "Y", "Z", "W"],
+                )
+                df = pd.concat((df, df2), ignore_index=True)
+
+        # give correct types
+        df = df.astype(trntypes)
+
+        # make schema
+        dom = tiledb.Domain(
+            tiledb.Dim(name="X", domain=(0, 9), tile=1, dtype=np.int32),
+            tiledb.Dim(name="Y", domain=(0, 9), tile=1, dtype=np.int32),
+        )
+        attrs = [
+            tiledb.Attr(name="Z", dtype=np.float32, var=True),
+            tiledb.Attr(name="W", dtype=np.float32, var=True),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(uri, schema)
+
+        tiledb.from_pandas(
+            uri,
+            df,
+            mode="append",
+            column_types=alltypes,
+            varlen_types={vartypes["Z"], vartypes["W"]},
+            fit_to_df=True,
+        )
+
+        with tiledb.open(uri) as A:
+            adf = A.query(coords=True).df[5:9, 5:9]
+
+            # make sure they're indexed the same way and then compare
+            adf = adf.set_index(["X", "Y"])
+            df = df.set_index(["X", "Y"])
+            tm.assert_frame_equal(df, adf)
+
     def test_dataframe_basic_rt1_manual(self):
         uri = self.path("dataframe_basic_rt1_manual")
         dom = tiledb.Domain(
