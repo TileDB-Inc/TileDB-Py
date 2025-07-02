@@ -493,6 +493,13 @@ class QueryConditionTree(ast.NodeVisitor):
         return node
 
     def visit_UnaryOp(self, node: ast.UnaryOp, sign: int = 1):
+        if isinstance(node.op, ast.Not):
+            operand = self.visit(node.operand)
+            if not isinstance(operand, qc.PyQueryCondition):
+                raise TileDBError(
+                    f"`not` can only be applied to a query condition, got {type(operand)}"
+                )
+            return operand.negate()
         if isinstance(node.op, ast.UAdd):
             sign *= 1
         elif isinstance(node.op, ast.USub):
