@@ -16,6 +16,7 @@ pybind11_add_module(
     group.cc
     metadata.h
     object.cc
+    profile.cc
     query.cc
     schema.cc
     subarray.cc
