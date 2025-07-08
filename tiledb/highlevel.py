@@ -255,7 +255,7 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
     """
     ctx = _get_ctx(ctx)
     if config is None:
-        config = lt.Config()
+        config = ctx.config()
 
     if fragment_uris is not None:
         if timestamp is not None:
