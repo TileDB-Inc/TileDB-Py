@@ -23,26 +23,69 @@ void init_vfs(py::module& m) {
         .def_property_readonly("_ctx", &VFS::context)
         .def_property_readonly("_config", &VFS::config)
 
-        .def("_create_bucket", &VFS::create_bucket)
-        .def("_remove_bucket", &VFS::remove_bucket)
-        .def("_is_bucket", &VFS::is_bucket)
-        .def("_empty_bucket", &VFS::empty_bucket)
-        .def("_is_empty_bucket", &VFS::is_empty_bucket)
+        .def(
+            "_create_bucket",
+            &VFS::create_bucket,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_remove_bucket",
+            &VFS::remove_bucket,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_is_bucket",
+            &VFS::is_bucket,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_empty_bucket",
+            &VFS::empty_bucket,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_is_empty_bucket",
+            &VFS::is_empty_bucket,
+            py::call_guard<py::gil_scoped_release>())
 
-        .def("_create_dir", &VFS::create_dir)
-        .def("_is_dir", &VFS::is_dir)
-        .def("_remove_dir", &VFS::remove_dir)
-        .def("_dir_size", &VFS::dir_size)
-        .def("_move_dir", &VFS::move_dir)
-        .def("_copy_dir", &VFS::copy_dir)
+        .def(
+            "_create_dir",
+            &VFS::create_dir,
+            py::call_guard<py::gil_scoped_release>())
+        .def("_is_dir", &VFS::is_dir, py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_remove_dir",
+            &VFS::remove_dir,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_dir_size",
+            &VFS::dir_size,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_move_dir",
+            &VFS::move_dir,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_copy_dir",
+            &VFS::copy_dir,
+            py::call_guard<py::gil_scoped_release>())
 
-        .def("_is_file", &VFS::is_file)
-        .def("_remove_file", &VFS::remove_file)
-        .def("_file_size", &VFS::file_size)
-        .def("_move_file", &VFS::move_file)
-        .def("_copy_file", &VFS::copy_file)
+        .def(
+            "_is_file", &VFS::is_file, py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_remove_file",
+            &VFS::remove_file,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_file_size",
+            &VFS::file_size,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_move_file",
+            &VFS::move_file,
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_copy_file",
+            &VFS::copy_file,
+            py::call_guard<py::gil_scoped_release>())
 
-        .def("_ls", &VFS::ls)
+        .def("_ls", &VFS::ls, py::call_guard<py::gil_scoped_release>())
         .def(
             "_ls_recursive",
             // 1. the user provides a callback, the user callback is passed to
@@ -76,7 +119,7 @@ void init_vfs(py::module& m) {
                     return std::vector<std::string>();
                 }
             })
-        .def("_touch", &VFS::touch);
+        .def("_touch", &VFS::touch, py::call_guard<py::gil_scoped_release>());
 }
 
 class FileHandle {
@@ -96,6 +139,7 @@ class FileHandle {
     }
 
     void close() {
+        py::gil_scoped_release release;
         _ctx.handle_error(tiledb_vfs_close(_ctx.ptr().get(), this->_fh));
     }
 
@@ -103,8 +147,11 @@ class FileHandle {
         py::array data = py::array(py::dtype::of<std::byte>(), nbytes);
         py::buffer_info buffer = data.request();
 
-        _ctx.handle_error(tiledb_vfs_read(
-            _ctx.ptr().get(), this->_fh, offset, buffer.ptr, nbytes));
+        {
+            py::gil_scoped_release release;
+            _ctx.handle_error(tiledb_vfs_read(
+                _ctx.ptr().get(), this->_fh, offset, buffer.ptr, nbytes));
+        }
 
         auto np = py::module::import("numpy");
         auto to_bytes = np.attr("ndarray").attr("tobytes");
@@ -114,11 +161,13 @@ class FileHandle {
 
     void write(py::buffer data) {
         py::buffer_info buffer = data.request();
+        py::gil_scoped_release release;
         _ctx.handle_error(tiledb_vfs_write(
             _ctx.ptr().get(), this->_fh, buffer.ptr, buffer.shape[0]));
     }
 
     void flush() {
+        py::gil_scoped_release release;
         _ctx.handle_error(tiledb_vfs_sync(_ctx.ptr().get(), this->_fh));
     }
 
