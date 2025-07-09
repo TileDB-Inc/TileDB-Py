@@ -109,13 +109,15 @@ void init_group(py::module& m) {
             &Group::consolidate_metadata,
             py::arg("ctx"),
             py::arg("uri"),
-            py::arg("config") = (Config*)nullptr)
+            py::arg("config") = (Config*)nullptr,
+            py::call_guard<py::gil_scoped_release>())
         .def_static(
             "_vacuum_metadata",
             &Group::vacuum_metadata,
             py::arg("ctx"),
             py::arg("uri"),
-            py::arg("config") = (Config*)nullptr);
+            py::arg("config") = (Config*)nullptr,
+            py::call_guard<py::gil_scoped_release>());
 }
 
 }  // namespace libtiledbcpp

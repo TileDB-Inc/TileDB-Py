@@ -28,10 +28,11 @@ void init_array(py::module& m) {
     py::class_<tiledb::Array>(m, "Array")
         //.def(py::init<py::object, py::object, py::iterable, py::object,
         //              py::object, py::object>())
-        .def(py::init<Array>())
+        .def(py::init<Array>(), py::call_guard<py::gil_scoped_release>())
         .def(
             py::init<const Context&, const std::string&, tiledb_query_type_t>(),
-            py::keep_alive<1, 2>() /* Array keeps Context alive */)
+            py::keep_alive<1, 2>(), /* Array keeps Context alive */
+            py::call_guard<py::gil_scoped_release>())
         .def(
             py::init([](const Context& ctx,
                         const std::string& uri,
@@ -47,6 +48,7 @@ void init_array(py::module& m) {
                 if (!end.has_value())
                     end = UINT64_MAX;
 
+                py::gil_scoped_release release;
                 return std::make_unique<Array>(
                     ctx,
                     uri,
@@ -73,8 +75,12 @@ void init_array(py::module& m) {
         .def(
             "__capsule__",
             [](Array& self) { return py::capsule(self.ptr().get(), "array"); })
-        .def("_open", (void(Array::*)(tiledb_query_type_t)) & Array::open)
-        .def("_reopen", &Array::reopen)
+        .def(
+            "_open",
+            static_cast<void (Array::*)(tiledb_query_type_t)>(&Array::open),
+            py::call_guard<py::gil_scoped_release>())
+        .def(
+            "_reopen", &Array::reopen, py::call_guard<py::gil_scoped_release>())
         .def("_set_open_timestamp_start", &Array::set_open_timestamp_start)
         .def("_set_open_timestamp_end", &Array::set_open_timestamp_end)
         .def_property_readonly(
@@ -105,6 +111,7 @@ void init_array(py::module& m) {
                 for (const auto& str : fragment_uris) {
                     c_strings.push_back(str.c_str());
                 }
+                py::gil_scoped_release release;
                 Array::consolidate(
                     ctx, uri, c_strings.data(), fragment_uris.size(), config);
             })
@@ -122,9 +129,11 @@ void init_array(py::module& m) {
                 config->set(
                     "sm.consolidation.timestamp_end", std::to_string(end));
 
+                py::gil_scoped_release release;
                 Array::consolidate(ctx, uri, config);
             })
-        .def("_vacuum", &Array::vacuum)
+        .def(
+            "_vacuum", &Array::vacuum, py::call_guard<py::gil_scoped_release>())
         .def(
             "_create",
             [](const Context& ctx,
@@ -132,7 +141,8 @@ void init_array(py::module& m) {
                const ArraySchema& schema) {
                 ctx.handle_error(tiledb_array_create(
                     ctx.ptr().get(), uri.c_str(), schema.ptr().get()));
-            })
+            },
+            py::call_guard<py::gil_scoped_release>())
         .def(
             "_load_schema",
             py::overload_cast<const Context&, const std::string&>(
@@ -263,6 +273,7 @@ void init_array(py::module& m) {
                 for (const auto& str : fragment_uris) {
                     c_strings.push_back(str.c_str());
                 }
+                py::gil_scoped_release release;
                 ctx.handle_error(tiledb_array_consolidate_fragments(
                     ctx.ptr().get(),
                     uri.c_str(),
@@ -275,7 +286,9 @@ void init_array(py::module& m) {
             py::overload_cast<
                 const Context&,
                 const std::string&,
-                Config* const>(&Array::consolidate_metadata))
+                Config* const>(&Array::consolidate_metadata),
+            py::call_guard<py::gil_scoped_release>())
+
         .def(
             "_put_metadata",
             [](Array& array, const std::string& key, py::array value) {
@@ -339,7 +352,8 @@ void init_array(py::module& m) {
         .def(
             "_delete_array",
             py::overload_cast<const Context&, const std::string&>(
-                &Array::delete_array))
+                &Array::delete_array),
+            py::call_guard<py::gil_scoped_release>())
         .def("_upgrade_version", &Array::upgrade_version);
 }
 
