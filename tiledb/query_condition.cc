@@ -58,6 +58,15 @@ class PyQueryCondition {
         }
     }
 
+    void init_null(
+        const string& attribute_name, tiledb_query_condition_op_t op) {
+        try {
+            qc_->init(attribute_name, nullptr, 0, op);
+        } catch (TileDBError& e) {
+            TPY_ERROR_LOC(e.what());
+        }
+    }
+
     shared_ptr<QueryCondition> ptr() {
         return qc_;
     }
@@ -146,6 +155,11 @@ void init_query_condition(py::module& m) {
          * https://github.com/pybind/pybind11/issues/1667
          */
 
+        .def(
+            "init_null",
+            static_cast<void (PyQueryCondition::*)(
+                const string&, tiledb_query_condition_op_t)>(
+                &PyQueryCondition::init_null))
         .def(
             "init_string",
             static_cast<void (PyQueryCondition::*)(

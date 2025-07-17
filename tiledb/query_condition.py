@@ -274,20 +274,23 @@ class QueryConditionTree(ast.NodeVisitor):
         variable = self.get_variable_from_node(variable)
         value = self.get_value_from_node(value)
 
-        if self.array.schema.has_attr(variable):
-            enum_label = self.array.attr(variable).enum_label
-            if enum_label is not None:
-                dt = self.array.enum(enum_label).dtype
-            else:
-                dt = self.array.attr(variable).dtype
-        else:
-            dt = self.array.schema.attr_or_dim_dtype(variable)
-
-        dtype = "string" if dt.kind in "SUa" else dt.name
-        value = self.cast_value_to_dtype(value, dtype)
-
         pyqc = qc.PyQueryCondition(self.ctx)
-        self.init_pyqc(pyqc, dtype)(variable, value, op)
+
+        if value is None:
+            self.init_pyqc(pyqc, None)(variable, op)
+        else:
+            if self.array.schema.has_attr(variable):
+                enum_label = self.array.attr(variable).enum_label
+                if enum_label is not None:
+                    dt = self.array.enum(enum_label).dtype
+                else:
+                    dt = self.array.attr(variable).dtype
+            else:
+                dt = self.array.schema.attr_or_dim_dtype(variable)
+
+            dtype = "string" if dt.kind in "SUa" else dt.name
+            value = self.cast_value_to_dtype(value, dtype)
+            self.init_pyqc(pyqc, dtype)(variable, value, op)
 
         return pyqc
 
@@ -414,7 +417,9 @@ class QueryConditionTree(ast.NodeVisitor):
         return value
 
     def init_pyqc(self, pyqc: qc.PyQueryCondition, dtype: str) -> Callable:
-        if dtype != "string":
+        if dtype is None:
+            dtype = "null"
+        elif dtype != "string":
             if np.issubdtype(dtype, np.datetime64):
                 dtype = "int64"
             elif np.issubdtype(dtype, bool):
