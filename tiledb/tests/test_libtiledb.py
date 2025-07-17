@@ -190,11 +190,25 @@ class ArrayTest(DiskTestCase):
         config["sm.encryption_type"] = "AES_256_GCM"
         ctx = tiledb.Ctx(config=config)
 
-        with tiledb.Array(self.path("foo"), mode="r", ctx=ctx) as array:
+        # Open with context only
+        with tiledb.open(self.path("foo"), mode="r", ctx=ctx) as array:
             self.assertTrue(array.isopen)
             self.assertEqual(array.schema, schema)
             self.assertEqual(array.mode, "r")
+        # Open with both key-configured context and key
         with tiledb.open(self.path("foo"), mode="r", key=key, ctx=ctx) as array:
+            self.assertTrue(array.isopen)
+            self.assertEqual(array.schema, schema)
+            self.assertEqual(array.mode, "r")
+        # Open with empty context and key
+        with tiledb.open(
+            self.path("foo"), mode="r", ctx=tiledb.Ctx(), key=key
+        ) as array:
+            self.assertTrue(array.isopen)
+            self.assertEqual(array.schema, schema)
+            self.assertEqual(array.mode, "r")
+        # Open with key only
+        with tiledb.open(self.path("foo"), mode="r", key=key) as array:
             self.assertTrue(array.isopen)
             self.assertEqual(array.schema, schema)
             self.assertEqual(array.mode, "r")
