@@ -1023,6 +1023,14 @@ class QueryConditionTest(DiskTestCase):
         with tiledb.open(path) as A:
             assert_array_equal(A.query(cond="")[:]["a"], [0])
 
+    def test_not_operator(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            all_U = set(A[:]["U"])
+            result_lt5 = set(A.query(cond="U < 5", attrs=["U"])[:]["U"])
+            result_not_lt5 = set(A.query(cond="not U < 5", attrs=["U"])[:]["U"])
+            assert result_lt5.isdisjoint(result_not_lt5)
+            assert result_lt5.union(result_not_lt5) == all_U
+
 
 class QueryDeleteTest(DiskTestCase):
     def test_basic_sparse(self):

@@ -358,7 +358,22 @@ class FragmentInfoTest(DiskTestCase):
 
         self.assertEqual(fragment_info.get_cell_num(), (len(a), len(b)))
 
-    def test_consolidated_fragment_metadata(self):
+    @pytest.mark.parametrize(
+        "consolidate_kwargs",
+        [
+            {
+                "config": tiledb.Config(
+                    params={"sm.consolidation.mode": "fragment_meta"}
+                )
+            },
+            {
+                "ctx": tiledb.Ctx(
+                    config=tiledb.Config({"sm.consolidation.mode": "fragment_meta"})
+                )
+            },
+        ],
+    )
+    def test_consolidated_fragment_metadata(self, consolidate_kwargs):
         fragments = 3
 
         A = np.zeros(fragments)
@@ -381,9 +396,7 @@ class FragmentInfoTest(DiskTestCase):
             fragment_info.get_has_consolidated_metadata(), (False, False, False)
         )
 
-        tiledb.consolidate(
-            uri, config=tiledb.Config(params={"sm.consolidation.mode": "fragment_meta"})
-        )
+        tiledb.consolidate(uri, **consolidate_kwargs)
 
         fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
