@@ -8,9 +8,9 @@ import tiledb.libtiledb as lt
 
 from .common import DiskTestCase
 
-if not (lt.version()[0] == 2 and lt.version()[1] >= 29):
+if lt.version() < (2, 28, 1):
     pytest.skip(
-        "Profile is only available in TileDB 2.29 and later",
+        "Profile is only available in TileDB 2.28.1 and later",
         allow_module_level=True,
     )
 
