@@ -46,8 +46,8 @@ if (NOT TileDB_FOUND)
         message(STATUS "Downloading TileDB default version ...")
         # Download latest release
         fetch_prebuilt_tiledb(
-                VERSION 2.28.0
-                RELLIST_HASH SHA256=40c8a0b5b7ddfe6150e3ce390fd95761d2b7d5910ea3fd5c7dfb67d431e64660
+                VERSION 2.28.1-rc1
+                RELLIST_HASH SHA256=af1840944e71172463bbf5811ec4426db573c2baf4b708f1eb2c0546e2a3121e
         )
     endif()
     find_package(TileDB REQUIRED)
