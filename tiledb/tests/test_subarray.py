@@ -93,6 +93,54 @@ class SubarrayTest(DiskTestCase):
             assert subarray1.num_dim_ranges(0) == 0
             assert subarray1.num_label_ranges("l1") == 1
 
+    def test_get_range_fixed(self):
+        dim1 = tiledb.Dim("row", domain=(1, 10))
+        dim2 = tiledb.Dim("col", domain=(1, 10))
+        dom = tiledb.Domain(dim1, dim2)
+        att = tiledb.Attr("val", dtype=np.uint64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,))
+        uri = self.path("dense_array")
+        tiledb.Array.create(uri, schema)
+        with tiledb.open(uri, "w") as array:
+            array[1:5, 1:5] = np.reshape(np.arange(1, 17, dtype=np.float64), (4, 4))
+        with tiledb.open(uri, "r") as array:
+            subarray = tiledb.Subarray(array)
+
+            # Add range to first dim and check
+            subarray.add_dim_range(0, (1, 2))
+            assert subarray.get_range(0, 0) == [1, 2, 0]  # [start, end, stride]
+            assert subarray.get_range(1, 0) == [1, 10, 0]
+
+            # Add range to second dim and check
+            subarray.add_dim_range(1, (3, 4))
+            assert subarray.get_range(0, 0) == [1, 2, 0]
+            assert subarray.get_range(1, 0) == [3, 4, 0]
+
+    def test_get_range_var(self):
+        # create array with string dimension
+        dim1 = tiledb.Dim("d1", dtype="ascii")
+        dom = tiledb.Domain(dim1)
+        att = tiledb.Attr("a1", dtype=np.int64)
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
+        uri = self.path("var_array")
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as array:
+            array["a"] = np.array([1], dtype=np.int64)
+            array["b"] = np.array([2], dtype=np.int64)
+            array["c"] = np.array([3], dtype=np.int64)
+
+        with tiledb.open(uri, "r") as array:
+            subarray = tiledb.Subarray(array)
+
+            # Add range to first dim and check
+            subarray.add_dim_range(0, ("a", "b"))
+            assert subarray.get_range(0, 0) == ["a", "b"]  # [start, end]
+
+            # check that assert subarray.get_range(0, 1) throws an error
+            with pytest.raises(TileDBError):
+                subarray.get_range(0, 1)
+
     def test_copy_ranges(self):
         # Create array schema with dimension labels
         d1 = tiledb.Dim("d1", domain=(1, 10), dtype=np.uint32)
