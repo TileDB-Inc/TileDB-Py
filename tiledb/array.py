@@ -298,15 +298,12 @@ def index_domain_subarray(array, dom, idx: tuple):
 
 
 # this function loads the pybind Array to determine whether it is a sparse or dense array.
-def preload_array(uri, mode, key, timestamp, ctx=None):
-    if ctx is None:
-        if key is not None:
-            config = tiledb.Config()
-            config["sm.encryption_key"] = key
-            config["sm.encryption_type"] = "AES_256_GCM"
-            ctx = tiledb.Ctx(config=config)
-        else:
-            ctx = default_ctx()
+def preload_array(uri, mode, key, timestamp, ctx):
+    if key is not None:
+        config = ctx.config()
+        config["sm.encryption_key"] = key
+        config["sm.encryption_type"] = "AES_256_GCM"
+        ctx = tiledb.Ctx(config=config)
 
     _mode_to_query_type = {
         "r": lt.QueryType.READ,
