@@ -29,6 +29,7 @@ void init_filestore(py::module& m);
 void init_filter(py::module&);
 void init_group(py::module&);
 void init_object(py::module& m);
+void init_profile(py::module& m);
 void init_query(py::module& m);
 void init_schema(py::module&);
 void init_subarray(py::module&);
@@ -50,6 +51,7 @@ PYBIND11_MODULE(libtiledb, m) {
     init_filter(m);
     init_group(m);
     init_object(m);
+    init_profile(m);
     init_query(m);
     init_schema(m);
     init_subarray(m);

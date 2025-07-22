@@ -42,6 +42,9 @@ class ExamplesTest:
         else:
             with tempfile.TemporaryDirectory() as tmpdir:
                 try:
+                    # Create environment with current env vars
+                    env = os.environ.copy()
+
                     subprocess.run(
                         [sys.executable, path],
                         cwd=tmpdir,
@@ -49,6 +52,7 @@ class ExamplesTest:
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         encoding="utf8",
+                        env=env,
                     )
                 except subprocess.CalledProcessError as ex:
                     pytest.fail(ex.stderr, pytrace=False)
