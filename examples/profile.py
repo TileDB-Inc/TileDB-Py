@@ -28,12 +28,21 @@
 # This example demonstrates how to create, save, and use profiles in TileDB.
 # It also shows how to remove profiles when they are no longer needed.
 
+import datetime
+import os
+import random
+import string
+
 import tiledb
+
+tiledb_token = os.getenv("TILEDB_TOKEN")
+tiledb_namespace = os.getenv("TILEDB_NAMESPACE")
+s3_bucket = os.getenv("S3_BUCKET")
 
 
 def create_and_save_profiles():
     p1 = tiledb.Profile()
-    p1["rest.token"] = "my_token"
+    p1["rest.token"] = tiledb_token
     p1.save()
 
     p2 = tiledb.Profile("my_profile_name")
@@ -54,12 +63,19 @@ def use_profiles():
     ctx = tiledb.Ctx(cfg_with_profile)
 
     # Use the context to create a new array. The REST credentials from the profile will be used.
-    array_name = "tiledb://my_workspace/my_teamspace/my_array"
+    # Useful to include the datetime in the array name to handle multiple consecutive runs of the test.
+    # Random letters are added to the end to ensure that conflicts are avoided, especially in CI environments where multiple tests may run in parallel.
+    array_name = (
+        datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        + "-"
+        + "".join(random.choice(string.ascii_letters) for _ in range(5))
+    )
+    uri = f"tiledb://{tiledb_namespace}/s3://{s3_bucket}/{array_name}"
     dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 10), tile=5, dtype="int32"))
     schema = tiledb.ArraySchema(
         domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype="float64")]
     )
-    tiledb.Array.create(array_name, schema, ctx=ctx)
+    tiledb.Array.create(uri, schema, ctx=ctx)
 
 
 def remove_profiles():
