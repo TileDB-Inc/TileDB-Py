@@ -1,4 +1,4 @@
-# query_condition_sparse.py
+# profile.py
 #
 # LICENSE
 #
@@ -40,27 +40,19 @@ tiledb_namespace = os.getenv("TILEDB_NAMESPACE")
 s3_bucket = os.getenv("S3_BUCKET")
 
 
-def create_and_save_profiles():
-    p1 = tiledb.Profile()
+def create_and_save_profile():
+    p1 = tiledb.Profile("my_profile_name")
     p1["rest.token"] = tiledb_token
     p1.save()
 
-    p2 = tiledb.Profile("my_profile_name")
-    p2["rest.server_address"] = "https://my.address"
-    p2.save()
 
-
-def use_profiles():
+def use_profile():
     # Create a config object. This will use the default profile.
-    cfg = tiledb.Config()
+    cfg = tiledb.Config({"profile_name": "my_profile_name"})
     print("rest.token:", cfg["rest.token"])
 
-    # Create a config object using a specific profile name.
-    cfg_with_profile = tiledb.Config({"profile_name": "my_profile_name"})
-    print("rest.server_address:", cfg_with_profile["rest.server_address"])
-
     # Use on of the profile to create a context.
-    ctx = tiledb.Ctx(cfg_with_profile)
+    ctx = tiledb.Ctx(cfg)
 
     # Use the context to create a new array. The REST credentials from the profile will be used.
     # Useful to include the datetime in the array name to handle multiple consecutive runs of the test.
@@ -78,15 +70,12 @@ def use_profiles():
     tiledb.Array.create(uri, schema, ctx=ctx)
 
 
-def remove_profiles():
+def remove_profile():
     # Remove the default profile
-    tiledb.Profile.remove()
-
-    # Remove a specific profile by name
     tiledb.Profile.remove("my_profile_name")
 
 
 if __name__ == "__main__":
-    create_and_save_profiles()
-    use_profiles()
-    remove_profiles()
+    create_and_save_profile()
+    use_profile()
+    remove_profile()
