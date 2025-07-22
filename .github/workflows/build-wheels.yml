@@ -27,6 +27,7 @@ jobs:
     name: Wheel ${{ matrix.buildplat[0] }}-${{ matrix.buildplat[1] }}-${{ matrix.python }}
     runs-on: ${{ matrix.buildplat[0] }}
     strategy:
+      max-attempts: 3
       matrix:
         buildplat:
           - [ubuntu-22.04, manylinux_x86_64]
@@ -74,6 +75,8 @@ jobs:
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-latest
+    strategy:
+      max-attempts: 3
     outputs:
       sdist_name: ${{ steps.get_sdist_name.outputs.sdist_name }}
     steps:
@@ -95,7 +98,9 @@ jobs:
   test_sdist:
     name: Test source distribution package
     needs: [build_sdist]
+    runs-on: ${{ matrix.os }}
     strategy:
+      max-attempts: 3
       matrix:
         os:
           - macos-13
@@ -104,7 +109,6 @@ jobs:
           - ubuntu-22.04
           - linux-arm64-ubuntu24
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-    runs-on: ${{ matrix.os }}
     steps:
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v5
@@ -139,8 +143,11 @@ jobs:
           pytest -vv --showlocals $PROJECT_CWD
 
   upload_pypi:
+    name: Upload packages to PyPI
     needs: [build_wheels, test_sdist]
     runs-on: ubuntu-latest
+    strategy:
+      max-attempts: 3
     environment: pypi
     permissions:
       id-token: write
