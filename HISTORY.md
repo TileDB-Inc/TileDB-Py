@@ -1,3 +1,30 @@
+# Release 0.34.1
+
+* TileDB-Py 0.34.1 includes TileDB Embedded [2.28.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.28.1)
+
+## What's Changed
+* `.cc` alias for `.libtiledb` was removed by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2197
+
+## Bug Fixes
+* Ensure that the encryption key is propagated correctly when opening an array by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2217
+* Fix: respect context params during array consolidation when no config is provided by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2212
+* Fix stacked sparse CSV ingestion by @johnkerl in https://github.com/TileDB-Inc/TileDB-Py/pull/2208
+* Avoid double opening arrays by @Shelnutt2 in https://github.com/TileDB-Inc/TileDB-Py/pull/2206
+* Fix segfaulting `PyFragmentInfo::dump` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2201
+* Fix: fixture `sparse_array_1d` not found by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2200
+* Fix: Conditionally include serialization sources with respect to the `TILEDB_SERIALIZATION` flag by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2199
+
+## Improvements
+* Wrap `Profile` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2189
+* Add query condition support for comparing against `None` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2216
+* Wrap `Subarray::get_range` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2210
+* Add support for `not` in query conditions by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2211
+* Enable `from_pandas` for dense arrays without full-row consumption by @kylemann16 in https://github.com/TileDB-Inc/TileDB-Py/pull/2207
+* Improve version comparison logic by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2203
+* Switch from `pytest-retry` to `pytest-rerunfailures` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2198
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.34.0...0.34.1
+
 # Release 0.34.0
 
 * TileDB-Py 0.34.0 includes TileDB Embedded [2.28.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.28.0)
