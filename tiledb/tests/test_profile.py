@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,12 @@ from .common import DiskTestCase
 if lt.version() < (2, 28, 1):
     pytest.skip(
         "Profile is only available in TileDB 2.28.1 and later",
+        allow_module_level=True,
+    )
+
+if os.getenv("TILEDB_TOKEN") == None:
+    pytest.skip(
+        "No token was provided. Please set the TILEDB_TOKEN environment variable to run this test.",
         allow_module_level=True,
     )
 
