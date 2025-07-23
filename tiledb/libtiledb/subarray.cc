@@ -388,18 +388,59 @@ void add_dim_point_ranges(
     const Context& ctx,
     Subarray& subarray,
     uint32_t dim_idx,
-    pybind11::handle dim_range) {
+    py::array dim_range) {
     // Cast range object to appropriately typed py::array.
     auto tiledb_type =
         subarray.array().schema().domain().dimension(dim_idx).type();
-    py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
-    py::array ranges = dim_range.attr("astype")(dtype);
 
-    // Set point ranges using C-API.
-    tiledb_ctx_t* c_ctx = ctx.ptr().get();
-    tiledb_subarray_t* c_subarray = subarray.ptr().get();
-    ctx.handle_error(tiledb_subarray_add_point_ranges(
-        c_ctx, c_subarray, dim_idx, (void*)ranges.data(), ranges.size()));
+    if (tiledb_type == TILEDB_STRING_ASCII ||
+        tiledb_type == TILEDB_STRING_UTF8 || tiledb_type == TILEDB_CHAR) {
+        // Check if input is empty
+        if (dim_range.shape(0) == 0) {
+            return;
+        }
+
+        // Prepare buffer and offsets
+        std::vector<uint8_t> buffer;
+        std::vector<uint64_t> offsets;
+        uint64_t offset = 0;
+
+        for (py::ssize_t i = 0; i < dim_range.shape(0); ++i) {
+            py::object obj = dim_range[py::int_(i)];
+            std::string s;
+            if (py::isinstance<py::bytes>(obj) ||
+                py::isinstance<py::str>(obj)) {
+                s = obj.cast<std::string>();
+            } else {
+                TPY_ERROR_LOC("Expected a bytes or str object in the array");
+            }
+            offsets.push_back(offset);
+            buffer.insert(buffer.end(), s.begin(), s.end());
+            offset += s.size();
+        }
+
+        tiledb_ctx_t* c_ctx = ctx.ptr().get();
+        tiledb_subarray_t* c_subarray = subarray.ptr().get();
+
+        ctx.handle_error(tiledb_subarray_add_point_ranges_var(
+            c_ctx,
+            c_subarray,
+            dim_idx,
+            buffer.data(),
+            buffer.size(),
+            offsets.data(),
+            offsets.size()));
+
+    } else {
+        py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
+        py::array ranges = dim_range.attr("astype")(dtype);
+
+        // Set point ranges using C-API.
+        tiledb_ctx_t* c_ctx = ctx.ptr().get();
+        tiledb_subarray_t* c_subarray = subarray.ptr().get();
+        ctx.handle_error(tiledb_subarray_add_point_ranges(
+            c_ctx, c_subarray, dim_idx, (void*)ranges.data(), ranges.size()));
+    }
 }
 
 void add_label_range(
@@ -618,7 +659,9 @@ void init_subarray(py::module& m) {
                 uint32_t dim_idx = 0;
                 for (auto dim_range : ranges) {
                     if (py::isinstance<py::array>(dim_range)) {
-                        add_dim_point_ranges(ctx, subarray, dim_idx, dim_range);
+                        py::array dim_range_array = dim_range.cast<py::array>();
+                        add_dim_point_ranges(
+                            ctx, subarray, dim_idx, dim_range_array);
                     } else {
                         py::tuple dim_range_iter = dim_range
                                                        .cast<py::iterable>();
@@ -636,7 +679,7 @@ void init_subarray(py::module& m) {
             [](Subarray& subarray,
                const Context& ctx,
                uint32_t dim_idx,
-               pybind11::handle dim_range) {
+               py::array dim_range) {
                 add_dim_point_ranges(ctx, subarray, dim_idx, dim_range);
             })
 
