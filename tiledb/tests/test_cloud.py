@@ -72,3 +72,44 @@ class CloudTest(DiskTestCase):
             )
 
         tiledb.Array.delete_array(uri, ctx=ctx)
+
+    def test_save_and_open_array_from_cloud_with_profile(self):
+        # Create and save a profile with the TileDB token
+        p = tiledb.Profile("my_profile_name")
+        p["rest.token"] = tiledb_token
+        p.save()
+
+        # Create a config object. This will use the default profile.
+        cfg = tiledb.Config({"profile_name": "my_profile_name"})
+        assert cfg["rest.token"] == tiledb_token
+
+        # Use one of the profiles to create a context.
+        ctx = tiledb.Ctx(cfg)
+
+        # Useful to include the datetime in the array name to handle multiple consecutive runs of the test.
+        # Random letters are added to the end to ensure that conflicts are avoided, especially in CI
+        array_name = (
+            datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            + "-"
+            + "".join(random.choice(string.ascii_letters) for _ in range(5))
+        )
+        uri = f"tiledb://{tiledb_namespace}/s3://{s3_bucket}/{array_name}"
+        dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 10), tile=5, dtype="int32"))
+        schema = tiledb.ArraySchema(
+            domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype="float64")]
+        )
+        tiledb.Array.create(uri, schema, ctx=ctx)
+
+        data = np.random.rand(10)
+
+        with tiledb.open(uri, "w", ctx=ctx) as A:
+            A[:] = data
+
+        self.assertTrue(tiledb.array_exists(uri, ctx=ctx))
+
+        with tiledb.open(uri, "r", ctx=ctx) as A:
+            np.testing.assert_array_equal(data, A[:]["a"])
+
+        # Clean up
+        tiledb.Array.delete_array(uri, ctx=ctx)
+        tiledb.Profile.remove("my_profile_name")
