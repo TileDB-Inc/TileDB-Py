@@ -30,7 +30,7 @@ jobs:
       matrix:
         buildplat:
           - [ubuntu-22.04, manylinux_x86_64]
-          - [linux-arm64-ubuntu24, manylinux_aarch64]
+          - [ubuntu-24.04-arm, manylinux_aarch64]
           - [macos-13, macosx_x86_64]
           - [macos-14, macosx_arm64]
           - [windows-2022, win_amd64]
@@ -102,7 +102,7 @@ jobs:
           - macos-14
           - windows-2022
           - ubuntu-22.04
-          - linux-arm64-ubuntu24
+          - ubuntu-24.04-arm
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     steps:
