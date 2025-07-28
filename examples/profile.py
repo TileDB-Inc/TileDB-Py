@@ -25,48 +25,37 @@
 # THE SOFTWARE.
 #
 
-# This example demonstrates how to create, save, and use profiles in TileDB.
-# It also shows how to remove profiles when they are no longer needed.
-
-import datetime
-import os
-import random
-import string
+# This example demonstrates how to create, save, use, and remove a Profile in TileDB.
+# NOTE: This example is not intended to be run as a test (test_examples.py excludes it)
+# since it requires a TileDB REST token.
+# Profiles are getting checked in test_cloud.py.
 
 import tiledb
-
-tiledb_token = os.getenv("TILEDB_TOKEN")
-tiledb_namespace = os.getenv("TILEDB_NAMESPACE")
-s3_bucket = os.getenv("S3_BUCKET")
 
 
 def create_and_save_profile():
     p1 = tiledb.Profile("my_profile_name")
-    p1["rest.token"] = tiledb_token
+    p1["rest.token"] = "my_token"  # Replace with your actual TileDB token
     p1.save()
 
 
 def use_profile():
-    # Create a config object. This will use the default profile.
+    # Create a config object passing the desired profile name.
     cfg = tiledb.Config({"profile_name": "my_profile_name"})
     print("rest.token:", cfg["rest.token"])
 
-    # Use on of the profile to create a context.
+    # Use the config to create a context.
     ctx = tiledb.Ctx(cfg)
 
-    # Use the context to create a new array. The REST credentials from the profile will be used.
-    # Useful to include the datetime in the array name to handle multiple consecutive runs of the test.
-    # Random letters are added to the end to ensure that conflicts are avoided, especially in CI environments where multiple tests may run in parallel.
-    array_name = (
-        datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        + "-"
-        + "".join(random.choice(string.ascii_letters) for _ in range(5))
-    )
-    uri = f"tiledb://{tiledb_namespace}/s3://{s3_bucket}/{array_name}"
+    # By using the context to create a new array, the REST credentials from the profile will be used.
+
+    uri = f"tiledb://<workspace>/<teamspace>/<array-name>"
+
     dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 10), tile=5, dtype="int32"))
     schema = tiledb.ArraySchema(
         domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype="float64")]
     )
+    # This will be a REST operation if the URI is set to a cloud location.
     tiledb.Array.create(uri, schema, ctx=ctx)
 
 

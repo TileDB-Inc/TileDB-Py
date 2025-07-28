@@ -22,7 +22,12 @@ class ExamplesTest:
     PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 
     @pytest.mark.parametrize(
-        "path", glob.glob(os.path.join(PROJECT_DIR, "examples", "*.py"))
+        "path",
+        [
+            p
+            for p in glob.glob(os.path.join(PROJECT_DIR, "examples", "*.py"))
+            if not p.endswith("profile.py")
+        ],
     )
     def test_examples(self, path):
         # run example script
@@ -42,9 +47,6 @@ class ExamplesTest:
         else:
             with tempfile.TemporaryDirectory() as tmpdir:
                 try:
-                    # Create environment with current env vars
-                    env = os.environ.copy()
-
                     subprocess.run(
                         [sys.executable, path],
                         cwd=tmpdir,
@@ -52,7 +54,6 @@ class ExamplesTest:
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         encoding="utf8",
-                        env=env,
                     )
                 except subprocess.CalledProcessError as ex:
                     pytest.fail(ex.stderr, pytrace=False)
