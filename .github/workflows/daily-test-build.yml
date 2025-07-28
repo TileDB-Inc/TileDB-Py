@@ -91,4 +91,4 @@ jobs:
         with:
           name: nightly build
           label: bug,nightly-failure
-          assignee: kounelisagis,nguyenv,ihnorton
+          assignee: kounelisagis,ypatia,ihnorton
