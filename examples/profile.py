@@ -26,6 +26,9 @@
 #
 
 # This example demonstrates how to create, save, use, and remove a Profile in TileDB.
+# NOTE: This example is not intended to be run as a test (test_examples.py excludes it)
+# since it requires a TileDB REST token.
+# Profiles are getting checked in test_cloud.py.
 
 import tiledb
 
@@ -46,9 +49,7 @@ def use_profile():
 
     # By using the context to create a new array, the REST credentials from the profile will be used.
 
-    uri = f"local_array"
-    # Change that to something like the following if you want to use the REST credentials:
-    # uri = f"tiledb://<workspace>/<teamspace>/<array-name>"
+    uri = f"tiledb://<workspace>/<teamspace>/<array-name>"
 
     dom = tiledb.Domain(tiledb.Dim(name="d", domain=(1, 10), tile=5, dtype="int32"))
     schema = tiledb.ArraySchema(
