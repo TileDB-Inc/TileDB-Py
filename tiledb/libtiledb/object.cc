@@ -29,9 +29,16 @@ void init_object(py::module& m) {
         .def_property_readonly("_name", &Object::name)
         .def("__repr__", &Object::to_str)
 
-        .def_static("_object", &Object::object)
-        .def_static("_remove", &Object::remove)
-        .def_static("_move", &Object::move);
+        .def_static(
+            "_object",
+            &Object::object,
+            py::call_guard<py::gil_scoped_release>())
+        .def_static(
+            "_remove",
+            &Object::remove,
+            py::call_guard<py::gil_scoped_release>())
+        .def_static(
+            "_move", &Object::move, py::call_guard<py::gil_scoped_release>());
 }
 
 }  // namespace libtiledbcpp
