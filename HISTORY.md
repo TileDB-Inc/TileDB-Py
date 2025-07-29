@@ -1,3 +1,17 @@
+# Release 0.34.2
+
+## Improvements
+
+* Expand GIL release scope for improved threading support by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2213
+* Restructure Profile REST test and example by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2223
+* Wrap tiledb_subarray_add_point_ranges_var by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2209
+
+## Build system changes
+
+* Update ARM64 images in the release workflow by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2221
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.34.1...0.34.2
+
 # Release 0.34.1
 
 * TileDB-Py 0.34.1 includes TileDB Embedded [2.28.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.28.1)
