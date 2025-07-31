@@ -422,6 +422,10 @@ void add_dim_point_ranges(
         tiledb_ctx_t* c_ctx = ctx.ptr().get();
         tiledb_subarray_t* c_subarray = subarray.ptr().get();
 
+#if TILEDB_VERSION_MAJOR > 2 ||                                 \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR > 28) || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR == 28 && \
+     TILEDB_VERSION_PATCH >= 1)
         ctx.handle_error(tiledb_subarray_add_point_ranges_var(
             c_ctx,
             c_subarray,
@@ -430,6 +434,21 @@ void add_dim_point_ranges(
             buffer.size(),
             offsets.data(),
             offsets.size()));
+#else
+        // Fallback for older TileDB versions: add individual point ranges
+        for (py::ssize_t i = 0; i < dim_range.shape(0); ++i) {
+            py::object obj = dim_range[py::int_(i)];
+            std::string s;
+            if (py::isinstance<py::bytes>(obj) ||
+                py::isinstance<py::str>(obj)) {
+                s = obj.cast<std::string>();
+            } else {
+                TPY_ERROR_LOC("Expected a bytes or str object in the array");
+            }
+            // Add individual point range for this string
+            subarray.add_range(dim_idx, s, s);
+        }
+#endif
 
     } else {
         py::dtype dtype = tdb_to_np_dtype(tiledb_type, 1);
