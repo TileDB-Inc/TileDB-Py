@@ -322,15 +322,6 @@ def create_array_from_fragments(
     if not dry_run:
         vfs.create_dir(dst_uri)
 
-    src_lock = os.path.join(src_uri, "__lock.tdb")
-    dst_lock = os.path.join(dst_uri, "__lock.tdb")
-
-    if verbose or dry_run:
-        print(f"Copying lock file {dst_uri}\n")
-
-    if not dry_run:
-        vfs.copy_file(f"{src_lock}", f"{dst_lock}")
-
     list_new_style_schema = [ver >= 10 for ver in fragment_info.version]
     is_mixed_versions = len(set(list_new_style_schema)) > 1
     if is_mixed_versions:
