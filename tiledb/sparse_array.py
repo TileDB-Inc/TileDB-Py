@@ -108,7 +108,7 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
     labels = {
         name: (
             data
-            if not type(data) is np.ndarray or data.dtype is np.dtype("O")
+            if not type(data) is np.ndarray or data.dtype == np.dtype("O")
             else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype)
         )
         for name, data in val.items()
