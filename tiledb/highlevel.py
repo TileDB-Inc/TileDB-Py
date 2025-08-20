@@ -315,7 +315,7 @@ def vacuum(uri, config=None, ctx=None, timestamp=None):
     """
     ctx = _get_ctx(ctx)
     if config is None:
-        config = tiledb.Config()
+        config = ctx.config()
 
     if timestamp is not None:
         warnings.warn(
