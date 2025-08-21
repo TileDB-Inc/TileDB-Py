@@ -3289,6 +3289,30 @@ class ConsolidationTest(DiskTestCase):
         fi = tiledb.array_fragments(path3)
         self.assertEqual(fi.unconsolidated_metadata_num, 0)
 
+        # array #4
+        path4 = self.path("test_array_vacuum_commits")
+        create_array(path4)
+        write_fragments(path4)
+
+        fi = tiledb.array_fragments(path4)
+        # Count the number of files that are present under __commits folder of the array
+        # Should be equal to the number of writes
+        self.assertEqual(len(os.listdir(os.path.join(path4, "__commits"))), num_writes)
+        tiledb.consolidate(
+            path4,
+            ctx=tiledb.Ctx(config=tiledb.Config({"sm.consolidation.mode": "commits"})),
+        )
+        # Should be +1 after consolidation
+        self.assertEqual(
+            len(os.listdir(os.path.join(path4, "__commits"))), num_writes + 1
+        )
+
+        tiledb.vacuum(
+            path4, ctx=tiledb.Ctx(config=tiledb.Config({"sm.vacuum.mode": "commits"}))
+        )
+        # After vacuuming should be just 1
+        self.assertEqual(len(os.listdir(os.path.join(path4, "__commits"))), 1)
+
     def test_array_consolidate_with_timestamp(self):
         dshape = (1, 3)
         num_writes = 10
