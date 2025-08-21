@@ -441,7 +441,7 @@ class DenseArrayImpl(Array):
             labels = {
                 name: (
                     data
-                    if not type(data) is np.ndarray or data.dtype is np.dtype("O")
+                    if not isinstance(data, np.ndarray) or data.dtype == np.dtype("O")
                     else np.ascontiguousarray(
                         data, dtype=self.schema.dim_label(name).dtype
                     )
@@ -458,7 +458,7 @@ class DenseArrayImpl(Array):
 
                 attributes.append(attr._internal_name)
                 # object arrays are var-len and handled later
-                if type(attr_val) is np.ndarray and attr_val.dtype is not np.dtype("O"):
+                if isinstance(attr_val, np.ndarray) and attr_val.dtype != np.dtype("O"):
                     if attr.isnullable and name not in nullmaps:
                         try:
                             nullmaps[name] = ~np.ma.masked_invalid(attr_val).mask
@@ -527,7 +527,7 @@ class DenseArrayImpl(Array):
             name = attr.name
             attributes.append(attr._internal_name)
             # object arrays are var-len and handled later
-            if type(val) is np.ndarray and val.dtype is not np.dtype("O"):
+            if isinstance(val, np.ndarray) and val.dtype != np.dtype("O"):
                 val = np.ascontiguousarray(val, dtype=attr.dtype)
             try:
                 if attr.isvar:
