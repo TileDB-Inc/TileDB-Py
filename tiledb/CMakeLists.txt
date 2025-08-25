@@ -39,9 +39,6 @@ endif()
 install(TARGETS main DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)
-    message(STATUS "Adding \"libtiledb\" into install group")
-
-    install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared DESTINATION tiledb)
 
     if (APPLE)
         set_target_properties(main PROPERTIES INSTALL_RPATH "@loader_path")
