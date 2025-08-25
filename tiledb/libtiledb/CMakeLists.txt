@@ -58,7 +58,7 @@ if(TILEDB_DOWNLOADED)
     if (APPLE)
     set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "@loader_path")
     elseif(UNIX)
-    set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "\$ORIGIN")
+    # set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "\$ORIGIN")
     endif()
 else()
     # If using external TileDB core library force it to be linked at runtime using RPATH
