@@ -50,13 +50,7 @@ if(TILEDB_DOWNLOADED)
     
     install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared 
             DESTINATION "${TILEDB_EXTERNAL_DIR}")
-    
-    # Set RPATH to current directory so extensions can find the library
-    if (APPLE)
-        set_target_properties(main PROPERTIES INSTALL_RPATH "@loader_path/../tiledb.libs")
-    elseif(UNIX)
-        set_target_properties(main PROPERTIES INSTALL_RPATH "\$ORIGIN/../tiledb.libs")
-    endif()
+
 else()
     # If using external TileDB core library force it to be linked at runtime using RPATH
     get_property(TILEDB_LOCATION TARGET TileDB::tiledb_shared PROPERTY LOCATION)
