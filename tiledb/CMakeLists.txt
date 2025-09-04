@@ -39,10 +39,19 @@ endif()
 install(TARGETS main DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)
-    message(STATUS "Adding \"libtiledb\" into install group")
 
-    install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared DESTINATION tiledb)
-
+    if(DEFINED ENV{RUNNER_TEMP})
+        set(TILEDB_EXTERNAL_DIR "$ENV{RUNNER_TEMP}/tiledb-external")
+    else()
+        set(TILEDB_EXTERNAL_DIR "${CMAKE_BINARY_DIR}/_external/tiledb")
+    endif()
+    
+    message(STATUS "Installing TileDB to: ${TILEDB_EXTERNAL_DIR}")
+    
+    install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared 
+            DESTINATION "${TILEDB_EXTERNAL_DIR}")
+    
+    # Set RPATH to current directory so extensions can find the library
     if (APPLE)
         set_target_properties(main PROPERTIES INSTALL_RPATH "@loader_path")
     elseif(UNIX)

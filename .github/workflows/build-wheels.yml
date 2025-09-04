@@ -50,16 +50,20 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_BUILD_VERBOSITY: 3
-          CIBW_ENVIRONMENT_PASS_LINUX: SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB S3_BUCKET TILEDB_TOKEN TILEDB_NAMESPACE
+          CIBW_ENVIRONMENT_PASS_LINUX: SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB S3_BUCKET TILEDB_TOKEN TILEDB_NAMESPACE RUNNER_TEMP
           CIBW_ENVIRONMENT_MACOS: >
             CC=clang
             CXX=clang++
+            RUNNER_TEMP=${{ runner.temp }}
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           CIBW_ARCHS: all
           CIBW_PRERELEASE_PYTHONS: True
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
           CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "bash -c 'if [ -n \"$RUNNER_TEMP\" ] && [ -d \"$RUNNER_TEMP/tiledb-external\" ]; then export LD_LIBRARY_PATH=\"$RUNNER_TEMP/tiledb-external:$LD_LIBRARY_PATH\"; fi; auditwheel repair -w {dest_dir} {wheel}'"
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "bash -c 'if [ -n \"$RUNNER_TEMP\" ] && [ -d \"$RUNNER_TEMP/tiledb-external\" ]; then export DYLD_LIBRARY_PATH=\"$RUNNER_TEMP/tiledb-external:$DYLD_LIBRARY_PATH\"; fi; delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}'"
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "powershell -Command \"if ($env:RUNNER_TEMP -and (Test-Path \\\"$env:RUNNER_TEMP\\tiledb-external\\\")) { $env:PATH = \\\"$env:RUNNER_TEMP\\tiledb-external;$env:PATH\\\" }; delvewheel repair -w {dest_dir} {wheel}\""
           # __init__.py interferes with the tests and is included as local file instead of
           # used from wheels. To be honest, tests should not be in the source folder at all.
           CIBW_BEFORE_TEST: rm {project}/tiledb/__init__.py
