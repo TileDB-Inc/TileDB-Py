@@ -63,7 +63,6 @@ jobs:
           CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: "bash -c 'if [ -n \"$RUNNER_TEMP\" ] && [ -d \"$RUNNER_TEMP/tiledb-external\" ]; then export LD_LIBRARY_PATH=\"$RUNNER_TEMP/tiledb-external:$LD_LIBRARY_PATH\"; fi; auditwheel repair -w {dest_dir} {wheel}'"
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: "bash -c 'if [ -n \"$RUNNER_TEMP\" ] && [ -d \"$RUNNER_TEMP/tiledb-external\" ]; then export DYLD_LIBRARY_PATH=\"$RUNNER_TEMP/tiledb-external:$DYLD_LIBRARY_PATH\"; fi; delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}'"
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "powershell -Command \"if ($env:RUNNER_TEMP -and (Test-Path \\\"$env:RUNNER_TEMP\\tiledb-external\\\")) { $env:PATH = \\\"$env:RUNNER_TEMP\\tiledb-external;$env:PATH\\\" }; delvewheel repair -w {dest_dir} {wheel}\""
           # __init__.py interferes with the tests and is included as local file instead of
           # used from wheels. To be honest, tests should not be in the source folder at all.
           CIBW_BEFORE_TEST: rm {project}/tiledb/__init__.py
