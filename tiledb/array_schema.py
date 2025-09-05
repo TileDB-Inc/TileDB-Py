@@ -29,6 +29,7 @@ _string_to_tiledb_order.update(
     {
         "C": lt.LayoutType.ROW_MAJOR,
         "R": lt.LayoutType.COL_MAJOR,
+        "G": lt.LayoutType.GLOBAL_ORDER,
         "H": lt.LayoutType.HILBERT,
         "U": lt.LayoutType.UNORDERED,
         None: lt.LayoutType.ROW_MAJOR,  # default (fixed in SC-27374)

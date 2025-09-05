@@ -600,7 +600,9 @@ class DenseArrayImpl(Array):
                         f"validity bitmap, got {type(val)}"
                     )
 
-        self._write_array(subarray, [], attributes, values, labels, nullmaps, False)
+        self._write_array(
+            subarray, [], attributes, values, labels, nullmaps, False, None
+        )
 
     def __array__(self, dtype=None, **kw):
         """Implementation of numpy __array__ protocol (internal).

@@ -6,6 +6,7 @@ import numpy as np
 import tiledb
 import tiledb.libtiledb as lt
 
+from .array_schema import _string_to_tiledb_order
 from .ctx import Config, Ctx, default_ctx
 from .datatypes import DataType
 from .domain_indexer import DomainIndexer
@@ -353,10 +354,19 @@ class Array:
     :param str attr: (default None) open one attribute of the array; indexing a
         dense array will return a Numpy ndarray directly rather than a dictionary.
     :param Ctx ctx: TileDB context
+    :param str order: (default None) write order ('C', 'R', 'G', 'U' for row-major, row-major, global, unordered)
     """
 
     def __init__(
-        self, uri, mode="r", key=None, timestamp=None, attr=None, ctx=None, **kwargs
+        self,
+        uri,
+        mode="r",
+        key=None,
+        timestamp=None,
+        attr=None,
+        ctx=None,
+        order=None,
+        **kwargs,
     ):
         if ctx is None:
             ctx = default_ctx()
@@ -377,6 +387,7 @@ class Array:
         self.ctx = ctx
         self.key = key
         self.uri = uri
+        self.order = order
         self.domain_index = DomainIndexer(self)
         self.pyquery = None
         self.__buffers = None
@@ -451,7 +462,9 @@ class Array:
         lt.Array._create(ctx, uri, schema)
 
     @classmethod
-    def load_typed(cls, uri, mode="r", key=None, timestamp=None, attr=None, ctx=None):
+    def load_typed(
+        cls, uri, mode="r", key=None, timestamp=None, attr=None, ctx=None, order=None
+    ):
         """Return a {Dense,Sparse}Array instance from a pre-opened Array (internal)"""
         if ctx is None:
             ctx = default_ctx()
@@ -460,11 +473,25 @@ class Array:
 
         if tmp_array._schema()._array_type == lt.ArrayType.SPARSE:
             return tiledb.SparseArray(
-                uri, mode, key, timestamp, attr, ctx, preloaded_array=tmp_array
+                uri,
+                mode,
+                key,
+                timestamp,
+                attr,
+                ctx,
+                preloaded_array=tmp_array,
+                order=order,
             )
         else:
             return tiledb.DenseArray(
-                uri, mode, key, timestamp, attr, ctx, preloaded_array=tmp_array
+                uri,
+                mode,
+                key,
+                timestamp,
+                attr,
+                ctx,
+                preloaded_array=tmp_array,
+                order=order,
             )
 
     def __enter__(self):
@@ -483,6 +510,11 @@ class Array:
 
     def close(self):
         """Closes this array, flushing all buffered data."""
+        # Finalize any pending global order write query
+        if self.pyquery is not None and hasattr(self.pyquery, "finalize"):
+            self.pyquery.finalize()
+            self.pyquery = None
+
         self.array._close()
 
     def reopen(self):
@@ -824,6 +856,7 @@ class Array:
         labels: Dict,
         nullmaps: Dict,
         issparse: bool,
+        order: str,
     ):
         # used for buffer conversion (local import to avoid circularity)
         from .main import array_to_buffer
@@ -923,14 +956,29 @@ class Array:
 
         # Allocate the query
         ctx = lt.Context(self.ctx)
-        q = lt.Query(ctx, self.array, lt.QueryType.WRITE)
+        layout = order or self.order
+        is_global_order = layout == "G" or layout == "global"
 
-        # Set the layout
-        q.layout = (
-            lt.LayoutType.UNORDERED
-            if issparse
-            else (lt.LayoutType.COL_MAJOR if isfortran else lt.LayoutType.ROW_MAJOR)
-        )
+        # For global order writes, reuse the existing query to append to the same fragment
+        if is_global_order and self.pyquery is not None:
+            q = self.pyquery
+        else:
+            q = lt.Query(ctx, self.array, lt.QueryType.WRITE)
+
+            # Store the query for global order writes
+            if is_global_order:
+                self.pyquery = q
+
+        if layout is not None:
+            layout_type = _string_to_tiledb_order[layout]
+            q.layout = layout_type
+        else:
+            # Default behavior (pre-existing logic)
+            q.layout = (
+                lt.LayoutType.UNORDERED
+                if issparse
+                else (lt.LayoutType.COL_MAJOR if isfortran else lt.LayoutType.ROW_MAJOR)
+            )
 
         # Create and set the subarray for the query (dense arrays only)
         if not issparse:
@@ -959,7 +1007,6 @@ class Array:
                 q.set_validity_buffer(buffer_name, nulmap, nulmap.size)
 
         q._submit()
-        q.finalize()
 
         fragment_info = self.last_fragment_info
         if fragment_info != False:

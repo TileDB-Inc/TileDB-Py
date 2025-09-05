@@ -10,7 +10,16 @@ import tiledb.libtiledb as lt
 from .dataframe_ import create_dim
 
 
-def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=None):
+def open(
+    uri,
+    mode="r",
+    key=None,
+    attr=None,
+    config=None,
+    timestamp=None,
+    ctx=None,
+    order=None,
+):
     """
     Open a TileDB array at the given URI
 
@@ -22,6 +31,7 @@ def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=No
     :param str mode: (default 'r') Open the array object in read 'r', write 'w',  modify exclusive 'm' mode, or  delete 'd' mode
     :param attr: attribute name to select from a multi-attribute array, str or None
     :param config: TileDB config dictionary, dict or None
+    :param order: write order for the array ('C', 'R', 'G', 'U' for row-major, col-major, global, unordered), str or None
     :return: open TileDB {Sparse,Dense}Array object
     """
     return tiledb.Array.load_typed(
@@ -31,6 +41,7 @@ def open(uri, mode="r", key=None, attr=None, config=None, timestamp=None, ctx=No
         timestamp=timestamp,
         attr=attr,
         ctx=_get_ctx(ctx, config),
+        order=order,  # Pass order parameter directly
     )
 
 

@@ -94,6 +94,7 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
             labels,
             nullmaps,
             True,
+            None,
         )
         return
 
@@ -197,6 +198,7 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
         labels,
         nullmaps,
         True,
+        None,
     )
 
 
