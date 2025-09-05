@@ -33,7 +33,6 @@ jobs:
           - [ubuntu-24.04-arm, manylinux_aarch64]
           - [macos-13, macosx_x86_64]
           - [macos-14, macosx_arm64]
-          # - [windows-2022, win_amd64]
         python: ["cp39", "cp310", "cp311", "cp312", "cp313"]
 
     steps:
@@ -94,52 +93,6 @@ jobs:
         with:
           name: sdist
           path: dist/*.tar.gz
-
-  # test_sdist:
-  #   name: Test source distribution package
-  #   needs: [build_sdist]
-  #   strategy:
-  #     matrix:
-  #       os:
-  #         - macos-13
-  #         - macos-14
-  #         - windows-2022
-  #         - ubuntu-22.04
-  #         - ubuntu-24.04-arm
-  #       python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - name: Set up Python ${{ matrix.python }}
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: ${{ matrix.python }}
-
-  #     - name: Download sdist artifact
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: sdist
-  #         path: dist
-
-  #     - name: Install sdist artifact
-  #       run: pip install --verbose dist/${{ needs.build_sdist.outputs.sdist_name }}
-
-  #     - uses: actions/checkout@v4
-
-  #     - name: Install test dependencies
-  #       run: pip install pytest pytest-rerunfailures hypothesis psutil pyarrow
-
-  #     - name: Run tests
-  #       shell: bash
-  #       run: |
-  #         PROJECT_CWD=$PWD
-  #         rm tiledb/__init__.py
-  #         cd ..
-  #         pytest -vv --showlocals $PROJECT_CWD
-
-  #     - name: "Re-run tests without pandas"
-  #       run: |
-  #         pip uninstall -y pandas
-  #         pytest -vv --showlocals $PROJECT_CWD
 
   upload_pypi:
     needs: [build_wheels, test_sdist]
