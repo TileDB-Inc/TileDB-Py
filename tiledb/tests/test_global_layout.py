@@ -197,9 +197,9 @@ class TestGlobalLayout(DiskTestCase):
         ), f"Expected 1 fragment with global writes, got {len(global_fragments)}"
 
         # Unordered writes in create separate fragments
-        assert len(unordered_fragments) >= len(
-            global_fragments
-        ), f"Unordered writes should create >= fragments than global writes"
+        assert (
+            len(unordered_fragments) == 3
+        ), f"Expected 3 fragments with unordered writes, got {len(unordered_fragments)}"
 
         # Verify both arrays have the same data despite different fragment counts
         with (

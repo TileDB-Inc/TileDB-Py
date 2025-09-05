@@ -41,7 +41,7 @@ def open(
         timestamp=timestamp,
         attr=attr,
         ctx=_get_ctx(ctx, config),
-        order=order,  # Pass order parameter directly
+        order=order,
     )
 
 
