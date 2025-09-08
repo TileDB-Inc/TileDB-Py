@@ -1,3 +1,8 @@
+# Enable @rpath support on macOS for proper library isolation
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
+
 pybind11_add_module(
     libtiledb
     array.cc
@@ -59,5 +64,13 @@ if(NOT TILEDB_DOWNLOADED)
     get_property(TILEDB_LOCATION TARGET TileDB::tiledb_shared PROPERTY LOCATION)
     get_filename_component(TILEDB_LOCATION ${TILEDB_LOCATION} DIRECTORY)
     message(STATUS "Setting RPATH for target \"libtiledb\" to ${TILEDB_LOCATION}")
-    set_target_properties(libtiledb PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
+    
+    if(APPLE)
+        set_target_properties(libtiledb PROPERTIES 
+            INSTALL_RPATH "@rpath"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    else()
+        set_target_properties(libtiledb PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
+    endif()
 endif()

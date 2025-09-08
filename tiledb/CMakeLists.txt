@@ -1,5 +1,10 @@
 # Pybind11
 
+# Enable @rpath support on macOS for proper library isolation
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
+
 pybind11_add_module(
     main
     main.cc
@@ -50,13 +55,31 @@ if(TILEDB_DOWNLOADED)
     
     install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared 
             DESTINATION "${TILEDB_EXTERNAL_DIR}")
+    
+    # Set RPATH to use @rpath for proper library isolation on macOS
+    if(APPLE)
+        set_target_properties(main PROPERTIES 
+            INSTALL_RPATH "@rpath"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    else()
+        set_target_properties(main PROPERTIES INSTALL_RPATH "${TILEDB_EXTERNAL_DIR}")
+    endif()
 
 else()
     # If using external TileDB core library force it to be linked at runtime using RPATH
     get_property(TILEDB_LOCATION TARGET TileDB::tiledb_shared PROPERTY LOCATION)
     get_filename_component(TILEDB_LOCATION ${TILEDB_LOCATION} DIRECTORY)
     message(STATUS "Setting RPATH for targets \"main\" and \"libtiledb\" to ${TILEDB_LOCATION}")
-    set_target_properties(main PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
+    
+    if(APPLE)
+        set_target_properties(main PROPERTIES 
+            INSTALL_RPATH "@rpath"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    else()
+        set_target_properties(main PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
+    endif()
 endif()
 
 add_subdirectory(libtiledb)
