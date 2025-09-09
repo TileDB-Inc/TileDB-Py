@@ -121,6 +121,13 @@ jobs:
           with:
             name: sdist
             path: dist
+        
+        - name: Examinate sdist artifact
+          shell: bash
+          run: |
+            gunzip dist/${{ needs.build_sdist.outputs.sdist_name }}
+            tar -xvf dist/*.tar
+            ls -la dist/tiledb/
 
         - name: Install sdist artifact
           run: pip install --verbose dist/${{ needs.build_sdist.outputs.sdist_name }}
