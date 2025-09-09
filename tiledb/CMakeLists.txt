@@ -46,25 +46,32 @@ install(TARGETS main DESTINATION tiledb)
 if(TILEDB_DOWNLOADED)
 
     if(DEFINED ENV{RUNNER_TEMP})
+        # For CI builds
         set(TILEDB_EXTERNAL_DIR "$ENV{RUNNER_TEMP}/tiledb-external")
+        message(STATUS "Installing TileDB to: ${TILEDB_EXTERNAL_DIR}")
+        install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared 
+                DESTINATION "${TILEDB_EXTERNAL_DIR}")
+        
+        # Set RPATH to use @rpath for proper library isolation on macOS
+        if(APPLE)
+            set_target_properties(main PROPERTIES 
+                INSTALL_RPATH "@rpath"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
+        else()
+            set_target_properties(main PROPERTIES INSTALL_RPATH "${TILEDB_EXTERNAL_DIR}")
+        endif()
     else()
-        set(TILEDB_EXTERNAL_DIR "${CMAKE_BINARY_DIR}/_external/tiledb")
+        # For local builds - auditwheel is not present
+        install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared DESTINATION tiledb)
+        
+        if (APPLE)
+            set_target_properties(main PROPERTIES INSTALL_RPATH "@loader_path")
+        elseif(UNIX)
+            set_target_properties(main PROPERTIES INSTALL_RPATH "\$ORIGIN")
+        endif()
     endif()
-    
-    message(STATUS "Installing TileDB to: ${TILEDB_EXTERNAL_DIR}")
-    
-    install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared 
-            DESTINATION "${TILEDB_EXTERNAL_DIR}")
-    
-    # Set RPATH to use @rpath for proper library isolation on macOS
-    if(APPLE)
-        set_target_properties(main PROPERTIES 
-            INSTALL_RPATH "@rpath"
-            BUILD_WITH_INSTALL_RPATH TRUE
-        )
-    else()
-        set_target_properties(main PROPERTIES INSTALL_RPATH "${TILEDB_EXTERNAL_DIR}")
-    endif()
+
 
 else()
     # If using external TileDB core library force it to be linked at runtime using RPATH
