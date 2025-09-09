@@ -96,7 +96,10 @@ class Query(CtxMixin, lt.Query):
         self._cond = cond
 
         if order == None:
-            if array.schema.sparse:
+            # Use array's default order if available, otherwise use the old defaults
+            if hasattr(array, "order") and array.order is not None:
+                self._order = array.order
+            elif array.schema.sparse:
                 self._order = "U"  # unordered
             else:
                 self._order = "C"  # row-major

@@ -213,3 +213,116 @@ class TestGlobalLayout(DiskTestCase):
             # Both should have the same data
             assert_array_equal(result_global["__dim_0"], result_unordered["__dim_0"])
             assert_array_equal(result_global[""], result_unordered[""])
+
+    def test_dense_array_layout_inheritance(self):
+        """Test that dense arrays inherit layout from tiledb.open() for reads."""
+        uri = self.path("test_dense_layout_inheritance")
+
+        # Create a simple 2D dense array
+        dom = tiledb.Domain(
+            tiledb.Dim(domain=(0, 2), tile=2, dtype=np.uint64),
+            tiledb.Dim(domain=(0, 2), tile=2, dtype=np.uint64),
+        )
+        schema = tiledb.ArraySchema(domain=dom, attrs=(tiledb.Attr(dtype=np.int64),))
+        tiledb.Array.create(uri, schema)
+
+        # Write some test data
+        test_data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+
+        with tiledb.open(uri, mode="w") as A:
+            A[:] = test_data
+
+        # Test reading with different layout specifications (excluding U for dense arrays)
+        layouts_to_test = ["C", "F", "G"]
+
+        for layout in layouts_to_test:
+            with tiledb.open(uri, mode="r", order=layout) as A:
+                # Verify the order attribute is set
+                assert A.order == layout, f"Expected order {layout}, got {A.order}"
+
+                # Test that queries inherit the layout
+                query_result = A.query()
+                assert (
+                    query_result._order == layout
+                ), f"Query should inherit layout {layout}, got {query_result._order}"
+
+                # Test subarray method (should also inherit the layout)
+                subarray_result = A.subarray(slice(None))
+
+                # Verify we get data (shape/content depends on layout)
+                assert subarray_result is not None
+                if layout == "F":
+                    # Column-major should return transposed data
+                    assert_array_equal(subarray_result, test_data.T)
+                elif layout == "G":
+                    # Global order flattens the array
+                    assert subarray_result.ndim == 1
+                else:
+                    # Row-major should return data as-is
+                    assert_array_equal(subarray_result, test_data)
+
+    def test_sparse_array_layout_inheritance(self):
+        """Test that sparse arrays inherit layout from tiledb.open() for reads."""
+        uri = self.path("test_sparse_layout_inheritance")
+
+        # Create a simple 1D sparse array
+        dom = tiledb.Domain(tiledb.Dim(domain=(0, 10), tile=5, dtype=np.uint64))
+        schema = tiledb.ArraySchema(
+            domain=dom, sparse=True, attrs=(tiledb.Attr(dtype=np.int64),)
+        )
+        tiledb.Array.create(uri, schema)
+
+        # Write some test data
+        coords = [1, 3, 5, 7, 9]
+        data = [10, 30, 50, 70, 90]
+
+        with tiledb.open(uri, mode="w") as A:
+            A[coords] = data
+
+        # Test reading with different layout specifications
+        layouts_to_test = ["C", "F", "G", "U"]
+
+        for layout in layouts_to_test:
+            with tiledb.open(uri, mode="r", order=layout) as A:
+                # Verify the order attribute is set
+                assert A.order == layout, f"Expected order {layout}, got {A.order}"
+
+                # Test that queries inherit the layout
+                query_result = A.query()
+                assert (
+                    query_result._order == layout
+                ), f"Query should inherit layout {layout}, got {query_result._order}"
+
+                # Test subarray method (should also inherit the layout)
+                result = A.subarray(slice(None))
+                # Verify we get the expected data
+                assert "__dim_0" in result
+                assert "" in result  # anonymous attribute
+                assert_array_equal(result["__dim_0"], coords)
+                assert_array_equal(result[""], data)
+
+    def test_layout_override(self):
+        """Test layout parameter override in queries."""
+        uri = self.path("test_layout_override")
+
+        # Create a simple 2D dense array
+        dom = tiledb.Domain(
+            tiledb.Dim(domain=(0, 2), tile=2, dtype=np.uint64),
+            tiledb.Dim(domain=(0, 2), tile=2, dtype=np.uint64),
+        )
+        schema = tiledb.ArraySchema(domain=dom, attrs=(tiledb.Attr(dtype=np.int64),))
+        tiledb.Array.create(uri, schema)
+
+        # Write test data
+        test_data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        with tiledb.open(uri, mode="w") as A:
+            A[:] = test_data
+
+        # Read with row-major order and create query with different order
+        with tiledb.open(uri, mode="r", order="C") as A:
+            result_array = A[:]  # Array's row-major result
+            result_query = A.query(order="F")[:]  # Query's column-major result
+
+            # Compare results - they should be different due to different layouts
+            assert_array_equal(result_array, test_data)  # Row-major preserves original
+            assert_array_equal(result_query, test_data.T)  # Column-major transposes

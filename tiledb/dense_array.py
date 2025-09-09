@@ -113,7 +113,7 @@ class DenseArrayImpl(Array):
         cond=None,
         dims=None,
         coords=False,
-        order="C",
+        order=None,
         use_arrow=None,
         return_arrow=False,
         return_incomplete=False,
@@ -131,7 +131,8 @@ class DenseArrayImpl(Array):
         :param dims: the DenseArray dimensions to subselect over. If dims is None (default)
             then no dimensions are returned, unless coords=True.
         :param coords: if True, return array of coodinate value (default False).
-        :param order: 'C', 'F', 'U', or 'G' (row-major, col-major, unordered, TileDB global order)
+        :param order: 'C', 'F', 'U', or 'G' (row-major, col-major, unordered, TileDB global order).
+            If None (default), inherits from the array's order set during opening.
         :param mode: "r" to read (default), "d" to delete
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
@@ -241,14 +242,16 @@ class DenseArrayImpl(Array):
         elif self.mode != "r":
             raise tiledb.TileDBError("Invalid mode for subarray query on Dense Array")
 
-        layout = lt.LayoutType.UNORDERED
-        if order is None or order == "C":
-            layout = lt.LayoutType.ROW_MAJOR
-        elif order == "F":
-            layout = lt.LayoutType.COL_MAJOR
-        elif order == "G":
-            layout = lt.LayoutType.GLOBAL_ORDER
-        elif order == "U":
+        # Use array's default order if no order is specified
+        layout = order or self.order
+
+        if layout is None or layout == "C":
+            layout_type = lt.LayoutType.ROW_MAJOR
+        elif layout == "F":
+            layout_type = lt.LayoutType.COL_MAJOR
+        elif layout == "G":
+            layout_type = lt.LayoutType.GLOBAL_ORDER
+        elif layout == "U":
             pass
         else:
             raise ValueError(
@@ -279,7 +282,7 @@ class DenseArrayImpl(Array):
         subarray = Subarray(self, self.ctx)
         subarray.add_ranges(dim_ranges)
         # Note: we included dims (coords) above to match existing semantics
-        out = self._read_dense_subarray(subarray, attr_names, cond, layout, coords)
+        out = self._read_dense_subarray(subarray, attr_names, cond, layout_type, coords)
         if any(s.step for s in idx):
             steps = tuple(slice(None, None, s.step) for s in idx)
             for k, v in out.items():

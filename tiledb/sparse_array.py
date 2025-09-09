@@ -327,7 +327,7 @@ class SparseArrayImpl(Array):
         dims=None,
         index_col=True,
         coords=None,
-        order="U",
+        order=None,
         use_arrow=None,
         return_arrow=None,
         return_incomplete=False,
@@ -348,7 +348,8 @@ class SparseArrayImpl(Array):
         :param index_col: For dataframe queries, override the saved index information,
             and only set specified index(es) in the final dataframe, or None.
         :param coords: (deprecated) if True, return array of coordinate value (default False).
-        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order).
+            If None (default), inherits from the array's order set during opening.
         :param mode: "r" to read
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
@@ -506,15 +507,17 @@ class SparseArrayImpl(Array):
         elif self.mode not in ("r", "d"):
             raise tiledb.TileDBError("Invalid mode for subarray query on Sparse Array")
 
-        layout = lt.LayoutType.UNORDERED
-        if order is None or order == "U":
-            layout = lt.LayoutType.UNORDERED
-        elif order == "C":
-            layout = lt.LayoutType.ROW_MAJOR
-        elif order == "F":
-            layout = lt.LayoutType.COL_MAJOR
-        elif order == "G":
-            layout = lt.LayoutType.GLOBAL_ORDER
+        # Use array's default order if no order is specified
+        layout = order or self.order
+
+        if layout is None or layout == "U":
+            layout_type = lt.LayoutType.UNORDERED
+        elif layout == "C":
+            layout_type = lt.LayoutType.ROW_MAJOR
+        elif layout == "F":
+            layout_type = lt.LayoutType.COL_MAJOR
+        elif layout == "G":
+            layout_type = lt.LayoutType.GLOBAL_ORDER
         else:
             raise ValueError(
                 "order must be 'C' (TILEDB_ROW_MAJOR), "
@@ -550,7 +553,7 @@ class SparseArrayImpl(Array):
         dim_ranges = index_domain_subarray(self, dom, idx)
         subarray = Subarray(self, self.ctx)
         subarray.add_ranges(dim_ranges)
-        return self._read_sparse_subarray(subarray, attr_names, cond, layout)
+        return self._read_sparse_subarray(subarray, attr_names, cond, layout_type)
 
     def __repr__(self):
         if self.isopen:
