@@ -45,7 +45,8 @@ install(TARGETS main DESTINATION tiledb)
 
 # Handle TileDB shared library installation and RPATH setup
 if(TILEDB_DOWNLOADED)
-    if(ENV{CI_WHEEL_BUILD})
+    message(STATUS "CI_WHEEL_BUILD is set to: '$ENV{CI_WHEEL_BUILD}'")
+    if(ENV{CI_WHEEL_BUILD} STREQUAL "true")
         # For CI builds - install to external directory
         set(TILEDB_EXTERNAL_DIR "$ENV{RUNNER_TEMP}/tiledb-external")
         message(STATUS "CI Build - installing TileDB to: ${TILEDB_EXTERNAL_DIR}")

@@ -60,7 +60,7 @@ endif()
 install(TARGETS libtiledb DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)
-    if(ENV{CI_WHEEL_BUILD})
+    if(ENV{CI_WHEEL_BUILD} STREQUAL "true")
         # CI builds - shared library is in external directory
         set(TILEDB_EXTERNAL_DIR "$ENV{RUNNER_TEMP}/tiledb-external")
         if(APPLE)
