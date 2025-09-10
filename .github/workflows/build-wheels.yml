@@ -79,6 +79,8 @@ jobs:
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-latest
+    env:
+      RUNNER_TEMP: ""
     outputs:
       sdist_name: ${{ steps.get_sdist_name.outputs.sdist_name }}
     steps:
@@ -110,6 +112,8 @@ jobs:
             - ubuntu-24.04-arm
           python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
       runs-on: ${{ matrix.os }}
+      env:
+        RUNNER_TEMP: ""
       steps:
         - name: Set up Python ${{ matrix.python }}
           uses: actions/setup-python@v5
@@ -134,7 +138,6 @@ jobs:
           shell: bash
           run: |
             PROJECT_CWD=$PWD
-            ls -la /Users/runner/hostedtoolcache/Python/3.9.23/x64/lib/python3.9/site-packages/tiledb/
             rm tiledb/__init__.py
             cd ..
             pytest -vv --showlocals $PROJECT_CWD

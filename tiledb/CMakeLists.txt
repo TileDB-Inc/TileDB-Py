@@ -45,7 +45,7 @@ install(TARGETS main DESTINATION tiledb)
 
 # Handle TileDB shared library installation and RPATH setup
 if(TILEDB_DOWNLOADED)
-    if(DEFINED ENV{RUNNER_TEMP})
+    if(ENV{RUNNER_TEMP})
         # For CI builds - install to external directory
         set(TILEDB_EXTERNAL_DIR "$ENV{RUNNER_TEMP}/tiledb-external")
         message(STATUS "CI Build - installing TileDB to: ${TILEDB_EXTERNAL_DIR}")
