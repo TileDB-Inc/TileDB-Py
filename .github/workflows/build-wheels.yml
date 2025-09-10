@@ -50,7 +50,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_ENVIRONMENT:
-            CI_WHEEL_BUILD=true
+            CI_WHEEL_BUILD=1
           CIBW_BUILD_VERBOSITY: 3
           CIBW_ENVIRONMENT_PASS_LINUX: SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB S3_BUCKET TILEDB_TOKEN TILEDB_NAMESPACE RUNNER_TEMP
           CIBW_ENVIRONMENT_MACOS: >
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUNNER_TEMP: ""
-      CI_WHEEL_BUILD: false
+      CI_WHEEL_BUILD: 0
     outputs:
       sdist_name: ${{ steps.get_sdist_name.outputs.sdist_name }}
     steps:
@@ -116,7 +116,7 @@ jobs:
           python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
       runs-on: ${{ matrix.os }}
       env:
-        CI_WHEEL_BUILD: false
+        CI_WHEEL_BUILD: 0
         RUNNER_TEMP: ""
       steps:
         - name: Set up Python ${{ matrix.python }}
