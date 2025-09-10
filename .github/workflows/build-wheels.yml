@@ -122,13 +122,6 @@ jobs:
             name: sdist
             path: dist
         
-        - name: Examinate sdist artifact
-          shell: bash
-          run: |
-            gunzip dist/${{ needs.build_sdist.outputs.sdist_name }}
-            tar -xvf dist/*.tar
-            ls -la dist/tiledb/
-
         - name: Install sdist artifact
           run: pip install --verbose dist/${{ needs.build_sdist.outputs.sdist_name }}
 
@@ -141,6 +134,7 @@ jobs:
           shell: bash
           run: |
             PROJECT_CWD=$PWD
+            ls -la /Users/runner/hostedtoolcache/Python/3.9.23/x64/lib/python3.9/site-packages/tiledb/
             rm tiledb/__init__.py
             cd ..
             pytest -vv --showlocals $PROJECT_CWD

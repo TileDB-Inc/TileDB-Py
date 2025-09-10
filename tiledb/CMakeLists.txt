@@ -43,41 +43,50 @@ endif()
 
 install(TARGETS main DESTINATION tiledb)
 
+# Handle TileDB shared library installation and RPATH setup
 if(TILEDB_DOWNLOADED)
-
     if(DEFINED ENV{RUNNER_TEMP})
-        # For CI builds
+        # For CI builds - install to external directory
         set(TILEDB_EXTERNAL_DIR "$ENV{RUNNER_TEMP}/tiledb-external")
-        message(STATUS "Installing TileDB to: ${TILEDB_EXTERNAL_DIR}")
+        message(STATUS "CI Build - installing TileDB to: ${TILEDB_EXTERNAL_DIR}")
         install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared 
                 DESTINATION "${TILEDB_EXTERNAL_DIR}")
         
-        # Set RPATH to use @rpath for proper library isolation on macOS
+        # Set RPATH for CI builds
         if(APPLE)
             set_target_properties(main PROPERTIES 
                 INSTALL_RPATH "@rpath"
                 BUILD_WITH_INSTALL_RPATH TRUE
             )
         else()
-            set_target_properties(main PROPERTIES INSTALL_RPATH "${TILEDB_EXTERNAL_DIR}")
+            set_target_properties(main PROPERTIES 
+                INSTALL_RPATH "${TILEDB_EXTERNAL_DIR}"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
         endif()
     else()
-        # For local builds - auditwheel is not present
+        # For local builds - install to tiledb directory
+        message(STATUS "Local Build - installing TileDB shared library to tiledb directory")
         install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared DESTINATION tiledb)
         
-        if (APPLE)
-            set_target_properties(main PROPERTIES INSTALL_RPATH "@loader_path")
+        # Set RPATH for local builds
+        if(APPLE)
+            set_target_properties(main PROPERTIES 
+                INSTALL_RPATH "@loader_path"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
         elseif(UNIX)
-            set_target_properties(main PROPERTIES INSTALL_RPATH "\$ORIGIN")
+            set_target_properties(main PROPERTIES 
+                INSTALL_RPATH "\$ORIGIN"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
         endif()
     endif()
-
-
 else()
-    # If using external TileDB core library force it to be linked at runtime using RPATH
+    # For external TileDB installations - no installation needed, just set RPATH
     get_property(TILEDB_LOCATION TARGET TileDB::tiledb_shared PROPERTY LOCATION)
     get_filename_component(TILEDB_LOCATION ${TILEDB_LOCATION} DIRECTORY)
-    message(STATUS "Setting RPATH for targets \"main\" and \"libtiledb\" to ${TILEDB_LOCATION}")
+    message(STATUS "External TileDB - setting RPATH to: ${TILEDB_LOCATION}")
     
     if(APPLE)
         set_target_properties(main PROPERTIES 
@@ -85,7 +94,10 @@ else()
             BUILD_WITH_INSTALL_RPATH TRUE
         )
     else()
-        set_target_properties(main PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
+        set_target_properties(main PROPERTIES 
+            INSTALL_RPATH ${TILEDB_LOCATION}
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
     endif()
 endif()
 

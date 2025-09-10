@@ -59,18 +59,26 @@ endif()
 
 install(TARGETS libtiledb DESTINATION tiledb)
 
-if(NOT TILEDB_DOWNLOADED)    
-    # If using external TileDB core library force it to be linked at runtime using RPATH
+# Set RPATH for proper library resolution at runtime
+if(APPLE)
+    message(STATUS "Setting RPATH for target \"libtiledb\" to @loader_path")
+    set_target_properties(libtiledb PROPERTIES 
+        INSTALL_RPATH "@loader_path"
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
+elseif(UNIX)
+    message(STATUS "Setting RPATH for target \"libtiledb\" to \$ORIGIN")
+    set_target_properties(libtiledb PROPERTIES 
+        INSTALL_RPATH "\$ORIGIN"
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
+else()
+    # For Windows or other platforms, use absolute path
     get_property(TILEDB_LOCATION TARGET TileDB::tiledb_shared PROPERTY LOCATION)
     get_filename_component(TILEDB_LOCATION ${TILEDB_LOCATION} DIRECTORY)
     message(STATUS "Setting RPATH for target \"libtiledb\" to ${TILEDB_LOCATION}")
-    
-    if(APPLE)
-        set_target_properties(libtiledb PROPERTIES 
-            INSTALL_RPATH "@rpath"
-            BUILD_WITH_INSTALL_RPATH TRUE
-        )
-    else()
-        set_target_properties(libtiledb PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
-    endif()
+    set_target_properties(libtiledb PROPERTIES 
+        INSTALL_RPATH ${TILEDB_LOCATION}
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
 endif()
