@@ -49,8 +49,8 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
-          CIBW_ENVIRONMENT:
-            CI_WHEEL_BUILD=1
+          CIBW_CONFIG_SETTINGS:
+            "--config-setting=cmake.args=-DCI_WHEEL_BUILD=ON;-DTILEDB_TEMP_DIR=${{ runner.temp }}"
           CIBW_BUILD_VERBOSITY: 3
           CIBW_ENVIRONMENT_PASS_LINUX: SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB S3_BUCKET TILEDB_TOKEN TILEDB_NAMESPACE RUNNER_TEMP
           CIBW_ENVIRONMENT_MACOS: >
@@ -82,8 +82,8 @@ jobs:
     name: Build source distribution
     runs-on: ubuntu-latest
     env:
-      RUNNER_TEMP: ""
-      CI_WHEEL_BUILD: 0
+      CIBW_CONFIG_SETTINGS:
+        "--config-setting=cmake.args=-DCI_WHEEL_BUILD=ON;-DTILEDB_TEMP_DIR=${{ runner.temp }}"
     outputs:
       sdist_name: ${{ steps.get_sdist_name.outputs.sdist_name }}
     steps:
@@ -116,8 +116,8 @@ jobs:
           python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
       runs-on: ${{ matrix.os }}
       env:
-        CI_WHEEL_BUILD: 0
-        RUNNER_TEMP: ""
+        CIBW_CONFIG_SETTINGS:
+          "--config-setting=cmake.args=-DCI_WHEEL_BUILD=OFF"
       steps:
         - name: Set up Python ${{ matrix.python }}
           uses: actions/setup-python@v5
@@ -129,7 +129,7 @@ jobs:
           with:
             name: sdist
             path: dist
-        
+
         - name: Install sdist artifact
           run: pip install --verbose dist/${{ needs.build_sdist.outputs.sdist_name }}
 

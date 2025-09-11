@@ -12,6 +12,9 @@ find_package(
 
 find_package(pybind11 CONFIG REQUIRED)
 
+option(CI_WHEEL_BUILD "Enable for CI wheel builds. Do not enable sdist builds." OFF)
+set(TILEDB_EXTERNAL_DIR "${}" CACHE FILEPATH "Temporary directory for storing TileDB for wheel builds.")
+
 if (TILEDB_PATH)
     file(REAL_PATH "${TILEDB_PATH}" USER_TILEDB_PATH EXPAND_TILDE)
     file(GLOB_RECURSE USER_TILEDB_CONFIG_PATH "${TILEDB_PATH}/**/TileDBConfig.cmake")

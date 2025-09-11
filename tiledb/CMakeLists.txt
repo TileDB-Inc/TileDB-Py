@@ -45,23 +45,21 @@ install(TARGETS main DESTINATION tiledb)
 
 # Handle TileDB shared library installation and RPATH setup
 if(TILEDB_DOWNLOADED)
-    message(STATUS "CI_WHEEL_BUILD is set to: '$ENV{CI_WHEEL_BUILD}'")
-    set(CI_BUILD_VAR "$ENV{CI_WHEEL_BUILD}")
-    if(CI_BUILD_VAR OR CIBUILD_VAR STREQUAL "1")
+    if (${CI_WHEEL_BUILD})
         # For CI builds - install to external directory
-        set(TILEDB_EXTERNAL_DIR "$ENV{RUNNER_TEMP}/tiledb-external")
         message(STATUS "CI Build - installing TileDB to: ${TILEDB_EXTERNAL_DIR}")
-        install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared 
+        install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared
+
                 DESTINATION "${TILEDB_EXTERNAL_DIR}")
-        
+
         # Set RPATH for CI builds
         if(APPLE)
-            set_target_properties(main PROPERTIES 
+            set_target_properties(main PROPERTIES
                 INSTALL_RPATH "@rpath"
                 BUILD_WITH_INSTALL_RPATH TRUE
             )
         else()
-            set_target_properties(main PROPERTIES 
+            set_target_properties(main PROPERTIES
                 INSTALL_RPATH "${TILEDB_EXTERNAL_DIR}"
                 BUILD_WITH_INSTALL_RPATH TRUE
             )
@@ -70,15 +68,15 @@ if(TILEDB_DOWNLOADED)
         # For local builds - install to tiledb directory
         message(STATUS "Local Build - installing TileDB shared library to tiledb directory")
         install(IMPORTED_RUNTIME_ARTIFACTS TileDB::tiledb_shared DESTINATION tiledb)
-        
+
         # Set RPATH for local builds
         if(APPLE)
-            set_target_properties(main PROPERTIES 
+            set_target_properties(main PROPERTIES
                 INSTALL_RPATH "@loader_path"
                 BUILD_WITH_INSTALL_RPATH TRUE
             )
         elseif(UNIX)
-            set_target_properties(main PROPERTIES 
+            set_target_properties(main PROPERTIES
                 INSTALL_RPATH "\$ORIGIN"
                 BUILD_WITH_INSTALL_RPATH TRUE
             )
@@ -89,14 +87,14 @@ else()
     get_property(TILEDB_LOCATION TARGET TileDB::tiledb_shared PROPERTY LOCATION)
     get_filename_component(TILEDB_LOCATION ${TILEDB_LOCATION} DIRECTORY)
     message(STATUS "External TileDB - setting RPATH to: ${TILEDB_LOCATION}")
-    
+
     if(APPLE)
-        set_target_properties(main PROPERTIES 
+        set_target_properties(main PROPERTIES
             INSTALL_RPATH "@rpath"
             BUILD_WITH_INSTALL_RPATH TRUE
         )
     else()
-        set_target_properties(main PROPERTIES 
+        set_target_properties(main PROPERTIES
             INSTALL_RPATH ${TILEDB_LOCATION}
             BUILD_WITH_INSTALL_RPATH TRUE
         )
