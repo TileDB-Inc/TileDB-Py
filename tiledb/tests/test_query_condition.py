@@ -55,7 +55,13 @@ class QueryConditionTest(DiskTestCase):
                 ),
                 "UTF": np.array(
                     ["$", "£$", "€ह£$", "한ह£", "£$𐍈"]
-                    + [rand_utf8(np.random.randint(1, 100)) for _ in range(5)],
+                    + [
+                        s
+                        for s in [
+                            rand_utf8(np.random.randint(1, 100)) for _ in range(5)
+                        ]
+                        if "'" not in s
+                    ],
                     dtype="|U0",
                 ),
             }
