@@ -1,3 +1,8 @@
+# Enable @rpath support on macOS for proper library isolation
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
+
 pybind11_add_module(
     libtiledb
     array.cc
@@ -55,15 +60,41 @@ endif()
 install(TARGETS libtiledb DESTINATION tiledb)
 
 if(TILEDB_DOWNLOADED)
-    if (APPLE)
-    set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "@loader_path")
-    elseif(UNIX)
-    set_target_properties(libtiledb PROPERTIES INSTALL_RPATH "\$ORIGIN")
+    set(CI_BUILD_VAR "$ENV{CI_WHEEL_BUILD}")
+    if(CI_BUILD_VAR OR CIBUILD_VAR STREQUAL "1")
+        # CI builds - shared library is in external directory
+        set(TILEDB_EXTERNAL_DIR "$ENV{RUNNER_TEMP}/tiledb-external")
+        if(APPLE)
+            set_target_properties(libtiledb PROPERTIES 
+                INSTALL_RPATH "@rpath"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
+        else()
+            set_target_properties(libtiledb PROPERTIES 
+                INSTALL_RPATH "${TILEDB_EXTERNAL_DIR}"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
+        endif()
+    else()
+        # Local builds - shared library is in same directory
+        if(APPLE)
+            set_target_properties(libtiledb PROPERTIES 
+                INSTALL_RPATH "@loader_path"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
+        elseif(UNIX)
+            set_target_properties(libtiledb PROPERTIES 
+                INSTALL_RPATH "\$ORIGIN"
+                BUILD_WITH_INSTALL_RPATH TRUE
+            )
+        endif()
     endif()
 else()
-    # If using external TileDB core library force it to be linked at runtime using RPATH
     get_property(TILEDB_LOCATION TARGET TileDB::tiledb_shared PROPERTY LOCATION)
     get_filename_component(TILEDB_LOCATION ${TILEDB_LOCATION} DIRECTORY)
     message(STATUS "Setting RPATH for target \"libtiledb\" to ${TILEDB_LOCATION}")
-    set_target_properties(libtiledb PROPERTIES INSTALL_RPATH ${TILEDB_LOCATION})
+    set_target_properties(libtiledb PROPERTIES 
+        INSTALL_RPATH ${TILEDB_LOCATION}
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
 endif()
