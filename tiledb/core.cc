@@ -368,11 +368,11 @@ class PyAgg {
                 // Set the result data buffers
                 auto* res_buf = &result_buffers_[attr_name][agg_name];
                 if ("count" == agg_name || "null_count" == agg_name ||
-                    "mean" == agg_name) {
+                    "mean" == agg_name || "sum" == agg_name) {
                     // count and null_count use uint64 and mean uses float64
                     *res_buf = py::array(py::dtype("uint8"), 8);
                 } else {
-                    // max, min, and sum use the dtype of the attribute
+                    // for max and min use the dtype of the attribute
                     py::dtype dt(tiledb_dtype(attr.type(), attr.cell_size()));
                     *res_buf = py::array(py::dtype("uint8"), dt.itemsize());
                 }
@@ -509,11 +509,33 @@ class PyAgg {
         if ("count" == agg_name || "null_count" == agg_name)
             return py::cast(*((uint64_t*)agg_buf));
 
+        // Handle sum operation with upcasting to int64/uint64/double
+        if ("sum" == agg_name) {
+            switch (attr.type()) {
+                case TILEDB_INT8:
+                case TILEDB_INT16:
+                case TILEDB_INT32:
+                case TILEDB_INT64:
+                    return py::cast(*((int64_t*)agg_buf));
+                case TILEDB_UINT8:
+                case TILEDB_UINT16:
+                case TILEDB_UINT32:
+                case TILEDB_UINT64:
+                    return py::cast(*((uint64_t*)agg_buf));
+                case TILEDB_FLOAT32:
+                case TILEDB_FLOAT64:
+                    return py::cast(*((double*)agg_buf));
+                default:
+                    TPY_ERROR_LOC(
+                        "[_set_result] Invalid tiledb dtype for sum "
+                        "aggregation result")
+            }
+        }
+
+        // Handle min/max operations with original data types
         switch (attr.type()) {
             case TILEDB_FLOAT32:
-                return py::cast(
-                    "sum" == agg_name ? *((double*)agg_buf) :
-                                        *((float*)agg_buf));
+                return py::cast(*((float*)agg_buf));
             case TILEDB_FLOAT64:
                 return py::cast(*((double*)agg_buf));
             case TILEDB_INT8:
@@ -534,8 +556,7 @@ class PyAgg {
                 return py::cast(*((uint64_t*)agg_buf));
             default:
                 TPY_ERROR_LOC(
-                    "[_cast_agg_result] Invalid tiledb dtype for aggregation "
-                    "result")
+                    "[_set_result] Invalid tiledb dtype for aggregation result")
         }
     }
 
