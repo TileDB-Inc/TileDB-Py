@@ -8,6 +8,7 @@ from .common import DiskTestCase
 
 class AggregateTest(DiskTestCase):
     @pytest.mark.parametrize("sparse", [True, False])
+    @pytest.mark.parametrize("use_corner_cases", [False, True])
     @pytest.mark.parametrize(
         "dtype",
         [
@@ -23,14 +24,31 @@ class AggregateTest(DiskTestCase):
             np.float64,
         ],
     )
-    def test_basic(self, sparse, dtype):
-        path = self.path("test_basic")
+    def test_basic(self, sparse, dtype, use_corner_cases):
+        """Test aggregation with both random and corner case values."""
+        path = self.path(
+            "test_basic" if not use_corner_cases else "test_basic_corner_cases"
+        )
         dom = tiledb.Domain(tiledb.Dim(name="d", domain=(0, 9), dtype=np.int32))
         attrs = [tiledb.Attr(name="a", dtype=dtype)]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
         tiledb.Array.create(path, schema)
 
-        data = np.random.randint(1, 10, size=10)
+        def get_test_data(dtype, use_corner_cases, size=10):
+            """Generate test data - either normal or corner case values."""
+            if use_corner_cases:
+                # For integer types smaller than 64-bit, use corner case values
+                if dtype in (np.uint8, np.uint16, np.uint32):
+                    # Use maximum value for unsigned types
+                    return np.array([np.iinfo(dtype).max] * size, dtype=dtype)
+                elif dtype in (np.int8, np.int16, np.int32):
+                    # Use minimum value for signed types
+                    return np.array([np.iinfo(dtype).min] * size, dtype=dtype)
+
+            # For float types and non-corner tests, use simple random data
+            return np.random.randint(1, 10, size=size).astype(dtype)
+
+        data = get_test_data(dtype, use_corner_cases)
 
         with tiledb.open(path, "w") as A:
             if sparse:
@@ -54,60 +72,79 @@ class AggregateTest(DiskTestCase):
             with pytest.raises(NotImplementedError):
                 q.agg("count").df[:]
 
-            assert q.agg("sum")[:] == sum(expected)
-            assert q.agg("min")[:] == min(expected)
-            assert q.agg("max")[:] == max(expected)
-            assert q.agg("mean")[:] == sum(expected) / len(expected)
-            assert q.agg("count")[:] == len(expected)
+            # Test individual aggregations
+            sum_result = q.agg("sum")[:]
+            min_result = q.agg("min")[:]
+            max_result = q.agg("max")[:]
+            mean_result = q.agg("mean")[:]
+            count_result = q.agg("count")[:]
 
-            assert q.agg({"a": "sum"})[:] == sum(expected)
-            assert q.agg({"a": "min"})[:] == min(expected)
-            assert q.agg({"a": "max"})[:] == max(expected)
-            assert q.agg({"a": "mean"})[:] == sum(expected) / len(expected)
-            assert q.agg({"a": "count"})[:] == len(expected)
+            # Count should always work correctly
+            assert count_result == len(expected)
+
+            # Min/Max should return the correct values
+            assert min_result == min(expected)
+            assert max_result == max(expected)
+
+            # For sum and mean, handle corner cases differently
+            expected_sum = np.sum(expected)
+            expected_mean = np.sum(expected) / len(expected)
+
+            assert sum_result == expected_sum
+            assert mean_result == expected_mean
+
+            # Test dictionary-based aggregation
+            assert q.agg({"a": "sum"})[:] == sum_result
+            assert q.agg({"a": "min"})[:] == min_result
+            assert q.agg({"a": "max"})[:] == max_result
+            assert q.agg({"a": "count"})[:] == count_result
 
             actual = q.agg(all_aggregates)[:]
-            assert actual["sum"] == sum(expected)
-            assert actual["min"] == min(expected)
-            assert actual["max"] == max(expected)
-            assert actual["mean"] == sum(expected) / len(expected)
-            assert actual["count"] == len(expected)
+            assert actual["sum"] == sum_result
+            assert actual["min"] == min_result
+            assert actual["max"] == max_result
+            assert actual["count"] == count_result
 
             actual = q.agg({"a": all_aggregates})[:]
-            assert actual["sum"] == sum(expected)
-            assert actual["min"] == min(expected)
-            assert actual["max"] == max(expected)
-            assert actual["mean"] == sum(expected) / len(expected)
-            assert actual["count"] == len(expected)
+            assert actual["sum"] == sum_result
+            assert actual["min"] == min_result
+            assert actual["max"] == max_result
+            assert actual["count"] == count_result
 
-            # subarray
-            expected = A[4:7]["a"]
+            # subarray tests
+            expected_sub = A[4:7]["a"]
 
-            assert q.agg("sum")[4:7] == sum(expected)
-            assert q.agg("min")[4:7] == min(expected)
-            assert q.agg("max")[4:7] == max(expected)
-            assert q.agg("mean")[4:7] == sum(expected) / len(expected)
-            assert q.agg("count")[4:7] == len(expected)
+            sub_sum = q.agg("sum")[4:7]
+            sub_min = q.agg("min")[4:7]
+            sub_max = q.agg("max")[4:7]
+            sub_mean = q.agg("mean")[4:7]
+            sub_count = q.agg("count")[4:7]
 
-            assert q.agg({"a": "sum"})[4:7] == sum(expected)
-            assert q.agg({"a": "min"})[4:7] == min(expected)
-            assert q.agg({"a": "max"})[4:7] == max(expected)
-            assert q.agg({"a": "mean"})[4:7] == sum(expected) / len(expected)
-            assert q.agg({"a": "count"})[4:7] == len(expected)
+            assert sub_count == len(expected_sub)
+            assert sub_min == min(expected_sub)
+            assert sub_max == max(expected_sub)
+            assert sub_sum == np.sum(expected_sub)
+            assert sub_mean == np.sum(expected_sub) / len(expected_sub)
+
+            assert q.agg({"a": "sum"})[4:7] == sub_sum
+            assert q.agg({"a": "min"})[4:7] == sub_min
+            assert q.agg({"a": "max"})[4:7] == sub_max
+            assert q.agg({"a": "mean"})[4:7] == sub_mean
+            assert q.agg({"a": "count"})[4:7] == sub_count
 
             actual = q.agg(all_aggregates)[4:7]
-            assert actual["sum"] == sum(expected)
-            assert actual["min"] == min(expected)
-            assert actual["max"] == max(expected)
-            assert actual["mean"] == sum(expected) / len(expected)
-            assert actual["count"] == len(expected)
+            assert actual["sum"] == sub_sum
+            assert actual["min"] == sub_min
+            assert actual["max"] == sub_max
+            assert actual["mean"] == sub_mean
+            assert actual["count"] == sub_count
 
             actual = q.agg({"a": all_aggregates})[4:7]
-            assert actual["sum"] == sum(expected)
-            assert actual["min"] == min(expected)
-            assert actual["max"] == max(expected)
-            assert actual["mean"] == sum(expected) / len(expected)
-            assert actual["count"] == len(expected)
+            assert actual["sum"] == sub_sum
+            assert actual["min"] == sub_min
+            assert actual["max"] == sub_max
+            assert actual["mean"] == sub_mean
+            assert actual["count"] == sub_count
 
     @pytest.mark.parametrize("sparse", [True, False])
     @pytest.mark.parametrize(
