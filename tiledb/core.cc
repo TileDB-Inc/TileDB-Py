@@ -510,6 +510,8 @@ class PyAgg {
             return py::cast(*((uint64_t*)agg_buf));
 
         // Handle sum operation with upcasting to int64/uint64/double
+        // This has to be done according to
+        // https://github.com/TileDB-Inc/TileDB/blob/d3c3e5f6c3b53b9c9153861e56db7363804da5cc/tiledb/sm/query/readers/aggregators/sum_type.h
         if ("sum" == agg_name) {
             switch (attr.type()) {
                 case TILEDB_INT8:
