@@ -54,9 +54,8 @@ class QueryConditionTest(DiskTestCase):
                     dtype="|S",
                 ),
                 "UTF": np.array(
-                    ["$", "£$", "€ह£$", "한ह£", "£$𐍈"]
+                    ["$", "£€ह£$", "한ह££$𐍈", "single'quotation", 'double"quotation']
                     + [rand_utf8(np.random.randint(1, 100)) for _ in range(5)],
-                    dtype="|U0",
                 ),
             }
 
@@ -215,7 +214,7 @@ class QueryConditionTest(DiskTestCase):
 
             if tiledb.libtiledb.version() > (2, 14):
                 for t in A.query(attrs=["UTF"])[:]["UTF"]:
-                    cond = f"""UTF == '{t}'"""
+                    cond = f"""UTF == {repr(t)}"""
                     result = A.query(cond=cond, attrs=["UTF"])[:]
                     assert result["UTF"] == t
 
@@ -236,7 +235,7 @@ class QueryConditionTest(DiskTestCase):
 
             if tiledb.libtiledb.version() > (2, 14):
                 for t in A.query(attrs=["UTF"])[:]["UTF"]:
-                    cond = f"""UTF == '{t}'"""
+                    cond = f"""UTF == {repr(t)}"""
                     result = A.query(cond=cond, attrs=["UTF"])[:]
                     assert all(
                         self.filter_dense(result["UTF"], A.attr("UTF").fill) == t
