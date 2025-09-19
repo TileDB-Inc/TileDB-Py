@@ -87,8 +87,8 @@ class AggregateTest(DiskTestCase):
             assert max_result == max(expected)
 
             # For sum and mean, handle corner cases differently
-            expected_sum = np.sum(expected)
-            expected_mean = np.sum(expected) / len(expected)
+            expected_sum = sum(int(x) for x in expected)
+            expected_mean = expected_sum / len(expected)
 
             assert sum_result == expected_sum
             assert mean_result == expected_mean
@@ -123,8 +123,11 @@ class AggregateTest(DiskTestCase):
             assert sub_count == len(expected_sub)
             assert sub_min == min(expected_sub)
             assert sub_max == max(expected_sub)
-            assert sub_sum == np.sum(expected_sub)
-            assert sub_mean == np.sum(expected_sub) / len(expected_sub)
+
+            expected_sub_sum = sum(int(x) for x in expected_sub)
+            expected_sub_mean = expected_sub_sum / len(expected_sub)
+            assert sub_sum == expected_sub_sum
+            assert sub_mean == expected_sub_mean
 
             assert q.agg({"a": "sum"})[4:7] == sub_sum
             assert q.agg({"a": "min"})[4:7] == sub_min
