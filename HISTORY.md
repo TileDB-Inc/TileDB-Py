@@ -1,3 +1,21 @@
+# Release 0.35.0
+
+* TileDB-Py 0.35.0 includes TileDB Embedded [2.29.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.29.0)
+
+## Bug Fixes
+* Fix `numpy.sum` overflow in aggregate tests by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2245
+* Upcast sum aggregation results to prevent overflows by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2244
+* Escape quotes in query condition test strings by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2243
+* Fix: respect context params during vacuum when no config is provided by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2236
+
+## Improvements
+* Fix numpy comparisons; use `==` for dtypes and `isinstance` for arrays by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2235
+* Remove outdated lock handling from `create_array_from_fragments` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2229
+* Add backwards compatibility support for variable-length point ranges by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2226
+
+## Build system changes
+* Re-enable libtiledb grafting with auditwheel by @ktsitsi in https://github.com/TileDB-Inc/TileDB-Py/pull/2238
+
 # Release 0.34.2
 
 ## Improvements
