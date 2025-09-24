@@ -164,13 +164,13 @@ class MetadataAdapter {
     py::tuple get_metadata(
         T& array_or_group, const std::string& key, bool is_ndarray) {
         tiledb_datatype_t tdb_type;
-        uint32_t value_num;
+        uint32_t value_num = 0;
         const char* value_ptr;
 
         array_or_group.get_metadata(
             key, &tdb_type, &value_num, (const void**)&value_ptr);
 
-        if (value_ptr == nullptr && value_num != 1)
+        if (value_ptr == nullptr && value_num == 0)
             throw py::key_error("Metadata key '" + key + "' not found");
 
         if (is_ndarray) {
