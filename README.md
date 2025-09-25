@@ -31,6 +31,12 @@ or from [conda-forge](https://anaconda.org/conda-forge/tiledb-py) with
 conda install -c conda-forge tiledb-py
 ```
 
+To install with the [TileDB client](https://pypi.org/project/tiledb-client/) for cloud services:
+
+```
+pip install tiledb[client]
+```
+
 Dataframes functionality (`tiledb.from_pandas`, `Array.df[]`) requires [Pandas](https://pandas.pydata.org/) 1.0 or higher, and [PyArrow](https://arrow.apache.org/docs/python/) 1.0 or higher.
 
 # Contributing

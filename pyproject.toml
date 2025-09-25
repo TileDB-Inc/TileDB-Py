@@ -59,6 +59,9 @@ test = [
     "pandas",
     "dask[distributed]",
 ]
+client = [
+    "tiledb-client",
+]
 
 [project.urls]
 homepage = "https://github.com/TileDB-Inc/TileDB-Py"
