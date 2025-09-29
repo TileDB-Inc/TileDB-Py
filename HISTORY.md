@@ -1,3 +1,175 @@
+# Release 0.35.0
+
+* TileDB-Py 0.35.0 includes TileDB Embedded [2.29.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.29.0)
+
+## Bug Fixes
+* Fix `numpy.sum` overflow in aggregate tests by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2245
+* Upcast sum aggregation results to prevent overflows by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2244
+* Escape quotes in query condition test strings by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2243
+* Fix: respect context params during vacuum when no config is provided by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2236
+
+## Improvements
+* Fix numpy comparisons; use `==` for dtypes and `isinstance` for arrays by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2235
+* Remove outdated lock handling from `create_array_from_fragments` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2229
+* Add backwards compatibility support for variable-length point ranges by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2226
+
+## Build system changes
+* Re-enable libtiledb grafting with auditwheel by @ktsitsi in https://github.com/TileDB-Inc/TileDB-Py/pull/2238
+
+# Release 0.34.2
+
+## Improvements
+
+* Expand GIL release scope for improved threading support by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2213
+* Restructure Profile REST test and example by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2223
+* Wrap tiledb_subarray_add_point_ranges_var by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2209
+
+## Build system changes
+
+* Update ARM64 images in the release workflow by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2221
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.34.1...0.34.2
+
+# Release 0.34.1
+
+* TileDB-Py 0.34.1 includes TileDB Embedded [2.28.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.28.1)
+
+## What's Changed
+* `.cc` alias for `.libtiledb` was removed by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2197
+
+## Bug Fixes
+* Ensure that the encryption key is propagated correctly when opening an array by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2217
+* Fix: respect context params during array consolidation when no config is provided by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2212
+* Fix stacked sparse CSV ingestion by @johnkerl in https://github.com/TileDB-Inc/TileDB-Py/pull/2208
+* Avoid double opening arrays by @Shelnutt2 in https://github.com/TileDB-Inc/TileDB-Py/pull/2206
+* Fix segfaulting `PyFragmentInfo::dump` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2201
+* Fix: fixture `sparse_array_1d` not found by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2200
+* Fix: Conditionally include serialization sources with respect to the `TILEDB_SERIALIZATION` flag by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2199
+
+## Improvements
+* Wrap `Profile` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2189
+* Add query condition support for comparing against `None` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2216
+* Wrap `Subarray::get_range` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2210
+* Add support for `not` in query conditions by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2211
+* Enable `from_pandas` for dense arrays without full-row consumption by @kylemann16 in https://github.com/TileDB-Inc/TileDB-Py/pull/2207
+* Improve version comparison logic by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2203
+* Switch from `pytest-retry` to `pytest-rerunfailures` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2198
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.34.0...0.34.1
+
+# Release 0.34.0
+
+* TileDB-Py 0.34.0 includes TileDB Embedded [2.28.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.28.0)
+
+## Improvements
+
+* Add Building from Source docs by @nickvigilante in https://github.com/TileDB-Inc/TileDB-Py/pull/2190
+* Remove support for HDFS by @jdblischak, @kounelisagis, and @teo-tsirpanis in https://github.com/TileDB-Inc/TileDB-Py/pull/2185, https://github.com/TileDB-Inc/TileDB-Py/pull/2184, and https://github.com/TileDB-Inc/TileDB-Py/pull/2191
+* Consider index passed, even if the current domain is present by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2178
+
+## Build system changes
+* Set manylinux images to `manylinux_2_28` for build wheels workflow by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2192
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.6...0.34.0
+
+# Release 0.33.6
+
+## Bug Fixes
+
+* Fix URI passed to consolidation by @spencerseale and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2176
+
+# Release 0.33.5
+
+* TileDB-Py 0.33.5 includes TileDB Embedded [2.27.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.2)
+
+## Bug Fixes
+
+* Fix `stats_reset()` behavior by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2172
+* Fix for query conditions that contain attributes with dot(s) when using the `in` operator by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2171
+
+## Improvements
+* Expand `.df` Array/Query accessor to allow indexing with NumPy and PyArrow arrays by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2170
+* Improve the logic for using Arrow when it is not explicitly requested by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2168
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.4...0.33.5
+
+# Release 0.33.4
+
+* TileDB-Py 0.33.4 includes TileDB Embedded [2.27.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.1)
+
+## Bug Fixes
+* Fix the error caused by non-decodable bytes when retrieving the non-empty domain for `TILEDB_ASCII` dimensions by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2164
+* Fix `NDRectangle::set_range` overloads by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2157
+* Fix broken API docs search and expose `Metadata` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2153
+* Bug fix: Data buffer is not resized for byte objects after completing the buffer and offsets conversion by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2150
+
+## Improvements
+* Consider the Current Domain on indexing by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2156
+* Expand `test_sparse_string_domain` for empty strings by @ihnorton and @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/917
+* Use the clang-format pre-commit hook updated to the latest version by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2039
+* Fix `view_attr` not being respected by `__getitem__` and subarray by @kounelisagis and @nguyenv in https://github.com/TileDB-Inc/TileDB-Py/pull/2139
+* Add support for `BLOB` attribute type override in `from_pandas` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/2143
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.3...0.33.4
+
+# Release 0.33.3
+
+## Bug Fixes
+
+* Fix interaction with CloudArray interface of tiledb-cloud package by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2144
+
+## Improvements
+
+* Add cc alias for libtiledb to provide partial backward compatibility with existing usage of internal APIs by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2145
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.2...0.33.3
+
+# Release 0.33.2
+
+## What's Changed
+
+Wheels are now available for aarch64 Linux on PyPI.
+
+## Bug Fixes
+
+* Explicitly set the numpy type passed in `QueryExperimental::set_data_buffer` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2128
+
+## Improvements
+
+* Enable aarch64 wheel builds by @dudoslav in https://github.com/TileDB-Inc/TileDB-Py/pull/2114
+* Rename default branch from `dev` to `main`, update associated references by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2126
+* Fix/generalize schema evolution test added in #2083 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2116
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.33.1...0.33.2
+
+# Release 0.33.1
+
+## Packaging Notes
+This version eliminates the Cython dependency, and communication with the TileDB Arrays library (libtiledb) is now handled exclusively with pybind11.
+
+## Improvements
+
+* Remove Cython Dependency by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2118
+* Factor _write_array out of Cython by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2115
+* Factor write_direct_dense out of Cython by @kounelisagis and @nguyenv in https://github.com/TileDB-Inc/TileDB-Py/pull/2109
+* Remove indexing.pyx by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2108
+* Move Query to pure Python by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2106
+* Merge Metadata and GroupMetadata into one Python class by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2099
+* Move _setitem_impl_sparse to Python by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2092
+* Move Array to pure Python by @kounelisagis, @nguyenv, and @teo-tsirpanis in https://github.com/TileDB-Inc/TileDB-Py/pull/2076
+
+# Release 0.33.0
+
+* TileDB-Py 0.33.0 includes TileDB Embedded [2.27.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.27.0)
+
+## Improvements
+
+* Fix `stats_dump` broken return value type by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2104
+* Enable builds for Python 3.13 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2107
+* Implement serialization functionality for `Config` and `VFS` objects by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2110
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.32.5...0.33.0
+
 # Release 0.32.5
 
 * TileDB-Py 0.32.5 includes TileDB Embedded [2.26.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.26.2)

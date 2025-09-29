@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       libtiledb_ref:
-        default: dev
+        default: main
         type: string
       libtiledb_version:
         type: string
@@ -14,11 +14,11 @@ jobs:
   build_libtiledb:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout TileDB Core ${{ inputs.libtiledb_ref || 'dev' }}
+      - name: Checkout TileDB Core ${{ inputs.libtiledb_ref || 'main' }}
         uses: actions/checkout@v4
         with:
           repository: TileDB-Inc/TileDB
-          ref: ${{ inputs.libtiledb_ref || 'dev' }}
+          ref: ${{ inputs.libtiledb_ref || 'main' }}
 
       - name: Configure TileDB
         run: |
@@ -30,7 +30,6 @@ jobs:
             -DTILEDB_S3=ON \
             -DTILEDB_AZURE=ON \
             -DTILEDB_GCS=ON \
-            -DTILEDB_HDFS=ON \
             -DTILEDB_SERIALIZATION=ON \
             -DTILEDB_WEBP=ON \
             -DTILEDB_TESTS=OFF \

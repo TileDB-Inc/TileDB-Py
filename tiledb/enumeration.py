@@ -6,7 +6,7 @@ from typing import Any, Optional, Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import Ctx, CtxMixin
 from .datatypes import DataType

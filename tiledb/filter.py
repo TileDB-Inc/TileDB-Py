@@ -3,7 +3,7 @@ from typing import List, Optional, Sequence, Union, overload
 
 import numpy as np
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import Ctx, CtxMixin
 from .datatypes import DataType
@@ -265,10 +265,8 @@ class DeltaFilter(CompressionFilter):
     Filter that compresses using run-length encoding (RLE).
 
     :param level: -1 (default) sets the compressor level to the default level as specified in TileDB core. Otherwise, sets the compressor level to the given value.
-    :type level: int
-    :param reinterp_dtype: (optional) sets the compressor to compress the data treating
-    as the new datatype.
-    :type reinterp_dtype: numpy, lt.DataType
+    :param reinterp_dtype: (optional) sets the compressor to compress the data treating as the new datatype.
+
     **Example:**
 
     >>> import tiledb, numpy as np, tempfile
@@ -879,12 +877,10 @@ class FilterList(CtxMixin, lt.FilterList):
         return self._chunksize
 
     @overload
-    def __getitem__(self, idx: int) -> Filter:
-        ...
+    def __getitem__(self, idx: int) -> Filter: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> List[Filter]:
-        ...
+    def __getitem__(self, idx: slice) -> List[Filter]: ...
 
     def __getitem__(self, idx):
         """Gets a copy of the filter in the list at the given index

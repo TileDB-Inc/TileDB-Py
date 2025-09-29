@@ -271,15 +271,17 @@ class TestColumnInfo(DiskTestCase):
                 {
                     "a": np.random.random_sample(20),
                     "b": [str(uuid.uuid4()) for _ in range(20)],
+                    "c": [np.random.bytes(10) for _ in range(20)],
                 }
             ),
             sparse=True,
-            index_dims=["a", "b"],
-            column_types={"a": np.float32, "b": np.bytes_},
+            index_dims=["a", "b", "c"],
+            column_types={"a": np.float32, "b": np.bytes_, "c": "blob"},
         )
         with tiledb.open(uri) as A:
             assert A.schema.domain.dim(0).dtype == np.float32
             assert A.schema.domain.dim(1).dtype == np.bytes_
+            assert A.schema.domain.dim(2).dtype == np.bytes_
 
     def test_apply_dtype_index_schema_only(self):
         uri = self.path("index_dtype_casted_dtype")
@@ -340,6 +342,62 @@ class TestDimType:
 
 
 class TestPandasDataFrameRoundtrip(DiskTestCase):
+    def test_dataframe_fit_to_df(self):
+        uri = self.path("dataframe_subarray")
+        vartypes = {"Z": RaggedDtype(np.float32), "W": RaggedDtype(np.float32)}
+        xytypes = {"X": np.int32, "Y": np.int32}
+        alltypes = vartypes | xytypes
+        trntypes = xytypes | {"Z": "O", "W": "O"}
+
+        # make data
+        df = pd.DataFrame(columns=["X", "Y", "Z", "W"])
+        for x in range(5, 10):
+            for y in range(5, 10):
+                df2 = pd.DataFrame(
+                    [
+                        [
+                            x,
+                            y,
+                            np.random.rand(y + 1).astype("float32"),
+                            np.random.rand(y + 2).astype("float32"),
+                        ]
+                    ],
+                    columns=["X", "Y", "Z", "W"],
+                )
+                df = pd.concat((df, df2), ignore_index=True)
+
+        # give correct types
+        df = df.astype(trntypes)
+
+        # make schema
+        dom = tiledb.Domain(
+            tiledb.Dim(name="X", domain=(0, 9), tile=1, dtype=np.int32),
+            tiledb.Dim(name="Y", domain=(0, 9), tile=1, dtype=np.int32),
+        )
+        attrs = [
+            tiledb.Attr(name="Z", dtype=np.float32, var=True),
+            tiledb.Attr(name="W", dtype=np.float32, var=True),
+        ]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
+        tiledb.Array.create(uri, schema)
+
+        tiledb.from_pandas(
+            uri,
+            df,
+            mode="append",
+            column_types=alltypes,
+            varlen_types={vartypes["Z"], vartypes["W"]},
+            fit_to_df=True,
+        )
+
+        with tiledb.open(uri) as A:
+            adf = A.query(coords=True).df[5:9, 5:9]
+
+            # make sure they're indexed the same way and then compare
+            adf = adf.set_index(["X", "Y"])
+            df = df.set_index(["X", "Y"])
+            tm.assert_frame_equal(df, adf)
+
     def test_dataframe_basic_rt1_manual(self):
         uri = self.path("dataframe_basic_rt1_manual")
         dom = tiledb.Domain(
@@ -834,7 +892,8 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             cmp_df = df.set_index("int_vals").sort_values(by="time")
             tm.assert_frame_equal(res_df, cmp_df)
 
-    def test_dataframe_csv_schema_only(self):
+    @pytest.mark.parametrize("allows_duplicates", [True, False])
+    def test_dataframe_csv_schema_only(self, allows_duplicates):
         col_size = 10
         df = make_dataframe_basic3(col_size)
 
@@ -874,6 +933,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 mode="schema_only",
                 capacity=1001,
                 sparse=True,
+                allows_duplicates=allows_duplicates,
                 tile={"time": 5},
                 coords_filters=coords_filters,
                 attr_filters=attrs_filters,
@@ -910,7 +970,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 tile_order="row-major",
                 capacity=1001,
                 sparse=True,
-                allows_duplicates=True,
+                allows_duplicates=allows_duplicates,
             )
             # note: filters omitted
 
@@ -932,15 +992,108 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         df2.set_index(["time", "double_range"], inplace=True)
 
         # Test mode='append' for from_pandas
-        tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df2), mode="append")
+        tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df), mode="append")
 
         with tiledb.open(tmp_array) as A:
             df_bk = A.df[:]
-
             df.set_index(["time", "double_range"], inplace=True)
             df_combined = pd.concat([df, df2])
             df_combined.sort_index(level="time", inplace=True)
             df_bk.sort_index(level="time", inplace=True)
+            tm.assert_frame_equal(df_bk, df_combined)
+
+    def test_dataframe_csv_schema_only_no_index(self):
+        col_size = 10
+        df = make_dataframe_basic3(col_size)
+
+        tmp_dir = self.path("csv_schema_only_no_index")
+        self.vfs.create_dir(tmp_dir)
+        tmp_csv = os.path.join(tmp_dir, "generated.csv")
+
+        with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
+            df.to_csv(fio, index=False)
+
+        attrs_filters = tiledb.FilterList([tiledb.ZstdFilter(3)])
+        # from_pandas default is 1, so use 7 here to check
+        #   the arg is correctly parsed/passed
+        coords_filters = tiledb.FilterList([tiledb.ZstdFilter(7)])
+
+        tmp_array = os.path.join(tmp_dir, "array")
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            tiledb.from_csv(
+                tmp_array,
+                tmp_csv,
+                mode="schema_only",
+                parse_dates=["time"],
+                date_format="%Y-%m-%d %H:%M:%S.%f",
+                capacity=1001,
+                sparse=True,
+                allows_duplicates=False,
+                full_domain=True,
+                coords_filters=coords_filters,
+                attr_filters=attrs_filters,
+            )
+
+        with pytest.warns(
+            DeprecationWarning,
+            match="coords_filters is deprecated; set the FilterList for each dimension",
+        ):
+            ref_schema = tiledb.ArraySchema(
+                domain=tiledb.Domain(
+                    *[
+                        tiledb.Dim(
+                            name="__tiledb_rows",
+                            domain=(0, 18446744073709541615),
+                            tile=10000,
+                            dtype="uint64",
+                            filters=coords_filters,
+                        ),
+                    ]
+                ),
+                attrs=[
+                    tiledb.Attr(
+                        name="time", dtype="datetime64[ns]", filters=attrs_filters
+                    ),
+                    tiledb.Attr(
+                        name="double_range", dtype="float64", filters=attrs_filters
+                    ),
+                    tiledb.Attr(name="int_vals", dtype="int64", filters=attrs_filters),
+                ],
+                coords_filters=coords_filters,
+                cell_order="row-major",
+                tile_order="row-major",
+                capacity=1001,
+                sparse=True,
+                allows_duplicates=False,
+            )
+
+        fi = tiledb.array_fragments(tmp_array)
+        assert len(fi) == 0
+
+        with tiledb.open(tmp_array) as A:
+            self.assertEqual(A.schema, ref_schema)
+
+        # Test mode='append' for from_csv
+        tiledb.from_csv(tmp_array, tmp_csv, mode="append", row_start_idx=0)
+        df2 = make_dataframe_basic3()
+
+        # Test mode='append' for from_pandas
+        tiledb.from_pandas(tmp_array, df2, row_start_idx=len(df), mode="append")
+
+        pd.set_option("display.max_rows", None)
+        pd.set_option("display.max_columns", None)
+
+        # We expect __tiledb_rows 0..9 from df and 10..19 from df2.
+        with tiledb.open(tmp_array) as A:
+            df_bk = A.df[:]
+            df_combined = pd.concat([df, df2])
+            df_combined.reset_index(inplace=True)
+            df_combined["index"] = list(range(20))
+            df_combined.set_index("index", inplace=True)
+            df_combined.index.name = None
             tm.assert_frame_equal(df_bk, df_combined)
 
     def test_dataframe_csv_chunked(self):
@@ -1274,6 +1427,104 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         basic3 = make_dataframe_basic3()
         try_rt("basic3", basic3)
 
+    @pytest.mark.parametrize(
+        "dim_data, attr_data, dim_dtype, attr_dtype, domain",
+        [
+            (
+                pyarrow.array([1, 2, 3, 4, 5]),
+                pyarrow.array([10, 20, 30, 40, 50]),
+                np.int64,
+                np.int64,
+                (1, 5),
+            ),
+            (
+                pyarrow.array([1.1, 20.2, 300.3, 4000.4, 50000.5]),
+                pyarrow.array(["tiledb", "is", "the", "best", "db"]),
+                np.float64,
+                "U",
+                (1.1, 50000.5),
+            ),
+            (
+                pyarrow.array([b"a", b"b", b"c", b"d", b"e"]),
+                pyarrow.array([1, 2, 3, 4, 5]),
+                "ascii",
+                np.int64,
+                None,
+            ),
+        ],
+    )
+    def test_read_indexing_with_pyarrow_and_numpy_arrays(
+        self, dim_data, attr_data, dim_dtype, attr_dtype, domain
+    ):
+        # This test is to ensure that .df can be indexed with both PyArrow and NumPy arrays.
+        uri = self.path("read_indexing_with_pyarrow_and_numpy_arrays")
+
+        dim = (
+            tiledb.Dim(name="dim_a", dtype=dim_dtype, domain=domain)
+            if domain
+            else tiledb.Dim(name="dim_a", dtype=dim_dtype)
+        )
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(dim),
+            sparse=True,
+            attrs=[tiledb.Attr(name="rand", dtype=attr_dtype)],
+            allows_duplicates=True,
+        )
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w") as arr:
+            arr[dim_data] = attr_data
+
+        with tiledb.open(uri, "r") as arr:
+            if dim_dtype != "ascii":
+                expected_df = pd.DataFrame(
+                    {"dim_a": dim_data.tolist(), "rand": attr_data.tolist()}
+                )
+            else:
+                # cast to str for ascii dtype
+                expected_df = pd.DataFrame(
+                    {
+                        "dim_a": [d.as_py().decode("utf-8") for d in dim_data],
+                        "rand": [d.as_py() for d in attr_data],
+                    }
+                )
+
+            # df accessor
+            assert_array_equal(arr.df[:], expected_df)
+            assert_array_equal(arr.df[pyarrow.array(dim_data)], expected_df)
+            assert_array_equal(arr.df[np.array(dim_data)], expected_df)
+
+            partial_dim_data = dim_data[:2]
+            expected_partial_df = expected_df.iloc[:2]
+
+            assert_array_equal(
+                arr.df[pyarrow.array(partial_dim_data)], expected_partial_df
+            )
+            assert_array_equal(arr.df[np.array(partial_dim_data)], expected_partial_df)
+
+            # square brackets accessor
+            py_attr_data = [
+                attr_data[1].as_py(),
+                attr_data[3].as_py(),
+                attr_data[4].as_py(),
+            ]
+            py_dim_data = [
+                dim_data[1].as_py(),
+                dim_data[3].as_py(),
+                dim_data[4].as_py(),
+            ]
+
+            expected_dict = OrderedDict(
+                {
+                    "rand": py_attr_data,
+                    "dim_a": py_dim_data,
+                }
+            )
+
+            assert_dict_arrays_equal(arr[py_dim_data], expected_dict)
+            assert_dict_arrays_equal(arr[np.array(py_dim_data)], expected_dict)
+            assert_dict_arrays_equal(arr[pyarrow.array(py_dim_data)], expected_dict)
+
     def test_nullable_integers(self):
         nullable_int_dtypes = (
             pd.Int64Dtype(),
@@ -1340,9 +1591,11 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
         )
 
         with tiledb.open(uri) as A:
-            # TODO: update the test when we support Arrow lists
-            with pytest.raises(pyarrow.lib.ArrowInvalid):
-                A.df[:]
+            df1 = A.df[:]
+            tm.assert_frame_equal(df, df1, check_dtype=False)
+            for array1, array2 in zip(df["data"].values, df1["data"].values):
+                self.assertEqual(array1.dtype, array2.dtype)
+                np.testing.assert_array_equal(array1, array2)
 
             df2 = A.query(use_arrow=False).df[:]
             tm.assert_frame_equal(df, df2, check_dtype=False)

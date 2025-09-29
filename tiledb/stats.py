@@ -20,9 +20,9 @@ def stats_disable():
 
 def stats_reset():
     """Reset all TileDB internal statistics to 0."""
-    from .main import init_stats
+    from .main import reset_stats
 
-    init_stats()
+    reset_stats()
 
 
 def stats_dump(

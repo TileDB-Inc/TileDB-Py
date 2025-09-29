@@ -311,3 +311,121 @@ class AttributeTest(DiskTestCase):
         with tiledb.DenseArray(self.path("foo"), mode="r") as T:
             for i in range(2):
                 assert_array_equal(T[:][i].tobytes(), A[i])
+
+    def test_var_numeric_attribute(self):
+        uri = self.path("test_var_numeric_attribute")
+        ctx = tiledb.Ctx()
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                tiledb.Dim(name="sample", domain=(None, None), dtype="ascii")
+            ),
+            attrs=[tiledb.Attr(name="value", dtype="uint32", var=True, nullable=False)],
+            sparse=True,
+            allows_duplicates=True,
+        )
+
+        data = np.array(
+            [
+                np.array([1, 2], dtype="uint32"),
+                np.array([3], dtype="uint32"),
+                np.array([4], dtype="uint32"),
+            ],
+            dtype="O",
+        )
+
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w", ctx=ctx) as A:
+            A[[b"sample1", b"sample2", b"sample3"]] = data
+
+        with tiledb.open(uri, "r", ctx=ctx) as A:
+            assert_array_equal(A[:]["value"][0], data[0])
+            assert_array_equal(A[:]["value"][1], data[1])
+            assert_array_equal(A[:]["value"][2], data[2])
+
+            if has_pandas():
+                import pandas as pd
+
+                tm = pd._testing
+
+                expected_df = pd.DataFrame(
+                    {
+                        "sample": [b"sample1", b"sample2", b"sample3"],
+                        "value": [
+                            np.array([1, 2], dtype="uint32"),
+                            np.array([3], dtype="uint32"),
+                            np.array([4], dtype="uint32"),
+                        ],
+                    }
+                )
+
+                tm.assert_frame_equal(A.df[:], expected_df)
+
+                with pytest.raises(tiledb.TileDBError) as exc:
+                    A.query(use_arrow=True).df[:]
+                assert (
+                    "Multi-value attributes are not currently supported when use_arrow=True. "
+                    "This includes all variable-length attributes and fixed-length "
+                    "attributes with more than one value. Use `query(use_arrow=False)`."
+                    in str(exc.value)
+                )
+
+    def test_var_nullable_numeric_attribute(self):
+        uri = self.path("test_var_nullable_numeric_attribute")
+        ctx = tiledb.Ctx()
+
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(
+                tiledb.Dim(name="sample", domain=(None, None), dtype="ascii")
+            ),
+            attrs=[tiledb.Attr(name="value", dtype="float32", var=True, nullable=True)],
+            sparse=True,
+            allows_duplicates=True,
+        )
+
+        data = np.array(
+            [
+                np.array([1.0, 2.0], dtype="float32"),
+                np.array(np.nan, dtype="float32"),
+                np.array([4.0], dtype="float32"),
+            ],
+            dtype="O",
+        )
+
+        tiledb.Array.create(uri, schema)
+
+        with tiledb.open(uri, "w", ctx=ctx) as A:
+            A[[b"sample1", b"sample2", b"sample3"]] = data
+
+        with tiledb.open(uri, "r", ctx=ctx) as A:
+            assert_array_equal(A[:]["value"][0], data[0])
+            assert_array_equal(A[:]["value"][1], data[1])
+            assert_array_equal(A[:]["value"][2], data[2])
+
+            if has_pandas():
+                import pandas as pd
+
+                tm = pd._testing
+
+                expected_df = pd.DataFrame(
+                    {
+                        "sample": [b"sample1", b"sample2", b"sample3"],
+                        "value": [
+                            np.array([1.0, 2.0], dtype="float32"),
+                            np.array([np.nan], dtype="float32"),
+                            np.array([4.0], dtype="float32"),
+                        ],
+                    }
+                )
+
+                tm.assert_frame_equal(A.df[:], expected_df)
+
+                with pytest.raises(tiledb.TileDBError) as exc:
+                    A.query(use_arrow=True).df[:]
+                assert (
+                    "Multi-value attributes are not currently supported when use_arrow=True. "
+                    "This includes all variable-length attributes and fixed-length "
+                    "attributes with more than one value. Use `query(use_arrow=False)`."
+                    in str(exc.value)
+                )

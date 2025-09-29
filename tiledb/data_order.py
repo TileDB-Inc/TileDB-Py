@@ -1,6 +1,6 @@
 from enum import Enum
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 
 class DataOrder(Enum):

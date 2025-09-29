@@ -358,7 +358,22 @@ class FragmentInfoTest(DiskTestCase):
 
         self.assertEqual(fragment_info.get_cell_num(), (len(a), len(b)))
 
-    def test_consolidated_fragment_metadata(self):
+    @pytest.mark.parametrize(
+        "consolidate_kwargs",
+        [
+            {
+                "config": tiledb.Config(
+                    params={"sm.consolidation.mode": "fragment_meta"}
+                )
+            },
+            {
+                "ctx": tiledb.Ctx(
+                    config=tiledb.Config({"sm.consolidation.mode": "fragment_meta"})
+                )
+            },
+        ],
+    )
+    def test_consolidated_fragment_metadata(self, consolidate_kwargs):
         fragments = 3
 
         A = np.zeros(fragments)
@@ -381,9 +396,7 @@ class FragmentInfoTest(DiskTestCase):
             fragment_info.get_has_consolidated_metadata(), (False, False, False)
         )
 
-        tiledb.consolidate(
-            uri, config=tiledb.Config(params={"sm.consolidation.mode": "fragment_meta"})
-        )
+        tiledb.consolidate(uri, **consolidate_kwargs)
 
         fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
 
@@ -524,6 +537,35 @@ class FragmentInfoTest(DiskTestCase):
         assert array_fragments[1].mbrs == expected_mbrs[1]
         assert array_fragments[2].mbrs == expected_mbrs[2]
 
+    @pytest.mark.skipif(
+        tiledb.version() <= (0, 34, 0),
+        reason="dump was segfaulting for TileDB-Py 0.34.0 and earlier",
+    )
+    def test_dump(self):
+        uri = self.path("test_dump")
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 4)))
+        att = tiledb.Attr()
+        schema = tiledb.ArraySchema(sparse=True, domain=dom, attrs=(att,))
+
+        tiledb.SparseArray.create(uri, schema)
+
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
+        self.assertTrue("Fragment num: 0" in fragment_info.dump())
+
+        with tiledb.SparseArray(uri, mode="w") as T:
+            a = np.array([1, 2, 3, 4])
+            T[a] = a
+
+        with tiledb.SparseArray(uri, mode="w") as T:
+            b = np.array([1, 2])
+            T[b] = b
+
+        fragment_info = PyFragmentInfo(uri, schema, False, tiledb.default_ctx())
+        dump_output = fragment_info.dump()
+        self.assertTrue("Fragment num: 2" in dump_output)
+        self.assertTrue("Fragment #1" in dump_output)
+        self.assertTrue("Fragment #2" in dump_output)
+
 
 class CreateArrayFromFragmentsTest(DiskTestCase):
     @pytest.mark.skipif(
@@ -538,7 +580,7 @@ class CreateArrayFromFragmentsTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_frags):
             for i in range(1, num_frags + 1):
@@ -583,7 +625,7 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_frags, ts_start=1):
             for i in range(ts_start, ts_start + num_frags):
@@ -624,7 +666,7 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3))
             att = tiledb.Attr(dtype=attr_type)
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path):
             for i in range(10):
@@ -650,7 +692,7 @@ class CopyFragmentsToExistingArrayTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=(1, 3), tile=3))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path):
             for i in range(10):
@@ -684,7 +726,7 @@ class DeleteFragmentsTest(DiskTestCase):
             dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
             att = tiledb.Attr(dtype="int64")
             schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-            tiledb.libtiledb.Array.create(target_path, schema)
+            tiledb.Array.create(target_path, schema)
 
         def write_fragments(target_path, dshape, num_writes):
             for i in range(1, num_writes + 1):
@@ -724,7 +766,7 @@ class DeleteFragmentsTest(DiskTestCase):
         dom = tiledb.Domain(tiledb.Dim(domain=dshape, tile=len(dshape)))
         att = tiledb.Attr(name="a1", dtype=np.float64)
         schema = tiledb.ArraySchema(domain=dom, attrs=(att,), sparse=True)
-        tiledb.libtiledb.Array.create(path, schema)
+        tiledb.Array.create(path, schema)
 
         ts1_data = np.random.rand(3)
         if use_timestamps:

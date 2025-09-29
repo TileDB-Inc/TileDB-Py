@@ -2,7 +2,7 @@ from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import Ctx, default_ctx
 from .data_order import DataOrder

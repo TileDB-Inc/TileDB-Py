@@ -11,6 +11,7 @@ import tiledb
 from tiledb.libtiledb import version as libtiledb_version
 
 from .datatypes import DataType
+from .subarray import Subarray
 
 
 def check_dataframe_deps():
@@ -65,6 +66,7 @@ TILEDB_KWARG_DEFAULTS = {
     "tile_order": "row-major",
     "timestamp": None,
     "debug": None,
+    "fit_to_df": False,
 }
 
 
@@ -202,6 +204,9 @@ class ColumnInfo:
 
         if isinstance(dtype, str) and dtype == "ascii":
             return cls("ascii", var=True)
+
+        if isinstance(dtype, str) and dtype == "blob":
+            return cls(np.bytes_, var=True)
 
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
@@ -590,6 +595,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
     sparse = tiledb_args["sparse"]
     index_dims = tiledb_args.get("index_dims") or ()
     row_start_idx = tiledb_args.get("row_start_idx")
+    fit_to_df = tiledb_args.get("fit_to_df")
 
     write = True
     create_array = True
@@ -599,9 +605,10 @@ def _from_pandas(uri, dataframe, tiledb_args):
         elif mode == "append":
             create_array = False
             schema = tiledb.ArraySchema.load(uri)
-            if not schema.sparse and row_start_idx is None:
+            if not schema.sparse and row_start_idx is None and not fit_to_df:
                 raise tiledb.TileDBError(
-                    "Cannot append to dense array without 'row_start_idx'"
+                    "Cannot append to dense array without either 'row_start_idx'"
+                    " or 'fit_to_df'"
                 )
         elif mode != "ingest":
             raise tiledb.TileDBError(f"Invalid mode specified ('{mode}')")
@@ -656,6 +663,7 @@ def _from_pandas(uri, dataframe, tiledb_args):
                 create_array,
                 index_dims,
                 row_start_idx,
+                fit_to_df,
                 timestamp=tiledb_args.get("timestamp"),
             )
 
@@ -689,9 +697,9 @@ def _create_array(uri, df, sparse, full_domain, index_dims, column_infos, tiledb
             enums=enums,
             cell_order=tiledb_args["cell_order"],
             tile_order=tiledb_args["tile_order"],
-            coords_filters=None
-            if coord_filter is True
-            else _get_schema_filters(coord_filter),
+            coords_filters=(
+                None if coord_filter is True else _get_schema_filters(coord_filter)
+            ),
             offsets_filters=_get_schema_filters(
                 tiledb_args.get("offsets_filters", True)
             ),
@@ -716,6 +724,7 @@ def _write_array(
     create_array,
     index_dims,
     row_start_idx=None,
+    fit_to_df=False,
     timestamp=None,
 ):
 
@@ -736,22 +745,38 @@ def _write_array(
                     and dim_name not in df.index.names
                     and dim_name != "__tiledb_rows"
                 ):
-                    # this branch handles the situation where a user did not specify
+                    # This branch handles the situation where a user did not specify
                     # index_col and is using mode='append'. We would like to try writing
                     # with the columns corresponding to existing dimension name.
-                    coords.append(write_dict.pop(dim_name))
+                    coord = write_dict.pop(dim_name)
                 else:
-                    coords.append(df.index.get_level_values(k))
+                    coord = df.index.get_level_values(k)
+                if row_start_idx is not None and dim_name == "__tiledb_rows":
+                    coord += row_start_idx
+                coords.append(coord)
             # TODO ensure correct col/dim ordering
-            tiledb.libtiledb._setitem_impl_sparse(
+            tiledb.sparse_array._setitem_impl_sparse(
                 A, tuple(coords), write_dict, nullmaps
             )
 
         else:
-            if row_start_idx is None:
+            if fit_to_df:
+                # use tiledb array dimensions to ingest a lookalike dataframe
+                subarray = Subarray(A)
+                for dim_idx in range(A.ndim):
+                    dim = A.dim(dim_idx)
+                    minval = df[dim._name].min()
+                    maxval = df[dim._name].max()
+                    subarray.add_dim_range(dim_idx, (minval, maxval))
+
+                A._setitem_impl(subarray, write_dict, nullmaps)
+            elif row_start_idx is not None:
+                row_end_idx = row_start_idx + len(df)
+                A._setitem_impl(slice(row_start_idx, row_end_idx), write_dict, nullmaps)
+            else:
                 row_start_idx = 0
-            row_end_idx = row_start_idx + len(df)
-            A._setitem_impl(slice(row_start_idx, row_end_idx), write_dict, nullmaps)
+                row_end_idx = row_start_idx + len(df)
+                A._setitem_impl(slice(row_start_idx, row_end_idx), write_dict, nullmaps)
 
 
 def open_dataframe(uri, *, attrs=None, use_arrow=None, idx=slice(None), ctx=None):

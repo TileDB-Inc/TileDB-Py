@@ -65,7 +65,7 @@ jobs:
         run: brew install pkg-config
         if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
 
-      - name: Checkout TileDB-Py `dev`
+      - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v4
 
       - name: Build and install TileDB-Py and dependencies
@@ -85,10 +85,10 @@ jobs:
     needs: test
     if: failure() || cancelled()
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Create Issue if Build Fails
         uses: TileDB-Inc/github-actions/open-issue@main
         with:
           name: nightly build
           label: bug,nightly-failure
-          assignee: kounelisagis,nguyenv,ihnorton
+          assignee: kounelisagis,ypatia,ihnorton

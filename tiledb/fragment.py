@@ -5,8 +5,6 @@ import warnings
 import tiledb
 from tiledb.libtiledb import version as libtiledb_version
 
-from .main import PyFragmentInfo
-
 """
 Classes and functions relating to TileDB fragments.
 """
@@ -105,6 +103,8 @@ class FragmentInfoList:
 
         self.array_uri = array_uri
 
+        from .main import PyFragmentInfo
+
         fi = PyFragmentInfo(self.array_uri, schema, include_mbrs, ctx)
 
         self.__nums = fi.get_num_fragments()
@@ -117,6 +117,7 @@ class FragmentInfoList:
         self.unconsolidated_metadata_num = fi.get_unconsolidated_metadata_num()
         self.has_consolidated_metadata = fi.get_has_consolidated_metadata()
         self.to_vacuum = fi.get_to_vacuum()
+        self.dump = fi.dump
 
         if include_mbrs:
             if libtiledb_version() >= (2, 5, 0):
@@ -187,6 +188,9 @@ class FragmentsInfoIterator:
     def __init__(self, fragments):
         self._fragments = fragments
         self._index = 0
+
+    def __iter__(self):
+        return self
 
     def __next__(self):
         if self._index < len(self._fragments):
@@ -317,15 +321,6 @@ def create_array_from_fragments(
 
     if not dry_run:
         vfs.create_dir(dst_uri)
-
-    src_lock = os.path.join(src_uri, "__lock.tdb")
-    dst_lock = os.path.join(dst_uri, "__lock.tdb")
-
-    if verbose or dry_run:
-        print(f"Copying lock file {dst_uri}\n")
-
-    if not dry_run:
-        vfs.copy_file(f"{src_lock}", f"{dst_lock}")
 
     list_new_style_schema = [ver >= 10 for ver in fragment_info.version]
     is_mixed_versions = len(set(list_new_style_schema)) > 1

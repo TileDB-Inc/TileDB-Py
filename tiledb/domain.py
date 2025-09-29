@@ -3,7 +3,7 @@ from typing import Optional
 
 import numpy as np
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import Ctx, CtxMixin
 from .datatypes import DataType
@@ -147,7 +147,7 @@ class Domain(CtxMixin, lt.Domain):
         """
         if not np.issubdtype(self.dtype, self.integer):
             raise TypeError("size valid only for integer domains")
-        return np.product(self.shape)
+        return np.prod(self.shape)
 
     def _is_homogeneous(self):
         dtype0 = self.dim(0).dtype

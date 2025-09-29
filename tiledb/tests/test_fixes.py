@@ -350,9 +350,53 @@ class FixesTest(DiskTestCase):
         # test from_numpy with sparse argument set to True
         uri = self.path("test_sc56611")
         data = np.random.rand(10, 10)
-        with pytest.raises(tiledb.cc.TileDBError) as exc_info:
+        with pytest.raises(tiledb.libtiledb.TileDBError) as exc_info:
             tiledb.from_numpy(uri, data, sparse=True)
         assert str(exc_info.value) == "from_numpy only supports dense arrays"
+
+    @pytest.mark.parametrize(
+        "array_data",
+        [
+            np.array([b"", b"testing", b"", b"with empty", b"bytes"], dtype="S"),
+            np.array([b"and", b"\0\0", b"again"], dtype="S"),
+            np.array(
+                [b"", b"and with", b"the last one", b"", b"emtpy", b""], dtype="S"
+            ),
+        ],
+    )
+    def test_sc62594_buffer_resize(self, array_data):
+        uri = self.path("test_agis")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="dim", domain=(0, len(array_data) - 1), dtype=np.int64)
+        )
+
+        schema = tiledb.ArraySchema(
+            domain=dom, sparse=False, attrs=[tiledb.Attr(name="a", dtype="S", var=True)]
+        )
+
+        tiledb.DenseArray.create(uri, schema)
+
+        with tiledb.DenseArray(uri, mode="w") as T:
+            T[...] = array_data
+
+        with tiledb.DenseArray(uri) as T:
+            assert_array_equal(array_data, T)
+
+    def test_sc_64885_ctx_reference_lost(self):
+        uri = self.path("test_sc_64885_ctx_reference_lost")
+        config = tiledb.Config()
+
+        enmr = tiledb.Enumeration("e", True, dtype="int")
+        attrs = [tiledb.Attr(name="a", dtype=int, enum_label="e")]
+        domain = tiledb.Domain(tiledb.Dim(domain=(0, 3), dtype=np.uint64))
+        schema = tiledb.ArraySchema(domain=domain, attrs=attrs, enums=[enmr])
+        tiledb.Array.create(uri, schema, ctx=tiledb.Ctx(config=config.dict()))
+
+        se = tiledb.ArraySchemaEvolution(ctx=tiledb.Ctx(config=config.dict()))
+        data = [1, 2, 3, 4]
+        updated_enmr = enmr.extend(data)
+        # this used to fail with a "tiledb.libtiledb.TileDBError: error retrieving error object from ctx"
+        se.extend_enumeration(updated_enmr)
 
 
 class SOMA919Test(DiskTestCase):
@@ -364,7 +408,7 @@ class SOMA919Test(DiskTestCase):
     We've distilled @atolopko-czi's gist example using the TileDB-Py API directly.
     """
 
-    def run_test(self, use_timestamps):
+    def run_test(self):
         import tempfile
 
         import numpy as np
@@ -372,18 +416,8 @@ class SOMA919Test(DiskTestCase):
         import tiledb
 
         root_uri = tempfile.mkdtemp()
-
-        if use_timestamps:
-            group_ctx100 = tiledb.Ctx(
-                {
-                    "sm.group.timestamp_start": 100,
-                    "sm.group.timestamp_end": 100,
-                }
-            )
-            timestamp = 100
-        else:
-            group_ctx100 = tiledb.Ctx()
-            timestamp = None
+        group_ctx100 = tiledb.Ctx()
+        timestamp = None
 
         # create the group and add a dummy subgroup "causes_bug"
         tiledb.Group.create(root_uri, ctx=group_ctx100)
@@ -411,13 +445,12 @@ class SOMA919Test(DiskTestCase):
         tiledb.libtiledb.version() < (2, 15, 0),
         reason="SOMA919 fix implemented in libtiledb 2.15",
     )
-    @pytest.mark.parametrize("use_timestamps", [True, False])
-    def test_soma919(self, use_timestamps):
+    def test_soma919(self):
         N = 100
         fails = 0
         for i in range(N):
             try:
-                self.run_test(use_timestamps)
+                self.run_test()
             except AssertionError:
                 fails += 1
         if fails > 0:

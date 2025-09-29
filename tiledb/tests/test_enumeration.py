@@ -28,7 +28,7 @@ class EnumerationTest(DiskTestCase):
         assert enmr.ordered == ordered
         assert_array_equal(enmr.values(), data)
         if name in ("str", "utf8", "ascii"):
-            assert enmr.cell_val_num == tiledb.cc.TILEDB_VAR_NUM()
+            assert enmr.cell_val_num == tiledb.libtiledb.TILEDB_VAR_NUM()
             assert enmr.dtype.kind == data.dtype.kind
         else:
             assert enmr.cell_val_num == 1

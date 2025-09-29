@@ -22,7 +22,12 @@ class ExamplesTest:
     PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 
     @pytest.mark.parametrize(
-        "path", glob.glob(os.path.join(PROJECT_DIR, "examples", "*.py"))
+        "path",
+        [
+            p
+            for p in glob.glob(os.path.join(PROJECT_DIR, "examples", "*.py"))
+            if not p.endswith("profile.py")
+        ],
     )
     def test_examples(self, path):
         # run example script
@@ -57,14 +62,8 @@ class ExamplesTest:
         sys.platform == "win32",
         reason="Some doctests are missing a clean-up step on windows",
     )
-    @pytest.mark.parametrize(
-        "path",
-        [
-            os.path.join(PROJECT_DIR, "tiledb", "libtiledb.pyx"),
-            os.path.join(PROJECT_DIR, "tiledb", "fragment.py"),
-        ],
-    )
-    def test_docs(self, path, capsys):
+    def test_docs(self, capsys):
+        path = os.path.join(self.PROJECT_DIR, "tiledb", "fragment.py")
         failures, _ = doctest.testfile(
             path,
             module_relative=False,

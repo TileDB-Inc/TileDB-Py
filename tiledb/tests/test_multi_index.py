@@ -276,17 +276,17 @@ class TestMultiRange(DiskTestCase):
         make_1d_dense(path, attr_name=attr_name)
 
         with tiledb.DenseArray(path) as A:
-            ranges = (((0, 0),),)
+            ranges = [slice(0, 0)]
             expected = np.array([0], dtype=np.int64)
-            res = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)
+            res = A.multi_index[ranges]
             a = res[attr_name]
             assert_array_equal(a, expected)
             self.assertEqual(a.dtype, expected.dtype)
-            self.assertEqual(len(res.keys()), 2)
+            self.assertEqual(len(res.keys()), 1)
 
-            ranges2 = (((1, 1), (5, 8)),)
+            ranges2 = [slice(1, 1), slice(5, 8)]
             expected2 = np.array([1, 5, 6, 7, 8], dtype=np.int64)
-            a2 = tiledb.libtiledb.multi_index(A, (attr_name,), ranges2)[attr_name]
+            a2 = A.multi_index[ranges2][attr_name]
             assert_array_equal(a2, expected2)
             self.assertEqual(a2.dtype, expected2.dtype)
 
@@ -320,12 +320,12 @@ class TestMultiRange(DiskTestCase):
                 36,
             ],
             dtype=np.uint64,
-        )
+        ).reshape((5, 4))
 
-        ranges = (((0, 0), (5, 8)),)
+        ranges = [slice(0, 0), slice(5, 8)]
 
         with tiledb.DenseArray(path) as A:
-            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
+            a = A.multi_index[ranges][attr_name]
 
             assert_array_equal(a, expected)
 
@@ -335,12 +335,12 @@ class TestMultiRange(DiskTestCase):
 
         make_2d_dense(path, attr_name=attr_name)
 
-        expected = np.arange(1, 21)
+        expected = np.arange(1, 21).reshape((5, 4))
 
-        ranges = (((0, 4),), ((0, 3),))
+        ranges = slice(0, 4), slice(0, 3)
 
         with tiledb.DenseArray(path) as A:
-            a = tiledb.libtiledb.multi_index(A, (attr_name,), ranges)[attr_name]
+            a = A.multi_index[ranges][attr_name]
             assert_array_equal(a, expected)
 
             # test slicing start=end on 1st dim at 0 (bug fix)
@@ -436,9 +436,7 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(orig_array[-1], A.multi_index[30.0][attr_name])
             assert_array_equal(
                 orig_array[coords.size - 3 : coords.size],
-                A.multi_index[
-                    (28.0, 30.0),
-                ][attr_name],
+                A.multi_index[(28.0, 30.0),][attr_name],
             )
 
             res = A.multi_index[slice(0, 5)]
@@ -757,8 +755,8 @@ class TestMultiRange(DiskTestCase):
             result = A.query(attrs=["111"])[0]
             assert_array_equal(result["111"], data_111)
 
-            with self.assertRaises(tiledb.TileDBError):
-                result = A.query(attrs=["111"]).df[0]
+            result = A.query(attrs=["111"]).df[0]
+            assert_array_equal(result["111"], data_111)
 
             result = A.query(attrs=["111"], use_arrow=False)
             assert_array_equal(result.df[0]["111"], data_111)
@@ -794,8 +792,10 @@ class TestMultiRange(DiskTestCase):
             assert_array_equal(result[1]["1s"][0], data[1])
             assert_array_equal(result[2]["1s"][0], data[2])
 
-            with self.assertRaises(tiledb.TileDBError):
-                result = A.query(attrs=["1s"]).df[0]
+            result = A.query(attrs=["1s"])
+            assert_array_equal(result.df[0]["1s"][0], data[0])
+            assert_array_equal(result.df[1]["1s"][0], data[1])
+            assert_array_equal(result.df[2]["1s"][0], data[2])
 
             result = A.query(attrs=["1s"], use_arrow=False)
             assert_array_equal(result.df[0]["1s"][0], data[0])

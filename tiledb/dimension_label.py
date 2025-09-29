@@ -2,7 +2,7 @@ import io
 
 import numpy as np
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .ctx import CtxMixin
 from .data_order import DataOrder

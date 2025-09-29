@@ -54,9 +54,8 @@ class QueryConditionTest(DiskTestCase):
                     dtype="|S",
                 ),
                 "UTF": np.array(
-                    ["$", "£$", "€ह£$", "한ह£", "£$𐍈"]
+                    ["$", "£€ह£$", "한ह££$𐍈", "single'quotation", 'double"quotation']
                     + [rand_utf8(np.random.randint(1, 100)) for _ in range(5)],
-                    dtype="|U0",
                 ),
             }
 
@@ -215,7 +214,7 @@ class QueryConditionTest(DiskTestCase):
 
             if tiledb.libtiledb.version() > (2, 14):
                 for t in A.query(attrs=["UTF"])[:]["UTF"]:
-                    cond = f"""UTF == '{t}'"""
+                    cond = f"""UTF == {repr(t)}"""
                     result = A.query(cond=cond, attrs=["UTF"])[:]
                     assert result["UTF"] == t
 
@@ -236,7 +235,7 @@ class QueryConditionTest(DiskTestCase):
 
             if tiledb.libtiledb.version() > (2, 14):
                 for t in A.query(attrs=["UTF"])[:]["UTF"]:
-                    cond = f"""UTF == '{t}'"""
+                    cond = f"""UTF == {repr(t)}"""
                     result = A.query(cond=cond, attrs=["UTF"])[:]
                     assert all(
                         self.filter_dense(result["UTF"], A.attr("UTF").fill) == t
@@ -765,11 +764,16 @@ class QueryConditionTest(DiskTestCase):
         attrs = [
             tiledb.Attr(name="attr.one", dtype=np.uint32),
             tiledb.Attr(name="attr.two", dtype=np.uint32),
+            tiledb.Attr(name="at.tr.thr.ee", dtype=np.uint32),
         ]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
         tiledb.Array.create(path, schema)
         with tiledb.open(path, "w") as A:
-            A[np.arange(11)] = {"attr.one": np.arange(11), "attr.two": np.arange(11)}
+            A[np.arange(11)] = {
+                "attr.one": np.arange(11),
+                "attr.two": np.arange(11),
+                "at.tr.thr.ee": np.arange(11),
+            }
         with tiledb.open(path, "r") as A:
             with pytest.raises(tiledb.TileDBError) as exc_info:
                 A.query(cond="attr.one < 6")[:]
@@ -783,12 +787,26 @@ class QueryConditionTest(DiskTestCase):
                 "TileDBError: Unhandled dot operator in Attribute(value=Name(id='attr', ctx=Load()), attr='two', ctx=Load()) -- if your attribute name has a dot in it, e.g. `orig.ident`, please wrap it with `attr(\"...\")`, e.g. `attr(\"orig.ident\")`"
                 in str(exc_info.value)
             )
+            with pytest.raises(tiledb.TileDBError) as exc_info:
+                A.query(cond="attr.one in [1, 2, 3]")[:]
+            assert (
+                "TileDBError: cannot handle query condition left-hand side of type"
+                in str(exc_info.value)
+            )
 
             # now test with the correct syntax
             result = A.query(cond='attr("attr.one") < 6')[:]
             assert_array_equal(result["attr.one"], A[:6]["attr.one"])
+            result = A.query(cond='attr("at.tr.thr.ee") >= 6')[:]
+            assert_array_equal(result["at.tr.thr.ee"], A[6:]["at.tr.thr.ee"])
             result = A.query(cond='attr("attr.two") >= 6')[:]
             assert_array_equal(result["attr.two"], A[6:]["attr.two"])
+            result = A.query(cond='attr("at.tr.thr.ee") >= 6')[:]
+            assert_array_equal(result["at.tr.thr.ee"], A[6:]["at.tr.thr.ee"])
+            result = A.query(cond='attr("attr.one") in [1, 2, 3]')[:]
+            assert_array_equal(result["attr.one"], A[1:4]["attr.one"])
+            result = A.query(cond='attr("at.tr.thr.ee") in [1, 2, 3]')[:]
+            assert_array_equal(result["at.tr.thr.ee"], A[1:4]["at.tr.thr.ee"])
 
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     def test_do_not_return_attrs(self):
@@ -874,7 +892,7 @@ class QueryConditionTest(DiskTestCase):
 
     def test_qc_enumeration(self):
         uri = self.path("test_qc_enumeration")
-        dom = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=1))
+        dom = tiledb.Domain(tiledb.Dim(domain=(1, 100), tile=1))
         enum1 = tiledb.Enumeration("enmr1", True, [0, 1, 2])
         enum2 = tiledb.Enumeration("enmr2", True, ["a", "bb", "ccc"])
         attr1 = tiledb.Attr("attr1", dtype=np.int32, enum_label="enmr1")
@@ -884,8 +902,8 @@ class QueryConditionTest(DiskTestCase):
         )
         tiledb.Array.create(uri, schema)
 
-        data1 = np.random.randint(0, 3, 8)
-        data2 = np.random.randint(0, 3, 8)
+        data1 = np.random.randint(0, 3, 100)
+        data2 = np.random.randint(0, 3, 100)
 
         with tiledb.open(uri, "w") as A:
             A[:] = {"attr1": data1, "attr2": data2}
@@ -1004,6 +1022,38 @@ class QueryConditionTest(DiskTestCase):
         with tiledb.open(path) as A:
             assert_array_equal(A.query(cond="")[:]["a"], [0])
 
+    def test_not_operator(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
+            all_U = set(A[:]["U"])
+            result_lt5 = set(A.query(cond="U < 5", attrs=["U"])[:]["U"])
+            result_not_lt5 = set(A.query(cond="not U < 5", attrs=["U"])[:]["U"])
+            assert result_lt5.isdisjoint(result_not_lt5)
+            assert result_lt5.union(result_not_lt5) == all_U
+
+    def test_null_query_condition(self):
+        path = self.path("test_null_query_condition")
+        data = {
+            "data": np.array(["data", None, "base", None], dtype="O"),
+            "index": np.array([0, 1, 2, 3]),
+        }
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="index", domain=(0, 3), tile=1, dtype=np.uint32)
+        )
+        attrs = [tiledb.Attr(name="data", dtype="S", nullable=True)]
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+        with tiledb.open(path, "w") as A:
+            A[data["index"]] = {"data": data["data"]}
+
+        with tiledb.open(path) as A:
+            # Query for nulls
+            result = A.query(cond="data == None")[:]
+            assert set(result["index"]) == {1, 3}
+            # Query for non-nulls
+            result = A.query(cond="data != None")[:]
+            assert set(result["index"]) == {0, 2}
+
 
 class QueryDeleteTest(DiskTestCase):
     def test_basic_sparse(self):
@@ -1022,7 +1072,7 @@ class QueryDeleteTest(DiskTestCase):
 
             with pytest.raises(
                 tiledb.TileDBError,
-                match="SparseArray must be opened in read or delete mode",
+                match="Write mode is not supported for queries on Sparse Arrays",
             ):
                 A.query(cond=qc).submit()
 
@@ -1052,7 +1102,7 @@ class QueryDeleteTest(DiskTestCase):
         with tiledb.open(path, "d") as A:
             with pytest.raises(
                 tiledb.TileDBError,
-                match="DenseArray must be opened in read mode",
+                match="Delete mode is not supported for queries on Dense Arrays",
             ):
                 A.query()
 

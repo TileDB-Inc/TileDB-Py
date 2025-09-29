@@ -5,7 +5,7 @@ from typing import Callable, Optional
 import numpy as np
 
 import tiledb
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
 from .dataframe_ import create_dim
 
@@ -136,7 +136,7 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
 
     if mode in ("ingest", "schema_only"):
         schema = _schema_like_numpy(array, ctx, **kwargs)
-        tiledb.Array.create(uri, schema)
+        tiledb.Array.create(uri, schema, ctx=ctx)
 
     if mode in ("ingest", "append"):
         kwargs["mode"] = mode
@@ -255,9 +255,7 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
     """
     ctx = _get_ctx(ctx)
     if config is None:
-        config = lt.Config()
-
-    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+        config = ctx.config()
 
     if fragment_uris is not None:
         if timestamp is not None:
@@ -266,11 +264,11 @@ def consolidate(uri, config=None, ctx=None, fragment_uris=None, timestamp=None):
                 "passed to `fragment_uris` will be consolidated",
                 DeprecationWarning,
             )
-        return arr.consolidate(ctx, fragment_uris, config)
+        return lt.Array._consolidate(uri, ctx, fragment_uris, config)
     elif timestamp is not None:
-        return arr.consolidate(ctx, timestamp, config)
+        return lt.Array._consolidate(uri, ctx, timestamp, config)
     else:
-        return arr.consolidate(ctx, config)
+        return lt.Array._consolidate(uri, ctx, config)
 
 
 def vacuum(uri, config=None, ctx=None, timestamp=None):
@@ -285,10 +283,10 @@ def vacuum(uri, config=None, ctx=None, timestamp=None):
     :raises TypeError: cannot convert `uri` to unicode string
     :raises: :py:exc:`tiledb.TileDBError`
 
-    This operation of this function is controlled by
-    the `"sm.vacuum.mode"` parameter, which accepts the values ``fragments``,
-    ``fragment_meta``, and ``array_meta``. Rather than passing the timestamp
-    into this function, it may be set by using `"sm.vacuum.timestamp_start"`and
+    This operation of this function is controlled by the `"sm.vacuum.mode"`
+    parameter, which accepts the values ``fragments``, ``fragment_meta``,
+    ``array_meta``, and ``commits``. Rather than passing the timestamp into
+    this function, it may be set by using `"sm.vacuum.timestamp_start"`and
     `"sm.vacuum.timestamp_end"` which takes in a time in UNIX seconds. If both
     are set then this function's `timestamp` argument will be used.
 
@@ -317,7 +315,7 @@ def vacuum(uri, config=None, ctx=None, timestamp=None):
     """
     ctx = _get_ctx(ctx)
     if config is None:
-        config = tiledb.Config()
+        config = ctx.config()
 
     if timestamp is not None:
         warnings.warn(
@@ -334,7 +332,7 @@ def vacuum(uri, config=None, ctx=None, timestamp=None):
         if timestamp[1] is not None:
             config["sm.vacuum.timestamp_end"] = timestamp[1]
 
-    lt.Array.vacuum(ctx, uri, config)
+    lt.Array._vacuum(ctx, uri, config)
 
 
 def schema_like(*args, shape=None, dtype=None, ctx=None, **kwargs):

@@ -1,9 +1,9 @@
 import pprint
 
-import tiledb.cc as lt
+import tiledb.libtiledb as lt
 
+from .array import Array
 from .ctx import Ctx, CtxMixin, default_ctx
-from .libtiledb import Array
 
 
 class ConsolidationPlan(CtxMixin, lt.ConsolidationPlan):

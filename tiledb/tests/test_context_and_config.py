@@ -1,4 +1,6 @@
+import io
 import os
+import pickle
 import subprocess
 import sys
 import xml
@@ -35,7 +37,7 @@ class ContextTest(DiskTestCase):
     def test_default_ctx(self):
         ctx = tiledb.default_ctx()
         self.assertIsInstance(ctx, tiledb.Ctx)
-        assert isinstance(ctx.config(), tiledb.libtiledb.Config)
+        assert isinstance(ctx.config(), tiledb.Config)
 
     def test_default_ctx_errors(self):
         config = tiledb.Config()
@@ -184,7 +186,7 @@ class TestConfig(DiskTestCase):
     def test_ctx_config_dict(self):
         ctx = tiledb.Ctx(config={"sm.memory_budget": "100"})
         config = ctx.config()
-        assert issubclass(type(config), tiledb.libtiledb.Config)
+        assert issubclass(type(config), tiledb.Config)
         self.assertEqual(config["sm.memory_budget"], "100")
 
     def test_config_repr_sensitive_params_hidden(self):
@@ -261,3 +263,20 @@ class TestConfig(DiskTestCase):
             pytest.fail(
                 f"Could not parse config._repr_html_(). Saw {config._repr_html_()}"
             )
+
+    def test_config_pickle(self):
+        # test that Config can be pickled and unpickled
+        config = tiledb.Config(
+            {
+                "rest.use_refactored_array_open": "false",
+                "rest.use_refactored_array_open_and_query_submit": "true",
+                "vfs.azure.storage_account_name": "myaccount",
+            }
+        )
+        with io.BytesIO() as buf:
+            pickle.dump(config, buf)
+            buf.seek(0)
+            config2 = pickle.load(buf)
+
+            self.assertIsInstance(config2, tiledb.Config)
+            self.assertEqual(config2.dict(), config.dict())

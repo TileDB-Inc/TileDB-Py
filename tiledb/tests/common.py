@@ -363,7 +363,9 @@ def assert_dict_arrays_equal(d1, d2, ordered=True):
         assert_unordered_equal(array1, array2, True)
 
 
-def assert_captured(cap, expected):
+def assert_captured(cap, val, expected=True):
+    """Assert that the captured output contains
+    or does not contain a value"""
     if sys.platform != "win32":
         import ctypes
 
@@ -372,9 +374,9 @@ def assert_captured(cap, expected):
 
         out, err = cap.readouterr()
         assert not err
-        assert expected in out
+        assert (val in out) == expected
 
 
-@pytest.fixture(scope="module", params=["hilbert", "row-major"])
+@pytest.fixture(scope="module", params=["hilbert", "row-major", "col-major"])
 def fx_sparse_cell_order(request):
     yield request.param

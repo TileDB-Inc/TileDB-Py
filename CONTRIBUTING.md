@@ -10,7 +10,7 @@ Thanks for your interest in TileDB-Py. The notes below give some pointers for fi
 - Please paste code blocks with triple backquotes (```) so that github will format it nicely. See [GitHub's guide on Markdown](https://guides.github.com/features/mastering-markdown) for more formatting tricks.
 
 ## Contributing Code
-*By contributing code to TileDB-Py, you are agreeing to release it under the [MIT License](https://github.com/TileDB-Inc/TileDB/tree/dev/LICENSE).*
+*By contributing code to TileDB-Py, you are agreeing to release it under the [MIT License](https://github.com/TileDB-Inc/TileDB/tree/main/LICENSE).*
 
 ### Contribution Workflow
 
@@ -45,4 +45,4 @@ Thanks for your interest in TileDB-Py. The notes below give some pointers for fi
 - Make changes locally, then rebuild with `python setup.py develop [--tiledb=<>]`
 - Make sure to run `pytest` to verify changes against tests (add new tests where applicable).
   - Execute the tests as `pytest tiledb` from the top-level directory or `pytest` in the `tiledb/` directory.
-- Please submit [pull requests](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) against the default [`dev` branch of TileDB-Py](https://github.com/TileDB-Inc/TileDB-Py/tree/dev)
+- Please submit [pull requests](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) against the default [`main` branch of TileDB-Py](https://github.com/TileDB-Inc/TileDB-Py/tree/main)

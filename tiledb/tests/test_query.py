@@ -7,7 +7,7 @@ from tiledb.tests.common import DiskTestCase
 
 class QueryTest(DiskTestCase):
     @pytest.mark.skipif(
-        tiledb.libtiledb.version()[0] == 2 and tiledb.libtiledb.version()[1] < 15,
+        tiledb.libtiledb.version() < (2, 15),
         reason="dimension labels requires libtiledb version 2.15 or greater",
     )
     def test_label_range_query(self):
@@ -35,6 +35,6 @@ class QueryTest(DiskTestCase):
             input_subarray.add_label_range("l1", (-8, -6))
             query = tiledb.Query(array)
             query.set_subarray(input_subarray)
-            query.submit()
+            query._submit()
             output_subarray = query.subarray()
             assert output_subarray.num_dim_ranges(0) == 2

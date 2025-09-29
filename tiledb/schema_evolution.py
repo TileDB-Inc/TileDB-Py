@@ -1,7 +1,6 @@
 from typing import Optional
 
 import tiledb
-from tiledb.libtiledb import version as libtiledb_version
 
 from .enumeration import Enumeration
 from .main import ArraySchemaEvolution as ASE
@@ -52,7 +51,7 @@ class ArraySchemaEvolution:
 
         self.ase.extend_enumeration(enmr)
 
-    if libtiledb_version()[0] == 2 and libtiledb_version()[1] >= 25:
+    if tiledb.libtiledb.version() >= (2, 26):
         from .current_domain import CurrentDomain
 
         def expand_current_domain(self, current_domain: CurrentDomain):
