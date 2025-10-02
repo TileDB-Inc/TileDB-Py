@@ -1378,6 +1378,10 @@ class PyQuery {
         auto dtype = buffer_dtype(name);
         bool is_unicode = dtype.is(py::dtype("U"));
         bool is_str = dtype.is(py::dtype("S"));
+
+        auto buffer_type_info = buffer_type(name);
+        bool is_blob = (buffer_type_info.first == TILEDB_BLOB);
+
         if (is_unicode || is_str) {
             dtype = py::dtype("O");
         }
@@ -1438,7 +1442,11 @@ class PyQuery {
                 } else {
                     o = py::bytes(data_ptr, size);
                 }
-            else {
+            else if (is_blob) {
+                // Zero-copy: create memoryview directly for blob data
+                auto arr = py::array(py::dtype("int8"), size, data_ptr);
+                o = py::memoryview(arr);
+            } else {
                 o = py::array(py::dtype("uint8"), size, data_ptr);
                 o.attr("dtype") = dtype;
             }

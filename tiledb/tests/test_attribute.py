@@ -195,6 +195,13 @@ class AttributeTest(DiskTestCase):
         attr = tiledb.Attr(name="foo", dtype="blob")
         self.assertEqual(attr, attr)
         self.assertEqual(attr.dtype, np.bytes_)
+        self.assertTrue(attr.isvar)  # for blobs var is True if not specified
+
+        attr1 = tiledb.Attr(name="foo", dtype="blob", var=True)
+        self.assertTrue(attr1.isvar)
+
+        attr2 = tiledb.Attr(name="foo", dtype="blob", var=False)
+        self.assertFalse(attr2.isvar)
 
     def test_blob_attribute_dump(self, capfd):
         attr = tiledb.Attr(name="foo", dtype="blob")
@@ -247,6 +254,65 @@ class AttributeTest(DiskTestCase):
             assert A.schema.attr("A").dtype == np.bytes_
             assert A.schema.attr("A").isascii
             assert_array_equal(A[:]["A"], np.asarray(ascii_data, dtype=np.bytes_))
+
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_fixed_size_blob_attribute(self, sparse):
+        path = self.path("test_fixed_blob")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 4), tile=1, dtype=np.uint32)
+        )
+        attrs = [tiledb.Attr(name="a", dtype="blob", var=False)]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
+        tiledb.Array.create(path, schema)
+
+        # Fixed-size blob attribute stores single bytes per cell
+        blob_data = [b"a", b"b", b"c", b"d"]
+
+        with tiledb.open(path, "w") as A:
+            if sparse:
+                A[np.arange(1, 5)] = blob_data
+            else:
+                A[:] = np.asarray(blob_data, dtype=np.bytes_)
+
+        with tiledb.open(path, "r") as A:
+            assert A.schema.nattr == 1
+            assert A.schema.attr("a").ncells == 1
+            assert not A.schema.attr("a").isvar
+            assert A.schema.attr("a").dtype == np.dtype("|S0")  # numpy representation
+            assert (
+                A.schema.attr("a")._tiledb_dtype == tiledb.libtiledb.DataType.BLOB
+            )  # TileDB type
+            assert_array_equal(A[:]["a"], np.asarray(blob_data, dtype=np.bytes_))
+
+    @pytest.mark.parametrize("sparse", [True, False])
+    def test_var_blob_attribute(self, sparse):
+        path = self.path("test_var_blob")
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 4), tile=1, dtype=np.uint32)
+        )
+        attrs = [tiledb.Attr(name="a", dtype="blob", var=True)]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=sparse)
+        tiledb.Array.create(path, schema)
+
+        # Variable-length blob attribute can store different sized blobs per cell
+        blob_data = [b"a", b"bb", b"ccc", b"dddd"]
+
+        with tiledb.open(path, "w") as A:
+            if sparse:
+                A[np.arange(1, 5)] = blob_data
+            else:
+                A[:] = blob_data
+
+        with tiledb.open(path, "r") as A:
+            assert A.schema.nattr == 1
+            assert A.schema.attr("a").isvar
+            assert A.schema.attr("a").dtype == np.dtype("|S0")  # numpy representation
+            assert (
+                A.schema.attr("a")._tiledb_dtype == tiledb.libtiledb.DataType.BLOB
+            )  # TileDB type
+            assert_array_equal(A[:]["a"], np.array(blob_data, dtype=np.bytes_))
 
     def test_modify_attribute_in_schema(self):
         path = self.path("test_modify_attribute_in_schema")

@@ -336,7 +336,16 @@ class DenseArrayImpl(Array):
                 # <TODO> sanity check the TileDB buffer size against schema?
                 # <TODO> add assert to verify np.require doesn't copy?
                 arr = results[name][0]
-                arr.dtype = dtype
+
+                # Handle the case of fixed-length blob attribute.
+                if (
+                    self.schema.has_attr(name)
+                    and self.attr(name)._tiledb_dtype == lt.DataType.BLOB
+                ):
+                    # Note: fixed blobs are always 1 byte per cell
+                    arr = arr.view("S1")
+                else:
+                    arr.dtype = dtype
                 if len(arr) == 0:
                     # special case: the C API returns 0 len for blank arrays
                     arr = np.zeros(output_shape, dtype=dtype)

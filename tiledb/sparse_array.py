@@ -601,20 +601,30 @@ class SparseArrayImpl(Array):
                     arr.dtype = self.schema.attr_or_dim_dtype(name)
                 out[final_name] = arr
             else:
-                if self.schema.domain.has_dim(name):
-                    el_dtype = self.schema.domain.dim(name).dtype
-                else:
-                    el_dtype = self.attr(name).dtype
                 arr = results[name][0]
 
-                # this is a work-around for NumPy restrictions removed in 1.16
-                if el_dtype == np.dtype("S0"):
-                    out[final_name] = b""
-                elif el_dtype == np.dtype("U0"):
-                    out[final_name] = ""
+                # Handle the case of fixed-length blob attribute.
+                if (
+                    self.schema.has_attr(name)
+                    and self.attr(name)._tiledb_dtype == lt.DataType.BLOB
+                ):
+                    # Note: fixed blobs are always 1 byte per cell
+                    out[final_name] = arr.view("S1")
+
                 else:
-                    arr.dtype = el_dtype
-                    out[final_name] = arr
+                    if self.schema.domain.has_dim(name):
+                        el_dtype = self.schema.domain.dim(name).dtype
+                    else:
+                        el_dtype = self.attr(name).dtype
+
+                    # this is a work-around for NumPy restrictions removed in 1.16
+                    if el_dtype == np.dtype("S0"):
+                        out[final_name] = b""
+                    elif el_dtype == np.dtype("U0"):
+                        out[final_name] = ""
+                    else:
+                        arr.dtype = el_dtype
+                        out[final_name] = arr
 
             if self.schema.has_attr(final_name) and self.attr(final_name).isnullable:
                 out[final_name] = np.ma.array(
