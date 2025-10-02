@@ -74,7 +74,38 @@ void init_group(py::module& m) {
 
         .def(
             "_add",
-            &Group::add_member,
+            [](Group& group,
+               const std::string& uri,
+               const bool& relative,
+               std::optional<std::string> name
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 27)
+               ,
+               std::optional<Object::Type> type = std::nullopt
+#endif
+            ) {
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 27)
+                // Convert Object::Type (C++ API) to tiledb_object_t (C API)
+                std::optional<tiledb_object_t> c_type = std::nullopt;
+                if (type.has_value()) {
+                    switch (type.value()) {
+                        case Object::Type::Array:
+                            c_type = TILEDB_ARRAY;
+                            break;
+                        case Object::Type::Group:
+                            c_type = TILEDB_GROUP;
+                            break;
+                        case Object::Type::Invalid:
+                            c_type = TILEDB_INVALID;
+                            break;
+                    }
+                }
+                group.add_member(uri, relative, name, c_type);
+#else
+                group.add_member(uri, relative, name);
+#endif
+            },
             py::arg("uri"),
             py::arg("relative") = false,
             py::arg("name") = std::nullopt
