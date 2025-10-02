@@ -47,7 +47,11 @@ class Attr(CtxMixin, lt.Attribute):
         if (var is None and dtype == "ascii") or np.issubdtype(dt.np_dtype, np.str_):
             var = True
         elif np.issubdtype(dt.np_dtype, np.bytes_):
-            if dt.np_dtype.itemsize > 0 and var:
+            if dtype == "blob":
+                if var is None:
+                    # The default for blob is var-length
+                    var = True
+            elif dt.np_dtype.itemsize > 0 and var:
                 warnings.warn(
                     f"Attr given `var=True` but `dtype` `{dtype}` is fixed; "
                     "setting `dtype=S0`. Hint: set `var=True` with `dtype=S0`, "
