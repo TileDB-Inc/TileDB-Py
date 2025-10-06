@@ -360,6 +360,87 @@ class GroupTest(GroupTestCase):
         with self.assertRaises(tiledb.TileDBError):
             tiledb.Group("does-not-exist")
 
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 27, 0),
+        reason="type parameter requires TileDB >= 2.27",
+    )
+    def test_add_with_type_parameter(self):
+        """
+        Test for Group.add() with type parameter.
+        Tests all combinations of parameters: uri, name, relative, and type.
+        """
+        grp_path = self.path("test_group_type_param")
+        tiledb.Group.create(grp_path)
+
+        # Create test arrays
+        array1_path = self.path("array1")
+        array2_path = self.path("test_group_type_param/array2_rel")
+        array3_path = self.path("array3")
+        domain = tiledb.Domain(tiledb.Dim(domain=(1, 8), tile=2))
+        attr = tiledb.Attr("val", dtype="f8")
+        schema = tiledb.ArraySchema(domain=domain, attrs=(attr,))
+        tiledb.Array.create(array1_path, schema)
+        tiledb.Array.create(array2_path, schema)
+        tiledb.Array.create(array3_path, schema)
+
+        # Create test subgroups
+        subgrp1_path = self.path("subgroup1")
+        subgrp2_path = self.path("test_group_type_param/subgroup2_rel")
+        subgrp3_path = self.path("subgroup3")
+        tiledb.Group.create(subgrp1_path)
+        tiledb.Group.create(subgrp2_path)
+        tiledb.Group.create(subgrp3_path)
+
+        with tiledb.Group(grp_path, "w") as grp:
+            # Test 1: Array with type, no name, absolute path
+            grp.add(array1_path, type=tiledb.Array)
+
+            # Test 2: Array with type, name, relative path
+            grp.add(
+                "array2_rel",
+                name="named_rel_array",
+                relative=True,
+                type=tiledb.Array,
+            )
+
+            # Test 3: Array with name, absolute path, no type
+            grp.add(array3_path, name="named_array_no_type")
+
+            # Test 4: Group with type, no name, absolute path
+            grp.add(subgrp1_path, type=tiledb.Group)
+
+            # Test 5: Group with type, name, relative path
+            grp.add(
+                "subgroup2_rel",
+                name="named_rel_group",
+                relative=True,
+                type=tiledb.Group,
+            )
+
+            # Test 6: Group with no type, no name, absolute path
+            grp.add(subgrp3_path)
+
+        # Verify all members were added correctly
+        with tiledb.Group(grp_path, "r") as grp:
+            assert len(grp) == 6
+
+            # Verify named members are accessible and have correct types
+            assert "named_rel_array" in grp
+            assert grp["named_rel_array"].type == tiledb.Array
+            assert grp.is_relative("named_rel_array") is True
+
+            assert "named_array_no_type" in grp
+            assert grp["named_array_no_type"].type == tiledb.Array
+
+            assert "named_rel_group" in grp
+            assert grp["named_rel_group"].type == tiledb.Group
+            assert grp.is_relative("named_rel_group") is True
+
+            # Verify unnamed members exist with correct types
+            member_types = [grp[i].type for i in range(len(grp))]
+            assert member_types.count(tiledb.Array) == 3
+            assert member_types.count(tiledb.Group) == 3
+
 
 class GroupMetadataTest(GroupTestCase):
     @pytest.mark.parametrize(

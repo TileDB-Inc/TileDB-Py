@@ -1,5 +1,6 @@
 from typing import Optional, Union
 
+import tiledb
 import tiledb.libtiledb as lt
 
 from .ctx import Config, Ctx, CtxMixin, default_ctx
@@ -132,21 +133,38 @@ class Group(CtxMixin, lt.Group):
         """
         self._close()
 
-    def add(self, uri: str, name: str = None, relative: bool = False):
+    def add(
+        self,
+        uri: str,
+        name: Optional[str] = None,
+        relative: bool = False,
+        type: Optional[type] = None,
+    ):
         """
         Adds a member to the Group.
 
         :param uri: The URI of the member to add
         :type uri: str
-        :param relative: Whether the path of the URI is a relative path (default=relative: False)
-        :type relative: bool
         :param name: An optional name for the Group (default=None)
         :type name: str
+        :param relative: Whether the path of the URI is a relative path (default=relative: False)
+        :type relative: bool
+        :param type: The type of the member (tiledb.Array or tiledb.Group)
+                     Available in TileDB >= 2.27
+        :type type: type, optional
         """
-        if name:
-            self._add(uri, relative, name)
-        else:
-            self._add(uri, relative)
+        # Convert Python types (tiledb.Array, tiledb.Group) to ObjectType CPP enum
+        lt_type = None
+        if type is not None:
+            if type is tiledb.Array:
+                lt_type = lt.ObjectType.ARRAY
+            elif type is tiledb.Group:
+                lt_type = lt.ObjectType.GROUP
+            else:
+                raise ValueError(
+                    f"Invalid type '{type}'. Must be tiledb.Array or tiledb.Group"
+                )
+        self._add(uri, relative, name, lt_type)
 
     def delete(self, recursive: bool = False):
         """
