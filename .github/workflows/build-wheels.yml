@@ -57,6 +57,7 @@ jobs:
             CC=clang
             CXX=clang++
             RUNNER_TEMP=${{ runner.temp }}
+            CI_WHEEL_BUILD=1
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           CIBW_ARCHS: all
           CIBW_PRERELEASE_PYTHONS: True
