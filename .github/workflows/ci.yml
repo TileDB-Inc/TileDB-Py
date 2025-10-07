@@ -1,6 +1,12 @@
 name: TileDB Python CI
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: ["main", "release-*"]
+    tags: ["*"]
+  pull_request:
+    branches: ["*"]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -21,8 +27,8 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-13
-          - macos-14
+          - macos-15-intel
+          - macos-26
           - windows-latest
         python-version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
       fail-fast: false
