@@ -2017,7 +2017,10 @@ def test_datetime64_days_dtype_read_out_of_range_sc25572(checked_path):
     with tiledb.open(uri, "r") as array:
         with pytest.raises(ValueError) as excinfo:
             print(array.df[:])
-        assert "year 29349 is out of range" in str(excinfo.value)
+        if sys.version_info >= (3, 14):
+            assert "must be in 1..9999" in str(excinfo.value)
+        else:
+            assert "year 29349 is out of range" in str(excinfo.value)
 
 
 def test_datetime64_days_dtype_read_overflow_sc25572(checked_path):
