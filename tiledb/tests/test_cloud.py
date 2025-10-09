@@ -15,8 +15,7 @@ s3_bucket = os.getenv("S3_BUCKET")
 
 
 @pytest.mark.skipif(
-    os.getenv("CI") == None
-    or tiledb_token == None
+    tiledb_token == None
     or tiledb_namespace == None
     or s3_bucket == None
     or tiledb_token == ""
