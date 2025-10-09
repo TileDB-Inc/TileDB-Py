@@ -15,10 +15,12 @@ s3_bucket = os.getenv("S3_BUCKET")
 
 
 @pytest.mark.skipif(
-    os.getenv("CI") == None
-    or tiledb_token == None
+    tiledb_token == None
     or tiledb_namespace == None
-    or s3_bucket == None,
+    or s3_bucket == None
+    or tiledb_token == ""
+    or tiledb_namespace == ""
+    or s3_bucket == "",
     reason="No token was provided in a non-CI environment. Please set the TILEDB_TOKEN environment variable to run this test.",
 )
 class CloudTest(DiskTestCase):
