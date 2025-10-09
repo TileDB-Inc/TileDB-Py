@@ -115,7 +115,15 @@ class TestConfig(DiskTestCase):
         config = tiledb.Config()
         config["sm.memory_budget"] = 103
         assert repr(config) is not None
+
+        config["test.none_param"] = None
+        self.assertEqual(config["test.none_param"], "")
+
         tiledb.Ctx(config)
+
+        with self.assertRaises(ValueError) as exc:
+            config[None] = "test"
+        assert str(exc.value) == "Config key cannot be None"
 
     def test_ctx_config(self):
         ctx = tiledb.Ctx({"sm.memory_budget": 103})
