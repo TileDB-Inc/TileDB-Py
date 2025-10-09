@@ -81,6 +81,12 @@ class Config(lt.Config):
         :raises: :py:exc:`tiledb.TileDBError`
 
         """
+        if key is None:
+            raise ValueError("Config key cannot be None")
+
+        if value is None:
+            value = ""
+
         self.set(str(key), str(value))
 
     def get(self, key: str, raise_keyerror: bool = True):
