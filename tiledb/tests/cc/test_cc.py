@@ -433,3 +433,145 @@ def test_write_dense():
 
     uri = write()
     read(uri)
+
+
+@pytest.mark.parametrize("sparse", [True, False])
+def test_global_order_write_single_submit(sparse):
+    """Test writing in global order with a single submit and finalize."""
+    uri = tempfile.mkdtemp()
+
+    ctx = lt.Context()
+    dom = lt.Domain(ctx)
+    dim = lt.Dimension(ctx, "d1", lt.DataType.INT32, np.int32([1, 100]), np.int32([10]))
+    dom._add_dim(dim)
+
+    att = lt.Attribute(ctx, "a1", lt.DataType.INT64)
+
+    array_type = lt.ArrayType.SPARSE if sparse else lt.ArrayType.DENSE
+    schema = lt.ArraySchema(ctx, array_type)
+    schema._add_attr(att)
+    schema._domain = dom
+
+    lt.Array._create(ctx, uri, schema)
+
+    # Write using query with global order
+    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+    q = lt.Query(ctx, arr, lt.QueryType.WRITE)
+    q.layout = lt.LayoutType.GLOBAL_ORDER
+
+    if sparse:
+        coords = np.array([1, 5, 10, 15, 20], dtype=np.int32)
+        data = np.array([100, 200, 300, 400, 500], dtype=np.int64)
+
+        q.set_data_buffer("a1", data, len(data))
+        q.set_data_buffer("d1", coords, len(coords))
+    else:
+        start_coord = 1
+        end_coord = 20
+        data = np.arange(100, 100 + (end_coord - start_coord + 1), dtype=np.int64)
+
+        subarray = lt.Subarray(ctx, arr)
+        subarray._add_dim_range(0, (start_coord, end_coord))
+        q.set_subarray(subarray)
+        q.set_data_buffer("a1", data, len(data))
+
+    assert q._submit() == lt.QueryStatus.COMPLETE
+    q.finalize()
+
+    # Verify only one fragment was created
+    fragments_info = tiledb.array_fragments(uri)
+    assert len(fragments_info) == 1
+
+    # Verify data
+    with tiledb.open(uri, "r") as A:
+        if sparse:
+            result = A[:]
+            np.testing.assert_array_equal(result["a1"], data)
+            np.testing.assert_array_equal(result["d1"], coords)
+        else:
+            result = A[start_coord:end_coord]
+            np.testing.assert_array_equal(result["a1"], data[:-1])
+
+
+@pytest.mark.parametrize("sparse", [True, False])
+def test_global_order_write_multiple_submits(sparse):
+    """Test writing in global order with multiple submits before finalize."""
+    uri = tempfile.mkdtemp()
+
+    ctx = lt.Context()
+    dom = lt.Domain(ctx)
+    dim = lt.Dimension(ctx, "d1", lt.DataType.INT32, np.int32([1, 100]), np.int32([10]))
+    dom._add_dim(dim)
+
+    att = lt.Attribute(ctx, "a1", lt.DataType.INT64)
+
+    array_type = lt.ArrayType.SPARSE if sparse else lt.ArrayType.DENSE
+    schema = lt.ArraySchema(ctx, array_type)
+    schema._add_attr(att)
+    schema._domain = dom
+
+    lt.Array._create(ctx, uri, schema)
+
+    # Write using query with global order and multiple submits
+    arr = lt.Array(ctx, uri, lt.QueryType.WRITE)
+    q = lt.Query(ctx, arr, lt.QueryType.WRITE)
+    q.layout = lt.LayoutType.GLOBAL_ORDER
+
+    if sparse:
+        coords_batch1 = np.array([1, 5, 10], dtype=np.int32)
+        data_batch1 = np.array([100, 200, 300], dtype=np.int64)
+
+        coords_batch2 = np.array([15, 20], dtype=np.int32)
+        data_batch2 = np.array([400, 500], dtype=np.int64)
+
+        # First submit
+        q.set_data_buffer("a1", data_batch1, len(data_batch1))
+        q.set_data_buffer("d1", coords_batch1, len(coords_batch1))
+        assert q._submit() == lt.QueryStatus.COMPLETE
+
+        # Second submit
+        q.set_data_buffer("a1", data_batch2, len(data_batch2))
+        q.set_data_buffer("d1", coords_batch2, len(coords_batch2))
+        assert q._submit() == lt.QueryStatus.COMPLETE
+
+        all_coords = np.concatenate([coords_batch1, coords_batch2])
+        all_data = np.concatenate([data_batch1, data_batch2])
+    else:
+        start_coord = 1
+        end_coord = 20
+
+        mid_point = 10
+        data_batch1 = np.arange(100, 100 + mid_point, dtype=np.int64)
+        data_batch2 = np.arange(
+            100 + mid_point, 100 + (end_coord - start_coord + 1), dtype=np.int64
+        )
+
+        subarray = lt.Subarray(ctx, arr)
+        subarray._add_dim_range(0, (start_coord, end_coord))
+        q.set_subarray(subarray)
+
+        # First submit
+        q.set_data_buffer("a1", data_batch1, len(data_batch1))
+        assert q._submit() == lt.QueryStatus.COMPLETE
+
+        # Second submit
+        q.set_data_buffer("a1", data_batch2, len(data_batch2))
+        assert q._submit() == lt.QueryStatus.COMPLETE
+
+        all_data = np.concatenate([data_batch1, data_batch2])
+
+    q.finalize()
+
+    # Verify only one fragment was created
+    fragments_info = tiledb.array_fragments(uri)
+    assert len(fragments_info) == 1
+
+    # Verify data
+    with tiledb.open(uri, "r") as A:
+        if sparse:
+            result = A[:]
+            np.testing.assert_array_equal(result["a1"], all_data)
+            np.testing.assert_array_equal(result["d1"], all_coords)
+        else:
+            result = A[start_coord:end_coord]
+            np.testing.assert_array_equal(result["a1"], all_data[:-1])
