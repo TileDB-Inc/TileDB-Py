@@ -3852,7 +3852,7 @@ class IncompleteTest(DiskTestCase):
     @pytest.mark.parametrize("cell_order", ["col-major", "row-major", "hilbert"])
     @pytest.mark.parametrize("tile_order", ["col-major", "row-major"])
     @pytest.mark.parametrize("non_overlapping_ranges", [True, False])
-    def test_incomplete_global_order(
+    def test_incomplete_global_order_read(
         self, cell_order, tile_order, non_overlapping_ranges
     ):
         uri = self.path("test_incomplete_global_order")
@@ -3898,7 +3898,7 @@ class IncompleteTest(DiskTestCase):
         eg something like: we set buffers that can hold 100kb, but each var-len cell has 20kb, so we can read at most 5 cells into the data buffer, but theoretically the offsets buffer could hold many more?
         """
         tiledb.stats_enable()
-        uri = self.path("test_incomplete_global_order")
+        uri = self.path("test_offset_can_fit_data_var_size_cannot")
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 4), tile=1, dtype=np.int64))
         att = tiledb.Attr(dtype=np.int64, var=True)
         schema = tiledb.ArraySchema(
