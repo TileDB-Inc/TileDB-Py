@@ -1235,3 +1235,40 @@ class QueryDeleteTest(DiskTestCase):
         with tiledb.open(path, "r") as A:
             assert_array_equal(A[:]["d"], [b"c"])
             assert_array_equal(A[:]["a"], [30])
+
+    def test_attr_with_special_chars_string_literal(self):
+        """Test that query conditions work with string literals for hyphenated attribute names"""
+        path = self.path("test_attr_with_special_chars_string_literal")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="d", domain=(1, 10), tile=1, dtype=np.uint32)
+        )
+        attrs = [
+            tiledb.Attr(name="my-attr", dtype="ascii", var=True),
+            tiledb.Attr(name="other-attr", dtype=np.uint32),
+        ]
+
+        schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True)
+        tiledb.Array.create(path, schema)
+
+        with tiledb.open(path, "w") as arr:
+            arr[np.array([1, 2, 3])] = {
+                "my-attr": np.array(["foo", "bar", "baz"], dtype=object),
+                "other-attr": np.array([10, 20, 30], dtype=np.uint32),
+            }
+
+        with tiledb.open(path, "r") as arr:
+            # Test string literal for attribute name with hyphen
+            result = arr.query(cond="'my-attr' == 'foo'")[:]
+            assert list(result["d"]) == [1]
+            assert list(result["my-attr"]) == [b"foo"]
+
+            # Test the reverse order
+            result = arr.query(cond="'bar' == 'my-attr'")[:]
+            assert list(result["d"]) == [2]
+            assert list(result["my-attr"]) == [b"bar"]
+
+            # Test numeric attribute with hyphen using string literal
+            result = arr.query(cond="'other-attr' == 20")[:]
+            assert list(result["d"]) == [2]
+            assert list(result["other-attr"]) == [20]
