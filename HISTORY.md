@@ -1,3 +1,22 @@
+# Release 0.35.1
+
+* TileDB-Py 0.35.1 includes TileDB Embedded [2.29.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.29.1)
+
+## Bug Fixes
+* Prevent `None` from being converted to `"None"` in `Config.set` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2258
+* Initialize of `uint32_t` to prevent OS-dependent undefined behavior by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2248
+
+## Improvements
+* Skip cloud tests if secret env vars are empty strings by @jdblischak in https://github.com/TileDB-Inc/TileDB-Py/pull/2257
+* Add support for fixed-size blob attributes by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2252
+* Update macOS runners to macOS 15 and macOS 26 by @nickvigilante in https://github.com/TileDB-Inc/TileDB-Py/pull/2253
+* Expose the `type` argument for the `Group.add` method by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2254
+* Update `.from_pandas()` docstrings to show False as default value for sparse by @nickvigilante in https://github.com/TileDB-Inc/TileDB-Py/pull/2250
+
+## Build system changes
+* Hotfix for env var pass @ktsitsi in https://github.com/TileDB-Inc/TileDB-Py/pull/2255
+* Add support for pybind11 3.0 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2249
+
 # Release 0.35.0
 
 * TileDB-Py 0.35.0 includes TileDB Embedded [2.29.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.29.0)
