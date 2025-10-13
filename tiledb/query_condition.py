@@ -308,7 +308,19 @@ class QueryConditionTree(ast.NodeVisitor):
                 or isinstance(variable.args[0], ast.Constant)
             )
 
-        return isinstance(variable, ast.Name)
+        if isinstance(variable, ast.Name):
+            return True
+
+        # Allow string constants that match attribute or dimension names
+        if isinstance(variable, ast.Constant) and isinstance(variable.value, str):
+            var_name = variable.value
+            # Check if it's an attribute or dimension in the array
+            if self.array.schema.has_attr(var_name):
+                return True
+            if self.array.schema.domain.has_dim(var_name):
+                return True
+
+        return False
 
     def order_nodes(
         self,
