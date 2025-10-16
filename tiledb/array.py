@@ -541,7 +541,9 @@ class Array:
     @property
     def dtype(self):
         """The NumPy dtype of the specified attribute"""
-        if self.view_attr is None and self.schema.nattr > 1:
+        if self.view_attr is not None:
+            return self.schema.attr(self.view_attr).dtype
+        elif self.schema.nattr > 1:
             raise NotImplementedError("Multi-attribute does not have single dtype!")
         return self.schema.attr(0).dtype
 
