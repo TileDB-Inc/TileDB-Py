@@ -302,22 +302,21 @@ class ArraySchemaTest(DiskTestCase):
         path = self.path("test_attribute_view_dtype")
         # make schema
         dom = tiledb.Domain(
-            tiledb.Dim(name='X', domain=(0, 9), tile=1, dtype=np.int32),
-            tiledb.Dim(name='Y', domain=(0, 9), tile=1, dtype=np.int32),
+            tiledb.Dim(name="X", domain=(0, 9), tile=1, dtype=np.int32),
+            tiledb.Dim(name="Y", domain=(0, 9), tile=1, dtype=np.int32),
         )
         attrs = [
-            tiledb.Attr(name='A', dtype=np.int32),
-            tiledb.Attr(name='Z', dtype=np.float32, var=True),
-            tiledb.Attr(name='W', dtype=np.float32, var=True),
+            tiledb.Attr(name="A", dtype=np.int32),
+            tiledb.Attr(name="Z", dtype=np.float32, var=True),
+            tiledb.Attr(name="W", dtype=np.float32, var=True),
         ]
         schema = tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=False)
         tiledb.Array.create(path, schema)
 
-        attr='Z'
+        attr = "Z"
         with tiledb.open(path, attr=attr) as tdb:
             lookup = tdb.schema.attr(attr).dtype
             assert tdb.dtype == lookup
-
 
     def test_schema_dump(self, capfd):
         dom = tiledb.Domain(
