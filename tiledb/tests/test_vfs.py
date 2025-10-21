@@ -4,14 +4,14 @@ import pathlib
 import pickle
 import random
 import sys
-import uuid
+import tempfile
 
 import numpy as np
 import pytest
 
 import tiledb
 
-from .common import DiskTestCase, create_vfs_dir, rand_utf8
+from .common import DiskTestCase, vfs_path, rand_utf8
 
 
 class TestVFS(DiskTestCase):
@@ -118,55 +118,40 @@ class TestVFS(DiskTestCase):
 
     # @pytest.mark.parametrize("src", ["file", "s3", "azure", "gcs"])
     # @pytest.mark.parametrize("dst", ["file", "s3", "azure", "gcs"])
+    @pytest.mark.skipif(
+            sys.platform == "win32",
+            reason="VFS copy commands from core are not supported on Windows",
+    )
     @pytest.mark.parametrize("src", ["file"])
     @pytest.mark.parametrize("dst", ["file"])
-    def test_copy_across(self, src, dst):
+    def test_copy_across(self, src: str, dst: str):
         # if src == dst:
         #     return
 
         vfs = tiledb.VFS()
 
-        # print(src)
-        # print(dst)
-
         if not vfs.supports(src) or not vfs.supports(dst):
             return
 
-        # Setup
-        if src == "file":
-            src_sep: str = "://" if os.name == "nt" else ":///"
-        else:
-            src_sep: str = "://"
+        srcdir: str = vfs_path(src, prefix="tiledb-copy-src")
+        vfs.create_dir(srcdir)
+        srcfile: str = f"{srcdir}/testfile"
+        vfs.touch(srcfile)
+        self.assertTrue(vfs.isfile(srcfile))
+        contents: bytes = b"TileDB test copying across filesystems."
+        with vfs.open(srcfile, "wb") as handle:
+            handle.write(contents)
 
-        src_dir = src + src_sep + "tiledb-" + str(random.randint(0, 10e10))
+        with vfs.open(srcfile) as handle:
+            self.assertEqual(handle.read(), contents)
 
-        create_vfs_dir(src_dir)
-        # create_vfs_dir(src + "://")
-        # #create_vfs_dir(dst + "://tiledb-" + str(random.randint(0, 10e10))+ "/dir")
-        self.assertEqual(1, 1)
+        dstdir: str = vfs_path(dst, prefix="tiledb-copy-dst")
+        vfs.create_dir(dstdir)
+        dstfile: str = f"{dstdir}/testfile"
+        vfs.copy_file(srcfile, dstfile)
+        with vfs.open(dstfile) as handle:
+            self.assertEqual(handle.read(), contents)
         return
-        # create_vfs_dir(dst + "://")
-        # if src != "file":
-        #     vfs.create_bucket(src + "://dir")
-        # if dst != "file":
-        #     vfs.create_bucket(dst + "://dir")
-
-        ## NOte: need "file:///"" for POSIX, need to use some test harness to determine filename
-        testfile = ":///testfile"
-        src_file = src + testfile
-        dst_file = dst + testfile
-
-        contents = b"TileDB test copying across filesystems."
-        filelen = len(contents)
-
-        vfs.touch(src_file)
-        self.assertTrue(vfs.is_file(src_file))
-        vfs.write(src_file, contents)
-        self.assertEqual(vfs.read(src_file, 0, filelen), contents)
-
-        vfs.copy_file(src_file, dst_file)
-        self.assertTrue(vfs.is_file(dst_file))
-        self.assertEqual(vfs.read(dst_file, 0, filelen), contents)
 
         # Clean up
         if src != "file":

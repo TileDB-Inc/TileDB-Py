@@ -70,6 +70,17 @@ def create_vfs_dir(path):
     vfs.create_dir(path)
 
 
+def vfs_path(scheme: str, prefix: str=None) -> str:
+    """Create a VFS-compatible path"""
+    if not prefix:
+        prefix: str = str(uuid.uuid4())
+    if scheme == "file":
+        return f"{scheme}://{tempfile.mktemp(prefix=prefix)}"
+    if "/" not in prefix:
+        prefix: str = f"{uuid.uuid4()}/{prefix}"
+    return f"{scheme}://{prefix}"
+
+
 class DiskTestCase:
     """Helper class to store paths and associated allocation frames. This is both
     a cleanup step and a test of resource management. Some platforms will
