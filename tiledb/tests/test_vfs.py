@@ -11,7 +11,7 @@ import pytest
 
 import tiledb
 
-from .common import DiskTestCase, vfs_path, rand_utf8
+from .common import DiskTestCase, rand_utf8, vfs_path
 
 
 class TestVFS(DiskTestCase):
@@ -119,8 +119,8 @@ class TestVFS(DiskTestCase):
     # @pytest.mark.parametrize("src", ["file", "s3", "azure", "gcs"])
     # @pytest.mark.parametrize("dst", ["file", "s3", "azure", "gcs"])
     @pytest.mark.skipif(
-            sys.platform == "win32",
-            reason="VFS copy commands from core are not supported on Windows",
+        sys.platform == "win32",
+        reason="VFS copy commands from core are not supported on Windows",
     )
     @pytest.mark.parametrize("src", ["file"])
     @pytest.mark.parametrize("dst", ["file"])

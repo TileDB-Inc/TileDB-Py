@@ -70,7 +70,7 @@ def create_vfs_dir(path):
     vfs.create_dir(path)
 
 
-def vfs_path(scheme: str, prefix: str=None) -> str:
+def vfs_path(scheme: str, prefix: str = None) -> str:
     """Create a VFS-compatible path"""
     if not prefix:
         prefix: str = str(uuid.uuid4())
