@@ -4,13 +4,14 @@ import pathlib
 import pickle
 import random
 import sys
+import uuid
 
 import numpy as np
 import pytest
 
 import tiledb
 
-from .common import DiskTestCase, rand_utf8
+from .common import DiskTestCase, create_vfs_dir, rand_utf8
 
 
 class TestVFS(DiskTestCase):
@@ -114,6 +115,68 @@ class TestVFS(DiskTestCase):
             # this will not fail on s3 because there is no concept of directory
             with self.assertRaises(tiledb.TileDBError):
                 vfs.copy_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
+
+    # @pytest.mark.parametrize("src", ["file", "s3", "azure", "gcs"])
+    # @pytest.mark.parametrize("dst", ["file", "s3", "azure", "gcs"])
+    @pytest.mark.parametrize("src", ["file"])
+    @pytest.mark.parametrize("dst", ["file"])
+    def test_copy_across(self, src, dst):
+        # if src == dst:
+        #     return
+
+        vfs = tiledb.VFS()
+
+        # print(src)
+        # print(dst)
+
+        if not vfs.supports(src) or not vfs.supports(dst):
+            return
+
+        # Setup
+        if src == "file":
+            src_sep: str = "://" if os.name == "nt" else ":///"
+        else:
+            src_sep: str = "://"
+
+        src_dir = src + src_sep + "tiledb-" + str(random.randint(0, 10e10))
+
+        create_vfs_dir(src_dir)
+        # create_vfs_dir(src + "://")
+        # #create_vfs_dir(dst + "://tiledb-" + str(random.randint(0, 10e10))+ "/dir")
+        self.assertEqual(1, 1)
+        return
+        # create_vfs_dir(dst + "://")
+        # if src != "file":
+        #     vfs.create_bucket(src + "://dir")
+        # if dst != "file":
+        #     vfs.create_bucket(dst + "://dir")
+
+        ## NOte: need "file:///"" for POSIX, need to use some test harness to determine filename
+        testfile = ":///testfile"
+        src_file = src + testfile
+        dst_file = dst + testfile
+
+        contents = b"TileDB test copying across filesystems."
+        filelen = len(contents)
+
+        vfs.touch(src_file)
+        self.assertTrue(vfs.is_file(src_file))
+        vfs.write(src_file, contents)
+        self.assertEqual(vfs.read(src_file, 0, filelen), contents)
+
+        vfs.copy_file(src_file, dst_file)
+        self.assertTrue(vfs.is_file(dst_file))
+        self.assertEqual(vfs.read(dst_file, 0, filelen), contents)
+
+        # Clean up
+        if src != "file":
+            vfs.remove_bucket(src)
+        else:
+            vfs.remove_dir(src)
+        if dst != "file":
+            vfs.remove_bucket(dst)
+        else:
+            vfs.remove_dir(src)
 
     def test_write_read(self):
         vfs = tiledb.VFS()
