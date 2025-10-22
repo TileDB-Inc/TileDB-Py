@@ -73,7 +73,10 @@ def create_vfs_dir(path):
 def vfs_path(scheme: str, prefix: str = None) -> str:
     """Create a VFS-compatible path"""
     if not prefix:
-        prefix: str = str(uuid.uuid4())
+        if scheme == "s3":
+            prefix: str = "tiledb-" + str(random.randint(0, 10e10))
+        else:
+            prefix: str = "tiledb-" + str(uuid.uuid4())
     if scheme == "file":
         return f"{scheme}://{tempfile.mktemp(prefix=prefix)}"
     if "/" not in prefix:
