@@ -47,7 +47,7 @@ jobs:
           brew install automake pkg-config ninja llvm
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.2.1
         env:
           CIBW_ENVIRONMENT:
             CI_WHEEL_BUILD=1
