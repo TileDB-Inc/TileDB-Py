@@ -1,3 +1,16 @@
+# Release 0.35.2
+
+* TileDB-Py 0.35.2 includes TileDB Embedded [2.29.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.29.2)
+
+## Packaging Notes
+* Added support for Python 3.14 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2266
+
+## Improvements
+* Fix dtype setting of an Array that's been limited to a specific attribute by @kylemann16 in https://github.com/TileDB-Inc/TileDB-Py/pull/2262
+* Add global order write tests by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2259
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.35.1...0.35.2
+
 # Release 0.35.1
 
 * TileDB-Py 0.35.1 includes TileDB Embedded [2.29.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.29.1)
