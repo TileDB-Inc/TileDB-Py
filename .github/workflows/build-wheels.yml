@@ -44,7 +44,7 @@ jobs:
         run: |
           set -e pipefail
           brew update
-          brew install automake pkg-config ninja llvm
+          brew install automake pkg-config ninja
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.1
