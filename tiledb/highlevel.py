@@ -145,7 +145,11 @@ def from_numpy(uri, array, config=None, ctx=None, **kwargs):
             if array.dtype == object:
                 arr[:] = array
             else:
-                arr.write_direct(np.ascontiguousarray(array), **kwargs)
+                # Avoid unnecessary copy if already C-contiguous
+                if array.flags.c_contiguous:
+                    arr.write_direct(array, **kwargs)
+                else:
+                    arr.write_direct(np.ascontiguousarray(array), **kwargs)
 
     return tiledb.DenseArray(uri, mode="r", ctx=ctx)
 

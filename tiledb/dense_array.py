@@ -447,17 +447,20 @@ class DenseArrayImpl(Array):
 
         if isinstance(val, dict):
             # Create dictionary of label names and values
-            labels = {
-                name: (
-                    data
-                    if not isinstance(data, np.ndarray) or data.dtype == np.dtype("O")
-                    else np.ascontiguousarray(
-                        data, dtype=self.schema.dim_label(name).dtype
-                    )
-                )
-                for name, data in val.items()
-                if self.schema.has_dim_label(name)
-            }
+            labels = {}
+            for name, data in val.items():
+                if self.schema.has_dim_label(name):
+                    if not isinstance(data, np.ndarray) or data.dtype == np.dtype("O"):
+                        labels[name] = data
+                    else:
+                        target_dtype = self.schema.dim_label(name).dtype
+                        # Avoid unnecessary copy if already C-contiguous and correct dtype
+                        if data.flags.c_contiguous and data.dtype == target_dtype:
+                            labels[name] = data
+                        else:
+                            labels[name] = np.ascontiguousarray(
+                                data, dtype=target_dtype
+                            )
 
             # Create list of attribute names and values
             for attr_idx in range(self.schema.nattr):
@@ -477,7 +480,11 @@ class DenseArrayImpl(Array):
                             nullmaps[name] = np.array(
                                 [int(v is not None) for v in attr_val], dtype=np.uint8
                             )
-                    attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                    # Avoid unnecessary copy if already C-contiguous and correct dtype
+                    if not (
+                        attr_val.flags.c_contiguous and attr_val.dtype == attr.dtype
+                    ):
+                        attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
 
                 try:
                     if attr.isvar:
@@ -516,7 +523,11 @@ class DenseArrayImpl(Array):
                                 attr_val = np.array(
                                     [0 if v is None else v for v in attr_val]
                                 )
-                        attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                        # Avoid unnecessary copy if already C-contiguous and correct dtype
+                        if not (
+                            attr_val.flags.c_contiguous and attr_val.dtype == attr.dtype
+                        ):
+                            attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
                 except Exception as exc:
                     raise ValueError(
                         f"NumPy array conversion check failed for attr '{name}'"
@@ -537,7 +548,9 @@ class DenseArrayImpl(Array):
             attributes.append(attr._internal_name)
             # object arrays are var-len and handled later
             if isinstance(val, np.ndarray) and val.dtype != np.dtype("O"):
-                val = np.ascontiguousarray(val, dtype=attr.dtype)
+                # Avoid unnecessary copy if already C-contiguous and correct dtype
+                if not (val.flags.c_contiguous and val.dtype == attr.dtype):
+                    val = np.ascontiguousarray(val, dtype=attr.dtype)
             try:
                 if attr.isvar:
                     # ensure that the value is array-convertible, for example: pandas.Series
@@ -559,7 +572,9 @@ class DenseArrayImpl(Array):
                     if attr.isnullable and name not in nullmaps:
                         nullmaps[name] = ~np.ma.masked_invalid(val).mask
                         val = np.nan_to_num(val)
-                    val = np.ascontiguousarray(val, dtype=attr.dtype)
+                    # Avoid unnecessary copy if already C-contiguous and correct dtype
+                    if not (val.flags.c_contiguous and val.dtype == attr.dtype):
+                        val = np.ascontiguousarray(val, dtype=attr.dtype)
             except Exception as exc:
                 raise ValueError(
                     f"NumPy array conversion check failed for attr '{name}'"
@@ -581,7 +596,15 @@ class DenseArrayImpl(Array):
                     self.uri, "r", ctx=tiledb.Ctx(self.ctx.config())
                 ) as readable:
                     current = readable[selection]
-                current[self.view_attr] = np.ascontiguousarray(val, dtype=dtype)
+                # Avoid unnecessary copy if already C-contiguous and correct dtype
+                if (
+                    isinstance(val, np.ndarray)
+                    and val.flags.c_contiguous
+                    and val.dtype == dtype
+                ):
+                    current[self.view_attr] = val
+                else:
+                    current[self.view_attr] = np.ascontiguousarray(val, dtype=dtype)
                 # `current` is an OrderedDict
                 attributes.extend(current.keys())
                 values.extend(current.values())

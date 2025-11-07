@@ -105,15 +105,18 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
         val = dict({self.attr(0).name: val})
 
     # Create dictionary for label names and values from the dictionary
-    labels = {
-        name: (
-            data
-            if not isinstance(data, np.ndarray) or data.dtype == np.dtype("O")
-            else np.ascontiguousarray(data, dtype=self.schema.dim_label(name).dtype)
-        )
-        for name, data in val.items()
-        if self.schema.has_dim_label(name)
-    }
+    labels = {}
+    for name, data in val.items():
+        if self.schema.has_dim_label(name):
+            if not isinstance(data, np.ndarray) or data.dtype == np.dtype("O"):
+                labels[name] = data
+            else:
+                target_dtype = self.schema.dim_label(name).dtype
+                # Avoid unnecessary copy if already C-contiguous and correct dtype
+                if data.flags.c_contiguous and data.dtype == target_dtype:
+                    labels[name] = data
+                else:
+                    labels[name] = np.ascontiguousarray(data, dtype=target_dtype)
 
     # must iterate in Attr order to ensure that value order matches
     for attr_idx in range(self.schema.nattr):
@@ -153,7 +156,9 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
                     else:
                         attr_val = np.nan_to_num(attr_val)
                         attr_val = np.array([0 if v is None else v for v in attr_val])
-                attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
+                # Avoid unnecessary copy if already C-contiguous and correct dtype
+                if not (attr_val.flags.c_contiguous and attr_val.dtype == attr.dtype):
+                    attr_val = np.ascontiguousarray(attr_val, dtype=attr.dtype)
 
         except Exception as exc:
             raise ValueError(
