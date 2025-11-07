@@ -100,35 +100,25 @@ class NumpyConvert {
         unsigned char* output_p = nullptr;
         output_p = data_buf_->data();
 
-        // avoid one interpreter roundtrip
-        auto npstrencode = py::module::import("numpy").attr("str_").attr(
-            "encode");
-
-        // return status
-        int rc;
-        // encoded object: this must live outside the if block or else it may be
-        // GC'd
-        //                 putting outside for loop to avoid repeat unused
-        //                 construction
-        py::object u_encoded;
-
         // loop over array objects and write to output buffer
         size_t idx = 0;
         for (auto u : input_) {
-            // don't encode if we already have bytes
+            // handle unicode and bytes objects
             if (PyUnicode_Check(u.ptr())) {
-                // TODO see if we can do this with PyUnicode_AsUTF8String
-                u_encoded = npstrencode(u);
-                rc = PyBytes_AsStringAndSize(
-                    u_encoded.ptr(), const_cast<char**>(&input_p), &sz);
+                // Use PyUnicode_AsUTF8AndSize for zero-copy UTF-8 access
+                input_p = PyUnicode_AsUTF8AndSize(u.ptr(), &sz);
+                if (!input_p) {
+                    throw std::runtime_error(
+                        "Failed to convert unicode to UTF-8");
+                }
             } else {
-                rc = PyBytes_AsStringAndSize(
+                // Handle bytes objects directly
+                int rc = PyBytes_AsStringAndSize(
                     u.ptr(), const_cast<char**>(&input_p), &sz);
-            }
-
-            if (rc == -1) {
-                throw std::runtime_error(
-                    "PyBytes_AsStringAndSize failed to encode string");
+                if (rc == -1) {
+                    throw std::runtime_error(
+                        "PyBytes_AsStringAndSize failed to encode string");
+                }
             }
 
             // record the offset (equal to the current bytes written)
