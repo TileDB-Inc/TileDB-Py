@@ -483,3 +483,77 @@ class DimensionLabelTestCase(DiskTestCase):
                     },
                 ),
             )
+
+    @pytest.mark.skipif(
+        tiledb.libtiledb.version() < (2, 15),
+        reason="dimension labels requires libtiledb version 2.15 or greater",
+    )
+    def test_dimension_label_on_aggregation(self):
+        uri = self.path("aggregation_label_index")
+
+        dim1 = tiledb.Dim("d1", domain=(0, 3), dtype=np.int32)
+        dim2 = tiledb.Dim("d2", domain=(0, 2), dtype=np.int32)
+        dom = tiledb.Domain(dim1, dim2)
+        att = tiledb.Attr("a1", dtype=np.int64)
+        dim_labels = {
+            0: {"l1": dim1.create_label_schema("increasing", np.int64)},
+            1: {"l2": dim2.create_label_schema("increasing", np.float64)},
+        }
+        schema = tiledb.ArraySchema(domain=dom, attrs=(att,), dim_labels=dim_labels)
+        tiledb.Array.create(uri, schema)
+
+        # Create data: [[10, 20, 30], [40, 50, 60], [70, 80, 90], [100, 110, 120]]
+        a1_data = np.reshape(np.arange(10, 130, 10), (4, 3))
+        l1_data = np.array([100, 200, 300, 400], dtype=np.int64)
+        l2_data = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+
+        with tiledb.open(uri, "w") as A:
+            A[:] = {"a1": a1_data, "l1": l1_data, "l2": l2_data}
+
+        with tiledb.open(uri, "r") as A:
+            # Test sum aggregation with single dimension label
+            q = A.query(attrs="", dims=["d1"])
+            result = q.agg("sum").label_index(["l1"])[200:300]
+            # Sum of rows 1 and 2: [40, 50, 60] + [70, 80, 90] = 390
+            assert result == 390
+
+            # Test count aggregation
+            result = q.agg("count").label_index(["l1"])[100:400]
+            # All 4 rows, 3 columns each = 12 elements
+            assert result == 12
+
+            # Test mean aggregation
+            result = q.agg("mean").label_index(["l1"])[200:300]
+            # Mean of [40, 50, 60, 70, 80, 90] = 65.0
+            assert result == 65.0
+
+            # Test min aggregation
+            result = q.agg("min").label_index(["l1"])[200:300]
+            # Min of [40, 50, 60, 70, 80, 90] = 40
+            assert result == 40
+
+            # Test max aggregation
+            result = q.agg("max").label_index(["l1"])[200:300]
+            # Max of [40, 50, 60, 70, 80, 90] = 90
+            assert result == 90
+
+            # Test with second dimension label (floating point)
+            result = q.agg("sum").label_index(["l2"])[:, 2.0:3.0]
+            # Sum of columns 1 and 2: [20, 50, 80, 110] + [30, 60, 90, 120] = 560
+            assert result == 560
+
+            # Test with multiple dimension labels
+            result = q.agg("sum").label_index(["l1", "l2"])[200:300, 1.0:2.0]
+            # Sum of rows 1-2, columns 0-1: [40, 50, 70, 80] = 240
+            assert result == 240
+
+            # Test single point selection
+            result = q.agg("sum").label_index(["l1"])[200:200]
+            # Sum of row 1: [40, 50, 60] = 150
+            assert result == 150
+
+            # Test with multiple aggregations
+            result = q.agg(["sum", "mean"]).label_index(["l1"])[100:200]
+            # Rows 0-1: [10, 20, 30, 40, 50, 60]
+            assert result["sum"] == 210
+            assert result["mean"] == 35.0
