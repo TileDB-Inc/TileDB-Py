@@ -79,6 +79,12 @@ class Aggregation:
 
         return result
 
+    def label_index(self, labels):
+        """Apply Array.label_index with query parameters."""
+        from .multirange_indexing import LabelAggregation
+
+        return LabelAggregation(self.query.array, tuple(labels), query=self)
+
     @property
     def multi_index(self):
         """Apply Array.multi_index with query parameters."""
