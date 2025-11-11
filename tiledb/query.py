@@ -2,11 +2,13 @@ from collections.abc import Sequence
 from json import loads as json_loads
 from typing import Optional, Sequence, Union
 
+import numpy as np
+
 import tiledb.libtiledb as lt
 
 from .array import Array
 from .ctx import Ctx, CtxMixin, default_ctx
-from .domain_indexer import DomainIndexer
+from .datatypes import DataType
 from .subarray import Subarray
 
 
@@ -35,6 +37,9 @@ class Query(CtxMixin, lt.Query):
         across one or more attributes. Optionally subselect over attributes, return
         dense result coordinate values, and specify a layout a result layout / cell-order.
 
+        For write mode arrays, the Query can be used to write data with explicit control
+        over submit() and finalize() operations.
+
         :param array: the Array object to query.
         :param ctx: the TileDB context.
         :param attrs: the attributes to subselect over.
@@ -46,7 +51,7 @@ class Query(CtxMixin, lt.Query):
         :param has_coords: (deprecated) if True, return array of coordinate value (default False).
         :param index_col: For dataframe queries, override the saved index information,
             and only set specified index(es) in the final dataframe, or None.
-        :param order: 'C', 'F', or 'G' (row-major, col-major, tiledb global order)
+        :param order: 'C', 'F', 'G', or 'U' (row-major, col-major, global order, unordered).
         :param use_arrow: if True, return dataframes via PyArrow if applicable.
         :param return_arrow: if True, return results as a PyArrow Table if applicable.
         :param return_incomplete: if True, initialize and return an iterable Query object over the indexed range.
@@ -55,8 +60,8 @@ class Query(CtxMixin, lt.Query):
             resubmitting until query is complete.
         """
 
-        if array.mode not in ("r", "d"):
-            raise ValueError("array mode must be read or delete mode")
+        if array.mode not in ("r", "d", "w"):
+            raise ValueError("array mode must be read, delete, or write mode")
 
         if dims not in (False, None) and has_coords == True:
             raise ValueError("Cannot pass both dims and has_coords=True to Query")
@@ -68,9 +73,38 @@ class Query(CtxMixin, lt.Query):
 
         # reference to the array we are querying
         self._array = array
+
+        query_type_map = {
+            "r": lt.QueryType.READ,
+            "d": lt.QueryType.DELETE,
+            "w": lt.QueryType.WRITE,
+        }
+        query_type = query_type_map[array.mode]
+
         super().__init__(
-            ctx, lt.Array(ctx if ctx is not None else default_ctx(), array)
+            ctx, lt.Array(ctx if ctx is not None else default_ctx(), array), query_type
         )
+
+        if order is None:
+            if array.schema.sparse:
+                order = "U"  # unordered
+            else:
+                order = "C"  # row-major
+
+        layout_map = {
+            "C": lt.LayoutType.ROW_MAJOR,
+            "F": lt.LayoutType.COL_MAJOR,
+            "G": lt.LayoutType.GLOBAL_ORDER,
+            "U": lt.LayoutType.UNORDERED,
+        }
+
+        if order not in layout_map:
+            raise ValueError(
+                f"order must be one of {list(layout_map.keys())}, got '{order}'"
+            )
+
+        self.layout = layout_map[order]
+        self._order = order
 
         self._dims = dims
 
@@ -94,29 +128,19 @@ class Query(CtxMixin, lt.Query):
                     raise lt.TileDBError(f"Selected attribute does not exist: '{name}'")
         self._attrs = attrs
         self._cond = cond
-
-        if order == None:
-            if array.schema.sparse:
-                self._order = "U"  # unordered
-            else:
-                self._order = "C"  # row-major
-        else:
-            self._order = order
-
         self._has_coords = has_coords
         self._index_col = index_col
         self._return_arrow = return_arrow
-        if return_arrow:
+        self._use_arrow = use_arrow
+        self._return_incomplete = return_incomplete
+
+        if array.mode in ("r", "d") and return_arrow:
             if use_arrow is None:
                 use_arrow = True
             if not use_arrow:
                 raise lt.TileDBError(
                     "Cannot initialize return_arrow with use_arrow=False"
                 )
-        self._use_arrow = use_arrow
-
-        self._return_incomplete = return_incomplete
-        self._domain_index = DomainIndexer(array, query=self)
 
     def subarray(self) -> Subarray:
         """Subarray with the ranges this query is on.
@@ -312,5 +336,84 @@ class Query(CtxMixin, lt.Query):
             return stats
 
     def submit(self):
-        """An alias for calling the regular indexer [:]"""
-        return self[:]
+        """Submit the query.
+
+        For read/delete queries: an alias for calling the regular indexer [:].
+        For write queries: submits the write query with current buffers.
+        """
+        if self._array.mode in ("r", "d"):
+            return self[:]
+        else:
+            # Write mode - submit the underlying query
+            return self._submit()
+
+    def finalize(self):
+        """Finalize a query."""
+        super().finalize()
+
+    def set_data(self, data):
+        """Set data buffers for write queries.
+
+        :param data: Dictionary mapping attribute/dimension names to numpy arrays,
+                    or a single numpy array if the array has a single attribute.
+        :raises ValueError: if array is not in write mode or invalid data provided
+
+        Example:
+            >>> import tiledb, numpy as np
+            >>> with tiledb.open(uri, 'w') as A:
+            ...     q = tiledb.Query(A, order='G')
+            ...     q.set_data({'d1': np.array([1, 5, 10]), 'a1': np.array([100, 200, 300])})
+            ...     q.submit()
+            ...     q.set_data({'d1': np.array([15, 20]), 'a1': np.array([400, 500])})
+            ...     q.submit()
+            ...     q.finalize()
+        """
+        if self._array.mode != "w":
+            raise ValueError("set_data() is only supported for arrays in write mode")
+
+        schema = self._array.schema
+
+        # Convert single array to dict
+        if isinstance(data, np.ndarray):
+            if schema.nattr != 1:
+                raise ValueError(
+                    "Single array provided but schema has multiple attributes"
+                )
+            data = {schema.attr(0).name: data}
+
+        if not isinstance(data, dict):
+            raise ValueError("data must be a dict or numpy array")
+
+        # Set buffers for each attribute/dimension
+        for name, buffer in data.items():
+            if not isinstance(buffer, np.ndarray):
+                buffer = np.array(buffer)
+
+            # Determine ncells based on datatype
+            if schema.has_attr(name):
+                dtype = schema.attr(name).dtype
+            elif schema.domain.has_dim(name):
+                dtype = schema.domain.dim(name).dtype
+            else:
+                raise ValueError(f"Unknown attribute or dimension: {name}")
+
+            ncells = DataType.from_numpy(dtype).ncells
+            buffer_size = np.uint64(len(buffer) * ncells)
+
+            self.set_data_buffer(name, buffer, buffer_size)
+
+    def set_subarray_ranges(self, ranges):
+        """Set subarray for dense array writes.
+
+        :param ranges: List of (start, end) tuples, one per dimension.
+        """
+
+        if self._array.mode != "w":
+            raise ValueError(
+                "set_subarray_ranges() is only supported for arrays in write mode"
+            )
+
+        subarray = Subarray(self._array, self._ctx)
+        dim_ranges = [[r] for r in ranges]
+        subarray.add_ranges(dim_ranges)
+        self.set_subarray(subarray)
