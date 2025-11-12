@@ -4,13 +4,16 @@ import pathlib
 import pickle
 import random
 import sys
+import tempfile
 
 import numpy as np
 import pytest
 
 import tiledb
 
-from .common import DiskTestCase, rand_utf8
+from .common import DiskTestCase, rand_utf8, vfs_path
+
+s3_bucket = os.getenv("S3_BUCKET")
 
 
 class TestVFS(DiskTestCase):
@@ -114,6 +117,78 @@ class TestVFS(DiskTestCase):
             # this will not fail on s3 because there is no concept of directory
             with self.assertRaises(tiledb.TileDBError):
                 vfs.copy_dir(self.path("foo/baz"), self.path("do_not_exist/baz"))
+
+    # Note: Azure tests are intermittently failing.
+    # Seemingly mostly azure->azure, but also test teardown.
+    # I think it's an Azurite bucket storage thing, actually.
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows paths are difficult; Posix is sufficient for testing.",
+    )
+    @pytest.mark.parametrize("src", ["file", "s3", "azure", "gcs"])
+    @pytest.mark.parametrize("dst", ["file", "s3", "azure", "gcs"])
+    def test_copy_across(self, src: str, dst: str, vfs_config):
+        # Currently, skip if both FSes are the same. This is covered above.
+        # However, this test might ought to replace the above.
+        if src == dst:
+            return
+
+        # Set configuration options
+        if (src == "s3" or dst == "s3") and not vfs_config.get(
+            "vfs.s3.aws_access_key_id"
+        ):
+            return
+        if (src == "azure" or dst == "azure") and not any(
+            x.startswith("vfs.azure") for x in vfs_config.keys()
+        ):
+            return
+        if (src == "gcs" or dst == "gcs") and not vfs_config.get("vfs.gcs.endpoint"):
+            return
+        vfs = tiledb.VFS(vfs_config)
+
+        # Return if neither filesystem is supported.
+        if not vfs.supports(src) or not vfs.supports(dst):
+            return
+
+        # Create source file, and write to it.
+        srcdir: str = vfs_path(src)
+        if src == "file":
+            vfs.create_dir(srcdir)
+            self.assertTrue(vfs.is_dir(srcdir))
+        else:
+            vfs.create_bucket(srcdir)
+            self.assertTrue(vfs.is_bucket(srcdir))
+        srcfile: str = f"{srcdir}/testfile"
+        vfs.touch(srcfile)
+        self.assertTrue(vfs.isfile(srcfile))
+        contents: bytes = b"TileDB test copying across filesystems."
+        with vfs.open(srcfile, "wb") as handle:
+            handle.write(contents)
+        with vfs.open(srcfile) as handle:
+            self.assertEqual(handle.read(), contents)
+
+        # Copy src -> dst and assert the file contents are unchanged.
+        dstdir: str = vfs_path(dst)
+        if dst == "file":
+            vfs.create_dir(dstdir)
+            self.assertTrue(vfs.is_dir(dstdir))
+        else:
+            vfs.create_bucket(dstdir)
+            self.assertTrue(vfs.is_bucket(dstdir))
+        dstfile: str = f"{dstdir}/testfile"
+        vfs.copy_dir(srcdir, dstdir)
+        with vfs.open(dstfile) as handle:
+            self.assertEqual(handle.read(), contents)
+
+        # Clean up
+        if src == "file":
+            vfs.remove_dir(srcdir)
+        else:
+            vfs.remove_bucket(srcdir)
+        if dst == "file":
+            vfs.remove_dir(dstdir)
+        else:
+            vfs.remove_bucket(dstdir)
 
     def test_write_read(self):
         vfs = tiledb.VFS()
