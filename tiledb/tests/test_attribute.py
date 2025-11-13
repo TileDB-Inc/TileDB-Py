@@ -63,6 +63,26 @@ class AttributeTest(DiskTestCase):
                 # record type unsupported for .df
                 assert R.df[0][""].values == np.array(fill, dtype=dtype)
 
+    @pytest.mark.parametrize(
+        "dtype, fill",
+        [
+            (np.float32, np.float32(1.5)),
+            (np.float64, np.float64(2.5)),
+            (np.int32, 42),
+            (np.int64, 123),
+            (str, "new_fill"),
+            (np.dtype(bytes), b"xyz"),
+            (np.dtype("complex64"), (1.0 + 2.0j)),
+            (np.dtype("complex128"), (3.0 + 4.0j)),
+            (np.dtype("complex64"), np.complex64([1.0 + 2.0j])),
+            (np.dtype("complex128"), np.complex128([3.0 + 4.0j])),
+        ],
+    )
+    def test_fill_value_setter(self, dtype, fill):
+        attr = tiledb.Attr("test_attr", dtype=dtype)
+        attr.fill = fill
+        assert attr.fill == fill
+
     def test_full_attribute(self, capfd):
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
