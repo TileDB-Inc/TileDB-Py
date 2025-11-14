@@ -124,20 +124,24 @@ jobs:
       - name: Unpack libtiledb (Unix)
         if: inputs.libtiledb_ref != '' && runner.os != 'Windows'
         run: |
-          cd ${{ runner.temp }}/libtiledb-dist/build
+          cd ${{ runner.temp }}/libtiledb-dist
           tar xzf tiledb-*.tar.gz
-          EXTRACTED_DIR=$(ls -d tiledb-*/ | head -n1 | sed 's#/##')
-          echo "Using TileDB from: $EXTRACTED_DIR"
-          echo "TILEDB_PATH=${{ runner.temp }}/libtiledb-dist/build/$EXTRACTED_DIR" >> $GITHUB_ENV
+          mkdir -p ${{ runner.temp }}/tiledb-external
+          cp -r include ${{ runner.temp }}/tiledb-external/
+          cp -r lib ${{ runner.temp }}/tiledb-external/
+          echo "TILEDB_PATH=${{ runner.temp }}/tiledb-external" >> $GITHUB_ENV
+        shell: bash
 
       - name: Unpack libtiledb (Windows)
         if: inputs.libtiledb_ref != '' && runner.os == 'Windows'
         run: |
-          cd ${{ runner.temp }}/libtiledb-dist/build
+          cd ${{ runner.temp }}/libtiledb-dist
           Expand-Archive -Path tiledb-*.zip -DestinationPath .
-          $EXTRACTED_DIR = (Get-ChildItem -Directory -Filter "tiledb-*" | Select-Object -First 1).Name
-          Write-Host "Using TileDB from: $EXTRACTED_DIR"
-          echo "TILEDB_PATH=${{ runner.temp }}/libtiledb-dist/build/$EXTRACTED_DIR" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Force -Path "${{ runner.temp }}/tiledb-external"
+          Copy-Item -Recurse "include" "${{ runner.temp }}/tiledb-external/"
+          Copy-Item -Recurse "lib" "${{ runner.temp }}/tiledb-external/"
+          Copy-Item -Recurse "bin" "${{ runner.temp }}/tiledb-external/" -ErrorAction SilentlyContinue
+          echo "TILEDB_PATH=${{ runner.temp }}/tiledb-external" >> $env:GITHUB_ENV
         shell: powershell
 
       - name: "Build and Install TileDB-Py"
