@@ -142,6 +142,7 @@ jobs:
           Copy-Item -Recurse "lib" "${{ runner.temp }}/tiledb-external/"
           Copy-Item -Recurse "bin" "${{ runner.temp }}/tiledb-external/" -ErrorAction SilentlyContinue
           echo "TILEDB_PATH=${{ runner.temp }}/tiledb-external" >> $env:GITHUB_ENV
+          echo "${{ runner.temp }}/tiledb-external/bin" >> $env:GITHUB_PATH
         shell: powershell
 
       - name: "Build and Install TileDB-Py"
