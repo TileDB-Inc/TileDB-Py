@@ -135,8 +135,8 @@ jobs:
           $TEMP_DIR = "${{ runner.temp }}".Replace('/', '\')
           cd "$TEMP_DIR\libtiledb-dist"
           Expand-Archive -Path tiledb-*.zip -DestinationPath .
-          echo "TILEDB_PATH=$TEMP_DIR\libtiledb-dist" >> $env:GITHUB_ENV
-          echo "$TEMP_DIR\libtiledb-dist\bin" >> $env:GITHUB_PATH
+          $TILEDB_PATH = "$TEMP_DIR\libtiledb-dist".Replace('\', '/')
+          echo "TILEDB_PATH=$TILEDB_PATH" >> $env:GITHUB_ENV
         shell: powershell
 
       - name: "Build and Install TileDB-Py"
@@ -145,6 +145,15 @@ jobs:
           pipx run --python ${{ matrix.python-version }} build
           WHEEL_NAME=$(ls dist/*.whl)
           pip install --verbose ${WHEEL_NAME}[test]
+
+      - name: "Copy TileDB DLL to package (Windows)"
+        if: inputs.libtiledb_ref != '' && runner.os == 'Windows'
+        run: |
+          $TEMP_DIR = "${{ runner.temp }}".Replace('/', '\')
+          $PYTHON_VERSION = "${{ matrix.python-version }}"
+          $SITE_PACKAGES = python -c "import sysconfig; print(sysconfig.get_path('purelib'))"
+          Copy-Item "$TEMP_DIR\libtiledb-dist\bin\*.dll" "$SITE_PACKAGES\tiledb\" -Verbose
+        shell: powershell
 
       - name: "Run tests"
         run: |
