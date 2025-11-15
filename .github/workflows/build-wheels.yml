@@ -88,29 +88,22 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-${{ steps.platform.outputs.platform }}
-          path: ${{ runner.temp }}/libtiledb-dist
+          path: ${{ github.workspace }}/libtiledb-dist
 
       - name: Unpack custom libtiledb (Unix)
         if: inputs.libtiledb_ref != '' && runner.os != 'Windows'
         run: |
-          cd ${{ runner.temp }}/libtiledb-dist
+          cd ${{ github.workspace }}/libtiledb-dist
           tar xzf tiledb-*.tar.gz
-          mkdir -p ${{ github.workspace }}/tiledb-external
-          cp -r include ${{ github.workspace }}/tiledb-external/
-          cp -r lib ${{ github.workspace }}/tiledb-external/
-          echo "TILEDB_PATH=${{ github.workspace }}/tiledb-external" >> $GITHUB_ENV
+          echo "TILEDB_PATH=${{ github.workspace }}/libtiledb-dist" >> $GITHUB_ENV
         shell: bash
 
       - name: Unpack custom libtiledb (Windows)
         if: inputs.libtiledb_ref != '' && runner.os == 'Windows'
         run: |
-          cd ${{ runner.temp }}/libtiledb-dist
+          cd "${{ github.workspace }}\libtiledb-dist"
           Expand-Archive -Path tiledb-*.zip -DestinationPath .
-          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/tiledb-external"
-          Copy-Item -Recurse "include" "${{ github.workspace }}/tiledb-external/"
-          Copy-Item -Recurse "lib" "${{ github.workspace }}/tiledb-external/"
-          Copy-Item -Recurse "bin" "${{ github.workspace }}/tiledb-external/" -ErrorAction SilentlyContinue
-          echo "TILEDB_PATH=${{ github.workspace }}/tiledb-external" >> $env:GITHUB_ENV
+          echo "TILEDB_PATH=${{ github.workspace }}\libtiledb-dist" >> $env:GITHUB_ENV
         shell: powershell
 
       - name: "Brew setup on macOS" # x-ref c8e49ba8f8b9ce
@@ -123,18 +116,21 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.1
         env:
-          CIBW_ENVIRONMENT: >
-            CI_WHEEL_BUILD=1
-            ${{ inputs.libtiledb_ref != '' && 'TILEDB_PATH=/project/tiledb-external' || '' }}
           CIBW_BUILD_VERBOSITY: 3
           CIBW_ENVIRONMENT_PASS_LINUX: >
             SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB
             S3_BUCKET
             TILEDB_TOKEN
             TILEDB_NAMESPACE
+          CIBW_ENVIRONMENT_LINUX: >
+            CI_WHEEL_BUILD=1
+            ${{ inputs.libtiledb_ref != '' && 'TILEDB_PATH=/project/libtiledb-dist' || '' }}
           CIBW_ENVIRONMENT_MACOS: >
             CC=clang
             CXX=clang++
+            CI_WHEEL_BUILD=1
+            ${{ inputs.libtiledb_ref != '' && format('TILEDB_PATH={0}', env.TILEDB_PATH) || '' }}
+          CIBW_ENVIRONMENT_WINDOWS: >
             CI_WHEEL_BUILD=1
             ${{ inputs.libtiledb_ref != '' && format('TILEDB_PATH={0}', env.TILEDB_PATH) || '' }}
           MACOSX_DEPLOYMENT_TARGET: "11.0"
@@ -143,10 +139,10 @@ jobs:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
           CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
-          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "bash -c 'if [ -d \"/project/tiledb-external\" ]; then export LD_LIBRARY_PATH=\"/project/tiledb-external/lib:$LD_LIBRARY_PATH\"; fi; auditwheel repair -w {dest_dir} {wheel}'"
-          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "bash -c 'if [ -d \"{project}/tiledb-external\" ]; then export DYLD_LIBRARY_PATH=\"{project}/tiledb-external/lib:$DYLD_LIBRARY_PATH\"; fi; delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}'"
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "bash -c 'if [ -d \"/project/libtiledb-dist\" ]; then export LD_LIBRARY_PATH=\"/project/libtiledb-dist/lib:$LD_LIBRARY_PATH\"; fi; auditwheel repair -w {dest_dir} {wheel}'"
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "bash -c 'if [ -d \"{project}/libtiledb-dist\" ]; then export DYLD_LIBRARY_PATH=\"{project}/libtiledb-dist/lib:$DYLD_LIBRARY_PATH\"; fi; delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}'"
           CIBW_BEFORE_BUILD_WINDOWS: "pip install delvewheel"
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path \"{project}\\tiledb-external\" -w {dest_dir} {wheel}"
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path \"{project}\\libtiledb-dist\" -w {dest_dir} {wheel}"
           # __init__.py interferes with the tests and is included as local file instead of
           # used from wheels. To be honest, tests should not be in the source folder at all.
           CIBW_BEFORE_TEST: rm {project}/tiledb/__init__.py
