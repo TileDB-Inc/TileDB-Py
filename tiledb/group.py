@@ -204,6 +204,10 @@ class Group(CtxMixin, lt.Group):
         """
         Remove a member from the Group.
 
+        Note: Members must be removed using the same URI format (relative or absolute)
+        as they were added. For example, if a member was added using a relative URI,
+        it cannot be removed using an absolute URI.
+
         :param member: The URI or name of the member
         :type member: str
         """
@@ -215,6 +219,10 @@ class Group(CtxMixin, lt.Group):
     def __delitem__(self, uri: str):
         """
         Remove a member from the group.
+
+        Note: Members must be removed using the same URI format (relative or absolute)
+        as they were added. For example, if a member was added using a relative URI,
+        it cannot be removed using an absolute URI.
 
         :param uri: The URI to the member
         :type uri: str
