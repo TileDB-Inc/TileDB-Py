@@ -63,6 +63,46 @@ class AttributeTest(DiskTestCase):
                 # record type unsupported for .df
                 assert R.df[0][""].values == np.array(fill, dtype=dtype)
 
+    @pytest.mark.parametrize(
+        "dtype, fill",
+        [
+            (np.float32, np.float32(1.5)),
+            (np.float64, np.float64(2.5)),
+            (np.int32, 42),
+            (np.int64, 123),
+            (str, "new_fill"),
+            (np.dtype(bytes), b"xyz"),
+            (np.dtype("complex64"), (1.0 + 2.0j)),
+            (np.dtype("complex128"), (3.0 + 4.0j)),
+            (np.dtype("complex64"), np.complex64([1.0 + 2.0j])),
+            (np.dtype("complex128"), np.complex128([3.0 + 4.0j])),
+        ],
+    )
+    def test_fill_value_setter(self, dtype, fill):
+        attr = tiledb.Attr("test_attr", dtype=dtype)
+        attr.fill = fill
+        assert attr.fill == fill
+
+    def test_fill_value_setter_wrong_types(self):
+        # Test setting a number on a string attribute
+        # Should fail because integers don't have .encode() method
+        attr_str = tiledb.Attr("test_attr", dtype=str)
+        with pytest.raises(
+            AttributeError, match="'int' object has no attribute 'encode'"
+        ):
+            attr_str.fill = 42
+
+        # Test setting a string on a numeric attribute
+        # Should fail with ValueError from numpy array conversion
+        attr_int = tiledb.Attr("test_attr", dtype=np.int32)
+        with pytest.raises(ValueError, match="invalid literal"):
+            attr_int.fill = "not_a_number"
+
+        # Test setting a float on an int attribute (this should work, with truncation)
+        attr_int = tiledb.Attr("test_attr", dtype=np.int32)
+        attr_int.fill = 3.7
+        assert attr_int.fill == 3  # Should truncate to 3
+
     def test_full_attribute(self, capfd):
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])
         filter_list = tiledb.FilterList([tiledb.ZstdFilter(10)])

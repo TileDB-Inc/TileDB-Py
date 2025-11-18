@@ -217,6 +217,25 @@ class Attr(CtxMixin, lt.Attribute):
             return self._fill[0].astype(np.timedelta64)
         return self._fill
 
+    @fill.setter
+    def fill(self, value: Any):
+        """Set the fill value for unset cells of this attribute
+
+        :param value: Fill value to set
+        :raises: :py:exc:`tiledb.TileDBError`
+        """
+        if self._tiledb_dtype == lt.DataType.STRING_UTF8:
+            self._fill = np.array([value.encode("utf-8")], dtype="S")
+        else:
+            if (
+                self.dtype in (np.dtype("complex64"), np.dtype("complex128"))
+                and hasattr(value, "__len__")
+                and len(value) == 2
+            ):
+                # Convert tuple (real, imag) to complex number
+                value = value[0] + value[1] * 1j
+            self._fill = np.array(value, dtype=self.dtype)
+
     @property
     def isnullable(self) -> bool:
         """True if the attribute is nullable
