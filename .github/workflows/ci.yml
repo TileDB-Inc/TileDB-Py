@@ -7,6 +7,15 @@ on:
   pull_request:
     branches: ["*"]
   workflow_dispatch:
+    inputs:
+      libtiledb_ref:
+        description: 'TileDB branch/tag/commit to build from (optional - uses system libtiledb if not provided)'
+        required: false
+        type: string
+      libtiledb_version:
+        description: 'Version string for TileDB build (optional)'
+        required: false
+        type: string
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -18,7 +27,18 @@ env:
   TILEDB_TOKEN: ${{ secrets.TILEDB_TOKEN }}
 
 jobs:
+  # Optional: build custom libtiledb if ref is specified
+  build_libtiledb:
+    if: inputs.libtiledb_ref != ''
+    name: Build libtiledb from source
+    uses: TileDB-Inc/TileDB/.github/workflows/build-artifacts.yml@main
+    with:
+      ref: ${{ inputs.libtiledb_ref }}
+      version: ${{ inputs.libtiledb_version }}
+
   build:
+    needs: [build_libtiledb]
+    if: always() && (needs.build_libtiledb.result == 'success' || needs.build_libtiledb.result == 'skipped')
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -79,12 +99,61 @@ jobs:
           sudo make install
           cd ..
 
+      # Download and set up custom libtiledb if ref was specified
+      - name: Determine platform for artifact
+        if: inputs.libtiledb_ref != ''
+        id: platform
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            echo "platform=linux-x86_64" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
+            echo "platform=macos-x86_64" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.os }}" == "macos-26" ]]; then
+            echo "platform=macos-arm64" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            echo "platform=windows-x86_64" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download TileDB Core Artifact
+        if: inputs.libtiledb_ref != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: release-${{ steps.platform.outputs.platform }}
+          path: ${{ runner.temp }}/libtiledb-dist
+
+      - name: Unpack libtiledb (Unix)
+        if: inputs.libtiledb_ref != '' && runner.os != 'Windows'
+        run: |
+          cd ${{ runner.temp }}/libtiledb-dist
+          tar xzf tiledb-*.tar.gz
+          echo "TILEDB_PATH=${{ runner.temp }}/libtiledb-dist" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Unpack libtiledb (Windows)
+        if: inputs.libtiledb_ref != '' && runner.os == 'Windows'
+        run: |
+          $TEMP_DIR = "${{ runner.temp }}".Replace('/', '\')
+          cd "$TEMP_DIR\libtiledb-dist"
+          Expand-Archive -Path tiledb-*.zip -DestinationPath .
+          $TILEDB_PATH = "$TEMP_DIR\libtiledb-dist".Replace('\', '/')
+          echo "TILEDB_PATH=$TILEDB_PATH" >> $env:GITHUB_ENV
+        shell: powershell
+
       - name: "Build and Install TileDB-Py"
         # We use pipx here to produce wheel/sdist to upload as artifact in case of error
         run: |
           pipx run --python ${{ matrix.python-version }} build
           WHEEL_NAME=$(ls dist/*.whl)
           pip install --verbose ${WHEEL_NAME}[test]
+
+      - name: "Copy TileDB DLL to package (Windows)"
+        if: inputs.libtiledb_ref != '' && runner.os == 'Windows'
+        run: |
+          $TEMP_DIR = "${{ runner.temp }}".Replace('/', '\')
+          $PYTHON_VERSION = "${{ matrix.python-version }}"
+          $SITE_PACKAGES = python -c "import sysconfig; print(sysconfig.get_path('purelib'))"
+          Copy-Item "$TEMP_DIR\libtiledb-dist\bin\*.dll" "$SITE_PACKAGES\tiledb\" -Verbose
+        shell: powershell
 
       - name: "Run tests"
         run: |
