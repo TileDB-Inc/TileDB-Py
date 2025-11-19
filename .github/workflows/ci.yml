@@ -49,7 +49,7 @@ jobs:
         with:
           repository: TileDB-Inc/TileDB
           ref: ${{ inputs.tiledb_ref || 'main' }}
-          path: ${{ runner.temp }}/TileDB
+          path: _tiledb_core
 
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -94,21 +94,21 @@ jobs:
 
       - name: "Configure TileDB Core"
         run: |
-          cd ${{ runner.temp }}/TileDB
+          cd _tiledb_core
           mkdir -p build
           cd build
-          ../bootstrap --enable=s3,serialization --disable-tests --prefix=${{ runner.temp }}/TileDB/dist
+          ../bootstrap --enable=s3,serialization --disable-tests --prefix=${{ github.workspace }}/_tiledb_core/dist
 
       - name: "Build and Install TileDB Core"
         run: |
-          cd ${{ runner.temp }}/TileDB/build
+          cd _tiledb_core/build
           cmake --build . --config Release -j4
           cmake --build . --config Release --target install
 
       - name: "Build and Install TileDB-Py"
         run: |
           python${{ matrix.python-version }} -m pip install \
-            -Ccmake.define.TILEDB_PATH="${{ runner.temp }}/TileDB/dist" \
+            -Ccmake.define.TILEDB_PATH="${{ github.workspace }}/_tiledb_core/dist" \
             --verbose .[test]
 
       - name: "Run tests"
