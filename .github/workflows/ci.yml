@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: ["*"]
   workflow_dispatch:
+    inputs:
+      tiledb_ref:
+        description: 'TileDB ref (branch/tag/commit) to build against'
+        required: false
+        default: 'main'
+        type: string
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -38,11 +44,11 @@ jobs:
       - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v4
 
-      - name: Checkout TileDB Core `main`
+      - name: Checkout TileDB Core
         uses: actions/checkout@v4
         with:
           repository: TileDB-Inc/TileDB
-          ref: main
+          ref: ${{ inputs.tiledb_ref || 'main' }}
           path: TileDB
 
       - name: Setup MSVC toolset (VS 2022)
@@ -100,14 +106,10 @@ jobs:
           cmake --build . --config Release --target install
 
       - name: "Build and Install TileDB-Py"
-        # We use pipx here to produce wheel/sdist to upload as artifact in case of error
-        env:
-          TILEDB_PATH: ${{ github.workspace }}/TileDB/dist
-          TILEDB_ALLOW_REGEX_CHAR_PATH: "1"
         run: |
-          pipx run --python ${{ matrix.python-version }} build
-          WHEEL_NAME=$(ls dist/*.whl)
-          pip install --verbose ${WHEEL_NAME}[test]
+          python${{ matrix.python-version }} -m pip install \
+            -Ccmake.define.TILEDB_PATH="${{ github.workspace }}/TileDB/dist" \
+            --verbose .[test]
 
       - name: "Run tests"
         run: |
@@ -139,5 +141,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}
-          path: "."
+          name: debug-${{ matrix.os }}-${{ matrix.python-version }}
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            _skbuild/**/*.log
+            build/**/*.log
+          if-no-files-found: ignore
