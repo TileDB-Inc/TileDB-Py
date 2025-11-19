@@ -70,6 +70,19 @@ def create_vfs_dir(path):
     vfs.create_dir(path)
 
 
+def vfs_path(scheme: str) -> str:
+    prefix = "tiledb-"
+    if scheme == "s3":
+        prefix += str(random.randint(0, 10000000000))
+    else:
+        prefix += str(uuid.uuid4())
+
+    if scheme == "file":
+        return f"{scheme}://{tempfile.mktemp(prefix=prefix)}"
+    else:
+        return f"{scheme}://{prefix}"
+
+
 class DiskTestCase:
     """Helper class to store paths and associated allocation frames. This is both
     a cleanup step and a test of resource management. Some platforms will

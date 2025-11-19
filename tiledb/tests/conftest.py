@@ -72,3 +72,36 @@ def original_os_fork():
     """Provides the original unpatched os.fork."""
     if sys.platform != "win32":
         return os.fork
+
+
+@pytest.fixture
+def vfs_config() -> dict[str, str]:
+    config: dict[str, str] = {}
+    # Configure S3
+    if os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY"):
+        config["vfs.s3.aws_access_key_id"] = os.getenv("AWS_ACCESS_KEY_ID")
+        config["vfs.s3.aws_secret_access_key"] = os.getenv("AWS_SECRET_ACCESS_KEY")
+        if os.getenv("VFS_S3_USE_MINIO"):
+            config["vfs.s3.endpoint_override"] = "localhost:9999"
+            config["vfs.s3.scheme"] = "https"
+            config["vfs.s3.use_virtual_addressing"] = "false"
+            config["vfs.s3.verify_ssl"] = "false"
+
+    #   Configure Azure
+    if os.getenv("AZURE_BLOB_ENDPOINT"):
+        config["vfs.azure.blob_endpoint"] = os.getenv("AZURE_BLOB_ENDPOINT")
+    if os.getenv("AZURE_STORAGE_ACCOUNT_TOKEN"):
+        config["vfs.azure.storage_sas_token"] = os.getenv("AZURE_STORAGE_ACCOUNT_TOKEN")
+    elif os.getenv("AZURE_STORAGE_ACCOUNT_NAME") and os.getenv(
+        "AZURE_STORAGE_ACCOUNT_KEY"
+    ):
+        config["vfs.azure.storage_account_name"] = os.getenv(
+            "AZURE_STORAGE_ACCOUNT_NAME"
+        )
+        config["vfs.azure.storage_account_key"] = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
+
+    #   Configure Google Cloud
+    if os.getenv("TILEDB_TEST_GCS_ENDPOINT"):
+        config["vfs.gcs.endpoint"] = os.getenv("TILEDB_TEST_GCS_ENDPOINT")
+
+    return config
