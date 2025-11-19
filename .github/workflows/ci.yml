@@ -93,23 +93,28 @@ jobs:
           cd ..
 
       - name: "Configure TileDB Core"
+        env:
+          MSYS2_ARG_CONV_EXCL: "-DCMAKE_INSTALL_PREFIX="
         run: |
-          cd _tiledb_core
-          mkdir -p build
-          cd build
-          ../bootstrap --enable=s3,serialization --disable-tests --prefix=${{ github.workspace }}/_tiledb_core/dist
+          cmake -S _tiledb_core -B _tiledb_core/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_INSTALL_PREFIX=./dist \
+            -DTILEDB_INSTALL_LIBDIR=lib \
+            -DTILEDB_S3=ON \
+            -DTILEDB_SERIALIZATION=ON \
+            -DTILEDB_TESTS=OFF
 
       - name: "Build and Install TileDB Core"
         run: |
-          cd _tiledb_core/build
-          cmake --build . --config Release -j4
-          cmake --build . --config Release --target install
+          cmake --build _tiledb_core/build --config Release -j4
+          cmake --build _tiledb_core/build --config Release --target install
 
       - name: "Build and Install TileDB-Py"
+        env:
+          TILEDB_PATH: ${{ github.workspace }}/_tiledb_core/dist
         run: |
-          python${{ matrix.python-version }} -m pip install \
-            -Ccmake.define.TILEDB_PATH="${{ github.workspace }}/_tiledb_core/dist" \
-            --verbose .[test]
+          python${{ matrix.python-version }} -m pip install --verbose .[test]
 
       - name: "Run tests"
         run: |
