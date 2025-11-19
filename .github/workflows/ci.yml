@@ -38,6 +38,13 @@ jobs:
       - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v4
 
+      - name: Checkout TileDB Core `main`
+        uses: actions/checkout@v4
+        with:
+          repository: TileDB-Inc/TileDB
+          ref: main
+          path: TileDB
+
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
         if: startsWith(matrix.os, 'windows')
@@ -79,8 +86,23 @@ jobs:
           sudo make install
           cd ..
 
+      - name: "Configure TileDB Core"
+        run: |
+          cd TileDB
+          mkdir -p build
+          cd build
+          ../bootstrap --enable=s3,serialization,webp --disable-tests --prefix=${{ github.workspace }}/TileDB/dist
+
+      - name: "Build and Install TileDB Core"
+        run: |
+          cd TileDB/build
+          make -j4
+          make install
+
       - name: "Build and Install TileDB-Py"
         # We use pipx here to produce wheel/sdist to upload as artifact in case of error
+        env:
+          TILEDB_PATH: ${{ github.workspace }}/TileDB/dist
         run: |
           pipx run --python ${{ matrix.python-version }} build
           WHEEL_NAME=$(ls dist/*.whl)
