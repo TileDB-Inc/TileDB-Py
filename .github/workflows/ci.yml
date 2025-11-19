@@ -91,7 +91,7 @@ jobs:
           cd TileDB
           mkdir -p build
           cd build
-          ../bootstrap --enable=s3,serialization,webp --disable-tests --prefix=${{ github.workspace }}/TileDB/dist
+          ../bootstrap --enable=s3,serialization --disable-tests --prefix=${{ github.workspace }}/TileDB/dist
 
       - name: "Build and Install TileDB Core"
         run: |
