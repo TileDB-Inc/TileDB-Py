@@ -96,13 +96,14 @@ jobs:
       - name: "Build and Install TileDB Core"
         run: |
           cd TileDB/build
-          make -j4
-          make install
+          cmake --build . --config Release -j4
+          cmake --build . --config Release --target install
 
       - name: "Build and Install TileDB-Py"
         # We use pipx here to produce wheel/sdist to upload as artifact in case of error
         env:
           TILEDB_PATH: ${{ github.workspace }}/TileDB/dist
+          TILEDB_ALLOW_REGEX_CHAR_PATH: "1"
         run: |
           pipx run --python ${{ matrix.python-version }} build
           WHEEL_NAME=$(ls dist/*.whl)
