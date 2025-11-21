@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to use are release version
+        description: Version to use as release version
         required: true
         type: string
       test_pypi:
@@ -12,6 +12,14 @@ on:
         required: false
         type: boolean
         default: false
+      libtiledb_ref:
+        description: 'TileDB branch/tag/commit to build from (optional - uses vcpkg libtiledb if not provided)'
+        required: false
+        type: string
+      libtiledb_version:
+        description: 'Version string for TileDB build (optional)'
+        required: false
+        type: string
   push:
     tags:
       - "*"
@@ -23,10 +31,22 @@ env:
   TILEDB_TOKEN: ${{ secrets.TILEDB_TOKEN }}
 
 jobs:
+  # Optional: build custom libtiledb if ref is specified
+  build_libtiledb:
+    if: inputs.libtiledb_ref != ''
+    name: Build libtiledb from source
+    uses: TileDB-Inc/TileDB/.github/workflows/build-artifacts.yml@main
+    with:
+      ref: ${{ inputs.libtiledb_ref }}
+      version: ${{ inputs.libtiledb_version }}
+
   build_wheels:
+    needs: [build_libtiledb]
+    if: always() && (needs.build_libtiledb.result == 'success' || needs.build_libtiledb.result == 'skipped')
     name: Wheel ${{ matrix.buildplat[0] }}-${{ matrix.buildplat[1] }}-${{ matrix.python }}
     runs-on: ${{ matrix.buildplat[0] }}
     strategy:
+      fail-fast: false
       matrix:
         buildplat:
           - [ubuntu-22.04, manylinux_x86_64]
@@ -39,6 +59,57 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Download and set up custom libtiledb if ref was specified
+      - name: Determine platform for custom libtiledb
+        if: inputs.libtiledb_ref != ''
+        id: platform
+        run: |
+          # Map buildplat to platform name
+          case "${{ matrix.buildplat[1] }}" in
+            manylinux_x86_64)
+              echo "platform=linux-x86_64" >> $GITHUB_OUTPUT
+              ;;
+            manylinux_aarch64)
+              echo "platform=linux-aarch64" >> $GITHUB_OUTPUT
+              ;;
+            macosx_x86_64)
+              echo "platform=macos-x86_64" >> $GITHUB_OUTPUT
+              ;;
+            macosx_arm64)
+              echo "platform=macos-arm64" >> $GITHUB_OUTPUT
+              ;;
+            win_amd64)
+              echo "platform=windows-x86_64" >> $GITHUB_OUTPUT
+              ;;
+          esac
+        shell: bash
+
+      - name: Download custom libtiledb artifacts
+        if: inputs.libtiledb_ref != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: release-${{ steps.platform.outputs.platform }}
+          path: ${{ github.workspace }}/libtiledb-dist
+
+      - name: Unpack custom libtiledb (Unix)
+        if: inputs.libtiledb_ref != '' && runner.os != 'Windows'
+        run: |
+          cd ${{ github.workspace }}/libtiledb-dist
+          tar xzf tiledb-*.tar.gz
+          echo "TILEDB_PATH=${{ github.workspace }}/libtiledb-dist" >> $GITHUB_ENV
+          echo "TILEDB_LIB_PATH=${{ github.workspace }}/libtiledb-dist/lib" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Unpack custom libtiledb (Windows)
+        if: inputs.libtiledb_ref != '' && runner.os == 'Windows'
+        run: |
+          cd "${{ github.workspace }}\libtiledb-dist"
+          Expand-Archive -Path tiledb-*.zip -DestinationPath .
+          $TILEDB_PATH = "${{ github.workspace }}\libtiledb-dist".Replace('\', '/')
+          echo "TILEDB_PATH=$TILEDB_PATH" >> $env:GITHUB_ENV
+          echo "TILEDB_BIN_PATH=$TILEDB_PATH/bin" >> $env:GITHUB_ENV
+        shell: powershell
+
       - name: "Brew setup on macOS" # x-ref c8e49ba8f8b9ce
         if: ${{ startsWith(matrix.buildplat[0], 'macos-') == true }}
         run: |
@@ -49,25 +120,35 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.1
         env:
-          CIBW_ENVIRONMENT:
-            CI_WHEEL_BUILD=1
           CIBW_BUILD_VERBOSITY: 3
-          CIBW_ENVIRONMENT_PASS_LINUX: SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB S3_BUCKET TILEDB_TOKEN TILEDB_NAMESPACE RUNNER_TEMP
+          CIBW_ENVIRONMENT_PASS_LINUX: >
+            SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB
+            S3_BUCKET
+            TILEDB_TOKEN
+            TILEDB_NAMESPACE
+          CIBW_ENVIRONMENT_LINUX: >
+            CI_WHEEL_BUILD=1
+            ${{ inputs.libtiledb_ref != '' && 'TILEDB_PATH=/project/libtiledb-dist' || '' }}
           CIBW_ENVIRONMENT_MACOS: >
             CC=clang
             CXX=clang++
-            RUNNER_TEMP=${{ runner.temp }}
             CI_WHEEL_BUILD=1
+            ${{ inputs.libtiledb_ref != '' && format('TILEDB_PATH={0}', env.TILEDB_PATH) || '' }}
+            ${{ inputs.libtiledb_ref != '' && format('TILEDB_LIB_PATH={0}', env.TILEDB_LIB_PATH) || '' }}
+          CIBW_ENVIRONMENT_WINDOWS: >
+            CI_WHEEL_BUILD=1
+            ${{ inputs.libtiledb_ref != '' && format('TILEDB_PATH={0}', env.TILEDB_PATH) || '' }}
+            ${{ inputs.libtiledb_ref != '' && format('TILEDB_BIN_PATH={0}', env.TILEDB_BIN_PATH) || '' }}
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           CIBW_ARCHS: all
           CIBW_PRERELEASE_PYTHONS: True
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
           CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
-          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "bash -c 'if [ -n \"$RUNNER_TEMP\" ] && [ -d \"$RUNNER_TEMP/tiledb-external\" ]; then export LD_LIBRARY_PATH=\"$RUNNER_TEMP/tiledb-external:$LD_LIBRARY_PATH\"; fi; auditwheel repair -w {dest_dir} {wheel}'"
-          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "bash -c 'if [ -n \"$RUNNER_TEMP\" ] && [ -d \"$RUNNER_TEMP/tiledb-external\" ]; then export DYLD_LIBRARY_PATH=\"$RUNNER_TEMP/tiledb-external:$DYLD_LIBRARY_PATH\"; fi; delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}'"
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "bash -c 'export LD_LIBRARY_PATH=\"/project/libtiledb-dist/lib:${LD_LIBRARY_PATH}\"; auditwheel repair -w {dest_dir} {wheel}'"
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "bash -c 'export DYLD_LIBRARY_PATH=\"${TILEDB_LIB_PATH}:${DYLD_LIBRARY_PATH}\"; delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}'"
           CIBW_BEFORE_BUILD_WINDOWS: "pip install delvewheel"
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path \"%RUNNER_TEMP%\\tiledb-external\" -w {dest_dir} {wheel}"
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "cmd /c \"if defined TILEDB_BIN_PATH (delvewheel repair --add-path \"%TILEDB_BIN_PATH%\" -w {dest_dir} {wheel}) else (delvewheel repair -w {dest_dir} {wheel})\""
           # __init__.py interferes with the tests and is included as local file instead of
           # used from wheels. To be honest, tests should not be in the source folder at all.
           CIBW_BEFORE_TEST: rm {project}/tiledb/__init__.py
