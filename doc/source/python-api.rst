@@ -47,6 +47,12 @@ Config
 .. autoclass:: tiledb.Config
    :members:
 
+Profile
+-------
+
+.. autoclass:: tiledb.Profile
+   :members:
+
 Current Domain
 --------------
 
@@ -66,6 +72,13 @@ Array Schema
    :members:
 
 .. autofunction:: tiledb.empty_like
+
+Array Schema Evolution
+----------------------
+
+.. autoclass:: tiledb.ArraySchemaEvolution
+   :members:
+
 
 Attribute
 ---------
@@ -125,6 +138,15 @@ Dimension
 .. autoclass:: tiledb.Dim
    :members:
 
+Dimension Label
+---------------
+
+.. autoclass:: tiledb.DimLabel
+   :members:
+
+.. autoclass:: tiledb.DimLabelSchema
+   :members:
+
 Domain
 ------
 
@@ -164,6 +186,18 @@ Query Condition
 ---------------
 
 .. autoclass:: tiledb.QueryCondition
+   :members:
+
+Subarray
+--------
+
+.. autoclass:: tiledb.Subarray
+   :members:
+
+Consolidation Plan
+------------------
+
+.. autoclass:: tiledb.ConsolidationPlan
    :members:
 
 Group
