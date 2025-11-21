@@ -453,6 +453,77 @@ class MultiRangeAggregation(_BaseIndexer):
         return result
 
 
+class LabelAggregation(MultiRangeAggregation):
+    """
+    Implements multi-range aggregation indexing by label.
+    """
+
+    def __init__(
+        self,
+        array: Array,
+        labels: Sequence[str],
+        query: Optional[AggregationProxy] = None,
+    ):
+        if array.schema.sparse:
+            raise NotImplementedError(
+                "querying sparse arrays by label is not yet implemented"
+            )
+        super().__init__(array, query)
+        self.label_query: Optional[Query] = None
+        self._labels: Dict[int, str] = {}
+        for label_name in labels:
+            dim_label = array.schema.dim_label(label_name)
+            dim_idx = dim_label.dim_index
+            if dim_idx in self._labels:
+                raise TileDBError(
+                    f"cannot set labels `{self._labels[dim_idx]}` and "
+                    f"`{label_name}` defined on the same dimension"
+                )
+            self._labels[dim_idx] = label_name
+
+    def _set_ranges(self, idx):
+        dim_ranges, label_ranges = getitem_ranges_with_labels(
+            self.array, self._labels, idx
+        )
+        if label_ranges is None:
+            with timing("add_ranges"):
+                self.subarray.add_ranges(tuple(dim_ranges))
+            # No label query.
+            self.label_query = None
+            # All ranges are finalized: set shape and subarray now.
+            self._set_shape(dim_ranges)
+            self.pyquery.set_subarray(self.subarray)
+        else:
+            label_subarray = Subarray(self.array)
+            with timing("add_ranges"):
+                self.subarray.add_ranges(dim_ranges=dim_ranges)
+                label_subarray.add_ranges(label_ranges=label_ranges)
+            self.label_query = Query(self.array)
+            self.label_query.set_subarray(label_subarray)
+
+    def _run_query(self) -> Dict[str, np.ndarray]:
+        # If querying by label and the label query is not yet complete, run the label
+        # query and update the pyquery with the actual dimensions.
+        if self.label_query is not None and not self.label_query.is_complete():
+            self.label_query._submit()
+
+            if not self.label_query.is_complete():
+                raise TileDBError("failed to get dimension ranges from labels")
+            label_subarray = self.label_query.subarray()
+            # Check that the label query returned results for all dimensions.
+            if any(
+                label_subarray.num_dim_ranges(dim_idx) == 0 for dim_idx in self._labels
+            ):
+                self.pyquery = None
+            else:
+                # Get the ranges from the label query and set to the
+                self.subarray.copy_ranges(
+                    self.label_query.subarray(), self._labels.keys()
+                )
+                self.pyquery.set_subarray(self.subarray)
+        return super()._run_query()
+
+
 class DataFrameIndexer(_BaseIndexer):
     """
     Implements `.df[]` indexing to directly return a dataframe
