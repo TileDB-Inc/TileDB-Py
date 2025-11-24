@@ -1,0 +1,93 @@
+name: TileDB Python CI Using TileDB Core Source Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      libtiledb_ref:
+        default: main
+        type: string
+      libtiledb_version:
+        type: string
+
+jobs:
+
+  build_libtiledb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout TileDB Core ${{ inputs.libtiledb_ref || 'main' }}
+        uses: actions/checkout@v4
+        with:
+          repository: TileDB-Inc/TileDB
+          ref: ${{ inputs.libtiledb_ref || 'main' }}
+
+      - name: Configure TileDB
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_INSTALL_PREFIX=./dist \
+            -DTILEDB_INSTALL_LIBDIR=lib \
+            -DTILEDB_S3=ON \
+            -DTILEDB_AZURE=ON \
+            -DTILEDB_GCS=ON \
+            -DTILEDB_SERIALIZATION=ON \
+            -DTILEDB_WEBP=ON \
+            -DTILEDB_TESTS=OFF \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-release
+
+      - name: Build TileDB
+        env:
+          TILEDB_PACKAGE_VERSION: ${{ inputs.libtiledb_version || '0.1' }}
+        run: cmake --build build --config Release --target package
+
+      - name: Upload TileDB Core Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libtiledb
+          path: |
+            build/tiledb-*.tar.gz*
+            build/tiledb-*.zip*
+
+  build_tiledb_py:
+    needs:
+      - build_libtiledb
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Checkout TileDB-Py
+        uses: actions/checkout@v4
+
+      - name: Download TileDB Core Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: libtiledb
+          path: ${{ github.workspace }}/libtiledb
+
+      - name: Unpack Release Archive
+        run: tar xvf ${{ github.workspace }}/libtiledb/*.tar.gz --directory ${{ github.workspace }}/libtiledb
+
+      - name: Build TileDB-Py Wheel
+        env:
+          TILEDB_PATH: ${{ github.workspace }}/libtiledb
+        run: |
+          python -m pip wheel -w dist --verbose .
+          WHEEL=$(ls dist/tiledb-*.whl)
+          python -m pip install ${WHEEL}[test]
+
+      - name: Upload TileDB Core Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiledb-py
+          path: |
+            dist/tiledb-*.whl
+
+      - name: Run tests
+        run: |
+          PROJECT_CWD=$PWD
+          rm tiledb/__init__.py
+          cd /tmp
+          pytest -vv --showlocals $PROJECT_CWD
