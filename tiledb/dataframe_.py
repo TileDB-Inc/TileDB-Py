@@ -967,6 +967,9 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
                 break
             df = pandas.concat(df_list)
             if "index_col" not in tiledb_args and df.index.name is None:
+                # Reset index so row_start_idx can be applied correctly
+                # (concat preserves original indices from the CSV files)
+                df.reset_index(drop=True, inplace=True)
                 df.index.name = "__tiledb_rows"
 
             tiledb_args["row_start_idx"] = rows_written
@@ -986,6 +989,9 @@ def from_csv(uri: str, csv_file: Union[str, List[str]], **kwargs):
         df = next(df_iter, None)
         while df is not None:
             if "index_col" not in tiledb_args and df.index.name is None:
+                # Reset index for each chunk so row_start_idx can be applied correctly
+                # (pandas.read_csv with chunksize preserves original row indices)
+                df.reset_index(drop=True, inplace=True)
                 df.index.name = "__tiledb_rows"
 
             # tell from_pandas what row to start the next write

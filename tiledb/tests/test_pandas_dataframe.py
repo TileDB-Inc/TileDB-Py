@@ -1178,6 +1178,45 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             df_idx_res = A.query(coords=False).df[int(ned[0]) : int(ned[1])]
             tm.assert_frame_equal(df_idx_res, df.reset_index(drop=True))
 
+    def test_dataframe_csv_chunked_sparse_row_indices(self):
+        """Test that chunked sparse CSV writes produce correct row indices.
+
+        Regression test for issue TileDB-Py#2278 where row_start_idx was being applied twice
+        when using chunksize with sparse arrays, causing indices to jump.
+        """
+        # Create a simple CSV with 9 rows
+        df = pd.DataFrame({"char": list("foobarbaz")})
+
+        tmp_dir = self.path("csv_chunked_sparse_indices")
+        self.vfs.create_dir(tmp_dir)
+        tmp_csv = os.path.join(tmp_dir, "source.csv")
+
+        with tiledb.FileIO(self.vfs, tmp_csv, "wb") as fio:
+            df.to_csv(fio, index=False)
+
+        # Write without chunking (as baseline)
+        tmp_array_unchunked = os.path.join(tmp_dir, "unchunked")
+        tiledb.from_csv(tmp_array_unchunked, csv_file=tmp_csv, sparse=True)
+
+        # Write with chunking (3 rows per chunk)
+        tmp_array_chunked = os.path.join(tmp_dir, "chunked")
+        tiledb.from_csv(tmp_array_chunked, csv_file=tmp_csv, sparse=True, chunksize=3)
+
+        # Read back both arrays
+        with tiledb.open(tmp_array_unchunked) as A:
+            df_unchunked = A.df[:]
+
+        with tiledb.open(tmp_array_chunked) as A:
+            df_chunked = A.df[:]
+
+        # Both should have the same indices: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        expected_index = list(range(9))
+        self.assertEqual(list(df_unchunked.index), expected_index)
+        self.assertEqual(list(df_chunked.index), expected_index)
+
+        # DataFrames should be identical
+        tm.assert_frame_equal(df_chunked, df_unchunked)
+
     def test_csv_fillna(self):
         if pytest.tiledb_vfs == "s3":
             pytest.skip(
