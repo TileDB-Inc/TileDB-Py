@@ -80,7 +80,14 @@ class Profile(lt.Profile):
         :param overwrite: Whether to overwrite an existing profile. Defaults to False.
         :raises tiledb.TileDBError:
         """
-        self._save(overwrite)
+        if lt.version() >= (2, 30):
+            self._save(overwrite)
+        else:
+            if overwrite:
+                raise lt.TileDBError(
+                    "The 'overwrite' parameter is only supported in TileDB 2.30.0 and later"
+                )
+            self._save()
 
     @classmethod
     def load(cls, name: str = None, dir: str = None) -> "Profile":

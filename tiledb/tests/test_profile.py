@@ -101,6 +101,10 @@ class ProfileTest(ProfileTestCase):
         # remove the profile
         tiledb.Profile.remove("profile2_name", self.path("profile2_dir"))
 
+    @pytest.mark.skipif(
+        lt.version() < (2, 30),
+        reason="Overwrite parameter is only available in TileDB 2.30.0 and later",
+    )
     def test_profile_save_overwrite(self):
         token1 = "testing_the_token_1"
         token2 = "testing_the_token_2"
