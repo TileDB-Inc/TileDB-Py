@@ -121,16 +121,6 @@ jobs:
           cmake --build _tiledb_core/build --config Release -j4
           cmake --build _tiledb_core/build --config Release --target install
 
-      - name: "Setup Windows DLL paths"
-        if: inputs.libtiledb_ref && startsWith(matrix.os, 'windows')
-        run: |
-          # Set PATH for Windows DLLs - persists to subsequent steps
-          WIN_TILEDB_BIN=$(cygpath -w "${GITHUB_WORKSPACE}/_tiledb_core/dist/bin")
-          WIN_VCPKG_BIN=$(cygpath -w "${GITHUB_WORKSPACE}/_tiledb_core/build/vcpkg_installed/x64-windows/bin")
-          echo "$WIN_TILEDB_BIN" >> $GITHUB_PATH
-          echo "$WIN_VCPKG_BIN" >> $GITHUB_PATH
-          echo "PYTHONPATH=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
-
       - name: "Build and Install TileDB-Py"
         run: |
           if [[ -n "${{ inputs.libtiledb_ref }}" ]]; then
@@ -143,6 +133,18 @@ jobs:
             WHEEL_NAME=$(ls dist/*.whl)
             pip install --verbose ${WHEEL_NAME}[test]
           fi
+
+      - name: "Copy TileDB DLLs to package (Windows)"
+        if: inputs.libtiledb_ref && runner.os == 'Windows'
+        run: |
+          $WORKSPACE = "${{ github.workspace }}".Replace('/', '\')
+          $SITE_PACKAGES = python -c "import sysconfig; print(sysconfig.get_path('purelib'))"
+          Write-Host "Copying DLLs from $WORKSPACE\_tiledb_core\dist\bin to $SITE_PACKAGES\tiledb\"
+          Copy-Item "$WORKSPACE\_tiledb_core\dist\bin\*.dll" "$SITE_PACKAGES\tiledb\" -Verbose -ErrorAction Stop
+          Write-Host "Copying vcpkg DLLs from $WORKSPACE\_tiledb_core\build\vcpkg_installed\x64-windows\bin"
+          Copy-Item "$WORKSPACE\_tiledb_core\build\vcpkg_installed\x64-windows\bin\*.dll" "$SITE_PACKAGES\tiledb\" -Verbose -ErrorAction Stop
+          Write-Host "DLL copy completed successfully"
+        shell: powershell
 
       - name: "Run tests"
         run: |
