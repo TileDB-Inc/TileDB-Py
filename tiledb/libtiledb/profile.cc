@@ -39,7 +39,12 @@ void init_profile(py::module& m) {
 
         .def("_get_param", &tiledb::Profile::get_param, py::arg("param"))
 
+#if TILEDB_VERSION_MAJOR > 2 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 30)
+        .def("_save", &tiledb::Profile::save, py::arg("overwrite"))
+#else
         .def("_save", &tiledb::Profile::save)
+#endif
 
         .def_static(
             "_load",
