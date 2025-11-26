@@ -74,12 +74,13 @@ class Profile(lt.Profile):
 
         return val
 
-    def save(self):
+    def save(self, overwrite: bool = False):
         """Saves the profile to storage.
 
+        :param overwrite: Whether to overwrite an existing profile. Defaults to False.
         :raises tiledb.TileDBError:
         """
-        self._save()
+        self._save(overwrite)
 
     @classmethod
     def load(cls, name: str = None, dir: str = None) -> "Profile":

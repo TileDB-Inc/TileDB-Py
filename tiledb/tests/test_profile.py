@@ -101,6 +101,37 @@ class ProfileTest(ProfileTestCase):
         # remove the profile
         tiledb.Profile.remove("profile2_name", self.path("profile2_dir"))
 
+    def test_profile_save_overwrite(self):
+        token1 = "testing_the_token_1"
+        token2 = "testing_the_token_2"
+        profile_name = "overwrite_test_profile"
+        profile_dir = self.path("overwrite_test_dir")
+
+        # Create and save a profile with token1
+        profile1 = tiledb.Profile(profile_name, profile_dir)
+        profile1["rest.token"] = token1
+        profile1.save()
+
+        # Load it back to verify it was saved
+        loaded_profile1 = tiledb.Profile.load(profile_name, profile_dir)
+        assert loaded_profile1["rest.token"] == token1
+
+        # Create a new profile with the same name and try to save without overwrite
+        profile2 = tiledb.Profile(profile_name, profile_dir)
+        profile2["rest.token"] = token2
+        with pytest.raises(tiledb.TileDBError):
+            profile2.save(overwrite=False)
+
+        # Now save with overwrite=True
+        profile2.save(overwrite=True)
+
+        # Load it back to verify it was overwritten
+        loaded_profile2 = tiledb.Profile.load(profile_name, profile_dir)
+        assert loaded_profile2["rest.token"] == token2
+
+        # Clean up
+        tiledb.Profile.remove(profile_name, profile_dir)
+
 
 class ConfigWithProfileTest(ProfileTestCase):
     def test_config_with_profile(self):

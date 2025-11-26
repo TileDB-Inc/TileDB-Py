@@ -39,7 +39,7 @@ void init_profile(py::module& m) {
 
         .def("_get_param", &tiledb::Profile::get_param, py::arg("param"))
 
-        .def("_save", &tiledb::Profile::save)
+        .def("_save", &tiledb::Profile::save, py::arg("overwrite"))
 
         .def_static(
             "_load",
