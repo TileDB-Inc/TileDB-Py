@@ -110,6 +110,19 @@ jobs:
           echo "TILEDB_BIN_PATH=$TILEDB_PATH/bin" >> $env:GITHUB_ENV
         shell: powershell
 
+      # Set up environment for default TileDB (when libtiledb_ref is not provided)
+      - name: Set default TileDB paths (Unix)
+        if: inputs.libtiledb_ref == '' && runner.os != 'Windows'
+        run: |
+          echo "TILEDB_LIB_PATH=${{ runner.temp }}/tiledb-external" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Set default TileDB paths (Windows)
+        if: inputs.libtiledb_ref == '' && runner.os == 'Windows'
+        run: |
+          echo "TILEDB_BIN_PATH=${{ runner.temp }}/tiledb-external" >> $env:GITHUB_ENV
+        shell: powershell
+
       - name: "Brew setup on macOS" # x-ref c8e49ba8f8b9ce
         if: ${{ startsWith(matrix.buildplat[0], 'macos-') == true }}
         run: |
