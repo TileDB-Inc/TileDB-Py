@@ -183,7 +183,9 @@ jobs:
           name: build-logs-${{ matrix.os }}-${{ matrix.python-version }}
           path: |
             build/**/*.log
-            _tiledb_core/build/**/*.log
+            _tiledb_core/build/*.log
+            _tiledb_core/build/CMakeFiles/CMake*.log
+            _tiledb_core/build/CMakeFiles/CMake*.yaml
           if-no-files-found: ignore
 
       - name: "Upload crash dumps (Linux)"
