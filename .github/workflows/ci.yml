@@ -126,13 +126,9 @@ jobs:
           if [[ -n "${{ inputs.libtiledb_ref }}" ]]; then
             # Build against custom TileDB
             export TILEDB_PATH="${GITHUB_WORKSPACE//\\//}/_tiledb_core/dist"
-            python -m pip install --verbose .[test]
-          else
-            # Build with default TileDB (from PyPI or bundled)
-            pipx run --python ${{ matrix.python-version }} build
-            WHEEL_NAME=$(ls dist/*.whl)
-            pip install --verbose ${WHEEL_NAME}[test]
           fi
+          # Install TileDB-Py (uses custom TileDB if TILEDB_PATH is set, otherwise uses default)
+          python -m pip install --verbose .[test]
 
       - name: "Copy TileDB DLLs to package (Windows)"
         if: inputs.libtiledb_ref && runner.os == 'Windows'
@@ -180,21 +176,36 @@ jobs:
             done;
         if: failure()
 
-      - name: "Upload build artifacts (default mode)"
-        if: always() && !inputs.libtiledb_ref
+      - name: "Upload build logs"
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}
-          path: "."
-
-      - name: "Upload debug artifacts (custom TileDB mode)"
-        if: always() && inputs.libtiledb_ref
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-${{ matrix.os }}-${{ matrix.python-version }}
+          name: build-logs-${{ matrix.os }}-${{ matrix.python-version }}
           path: |
-            dist/*.whl
-            dist/*.tar.gz
-            _skbuild/**/*.log
             build/**/*.log
+            _tiledb_core/build/**/*.log
+          if-no-files-found: ignore
+
+      - name: "Upload crash dumps (Linux)"
+        if: always() && startsWith(matrix.os, 'ubuntu-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: coredumps-${{ matrix.os }}-${{ matrix.python-version }}
+          path: /var/lib/apport/coredump/
+          if-no-files-found: ignore
+
+      - name: "Upload crash dumps (macOS)"
+        if: always() && startsWith(matrix.os, 'macos-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: coredumps-${{ matrix.os }}-${{ matrix.python-version }}
+          path: /cores/
+          if-no-files-found: ignore
+
+      - name: "Upload crash dumps (Windows)"
+        if: always() && startsWith(matrix.os, 'windows-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashdumps-${{ matrix.os }}-${{ matrix.python-version }}
+          path: ${{ env.LOCALAPPDATA }}/CrashDumps/*.dmp
           if-no-files-found: ignore
