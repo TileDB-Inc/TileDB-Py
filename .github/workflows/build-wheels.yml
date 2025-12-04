@@ -57,7 +57,7 @@ jobs:
         python: ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Download and set up custom libtiledb if ref was specified
       - name: Determine platform for custom libtiledb
@@ -86,7 +86,7 @@ jobs:
 
       - name: Download custom libtiledb artifacts
         if: inputs.libtiledb_ref != ''
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: release-${{ steps.platform.outputs.platform }}
           path: ${{ github.workspace }}/libtiledb-dist
@@ -168,7 +168,7 @@ jobs:
         with:
           output-dir: wheelhouse
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: cibw-wheels-${{ matrix.buildplat[0] }}-${{ matrix.buildplat[1] }}-${{ matrix.python }}
           path: "./wheelhouse/*.whl"
@@ -182,7 +182,7 @@ jobs:
     outputs:
       sdist_name: ${{ steps.get_sdist_name.outputs.sdist_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build sdist
         run: pipx run build --sdist
@@ -192,7 +192,7 @@ jobs:
         run: |
           echo "sdist_name=$(ls dist/ | head -n 1)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -215,12 +215,12 @@ jobs:
         RUNNER_TEMP: ""
       steps:
         - name: Set up Python ${{ matrix.python }}
-          uses: actions/setup-python@v5
+          uses: actions/setup-python@v6
           with:
             python-version: ${{ matrix.python }}
 
         - name: Download sdist artifact
-          uses: actions/download-artifact@v4
+          uses: actions/download-artifact@v6
           with:
             name: sdist
             path: dist
@@ -228,7 +228,7 @@ jobs:
         - name: Install sdist artifact
           run: pip install --verbose dist/${{ needs.build_sdist.outputs.sdist_name }}
 
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v6
 
         - name: Install test dependencies
           run: pip install pytest pytest-rerunfailures hypothesis psutil pyarrow
@@ -255,7 +255,7 @@ jobs:
     outputs:
       package_version: ${{ steps.get_package_version.outputs.package_version }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           path: dist
           merge-multiple: true
