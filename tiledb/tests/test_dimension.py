@@ -120,6 +120,10 @@ class DimensionTest(unittest.TestCase):
         ):
             dim.shape
 
-    @pytest.mark.xfail
     def test_fail_on_0_extent(self):
-        tiledb.Dim(domain=(0, 10), tile=0)
+        with self.assertRaises(tiledb.TileDBError) as exc:
+            tiledb.Dim(domain=(0, 10), tile=0)
+        assert (
+            "Dimension: Tile extent check failed on dimension '__dim_0'; Tile extent must not be 0"
+            in str(exc.exception)
+        )
