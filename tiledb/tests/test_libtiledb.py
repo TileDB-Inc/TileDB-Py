@@ -1638,7 +1638,6 @@ class TestVarlen(DiskTestCase):
 
 
 class TestSparseArray(DiskTestCase):
-    @pytest.mark.xfail
     def test_simple_1d_sparse_vector(self):
         dom = tiledb.Domain(tiledb.Dim(domain=(0, 3), tile=4, dtype=int))
         att = tiledb.Attr(dtype=int)
@@ -1650,9 +1649,8 @@ class TestSparseArray(DiskTestCase):
             T[[1, 2]] = values
 
         with tiledb.SparseArray(self.path("foo"), mode="r") as T:
-            assert_array_equal(T[[1, 2]], values)
+            assert_array_equal(T[[1, 2]][""], values)
 
-    @pytest.mark.xfail
     def test_simple_2d_sparse_vector(self):
         attr = tiledb.Attr(dtype=float)
         dom = tiledb.Domain(
@@ -1667,7 +1665,7 @@ class TestSparseArray(DiskTestCase):
             T[[1, 2], [1, 2]] = values
 
         with tiledb.SparseArray(self.path("foo"), mode="r") as T:
-            assert_array_equal(T[[1, 2], [1, 2]], values)
+            assert_array_equal(T[[1, 2], [1, 2]][""], values)
 
     def test_simple3d_sparse_vector(self):
         uri = self.path("simple3d_sparse_vector")
@@ -1692,7 +1690,6 @@ class TestSparseArray(DiskTestCase):
             assert_array_equal(res["y"], coords[1])
             assert_array_equal(res["z"], coords[2])
 
-    @pytest.mark.xfail
     def test_sparse_ordered_fp_domain(self):
         dom = tiledb.Domain(tiledb.Dim("x", domain=(0.0, 10.0), tile=2.0, dtype=float))
         attr = tiledb.Attr(dtype=float)
@@ -1704,9 +1701,8 @@ class TestSparseArray(DiskTestCase):
         with tiledb.SparseArray(self.path("foo"), mode="w") as T:
             T[[2.5, 4.2]] = values
         with tiledb.SparseArray(self.path("foo"), mode="r") as T:
-            assert_array_equal(T[[2.5, 4.2]], values)
+            assert_array_equal(T[[2.5, 4.2]][""], values)
 
-    @pytest.mark.xfail
     def test_sparse_unordered_fp_domain(self):
         dom = tiledb.Domain(tiledb.Dim("x", domain=(0.0, 10.0), tile=2.0, dtype=float))
         attr = tiledb.Attr(dtype=float)
@@ -1717,9 +1713,8 @@ class TestSparseArray(DiskTestCase):
             T[[4.2, 2.5]] = values
 
         with tiledb.SparseArray(self.path("foo"), mode="r") as T:
-            assert_array_equal(T[[2.5, 4.2]], values[::-1])
+            assert_array_equal(T[[2.5, 4.2]][""], values[::-1])
 
-    @pytest.mark.xfail
     def test_multiple_attributes(self):
         uri = self.path()
 
@@ -1732,7 +1727,7 @@ class TestSparseArray(DiskTestCase):
         schema = tiledb.ArraySchema(
             domain=dom, attrs=(attr_int, attr_float), sparse=True
         )
-        tiledb.SparseArray.create(self.path("foo"), schema)
+        tiledb.SparseArray.create(uri, schema)
 
         IJ = (np.array([1, 1, 1, 2, 3, 3, 3, 4]), np.array([1, 2, 4, 3, 1, 6, 7, 5]))
 
@@ -1747,8 +1742,6 @@ class TestSparseArray(DiskTestCase):
         assert_array_equal(V["ints"], R["ints"])
         assert_array_equal(V["floats"], R["floats"])
 
-        # check error attribute does not exist
-        # TODO: should this be an attribute error?
         with tiledb.SparseArray(uri, mode="w") as T:
             V["foo"] = V["ints"].astype(np.int8)
             with self.assertRaises(tiledb.TileDBError):
@@ -1756,7 +1749,7 @@ class TestSparseArray(DiskTestCase):
 
             # check error ncells length
             V["ints"] = V["ints"][1:2].copy()
-            with self.assertRaises(AttributeError):
+            with self.assertRaises(ValueError):
                 T[IJ] = V
 
     def test_query_real_multi_index(self, fx_sparse_cell_order):
