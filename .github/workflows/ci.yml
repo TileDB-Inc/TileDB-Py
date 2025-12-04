@@ -46,11 +46,11 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: "11"
     steps:
       - name: Checkout TileDB-Py `main`
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout TileDB Core
         if: inputs.libtiledb_ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: TileDB-Inc/TileDB
           ref: ${{ inputs.libtiledb_ref }}
@@ -73,7 +73,7 @@ jobs:
         if: startsWith(matrix.os, 'windows')
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -179,7 +179,7 @@ jobs:
 
       - name: "Upload build logs"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-logs-${{ matrix.os }}-${{ matrix.python-version }}
           path: |
@@ -191,7 +191,7 @@ jobs:
 
       - name: "Upload crash dumps (Linux)"
         if: always() && startsWith(matrix.os, 'ubuntu-')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coredumps-${{ matrix.os }}-${{ matrix.python-version }}
           path: /var/lib/apport/coredump/
@@ -199,7 +199,7 @@ jobs:
 
       - name: "Upload crash dumps (macOS)"
         if: always() && startsWith(matrix.os, 'macos-')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coredumps-${{ matrix.os }}-${{ matrix.python-version }}
           path: /cores/
@@ -207,7 +207,7 @@ jobs:
 
       - name: "Upload crash dumps (Windows)"
         if: always() && startsWith(matrix.os, 'windows-')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: crashdumps-${{ matrix.os }}-${{ matrix.python-version }}
           path: ${{ env.LOCALAPPDATA }}/CrashDumps/*.dmp
