@@ -59,8 +59,8 @@ jobs:
       - name: Clone vcpkg
         if: inputs.libtiledb_ref
         run: |
-          git clone https://github.com/microsoft/vcpkg.git _vcpkg
-          ./_vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          git clone https://github.com/microsoft/vcpkg.git $RUNNER_TEMP/vcpkg
+          $RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -116,7 +116,7 @@ jobs:
             -DTILEDB_INSTALL_LIBDIR=lib
             -DTILEDB_SERIALIZATION=ON
             -DTILEDB_TESTS=OFF
-            -DCMAKE_TOOLCHAIN_FILE="${GITHUB_WORKSPACE//\\//}/_vcpkg/scripts/buildsystems/vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="${RUNNER_TEMP//\\//}/vcpkg/scripts/buildsystems/vcpkg.cmake"
           )
 
           cmake "${CMAKE_ARGS[@]}"
