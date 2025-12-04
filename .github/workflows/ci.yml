@@ -1,5 +1,10 @@
 name: TileDB Python CI
 
+# This workflow has two modes:
+# 1. Default: Builds TileDB-Py normally using pre-built TileDB Core binaries.
+# 2. Custom TileDB: When 'libtiledb_ref' is specified via workflow_dispatch, it builds TileDB Core
+#    from source at the specified ref (branch/tag/commit) and builds TileDB-Py against it.
+
 on:
   push:
     branches: ["main", "release-*"]
@@ -7,6 +12,11 @@ on:
   pull_request:
     branches: ["*"]
   workflow_dispatch:
+    inputs:
+      libtiledb_ref:
+        description: 'TileDB Core ref (branch/tag/commit) to build against'
+        required: false
+        type: string
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -37,6 +47,20 @@ jobs:
     steps:
       - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v4
+
+      - name: Checkout TileDB Core
+        if: inputs.libtiledb_ref
+        uses: actions/checkout@v4
+        with:
+          repository: TileDB-Inc/TileDB
+          ref: ${{ inputs.libtiledb_ref }}
+          path: _tiledb_core
+
+      - name: Clone vcpkg
+        if: inputs.libtiledb_ref
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git $RUNNER_TEMP/vcpkg
+          $RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh -disableMetrics
 
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -79,23 +103,64 @@ jobs:
           sudo make install
           cd ..
 
-      - name: "Build and Install TileDB-Py"
-        # We use pipx here to produce wheel/sdist to upload as artifact in case of error
+      - name: "Build and Install TileDB Core"
+        if: inputs.libtiledb_ref
         run: |
-          pipx run --python ${{ matrix.python-version }} build
-          WHEEL_NAME=$(ls dist/*.whl)
-          pip install --verbose ${WHEEL_NAME}[test]
+          # Configure with vcpkg on all platforms
+          CMAKE_ARGS=(
+            -S _tiledb_core
+            -B _tiledb_core/build
+            -DCMAKE_BUILD_TYPE=Release
+            -DBUILD_SHARED_LIBS=ON
+            -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE//\\//}/_tiledb_core/dist"
+            -DTILEDB_INSTALL_LIBDIR=lib
+            -DTILEDB_SERIALIZATION=ON
+            -DTILEDB_TESTS=OFF
+            -DCMAKE_TOOLCHAIN_FILE="${RUNNER_TEMP//\\//}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          )
+
+          cmake "${CMAKE_ARGS[@]}"
+          cmake --build _tiledb_core/build --config Release -j4 --target install
+
+      - name: "Build and Install TileDB-Py"
+        run: |
+          if [[ -n "${{ inputs.libtiledb_ref }}" ]]; then
+            # Build against custom TileDB
+            export TILEDB_PATH="${GITHUB_WORKSPACE//\\//}/_tiledb_core/dist"
+          fi
+          # Install TileDB-Py (uses custom TileDB if TILEDB_PATH is set, otherwise uses default)
+          python -m pip install --verbose .[test]
+
+      - name: "Copy TileDB DLLs to package (Windows)"
+        if: inputs.libtiledb_ref && runner.os == 'Windows'
+        run: |
+          $WORKSPACE = "${{ github.workspace }}".Replace('/', '\')
+          $SITE_PACKAGES = python -c "import sysconfig; print(sysconfig.get_path('purelib'))"
+          Write-Host "Copying DLLs from $WORKSPACE\_tiledb_core\dist\bin to $SITE_PACKAGES\tiledb\"
+          Copy-Item "$WORKSPACE\_tiledb_core\dist\bin\*.dll" "$SITE_PACKAGES\tiledb\" -Verbose -ErrorAction Stop
+
+          $VCPKG_BIN = "$WORKSPACE\_tiledb_core\build\vcpkg_installed\x64-windows\bin"
+          if (Test-Path $VCPKG_BIN) {
+            Write-Host "Copying vcpkg DLLs from $VCPKG_BIN"
+            Copy-Item "$VCPKG_BIN\*.dll" "$SITE_PACKAGES\tiledb\" -Verbose -ErrorAction Stop
+          } else {
+            Write-Host "Warning: vcpkg bin directory not found at $VCPKG_BIN - skipping vcpkg DLL copy"
+          }
+          Write-Host "DLL copy completed successfully"
+        shell: powershell
 
       - name: "Run tests"
         run: |
           PROJECT_CWD=$PWD
           rm tiledb/__init__.py
-          cd /tmp
+          cd $RUNNER_TEMP
           pytest -vv --showlocals $PROJECT_CWD
 
       - name: "Re-run tests without pandas"
         run: |
+          PROJECT_CWD=$PWD
           pip uninstall -y pandas
+          cd $RUNNER_TEMP
           pytest -vv --showlocals $PROJECT_CWD
 
       - name: "Print log files (failed build only)"
@@ -112,9 +177,38 @@ jobs:
             done;
         if: failure()
 
-      - name: "Upload files for debug"
+      - name: "Upload build logs"
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ matrix.python-version }}
-          path: "."
+          name: build-logs-${{ matrix.os }}-${{ matrix.python-version }}
+          path: |
+            build/**/*.log
+            _tiledb_core/build/*.log
+            _tiledb_core/build/CMakeFiles/CMake*.log
+            _tiledb_core/build/CMakeFiles/CMake*.yaml
+          if-no-files-found: ignore
+
+      - name: "Upload crash dumps (Linux)"
+        if: always() && startsWith(matrix.os, 'ubuntu-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: coredumps-${{ matrix.os }}-${{ matrix.python-version }}
+          path: /var/lib/apport/coredump/
+          if-no-files-found: ignore
+
+      - name: "Upload crash dumps (macOS)"
+        if: always() && startsWith(matrix.os, 'macos-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: coredumps-${{ matrix.os }}-${{ matrix.python-version }}
+          path: /cores/
+          if-no-files-found: ignore
+
+      - name: "Upload crash dumps (Windows)"
+        if: always() && startsWith(matrix.os, 'windows-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashdumps-${{ matrix.os }}-${{ matrix.python-version }}
+          path: ${{ env.LOCALAPPDATA }}/CrashDumps/*.dmp
+          if-no-files-found: ignore
