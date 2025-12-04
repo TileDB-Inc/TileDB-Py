@@ -56,6 +56,12 @@ jobs:
           ref: ${{ inputs.libtiledb_ref }}
           path: _tiledb_core
 
+      - name: Clone vcpkg
+        if: inputs.libtiledb_ref
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git _vcpkg
+          ./_vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
         if: startsWith(matrix.os, 'windows')
@@ -100,7 +106,7 @@ jobs:
       - name: "Build and Install TileDB Core"
         if: inputs.libtiledb_ref
         run: |
-          # Configure with vcpkg on Windows, without on Unix
+          # Configure with vcpkg on all platforms
           CMAKE_ARGS=(
             -S _tiledb_core
             -B _tiledb_core/build
@@ -108,18 +114,13 @@ jobs:
             -DBUILD_SHARED_LIBS=ON
             -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE//\\//}/_tiledb_core/dist"
             -DTILEDB_INSTALL_LIBDIR=lib
-            -DTILEDB_S3=ON
             -DTILEDB_SERIALIZATION=ON
             -DTILEDB_TESTS=OFF
+            -DCMAKE_TOOLCHAIN_FILE="${GITHUB_WORKSPACE//\\//}/_vcpkg/scripts/buildsystems/vcpkg.cmake"
           )
 
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            CMAKE_ARGS+=(-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake")
-          fi
-
           cmake "${CMAKE_ARGS[@]}"
-          cmake --build _tiledb_core/build --config Release -j4
-          cmake --build _tiledb_core/build --config Release --target install
+          cmake --build _tiledb_core/build --config Release -j4 --target install
 
       - name: "Build and Install TileDB-Py"
         run: |
