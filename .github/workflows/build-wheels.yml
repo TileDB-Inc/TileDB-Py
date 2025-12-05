@@ -49,8 +49,9 @@ jobs:
       fail-fast: false
       matrix:
         buildplat:
-          - [ubuntu-22.04, manylinux_x86_64]
-          - [ubuntu-24.04-arm, manylinux_aarch64]
+          # Use manylinux image before Python3.9 support was dropped on 10/01/25.
+          - [ubuntu-22.04, manylinux_x86_64<2025.10.01-1]
+          - [ubuntu-24.04-arm, manylinux_aarch64<2025.10.01-1]
           - [macos-15-intel, macosx_x86_64]
           - [macos-26, macosx_arm64]
           - [windows-2022, win_amd64]
