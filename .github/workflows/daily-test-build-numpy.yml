@@ -41,7 +41,7 @@ jobs:
       VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
     steps:
       - name: Checkout TileDB-Py `main`
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup MSVC toolset (VS 2022)
         uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -54,7 +54,7 @@ jobs:
         if: startsWith(matrix.os, 'windows')
 
       - name: Enable vcpkg binary caching
-        uses: actions/github-script@v6
+        uses: actions/github-script@v8
         with:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
@@ -65,7 +65,7 @@ jobs:
         if: startsWith(matrix.os, 'windows')
 
       - name: Set up Python ${{ matrix.py_np_combo.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.py_np_combo.python-version }}
 
@@ -79,7 +79,7 @@ jobs:
         run: printenv
 
       - name: Checkout TileDB-Py `main`
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build TileDB-Py
         run: pip install --verbose .[test]
@@ -105,7 +105,7 @@ jobs:
     needs: test
     if: failure() || cancelled()
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Create Issue if Build Fails
         uses: TileDB-Inc/github-actions/open-issue@main
         with:
