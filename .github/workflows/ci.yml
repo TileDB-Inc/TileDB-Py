@@ -17,6 +17,47 @@ on:
         description: 'TileDB Core ref (branch/tag/commit) to build against'
         required: false
         type: string
+      cmake_build_type:
+        description: 'CMAKE_BUILD_TYPE for TileDB Core (Release or Debug)'
+        required: false
+        type: string
+        default: 'Release'
+      python_version:
+        description: 'Specific Python version to test (empty=test all versions)'
+        required: false
+        type: string
+        default: ''
+      numpy_version:
+        description: 'Specific numpy version to test (empty=default from dependencies)'
+        required: false
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      libtiledb_ref:
+        description: 'TileDB Core ref (branch/tag/commit) to build against'
+        required: false
+        type: string
+      cmake_build_type:
+        description: 'CMAKE_BUILD_TYPE for TileDB Core (Release or Debug)'
+        required: false
+        type: string
+        default: 'Release'
+      tiledb_version:
+        description: 'TileDB Core version for pre-built binaries (alternative to libtiledb_ref)'
+        required: false
+        type: string
+        default: ''
+      python_version:
+        description: 'Specific Python version to test (empty=test all versions)'
+        required: false
+        type: string
+        default: ''
+      numpy_version:
+        description: 'Specific numpy version to test (empty=default from dependencies)'
+        required: false
+        type: string
+        default: ''
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -30,6 +71,7 @@ env:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    if: inputs.python_version == '' || inputs.python_version == matrix.python-version
     defaults:
       run:
         shell: bash
@@ -44,6 +86,7 @@ jobs:
       fail-fast: false
     env:
       MACOSX_DEPLOYMENT_TARGET: "11"
+      TILEDB_VERSION: ${{ inputs.tiledb_version }}
     steps:
       - name: Checkout TileDB-Py `main`
         uses: actions/checkout@v6
@@ -107,10 +150,11 @@ jobs:
         if: inputs.libtiledb_ref
         run: |
           # Configure with vcpkg on all platforms
+          BUILD_TYPE="${{ inputs.cmake_build_type || 'Release' }}"
           CMAKE_ARGS=(
             -S _tiledb_core
             -B _tiledb_core/build
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
             -DBUILD_SHARED_LIBS=ON
             -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE//\\//}/_tiledb_core/dist"
             -DTILEDB_INSTALL_LIBDIR=lib
@@ -120,7 +164,7 @@ jobs:
           )
 
           cmake "${CMAKE_ARGS[@]}"
-          cmake --build _tiledb_core/build --config Release -j4 --target install
+          cmake --build _tiledb_core/build --config "$BUILD_TYPE" -j4 --target install
 
       - name: "Build and Install TileDB-Py"
         run: |
@@ -148,6 +192,15 @@ jobs:
           }
           Write-Host "DLL copy completed successfully"
         shell: powershell
+
+      - name: "Install specific NumPy version"
+        if: inputs.numpy_version != ''
+        run: |
+          echo "Installing NumPy version ${{ inputs.numpy_version }}"
+          pip install numpy==${{ inputs.numpy_version }}
+
+      - name: "Print installed Python dependencies"
+        run: pip list
 
       - name: "Run tests"
         run: |
