@@ -11,7 +11,7 @@ jobs:
     name: Daily Test Build (libtiledb ${{ matrix.libtiledb_version }})
     strategy:
       matrix:
-        libtiledb_version: ['2.29.2', '2.28.1']
+        libtiledb_version: ['2.30.0', '2.29.2']
     uses: ./.github/workflows/daily-test-build.yml
     with:
       libtiledb_version: ${{ matrix.libtiledb_version }}
@@ -20,7 +20,7 @@ jobs:
     name: Daily Test Build NumPy (libtiledb ${{ matrix.libtiledb_version }})
     strategy:
       matrix:
-        libtiledb_version: ['2.29.2', '2.28.1']
+        libtiledb_version: ['2.30.0', '2.29.2']
     uses: ./.github/workflows/daily-test-build-numpy.yml
     with:
       libtiledb_version: ${{ matrix.libtiledb_version }}
