@@ -1,3 +1,17 @@
+# Release 0.36.0
+
+* TileDB-Py 0.36.0 includes TileDB Embedded [2.30.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.30.0)
+
+## Bug Fixes
+* Fix double-offset bug in chunked sparse CSV row indices by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2279
+
+## Improvements
+* Expose overwrite parameter for saving a profile by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2277
+* Add label index support for aggregation by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2272
+* Expose the fill value setter at the Python layer by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2274
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.35.2...0.36.0
+
 # Release 0.35.2
 
 * TileDB-Py 0.35.2 includes TileDB Embedded [2.29.2](https://github.com/TileDB-Inc/TileDB/releases/tag/2.29.2)
