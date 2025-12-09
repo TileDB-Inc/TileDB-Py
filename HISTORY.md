@@ -6,6 +6,7 @@
 * Fix double-offset bug in chunked sparse CSV row indices by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2279
 
 ## Improvements
+* Wrap `data_protocol` API by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2287
 * Expose overwrite parameter for saving a profile by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2277
 * Add label index support for aggregation by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2272
 * Expose the fill value setter at the Python layer by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2274
