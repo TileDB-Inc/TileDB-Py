@@ -453,7 +453,7 @@ class Ctx(lt.Context):
             return output
 
     def data_protocol(self, uri: str):
-        """Returns the REST data protocol version for the given URI.
+        """Returns the data protocol version for the given URI.
 
         :param uri: URI to check for data protocol version
         :return: DataProtocol enum value (DATA_PROTOCOL_V2 or DATA_PROTOCOL_V3)
