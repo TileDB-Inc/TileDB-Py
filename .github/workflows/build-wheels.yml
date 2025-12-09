@@ -248,6 +248,7 @@ jobs:
 
   upload_pypi:
     needs: [build_wheels, test_sdist]
+    if: always() && (startsWith(github.ref, 'refs/tags/') || inputs.test_pypi) && needs.build_wheels.result == 'success' && needs.test_sdist.result == 'success'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
