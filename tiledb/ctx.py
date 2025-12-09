@@ -452,6 +452,18 @@ class Ctx(lt.Context):
         else:
             return output
 
+    def data_protocol(self, uri: str):
+        """Returns the REST data protocol version for the given URI.
+
+        :param uri: URI to check for data protocol version
+        :return: DataProtocol enum value (DATA_PROTOCOL_V2 or DATA_PROTOCOL_V3)
+        :rtype: tiledb.DataProtocol
+
+        For TileDB Cloud URIs (tiledb://), returns either v2 (legacy) or v3 (TileDB 3.0+).
+        For non-TileDB URIs (S3, Azure, GCS, etc.), returns v2.
+        """
+        return super().data_protocol(uri)
+
 
 class CtxMixin:
     """

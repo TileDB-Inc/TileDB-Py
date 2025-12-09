@@ -182,6 +182,13 @@ void init_enums(py::module& m) {
     py::enum_<tiledb_current_domain_type_t>(m, "CurrentDomainType")
         .value("NDRECTANGLE", TILEDB_NDRECTANGLE);
 #endif
+
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 30)
+    py::enum_<tiledb::Context::DataProtocol>(m, "DataProtocol")
+        .value("DATA_PROTOCOL_V2", tiledb::Context::DataProtocol::v2)
+        .value("DATA_PROTOCOL_V3", tiledb::Context::DataProtocol::v3);
+#endif
     // test helpers to check enum name against typed value
     m.def("_enum_string", &tiledb::impl::type_to_str);
     m.def(

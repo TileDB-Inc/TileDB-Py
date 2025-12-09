@@ -24,7 +24,12 @@ void init_context(py::module& m) {
         .def("config", &Context::config)
         .def("set_tag", &Context::set_tag)
         .def("get_stats", &Context::stats)
-        .def("is_supported_fs", &Context::is_supported_fs);
+        .def("is_supported_fs", &Context::is_supported_fs)
+#if TILEDB_VERSION_MAJOR >= 3 || \
+    (TILEDB_VERSION_MAJOR == 2 && TILEDB_VERSION_MINOR >= 30)
+        .def("data_protocol", &Context::data_protocol)
+#endif
+        ;
 }
 
 void init_config(py::module& m) {
