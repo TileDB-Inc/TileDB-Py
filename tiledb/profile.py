@@ -85,7 +85,7 @@ class Profile(lt.Profile):
         else:
             if overwrite:
                 raise lt.TileDBError(
-                    "The 'overwrite' parameter is only supported in TileDB 2.30.0 and later"
+                    "The 'overwrite' parameter is only supported in TileDB-Py 0.36.0 and later."
                 )
             self._save()
 
