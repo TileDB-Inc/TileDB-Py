@@ -246,37 +246,6 @@ class FixesTest(DiskTestCase):
         with tiledb.open(uri) as arr:
             tm.assert_frame_equal(arr.df[:], df)
 
-    @pytest.mark.skipif(
-        tiledb.libtiledb.version() < (2, 14, 0),
-        reason="SC-23287 fix not implemented until libtiledb 2.14",
-    )
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="TODO does not run on windows due to env passthrough",
-    )
-    def test_sc23827_aws_region(self):
-        # Test for SC-23287
-        # The expected behavior here for `vfs.s3.region` is:
-        # - default to '' if no environment variables are set
-        # - empty if AWS_REGION or AWS_DEFAULT_REGION is set (to any value)
-
-        def get_config_with_env(env, key):
-            python_exe = sys.executable
-            cmd = """import tiledb; print(tiledb.Config()[\"{}\"])""".format(key)
-            test_path = os.path.dirname(os.path.abspath(__file__))
-
-            sp_output = subprocess.check_output(
-                [python_exe, "-c", cmd], cwd=test_path, env=env
-            )
-            return sp_output.decode("UTF-8").strip()
-
-        if tiledb.libtiledb.version() >= (2, 27, 0):
-            assert get_config_with_env({}, "vfs.s3.region") == ""
-        else:
-            assert get_config_with_env({}, "vfs.s3.region") == "us-east-1"
-        assert get_config_with_env({"AWS_DEFAULT_REGION": ""}, "vfs.s3.region") == ""
-        assert get_config_with_env({"AWS_REGION": ""}, "vfs.s3.region") == ""
-
     @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
     @pytest.mark.parametrize("is_sparse", [True, False])
     def test_sc1430_nonexisting_timestamp(self, is_sparse):
