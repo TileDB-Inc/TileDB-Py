@@ -57,7 +57,7 @@ test = [
     "hypothesis",
     "psutil",
     "pyarrow",
-    "pandas",
+    "pandas<3",
     "dask[distributed]",
 ]
 
@@ -118,6 +118,6 @@ test-requires = [
     "hypothesis",
     "psutil",
     "pyarrow",
-    "pandas",
+    "pandas<3",
 ]
 test-command = "pytest {project}"
