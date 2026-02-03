@@ -164,7 +164,7 @@ class CoreCCTest(DiskTestCase):
         # Corrupted validity buffer causes wrong null positions in .to_pandas().
         pyarrow = pytest.importorskip("pyarrow")
 
-        def _read_arrow(self, uri):
+        def _read_arrow(uri):
             with tiledb.open(uri, "r") as A:
                 q = core.PyQuery(A.ctx, A, ("a",), (), 0, True)
                 sub = tiledb.Subarray(A)
@@ -183,6 +183,6 @@ class CoreCCTest(DiskTestCase):
         with tiledb.open(uri, "w") as A:
             A[np.arange(5)] = {"a": pyarrow.array(["x", "y", None, None, ""])}
 
-        df = self._read_arrow(uri).to_pandas()
+        df = _read_arrow(uri).to_pandas()
 
         assert df["a"].isna().tolist() == [False, False, True, True, False]
