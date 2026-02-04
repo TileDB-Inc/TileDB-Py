@@ -162,6 +162,7 @@ class CoreCCTest(DiskTestCase):
     def test_nullable_arrow_buffer(self):
         # BufferHolder must hold reference to converted bitmap, not original.
         # Corrupted validity buffer causes wrong null positions in .to_pandas().
+        pytest.importorskip("pandas")
         pyarrow = pytest.importorskip("pyarrow")
 
         def _read_arrow(uri):
