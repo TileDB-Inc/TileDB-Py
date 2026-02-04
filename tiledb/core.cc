@@ -1524,6 +1524,14 @@ class PyQuery {
         for (auto& buffer_name : buffers_order_) {
             BufferInfo& buffer_info = buffers_.at(buffer_name);
 
+            // Convert validity to bitmap BEFORE creating BufferHolder
+            int64_t null_count = 0;
+            if (is_nullable(buffer_name)) {
+                null_count = count_zeros(buffer_info.validity);
+                buffer_info.validity = uint8_bool_to_uint8_bitmap(
+                    buffer_info.validity);
+            }
+
             auto buffer_holder = new BufferHolder(
                 buffer_info.data, buffer_info.validity, buffer_info.offsets);
 
@@ -1538,11 +1546,7 @@ class PyQuery {
                 buffer_holder);
 
             if (is_nullable(buffer_name)) {
-                // count zeros before converting to bitmap
-                c_pa_array.null_count = count_zeros(buffer_info.validity);
-                // convert to bitmap
-                buffer_info.validity = uint8_bool_to_uint8_bitmap(
-                    buffer_info.validity);
+                c_pa_array.null_count = null_count;
                 c_pa_array.buffers[0] = buffer_info.validity.data();
                 c_pa_array.n_buffers = is_var(buffer_name) ? 3 : 2;
                 c_pa_schema.flags |= ARROW_FLAG_NULLABLE;

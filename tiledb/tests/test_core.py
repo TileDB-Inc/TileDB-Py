@@ -2,6 +2,7 @@ import copy
 import random
 
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
 import tiledb
@@ -157,3 +158,32 @@ class CoreCCTest(DiskTestCase):
             self.assertTrue("foo" in r)
             self.assertTrue("str" not in r)
             del q
+
+    def test_nullable_arrow_buffer(self):
+        # BufferHolder must hold reference to converted bitmap, not original.
+        # Corrupted validity buffer causes wrong null positions in .to_pandas().
+        pytest.importorskip("pandas")
+        pyarrow = pytest.importorskip("pyarrow")
+
+        def _read_arrow(uri):
+            with tiledb.open(uri, "r") as A:
+                q = core.PyQuery(A.ctx, A, ("a",), (), 0, True)
+                sub = tiledb.Subarray(A)
+                sub.add_dim_range(0, (0, 4))
+                q.set_subarray(sub)
+                q.submit()
+                return q._buffers_to_pa_table()
+
+        uri = self.path("test_nullable_arrow_buffer")
+        dom = tiledb.Domain(tiledb.Dim("d", domain=(0, 4), tile=1, dtype=np.uint64))
+        attr = tiledb.Attr("a", dtype="ascii", var=True, nullable=True)
+        tiledb.Array.create(
+            uri, tiledb.ArraySchema(domain=dom, attrs=[attr], sparse=True)
+        )
+
+        with tiledb.open(uri, "w") as A:
+            A[np.arange(5)] = {"a": pyarrow.array(["x", "y", None, None, ""])}
+
+        df = _read_arrow(uri).to_pandas()
+
+        assert df["a"].isna().tolist() == [False, False, True, True, False]
