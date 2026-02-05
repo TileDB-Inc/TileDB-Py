@@ -29,7 +29,7 @@ from .common import (
 from .datatypes import RaggedDtype
 
 if not has_pandas():
-    pytest.skip("pandas>=1.0,<3.0 not installed", allow_module_level=True)
+    pytest.skip("pandas not installed", allow_module_level=True)
 else:
     import pandas as pd
 
@@ -212,24 +212,24 @@ class TestColumnInfo(DiskTestCase):
         for s in ["hello", b"world"], ["hello", 1], [b"hello", 1]:
             pytest.raises(NotImplementedError, ColumnInfo.from_values, pd.Series(s))
 
+    def test_string_dtype(self):
+        # Auto-inferred str type: non-nullable when data has no nulls
+        info = ColumnInfo.from_values(pd.Series(["hello", "world"]))
+        assert info.dtype == np.dtype("<U")
+        assert info.var is True
+        assert info.nullable is False
+        # With nulls: pandas 3+ auto-infers StringDtype which preserves null info;
+        # pandas 2 uses object dtype where null detection happens in the write path
+        s = pd.Series(["hello", None])
+        info = ColumnInfo.from_values(s)
+        assert info.dtype == np.dtype("<U")
+        assert info.var is True
+        assert info.nullable is isinstance(s.dtype, pd.StringDtype)
+
     unsupported_type_specs = [
         [np.float16, "f2"],
         [np.complex64, "c8"],
         [np.complex128, "c16"],
-        [np.datetime64, "<M8", "datetime64"],
-        [
-            "<M8[Y]",
-            "<M8[M]",
-            "<M8[W]",
-            "<M8[h]",
-            "<M8[m]",
-            "<M8[s]",
-            "<M8[ms]",
-            "<M8[us]",
-            "<M8[ps]",
-            "<M8[fs]",
-            "<M8[as]",
-        ],
     ]
     if hasattr(np, "float128"):
         unsupported_type_specs.append([np.float128, "f16"])
@@ -443,7 +443,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             times = df["time"]
             cccc = df["cccc"]
 
-            df = df.drop(columns=["time", "cccc"], axis=1)
+            df = df.drop(columns=["time", "cccc"])
             A[s_ichars, times, cccc] = df.to_dict(orient="series")
 
         with tiledb.SparseArray(uri) as A:
@@ -603,7 +603,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
             # ensure that all column which will be used as string dim index
             # is sorted, because that is how it will be returned
-            if df.dtypes[col] == "O":
+            if pd.api.types.is_string_dtype(df.dtypes[col]):
                 df.sort_values(col, inplace=True)
 
                 # also ensure that string columns are converted to bytes
@@ -1446,13 +1446,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
             tdb_uri = os.path.join(uri, f"{name}.tdb")
             pq_uri = os.path.join(uri, f"{name}.pq")
 
-            df.to_parquet(
-                pq_uri,
-                # this is required to losslessly serialize timestamps
-                # until Parquet 2.0 is default.
-                use_deprecated_int96_timestamps=True,
-                **pq_args,
-            )
+            df.to_parquet(pq_uri, **pq_args)
 
             tiledb.from_parquet(str(tdb_uri), str(pq_uri))
             df_bk = tiledb.open_dataframe(tdb_uri)
@@ -1995,9 +1989,8 @@ def test_datetime64_days_dtype_read_sc25572(checked_path):
         assert_dict_arrays_equal(array[:], data)
         df_received = array.df[:]
         df_received = df_received.set_index("d1")
-        tm.assert_frame_equal(
-            original_df, df_received, check_datetimelike_compat=True, check_dtype=False
-        )
+        # TileDB returns datetime.date objects for datetime64[D], convert both to strings
+        tm.assert_frame_equal(original_df.astype(str), df_received.astype(str))
 
 
 def test_datetime64_days_dtype_write_sc25572(checked_path):
@@ -2024,9 +2017,7 @@ def test_datetime64_days_dtype_write_sc25572(checked_path):
     with tiledb.open(uri, "r") as array:
         assert_dict_arrays_equal(array[:], data)
         df_received = array.df[:]
-        tm.assert_frame_equal(
-            original_df, df_received, check_datetimelike_compat=True, check_dtype=False
-        )
+        tm.assert_frame_equal(original_df, df_received, check_dtype=False)
 
 
 def test_datetime64_days_dtype_read_out_of_range_sc25572(checked_path):

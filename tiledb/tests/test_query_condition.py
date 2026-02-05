@@ -615,7 +615,7 @@ class QueryConditionTest(DiskTestCase):
             with self.assertRaisesRegex(tiledb.TileDBError, message):
                 A.query(cond=expression)[:]
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_dense_datetime(self):
         import pandas as pd
 
@@ -808,7 +808,7 @@ class QueryConditionTest(DiskTestCase):
             result = A.query(cond='attr("at.tr.thr.ee") in [1, 2, 3]')[:]
             assert_array_equal(result["at.tr.thr.ee"], A[1:4]["at.tr.thr.ee"])
 
-    @pytest.mark.skipif(not has_pandas(), reason="pandas>=1.0,<3.0 not installed")
+    @pytest.mark.skipif(not has_pandas(), reason="pandas not installed")
     def test_do_not_return_attrs(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:
             cond = None
