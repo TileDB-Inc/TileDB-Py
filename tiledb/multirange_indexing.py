@@ -899,7 +899,7 @@ def _update_df_from_meta(
             name: dtype for name, dtype in col_dtypes.items() if dtype != "<U0"
         }
         if col_dtypes:
-            df = df.astype(col_dtypes, copy=False)
+            df = df.astype(col_dtypes)
 
     if index_col:
         if index_col is not True:
