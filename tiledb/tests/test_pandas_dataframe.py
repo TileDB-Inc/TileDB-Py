@@ -204,12 +204,10 @@ class TestColumnInfo(DiskTestCase):
 
     def test_object_dtype(self):
         self.assertColumnInfo(
-            ColumnInfo.from_values(pd.Series(["hello", "world"], dtype=object)),
-            np.dtype("<U"),
+            ColumnInfo.from_values(pd.Series(["hello", "world"])), np.dtype("<U")
         )
         self.assertColumnInfo(
-            ColumnInfo.from_values(pd.Series([b"hello", b"world"], dtype=object)),
-            np.dtype("S"),
+            ColumnInfo.from_values(pd.Series([b"hello", b"world"])), np.dtype("S")
         )
         for s in ["hello", b"world"], ["hello", 1], [b"hello", 1]:
             pytest.raises(NotImplementedError, ColumnInfo.from_values, pd.Series(s))
@@ -610,7 +608,7 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
 
                 # also ensure that string columns are converted to bytes
                 # b/c only TILEDB_ASCII supported for string dimension
-                if isinstance(df[col].iloc[0], str):
+                if isinstance(df[col][0], str):
                     df[col] = [x.encode("UTF-8") for x in df[col]]
 
             new_df = df.drop_duplicates(subset=col)

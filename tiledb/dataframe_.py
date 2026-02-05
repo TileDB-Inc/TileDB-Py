@@ -17,11 +17,18 @@ from .subarray import Subarray
 def check_dataframe_deps():
     pd_error = """Pandas is required for dataframe functionality.
                   Please `pip install pandas` to proceed."""
+    pa_error = """PyArrow is suggested for dataframe functionality.
+                  Please `pip install pyarrow`."""
 
     try:
         import pandas
     except ImportError:
         raise Exception(pd_error)
+
+    try:
+        import pyarrow
+    except ImportError:
+        warnings.warn(pa_error)
 
 
 # Note: 'None' is used to indicate optionality for many of these options
