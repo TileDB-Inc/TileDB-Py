@@ -29,7 +29,7 @@ from .common import (
 from .datatypes import RaggedDtype
 
 if not has_pandas():
-    pytest.skip("pandas>=1.0,<3.0 not installed", allow_module_level=True)
+    pytest.skip("pandas not installed", allow_module_level=True)
 else:
     import pandas as pd
 
