@@ -156,6 +156,13 @@ jobs:
           cd $RUNNER_TEMP
           pytest -vv --showlocals $PROJECT_CWD
 
+      - name: "Re-run tests with pandas 2"
+        run: |
+          PROJECT_CWD=$PWD
+          pip install "pandas>=2,<3"
+          cd $RUNNER_TEMP
+          pytest -vv --showlocals $PROJECT_CWD
+
       - name: "Re-run tests without pandas"
         run: |
           PROJECT_CWD=$PWD
