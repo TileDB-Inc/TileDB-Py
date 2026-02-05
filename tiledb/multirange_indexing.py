@@ -890,11 +890,16 @@ def _update_df_from_meta(
                 col_dtypes[name] = dtype
 
     if col_dtypes:
-        # Use str instead of '<U0' so pandas uses its native string type
+        # '<U0' is stored in __pandas_index_dims metadata for var-length string
+        # dimensions (str(np.dtype(np.str_)) == '<U0>'). Applying astype('<U0')
+        # was a no-op on pandas 2 but on pandas 3 it forces StringDtype back to
+        # object, breaking the roundtrip. The string data already has the correct
+        # dtype from pandas' own inference, so we skip it here.
         col_dtypes = {
-            name: str if dtype == "<U0" else dtype for name, dtype in col_dtypes.items()
+            name: dtype for name, dtype in col_dtypes.items() if dtype != "<U0"
         }
-        df = df.astype(col_dtypes)
+        if col_dtypes:
+            df = df.astype(col_dtypes, copy=False)
 
     if index_col:
         if index_col is not True:
