@@ -154,7 +154,7 @@ class ColumnInfo:
 
     @classmethod
     def from_values(cls, array_like, varlen_types=()):
-        from pandas import CategoricalDtype
+        from pandas import CategoricalDtype, StringDtype
         from pandas.api import types as pd_types
 
         if pd_types.is_object_dtype(array_like):
@@ -171,6 +171,16 @@ class ColumnInfo:
                 raise NotImplementedError(
                     f"{inferred_dtype} inferred dtype not supported (column {array_like.name})"
                 )
+        elif hasattr(array_like, "dtype") and isinstance(array_like.dtype, StringDtype):
+            # Explicit pd.StringDtype() (name="string") is always nullable;
+            # auto-inferred str (name="str") depends on data
+            explicit = array_like.dtype.name == "string"
+            return cls(
+                np.dtype(np.str_),
+                repr="string" if explicit else None,
+                var=True,
+                nullable=explicit or bool(array_like.isna().any()),
+            )
         elif hasattr(array_like, "dtype") and isinstance(
             array_like.dtype, CategoricalDtype
         ):
@@ -210,6 +220,14 @@ class ColumnInfo:
 
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
+
+        # pandas StringDtype (auto-inferred 'str' and explicit 'string')
+        from pandas import StringDtype
+
+        if isinstance(dtype, StringDtype):
+            repr_val = "string" if dtype.name == "string" else None
+            nullable = dtype.name == "string"
+            return cls(np.dtype(np.str_), repr=repr_val, var=True, nullable=nullable)
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
@@ -255,12 +273,7 @@ class ColumnInfo:
 
         # datetime types
         if pd_types.is_datetime64_any_dtype(dtype):
-            if dtype == "datetime64[ns]":
-                return cls(dtype)
-            else:
-                raise NotImplementedError(
-                    f"Only 'datetime64[ns]' datetime dtype is supported (column {column_name})"
-                )
+            return cls(dtype)
 
         # string types
         # don't use pd_types.is_string_dtype() because it includes object types too
@@ -517,8 +530,8 @@ def _df_to_np_arrays(df, column_infos, fillna):
         if not column_info.var:
             to_numpy_kwargs.update(dtype=column_info.dtype)
 
-        if column_info.nullable:
-            # use default 0/empty for the dtype
+        if column_info.nullable and column.isna().any():
+            # Only create nullmap if data actually has nulls
             to_numpy_kwargs.update(na_value=column_info.dtype.type())
             nullmaps[name] = (~column.isna()).to_numpy(dtype=np.uint8)
 

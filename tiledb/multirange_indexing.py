@@ -890,7 +890,11 @@ def _update_df_from_meta(
                 col_dtypes[name] = dtype
 
     if col_dtypes:
-        df = df.astype(col_dtypes, copy=False)
+        # Use str instead of '<U0' so pandas uses its native string type
+        col_dtypes = {
+            name: str if dtype == "<U0" else dtype for name, dtype in col_dtypes.items()
+        }
+        df = df.astype(col_dtypes)
 
     if index_col:
         if index_col is not True:
