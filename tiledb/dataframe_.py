@@ -15,30 +15,13 @@ from .subarray import Subarray
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas version >= 1.0 and < 3.0 required for dataframe functionality.
-                  Please `pip install pandas>=1.0,<3.0` to proceed."""
-    pa_error = """PyArrow version >= 1.0 is suggested for dataframe functionality.
-                  Please `pip install pyarrow>=1.0`."""
+    pd_error = """Pandas is required for dataframe functionality.
+                  Please `pip install pandas` to proceed."""
 
     try:
-        import pandas as pd
+        import pandas
     except ImportError:
         raise Exception(pd_error)
-
-    from packaging.version import Version
-
-    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
-        "3.0.0.dev0"
-    ):
-        raise Exception(pd_error)
-
-    try:
-        import pyarrow as pa
-
-        if Version(pa.__version__) < Version("1.0"):
-            warnings.warn(pa_error)
-    except ImportError:
-        warnings.warn(pa_error)
 
 
 # Note: 'None' is used to indicate optionality for many of these options
