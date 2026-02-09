@@ -174,10 +174,14 @@ def _setitem_impl_sparse(self, selection, val, nullmaps: dict):
                 )
 
         ncells = sparse_coords[0].shape[0]
-        if attr_val.size != ncells:
+        # For var-length attributes, numpy may coalesce equal-length
+        # sub-arrays into a higher-dimensional array (e.g. shape (n, m)
+        # instead of (n,) with dtype=object). Use shape[0] in that case.
+        nvals = attr_val.shape[0] if attr.isvar and attr_val.ndim > 1 else attr_val.size
+        if nvals != ncells:
             raise ValueError(
                 "value length ({}) does not match "
-                "coordinate length ({})".format(attr_val.size, ncells)
+                "coordinate length ({})".format(nvals, ncells)
             )
         sparse_attributes.append(attr._internal_name)
         sparse_values.append(attr_val)
