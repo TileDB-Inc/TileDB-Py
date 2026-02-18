@@ -49,7 +49,7 @@ void init_domain(py::module& m) {
 
         .def_property_readonly(
             "_domain",
-            [](Dimension& dim) {
+            [](Dimension& dim) -> py::tuple {
                 switch (dim.type()) {
                     case TILEDB_UINT64: {
                         auto dom = dim.domain<uint64_t>();
