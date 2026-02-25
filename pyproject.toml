@@ -112,12 +112,5 @@ select = ["NPY201"]
 "tiledb/__init__.py" = ["F401"]
 
 [tool.cibuildwheel]
-test-requires = [
-    "pytest",
-    "pytest-rerunfailures",
-    "hypothesis",
-    "psutil",
-    "pyarrow",
-    "pandas<3",
-]
+test-extras = ["test"]
 test-command = "pytest {project}"
