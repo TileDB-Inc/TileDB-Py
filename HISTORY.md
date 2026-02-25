@@ -1,3 +1,15 @@
+# Release 0.36.1
+
+* TileDB-Py 0.36.1 includes TileDB Embedded [2.30.1](https://github.com/TileDB-Inc/TileDB/releases/tag/2.30.1)
+
+## Bug Fixes
+* Fix Arrow validity buffer lifetime in `PyQuery` by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2294
+
+## Build system changes
+* Restrict pandas version to below 3 by @kounelisagis in https://github.com/TileDB-Inc/TileDB-Py/pull/2292
+
+**Full Changelog**: https://github.com/TileDB-Inc/TileDB-Py/compare/0.36.0...0.36.1
+
 # Release 0.36.0
 
 * TileDB-Py 0.36.0 includes TileDB Embedded [2.30.0](https://github.com/TileDB-Inc/TileDB/releases/tag/2.30.0)
