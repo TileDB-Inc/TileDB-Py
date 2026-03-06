@@ -694,11 +694,26 @@ class QueryConditionTest(DiskTestCase):
 
     def test_on_dense_dimensions(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
-            with pytest.raises(tiledb.TileDBError) as excinfo:
-                A.query(cond="2 <= d < 6")[:]
-            assert (
-                "Cannot apply query condition to dimensions on dense arrays"
-            ) in str(excinfo.value)
+            result = A.query(cond="2 <= d < 6")[:]
+            expected = A[2:6]
+            assert_array_equal(result["U"][1:5], expected["U"])
+
+            # Cells outside the condition should be filled with fill values
+            assert result["U"][0] == np.iinfo(np.uint32).max
+
+    def test_on_dense_dimensions_combined_with_attrs(self):
+        with tiledb.open(self.create_input_array_UIDSA(sparse=False)) as A:
+            result = A.query(cond="2 <= d < 6 and U > 3")[:]
+            full = A[:]
+
+            # Build a mask matching the query condition "2 <= d < 6 and U > 3"
+            d = np.arange(1, 11, dtype=np.uint32)
+            match = (d >= 2) & (d < 6) & (full["U"] > 3)
+            fill = np.iinfo(np.uint32).max
+
+            # Matching cells keep their values, non-matching cells get fill
+            assert_array_equal(result["U"][match], full["U"][match])
+            assert_array_equal(result["U"][~match], fill)
 
     def test_on_sparse_dimensions(self):
         with tiledb.open(self.create_input_array_UIDSA(sparse=True)) as A:

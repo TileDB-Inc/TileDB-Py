@@ -22,7 +22,7 @@ QueryConditionNodeElem = Union[ast.Name, ast.Constant, ast.Call]
 class QueryCondition:
     """
     Class representing a TileDB query condition object for attribute and dimension
-    (sparse arrays only) filtering pushdown.
+    filtering pushdown.
 
     A query condition is set with a string representing an expression
     as defined by the grammar below. A more straight forward example of usage is
@@ -353,12 +353,6 @@ class QueryConditionTree(ast.NodeVisitor):
         else:
             raise TileDBError(
                 f"Incorrect type for variable name: {ast.dump(variable_node)}"
-            )
-
-        if self.array.schema.domain.has_dim(variable) and not self.array.schema.sparse:
-            raise TileDBError(
-                "Cannot apply query condition to dimensions on dense arrays. "
-                f"{variable} is a dimension."
             )
 
         if isinstance(node, ast.Call):
