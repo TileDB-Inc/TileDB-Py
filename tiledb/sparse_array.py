@@ -440,7 +440,7 @@ class SparseArrayImpl(Array):
                 arr = pyquery.unpack_buffer(name, item[0], item[1])
             else:
                 arr = item[0]
-                arr.dtype = (
+                arr = arr.view(
                     self.schema.attr_or_dim_dtype(name)
                     if not self.schema.has_dim_label(name)
                     else self.schema.dim_label(name).dtype
@@ -598,7 +598,7 @@ class SparseArrayImpl(Array):
                     arr = q.unpack_buffer(name, results[name][0], results[name][1])
                 else:
                     arr = results[name][0]
-                    arr.dtype = self.schema.attr_or_dim_dtype(name)
+                    arr = arr.view(self.schema.attr_or_dim_dtype(name))
                 out[final_name] = arr
             else:
                 arr = results[name][0]
@@ -623,8 +623,7 @@ class SparseArrayImpl(Array):
                     elif el_dtype == np.dtype("U0"):
                         out[final_name] = ""
                     else:
-                        arr.dtype = el_dtype
-                        out[final_name] = arr
+                        out[final_name] = arr.view(el_dtype)
 
             if self.schema.has_attr(final_name) and self.attr(final_name).isnullable:
                 out[final_name] = np.ma.array(

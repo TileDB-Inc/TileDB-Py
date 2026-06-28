@@ -409,7 +409,7 @@ class MultiRangeIndexer(_BaseIndexer):
             for name, arr in result_dict.items():
                 # TODO check/test layout
                 if not self.array.schema.has_dim_label(name):
-                    arr.shape = self.result_shape
+                    result_dict[name] = arr.reshape(self.result_shape)
         return result_dict
 
 
@@ -826,7 +826,7 @@ def _get_pyquery_results(pyquery: PyQuery, array: Array) -> Dict[str, np.ndarray
             arr = pyquery.unpack_buffer(name, item[0], item[1])
         else:
             arr = item[0]
-            arr.dtype = (
+            arr = arr.view(
                 schema.attr_or_dim_dtype(name)
                 if not schema.has_dim_label(name)
                 else schema.dim_label(name).dtype

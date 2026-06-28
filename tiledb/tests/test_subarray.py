@@ -203,7 +203,7 @@ class SubarrayTest(DiskTestCase):
 
             results = q.results()
             arr = results["a"][0]
-            arr.dtype = np.int32
+            arr = arr.view(np.int32)
             assert arr.shape == (2,)
             assert np.array_equal(arr, np.array([10, 30], dtype=np.int32))
 
@@ -235,6 +235,6 @@ class SubarrayTest(DiskTestCase):
 
             results = q.results()
             arr = results["a"][0]
-            arr.dtype = np.int32
+            arr = arr.view(np.int32)
             assert arr.shape == (2,)
             assert np.array_equal(arr, np.array([10, 30], dtype=np.int32))

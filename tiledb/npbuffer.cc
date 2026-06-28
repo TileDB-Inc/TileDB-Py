@@ -471,22 +471,17 @@ class NumpyConvert {
     NumpyConvert(py::array input) {
         // require a flat buffer
         if (input.ndim() != 1) {
-            // try to take a 1D view on the input
-            auto v = input.attr("view")();
-            // this will throw if the shape cannot be modified zero-copy,
-            // which is what we want
-            try {
-                v.attr("shape") = py::int_(input.size());
-            } catch (py::error_already_set& e) {
-                if (e.matches(PyExc_AttributeError)) {
-                    use_iter_ = true;
-                } else {
-                    throw;
-                }
-            } catch (std::exception& e) {
-                std::cout << e.what() << std::endl;
+            // reshape(-1) yields a zero-copy view when the array can be
+            // flattened in place and a fresh copy otherwise; the bulk paths
+            // need the view, so compare buffer addresses and fall back to the
+            // element-wise iterator (which handles strided input) on a copy.
+            py::array flat = input.attr("reshape")(py::int_(-1));
+            if (flat.data() == input.data()) {
+                input_ = flat;
+            } else {
+                use_iter_ = true;
+                input_ = input;
             }
-            input_ = v;
         } else {
             input_ = input;
         }

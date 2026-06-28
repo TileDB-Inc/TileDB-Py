@@ -1188,7 +1188,7 @@ class Array:
         out = OrderedDict()
         for name in results.keys():
             arr = results[name][0]
-            arr.dtype = q.buffer_dtype(name)
+            arr = arr.view(q.buffer_dtype(name))
             out[name] = arr
         return out
 

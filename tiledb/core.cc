@@ -1447,8 +1447,8 @@ class PyQuery {
                 auto arr = py::array(py::dtype("int8"), size, data_ptr);
                 o = py::memoryview(arr);
             } else {
-                o = py::array(py::dtype("uint8"), size, data_ptr);
-                o.attr("dtype") = dtype;
+                // `size` is the cell's byte length, a multiple of the itemsize.
+                o = py::array(dtype, size / dtype.itemsize(), data_ptr);
             }
 
             result_p[i - 1] = o;
