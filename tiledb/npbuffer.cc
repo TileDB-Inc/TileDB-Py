@@ -471,10 +471,11 @@ class NumpyConvert {
     NumpyConvert(py::array input) {
         // require a flat buffer
         if (input.ndim() != 1) {
-            // reshape(-1) yields a zero-copy view when the array can be
-            // flattened in place and a fresh copy otherwise; the bulk paths
-            // need the view, so compare buffer addresses and fall back to the
-            // element-wise iterator (which handles strided input) on a copy.
+            // reshape(-1) returns a zero-copy view when the array can be
+            // flattened in place; the bulk paths need that view, so use it
+            // when the buffer address is unchanged. Otherwise the array is
+            // not contiguous: discard the copy and iterate the original
+            // element-wise instead.
             py::array flat = input.attr("reshape")(py::int_(-1));
             if (flat.data() == input.data()) {
                 input_ = flat;
