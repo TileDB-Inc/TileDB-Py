@@ -835,8 +835,7 @@ class DenseArrayImpl(Array):
             if len(item[1]) > 0:
                 arr = pyquery.unpack_buffer(name, item[0], item[1])
             else:
-                arr = item[0]
-                arr = arr.view(
+                arr = item[0].view(
                     self.schema.attr_or_dim_dtype(name)
                     if not self.schema.has_dim_label(name)
                     else self.schema.dim_label(name).dtype

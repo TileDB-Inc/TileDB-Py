@@ -825,8 +825,7 @@ def _get_pyquery_results(pyquery: PyQuery, array: Array) -> Dict[str, np.ndarray
         if len(item[1]) > 0:
             arr = pyquery.unpack_buffer(name, item[0], item[1])
         else:
-            arr = item[0]
-            arr = arr.view(
+            arr = item[0].view(
                 schema.attr_or_dim_dtype(name)
                 if not schema.has_dim_label(name)
                 else schema.dim_label(name).dtype
