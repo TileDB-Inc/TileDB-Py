@@ -2697,7 +2697,11 @@ class TestDatetimeSlicing(DiskTestCase):
                 (np.datetime64("2010-11-01") - start) / np.timedelta64(1, "D")
             )
             read_ndays = int(
-                (np.datetime64("2011-01-31") - np.datetime64("2010-11-01") + 1)
+                (
+                    np.datetime64("2011-01-31")
+                    - np.datetime64("2010-11-01")
+                    + np.timedelta64(1, "D")
+                )
                 / np.timedelta64(1, "D")
             )
             expected = a1_vals[read_offset : read_offset + read_ndays]
@@ -2712,7 +2716,11 @@ class TestDatetimeSlicing(DiskTestCase):
                 (np.datetime64("2010-01-01") - start) / np.timedelta64(1, "D")
             )
             read_ndays = int(
-                (np.datetime64("2011-01-01") - np.datetime64("2010-01-01") + 1)
+                (
+                    np.datetime64("2011-01-01")
+                    - np.datetime64("2010-01-01")
+                    + np.timedelta64(1, "D")
+                )
                 / np.timedelta64(1, "D")
             )
             expected = a1_vals[read_offset : read_offset + read_ndays]
@@ -2725,7 +2733,11 @@ class TestDatetimeSlicing(DiskTestCase):
                 (np.datetime64("2010-01-01") - start) / np.timedelta64(1, "D")
             )
             read_ndays = int(
-                (np.datetime64("2011-01-31") - np.datetime64("2010-01-01") + 1)
+                (
+                    np.datetime64("2011-01-31")
+                    - np.datetime64("2010-01-01")
+                    + np.timedelta64(1, "D")
+                )
                 / np.timedelta64(1, "D")
             )
             expected = a1_vals[read_offset : read_offset + read_ndays]

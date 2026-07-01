@@ -345,7 +345,7 @@ class DenseArrayImpl(Array):
                     # Note: fixed blobs are always 1 byte per cell
                     arr = arr.view("S1")
                 else:
-                    arr.dtype = dtype
+                    arr = arr.view(dtype)
                 if len(arr) == 0:
                     # special case: the C API returns 0 len for blank arrays
                     arr = np.zeros(output_shape, dtype=dtype)
@@ -357,13 +357,11 @@ class DenseArrayImpl(Array):
                     )
 
                 if layout == lt.LayoutType.ROW_MAJOR:
-                    arr.shape = output_shape
-                    arr = np.require(arr, requirements="C")
+                    arr = np.require(arr.reshape(output_shape), requirements="C")
                 elif layout == lt.LayoutType.COL_MAJOR:
-                    arr.shape = output_shape
-                    arr = np.require(arr, requirements="F")
+                    arr = np.require(arr.reshape(output_shape), requirements="F")
                 else:
-                    arr.shape = np.prod(output_shape)
+                    arr = arr.reshape(np.prod(output_shape))
 
                 out[name] = arr
 
@@ -837,13 +835,12 @@ class DenseArrayImpl(Array):
             if len(item[1]) > 0:
                 arr = pyquery.unpack_buffer(name, item[0], item[1])
             else:
-                arr = item[0]
-                arr.dtype = (
+                arr = item[0].view(
                     self.schema.attr_or_dim_dtype(name)
                     if not self.schema.has_dim_label(name)
                     else self.schema.dim_label(name).dtype
                 )
-            arr.shape = result_shape
+            arr = arr.reshape(result_shape)
             result_dict[name if name != "__attr" else ""] = arr
 
         return result_dict

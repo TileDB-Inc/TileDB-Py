@@ -1447,8 +1447,14 @@ class PyQuery {
                 auto arr = py::array(py::dtype("int8"), size, data_ptr);
                 o = py::memoryview(arr);
             } else {
-                o = py::array(py::dtype("uint8"), size, data_ptr);
-                o.attr("dtype") = dtype;
+                // `size` is the cell's byte length and must be a whole number
+                // of dtype elements; a partial element means corrupt offsets.
+                if (size % dtype.itemsize() != 0) {
+                    TPY_ERROR_LOC(
+                        "internal error: buffer size is not a multiple of the "
+                        "attribute itemsize");
+                }
+                o = py::array(dtype, size / dtype.itemsize(), data_ptr);
             }
 
             result_p[i - 1] = o;

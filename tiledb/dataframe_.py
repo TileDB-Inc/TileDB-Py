@@ -372,9 +372,13 @@ def create_dim(dtype, values, full_domain, tile, **kwargs):
         if np.issubdtype(dtype, np.datetime64):
             date_unit = np.datetime_data(dtype)[0]
             dim_min = np.datetime64(dtype_min, date_unit)
-            tile_max = np.iinfo(np.uint64).max - tile
-            if np.uint64(dtype_max - dtype_min) > tile_max:
-                dim_max = np.datetime64(dtype_max - tile, date_unit)
+            # Subtract in Python ints; a full-domain datetime64 difference
+            # overflows int64.
+            dtype_min_i = int(dtype_min.astype(np.int64))
+            dtype_max_i = int(dtype_max.astype(np.int64))
+            tile_max = int(np.iinfo(np.uint64).max) - int(tile)
+            if (dtype_max_i - dtype_min_i) > tile_max:
+                dim_max = np.datetime64(dtype_max_i - int(tile), date_unit)
         elif np.issubdtype(dtype, np.integer):
             tile_max = np.iinfo(np.uint64).max - tile
             if np.uint64(dtype_max - dtype_min) > tile_max:
@@ -383,9 +387,14 @@ def create_dim(dtype, values, full_domain, tile, **kwargs):
         dim_min, dim_max = None, None
 
     # TODO: simplify this logic and/or move to DataType.cast_tile_extent
-    if np.issubdtype(dtype, np.integer) or np.issubdtype(dtype, np.datetime64):
+    if np.issubdtype(dtype, np.integer):
         # we can't make a tile larger than the dimension range or lower than 1
         tile = max(1, min(tile, 1 + np.uint64(dim_max - dim_min)))
+    elif np.issubdtype(dtype, np.datetime64):
+        # Clamp as for integers, computing the range in Python ints since a
+        # full-domain datetime64 difference overflows int64.
+        dim_range = int(dim_max.astype(np.int64)) - int(dim_min.astype(np.int64))
+        tile = max(1, min(tile, 1 + dim_range))
     elif np.issubdtype(dtype, np.floating):
         # this difference can be inf
         with np.errstate(over="ignore"):

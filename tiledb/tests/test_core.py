@@ -37,8 +37,7 @@ class CoreCCTest(DiskTestCase):
             subarray.add_ranges([[(0, 3)]])
             q2.set_subarray(subarray)
             q2.submit()
-            res = q2.results()[""][0]
-            res.dtype = np.double
+            res = q2.results()[""][0].view(np.double)
             assert_array_equal(res, a[:])
 
     def test_pyquery_init(self):

@@ -1187,9 +1187,7 @@ class Array:
 
         out = OrderedDict()
         for name in results.keys():
-            arr = results[name][0]
-            arr.dtype = q.buffer_dtype(name)
-            out[name] = arr
+            out[name] = results[name][0].view(q.buffer_dtype(name))
         return out
 
     # pickling support: this is a lightweight pickle for distributed use.
