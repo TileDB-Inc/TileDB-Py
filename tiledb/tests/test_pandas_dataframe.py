@@ -626,6 +626,19 @@ class TestPandasDataFrameRoundtrip(DiskTestCase):
                 res_df = pd.DataFrame(res, index=index)
                 tm.assert_frame_equal(new_df, res_df, check_like=True)
 
+    @pytest.mark.parametrize("index_data", [["aa", "b"], [b"aa", b"b"]])
+    def test_dataframe_str_dim_df_roundtrip(self, index_data):
+        # both str and bytes dimensions are stored as ASCII bytes; on read the
+        # type they were written with must be restored, on both read paths
+        uri = self.path("df_str_dim_df_roundtrip")
+
+        df = pd.DataFrame({"data": [1.0, 2.0]}, index=pd.Index(index_data, name="idx"))
+        tiledb.from_pandas(uri, df, sparse=True)
+
+        with tiledb.open(uri) as A:
+            tm.assert_frame_equal(A.df[:], df)
+            tm.assert_frame_equal(A.query(use_arrow=False).df[:], df)
+
     def test_dataframe_set_index_dims(self):
         uri = self.path("df_set_index_dims")
 

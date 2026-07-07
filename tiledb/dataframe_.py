@@ -2,7 +2,7 @@ import copy
 import json
 import os
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, List, Optional, Union
 
 import numpy as np
@@ -162,15 +162,13 @@ class ColumnInfo:
                     f"{inferred_dtype} inferred dtype not supported (column {array_like.name})"
                 )
         elif hasattr(array_like, "dtype") and isinstance(array_like.dtype, StringDtype):
-            # Explicit pd.StringDtype() (name="string") is always nullable;
-            # auto-inferred str (name="str") depends on data
-            explicit = array_like.dtype.name == "string"
-            return cls(
-                np.dtype(np.str_),
-                repr="string" if explicit else None,
-                var=True,
-                nullable=explicit or bool(array_like.isna().any()),
-            )
+            info = cls.from_dtype(array_like.dtype, array_like.name)
+            # the NaN-backed "str" dtype holds missing values without being a
+            # nullable dtype; write it as a nullable attribute only when
+            # missing values are actually present
+            if not info.nullable and array_like.isna().any():
+                info = replace(info, nullable=True)
+            return info
         elif hasattr(array_like, "dtype") and isinstance(
             array_like.dtype, CategoricalDtype
         ):
@@ -200,6 +198,7 @@ class ColumnInfo:
 
     @classmethod
     def from_dtype(cls, dtype, column_name, varlen_types=()):
+        from pandas import NA, StringDtype
         from pandas.api import types as pd_types
 
         if isinstance(dtype, str) and dtype == "ascii":
@@ -211,13 +210,17 @@ class ColumnInfo:
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
 
-        # pandas StringDtype (auto-inferred 'str' and explicit 'string')
-        from pandas import StringDtype
-
+        # pandas string types: the NA-backed "string" dtype maps to a nullable
+        # attribute, while the NaN-backed "str" dtype (the default for strings
+        # since pandas 3) behaves like plain str/object columns
         if isinstance(dtype, StringDtype):
-            repr_val = "string" if dtype.name == "string" else None
-            nullable = dtype.name == "string"
-            return cls(np.dtype(np.str_), repr=repr_val, var=True, nullable=nullable)
+            nullable = dtype.na_value is NA
+            return cls(
+                np.dtype(np.str_),
+                repr="string" if nullable else None,
+                var=True,
+                nullable=nullable,
+            )
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
@@ -529,8 +532,8 @@ def _df_to_np_arrays(df, column_infos, fillna):
         if not column_info.var:
             to_numpy_kwargs.update(dtype=column_info.dtype)
 
-        if column_info.nullable and column.isna().any():
-            # Only create nullmap if data actually has nulls
+        if column_info.nullable:
+            # use default 0/empty for the dtype
             to_numpy_kwargs.update(na_value=column_info.dtype.type())
             nullmaps[name] = (~column.isna()).to_numpy(dtype=np.uint8)
 

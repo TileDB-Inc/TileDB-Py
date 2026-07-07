@@ -888,17 +888,22 @@ def _update_df_from_meta(
             if name in df:
                 col_dtypes[name] = dtype
 
-    if col_dtypes:
-        # '<U0' is stored in __pandas_index_dims metadata for var-length string
-        # dimensions (str(np.dtype(np.str_)) == '<U0>'). Applying astype('<U0')
-        # was a no-op on pandas 2 but on pandas 3 it forces StringDtype back to
-        # object, breaking the roundtrip. The string data already has the correct
-        # dtype from pandas' own inference, so we skip it here.
-        col_dtypes = {
-            name: dtype for name, dtype in col_dtypes.items() if dtype != "<U0"
-        }
-        if col_dtypes:
-            df = df.astype(col_dtypes)
+    for name, dtype in col_dtypes.items():
+        # str/bytes dimensions are always written as ASCII bytes and, depending
+        # on the read path, come back as either bytes or str; restore the type
+        # they were written with. astype with the zero-width '<U0'/'|S0' dtypes
+        # stored in the metadata used to do this on pandas < 3, but on
+        # pandas >= 3 it produces object or fixed-width bytes columns instead.
+        if dtype == "<U0":
+            if len(df) and isinstance(df[name].iat[0], bytes):
+                df[name] = df[name].str.decode("utf-8")
+        elif dtype == "|S0":
+            if len(df) and not isinstance(df[name].iat[0], bytes):
+                df[name] = df[name].str.encode("utf-8")
+        # skip columns that already have their target dtype: casting them
+        # would needlessly copy the data on pandas < 3
+        elif str(df[name].dtype) != dtype:
+            df[name] = df[name].astype(dtype)
 
     if index_col:
         if index_col is not True:
