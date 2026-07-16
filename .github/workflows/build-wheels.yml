@@ -23,9 +23,12 @@ on:
   push:
     tags:
       - "*"
+  schedule:
+    # Weekly smoke test of the wheel building path (reduced Python matrix)
+    - cron: "0 2 * * 6"
 
 env:
-  SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB: ${{ inputs.version }}
+  SETUPTOOLS_SCM_PRETEND_VERSION_FOR_TILEDB: ${{ github.event_name == 'schedule' && '0.0.0.dev0' || inputs.version }}
   S3_BUCKET: ${{ vars.S3_BUCKET }}
   TILEDB_NAMESPACE: ${{ vars.TILEDB_NAMESPACE }}
   TILEDB_TOKEN: ${{ secrets.TILEDB_TOKEN }}
@@ -54,7 +57,7 @@ jobs:
           - [macos-15-intel, macosx_x86_64]
           - [macos-26, macosx_arm64]
           - [windows-2022, win_amd64]
-        python: ["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]
+        python: ${{ github.event_name == 'schedule' && fromJSON('["cp39", "cp314"]') || fromJSON('["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]') }}
 
     steps:
       - uses: actions/checkout@v6
@@ -208,7 +211,7 @@ jobs:
             - windows-2022
             - ubuntu-22.04
             - ubuntu-24.04-arm
-          python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+          python: ${{ github.event_name == 'schedule' && fromJSON('["3.9", "3.14"]') || fromJSON('["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]') }}
       runs-on: ${{ matrix.os }}
       env:
         CI_WHEEL_BUILD: 0
@@ -245,6 +248,21 @@ jobs:
           run: |
             pip uninstall -y pandas
             pytest -vv --showlocals $PROJECT_CWD
+
+  create_issue_on_fail:
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    needs: [build_wheels, test_sdist]
+    if: github.event_name == 'schedule' && (failure() || cancelled())
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create Issue if Build Fails
+        uses: TileDB-Inc/github-actions/open-issue@main
+        with:
+          name: weekly wheel build
+          label: bug,nightly-failure
+          assignee: kounelisagis,ypatia,ihnorton
 
   upload_pypi:
     needs: [build_wheels, test_sdist]
