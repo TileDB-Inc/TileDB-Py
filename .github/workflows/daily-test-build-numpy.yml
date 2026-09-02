@@ -112,4 +112,4 @@ jobs:
         with:
           name: nightly build with earliest supported numpy
           label: bug,nightly-failure
-          assignee: kounelisagis,ypatia,ihnorton
+          assignee: kounelisagis,ypatia
