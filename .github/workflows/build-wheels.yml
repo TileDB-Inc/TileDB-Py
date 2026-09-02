@@ -262,7 +262,7 @@ jobs:
         with:
           name: weekly wheel build
           label: bug,nightly-failure
-          assignee: kounelisagis,ypatia,ihnorton
+          assignee: kounelisagis,ypatia
 
   upload_pypi:
     needs: [build_wheels, test_sdist]
