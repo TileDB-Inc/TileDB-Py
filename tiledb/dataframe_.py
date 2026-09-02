@@ -2,7 +2,7 @@ import copy
 import json
 import os
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, List, Optional, Union
 
 import numpy as np
@@ -15,28 +15,18 @@ from .subarray import Subarray
 
 
 def check_dataframe_deps():
-    pd_error = """Pandas version >= 1.0 and < 3.0 required for dataframe functionality.
-                  Please `pip install pandas>=1.0,<3.0` to proceed."""
-    pa_error = """PyArrow version >= 1.0 is suggested for dataframe functionality.
-                  Please `pip install pyarrow>=1.0`."""
+    pd_error = """Pandas is required for dataframe functionality.
+                  Please `pip install pandas` to proceed."""
+    pa_error = """PyArrow is suggested for dataframe functionality.
+                  Please `pip install pyarrow`."""
 
     try:
-        import pandas as pd
+        import pandas
     except ImportError:
         raise Exception(pd_error)
 
-    from packaging.version import Version
-
-    if Version(pd.__version__) < Version("1.0") or Version(pd.__version__) >= Version(
-        "3.0.0.dev0"
-    ):
-        raise Exception(pd_error)
-
     try:
-        import pyarrow as pa
-
-        if Version(pa.__version__) < Version("1.0"):
-            warnings.warn(pa_error)
+        import pyarrow
     except ImportError:
         warnings.warn(pa_error)
 
@@ -154,7 +144,7 @@ class ColumnInfo:
 
     @classmethod
     def from_values(cls, array_like, varlen_types=()):
-        from pandas import CategoricalDtype
+        from pandas import CategoricalDtype, StringDtype
         from pandas.api import types as pd_types
 
         if pd_types.is_object_dtype(array_like):
@@ -171,6 +161,14 @@ class ColumnInfo:
                 raise NotImplementedError(
                     f"{inferred_dtype} inferred dtype not supported (column {array_like.name})"
                 )
+        elif hasattr(array_like, "dtype") and isinstance(array_like.dtype, StringDtype):
+            info = cls.from_dtype(array_like.dtype, array_like.name)
+            # the NaN-backed "str" dtype holds missing values without being a
+            # nullable dtype; write it as a nullable attribute only when
+            # missing values are actually present
+            if not info.nullable and array_like.isna().any():
+                info = replace(info, nullable=True)
+            return info
         elif hasattr(array_like, "dtype") and isinstance(
             array_like.dtype, CategoricalDtype
         ):
@@ -200,6 +198,7 @@ class ColumnInfo:
 
     @classmethod
     def from_dtype(cls, dtype, column_name, varlen_types=()):
+        from pandas import NA, StringDtype
         from pandas.api import types as pd_types
 
         if isinstance(dtype, str) and dtype == "ascii":
@@ -210,6 +209,18 @@ class ColumnInfo:
 
         dtype = pd_types.pandas_dtype(dtype)
         # Note: be careful if you rearrange the order of the following checks
+
+        # pandas string types: the NA-backed "string" dtype maps to a nullable
+        # attribute, while the NaN-backed "str" dtype (the default for strings
+        # since pandas 3) behaves like plain str/object columns
+        if isinstance(dtype, StringDtype):
+            nullable = dtype.na_value is NA
+            return cls(
+                np.dtype(np.str_),
+                repr="string" if nullable else None,
+                var=True,
+                nullable=nullable,
+            )
 
         # extension types
         if pd_types.is_extension_array_dtype(dtype):
@@ -255,12 +266,7 @@ class ColumnInfo:
 
         # datetime types
         if pd_types.is_datetime64_any_dtype(dtype):
-            if dtype == "datetime64[ns]":
-                return cls(dtype)
-            else:
-                raise NotImplementedError(
-                    f"Only 'datetime64[ns]' datetime dtype is supported (column {column_name})"
-                )
+            return cls(dtype)
 
         # string types
         # don't use pd_types.is_string_dtype() because it includes object types too
